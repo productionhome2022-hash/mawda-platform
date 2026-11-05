@@ -1,23 +1,20 @@
-// استيراد مكتبات فايربيس الأساسية
+// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getAnalytics } from "firebase/analytics";
 
-// إعدادات الربط المشفرة (قم باستبدالها بمعرفات مشروعك الحقيقي في فايربيس لاحقاً)
+// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "YOUR_FIREBASE_API_KEY",
-  authDomain: "mawda-app.firebaseapp.com",
-  projectId: "mawda-app",
-  storageBucket: "mawda-app.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyC4L3XeavP-WSgnv-PF",
+  authDomain: "mawda-app-2026.firebaseapp.com",
+  projectId: "mawda-app-2026",
+  storageBucket: "mawda-app-2026.appspot.com",
+  messagingSenderId: "697303475139",
+  appId: "1:697303475139:web:886966",
+  measurementId: "G-G9PJ9DFEBJ"
 };
 
-// تهيئة المشروع بأمان تظليلي
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
-// تصدير الأدوات لكي تستخدم في باقي ملفات المنصة
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+export { app, analytics };
