@@ -1,0 +1,19 @@
+{
+  "name": "mawda-platform",
+  "version": "1.0.0",
+  "description": "منصة مودة للتعارف والصداقة والزواج - النسخة السيادية الفاخرة",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "firebase serve",
+    "deploy": "firebase deploy"
+  },
+  "dependencies": {
+    "firebase": "^10.8.0"
+  },
+  "devDependencies": {
+    "firebase-tools": "^13.0.0"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
