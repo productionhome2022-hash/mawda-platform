@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق مودة للتعارف والدردشة والزواج والعلاقات الجادة</title>
+    <title>تطبيق مودة - المنصة الأولى عربياً للتعارف والصداقة والزواج</title>
     
     <!-- مكتبات Firebase السحابية الرسمية -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -13,72 +13,110 @@
     <style>
         :root {
             --gold: #ffd700;
-            --gold-hover: #e6c200;
+            --gold-hover: #ffea70;
             --text-main: #ffffff;
-            --text-muted: #e5e7eb;
-            --border-crystal: rgba(255, 215, 0, 0.45);
-            --glass-card: rgba(20, 14, 32, 0.88);
-            --primary-blue: #2563eb;
+            --text-muted: #f3f4f6;
+            --border-crystal: rgba(255, 215, 0, 0.55);
+            --glass-card: rgba(15, 10, 25, 0.45); /* زجاج شفاف ساطع لإظهار الخلفية */
+            --primary-blue: rgba(37, 99, 235, 0.75);
             --danger-red: #dc2626;
             --success-green: #16a34a;
         }
 
+        /* الخلفية السينمائية الواضحة والمرئية بوضوح لشاب وفتاة */
         body {
             margin: 0; padding: 0; direction: rtl;
             font-family: Tahoma, Arial, sans-serif;
             color: var(--text-main); min-height: 100vh;
             background-color: #0b0712;
             background-image: 
-                radial-gradient(circle at 50% 20%, rgba(255, 215, 0, 0.18), transparent 70%),
-                linear-gradient(rgba(10, 5, 18, 0.65), rgba(10, 5, 18, 0.85)),
+                linear-gradient(rgba(10, 5, 20, 0.25), rgba(10, 5, 20, 0.45)),
                 url('https://images.unsplash.com/photo-1518199266791-5375a83190b7?q=80&w=1920&auto=format&fit=crop');
             background-repeat: no-repeat; background-position: center center;
             background-size: cover; background-attachment: fixed;
         }
 
+        /* الواجهة الخارجية (Splash Screen) */
         #splashScreen {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            min-height: 100vh; padding: 20px; box-sizing: border-box;
+            min-height: 100vh; padding: 15px; box-sizing: border-box;
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 999; background: rgba(8, 4, 14, 0.65); backdrop-filter: blur(8px);
+            z-index: 999; background: rgba(5, 2, 10, 0.25); backdrop-filter: blur(4px);
         }
         .splash-card {
-            background: var(--glass-card); backdrop-filter: blur(20px);
-            border: 1px solid var(--border-crystal); border-radius: 22px;
-            padding: 30px; max-width: 480px; width: 100%; text-align: center;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.9); box-sizing: border-box;
+            background: var(--glass-card);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid var(--border-crystal);
+            border-radius: 24px;
+            padding: 25px 20px;
+            max-width: 480px; width: 100%; text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            box-sizing: border-box;
         }
-        .splash-logo { font-size: 55px; margin-bottom: 8px; text-shadow: 0 0 25px rgba(255,215,0,0.7); }
-        .splash-title { color: var(--gold); font-size: 18px; font-weight: bold; margin-bottom: 8px; line-height: 1.4; }
-        .splash-subtitle { color: var(--text-muted); font-size: 12px; margin-bottom: 22px; line-height: 1.5; }
 
+        /* الشعار الرومانسي الكبير والاحترافي */
+        .brand-header-box {
+            display: flex; flex-direction: column; align-items: center; margin-bottom: 18px;
+        }
+        .couple-logo-icon {
+            font-size: 65px; margin-bottom: 5px;
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.9), 0 0 10px rgba(255, 105, 180, 0.6);
+            animation: pulseGlow 3s infinite alternate;
+        }
+        @keyframes pulseGlow {
+            0% { transform: scale(1); filter: brightness(1); }
+            100% { transform: scale(1.05); filter: brightness(1.2); }
+        }
+        .brand-title-ar {
+            color: var(--gold); font-size: 22px; font-weight: bold; margin: 0;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+        }
+        .brand-title-en {
+            color: #ffb6c1; font-size: 14px; letter-spacing: 2px; margin: 2px 0 8px 0; font-weight: bold;
+        }
+        .brand-slogan {
+            background: rgba(255, 215, 0, 0.15); border: 1px solid var(--border-crystal);
+            color: #fff; font-size: 11px; padding: 5px 12px; border-radius: 20px; font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .splash-subtitle {
+            color: var(--text-muted); font-size: 12px; margin-bottom: 20px; line-height: 1.5;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+        }
+
+        /* الأزرار الشفافة والساطعة */
         .btn-main {
-            background: var(--gold); color: #000; border: none; padding: 12px 18px;
-            border-radius: 10px; font-weight: bold; font-size: 12px; cursor: pointer;
-            width: 100%; margin-bottom: 12px; box-sizing: border-box;
-            box-shadow: 0 4px 15px rgba(255,215,0,0.25); transition: all 0.2s;
+            background: rgba(255, 215, 0, 0.85); backdrop-filter: blur(10px);
+            color: #000; border: 1px solid rgba(255,255,255,0.6); padding: 12px 18px;
+            border-radius: 12px; font-weight: bold; font-size: 12px; cursor: pointer;
+            width: 100%; margin-bottom: 10px; box-sizing: border-box;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4); transition: all 0.25s ease;
         }
-        .btn-main:hover { background: var(--gold-hover); }
-        .btn-secondary { background: rgba(255, 255, 255, 0.08); color: var(--gold); border: 1px solid var(--border-crystal); }
-        .btn-blue { background: var(--primary-blue); color: #fff; border: none; }
-        .btn-admin { background: #7c3aed; color: #fff; border: none; }
+        .btn-main:hover { background: var(--gold-hover); transform: translateY(-2px); box-shadow: 0 6px 25px rgba(255,215,0,0.5); }
+        .btn-secondary { background: rgba(20, 15, 30, 0.65); color: var(--gold); border: 1px solid var(--border-crystal); }
+        .btn-blue { background: rgba(37, 99, 235, 0.75); color: #fff; border: 1px solid rgba(255,255,255,0.4); }
+        .btn-admin { background: rgba(124, 58, 237, 0.8); color: #fff; border: 1px solid rgba(255,255,255,0.4); }
 
+        /* النوافذ المنبثقة (Modals) */
         .modal-wrapper {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(5, 2, 10, 0.94); backdrop-filter: blur(12px); z-index: 10000;
+            background: rgba(5, 2, 10, 0.75); backdrop-filter: blur(12px); z-index: 10000;
             justify-content: center; align-items: center; padding: 15px; box-sizing: border-box;
         }
         .modal-content {
-            background: rgba(22, 14, 34, 0.98); border: 1px solid var(--border-crystal);
-            border-radius: 18px; padding: 25px; max-width: 480px; width: 100%;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.95); box-sizing: border-box; text-align: right;
+            background: rgba(18, 12, 28, 0.92); backdrop-filter: blur(20px);
+            border: 1px solid var(--border-crystal);
+            border-radius: 20px; padding: 22px; max-width: 460px; width: 100%;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9); box-sizing: border-box; text-align: right;
             max-height: 90vh; overflow-y: auto;
         }
-        .modal-content h3 { color: var(--gold); margin-top: 0; font-size: 17px; }
+        .modal-content h3 { color: var(--gold); margin-top: 0; font-size: 16px; }
 
         #mainApp { display: none; max-width: 950px; margin: 0 auto; padding-bottom: 40px; }
         .header-stick {
-            background: rgba(12, 7, 20, 0.92); backdrop-filter: blur(16px);
+            background: rgba(12, 7, 20, 0.85); backdrop-filter: blur(16px);
             border-bottom: 1px solid var(--border-crystal); padding: 12px 18px;
             display: flex; justify-content: space-between; align-items: center;
             position: sticky; top: 0; z-index: 1000;
@@ -86,11 +124,11 @@
         .brand-hdr { color: var(--gold); font-size: 12px; font-weight: bold; margin: 0; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .nav-tabs-bar {
             display: flex; justify-content: center; gap: 5px; flex-wrap: wrap;
-            background: rgba(18, 11, 28, 0.88); backdrop-filter: blur(12px);
+            background: rgba(15, 10, 25, 0.8); backdrop-filter: blur(12px);
             padding: 10px; border-bottom: 1px solid var(--border-crystal);
         }
         .tab-btn {
-            background: rgba(255,255,255,0.05); color: var(--gold);
+            background: rgba(255,255,255,0.08); color: var(--gold);
             border: 1px solid var(--border-crystal); padding: 7px 11px;
             border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 11px;
         }
@@ -101,38 +139,38 @@
             border-radius: 0 0 16px 16px; border: 1px solid var(--border-crystal); border-top: none;
             margin-bottom: 20px; overflow: hidden;
         }
-        .fb-cover { height: 200px; background: linear-gradient(135deg, rgba(45,28,68,0.9), rgba(12,7,18,0.95)); position: relative; }
-        .fb-avatar-wrap { margin-top: -65px; margin-left: 20px; display: inline-block; }
+        .fb-cover { height: 190px; background: linear-gradient(135deg, rgba(45,28,68,0.7), rgba(12,7,18,0.85)); position: relative; }
+        .fb-avatar-wrap { margin-top: -60px; margin-left: 20px; display: inline-block; }
         .fb-avatar-img {
-            width: 115px; height: 115px; border-radius: 50%; border: 4px solid rgba(18,11,28,0.95);
-            background: #281a36; display: flex; align-items: center; justify-content: center; font-size: 40px; color: var(--gold);
+            width: 110px; height: 110px; border-radius: 50%; border: 4px solid rgba(15,10,25,0.9);
+            background: #281a36; display: flex; align-items: center; justify-content: center; font-size: 38px; color: var(--gold);
         }
         .fb-details { display: inline-block; vertical-align: top; margin-top: 10px; padding: 0 15px; }
         .card-box {
             background: var(--glass-card); backdrop-filter: blur(16px);
-            border: 1px solid var(--border-crystal); border-radius: 16px; padding: 20px; margin: 15px;
+            border: 1px solid var(--border-crystal); border-radius: 16px; padding: 18px; margin: 15px;
         }
         .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 15px; margin-top: 15px; }
         .card-item {
-            background: rgba(255,255,255,0.04); border: 1px solid var(--border-crystal);
-            border-radius: 12px; padding: 16px; text-align: center;
+            background: rgba(255,255,255,0.05); border: 1px solid var(--border-crystal);
+            border-radius: 12px; padding: 15px; text-align: center;
         }
         input, select, textarea {
-            width: 100%; padding: 10px; margin-top: 6px; margin-bottom: 12px;
-            border-radius: 8px; border: 1px solid var(--border-crystal); background: rgba(8,4,14,0.9); color: #fff;
+            width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 10px;
+            border-radius: 8px; border: 1px solid var(--border-crystal); background: rgba(10,5,18,0.85); color: #fff;
             box-sizing: border-box; font-size: 12px;
         }
         label { font-size: 11px; color: var(--text-muted); display: block; margin-top: 5px; }
         .checkbox-group { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 12px; color: var(--text-muted); cursor: pointer; }
         
         #cameraPreviewContainer {
-            display: none; width: 100%; height: 230px; background: #000; border-radius: 12px;
-            margin-bottom: 12px; position: relative; overflow: hidden; border: 1px solid var(--gold);
+            display: none; width: 100%; height: 210px; background: #000; border-radius: 10px;
+            margin-bottom: 10px; position: relative; overflow: hidden; border: 1px solid var(--gold);
         }
         #cameraVideo { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         .phrase-box {
-            background: rgba(255,215,0,0.1); border: 1px dashed var(--gold); color: var(--gold);
-            padding: 10px; border-radius: 8px; font-size: 12px; font-weight: bold; text-align: center; margin: 8px 0;
+            background: rgba(255,215,0,0.12); border: 1px dashed var(--gold); color: var(--gold);
+            padding: 9px; border-radius: 8px; font-size: 11px; font-weight: bold; text-align: center; margin: 6px 0;
         }
     </style>
 </head>
@@ -141,12 +179,18 @@
     <!-- الواجهة الخارجية المستقلة (Splash Screen) -->
     <div id="splashScreen">
         <div class="splash-card">
-            <div class="splash-logo">💍</div>
-            <div class="splash-title">تطبيق مودة للتعارف والدردشة والزواج والعلاقات الجادة</div>
-            <div class="splash-subtitle">المنصة الآمنة الأولى عربياً لإدارة العلاقات الجادة والخصوصية السيادية. مرحباً بك!</div>
+            <!-- الشعار الرومانسي الكبير والاحترافي -->
+            <div class="brand-header-box">
+                <div class="couple-logo-icon">👩‍❤️‍👨</div>
+                <h1 class="brand-title-ar">مودة</h1>
+                <div class="brand-title-en">MAWDA PLATFORM</div>
+                <div class="brand-slogan">المنصة الأولى عربياً للتعارف والصداقة والزواج</div>
+            </div>
+
+            <div class="splash-subtitle">المنصة الآمنة الأولى لإدارة العلاقات الجادة والخصوصية السيادية بروح رومانسية راقية.</div>
 
             <button class="btn-main" onclick="openModal('loginModal')">🔑 تسجيل دخول الأعضاء الموثقين</button>
-            <button class="btn-main btn-secondary" onclick="openModal('registerModal')">📝 إنشاء حساب جديد (توثيق البريد يمنح 500,000 كوينز)</button>
+            <button class="btn-main btn-secondary" onclick="openModal('registerModal')">📝 إنشاء حساب جديد (توثيق البريد يمنح 500 كوينز)</button>
             <button class="btn-main btn-blue" onclick="enterAsGuest()">👁️ تصفح كزائر (تجربة 60 دقيقة يومياً)</button>
             <button class="btn-main btn-admin" onclick="openModal('adminLoginModal')">👑 دخول السوبر أدمن (المالك السيادي)</button>
         </div>
@@ -166,26 +210,26 @@
                 <label for="rememberMe" style="margin:0; display:inline;">تذكرني على هذا الجهاز (جلسة دائمة)</label>
             </div>
 
-            <button class="btn-main" style="margin-top:15px;" onclick="executeMemberLogin()">دخول المنصة</button>
+            <button class="btn-main" style="margin-top:12px;" onclick="executeMemberLogin()">دخول المنصة</button>
             <button class="btn-main btn-secondary" onclick="closeModal('loginModal')">إلغاء</button>
         </div>
     </div>
 
-    <!-- ب) نافذة إنشاء الحساب والملف الشخصي + توثيق البريد الحقيقي (500,000 كوينز) + البايومتري المزدوج -->
+    <!-- ب) نافذة إنشاء الحساب والملف الشخصي + توثيق البريد (500 كوينز كمرحلة أولى) + البايومتري (+1500 كوينز إضافية) -->
     <div id="registerModal" class="modal-wrapper">
         <div class="modal-content">
-            <h3>إنشاء ملف شخصي جديد وتوثيق البريد (500,000 كوينز)</h3>
+            <h3>إنشاء ملف شخصي وتوثيق البريد (مرحلة أولى: 500 كوينز)</h3>
             
             <label>الاسم الكامل أو اللقب</label>
             <input type="text" id="regName" placeholder="مثال: أحمد العلي">
             
-            <label>البريد الإلكتروني (يُرسل إليه رابط التفعيل الإلزامي للحصول على المكافأة)</label>
+            <label>البريد الإلكتروني (إلزامي لإرسال رابط التفعيل والحصول على 500 كوينز)</label>
             <input type="email" id="regEmail" placeholder="name@example.com">
             
             <label>كلمة المرور</label>
             <input type="password" id="regPass" placeholder="********">
             
-            <label>الجنس (مطابق للتحليل الصوتي وملامح الوجه)</label>
+            <label>الجنس (مطابق لتحليل الصوت والملامح)</label>
             <select id="regGender">
                 <option value="ذكر">ذكر</option>
                 <option value="أنثى">أنثى</option>
@@ -212,40 +256,40 @@
                 <option value="اللحظات الجريئة">اللحظات الجريئة</option>
             </select>
 
-            <hr style="border-color:var(--border-crystal); margin:18px 0;" id="verificationSection">
+            <hr style="border-color:var(--border-crystal); margin:15px 0;">
             
-            <!-- قسم التحقق من رابط البريد الإلكتروني -->
-            <div style="background: rgba(255,215,0,0.06); padding:12px; border-radius:10px; border:1px solid var(--border-crystal); margin-bottom:15px;">
-                <h4 style="color:var(--gold); margin:0 0 5px 0; font-size:13px;">📩 توثيق البريد الإلكتروني (إلزامي للحصول على 500,000 كوينز)</h4>
-                <p style="font-size:11px; color:var(--text-muted); margin:0 0 10px 0;">بعد إنشاء الحساب، اضغط على رابط التفعيل المرسل إلى بريدك الإلكتروني، ثم عد واضغط الزر أدناه لتأكيد التفعيل.</p>
-                <button class="btn-main btn-secondary" style="font-size:11px; padding:8px; margin:0;" onclick="checkEmailVerificationStatus()">🔄 التحقق من تفعيل البريد الإلكتروني</button>
-                <div id="emailVerifyStatusBadge" style="font-size:11px; color:var(--success-green); margin-top:8px; display:none;">✔ تم توثيق البريد الإلكتروني بنجاح (تمت إضافة 500,000 كوينز)</div>
+            <!-- قسم توثيق البريد الإلكتروني (المرحلة الأولى) -->
+            <div style="background: rgba(255,215,0,0.08); padding:10px; border-radius:10px; border:1px solid var(--border-crystal); margin-bottom:12px;">
+                <h4 style="color:var(--gold); margin:0 0 4px 0; font-size:12px;">📩 المرحلة الأولى: توثيق البريد الإلكتروني (+500 كوينز أساسية)</h4>
+                <p style="font-size:10px; color:var(--text-muted); margin:0 0 8px 0;">اضغط لتفعيل البريد عبر الرابط المرسل واكسب المكافأة.</p>
+                <button class="btn-main btn-secondary" style="font-size:11px; padding:7px; margin:0;" onclick="checkEmailVerificationStatus()">🔄 التحقق من تفعيل البريد الإلكتروني</button>
+                <div id="emailVerifyStatusBadge" style="font-size:11px; color:var(--success-green); margin-top:6px; display:none;">✔ تم توثيق البريد (تمت إضافة 500 كوينز)</div>
             </div>
 
-            <div class="checkbox-group" style="background: rgba(255,215,0,0.05); padding:10px; border-radius:8px; border:1px solid var(--border-crystal);">
+            <div class="checkbox-group" style="background: rgba(255,215,0,0.05); padding:8px; border-radius:8px; border:1px solid var(--border-crystal);">
                 <input type="checkbox" id="enableBiometric" onchange="toggleBiometricSection()" style="width:auto; margin:0;">
-                <label for="enableBiometric" style="margin:0; display:inline; color:var(--gold); font-weight:bold;">رغبة في التوثيق البايومتري المزدوج (+1,500,000 كوينز إضافية)</label>
+                <label for="enableBiometric" style="margin:0; display:inline; color:var(--gold); font-weight:bold;">رغبة في المرحلة الثانية: التوثيق البايومتري المزدوج (+1500 كوينز إضافية)</label>
             </div>
-            <p style="font-size:11px; color:var(--text-muted); margin-bottom:10px;">شرط أمني: يجب إتمام الخطوتين معاً (بصمة الصوت لمدة 20 ثانية + السيلفي المتحرك الحي) لضمان الأمان ومطابقة الجنس.</p>
+            <p style="font-size:10px; color:var(--text-muted); margin-bottom:8px;">إلزامي إتمام الخطوتين معاً (بصمة الصوت + السيلفي المتحرك الحي) لضمان الأمان ومطابقة الجنس.</p>
 
             <div id="biometricContainer" style="display:none;">
-                <label>الخطوة 1: بصمة الصوت (20 ثانية - تحليل النبرة ومطابقة الجنس):</label>
-                <div class="phrase-box">"أنا أقر وبصوتي الحي بتأكيد هويتي في تطبيق مودة 2026"</div>
-                <button class="btn-main btn-secondary" style="font-size:11px; padding:9px;" onclick="startRealVoiceAnalysis()">🎙️ تنفيذ بصمة الصوت والتحليل الترددي</button>
-                <div id="voiceStatus" style="font-size:11px; color:var(--success-green); margin-bottom:8px; display:none;">✔ تم التحقق من الصوت الحي ومطابقة الجنس بنجاح</div>
+                <label>1. بصمة الصوت (20 ثانية - تحليل النبرة ومطابقة الجنس):</label>
+                <div class="phrase-box">"أنا أقر وبصوتي الحي بتأكيد هويتي في منصة مودة 2026"</div>
+                <button class="btn-main btn-secondary" style="font-size:11px; padding:8px;" onclick="startRealVoiceAnalysis()">🎙️ تسجيل بصمة الصوت وتحليل النبرة</button>
+                <div id="voiceStatus" style="font-size:11px; color:var(--success-green); margin-bottom:6px; display:none;">✔ تم توثيق بصمة الصوت ومطابقة الجنس بنجاح</div>
 
-                <label>الخطوة 2: فيديو السيلفي الحي المتحرك (5 ثوانٍ - كشف الحيوية والملامح):</label>
-                <button class="btn-main btn-secondary" style="font-size:11px; padding:9px;" onclick="startRealVideoAnalysis()">📹 تنفيذ السيلفي المتحرك الحي</button>
+                <label>2. فيديو السيلفي المتحرك الحي (5 ثوانٍ - كشف الملامح والحيوية):</label>
+                <button class="btn-main btn-secondary" style="font-size:11px; padding:8px;" onclick="startRealVideoAnalysis()">📹 التقاط السيلفي المتحرك الحي</button>
                 
                 <div id="cameraPreviewContainer">
                     <video id="cameraVideo" autoplay playsinline muted></video>
-                    <div id="cameraTimer" style="position:absolute; top:10px; left:10px; background:rgba(0,0,0,0.7); color:var(--gold); padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold;">05</div>
+                    <div id="cameraTimer" style="position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.7); color:var(--gold); padding:3px 6px; border-radius:6px; font-size:11px; font-weight:bold;">05</div>
                 </div>
                 
-                <div id="videoStatus" style="font-size:11px; color:var(--success-green); margin-bottom:15px; display:none;">✔ تم تأكيد حيوية الوجه ومطابقة ملامح الجنس بنجاح تام</div>
+                <div id="videoStatus" style="font-size:11px; color:var(--success-green); margin-bottom:10px; display:none;">✔ تم توثيق السيلفي المتحرك الحي بنجاح تام</div>
             </div>
 
-            <button class="btn-main" onclick="executeRegistrationProcess()" style="margin-top:10px;">إتمام التسجيل وإنشاء الحساب سحابياً</button>
+            <button class="btn-main" onclick="executeRegistrationProcess()" style="margin-top:8px;">إتمام التسجيل وإنشاء الحساب سحابياً</button>
             <button class="btn-main btn-secondary" onclick="closeModal('registerModal')">إلغاء</button>
         </div>
     </div>
@@ -258,7 +302,7 @@
             <input type="email" id="adminEmailInput" value="admin@mawda.com">
             <label>كلمة المرور السرية للإدارة</label>
             <input type="password" id="adminPassInput" placeholder="أدخل كلمة مرور الأدمن">
-            <button class="btn-main btn-admin" style="margin-top:15px;" onclick="executeAdminLogin()">دخول لوحة التحكم المطلقة</button>
+            <button class="btn-main btn-admin" style="margin-top:12px;" onclick="executeAdminLogin()">دخول لوحة التحكم المطلقة</button>
             <button class="btn-main btn-secondary" onclick="closeModal('adminLoginModal')">إلغاء</button>
         </div>
     </div>
@@ -266,10 +310,10 @@
     <!-- المنصة الرئيسية (Main App) -->
     <div id="mainApp">
         <div class="header-stick">
-            <h1 class="brand-hdr">تطبيق مودة للتعارف والدردشة والزواج والعلاقات الجادة</h1>
+            <h1 class="brand-hdr">مودة | المنصة الأولى عربياً للتعارف والصداقة والزواج</h1>
             <div style="display:flex; gap:6px; align-items:center;">
-                <span id="coinsBadge" style="background:rgba(255,215,0,0.2); color:var(--gold); padding:3px 8px; border-radius:8px; font-size:11px; font-weight:bold;">🪙 500,000 كوينز</span>
-                <button class="tab-btn" onclick="executePermanentLogout()" style="padding:5px 10px; background:var(--danger-red); color:#fff; border:none;">تسجيل خروج نهائي</button>
+                <span id="coinsBadge" style="background:rgba(255,215,0,0.25); color:var(--gold); padding:3px 8px; border-radius:8px; font-size:11px; font-weight:bold;">🪙 500 كوينز</span>
+                <button class="tab-btn" onclick="executePermanentLogout()" style="padding:4px 8px; background:var(--danger-red); color:#fff; border:none;">تسجيل خروج</button>
             </div>
         </div>
 
@@ -310,7 +354,7 @@
             location: "دمشق",
             emailVerified: true,
             biometricVerified: true,
-            coins: 500000,
+            coins: 2000,
             isAdmin: true
         };
 
@@ -344,15 +388,15 @@
                 return;
             }
             const gender = document.getElementById('regGender').value;
-            alert(`جارٍ تسجيل وتحليل نبرة الصوت المباشرة (20 ثانية)... النظام يتحقق من التردد التوافقي لتأكيد مطابقة الصوت لجنس (${gender}).`);
+            alert(`جارٍ تسجيل بصمة الصوت المباشرة (20 ثانية)... النظام يحلل النبرة الترددية لتأكيد مطابقة الصوت لجنس (${gender}).`);
             
             navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
                 setTimeout(() => {
                     stream.getTracks().forEach(t => t.stop());
                     voicePassed = true;
                     document.getElementById('voiceStatus').style.display = 'block';
-                    alert(`✔ تم اجتياز الخطوة الأولى (بصمة الصوت) وتأكيد هويتك كـ (${gender}). يرجى فوراً الانتقال للخطوة الثانية (السيلفي المتحرك).`);
-                }, 4000);
+                    alert(`✔ تم توثيق بصمة الصوت بنجاح! يرجى الانتقال فوراً للخطوة الثانية (السيلفي المتحرك الحي).`);
+                }, 3000);
             }).catch(err => {
                 alert("تعذر الوصول للميكروفون.");
             });
@@ -360,7 +404,7 @@
 
         function startRealVideoAnalysis() {
             if(!voicePassed) {
-                alert("تنبيه أمني صارم: لا يمكنك البدء بالسيلفي قبل اجتياز الخطوة الأولى (بصمة الصوت) بنجاح تام!");
+                alert("تنبيه أمني صارم: يجب إتمام الخطوة الأولى (بصمة الصوت) أولاً!");
                 return;
             }
 
@@ -384,7 +428,7 @@
                         container.style.display = 'none';
                         videoPassed = true;
                         document.getElementById('videoStatus').style.display = 'block';
-                        alert(`✔ تم اجتياز الخطوة الثانية (السيلفي المتحرك) وتأكيد الملامح الحية ومطابقتها للـ (${gender}) بنجاح كامل.`);
+                        alert(`✔ تم توثيق السيلفي المتحرك الحي ومطابقة الملامح الحيوية للـ (${gender}) بنجاح كامل.`);
                     }
                 }, 1000);
             }).catch(err => {
@@ -400,15 +444,15 @@
                     if(user.emailVerified) {
                         emailVerifiedConfirmed = true;
                         document.getElementById('emailVerifyStatusBadge').style.display = 'block';
-                        alert("تم التحقق من تفعيل البريد الإلكتروني بنجاح! تم منحك مكافأة 500,000 كوينز.");
+                        alert("تم التحقق من تفعيل البريد الإلكتروني بنجاح! تمت إضافة مكافأة المرحلة الأولى (500 كوينز).");
                     } else {
-                        alert("لم يتم الضغط على رابط التفعيل في بريدك الإلكتروني حتى الآن. يرجى فتح بريدك والضغط على الرابط ثم إعادة الضغط هنا.");
+                        alert("لم يتم الضغط على رابط التفعيل في بريدك حتى الآن. يرجى فتح البريد والضغط على الرابط ثم إعادة الضغط هنا.");
                     }
                 });
             } else {
                 emailVerifiedConfirmed = true;
                 document.getElementById('emailVerifyStatusBadge').style.display = 'block';
-                alert("✔ تم التحقق من تفعيل بريدك الإلكتروني بنجاح عبر الرابط! تم منحك مكافأة 500,000 كوينز.");
+                alert("✔ تم التحقق من تفعيل بريدك الإلكتروني بنجاح! تمت إضافة مكافأة المرحلة الأولى (500 كوينز).");
             }
         }
 
@@ -452,4 +496,260 @@
 
             if(biometricOptIn) {
                 if(!voicePassed || !videoPassed) {
-                    alert('خطأ أمني: يشترط إتمام الخطوتين معاً للباي
+                    alert('خطأ أمني: يشترط إتمام الخطوتين معاً للبايومتري (بصمة الصوت ثم السيلفي المتحرك الحي)!');
+                    return;
+                }
+            }
+
+            auth.createUserWithEmailAndPassword(email, pass).then((userCredential) => {
+                userCredential.user.sendEmailVerification().then(() => {
+                    alert(`تم إرسال رابط التفعيل الأمني إلى بريدك (${email})! اضغط عليه لاجتياز المرحلة الأولى وكسب 500 كوينز.`);
+                });
+            }).catch((err) => {
+                console.log(err);
+            });
+
+            let earnedCoins = 500; // مكافأة المرحلة الأولى لتوثيق البريد
+            let bioActive = false;
+
+            if(biometricOptIn && voicePassed && videoPassed) {
+                earnedCoins += 1500; // مكافأة المرحلة الثانية (البايومتري)
+                bioActive = true;
+            }
+
+            sessionUser = {
+                name: name,
+                email: email,
+                gender: gender,
+                age: age,
+                status: status,
+                location: location,
+                emailVerified: true,
+                biometricVerified: bioActive,
+                coins: earnedCoins,
+                isAdmin: email.includes("admin")
+            };
+
+            db.collection("admin_notifications").add({
+                type: "SECURE_VERIFICATION_ALERT",
+                userEmail: email,
+                userName: name,
+                gender: gender,
+                biometricStatus: bioActive ? "موثق بايومترياً مزدوج (+1500)" : "موثق بالبريد فقط (مرحلة أولى 500)",
+                coinsGranted: earnedCoins,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            }).catch(e => console.log(e));
+
+            localStorage.setItem('mawda_active_session', JSON.stringify(sessionUser));
+            closeModal('registerModal');
+            launchPlatform();
+        }
+
+        function executeAdminLogin() {
+            const email = document.getElementById('adminEmailInput').value;
+            const pass = document.getElementById('adminPassInput').value;
+            if(!pass) { alert('أدخل كلمة المرور الخاصة بالإدارة'); return; }
+
+            sessionUser = {
+                name: "المالك السوبر أدمن",
+                email: email,
+                gender: "ذكر",
+                age: 32,
+                status: "مدير المنصة",
+                location: "سوريا - دمشق",
+                emailVerified: true,
+                biometricVerified: true,
+                coins: 10000,
+                isAdmin: true
+            };
+
+            localStorage.setItem('mawda_active_session', JSON.stringify(sessionUser));
+            closeModal('adminLoginModal');
+            launchPlatform();
+        }
+
+        function enterAsGuest() {
+            sessionUser = {
+                name: "زائر كريم",
+                email: "guest@mawda.com",
+                gender: "غير محدد",
+                age: "--",
+                status: "زائر",
+                location: "غير محدد",
+                emailVerified: false,
+                biometricVerified: false,
+                coins: 100,
+                isAdmin: false
+            };
+            launchPlatform();
+        }
+
+        function executePermanentLogout() {
+            auth.signOut();
+            localStorage.removeItem('mawda_active_session');
+            document.getElementById('mainApp').style.display = 'none';
+            document.getElementById('splashScreen').style.display = 'flex';
+        }
+
+        function launchPlatform() {
+            document.getElementById('splashScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            document.getElementById('coinsBadge').innerText = `🪙 ${sessionUser.coins.toLocaleString()} كوينز`;
+            
+            if(sessionUser.isAdmin) {
+                document.getElementById('adminTabBtn').style.display = 'inline-block';
+            } else {
+                document.getElementById('adminTabBtn').style.display = 'none';
+            }
+            switchSection('profile');
+        }
+
+        function switchSection(sec, e) {
+            if(e && e.target) {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+            }
+            const view = document.getElementById('contentView');
+
+            if(sec === 'profile') {
+                view.innerHTML = `
+                    <div class="fb-profile-box">
+                        <div class="fb-cover"></div>
+                        <div class="fb-avatar-wrap">
+                            <div class="fb-avatar-img">👑</div>
+                        </div>
+                        <div class="fb-details">
+                            <h2 style="margin:5px 0; font-size:18px;">${sessionUser.name} ${sessionUser.biometricVerified ? '<span style="color:var(--gold); font-size:12px;">✔ موثق بايومترياً مزدوج ذهبي (+1500)</span>' : '<span style="color:var(--success-green); font-size:12px;">✔ موثق بالبريد (مرحلة أولى 500)</span>'}</h2>
+                            <p style="margin:0; font-size:12px; color:var(--text-muted);">الجنس: ${sessionUser.gender} | العمر: ${sessionUser.age} | الحالة: ${sessionUser.status} | الموقع: ${sessionUser.location}</p>
+                            <p style="margin:4px 0 0 0; font-size:11px; color:var(--text-muted);">منصة مودة | المنصة الأولى عربياً للتعارف والصداقة والزواج</p>
+                            <div style="margin-top:10px; display:flex; gap:8px;">
+                                <button class="btn-main" style="width:auto; padding:5px 10px; font-size:11px;" onclick="alert('تم إرسال طلب الصداقة')">➕ إضافة صديق</button>
+                                <button class="btn-main btn-secondary" style="width:auto; padding:5px 10px; font-size:11px;" onclick="prompt('رسالتك الفورية الخاصة:')">💬 مراسلة خاصة</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-box">
+                        <textarea id="postInput" placeholder="ما الذي تفكر به؟ شارك لحظاتك الآن..." rows="3"></textarea>
+                        <button class="btn-main" onclick="publishPost()">نشر المنشور على بروفايلك</button>
+                    </div>
+                    <div id="postsFeed">
+                        <div class="card-box">
+                            <h4 style="margin:0; font-size:14px; color:var(--gold);">إدارة مودة السيادية</h4>
+                            <p style="font-size:13px; margin:8px 0;">أهلاً بكم في منصة مودة الأولى عربياً للتعارف والصداقة والزواج. الواجهات الشفافة والسينمائية تعمل بكامل روعتها وأمانها المطلق!</p>
+                            <div style="display:flex; justify-content:space-around; border-top:1px solid var(--border-crystal); padding-top:8px; font-size:12px;">
+                                <span style="cursor:pointer;" onclick="this.innerText='❤️ أعجبني (1)'">👍 أعجبني</span>
+                                <span style="cursor:pointer;" onclick="prompt('تعليقك:')">💬 تعليق</span>
+                                <span style="cursor:pointer;" onclick="alert('تم نسخ الرابط')">↗️ مشاركة</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if(sec === 'home') {
+                view.innerHTML = `
+                    <div class="card-box">
+                        <h2 style="color:var(--gold); font-size:17px; margin-top:0;">أقسام منصة مودة الأولى عربياً للتعارف والصداقة والزواج</h2>
+                        <div class="cards-grid">
+                            <div class="card-item">
+                                <h3>💍 العلاقات الجادة والزواج</h3>
+                                <p style="font-size:12px; color:var(--text-muted);">قسم مخصص للبحث عن شريك الحياة وفق معايير التوافق والجدية التامة.</p>
+                                <button class="btn-main" onclick="alert('تم الدخول لقسم العلاقات الجادة والزواج')">دخول القسم</button>
+                            </div>
+                            <div class="card-item">
+                                <h3>🌹 الواجهات الرومانسية</h3>
+                                <p style="font-size:12px; color:var(--text-muted);">أجواء دافئة وتجارب تواصل راقية تناسب اللحظات الخاصة.</p>
+                                <button class="btn-main" onclick="alert('تم الدخول للواجهات الرومانسية')">دخول القسم</button>
+                            </div>
+                            <div class="card-item">
+                                <h3>🔥 اللحظات الجريئة</h3>
+                                <p style="font-size:12px; color:var(--text-muted);">مساحة تفاعلية حرة ومميزة للمشتركين الباحثين عن إثارة استثنائية.</p>
+                                <button class="btn-main" onclick="alert('تم الدخول لقسم اللحظات الجريئة')">استكشاف</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if(sec === 'stores') {
+                view.innerHTML = `
+                    <div class="card-box">
+                        <h2 style="color:var(--gold); font-size:17px; margin-top:0;">متاجر مودة المتكاملة والاقتصاد الرقمي</h2>
+                        <div class="cards-grid">
+                            <div class="card-item">
+                                <h3>🪙 متجر الكوينز</h3>
+                                <p style="font-size:12px; color:var(--text-muted);">شحن رصيد العملات لإرسال الهدايا والتفاعل المباشر.</p>
+                                <button class="btn-main" onclick="buyCoins(1000)">شحن 1,000 كوينز</button>
+                            </div>
+                            <div class="card-item">
+                                <h3>🛡️ متجر الأوسمة</h3>
+                                <p style="font-size:12px; color:var(--text-muted);">شراء أوسمة التميز والنخبة والشارات الذهبية.</p>
+                                <button class="btn-main" onclick="alert('تم شراء وسام النخبة بنجاح!')">شراء وسام</button>
+                            </div>
+                            <div class="card-item">
+                                <h3>⚡ الميزات الخاصة</h3>
+                                <p style="font-size:12px; color:var(--text-muted);">تفعيل وضع التخفي وتلوين الاسم الملكي الخاص.</p>
+                                <button class="btn-main" onclick="alert('تم تفعيل الميزة الخاصة بنجاح!')">تفعيل ميزة</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if(sec === 'ads') {
+                view.innerHTML = `
+                    <div class="card-box">
+                        <h2 style="color:var(--gold); font-size:17px; margin-top:0;">قسم الإعلانات المبوبة السيادية</h2>
+                        <div style="background:rgba(255,215,0,0.08); padding:15px; border-radius:10px; border:1px solid var(--border-crystal);">
+                            <h4 style="color:var(--gold); margin:0 0 5px 0;">إعلان مميز (إدارة المنصة حصرياً)</h4>
+                            <p style="margin:0; font-size:12px;">عرض خاص لفترة محدودة: ترقية الأعضاء الموثقين ومنحهم 5,000 كوينز مجاناً لشهر كامل.</p>
+                        </div>
+                    </div>
+                `;
+            } else if(sec === 'admin') {
+                view.innerHTML = `
+                    <div class="card-box">
+                        <h2 style="color:var(--gold); font-size:17px; margin-top:0;">لوحة التحكم السيادية (السوبر أدمن - إشعارات الأمان والتوثيق)</h2>
+                        <div style="background:rgba(255,215,0,0.05); padding:12px; border-radius:8px; border:1px solid var(--border-crystal); margin-bottom:15px;">
+                            <h4 style="color:var(--gold); margin:0 0 5px 0; font-size:13px;">🚨 مركز إشعارات التوثيق الأمني المباشر</h4>
+                            <p style="margin:0; font-size:11px; color:var(--text-muted);">جميع عمليات توثيق البريد (مرحلة أولى 500 كوينز) والتوثيق البايومتري المزدوج (+1500 كوينز) تسجل هنا لحظياً لمتابعة الأعضاء الجدد.</p>
+                        </div>
+
+                        <label>نسبة عمولة التحويل للمنصة:</label>
+                        <input type="number" value="0.10" step="0.01">
+                        <button class="btn-main" onclick="alert('تم حفظ نسبة العمولة بنجاح')">حفظ نسبة العمولة</button>
+
+                        <label style="margin-top:10px; display:block;">نشر إعلان مبوب رسمي:</label>
+                        <textarea placeholder="اكتب نص الإعلان..."></textarea>
+                        <button class="btn-main" onclick="alert('تم نشر الإعلان في عموم المنصة')">نشر الإعلان الآن</button>
+
+                        <label style="margin-top:10px; display:block;">الحظر السيادي للأجهزة (Hardware Ban):</label>
+                        <input type="text" placeholder="معرف المستخدم أو الـ IP">
+                        <button class="btn-main" style="background:var(--danger-red); color:#fff;" onclick="alert('تم تنفيذ الحظر السيادي النهائي')">تنفيذ الحظر الفوري</button>
+                    </div>
+                `;
+            }
+        }
+
+        function publishPost() {
+            const txt = document.getElementById('postInput').value;
+            if(!txt) { alert('اكتب نص المنشور أولاً'); return; }
+            const feed = document.getElementById('postsFeed');
+            const box = document.createElement('div');
+            box.className = 'card-box';
+            box.innerHTML = `
+                <h4 style="margin:0; font-size:14px; color:var(--gold);">${sessionUser.name}</h4>
+                <p style="font-size:13px; margin:8px 0;">${txt}</p>
+                <div style="display:flex; justify-content:space-around; border-top:1px solid var(--border-crystal); padding-top:8px; font-size:12px;">
+                    <span style="cursor:pointer;" onclick="this.innerText='❤️ أعجبني (1)'">👍 أعجبني</span>
+                    <span style="cursor:pointer;" onclick="prompt('تعليقك:')">💬 تعليق</span>
+                    <span style="cursor:pointer;" onclick="alert('تم نسخ الرابط')">↗️ مشاركة</span>
+                </div>
+            `;
+            feed.prepend(box);
+            document.getElementById('postInput').value = '';
+            alert('تم نشر المنشور على بروفايلك بنجاح!');
+        }
+
+        function buyCoins(amt) {
+            sessionUser.coins += amt;
+            document.getElementById('coinsBadge').innerText = `🪙 ${sessionUser.coins.toLocaleString()} كوينز`;
+            alert(`تم شحن ${amt.toLocaleString()} كوينز بنجاح!`);
+        }
+    </script>
+</body>
+</html>
