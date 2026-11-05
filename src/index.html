@@ -6,29 +6,42 @@
     <title>تطبيق مودة للتعارف والدردشة والزواج والعلاقات الجادة</title>
     <style>
         :root {
-            --glass-bg: rgba(15, 13, 20, 0.78);
             --gold: #ffd700;
             --gold-hover: #e6c200;
             --text-main: #f3f4f6;
             --text-muted: #d1d5db;
-            --border-gold: rgba(255, 215, 0, 0.35);
+            --border-crystal: rgba(255, 215, 0, 0.35);
+            --glass-bg: rgba(12, 9, 18, 0.86);
+            --glass-card: rgba(22, 17, 32, 0.82);
             --primary-blue: #2563eb;
             --danger-red: #dc2626;
+            --success-green: #16a34a;
         }
 
-        /* الخلفية السينمائية الحميمية والرومانسية الثابتة */
+        /* الخلفية السينمائية الرومانسية الحقيقية لشاب وفتاة بأجواء حميمية وراقية */
         body {
-            background: linear-gradient(rgba(10, 8, 14, 0.82), rgba(10, 8, 14, 0.90)), 
-                        url('https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=1920&q=80') no-repeat center center fixed;
+            background: linear-gradient(rgba(10, 8, 15, 0.70), rgba(10, 8, 15, 0.85)), 
+                        url('https://images.unsplash.com/photo-1518199266791-5375a83190b7?q=80&w=1920&auto=format&fit=crop') no-repeat center center fixed;
             background-size: cover;
             color: var(--text-main);
             font-family: Tahoma, sans-serif;
             margin: 0;
             padding: 0;
             direction: rtl;
+            min-height: 100vh;
         }
 
-        /* الواجهة الخارجية (Splash & Auth) */
+        /* تأثيرات الزجاج الكريستالي الشفاف (Glassmorphism) */
+        .crystal-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-crystal);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.7);
+        }
+
+        /* الواجهة الخارجية المستقلة (Splash & Auth Screen) */
         #splashScreen {
             display: flex;
             flex-direction: column;
@@ -41,29 +54,484 @@
             top: 0; left: 0; width: 100%; height: 100%;
             z-index: 9999;
             box-sizing: border-box;
+            background: rgba(10, 8, 15, 0.82);
             backdrop-filter: blur(8px);
-            background: rgba(10, 8, 14, 0.85);
         }
         .splash-card {
-            background: var(--glass-bg);
-            backdrop-filter: blur(16px);
-            border: 1px solid var(--border-gold);
-            border-radius: 18px;
-            padding: 30px;
+            background: var(--glass-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-crystal);
+            border-radius: 20px;
+            padding: 35px;
             max-width: 480px;
             width: 100%;
             box-shadow: 0 15px 35px rgba(0,0,0,0.9);
         }
-        .splash-logo { font-size: 60px; margin-bottom: 10px; }
-        .splash-title { color: var(--gold); font-size: 20px; font-weight: bold; margin-bottom: 8px; line-height: 1.4; }
+        .splash-logo { font-size: 60px; margin-bottom: 10px; text-shadow: 0 0 20px rgba(255,215,0,0.6); }
+        .splash-title { color: var(--gold); font-size: 19px; font-weight: bold; margin-bottom: 10px; line-height: 1.4; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
         .splash-subtitle { color: var(--text-muted); font-size: 13px; margin-bottom: 25px; line-height: 1.6; }
 
-        /* النوافذ المنبثقة (Modals) الكريستالية */
+        /* النوافذ المنبثقة (Modals) */
         .modal-overlay {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
+            background: rgba(5, 4, 8, 0.88);
+            backdrop-filter: blur(10px);
             z-index: 10000;
             justify-content: center;
-            align-items: center
+            align-items: center;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+        .modal-box {
+            background: var(--glass-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-crystal);
+            border-radius: 16px;
+            padding: 25px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.9);
+            text-align: right;
+            box-sizing: border-box;
+        }
+        .modal-box h3 { color: var(--gold); margin-top: 0; font-size: 18px; }
+
+        /* التطبيق الرئيسي */
+        #mainApp {
+            display: none;
+            max-width: 950px;
+            margin: 0 auto;
+            padding-bottom: 40px;
+        }
+        .top-header {
+            background: rgba(12, 10, 18, 0.9);
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--border-crystal);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .brand-title {
+            color: var(--gold);
+            font-size: 13px;
+            font-weight: bold;
+            margin: 0;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+        .header-controls { display: flex; gap: 8px; align-items: center; }
+        .lang-selector {
+            background: rgba(255,255,255,0.08);
+            color: var(--gold);
+            border: 1px solid var(--border-crystal);
+            padding: 5px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .nav-bar {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            background: rgba(20, 16, 28, 0.82);
+            backdrop-filter: blur(12px);
+            padding: 12px;
+            border-bottom: 1px solid var(--border-crystal);
+        }
+        .nav-btn {
+            background: rgba(255,255,255,0.04);
+            color: var(--gold);
+            border: 1px solid var(--border-crystal);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+        .nav-btn.active, .nav-btn:hover {
+            background: var(--gold);
+            color: #000;
+        }
+
+        /* بروفايل فيسبوك والوضع المزدوج */
+        .fb-profile-container {
+            background: var(--glass-card);
+            backdrop-filter: blur(16px);
+            border-radius: 0 0 16px 16px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+            margin-bottom: 20px;
+            overflow: hidden;
+            border: 1px solid var(--border-crystal);
+            border-top: none;
+        }
+        .fb-cover-photo { height: 210px; background: linear-gradient(135deg, rgba(43,31,61,0.9), rgba(18,14,23,0.9)); position: relative; }
+        .admin-mode-banner {
+            position: absolute; top: 12px; left: 12px;
+            background: var(--gold); color: #000; padding: 5px 12px;
+            border-radius: 6px; font-weight: bold; font-size: 11px;
+            display: none; box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        .fb-header-section { padding: 0 20px 20px 20px; position: relative; }
+        .fb-avatar-container { position: relative; display: inline-block; margin-top: -70px; margin-left: 20px; }
+        .fb-avatar {
+            width: 120px; height: 120px; border-radius: 50%;
+            border: 4px solid rgba(20,16,28,0.9); object-fit: cover; background: #2b2735;
+            display: flex; align-items: center; justify-content: center; font-size: 40px; color: var(--gold);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.6);
+        }
+        .fb-profile-info { display: inline-block; vertical-align: top; margin-top: 10px; }
+        .fb-profile-name { font-size: 19px; font-weight: bold; color: var(--text-main); margin: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        .fb-profile-bio { font-size: 12px; color: var(--text-muted); margin: 6px 0 12px 0; line-height: 1.5; }
+        .fb-actions-bar { display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap; }
+        .fb-btn {
+            background: var(--gold); color: #000; border: none;
+            padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px;
+            display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .fb-btn.secondary { background: rgba(255,255,255,0.08); color: var(--text-main); border: 1px solid var(--border-crystal); }
+        .fb-tabs {
+            display: flex; gap: 15px; padding: 0 20px; background: rgba(15,12,22,0.85);
+            border-top: 1px solid var(--border-crystal); font-weight: bold; font-size: 12px;
+        }
+        .fb-tab-item { padding: 12px 0; color: var(--text-muted); cursor: pointer; border-bottom: 3px solid transparent; }
+        .fb-tab-item.active { color: var(--gold); border-bottom: 3px solid var(--gold); }
+
+        /* البطاقات واللوحات الكريستالية */
+        .card-panel {
+            background: var(--glass-card);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-crystal);
+            border-radius: 16px;
+            padding: 20px;
+            margin: 15px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+        }
+        .grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; margin-top: 15px; }
+        .sub-card {
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-crystal);
+            border-radius: 12px;
+            padding: 18px;
+            text-align: center;
+        }
+        .sub-card h3 { color: var(--gold); font-size: 15px; margin-bottom: 8px; }
+        .sub-card p { color: var(--text-muted); font-size: 12px; margin-bottom: 15px; line-height: 1.5; }
+        
+        button.action-btn {
+            background: var(--gold); color: #000; border: none;
+            padding: 10px 18px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px; width: 100%; transition: 0.2s;
+            box-shadow: 0 4px 15px rgba(255,215,0,0.2);
+        }
+        button.action-btn:hover { background: var(--gold-hover); transform: translateY(-1px); }
+        
+        input, select, textarea {
+            width: 100%; padding: 10px; margin-top: 6px; margin-bottom: 12px;
+            border-radius: 8px; border: 1px solid var(--border-crystal); background: rgba(10,8,15,0.8); color: #fff;
+            box-sizing: border-box; font-family: Tahoma, sans-serif; font-size: 12px;
+        }
+        label { font-size: 11px; color: var(--text-muted); }
+        .badge {
+            display: inline-block; background: rgba(255,215,0,0.18); color: var(--gold);
+            border: 1px solid var(--border-crystal); padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: bold;
+        }
+        .alert-box {
+            background: rgba(220, 38, 38, 0.15); border: 1px solid var(--danger-red);
+            color: #fca5a5; padding: 12px; border-radius: 10px; font-size: 12px; margin-bottom: 15px; line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. الواجهة الخارجية المستقلة (Splash & Auth Screen) -->
+    <div id="splashScreen">
+        <div class="splash-card">
+            <div class="splash-logo">💍</div>
+            <div class="splash-title">تطبيق مودة للتعارف والدردشة والزواج والعلاقات الجادة</div>
+            <div class="splash-subtitle">المنصة الآمنة الأولى عربياً لإدارة العلاقات الجادة والخصوصية السيادية. مرحباً بك في عالم الرومانسية الراقية!</div>
+
+            <button class="action-btn" style="margin-bottom: 12px;" onclick="openAuthModal()">تسجيل الدخول / إنشاء حساب جديد</button>
+            <button class="action-btn" style="background: rgba(255,255,255,0.06); color: var(--gold); border: 1px solid var(--border-crystal); margin-bottom: 12px;" onclick="enterGuestMode()">تصفح كزائر (تجربة 60 دقيقة يومياً)</button>
+            <button class="action-btn" style="background: var(--primary-blue); color: #fff; margin-bottom: 12px;" onclick="startBiometricAuth()">🎤 التوثيق البايومتري (صوت + سيلفي +1500 كوينز)</button>
+            <button class="action-btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border-crystal); font-size: 11px;" onclick="openSupportModal()">📞 الاتصال بالإدارة والدعم الفني</button>
+        </div>
+    </div>
+
+    <!-- نافذة تسجيل الدخول الحقيقية -->
+    <div id="authModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>تسجيل الدخول أو حساب جديد في مودة</h3>
+            <label>الاسم الكامل أو اللقب (MAWDA-XXXX)</label>
+            <input type="text" id="inputName" placeholder="مثال: أحمد العلي">
+            <label>البريد الإلكتروني</label>
+            <input type="email" id="inputEmail" placeholder="name@example.com">
+            <label>كلمة المرور</label>
+            <input type="password" id="inputPass" placeholder="********">
+            <button class="action-btn" style="margin-top: 10px;" onclick="executeLogin()">دخول وتفعيل الجلسة</button>
+            <button class="action-btn" style="background: rgba(255,255,255,0.1); color: #fff; margin-top: 8px;" onclick="closeModals()">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- نافذة الاتصال بالإدارة والدعم -->
+    <div id="supportModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>الدعم الفني والتبليغ السيادي</h3>
+            <label>رسالتك أو الشكوى الموجهة للأدمن:</label>
+            <textarea id="supportMsg" rows="3" placeholder="اشرح مشكلتك أو استفسارك..."></textarea>
+            <label>إرفاق لقطة شاشة (Screenshot):</label>
+            <input type="file" id="supportFile">
+            <button class="action-btn" style="margin-top: 10px;" onclick="submitSupportTicket()">إرسال للإدارة فوراً</button>
+            <button class="action-btn" style="background: rgba(255,255,255,0.1); color: #fff; margin-top: 8px;" onclick="closeModals()">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- 2. التطبيق الرئيسي -->
+    <div id="mainApp">
+        <div class="top-header">
+            <h1 class="brand-title">تطبيق مودة للتعارف والدردشة والزواج والعلاقات الجادة</h1>
+            <div class="header-controls">
+                <span id="userCoinsBadge" class="badge">🪙 500 كوينز</span>
+                <button class="nav-btn" style="padding: 5px 10px; font-size: 10px;" onclick="returnToSplash()">خروج</button>
+                <select class="lang-selector" id="langSelect" onchange="changeLanguage()">
+                    <option value="ar">AR</option>
+                    <option value="en">EN</option>
+                    <option value="fr">FR</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="nav-bar">
+            <button class="nav-btn active" onclick="switchTab('profile', event)">بروفايل العضو</button>
+            <button class="nav-btn" onclick="switchTab('home', event)">الأقسام الرئيسية</button>
+            <button class="nav-btn" onclick="switchTab('stores', event)">المتاجر والاقتصاد</button>
+            <button class="nav-btn" onclick="switchTab('ads', event)">الإعلانات المبوبة</button>
+            <button class="nav-btn" id="adminNavBtn" onclick="switchTab('admin', event)" style="display:none;">لوحة الأدمن السيادية</button>
+        </div>
+
+        <div id="dynamicView"></div>
+    </div>
+
+    <script>
+        let appState = {
+            name: "أحمد العلي",
+            userId: "MAWDA-10254",
+            bio: "تطبيق مودة للتعارف والدردشة والزواج والعلاقات الجادة | دمشق، سوريا",
+            verified: true,
+            coins: 500,
+            isAdmin: true,
+            commission: 0.10,
+            maintenanceMode: false,
+            chatFrozen: false
+        };
+
+        if(localStorage.getItem('mawda_state_v5')) {
+            appState = JSON.parse(localStorage.getItem('mawda_state_v5'));
+        }
+
+        function persistState() {
+            localStorage.setItem('mawda_state_v5', JSON.stringify(appState));
+        }
+
+        function openAuthModal() {
+            document.getElementById('authModal').style.display = 'flex';
+        }
+
+        function openSupportModal() {
+            document.getElementById('supportModal').style.display = 'flex';
+        }
+
+        function closeModals() {
+            document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
+        }
+
+        function executeLogin() {
+            const nameInput = document.getElementById('inputName').value;
+            if(nameInput) appState.name = nameInput;
+            persistState();
+            closeModals();
+            launchPlatform();
+        }
+
+        function enterGuestMode() {
+            appState.name = "زائر كريم (تصفح 60 دقيقة)";
+            appState.isAdmin = false;
+            persistState();
+            launchPlatform();
+        }
+
+        function startBiometricAuth() {
+            if(confirm("هل تريد بدء التوثيق البايومتري المتقدم (صوت + فيديو سيلفي) للحصول على +1500 كوينز وشارة التوثيق الذهبية؟")) {
+                setTimeout(() => {
+                    appState.verified = true;
+                    appState.coins += 1500;
+                    persistState();
+                    alert("تم بنجاح توثيق حسابك بايومترياً! حصلت على شارة التوثيق الذهبية ✔ ورصيد 1500 كوينز.");
+                    launchPlatform();
+                }, 500);
+            }
+        }
+
+        function submitSupportTicket() {
+            const msg = document.getElementById('supportMsg').value;
+            if(!msg) { alert('الرجاء كتابة رسالة الدعم أولاً'); return; }
+            alert("تم إرسال بلاغك إلى السوبر أدمن بنجاح برقم تذكرة مرجعية #8821.");
+            closeModals();
+            document.getElementById('supportMsg').value = '';
+        }
+
+        function launchPlatform() {
+            document.getElementById('splashScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            document.getElementById('userCoinsBadge').innerText = `🪙 ${appState.coins} كوينز`;
+            if(appState.isAdmin) {
+                document.getElementById('adminNavBtn').style.display = 'inline-block';
+            }
+            switchTab('profile');
+        }
+
+        function returnToSplash() {
+            document.getElementById('mainApp').style.display = 'none';
+            document.getElementById('splashScreen').style.display = 'flex';
+        }
+
+        function changeLanguage() {
+            const lang = document.getElementById('langSelect').value;
+            const root = document.getElementById('htmlRoot');
+            root.setAttribute('lang', lang);
+            root.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+        }
+
+        function switchTab(tabName, event) {
+            if(event && event.target) {
+                document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+                event.target.classList.add('active');
+            }
+            
+            const view = document.getElementById('dynamicView');
+            
+            if (tabName === 'profile') {
+                view.innerHTML = `
+                    <div class="fb-profile-container">
+                        <div class="fb-cover-photo">
+                            <div id="adminBadgeBanner" class="admin-mode-banner" style="display:${appState.isAdmin ? 'block' : 'none'};">👑 وضع السوبر أدمن السيادي مفعل</div>
+                        </div>
+                        <div class="fb-header-section">
+                            <div class="fb-avatar-container">
+                                <div class="fb-avatar">👑</div>
+                            </div>
+                            <div class="fb-profile-info">
+                                <h2 class="fb-profile-name">${appState.name}${appState.verified ? '<span style="font-size:12px; color:var(--gold);">✔ موثق ذهبي</span>' : ''}</h2>
+                                <p class="fb-profile-bio">${appState.bio}</p>
+                            </div>
+                            <div class="fb-actions-bar">
+                                <button class="fb-btn" onclick="alert('تم إرسال طلب الصداقة بنجاح')">➕ إضافة صديق</button>
+                                <button class="fb-btn secondary" onclick="openChatModal()">💬 مراسلة خاصة</button>
+                                <button class="fb-btn secondary" onclick="toggleAdminIdentity()">🛡️ ${appState.isAdmin ? 'إلغاء وضع الأدمن' : 'تفعيل السوبر أدمن'}</button>
+                            </div>
+                        </div>
+                        <div class="fb-tabs">
+                            <div class="fb-tab-item active">المنشورات</div>
+                            <div class="fb-tab-item" onclick="editProfileSettings()">إعدادات الملف والأمان</div>
+                            <div class="fb-tab-item" onclick="alert('فتح الألبومات والصور')">الصور والألبومات</div>
+                            <div class="fb-tab-item" onclick="alert('قائمة الأصدقاء والمتابعين')">الأصدقاء</div>
+                        </div>
+                    </div>
+
+                    ${appState.maintenanceMode ? '<div class="alert-box">⚠️ تنبيه: وضع الصيانة العامة مفعل حالياً من قبل الإدارة.</div>' : ''}
+                    ${appState.chatFrozen ? '<div class="alert-box">⚠️ تنبيه: تم تجميد الدردشة العامة مؤقتاً من قبل السوبر أدمن.</div>' : ''}
+
+                    <div class="card-panel">
+                        <textarea id="postText" placeholder="ما الذي تفكر به؟ شارك لحظاتك أو إعلانك الشخصي..." rows="3"></textarea>
+                        <button class="action-btn" onclick="addNewPost()">نشر المنشور على بروفايلك</button>
+                    </div>
+
+                    <div id="postsFeed">
+                        <div class="card-panel">
+                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                                <div style="width:35px; height:35px; background:#333; border-radius:50%; display:flex; align-items:center; justify-content:center;">👑</div>
+                                <div>
+                                    <h4 style="margin:0; font-size:14px;">${appState.name}</h4>
+                                    <span style="font-size:11px; color:var(--text-muted);">الآن • عام 🌍 (معرف: ${appState.userId})</span>
+                                </div>
+                            </div>
+                            <p style="font-size:13px; margin-bottom:10px;">أهلاً بكم في تطبيق مودة للتعارف والدردشة والزواج والعلاقات الجادة. الخلفية السينمائية الرومانسية للشاب والفتاة والواجهات الزجاجية الكريستالية تعمل بكل روعة!</p>
+                            <div style="display:flex; justify-content:space-around; border-top:1px solid var(--border-crystal); padding-top:8px; font-size:12px; color:var(--text-muted);">
+                                <span style="cursor:pointer;" onclick="this.innerText='❤️ أعجبني (1)';">👍 أعجبني</span>
+                                <span style="cursor:pointer;" onclick="prompt('اكتب تعليقك:')">💬 تعليق</span>
+                                <span style="cursor:pointer;" onclick="alert('تم نسخ رابط المنشور')">↗️ مشاركة</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (tabName === 'home') {
+                view.innerHTML = `
+                    <div class="card-panel">
+                        <h2 style="color: var(--gold); font-size: 17px; margin-top:0;">أقسام تطبيق مودة للتعارف والدردشة والزواج والعلاقات الجادة</h2>
+                        <p>اختر القسم الذي يناسب تطلعاتك ضمن بيئة تفاعلية آمنة ومحمية بالكامل.</p>
+                        <div class="grid-cards">
+                            <div class="sub-card">
+                                <h3>💍 العلاقات الجادة والزواج</h3>
+                                <p>قسم مخصص للبحث عن شريك الحياة وفق معايير التوافق والجدية التامة.</p>
+                                <button class="action-btn" onclick="alert('تم الدخول لقسم العلاقات الجادة والزواج بنجاح.')">دخول القسم</button>
+                            </div>
+                            <div class="sub-card">
+                                <h3>🌹 الواجهات الرومانسية</h3>
+                                <p>أجواء دافئة وتجارب تواصل راقية تناسب اللحظات الخاصة والراقية.</p>
+                                <button class="action-btn" onclick="alert('تم الدخول للواجهات الرومانسية بنجاح.')">دخول القسم</button>
+                            </div>
+                            <div class="sub-card">
+                                <h3>🔥 اللحظات الجريئة</h3>
+                                <p>مساحة تفاعلية حرة ومميزة للمشتركين الباحثين عن إثارة استثنائية.</p>
+                                <button class="action-btn" onclick="alert('تم الدخول لقسم اللحظات الجريئة بنجاح.')">استكشاف</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (tabName === 'stores') {
+                view.innerHTML = `
+                    <div class="card-panel">
+                        <h2 style="color: var(--gold); font-size: 17px; margin-top:0;">متاجر مودة المتكاملة والاقتصاد الرقمي</h2>
+                        <p>عزز حضورك في المنصة واكتسب صلاحيات استثنائية عبر أسواقنا الرقمية.</p>
+                        <div class="grid-cards">
+                            <div class="sub-card">
+                                <h3>🪙 متجر الكوينز (محفظة مودة)</h3>
+                                <p>شحن رصيد العملات لإرسال الهدايا (عمولة المنصة: ${appState.commission * 100}%).</p>
+                                <button class="action-btn" onclick="buyCoins(1000)">شحن 1000 كوينز</button>
+                            </div>
+                            <div class="sub-card">
+                                <h3>🛡️ متجر الأوسمة والميداليات</h3>
+                                <p>احصل على أوسمة النخبة، الشارات الذهبية، وأوسمة الولاء المميزة.</p>
+                                <button class="action-btn" onclick="alert('تم شراء وسام النخبة بنجاح!')">شراء وسام</button>
+                            </div>
+                            <div class="sub-card">
+                                <h3>⚡ متجر الميزات الخاصة</h3>
+                                <p>تفعيل وضع التخفي (Ghost Chat)، خلفيات الشات، وتلوين اسمك الملكي.</p>
+                                <button class="action-btn" onclick="alert('تم تفعيل وضع التخفي والميزات الخاصة بنجاح!')">تفعيل ميزة</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (tabName === 'ads') {
+                view.innerHTML = `
+                    <div class="card-panel">
+                        <h2 style="color: var(--gold); font-size: 17px; margin-top:0;">قسم الإعلانات المبوبة السيادية</h2>
+                        <p>الإعلانات والعروض الخاصة المنشورة رسمياً بواسطة مالك التطبيق (الأدمن حصرياً).</p>
+                        <div style="background: rgba(255,215,0,0.06); padding: 15px; border-radius: 10px; border: 1px solid var(--border-crystal); margin-top: 15px;">
+                            <h4 style="color: var(--gold); margin: 0 0 5px 0;">إعلان مميز رقم #1 (إدارة المنصة)</h4>
+                            <p style="margin: 0; font-size: 12px;">عرض خاص لفترة محدودة: تفعيل عضويات النخبة والترقية الفورية لشهر كامل مع هدية 5000 كوينز لجميع الأعضاء الموثقين.</p>
+                        </div>
+                    </div>
+                `;
+            } else if (tabName === 'admin') {
+                view.innerHTML = `
+                    <div class="card-panel">
+                        <h2 style="color: var(--gold); font-size: 17px; margin-top:0;">لوحة التحكم السيادية (السوبر أدمن - صلاحيات مطل
