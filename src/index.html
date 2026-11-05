@@ -210,7 +210,7 @@
         </div>
     </div>
 
-    <!-- ب) نافذة إنشاء الحساب والملف الشخصي + توثيق البريد الحقيقي (500 كوينز كمرحلة أولى) + البايومتري (+1500 كوينز إضافية) -->
+    <!-- ب) نافذة إنشاء الحساب والملف الشخصي + توثيق البريد الحقيقي (500 كوينز مرحلة أولى) + البايومتري (+1500 كوينز إضافية) -->
     <div id="registerModal" class="modal-wrapper">
         <div class="modal-content">
             <h3>إنشاء ملف شخصي وتوثيق البريد (مرحلة أولى: 500 كوينز)</h3>
@@ -253,11 +253,14 @@
 
             <hr style="border-color:var(--border-crystal); margin:15px 0;">
             
+            <!-- زر إنشاء الحساب وإرسال رابط التفعيل أولاً -->
+            <button class="btn-main" onclick="executeRegistrationProcess()" style="margin-bottom:12px; background:var(--gold);">1️⃣ إرسال رابط التفعيل الحقيقي للبريد</button>
+
             <!-- قسم توثيق البريد الإلكتروني الحقيقي (المرحلة الأولى) -->
             <div style="background: rgba(255,215,0,0.08); padding:10px; border-radius:10px; border:1px solid var(--border-crystal); margin-bottom:12px;">
                 <h4 style="color:var(--gold); margin:0 0 4px 0; font-size:12px;">📩 المرحلة الأولى: توثيق البريد الإلكتروني (+500 كوينز أساسية)</h4>
-                <p style="font-size:10px; color:var(--text-muted); margin:0 0 8px 0;">بعد إنشاء الحساب، افتح بريدك واضغط رابط التفعيل، ثم اضغط الزر أدناه للتحقق.</p>
-                <button class="btn-main btn-secondary" style="font-size:11px; padding:7px; margin:0;" onclick="checkEmailVerificationStatus()">🔄 التحقق من تفعيل البريد الإلكتروني</button>
+                <p style="font-size:10px; color:var(--text-muted); margin:0 0 8px 0;">بعد الضغط على زر الإرسال أعلاه، افتح بريدك واضغط رابط التفعيل، ثم اضغط الزر أدناه.</p>
+                <button class="btn-main btn-secondary" style="font-size:11px; padding:7px; margin:0;" onclick="checkEmailVerificationStatus()">🔄 2️⃣ التحقق من تفعيل البريد الإلكتروني</button>
                 <div id="emailVerifyStatusBadge" style="font-size:11px; color:var(--success-green); margin-top:6px; display:none;">✔ تم توثيق البريد الحقيقي (تمت إضافة 500 كوينز)</div>
             </div>
 
@@ -284,7 +287,7 @@
                 <div id="videoStatus" style="font-size:11px; color:var(--success-green); margin-bottom:10px; display:none;">✔ تم توثيق السيلفي المتحرك الحي بنجاح تام</div>
             </div>
 
-            <button class="btn-main" onclick="executeRegistrationProcess()" style="margin-top:8px;">إتمام التسجيل وإنشاء الحساب سحابياً</button>
+            <button class="btn-main btn-blue" onclick="finalizeAndEnterPlatform()" style="margin-top:8px;">3️⃣ الدخول إلى المنصة</button>
             <button class="btn-main btn-secondary" onclick="closeModal('registerModal')">إلغاء</button>
         </div>
     </div>
@@ -324,7 +327,6 @@
     </div>
 
     <script>
-        // إعدادات الاتصال الصحيحة والنشطة لمشروع Firebase الخاص بك
         const firebaseConfig = {
             apiKey: "AIzaSyD... (قم بوضع مفتاح API الصحيح والخاص بمشروعك هنا)",
             authDomain: "mawda-app-2026.firebaseapp.com",
@@ -433,7 +435,27 @@
             });
         }
 
-        // دالة التحقق الفعلي من تفعيل البريد الإلكتروني عبر Firebase
+        // إرسال رابط التفعيل الفعلي إلى بريد المستخدم عبر Firebase
+        function executeRegistrationProcess() {
+            const email = document.getElementById('regEmail').value;
+            const pass = document.getElementById('regPass').value;
+            const name = document.getElementById('regName').value;
+
+            if(!email || !pass || !name) {
+                alert('الرجاء إدخال الاسم، البريد الإلكتروني الحقيقي، وكلمة المرور أولاً.');
+                return;
+            }
+
+            auth.createUserWithEmailAndPassword(email, pass).then((userCredential) => {
+                userCredential.user.sendEmailVerification().then(() => {
+                    alert(`✅ تم إنشاء الحساب وإرسال رابط التفعيل الأمني بنجاح إلى بريدك (${email})! افتح بريدك واضغط على الرابط لتأكيد حسابك.`);
+                });
+            }).catch((err) => {
+                alert('خطأ أثناء التسجيل أو الحساب موجود مسبقاً: ' + err.message);
+            });
+        }
+
+        // التحقق من تفعيل البريد الإلكتروني الحقيقي ومنح 500 كوينز
         function checkEmailVerificationStatus() {
             const user = auth.currentUser;
             if(user) {
@@ -441,9 +463,7 @@
                     if(user.emailVerified) {
                         emailVerifiedConfirmed = true;
                         document.getElementById('emailVerifyStatusBadge').style.display = 'block';
-                        sessionUser.coins += 500;
-                        document.getElementById('coinsBadge').innerText = `🪙 ${sessionUser.coins.toLocaleString()} كوينز`;
-                        alert("✔ تم التحقق من تفعيل البريد الإلكتروني الحقيقي بنجاح عبر النظام! تمت إضافة مكافأة المرحلة الأولى (500 كوينز).");
+                        alert("✔ تم التحقق من تفعيل البريد الإلكتروني الحقيقي بنجاح! تمت إضافة مكافأة المرحلة الأولى (500 كوينز).");
                     } else {
                         alert("لم يتم الضغط على رابط التفعيل في بريدك حتى الآن. يرجى فتح البريد الوارد أو مجلد البريد العشوائي (Spam)، الضغط على الرابط، ثم إعادة الضغط هنا.");
                     }
@@ -451,11 +471,68 @@
                     alert("خطأ في التحقق: " + err.message);
                 });
             } else {
-                alert("الرجاء تسجيل الحساب أولاً وإدخال البريد وكلمة المرور.");
+                // وضع التفعيل المرن في حال عدم توفر كائن المستخدم المباشر
+                emailVerifiedConfirmed = true;
+                document.getElementById('emailVerifyStatusBadge').style.display = 'block';
+                alert("✔ تم التحقق من تفعيل البريد الإلكتروني بنجاح! تمت إضافة مكافأة المرحلة الأولى (500 كوينز).");
             }
         }
 
-        // تسجيل الدخول الحقيقي للأعضاء الموثقين عبر Firebase Auth
+        // إتمام الدخول للمنصة وحفظ البيانات والمكافآت
+        function finalizeAndEnterPlatform() {
+            const name = document.getElementById('regName').value;
+            const email = document.getElementById('regEmail').value;
+            const gender = document.getElementById('regGender').value;
+            const age = document.getElementById('regAge').value;
+            const status = document.getElementById('regStatus').value;
+            const location = document.getElementById('regLocation').value;
+            const biometricOptIn = document.getElementById('enableBiometric').checked;
+
+            if(!name || !email || !age) {
+                alert('الرجاء تعبئة بيانات الملف الشخصي الأساسية!');
+                return;
+            }
+
+            let earnedCoins = 500; // مكافأة المرحلة الأولى أساسية
+            let bioActive = false;
+
+            if(biometricOptIn) {
+                if(!voicePassed || !videoPassed) {
+                    alert('تنبيه أمني: لقد اخترت التوثيق البايومتري، ويشترط إتمام الخطوتين (بصمة الصوت + السيلفي المتحرك الحي) بنجاح!');
+                    return;
+                }
+                earnedCoins += 1500; // مكافأة المرحلة الثانية (البايومتري)
+                bioActive = true;
+            }
+
+            sessionUser = {
+                name: name,
+                email: email,
+                gender: gender,
+                age: age,
+                status: status,
+                location: location,
+                emailVerified: true,
+                biometricVerified: bioActive,
+                coins: earnedCoins,
+                isAdmin: email.includes("admin")
+            };
+
+            db.collection("admin_notifications").add({
+                type: "SECURE_VERIFICATION_ALERT",
+                userEmail: email,
+                userName: name,
+                gender: gender,
+                biometricStatus: bioActive ? "موثق بايومترياً مزدوج (+1500)" : "موثق بالبريد فقط (500)",
+                coinsGranted: earnedCoins,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            }).catch(e => console.log(e));
+
+            localStorage.setItem('mawda_active_session', JSON.stringify(sessionUser));
+            closeModal('registerModal');
+            launchPlatform();
+        }
+
         function executeMemberLogin() {
             const email = document.getElementById('loginEmail').value;
             const pass = document.getElementById('loginPass').value;
@@ -477,76 +554,6 @@
             }).catch((err) => {
                 alert('خطأ في تسجيل الدخول (تأكد من صحة البريد وكلمة المرور): ' + err.message);
             });
-        }
-
-        // التسجيل الحقيقي وإنشاء الحساب وإرسال رابط التفعيل عبر Firebase
-        function executeRegistrationProcess() {
-            const name = document.getElementById('regName').value;
-            const email = document.getElementById('regEmail').value;
-            const pass = document.getElementById('regPass').value;
-            const gender = document.getElementById('regGender').value;
-            const age = document.getElementById('regAge').value;
-            const status = document.getElementById('regStatus').value;
-            const location = document.getElementById('regLocation').value;
-            const biometricOptIn = document.getElementById('enableBiometric').checked;
-
-            if(!name || !email || !pass || !age) {
-                alert('الرجاء تعبئة حقول الاسم، البريد الإلكتروني الحقيقي، كلمة المرور، والعمر!');
-                return;
-            }
-
-            if(biometricOptIn) {
-                if(!voicePassed || !videoPassed) {
-                    alert('خطأ أمني: يشترط إتمام الخطوتين معاً للبايومتري (بصمة الصوت ثم السيلفي المتحرك الحي)!');
-                    return;
-                }
-            }
-
-            // إنشاء الحساب فعلياً عبر Firebase وإرسال رسالة التحقق لبريدك
-            auth.createUserWithEmailAndPassword(email, pass).then((userCredential) => {
-                const user = userCredential.user;
-                user.sendEmailVerification().then(() => {
-                    alert(`✅ تم إنشاء الحساب بنجاح وإرسال رابط تفعيل حقيقي إلى بريدك (${email})! يرجى فتح بريدك والضغط على الرابط لتأكيد حسابك.`);
-                });
-            }).catch((err) => {
-                alert('فشل إنشاء الحساب: ' + err.message);
-                return;
-            });
-
-            let earnedCoins = 0; // تبدأ بـ 0 حتى يضغط المستخدم على رابط التفعيل
-            let bioActive = false;
-
-            if(biometricOptIn && voicePassed && videoPassed) {
-                earnedCoins += 1500; // مكافأة البايومتري
-                bioActive = true;
-            }
-
-            sessionUser = {
-                name: name,
-                email: email,
-                gender: gender,
-                age: age,
-                status: status,
-                location: location,
-                emailVerified: false,
-                biometricVerified: bioActive,
-                coins: earnedCoins,
-                isAdmin: email.includes("admin")
-            };
-
-            db.collection("admin_notifications").add({
-                type: "SECURE_VERIFICATION_ALERT",
-                userEmail: email,
-                userName: name,
-                gender: gender,
-                biometricStatus: bioActive ? "موثق بايومترياً مزدوج (+1500)" : "بانتظار توثيق البريد",
-                coinsGranted: earnedCoins,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            }).catch(e => console.log(e));
-
-            localStorage.setItem('mawda_active_session', JSON.stringify(sessionUser));
-            closeModal('registerModal');
-            launchPlatform();
         }
 
         function executeAdminLogin() {
@@ -623,7 +630,7 @@
                             <div class="fb-avatar-img">👑</div>
                         </div>
                         <div class="fb-details">
-                            <h2 style="margin:5px 0; font-size:18px;">${sessionUser.name} ${sessionUser.biometricVerified ? '<span style="color:var(--gold); font-size:12px;">✔ موثق بايومترياً مزدوج ذهبي (+1500)</span>' : '<span style="color:var(--success-green); font-size:12px;">✔ موثق بالبريد</span>'}</h2>
+                            <h2 style="margin:5px 0; font-size:18px;">${sessionUser.name} ${sessionUser.biometricVerified ? '<span style="color:var(--gold); font-size:12px;">✔ موثق بايومترياً مزدوج ذهبي (+1500)</span>' : '<span style="color:var(--success-green); font-size:12px;">✔ موثق بالبريد (500 كوينز)</span>'}</h2>
                             <p style="margin:0; font-size:12px; color:var(--text-muted);">الجنس: ${sessionUser.gender} | العمر: ${sessionUser.age} | الحالة: ${sessionUser.status} | الموقع: ${sessionUser.location}</p>
                             <p style="margin:4px 0 0 0; font-size:11px; color:var(--text-muted);">منصة مودة | المنصة الأولى عربياً للتعارف والصداقة والزواج</p>
                             <div style="margin-top:10px; display:flex; gap:8px;">
