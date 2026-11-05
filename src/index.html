@@ -4,28 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تطبيق مودة للتعارف والدردشة والزواج والعلاقات الجادة</title>
-    <!-- ربط ملف التصميم العام -->
     <link rel="stylesheet" href="./styles/main.css">
 </head>
 <body style="background-color: #0b090a; color: #ffffff; font-family: Tahoma, sans-serif; margin: 0; padding: 0;">
 
-    <!-- الحاوية الرئيسية التي تتفعل بداخله الصفحات والواجهات -->
     <div id="app"></div>
 
-    <!-- نقطة الدخول البرمجية للمنصة مع ضبط المسارات والامتدادات بدقة -->
     <script type="module">
         import { renderHomeView } from "./views/homeView.js";
         import { renderAdminView } from "./views/adminView.js";
 
         const appContainer = document.getElementById("app");
-        
         if (appContainer) {
-            // تشغيل واجهة المنصة الرئيسية
             renderHomeView(appContainer, () => {
                 renderAdminView(appContainer);
             });
         }
     </script>
-
 </body>
 </html>
