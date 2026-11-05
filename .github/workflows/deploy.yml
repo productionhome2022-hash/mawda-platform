@@ -14,5 +14,3 @@ jobs:
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MAWDA_APP_2026 }}'
           channelId: live
           projectId: mawda-app-2026
-          projectDirectory: mawda-platform
-          
