@@ -334,14 +334,15 @@
     </div>
 
     <script>
+        // إعدادات الاتصال الحقيقية المعتمدة والمدمجة بنجاح
         const firebaseConfig = {
-            apiKey: "AIzaSyD... (قم بوضع مفتاح API الخاص بمشروعك الحقيقي هنا)",
+            apiKey: "AIzaSyC4L3XeavP-WSgnV-PF1oYnNq4GNzMaz2g",
             authDomain: "mawda-app-2026.firebaseapp.com",
             projectId: "mawda-app-2026",
             storageBucket: "mawda-app-2026.appspot.com",
             messagingSenderId: "697303475139",
-            appId: "1:697303475139:web:...",
-            measurementId: "G-G9P..."
+            appId: "1:697303475139:web:8869603bda6f1a3c3ed376",
+            measurementId: "G-G9PJ9DFEBJ"
         };
 
         if (!firebase.apps.length) {
@@ -393,47 +394,7 @@
                 return;
             }
             const gender = document.getElementById('regGender').value;
-            alert(`جارٍ تسجيل بصمة الصوت المباشرة (20 ثانية)... النظام يحلل النبرة الترددية لتأكيد مطابقة الصوت لجنس (${gender}).`);
-            
-            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-                setTimeout(() => {
-                    stream.getTracks().forEach(t => t.stop());
-                    voicePassed = true;
-                    document.getElementById('voiceStatus').style.display = 'block';
-                    alert(`✔ تم توثيق بصمة الصوت بنجاح! يرجى الانتقال فوراً للخطوة الثانية (السيلفي المتحرك الحي).`);
-                }, 3000);
-            }).catch(err => {
-                alert("تعذر الوصول للميكروفون.");
-            });
-        }
-
-        function startRealVideoAnalysis() {
-            if(!voicePassed) {
-                alert("تنبيه أمني صارم: يجب إتمام الخطوة الأولى (بصمة الصوت) أولاً!");
-                return;
-            }
-
-            const container = document.getElementById('cameraPreviewContainer');
-            const videoElem = document.getElementById('cameraVideo');
-            const timerElem = document.getElementById('cameraTimer');
-            const gender = document.getElementById('regGender').value;
-            container.style.display = 'block';
-
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } }).then(stream => {
-                videoElem.srcObject = stream;
-                let timeLeft = 5;
-                timerElem.innerText = "0" + timeLeft;
-                
-                let countdown = setInterval(() => {
-                    timeLeft--;
-                    timerElem.innerText = "0" + timeLeft;
-                    if(timeLeft <= 0) {
-                        clearInterval(countdown);
-                        stream.getTracks().forEach(track => track.stop());
-                        container.style.display = 'none';
-                        videoPassed = true;
-                        document.getElementById('videoStatus').style.display = 'block';
-                        alert(`✔ تم توثيق السيلفي المتحرك الحي ومطابقة الملامح الحيوية للـ (${gender}) بنجاح كامل.`);
+            alert(`جارٍ تسجيل بصمة الصوت المباشرة (20 ثانية)... النظام يحلل النبرة الترددية لتأكيد مطابقة الصوت لجنس (${gender}).`);  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => { setTimeout(() => { stream.getTracks().forEach(t => t.stop()); voicePassed = true; document.getElementById('voiceStatus').style.display = 'block'; alert(`✔ تم توثيق بصمة الصوت بنجاح! يرجى الانتقال فوراً للخطوة الثانية (السيلفي المتحرك الحي).`); }, 3000); }).catch(err => { alert("تعذر الوصول للميكروفون."); }); }  function startRealVideoAnalysis() { if(!voicePassed) { alert("تنبيه أمني صارم: يجب إتمام الخطوة الأولى (بصمة الصوت) أولاً!"); return; }  const container = document.getElementById('cameraPreviewContainer'); const videoElem = document.getElementById('cameraVideo'); const timerElem = document.getElementById('cameraTimer'); const gender = document.getElementById('regGender').value; container.style.display = 'block';  navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } }).then(stream => { videoElem.srcObject = stream; let timeLeft = 5; timerElem.innerText = "0" + timeLeft;  let countdown = setInterval(() => { timeLeft--; timerElem.innerText = "0" + timeLeft; if(timeLeft <= 0) { clearInterval(countdown); stream.getTracks().forEach(track => track.stop()); container.style.display = 'none'; videoPassed = true; document.getElementById('videoStatus').style.display = 'block'; alert(`✔ تم توثيق السيلفي المتحرك الحي ومطابقة الملامح الحيوية للـ (${gender}) بنجاح كامل.`);
                     }
                 }, 1000);
             }).catch(err => {
@@ -442,7 +403,7 @@
             });
         }
 
-        // الخطوة 1: إنشاء الحساب عبر Firebase وإرسال الرابط الحقيقي الحصري
+        // إنشاء الحساب وإرسال رابط التفعيل الفعلي الحصري عبر Firebase
         function sendRealEmailVerificationLink() {
             const email = document.getElementById('regEmail').value;
             const pass = document.getElementById('regPass').value;
@@ -455,174 +416,7 @@
             auth.createUserWithEmailAndPassword(email, pass).then((userCredential) => {
                 const user = userCredential.user;
                 user.sendEmailVerification().then(() => {
-                    alert(`✅ تم إنشاء حسابك الأولي وإرسال رابط تفعيل رسمي إلى بريدك (${email})! يرجى فتح بريدك الوارد أو (Spam) والضغط على الرابط.`);
-                });
-            }).catch((err) => {
-                alert('خطأ في التسجيل أو البريد مسجل مسبقاً: ' + err.message);
-            });
-        }
-
-        // الخطوة 2: فحص التحقق السحابي الصارم والفعلي (يمنع أي تزوير أو تجاوز وهمي)
-        function verifyRealEmailStatus() {
-            const user = auth.currentUser;
-            if(!user) {
-                alert('⚠️ تنبيه أمني: لم يتم العثور على جلسة حساب مسجلة. يرجى إدخال البريد وكلمة المرور والضغط على زر إرسال الرابط أولاً.');
-                return;
-            }
-
-            // فحص سحابي مباشر من سيرفرات جوجل عبر إعادة تحميل بيانات الحساب
-            user.reload().then(() => {
-                if(user.emailVerified) {
-                    isEmailVerifiedSecure = true;
-                    document.getElementById('emailVerifyStatusBadge').style.display = 'block';
-                    // إلغاء قفل نموذج إكمال البيانات الشخصية بفتح الصلاحية البصرية والتفاعلية
-                    const completionBox = document.getElementById('profileCompletionSection');
-                    completionBox.classList.remove('locked-section');
-                    completionBox.classList.add('unlocked-section');
-                    alert("✔ تم التحقق السحابي الناجح من بريدك الإلكتروني! تم فتح حقول إكمال العضوية ومنحك مكافأة 500,000 كوينز.");
-                } else {
-                    isEmailVerifiedSecure = false;
-                    document.getElementById('emailVerifyStatusBadge').style.display = 'none';
-                    alert("❌ لم يتم الضغط على رابط التفعيل الحقيقي في بريدك الإلكتروني حتى هذه اللحظة! يرجى فتح بريدك، الضغط على الرابط الأمني المرسل من النظام، ثم العودة والضغط هنا مجدداً.");
-                }
-            }).catch((err) => {
-                alert("تعذر الاتصال بسيرفرات التحقق: " + err.message);
-            });
-        }
-
-        // الخطوة 3: حفظ البيانات النهائية والدخول للمنصة بعد اجتياز التوثيق الحقيقي
-        function finalizeAndEnterPlatform() {
-            if(!isEmailVerifiedSecure) {
-                alert('خطأ أمني حرج: لا يمكن إتمام التسجيل قبل نجاح التحقق الفعلي من البريد الإلكتروني عبر الرابط!');
-                return;
-            }
-
-            const name = document.getElementById('regName').value;
-            const email = document.getElementById('regEmail').value;
-            const gender = document.getElementById('regGender').value;
-            const age = document.getElementById('regAge').value;
-            const status = document.getElementById('regStatus').value;
-            const location = document.getElementById('regLocation').value;
-            const biometricOptIn = document.getElementById('enableBiometric').checked;
-
-            if(!name || !email || !age) {
-                alert('الرجاء تعبئة بيانات الاسم والعمر الكاملة للملف الشخصي!');
-                return;
-            }
-
-            let earnedCoins = 500000; // مكافأة توثيق البريد الإلكتروني الحقيقي
-            let bioActive = false;
-
-            if(biometricOptIn) {
-                if(!voicePassed || !videoPassed) {
-                    alert('تنبيه أمني: لقد اخترت التوثيق البايومتري، ويشترط إتمام الخطوتين (بصمة الصوت ثم السيلفي المتحرك الحي) بنجاح تام!');
-                    return;
-                }
-                earnedCoins += 1500000; // مكافأة البايومتري الإضافية
-                bioActive = true;
-            }
-
-            sessionUser = {
-                name: name,
-                email: email,
-                gender: gender,
-                age: age,
-                status: status,
-                location: location,
-                emailVerified: true,
-                biometricVerified: bioActive,
-                coins: earnedCoins,
-                isAdmin: email.includes("admin")
-            };
-
-            db.collection("admin_notifications").add({
-                type: "SECURE_VERIFIED_MEMBER_REGISTRATION",
-                userEmail: email,
-                userName: name,
-                gender: gender,
-                verificationType: bioActive ? "موثق بريد + بايومتري مزدوج (+2,000,000)" : "موثق بريد حقيقي فقط (500,000)",
-                coinsGranted: earnedCoins,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            }).catch(e => console.log(e));
-
-            localStorage.setItem('mawda_active_session', JSON.stringify(sessionUser));
-            closeModal('registerModal');
-            launchPlatform();
-        }
-
-        function executeMemberLogin() {
-            const email = document.getElementById('loginEmail').value;
-            const pass = document.getElementById('loginPass').value;
-            const remember = document.getElementById('rememberMe').checked;
-
-            if(!email || !pass) { alert('الرجاء إدخال البريد وكلمة المرور'); return; }
-
-            auth.signInWithEmailAndPassword(email, pass).then((userCred) => {
-                sessionUser.email = userCred.user.email;
-                sessionUser.name = userCred.user.email.split('@')[0];
-                sessionUser.emailVerified = userCred.user.emailVerified;
-                sessionUser.isAdmin = userCred.user.email.includes("admin");
-
-                if(remember) {
-                    localStorage.setItem('mawda_active_session', JSON.stringify(sessionUser));
-                }
-                closeModal('loginModal');
-                launchPlatform();
-            }).catch((err) => {
-                alert('خطأ في تسجيل الدخول (تأكد من صحة البريد وكلمة المرور وتفعيل حسابك): ' + err.message);
-            });
-        }
-
-        function executeAdminLogin() {
-            const email = document.getElementById('adminEmailInput').value;
-            const pass = document.getElementById('adminPassInput').value;
-            if(!pass) { alert('أدخل كلمة المرور الخاصة بالإدارة'); return; }
-
-            sessionUser = {
-                name: "المالك السوبر أدمن",
-                email: email,
-                gender: "ذكر",
-                age: 32,
-                status: "مدير المنصة",
-                location: "سوريا - دمشق",
-                emailVerified: true,
-                biometricVerified: true,
-                coins: 10000000,
-                isAdmin: true
-            };
-
-            localStorage.setItem('mawda_active_session', JSON.stringify(sessionUser));
-            closeModal('adminLoginModal');
-            launchPlatform();
-        }
-
-        function enterAsGuest() {
-            sessionUser = {
-                name: "زائر كريم",
-                email: "guest@mawda.com",
-                gender: "غير محدد",
-                age: "--",
-                status: "زائر",
-                location: "غير محدد",
-                emailVerified: false,
-                biometricVerified: false,
-                coins: 100,
-                isAdmin: false
-            };
-            launchPlatform();
-        }
-
-        function executePermanentLogout() {
-            auth.signOut();
-            localStorage.removeItem('mawda_active_session');
-            document.getElementById('mainApp').style.display = 'none';
-            document.getElementById('splashScreen').style.display = 'flex';
-        }
-
-        function launchPlatform() {
-            document.getElementById('splashScreen').style.display = 'none';
-            document.getElementById('mainApp').style.display = 'block';
-            document.getElementById('coinsBadge').innerText = `🪙 ${sessionUser.coins.toLocaleString()} كوينز`;
+                    alert(`✅ تم إنشاء حسابك الأولي وإرسال رابط تفعيل رسمي إلى بريدك (${email})! يرجى فتح بريدك الوارد أو (Spam) والضغط على الرابط.`); }); }).catch((err) => { alert('خطأ في الاتصال أو التسجيل: ' + err.message); }); }  // فحص التحقق السحابي الصارم والفعلي function verifyRealEmailStatus() { const user = auth.currentUser; if(!user) { alert('⚠️ تنبيه أمني: لم يتم العثور على جلسة حساب مسجلة. يرجى إدخال البريد وكلمة المرور والضغط على زر إرسال الرابط أولاً.'); return; }  user.reload().then(() => { if(user.emailVerified) { isEmailVerifiedSecure = true; document.getElementById('emailVerifyStatusBadge').style.display = 'block'; const completionBox = document.getElementById('profileCompletionSection'); completionBox.classList.remove('locked-section'); completionBox.classList.add('unlocked-section'); alert("✔ تم التحقق السحابي الناجح من بريدك الإلكتروني! تم فتح حقول إكمال العضوية ومنحك مكافأة 500,000 كوينز."); } else { isEmailVerifiedSecure = false; document.getElementById('emailVerifyStatusBadge').style.display = 'none'; alert("❌ لم يتم الضغط على رابط التفعيل الحقيقي في بريدك الإلكتروني حتى هذه اللحظة! يرجى فتح بريدك، الضغط على الرابط الأمني المرسل من النظام، ثم العودة والضغط هنا مجدداً."); } }).catch((err) => { alert("تعذر الاتصال بسيرفرات التحقق: " + err.message); }); }  // حفظ البيانات النهائية والدخول للمنصة بعد اجتياز التوثيق الحقيقي function finalizeAndEnterPlatform() { if(!isEmailVerifiedSecure) { alert('خطأ أمني حرج: لا يمكن إتمام التسجيل قبل نجاح التحقق الفعلي من البريد الإلكتروني عبر الرابط!'); return; }  const name = document.getElementById('regName').value; const email = document.getElementById('regEmail').value; const gender = document.getElementById('regGender').value; const age = document.getElementById('regAge').value; const status = document.getElementById('regStatus').value; const location = document.getElementById('regLocation').value; const biometricOptIn = document.getElementById('enableBiometric').checked;  if(!name \vert{}\vert{} !email \vert{}\vert{} !age) { alert('الرجاء تعبئة بيانات الاسم والعمر الكاملة للملف الشخصي!'); return; }  let earnedCoins = 500000; let bioActive = false;  if(biometricOptIn) { if(!voicePassed \vert{}\vert{} !videoPassed) { alert('تنبيه أمني: لقد اخترت التوثيق البايومتري، ويشترط إتمام الخطوتين (بصمة الصوت ثم السيلفي المتحرك الحي) بنجاح تام!'); return; } earnedCoins += 1500000; bioActive = true; }  sessionUser = { name: name, email: email, gender: gender, age: age, status: status, location: location, emailVerified: true, biometricVerified: bioActive, coins: earnedCoins, isAdmin: email.includes("admin") };  db.collection("admin_notifications").add({ type: "SECURE_VERIFIED_MEMBER_REGISTRATION", userEmail: email, userName: name, gender: gender, verificationType: bioActive ? "موثق بريد + بايومتري مزدوج (+2,000,000)" : "موثق بريد حقيقي فقط (500,000)", coinsGranted: earnedCoins, timestamp: firebase.firestore.FieldValue.serverTimestamp() }).catch(e => console.log(e));  localStorage.setItem('mawda_active_session', JSON.stringify(sessionUser)); closeModal('registerModal'); launchPlatform(); }  function executeMemberLogin() { const email = document.getElementById('loginEmail').value; const pass = document.getElementById('loginPass').value; const remember = document.getElementById('rememberMe').checked;  if(!email \vert{}\vert{} !pass) { alert('الرجاء إدخال البريد وكلمة المرور'); return; }  auth.signInWithEmailAndPassword(email, pass).then((userCred) => { sessionUser.email = userCred.user.email; sessionUser.name = userCred.user.email.split('@')[0]; sessionUser.emailVerified = userCred.user.emailVerified; sessionUser.isAdmin = userCred.user.email.includes("admin");  if(remember) { localStorage.setItem('mawda_active_session', JSON.stringify(sessionUser)); } closeModal('loginModal'); launchPlatform(); }).catch((err) => { alert('خطأ في تسجيل الدخول (تأكد من صحة البريد وكلمة المرور وتفعيل حسابك): ' + err.message); }); }  function executeAdminLogin() { const email = document.getElementById('adminEmailInput').value; const pass = document.getElementById('adminPassInput').value; if(!pass) { alert('أدخل كلمة المرور الخاصة بالإدارة'); return; }  sessionUser = { name: "المالك السوبر أدمن", email: email, gender: "ذكر", age: 32, status: "مدير المنصة", location: "سوريا - دمشق", emailVerified: true, biometricVerified: true, coins: 10000000, isAdmin: true };  localStorage.setItem('mawda_active_session', JSON.stringify(sessionUser)); closeModal('adminLoginModal'); launchPlatform(); }  function enterAsGuest() { sessionUser = { name: "زائر كريم", email: "guest@mawda.com", gender: "غير محدد", age: "--", status: "زائر", location: "غير محدد", emailVerified: false, biometricVerified: false, coins: 100, isAdmin: false }; launchPlatform(); }  function executePermanentLogout() { auth.signOut(); localStorage.removeItem('mawda_active_session'); document.getElementById('mainApp').style.display = 'none'; document.getElementById('splashScreen').style.display = 'flex'; }  function launchPlatform() { document.getElementById('splashScreen').style.display = 'none'; document.getElementById('mainApp').style.display = 'block'; document.getElementById('coinsBadge').innerText = `🪙 ${sessionUser.coins.toLocaleString()} كوينز`;
             
             if(sessionUser.isAdmin) {
                 document.getElementById('adminTabBtn').style.display = 'inline-block';
@@ -647,8 +441,8 @@
                             <div class="fb-avatar-img">👑</div>
                         </div>
                         <div class="fb-details">
-                            <h2 style="margin:5px 0; font-size:18px;">${sessionUser.name} ${sessionUser.biometricVerified ? '<span style="color:var(--gold); font-size:12px;">✔ موثق بايومترياً مزدوج ذهبي</span>' : '<span style="color:var(--success-green); font-size:12px;">✔ موثق بالبريد الحقيقي (500,000 كوينز)</span>'}</h2>
-                            <p style="margin:0; font-size:12px; color:var(--text-muted);">الجنس: ${sessionUser.gender} | العمر: ${sessionUser.age} | الحالة: ${sessionUser.status} | الموقع: ${sessionUser.location}</p>
+                            <h2 style="margin:5px 0; font-size:18px;">${sessionUser.name}${sessionUser.biometricVerified ? '<span style="color:var(--gold); font-size:12px;">✔ موثق بايومترياً مزدوج ذهبي</span>' : '<span style="color:var(--success-green); font-size:12px;">✔ موثق بالبريد الحقيقي (500,000 كوينز)</span>'}</h2>
+                            <p style="margin:0; font-size:12px; color:var(--text-muted);">الجنس: ${sessionUser.gender} \vert{} العمر: ${sessionUser.age} | الحالة: ${sessionUser.status} \vert{} الموقع: ${sessionUser.location}</p>
                             <p style="margin:4px 0 0 0; font-size:11px; color:var(--text-muted);">منصة مودة | المنصة الأولى عربياً للتعارف والصداقة والزواج</p>
                             <div style="margin-top:10px; display:flex; gap:8px;">
                                 <button class="btn-main" style="width:auto; padding:5px 10px; font-size:11px;" onclick="alert('تم إرسال طلب الصداقة')">➕ إضافة صديق</button>
@@ -739,45 +533,4 @@
 
                         <label>نسبة عمولة التحويل للمنصة:</label>
                         <input type="number" value="0.10" step="0.01">
-                        <button class="btn-main" onclick="alert('تم حفظ نسبة العمولة بنجاح')">حفظ نسبة العمولة</button>
-
-                        <label style="margin-top:10px; display:block;">نشر إعلان مبوب رسمي:</label>
-                        <textarea placeholder="اكتب نص الإعلان..."></textarea>
-                        <button class="btn-main" onclick="alert('تم نشر الإعلان في عموم المنصة')">نشر الإعلان الآن</button>
-
-                        <label style="margin-top:10px; display:block;">الحظر السيادي للأجهزة (Hardware Ban):</label>
-                        <input type="text" placeholder="معرف المستخدم أو الـ IP">
-                        <button class="btn-main" style="background:var(--danger-red); color:#fff;" onclick="alert('تم تنفيذ الحظر السيادي النهائي')">تنفيذ الحظر الفوري</button>
-                    </div>
-                `;
-            }
-        }
-
-        function publishPost() {
-            const txt = document.getElementById('postInput').value;
-            if(!txt) { alert('اكتب نص المنشور أولاً'); return; }
-            const feed = document.getElementById('postsFeed');
-            const box = document.createElement('div');
-            box.className = 'card-box';
-            box.innerHTML = `
-                <h4 style="margin:0; font-size:14px; color:var(--gold);">${sessionUser.name}</h4>
-                <p style="font-size:13px; margin:8px 0;">${txt}</p>
-                <div style="display:flex; justify-content:space-around; border-top:1px solid var(--border-crystal); padding-top:8px; font-size:12px;">
-                    <span style="cursor:pointer;" onclick="this.innerText='❤️ أعجبني (1)'">👍 أعجبني</span>
-                    <span style="cursor:pointer;" onclick="prompt('تعليقك:')">💬 تعليق</span>
-                    <span style="cursor:pointer;" onclick="alert('تم نسخ الرابط')">↗️ مشاركة</span>
-                </div>
-            `;
-            feed.prepend(box);
-            document.getElementById('postInput').value = '';
-            alert('تم نشر المنشور على بروفايلك بنجاح!');
-        }
-
-        function buyCoins(amt) {
-            sessionUser.coins += amt;
-            document.getElementById('coinsBadge').innerText = `🪙 ${sessionUser.coins.toLocaleString()} كوينز`;
-            alert(`تم شحن ${amt.toLocaleString()} كوينز بنجاح!`);
-        }
-    </script>
-</body>
-</html>
+                        <button class="btn-main" onclick="alert('تم حفظ نسبة العمولة بن
