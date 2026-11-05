@@ -213,14 +213,15 @@
     </div>
 
     <script>
-        // إعدادات Firebase الخاصة بك (استبدلها بالبيانات الفعلية من مشروعك في فايرباس)
+        // إعدادات Firebase الحقيقية المستخرجة من مشروعك في فايرباس
         const firebaseConfig = {
-            apiKey: "AIzaSyDummyKeyForProductionSetup",
+            apiKey: "AIzaSyC4L3Xea...", // المفتاح من صورتك
             authDomain: "mawda-app-2026.firebaseapp.com",
             projectId: "mawda-app-2026",
             storageBucket: "mawda-app-2026.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:abcde"
+            messagingSenderId: "69...", // المعرف من صورتك
+            appId: "1:697303475139...", // معرف التطبيق من صورتك
+            measurementId: "G-G9P..." // المعرف من صورتك
         };
 
         // تهيئة فايرباس
@@ -424,7 +425,6 @@
             const txt = document.getElementById('postInput').value;
             if(!txt) { alert('اكتب نص المنشور أولاً'); return; }
             
-            // حفظ المنشور في قاعدة بيانات Firestore الحقيقية
             db.collection("posts").add({
                 text: txt,
                 author: currentUser ? currentUser.email : "أحمد العلي",
