@@ -1,0 +1,56 @@
+/* الألوان الأساسية: الأسود الفاخر، الذهب المخملي، والوردي المثير */
+:root {
+  --bg-primary: #0a090c;
+  --bg-secondary: #16131a;
+  --gold-primary: #d4af37;
+  --gold-light: #f3e5ab;
+  --rose-accent: #e91e63;
+  --text-main: #f5f5f7;
+  --text-muted: #b0a8b9;
+  --glass-bg: rgba(22, 19, 26, 0.75);
+  --border-glow: rgba(212, 175, 55, 0.3);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Cairo', 'Tajawal', sans-serif;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  direction: rtl;
+  overflow-x: hidden;
+  background-image: radial-gradient(circle at 50% 20%, #1f1224 0%, var(--bg-primary) 70%);
+  min-height: 100vh;
+}
+
+/* تأثيرات الزجاج الفاخر (Glassmorphism) */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glow);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/* أزرار السينما الفاخرة */
+.btn-gold {
+  background: linear-gradient(135deg, #d4af37 0%, #aa771c 100%);
+  color: #000;
+  font-weight: bold;
+  padding: 12px 24px;
+  border-radius: 30px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+}
+
+.btn-gold:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px rgba(212, 175, 55, 0.7);
+}
