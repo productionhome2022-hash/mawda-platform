@@ -1,7 +1,9 @@
 // ==========================================
-// ملف النماذج الشامل والنهائي والكامل لتطبيق مودة (mawda-app-2026)
-// (غرفة العمليات الكبرى: التخفي الصامت، خلفيات المحادثة الثنائية الخاصة، الملف الموسيقي للبروفايل، قفل عداد الكوينز، التحدث كمجهول للجميع ما عدا الأدمن، الأوسمة السينمائية، النبذة، هدف الاستخدام، قفل البروفايل، وإدارة المتجر والأوسمة)
+// الكود الشامل والنهائي والكامل لتطبيق مودة (mawda-app-2026)
+// (غرفة العمليات الكبرى: التخفي الصامت، خلفيات المحادثة الثنائية، الملف الموسيقي، قفل الكوينز، التحدث كمجهول للجميع ما عدا الأدمن، الأوسمة السينمائية، قفل البروفايل، متجر الميزات، وإدارة الإعلانات التجارية ومكافآت المشاهدة للسوبر أدمن)
 // ==========================================
+
+import 'package:flutter/foundation.dart';
 
 // أ. نموذج صور معرض البروفايل (تدمير ذاتي بعد 7 أيام)
 class PhotoItemModel {
@@ -32,7 +34,7 @@ class PhotoItemModel {
   }
 }
 
-// 1. نموذج المستخدم الشامل (مع خلفية المحادثة الثنائية الخاصة، الملف الموسيقي، قفل الكوينز، الأوسمة، النبذة، هدف الاستخدام، وقفل البروفايل)
+// 1. نموذج المستخدم الشامل (مع البروفايل المتطور، الخلفيات، الموسيقى، قفل الكوينز، وقفل البروفايل)
 class UserModel {
   final String uid;
   final String username;              // المعرف الفريد (@username)
@@ -46,33 +48,33 @@ class UserModel {
   final String relationshipStatus;    // الحالة الاجتماعية
   final String housingSituation;      // طريقة السكن
   final String occupation;            // المهنة
-  final String datingIntent;          // الهدف من الاستخدام (يعرض في البروفايل لكافة الأعضاء)
+  final String datingIntent;          // الهدف من الاستخدام (يعرض في البروفايل لكافة الأعضاء مثل زواج جاد)
   
   final String profileImageUrl;       // الصورة الشخصية
   final String coverImageUrl;         // صورة الغلاف
-  final String bio;                   // النبذة التعريفية (حتى 500 حرف، قابلة للتعديل)
+  final String bio;                   // النبذة التعريفية (حتى 500 حرف)
   
   final bool isEmailVerified;         // توثيق البريد (+500 كوينز)
   final bool isBiometricVerified;    // التوثيق البيومتري (+1500 كوينز)
   final int coins;                     // رصيد الكوينز
-  final bool isCoinBalanceLocked;     // ميزة قفل عداد الكوينز (إخفاؤه عن باقي الأعضاء بقفل سري)
+  final bool isCoinBalanceLocked;     // ميزة قفل عداد الكوينز بقفل سري عن باقي الأعضاء
   
   final List<String> badges;           
   final List<String> titles;           
   final List<PhotoItemModel> photosGallery; 
   
-  // ميزات متجر الميزات الخاصة والتحكم
+  // ميزات متجر الميزات الخاصة والتحكم الفردي
   final List<String> activeSpecialFeatures; 
   final List<String> profileVisitors;       
   final bool isOnline;                      
   final bool isOnlineHidden;                
   final bool isGhostModeActive;             
-  final bool isProfileBoosted;              
+  final bool isProfileBoosted;              // ميزة تعزيز البروفايل وزيادة الظهور
   final bool isProfileLocked;               // ميزة قفل البروفايل (مرئي للأصدقاء المسجلين فقط)
   final String customProfileStyle;          
   
-  final String profileAudioUrl;             // رابط الملف الموسيقي الخاص بالبروفايل (يعمل تلقائياً عند الدخول)
-  final String chatBackgroundUrl;           // ميزة شراء وتحديث خلفية المحادثة الثنائية الخاصة بين عضوين
+  final String profileAudioUrl;             // الملف الموسيقي للبروفايل (يعمل تلقائياً عند الزيارة)
+  final String chatBackgroundUrl;           // شراء وتحديث خلفية المحادثة الثنائية الخاصة
 
   final String lastKnownIp;        
   final String deviceId;           
@@ -113,7 +115,7 @@ class UserModel {
     this.isProfileLocked = false,
     this.customProfileStyle = '',
     this.profileAudioUrl = '',
-    this.chatBackgroundUrl = '', // خلفية المحادثة الثنائية الخاصة
+    this.chatBackgroundUrl = '',
     this.lastKnownIp = '',
     this.deviceId = '',
     this.isBanned = false,
@@ -211,7 +213,7 @@ class UserModel {
   }
 }
 
-// 2. نموذج جلسات الزوار المؤقتة
+// 2. نموذج جلسات الزوار المؤقتة (لمدة ساعة)
 class GuestSessionModel {
   final String guestId;
   final String guestUsername;      
@@ -276,7 +278,7 @@ class GuestSessionModel {
   }
 }
 
-// 3. نموذج رسائل وتذاكر الدعم التقني
+// 3. نموذج تذاكر الدعم التقني ومراسلة الإدارة
 class SupportTicketModel {
   final String ticketId;
   final String senderUid;          
@@ -333,12 +335,12 @@ class SupportTicketModel {
   }
 }
 
-// 4. نموذج الإعدادات المالية واقتصاد المنصة
+// 4. نموذج الإعدادات المالية واقتصاد المنصة (التحكم بالمكافآت والعمولات)
 class PlatformFinancialConfigModel {
-  final int dailyRewardCoins;      
-  final int hourlyRewardCoins;     
-  final int weeklyRewardCoins;     
-  final int adWatchRewardCoins;    
+  final int dailyRewardCoins;        // مكافأة الحضور اليومي (قابلة للرفع والخفض من لوحة الأدمن)
+  final int hourlyRewardCoins;       // مكافأة الحضور بالساعة
+  final int weeklyRewardCoins;       // مكافأة الحضور الأسبوعي المتواصل
+  final int adWatchRewardCoins;      // مكافأة مشاهدة الإعلانات التجارية
   final double transferCommissionPercentage; 
   final Map<String, dynamic> coinPackages; 
   final String customPurchaseContactUrl;  
@@ -525,7 +527,7 @@ class MessageModel {
   final String text;
   final String mediaUrl;           
   final String mediaType;          // ('text', 'voice', 'image', 'video')
-  final bool isAnonymous;          // التحدث كمجهول / شبح في الغرف العامة والمستأجرة (يظهر كمجهول للجميع ولا يعرفه إلا السوبر أدمن)
+  final bool isAnonymous;          // التحدث كمجهول / شبح في الغرف العامة والمستأجرة (مكشوف حصراً للسوبر أدمن)
   final bool isAdminIntervention;  // تدخل سيادي من السوبر أدمن
   final DateTime timestamp;
   final DateTime expiresAt;
@@ -627,7 +629,7 @@ class AdminModeratorModel {
   }
 }
 
-// 10. نموذج سجلات الحظر الذكي
+// 10. نموذج سجلات الحظر الذكي (IP وبصمة الجهاز)
 class BanRecordModel {
   final String banId;
   final String targetUserId;
@@ -766,7 +768,7 @@ class NotificationModel {
   }
 }
 
-// 13. نموذج الهدايا وإهداء الكوينز والأوسمة والألقاب
+// 13. نموذج الهدايا وإهداء الكوينز والأوسمة
 class GiftTransactionModel {
   final String giftId;
   final String senderId;
@@ -934,11 +936,11 @@ class VerificationModel {
   }
 }
 
-// 17. نموذج غرف الدردشة
+// 17. نموذج غرف الدردشة (فصل تام بين الغرف العامة والغرف المستأجرة الخاصة)
 class RoomModel {
   final String roomId;
   final String roomName;
-  final bool isPublic;             
+  final bool isPublic;             // true = غرفة عامة (قسم منفصل)، false = غرفة خاصة مستأجرة (قسم منفصل)
   final bool isRented;             
   final String ownerId;            
   final List<String> roomAdmins;   
@@ -1011,182 +1013,53 @@ class RoomModel {
   }
 }
 
-// 18. نموذج الإعلانات التجارية
-class AdModel {
-  final String adId;
-  final String title;
-  final String content;
-  final String mediaUrl;           
-  final String linkUrl;            
-  final String createdBy;          
+// 18. نموذج قسم الإعلانات التجارية ومكافآت المشاهدة (تحكم كامل من السوبر أدمن)
+class AdminBroadcastAdModel {
+  final String broadcastId;
+  final String title;              // عنوان الإعلان التجاري أو التنبيه الجماعي
+  final String messageBody;        // نص الرسالة أو المحتوى الإعلاني
+  final String mediaUrl;           // رابط الفيديو أو الصورة المرفقة للإعلان
+  final String mediaType;          // نوع الوسائط ('image', 'video', 'text_only')
+  final String targetUrl;          // رابط توجيهي (إن وجد)
+  final String broadcastType;      // نوع البث ('global_alert', 'commercial_ad', 'rewardable_ad')
+  
+  // نظام المكافآت المرتبط بمشاهدة الإعلانات
+  final bool isRewardable;         // هل يمنح هذا الإعلان كوينز عند مشاهدته؟
+  final int rewardCoinsAmount;     // كمية الكوينز المحددة من لوحة الأدمن لتضاف للمستخدم فور المشاهدة
+  
+  final bool isVisibleToUsers;     // حالة الظهور للمستخدمين في قسم الإعلانات المبوبة
+  final String createdByAdminId;   // معرف السوبر أدمن الناشر
   final DateTime createdAt;
+  final DateTime? expiresAt;       // تاريخ انتهاء ظهور الإعلان
 
-  AdModel({
-    required this.adId,
+  AdminBroadcastAdModel({
+    required this.broadcastId,
     required this.title,
-    required this.content,
+    required this.messageBody,
     this.mediaUrl = '',
-    this.linkUrl = '',
-    required this.createdBy,
+    this.mediaType = 'image',
+    this.targetUrl = '',
+    this.broadcastType = 'rewardable_ad',
+    this.isRewardable = true,
+    this.rewardCoinsAmount = 20, // قابلة للتحكم والرفع/الخفض بحرية من لوحة السوبر أدمن
+    this.isVisibleToUsers = true,
+    required this.createdByAdminId,
     required this.createdAt,
+    this.expiresAt,
   });
 
   Map<String, dynamic> toMap() {
     return {
-      'adId': adId,
+      'broadcastId': broadcastId,
       'title': title,
-      'content': content,
+      'messageBody': messageBody,
       'mediaUrl': mediaUrl,
-      'linkUrl': linkUrl,
-      'createdBy': createdBy,
+      'mediaType': mediaType,
+      'targetUrl': targetUrl,
+      'broadcastType': broadcastType,
+      'isRewardable': isRewardable,
+      'rewardCoinsAmount': rewardCoinsAmount,
+      'isVisibleToUsers': isVisibleToUsers,
+      'createdByAdminId': createdByAdminId,
       'createdAt': createdAt.toIso8601String(),
-    };
-  }
-
-  factory AdModel.fromMap(Map<String, dynamic> map) {
-    return AdModel(
-      adId: map['adId'] ?? '',
-      title: map['title'] ?? '',
-      content: map['content'] ?? '',
-      mediaUrl: map['mediaUrl'] ?? '',
-      linkUrl: map['linkUrl'] ?? '',
-      createdBy: map['createdBy'] ?? '',
-      createdAt: DateTime.parse(map['createdAt']),
-    );
-  }
-}
-
-// 19. نموذج بيانات الوسام الواحد في متجر الأوسمة (مع الخصائص السينمائية المتحركة)
-class BadgeItemModel {
-  final String badgeId;
-  final String badgeName;       // اسم الوسام (توثيق، أعلام، شرفي، إلخ)
-  final String badgeIconUrl;    // أيقونة الوسام المتحرك
-  final String category;        // التصنيف ('verification', 'national', 'honor', 'economy', 'innovation')
-  final int priceInCoins;       // سعر الشراء بالكوينز
-  final bool isAnimated;        // هل الوسام متحرك بطابع سينمائي؟
-  final String glowColor;       // لون التوهج السينمائي المحيط بالوسام
-  final bool isLimitedEdition;  // هل هو وسام محدود الإصدار؟
-  final DateTime createdAt;
-
-  BadgeItemModel({
-    required this.badgeId,
-    required this.badgeName,
-    required this.badgeIconUrl,
-    required this.category,
-    this.priceInCoins = 0,
-    this.isAnimated = true,
-    this.glowColor = '#FFD700',
-    this.isLimitedEdition = false,
-    required this.createdAt,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'badgeId': badgeId,
-      'badgeName': badgeName,
-      'badgeIconUrl': badgeIconUrl,
-      'category': category,
-      'priceInCoins': priceInCoins,
-      'isAnimated': isAnimated,
-      'glowColor': glowColor,
-      'isLimitedEdition': isLimitedEdition,
-      'createdAt': createdAt.toIso8601String(),
-    };
-  }
-
-  factory BadgeItemModel.fromMap(Map<String, dynamic> map) {
-    return BadgeItemModel(
-      badgeId: map['badgeId'] ?? '',
-      badgeName: map['badgeName'] ?? '',
-      badgeIconUrl: map['badgeIconUrl'] ?? '',
-      category: map['category'] ?? 'general',
-      priceInCoins: map['priceInCoins'] ?? 0,
-      isAnimated: map['isAnimated'] ?? true,
-      glowColor: map['glowColor'] ?? '#FFD700',
-      isLimitedEdition: map['isLimitedEdition'] ?? false,
-      createdAt: DateTime.parse(map['createdAt']),
-    );
-  }
-}
-
-// 20. نموذج الأوسمة المملوكة والمفعلة في بروفايل العضو (شريط العرض السينمائي للأوسمة)
-class UserBadgeInventoryModel {
-  final String userId;
-  final List<String> ownedBadgeIds;    // الأوسمة المملوكة
-  final String activeDisplayedBadgeId; // الوسام البارز بجانب الاسم
-  final List<String> showcaseBadgeIds; // أوسمة "حقض العرض السينمائي" البارزة في البروفايل (حتى 5 أوسمة)
-
-  UserBadgeInventoryModel({
-    required this.userId,
-    this.ownedBadgeIds = const [],
-    this.activeDisplayedBadgeId = '',
-    this.showcaseBadgeIds = const [],
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'userId': userId,
-      'ownedBadgeIds': ownedBadgeIds,
-      'activeDisplayedBadgeId': activeDisplayedBadgeId,
-      'showcaseBadgeIds': showcaseBadgeIds,
-    };
-  }
-
-  factory UserBadgeInventoryModel.fromMap(Map<String, dynamic> map) {
-    return UserBadgeInventoryModel(
-      userId: map['userId'] ?? '',
-      ownedBadgeIds: List<String>.from(map['ownedBadgeIds'] ?? []),
-      activeDisplayedBadgeId: map['activeDisplayedBadgeId'] ?? '',
-      showcaseBadgeIds: List<String>.from(map['showcaseBadgeIds'] ?? []),
-    );
-  }
-}
-
-// 21. نموذج إدارة وتحكم السوبر أدمن بمتجر الأوسمة والميزات (للإضافة، الحذف، التعديل، والاستيراد الخارجي)
-class AdminStoreManagerModel {
-  final String itemId;          // معرف العنصر (وسام أو ميزة خاصة)
-  final String itemType;        // نوع العنصر ('badge', 'feature', 'title')
-  final String itemName;        // اسم العنصر
-  final String itemIconUrl;     // رابط الأيقونة أو التحميل الخارجي (من أي متجر أو تطبيق)
-  final int priceInCoins;       // السعر بالكوينز (قابل للتعديل بحسب رغبتك)
-  final bool isAvailable;       // حالة التوافر (true لعرضه في المتجر، false لإخفائه أو حذفه)
-  final String adminNotes;      // ملاحظات إدارية خاصة بك
-  final DateTime updatedAt;
-
-  AdminStoreManagerModel({
-    required this.itemId,
-    required this.itemType,
-    required this.itemName,
-    required this.itemIconUrl,
-    required this.priceInCoins,
-    this.isAvailable = true,
-    this.adminNotes = '',
-    required this.updatedAt,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'itemId': itemId,
-      'itemType': itemType,
-      'itemName': itemName,
-      'itemIconUrl': itemIconUrl,
-      'priceInCoins': priceInCoins,
-      'isAvailable': isAvailable,
-      'adminNotes': adminNotes,
-      'updatedAt': updatedAt.toIso8601String(),
-    };
-  }
-
-  factory AdminStoreManagerModel.fromMap(Map<String, dynamic> map) {
-    return AdminStoreManagerModel(
-      itemId: map['itemId'] ?? '',
-      itemType: map['itemType'] ?? 'badge',
-      itemName: map['itemName'] ?? '',
-      itemIconUrl: map['itemIconUrl'] ?? '',
-      priceInCoins: map['priceInCoins'] ?? 0,
-      isAvailable: map['isAvailable'] ?? true,
-      adminNotes: map['adminNotes'] ?? '',
-      updatedAt: DateTime.parse(map['updatedAt']),
-    );
-  }
-}
+      'expiresAt': expiresAt?.toIso8
