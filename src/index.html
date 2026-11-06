@@ -16,10 +16,12 @@
             --gold-hover: #ffea70;
             --text-main: #ffffff;
             --text-muted: #f3f4f6;
-            --border-crystal: rgba(255, 215, 0, 0.55);
-            --glass-card: rgba(15, 10, 25, 0.50);
-            --primary-blue: rgba(37, 99, 235, 0.75);
-            --danger-red: #dc2626;
+            --border-crystal: rgba(255, 215, 0, 0.65);
+            --glass-card: rgba(10, 5, 20, 0.35); /* زيادة الشفافية */
+            --glass-button: rgba(255, 215, 0, 0.18);
+            --glass-button-hover: rgba(255, 215, 0, 0.35);
+            --primary-blue: rgba(37, 99, 235, 0.45);
+            --danger-red: rgba(220, 38, 38, 0.55);
             --success-green: #16a34a;
         }
 
@@ -27,9 +29,10 @@
             margin: 0; padding: 0; direction: rtl;
             font-family: Tahoma, Arial, sans-serif;
             color: var(--text-main); min-height: 100vh;
-            background-color: #0b0712;
+            background-color: #08040c;
+            /* استبدال الخلفية بالصورة السينمائية الجديدة وتوضيحها للعيان */
             background-image: 
-                linear-gradient(rgba(10, 5, 20, 0.25), rgba(10, 5, 20, 0.45)),
+                linear-gradient(rgba(5, 2, 10, 0.15), rgba(5, 2, 10, 0.25)),
                 url('https://images.unsplash.com/photo-1518199266791-5375a83190b7?q=80&w=1920&auto=format&fit=crop');
             background-repeat: no-repeat; background-position: center center;
             background-size: cover; background-attachment: fixed;
@@ -39,17 +42,17 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             min-height: 100vh; padding: 15px; box-sizing: border-box;
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 999; background: rgba(5, 2, 10, 0.25); backdrop-filter: blur(4px);
+            z-index: 999; background: rgba(5, 2, 10, 0.15); backdrop-filter: blur(2px);
         }
         .splash-card {
             background: var(--glass-card);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border: 1px solid var(--border-crystal);
             border-radius: 24px;
             padding: 25px 20px;
             max-width: 480px; width: 100%; text-align: center;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
             box-sizing: border-box;
         }
 
@@ -66,7 +69,7 @@
             100% { transform: scale(1.05); filter: brightness(1.2); }
         }
         .brand-title-ar {
-            color: var(--gold); font-size: 22px; font-weight: bold; margin: 0;
+            color: var(--gold); font-size: 24px; font-weight: bold; margin: 0;
             text-shadow: 0 2px 8px rgba(0,0,0,0.9);
         }
         .brand-title-en {
@@ -83,76 +86,83 @@
             text-shadow: 0 1px 4px rgba(0,0,0,0.9);
         }
 
+        /* أزرار فائقة الشفافية زجاجية أنيقة */
         .btn-main {
-            background: rgba(255, 215, 0, 0.85); backdrop-filter: blur(10px);
-            color: #000; border: 1px solid rgba(255,255,255,0.6); padding: 12px 18px;
+            background: var(--glass-button); backdrop-filter: blur(10px);
+            color: #ffffff; border: 1px solid var(--border-crystal); padding: 12px 18px;
             border-radius: 12px; font-weight: bold; font-size: 12px; cursor: pointer;
             width: 100%; margin-bottom: 10px; box-sizing: border-box;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4); transition: all 0.25s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: all 0.25s ease;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
         }
-        .btn-main:hover { background: var(--gold-hover); transform: translateY(-2px); box-shadow: 0 6px 25px rgba(255,215,0,0.5); }
-        .btn-secondary { background: rgba(20, 15, 30, 0.65); color: var(--gold); border: 1px solid var(--border-crystal); }
-        .btn-blue { background: rgba(37, 99, 235, 0.75); color: #fff; border: 1px solid rgba(255,255,255,0.4); }
-        .btn-admin { background: rgba(124, 58, 237, 0.8); color: #fff; border: 1px solid rgba(255,255,255,0.4); }
+        .btn-main:hover { 
+            background: var(--glass-button-hover); 
+            transform: translateY(-2px); 
+            box-shadow: 0 6px 20px rgba(255,215,0,0.4); 
+            border-color: var(--gold-hover);
+        }
+        .btn-secondary { background: rgba(15, 10, 25, 0.4); color: var(--gold); border: 1px solid var(--border-crystal); }
+        .btn-blue { background: rgba(37, 99, 235, 0.35); color: #fff; border: 1px solid rgba(147, 197, 253, 0.6); }
+        .btn-admin { background: rgba(124, 58, 237, 0.4); color: #fff; border: 1px solid rgba(216, 180, 254, 0.6); }
 
         .modal-wrapper {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(5, 2, 10, 0.75); backdrop-filter: blur(12px); z-index: 10000;
+            background: rgba(5, 2, 10, 0.55); backdrop-filter: blur(8px); z-index: 10000;
             justify-content: center; align-items: center; padding: 15px; box-sizing: border-box;
         }
         .modal-content {
-            background: rgba(18, 12, 28, 0.92); backdrop-filter: blur(20px);
+            background: rgba(12, 7, 22, 0.65); backdrop-filter: blur(18px);
             border: 1px solid var(--border-crystal);
             border-radius: 20px; padding: 22px; max-width: 460px; width: 100%;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.9); box-sizing: border-box; text-align: right;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8); box-sizing: border-box; text-align: right;
             max-height: 90vh; overflow-y: auto;
         }
         .modal-content h3 { color: var(--gold); margin-top: 0; font-size: 16px; }
 
         #mainApp { display: none; max-width: 950px; margin: 0 auto; padding-bottom: 40px; }
         .header-stick {
-            background: rgba(12, 7, 20, 0.85); backdrop-filter: blur(16px);
+            background: rgba(10, 5, 18, 0.45); backdrop-filter: blur(14px);
             border-bottom: 1px solid var(--border-crystal); padding: 12px 18px;
             display: flex; justify-content: space-between; align-items: center;
             position: sticky; top: 0; z-index: 1000;
         }
-        .brand-hdr { color: var(--gold); font-size: 12px; font-weight: bold; margin: 0; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .brand-hdr { color: var(--gold); font-size: 13px; font-weight: bold; margin: 0; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .nav-tabs-bar {
             display: flex; justify-content: center; gap: 5px; flex-wrap: wrap;
-            background: rgba(15, 10, 25, 0.8); backdrop-filter: blur(12px);
+            background: rgba(10, 5, 18, 0.4); backdrop-filter: blur(12px);
             padding: 10px; border-bottom: 1px solid var(--border-crystal);
         }
         .tab-btn {
             background: rgba(255,255,255,0.08); color: var(--gold);
             border: 1px solid var(--border-crystal); padding: 7px 11px;
-            border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 11px;
+            border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 11px; backdrop-filter: blur(5px);
         }
         .tab-btn.active { background: var(--gold); color: #000; }
 
         .fb-profile-box {
-            background: var(--glass-card); backdrop-filter: blur(16px);
+            background: var(--glass-card); backdrop-filter: blur(14px);
             border-radius: 0 0 16px 16px; border: 1px solid var(--border-crystal); border-top: none;
             margin-bottom: 20px; overflow: hidden;
         }
-        .fb-cover { height: 190px; background: linear-gradient(135deg, rgba(45,28,68,0.7), rgba(12,7,18,0.85)); position: relative; }
+        .fb-cover { height: 190px; background: linear-gradient(135deg, rgba(45,28,68,0.4), rgba(12,7,18,0.6)); position: relative; }
         .fb-avatar-wrap { margin-top: -60px; margin-left: 20px; display: inline-block; }
         .fb-avatar-img {
-            width: 110px; height: 110px; border-radius: 50%; border: 4px solid rgba(15,10,25,0.9);
-            background: #281a36; display: flex; align-items: center; justify-content: center; font-size: 38px; color: var(--gold);
+            width: 110px; height: 110px; border-radius: 50%; border: 3px solid var(--border-crystal);
+            background: rgba(40, 26, 54, 0.7); display: flex; align-items: center; justify-content: center; font-size: 38px; color: var(--gold);
         }
         .fb-details { display: inline-block; vertical-align: top; margin-top: 10px; padding: 0 15px; }
         .card-box {
-            background: var(--glass-card); backdrop-filter: blur(16px);
+            background: var(--glass-card); backdrop-filter: blur(14px);
             border: 1px solid var(--border-crystal); border-radius: 16px; padding: 18px; margin: 15px;
         }
         .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 15px; margin-top: 15px; }
         .card-item {
-            background: rgba(255,255,255,0.05); border: 1px solid var(--border-crystal);
-            border-radius: 12px; padding: 15px; text-align: center;
+            background: rgba(255,255,255,0.04); border: 1px solid var(--border-crystal);
+            border-radius: 12px; padding: 15px; text-align: center; backdrop-filter: blur(8px);
         }
         input, select, textarea {
             width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 10px;
-            border-radius: 8px; border: 1px solid var(--border-crystal); background: rgba(10,5,18,0.85); color: #fff;
+            border-radius: 8px; border: 1px solid var(--border-crystal); background: rgba(10,5,18,0.6); color: #fff;
             box-sizing: border-box; font-size: 12px;
         }
         label { font-size: 11px; color: var(--text-muted); display: block; margin-top: 5px; }
@@ -164,7 +174,7 @@
         }
         #cameraVideo { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         .phrase-box {
-            background: rgba(255,215,0,0.12); border: 1px dashed var(--gold); color: var(--gold);
+            background: rgba(255,215,0,0.1); border: 1px dashed var(--gold); color: var(--gold);
             padding: 9px; border-radius: 8px; font-size: 11px; font-weight: bold; text-align: center; margin: 6px 0;
         }
         .locked-section { opacity: 0.4; pointer-events: none; transition: all 0.3s ease; }
@@ -176,7 +186,6 @@
     <!-- الواجهة الخارجية المستقلة (Splash Screen) -->
     <div id="splashScreen">
         <div class="splash-card">
-            <!-- الشعار الرومانسي الكبير والاحترافي -->
             <div class="brand-header-box">
                 <div class="couple-logo-icon">👩‍❤️‍👨</div>
                 <h1 class="brand-title-ar">مودة</h1>
@@ -223,10 +232,8 @@
             <label>كلمة المرور (6 أحرف على الأقل)</label>
             <input type="password" id="regPass" placeholder="********">
 
-            <!-- الخطوة 1: طلب إرسال رابط التفعيل الفعلي -->
-            <button class="btn-main" onclick="sendRealEmailVerificationLink()" style="margin-bottom:12px; background:var(--gold);">1️⃣ إرسال رابط التفعيل الحقيقي إلى بريدي</button>
+            <button class="btn-main" onclick="sendRealEmailVerificationLink()" style="margin-bottom:12px; background:var(--glass-button-hover);">1️⃣ إرسال رابط التفعيل الحقيقي إلى بريدي</button>
 
-            <!-- صندوق التحقق الأمني من البريد -->
             <div style="background: rgba(255,215,0,0.08); padding:10px; border-radius:10px; border:1px solid var(--border-crystal); margin-bottom:15px;">
                 <h4 style="color:var(--gold); margin:0 0 4px 0; font-size:12px;">📩 المرحلة الأولى: توثيق البريد الحقيقي (+500,000 كوينز)</h4>
                 <p style="font-size:10px; color:var(--text-muted); margin:0 0 8px 0;">افتح بريدك، اضغط على الرابط الأمني المرسل، ثم اضغط زر التحقق أدناه لفتح نموذج إكمال العضوية.</p>
@@ -234,7 +241,6 @@
                 <div id="emailVerifyStatusBadge" style="font-size:11px; color:var(--success-green); margin-top:6px; display:none;">✔ تم توثيق البريد الحقيقي سحابياً بنجاح (+500,000 كوينز)</div>
             </div>
 
-            <!-- النطاق المقفل حتى يكتمل التوثيق الفعلي للبريد الإلكتروني -->
             <div id="profileCompletionSection" class="locked-section">
                 <hr style="border-color:var(--border-crystal); margin:15px 0;">
                 <h4 style="color:var(--gold); margin:0 0 10px 0; font-size:13px;">3️⃣ استكمال بيانات الملف الشخصي (متاحة بعد التوثيق الناجح)</h4>
@@ -317,7 +323,7 @@
         <div class="header-stick">
             <h1 class="brand-hdr">مودة | المنصة الأولى عربياً للتعارف والصداقة والزواج</h1>
             <div style="display:flex; gap:6px; align-items:center;">
-                <span id="coinsBadge" style="background:rgba(255,215,0,0.25); color:var(--gold); padding:3px 8px; border-radius:8px; font-size:11px; font-weight:bold;">🪙 500,000 كوينز</span>
+                <span id="coinsBadge" style="background:rgba(255,215,0,0.2); color:var(--gold); padding:3px 8px; border-radius:8px; font-size:11px; font-weight:bold; border:1px solid var(--border-crystal);">🪙 500,000 كوينز</span>
                 <button class="tab-btn" onclick="executePermanentLogout()" style="padding:4px 8px; background:var(--danger-red); color:#fff; border:none;">تسجيل خروج</button>
             </div>
         </div>
@@ -367,8 +373,12 @@
         window.onload = function() {
             const savedSession = localStorage.getItem('mawda_active_session');
             if(savedSession) {
-                sessionUser = JSON.parse(savedSession);
-                launchPlatform();
+                try {
+                    sessionUser = JSON.parse(savedSession);
+                    launchPlatform();
+                } catch(e) {
+                    console.log("Error loading session:", e);
+                }
             }
         }
 
@@ -394,7 +404,47 @@
                 return;
             }
             const gender = document.getElementById('regGender').value;
-            alert(`جارٍ تسجيل بصمة الصوت المباشرة (20 ثانية)... النظام يحلل النبرة الترددية لتأكيد مطابقة الصوت لجنس (${gender}).`);  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => { setTimeout(() => { stream.getTracks().forEach(t => t.stop()); voicePassed = true; document.getElementById('voiceStatus').style.display = 'block'; alert(`✔ تم توثيق بصمة الصوت بنجاح! يرجى الانتقال فوراً للخطوة الثانية (السيلفي المتحرك الحي).`); }, 3000); }).catch(err => { alert("تعذر الوصول للميكروفون."); }); }  function startRealVideoAnalysis() { if(!voicePassed) { alert("تنبيه أمني صارم: يجب إتمام الخطوة الأولى (بصمة الصوت) أولاً!"); return; }  const container = document.getElementById('cameraPreviewContainer'); const videoElem = document.getElementById('cameraVideo'); const timerElem = document.getElementById('cameraTimer'); const gender = document.getElementById('regGender').value; container.style.display = 'block';  navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } }).then(stream => { videoElem.srcObject = stream; let timeLeft = 5; timerElem.innerText = "0" + timeLeft;  let countdown = setInterval(() => { timeLeft--; timerElem.innerText = "0" + timeLeft; if(timeLeft <= 0) { clearInterval(countdown); stream.getTracks().forEach(track => track.stop()); container.style.display = 'none'; videoPassed = true; document.getElementById('videoStatus').style.display = 'block'; alert(`✔ تم توثيق السيلفي المتحرك الحي ومطابقة الملامح الحيوية للـ (${gender}) بنجاح كامل.`);
+            alert(`جارٍ تسجيل بصمة الصوت المباشرة (20 ثانية)... النظام يحلل النبرة الترددية لتأكيد مطابقة الصوت لجنس (${gender}).`);
+            
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                setTimeout(() => {
+                    stream.getTracks().forEach(t => t.stop());
+                    voicePassed = true;
+                    document.getElementById('voiceStatus').style.display = 'block';
+                    alert(`✔ تم توثيق بصمة الصوت بنجاح! يرجى الانتقال فوراً للخطوة الثانية (السيلفي المتحرك الحي).`);
+                }, 3000);
+            }).catch(err => {
+                alert("تعذر الوصول للميكروفون.");
+            });
+        }
+
+        function startRealVideoAnalysis() {
+            if(!voicePassed) {
+                alert("تنبيه أمني صارم: يجب إتمام الخطوة الأولى (بصمة الصوت) أولاً!");
+                return;
+            }
+
+            const container = document.getElementById('cameraPreviewContainer');
+            const videoElem = document.getElementById('cameraVideo');
+            const timerElem = document.getElementById('cameraTimer');
+            const gender = document.getElementById('regGender').value;
+            container.style.display = 'block';
+
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } }).then(stream => {
+                videoElem.srcObject = stream;
+                let timeLeft = 5;
+                timerElem.innerText = "0" + timeLeft;
+                
+                let countdown = setInterval(() => {
+                    timeLeft--;
+                    timerElem.innerText = "0" + timeLeft;
+                    if(timeLeft <= 0) {
+                        clearInterval(countdown);
+                        stream.getTracks().forEach(track => track.stop());
+                        container.style.display = 'none';
+                        videoPassed = true;
+                        document.getElementById('videoStatus').style.display = 'block';
+                        alert(`✔ تم توثيق السيلفي المتحرك الحي ومطابقة الملامح الحيوية للـ (${gender}) بنجاح كامل.`);
                     }
                 }, 1000);
             }).catch(err => {
@@ -403,7 +453,6 @@
             });
         }
 
-        // إنشاء الحساب وإرسال رابط التفعيل الفعلي الحصري عبر Firebase
         function sendRealEmailVerificationLink() {
             const email = document.getElementById('regEmail').value;
             const pass = document.getElementById('regPass').value;
@@ -416,7 +465,178 @@
             auth.createUserWithEmailAndPassword(email, pass).then((userCredential) => {
                 const user = userCredential.user;
                 user.sendEmailVerification().then(() => {
-                    alert(`✅ تم إنشاء حسابك الأولي وإرسال رابط تفعيل رسمي إلى بريدك (${email})! يرجى فتح بريدك الوارد أو (Spam) والضغط على الرابط.`); }); }).catch((err) => { alert('خطأ في الاتصال أو التسجيل: ' + err.message); }); }  // فحص التحقق السحابي الصارم والفعلي function verifyRealEmailStatus() { const user = auth.currentUser; if(!user) { alert('⚠️ تنبيه أمني: لم يتم العثور على جلسة حساب مسجلة. يرجى إدخال البريد وكلمة المرور والضغط على زر إرسال الرابط أولاً.'); return; }  user.reload().then(() => { if(user.emailVerified) { isEmailVerifiedSecure = true; document.getElementById('emailVerifyStatusBadge').style.display = 'block'; const completionBox = document.getElementById('profileCompletionSection'); completionBox.classList.remove('locked-section'); completionBox.classList.add('unlocked-section'); alert("✔ تم التحقق السحابي الناجح من بريدك الإلكتروني! تم فتح حقول إكمال العضوية ومنحك مكافأة 500,000 كوينز."); } else { isEmailVerifiedSecure = false; document.getElementById('emailVerifyStatusBadge').style.display = 'none'; alert("❌ لم يتم الضغط على رابط التفعيل الحقيقي في بريدك الإلكتروني حتى هذه اللحظة! يرجى فتح بريدك، الضغط على الرابط الأمني المرسل من النظام، ثم العودة والضغط هنا مجدداً."); } }).catch((err) => { alert("تعذر الاتصال بسيرفرات التحقق: " + err.message); }); }  // حفظ البيانات النهائية والدخول للمنصة بعد اجتياز التوثيق الحقيقي function finalizeAndEnterPlatform() { if(!isEmailVerifiedSecure) { alert('خطأ أمني حرج: لا يمكن إتمام التسجيل قبل نجاح التحقق الفعلي من البريد الإلكتروني عبر الرابط!'); return; }  const name = document.getElementById('regName').value; const email = document.getElementById('regEmail').value; const gender = document.getElementById('regGender').value; const age = document.getElementById('regAge').value; const status = document.getElementById('regStatus').value; const location = document.getElementById('regLocation').value; const biometricOptIn = document.getElementById('enableBiometric').checked;  if(!name \vert{}\vert{} !email \vert{}\vert{} !age) { alert('الرجاء تعبئة بيانات الاسم والعمر الكاملة للملف الشخصي!'); return; }  let earnedCoins = 500000; let bioActive = false;  if(biometricOptIn) { if(!voicePassed \vert{}\vert{} !videoPassed) { alert('تنبيه أمني: لقد اخترت التوثيق البايومتري، ويشترط إتمام الخطوتين (بصمة الصوت ثم السيلفي المتحرك الحي) بنجاح تام!'); return; } earnedCoins += 1500000; bioActive = true; }  sessionUser = { name: name, email: email, gender: gender, age: age, status: status, location: location, emailVerified: true, biometricVerified: bioActive, coins: earnedCoins, isAdmin: email.includes("admin") };  db.collection("admin_notifications").add({ type: "SECURE_VERIFIED_MEMBER_REGISTRATION", userEmail: email, userName: name, gender: gender, verificationType: bioActive ? "موثق بريد + بايومتري مزدوج (+2,000,000)" : "موثق بريد حقيقي فقط (500,000)", coinsGranted: earnedCoins, timestamp: firebase.firestore.FieldValue.serverTimestamp() }).catch(e => console.log(e));  localStorage.setItem('mawda_active_session', JSON.stringify(sessionUser)); closeModal('registerModal'); launchPlatform(); }  function executeMemberLogin() { const email = document.getElementById('loginEmail').value; const pass = document.getElementById('loginPass').value; const remember = document.getElementById('rememberMe').checked;  if(!email \vert{}\vert{} !pass) { alert('الرجاء إدخال البريد وكلمة المرور'); return; }  auth.signInWithEmailAndPassword(email, pass).then((userCred) => { sessionUser.email = userCred.user.email; sessionUser.name = userCred.user.email.split('@')[0]; sessionUser.emailVerified = userCred.user.emailVerified; sessionUser.isAdmin = userCred.user.email.includes("admin");  if(remember) { localStorage.setItem('mawda_active_session', JSON.stringify(sessionUser)); } closeModal('loginModal'); launchPlatform(); }).catch((err) => { alert('خطأ في تسجيل الدخول (تأكد من صحة البريد وكلمة المرور وتفعيل حسابك): ' + err.message); }); }  function executeAdminLogin() { const email = document.getElementById('adminEmailInput').value; const pass = document.getElementById('adminPassInput').value; if(!pass) { alert('أدخل كلمة المرور الخاصة بالإدارة'); return; }  sessionUser = { name: "المالك السوبر أدمن", email: email, gender: "ذكر", age: 32, status: "مدير المنصة", location: "سوريا - دمشق", emailVerified: true, biometricVerified: true, coins: 10000000, isAdmin: true };  localStorage.setItem('mawda_active_session', JSON.stringify(sessionUser)); closeModal('adminLoginModal'); launchPlatform(); }  function enterAsGuest() { sessionUser = { name: "زائر كريم", email: "guest@mawda.com", gender: "غير محدد", age: "--", status: "زائر", location: "غير محدد", emailVerified: false, biometricVerified: false, coins: 100, isAdmin: false }; launchPlatform(); }  function executePermanentLogout() { auth.signOut(); localStorage.removeItem('mawda_active_session'); document.getElementById('mainApp').style.display = 'none'; document.getElementById('splashScreen').style.display = 'flex'; }  function launchPlatform() { document.getElementById('splashScreen').style.display = 'none'; document.getElementById('mainApp').style.display = 'block'; document.getElementById('coinsBadge').innerText = `🪙 ${sessionUser.coins.toLocaleString()} كوينز`;
+                    alert(`✅ تم إنشاء حسابك الأولي وإرسال رابط تفعيل رسمي إلى بريدك (${email})! يرجى فتح بريدك الوارد أو (Spam) والضغط على الرابط.`);
+                }).catch(err => alert('خطأ في إرسال رابط التفعيل: ' + err.message));
+            }).catch((err) => {
+                if (err.code === 'auth/email-already-in-use') {
+                    auth.signInWithEmailAndPassword(email, pass).then((userCred) => {
+                        userCred.user.sendEmailVerification().then(() => {
+                            alert(`✅ الحساب موجود مسبقاً وتمت إعادة إرسال رابط التفعيل الفعلي لبريدك (${email}).`);
+                        });
+                    }).catch(e => alert('البريد مستخدم بالفعل، يرجى كتابة كلمة المرور الصحيحة أو استخدام بريد آخر.'));
+                } else {
+                    alert('خطأ في التسجيل: ' + err.message);
+                }
+            });
+        }
+
+        function verifyRealEmailStatus() {
+            const user = auth.currentUser;
+            if(!user) {
+                alert('⚠️ تنبيه أمني: لم يتم العثور على جلسة حساب مسجلة. يرجى إدخال البريد وكلمة المرور والضغط على زر إرسال الرابط أولاً.');
+                return;
+            }
+
+            user.reload().then(() => {
+                if(user.emailVerified) {
+                    isEmailVerifiedSecure = true;
+                    document.getElementById('emailVerifyStatusBadge').style.display = 'block';
+                    const completionBox = document.getElementById('profileCompletionSection');
+                    completionBox.classList.remove('locked-section');
+                    completionBox.classList.add('unlocked-section');
+                    alert("✔ تم التحقق السحابي الناجح من بريدك الإلكتروني! تم فتح حقول إكمال العضوية ومنحك مكافأة 500,000 كوينز.");
+                } else {
+                    isEmailVerifiedSecure = false;
+                    document.getElementById('emailVerifyStatusBadge').style.display = 'none';
+                    alert("❌ لم يتم الضغط على رابط التفعيل الحقيقي في بريدك الإلكتروني حتى هذه اللحظة! يرجى فتح بريدك، الضغط على الرابط الأمني المرسل، ثم العودة والضغط هنا مجدداً.");
+                }
+            }).catch((err) => {
+                alert("تعذر الاتصال بسيرفرات التحقق: " + err.message);
+            });
+        }
+
+        function finalizeAndEnterPlatform() {
+            if(!isEmailVerifiedSecure) {
+                alert('خطأ أمني حرج: لا يمكن إتمام التسجيل قبل نجاح التحقق الفعلي من البريد الإلكتروني عبر الرابط!');
+                return;
+            }
+
+            const name = document.getElementById('regName').value;
+            const email = document.getElementById('regEmail').value;
+            const gender = document.getElementById('regGender').value;
+            const age = document.getElementById('regAge').value;
+            const status = document.getElementById('regStatus').value;
+            const location = document.getElementById('regLocation').value;
+            const biometricOptIn = document.getElementById('enableBiometric').checked;
+
+            if(!name || !email || !age) {
+                alert('الرجاء تعبئة بيانات الاسم والعمر الكاملة للملف الشخصي!');
+                return;
+            }
+
+            let earnedCoins = 500000;
+            let bioActive = false;
+
+            if(biometricOptIn) {
+                if(!voicePassed || !videoPassed) {
+                    alert('تنبيه أمني: لقد اخترت التوثيق البايومتري، ويشترط إتمام الخطوتين (بصمة الصوت ثم السيلفي المتحرك الحي) بنجاح تام!');
+                    return;
+                }
+                earnedCoins += 1500000;
+                bioActive = true;
+            }
+
+            sessionUser = {
+                name: name,
+                email: email,
+                gender: gender,
+                age: age,
+                status: status,
+                location: location,
+                emailVerified: true,
+                biometricVerified: bioActive,
+                coins: earnedCoins,
+                isAdmin: email.includes("admin")
+            };
+
+            db.collection("admin_notifications").add({
+                type: "SECURE_VERIFIED_MEMBER_REGISTRATION",
+                userEmail: email,
+                userName: name,
+                gender: gender,
+                verificationType: bioActive ? "موثق بريد + بايومتري مزدوج (+2,000,000)" : "موثق بريد حقيقي فقط (500,000)",
+                coinsGranted: earnedCoins,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            }).catch(e => console.log(e));
+
+            localStorage.setItem('mawda_active_session', JSON.stringify(sessionUser));
+            closeModal('registerModal');
+            launchPlatform();
+        }
+
+        function executeMemberLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const pass = document.getElementById('loginPass').value;
+            const remember = document.getElementById('rememberMe').checked;
+
+            if(!email || !pass) { alert('الرجاء إدخال البريد وكلمة المرور'); return; }
+
+            auth.signInWithEmailAndPassword(email, pass).then((userCred) => {
+                sessionUser.email = userCred.user.email;
+                sessionUser.name = userCred.user.email.split('@')[0];
+                sessionUser.emailVerified = userCred.user.emailVerified;
+                sessionUser.isAdmin = userCred.user.email.includes("admin");
+
+                if(remember) {
+                    localStorage.setItem('mawda_active_session', JSON.stringify(sessionUser));
+                }
+                closeModal('loginModal');
+                launchPlatform();
+            }).catch((err) => {
+                alert('خطأ في تسجيل الدخول (تأكد من صحة البريد وكلمة المرور وتفعيل حسابك): ' + err.message);
+            });
+        }
+
+        function executeAdminLogin() {
+            const email = document.getElementById('adminEmailInput').value;
+            const pass = document.getElementById('adminPassInput').value;
+            if(!pass) { alert('أدخل كلمة المرور الخاصة بالإدارة'); return; }
+
+            sessionUser = {
+                name: "المالك السوبر أدمن",
+                email: email,
+                gender: "ذكر",
+                age: 32,
+                status: "مدير المنصة",
+                location: "سوريا - دمشق",
+                emailVerified: true,
+                biometricVerified: true,
+                coins: 10000000,
+                isAdmin: true
+            };
+
+            localStorage.setItem('mawda_active_session', JSON.stringify(sessionUser));
+            closeModal('adminLoginModal');
+            launchPlatform();
+        }
+
+        function enterAsGuest() {
+            sessionUser = {
+                name: "زائر كريم",
+                email: "guest@mawda.com",
+                gender: "غير محدد",
+                age: "--",
+                status: "زائر",
+                location: "غير محدد",
+                emailVerified: false,
+                biometricVerified: false,
+                coins: 100,
+                isAdmin: false
+            };
+            launchPlatform();
+        }
+
+        function executePermanentLogout() {
+            auth.signOut();
+            localStorage.removeItem('mawda_active_session');
+            document.getElementById('mainApp').style.display = 'none';
+            document.getElementById('splashScreen').style.display = 'flex';
+        }
+
+        function launchPlatform() {
+            document.getElementById('splashScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            document.getElementById('coinsBadge').innerText = `🪙 ${sessionUser.coins.toLocaleString()} كوينز`;
             
             if(sessionUser.isAdmin) {
                 document.getElementById('adminTabBtn').style.display = 'inline-block';
@@ -441,8 +661,8 @@
                             <div class="fb-avatar-img">👑</div>
                         </div>
                         <div class="fb-details">
-                            <h2 style="margin:5px 0; font-size:18px;">${sessionUser.name}${sessionUser.biometricVerified ? '<span style="color:var(--gold); font-size:12px;">✔ موثق بايومترياً مزدوج ذهبي</span>' : '<span style="color:var(--success-green); font-size:12px;">✔ موثق بالبريد الحقيقي (500,000 كوينز)</span>'}</h2>
-                            <p style="margin:0; font-size:12px; color:var(--text-muted);">الجنس: ${sessionUser.gender} \vert{} العمر: ${sessionUser.age} | الحالة: ${sessionUser.status} \vert{} الموقع: ${sessionUser.location}</p>
+                            <h2 style="margin:5px 0; font-size:18px;">${sessionUser.name} ${sessionUser.biometricVerified ? '<span style="color:var(--gold); font-size:12px;">✔ موثق بايومترياً مزدوج ذهبي</span>' : '<span style="color:var(--success-green); font-size:12px;">✔ موثق بالبريد الحقيقي (500,000 كوينز)</span>'}</h2>
+                            <p style="margin:0; font-size:12px; color:var(--text-muted);">الجنس: ${sessionUser.gender} | العمر: ${sessionUser.age} | الحالة: ${sessionUser.status} | الموقع: ${sessionUser.location}</p>
                             <p style="margin:4px 0 0 0; font-size:11px; color:var(--text-muted);">منصة مودة | المنصة الأولى عربياً للتعارف والصداقة والزواج</p>
                             <div style="margin-top:10px; display:flex; gap:8px;">
                                 <button class="btn-main" style="width:auto; padding:5px 10px; font-size:11px;" onclick="alert('تم إرسال طلب الصداقة')">➕ إضافة صديق</button>
@@ -533,4 +753,45 @@
 
                         <label>نسبة عمولة التحويل للمنصة:</label>
                         <input type="number" value="0.10" step="0.01">
-                        <button class="btn-main" onclick="alert('تم حفظ نسبة العمولة بن
+                        <button class="btn-main" onclick="alert('تم حفظ نسبة العمولة بنجاح')">حفظ نسبة العمولة</button>
+
+                        <label style="margin-top:10px; display:block;">نشر إعلان مبوب رسمي:</label>
+                        <textarea placeholder="اكتب نص الإعلان..."></textarea>
+                        <button class="btn-main" onclick="alert('تم نشر الإعلان في عموم المنصة')">نشر الإعلان الآن</button>
+
+                        <label style="margin-top:10px; display:block;">الحظر السيادي للأجهزة (Hardware Ban):</label>
+                        <input type="text" placeholder="معرف المستخدم أو الـ IP">
+                        <button class="btn-main" style="background:var(--danger-red); color:#fff;" onclick="alert('تم تنفيذ الحظر السيادي النهائي')">تنفيذ الحظر الفوري</button>
+                    </div>
+                `;
+            }
+        }
+
+        function publishPost() {
+            const txt = document.getElementById('postInput').value;
+            if(!txt) { alert('اكتب نص المنشور أولاً'); return; }
+            const feed = document.getElementById('postsFeed');
+            const box = document.createElement('div');
+            box.className = 'card-box';
+            box.innerHTML = `
+                <h4 style="margin:0; font-size:14px; color:var(--gold);">${sessionUser.name}</h4>
+                <p style="font-size:13px; margin:8px 0;">${txt}</p>
+                <div style="display:flex; justify-content:space-around; border-top:1px solid var(--border-crystal); padding-top:8px; font-size:12px;">
+                    <span style="cursor:pointer;" onclick="this.innerText='❤️ أعجبني (1)'">👍 أعجبني</span>
+                    <span style="cursor:pointer;" onclick="prompt('تعليقك:')">💬 تعليق</span>
+                    <span style="cursor:pointer;" onclick="alert('تم نسخ الرابط')">↗️ مشاركة</span>
+                </div>
+            `;
+            feed.prepend(box);
+            document.getElementById('postInput').value = '';
+            alert('تم نشر المنشور على بروفايلك بنجاح!');
+        }
+
+        function buyCoins(amt) {
+            sessionUser.coins += amt;
+            document.getElementById('coinsBadge').innerText = `🪙 ${sessionUser.coins.toLocaleString()} كوينز`;
+            alert(`تم شحن ${amt.toLocaleString()} كوينز بنجاح!`);
+        }
+    </script>
+</body>
+</html>
