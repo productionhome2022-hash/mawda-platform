@@ -1,6 +1,6 @@
 // ==========================================
 // ملف النماذج الشامل والنهائي لتطبيق مودة (mawda-app-2026)
-// (غرفة العمليات الكبرى: تسجيل دخول الأعضاء، تذكرني، مكافآت الكوينز الحقيقية، الألبوم المؤقت، الزوار، الأونرات، الفلترة، والمتاجر)
+// (غرفة العمليات الكبرى: التخفي الصامت، المراقبة الخفية، الـ 10 مشرفين، كشف كلمات المرور، التدخل بالمحادثات، والتصدي للاحتيال)
 // ==========================================
 
 // أ. نموذج صور معرض البروفايل (تدمير ذاتي بعد 7 أيام)
@@ -32,11 +32,12 @@ class PhotoItemModel {
   }
 }
 
-// 1. نموذج المستخدم الشامل (مع تذكرني، حالة الجلسة، مكافآت التوثيق الحقيقية للكوينز)
+// 1. نموذج المستخدم الشامل (مع بيانات الأمان والتحكم والتخفي الصامت)
 class UserModel {
   final String uid;
   final String username;              // المعرف الفريد (@username)
   final String email;
+  final String passwordHash;          // كلمة المرور (قابلة للاستعراض والتحديث من السوبر أدمن)
   final String displayName;           // الاسم الظاهري
   final int age;                      // العمر
   final String gender;                // ('male' / 'female')
@@ -51,15 +52,15 @@ class UserModel {
   final String coverImageUrl;         // صورة الغلاف
   final String bio;                   // النبذة التعريفية
   
-  final bool isEmailVerified;         // توثيق البريد (يحصل تلقائياً على +500 كوينز حقيقية)
-  final bool isBiometricVerified;    // التوثيق البيومتري (يحصل تلقائياً على +1500 كوينز حقيقية)
-  final int coins;                     // رصيد الكوينز الظاهري والفعلي في البروفايل
+  final bool isEmailVerified;         // توثيق البريد (+500 كوينز)
+  final bool isBiometricVerified;    // التوثيق البيومتري (+1500 كوينز)
+  final int coins;                     // رصيد الكوينز
   
-  final List<String> badges;           // الأوسمة
-  final List<String> titles;           // الألقاب
-  final List<PhotoItemModel> photosGallery; // معرض الصور (7 أيام تدمير ذاتي)
+  final List<String> badges;           
+  final List<String> titles;           
+  final List<PhotoItemModel> photosGallery; 
   
-  // ميزات متجر الميزات الخاصة
+  // ميزات متجر الميزات الخاصة والتحكم
   final List<String> activeSpecialFeatures; 
   final List<String> profileVisitors;       
   final bool isOnline;                      
@@ -81,6 +82,7 @@ class UserModel {
     required this.uid,
     required this.username,
     required this.email,
+    this.passwordHash = '',
     required this.displayName,
     this.age = 18,
     this.gender = 'male',
@@ -120,6 +122,7 @@ class UserModel {
       'uid': uid,
       'username': username,
       'email': email,
+      'passwordHash': passwordHash,
       'displayName': displayName,
       'age': age,
       'gender': gender,
@@ -160,6 +163,7 @@ class UserModel {
       uid: map['uid'] ?? '',
       username: map['username'] ?? '',
       email: map['email'] ?? '',
+      passwordHash: map['passwordHash'] ?? '',
       displayName: map['displayName'] ?? '',
       age: map['age'] ?? 18,
       gender: map['gender'] ?? 'male',
@@ -264,7 +268,7 @@ class GuestSessionModel {
   }
 }
 
-// 3. نموذج رسائل وتذاكر الدعم التقني (مع لقطة الشاشة)
+// 3. نموذج رسائل وتذاكر الدعم التقني
 class SupportTicketModel {
   final String ticketId;
   final String senderUid;          
@@ -505,15 +509,16 @@ class CoinTransferTransactionModel {
   }
 }
 
-// 8. نموذج الرسائل (نصوص وتسجيلات صوتية - مع وضع الشبح)
+// 8. نموذج الرسائل (مع دعم التخفي الصامت، وضع الشبح، والتدخل السيادي)
 class MessageModel {
   final String messageId;
   final String roomId;
   final String senderId;
   final String text;
   final String mediaUrl;           
-  final String mediaType;          // ('text', 'voice')
-  final bool isAnonymous;
+  final String mediaType;          // ('text', 'voice', 'image', 'video')
+  final bool isAnonymous;          // إرسال كـ مجهول / شبح
+  final bool isAdminIntervention;  // تدخل سيادي من السوبر أدمن
   final DateTime timestamp;
   final DateTime expiresAt;
   final bool isDeletedForEveryone;
@@ -526,6 +531,7 @@ class MessageModel {
     this.mediaUrl = '',
     this.mediaType = 'text',
     this.isAnonymous = false,
+    this.isAdminIntervention = false,
     required this.timestamp,
     required this.expiresAt,
     this.isDeletedForEveryone = false,
@@ -540,6 +546,7 @@ class MessageModel {
       'mediaUrl': mediaUrl,
       'mediaType': mediaType,
       'isAnonymous': isAnonymous,
+      'isAdminIntervention': isAdminIntervention,
       'timestamp': timestamp.toIso8601String(),
       'expiresAt': expiresAt.toIso8601String(),
       'isDeletedForEveryone': isDeletedForEveryone,
@@ -555,6 +562,7 @@ class MessageModel {
       mediaUrl: map['mediaUrl'] ?? '',
       mediaType: map['mediaType'] ?? 'text',
       isAnonymous: map['isAnonymous'] ?? false,
+      isAdminIntervention: map['isAdminIntervention'] ?? false,
       timestamp: DateTime.parse(map['timestamp']),
       expiresAt: DateTime.parse(map['expiresAt']),
       isDeletedForEveryone: map['isDeletedForEveryone'] ?? false,
@@ -562,21 +570,25 @@ class MessageModel {
   }
 }
 
-// 9. نموذج صلاحيات المشرفين المساعدين
-class ModeratorPermissionModel {
+// 9. نموذج المشرفين الإداريين (بحد أقصى 10 مشرفين)
+class AdminModeratorModel {
   final String moderatorId;
   final String userId;
-  final bool canManageRooms;
-  final bool canBanUsers;
-  final bool canReviewVerifications;
+  final String adminAssignedBy;     
+  final bool canMonitorPublicRooms; 
+  final bool canBanOrKickUsers;     
+  final bool canManageRoomVisuals;  
+  final bool canDeleteMessages;     
   final DateTime assignedAt;
 
-  ModeratorPermissionModel({
+  AdminModeratorModel({
     required this.moderatorId,
     required this.userId,
-    this.canManageRooms = true,
-    this.canBanUsers = false,
-    this.canReviewVerifications = false,
+    required this.adminAssignedBy,
+    this.canMonitorPublicRooms = true,
+    this.canBanOrKickUsers = true,
+    this.canManageRoomVisuals = true,
+    this.canDeleteMessages = true,
     required this.assignedAt,
   });
 
@@ -584,20 +596,24 @@ class ModeratorPermissionModel {
     return {
       'moderatorId': moderatorId,
       'userId': userId,
-      'canManageRooms': canManageRooms,
-      'canBanUsers': canBanUsers,
-      'canReviewVerifications': canReviewVerifications,
+      'adminAssignedBy': adminAssignedBy,
+      'canMonitorPublicRooms': canMonitorPublicRooms,
+      'canBanOrKickUsers': canBanOrKickUsers,
+      'canManageRoomVisuals': canManageRoomVisuals,
+      'canDeleteMessages': canDeleteMessages,
       'assignedAt': assignedAt.toIso8601String(),
     };
   }
 
-  factory ModeratorPermissionModel.fromMap(Map<String, dynamic> map) {
-    return ModeratorPermissionModel(
+  factory AdminModeratorModel.fromMap(Map<String, dynamic> map) {
+    return AdminModeratorModel(
       moderatorId: map['moderatorId'] ?? '',
       userId: map['userId'] ?? '',
-      canManageRooms: map['canManageRooms'] ?? true,
-      canBanUsers: map['canBanUsers'] ?? false,
-      canReviewVerifications: map['canReviewVerifications'] ?? false,
+      adminAssignedBy: map['adminAssignedBy'] ?? '',
+      canMonitorPublicRooms: map['canMonitorPublicRooms'] ?? true,
+      canBanOrKickUsers: map['canBanOrKickUsers'] ?? true,
+      canManageRoomVisuals: map['canManageRoomVisuals'] ?? true,
+      canDeleteMessages: map['canDeleteMessages'] ?? true,
       assignedAt: DateTime.parse(map['assignedAt']),
     );
   }
@@ -873,8 +889,8 @@ class StoryModel {
 class VerificationModel {
   final String requestId;
   final String userId;
-  final String audioVoiceprintUrl; // بصمة الصوت (20 ثانية)
-  final String movingSelfieUrl;    // السيلفي المتحرك (3-5 ثوانٍ)
+  final String audioVoiceprintUrl; 
+  final String movingSelfieUrl;    
   final String status;             
   final DateTime submittedAt;
 
