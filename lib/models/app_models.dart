@@ -1,9 +1,9 @@
 // ==========================================
 // ملف النماذج الشامل والنهائي لتطبيق مودة (mawda-app-2026)
-// (غرفة العمليات الكبرى: البروفايل، الفلترة الذكية، الدول العربية والمحافظات، ميزات المتجر المتقدمة، الغرف، والدعم)
+// (غرفة العمليات الكبرى: تصفح الزوار للأعضاء، أونرات الغرف المستأجرة، الفلترة، المتاجر، والدعم)
 // ==========================================
 
-// 1. نموذج المستخدم الشامل (مع الفلترة الجغرافية، الدول العربية، حالة الاتصال، وميزات البروفايل المميز والظهور أولاً)
+// 1. نموذج المستخدم الشامل (للأعضاء المسجلين)
 class UserModel {
   final String uid;
   final String username;          // المعرف الفريد الخاص بالبروفايل (مثل @username)
@@ -13,32 +13,32 @@ class UserModel {
   final String coverImageUrl;     // صورة الغلاف
   final String bio;               // النبذة التعريفية
   final String gender;            // ('male' / 'female')
-  final String country;           // الدولة العربية (من القائمة المعتمدة للوطن العربي)
-  final String province;          // المحافظة أو المدينة التابعة للدولة
-  final String relationshipStatus;// الحالة الاجتماعية / هدف التعارف (زواج، مواعدة، علاقة جادة، صداقة، علاقة مفتوحة)
+  final String country;           // الدولة العربية
+  final String province;          // المحافظة أو المدينة
+  final String relationshipStatus;// الحالة الاجتماعية / هدف التعارف
   
   final bool isEmailVerified;       // توثيق البريد الإلزامي (500 كوينز)
   final bool isBiometricVerified;  // التوثيق البيومتري (1500 كوينز)
   final int coins;                 // رصيد الكوينز الحالي
-  final List<String> badges;       // قائمة الأوسمة المملوكة
-  final List<String> titles;       // قائمة الألقاب المملوكة
-  final List<String> photosGallery;// معرض الصور الشخصية (ألبومات العضو)
+  final List<String> badges;       // الأوسمة المملوكة
+  final List<String> titles;       // الألقاب المملوكة
+  final List<String> photosGallery;// معرض الصور الشخصية
   
-  // ميزات متجر الميزات الخاصة والتحكم المتقدم
-  final List<String> activeSpecialFeatures; // الميزات المفعلة (مثل: 'boost_profile', 'custom_profile_style', 'ghost_mode', 'profile_visitors', 'hide_online', 'golden_frame', 'profile_music', 'custom_chat_bg')
-  final List<String> profileVisitors;       // قائمة UIDs للأعضاء الذين زاروا البروفايل
-  final bool isOnline;                      // هل العضو متصل الآن؟ (لترتيب الظهور أولاً)
+  // ميزات متجر الميزات الخاصة
+  final List<String> activeSpecialFeatures; // الميزات المفعلة
+  final List<String> profileVisitors;       // زوار البروفايل
+  final bool isOnline;                      // هل العضو متصل الآن؟
   final bool isOnlineHidden;                // إخفاء حالة الاتصال
   final bool isGhostModeActive;             // وضع الشبح / المجهول
-  final bool isProfileBoosted;              // ميزة شراء الظهور أولاً في قائمة الأعضاء
-  final String customProfileStyle;          // إعدادات التميز البصري (ألوان، خلفيات، ومؤثرات خاصة للبروفايل)
+  final bool isProfileBoosted;              // ميزة الظهور أولاً في قائمة الأعضاء
+  final String customProfileStyle;          // إعدادات التميز البصري للبروفايل
   
-  final String profileAudioUrl;             // رابط الموسيقى الشخصية عند زيارة البروفايل
-  final String chatBackgroundUrl;          // رابط خلفية الدردشة الخاصة
+  final String profileAudioUrl;             // الموسيقى الشخصية عند زيارة البروفايل
+  final String chatBackgroundUrl;          // خلفية الدردشة الخاصة
 
-  final String lastKnownIp;        // آخر عنوان IP
-  final String deviceId;           // معرف الجهاز الفريد
-  final bool isBanned;             // هل الحساب محظور؟
+  final String lastKnownIp;        
+  final String deviceId;           
+  final bool isBanned;             
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -149,14 +149,14 @@ class UserModel {
   }
 }
 
-// 2. نموذج جلسات الزوار المؤقتة (مع الدولة، الجنس، والصورة الرمزية)
+// 2. نموذج جلسات الزوار المؤقتة (يستطيع استكشاف وفلترة ورؤية الأعضاء وبروفايلاتهم)
 class GuestSessionModel {
   final String guestId;
   final String guestUsername;      
   final String password;           
-  final String gender;             // ('male' / 'female')
-  final String country;            // الدولة العربية
-  final String province;           // المحافظة
+  final String gender;             
+  final String country;            
+  final String province;           
   final String avatarUrl;          
   final String deviceId;           
   final String guestIp;            
@@ -214,7 +214,7 @@ class GuestSessionModel {
   }
 }
 
-// 3. نموذج رسائل وتذاكر الدعم التقني ومراسلة الإدارة/المشرفين (مع لقطة الشاشة)
+// 3. نموذج رسائل وتذاكر الدعم التقني (مع لقطة الشاشة)
 class SupportTicketModel {
   final String ticketId;
   final String senderUid;          
@@ -860,13 +860,14 @@ class VerificationModel {
   }
 }
 
-// 17. نموذج غرف الدردشة (نظام التوب 10، المستويات، والخلفيات)
+// 17. نموذج غرف الدردشة (المطور مع دعم أونرات ومشرفي الغرفة المستأجرة roomAdmins، ونظام التوب 10)
 class RoomModel {
   final String roomId;
   final String roomName;
   final bool isPublic;             
   final bool isRented;             
-  final String ownerId;            
+  final String ownerId;            // مالك الغرفة الأساسي
+  final List<String> roomAdmins;   // قائمة UIDs للمشرفين / الأونرات المساعدين الذين يعينهم المالك لإدارة الغرفة
   final String roomCoverUrl;       
   final String roomChatBackgroundUrl; 
   final int roomLevel;             
@@ -883,6 +884,7 @@ class RoomModel {
     required this.isPublic,
     this.isRented = false,
     required this.ownerId,
+    this.roomAdmins = const [],
     this.roomCoverUrl = '',
     this.roomChatBackgroundUrl = '',
     this.roomLevel = 1,
@@ -901,6 +903,7 @@ class RoomModel {
       'isPublic': isPublic,
       'isRented': isRented,
       'ownerId': ownerId,
+      'roomAdmins': roomAdmins,
       'roomCoverUrl': roomCoverUrl,
       'roomChatBackgroundUrl': roomChatBackgroundUrl,
       'roomLevel': roomLevel,
@@ -920,6 +923,7 @@ class RoomModel {
       isPublic: map['isPublic'] ?? true,
       isRented: map['isRented'] ?? false,
       ownerId: map['ownerId'] ?? '',
+      roomAdmins: List<String>.from(map['roomAdmins'] ?? []),
       roomCoverUrl: map['roomCoverUrl'] ?? '',
       roomChatBackgroundUrl: map['roomChatBackgroundUrl'] ?? '',
       roomLevel: map['roomLevel'] ?? 1,
