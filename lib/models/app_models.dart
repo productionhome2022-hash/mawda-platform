@@ -1,6 +1,6 @@
 // ==========================================
 // ملف النماذج الشامل والنهائي لتطبيق مودة (mawda-app-2026)
-// (غرفة العمليات الكبرى: التخفي الصامت، الأوسمة السينمائية المتحركة، النبذة التعريفية، هدف الاستخدام، قفل البروفايل، إدارة الـ 10 مشرفين، وكشف كلمات المرور)
+// (غرفة العمليات الكبرى: التخفي الصامت، الأوسمة السينمائية المتحركة، النبذة التعريفية، هدف الاستخدام، قفل البروفايل، إدارة الـ 10 مشرفين، وكشف كلمات المرور، وإدارة المتجر والأوسمة)
 // ==========================================
 
 // أ. نموذج صور معرض البروفايل (تدمير ذاتي بعد 7 أيام)
@@ -1134,6 +1134,55 @@ class UserBadgeInventoryModel {
       ownedBadgeIds: List<String>.from(map['ownedBadgeIds'] ?? []),
       activeDisplayedBadgeId: map['activeDisplayedBadgeId'] ?? '',
       showcaseBadgeIds: List<String>.from(map['showcaseBadgeIds'] ?? []),
+    );
+  }
+}
+
+// 21. نموذج إدارة وتحكم السوبر أدمن بمتجر الأوسمة والميزات (للإضافة، الحذف، التعديل، والاستيراد الخارجي)
+class AdminStoreManagerModel {
+  final String itemId;          // معرف العنصر (وسام أو ميزة خاصة)
+  final String itemType;        // نوع العنصر ('badge', 'feature', 'title')
+  final String itemName;        // اسم العنصر
+  final String itemIconUrl;     // رابط الأيقونة أو التحميل الخارجي (من أي متجر أو تطبيق)
+  final int priceInCoins;       // السعر بالكوينز (قابل للتعديل بحسب رغبتك)
+  final bool isAvailable;       // حالة التوافر (true لعرضه في المتجر، false لإخفائه أو حذفه)
+  final String adminNotes;      // ملاحظات إدارية خاصة بك
+  final DateTime updatedAt;
+
+  AdminStoreManagerModel({
+    required this.itemId,
+    required this.itemType,
+    required this.itemName,
+    required this.itemIconUrl,
+    required this.priceInCoins,
+    this.isAvailable = true,
+    this.adminNotes = '',
+    required this.updatedAt,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'itemId': itemId,
+      'itemType': itemType,
+      'itemName': itemName,
+      'itemIconUrl': itemIconUrl,
+      'priceInCoins': priceInCoins,
+      'isAvailable': isAvailable,
+      'adminNotes': adminNotes,
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
+
+  factory AdminStoreManagerModel.fromMap(Map<String, dynamic> map) {
+    return AdminStoreManagerModel(
+      itemId: map['itemId'] ?? '',
+      itemType: map['itemType'] ?? 'badge',
+      itemName: map['itemName'] ?? '',
+      itemIconUrl: map['itemIconUrl'] ?? '',
+      priceInCoins: map['priceInCoins'] ?? 0,
+      isAvailable: map['isAvailable'] ?? true,
+      adminNotes: map['adminNotes'] ?? '',
+      updatedAt: DateTime.parse(map['updatedAt']),
     );
   }
 }
