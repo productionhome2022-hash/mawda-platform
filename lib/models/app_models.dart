@@ -1,6 +1,6 @@
 // ==========================================
 // ملف النماذج الشامل والنهائي لتطبيق مودة (mawda-app-2026)
-// (غرفة العمليات الكبرى: التخفي الصامت، المراقبة الخفية، الـ 10 مشرفين، كشف كلمات المرور، التدخل بالمحادثات، والتصدي للاحتيال)
+// (غرفة العمليات الكبرى: التخفي الصامت، الأوسمة السينمائية المتحركة، النبذة التعريفية، هدف الاستخدام، قفل البروفايل، إدارة الـ 10 مشرفين، وكشف كلمات المرور)
 // ==========================================
 
 // أ. نموذج صور معرض البروفايل (تدمير ذاتي بعد 7 أيام)
@@ -32,7 +32,7 @@ class PhotoItemModel {
   }
 }
 
-// 1. نموذج المستخدم الشامل (مع بيانات الأمان والتحكم والتخفي الصامت)
+// 1. نموذج المستخدم الشامل (مع الأوسمة السينمائية، النبذة، هدف الاستخدام، وقفل البروفايل)
 class UserModel {
   final String uid;
   final String username;              // المعرف الفريد (@username)
@@ -46,11 +46,11 @@ class UserModel {
   final String relationshipStatus;    // الحالة الاجتماعية
   final String housingSituation;      // طريقة السكن
   final String occupation;            // المهنة
-  final String datingIntent;          // الهدف من الاستخدام
+  final String datingIntent;          // الهدف من الاستخدام (يعرض في البروفايل لكافة الأعضاء)
   
   final String profileImageUrl;       // الصورة الشخصية
   final String coverImageUrl;         // صورة الغلاف
-  final String bio;                   // النبذة التعريفية
+  final String bio;                   // النبذة التعريفية (حتى 500 حرف، قابلة للتعديل)
   
   final bool isEmailVerified;         // توثيق البريد (+500 كوينز)
   final bool isBiometricVerified;    // التوثيق البيومتري (+1500 كوينز)
@@ -67,6 +67,7 @@ class UserModel {
   final bool isOnlineHidden;                
   final bool isGhostModeActive;             
   final bool isProfileBoosted;              
+  final bool isProfileLocked;               // ميزة قفل البروفايل (مرئي للأصدقاء المسجلين فقط)
   final String customProfileStyle;          
   
   final String profileAudioUrl;             
@@ -107,6 +108,7 @@ class UserModel {
     this.isOnlineHidden = false,
     this.isGhostModeActive = false,
     this.isProfileBoosted = false,
+    this.isProfileLocked = false,
     this.customProfileStyle = '',
     this.profileAudioUrl = '',
     this.chatBackgroundUrl = '',
@@ -147,6 +149,7 @@ class UserModel {
       'isOnlineHidden': isOnlineHidden,
       'isGhostModeActive': isGhostModeActive,
       'isProfileBoosted': isProfileBoosted,
+      'isProfileLocked': isProfileLocked,
       'customProfileStyle': customProfileStyle,
       'profileAudioUrl': profileAudioUrl,
       'chatBackgroundUrl': chatBackgroundUrl,
@@ -191,6 +194,7 @@ class UserModel {
       isOnlineHidden: map['isOnlineHidden'] ?? false,
       isGhostModeActive: map['isGhostModeActive'] ?? false,
       isProfileBoosted: map['isProfileBoosted'] ?? false,
+      isProfileLocked: map['isProfileLocked'] ?? false,
       customProfileStyle: map['customProfileStyle'] ?? '',
       profileAudioUrl: map['profileAudioUrl'] ?? '',
       chatBackgroundUrl: map['chatBackgroundUrl'] ?? '',
@@ -1044,6 +1048,92 @@ class AdModel {
       linkUrl: map['linkUrl'] ?? '',
       createdBy: map['createdBy'] ?? '',
       createdAt: DateTime.parse(map['createdAt']),
+    );
+  }
+}
+
+// 19. نموذج بيانات الوسام الواحد في متجر الأوسمة (مع الخصائص السينمائية المتحركة)
+class BadgeItemModel {
+  final String badgeId;
+  final String badgeName;       // اسم الوسام (توثيق، أعلام، شرفي، إلخ)
+  final String badgeIconUrl;    // أيقونة الوسام المتحرك
+  final String category;        // التصنيف ('verification', 'national', 'honor', 'economy', 'innovation')
+  final int priceInCoins;       // سعر الشراء بالكوينز
+  final bool isAnimated;        // هل الوسام متحرك بطابع سينمائي؟
+  final String glowColor;       // لون التوهج السينمائي المحيط بالوسام
+  final bool isLimitedEdition;  // هل هو وسام محدود الإصدار؟
+  final DateTime createdAt;
+
+  BadgeItemModel({
+    required this.badgeId,
+    required this.badgeName,
+    required this.badgeIconUrl,
+    required this.category,
+    this.priceInCoins = 0,
+    this.isAnimated = true,
+    this.glowColor = '#FFD700',
+    this.isLimitedEdition = false,
+    required this.createdAt,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'badgeId': badgeId,
+      'badgeName': badgeName,
+      'badgeIconUrl': badgeIconUrl,
+      'category': category,
+      'priceInCoins': priceInCoins,
+      'isAnimated': isAnimated,
+      'glowColor': glowColor,
+      'isLimitedEdition': isLimitedEdition,
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+
+  factory BadgeItemModel.fromMap(Map<String, dynamic> map) {
+    return BadgeItemModel(
+      badgeId: map['badgeId'] ?? '',
+      badgeName: map['badgeName'] ?? '',
+      badgeIconUrl: map['badgeIconUrl'] ?? '',
+      category: map['category'] ?? 'general',
+      priceInCoins: map['priceInCoins'] ?? 0,
+      isAnimated: map['isAnimated'] ?? true,
+      glowColor: map['glowColor'] ?? '#FFD700',
+      isLimitedEdition: map['isLimitedEdition'] ?? false,
+      createdAt: DateTime.parse(map['createdAt']),
+    );
+  }
+}
+
+// 20. نموذج الأوسمة المملوكة والمفعلة في بروفايل العضو (شريط العرض السينمائي للأوسمة)
+class UserBadgeInventoryModel {
+  final String userId;
+  final List<String> ownedBadgeIds;    // الأوسمة المملوكة
+  final String activeDisplayedBadgeId; // الوسام البارز بجانب الاسم
+  final List<String> showcaseBadgeIds; // أوسمة "حقض العرض السينمائي" البارزة في البروفايل (حتى 5 أوسمة)
+
+  UserBadgeInventoryModel({
+    required this.userId,
+    this.ownedBadgeIds = const [],
+    this.activeDisplayedBadgeId = '',
+    this.showcaseBadgeIds = const [],
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'userId': userId,
+      'ownedBadgeIds': ownedBadgeIds,
+      'activeDisplayedBadgeId': activeDisplayedBadgeId,
+      'showcaseBadgeIds': showcaseBadgeIds,
+    };
+  }
+
+  factory UserBadgeInventoryModel.fromMap(Map<String, dynamic> map) {
+    return UserBadgeInventoryModel(
+      userId: map['userId'] ?? '',
+      ownedBadgeIds: List<String>.from(map['ownedBadgeIds'] ?? []),
+      activeDisplayedBadgeId: map['activeDisplayedBadgeId'] ?? '',
+      showcaseBadgeIds: List<String>.from(map['showcaseBadgeIds'] ?? []),
     );
   }
 }
