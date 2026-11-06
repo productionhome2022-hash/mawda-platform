@@ -1,9 +1,9 @@
 // ==========================================
 // ملف النماذج الشامل والنهائي لتطبيق مودة (mawda-app-2026)
-// (غرفة العمليات الكبرى: البروفايل، الإشعارات، الحظر، المشرفون، والنظام المالي)
+// (غرفة العمليات الكبرى: البروفايل، الدعم التقني ورفع لقطات الشاشة، الرقابة المالية، والتحويلات)
 // ==========================================
 
-// 1. نموذج المستخدم الشامل (البروفايل الاجتماعي المتكامل ولوحة التحكم)
+// 1. نموذج المستخدم الشامل
 class UserModel {
   final String uid;
   final String username;          // المعرف الفريد الخاص بالبروفايل (مثل @username)
@@ -20,7 +20,16 @@ class UserModel {
   final List<String> badges;       // قائمة الأوسمة المملوكة
   final List<String> titles;       // قائمة الألقاب المملوكة
   final List<String> photosGallery;// معرض الصور الشخصية (ألبومات العضو)
-  final String lastKnownIp;        // آخر عنوان IP استخدمه العضو (لأغراض المراقبة والأمان)
+  
+  // ميزات متجر الميزات الخاصة والتحكم المتقدم
+  final List<String> activeSpecialFeatures; // الميزات المفعلة
+  final List<String> profileVisitors;       // قائمة UIDs للأعضاء الذين زاروا البروفايل
+  final bool isOnlineHidden;                // إخفاء حالة الاتصال
+  final bool isGhostModeActive;             // وضع الشبح / المجهول
+  final String profileAudioUrl;             // رابط الموسيقى الشخصية عند زيارة البروفايل
+  final String chatBackgroundUrl;          // رابط خلفية الدردشة الخاصة
+
+  final String lastKnownIp;        // آخر عنوان IP استخدمه العضو
   final String deviceId;           // معرف الجهاز الفريد
   final bool isBanned;             // هل الحساب محظور؟
   final DateTime createdAt;
@@ -42,6 +51,12 @@ class UserModel {
     this.badges = const [],
     this.titles = const [],
     this.photosGallery = const [],
+    this.activeSpecialFeatures = const [],
+    this.profileVisitors = const [],
+    this.isOnlineHidden = false,
+    this.isGhostModeActive = false,
+    this.profileAudioUrl = '',
+    this.chatBackgroundUrl = '',
     this.lastKnownIp = '',
     this.deviceId = '',
     this.isBanned = false,
@@ -66,6 +81,12 @@ class UserModel {
       'badges': badges,
       'titles': titles,
       'photosGallery': photosGallery,
+      'activeSpecialFeatures': activeSpecialFeatures,
+      'profileVisitors': profileVisitors,
+      'isOnlineHidden': isOnlineHidden,
+      'isGhostModeActive': isGhostModeActive,
+      'profileAudioUrl': profileAudioUrl,
+      'chatBackgroundUrl': chatBackgroundUrl,
       'lastKnownIp': lastKnownIp,
       'deviceId': deviceId,
       'isBanned': isBanned,
@@ -91,6 +112,12 @@ class UserModel {
       badges: List<String>.from(map['badges'] ?? []),
       titles: List<String>.from(map['titles'] ?? []),
       photosGallery: List<String>.from(map['photosGallery'] ?? []),
+      activeSpecialFeatures: List<String>.from(map['activeSpecialFeatures'] ?? []),
+      profileVisitors: List<String>.from(map['profileVisitors'] ?? []),
+      isOnlineHidden: map['isOnlineHidden'] ?? false,
+      isGhostModeActive: map['isGhostModeActive'] ?? false,
+      profileAudioUrl: map['profileAudioUrl'] ?? '',
+      chatBackgroundUrl: map['chatBackgroundUrl'] ?? '',
       lastKnownIp: map['lastKnownIp'] ?? '',
       deviceId: map['deviceId'] ?? '',
       isBanned: map['isBanned'] ?? false,
@@ -100,13 +127,311 @@ class UserModel {
   }
 }
 
-// 2. نموذج صلاحيات المشرفين المساعدين (Moderators)
+// 2. نموذج رسائل وتذاكر الدعم التقني (مع دعم إرفاق لقطة شاشة Screenshot للزوار والأعضاء)
+class SupportTicketModel {
+  final String ticketId;
+  final String senderUid;          // معرف العضو (أو "GUEST" إذا كان زائراً من خارج المنصة)
+  final String senderEmail;        // بريد للتواصل عند تعذر الدخول
+  final String senderPhone;        // رقم للتواصل عند الحاجة
+  final String subject;            // عنوان المشكلة أو الاستفسار
+  final String message;            // نص الرسالة
+  final String screenshotUrl;      // رابط لقطة الشاشة المرفقة لمعاينة المشكلة بدقة
+  final String category;           // ('login_issue', 'purchase', 'complaint', 'general_inquiry')
+  final String status;             // ('pending', 'in_progress', 'resolved', 'closed')
+  final DateTime createdAt;
+
+  SupportTicketModel({
+    required this.ticketId,
+    this.senderUid = 'GUEST',
+    required this.senderEmail,
+    this.senderPhone = '',
+    required this.subject,
+    required this.message,
+    this.screenshotUrl = '',
+    this.category = 'general_inquiry',
+    this.status = 'pending',
+    required this.createdAt,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'ticketId': ticketId,
+      'senderUid': senderUid,
+      'senderEmail': senderEmail,
+      'senderPhone': senderPhone,
+      'subject': subject,
+      'message': message,
+      'screenshotUrl': screenshotUrl,
+      'category': category,
+      'status': status,
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+
+  factory SupportTicketModel.fromMap(Map<String, dynamic> map) {
+    return SupportTicketModel(
+      ticketId: map['ticketId'] ?? '',
+      senderUid: map['senderUid'] ?? 'GUEST',
+      senderEmail: map['senderEmail'] ?? '',
+      senderPhone: map['senderPhone'] ?? '',
+      subject: map['subject'] ?? '',
+      message: map['message'] ?? '',
+      screenshotUrl: map['screenshotUrl'] ?? '',
+      category: map['category'] ?? 'general_inquiry',
+      status: map['status'] ?? 'pending',
+      createdAt: DateTime.parse(map['createdAt']),
+    );
+  }
+}
+
+// 3. نموذج الإعدادات المالية (مع باقات المتجر وزر التواصل المباشر)
+class PlatformFinancialConfigModel {
+  final int dailyRewardCoins;      
+  final int hourlyRewardCoins;     
+  final int weeklyRewardCoins;     
+  final int adWatchRewardCoins;    
+  final double transferCommissionPercentage; 
+  final Map<String, dynamic> coinPackages; 
+  final String customPurchaseContactUrl;  
+
+  PlatformFinancialConfigModel({
+    this.dailyRewardCoins = 50,
+    this.hourlyRewardCoins = 10,
+    this.weeklyRewardCoins = 500,
+    this.adWatchRewardCoins = 20,
+    this.transferCommissionPercentage = 10.0,
+    this.coinPackages = const {},
+    this.customPurchaseContactUrl = 'https://wa.me/mawda_admin',
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'dailyRewardCoins': dailyRewardCoins,
+      'hourlyRewardCoins': hourlyRewardCoins,
+      'weeklyRewardCoins': weeklyRewardCoins,
+      'adWatchRewardCoins': adWatchRewardCoins,
+      'transferCommissionPercentage': transferCommissionPercentage,
+      'coinPackages': coinPackages,
+      'customPurchaseContactUrl': customPurchaseContactUrl,
+    };
+  }
+
+  factory PlatformFinancialConfigModel.fromMap(Map<String, dynamic> map) {
+    return PlatformFinancialConfigModel(
+      dailyRewardCoins: map['dailyRewardCoins'] ?? 50,
+      hourlyRewardCoins: map['hourlyRewardCoins'] ?? 10,
+      weeklyRewardCoins: map['weeklyRewardCoins'] ?? 500,
+      adWatchRewardCoins: map['adWatchRewardCoins'] ?? 20,
+      transferCommissionPercentage: (map['transferCommissionPercentage'] ?? 10.0).toDouble(),
+      coinPackages: Map<String, dynamic>.from(map['coinPackages'] ?? {}),
+      customPurchaseContactUrl: map['customPurchaseContactUrl'] ?? '',
+    );
+  }
+}
+
+// 4. نموذج السجل والرقابة المالية الشاملة للسوبر أدمن
+class CoinAdminAuditModel {
+  final String auditId;
+  final String transactionType;   
+  final String senderId;
+  final String receiverId;
+  final int amount;
+  final String status;            
+  final String details;
+  final DateTime timestamp;
+
+  CoinAdminAuditModel({
+    required this.auditId,
+    required this.transactionType,
+    required this.senderId,
+    required this.receiverId,
+    required this.amount,
+    this.status = 'completed',
+    this.details = '',
+    required this.timestamp,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'auditId': auditId,
+      'transactionType': transactionType,
+      'senderId': senderId,
+      'receiverId': receiverId,
+      'amount': amount,
+      'status': status,
+      'details': details,
+      'timestamp': timestamp.toIso8601String(),
+    };
+  }
+
+  factory CoinAdminAuditModel.fromMap(Map<String, dynamic> map) {
+    return CoinAdminAuditModel(
+      auditId: map['auditId'] ?? '',
+      transactionType: map['transactionType'] ?? '',
+      senderId: map['senderId'] ?? '',
+      receiverId: map['receiverId'] ?? '',
+      amount: map['amount'] ?? 0,
+      status: map['status'] ?? 'completed',
+      details: map['details'] ?? '',
+      timestamp: DateTime.parse(map['timestamp']),
+    );
+  }
+}
+
+// 5. نموذج سجلات إلغاء المعاملات والتحويلات المشبوهة
+class TransactionCancellationModel {
+  final String cancellationId;
+  final String targetAuditId;
+  final String adminId;
+  final String reason;            
+  final bool coinsReverted;       
+  final DateTime cancelledAt;
+
+  TransactionCancellationModel({
+    required this.cancellationId,
+    required this.targetAuditId,
+    required this.adminId,
+    required this.reason,
+    this.coinsReverted = true,
+    required this.cancelledAt,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'cancellationId': cancellationId,
+      'targetAuditId': targetAuditId,
+      'adminId': adminId,
+      'reason': reason,
+      'coinsReverted': coinsReverted,
+      'cancelledAt': cancelledAt.toIso8601String(),
+    };
+  }
+
+  factory TransactionCancellationModel.fromMap(Map<String, dynamic> map) {
+    return TransactionCancellationModel(
+      cancellationId: map['cancellationId'] ?? '',
+      targetAuditId: map['targetAuditId'] ?? '',
+      adminId: map['adminId'] ?? '',
+      reason: map['reason'] ?? '',
+      coinsReverted: map['coinsReverted'] ?? true,
+      cancelledAt: DateTime.parse(map['cancelledAt']),
+    );
+  }
+}
+
+// 6. نموذج تحويل الكوينز بين الأعضاء
+class CoinTransferTransactionModel {
+  final String transactionId;
+  final String senderId;
+  final String receiverId;
+  final int grossAmount;
+  final double commissionPercentage;
+  final int commissionAmount;
+  final int netAmount;
+  final DateTime timestamp;
+
+  CoinTransferTransactionModel({
+    required this.transactionId,
+    required this.senderId,
+    required this.receiverId,
+    required this.grossAmount,
+    required this.commissionPercentage,
+    required this.commissionAmount,
+    required this.netAmount,
+    required this.timestamp,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'transactionId': transactionId,
+      'senderId': senderId,
+      'receiverId': receiverId,
+      'grossAmount': grossAmount,
+      'commissionPercentage': commissionPercentage,
+      'commissionAmount': commissionAmount,
+      'netAmount': netAmount,
+      'timestamp': timestamp.toIso8601String(),
+    };
+  }
+
+  factory CoinTransferTransactionModel.fromMap(Map<String, dynamic> map) {
+    return CoinTransferTransactionModel(
+      transactionId: map['transactionId'] ?? '',
+      senderId: map['senderId'] ?? '',
+      receiverId: map['receiverId'] ?? '',
+      grossAmount: map['grossAmount'] ?? 0,
+      commissionPercentage: (map['commissionPercentage'] ?? 0.0).toDouble(),
+      commissionAmount: map['commissionAmount'] ?? 0,
+      netAmount: map['netAmount'] ?? 0,
+      timestamp: DateTime.parse(map['timestamp']),
+    );
+  }
+}
+
+// 7. نموذج الرسائل (مع وضع الشبح)
+class MessageModel {
+  final String messageId;
+  final String roomId;
+  final String senderId;
+  final String text;
+  final String mediaUrl;
+  final String mediaType;
+  final bool isAnonymous;
+  final DateTime timestamp;
+  final DateTime expiresAt;
+  final bool isDeletedForEveryone;
+
+  MessageModel({
+    required this.messageId,
+    required this.roomId,
+    required this.senderId,
+    required this.text,
+    this.mediaUrl = '',
+    this.mediaType = 'text',
+    this.isAnonymous = false,
+    required this.timestamp,
+    required this.expiresAt,
+    this.isDeletedForEveryone = false,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'messageId': messageId,
+      'roomId': roomId,
+      'senderId': senderId,
+      'text': text,
+      'mediaUrl': mediaUrl,
+      'mediaType': mediaType,
+      'isAnonymous': isAnonymous,
+      'timestamp': timestamp.toIso8601String(),
+      'expiresAt': expiresAt.toIso8601String(),
+      'isDeletedForEveryone': isDeletedForEveryone,
+    };
+  }
+
+  factory MessageModel.fromMap(Map<String, dynamic> map) {
+    return MessageModel(
+      messageId: map['messageId'] ?? '',
+      roomId: map['roomId'] ?? '',
+      senderId: map['senderId'] ?? '',
+      text: map['text'] ?? '',
+      mediaUrl: map['mediaUrl'] ?? '',
+      mediaType: map['mediaType'] ?? 'text',
+      isAnonymous: map['isAnonymous'] ?? false,
+      timestamp: DateTime.parse(map['timestamp']),
+      expiresAt: DateTime.parse(map['expiresAt']),
+      isDeletedForEveryone: map['isDeletedForEveryone'] ?? false,
+    );
+  }
+}
+
+// 8. نموذج صلاحيات المشرفين المساعدين
 class ModeratorPermissionModel {
   final String moderatorId;
   final String userId;
-  final bool canManageRooms;       // مراقبة الغرف العامة
-  final bool canBanUsers;          // صلاحية الحظر المؤقت
-  final bool canReviewVerifications;// مراجعة طلبات التوثيق
+  final bool canManageRooms;
+  final bool canBanUsers;
+  final bool canReviewVerifications;
   final DateTime assignedAt;
 
   ModeratorPermissionModel({
@@ -141,7 +466,7 @@ class ModeratorPermissionModel {
   }
 }
 
-// 3. نموذج سجلات الحظر (24 ساعة، 3 أيام، أسبوع، أو نهائي حسب الجهاز والـ IP)
+// 9. نموذج سجلات الحظر الذكي
 class BanRecordModel {
   final String banId;
   final String targetUserId;
@@ -149,7 +474,7 @@ class BanRecordModel {
   final String targetDeviceId;
   final String reason;
   final DateTime bannedAt;
-  final DateTime expiresAt;        // إذا كانت فارغة أو بعيدة جداً تعني حظراً نهائياً
+  final DateTime expiresAt;
   final String bannedByAdminId;
 
   BanRecordModel({
@@ -190,44 +515,7 @@ class BanRecordModel {
   }
 }
 
-// 4. نموذج الإعدادات المالية واقتصاد المنصة (باقات الكوينز ومكافآت الحضور والإعلانات)
-class PlatformFinancialConfigModel {
-  final int dailyRewardCoins;      // مكافأة الحضور اليومي
-  final int hourlyRewardCoins;     // مكافأة الحضور الساعي
-  final int weeklyRewardCoins;     // مكافأة الحضور الأسبوعي المتواصل
-  final int adWatchRewardCoins;    // مكافأة الكوينز الخاصة بمشاهدة الإعلانات التجارية
-  final Map<String, dynamic> coinPackages; // باقات بيع الكوينز المتنوعة
-
-  PlatformFinancialConfigModel({
-    this.dailyRewardCoins = 50,
-    this.hourlyRewardCoins = 10,
-    this.weeklyRewardCoins = 500,
-    this.adWatchRewardCoins = 20,
-    this.coinPackages = const {},
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'dailyRewardCoins': dailyRewardCoins,
-      'hourlyRewardCoins': hourlyRewardCoins,
-      'weeklyRewardCoins': weeklyRewardCoins,
-      'adWatchRewardCoins': adWatchRewardCoins,
-      'coinPackages': coinPackages,
-    };
-  }
-
-  factory PlatformFinancialConfigModel.fromMap(Map<String, dynamic> map) {
-    return PlatformFinancialConfigModel(
-      dailyRewardCoins: map['dailyRewardCoins'] ?? 50,
-      hourlyRewardCoins: map['hourlyRewardCoins'] ?? 10,
-      weeklyRewardCoins: map['weeklyRewardCoins'] ?? 500,
-      adWatchRewardCoins: map['adWatchRewardCoins'] ?? 20,
-      coinPackages: Map<String, dynamic>.from(map['coinPackages'] ?? {}),
-    );
-  }
-}
-
-// 5. نموذج نظام المكافآت وتتبع تكرار الاستلام للمستخدم
+// 10. نموذج نظام المكافآت والحضور
 class RewardModel {
   final String userId;
   final DateTime? lastDailyClaim;     
@@ -264,7 +552,7 @@ class RewardModel {
   }
 }
 
-// 6. نموذج الإشعارات الشامل (رسائل، إشارات، طلبات، هدايا، وتنبيهات الإدارة)
+// 11. نموذج الإشعارات الشامل
 class NotificationModel {
   final String notificationId;
   final String userId;
@@ -317,7 +605,7 @@ class NotificationModel {
   }
 }
 
-// 7. نموذج الهدايا وإهداء الكوينز، الأوسمة، والألقاب بين الأعضاء
+// 12. نموذج الهدايا وإهداء الكوينز والأوسمة والألقاب
 class GiftTransactionModel {
   final String giftId;
   final String senderId;
@@ -358,7 +646,7 @@ class GiftTransactionModel {
   }
 }
 
-// 8. نموذج اليوميات والمنشورات (نشر، تفاعلات، ومشاركة)
+// 13. نموذج اليوميات والمنشورات
 class PostModel {
   final String postId;
   final String authorId;
@@ -407,7 +695,7 @@ class PostModel {
   }
 }
 
-// 9. نموذج الستوريات (ميزة مستأجرة تنتهي بعد 24 ساعة)
+// 14. نموذج الستوريات المؤقتة
 class StoryModel {
   final String storyId;
   final String userId;
@@ -444,7 +732,7 @@ class StoryModel {
   }
 }
 
-// 10. نموذج طلبات التوثيق البيومتري
+// 15. نموذج طلبات التوثيق البيومتري
 class VerificationModel {
   final String requestId;
   final String userId;
@@ -485,7 +773,7 @@ class VerificationModel {
   }
 }
 
-// 11. نموذج غرف الدردشة (العامة والمستأجرة الخاصة)
+// 16. نموذج غرف الدردشة
 class RoomModel {
   final String roomId;
   final String roomName;
@@ -530,60 +818,7 @@ class RoomModel {
   }
 }
 
-// 12. نموذج الرسائل (مع التدمير التلقائي بعد ساعتين والحذف للجميع)
-class MessageModel {
-  final String messageId;
-  final String roomId;
-  final String senderId;
-  final String text;
-  final String mediaUrl;           
-  final String mediaType;          
-  final DateTime timestamp;
-  final DateTime expiresAt;        
-  final bool isDeletedForEveryone; 
-
-  MessageModel({
-    required this.messageId,
-    required this.roomId,
-    required this.senderId,
-    required this.text,
-    this.mediaUrl = '',
-    this.mediaType = 'text',
-    required this.timestamp,
-    required this.expiresAt,
-    this.isDeletedForEveryone = false,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'messageId': messageId,
-      'roomId': roomId,
-      'senderId': senderId,
-      'text': text,
-      'mediaUrl': mediaUrl,
-      'mediaType': mediaType,
-      'timestamp': timestamp.toIso8601String(),
-      'expiresAt': expiresAt.toIso8601String(),
-      'isDeletedForEveryone': isDeletedForEveryone,
-    };
-  }
-
-  factory MessageModel.fromMap(Map<String, dynamic> map) {
-    return MessageModel(
-      messageId: map['messageId'] ?? '',
-      roomId: map['roomId'] ?? '',
-      senderId: map['senderId'] ?? '',
-      text: map['text'] ?? '',
-      mediaUrl: map['mediaUrl'] ?? '',
-      mediaType: map['mediaType'] ?? 'text',
-      timestamp: DateTime.parse(map['timestamp']),
-      expiresAt: DateTime.parse(map['expiresAt']),
-      isDeletedForEveryone: map['isDeletedForEveryone'] ?? false,
-    );
-  }
-}
-
-// 13. نموذج الإعلانات التجارية (للسوبر أدمن حصراً)
+// 17. نموذج الإعلانات التجارية
 class AdModel {
   final String adId;
   final String title;
