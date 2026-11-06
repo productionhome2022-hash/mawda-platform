@@ -1,6 +1,6 @@
 // ==========================================
-// ملف النماذج الشامل والنهائي لتطبيق مودة (mawda-app-2026)
-// (غرفة العمليات الكبرى: التخفي الصامت، الأوسمة السينمائية المتحركة، النبذة التعريفية، هدف الاستخدام، قفل البروفايل، إدارة الـ 10 مشرفين، وكشف كلمات المرور، وإدارة المتجر والأوسمة)
+// ملف النماذج الشامل والنهائي والكامل لتطبيق مودة (mawda-app-2026)
+// (غرفة العمليات الكبرى: التخفي الصامت، خلفيات المحادثة الثنائية الخاصة، الملف الموسيقي للبروفايل، قفل عداد الكوينز، التحدث كمجهول للجميع ما عدا الأدمن، الأوسمة السينمائية، النبذة، هدف الاستخدام، قفل البروفايل، وإدارة المتجر والأوسمة)
 // ==========================================
 
 // أ. نموذج صور معرض البروفايل (تدمير ذاتي بعد 7 أيام)
@@ -32,7 +32,7 @@ class PhotoItemModel {
   }
 }
 
-// 1. نموذج المستخدم الشامل (مع الأوسمة السينمائية، النبذة، هدف الاستخدام، وقفل البروفايل)
+// 1. نموذج المستخدم الشامل (مع خلفية المحادثة الثنائية الخاصة، الملف الموسيقي، قفل الكوينز، الأوسمة، النبذة، هدف الاستخدام، وقفل البروفايل)
 class UserModel {
   final String uid;
   final String username;              // المعرف الفريد (@username)
@@ -55,6 +55,7 @@ class UserModel {
   final bool isEmailVerified;         // توثيق البريد (+500 كوينز)
   final bool isBiometricVerified;    // التوثيق البيومتري (+1500 كوينز)
   final int coins;                     // رصيد الكوينز
+  final bool isCoinBalanceLocked;     // ميزة قفل عداد الكوينز (إخفاؤه عن باقي الأعضاء بقفل سري)
   
   final List<String> badges;           
   final List<String> titles;           
@@ -70,8 +71,8 @@ class UserModel {
   final bool isProfileLocked;               // ميزة قفل البروفايل (مرئي للأصدقاء المسجلين فقط)
   final String customProfileStyle;          
   
-  final String profileAudioUrl;             
-  final String chatBackgroundUrl;          
+  final String profileAudioUrl;             // رابط الملف الموسيقي الخاص بالبروفايل (يعمل تلقائياً عند الدخول)
+  final String chatBackgroundUrl;           // ميزة شراء وتحديث خلفية المحادثة الثنائية الخاصة بين عضوين
 
   final String lastKnownIp;        
   final String deviceId;           
@@ -99,6 +100,7 @@ class UserModel {
     this.isEmailVerified = false,
     this.isBiometricVerified = false,
     this.coins = 0, 
+    this.isCoinBalanceLocked = false,
     this.badges = const [],
     this.titles = const [],
     this.photosGallery = const [],
@@ -111,7 +113,7 @@ class UserModel {
     this.isProfileLocked = false,
     this.customProfileStyle = '',
     this.profileAudioUrl = '',
-    this.chatBackgroundUrl = '',
+    this.chatBackgroundUrl = '', // خلفية المحادثة الثنائية الخاصة
     this.lastKnownIp = '',
     this.deviceId = '',
     this.isBanned = false,
@@ -140,6 +142,7 @@ class UserModel {
       'isEmailVerified': isEmailVerified,
       'isBiometricVerified': isBiometricVerified,
       'coins': coins,
+      'isCoinBalanceLocked': isCoinBalanceLocked,
       'badges': badges,
       'titles': titles,
       'photosGallery': photosGallery.map((x) => x.toMap()).toList(),
@@ -182,6 +185,7 @@ class UserModel {
       isEmailVerified: map['isEmailVerified'] ?? false,
       isBiometricVerified: map['isBiometricVerified'] ?? false,
       coins: map['coins'] ?? 0,
+      isCoinBalanceLocked: map['isCoinBalanceLocked'] ?? false,
       badges: List<String>.from(map['badges'] ?? []),
       titles: List<String>.from(map['titles'] ?? []),
       photosGallery: (map['photosGallery'] as List<dynamic>?)
@@ -513,7 +517,7 @@ class CoinTransferTransactionModel {
   }
 }
 
-// 8. نموذج الرسائل (مع دعم التخفي الصامت، وضع الشبح، والتدخل السيادي)
+// 8. نموذج الرسائل (مع دعم التحدث كمجهول للجميع ما عدا السوبر أدمن، التخفي، والتدخل السيادي)
 class MessageModel {
   final String messageId;
   final String roomId;
@@ -521,7 +525,7 @@ class MessageModel {
   final String text;
   final String mediaUrl;           
   final String mediaType;          // ('text', 'voice', 'image', 'video')
-  final bool isAnonymous;          // إرسال كـ مجهول / شبح
+  final bool isAnonymous;          // التحدث كمجهول / شبح في الغرف العامة والمستأجرة (يظهر كمجهول للجميع ولا يعرفه إلا السوبر أدمن)
   final bool isAdminIntervention;  // تدخل سيادي من السوبر أدمن
   final DateTime timestamp;
   final DateTime expiresAt;
