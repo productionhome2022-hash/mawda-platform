@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>تطبيق مودة - المنصة الأولى عربياً للتعارف والصداقة والزواج</title>
+    <title>تطبيق مودة - للتعارف والدردشة والزواج والعلاقات الجادة</title>
     
-    <!-- مكتبات Firebase السحابية الرسمية النسخة المستقرة -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -17,7 +16,7 @@
             --text-main: #ffffff;
             --text-muted: #f3f4f6;
             --border-crystal: rgba(255, 215, 0, 0.55);
-            --glass-card: rgba(10, 5, 20, 0.4);
+            --glass-card: rgba(10, 5, 20, 0.45);
             --glass-button: rgba(255, 215, 0, 0.15);
             --glass-button-hover: rgba(255, 215, 0, 0.3);
             --primary-blue: rgba(37, 99, 235, 0.45);
@@ -33,7 +32,7 @@
             color: var(--text-main); min-height: 100vh;
             background-color: #08040c;
             background-image: 
-                linear-gradient(rgba(5, 2, 10, 0.2), rgba(5, 2, 10, 0.3)),
+                linear-gradient(rgba(5, 2, 10, 0.3), rgba(5, 2, 10, 0.4)),
                 url('https://images.unsplash.com/photo-1518199266791-5375a83190b7?q=80&w=1920&auto=format&fit=crop');
             background-repeat: no-repeat; background-position: center center;
             background-size: cover; background-attachment: fixed;
@@ -44,17 +43,13 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             min-height: 100vh; padding: 15px;
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 999; background: rgba(5, 2, 10, 0.2); backdrop-filter: blur(3px);
+            z-index: 999; background: rgba(5, 2, 10, 0.25); backdrop-filter: blur(4px);
         }
 
         .splash-card {
-            background: var(--glass-card);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            border: 1px solid var(--border-crystal);
-            border-radius: 24px;
-            padding: 25px 20px;
-            max-width: 460px; width: 100%; text-align: center;
+            background: var(--glass-card); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-crystal); border-radius: 24px;
+            padding: 25px 20px; max-width: 460px; width: 100%; text-align: center;
             box-shadow: 0 15px 40px rgba(0,0,0,0.7);
         }
 
@@ -86,8 +81,7 @@
         }
         .btn-main:hover, .btn-main:active { 
             background: var(--glass-button-hover); 
-            transform: translateY(-1px); 
-            border-color: var(--gold-hover);
+            transform: translateY(-1px); border-color: var(--gold-hover);
         }
         .btn-secondary { background: rgba(15, 10, 25, 0.45); color: var(--gold); }
         .btn-blue { background: rgba(37, 99, 235, 0.4); color: #fff; border-color: rgba(147, 197, 253, 0.5); }
@@ -95,21 +89,20 @@
 
         .modal-wrapper {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(5, 2, 10, 0.6); backdrop-filter: blur(8px); z-index: 10000;
+            background: rgba(5, 2, 10, 0.65); backdrop-filter: blur(8px); z-index: 10000;
             justify-content: center; align-items: center; padding: 12px;
         }
         .modal-content {
-            background: rgba(12, 7, 22, 0.7); backdrop-filter: blur(16px);
-            border: 1px solid var(--border-crystal);
-            border-radius: 20px; padding: 20px; max-width: 440px; width: 100%;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.8); text-align: right;
-            max-height: 90vh; overflow-y: auto;
+            background: rgba(12, 7, 22, 0.75); backdrop-filter: blur(16px);
+            border: 1px solid var(--border-crystal); border-radius: 20px; padding: 20px;
+            max-width: 440px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            text-align: right; max-height: 90vh; overflow-y: auto;
         }
         .modal-content h3 { color: var(--gold); margin-top: 0; font-size: 15px; }
 
         #mainApp { display: none; max-width: 900px; margin: 0 auto; padding-bottom: 30px; }
         .header-stick {
-            background: rgba(10, 5, 18, 0.5); backdrop-filter: blur(12px);
+            background: rgba(10, 5, 18, 0.6); backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border-crystal); padding: 10px 15px;
             display: flex; justify-content: space-between; align-items: center;
             position: sticky; top: 0; z-index: 1000;
@@ -118,7 +111,7 @@
         
         .nav-tabs-bar {
             display: flex; justify-content: center; gap: 4px; flex-wrap: wrap;
-            background: rgba(10, 5, 18, 0.45); backdrop-filter: blur(10px);
+            background: rgba(10, 5, 18, 0.5); backdrop-filter: blur(10px);
             padding: 8px; border-bottom: 1px solid var(--border-crystal);
         }
         .tab-btn {
@@ -153,21 +146,11 @@
 
         input, select, textarea {
             width: 100%; padding: 9px; margin-top: 4px; margin-bottom: 10px;
-            border-radius: 8px; border: 1px solid var(--border-crystal); background: rgba(10,5,18,0.65); color: #fff;
+            border-radius: 8px; border: 1px solid var(--border-crystal); background: rgba(10,5,18,0.75); color: #fff;
             font-size: 12px; outline: none;
         }
         label { font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px; }
         .checkbox-group { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 11px; color: var(--text-muted); cursor: pointer; }
-        
-        #cameraPreviewContainer {
-            display: none; width: 100%; height: 200px; background: #000; border-radius: 10px;
-            margin-bottom: 10px; position: relative; overflow: hidden; border: 1px solid var(--gold);
-        }
-        #cameraVideo { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-        .phrase-box {
-            background: rgba(255,215,0,0.08); border: 1px dashed var(--gold); color: var(--gold);
-            padding: 8px; border-radius: 8px; font-size: 11px; font-weight: bold; text-align: center; margin: 5px 0;
-        }
         .locked-section { opacity: 0.35; pointer-events: none; }
         .unlocked-section { opacity: 1; pointer-events: auto; }
     </style>
@@ -181,13 +164,13 @@
                 <div class="couple-logo-icon">👩‍❤️‍👨</div>
                 <h1 class="brand-title-ar">مودة</h1>
                 <div class="brand-title-en">MAWDA PLATFORM</div>
-                <div class="brand-slogan">المنصة الأولى عربياً للتعارف والصداقة والزواج</div>
+                <div class="brand-slogan">للتعارف والدردشة والزواج والعلاقات الجادة</div>
             </div>
 
             <div class="splash-subtitle">المنصة الآمنة الأولى لإدارة العلاقات الجادة والخصوصية السيادية بروح رومانسية راقية.</div>
 
             <button class="btn-main" onclick="openModal('loginModal')">🔑 تسجيل دخول الأعضاء الموثقين</button>
-            <button class="btn-main btn-secondary" onclick="openModal('registerModal')">📝 إنشاء حساب جديد (توثيق البريد يمنح 500,000 كوينز)</button>
+            <button class="btn-main btn-secondary" onclick="openModal('registerModal')">📝 إنشاء حساب جديد (توثيق البريد يمنح 500, كوينز)</button>
             <button class="btn-main btn-blue" onclick="enterAsGuest()">👁️ تصفح كزائر (تجربة 60 دقيقة يومياً)</button>
             <button class="btn-main btn-admin" onclick="openModal('adminLoginModal')">👑 دخول السوبر أدمن (المالك السيادي)</button>
         </div>
@@ -225,10 +208,17 @@
 
             <button class="btn-main" onclick="sendRealEmailVerificationLink()" style="margin-bottom:10px;">1️⃣ إرسال رابط التفعيل الحقيقي إلى بريدي</button>
 
+            <!-- صندوق التوجيه المحدث والمباشر -->
+            <div id="emailVerifyAlertBox" style="display:none; background: rgba(255, 215, 0, 0.08); padding: 12px; border-radius: 10px; border: 1px solid var(--border-crystal); margin-bottom: 12px;">
+                <h4 style="color: var(--gold); margin: 0 0 5px 0; font-size: 12px;">📩 تم إرسال رابط التفعيل بنجاح!</h4>
+                <p style="font-size: 11px; margin: 0 0 6px 0; color: #fff;">يرجى فتح بريدك والضغط على رابط التفعيل المباشر.</p>
+                <div style="background: rgba(0,0,0,0.35); padding: 8px; border-radius: 6px; font-size: 10px; color: var(--text-muted);">
+                    💡 <strong>تنبيه هام:</strong> إذا لم تجد الرسالة في صندوق الوارد، يرجى مراجعة مجلد <strong>الرسائل غير المرغوب فيها (Spam)</strong> والضغط على زر <strong>"ليس بريداً عشوائياً" (Not Spam)</strong> لضمان وصول كافة الإشعارات والرسائل المستقبلية مباشرة للـ Inbox.
+                </div>
+            </div>
+
             <div style="background: rgba(255,215,0,0.06); padding:10px; border-radius:10px; border:1px solid var(--border-crystal); margin-bottom:12px;">
-                <h4 style="color:var(--gold); margin:0 0 4px 0; font-size:11px;">📩 المرحلة الأولى: توثيق البريد الحقيقي (+500,000 كوينز)</h4>
-                <p style="font-size:10px; color:var(--text-muted); margin:0 0 6px 0;">افتح بريدك، اضغط على الرابط الأمني المرسل، ثم اضغط زر التحقق أدناه.</p>
-                <button class="btn-main btn-secondary" style="font-size:11px; padding:6px; margin:0;" onclick="verifyRealEmailStatus()">🔄 2️⃣ التحقق الفعلي من تفعيل البريد</button>
+                <button class="btn-main btn-secondary" style="font-size:11px; padding:7px; margin:0;" onclick="verifyRealEmailStatus()">🔄 2️⃣ التحقق الفعلي من تفعيل البريد</button>
                 <div id="emailVerifyStatusBadge" style="font-size:11px; color:var(--success-green); margin-top:5px; display:none;">✔ تم توثيق البريد بنجاح (+500,000 كوينز)</div>
             </div>
 
@@ -259,35 +249,6 @@
                 <label>البلد والمدينة</label>
                 <input type="text" id="regLocation" placeholder="مثال: سوريا - دمشق">
 
-                <label>الهدف من الانضمام (القسم)</label>
-                <select id="regGoal">
-                    <option value="العلاقات الجادة والزواج">العلاقات الجادة والزواج</option>
-                    <option value="الواجهات الرومانسية">الواجهات الرومانسية</option>
-                    <option value="اللحظات الجريئة">اللحظات الجريئة</option>
-                </select>
-
-                <div class="checkbox-group" style="background: rgba(255,215,0,0.04); padding:7px; border-radius:8px; border:1px solid var(--border-crystal); margin-top:10px;">
-                    <input type="checkbox" id="enableBiometric" onchange="toggleBiometricSection()" style="width:auto; margin:0;">
-                    <label for="enableBiometric" style="margin:0; display:inline; color:var(--gold); font-weight:bold;">رغبة في التوثيق البايومتري المزدوج (+1,500,000 كوينز إضافية)</label>
-                </div>
-
-                <div id="biometricContainer" style="display:none; margin-top:8px;">
-                    <label>1. بصمة الصوت (تحليل النبرة ومطابقة الجنس):</label>
-                    <div class="phrase-box">"أنا أقر وبصوتي الحي بتأكيد هويتي في منصة مودة 2026"</div>
-                    <button class="btn-main btn-secondary" style="font-size:11px; padding:7px;" onclick="startRealVoiceAnalysis()">🎙️ تسجيل بصمة الصوت</button>
-                    <div id="voiceStatus" style="font-size:11px; color:var(--success-green); margin-bottom:5px; display:none;">✔ تم توثيق بصمة الصوت بنجاح</div>
-
-                    <label>2. السيلفي المتحرك الحي (كشف الملامح):</label>
-                    <button class="btn-main btn-secondary" style="font-size:11px; padding:7px;" onclick="startRealVideoAnalysis()">📹 التقاط السيلفي المتحرك الحي</button>
-                    
-                    <div id="cameraPreviewContainer">
-                        <video id="cameraVideo" autoplay playsinline muted></video>
-                        <div id="cameraTimer" style="position:absolute; top:6px; left:6px; background:rgba(0,0,0,0.7); color:var(--gold); padding:2px 5px; border-radius:5px; font-size:10px; font-weight:bold;">05</div>
-                    </div>
-                    
-                    <div id="videoStatus" style="font-size:11px; color:var(--success-green); margin-bottom:8px; display:none;">✔ تم توثيق السيلفي الحي بنجاح</div>
-                </div>
-
                 <button class="btn-main btn-blue" onclick="finalizeAndEnterPlatform()" style="margin-top:10px;">🚀 حفظ البيانات والدخول إلى المنصة</button>
             </div>
 
@@ -311,7 +272,7 @@
     <!-- المنصة الرئيسية (Main App) -->
     <div id="mainApp">
         <div class="header-stick">
-            <h1 class="brand-hdr">مودة | المنصة الأولى عربياً للتعارف والزواج</h1>
+            <h1 class="brand-hdr">مودة | للتعارف والدردشة والزواج</h1>
             <div style="display:flex; gap:5px; align-items:center;">
                 <span id="coinsBadge" style="background:rgba(255,215,0,0.15); color:var(--gold); padding:3px 7px; border-radius:7px; font-size:11px; font-weight:bold; border:1px solid var(--border-crystal);">🪙 500,000 كوينز</span>
                 <button class="tab-btn" onclick="executePermanentLogout()" style="padding:3px 7px; background:var(--danger-red); color:#fff; border:none;">خروج</button>
@@ -347,16 +308,8 @@
         const db = firebase.firestore();
 
         let sessionUser = {
-            name: "أحمد العلي",
-            email: "admin@mawda.com",
-            gender: "ذكر",
-            age: 30,
-            status: "أعزب",
-            location: "دمشق",
-            emailVerified: true,
-            biometricVerified: true,
-            coins: 500000,
-            isAdmin: true
+            name: "أحمد العلي", email: "admin@mawda.com", gender: "ذكر", age: 30,
+            status: "أعزب", location: "دمشق", emailVerified: true, coins: 500000, isAdmin: true
         };
 
         window.onload = function() {
@@ -365,77 +318,14 @@
                 try {
                     sessionUser = JSON.parse(savedSession);
                     launchPlatform();
-                } catch(e) {
-                    console.error("Session load error:", e);
-                }
+                } catch(e) { console.error("Session load error:", e); }
             }
         }
 
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
         function closeModal(id) { document.querySelectorAll('.modal-wrapper').forEach(m => m.style.display = 'none'); }
 
-        let voicePassed = false;
-        let videoPassed = false;
         let isEmailVerifiedSecure = false;
-
-        function toggleBiometricSection() {
-            const chk = document.getElementById('enableBiometric').checked;
-            document.getElementById('biometricContainer').style.display = chk ? 'block' : 'none';
-            if(!chk) { voicePassed = false; videoPassed = false; }
-        }
-
-        function startRealVoiceAnalysis() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                alert("المتصفح لا يدعم التسجيل الصوتي.");
-                return;
-            }
-            const gender = document.getElementById('regGender').value;
-            alert(`جارٍ تسجيل بصمة الصوت وتحليل النبرة الترددية لتأكيد مطابقة الصوت لجنس (${gender})...`);
-            
-            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-                setTimeout(() => {
-                    stream.getTracks().forEach(t => t.stop());
-                    voicePassed = true;
-                    document.getElementById('voiceStatus').style.display = 'block';
-                    alert(`✔ تم توثيق بصمة الصوت بنجاح! انتقل للخطوة الثانية.`);
-                }, 2500);
-            }).catch(err => alert("تعذر الوصول للميكروفون."));
-        }
-
-        function startRealVideoAnalysis() {
-            if(!voicePassed) {
-                alert("تنبيه أمني: يجب إتمام الخطوة الأولى (بصمة الصوت) أولاً!");
-                return;
-            }
-
-            const container = document.getElementById('cameraPreviewContainer');
-            const videoElem = document.getElementById('cameraVideo');
-            const timerElem = document.getElementById('cameraTimer');
-            const gender = document.getElementById('regGender').value;
-            container.style.display = 'block';
-
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } }).then(stream => {
-                videoElem.srcObject = stream;
-                let timeLeft = 5;
-                timerElem.innerText = "0" + timeLeft;
-                
-                let countdown = setInterval(() => {
-                    timeLeft--;
-                    timerElem.innerText = "0" + timeLeft;
-                    if(timeLeft <= 0) {
-                        clearInterval(countdown);
-                        stream.getTracks().forEach(track => track.stop());
-                        container.style.display = 'none';
-                        videoPassed = true;
-                        document.getElementById('videoStatus').style.display = 'block';
-                        alert(`✔ تم توثيق السيلفي المتحرك الحي ومطابقة الملامح للـ (${gender}) بنجاح.`);
-                    }
-                }, 1000);
-            }).catch(err => {
-                container.style.display = 'none';
-                alert("تعذر فتح الكاميرا الأمامية.");
-            });
-        }
 
         function sendRealEmailVerificationLink() {
             const email = document.getElementById('regEmail').value;
@@ -449,13 +339,13 @@
             auth.createUserWithEmailAndPassword(email, pass).then((userCredential) => {
                 const user = userCredential.user;
                 user.sendEmailVerification().then(() => {
-                    alert(`✅ تم إرسال رابط تفعيل رسمي إلى بريدك (${email})! افتح بريدك والضغط على الرابط.`);
+                    document.getElementById('emailVerifyAlertBox').style.display = 'block';
                 }).catch(err => alert('خطأ في إرسال الرابط: ' + err.message));
             }).catch((err) => {
                 if (err.code === 'auth/email-already-in-use') {
                     auth.signInWithEmailAndPassword(email, pass).then((userCred) => {
                         userCred.user.sendEmailVerification().then(() => {
-                            alert(`✅ الحساب موجود وتمت إعادة إرسال رابط التفعيل لبريدك (${email}).`);
+                            document.getElementById('emailVerifyAlertBox').style.display = 'block';
                         });
                     }).catch(e => alert('البريد مستخدم بالفعل، يرجى كتابة كلمة المرور الصحيحة.'));
                 } else {
@@ -499,38 +389,21 @@
             const age = document.getElementById('regAge').value;
             const status = document.getElementById('regStatus').value;
             const location = document.getElementById('regLocation').value;
-            const biometricOptIn = document.getElementById('enableBiometric').checked;
 
             if(!name || !email || !age) {
                 alert('الرجاء تعبئة بيانات الاسم والعمر للملف الشخصي!');
                 return;
             }
 
-            let earnedCoins = 500000;
-            let bioActive = false;
-
-            if(biometricOptIn) {
-                if(!voicePassed || !videoPassed) {
-                    alert('تنبيه: يشترط إتمام التوثيق البايومتري (الصوت + السيلفي الحي)!');
-                    return;
-                }
-                earnedCoins += 1500000;
-                bioActive = true;
-            }
-
             sessionUser = {
                 name, email, gender, age, status, location,
-                emailVerified: true,
-                biometricVerified: bioActive,
-                coins: earnedCoins,
-                isAdmin: email.includes("admin")
+                emailVerified: true, coins: 500000, isAdmin: email.includes("admin")
             };
 
             db.collection("admin_notifications").add({
                 type: "SECURE_VERIFIED_MEMBER_REGISTRATION",
-                userEmail: email, userName: name, gender,
-                verificationType: bioActive ? "بايومتري مزدوج (+2M)" : "بريد حقيقي (+500K)",
-                coinsGranted: earnedCoins,
+                userEmail: email, userName: name, gender: gender,
+                verificationType: "بريد حقيقي (+500K)", coinsGranted: 500000,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             }).catch(e => console.log(e));
 
@@ -564,16 +437,9 @@
             if(!pass) { alert('أدخل كلمة المرور الإدارية'); return; }
 
             sessionUser = {
-                name: "المالك السوبر أدمن",
-                email: email,
-                gender: "ذكر",
-                age: 32,
-                status: "مدير المنصة",
-                location: "سوريا - دمشق",
-                emailVerified: true,
-                biometricVerified: true,
-                coins: 10000000,
-                isAdmin: true
+                name: "المالك السوبر أدمن", email: email, gender: "ذكر", age: 32,
+                status: "مدير المنصة", location: "سوريا - دمشق", emailVerified: true,
+                coins: 10000000, isAdmin: true
             };
 
             localStorage.setItem('mawda_active_session', JSON.stringify(sessionUser));
@@ -583,10 +449,9 @@
 
         function enterAsGuest() {
             sessionUser = {
-                name: "زائر كريم", email: "guest@mawda.com",
-                gender: "غير محدد", age: "--", status: "زائر",
-                location: "غير محدد", emailVerified: false,
-                biometricVerified: false, coins: 100, isAdmin: false
+                name: "زائر كريم", email: "guest@mawda.com", gender: "غير محدد",
+                age: "--", status: "زائر", location: "غير محدد", emailVerified: false,
+                coins: 100, isAdmin: false
             };
             launchPlatform();
         }
@@ -619,23 +484,8 @@
                         <div class="fb-cover"></div>
                         <div class="fb-avatar-wrap"><div class="fb-avatar-img">👑</div></div>
                         <div class="fb-details">
-                            <h2 style="margin:4px 0; font-size:16px;">${sessionUser.name} ${sessionUser.biometricVerified ? '<span style="color:var(--gold); font-size:11px;">✔ بايومتري ذهبي</span>' : '<span style="color:var(--success-green); font-size:11px;">✔ بريد موثق</span>'}</h2>
+                            <h2 style="margin:4px 0; font-size:16px;">${sessionUser.name} <span style="color:var(--success-green); font-size:11px;">✔ بريد موثق</span></h2>
                             <p style="margin:0; font-size:11px; color:var(--text-muted);">الجنس: ${sessionUser.gender} | العمر: ${sessionUser.age} | الحالة: ${sessionUser.status} | الموقع: ${sessionUser.location}</p>
-                            <p style="margin:3px 0 0 0; font-size:10px; color:var(--text-muted);">منصة مودة | المنصة الأولى عربياً للتعارف والزواج</p>
-                            <div style="margin-top:8px; display:flex; gap:6px;">
-                                <button class="btn-main" style="width:auto; padding:4px 8px; font-size:10px;" onclick="alert('تم إرسال طلب الصداقة')">➕ إضافة صديق</button>
-                                <button class="btn-main btn-secondary" style="width:auto; padding:4px 8px; font-size:10px;" onclick="prompt('رسالتك الفورية:')">💬 مراسلة</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-box">
-                        <textarea id="postInput" placeholder="ما الذي تفكر به؟ شارك لحظاتك..." rows="2"></textarea>
-                        <button class="btn-main" onclick="publishPost()">نشر المنشور</button>
-                    </div>
-                    <div id="postsFeed">
-                        <div class="card-box">
-                            <h4 style="margin:0; font-size:13px; color:var(--gold);">إدارة مودة السيادية</h4>
-                            <p style="font-size:12px; margin:6px 0;">أهلاً بكم في منصة مودة الأولى عربياً. نظام الأمان والتوثيق يعمل بأعلى كفاءة واستقرار تام!</p>
                         </div>
                     </div>
                 `;
@@ -644,87 +494,33 @@
                     <div class="card-box">
                         <h2 style="color:var(--gold); font-size:16px; margin-top:0;">أقسام منصة مودة الرئيسية</h2>
                         <div class="cards-grid">
-                            <div class="card-item">
-                                <h3>💍 العلاقات الجادة والزواج</h3>
-                                <p style="font-size:11px; color:var(--text-muted);">للبحث عن شريك الحياة وفق معايير التوافق والجدية.</p>
-                                <button class="btn-main" onclick="alert('تم الدخول للقسم')">دخول</button>
-                            </div>
-                            <div class="card-item">
-                                <h3>🌹 الواجهات الرومانسية</h3>
-                                <p style="font-size:11px; color:var(--text-muted);">أجواء دافئة وتجارب تواصل راقية.</p>
-                                <button class="btn-main" onclick="alert('تم الدخول للقسم')">دخول</button>
-                            </div>
-                            <div class="card-item">
-                                <h3>🔥 اللحظات الجريئة</h3>
-                                <p style="font-size:11px; color:var(--text-muted);">مساحة تفاعلية حرة للمشتركين.</p>
-                                <button class="btn-main" onclick="alert('تم الدخول للقسم')">استكشاف</button>
-                            </div>
+                            <div class="card-item"><h3>💍 العلاقات الجادة والزواج</h3><button class="btn-main" onclick="alert('تم الدخول للقسم')">دخول</button></div>
+                            <div class="card-item"><h3>🌹 الواجهات الرومانسية</h3><button class="btn-main" onclick="alert('تم الدخول للقسم')">دخول</button></div>
                         </div>
                     </div>
                 `;
             } else if(sec === 'stores') {
                 view.innerHTML = `
                     <div class="card-box">
-                        <h2 style="color:var(--gold); font-size:16px; margin-top:0;">متاجر مودة والاقتصاد الرقمي</h2>
-                        <div class="cards-grid">
-                            <div class="card-item">
-                                <h3>🪙 متجر الكوينز</h3>
-                                <p style="font-size:11px; color:var(--text-muted);">شحن رصيد العملات لإرسال الهدايا والتفاعل.</p>
-                                <button class="btn-main" onclick="buyCoins(1000)">شحن 1,000 كوينز</button>
-                            </div>
-                            <div class="card-item">
-                                <h3>🛡️ متجر الأوسمة</h3>
-                                <p style="font-size:11px; color:var(--text-muted);">شراء أوسمة التميز والنخبة الذهبية.</p>
-                                <button class="btn-main" onclick="alert('تم شراء الوسام بنجاح!')">شراء وسام</button>
-                            </div>
-                        </div>
+                        <h2 style="color:var(--gold); font-size:16px; margin-top:0;">المتاجر والترقيات والكوينز</h2>
+                        <p style="font-size:11px; color:var(--text-muted);">شحن الرصيد والترقية الزمنية والعملات الرقمية داخل المنصة.</p>
                     </div>
                 `;
             } else if(sec === 'ads') {
                 view.innerHTML = `
                     <div class="card-box">
-                        <h2 style="color:var(--gold); font-size:16px; margin-top:0;">الإعلانات المبوبة السيادية</h2>
-                        <div style="background:rgba(255,215,0,0.06); padding:12px; border-radius:8px; border:1px solid var(--border-crystal);">
-                            <h4 style="color:var(--gold); margin:0 0 4px 0; font-size:12px;">إعلان رسمي (إدارة المنصة حصرياً)</h4>
-                            <p style="margin:0; font-size:11px;">عرض خاص: ترقية الأعضاء الموثقين ومنحهم 5,000 كوينز إضافية هذا الشهر.</p>
-                        </div>
+                        <h2 style="color:var(--gold); font-size:16px; margin-top:0;">الإعلانات المبوبة (بإدارة الأدمن)</h2>
+                        <p style="font-size:11px; color:var(--text-muted);">الترويجات والعروض الرسمية الخاصة بالمنصة.</p>
                     </div>
                 `;
             } else if(sec === 'admin') {
                 view.innerHTML = `
                     <div class="card-box">
-                        <h2 style="color:var(--gold); font-size:16px; margin-top:0;">لوحة التحكم السيادية (السوبر أدمن)</h2>
-                        <label>نسبة عمولة التحويل:</label>
-                        <input type="number" value="0.10" step="0.01">
-                        <button class="btn-main" onclick="alert('تم الحفظ')">حفظ العمولة</button>
-
-                        <label style="margin-top:8px; display:block;">نشر إعلان رسمي:</label>
-                        <textarea placeholder="نص الإعلان..." rows="2"></textarea>
-                        <button class="btn-main" onclick="alert('تم نشر الإعلان')">نشر الإعلان</button>
+                        <h2 style="color:var(--gold); font-size:16px; margin-top:0;">👑 لوحة تحكم السوبر أدمن السيادية</h2>
+                        <p style="font-size:11px; color:var(--text-muted);">إدارة المستخدمين، المراقبة، ونشر الإعلانات المبوبة الرسمية.</p>
                     </div>
                 `;
             }
-        }
-
-        function publishPost() {
-            const txt = document.getElementById('postInput').value;
-            if(!txt) { alert('اكتب نص المنشور أولاً'); return; }
-            const feed = document.getElementById('postsFeed');
-            const box = document.createElement('div');
-            box.className = 'card-box';
-            box.innerHTML = `
-                <h4 style="margin:0; font-size:13px; color:var(--gold);">${sessionUser.name}</h4>
-                <p style="font-size:12px; margin:6px 0;">${txt}</p>
-            `;
-            feed.prepend(box);
-            document.getElementById('postInput').value = '';
-            alert('تم النشر بنجاح!');
-        }
-
-        function buyCoins(amt) {
-            sessionUser.coins += amt;
-            document.getElementById('coinsBadge').innerText = `🪙 ${sessionUser.coins.toLocaleString()} كوينز`;
-            alert(`تم شحن ${amt.toLocaleString()} كوينز بنجاح!`);
         }
     </script>
 </body>
