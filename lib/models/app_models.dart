@@ -1,13 +1,13 @@
 // ==========================================
 // ملف النماذج الشامل والنهائي لتطبيق مودة (mawda-app-2026)
-// (غرفة العمليات الكبرى: ألبوم الصور المؤقت 7 أيام، تصفح الزوار، الأونرات، الفلترة، المتاجر، والدعم)
+// (غرفة العمليات الكبرى: مكافآت التوثيق الحقيقية للكوينز، الألبوم المؤقت، الزوار، الأونرات، الفلترة، والمتاجر)
 // ==========================================
 
-// أ. نموذج صور معرض البروفايل (مع التدمير الذاتي بعد 7 أيام للحفاظ على سرعة السيرفرات)
+// أ. نموذج صور معرض البروفايل (تدمير ذاتي بعد 7 أيام)
 class PhotoItemModel {
   final String photoUrl;
   final DateTime uploadedAt;
-  final DateTime expiresAt; // تدمير ذاتي وتلقائي بعد 7 أيام
+  final DateTime expiresAt;
 
   PhotoItemModel({
     required this.photoUrl,
@@ -32,38 +32,44 @@ class PhotoItemModel {
   }
 }
 
-// 1. نموذج المستخدم الشامل (مع معرض الصور المؤقت ذاتي التدمير)
+// 1. نموذج المستخدم الشامل (مع رصيد الكوينز الفعلي ومكافآت التوثيق الحقيقية)
 class UserModel {
   final String uid;
-  final String username;          // المعرف الفريد الخاص بالبروفايل (مثل @username)
+  final String username;              // المعرف الفريد (@username)
   final String email;
-  final String displayName;
-  final String profileImageUrl;   // الصورة الشخصية الأساسية
-  final String coverImageUrl;     // صورة الغلاف
-  final String bio;               // النبذة التعريفية
-  final String gender;            // ('male' / 'female')
-  final String country;           // الدولة العربية
-  final String province;          // المحافظة أو المدينة
-  final String relationshipStatus;// الحالة الاجتماعية / هدف التعارف
+  final String displayName;           // الاسم الظاهري
+  final int age;                      // العمر
+  final String gender;                // ('male' / 'female')
+  final String country;               // الدولة العربية
+  final String province;              // المحافظة / المدينة
+  final String relationshipStatus;    // الحالة الاجتماعية
+  final String housingSituation;      // طريقة السكن
+  final String occupation;            // المهنة
+  final String datingIntent;          // الهدف من الاستخدام
   
-  final bool isEmailVerified;       // توثيق البريد الإلزامي (500 كوينز)
-  final bool isBiometricVerified;  // التوثيق البيومتري (1500 كوينز)
-  final int coins;                 // رصيد الكوينز الحالي
-  final List<String> badges;       // الأوسمة المملوكة
-  final List<String> titles;       // الألقاب المملوكة
-  final List<PhotoItemModel> photosGallery; // معرض الصور الشخصية (مؤقت وتلقائي التدمير بعد 7 أيام)
+  final String profileImageUrl;       // الصورة الشخصية
+  final String coverImageUrl;         // صورة الغلاف
+  final String bio;                   // النبذة التعريفية
+  
+  final bool isEmailVerified;         // توثيق البريد (يحصل تلقائياً على +500 كوينز حقيقية)
+  final bool isBiometricVerified;    // التوثيق البيومتري (يحصل تلقائياً على +1500 كوينز حقيقية)
+  final int coins;                     // رصيد الكوينز الظاهري والفعلي في البروفايل
+  
+  final List<String> badges;           // الأوسمة
+  final List<String> titles;           // الألقاب
+  final List<PhotoItemModel> photosGallery; // معرض الصور (7 أيام تدمير ذاتي)
   
   // ميزات متجر الميزات الخاصة
-  final List<String> activeSpecialFeatures; // الميزات المفعلة
-  final List<String> profileVisitors;       // زوار البروفايل
-  final bool isOnline;                      // هل العضو متصل الآن؟
-  final bool isOnlineHidden;                // إخفاء حالة الاتصال
-  final bool isGhostModeActive;             // وضع الشبح / المجهول
-  final bool isProfileBoosted;              // ميزة الظهور أولاً في قائمة الأعضاء
-  final String customProfileStyle;          // إعدادات التميز البصري للبروفايل
+  final List<String> activeSpecialFeatures; 
+  final List<String> profileVisitors;       
+  final bool isOnline;                      
+  final bool isOnlineHidden;                
+  final bool isGhostModeActive;             
+  final bool isProfileBoosted;              
+  final String customProfileStyle;          
   
-  final String profileAudioUrl;             // الموسيقى الشخصية عند زيارة البروفايل
-  final String chatBackgroundUrl;          // خلفية الدردشة الخاصة
+  final String profileAudioUrl;             
+  final String chatBackgroundUrl;          
 
   final String lastKnownIp;        
   final String deviceId;           
@@ -76,16 +82,20 @@ class UserModel {
     required this.username,
     required this.email,
     required this.displayName,
-    this.profileImageUrl = '',
-    this.coverImageUrl = '',
-    this.bio = '',
+    this.age = 18,
     this.gender = 'male',
     this.country = '',
     this.province = '',
     this.relationshipStatus = '',
+    this.housingSituation = '',
+    this.occupation = '',
+    this.datingIntent = '',
+    this.profileImageUrl = '',
+    this.coverImageUrl = '',
+    this.bio = '',
     this.isEmailVerified = false,
     this.isBiometricVerified = false,
-    this.coins = 500,
+    this.coins = 0, // الرصيد يبدأ من 0، ويزداد حقيقياً فور التوثيق (+500 ثم +1500)
     this.badges = const [],
     this.titles = const [],
     this.photosGallery = const [],
@@ -111,13 +121,17 @@ class UserModel {
       'username': username,
       'email': email,
       'displayName': displayName,
-      'profileImageUrl': profileImageUrl,
-      'coverImageUrl': coverImageUrl,
-      'bio': bio,
+      'age': age,
       'gender': gender,
       'country': country,
       'province': province,
       'relationshipStatus': relationshipStatus,
+      'housingSituation': housingSituation,
+      'occupation': occupation,
+      'datingIntent': datingIntent,
+      'profileImageUrl': profileImageUrl,
+      'coverImageUrl': coverImageUrl,
+      'bio': bio,
       'isEmailVerified': isEmailVerified,
       'isBiometricVerified': isBiometricVerified,
       'coins': coins,
@@ -147,13 +161,17 @@ class UserModel {
       username: map['username'] ?? '',
       email: map['email'] ?? '',
       displayName: map['displayName'] ?? '',
-      profileImageUrl: map['profileImageUrl'] ?? '',
-      coverImageUrl: map['coverImageUrl'] ?? '',
-      bio: map['bio'] ?? '',
+      age: map['age'] ?? 18,
       gender: map['gender'] ?? 'male',
       country: map['country'] ?? '',
       province: map['province'] ?? '',
       relationshipStatus: map['relationshipStatus'] ?? '',
+      housingSituation: map['housingSituation'] ?? '',
+      occupation: map['occupation'] ?? '',
+      datingIntent: map['datingIntent'] ?? '',
+      profileImageUrl: map['profileImageUrl'] ?? '',
+      coverImageUrl: map['coverImageUrl'] ?? '',
+      bio: map['bio'] ?? '',
       isEmailVerified: map['isEmailVerified'] ?? false,
       isBiometricVerified: map['isBiometricVerified'] ?? false,
       coins: map['coins'] ?? 0,
@@ -855,8 +873,8 @@ class StoryModel {
 class VerificationModel {
   final String requestId;
   final String userId;
-  final String audioVoiceprintUrl; 
-  final String movingSelfieUrl;    
+  final String audioVoiceprintUrl; // بصمة الصوت (20 ثانية)
+  final String movingSelfieUrl;    // السيلفي المتحرك (3-5 ثوانٍ)
   final String status;             
   final DateTime submittedAt;
 
@@ -892,7 +910,7 @@ class VerificationModel {
   }
 }
 
-// 17. نموذج غرف الدردشة (مع دعم أونرات ومشرفي الغرفة المستأجرة roomAdmins ونظام التوب 10)
+// 17. نموذج غرف الدردشة
 class RoomModel {
   final String roomId;
   final String roomName;
