@@ -1,6 +1,6 @@
 // ==========================================
 // ملف النماذج الشامل والنهائي لتطبيق مودة (mawda-app-2026)
-// (يشمل نظام المكافآت: اليومي، الساعي، والأسبوعي المتواصل، بالإضافة للبروفايل والإشعارات)
+// (غرفة العمليات الكبرى: البروفايل، الإشعارات، الحظر، المشرفون، والنظام المالي)
 // ==========================================
 
 // 1. نموذج المستخدم الشامل (البروفايل الاجتماعي المتكامل ولوحة التحكم)
@@ -20,6 +20,9 @@ class UserModel {
   final List<String> badges;       // قائمة الأوسمة المملوكة
   final List<String> titles;       // قائمة الألقاب المملوكة
   final List<String> photosGallery;// معرض الصور الشخصية (ألبومات العضو)
+  final String lastKnownIp;        // آخر عنوان IP استخدمه العضو (لأغراض المراقبة والأمان)
+  final String deviceId;           // معرف الجهاز الفريد
+  final bool isBanned;             // هل الحساب محظور؟
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -39,6 +42,9 @@ class UserModel {
     this.badges = const [],
     this.titles = const [],
     this.photosGallery = const [],
+    this.lastKnownIp = '',
+    this.deviceId = '',
+    this.isBanned = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -60,6 +66,9 @@ class UserModel {
       'badges': badges,
       'titles': titles,
       'photosGallery': photosGallery,
+      'lastKnownIp': lastKnownIp,
+      'deviceId': deviceId,
+      'isBanned': isBanned,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -82,19 +91,149 @@ class UserModel {
       badges: List<String>.from(map['badges'] ?? []),
       titles: List<String>.from(map['titles'] ?? []),
       photosGallery: List<String>.from(map['photosGallery'] ?? []),
+      lastKnownIp: map['lastKnownIp'] ?? '',
+      deviceId: map['deviceId'] ?? '',
+      isBanned: map['isBanned'] ?? false,
       createdAt: DateTime.parse(map['createdAt']),
       updatedAt: DateTime.parse(map['updatedAt']),
     );
   }
 }
 
-// 2. نموذج نظام المكافآت (الحضور اليومي، الحضور الساعي، والحضور المتواصل الأسبوعي)
+// 2. نموذج صلاحيات المشرفين المساعدين (Moderators)
+class ModeratorPermissionModel {
+  final String moderatorId;
+  final String userId;
+  final bool canManageRooms;       // مراقبة الغرف العامة
+  final bool canBanUsers;          // صلاحية الحظر المؤقت
+  final bool canReviewVerifications;// مراجعة طلبات التوثيق
+  final DateTime assignedAt;
+
+  ModeratorPermissionModel({
+    required this.moderatorId,
+    required this.userId,
+    this.canManageRooms = true,
+    this.canBanUsers = false,
+    this.canReviewVerifications = false,
+    required this.assignedAt,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'moderatorId': moderatorId,
+      'userId': userId,
+      'canManageRooms': canManageRooms,
+      'canBanUsers': canBanUsers,
+      'canReviewVerifications': canReviewVerifications,
+      'assignedAt': assignedAt.toIso8601String(),
+    };
+  }
+
+  factory ModeratorPermissionModel.fromMap(Map<String, dynamic> map) {
+    return ModeratorPermissionModel(
+      moderatorId: map['moderatorId'] ?? '',
+      userId: map['userId'] ?? '',
+      canManageRooms: map['canManageRooms'] ?? true,
+      canBanUsers: map['canBanUsers'] ?? false,
+      canReviewVerifications: map['canReviewVerifications'] ?? false,
+      assignedAt: DateTime.parse(map['assignedAt']),
+    );
+  }
+}
+
+// 3. نموذج سجلات الحظر (24 ساعة، 3 أيام، أسبوع، أو نهائي حسب الجهاز والـ IP)
+class BanRecordModel {
+  final String banId;
+  final String targetUserId;
+  final String targetIp;
+  final String targetDeviceId;
+  final String reason;
+  final DateTime bannedAt;
+  final DateTime expiresAt;        // إذا كانت فارغة أو بعيدة جداً تعني حظراً نهائياً
+  final String bannedByAdminId;
+
+  BanRecordModel({
+    required this.banId,
+    required this.targetUserId,
+    required this.targetIp,
+    required this.targetDeviceId,
+    required this.reason,
+    required this.bannedAt,
+    required this.expiresAt,
+    required this.bannedByAdminId,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'banId': banId,
+      'targetUserId': targetUserId,
+      'targetIp': targetIp,
+      'targetDeviceId': targetDeviceId,
+      'reason': reason,
+      'bannedAt': bannedAt.toIso8601String(),
+      'expiresAt': expiresAt.toIso8601String(),
+      'bannedByAdminId': bannedByAdminId,
+    };
+  }
+
+  factory BanRecordModel.fromMap(Map<String, dynamic> map) {
+    return BanRecordModel(
+      banId: map['banId'] ?? '',
+      targetUserId: map['targetUserId'] ?? '',
+      targetIp: map['targetIp'] ?? '',
+      targetDeviceId: map['targetDeviceId'] ?? '',
+      reason: map['reason'] ?? '',
+      bannedAt: DateTime.parse(map['bannedAt']),
+      expiresAt: DateTime.parse(map['expiresAt']),
+      bannedByAdminId: map['bannedByAdminId'] ?? '',
+    );
+  }
+}
+
+// 4. نموذج الإعدادات المالية واقتصاد المنصة (باقات الكوينز ومكافآت الحضور والإعلانات)
+class PlatformFinancialConfigModel {
+  final int dailyRewardCoins;      // مكافأة الحضور اليومي
+  final int hourlyRewardCoins;     // مكافأة الحضور الساعي
+  final int weeklyRewardCoins;     // مكافأة الحضور الأسبوعي المتواصل
+  final int adWatchRewardCoins;    // مكافأة الكوينز الخاصة بمشاهدة الإعلانات التجارية
+  final Map<String, dynamic> coinPackages; // باقات بيع الكوينز المتنوعة
+
+  PlatformFinancialConfigModel({
+    this.dailyRewardCoins = 50,
+    this.hourlyRewardCoins = 10,
+    this.weeklyRewardCoins = 500,
+    this.adWatchRewardCoins = 20,
+    this.coinPackages = const {},
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'dailyRewardCoins': dailyRewardCoins,
+      'hourlyRewardCoins': hourlyRewardCoins,
+      'weeklyRewardCoins': weeklyRewardCoins,
+      'adWatchRewardCoins': adWatchRewardCoins,
+      'coinPackages': coinPackages,
+    };
+  }
+
+  factory PlatformFinancialConfigModel.fromMap(Map<String, dynamic> map) {
+    return PlatformFinancialConfigModel(
+      dailyRewardCoins: map['dailyRewardCoins'] ?? 50,
+      hourlyRewardCoins: map['hourlyRewardCoins'] ?? 10,
+      weeklyRewardCoins: map['weeklyRewardCoins'] ?? 500,
+      adWatchRewardCoins: map['adWatchRewardCoins'] ?? 20,
+      coinPackages: Map<String, dynamic>.from(map['coinPackages'] ?? {}),
+    );
+  }
+}
+
+// 5. نموذج نظام المكافآت وتتبع تكرار الاستلام للمستخدم
 class RewardModel {
   final String userId;
-  final DateTime? lastDailyClaim;     // آخر مرة استلم فيها مكافأة الحضور اليومي
-  final DateTime? lastHourlyClaim;    // آخر مرة استلم فيها مكافأة الحضور الساعي
-  final DateTime? lastWeeklyClaim;    // آخر مرة استلم فيها مكافأة الحضور الأسبوعي المتواصل
-  final int weeklyStreakCount;        // عداد أيام الحضور المتواصل خلال الأسبوع
+  final DateTime? lastDailyClaim;     
+  final DateTime? lastHourlyClaim;    
+  final DateTime? lastWeeklyClaim;    
+  final int weeklyStreakCount;        
 
   RewardModel({
     required this.userId,
@@ -125,12 +264,12 @@ class RewardModel {
   }
 }
 
-// 3. نموذج الإشعارات الشامل (رسائل، إشارات، طلبات، هدايا، وتنبيهات الإدارة)
+// 6. نموذج الإشعارات الشامل (رسائل، إشارات، طلبات، هدايا، وتنبيهات الإدارة)
 class NotificationModel {
   final String notificationId;
   final String userId;
   final String senderId;
-  final String type;               // ('message', 'mention', 'friend_request', 'gift', 'admin_broadcast')
+  final String type;               
   final String title;
   final String body;
   final String targetId;
@@ -178,12 +317,12 @@ class NotificationModel {
   }
 }
 
-// 4. نموذج الهدايا وإهداء الكوينز، الأوسمة، والألقاب بين الأعضاء
+// 7. نموذج الهدايا وإهداء الكوينز، الأوسمة، والألقاب بين الأعضاء
 class GiftTransactionModel {
   final String giftId;
   final String senderId;
   final String receiverId;
-  final String giftType;           // ('coins', 'badge', 'title')
+  final String giftType;           
   final String giftValue;
   final DateTime timestamp;
 
@@ -219,7 +358,7 @@ class GiftTransactionModel {
   }
 }
 
-// 5. نموذج اليوميات والمنشورات (نشر، تفاعلات، ومشاركة)
+// 8. نموذج اليوميات والمنشورات (نشر، تفاعلات، ومشاركة)
 class PostModel {
   final String postId;
   final String authorId;
@@ -268,7 +407,7 @@ class PostModel {
   }
 }
 
-// 6. نموذج الستوريات (ميزة مستأجرة تنتهي بعد 24 ساعة)
+// 9. نموذج الستوريات (ميزة مستأجرة تنتهي بعد 24 ساعة)
 class StoryModel {
   final String storyId;
   final String userId;
@@ -305,7 +444,7 @@ class StoryModel {
   }
 }
 
-// 7. نموذج طلبات التوثيق البيومتري
+// 10. نموذج طلبات التوثيق البيومتري
 class VerificationModel {
   final String requestId;
   final String userId;
@@ -346,7 +485,7 @@ class VerificationModel {
   }
 }
 
-// 8. نموذج غرف الدردشة (العامة والمستأجرة الخاصة)
+// 11. نموذج غرف الدردشة (العامة والمستأجرة الخاصة)
 class RoomModel {
   final String roomId;
   final String roomName;
@@ -391,7 +530,7 @@ class RoomModel {
   }
 }
 
-// 9. نموذج الرسائل (مع التدمير التلقائي بعد ساعتين والحذف للجميع)
+// 12. نموذج الرسائل (مع التدمير التلقائي بعد ساعتين والحذف للجميع)
 class MessageModel {
   final String messageId;
   final String roomId;
@@ -444,7 +583,7 @@ class MessageModel {
   }
 }
 
-// 10. نموذج الإعلانات التجارية (للسوبر أدمن حصراً)
+// 13. نموذج الإعلانات التجارية (للسوبر أدمن حصراً)
 class AdModel {
   final String adId;
   final String title;
