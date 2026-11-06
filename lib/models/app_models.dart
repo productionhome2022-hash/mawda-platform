@@ -1,6 +1,6 @@
 // ==========================================
 // ملف النماذج الشامل والنهائي لتطبيق مودة (mawda-app-2026)
-// (يشمل البروفايل، الإشعارات، الهدايا، اليوميات، الستوريات، والدردشات)
+// (يشمل نظام المكافآت: اليومي، الساعي، والأسبوعي المتواصل، بالإضافة للبروفايل والإشعارات)
 // ==========================================
 
 // 1. نموذج المستخدم الشامل (البروفايل الاجتماعي المتكامل ولوحة التحكم)
@@ -20,7 +20,6 @@ class UserModel {
   final List<String> badges;       // قائمة الأوسمة المملوكة
   final List<String> titles;       // قائمة الألقاب المملوكة
   final List<String> photosGallery;// معرض الصور الشخصية (ألبومات العضو)
-  final Map<String, dynamic> rewardsTracker; // تتبع المكافآت (يومي، ساعي، أسبوعي)
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -40,7 +39,6 @@ class UserModel {
     this.badges = const [],
     this.titles = const [],
     this.photosGallery = const [],
-    this.rewardsTracker = const {},
     required this.createdAt,
     required this.updatedAt,
   });
@@ -62,7 +60,6 @@ class UserModel {
       'badges': badges,
       'titles': titles,
       'photosGallery': photosGallery,
-      'rewardsTracker': rewardsTracker,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -85,23 +82,59 @@ class UserModel {
       badges: List<String>.from(map['badges'] ?? []),
       titles: List<String>.from(map['titles'] ?? []),
       photosGallery: List<String>.from(map['photosGallery'] ?? []),
-      rewardsTracker: Map<String, dynamic>.from(map['rewardsTracker'] ?? {}),
       createdAt: DateTime.parse(map['createdAt']),
       updatedAt: DateTime.parse(map['updatedAt']),
     );
   }
 }
 
-// 2. نموذج الإشعارات الشامل (رسائل، إشارات، طلبات، هدايا، وتنبيهات الإدارة)
+// 2. نموذج نظام المكافآت (الحضور اليومي، الحضور الساعي، والحضور المتواصل الأسبوعي)
+class RewardModel {
+  final String userId;
+  final DateTime? lastDailyClaim;     // آخر مرة استلم فيها مكافأة الحضور اليومي
+  final DateTime? lastHourlyClaim;    // آخر مرة استلم فيها مكافأة الحضور الساعي
+  final DateTime? lastWeeklyClaim;    // آخر مرة استلم فيها مكافأة الحضور الأسبوعي المتواصل
+  final int weeklyStreakCount;        // عداد أيام الحضور المتواصل خلال الأسبوع
+
+  RewardModel({
+    required this.userId,
+    this.lastDailyClaim,
+    this.lastHourlyClaim,
+    this.lastWeeklyClaim,
+    this.weeklyStreakCount = 0,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'userId': userId,
+      'lastDailyClaim': lastDailyClaim?.toIso8601String(),
+      'lastHourlyClaim': lastHourlyClaim?.toIso8601String(),
+      'lastWeeklyClaim': lastWeeklyClaim?.toIso8601String(),
+      'weeklyStreakCount': weeklyStreakCount,
+    };
+  }
+
+  factory RewardModel.fromMap(Map<String, dynamic> map) {
+    return RewardModel(
+      userId: map['userId'] ?? '',
+      lastDailyClaim: map['lastDailyClaim'] != null ? DateTime.parse(map['lastDailyClaim']) : null,
+      lastHourlyClaim: map['lastHourlyClaim'] != null ? DateTime.parse(map['lastHourlyClaim']) : null,
+      lastWeeklyClaim: map['lastWeeklyClaim'] != null ? DateTime.parse(map['lastWeeklyClaim']) : null,
+      weeklyStreakCount: map['weeklyStreakCount'] ?? 0,
+    );
+  }
+}
+
+// 3. نموذج الإشعارات الشامل (رسائل، إشارات، طلبات، هدايا، وتنبيهات الإدارة)
 class NotificationModel {
   final String notificationId;
-  final String userId;             // العضو المستلم للإشعار
-  final String senderId;           // العضو المرسل (أو 'admin' للإدارة العامة)
-  final String type;               // نوع الإشعار: ('message', 'mention', 'friend_request', 'gift', 'admin_broadcast')
-  final String title;              // عنوان الإشعار
-  final String body;               // نص الإشعار التفصيلي
-  final String targetId;           // معرف الهدف للتوجه إليه مباشرة (مثل roomId أو postId)
-  final bool isRead;               // هل تمت قراءة الإشعار؟
+  final String userId;
+  final String senderId;
+  final String type;               // ('message', 'mention', 'friend_request', 'gift', 'admin_broadcast')
+  final String title;
+  final String body;
+  final String targetId;
+  final bool isRead;
   final DateTime timestamp;
 
   NotificationModel({
@@ -145,7 +178,7 @@ class NotificationModel {
   }
 }
 
-// 3. نموذج الهدايا وإهداء الكوينز، الأوسمة، والألقاب بين الأعضاء
+// 4. نموذج الهدايا وإهداء الكوينز، الأوسمة، والألقاب بين الأعضاء
 class GiftTransactionModel {
   final String giftId;
   final String senderId;
@@ -186,7 +219,7 @@ class GiftTransactionModel {
   }
 }
 
-// 4. نموذج اليوميات والمنشورات (نشر، تفاعلات، ومشاركة)
+// 5. نموذج اليوميات والمنشورات (نشر، تفاعلات، ومشاركة)
 class PostModel {
   final String postId;
   final String authorId;
@@ -235,7 +268,7 @@ class PostModel {
   }
 }
 
-// 5. نموذج الستوريات (ميزة مستأجرة تنتهي بعد 24 ساعة)
+// 6. نموذج الستوريات (ميزة مستأجرة تنتهي بعد 24 ساعة)
 class StoryModel {
   final String storyId;
   final String userId;
@@ -272,7 +305,7 @@ class StoryModel {
   }
 }
 
-// 6. نموذج طلبات التوثيق البيومتري
+// 7. نموذج طلبات التوثيق البيومتري
 class VerificationModel {
   final String requestId;
   final String userId;
@@ -313,7 +346,7 @@ class VerificationModel {
   }
 }
 
-// 7. نموذج غرف الدردشة (العامة والمستأجرة الخاصة)
+// 8. نموذج غرف الدردشة (العامة والمستأجرة الخاصة)
 class RoomModel {
   final String roomId;
   final String roomName;
@@ -358,7 +391,7 @@ class RoomModel {
   }
 }
 
-// 8. نموذج الرسائل (مع التدمير التلقائي بعد ساعتين والحذف للجميع)
+// 9. نموذج الرسائل (مع التدمير التلقائي بعد ساعتين والحذف للجميع)
 class MessageModel {
   final String messageId;
   final String roomId;
@@ -411,7 +444,7 @@ class MessageModel {
   }
 }
 
-// 9. نموذج الإعلانات التجارية (للسوبر أدمن حصراً)
+// 10. نموذج الإعلانات التجارية (للسوبر أدمن حصراً)
 class AdModel {
   final String adId;
   final String title;
