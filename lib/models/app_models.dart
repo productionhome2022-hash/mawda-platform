@@ -1,9 +1,9 @@
 // ==========================================
 // ملف النماذج الشامل والنهائي لتطبيق مودة (mawda-app-2026)
-// (غرفة العمليات الكبرى: البروفايل، الدعم التقني ورفع لقطات الشاشة، الرقابة المالية، والتحويلات)
+// (غرفة العمليات الكبرى: البروفايل، الفلترة الذكية، الدول العربية والمحافظات، ميزات المتجر المتقدمة، الغرف، والدعم)
 // ==========================================
 
-// 1. نموذج المستخدم الشامل
+// 1. نموذج المستخدم الشامل (مع الفلترة الجغرافية، الدول العربية، حالة الاتصال، وميزات البروفايل المميز والظهور أولاً)
 class UserModel {
   final String uid;
   final String username;          // المعرف الفريد الخاص بالبروفايل (مثل @username)
@@ -11,9 +11,12 @@ class UserModel {
   final String displayName;
   final String profileImageUrl;   // الصورة الشخصية
   final String coverImageUrl;     // صورة الغلاف
-  final String bio;               // النبذة التعريفية والحالة الشخصية
-  final String location;          // الموقع الجغرافي
-  final String relationshipStatus;// الحالة الاجتماعية / هدف التعارف
+  final String bio;               // النبذة التعريفية
+  final String gender;            // ('male' / 'female')
+  final String country;           // الدولة العربية (من القائمة المعتمدة للوطن العربي)
+  final String province;          // المحافظة أو المدينة التابعة للدولة
+  final String relationshipStatus;// الحالة الاجتماعية / هدف التعارف (زواج، مواعدة، علاقة جادة، صداقة، علاقة مفتوحة)
+  
   final bool isEmailVerified;       // توثيق البريد الإلزامي (500 كوينز)
   final bool isBiometricVerified;  // التوثيق البيومتري (1500 كوينز)
   final int coins;                 // رصيد الكوينز الحالي
@@ -22,14 +25,18 @@ class UserModel {
   final List<String> photosGallery;// معرض الصور الشخصية (ألبومات العضو)
   
   // ميزات متجر الميزات الخاصة والتحكم المتقدم
-  final List<String> activeSpecialFeatures; // الميزات المفعلة
+  final List<String> activeSpecialFeatures; // الميزات المفعلة (مثل: 'boost_profile', 'custom_profile_style', 'ghost_mode', 'profile_visitors', 'hide_online', 'golden_frame', 'profile_music', 'custom_chat_bg')
   final List<String> profileVisitors;       // قائمة UIDs للأعضاء الذين زاروا البروفايل
+  final bool isOnline;                      // هل العضو متصل الآن؟ (لترتيب الظهور أولاً)
   final bool isOnlineHidden;                // إخفاء حالة الاتصال
   final bool isGhostModeActive;             // وضع الشبح / المجهول
+  final bool isProfileBoosted;              // ميزة شراء الظهور أولاً في قائمة الأعضاء
+  final String customProfileStyle;          // إعدادات التميز البصري (ألوان، خلفيات، ومؤثرات خاصة للبروفايل)
+  
   final String profileAudioUrl;             // رابط الموسيقى الشخصية عند زيارة البروفايل
   final String chatBackgroundUrl;          // رابط خلفية الدردشة الخاصة
 
-  final String lastKnownIp;        // آخر عنوان IP استخدمه العضو
+  final String lastKnownIp;        // آخر عنوان IP
   final String deviceId;           // معرف الجهاز الفريد
   final bool isBanned;             // هل الحساب محظور؟
   final DateTime createdAt;
@@ -43,7 +50,9 @@ class UserModel {
     this.profileImageUrl = '',
     this.coverImageUrl = '',
     this.bio = '',
-    this.location = '',
+    this.gender = 'male',
+    this.country = '',
+    this.province = '',
     this.relationshipStatus = '',
     this.isEmailVerified = false,
     this.isBiometricVerified = false,
@@ -53,8 +62,11 @@ class UserModel {
     this.photosGallery = const [],
     this.activeSpecialFeatures = const [],
     this.profileVisitors = const [],
+    this.isOnline = false,
     this.isOnlineHidden = false,
     this.isGhostModeActive = false,
+    this.isProfileBoosted = false,
+    this.customProfileStyle = '',
     this.profileAudioUrl = '',
     this.chatBackgroundUrl = '',
     this.lastKnownIp = '',
@@ -73,7 +85,9 @@ class UserModel {
       'profileImageUrl': profileImageUrl,
       'coverImageUrl': coverImageUrl,
       'bio': bio,
-      'location': location,
+      'gender': gender,
+      'country': country,
+      'province': province,
       'relationshipStatus': relationshipStatus,
       'isEmailVerified': isEmailVerified,
       'isBiometricVerified': isBiometricVerified,
@@ -83,8 +97,11 @@ class UserModel {
       'photosGallery': photosGallery,
       'activeSpecialFeatures': activeSpecialFeatures,
       'profileVisitors': profileVisitors,
+      'isOnline': isOnline,
       'isOnlineHidden': isOnlineHidden,
       'isGhostModeActive': isGhostModeActive,
+      'isProfileBoosted': isProfileBoosted,
+      'customProfileStyle': customProfileStyle,
       'profileAudioUrl': profileAudioUrl,
       'chatBackgroundUrl': chatBackgroundUrl,
       'lastKnownIp': lastKnownIp,
@@ -104,7 +121,9 @@ class UserModel {
       profileImageUrl: map['profileImageUrl'] ?? '',
       coverImageUrl: map['coverImageUrl'] ?? '',
       bio: map['bio'] ?? '',
-      location: map['location'] ?? '',
+      gender: map['gender'] ?? 'male',
+      country: map['country'] ?? '',
+      province: map['province'] ?? '',
       relationshipStatus: map['relationshipStatus'] ?? '',
       isEmailVerified: map['isEmailVerified'] ?? false,
       isBiometricVerified: map['isBiometricVerified'] ?? false,
@@ -114,8 +133,11 @@ class UserModel {
       photosGallery: List<String>.from(map['photosGallery'] ?? []),
       activeSpecialFeatures: List<String>.from(map['activeSpecialFeatures'] ?? []),
       profileVisitors: List<String>.from(map['profileVisitors'] ?? []),
+      isOnline: map['isOnline'] ?? false,
       isOnlineHidden: map['isOnlineHidden'] ?? false,
       isGhostModeActive: map['isGhostModeActive'] ?? false,
+      isProfileBoosted: map['isProfileBoosted'] ?? false,
+      customProfileStyle: map['customProfileStyle'] ?? '',
       profileAudioUrl: map['profileAudioUrl'] ?? '',
       chatBackgroundUrl: map['chatBackgroundUrl'] ?? '',
       lastKnownIp: map['lastKnownIp'] ?? '',
@@ -127,17 +149,82 @@ class UserModel {
   }
 }
 
-// 2. نموذج رسائل وتذاكر الدعم التقني (مع دعم إرفاق لقطة شاشة Screenshot للزوار والأعضاء)
+// 2. نموذج جلسات الزوار المؤقتة (مع الدولة، الجنس، والصورة الرمزية)
+class GuestSessionModel {
+  final String guestId;
+  final String guestUsername;      
+  final String password;           
+  final String gender;             // ('male' / 'female')
+  final String country;            // الدولة العربية
+  final String province;           // المحافظة
+  final String avatarUrl;          
+  final String deviceId;           
+  final String guestIp;            
+  final DateTime sessionStartedAt; 
+  final DateTime sessionExpiresAt; 
+  final bool isSessionActive;      
+
+  GuestSessionModel({
+    required this.guestId,
+    required this.guestUsername,
+    required this.password,
+    this.gender = 'male',
+    this.country = '',
+    this.province = '',
+    this.avatarUrl = '',
+    required this.deviceId,
+    required this.guestIp,
+    required this.sessionStartedAt,
+    required this.sessionExpiresAt,
+    this.isSessionActive = true,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'guestId': guestId,
+      'guestUsername': guestUsername,
+      'password': password,
+      'gender': gender,
+      'country': country,
+      'province': province,
+      'avatarUrl': avatarUrl,
+      'deviceId': deviceId,
+      'guestIp': guestIp,
+      'sessionStartedAt': sessionStartedAt.toIso8601String(),
+      'sessionExpiresAt': sessionExpiresAt.toIso8601String(),
+      'isSessionActive': isSessionActive,
+    };
+  }
+
+  factory GuestSessionModel.fromMap(Map<String, dynamic> map) {
+    return GuestSessionModel(
+      guestId: map['guestId'] ?? '',
+      guestUsername: map['guestUsername'] ?? '',
+      password: map['password'] ?? '',
+      gender: map['gender'] ?? 'male',
+      country: map['country'] ?? '',
+      province: map['province'] ?? '',
+      avatarUrl: map['avatarUrl'] ?? '',
+      deviceId: map['deviceId'] ?? '',
+      guestIp: map['guestIp'] ?? '',
+      sessionStartedAt: DateTime.parse(map['sessionStartedAt']),
+      sessionExpiresAt: DateTime.parse(map['sessionExpiresAt']),
+      isSessionActive: map['isSessionActive'] ?? true,
+    );
+  }
+}
+
+// 3. نموذج رسائل وتذاكر الدعم التقني ومراسلة الإدارة/المشرفين (مع لقطة الشاشة)
 class SupportTicketModel {
   final String ticketId;
-  final String senderUid;          // معرف العضو (أو "GUEST" إذا كان زائراً من خارج المنصة)
-  final String senderEmail;        // بريد للتواصل عند تعذر الدخول
-  final String senderPhone;        // رقم للتواصل عند الحاجة
-  final String subject;            // عنوان المشكلة أو الاستفسار
-  final String message;            // نص الرسالة
-  final String screenshotUrl;      // رابط لقطة الشاشة المرفقة لمعاينة المشكلة بدقة
-  final String category;           // ('login_issue', 'purchase', 'complaint', 'general_inquiry')
-  final String status;             // ('pending', 'in_progress', 'resolved', 'closed')
+  final String senderUid;          
+  final String senderEmail;        
+  final String senderPhone;        
+  final String subject;            
+  final String message;            
+  final String screenshotUrl;      
+  final String category;           
+  final String status;             
   final DateTime createdAt;
 
   SupportTicketModel({
@@ -184,7 +271,7 @@ class SupportTicketModel {
   }
 }
 
-// 3. نموذج الإعدادات المالية (مع باقات المتجر وزر التواصل المباشر)
+// 4. نموذج الإعدادات المالية واقتصاد المنصة
 class PlatformFinancialConfigModel {
   final int dailyRewardCoins;      
   final int hourlyRewardCoins;     
@@ -229,7 +316,7 @@ class PlatformFinancialConfigModel {
   }
 }
 
-// 4. نموذج السجل والرقابة المالية الشاملة للسوبر أدمن
+// 5. نموذج السجل والرقابة المالية الشاملة للسوبر أدمن
 class CoinAdminAuditModel {
   final String auditId;
   final String transactionType;   
@@ -278,7 +365,7 @@ class CoinAdminAuditModel {
   }
 }
 
-// 5. نموذج سجلات إلغاء المعاملات والتحويلات المشبوهة
+// 6. نموذج سجلات إلغاء المعاملات والتحويلات المشبوهة
 class TransactionCancellationModel {
   final String cancellationId;
   final String targetAuditId;
@@ -319,7 +406,7 @@ class TransactionCancellationModel {
   }
 }
 
-// 6. نموذج تحويل الكوينز بين الأعضاء
+// 7. نموذج تحويل الكوينز بين الأعضاء
 class CoinTransferTransactionModel {
   final String transactionId;
   final String senderId;
@@ -368,14 +455,14 @@ class CoinTransferTransactionModel {
   }
 }
 
-// 7. نموذج الرسائل (مع وضع الشبح)
+// 8. نموذج الرسائل (نصوص وتسجيلات صوتية - مع وضع الشبح)
 class MessageModel {
   final String messageId;
   final String roomId;
   final String senderId;
   final String text;
-  final String mediaUrl;
-  final String mediaType;
+  final String mediaUrl;           
+  final String mediaType;          // ('text', 'voice')
   final bool isAnonymous;
   final DateTime timestamp;
   final DateTime expiresAt;
@@ -425,7 +512,7 @@ class MessageModel {
   }
 }
 
-// 8. نموذج صلاحيات المشرفين المساعدين
+// 9. نموذج صلاحيات المشرفين المساعدين
 class ModeratorPermissionModel {
   final String moderatorId;
   final String userId;
@@ -466,7 +553,7 @@ class ModeratorPermissionModel {
   }
 }
 
-// 9. نموذج سجلات الحظر الذكي
+// 10. نموذج سجلات الحظر الذكي
 class BanRecordModel {
   final String banId;
   final String targetUserId;
@@ -515,7 +602,7 @@ class BanRecordModel {
   }
 }
 
-// 10. نموذج نظام المكافآت والحضور
+// 11. نموذج نظام المكافآت والحضور
 class RewardModel {
   final String userId;
   final DateTime? lastDailyClaim;     
@@ -552,7 +639,7 @@ class RewardModel {
   }
 }
 
-// 11. نموذج الإشعارات الشامل
+// 12. نموذج الإشعارات الشامل
 class NotificationModel {
   final String notificationId;
   final String userId;
@@ -605,7 +692,7 @@ class NotificationModel {
   }
 }
 
-// 12. نموذج الهدايا وإهداء الكوينز والأوسمة والألقاب
+// 13. نموذج الهدايا وإهداء الكوينز والأوسمة والألقاب
 class GiftTransactionModel {
   final String giftId;
   final String senderId;
@@ -646,7 +733,7 @@ class GiftTransactionModel {
   }
 }
 
-// 13. نموذج اليوميات والمنشورات
+// 14. نموذج اليوميات والمنشورات
 class PostModel {
   final String postId;
   final String authorId;
@@ -695,7 +782,7 @@ class PostModel {
   }
 }
 
-// 14. نموذج الستوريات المؤقتة
+// 15. نموذج الستوريات المؤقتة
 class StoryModel {
   final String storyId;
   final String userId;
@@ -732,7 +819,7 @@ class StoryModel {
   }
 }
 
-// 15. نموذج طلبات التوثيق البيومتري
+// 16. نموذج طلبات التوثيق البيومتري
 class VerificationModel {
   final String requestId;
   final String userId;
@@ -773,13 +860,20 @@ class VerificationModel {
   }
 }
 
-// 16. نموذج غرف الدردشة
+// 17. نموذج غرف الدردشة (نظام التوب 10، المستويات، والخلفيات)
 class RoomModel {
   final String roomId;
   final String roomName;
-  final bool isPublic;
+  final bool isPublic;             
   final bool isRented;             
   final String ownerId;            
+  final String roomCoverUrl;       
+  final String roomChatBackgroundUrl; 
+  final int roomLevel;             
+  final int totalCoinsInvested;    
+  final List<String> invitedMembers;  
+  final List<String> pendingRequests; 
+  final List<String> approvedMembers; 
   final DateTime? rentalExpiresAt; 
   final DateTime createdAt;
 
@@ -789,6 +883,13 @@ class RoomModel {
     required this.isPublic,
     this.isRented = false,
     required this.ownerId,
+    this.roomCoverUrl = '',
+    this.roomChatBackgroundUrl = '',
+    this.roomLevel = 1,
+    this.totalCoinsInvested = 0,
+    this.invitedMembers = const [],
+    this.pendingRequests = const [],
+    this.approvedMembers = const [],
     this.rentalExpiresAt,
     required this.createdAt,
   });
@@ -800,6 +901,13 @@ class RoomModel {
       'isPublic': isPublic,
       'isRented': isRented,
       'ownerId': ownerId,
+      'roomCoverUrl': roomCoverUrl,
+      'roomChatBackgroundUrl': roomChatBackgroundUrl,
+      'roomLevel': roomLevel,
+      'totalCoinsInvested': totalCoinsInvested,
+      'invitedMembers': invitedMembers,
+      'pendingRequests': pendingRequests,
+      'approvedMembers': approvedMembers,
       'rentalExpiresAt': rentalExpiresAt?.toIso8601String(),
       'createdAt': createdAt.toIso8601String(),
     };
@@ -812,13 +920,20 @@ class RoomModel {
       isPublic: map['isPublic'] ?? true,
       isRented: map['isRented'] ?? false,
       ownerId: map['ownerId'] ?? '',
+      roomCoverUrl: map['roomCoverUrl'] ?? '',
+      roomChatBackgroundUrl: map['roomChatBackgroundUrl'] ?? '',
+      roomLevel: map['roomLevel'] ?? 1,
+      totalCoinsInvested: map['totalCoinsInvested'] ?? 0,
+      invitedMembers: List<String>.from(map['invitedMembers'] ?? []),
+      pendingRequests: List<String>.from(map['pendingRequests'] ?? []),
+      approvedMembers: List<String>.from(map['approvedMembers'] ?? []),
       rentalExpiresAt: map['rentalExpiresAt'] != null ? DateTime.parse(map['rentalExpiresAt']) : null,
       createdAt: DateTime.parse(map['createdAt']),
     );
   }
 }
 
-// 17. نموذج الإعلانات التجارية
+// 18. نموذج الإعلانات التجارية
 class AdModel {
   final String adId;
   final String title;
