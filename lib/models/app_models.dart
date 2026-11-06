@@ -1,15 +1,44 @@
 // ==========================================
 // ملف النماذج الشامل والنهائي لتطبيق مودة (mawda-app-2026)
-// (غرفة العمليات الكبرى: تصفح الزوار للأعضاء، أونرات الغرف المستأجرة، الفلترة، المتاجر، والدعم)
+// (غرفة العمليات الكبرى: ألبوم الصور المؤقت 7 أيام، تصفح الزوار، الأونرات، الفلترة، المتاجر، والدعم)
 // ==========================================
 
-// 1. نموذج المستخدم الشامل (للأعضاء المسجلين)
+// أ. نموذج صور معرض البروفايل (مع التدمير الذاتي بعد 7 أيام للحفاظ على سرعة السيرفرات)
+class PhotoItemModel {
+  final String photoUrl;
+  final DateTime uploadedAt;
+  final DateTime expiresAt; // تدمير ذاتي وتلقائي بعد 7 أيام
+
+  PhotoItemModel({
+    required this.photoUrl,
+    required this.uploadedAt,
+    required this.expiresAt,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'photoUrl': photoUrl,
+      'uploadedAt': uploadedAt.toIso8601String(),
+      'expiresAt': expiresAt.toIso8601String(),
+    };
+  }
+
+  factory PhotoItemModel.fromMap(Map<String, dynamic> map) {
+    return PhotoItemModel(
+      photoUrl: map['photoUrl'] ?? '',
+      uploadedAt: DateTime.parse(map['uploadedAt']),
+      expiresAt: DateTime.parse(map['expiresAt']),
+    );
+  }
+}
+
+// 1. نموذج المستخدم الشامل (مع معرض الصور المؤقت ذاتي التدمير)
 class UserModel {
   final String uid;
   final String username;          // المعرف الفريد الخاص بالبروفايل (مثل @username)
   final String email;
   final String displayName;
-  final String profileImageUrl;   // الصورة الشخصية
+  final String profileImageUrl;   // الصورة الشخصية الأساسية
   final String coverImageUrl;     // صورة الغلاف
   final String bio;               // النبذة التعريفية
   final String gender;            // ('male' / 'female')
@@ -22,7 +51,7 @@ class UserModel {
   final int coins;                 // رصيد الكوينز الحالي
   final List<String> badges;       // الأوسمة المملوكة
   final List<String> titles;       // الألقاب المملوكة
-  final List<String> photosGallery;// معرض الصور الشخصية
+  final List<PhotoItemModel> photosGallery; // معرض الصور الشخصية (مؤقت وتلقائي التدمير بعد 7 أيام)
   
   // ميزات متجر الميزات الخاصة
   final List<String> activeSpecialFeatures; // الميزات المفعلة
@@ -94,7 +123,7 @@ class UserModel {
       'coins': coins,
       'badges': badges,
       'titles': titles,
-      'photosGallery': photosGallery,
+      'photosGallery': photosGallery.map((x) => x.toMap()).toList(),
       'activeSpecialFeatures': activeSpecialFeatures,
       'profileVisitors': profileVisitors,
       'isOnline': isOnline,
@@ -130,7 +159,10 @@ class UserModel {
       coins: map['coins'] ?? 0,
       badges: List<String>.from(map['badges'] ?? []),
       titles: List<String>.from(map['titles'] ?? []),
-      photosGallery: List<String>.from(map['photosGallery'] ?? []),
+      photosGallery: (map['photosGallery'] as List<dynamic>?)
+              ?.map((x) => PhotoItemModel.fromMap(x))
+              .toList() ??
+          [],
       activeSpecialFeatures: List<String>.from(map['activeSpecialFeatures'] ?? []),
       profileVisitors: List<String>.from(map['profileVisitors'] ?? []),
       isOnline: map['isOnline'] ?? false,
@@ -149,7 +181,7 @@ class UserModel {
   }
 }
 
-// 2. نموذج جلسات الزوار المؤقتة (يستطيع استكشاف وفلترة ورؤية الأعضاء وبروفايلاتهم)
+// 2. نموذج جلسات الزوار المؤقتة
 class GuestSessionModel {
   final String guestId;
   final String guestUsername;      
@@ -214,7 +246,7 @@ class GuestSessionModel {
   }
 }
 
-// 3. نموذج رسائل وتذاكر الدعم التقني (مع لقطة الشاشة)
+// 3. نموذج رسائل وتذاكر الدعم التقني
 class SupportTicketModel {
   final String ticketId;
   final String senderUid;          
@@ -860,14 +892,14 @@ class VerificationModel {
   }
 }
 
-// 17. نموذج غرف الدردشة (المطور مع دعم أونرات ومشرفي الغرفة المستأجرة roomAdmins، ونظام التوب 10)
+// 17. نموذج غرف الدردشة (مع دعم أونرات ومشرفي الغرفة المستأجرة roomAdmins ونظام التوب 10)
 class RoomModel {
   final String roomId;
   final String roomName;
   final bool isPublic;             
   final bool isRented;             
-  final String ownerId;            // مالك الغرفة الأساسي
-  final List<String> roomAdmins;   // قائمة UIDs للمشرفين / الأونرات المساعدين الذين يعينهم المالك لإدارة الغرفة
+  final String ownerId;            
+  final List<String> roomAdmins;   
   final String roomCoverUrl;       
   final String roomChatBackgroundUrl; 
   final int roomLevel;             
