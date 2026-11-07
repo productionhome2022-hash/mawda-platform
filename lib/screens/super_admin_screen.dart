@@ -10,16 +10,17 @@ class SuperAdminScreen extends StatefulWidget {
 
 class _SuperAdminScreenState extends State<SuperAdminScreen> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  bool _isGhostModeActive = false; // حالة وضع التخفي للسوبر أدمن
+  bool _isGhostModeActive = false; // وضع التخفي المطلق للسوبر أدمن
+  int _selectedTab = 0; // التنقل بين أقسام غرفة العمليات
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('غرفة عمليات السوبر أدمن - مودة'),
+        title: Text(_getAppBarTitle()),
         backgroundColor: Colors.black87,
         actions: [
-          // زر تفعيل وضع التخفي
+          // زر وضع التخفي (غرفة عمليات الطائرة)
           IconButton(
             icon: Icon(
               _isGhostModeActive ? Icons.visibility_off : Icons.visibility,
@@ -34,7 +35,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                 SnackBar(
                   content: Text(
                     _isGhostModeActive
-                        ? 'تم تفعيل وضع التخفي (أنت غير مرئي للأعضاء)'
+                        ? 'تم تفعيل وضع التخفي: أنت متخفٍ بالكامل ولا يعلم الأعضاء بوجودك'
                         : 'تم إيقاف وضع التخفي',
                   ),
                 ),
@@ -43,70 +44,153 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Row(
         children: [
-          // شريط المؤشرات والتحكم السريع
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.grey[200],
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatCard('إجمالي الأعضاء', 'قراءة مباشرة', Colors.pink),
-                _buildStatCard('الغرف النشطة', 'عامة وخاصة', Colors.blue),
-              ],
-            ),
+          // شريط التنقل الجانبي لأقسام السوبر أدمن
+          NavigationRail(
+            selectedIndex: _selectedTab,
+            onDestinationSelected: (int index) {
+              setState(() {
+                _selectedTab = index;
+              });
+            },
+            backgroundColor: Colors.grey[100],
+            selectedIconTheme: const IconThemeData(color: Colors.pink, size: 28),
+            unselectedIconTheme: const IconThemeData(color: Colors.grey, size: 24),
+            labelType: NavigationRailLabelType.all,
+            destinations: const [
+              NavigationRailDestination(
+                icon: Icon(Icons.people),
+                label: Text('الأعضاء'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.meeting_room),
+                label: Text('الغرف'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.campaign),
+                label: Text('الإعلانات'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.security),
+                label: Text('المشرفون'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.monetization_on),
+                label: Text('المالية'),
+              ),
+            ],
           ),
-          const Padding(
-            padding: EdgeInsets.all(12.0),
-            child: Text(
-              'قائمة الأعضاء وإدارة الصلاحيات والتوثيق',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
-          // عرض جلب الأعضاء من قاعدة البيانات لحظياً
+          const VerticalDivider(thickness: 1, width: 1),
+          // محتوى القسم النشط في لوحة التحكم
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _db.collection('users').snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('لا يوجد أعضاء مسجلين حتى الآن'));
-                }
+            child: _buildSelectedSectionView(),
+          ),
+        ],
+      ),
+    );
+  }
 
-                var userDocs = snapshot.data!.docs;
+  String _getAppBarTitle() {
+    switch (_selectedTab) {
+      case 0: return 'غرفة العمليات - إدارة الأعضاء والتوثيق';
+      case 1: return 'إدارة الغرف العامة والخاصة المستأجرة';
+      case 2: return 'إدارة متجر الإعلانات (خاص بالأدمن)';
+      case 3: return 'إدارة طاقم الإشراف (حتى 10 مشرفين)';
+      case 4: return 'القسم المالي، الكوينز والباقات';
+      default: return 'غرفة عمليات السوبر أدمن';
+    }
+  }
 
-                return ListView.builder(
-                  itemCount: userDocs.length,
-                  itemBuilder: (context, index) {
-                    var userData = userDocs[index].data() as Map<String, dynamic>;
-                    String userId = userDocs[index].id;
+  Widget _buildSelectedSectionView() {
+    switch (_selectedTab) {
+      case 0:
+        return _buildUsersManagementSection();
+      case 1:
+        return _buildRoomsManagementSection();
+      case 2:
+        return _buildAdsManagementSection();
+      case 3:
+        return _buildModeratorsManagementSection();
+      case 4:
+        return _buildFinancialSection();
+      default:
+        return const Center(child: Text('قسم قيد التطوير'));
+    }
+  }
 
-                    return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.pink[100],
-                          child: const Icon(Icons.person, color: Colors.pink),
-                        ),
-                        title: Text(userData['fullName'] ?? 'بدون اسم'),
-                        subtitle: Text('البريد: ${userData['email']}\nالكوينز: ${userData['coinsBalance'] ?? 0}'),
-                        isThreeLine: true,
-                        trailing: IconButton(
-                          icon: const Icon(Icons.settings_accessibility, color: Colors.blueAccent),
-                          tooltip: 'إدارة العضو',
-                          onPressed: () {
-                            // نافذة مصغرة للتحكم برصيد العضو أو حظره أو منحه وساماً
-                            _showAdminOptions(context, userId, userData['fullName'] ?? '');
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
+  // 1. قسم إدارة الأعضاء والتوثيق والاطلاع والتجسس/المراقبة
+  Widget _buildUsersManagementSection() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _db.collection('users').snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        var docs = snapshot.data!.docs;
+
+        return ListView.builder(
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            var data = docs[index].data() as Map<String, dynamic>;
+            String uid = docs[index].id;
+            return Card(
+              margin: const EdgeInsets.all(8),
+              child: ListTile(
+                leading: const CircleAvatar(backgroundColor: Colors.pink, child: Icon(Icons.person, color: Colors.white)),
+                title: Text(data['fullName'] ?? 'بدون اسم'),
+                subtitle: Text('البريد: ${data['email']}\nالكوينز: ${data['coinsBalance']} | موثق: ${data['isBiometricVerified'] ? "نعم (بيومتري)" : "لا"}'),
+                isThreeLine: true,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.remove_red_eye, color: Colors.blue),
+                      tooltip: 'مراقبة البروفايل والمحادثات الحية',
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('جاري فتح ملف ومحادثات العضو تحت وضع التخفي: ${data['fullName']}')),
+                        );
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.green),
+                      tooltip: 'إدارة الرصيد والأوسمة',
+                      onPressed: () => _showAdminOptions(context, uid, data['fullName']),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // 2. قسم إدارة الغرف العامة والغرف الخاصة المستأجرة
+  Widget _buildRoomsManagementSection() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('السيطرة على الغرف', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          Expanded(
+            child: ListView(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.public, color: Colors.blue),
+                  title: const Text('الغرف العامة الرسمية'),
+                  subtitle: const Text('مفتوحة للجميع وتحت الرقابة المباشرة'),
+                  trailing: Switch(value: true, onChanged: (v) {}),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.vpn_key, color: Colors.orange),
+                  title: const Text('الغرف الخاصة المستأجرة'),
+                  subtitle: const Text('إدارة العقود والأجور اليومية للغرف الخاصة'),
+                  trailing: Switch(value: true, onChanged: (v) {}),
+                ),
+              ],
             ),
           ),
         ],
@@ -114,19 +198,56 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color, width: 1.5),
-      ),
+  // 3. قسم متجر الإعلانات (بإدارة الأدمن حصرياً)
+  Widget _buildAdsManagementSection() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-          const SizedBox(height: 5),
-          Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+          const Text('إدارة متجر الإعلانات المبوبة والتجارية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('هذا القسم تحت إدارتك المطلقة؛ لا يمكن لأي عضو النشر هنا سوى الأدمن.', style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.pink),
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text('نشر إعلان جديد في المتجر', style: TextStyle(color: Colors.white)),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('نافذة إضافة إعلان جديد بواسطة السوبر أدمن')),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 4. قسم إدارة المشرفين (حتى 10 مشرفين)
+  Widget _buildModeratorsManagementSection() {
+    return const Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('فريق الإشراف والمراقبة (الحد الأقصى 10 مشرفين)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          SizedBox(height: 10),
+          Text('يمكنك هنا تعيين حتى 10 مشرفين مساعدين لمراقبة الغرف العامة والخاصة ومعالجة بلاغات الأعضاء مع احتفاظك بالسيطرة المطلقة.', style: TextStyle(color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+
+  // 5. القسم المالي، الكوينز والباقات وأجور التشغيل
+  Widget _buildFinancialSection() {
+    return const Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('القسم المالي والتشغيلي', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          SizedBox(height: 10),
+          Text('متابعة أرباح الكوينز، أسعار الشحن، باقات المتاجر، وأجور التشغيل والإدارة.', style: TextStyle(color: Colors.grey)),
         ],
       ),
     );
@@ -137,20 +258,19 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('إدارة العضو: $userName'),
-        content: const Text('اختر الإجراء الإداري المطلوب تنفيذه بحق هذا العضو:'),
+        content: const Text('اختر الإجراء الإداري المطلوب:'),
         actions: [
           TextButton(
             onPressed: () {
-              // منح هدية كوينز أو وسام
               _db.collection('users').doc(userId).update({
                 'coinsBalance': FieldValue.increment(500),
               });
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تم إضافة 500 كوينز هدية للعضو بنجاح')),
+                const SnackBar(content: Text('تم منح 500 كوينز هدية بنجاح')),
               );
             },
-            child: const Text('منح 500 كوينز هدية'),
+            child: const Text('منح 500 كوينز'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context),
