@@ -18,6 +18,7 @@ class MawdaApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.pink,
+        scaffoldBackgroundColor: Colors.white,
       ),
       home: const LoginScreen(),
     );
