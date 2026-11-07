@@ -21,18 +21,11 @@ jobs:
           flutter pub get
           flutter build web --release
 
-      - name: Locate Build Dir
-        id: set-path
-        run: |
-          if [ -d "mawda_app/build/web" ]; then
-            echo "path=mawda_app/build/web" >> $GITHUB_OUTPUT
-          else
-            echo "path=build/web" >> $GITHUB_OUTPUT
-          fi
-
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: Deploy to Firebase
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MAWDA_APP_2026 }}'
           channelId: live
           projectId: mawda-app-2026
+        env:
+          FIREBASE_CLI_EXPERIMENTS: webframeworks
