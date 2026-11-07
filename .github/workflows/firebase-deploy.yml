@@ -16,7 +16,19 @@ jobs:
           channel: 'stable'
 
       - name: Build Web
-        run: flutter build web --release
+        run: |
+          if [ -d "mawda_app" ]; then cd mawda_app; fi
+          flutter pub get
+          flutter build web --release
+
+      - name: Locate Build Dir
+        id: set-path
+        run: |
+          if [ -d "mawda_app/build/web" ]; then
+            echo "path=mawda_app/build/web" >> $GITHUB_OUTPUT
+          else
+            echo "path=build/web" >> $GITHUB_OUTPUT
+          fi
 
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
