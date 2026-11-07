@@ -15,7 +15,7 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Build Web
+      - name: Install Dependencies and Build Web
         run: |
           flutter pub get
           flutter build web --release
