@@ -1,69 +1,60 @@
+// File: lib/screens/login_screen.dart
+// Production Home 2022 - Mawda Platform Auth Screen
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'shop_screen.dart';
+import '../services/auth_service.dart';
+import 'main_user_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final AuthService _authService = AuthService();
   bool _isLoading = false;
+  bool _isSignUpMode = false;
 
-  // البريد الخاص بالسوبر أدمن للتحقق الفوري
-  final String superAdminEmail = "admin@mawda.com"; // يمكنك تعديل الإيميل حسب رغبتك
+  void _submitForm() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
-  void _loginUser() async {
-    setState(() {
-      _isLoading = true;
-    });
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('يرجى إدخال البريد الإلكتروني وكلمة المرور')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
 
     try {
-      String email = _emailController.text.trim();
-      String password = _passwordController.text.trim();
-
-      if (email.isEmpty || password.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('الرجاء إدخال البريد الإلكتروني وكلمة المرور')),
-        );
-        setState(() { _isLoading = false; });
-        return;
+      if (_isSignUpMode) {
+        // إنشاء حساب جديد للأعضاء الجدد
+        await _authService.signUpWithEmail(email, password);
+      } else {
+        // تسجيل الدخول لحساب قائم
+        await _authService.signInWithEmail(email, password);
       }
 
-      // تسجيل الدخول عبر فايربيس أثنتيكيشن
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      String uid = userCredential.user!.uid;
-
-      // التحقق الذكي: هل هو السوبر أدمن أم عضو عادي؟
-      if (email.toLowerCase() == superAdminEmail.toLowerCase()) {
-        // توجيه إلى غرفة عمليات السوبر أدمن
-        Navigator.pushReplacementNamed(context, '/super_admin');
-      } else {
-        // توجيه إلى شاشة العضو (متجر ومكافآت) مع تمرير الـ UID الخاص به
+      if (mounted) {
+        // التوجيه الصحيح إلى الشاشة الرئيسية للمستخدم (وليس المتجر)
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => ShopScreen(userId: uid),
-          ),
+          MaterialPageRoute(builder: (context) => const MainUserScreen()),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('خطأ في تسجيل الدخول: ${e.toString()}')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('حدث خطأ: ${e.toString()}')),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -71,58 +62,55 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('تسجيل الدخول - منصة مودة'),
-        backgroundColor: Colors.black,
+        title: Text(_isSignUpMode ? 'إنشاء حساب جديد' : 'تسجيل الدخول - منصة مودة'),
+        centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Center(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.favorite, size: 80, color: Colors.pinkAccent),
-                const SizedBox(height: 20),
-                const Text(
-                  'أهلاً بك في منصة مودة',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 40),
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'البريد الإلكتروني',
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 30),
-                TextField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'البريد الإلكتروني',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email),
-                  ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _passwordController,
+                decoration: const InputDecoration(
+                  labelText: 'كلمة المرور',
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 15),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'كلمة المرور',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock),
-                  ),
-                ),
-                const SizedBox(height: 25),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.pink),
-                    onPressed: _isLoading ? null : _loginUser,
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text(
-                            'تسجيل الدخول',
-                            style: TextStyle(fontSize: 18, color: Colors.white),
-                          ),
-                  ),
-                ),
-              ],
-            ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 24),
+              _isLoading
+                  ? const CircularProgressIndicator()
+                  : ElevatedButton(
+                      onPressed: _submitForm,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(50),
+                      ),
+                      child: Text(_isSignUpMode ? 'إنشاء الحساب الان' : 'دخول'),
+                    ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _isSignUpMode = !_isSignUpMode;
+                  });
+                },
+                child: Text(_isSignUpMode
+                    ? 'لديك حساب بالفعل؟ سجل الدخول هنا'
+                    : 'ليس لديك حساب؟ اضغط هنا لإنشاء حساب جديد'),
+              ),
+            ],
           ),
         ),
       ),
