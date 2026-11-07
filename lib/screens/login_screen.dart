@@ -15,7 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
 
-  bool _isSignUp = false; // للتبديل بين تسجيل الدخول وإنشاء حساب جديد
+  bool _isSignUp = false;
   bool _isLoading = false;
   String _errorMessage = '';
 
@@ -31,7 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
         fullName: _nameController.text.trim(),
-        gender: 'غير محدد', // يمكن تعديله لاحقاً
+        gender: 'غير محدد',
       );
     } else {
       result = await _authService.signInWithEmail(
@@ -45,7 +45,6 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     if (result == null) {
-      // نجاح العملية والانتقال للتطبيق
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم تسجيل الدخول بنجاح يا هلا!')),
       );
