@@ -15,8 +15,9 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Install Dependencies and Build Web
+      - name: Build Web inside Mawda Platform folder
         run: |
+          cd mawda-platform
           flutter pub get
           flutter build web --release
 
@@ -27,3 +28,4 @@ jobs:
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MAWDA_APP_2026 }}'
           channelId: live
           projectId: mawda-app-2026
+          entryPoint: mawda-platform
