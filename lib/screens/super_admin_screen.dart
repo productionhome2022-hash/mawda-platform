@@ -152,13 +152,13 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     return Card(
                       child: ListTile(
                         title: Text('${data['fullName'] ?? 'بدون اسم'} (UID: $uid)'),
-                        subtitle: Text('البريد: ${data['email']}\nالرصيد: ${data['coinsBalance']} كوينز'),
+                        subtitle: Text('البريد: ${data['email']}\nالرصيد: ${data['coins']} كوينز'),
                         isThreeLine: true,
                         trailing: ElevatedButton(
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.pink),
                           child: const Text('خيارات الأدمن', style: TextStyle(color: Colors.white)),
                           onPressed: () {
-                            _db.collection('users').doc(uid).update({'coinsBalance': FieldValue.increment(500)});
+                            _db.collection('users').doc(uid).update({'coins': FieldValue.increment(500)});
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تمت إضافة 500 كوينز هدية للعضو')));
                           },
                         ),
@@ -189,7 +189,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
           TextField(
             controller: _securitySearchController,
             decoration: InputDecoration(
-              labelText: 'أدخل رقم المعرف (UID) أو البريد الإلكتروني للفحص الأمني',
+              labelText: 'أدخل رقم المعرف (UID) أو البريد الإلكتروني للفحص أمني',
               prefixIcon: const Icon(Icons.security_outlined),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             ),
@@ -400,18 +400,18 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     );
   }
 
-  // 4. متجر الإعلانات ومكافآت المشاهدة (بإدارة الأدمن حصرياً)
+  // 4. متجر الإعلانات ومكافآت المشاهدة (محدث ومتوافق مع CoinSystemService)
   Widget _buildAdsStoreWithRewardsSection() {
     final TextEditingController adTitleController = TextEditingController();
     final TextEditingController adRewardController = TextEditingController();
+    final TextEditingController adUrlController = TextEditingController();
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: ListView(
         children: [
           const Text('إدارة متجر الإعلانات ومكافآت المشاهدة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const Text('ارفع الإعلانات من جهازك وحدد مكافأة الكوينز لمن يشاهدها من الزوار.', style: TextStyle(color: Colors.grey)),
+          const Text('أنشئ الإعلانات وحدد مكافأة الكوينز المخصصة لكل إعلان يناله العضو فور المشاهدة.', style: TextStyle(color: Colors.grey)),
           const SizedBox(height: 15),
           TextField(
             controller: adTitleController,
@@ -419,23 +419,35 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
           ),
           const SizedBox(height: 10),
           TextField(
+            controller: adUrlController,
+            decoration: const InputDecoration(labelText: 'رابط الإعلان أو الفيديو', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 10),
+          TextField(
             controller: adRewardController,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'مكافأة الكوينز للمشاهد', border: OutlineInputBorder()),
+            decoration: const InputDecoration(labelText: 'مكافأة الكوينز للمشاهد لهذا الإعلان بالذات', border: OutlineInputBorder()),
           ),
           const SizedBox(height: 15),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.pink),
-            icon: const Icon(Icons.upload_file, color: Colors.white),
-            label: const Text('رفع الإعلان ونشره مع المكافأة', style: TextStyle(color: Colors.white)),
+            icon: const Icon(Icons.campaign, color: Colors.white),
+            label: const Text('نشر الإعلان وربط المكافأة', style: TextStyle(color: Colors.white)),
             onPressed: () {
               if (adTitleController.text.isNotEmpty) {
-                _db.collection('ads_store').add({
-                  'title': adTitleController.text,
-                  'rewardCoins': int.tryParse(adRewardController.text) ?? 10,
+                int rewardVal = int.tryParse(adRewardController.text) ?? 10;
+                _db.collection('ads').add({
+                  'adTitle': adTitleController.text,
+                  'adUrl': adUrlController.text,
+                  'reward_amount': rewardVal, // متوافق تماماً مع CoinSystemService
                   'createdAt': FieldValue.serverTimestamp(),
                 });
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نشر الإعلان وربط المكافأة بنجاح')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('تم نشر الإعلان بنجاح بمكافأة ($rewardVal كوينز)'))
+                );
+                adTitleController.clear();
+                adUrlController.clear();
+                adRewardController.clear();
               }
             },
           ),
