@@ -20,11 +20,10 @@ jobs:
           flutter pub get
           flutter build web --release
 
-      - name: Deploy to Firebase
+      - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MAWDA_APP_2026 }}'
           channelId: live
           projectId: mawda-app-2026
-        env:
-          FIREBASE_CLI_EXPERIMENTS: webframeworks
