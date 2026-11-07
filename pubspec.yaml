@@ -1,5 +1,5 @@
 name: mawda_app
-description: "المنصة الأولى عربياً للتعارف والصداقة والزواج - مودة"
+description: تطبيق مودة للتعارف والصداقة والزواج
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -10,14 +10,14 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.6
-  firebase_core: ^2.24.2
-  firebase_auth: ^4.17.8
-  cloud_firestore: ^4.15.8
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^4.0.0
 
 flutter:
   uses-material-design: true
