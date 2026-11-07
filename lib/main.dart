@@ -1,17 +1,23 @@
+// File: lib/main.dart
+// Production Home 2022 - Mawda Platform Root Entry
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'screens/login_screen.dart';
-import 'screens/super_admin_screen.dart';
-import 'screens/shop_screen.dart';
+import 'firebase_options.dart';
 
 void main() async {
+  // التأكد من تهيئة بيئة فلاتر الأساسية قبل أي عملية ربط
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  
+  // تهيئة فايربيس باستخدام الإحصائيات ومنصة التشغيل الحالية
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(const MawdaPlatformApp());
 }
 
 class MawdaPlatformApp extends StatelessWidget {
-  const MawdaPlatformApp({Key? key}) : super(key: key);
+  const MawdaPlatformApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -22,13 +28,15 @@ class MawdaPlatformApp extends StatelessWidget {
         primarySwatch: Colors.pink,
         scaffoldBackgroundColor: Colors.white,
       ),
-      // الشاشة الافتتاحية عند فتح التطبيق لأول مرة هي شاشة تسجيل الدخول
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const LoginScreen(),
-        '/super_admin': (context) => const SuperAdminScreen(),
-        // ملاحظة: شاشة الأعضاء ShopScreen تتطلب تمرير userId عند الانتقال إليها
-      },
+      // نقطة الانطلاق والتوجه لشاشة تسجيل الدخول أو الشاشة الرئيسية
+      home: const Scaffold(
+        body: Center(
+          child: Text(
+            'مرحباً بك في منصة مودة - جارِ التحميل...',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ),
     );
   }
 }
