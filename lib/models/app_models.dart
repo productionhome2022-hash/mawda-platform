@@ -1,11 +1,11 @@
 // ==========================================
-// الكود الشامل والنهائي والكامل لتطبيق مودة (mawda-app-2026)
-// (غرفة العمليات الكبرى: التخفي الصامت، خلفيات المحادثة الثنائية، الملف الموسيقي، قفل الكوينز، التحدث كمجهول للجميع ما عدا الأدمن، الأوسمة السينمائية، قفل البروفايل، متجر الميزات، وإدارة الإعلانات التجارية ومكافآت المشاهدة للسوبر أدمن)
+// الكود الشامل، النهائي، والكامل بامتياز لتطبيق مودة (mawda-app-2026)
+// (نسخة الجيت هاب النهائية: نظام التدمير الذاتي للوسائط خلال ساعتين، الحذف للجميع، سيادة السوبر أدمن، الخصوصية الذكية، قفل الكوينز، التحدث كمجهول، وإدارة الإعلانات)
 // ==========================================
 
 import 'package:flutter/foundation.dart';
 
-// أ. نموذج صور معرض البروفايل (تدمير ذاتي بعد 7 أيام)
+// أ. نموذج صور معرض البروفايل (تدمير ذاتي تلقائي بعد 7 أيام)
 class PhotoItemModel {
   final String photoUrl;
   final DateTime uploadedAt;
@@ -57,24 +57,24 @@ class UserModel {
   final bool isEmailVerified;         // توثيق البريد (+500 كوينز)
   final bool isBiometricVerified;    // التوثيق البيومتري (+1500 كوينز)
   final int coins;                     // رصيد الكوينز
-  final bool isCoinBalanceLocked;     // ميزة قفل عداد الكوينز بقفل سري عن باقي الأعضاء
+  final bool isCoinBalanceLocked;     // ميزة سرية: إخفاء عداد الكوينز عن باقي الأعضاء بقفل سري
   
   final List<String> badges;           
   final List<String> titles;           
   final List<PhotoItemModel> photosGallery; 
   
-  // ميزات متجر الميزات الخاصة والتحكم الفردي
+  // ميزات متجر الميزات الخاصة (مفصول بين الاستعراضية والسرية الخفية)
   final List<String> activeSpecialFeatures; 
   final List<String> profileVisitors;       
   final bool isOnline;                      
-  final bool isOnlineHidden;                
-  final bool isGhostModeActive;             
+  final bool isOnlineHidden;                // ميزة سرية: إخفاء حالة الاتصال
+  final bool isGhostModeActive;             // ميزة سرية: التخفي الصامت والتصفح الخفي
   final bool isProfileBoosted;              // ميزة تعزيز البروفايل وزيادة الظهور
   final bool isProfileLocked;               // ميزة قفل البروفايل (مرئي للأصدقاء المسجلين فقط)
   final String customProfileStyle;          
   
   final String profileAudioUrl;             // الملف الموسيقي للبروفايل (يعمل تلقائياً عند الزيارة)
-  final String chatBackgroundUrl;           // شراء وتحديث خلفية المحادثة الثنائية الخاصة
+  final String chatBackgroundUrl;           // خلفية المحادثة الثنائية الخاصة بين عضوين
 
   final String lastKnownIp;        
   final String deviceId;           
@@ -213,7 +213,7 @@ class UserModel {
   }
 }
 
-// 2. نموذج جلسات الزوار المؤقتة (لمدة ساعة)
+// 2. نموذج جلسات الزوار المؤقتة (ساعة واحدة)
 class GuestSessionModel {
   final String guestId;
   final String guestUsername;      
@@ -337,10 +337,10 @@ class SupportTicketModel {
 
 // 4. نموذج الإعدادات المالية واقتصاد المنصة (التحكم بالمكافآت والعمولات)
 class PlatformFinancialConfigModel {
-  final int dailyRewardCoins;        // مكافأة الحضور اليومي (قابلة للرفع والخفض من لوحة الأدمن)
+  final int dailyRewardCoins;        // مكافأة الحضور اليومي
   final int hourlyRewardCoins;       // مكافأة الحضور بالساعة
   final int weeklyRewardCoins;       // مكافأة الحضور الأسبوعي المتواصل
-  final int adWatchRewardCoins;      // مكافأة مشاهدة الإعلانات التجارية
+  final int adWatchRewardCoins;      // مكافأة مشاهدة الإعلانات
   final double transferCommissionPercentage; 
   final Map<String, dynamic> coinPackages; 
   final String customPurchaseContactUrl;  
@@ -519,7 +519,7 @@ class CoinTransferTransactionModel {
   }
 }
 
-// 8. نموذج الرسائل (مع دعم التحدث كمجهول للجميع ما عدا السوبر أدمن، التخفي، والتدخل السيادي)
+// 8. نموذج الرسائل (مدعوم بنظام التدمير الذاتي للوسائط خلال ساعتين، الحذف للجميع، والتحدث كمجهول شبح)
 class MessageModel {
   final String messageId;
   final String roomId;
@@ -527,11 +527,13 @@ class MessageModel {
   final String text;
   final String mediaUrl;           
   final String mediaType;          // ('text', 'voice', 'image', 'video')
-  final bool isAnonymous;          // التحدث كمجهول / شبح في الغرف العامة والمستأجرة (مكشوف حصراً للسوبر أدمن)
+  final bool isAnonymous;          // التحدث كمجهول / شبح (مكشوف حصراً للسوبر أدمن)
   final bool isAdminIntervention;  // تدخل سيادي من السوبر أدمن
+  
+  // نظام التدمير الذاتي والحذف الفوري
   final DateTime timestamp;
-  final DateTime expiresAt;
-  final bool isDeletedForEveryone;
+  final DateTime expiresAt;          // تدمير ذاتي تلقائي للوسائط (صوت، فيديو، صور) بعد ساعتين من الإرسال
+  final bool isDeletedForEveryone;   // ميزة الحذف الفوري للجميع لتفادي الأخطاء أو إرسال ملف غير مرغوب
 
   MessageModel({
     required this.messageId,
@@ -940,7 +942,7 @@ class VerificationModel {
 class RoomModel {
   final String roomId;
   final String roomName;
-  final bool isPublic;             // true = غرفة عامة (قسم منفصل)، false = غرفة خاصة مستأجرة (قسم منفصل)
+  final bool isPublic;             // true = غرفة عامة، false = غرفة خاصة مستأجرة
   final bool isRented;             
   final String ownerId;            
   final List<String> roomAdmins;   
@@ -1016,21 +1018,18 @@ class RoomModel {
 // 18. نموذج قسم الإعلانات التجارية ومكافآت المشاهدة (تحكم كامل من السوبر أدمن)
 class AdminBroadcastAdModel {
   final String broadcastId;
-  final String title;              // عنوان الإعلان التجاري أو التنبيه الجماعي
-  final String messageBody;        // نص الرسالة أو المحتوى الإعلاني
-  final String mediaUrl;           // رابط الفيديو أو الصورة المرفقة للإعلان
-  final String mediaType;          // نوع الوسائط ('image', 'video', 'text_only')
-  final String targetUrl;          // رابط توجيهي (إن وجد)
-  final String broadcastType;      // نوع البث ('global_alert', 'commercial_ad', 'rewardable_ad')
-  
-  // نظام المكافآت المرتبط بمشاهدة الإعلانات
-  final bool isRewardable;         // هل يمنح هذا الإعلان كوينز عند مشاهدته؟
-  final int rewardCoinsAmount;     // كمية الكوينز المحددة من لوحة الأدمن لتضاف للمستخدم فور المشاهدة
-  
-  final bool isVisibleToUsers;     // حالة الظهور للمستخدمين في قسم الإعلانات المبوبة
-  final String createdByAdminId;   // معرف السوبر أدمن الناشر
+  final String title;              
+  final String messageBody;        
+  final String mediaUrl;           // رفع الفيديوهات أو الصور المتحركة من جهازك
+  final String mediaType;          
+  final String targetUrl;          
+  final String broadcastType;      
+  final bool isRewardable;         
+  final int rewardCoinsAmount;     // كمية الكوينز للمشاهدة (تحكم كامل من لوحتك)
+  final bool isVisibleToUsers;     
+  final String createdByAdminId;   
   final DateTime createdAt;
-  final DateTime? expiresAt;       // تاريخ انتهاء ظهور الإعلان
+  final DateTime? expiresAt;       
 
   AdminBroadcastAdModel({
     required this.broadcastId,
@@ -1041,7 +1040,7 @@ class AdminBroadcastAdModel {
     this.targetUrl = '',
     this.broadcastType = 'rewardable_ad',
     this.isRewardable = true,
-    this.rewardCoinsAmount = 20, // قابلة للتحكم والرفع/الخفض بحرية من لوحة السوبر أدمن
+    this.rewardCoinsAmount = 20,
     this.isVisibleToUsers = true,
     required this.createdByAdminId,
     required this.createdAt,
@@ -1062,4 +1061,160 @@ class AdminBroadcastAdModel {
       'isVisibleToUsers': isVisibleToUsers,
       'createdByAdminId': createdByAdminId,
       'createdAt': createdAt.toIso8601String(),
-      'expiresAt': expiresAt?.toIso8
+      'expiresAt': expiresAt?.toIso8601String(),
+    };
+  }
+
+  factory AdminBroadcastAdModel.fromMap(Map<String, dynamic> map) {
+    return AdminBroadcastAdModel(
+      broadcastId: map['broadcastId'] ?? '',
+      title: map['title'] ?? '',
+      messageBody: map['messageBody'] ?? '',
+      mediaUrl: map['mediaUrl'] ?? '',
+      mediaType: map['mediaType'] ?? 'image',
+      targetUrl: map['targetUrl'] ?? '',
+      broadcastType: map['broadcastType'] ?? 'rewardable_ad',
+      isRewardable: map['isRewardable'] ?? true,
+      rewardCoinsAmount: map['rewardCoinsAmount'] ?? 20,
+      isVisibleToUsers: map['isVisibleToUsers'] ?? true,
+      createdByAdminId: map['createdByAdminId'] ?? '',
+      createdAt: DateTime.parse(map['createdAt']),
+      expiresAt: map['expiresAt'] != null ? DateTime.parse(map['expiresAt']) : null,
+    );
+  }
+}
+
+// 19. نموذج بيانات الوسام الواحد في متجر الأوسمة (مع الخصائص السينمائية المتحركة)
+class BadgeItemModel {
+  final String badgeId;
+  final String badgeName;       
+  final String badgeIconUrl;    
+  final String category;        
+  final int priceInCoins;       
+  final bool isAnimated;        
+  final String glowColor;       
+  final bool isLimitedEdition;  
+  final DateTime createdAt;
+
+  BadgeItemModel({
+    required this.badgeId,
+    required this.badgeName,
+    required this.badgeIconUrl,
+    required this.category,
+    this.priceInCoins = 0,
+    this.isAnimated = true,
+    this.glowColor = '#FFD700',
+    this.isLimitedEdition = false,
+    required this.createdAt,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'badgeId': badgeId,
+      'badgeName': badgeName,
+      'badgeIconUrl': badgeIconUrl,
+      'category': category,
+      'priceInCoins': priceInCoins,
+      'isAnimated': isAnimated,
+      'glowColor': glowColor,
+      'isLimitedEdition': isLimitedEdition,
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+
+  factory BadgeItemModel.fromMap(Map<String, dynamic> map) {
+    return BadgeItemModel(
+      badgeId: map['badgeId'] ?? '',
+      badgeName: map['badgeName'] ?? '',
+      badgeIconUrl: map['badgeIconUrl'] ?? '',
+      category: map['category'] ?? 'general',
+      priceInCoins: map['priceInCoins'] ?? 0,
+      isAnimated: map['isAnimated'] ?? true,
+      glowColor: map['glowColor'] ?? '#FFD700',
+      isLimitedEdition: map['isLimitedEdition'] ?? false,
+      createdAt: DateTime.parse(map['createdAt']),
+    );
+  }
+}
+
+// 20. نموذج الأوسمة المملوكة والمفعلة في بروفايل العضو (شريط العرض السينمائي)
+class UserBadgeInventoryModel {
+  final String userId;
+  final List<String> ownedBadgeIds;    
+  final String activeDisplayedBadgeId; 
+  final List<String> showcaseBadgeIds; 
+
+  UserBadgeInventoryModel({
+    required this.userId,
+    this.ownedBadgeIds = const [],
+    this.activeDisplayedBadgeId = '',
+    this.showcaseBadgeIds = const [],
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'userId': userId,
+      'ownedBadgeIds': ownedBadgeIds,
+      'activeDisplayedBadgeId': activeDisplayedBadgeId,
+      'showcaseBadgeIds': showcaseBadgeIds,
+    };
+  }
+
+  factory UserBadgeInventoryModel.fromMap(Map<String, dynamic> map) {
+    return UserBadgeInventoryModel(
+      userId: map['userId'] ?? '',
+      ownedBadgeIds: List<String>.from(map['ownedBadgeIds'] ?? []),
+      activeDisplayedBadgeId: map['activeDisplayedBadgeId'] ?? '',
+      showcaseBadgeIds: List<String>.from(map['showcaseBadgeIds'] ?? []),
+    );
+  }
+}
+
+// 21. نموذج إدارة وتحكم السوبر أدمن بمتجر الأوسمة والميزات
+class AdminStoreManagerModel {
+  final String itemId;          
+  final String itemType;        
+  final String itemName;        
+  final String itemIconUrl;     
+  final int priceInCoins;       
+  final bool isAvailable;       
+  final String adminNotes;      
+  final DateTime updatedAt;
+
+  AdminStoreManagerModel({
+    required this.itemId,
+    required this.itemType,
+    required this.itemName,
+    required this.itemIconUrl,
+    required this.priceInCoins,
+    this.isAvailable = true,
+    this.adminNotes = '',
+    required this.updatedAt,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'itemId': itemId,
+      'itemType': itemType,
+      'itemName': itemName,
+      'itemIconUrl': itemIconUrl,
+      'priceInCoins': priceInCoins,
+      'isAvailable': isAvailable,
+      'adminNotes': adminNotes,
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
+
+  factory AdminStoreManagerModel.fromMap(Map<String, dynamic> map) {
+    return AdminStoreManagerModel(
+      itemId: map['itemId'] ?? '',
+      itemType: map['itemType'] ?? 'badge',
+      itemName: map['itemName'] ?? '',
+      itemIconUrl: map['itemIconUrl'] ?? '',
+      priceInCoins: map['priceInCoins'] ?? 0,
+      isAvailable: map['isAvailable'] ?? true,
+      adminNotes: map['adminNotes'] ?? '',
+      updatedAt: DateTime.parse(map['updatedAt']),
+    );
+  }
+}
