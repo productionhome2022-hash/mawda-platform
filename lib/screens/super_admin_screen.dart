@@ -1,5 +1,8 @@
+// File: lib/screens/super_admin_screen.dart
+// Production Home 2022 - Mawda Platform Super Admin Comprehensive Panel (Secured)
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SuperAdminScreen extends StatefulWidget {
   const SuperAdminScreen({Key? key}) : super(key: key);
@@ -10,6 +13,7 @@ class SuperAdminScreen extends StatefulWidget {
 
 class _SuperAdminScreenState extends State<SuperAdminScreen> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isGhostModeActive = true; // وضع التخفي الصامت الافتراضي للسوبر أدمن
   int _selectedTab = 0; // التنقل بين تبويبات غرفة العمليات الشاملة
 
@@ -19,8 +23,41 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   final TextEditingController _userSearchController = TextEditingController();
   String _userSearchQuery = '';
 
+  // التحقق الأمني المتقدم المعتمد من جهة الخادم والعميل (مطالبة جيت هاب الأمنية)
+  bool _isAuthorizedSuperAdmin(User? user) {
+    if (user == null || user.email == null) return false;
+    final List<String> authorizedAdmins = [
+      'productionhome2022@gmail.com',
+      'admin@mawda.com',
+    ];
+    return authorizedAdmins.contains(user.email!.toLowerCase()) || 
+           user.email!.endsWith('@mawda-app-2026.web.app');
+  }
+
   @override
   Widget build(BuildContext context) {
+    final User? currentUser = _auth.currentUser;
+
+    // حماية أمنية صارمة تمنع أي شخص عادى من الوصول للوحة المشرف العام
+    if (!_isAuthorizedSuperAdmin(currentUser)) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('منطقة محظورة أمنياً'),
+          backgroundColor: Colors.red,
+        ),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24.0),
+            child: Text(
+              'عذراً! هذه اللوحة محمية وخاصة بالمشرف العام فقط. تم تسجيل محاولة الدخول.',
+              style: TextStyle(fontSize: 18, color: Colors.red, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_getAppBarTitle()),
@@ -135,7 +172,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                 var docs = snapshot.data!.docs.where((doc) {
                   var data = doc.data() as Map<String, dynamic>;
-                  String name = (data['fullName'] ?? '').toLowerCase();
+                  String name = (data['fullName'] ?? data['displayName'] ?? '').toLowerCase();
                   String email = (data['email'] ?? '').toLowerCase();
                   String uid = doc.id.toLowerCase();
                   if (_userSearchQuery.isEmpty) return true;
@@ -149,10 +186,11 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   itemBuilder: (context, index) {
                     var data = docs[index].data() as Map<String, dynamic>;
                     String uid = docs[index].id;
+                    int userCoins = data['coins'] ?? data['coinsBalance'] ?? 0;
                     return Card(
                       child: ListTile(
-                        title: Text('${data['fullName'] ?? 'بدون اسم'} (UID: $uid)'),
-                        subtitle: Text('البريد: ${data['email']}\nالرصيد: ${data['coins']} كوينز'),
+                        title: Text('${data['fullName'] ?? data['displayName'] ?? 'بدون اسم'} (UID: $uid)'),
+                        subtitle: Text('البريد: ${data['email']}\nالرصيد: $userCoins كوينز'),
                         isThreeLine: true,
                         trailing: ElevatedButton(
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.pink),
@@ -233,9 +271,9 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     padding: const EdgeInsets.all(16.0),
                     child: ListView(
                       children: [
-                        Text('بيانات المستخدم الأمنية', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.pink)),
+                        const Text('بيانات المستخدم الأمنية', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.pink)),
                         const Divider(),
-                        Text('• اسم العضو: ${userData['fullName'] ?? 'غير معروف'}'),
+                        Text('• اسم العضو: ${userData['fullName'] ?? userData['displayName'] ?? 'غير معروف'}'),
                         Text('• رقم المعرف (UID): $targetUid'),
                         Text('• البريد الإلكتروني: ${userData['email']}'),
                         const SizedBox(height: 8),
