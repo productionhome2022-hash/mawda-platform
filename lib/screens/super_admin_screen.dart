@@ -10,7 +10,7 @@ class SuperAdminScreen extends StatefulWidget {
 
 class _SuperAdminScreenState extends State<SuperAdminScreen> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  bool _isGhostModeActive = true; // وضع التخفي الافتراضي للسوبر أدمن
+  bool _isGhostModeActive = true;
   int _selectedTab = 0;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -22,13 +22,12 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
         title: Text(_getAppBarTitle()),
         backgroundColor: Colors.black,
         actions: [
-          // زر وضع التخفي والمراقبة بصمت
           IconButton(
             icon: Icon(
               _isGhostModeActive ? Icons.visibility_off : Icons.visibility,
               color: _isGhostModeActive ? Colors.redAccent : Colors.greenAccent,
             ),
-            tooltip: 'وضع التخفي (Ghost Mode / مراقبة صامتة)',
+            tooltip: 'وضع التخفي (Ghost Mode)',
             onPressed: () {
               setState(() {
                 _isGhostModeActive = !_isGhostModeActive;
@@ -37,7 +36,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                 SnackBar(
                   content: Text(
                     _isGhostModeActive
-                        ? 'تم تفعيل وضع التخفي الصامت (أنت غير مرئي نهائياً للأعضاء)'
+                        ? 'تم تفعيل وضع التخفي الصامت'
                         : 'أنت ظاهر الآن للمستخدمين',
                   ),
                 ),
@@ -60,11 +59,11 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
             unselectedIconTheme: const IconThemeData(color: Colors.white54, size: 24),
             labelType: NavigationRailLabelType.all,
             destinations: const [
-              NavigationRailDestination(icon: Icon(Icons.manage_accounts), label: Text('الأعضاء والبحث')),
-              NavigationRailDestination(icon: Icon(Icons.security), label: Text('الحظر والأمان')),
-              NavigationRailDestination(icon: Icon(Icons.campaign), label: Text('متجر الإعلانات')),
-              NavigationRailDestination(icon: Icon(Icons.chat_bubble_outline), label: Text('مراقبة المحادثات')),
-              NavigationRailDestination(icon: Icon(Icons.admin_panel_settings), label: Text('المشرفون (10)')),
+              NavigationRailDestination(icon: Icon(Icons.manage_accounts), label: Text('الأعضاء')),
+              NavigationRailDestination(icon: Icon(Icons.security), label: Text('الحظر')),
+              NavigationRailDestination(icon: Icon(Icons.campaign), label: Text('الإعلانات')),
+              NavigationRailDestination(icon: Icon(Icons.chat_bubble_outline), label: Text('المحادثات')),
+              NavigationRailDestination(icon: Icon(Icons.monetization_on), label: Text('المالية والباقات')),
             ],
           ),
           const VerticalDivider(thickness: 1, width: 1),
@@ -76,11 +75,11 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
 
   String _getAppBarTitle() {
     switch (_selectedTab) {
-      case 0: return 'غرفة العمليات - إدارة وبحث الأعضاء (UID)';
-      case 1: return 'إدارة الحظر المتقدم (24س، 3أيام، جهاز)';
+      case 0: return 'إدارة وبحث الأعضاء (UID)';
+      case 1: return 'إدارة الحظر والأمان المتقدم';
       case 2: return 'إدارة متجر الإعلانات ومكافآت المشاهدة';
-      case 3: return 'المراقبة الحية والسابقة والمحادثة كـ مجهول';
-      case 4: return 'إدارة فريق الإشراف المساعد';
+      case 3: return 'مراقبة المحادثات الحية (مجهول / أدمن)';
+      case 4: return 'القسم المالي: باقات الكوينز والكميات المفتوحة';
       default: return 'غرفة عمليات السوبر أدمن';
     }
   }
@@ -91,12 +90,11 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       case 1: return _buildSecurityAndBanSection();
       case 2: return _buildAdsStoreWithRewardsSection();
       case 3: return _buildLiveChatsSpySection();
-      case 4: return _buildModeratorsTeamSection();
+      case 4: return _buildFinancialPackagesSection(); // القسم المالي المحدث
       default: return const Center(child: Text('قيد التحديث'));
     }
   }
 
-  // 1. قسم البحث برقم المعرف UID والتحكم الكامل بالملف
   Widget _buildUsersSearchAndControlSection() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -105,7 +103,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              labelText: 'بحث برقم المعرف (UID) أو البريد الإلكتروني أو الاسم',
+              labelText: 'بحث برقم المعرف (UID) أو البريد الإلكتروني',
               prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             ),
@@ -140,7 +138,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     return Card(
                       child: ListTile(
                         title: Text('${data['fullName'] ?? 'بدون اسم'} (UID: $uid)'),
-                        subtitle: Text('البريد: ${data['email']}\nالرصيد: ${data['coinsBalance']} كوينز | الحظر: ${data['isBanned'] ?? false ? "حظر نشط" : "غير حظر"}'),
+                        subtitle: Text('البريد: ${data['email']}\nالرصيد: ${data['coinsBalance']} كوينز'),
                         isThreeLine: true,
                         trailing: ElevatedButton(
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.pink),
@@ -159,7 +157,6 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     );
   }
 
-  // نافذة السيطرة الكاملة على العضو (منح كوينز، تعديل، مراقبة، حظر)
   void _showFullAdminControlDialog(BuildContext context, String uid, Map<String, dynamic> data) {
     showDialog(
       context: context,
@@ -171,8 +168,6 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
           children: [
             Text('رقم المعرف: $uid'),
             Text('البريد الإلكتروني: ${data['email']}'),
-            const SizedBox(height: 10),
-            const Text('الإجراءات المتاحة:', style: TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
         actions: [
@@ -200,7 +195,6 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     );
   }
 
-  // 2. قسم الحظر والأمان المتقدم (24 ساعة، 3 أيام، حظر جذري للجهاز Device Ban)
   void _showBanOptionsDialog(BuildContext context, String uid) {
     showDialog(
       context: context,
@@ -210,7 +204,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              title: const Text('إنذار / حظر لمدة 24 ساعة'),
+              title: const Text('حظر لمدة 24 ساعة'),
               onTap: () {
                 _applyBan(uid, '24_hours');
                 Navigator.pop(context);
@@ -255,13 +249,12 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
         children: [
           Text('سجل الحظر والأمان العام', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           SizedBox(height: 10),
-          Text('يمكنك من خلال قائمة الأعضاء أعلاه اختيار أي مستخدم وتطبيق الحظر المتدرج (24 ساعة، 3 أيام، أو الحظر الجذري للجهاز لمنعه من الدخول نهائياً).', style: TextStyle(color: Colors.grey)),
+          Text('اختر أي مستخدم من قسم الأعضاء لتطبيق الحظر المتدرج أو الجذري لجهاز المستخدم.', style: TextStyle(color: Colors.grey)),
         ],
       ),
     );
   }
 
-  // 3. متجر الإعلانات (رفع الملفات من جهازك وتحديد مكافآت المشاهدة للزوار)
   Widget _buildAdsStoreWithRewardsSection() {
     final TextEditingController adTitleController = TextEditingController();
     final TextEditingController adRewardController = TextEditingController();
@@ -272,32 +265,30 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('إدارة متجر الإعلانات ومكافآت المشاهدة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const Text('هذا القسم تحت إدارتك وحدك؛ ارفع الإعلانات من جهازك وحدد مكافأة الكوينز لمن يشاهدها من الزوار.', style: TextStyle(color: Colors.grey)),
           const SizedBox(height: 15),
           TextField(
             controller: adTitleController,
-            decoration: const InputDecoration(labelText: 'عنوان الإعلان التجاري أو الرابط', border: OutlineInputBorder()),
+            decoration: const InputDecoration(labelText: 'عنوان الإعلان أو الرابط', border: OutlineInputBorder()),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: adRewardController,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'مكافأة الكوينز للمشاهد (مثلاً: 50 كوينز)', border: OutlineInputBorder()),
+            decoration: const InputDecoration(labelText: 'مكافأة الكوينز للمشاهد', border: OutlineInputBorder()),
           ),
           const SizedBox(height: 15),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.pink),
             icon: const Icon(Icons.upload_file, color: Colors.white),
-            label: const Text('رفع الإعلان من جهازي ونشره مع المكافأة', style: TextStyle(color: Colors.white)),
+            label: const Text('نشر الإعلان وتحديد المكافأة', style: TextStyle(color: Colors.white)),
             onPressed: () {
               if (adTitleController.text.isNotEmpty) {
                 _db.collection('ads_store').add({
                   'title': adTitleController.text,
                   'rewardCoins': int.tryParse(adRewardController.text) ?? 10,
                   'createdAt': FieldValue.serverTimestamp(),
-                  'publisher': 'SuperAdmin',
                 });
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نشر الإعلان وربط مكافأة المشاهدة بنجاح')));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نشر الإعلان بنجاح')));
               }
             },
           ),
@@ -306,62 +297,95 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     );
   }
 
-  // 4. مراقبة المحادثات الحية والسابقة والدخول كـ مجهول أو سوبر أدمن
   Widget _buildLiveChatsSpySection() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
+    return const Padding(
+      padding: EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('غرفة مراقبة المحادثات الحية والسابقة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const Text('استعرض المحادثات بسرية تامة تحت وضع التخفي الصامت، أو تدخل كـ "سوبر أدمن" أو "مجهول" وقتما تشاء.', style: TextStyle(color: Colors.grey)),
-          const SizedBox(height: 20),
-          Expanded(
-            child: ListView(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.chat, color: Colors.blue),
-                  title: const Text('غرفة الدردشة العامة رقم (1)'),
-                  subtitle: const Text('عدد المتواجدين: 14 عضوًا | الوضع: مراقبة صامتة مفعلة'),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[800]),
-                        child: const Text('دخول كمجهول', style: TextStyle(fontSize: 12, color: Colors.white)),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم دخول الغرفة كشخص مجهول بصمت')));
-                        },
-                      ),
-                      const SizedBox(width: 5),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.pink),
-                        child: const Text('دخول كسوبر أدمن', style: TextStyle(fontSize: 12, color: Colors.white)),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم كشف هويتك والدخول بصفتك السوبر أدمن')));
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          Text('مراقبة المحادثات الحية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          SizedBox(height: 10),
+          Text('استعراض الغرف والمحادثات تحت وضع التخفي الصامت، أو الانضمام بصفة مجهول أو كـ سوبر أدمن.', style: TextStyle(color: Colors.grey)),
         ],
       ),
     );
   }
 
-  // 5. إدارة المشرفين (حتى 10 مشرفين)
-  Widget _buildModeratorsTeamSection() {
-    return const Padding(
+  // 5. القسم المالي المحدث: باقات الكوينز، الأسعار، وزر الكميات المفتوحة لمراسلة الإدارة
+  Widget _buildFinancialPackagesSection() {
+    final TextEditingController packageNameController = TextEditingController();
+    final TextEditingController packageCoinsController = TextEditingController();
+    final TextEditingController packagePriceController = TextEditingController();
+
+    return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('فريق الإشراف (الحد الأقصى 10 مشرفين)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          SizedBox(height: 10),
-          Text('قم بتعيين الصلاحيات وتوزيعهم على الغرف لمساعدتك، مع احتفاظك بكامل السيطرة المطلقة كمالك للمنصة.', style: TextStyle(color: Colors.grey)),
+          const Text('القسم المالي: إدارة باقات الكوينز للبيع', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('حدد الباقات والأسعار التي تظهر للأعضاء لشراء الكوينز داخل المنصة.', style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 15),
+          TextField(
+            controller: packageNameController,
+            decoration: const InputDecoration(labelText: 'اسم الباقة (مثلاً: الباقة الذهبية)', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: packageCoinsController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'عدد الكوينز في الباقة', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: packagePriceController,
+            decoration: const InputDecoration(labelText: 'السعر (مثلاً: \$10 أو 50,000 ليرة)', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 15),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            icon: const Icon(Icons.add_box, color: Colors.white),
+            label: const Text('إضافة وتفعيل الباقة في المتجر', style: TextStyle(color: Colors.white)),
+            onPressed: () {
+              if (packageNameController.text.isNotEmpty) {
+                _db.collection('coin_packages').add({
+                  'packageName': packageNameController.text,
+                  'coins': int.tryParse(packageCoinsController.text) ?? 0,
+                  'price': packagePriceController.text,
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تمت إضافة الباقة المالية بنجاح')));
+              }
+            },
+          ),
+          const Divider(height: 40, thickness: 2),
+          // زر خاص للكميات المفتوحة لمراسلة الإدارة
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.pink[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.pink, width: 1.5),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('إعدادات طلبات الكميات المفتوحة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.pink)),
+                const SizedBox(height: 5),
+                const Text('يظهر للأعضاء في قسم متجر الكوينز زر خاص يتيح لهم طلب كميات مفتوحة ومخصصة عبر مراسلة الإدارة مباشرة.', style: TextStyle(fontSize: 13)),
+                const SizedBox(height: 10),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.pink),
+                  icon: const Icon(Icons.support_agent, color: Colors.white),
+                  label: const Text('تفعيل وإدارة زر مراسلة الإدارة للكميات المفتوحة', style: TextStyle(color: Colors.white)),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('زر الكميات المفتوحة ومراسلة الإدارة مفعل وجاهز للأعضاء')),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
