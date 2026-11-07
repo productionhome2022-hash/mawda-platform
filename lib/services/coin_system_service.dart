@@ -1,10 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// خدمة إدارة نظام الكوينز والمكافآت ومتجر مودة
 class CoinSystemService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// 1. جلب رصيد الكوينز الحالي للمستخدم
+  // جلب رصيد الكوينز الحالي للمستخدم
   Future<int> getUserCoins(String userId) async {
     try {
       DocumentSnapshot userDoc = await _firestore.collection('users').doc(userId).get();
@@ -18,19 +17,19 @@ class CoinSystemService {
     return 0;
   }
 
-  /// 2. منح مكافأة مشاهدة الإعلان بناءً على القيمة المحددة من السوبر أدمن
-  Future<bool> rewardUserForAd(String userId) async {
+  // منح مكافأة مشاهدة إعلان معين بناءً على القيمة التي حددها السوبر أدمن لهذا الإعلان بالذات
+  Future<bool> rewardUserForSpecificAd(String userId, String adId) async {
     try {
-      // جلب قيمة المكافأة من إعدادات السوبر أدمن العامة (admin_settings/global_config)
-      DocumentSnapshot settingsDoc = await _firestore.collection('admin_settings').doc('global_config').get();
-      int adRewardAmount = 10; // قيمة افتراضية في حال عدم التحديد
+      // 1. جلب تفاصيل الإعلان المحدد لمعرفة قيمة المكافأة الخاصة به
+      DocumentSnapshot adDoc = await _firestore.collection('ads').doc(adId).get();
+      int specificAdReward = 10; // قيمة افتراضية احتياطية
 
-      if (settingsDoc.exists && settingsDoc.data() != null) {
-        Map<String, dynamic> settingsData = settingsDoc.data() as Map<String, dynamic>;
-        adRewardAmount = settingsData['ad_reward_amount'] ?? 10;
+      if (adDoc.exists && adDoc.data() != null) {
+        Map<String, dynamic> adData = adDoc.data() as Map<String, dynamic>;
+        specificAdReward = adData['reward_amount'] ?? 10; // القيمة التي حددها الأدمن عند إنشاء الإعلان
       }
 
-      // تحديث رصيد المستخدم بنجاح عبر عملية Transaction لضمان الدقة
+      // 2. تحديث رصيد المستخدم وإضافة المكافأة الخاصة بالإعلان لحظياً
       DocumentReference userRef = _firestore.collection('users').doc(userId);
       
       await _firestore.runTransaction((transaction) async {
@@ -38,18 +37,18 @@ class CoinSystemService {
         if (!snapshot.exists) return;
 
         int currentCoins = (snapshot.data() as Map<String, dynamic>)['coins'] ?? 0;
-        int newCoins = currentCoins + adRewardAmount;
+        int newCoins = currentCoins + specificAdReward;
 
         transaction.update(userRef, {'coins': newCoins});
       });
       return true;
     } catch (e) {
-      print("خطأ في منح مكافأة الإعلان: $e");
+      print("خطأ في منح مكافأة الإعلان المخصص: $e");
       return false;
     }
   }
 
-  /// 3. خصم كوينز عند شراء الألقاب، الأوسمة، أو استئجار الغرف الخاصة
+  // خصم كوينز عند الشراء أو استئجار الغرف
   Future<bool> purchaseItem(String userId, int itemCost) async {
     try {
       DocumentReference userRef = _firestore.collection('users').doc(userId);
@@ -61,7 +60,6 @@ class CoinSystemService {
 
         int currentCoins = (snapshot.data() as Map<String, dynamic>)['coins'] ?? 0;
         
-        // التحقق من كفاية الرصيد قبل عملية الخصم
         if (currentCoins >= itemCost) {
           int newCoins = currentCoins - itemCost;
           transaction.update(userRef, {'coins': newCoins});
@@ -70,21 +68,7 @@ class CoinSystemService {
       });
       return success;
     } catch (e) {
-      print("خطأ في عملية الشراء أو الاستئجار: $e");
-      return false;
-    }
-  }
-
-  /// 4. دالة مخصصة للسوبر أدمن لتحديث قيمة مكافأة الإعلان ديناميكياً
-  Future<bool> updateAdRewardAmountByAdmin(int newRewardAmount) async {
-    try {
-      await _firestore.collection('admin_settings').doc('global_config').set({
-        'ad_reward_amount': newRewardAmount,
-        'updated_at': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-      return true;
-    } catch (e) {
-      print("خطأ في تحديث إعدادات المكافأة بواسطة الأدمن: $e");
+      print("خطأ في عملية الشراء: $e");
       return false;
     }
   }
