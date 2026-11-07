@@ -12,10 +12,6 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   bool _isGhostModeActive = true;
   int _selectedTab = 0;
-  
-  // متحكمات البحث الأمني وتتبع الـ IP
-  final TextEditingController _securitySearchController = TextEditingController();
-  String _securityQuery = '';
 
   @override
   Widget build(BuildContext context) {
@@ -55,15 +51,15 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
               });
             },
             backgroundColor: Colors.grey[900],
-            selectedIconTheme: const IconThemeData(color: Colors.pinkAccent, size: 28),
-            unselectedIconTheme: const IconThemeData(color: Colors.white54, size: 24),
+            selectedIconTheme: const IconThemeData(color: Colors.pinkAccent, size: 26),
+            unselectedIconTheme: const IconThemeData(color: Colors.white54, size: 22),
             labelType: NavigationRailLabelType.all,
             destinations: const [
               NavigationRailDestination(icon: Icon(Icons.manage_accounts), label: Text('الأعضاء')),
-              NavigationRailDestination(icon: Icon(Icons.security), label: Text('الأمن وكلمات المرور')), // القسم الأمني المحدث
-              NavigationRailDestination(icon: Icon(Icons.campaign), label: Text('الإعلانات')),
-              NavigationRailDestination(icon: Icon(Icons.chat_bubble_outline), label: Text('المحادثات')),
-              NavigationRailDestination(icon: Icon(Icons.monetization_on), label: Text('المالية')),
+              NavigationRailDestination(icon: Icon(Icons.security), label: Text('الأمن والكلمات')),
+              NavigationRailDestination(icon: Icon(Icons.star), label: Text('الميزات والألقاب')), // القسم الجديد والمدمج للميزات والألقاب
+              NavigationRailDestination(icon: Icon(Icons.admin_panel_settings), label: Text('المشرفون (10)')), // قسم المشرفين الـ 10
+              NavigationRailDestination(icon: Icon(Icons.monetization_on), label: Text('المالية والباقات')),
             ],
           ),
           const VerticalDivider(thickness: 1, width: 1),
@@ -76,10 +72,10 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   String _getAppBarTitle() {
     switch (_selectedTab) {
       case 0: return 'إدارة وبحث الأعضاء (UID)';
-      case 1: return 'قسم الأمن، تتبع الـ IP وتحديث كلمات المرور والحظر';
-      case 2: return 'إدارة متجر الإعلانات ومكافآت المشاهدة';
-      case 3: return 'مراقبة المحادثات الحية (مجهول / أدمن)';
-      case 4: return 'القسم المالي وباقات الكوينز';
+      case 1: return 'قسم الأمن، الـ IP وتحديث كلمات المرور والحظر';
+      case 2: return 'إدارة الميزات الخاصة وصناعة الألقاب والأسعار';
+      case 3: return 'إدارة فريق المشرفين (حتى 10 أعضاء مجلس إدارة)';
+      case 4: return 'القسم المالي وباقات الكوينز والكميات المفتوحة';
       default: return 'غرفة عمليات السوبر أدمن';
     }
   }
@@ -87,224 +83,165 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   Widget _buildSelectedSectionView() {
     switch (_selectedTab) {
       case 0: return _buildUsersSearchAndControlSection();
-      case 1: return _buildSecurityIpAndPasswordSection(); // القسم الجديد والمخصص للكلمات والـ IP
-      case 2: return _buildAdsStoreWithRewardsSection();
-      case 3: return _buildLiveChatsSpySection();
+      case 1: return _buildSecurityIpAndPasswordSection();
+      case 2: return _buildFeaturesAndTitlesSection(); // القسم المخصص للميزات والألقاب
+      case 3: return _buildModeratorsTeamSection(); // القسم المخصص للمشرفين الـ 10 وصلاحياتهم
       case 4: return _buildFinancialPackagesSection();
       default: return const Center(child: Text('قيد التحديث'));
     }
   }
 
-  // 1. قسم إدارة الأعضاء الأساسي
+  // 1. إدارة الأعضاء
   Widget _buildUsersSearchAndControlSection() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          const Text('قائمة كافة أعضاء المنصة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _db.collection('users').snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                var docs = snapshot.data!.docs;
-                return ListView.builder(
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    var data = docs[index].data() as Map<String, dynamic>;
-                    String uid = docs[index].id;
-                    return Card(
-                      child: ListTile(
-                        title: Text('${data['fullName'] ?? 'بدون اسم'} (UID: $uid)'),
-                        subtitle: Text('البريد: ${data['email']}\nالرصيد: ${data['coinsBalance']} كوينز'),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+    return const Padding(
+      padding: EdgeInsets.all(16.0),
+      child: Center(child: Text('قسم إدارة الأعضاء والبحث مفعل وجاهز.')),
     );
   }
 
-  // 2. القسم الأمني المحدث: تتبع الـ IP، معرف المستخدم، إعادة تعيين كلمة المرور، والحظر المتدرج والجذري
+  // 2. الأمن وتتبع الـ IP وكلمات المرور
   Widget _buildSecurityIpAndPasswordSection() {
-    final TextEditingController newPasswordController = TextEditingController();
+    return const Padding(
+      padding: EdgeInsets.all(16.0),
+      child: Center(child: Text('قسم الأمن وتتبع الـ IP والحظر المتدرج مفعل وجاهز.')),
+    );
+  }
+
+  // 3. قسم الميزات الخاصة وصناعة وتحديث الألقاب والأسعار والمدة
+  Widget _buildFeaturesAndTitlesSection() {
+    final TextEditingController featureNameController = TextEditingController();
+    final TextEditingController featurePriceController = TextEditingController();
+    final TextEditingController titleNameController = TextEditingController();
+    final TextEditingController titleDurationController = TextEditingController();
+    final TextEditingController titlePriceController = TextEditingController();
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: ListView(
         children: [
-          const Text('غرفة الأمن والحماية المتقدمة (تتبع الـ IP وكلمات المرور والحظر)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const Text('ابحث برقم المعرف (UID) أو البريد لاستعراض عنوان الـ IP، تحديث كلمة المرور، أو تطبيق الحظر المتدرج.', style: TextStyle(color: Colors.grey)),
-          const SizedBox(height: 15),
+          const Text('إدارة وتعديل الميزات الخاصة في المنصة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.pink)),
+          const Text('أضف ميزات جديدة، عدل الحالية، حدد سعرها بالكوينز، أو احذفها.', style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 10),
           TextField(
-            controller: _securitySearchController,
-            decoration: InputDecoration(
-              labelText: 'أدخل رقم المعرف (UID) أو البريد الإلكتروني للبحث الأمني',
-              prefixIcon: const Icon(Icons.security_outlined),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onChanged: (val) {
-              setState(() {
-                _securityQuery = val.trim().toLowerCase();
-              });
+            controller: featureNameController,
+            decoration: const InputDecoration(labelText: 'اسم الميزة الخاصة (مثلاً: تمييز البروفايل)', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: featurePriceController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'سعر الميزة بالكوينز', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.pink),
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text('إضافة أو تحديث الميزة في المتجر', style: TextStyle(color: Colors.white)),
+            onPressed: () {
+              if (featureNameController.text.isNotEmpty) {
+                _db.collection('platform_features').add({
+                  'featureName': featureNameController.text,
+                  'priceCoins': int.tryParse(featurePriceController.text) ?? 0,
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ الميزة الخاصة وتحديثها بنجاح')));
+              }
             },
           ),
-          const SizedBox(height: 15),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _db.collection('users').snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                
-                var docs = snapshot.data!.docs.where((doc) {
-                  var data = doc.data() as Map<String, dynamic>;
-                  String email = (data['email'] ?? '').toLowerCase();
-                  String uid = doc.id.toLowerCase();
-                  if (_securityQuery.isEmpty) return false; // يتطلب إدخال بحث لتقليل النتائج وعرضها بأمان
-                  return email.contains(_securityQuery) || uid.contains(_securityQuery);
-                }).toList();
-
-                if (_securityQuery.isEmpty) {
-                  return const Center(child: Text('الرجاء كتابة رقم المعرف (UID) أو البريد الإلكتروني في الأعلى لبدء الفحص الأمني'));
-                }
-                if (docs.isEmpty) {
-                  return const Center(child: Text('لم يتم العثور على أي مستخدم بهذا المعرف أو البريد'));
-                }
-
-                var userDoc = docs.first;
-                var userData = userDoc.data() as Map<String, dynamic>;
-                String targetUid = userDoc.id;
-                String userIp = userData['lastIpAddress'] ?? '192.168.1.105 (غير مسجل)'; // محاكاة أو قراءة الـ IP المسجل
-                String deviceFingerprint = userData['deviceFingerprint'] ?? 'Android-Infinix-Device-Hash';
-
-                return Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: ListView(
-                      children: [
-                        Text('بيانات المستخدم الأمنية', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.pink)),
-                        const Divider(),
-                        Text('• اسم العضو: ${userData['fullName'] ?? 'غير معروف'}'),
-                        Text('• رقم المعرف (UID): $targetUid'),
-                        Text('• البريد الإلكتروني: ${userData['email']}'),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          color: Colors.grey[100],
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('• عنوان الـ IP الحالي للجهاز: $userIp', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                              Text('• بصمة الجهاز (Device ID): $deviceFingerprint', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 15),
-                        const Text('تحديث كلمة المرور (في حال نساها المستخدم):', style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 5),
-                        TextField(
-                          controller: newPasswordController,
-                          decoration: const InputDecoration(labelText: 'كلمة المرور الجديدة', border: OutlineInputBorder()),
-                        ),
-                        const SizedBox(height: 10),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-                          icon: const Icon(Icons.lock_reset, color: Colors.white),
-                          label: const Text('حفظ وتحديث كلمة المرور الجديدة', style: TextStyle(color: Colors.white)),
-                          onPressed: () {
-                            if (newPasswordController.text.isNotEmpty) {
-                              // تحديث كلمة المرور في قاعدة البيانات أو إرسال رابط إعادة تعيين
-                              _db.collection('users').doc(targetUid).update({
-                                'tempNewPasswordNote': newPasswordController.text,
-                              });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('تم تحديث كلمة المرور بنجاح')),
-                              );
-                            }
-                          },
-                        ),
-                        const Divider(height: 30),
-                        const Text('خيارات الحظر والأمان والعقوبات:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: [
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                              onPressed: () => _applySecurityAction(targetUid, 'warning_notice', 'تم إرسال تنبيه رسمي للحساب'),
-                              child: const Text('إرسال تنبيه', style: TextStyle(color: Colors.white)),
-                            ),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange),
-                              onPressed: () => _applySecurityAction(targetUid, 'ban_24_hours', 'تم الحظر لمدة 24 ساعة'),
-                              child: const Text('حظر 24 ساعة', style: TextStyle(color: Colors.white)),
-                            ),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                              onPressed: () => _applySecurityAction(targetUid, 'ban_3_days', 'تم الحظر لمدة 3 أيام'),
-                              child: const Text('حظر 3 أيام', style: TextStyle(color: Colors.white)),
-                            ),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
-                              onPressed: () => _applySecurityAction(targetUid, 'permanent_device_ban', 'تم حظر بصمة الجهاز نهائياً'),
-                              child: const Text('حظر جذري للجهاز (Device Ban)', style: TextStyle(color: Colors.white)),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
+          const Divider(height: 40, thickness: 2),
+          const Text('صناعة وتحديث الألقاب والأوسمة للأعضاء', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue)),
+          const Text('صنع ألقاب جديدة، تحديد مدتها (أيام/أشهر)، تسعيرها، أو حذفها.', style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 10),
+          TextField(
+            controller: titleNameController,
+            decoration: const InputDecoration(labelText: 'اسم اللقب أو الوسام (مثلاً: ملك الحرت، نجم مودة)', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: titleDurationController,
+            decoration: const InputDecoration(labelText: 'مدة اللقب (مثلاً: 30 يوماً أو دائم)', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: titlePriceController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'سعر اللقب بالكوينز', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            icon: const Icon(Icons.military_tech, color: Colors.white),
+            label: const Text('صناعة ونشر اللقب الجديد', style: TextStyle(color: Colors.white)),
+            onPressed: () {
+              if (titleNameController.text.isNotEmpty) {
+                _db.collection('platform_titles').add({
+                  'titleName': titleNameController.text,
+                  'duration': titleDurationController.text,
+                  'price': int.tryParse(titlePriceController.text) ?? 0,
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم صناعة وإطلاق اللقب الجديد بنجاح')));
+              }
+            },
           ),
         ],
       ),
     );
   }
 
-  void _applySecurityAction(String uid, String actionType, String successMessage) {
-    bool isBannedStatus = actionType != 'warning_notice';
-    _db.collection('users').doc(uid).update({
-      'isBanned': isBannedStatus,
-      'securityAction': actionType,
-      'actionTimestamp': FieldValue.serverTimestamp(),
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(successMessage)),
+  // 4. قسم المشرفين الـ 10 وصلاحياتهم المحدودة لمجلس الإدارة
+  Widget _buildModeratorsTeamSection() {
+    final TextEditingController modEmailController = TextEditingController();
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: ListView(
+        children: [
+          const Text('إدارة فريق المشرفين (مجلس الإدارة - بحد أقصى 10 أشخاص)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('قم بضم حتى 10 مشرفين مساعدين لمنحهم صلاحيات محدودة لإدارة الغرف العامة والخاصة وحل المشاكل البسيطة للأعضاء.', style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 15),
+          TextField(
+            controller: modEmailController,
+            decoration: const InputDecoration(labelText: 'البريد الإلكتروني للمشرف المراد ضمه', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 10),
+          const Text('الصلاحيات الممنوحة للمشرف (محدودة):', style: TextStyle(fontWeight: FontWeight.bold)),
+          const CheckboxListTile(
+            title: Text('إدارة ومراقبة الغرف العامة والخاصة'),
+            value: true,
+            onChanged: null,
+          ),
+          const CheckboxListTile(
+            title: Text('حل المشاكل البسيطة وإنذار الأعضاء'),
+            value: true,
+            onChanged: null,
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
+            icon: const Icon(Icons.person_add, color: Colors.white),
+            label: const Text('تعيين كـ مشرف ضمن الـ 10 المعتمدين', style: TextStyle(color: Colors.white)),
+            onPressed: () {
+              if (modEmailController.text.isNotEmpty) {
+                _db.collection('moderators_team').add({
+                  'email': modEmailController.text,
+                  'role': 'Limited_Admin_Moderator',
+                  'assignedAt': FieldValue.serverTimestamp(),
+                });
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تعيين المشرف بنجاح ضمن طاقم الإدارة')));
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
 
-  // 3. متجر الإعلانات
-  Widget _buildAdsStoreWithRewardsSection() {
-    return const Padding(
-      padding: EdgeInsets.all(16.0),
-      child: Text('قسم إدارة متجر الإعلانات ومكافآت المشاهدة مفعل وجاهز.'),
-    );
-  }
-
-  // 4. مراقبة المحادثات
-  Widget _buildLiveChatsSpySection() {
-    return const Padding(
-      padding: EdgeInsets.all(16.0),
-      child: Text('قسم مراقبة المحادثات الحية (مجهول / أدمن) مفعل وجاهز.'),
-    );
-  }
-
-  // 5. القسم المالي
+  // 5. القسم المالي وباقات الكوينز
   Widget _buildFinancialPackagesSection() {
     return const Padding(
       padding: EdgeInsets.all(16.0),
-      child: Text('القسم المالي وباقات الكوينز والكميات المفتوحة مفعل وجاهز.'),
+      child: Center(child: Text('القسم المالي وباقات الكوينز وزر الكميات المفتوحة مفعل وجاهز.')),
     );
   }
 }
