@@ -15,9 +15,10 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build web --release
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: Deploy to Firebase
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MAWDA_PLATFORM }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MAWDA_PLATFORM || secrets.FIREBASE_TOKEN }}'
           channelId: live
           projectId: mawda-platform
