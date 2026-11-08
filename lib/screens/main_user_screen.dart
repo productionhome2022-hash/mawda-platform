@@ -1,7 +1,7 @@
 // File: lib/screens/main_user_screen.dart
 // Production Home 2022 - Mawda Platform Main User Interface
 import 'package:flutter/material.dart';
-import 'firebase_options.dart'; // تأكد من المسار السليم أو حذفه إن لم الحاجة
+import '../firebase_options.dart'; // تأكد من المسار السليم أو حذفه إن لم الحاجة
 import '../services/auth_service.dart';
 import '../services/coin_system_service.dart';
 import 'login_screen.dart';
