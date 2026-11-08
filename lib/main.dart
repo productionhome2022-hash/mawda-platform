@@ -65,7 +65,7 @@ class MawdaHomePortal extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                 ),
                 onPressed: () {
-                  ScaffoldMessenger.contextOf(context)?.showSnackBar(
+                  ScaffoldMessenger.of(context)?.showSnackBar(
                     const SnackBar(content: Text('جاري الانتقال إلى لوحة الأعضاء والخدمات...')),
                   );
                 },
