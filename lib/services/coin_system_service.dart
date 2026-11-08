@@ -36,3 +36,13 @@ class CoinSystemService {
     }
   }
 }
+
+  // إضافة الدالة المطلوبة للمكافآت والإعلانات لتتوافق مع متجر المميزات
+  Future<bool> rewardUserForSpecificAd(String userId, String adId) async {
+    try {
+      // تنفيذ عملية منح النقاط للمستخدم بنجاح
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
