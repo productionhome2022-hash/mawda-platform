@@ -45,10 +45,10 @@ class MainUserScreen extends StatelessWidget {
                     mainAxisSpacing: 15,
                     children: [
                       _buildCard(context, 'غرف الدردشة', Icons.chat_rounded, Colors.pink, () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatRoomScreen()));
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => ChatRoomScreen(userId: userId, userName: 'مستخدم مودة')));
                       }),
                       _buildCard(context, 'المتجر والعملات', Icons.storefront_rounded, Colors.amber, () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const ShopScreen()));
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => ShopScreen(userId: userId)));
                       }),
                       _buildCard(context, 'الملف الشخصي', Icons.person_rounded, Colors.purpleAccent, () {
                         Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
