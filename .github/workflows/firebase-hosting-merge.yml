@@ -21,5 +21,3 @@ jobs:
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MAWDA_PLATFORM }}'
           channelId: live
           projectId: mawda-platform
-          entryPoint: './'
-          target: mawda-platform
