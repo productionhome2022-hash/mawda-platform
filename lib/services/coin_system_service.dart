@@ -1,48 +1,41 @@
-// File: lib/services/coin_system_service.dart
-// Production Home 2022 - Mawda Platform Coin System
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class CoinSystemService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  Future<int> getUserCoins() async {
+  // خصم كوينز من رصيد المستخدم
+  Future<bool> deductUserCoins(String userId, int amount) async {
     try {
-      User? user = _auth.currentUser;
-      if (user == null) return 0;
-
-      DocumentSnapshot doc = await _firestore.collection('users').doc(user.uid).get();
-      if (doc.exists && doc.data() != null) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        return data['coins'] ?? data['coinsBalance'] ?? 0;
+      DocumentReference userRef = _firestore.collection('users').doc(userId);
+      DocumentSnapshot snapshot = await userRef.get();
+      
+      if (snapshot.exists) {
+        int currentCoins = snapshot.get('coins') ?? 0;
+        if (currentCoins >= amount) {
+          await userRef.update({'coins': currentCoins - amount});
+          return true;
+        }
       }
-    } catch (e) {
-      print('خطأ في جلب الأرصدة: $e');
-    }
-    return 0;
-  }
-
-  Future<void> updateCoins(int newBalance) async {
-    try {
-      User? user = _auth.currentUser;
-      if (user == null) return;
-
-      await _firestore.collection('users').doc(user.uid).update({
-        'coins': newBalance,
-      });
-    } catch (e) {
-      print('خطأ في تحديث الأرصدة: $e');
-    }
-  }
-}
-
-  // إضافة الدالة المطلوبة للمكافآت والإعلانات لتتوافق مع متجر المميزات
-  Future<bool> rewardUserForSpecificAd(String userId, String adId) async {
-    try {
-      // تنفيذ عملية منح النقاط للمستخدم بنجاح
-      return true;
+      return false;
     } catch (e) {
       return false;
     }
   }
+
+  // إضافة كوينز إلى رصيد المستخدم (مكافآت وشحن)
+  Future<bool> addUserCoins(String userId, int amount) async {
+    try {
+      DocumentReference userRef = _firestore.collection('users').doc(userId);
+      DocumentSnapshot snapshot = await userRef.get();
+      
+      if (snapshot.exists) {
+        int currentCoins = snapshot.get('coins') ?? 0;
+        await userRef.update({'coins': currentCoins + amount});
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+}
