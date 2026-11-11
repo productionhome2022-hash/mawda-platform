@@ -44,7 +44,7 @@ export function validateMemberProfile(
   data: Record<string, unknown>,
   minimumAge: number | undefined,
 ): MemberProfileInput {
-  if (!Number.isSafeInteger(minimumAge) || (minimumAge as number) < 1 || (minimumAge as number) > 120) {
+  if (!Number.isSafeInteger(minimumAge) || (minimumAge as number) < 16 || (minimumAge as number) > 120) {
     throw new Error("REGISTRATION_POLICY_NOT_CONFIGURED");
   }
   const age = data.age;
@@ -58,6 +58,14 @@ export function validateMemberProfile(
   const maritalStatus = requiredText(data.maritalStatus, "maritalStatus", 1, 40);
   if (!["single", "married", "divorced", "widowed"].includes(maritalStatus)) {
     throw new Error("maritalStatus: القيمة المختارة غير مدعومة.");
+  }
+  const goals = stringList(data.goals ?? [], "goals", 10, 40);
+  const allowedGoals = new Set(["friendship", "social_connection", "marriage"]);
+  if (goals.some((goal) => !allowedGoals.has(goal))) {
+    throw new Error("goals: اختر هدفاً معتمداً من القائمة.");
+  }
+  if (age < 18 && goals.includes("marriage")) {
+    throw new Error("MARRIAGE_GOAL_REQUIRES_ADULT");
   }
   const bio = data.bio === undefined ? "" : data.bio;
   if (typeof bio !== "string" || bio.trim().length > 500) {
@@ -74,6 +82,6 @@ export function validateMemberProfile(
     maritalStatus,
     bio: bio.trim(),
     interests: stringList(data.interests ?? [], "interests", 20, 40),
-    goals: stringList(data.goals ?? [], "goals", 10, 80),
+    goals,
   };
 }
