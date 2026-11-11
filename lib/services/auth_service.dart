@@ -5,7 +5,7 @@ class AuthService {
   final FirebaseAuth _auth;
 
   User? get currentUser => _auth.currentUser;
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  Stream<User?> get authStateChanges => _auth.userChanges();
 
   Future<UserCredential> signInWithEmail({required String email, required String password}) =>
       _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
