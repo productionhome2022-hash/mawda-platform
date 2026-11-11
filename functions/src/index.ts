@@ -10,6 +10,7 @@ import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profi
 import { validateMemberProfileUpdate } from "./member-profile-update";
 import { validateDirectMessageInput } from "./direct-message";
 import { createHash } from "node:crypto";
+import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
 
 initializeApp();
 
@@ -821,4 +822,182 @@ export const markNotificationRead = onCall(async (request) => {
     });
   });
   return { notificationId, isRead: true };
+});
+
+
+/** Creates public or private rooms only through the trusted platform owner. */
+export const createRoom = onCall(async (request) => {
+  const ownerUid = requireOwner(request);
+  const name = typeof request.data?.name === "string" ? request.data.name.trim() : "";
+  const kind = request.data?.kind;
+  const capacity = request.data?.capacity;
+  if (name.length < 3 || name.length > 60 ||
+      (kind !== "public" && kind !== "private") ||
+      !Number.isSafeInteger(capacity) || capacity < 5 || capacity > 1000) {
+    throw new HttpsError("invalid-argument", "بيانات الغرفة أو سعتها غير صالحة.");
+  }
+  const owner = await db.collection("users").doc(ownerUid).get();
+  const age = owner.data()?.age;
+  let audience;
+  try {
+    audience = audienceForAge(age);
+  } catch {
+    throw new HttpsError("failed-precondition", "يجب أن يكون ملف مالك الغرفة مكتملاً وبعمر صالح.");
+  }
+  const roomRef = db.collection("rooms").doc();
+  const now = FieldValue.serverTimestamp();
+  await db.runTransaction(async (transaction) => {
+    transaction.create(roomRef, {
+      roomId: roomRef.id,
+      name,
+      kind,
+      capacity,
+      audience,
+      ownerUid,
+      memberCount: 1,
+      status: "active",
+      invitedUids: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+    transaction.create(roomRef.collection("members").doc(ownerUid), {
+      uid: ownerUid,
+      role: "owner",
+      joinedAt: now,
+    });
+  });
+  return { roomId: roomRef.id, kind, audience, capacity };
+});
+
+/** Invites a member to a private room; only the room owner can issue invitations. */
+export const inviteMemberToRoom = onCall(async (request) => {
+  const actorUid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = request.data?.roomId;
+  const memberUid = request.data?.memberUid;
+  if (typeof roomId !== "string" || typeof memberUid !== "string" ||
+      roomId.length > 128 || memberUid.length > 128 || memberUid === actorUid) {
+    throw new HttpsError("invalid-argument", "بيانات الدعوة غير صالحة.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId);
+  const memberRef = db.collection("users").doc(memberUid);
+  await db.runTransaction(async (transaction) => {
+    const [room, member] = await Promise.all([
+      transaction.get(roomRef), transaction.get(memberRef),
+    ]);
+    if (!room.exists || room.data()?.ownerUid !== actorUid) {
+      throw new HttpsError("permission-denied", "الدعوات متاحة لمالك الغرفة فقط.");
+    }
+    if (room.data()?.kind !== "private") {
+      throw new HttpsError("failed-precondition", "الدعوات الخاصة مخصصة للغرف الخاصة.");
+    }
+    if (!member.exists || member.data()?.profileCompleted !== true) {
+      throw new HttpsError("not-found", "العضو المطلوب غير موجود أو لم يكمل ملفه.");
+    }
+    if (!canJoinRoom({
+      memberAge: member.data()?.age,
+      roomAudience: room.data()?.audience,
+      roomKind: "private",
+      invited: true,
+    })) {
+      throw new HttpsError("permission-denied", "لا يمكن دعوة العضو إلى غرفة من فئة عمرية مختلفة.");
+    }
+    transaction.update(roomRef, {
+      invitedUids: FieldValue.arrayUnion(memberUid),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { roomId, memberUid, invited: true };
+});
+
+/** Joins a public room or an invited private room, enforcing audience and capacity. */
+export const joinRoom = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = request.data?.roomId;
+  if (typeof roomId !== "string" || roomId.length < 1 || roomId.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId);
+  const userRef = db.collection("users").doc(uid);
+  const membershipRef = roomRef.collection("members").doc(uid);
+  await db.runTransaction(async (transaction) => {
+    const [room, user, membership] = await Promise.all([
+      transaction.get(roomRef), transaction.get(userRef), transaction.get(membershipRef),
+    ]);
+    if (!room.exists || room.data()?.status !== "active") {
+      throw new HttpsError("not-found", "الغرفة غير موجودة أو غير نشطة.");
+    }
+    if (!user.exists || user.data()?.profileCompleted !== true) {
+      throw new HttpsError("failed-precondition", "يجب إكمال العضوية قبل دخول الغرف.");
+    }
+    const data = room.data()!;
+    const invited = Array.isArray(data.invitedUids) && data.invitedUids.includes(uid);
+    if (!canJoinRoom({
+      memberAge: user.data()?.age,
+      roomAudience: data.audience,
+      roomKind: data.kind,
+      invited,
+    })) {
+      throw new HttpsError("permission-denied", "لا تملك صلاحية دخول هذه الغرفة أو فئتها العمرية غير مناسبة.");
+    }
+    if (membership.exists) return;
+    if (!Number.isSafeInteger(data.memberCount) || data.memberCount >= data.capacity) {
+      throw new HttpsError("resource-exhausted", "اكتمل العدد المسموح به في الغرفة.");
+    }
+    const now = FieldValue.serverTimestamp();
+    transaction.create(membershipRef, { uid, role: "member", joinedAt: now });
+    transaction.update(roomRef, {
+      memberCount: data.memberCount + 1,
+      invitedUids: invited ? FieldValue.arrayRemove(uid) : data.invitedUids,
+      updatedAt: now,
+    });
+  });
+  return { roomId, joined: true };
+});
+
+/** Assigns room-only moderation capabilities; moderators cannot manage the platform. */
+export const setRoomModerator = onCall(async (request) => {
+  const actorUid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = request.data?.roomId;
+  const memberUid = request.data?.memberUid;
+  if (typeof roomId !== "string" || typeof memberUid !== "string" ||
+      roomId.length > 128 || memberUid.length > 128 || actorUid === memberUid) {
+    throw new HttpsError("invalid-argument", "بيانات المشرف غير صالحة.");
+  }
+  let permissions;
+  try {
+    permissions = normalizeModeratorPermissions(request.data?.permissions ?? {});
+  } catch {
+    throw new HttpsError("invalid-argument", "صلاحيات مشرف الغرفة غير صالحة.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId);
+  const membershipRef = roomRef.collection("members").doc(memberUid);
+  const moderatorRef = roomRef.collection("moderators").doc(memberUid);
+  await db.runTransaction(async (transaction) => {
+    const [room, membership] = await Promise.all([
+      transaction.get(roomRef), transaction.get(membershipRef),
+    ]);
+    if (!room.exists || room.data()?.ownerUid !== actorUid) {
+      throw new HttpsError("permission-denied", "تعيين مشرفي الغرفة من صلاحية مالك الغرفة فقط.");
+    }
+    if (!membership.exists) {
+      throw new HttpsError("failed-precondition", "يجب أن يكون المشرف عضواً في الغرفة أولاً.");
+    }
+    transaction.set(moderatorRef, {
+      uid: memberUid,
+      permissions,
+      assignedBy: actorUid,
+      assignedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.update(membershipRef, { role: "moderator" });
+    const auditRef = db.collection("roomAuditLogs").doc();
+    transaction.create(auditRef, {
+      roomId,
+      actorUid,
+      targetUid: memberUid,
+      action: "room_moderator_assigned",
+      permissions,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { roomId, memberUid, permissions };
 });
