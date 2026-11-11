@@ -56,13 +56,13 @@ class SuperAdminSecurityService {
     });
   }
 
-  // دعم الاستدعاء المرتب والمسمى لمنع أي خطأ مطبعي في الشاشات
-  Future<void> deleteMessageForEveryone([String? chatIdArg, String? messageIdArg, {String? chatId, String? messageId}]) async {
-    final targetChatId = chatId ?? chatIdArg;
-    final targetMessageId = messageId ?? messageIdArg;
-    
-    if (targetChatId != null && targetMessageId != null) {
-      await _firestore.collection('chats').doc(targetChatId).collection('messages').doc(targetMessageId).delete();
-    }
+  // دعم الاستدعاء بالمعاملات المرتبة (Positional) لتتوافق تماماً مع استدعاء شاشة الدردشة
+  Future<void> deleteMessageForEveryone(String chatId, String messageId) async {
+    await _firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .doc(messageId)
+        .delete();
   }
 }
