@@ -88,3 +88,8 @@ The CI backend job runs Firestore and Storage authorization tests against the Fi
 
 
 The backend unit suite also covers registration-policy validation boundaries and fail-closed behavior: only explicit booleans and integer minimum ages from 1 through 120 are accepted; the callable separately enforces the platform-owner claim before changing settings.
+
+
+## Age and relationship-intent safeguards
+
+The approved baseline is a minimum age of 16 for friendship and non-romantic social connection. Marriage intent is a separate structured goal and is rejected by the trusted backend for anyone under 18. Goal values are canonical server-validated codes; free text cannot bypass the age gate. The owner-controlled minimum registration age cannot be configured below 16. Before enabling any market, review local age, child-safety, privacy, and platform obligations. Age entered in a profile is not, by itself, robust age assurance; stronger age verification and minor-safety controls remain launch requirements.
