@@ -51,8 +51,9 @@ class _LandingPageState extends State<LandingPage> {
                 borderRadius: BorderRadius.circular(28),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                  child: Container(
-                    maxWidth: 550,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 550),
+                    child: Container(
                     padding: const EdgeInsets.all(22),
                     decoration: BoxDecoration(
                       color: const Color(0xFF0F051D).withOpacity(0.35),
@@ -129,6 +130,7 @@ class _LandingPageState extends State<LandingPage> {
                           ),
                         ),
                       ],
+                    ),
                     ),
                   ),
                 ),
