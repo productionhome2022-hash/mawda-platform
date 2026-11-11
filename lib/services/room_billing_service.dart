@@ -30,7 +30,6 @@ class RoomBillingService {
       var data = doc.data() as Map<String, dynamic>;
       String roomId = doc.id;
       String ownerId = data['ownerId'];
-      int rentalCost = data['rentalCost'] ?? 5000; // التكلفة الافتراضية
       String status = data['status'] ?? 'active'; // active, warning, frozen, cancelled
 
       if (status == 'active') {
