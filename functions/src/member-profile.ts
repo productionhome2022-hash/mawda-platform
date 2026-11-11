@@ -60,11 +60,11 @@ export function validateMemberProfile(
     throw new Error("maritalStatus: القيمة المختارة غير مدعومة.");
   }
   const goals = stringList(data.goals ?? [], "goals", 10, 40);
-  const allowedGoals = new Set(["friendship", "social_connection", "marriage"]);
+  const allowedGoals = new Set(["friendship", "social_connection", "romantic_dating", "marriage"]);
   if (goals.some((goal) => !allowedGoals.has(goal))) {
     throw new Error("goals: اختر هدفاً معتمداً من القائمة.");
   }
-  if (age < 18 && goals.includes("marriage")) {
+  if (age < 18 && goals.some((goal) => ["romantic_dating", "marriage"].includes(goal))) {
     throw new Error("MARRIAGE_GOAL_REQUIRES_ADULT");
   }
   const bio = data.bio === undefined ? "" : data.bio;
