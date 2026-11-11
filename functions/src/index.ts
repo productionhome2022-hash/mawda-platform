@@ -11,6 +11,7 @@ import { validateMemberProfileUpdate } from "./member-profile-update";
 import { validateDirectMessageInput } from "./direct-message";
 import { createHash } from "node:crypto";
 import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
+import { hasPlatformOwnerSession } from "./owner-access";
 
 initializeApp();
 
@@ -33,8 +34,15 @@ function requireAuthenticatedUid(uid: string | undefined): string {
 
 function requireOwner(request: { auth?: { uid: string; token: Record<string, unknown> } | null }): string {
   const uid = requireAuthenticatedUid(request.auth?.uid);
-  if (request.auth?.token.platformOwner !== true) {
+  const token = request.auth?.token;
+  if (token?.platformOwner !== true) {
     throw new HttpsError("permission-denied", "هذه العملية مخصصة لمالك المنصة.");
+  }
+  if (!hasPlatformOwnerSession(token)) {
+    throw new HttpsError(
+      "permission-denied",
+      "تتطلب العمليات السيادية جلسة مالك موثقة بالمصادقة متعددة العوامل (MFA).",
+    );
   }
   return uid;
 }
