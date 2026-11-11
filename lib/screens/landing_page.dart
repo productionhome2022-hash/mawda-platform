@@ -40,7 +40,7 @@ class _LandingPageState extends State<LandingPage> {
           
           // 2. تدرج غامق خفيف جداً لضبط التباين والرؤية
           Container(
-            color: const Color(0xFF0F051D).withOpacity(0.40),
+            color: const Color(0xFF0F051D).withValues(alpha: 0.40),
           ),
 
           // 3. الحاوية الزجاجية الكريستالية عالية الشفافية
@@ -56,12 +56,12 @@ class _LandingPageState extends State<LandingPage> {
                     child: Container(
                     padding: const EdgeInsets.all(22),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F051D).withOpacity(0.35),
+                      color: const Color(0xFF0F051D).withValues(alpha: 0.35),
                       borderRadius: BorderRadius.circular(28),
-                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.pink.withOpacity(0.15),
+                          color: Colors.pink.withValues(alpha: 0.15),
                           blurRadius: 25,
                           spreadRadius: 2,
                         ),
@@ -75,11 +75,11 @@ class _LandingPageState extends State<LandingPage> {
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.pink.withOpacity(0.15),
-                            border: Border.all(color: Colors.pinkAccent.withOpacity(0.6)),
+                            color: Colors.pink.withValues(alpha: 0.15),
+                            border: Border.all(color: Colors.pinkAccent.withValues(alpha: 0.6)),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.pinkAccent.withOpacity(0.4),
+                                color: Colors.pinkAccent.withValues(alpha: 0.4),
                                 blurRadius: 20,
                               )
                             ],
@@ -152,13 +152,13 @@ class _LandingPageState extends State<LandingPage> {
         duration: const Duration(milliseconds: 250),
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.pink.withOpacity(0.35) : Colors.white.withOpacity(0.06),
+          color: isSelected ? Colors.pink.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? Colors.pinkAccent : Colors.white.withOpacity(0.15),
+            color: isSelected ? Colors.pinkAccent : Colors.white.withValues(alpha: 0.15),
           ),
           boxShadow: isSelected
-              ? [BoxShadow(color: Colors.pink.withOpacity(0.3), blurRadius: 10)]
+              ? [BoxShadow(color: Colors.pink.withValues(alpha: 0.3), blurRadius: 10)]
               : [],
         ),
         child: Row(
@@ -203,7 +203,7 @@ class _LandingPageState extends State<LandingPage> {
         const SizedBox(height: 10),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.pink.withOpacity(0.65),
+            backgroundColor: Colors.pink.withValues(alpha: 0.65),
             minimumSize: const Size(double.infinity, 45),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -224,7 +224,7 @@ class _LandingPageState extends State<LandingPage> {
       children: [
         Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: Colors.amber.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: Colors.amber.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
           child: const Text(
             '🎉 هدية انضمام: 500 كوينز مجانية (يرجى مراجعة الـ Spam وتأكيد البريد).',
             style: TextStyle(fontSize: 10.5, color: Colors.amberAccent),
@@ -241,9 +241,9 @@ class _LandingPageState extends State<LandingPage> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.black.withValues(alpha: 0.25),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.15)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
@@ -264,9 +264,9 @@ class _LandingPageState extends State<LandingPage> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.black.withValues(alpha: 0.25),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.15)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
@@ -285,7 +285,7 @@ class _LandingPageState extends State<LandingPage> {
 
         Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: Colors.pink.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: Colors.pink.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
           child: const Text(
             '🔒 توثيق بيومتري (اختياري - صوت + سيلفي): يمنحك +1500 كوينز ودرع موثق!',
             style: TextStyle(fontSize: 10.5, color: Colors.pinkAccent),
@@ -296,7 +296,7 @@ class _LandingPageState extends State<LandingPage> {
 
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.amber.shade800.withOpacity(0.7),
+            backgroundColor: Colors.amber.shade800.withValues(alpha: 0.7),
             minimumSize: const Size(double.infinity, 45),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -317,7 +317,7 @@ class _LandingPageState extends State<LandingPage> {
       children: [
         Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: Colors.blue.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
           child: const Text(
             '⏱️ صلاحية الزائر: ساعة واحدة فقط كل 24 ساعة للغرف العامة وتصفح المتجر.',
             style: TextStyle(fontSize: 10.5, color: Colors.blueAccent),
@@ -329,7 +329,7 @@ class _LandingPageState extends State<LandingPage> {
         const SizedBox(height: 12),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue.withOpacity(0.65),
+            backgroundColor: Colors.blue.withValues(alpha: 0.65),
             minimumSize: const Size(double.infinity, 45),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -353,13 +353,13 @@ class _LandingPageState extends State<LandingPage> {
       decoration: InputDecoration(
         prefixIcon: Icon(icon, size: 16, color: Colors.white60),
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 11.5),
+        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11.5),
         filled: true,
-        fillColor: Colors.black.withOpacity(0.25),
+        fillColor: Colors.black.withValues(alpha: 0.25),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.15)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -387,7 +387,7 @@ class _LandingPageState extends State<LandingPage> {
               style: const TextStyle(color: Colors.white, fontSize: 12),
               decoration: InputDecoration(
                 hintText: 'تفاصيل المساعدة أو إرفاق الشكوى...',
-                hintStyle: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 11),
+                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11),
                 filled: true,
                 fillColor: Colors.black45,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
