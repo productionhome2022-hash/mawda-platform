@@ -11,7 +11,7 @@ The callable function `getTransferQuote` returns the server-calculated gross amo
 - `requestId`: client-generated idempotency key (8–80 letters, digits, underscores or hyphens)
 - `expectedCommissionBps`: the rate shown in the confirmation quote; the server rejects the transfer if the owner changed the rate before confirmation
 
-The commission is read from `platformSettings/coinTransfers` as integer basis points (`commissionBps`; 2,000 = 20%). If no settings document exists, the initial commission is 0%. When transfers are disabled, the callable rejects the request.
+The commission is read from `platformSettings/coinTransfers` as integer basis points (`commissionBps`; 2,000 = 20%). Transfers are rejected until the owner has explicitly configured a commission rate; the system never silently assumes a zero fee. When transfers are disabled, the callable rejects the request.
 
 One Firestore transaction atomically updates both `users/{uid}.coins` balances and creates:
 
