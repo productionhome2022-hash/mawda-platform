@@ -23,6 +23,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   final CoinSystemService _coinService = CoinSystemService();
   bool _isTransferringCoins = false;
+  String? _pendingTransferKey;
+  String? _pendingTransferRequestId;
 
   // 2. تحويل الكوينز عبر الخادم مع عرض العمولة والصافي قبل التأكيد.
   Future<void> _showGiftCoinsDialog() async {
@@ -101,12 +103,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (confirmed != true || !mounted) return;
 
+      final transferKey = '${widget.profileUserId}:$amount';
+      if (_pendingTransferKey != transferKey || _pendingTransferRequestId == null) {
+        _pendingTransferKey = transferKey;
+        _pendingTransferRequestId = const Uuid().v4();
+      }
+
       final receipt = await _coinService.transferCoins(
         recipientUid: widget.profileUserId,
         amount: amount,
-        requestId: const Uuid().v4(),
+        requestId: _pendingTransferRequestId!,
         expectedCommissionBps: quote.commissionBps,
       );
+      _pendingTransferKey = null;
+      _pendingTransferRequestId = null;
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
