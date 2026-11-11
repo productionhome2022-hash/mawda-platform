@@ -19,6 +19,39 @@ class SuperAdminSecurityService {
     return Map<String, dynamic>.from(result.data as Map);
   }
 
+  Future<List<Map<String, dynamic>>> getRoomMessages(String roomId) async {
+    final result = await _functions.httpsCallable('getRoomMessages').call({
+      'roomId': roomId,
+    });
+    final data = Map<String, dynamic>.from(result.data as Map);
+    final messages = data['messages'] as List<dynamic>? ?? const [];
+    return messages
+        .map((message) => Map<String, dynamic>.from(message as Map))
+        .toList(growable: false);
+  }
+
+  Future<void> sendRoomMessage({
+    required String roomId,
+    required String content,
+    required String clientMessageId,
+  }) async {
+    await _functions.httpsCallable('sendRoomMessage').call({
+      'roomId': roomId,
+      'content': content,
+      'clientMessageId': clientMessageId,
+    });
+  }
+
+  Future<void> deleteRoomMessage({
+    required String roomId,
+    required String messageId,
+  }) async {
+    await _functions.httpsCallable('deleteRoomMessage').call({
+      'roomId': roomId,
+      'messageId': messageId,
+    });
+  }
+
   Future<Map<String, dynamic>> getMemberSummary(String memberUid) async {
     final result = await _functions.httpsCallable('getOwnerMemberSummary').call({
       'memberUid': memberUid.trim(),
