@@ -93,7 +93,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           String name = userData['name'] ?? 'Mawda Member';
           String bio = userData['bio'] ?? 'Welcome to my cinematic profile...';
           String coverUrl = userData['coverUrl'] ?? '';
-          String avatarUrl = userData['avatarUrl'] ?? '';
           
           List<dynamic> purchasedFeatures = userData['purchasedFeatures'] ?? [];
           List<dynamic> purchasedBadges = userData['purchasedBadges'] ?? [];
