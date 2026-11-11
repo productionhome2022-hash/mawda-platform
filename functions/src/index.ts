@@ -103,8 +103,7 @@ export const transferCoins = onCall(async (request) => {
       }
       if (
         prior.recipientUid !== recipientUid ||
-        prior.grossAmount !== amount ||
-        prior.commissionBps !== expectedCommissionBps
+        prior.grossAmount !== amount
       ) {
         throw new HttpsError("already-exists", "أعيد استخدام معرف طلب التحويل مع بيانات مختلفة.");
       }
