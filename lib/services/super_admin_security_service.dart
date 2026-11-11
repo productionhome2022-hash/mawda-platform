@@ -8,6 +8,17 @@ class SuperAdminSecurityService {
     return Map<String, dynamic>.from(result.data as Map);
   }
 
+  Future<Map<String, dynamic>> setRegistrationPolicy({
+    required bool enabled,
+    required int minimumAge,
+  }) async {
+    final result = await _functions.httpsCallable('setRegistrationPolicy').call({
+      'enabled': enabled,
+      'minimumAge': minimumAge,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
   Future<Map<String, dynamic>> getMemberSummary(String memberUid) async {
     final result = await _functions.httpsCallable('getOwnerMemberSummary').call({
       'memberUid': memberUid.trim(),
