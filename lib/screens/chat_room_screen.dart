@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/super_admin_security_service.dart';
 
 class ChatRoomScreen extends StatefulWidget {
   final String chatId;
   final String currentUserId;
-  final bool isPublicRoom; // true = غرفة عامة للإدارة، false = غرفة خاصة مستأجرة
-  final bool isSuperAdmin; // هل المستخدم الحالي هو السوبر أدمن؟
-  final bool isRoomOwner; // هل المستخدم هو مالك الغرفة الخاصة؟
+  final bool isPublicRoom;
+  final bool isSuperAdmin;
+  final bool isRoomOwner;
   final String? peerName;
 
   const ChatRoomScreen({
@@ -26,175 +25,169 @@ class ChatRoomScreen extends StatefulWidget {
 
 class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final TextEditingController _messageController = TextEditingController();
-  final SuperAdminSecurityService _securityService = SuperAdminSecurityService();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final SuperAdminSecurityService _service = SuperAdminSecurityService();
+  late Future<List<Map<String, dynamic>>> _messagesFuture;
+  bool _sending = false;
 
-  void _sendMessage() async {
-    if (_messageController.text.trim().isEmpty) return;
+  @override
+  void initState() {
+    super.initState();
+    _messagesFuture = _service.getRoomMessages(widget.chatId);
+  }
 
-    String content = _messageController.text.trim();
-    _messageController.clear();
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
 
-    await _firestore
-        .collection('chats')
-        .doc(widget.chatId)
-        .collection('messages')
-        .add({
-      'senderId': widget.currentUserId,
-      'content': content,
-      'timestamp': FieldValue.serverTimestamp(),
-      'hasMedia': false,
+  void _reloadMessages() {
+    setState(() {
+      _messagesFuture = _service.getRoomMessages(widget.chatId);
     });
   }
 
-  // لوحة تحكم السوبر أدمن المطلقة للغرف العامة
-  void _showSuperAdminPublicRoomControls() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Super Admin Absolute Sovereignty 🛡️',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red),
-              ),
-              const SizedBox(height: 15),
-              ListTile(
-                leading: const Icon(Icons.wallpaper, color: Colors.purple),
-                title: const Text('Change Public Room Interior Background'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // منطق تغيير الخلفية الداخلية للغرفة العامة من قبل السوبر أدمن
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.image, color: Colors.blue),
-                title: const Text('Update Public Room External Cover'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // منطق تغيير الغلاف الخارجي للغرفة العامة
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.security, color: Colors.orange),
-                title: const Text('Configure Room Operation Rules'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // إعدادات طريقة عمل الغرفة العامة
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.block, color: Colors.red),
-                title: const Text('Kick, Ban or HWID Block User'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // الحظر الشامل
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
+  Future<void> _sendMessage() async {
+    final content = _messageController.text.trim();
+    if (content.isEmpty || _sending) return;
+
+    setState(() => _sending = true);
+    try {
+      await _service.sendRoomMessage(
+        roomId: widget.chatId,
+        content: content,
+        clientMessageId: DateTime.now().microsecondsSinceEpoch.toString(),
+      );
+      if (!mounted) return;
+      _messageController.clear();
+      _reloadMessages();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر إرسال الرسالة. تحقق من عضويتك واتصالك ثم حاول مجدداً.')),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
-  // لوحة مالك الغرفة الخاصة المستأجرة
-  void _showRentedRoomControls() {
-    showModalBottomSheet(
+  Future<void> _deleteMessage(String messageId) async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Rented Room Owner Panel 👑',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 15),
-              ListTile(
-                leading: const Icon(Icons.wallpaper, color: Colors.purple),
-                title: const Text('Change Room Background'),
-                onTap: () => Navigator.pop(context),
-              ),
-              ListTile(
-                leading: const Icon(Icons.image, color: Colors.blue),
-                title: const Text('Update Room Cover'),
-                onTap: () => Navigator.pop(context),
-              ),
-              ListTile(
-                leading: const Icon(Icons.block, color: Colors.red),
-                title: const Text('Manage Room Members'),
-                onTap: () => Navigator.pop(context),
-              ),
-            ],
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('حذف الرسالة'),
+        content: const Text('هل تريد حذف هذه الرسالة من الغرفة للجميع؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء'),
           ),
-        );
-      },
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
     );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await _service.deleteRoomMessage(roomId: widget.chatId, messageId: messageId);
+      if (mounted) _reloadMessages();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لم يُسمح بحذف الرسالة أو تعذر إتمام العملية.')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // تحديد صلاحية التحكم: للغرف العامة يشترط أن يكون المستخدم سوبر أدمن، وللخاصة يشترط أن يكون المالك أو سوبر أدمن
-    bool hasPrivilege = widget.isPublicRoom ? widget.isSuperAdmin : (widget.isRoomOwner || widget.isSuperAdmin);
+    final roomTitle = widget.peerName ??
+        (widget.isPublicRoom ? 'الغرفة العامة' : 'الغرفة الخاصة');
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.peerName ?? (widget.isPublicRoom ? 'Mawda Public Room (Super Admin Controlled) 🌐' : 'Mawda Rented Private Room 🏠')),
-        backgroundColor: widget.isPublicRoom ? Colors.black87 : Colors.deepPurple,
+        title: Text(roomTitle),
         actions: [
-          if (hasPrivilege)
-            IconButton(
-              icon: Icon(widget.isPublicRoom ? Icons.admin_panel_settings : Icons.settings, color: Colors.amber),
-              onPressed: widget.isPublicRoom ? _showSuperAdminPublicRoomControls : _showRentedRoomControls,
-              tooltip: 'Room Management Controls',
-            ),
+          IconButton(
+            tooltip: 'تحديث الرسائل',
+            onPressed: _reloadMessages,
+            icon: const Icon(Icons.refresh),
+          ),
         ],
       ),
       body: Column(
         children: [
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _securityService.streamSpyChatMessages(widget.chatId),
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: _messagesFuture,
               builder: (context, snapshot) {
-                if (!snapshot.hasData) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.lock_outline, size: 36),
+                          const SizedBox(height: 12),
+                          const Text('تعذر تحميل الرسائل. تأكد من تسجيل الدخول والانضمام إلى الغرفة.'),
+                          TextButton(onPressed: _reloadMessages, child: const Text('إعادة المحاولة')),
+                        ],
+                      ),
+                    ),
+                  );
+                }
 
-                var messages = snapshot.data!.docs;
+                final messages = snapshot.data ?? const <Map<String, dynamic>>[];
+                if (messages.isEmpty) {
+                  return const Center(child: Text('لا توجد رسائل بعد. كن أول من يبدأ الحديث.'));
+                }
 
                 return ListView.builder(
-                  reverse: true,
+                  padding: const EdgeInsets.all(12),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    var msg = messages[index].data() as Map<String, dynamic>;
-                    String messageId = messages[index].id;
-                    bool isMe = msg['senderId'] == widget.currentUserId;
+                    final message = messages[index];
+                    final senderUid = message['senderUid'] as String? ?? '';
+                    final messageId = message['messageId'] as String? ?? '';
+                    final isMe = senderUid == widget.currentUserId;
+                    final canRequestDelete = isMe || widget.isSuperAdmin || widget.isRoomOwner;
 
-                    return ListTile(
-                      title: Align(
-                        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isMe ? Colors.deepPurple[100] : Colors.grey[200],
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(msg['content'] ?? ''),
-                              if (isMe || widget.isSuperAdmin || (widget.isRoomOwner && !widget.isPublicRoom))
-                                TextButton(
-                                  onPressed: () => _securityService.deleteMessageForEveryone(widget.chatId, messageId),
-                                  child: const Text('Delete for Everyone 🗑️', style: TextStyle(fontSize: 10, color: Colors.red)),
+                    return Align(
+                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.82,
+                        ),
+                        child: Card(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isMe ? 'أنت' : senderUid,
+                                  style: Theme.of(context).textTheme.labelSmall,
                                 ),
-                            ],
+                                const SizedBox(height: 4),
+                                Text(message['content'] as String? ?? ''),
+                                if (canRequestDelete && messageId.isNotEmpty && message['isDeleted'] != true)
+                                  Align(
+                                    alignment: AlignmentDirectional.centerEnd,
+                                    child: TextButton.icon(
+                                      onPressed: () => _deleteMessage(messageId),
+                                      icon: const Icon(Icons.delete_outline, size: 16),
+                                      label: const Text('حذف للجميع'),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -204,25 +197,41 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               },
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: const InputDecoration(
-                      hintText: 'Type a message...',
-                      border: OutlineInputBorder(),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _messageController,
+                      minLines: 1,
+                      maxLines: 4,
+                      maxLength: 4000,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => _sendMessage(),
+                      decoration: const InputDecoration(
+                        hintText: 'اكتب رسالتك...',
+                        border: OutlineInputBorder(),
+                        counterText: '',
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.send, color: Colors.deepPurple),
-                  onPressed: _sendMessage,
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    tooltip: 'إرسال',
+                    onPressed: _sending ? null : _sendMessage,
+                    icon: _sending
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
