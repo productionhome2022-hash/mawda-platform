@@ -79,7 +79,7 @@ Do not put credentials, private keys, service-account files, owner UID/email val
 
 ### Owner-controlled registration gate
 
-The owner-only callable `setRegistrationPolicy` controls registration at `platformSettings/registration`. It requires the `platformOwner` custom claim and both an explicit `enabled` boolean and an integer `minimumAge` from 1 to 120. Each change increments a version and creates an admin audit record in the same Firestore transaction. Member completion rejects requests unless registration is explicitly enabled and the minimum age is configured. The repository does not choose a default age and does not enable registration automatically.
+The owner-only callable `setRegistrationPolicy` controls registration at `platformSettings/registration`. It requires the `platformOwner` custom claim and both an explicit `enabled` boolean and an integer `minimumAge` from 16 to 120. Each change increments a version and creates an admin audit record in the same Firestore transaction. Member completion rejects requests unless registration is explicitly enabled and the minimum age is configured. The repository does not choose a default age and does not enable registration automatically.
 
 
 ## Firebase Security Rules emulator tests
