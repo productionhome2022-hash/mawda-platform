@@ -8,15 +8,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: Set up Flutter SDK
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           cache: true
-      - run: flutter pub get
-      - run: flutter build web --release
+          
+      - name: Enable Flutter Web
+        run: flutter config --enable-web
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Web Release
+        run: flutter build web --release
+
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
+
       - name: Deploy to Firebase Hosting
         run: firebase deploy --only hosting --token "${{ secrets.FIREBASE_TOKEN }}"
         env:
