@@ -46,4 +46,4 @@ The Flutter profile transfer flow now requests a server quote, displays the gros
 
 ## Age policy
 
-Member completion requires an explicitly enabled registration policy with a minimum age of at least 16. The Flutter form submits structured goal codes: friendship, social_connection, and marriage. The trusted backend rejects unknown/free-text goals and rejects marriage for members under 18. Client-side chip visibility is only a usability aid: the server is authoritative. This does not replace age assurance, minor-safety controls, or a jurisdiction-by-jurisdiction launch review.
+Member completion requires an explicitly enabled registration policy with a minimum age of at least 16. The Flutter form submits structured goal codes: friendship, social_connection, romantic_dating, and marriage. The trusted backend rejects unknown/free-text goals and rejects romantic_dating or marriage for members under 18. Client-side chip visibility is only a usability aid: the server is authoritative. This does not replace age assurance, minor-safety controls, or a jurisdiction-by-jurisdiction launch review.
