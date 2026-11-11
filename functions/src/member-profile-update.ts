@@ -24,7 +24,7 @@ function list(value, field, maxItems, maxLength) {
 }
 
 /** Validate a partial, allowlisted member edit; age and username are immutable here. */
-export function validateMemberProfileUpdate(input, currentAge) {
+export function validateMemberProfileUpdate(input: Record<string, unknown>, currentAge: number): Record<string, unknown> {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     throw new Error("INVALID_PROFILE_UPDATE");
   }
@@ -32,7 +32,7 @@ export function validateMemberProfileUpdate(input, currentAge) {
   if (keys.length === 0 || keys.some((key) => !EDITABLE_FIELDS.has(key))) {
     throw new Error("PROFILE_UPDATE_FIELD_NOT_ALLOWED");
   }
-  const update = {};
+  const update: Record<string, unknown> = {};
   for (const key of keys) {
     switch (key) {
       case "fullName":
