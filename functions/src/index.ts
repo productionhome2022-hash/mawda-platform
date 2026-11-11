@@ -833,6 +833,136 @@ export const markNotificationRead = onCall(async (request) => {
 });
 
 
+/**
+ * Room messages are written only through trusted callables. Membership and
+ * room-scoped moderation permissions are checked on every operation.
+ */
+export const sendRoomMessage = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = request.data?.roomId;
+  const content = typeof request.data?.content === "string" ? request.data.content.trim() : "";
+  const clientMessageId = request.data?.clientMessageId;
+  if (typeof roomId !== "string" || roomId.length < 1 || roomId.length > 128 ||
+      content.length < 1 || content.length > 4000 ||
+      typeof clientMessageId !== "string" || clientMessageId.length < 8 ||
+      clientMessageId.length > 80 || !/^[A-Za-z0-9_-]+$/.test(clientMessageId)) {
+    throw new HttpsError("invalid-argument", "بيانات رسالة الغرفة غير صالحة.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId);
+  const membershipRef = roomRef.collection("members").doc(uid);
+  const messageId = createHash("sha256").update(uid + ":" + clientMessageId).digest("hex");
+  const messageRef = roomRef.collection("messages").doc(messageId);
+  const result = await db.runTransaction(async (transaction) => {
+    const [room, membership, existing] = await Promise.all([
+      transaction.get(roomRef), transaction.get(membershipRef), transaction.get(messageRef),
+    ]);
+    if (!room.exists || room.data()?.status !== "active") {
+      throw new HttpsError("not-found", "الغرفة غير موجودة أو غير نشطة.");
+    }
+    if (!membership.exists) {
+      throw new HttpsError("permission-denied", "يجب الانضمام إلى الغرفة قبل إرسال الرسائل.");
+    }
+    if (existing.exists) {
+      const prior = existing.data()!;
+      if (prior.senderUid !== uid || prior.content !== content) {
+        throw new HttpsError("already-exists", "معرف الرسالة مستخدم مع محتوى مختلف.");
+      }
+      return { messageId, idempotentReplay: true };
+    }
+    transaction.create(messageRef, {
+      messageId,
+      senderUid: uid,
+      content,
+      type: "text",
+      isDeleted: false,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { messageId, idempotentReplay: false };
+  });
+  return result;
+});
+
+export const getRoomMessages = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = request.data?.roomId;
+  if (typeof roomId !== "string" || roomId.length < 1 || roomId.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId);
+  const [room, membership] = await Promise.all([
+    roomRef.get(),
+    roomRef.collection("members").doc(uid).get(),
+  ]);
+  if (!room.exists || !membership.exists) {
+    throw new HttpsError("permission-denied", "لا تملك صلاحية قراءة رسائل هذه الغرفة.");
+  }
+  const messages = await roomRef.collection("messages")
+    .orderBy("createdAt", "desc").limit(50).get();
+  return {
+    messages: messages.docs.reverse().map((doc) => {
+      const data = doc.data();
+      return {
+        messageId: doc.id,
+        senderUid: data.senderUid ?? "",
+        content: data.isDeleted === true ? "تم حذف هذه الرسالة" : (data.content ?? ""),
+        isDeleted: data.isDeleted === true,
+        createdAt: data.createdAt?.toMillis?.() ?? null,
+      };
+    }),
+  };
+});
+
+export const deleteRoomMessage = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = request.data?.roomId;
+  const messageId = request.data?.messageId;
+  if (typeof roomId !== "string" || roomId.length < 1 || roomId.length > 128 ||
+      typeof messageId !== "string" || !/^[a-f0-9]{64}$/.test(messageId)) {
+    throw new HttpsError("invalid-argument", "بيانات حذف الرسالة غير صالحة.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId);
+  const messageRef = roomRef.collection("messages").doc(messageId);
+  const membershipRef = roomRef.collection("members").doc(uid);
+  const moderatorRef = roomRef.collection("moderators").doc(uid);
+  await db.runTransaction(async (transaction) => {
+    const [room, membership, moderator, message] = await Promise.all([
+      transaction.get(roomRef), transaction.get(membershipRef),
+      transaction.get(moderatorRef), transaction.get(messageRef),
+    ]);
+    if (!room.exists || !message.exists) {
+      throw new HttpsError("not-found", "الغرفة أو الرسالة غير موجودة.");
+    }
+    const ownerSession = hasPlatformOwnerSession(
+      (request.auth?.token ?? {}) as Record<string, unknown>,
+    );
+    const permissions = moderator.data()?.permissions ?? {};
+    const canModerate = room.data()?.ownerUid === uid ||
+      permissions.manageMessages === true || ownerSession;
+    if (!membership.exists && !ownerSession) {
+      throw new HttpsError("permission-denied", "لا تملك صلاحية إدارة رسائل هذه الغرفة.");
+    }
+    if (message.data()?.senderUid !== uid && !canModerate) {
+      throw new HttpsError("permission-denied", "يمكنك حذف رسائلك فقط ما لم تكن تملك صلاحية الإشراف.");
+    }
+    if (message.data()?.isDeleted === true) return;
+    transaction.update(messageRef, {
+      content: "",
+      isDeleted: true,
+      deletedAt: FieldValue.serverTimestamp(),
+      deletedBy: uid,
+    });
+    const auditRef = db.collection("roomAuditLogs").doc();
+    transaction.create(auditRef, {
+      roomId,
+      actorUid: uid,
+      messageId,
+      action: "room_message_deleted",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { roomId, messageId, deleted: true };
+});
+
 /** Creates public or private rooms only through the trusted platform owner. */
 export const createRoom = onCall(async (request) => {
   const ownerUid = requireOwner(request);
