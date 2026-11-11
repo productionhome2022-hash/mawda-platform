@@ -16,14 +16,8 @@ class _LandingPageScreenState extends State<LandingPageScreen> {
 
   final TextEditingController _verifiedEmailController = TextEditingController();
   final TextEditingController _verifiedPasswordController = TextEditingController();
-  bool _rememberMe = true;
 
   final TextEditingController _visitorUsernameController = TextEditingController();
-  final TextEditingController _visitorPasswordController = TextEditingController();
-  final TextEditingController _visitorAgeController = TextEditingController();
-  String _visitorCountry = 'سوريا';
-  String _visitorGender = 'ذكر';
-  String _selectedAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200';
 
   // قاموس النصوص متعدد اللغات
   final Map<String, Map<String, String>> _localizedTexts = {
@@ -158,7 +152,7 @@ class _LandingPageScreenState extends State<LandingPageScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.pinkAccent : Colors.white.withOpacity(0.1),
+          color: isSelected ? Colors.pinkAccent : Colors.white.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: isSelected ? Colors.pinkAccent : Colors.white24),
         ),

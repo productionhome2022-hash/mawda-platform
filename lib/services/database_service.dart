@@ -1,41 +1,50 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/user_model.dart';
+import '../models/app_models.dart';
 
 class DatabaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // حفظ بيانات المستخدم الجديد مع منح مكافأة المرحلة الأولى (500 كوينز لتوقيع البريد)
+  // Save the complete user model without dropping profile fields.
   Future<void> saveNewUser(UserModel user) async {
-    final userWithBonus = UserModel(
-      uid: user.uid,
-      email: user.email,
-      fullName: user.fullName,
-      gender: user.gender,
-      bio: user.bio,
-      profileImageUrl: user.profileImageUrl,
-      isEmailVerified: true,
-      coinsBalance: 500, // مكافأة المرحلة الأولى
-      activeTitle: 'عضو مؤسس',
-      role: 'user',
-    );
+    final userData = user.toMap();
+    userData['coins'] = user.coins == 0 ? 500 : user.coins;
 
-    await _db.collection('users').doc(user.uid).set(userWithBonus.toMap());
+    await _db.collection('users').doc(user.uid).set(userData);
   }
 
-  // تحديث حالة التوثيق البيومتري ومنح المرحلة الثانية (1500 كوينز إضافية ليصبح المجموع 2000)
+  // Award the biometric verification bonus once, using a transaction.
   Future<void> verifyUserBiometric(String uid, int currentCoins) async {
-    await _db.collection('users').doc(uid).update({
-      'isBiometricVerified': true,
-      'coinsBalance': currentCoins + 1500, // مكافأة المرحلة الثانية
+    final userRef = _db.collection('users').doc(uid);
+
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(userRef);
+      if (!snapshot.exists) {
+        throw StateError('Cannot verify a user that does not exist.');
+      }
+
+      final data = snapshot.data() ?? <String, dynamic>{};
+      if (data['isBiometricVerified'] == true) {
+        return;
+      }
+
+      final storedCoins = data['coins'];
+      final balance = storedCoins is num ? storedCoins.toInt() : currentCoins;
+
+      transaction.update(userRef, {
+        'isBiometricVerified': true,
+        'coins': balance + 1500,
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
     });
   }
 
-  // جلب بيانات المستخدم
+  // Fetch user data using the canonical application model.
   Future<UserModel?> getUserData(String uid) async {
-    DocumentSnapshot doc = await _db.collection('users').doc(uid).get();
-    if (doc.exists) {
-      return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+    final doc = await _db.collection('users').doc(uid).get();
+    final data = doc.data();
+    if (!doc.exists || data == null) {
+      return null;
     }
-    return null;
+    return UserModel.fromMap(data);
   }
 }
