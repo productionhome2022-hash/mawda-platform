@@ -1047,6 +1047,10 @@ export const setMemberAccessStatus = onCall(async (request) => {
   const disabled = status !== "active";
   await auth.updateUser(targetUid, { disabled });
   try {
+    // Revoke existing sessions before recording the final administrative state.
+    // If any subsequent step fails, restore the previous disabled flag; token
+    // revocation itself is safe and may require the member to sign in again.
+    await auth.revokeRefreshTokens(targetUid);
     const userRef = db.collection("users").doc(targetUid);
     await db.runTransaction(async (transaction) => {
       const user = await transaction.get(userRef);
@@ -1067,7 +1071,6 @@ export const setMemberAccessStatus = onCall(async (request) => {
         createdAt: FieldValue.serverTimestamp(),
       });
     });
-    await auth.revokeRefreshTokens(targetUid);
   } catch (error) {
     await auth.updateUser(targetUid, { disabled: previousDisabled });
     if (error instanceof HttpsError) throw error;
