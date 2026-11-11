@@ -80,8 +80,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _editField(country, 'الدولة', maxLength: 80),
                   _editField(region, 'المنطقة / المدينة', maxLength: 80),
                   _editField(bio, 'نبذة عنك', maxLength: 500, maxLines: 4),
-                  _editField(interests, 'الاهتمامات (افصل بينها بفاصلة)', maxLength: 800),
-                  _editField(goals, 'الأهداف: friendship, social_connection, romantic_dating, marriage', maxLength: 400),
+                  _editField(interests, 'الاهتمامات (اختياري، افصل بينها بفاصلة)', maxLength: 800, required: false),
+                  _editField(goals, 'الأهداف (اختياري): friendship, social_connection, romantic_dating, marriage', maxLength: 400, required: false),
                 ],
               ),
             ),
@@ -157,6 +157,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String label, {
     int maxLength = 120,
     int maxLines = 1,
+    bool required = true,
   }) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 6),
     child: TextFormField(
@@ -166,6 +167,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
       validator: (value) {
         final text = value?.trim() ?? '';
+        if (text.isEmpty && !required) return null;
         if (label == 'نبذة عنك') return text.length <= 500 ? null : 'الحد الأقصى 500 حرف.';
         if (text.isEmpty) return 'هذا الحقل مطلوب.';
         return null;
