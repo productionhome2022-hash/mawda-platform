@@ -213,7 +213,7 @@ class _MemberProfileFormState extends State<_MemberProfileForm> {
                 _field('العمر', _age, keyboardType: TextInputType.number,
                   validator: (value) {
                     final age = int.tryParse(value ?? '');
-                    return age == null || age < 1 || age > 120 ? 'أدخل عمراً صحيحاً' : null;
+                    return age == null || age < 16 || age > 120 ? 'يجب أن يكون العمر 16 عاماً على الأقل' : null;
                   }),
                 _field('المهنة', _profession),
                 _field('الدولة', _country),
@@ -283,6 +283,8 @@ class _MemberProfileFormState extends State<_MemberProfileForm> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 6),
+                const Text('الصداقة والتواصل الاجتماعي متاحان من 16 عاماً، أما نية الزواج فمن 18 عاماً.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
                 const SizedBox(height: 12),
                 if (_error != null) ...[
                   const SizedBox(height: 8),
