@@ -105,9 +105,10 @@ class _MemberProfileFormState extends State<_MemberProfileForm> {
     super.dispose();
   }
 
-  String _required(String? value) {
+  String? _required(String? value) {
     if (value == null || value.trim().isEmpty) return 'هذا الحقل مطلوب';
-    return value.trim().length < 2 ? 'أدخل حرفين على الأقل' : '';
+    if (value.trim().length < 2) return 'أدخل حرفين على الأقل';
+    return null;
   }
 
   List<String> _splitList(String value) => value
@@ -172,10 +173,7 @@ class _MemberProfileFormState extends State<_MemberProfileForm> {
         controller: controller,
         maxLines: maxLines,
         keyboardType: keyboardType,
-        validator: validator ?? (value) {
-          final error = _required(value);
-          return error.isEmpty ? null : error;
-        },
+        validator: validator ?? _required,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
