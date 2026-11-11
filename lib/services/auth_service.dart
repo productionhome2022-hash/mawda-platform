@@ -21,7 +21,9 @@ class AuthService {
     if (!user.emailVerified) await user.sendEmailVerification();
   }
 
-  Future<void> reloadCurrentUser() async {\n    await _auth.currentUser?.reload();\n  }
+  Future<void> reloadCurrentUser() async {
+    await _auth.currentUser?.reload();
+  }
   Future<void> sendPasswordResetEmail(String email) =>
       _auth.sendPasswordResetEmail(email: email.trim());
   Future<void> signOut() => _auth.signOut();
