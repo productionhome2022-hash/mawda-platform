@@ -13,6 +13,7 @@ type TransferRequest = {
   recipientUid?: unknown;
   amount?: unknown;
   requestId?: unknown;
+  expectedCommissionBps?: unknown;
 };
 
 function requireAuthenticatedUid(uid: string | undefined): string {
@@ -64,6 +65,9 @@ export const transferCoins = onCall(async (request) => {
   const recipientUid = typeof data.recipientUid === "string" ? data.recipientUid.trim() : "";
   const amount = readSafeInteger(data.amount, "amount");
   const requestId = requireRequestId(data.requestId);
+  const expectedCommissionBps = data.expectedCommissionBps === undefined
+    ? undefined
+    : readSafeInteger(data.expectedCommissionBps, "expectedCommissionBps");
 
   if (!recipientUid || recipientUid.length > 128) {
     throw new HttpsError("invalid-argument", "معرف المستلم غير صالح.");
@@ -125,6 +129,9 @@ export const transferCoins = onCall(async (request) => {
 
     if (commissionBps < 0 || commissionBps >= 10000) {
       throw new HttpsError("failed-precondition", "إعداد نسبة العمولة غير صالح.");
+    }
+    if (expectedCommissionBps !== undefined && expectedCommissionBps !== commissionBps) {
+      throw new HttpsError("failed-precondition", "تغيرت نسبة العمولة. حدّث عرض التحويل قبل التأكيد.");
     }
 
     const senderData = senderSnapshot.data()!;
