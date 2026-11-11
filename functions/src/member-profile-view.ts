@@ -47,3 +47,12 @@ export function projectPublicMemberProfile(
     goals,
   };
 }
+
+/** Owners always see their own profile; other viewers require explicit public opt-in. */
+export function canViewMemberProfile(
+  viewerUid: string,
+  targetUid: string,
+  visibility: unknown,
+): boolean {
+  return viewerUid === targetUid || visibility === "public";
+}
