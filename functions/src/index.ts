@@ -2,6 +2,7 @@ import { initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
+import { calculateTransferBreakdown } from "./coin-math";
 
 initializeApp();
 
@@ -135,12 +136,10 @@ export const transferCoins = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "رصيدك من الكوينز غير كافٍ.");
     }
 
-    // Basis points: 2,000 = 20%. Integer math avoids floating-point drift.
-    const fee = Number((BigInt(amount) * BigInt(commissionBps)) / 10000n);
-    const netAmount = amount - fee;
-    if (netAmount <= 0) {
-      throw new HttpsError("failed-precondition", "المبلغ الصافي بعد العمولة يجب أن يكون أكبر من صفر.");
-    }
+    // Basis points: 2,000 = 20%. Exact integer arithmetic avoids floating-point drift.
+    const breakdown = calculateTransferBreakdown(amount, commissionBps);
+    const fee = breakdown.commissionAmount;
+    const netAmount = breakdown.netAmount;
     if (!Number.isSafeInteger(senderBalance - amount) ||
         !Number.isSafeInteger(recipientBalance + netAmount)) {
       throw new HttpsError("out-of-range", "الرصيد الناتج يتجاوز الحد الرقمي الآمن.");
