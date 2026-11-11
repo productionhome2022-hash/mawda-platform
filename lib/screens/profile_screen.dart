@@ -22,6 +22,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isTransferringCoins = false;
   String? _pendingTransferKey;
   String? _pendingTransferRequestId;
+  late Future<Map<String, dynamic>> _profileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = _loadProfile();
+  }
+
+  Future<void> _changeProfileVisibility(String visibility) async {
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('setMemberProfileVisibility');
+      await callable.call(<String, dynamic>{'visibility': visibility});
+      if (!mounted) return;
+      setState(() => _profileFuture = _loadProfile());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(visibility == 'public'
+            ? 'أصبح ملفك متاحاً للأعضاء وفق المعلومات العامة المعتمدة.'
+            : 'تم جعل ملفك خاصاً.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر تحديث إعداد الخصوصية.')),
+      );
+    }
+  }
 
   Future<Map<String, dynamic>> _loadProfile() async {
     final callable = FirebaseFunctions.instance.httpsCallable('getMemberProfile');
@@ -159,7 +185,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: Colors.black87,
       ),
       body: FutureBuilder<Map<String, dynamic>>(
-        future: _loadProfile(),
+        future: _profileFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -196,6 +222,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final country = (data['country'] as String?) ?? '';
           final region = (data['region'] as String?) ?? '';
           final interests = (data['interests'] as List<dynamic>? ?? const []);
+          final profileVisibility = (data['profileVisibility'] as String?) ?? 'private';
 
           return ListView(
             padding: const EdgeInsets.only(bottom: 32),
@@ -244,6 +271,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
+              if (isMyProfile)
+                SwitchListTile(
+                  title: const Text('إتاحة ملفي للأعضاء'),
+                  subtitle: Text(profileVisibility == 'public'
+                      ? 'ملفك ظاهر للأعضاء الآخرين بالمعلومات العامة فقط.'
+                      : 'ملفك خاص ولا يظهر للأعضاء الآخرين.'),
+                  value: profileVisibility == 'public',
+                  onChanged: (visible) => _changeProfileVisibility(visible ? 'public' : 'private'),
+                  secondary: const Icon(Icons.privacy_tip_outlined),
+                ),
               if (!isMyProfile)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
