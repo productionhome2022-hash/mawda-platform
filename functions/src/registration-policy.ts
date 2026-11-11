@@ -17,7 +17,7 @@ export function validateRegistrationPolicy(
   if (
     typeof minimumAge !== "number" ||
     !Number.isSafeInteger(minimumAge) ||
-    minimumAge < 1 ||
+    minimumAge < 16 ||
     minimumAge > 120
   ) {
     throw new Error("REGISTRATION_MINIMUM_AGE_INVALID");
