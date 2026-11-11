@@ -1076,3 +1076,28 @@ export const setMemberAccessStatus = onCall(async (request) => {
   }
   return { memberUid: targetUid, status, sessionsRevoked: true };
 });
+
+
+/** Owner-only, minimal member lookup for support and account operations. */
+export const getOwnerMemberSummary = onCall(async (request) => {
+  requireOwner(request);
+  const memberUid = request.data?.memberUid;
+  if (typeof memberUid !== "string" || memberUid.length < 1 || memberUid.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+  }
+  const [member, authUser] = await Promise.all([
+    db.collection("users").doc(memberUid).get(),
+    getAuth().getUser(memberUid).catch(() => null),
+  ]);
+  if (!member.exists) throw new HttpsError("not-found", "ملف العضو غير موجود.");
+  const data = member.data() ?? {};
+  return {
+    uid: memberUid,
+    displayName: typeof data.displayName === "string" ? data.displayName : "",
+    username: typeof data.username === "string" ? data.username : "",
+    accountStatus: typeof data.accountStatus === "string" ? data.accountStatus : "active",
+    emailVerified: authUser?.emailVerified === true,
+    authDisabled: authUser?.disabled === true,
+    createdAt: data.createdAt?.toMillis?.() ?? null,
+  };
+});
