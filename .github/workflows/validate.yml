@@ -48,3 +48,10 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Compile and test backend
         run: npm test
+      - name: Set up Java for Firebase emulators
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Run Firestore and Storage rules emulator tests
+        run: npm run test:rules
