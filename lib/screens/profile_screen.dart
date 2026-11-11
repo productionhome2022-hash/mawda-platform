@@ -1,12 +1,11 @@
-import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../services/coin_system_service.dart';
 
 class ProfileScreen extends StatefulWidget {
-  final String profileUserId; // صاحب البروفايل المراد زيارته
-  final String currentUserId; // العضو الزائر حالياً
+  final String profileUserId;
+  final String currentUserId;
 
   const ProfileScreen({
     Key? key,
@@ -19,14 +18,19 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
   final CoinSystemService _coinService = CoinSystemService();
   bool _isTransferringCoins = false;
   String? _pendingTransferKey;
   String? _pendingTransferRequestId;
 
-  // 2. تحويل الكوينز عبر الخادم مع عرض العمولة والصافي قبل التأكيد.
+  Future<Map<String, dynamic>> _loadProfile() async {
+    final callable = FirebaseFunctions.instance.httpsCallable('getMemberProfile');
+    final response = await callable.call(<String, dynamic>{
+      'userId': widget.profileUserId,
+    });
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   Future<void> _showGiftCoinsDialog() async {
     final amountController = TextEditingController();
     final amount = await showDialog<int>(
@@ -50,9 +54,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ElevatedButton(
             onPressed: () {
               final value = int.tryParse(amountController.text.trim());
-              if (value != null && value > 0) {
-                Navigator.pop(dialogContext, value);
-              }
+              if (value != null && value > 0) Navigator.pop(dialogContext, value);
             },
             child: const Text('متابعة'),
           ),
@@ -60,7 +62,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     amountController.dispose();
-
     if (amount == null || !mounted || _isTransferringCoins) return;
     await _quoteAndConfirmCoinTransfer(amount);
   }
@@ -70,7 +71,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final quote = await _coinService.getTransferQuote(amount);
       if (!mounted) return;
-
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -79,13 +79,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _transferSummaryRow('المبلغ الذي سيُخصم منك', '${quote.grossAmount} كوين'),
-              _transferSummaryRow(
+              _summaryRow('المبلغ الذي سيُخصم منك', '${quote.grossAmount} كوين'),
+              _summaryRow(
                 'عمولة المنصة (${quote.commissionPercent.toStringAsFixed(2)}%)',
                 '${quote.commissionAmount} كوين',
               ),
               const Divider(),
-              _transferSummaryRow('الصافي الذي سيصل للعضو', '${quote.netAmount} كوين'),
+              _summaryRow('الصافي الذي سيصل للعضو', '${quote.netAmount} كوين'),
             ],
           ),
           actions: [
@@ -100,7 +100,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       );
-
       if (confirmed != true || !mounted) return;
 
       final transferKey = '${widget.profileUserId}:$amount';
@@ -108,7 +107,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _pendingTransferKey = transferKey;
         _pendingTransferRequestId = const Uuid().v4();
       }
-
       final receipt = await _coinService.transferCoins(
         recipientUid: widget.profileUserId,
         amount: amount,
@@ -117,7 +115,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
       _pendingTransferKey = null;
       _pendingTransferRequestId = null;
-
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -134,200 +131,135 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('حدث خطأ غير متوقع أثناء التحويل. لم نعرض نجاحاً غير مؤكد.')),
+        const SnackBar(content: Text('حدث خطأ أثناء التحويل. لم نعرض نجاحاً غير مؤكد.')),
       );
     } finally {
       if (mounted) setState(() => _isTransferringCoins = false);
     }
   }
 
-  Widget _transferSummaryRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(child: Text(label)),
-          const SizedBox(width: 12),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // Expired media must be removed by a trusted scheduled backend job,
-    // never by a profile visitor's client.
-  }
+  Widget _summaryRow(String label, String value) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(child: Text(label)),
+            const SizedBox(width: 12),
+            Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
-    bool isMyProfile = widget.currentUserId == widget.profileUserId;
-
+    final isMyProfile = widget.currentUserId == widget.profileUserId;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mawda Cinematic Profile 🎬'),
+        title: const Text('الملف الشخصي | مودة'),
         backgroundColor: Colors.black87,
       ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: _firestore.collection('users').doc(widget.profileUserId).snapshots(),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _loadProfile(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
+          if (snapshot.hasError || !snapshot.hasData) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.lock_outline, size: 48),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'تعذر عرض الملف. قد يكون خاصاً أو غير متاح حالياً.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: () => setState(() {}),
+                      child: const Text('إعادة المحاولة'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
 
-          var userData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
-          String name = userData['name'] ?? 'Mawda Member';
-          String bio = userData['bio'] ?? 'Welcome to my cinematic profile...';
-          String coverUrl = userData['coverUrl'] ?? '';
-          
-          List<dynamic> purchasedFeatures = userData['purchasedFeatures'] ?? [];
-          List<dynamic> purchasedBadges = userData['purchasedBadges'] ?? [];
-
-          bool hasThemeFeature = purchasedFeatures.contains('theme_feature');
+          final data = snapshot.data!;
+          final name = (data['displayName'] as String?) ?? 'Mawda Member';
+          final username = (data['username'] as String?) ?? '';
+          final bio = (data['bio'] as String?) ?? '';
+          final profession = (data['profession'] as String?) ?? '';
+          final country = (data['country'] as String?) ?? '';
+          final region = (data['region'] as String?) ?? '';
+          final interests = (data['interests'] as List<dynamic>? ?? const []);
 
           return ListView(
+            padding: const EdgeInsets.only(bottom: 32),
             children: [
-              // الغلاف الشخصي والصورة الشخصية
-              Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    height: 200,
-                    width: double.infinity,
-                    color: Colors.grey[800],
-                    child: coverUrl.isNotEmpty
-                        ? Image.network(coverUrl, fit: BoxFit.cover)
-                        : const Center(child: Text('Cinematic Cover 🌆', style: TextStyle(color: Colors.white70))),
-                  ),
-                  Positioned(
-                    bottom: -50,
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundColor: Colors.white,
-                      child: CircleAvatar(
-                        radius: 48,
-                        backgroundColor: Colors.deepPurple,
-                        child: Text(name.isNotEmpty ? name.substring(0, 1) : 'M', style: const TextStyle(fontSize: 32, color: Colors.white)),
-                      ),
-                    ),
-                  ),
-                ],
+              Container(
+                height: 150,
+                color: Colors.blueGrey.shade900,
+                child: const Center(
+                  child: Icon(Icons.favorite, color: Colors.white, size: 52),
+                ),
               ),
-              const SizedBox(height: 60),
-
-              Center(child: Text(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
-              const SizedBox(height: 5),
-              Center(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text(bio, style: const TextStyle(color: Colors.grey), textAlign: TextAlign.center))),
-              const SizedBox(height: 20),
-
-              // خيارات الزائر (إهداء كوينز وأوسمة إن لم يكن بروفايلك الشخصي)
-              if (!isMyProfile) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.amber[700]),
-                        icon: const Icon(Icons.monetization_on, color: Colors.black),
-                        label: Text(_isTransferringCoins ? 'جارٍ التحويل...' : 'Gift Coins 🪙', style: const TextStyle(color: Colors.black)),
-                        onPressed: _isTransferringCoins ? null : _showGiftCoinsDialog,
-                      ),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
-                        icon: const Icon(Icons.military_tech),
-                        label: const Text('Gift Badge / Title'),
-                        onPressed: () {
-                          // نافذة إهداء الأوسمة والألقاب المشراة
-                        },
-                      ),
-                    ],
+              Transform.translate(
+                offset: const Offset(0, -42),
+                child: CircleAvatar(
+                  radius: 48,
+                  backgroundColor: Colors.deepPurple,
+                  child: Text(
+                    name.isNotEmpty ? name.substring(0, 1) : 'M',
+                    style: const TextStyle(fontSize: 32, color: Colors.white),
                   ),
                 ),
-                const Divider(height: 30),
-              ],
-
-              // مشغل الموسيقى الشخصي (يظهر فقط إذا اشتراه العضو وفعله)
-              if (hasThemeFeature) ...[
-                ListTile(
-                  leading: const Icon(Icons.music_note, color: Colors.blue),
-                  title: const Text('Profile Cinematic Audio Track 🎵'),
-                  subtitle: const Text('Tap to play member exclusive audio track.'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.play_arrow, color: Colors.green, size: 30),
-                    onPressed: () {
-                      // تشغيل الملف الصوتي
-                    },
-                  ),
-                ),
-                const Divider(height: 20),
-              ],
-
-              // الأوسمة والألقاب المشراة حصراً
-              if (purchasedBadges.isNotEmpty) ...[
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text('Badges & Titles 👑', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 50,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    children: purchasedBadges.map((badge) {
-                      return Container(
-                        margin: const EdgeInsets.only(right: 10),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.amber[100],
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.amber),
+              ),
+              Transform.translate(
+                offset: const Offset(0, -30),
+                child: Column(
+                  children: [
+                    Text(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    if (username.isNotEmpty) Text('@$username'),
+                    if (bio.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                        child: Text(bio, textAlign: TextAlign.center),
+                      ),
+                    if (profession.isNotEmpty || region.isNotEmpty || country.isNotEmpty)
+                      Text([profession, region, country].where((value) => value.isNotEmpty).join(' • ')),
+                    if (interests.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          alignment: WrapAlignment.center,
+                          children: interests.map((item) => Chip(label: Text('$item'))).toList(),
                         ),
-                        child: Center(child: Text('$badge 🌟', style: const TextStyle(fontWeight: FontWeight.bold))),
-                      );
-                    }).toList(),
+                      ),
+                  ],
+                ),
+              ),
+              if (!isMyProfile)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.monetization_on),
+                    label: Text(_isTransferringCoins ? 'جارٍ التحويل...' : 'إهداء كوينز'),
+                    onPressed: _isTransferringCoins ? null : _showGiftCoinsDialog,
                   ),
                 ),
-                const Divider(height: 30),
-              ],
-
-              // معرض الصور الشخصي (صور تدمر ذاتياً بعد أسبوع)
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text('Member Gallery (Auto-Destructs after 7 Days) 📸⏳', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              ),
-              const SizedBox(height: 10),
-              StreamBuilder<QuerySnapshot>(
-                stream: _firestore.collection('users').doc(widget.profileUserId).collection('gallery').orderBy('timestamp', descending: true).snapshots(),
-                builder: (context, gallerySnapshot) {
-                  if (!gallerySnapshot.hasData || gallerySnapshot.data!.docs.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text('No gallery photos currently available.', style: TextStyle(color: Colors.grey), textAlign: TextAlign.center),
-                    );
-                  }
-
-                  var images = gallerySnapshot.data!.docs;
-                  return GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: images.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 4, mainAxisSpacing: 4),
-                    itemBuilder: (context, index) {
-                      var imgData = images[index].data() as Map<String, dynamic>;
-                      String imgUrl = imgData['url'] ?? '';
-                      return Container(
-                        color: Colors.grey[300],
-                        child: imgUrl.isNotEmpty ? Image.network(imgUrl, fit: BoxFit.cover) : const Icon(Icons.image),
-                      );
-                    },
-                  );
-                },
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'تُعرض هنا المعلومات التي سمح العضو بمشاركتها فقط. معرض الصور والمزايا المدفوعة سيُعاد تفعليهما بعد اكتمال خدمات الوسائط والتحقق من صلاحياتها.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
               ),
             ],
           );
