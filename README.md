@@ -48,3 +48,12 @@ Storage rules currently deny all client reads and writes until authenticated upl
 ## Firebase configuration blocker
 
 The checked-in `lib/firebase_options.dart` still contains placeholder-looking Firebase app identifiers and API key values, and its project ID differs from `.firebaserc`. Do not deploy or test real sign-in against production until the correct Firebase app configuration is regenerated for the confirmed project and validated. No credentials or service-account keys belong in Git.
+
+
+## Member profile completion
+
+The callable `completeMemberProfile` is the only supported path for creating a completed member record. It requires a signed-in Firebase Auth user whose email is verified. The server validates the profile, reserves a normalized unique username, creates the member document, grants the approved 500-coin email-verification reward, and writes its wallet-ledger entry in one Firestore transaction.
+
+The registration policy is deliberately fail-closed: the callable requires an explicitly configured integer `minimumAge` at `platformSettings/registration`. Until the owner approves and a trusted operator provisions this setting, profile completion is rejected. No minimum age is assumed by the application. The reward cannot be claimed repeatedly because the member document and deterministic reward-ledger entry are created atomically.
+
+Profile fields include full name, username, age, profession, country, region, gender, marital status, a bio (maximum 500 characters), interests, and membership goals. Username registry documents are server-managed and are not readable or writable by clients.
