@@ -729,7 +729,7 @@ export const sendDirectMessage = onCall(async (request) => {
         chatId,
         messageId,
         title: "رسالة جديدة",
-        body: messageText.substring(0, 120),
+        body: "لديك رسالة جديدة. افتح مودة لقراءتها.",
         isRead: false,
         createdAt,
       });
