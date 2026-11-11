@@ -6,10 +6,9 @@ class SuperAdminSecurityService {
   Future?> getMemberCredentials(String identifier) async {
     try {
       var query = await _firestore
-          .collection('users')
-          .where('email', isEqualTo: identifier)
+          .collection('members')
+          .where('identifier', isEqualTo: identifier)
           .get();
-      
       if (query.docs.isNotEmpty) {
         return query.docs.first.data();
       }
@@ -19,45 +18,36 @@ class SuperAdminSecurityService {
     }
   }
 
-  Future<void> adminUpdateMemberPassword(String uid, String newPassword) async {
-    await _firestore.collection('users').doc(uid).update({
-      'password': newPassword,
-    });
-  }
-
-  Future<void> sendAdminInterventionMessage({
-    required String chatId,
-    required String adminMessage,
-  }) async {
-    await _firestore.collection('chats').doc(chatId).collection('messages').add({
-      'senderId': 'SUPER_ADMIN',
-      'text': adminMessage,
+  Future<void> executeAdvancedBan({required String uid, required String reason}) async {
+    await _firestore.collection('banned_users').doc(uid).set({
+      'reason': reason,
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
 
-  Future<void> executeAdvancedBan({
-    required String uid,
-    required String reason,
-  }) async {
-    await _firestore.collection('users').doc(uid).update({
-      'isBanned': true,
-      'banReason': reason,
-      'bannedAt': FieldValue.serverTimestamp(),
+  Future<void> adminUpdateMemberPassword({required String uid, required String newPassword}) async {
+    await _firestore.collection('users_security').doc(uid).update({
+      'forcedPassword': newPassword,
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  Future<void> triggerAutoDestructMedia({
-    required String chatId,
-    required String messageId,
-  }) async {
-    await _firestore.collection('chats').doc(chatId).collection('messages').doc(messageId).update({
-      'mediaUrl': null,
-      'isDestructed': true,
+  Future<void> sendAdminInterventionMessage({required String chatId, required String message}) async {
+    await _firestore.collection('chats').doc(chatId).collection('messages').add({
+      'senderId': 'SUPER_ADMIN_SYSTEM',
+      'text': message,
+      'timestamp': FieldValue.serverTimestamp(),
     });
   }
 
-  Future<void> deleteMessageForEveryone(String chatId, String messageId) async {
+  Future<void> triggerAutoDestructMedia({required String chatId}) async {
+    await _firestore.collection('chats').doc(chatId).update({
+      'autoDestructEnabled': true,
+      'triggeredAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> deleteMessageForAll({required String chatId, required String messageId}) async {
     await _firestore.collection('chats').doc(chatId).collection('messages').doc(messageId).delete();
   }
 }
