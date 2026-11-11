@@ -40,3 +40,24 @@ test("validates profile fields and age policy", () => {
   assert.throws(() => validateMemberProfile({ ...valid, age: 17 }, 18), /AGE_POLICY_NOT_MET/);
   assert.throws(() => validateMemberProfile({ ...valid, bio: "x".repeat(501) }, 18));
 });
+
+
+test("rejects unsupported gender and marital-status values", () => {
+  assert.throws(
+    () => validateMemberProfile({ ...valid, gender: "unknown" }, 18),
+    /gender: القيمة المختارة غير مدعومة/,
+  );
+  assert.throws(
+    () => validateMemberProfile({ ...valid, maritalStatus: "complicated" }, 18),
+    /maritalStatus: القيمة المختارة غير مدعومة/,
+  );
+});
+
+test("rejects malformed interest and goal collections", () => {
+  assert.throws(
+    () => validateMemberProfile({ ...valid, interests: "travel" }, 18),
+  );
+  assert.throws(
+    () => validateMemberProfile({ ...valid, goals: ["Friendship", "Friendship"] }, 18),
+  );
+});
