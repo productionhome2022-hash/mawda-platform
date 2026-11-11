@@ -3,7 +3,7 @@ const EDITABLE_FIELDS = new Set([
   "maritalStatus", "bio", "interests", "goals",
 ]);
 
-function text(value, field, min, max, allowEmpty = false) {
+function text(value: unknown, field: string, min: number, max: number, allowEmpty = false): string {
   if (typeof value !== "string") throw new Error(`INVALID_${field.toUpperCase()}`);
   const normalized = value.trim();
   if ((!allowEmpty && normalized.length < min) || normalized.length > max) {
@@ -12,7 +12,7 @@ function text(value, field, min, max, allowEmpty = false) {
   return normalized;
 }
 
-function list(value, field, maxItems, maxLength) {
+function list(value: unknown, field: string, maxItems: number, maxLength: number): string[] {
   if (!Array.isArray(value) || value.length > maxItems) {
     throw new Error(`INVALID_${field.toUpperCase()}`);
   }
@@ -43,32 +43,38 @@ export function validateMemberProfileUpdate(input: Record<string, unknown>, curr
       case "region":
         update[key] = text(input[key], key, 2, 80);
         break;
-      case "gender":
-        update.gender = text(input[key], key, 1, 32);
-        if (!["male", "female"].includes(update.gender)) throw new Error("INVALID_GENDER");
+      case "gender": {
+        const gender = text(input[key], key, 1, 32);
+        if (!["male", "female"].includes(gender)) throw new Error("INVALID_GENDER");
+        update.gender = gender;
         break;
-      case "maritalStatus":
-        update.maritalStatus = text(input[key], key, 1, 40);
-        if (!["single", "married", "divorced", "widowed"].includes(update.maritalStatus)) {
+      }
+      case "maritalStatus": {
+        const maritalStatus = text(input[key], key, 1, 40);
+        if (!["single", "married", "divorced", "widowed"].includes(maritalStatus)) {
           throw new Error("INVALID_MARITAL_STATUS");
         }
+        update.maritalStatus = maritalStatus;
         break;
+      }
       case "bio":
         update.bio = text(input[key], key, 0, 500, true);
         break;
       case "interests":
         update.interests = list(input[key], key, 20, 40);
         break;
-      case "goals":
-        update.goals = list(input[key], key, 10, 40);
-        if (update.goals.some((goal) => ![
+      case "goals": {
+        const goals = list(input[key], key, 10, 40);
+        if (goals.some((goal) => ![
           "friendship", "social_connection", "romantic_dating", "marriage",
         ].includes(goal))) throw new Error("INVALID_GOALS");
-        if (currentAge < 18 && update.goals.some((goal) =>
+        if (currentAge < 18 && goals.some((goal) =>
           ["romantic_dating", "marriage"].includes(goal))) {
           throw new Error("ADULT_RELATIONSHIP_GOAL_REQUIRES_ADULT");
         }
+        update.goals = goals;
         break;
+      }
     }
   }
   return update;
