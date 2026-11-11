@@ -95,7 +95,18 @@ export const transferCoins = onCall(async (request) => {
       if (prior.senderUid !== senderUid) {
         throw new HttpsError("permission-denied", "معرف التحويل مستخدم لعملية أخرى.");
       }
-      return { ...prior, transferId, idempotentReplay: true };
+      return {
+        transferId,
+        senderUid: prior.senderUid,
+        recipientUid: prior.recipientUid,
+        grossAmount: prior.grossAmount,
+        commissionBps: prior.commissionBps,
+        commissionPercent: prior.commissionPercent,
+        commissionAmount: prior.commissionAmount,
+        netAmount: prior.netAmount,
+        status: prior.status,
+        idempotentReplay: true,
+      };
     }
 
     if (!senderSnapshot.exists || !recipientSnapshot.exists) {
@@ -125,7 +136,7 @@ export const transferCoins = onCall(async (request) => {
     }
 
     // Basis points: 2,000 = 20%. Integer math avoids floating-point drift.
-    const fee = Math.floor((amount * commissionBps) / 10000);
+    const fee = Number((BigInt(amount) * BigInt(commissionBps)) / 10000n);
     const netAmount = amount - fee;
     if (netAmount <= 0) {
       throw new HttpsError("failed-precondition", "المبلغ الصافي بعد العمولة يجب أن يكون أكبر من صفر.");
@@ -188,7 +199,18 @@ export const transferCoins = onCall(async (request) => {
       createdAt,
     });
 
-    return { ...transfer, transferId, idempotentReplay: false };
+    return {
+      transferId,
+      senderUid,
+      recipientUid,
+      grossAmount: amount,
+      commissionBps,
+      commissionPercent: commissionBps / 100,
+      commissionAmount: fee,
+      netAmount,
+      status: "completed",
+      idempotentReplay: false,
+    };
   });
 
   logger.info("Coin transfer processed", {
