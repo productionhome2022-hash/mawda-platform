@@ -343,45 +343,50 @@ export const completeMemberProfile = onCall(async (request) => {
   }
 
   const registrationSettingsRef = db.doc("platformSettings/registration");
-  const registrationSettings = await registrationSettingsRef.get();
-  const registrationData = registrationSettings.exists ? registrationSettings.data() ?? {} : {};
-  if (registrationData.enabled !== true) {
-    throw new HttpsError(
-      "failed-precondition",
-      "التسجيل مغلق حالياً حتى يفعّله مالك المنصة ويضبط سياسة العمر.",
-    );
-  }
-  const configuredMinimumAge = registrationData.minimumAge;
-
-  let profile;
-  try {
-    profile = validateMemberProfile(
-      (request.data ?? {}) as Record<string, unknown>,
-      configuredMinimumAge,
-    );
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "بيانات الملف الشخصي غير صالحة.";
-    if (message === "REGISTRATION_POLICY_NOT_CONFIGURED") {
-      throw new HttpsError(
-        "failed-precondition",
-        "التسجيل متوقف مؤقتاً حتى يضبط مالك المنصة سياسة الحد الأدنى للعمر.",
-      );
-    }
-    if (message === "AGE_POLICY_NOT_MET") {
-      throw new HttpsError("failed-precondition", "العمر المدخل لا يطابق سياسة التسجيل المعتمدة.");
-    }
-    throw new HttpsError("invalid-argument", message);
-  }
-
   const userRef = db.collection("users").doc(uid);
-  const usernameRef = db.collection("usernameRegistry").doc(profile.username);
   const rewardLedgerRef = userRef.collection("walletLedger").doc("email_verification_reward_500");
 
   return db.runTransaction(async (transaction) => {
-    const [userSnapshot, usernameSnapshot] = await Promise.all([
+    // Read the registration gate in the same transaction as member creation.
+    // If the owner changes the policy concurrently, Firestore retries this
+    // transaction and the new policy is enforced before any profile/reward write.
+    const [userSnapshot, registrationSettings] = await Promise.all([
       transaction.get(userRef),
-      transaction.get(usernameRef),
+      transaction.get(registrationSettingsRef),
     ]);
+
+    const registrationData = registrationSettings.exists
+      ? registrationSettings.data() ?? {}
+      : {};
+    if (registrationData.enabled !== true) {
+      throw new HttpsError(
+        "failed-precondition",
+        "التسجيل مغلق حالياً حتى يفعّله مالك المنصة ويضبط سياسة العمر.",
+      );
+    }
+
+    let profile;
+    try {
+      profile = validateMemberProfile(
+        (request.data ?? {}) as Record<string, unknown>,
+        registrationData.minimumAge,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "بيانات الملف الشخصي غير صالحة.";
+      if (message === "REGISTRATION_POLICY_NOT_CONFIGURED") {
+        throw new HttpsError(
+          "failed-precondition",
+          "التسجيل متوقف مؤقتاً حتى يضبط مالك المنصة سياسة الحد الأدنى للعمر.",
+        );
+      }
+      if (message === "AGE_POLICY_NOT_MET") {
+        throw new HttpsError("failed-precondition", "العمر المدخل لا يطابق سياسة التسجيل المعتمدة.");
+      }
+      throw new HttpsError("invalid-argument", message);
+    }
+
+    const usernameRef = db.collection("usernameRegistry").doc(profile.username);
+    const usernameSnapshot = await transaction.get(usernameRef);
 
     if (userSnapshot.exists) {
       const existing = userSnapshot.data() ?? {};
