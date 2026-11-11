@@ -37,7 +37,7 @@ npm install
 npm test
 ```
 
-The tests cover the commission arithmetic. Emulator-backed authorization, transaction concurrency, retry, and rules tests remain required before production rollout.
+The unit tests cover commission arithmetic, username normalization, member-profile validation, and registration-policy boundaries. Emulator-backed authorization rules are tested separately; transaction concurrency and retry behavior still require dedicated integration tests before production rollout.
 
 ## Important integration boundary
 
