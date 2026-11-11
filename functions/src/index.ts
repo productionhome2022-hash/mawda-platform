@@ -7,6 +7,7 @@ import { logger } from "firebase-functions";
 import { calculateTransferBreakdown } from "./coin-math";
 import { validateRegistrationPolicy } from "./registration-policy";
 import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
+import { validateMemberProfileUpdate } from "./member-profile-update";
 
 initializeApp();
 
@@ -580,4 +581,55 @@ export const setMemberProfileVisibility = onCall(async (request) => {
   });
 
   return { visibility };
+});
+
+
+/**
+ * Updates only editable member-profile fields. Identity, age, username,
+ * verification state, roles, balances and moderation fields remain server-owned.
+ */
+export const updateMemberProfile = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const userRef = db.collection("users").doc(uid);
+  const requested = request.data?.profile;
+  try {
+    const result = await db.runTransaction(async (transaction) => {
+      const member = await transaction.get(userRef);
+      if (!member.exists || member.data()?.profileCompleted !== true) {
+        throw new HttpsError("failed-precondition", "يجب إكمال العضوية أولاً.");
+      }
+      const currentAge = member.data()?.age;
+      if (typeof currentAge !== "number" || !Number.isSafeInteger(currentAge)) {
+        throw new HttpsError("failed-precondition", "بيانات العمر المسجلة غير صالحة؛ يلزم دعم الإدارة.");
+      }
+      let update: Record<string, unknown>;
+      try {
+        update = validateMemberProfileUpdate(requested, currentAge);
+      } catch (error) {
+        const code = error instanceof Error ? error.message : "INVALID_PROFILE_UPDATE";
+        if (code === "ADULT_RELATIONSHIP_GOAL_REQUIRES_ADULT") {
+          throw new HttpsError("failed-precondition", "التعارف العاطفي ونية الزواج متاحان للأعضاء بعمر 18 عاماً فأكثر.");
+        }
+        throw new HttpsError("invalid-argument", "توجد بيانات غير صالحة أو حقول لا يُسمح بتعديلها.");
+      }
+      transaction.update(userRef, {
+        ...update,
+        ...(typeof update.fullName === "string" ? { displayName: update.fullName } : {}),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      const auditRef = db.collection("memberProfileAudit").doc();
+      transaction.create(auditRef, {
+        memberUid: uid,
+        action: "member_profile_updated",
+        changedFields: Object.keys(update).sort(),
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return { updatedFields: Object.keys(update).sort() };
+    });
+    return result;
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    logger.error("Member profile update failed", { uid, error });
+    throw new HttpsError("internal", "تعذر حفظ الملف الشخصي حالياً.");
+  }
 });
