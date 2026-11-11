@@ -49,6 +49,130 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+
+  Future<void> _editProfile(Map<String, dynamic> profile) async {
+    final fullName = TextEditingController(text: profile['displayName'] as String? ?? '');
+    final profession = TextEditingController(text: profile['profession'] as String? ?? '');
+    final country = TextEditingController(text: profile['country'] as String? ?? '');
+    final region = TextEditingController(text: profile['region'] as String? ?? '');
+    final bio = TextEditingController(text: profile['bio'] as String? ?? '');
+    final interests = TextEditingController(
+      text: (profile['interests'] as List<dynamic>? ?? const []).join(', '),
+    );
+    final goals = TextEditingController(
+      text: (profile['goals'] as List<dynamic>? ?? const []).join(', '),
+    );
+    final formKey = GlobalKey<FormState>();
+    final values = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تعديل الملف الشخصي'),
+        content: SizedBox(
+          width: 440,
+          child: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _editField(fullName, 'الاسم الكامل', maxLength: 80),
+                  _editField(profession, 'المهنة', maxLength: 80),
+                  _editField(country, 'الدولة', maxLength: 80),
+                  _editField(region, 'المنطقة / المدينة', maxLength: 80),
+                  _editField(bio, 'نبذة عنك', maxLength: 500, maxLines: 4),
+                  _editField(interests, 'الاهتمامات (افصل بينها بفاصلة)', maxLength: 800),
+                  _editField(goals, 'الأهداف: friendship, social_connection, romantic_dating, marriage', maxLength: 400),
+                ],
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(dialogContext, {
+                  'fullName': fullName.text.trim(),
+                  'profession': profession.text.trim(),
+                  'country': country.text.trim(),
+                  'region': region.text.trim(),
+                  'bio': bio.text.trim(),
+                  'interests': interests.text,
+                  'goals': goals.text,
+                });
+              }
+            },
+            child: const Text('حفظ التعديلات'),
+          ),
+        ],
+      ),
+    );
+    fullName.dispose();
+    profession.dispose();
+    country.dispose();
+    region.dispose();
+    bio.dispose();
+    interests.dispose();
+    goals.dispose();
+    if (values == null || !mounted) return;
+
+    List<String> splitList(String value) => value
+        .split(',')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
+    final updatedProfile = <String, dynamic>{
+      'fullName': values['fullName'],
+      'profession': values['profession'],
+      'country': values['country'],
+      'region': values['region'],
+      'bio': values['bio'],
+      'interests': splitList(values['interests']!),
+      'goals': splitList(values['goals']!),
+    };
+
+    try {
+      await FirebaseFunctions.instance.httpsCallable('updateMemberProfile').call({
+        'profile': updatedProfile,
+      });
+      if (!mounted) return;
+      setState(() => _profileFuture = _loadProfile());
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم حفظ تعديلات الملف الشخصي بنجاح.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر حفظ تعديلات الملف الشخصي.')),
+      );
+    }
+  }
+
+  Widget _editField(
+    TextEditingController controller,
+    String label, {
+    int maxLength = 120,
+    int maxLines = 1,
+  }) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: TextFormField(
+      controller: controller,
+      maxLength: maxLength,
+      maxLines: maxLines,
+      decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+      validator: (value) {
+        final text = value?.trim() ?? '';
+        if (label == 'نبذة عنك') return text.length <= 500 ? null : 'الحد الأقصى 500 حرف.';
+        if (text.isEmpty) return 'هذا الحقل مطلوب.';
+        return null;
+      },
+    ),
+  );
+
   Future<Map<String, dynamic>> _loadProfile() async {
     final callable = FirebaseFunctions.instance.httpsCallable('getMemberProfile');
     final response = await callable.call(<String, dynamic>{
@@ -271,6 +395,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
+              if (isMyProfile)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('تعديل بيانات الملف الشخصي'),
+                    onPressed: () => _editProfile(data),
+                  ),
+                ),
               if (isMyProfile)
                 SwitchListTile(
                   title: const Text('إتاحة ملفي للأعضاء'),
