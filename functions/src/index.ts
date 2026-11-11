@@ -1,4 +1,6 @@
 import { initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { validateMemberProfile } from "./member-profile";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
@@ -322,4 +324,124 @@ export const setTransferCommission = onCall(async (request) => {
 
   logger.info("Transfer commission settings updated", { actorUid, ...result });
   return result;
+});
+
+
+/**
+ * Completes a verified member's Mawda profile.
+ * The profile, unique username reservation, 500-coin email reward and
+ * immutable wallet ledger entry are created atomically by the trusted server.
+ * Registration is closed until the owner explicitly configures minimumAge at
+ * platformSettings/registration; no age threshold is silently assumed.
+ */
+export const completeMemberProfile = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const authUser = await getAuth().getUser(uid);
+  if (!authUser.email || !authUser.emailVerified) {
+    throw new HttpsError("failed-precondition", "يجب التحقق من البريد الإلكتروني قبل إكمال العضوية.");
+  }
+
+  const registrationSettingsRef = db.doc("platformSettings/registration");
+  const registrationSettings = await registrationSettingsRef.get();
+  const configuredMinimumAge = registrationSettings.exists
+    ? registrationSettings.data()?.minimumAge
+    : undefined;
+
+  let profile;
+  try {
+    profile = validateMemberProfile(
+      (request.data ?? {}) as Record<string, unknown>,
+      configuredMinimumAge,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "بيانات الملف الشخصي غير صالحة.";
+    if (message === "REGISTRATION_POLICY_NOT_CONFIGURED") {
+      throw new HttpsError(
+        "failed-precondition",
+        "التسجيل متوقف مؤقتاً حتى يضبط مالك المنصة سياسة الحد الأدنى للعمر.",
+      );
+    }
+    if (message === "AGE_POLICY_NOT_MET") {
+      throw new HttpsError("failed-precondition", "العمر المدخل لا يطابق سياسة التسجيل المعتمدة.");
+    }
+    throw new HttpsError("invalid-argument", message);
+  }
+
+  const userRef = db.collection("users").doc(uid);
+  const usernameRef = db.collection("usernameRegistry").doc(profile.username);
+  const rewardLedgerRef = userRef.collection("walletLedger").doc("email_verification_reward_500");
+
+  return db.runTransaction(async (transaction) => {
+    const [userSnapshot, usernameSnapshot] = await Promise.all([
+      transaction.get(userRef),
+      transaction.get(usernameRef),
+    ]);
+
+    if (userSnapshot.exists) {
+      const existing = userSnapshot.data() ?? {};
+      if (existing.profileCompleted === true) {
+        return {
+          memberId: uid,
+          username: existing.username,
+          profileCompleted: true,
+          rewardGranted: false,
+          alreadyCompleted: true,
+        };
+      }
+      throw new HttpsError(
+        "already-exists",
+        "يوجد سجل عضو سابق يحتاج إلى مراجعة آمنة قبل استكماله.",
+      );
+    }
+    if (usernameSnapshot.exists) {
+      throw new HttpsError("already-exists", "اسم المستخدم محجوز بالفعل. اختر اسماً آخر.");
+    }
+
+    const createdAt = FieldValue.serverTimestamp();
+    transaction.create(userRef, {
+      uid,
+      memberId: uid,
+      email: authUser.email,
+      emailVerified: true,
+      emailVerifiedAt: createdAt,
+      fullName: profile.fullName,
+      displayName: profile.fullName,
+      username: profile.username,
+      age: profile.age,
+      profession: profile.profession,
+      country: profile.country,
+      region: profile.region,
+      gender: profile.gender,
+      maritalStatus: profile.maritalStatus,
+      bio: profile.bio,
+      interests: profile.interests,
+      goals: profile.goals,
+      coins: 500,
+      profileCompleted: true,
+      createdAt,
+      updatedAt: createdAt,
+    });
+    transaction.create(usernameRef, {
+      uid,
+      username: profile.username,
+      createdAt,
+    });
+    transaction.create(rewardLedgerRef, {
+      type: "email_verification_reward",
+      direction: "credit",
+      amount: 500,
+      reason: "verified_email",
+      idempotencyKey: "email_verification_reward_500",
+      createdAt,
+    });
+
+    return {
+      memberId: uid,
+      username: profile.username,
+      profileCompleted: true,
+      rewardGranted: true,
+      rewardAmount: 500,
+      alreadyCompleted: false,
+    };
+  });
 });
