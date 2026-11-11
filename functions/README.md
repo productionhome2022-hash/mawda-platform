@@ -4,11 +4,12 @@ This package is the trusted execution layer for operations that must never be au
 
 ## Coin transfers
 
-The callable function `transferCoins` accepts:
+The callable function `getTransferQuote` returns the server-calculated gross amount, commission, net amount and settings version for the confirmation screen. The `transferCoins` callable accepts:
 
 - `recipientUid`: destination member UID
 - `amount`: positive integer gross amount debited from the sender
 - `requestId`: client-generated idempotency key (8–80 letters, digits, underscores or hyphens)
+- `expectedCommissionBps`: the rate shown in the confirmation quote; the server rejects the transfer if the owner changed the rate before confirmation
 
 The commission is read from `platformSettings/coinTransfers` as integer basis points (`commissionBps`; 2,000 = 20%). If no settings document exists, the initial commission is 0%. When transfers are disabled, the callable rejects the request.
 
@@ -40,4 +41,4 @@ The tests cover the commission arithmetic. Emulator-backed authorization, transa
 
 ## Important integration boundary
 
-The Flutter client must call `transferCoins` through Firebase Functions and display the returned gross amount, commission, and net amount. It must not update balances or ledger collections directly. Until the client integration and Firestore/Storage rules are completed, do not deploy this backend to production or enable real coin transfers.
+The Flutter profile transfer flow now requests a server quote, displays the gross amount/commission/net amount, and calls `transferCoins` through Firebase Functions with the quoted rate. The server rejects a stale quote if the owner changed the rate before confirmation. The client must never update balances or ledger collections directly. Store purchases and coin top-ups are deliberately non-operative until their trusted purchase and payment-verification endpoints exist. Until the client integration and Firestore/Storage rules are completed, do not deploy this backend to production or enable real coin transfers.
