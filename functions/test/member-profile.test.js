@@ -40,6 +40,7 @@ test("validates profile fields and age policy", () => {
   assert.deepEqual(profile.goals, ["friendship"]);
   assert.throws(() => validateMemberProfile({ ...valid, age: 15 }, 16), /AGE_POLICY_NOT_MET/);
   assert.throws(() => validateMemberProfile({ ...valid, age: 17, goals: ["marriage"] }, 16), /MARRIAGE_GOAL_REQUIRES_ADULT/);
+  assert.throws(() => validateMemberProfile({ ...valid, age: 17, goals: ["romantic_dating"] }, 16), /MARRIAGE_GOAL_REQUIRES_ADULT/);
   assert.throws(() => validateMemberProfile({ ...valid, bio: "x".repeat(501) }, 18));
 });
 
