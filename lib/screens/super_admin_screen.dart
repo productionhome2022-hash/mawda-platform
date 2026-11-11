@@ -240,19 +240,15 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   },
                 ),
                 const SizedBox(height: 8),
-                DropdownButtonFormField<int>(
-                  value: _minimumAge,
-                  decoration: const InputDecoration(
-                    labelText: 'الحد الأدنى لعمر التسجيل',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: List.generate(15, (index) => index + 16)
-                      .map((age) => DropdownMenuItem<int>(
-                        value: age,
-                        child: Text('$age سنة'),
-                      )).toList(),
+                Text('الحد الأدنى لعمر التسجيل: $_minimumAge سنة'),
+                Slider(
+                  value: _minimumAge.toDouble(),
+                  min: 16,
+                  max: 120,
+                  divisions: 104,
+                  label: '$_minimumAge',
                   onChanged: _savingRegistrationPolicy ? null : (value) {
-                    if (value != null) setState(() => _minimumAge = value);
+                    setState(() => _minimumAge = value.round());
                   },
                 ),
                 const SizedBox(height: 12),
