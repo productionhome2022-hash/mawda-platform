@@ -1,41 +1,28 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  AuthService({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
+  final FirebaseAuth _auth;
 
-  // الحصول على المستخدم الحالي
   User? get currentUser => _auth.currentUser;
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // تسجيل الدخول بالبريد وكلمة المرور
-  Future<User?> signInWithEmail(String email, String password) async {
-    try {
-      UserCredential result = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      return result.user;
-    } catch (e) {
-      print('خطأ في تسجيل الدخول: $e');
-      return null;
+  Future<UserCredential> signInWithEmail({required String email, required String password}) =>
+      _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
+
+  Future<UserCredential> signUpWithEmail({required String email, required String password}) =>
+      _auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
+
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(code: 'no-current-user', message: 'لا يوجد حساب مسجل حالياً.');
     }
+    if (!user.emailVerified) await user.sendEmailVerification();
   }
 
-  // إنشاء حساب جديد بالبريد وكلمة المرور
-  Future<User?> signUpWithEmail(String email, String password) async {
-    try {
-      UserCredential result = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      return result.user;
-    } catch (e) {
-      print('خطأ في إنشاء الحساب: $e');
-      return null;
-    }
-  }
-
-  // تسجيل الخروج
-  Future<void> signOut() async {
-    await _auth.signOut();
-  }
+  Future<void> reloadCurrentUser() async => _auth.currentUser?.reload();
+  Future<void> sendPasswordResetEmail(String email) =>
+      _auth.sendPasswordResetEmail(email: email.trim());
+  Future<void> signOut() => _auth.signOut();
 }
