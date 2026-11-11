@@ -21,21 +21,6 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 1. نظام التدمير الذاتي لصور المعرض بعد أسبوع (7 أيام)
-  Future<void> purgeExpiredGalleryImages() async {
-    DateTime weekAgo = DateTime.now().subtract(const Duration(days: 7));
-    QuerySnapshot expiredImages = await _firestore
-        .collection('users')
-        .doc(widget.profileUserId)
-        .collection('gallery')
-        .where('timestamp', isLessThan: weekAgo)
-        .get();
-
-    for (var doc in expiredImages.docs) {
-      await doc.reference.delete();
-    }
-  }
-
   final CoinSystemService _coinService = CoinSystemService();
   bool _isTransferringCoins = false;
 
@@ -163,7 +148,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    purgeExpiredGalleryImages(); // فحص وحذف صور المعرض الأقدم من أسبوع عند فتح البروفايل
+    // Expired media must be removed by a trusted scheduled backend job,
+    // never by a profile visitor's client.
   }
 
   @override
@@ -215,7 +201,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: CircleAvatar(
                         radius: 48,
                         backgroundColor: Colors.deepPurple,
-                        child: Text(name[0], style: const TextStyle(fontSize: 32, color: Colors.white)),
+                        child: Text(name.isNotEmpty ? name.substring(0, 1) : 'M', style: const TextStyle(fontSize: 32, color: Colors.white)),
                       ),
                     ),
                   ),
