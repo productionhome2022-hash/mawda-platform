@@ -6,7 +6,7 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { calculateTransferBreakdown } from "./coin-math";
 import { validateRegistrationPolicy } from "./registration-policy";
-import { projectPublicMemberProfile } from "./member-profile-view";
+import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
 
 initializeApp();
 
@@ -536,7 +536,7 @@ export const getMemberProfile = onCall(async (request) => {
   }
 
   const memberData = memberSnapshot.data() ?? {};
-  if (viewerUid !== targetUid && memberData.profileVisibility !== "public") {
+  if (!canViewMemberProfile(viewerUid, targetUid, memberData.profileVisibility)) {
     throw new HttpsError("permission-denied", "هذا الملف خاص ولا يمكن عرضه.");
   }
 
