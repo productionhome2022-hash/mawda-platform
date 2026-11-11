@@ -6,6 +6,7 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { calculateTransferBreakdown } from "./coin-math";
 import { validateRegistrationPolicy } from "./registration-policy";
+import { projectPublicMemberProfile } from "./member-profile-view";
 
 initializeApp();
 
@@ -513,4 +514,37 @@ export const setRegistrationPolicy = onCall(async (request) => {
 
   logger.info("Registration policy updated", { actorUid, ...result });
   return result;
+});
+
+
+/**
+ * Returns a minimal public profile only when the member explicitly opted in.
+ * A member may always read their own profile. Sensitive fields such as email,
+ * age, wallet balance and internal moderation data are never projected.
+ */
+export const getMemberProfile = onCall(async (request) => {
+  const viewerUid = requireAuthenticatedUid(request.auth?.uid);
+  const targetUid = request.data?.userId;
+  if (typeof targetUid !== "string" || targetUid.length < 1 || targetUid.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+  }
+
+  const memberSnapshot = await db.collection("users").doc(targetUid).get();
+  if (!memberSnapshot.exists) {
+    throw new HttpsError("not-found", "ملف العضو غير موجود.");
+  }
+
+  const memberData = memberSnapshot.data() ?? {};
+  if (viewerUid !== targetUid && memberData.profileVisibility !== "public") {
+    throw new HttpsError("permission-denied", "هذا الملف خاص ولا يمكن عرضه.");
+  }
+
+  const profile = projectPublicMemberProfile(targetUid, {
+    ...memberData,
+    profileVisibility: "public",
+  });
+  if (!profile) {
+    throw new HttpsError("permission-denied", "هذا الملف خاص ولا يمكن عرضه.");
+  }
+  return profile;
 });
