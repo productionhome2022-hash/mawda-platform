@@ -237,6 +237,37 @@ export const transferCoins = onCall(async (request) => {
  * 2,000 = 20%. لا يُسمح للعميل العادي بتغيير إعدادات العمولة.
  * يجب منح custom claim platformOwner من بيئة موثوقة فقط.
  */
+/** Returns a server-calculated quote so the client can show the fee before confirmation. */
+export const getTransferQuote = onCall(async (request) => {
+  requireAuthenticatedUid(request.auth?.uid);
+  const amount = readSafeInteger(request.data?.amount, "amount");
+  if (amount <= 0) {
+    throw new HttpsError("invalid-argument", "يجب أن يكون مبلغ التحويل أكبر من صفر.");
+  }
+
+  const settings = await TRANSFER_SETTINGS.get();
+  const data = settings.data() ?? {};
+  if (data.enabled === false) {
+    throw new HttpsError("failed-precondition", "التحويلات متوقفة مؤقتاً من الإدارة.");
+  }
+  const commissionBps = settings.exists
+    ? readSafeInteger(data.commissionBps ?? 0, "commissionBps")
+    : 0;
+
+  let breakdown;
+  try {
+    breakdown = calculateTransferBreakdown(amount, commissionBps);
+  } catch {
+    throw new HttpsError("failed-precondition", "إعداد العمولة أو مبلغ التحويل غير صالح.");
+  }
+
+  return {
+    ...breakdown,
+    commissionPercent: commissionBps / 100,
+    settingsVersion: typeof data.version === "number" ? data.version : 0,
+  };
+});
+
 export const setTransferCommission = onCall(async (request) => {
   const actorUid = requireOwner(request);
   const commissionBps = readSafeInteger(request.data?.commissionBps, "commissionBps");
