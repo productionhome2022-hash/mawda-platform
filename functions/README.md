@@ -1,0 +1,43 @@
+# Trusted backend (Firebase Cloud Functions)
+
+This package is the trusted execution layer for operations that must never be authorized by Flutter client code.
+
+## Coin transfers
+
+The callable function `transferCoins` accepts:
+
+- `recipientUid`: destination member UID
+- `amount`: positive integer gross amount debited from the sender
+- `requestId`: client-generated idempotency key (8–80 letters, digits, underscores or hyphens)
+
+The commission is read from `platformSettings/coinTransfers` as integer basis points (`commissionBps`; 2,000 = 20%). If no settings document exists, the initial commission is 0%. When transfers are disabled, the callable rejects the request.
+
+One Firestore transaction atomically updates both `users/{uid}.coins` balances and creates:
+
+- `coinTransfers/{senderUid}_{requestId}`: immutable transfer snapshot and commission rate
+- `users/{senderUid}/walletLedger/{transferId}`: gross debit, commission and recipient net amount
+- `users/{recipientUid}/walletLedger/{transferId}`: net credit and sender UID
+- `platformWalletLedger/{transferId}`: platform commission credit
+
+A retry with the same sender and request ID returns the original transfer instead of charging again. The commission calculation uses integer arithmetic; fractional coin fees are rounded down to the nearest whole coin.
+
+## Owner-only commission settings
+
+The callable `setTransferCommission` accepts `commissionBps` and an optional `enabled` flag. It requires the verified Firebase Auth custom claim `platformOwner: true`, writes the setting version and a record to `adminAuditLogs`.
+
+**Bootstrap requirement:** the owner claim must be assigned only by a trusted operator using Firebase Admin SDK after independently verifying the owner's identity. Never expose a callable endpoint that lets a client grant itself this claim. The repository does not contain service-account credentials, and none should be committed.
+
+## Local validation
+
+From this directory:
+
+```sh
+npm install
+npm test
+```
+
+The tests cover the commission arithmetic. Emulator-backed authorization, transaction concurrency, retry, and rules tests remain required before production rollout.
+
+## Important integration boundary
+
+The Flutter client must call `transferCoins` through Firebase Functions and display the returned gross amount, commission, and net amount. It must not update balances or ledger collections directly. Until the client integration and Firestore/Storage rules are completed, do not deploy this backend to production or enable real coin transfers.
