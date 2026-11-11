@@ -8,14 +8,16 @@ class ChatRoomScreen extends StatefulWidget {
   final bool isPublicRoom; // true = غرفة عامة للإدارة، false = غرفة خاصة مستأجرة
   final bool isSuperAdmin; // هل المستخدم الحالي هو السوبر أدمن؟
   final bool isRoomOwner; // هل المستخدم هو مالك الغرفة الخاصة؟
+  final String? peerName;
 
   const ChatRoomScreen({
     Key? key,
     required this.chatId,
     required this.currentUserId,
-    required this.isPublicRoom,
-    required this.isSuperAdmin,
-    required this.isRoomOwner,
+    this.isPublicRoom = true,
+    this.isSuperAdmin = false,
+    this.isRoomOwner = false,
+    this.peerName,
   }) : super(key: key);
 
   @override
@@ -143,7 +145,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isPublicRoom ? 'Mawda Public Room (Super Admin Controlled) 🌐' : 'Mawda Rented Private Room 🏠'),
+        title: Text(widget.peerName ?? (widget.isPublicRoom ? 'Mawda Public Room (Super Admin Controlled) 🌐' : 'Mawda Rented Private Room 🏠')),
         backgroundColor: widget.isPublicRoom ? Colors.black87 : Colors.deepPurple,
         actions: [
           if (hasPrivilege)
