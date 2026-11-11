@@ -34,6 +34,9 @@ async function main() {
   if (owner.emailVerified !== true || owner.disabled === true) {
     throw new Error("The selected owner account must be enabled and have a verified email.");
   }
+  if (!owner.multiFactor?.enrolledFactors?.length) {
+    throw new Error("Enroll and verify a second factor on the owner account before provisioning platformOwner.");
+  }
 
   const auditRef = db.collection("adminAuditLogs").doc();
   const existingClaims = owner.customClaims ?? {};
