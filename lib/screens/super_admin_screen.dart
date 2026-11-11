@@ -129,7 +129,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Email: ${_foundCredentials!['email']}'),
-                      Text('Password: ${_foundCredentials!['plainPassword']}'),
+                      const Text('Password data is not displayed or retrieved by this panel.'),
                       const SizedBox(height: 10),
                       ElevatedButton.icon(
                         icon: const Icon(Icons.block),
@@ -157,7 +157,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
               onTap: () async {
                 await _securityService.triggerAutoDestructMedia();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Expired media cleaned successfully ⏳')),
+                  const SnackBar(content: Text('Media cleanup request recorded; backend cleanup is still required ⏳')),
                 );
               },
             ),
