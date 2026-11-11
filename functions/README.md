@@ -42,3 +42,8 @@ The tests cover the commission arithmetic. Emulator-backed authorization, transa
 ## Important integration boundary
 
 The Flutter profile transfer flow now requests a server quote, displays the gross amount/commission/net amount, and calls `transferCoins` through Firebase Functions with the quoted rate. The server rejects a stale quote if the owner changed the rate before confirmation. The client must never update balances or ledger collections directly. Store purchases and coin top-ups are deliberately non-operative until their trusted purchase and payment-verification endpoints exist. Until the client integration and Firestore/Storage rules are completed, do not deploy this backend to production or enable real coin transfers.
+
+
+## Age policy
+
+Member completion requires an explicitly enabled registration policy with a minimum age of at least 16. The Flutter form submits structured goal codes: friendship, social_connection, and marriage. The trusted backend rejects unknown/free-text goals and rejects marriage for members under 18. Client-side chip visibility is only a usability aid: the server is authoritative. This does not replace age assurance, minor-safety controls, or a jurisdiction-by-jurisdiction launch review.
