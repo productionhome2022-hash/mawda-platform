@@ -1045,7 +1045,13 @@ export const setMemberAccessStatus = onCall(async (request) => {
     throw new HttpsError("not-found", "حساب المصادقة غير موجود.");
   }
   const disabled = status !== "active";
-  await auth.updateUser(targetUid, { disabled });
+  try {
+    await auth.updateUser(targetUid, { disabled });
+  } catch (error) {
+    logger.error("Owner account auth-state update failed", { actorUid, targetUid, error });
+    throw new HttpsError("internal", "تعذر تحديث حالة حساب المصادقة؛ لم يُسجل الإجراء على أنه مكتمل.");
+  }
+
   try {
     // Revoke existing sessions before recording the final administrative state.
     // If any subsequent step fails, restore the previous disabled flag; token
@@ -1072,7 +1078,20 @@ export const setMemberAccessStatus = onCall(async (request) => {
       });
     });
   } catch (error) {
-    await auth.updateUser(targetUid, { disabled: previousDisabled });
+    try {
+      await auth.updateUser(targetUid, { disabled: previousDisabled });
+    } catch (rollbackError) {
+      logger.error("Owner account auth-state rollback failed", {
+        actorUid,
+        targetUid,
+        originalError: error,
+        rollbackError,
+      });
+      throw new HttpsError(
+        "internal",
+        "تعذر إكمال الإجراء أو استعادة حالة المصادقة السابقة؛ يلزم فحص سجل العمليات فوراً.",
+      );
+    }
     if (error instanceof HttpsError) throw error;
     logger.error("Owner account status update failed", { actorUid, targetUid, error });
     throw new HttpsError("internal", "تعذر إكمال إجراء إدارة الحساب.");
