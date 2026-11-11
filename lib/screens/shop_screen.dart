@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../services/coin_system_service.dart';
 
 class ShopScreen extends StatefulWidget {
   final String userId;
