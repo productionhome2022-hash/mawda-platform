@@ -741,3 +741,84 @@ export const sendDirectMessage = onCall(async (request) => {
     throw new HttpsError("internal", "تعذر إرسال الرسالة حالياً.");
   }
 });
+
+
+/** Reads the newest direct messages only after verifying chat membership. */
+export const getDirectMessages = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const chatId = request.data?.chatId;
+  if (typeof chatId !== "string" || !/^[a-f0-9]{64}$/.test(chatId)) {
+    throw new HttpsError("invalid-argument", "معرف المحادثة غير صالح.");
+  }
+  const chatRef = db.collection("directChats").doc(chatId);
+  const chat = await chatRef.get();
+  const participants = chat.data()?.participantUids;
+  if (!chat.exists || !Array.isArray(participants) || !participants.includes(uid)) {
+    throw new HttpsError("permission-denied", "ليست لديك صلاحية قراءة هذه المحادثة.");
+  }
+  const messages = await chatRef.collection("messages")
+    .orderBy("createdAt", "desc")
+    .limit(50)
+    .get();
+  return {
+    messages: messages.docs.reverse().map((doc) => {
+      const data = doc.data();
+      return {
+        messageId: data.messageId,
+        senderUid: data.senderUid,
+        recipientUid: data.recipientUid,
+        text: data.text,
+        type: data.type,
+        createdAt: data.createdAt?.toMillis?.() ?? null,
+      };
+    }),
+  };
+});
+
+/** Lists only the authenticated member's own notifications. */
+export const getMyNotifications = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const notifications = await db.collection("users").doc(uid)
+    .collection("notifications")
+    .orderBy("createdAt", "desc")
+    .limit(50)
+    .get();
+  return {
+    notifications: notifications.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        notificationId: data.notificationId ?? doc.id,
+        type: data.type ?? "system",
+        senderUid: data.senderUid ?? "",
+        chatId: data.chatId ?? "",
+        messageId: data.messageId ?? "",
+        title: data.title ?? "",
+        body: data.body ?? "",
+        isRead: data.isRead === true,
+        createdAt: data.createdAt?.toMillis?.() ?? null,
+      };
+    }),
+  };
+});
+
+/** Marks a notification read only within the caller's own notification path. */
+export const markNotificationRead = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const notificationId = request.data?.notificationId;
+  if (typeof notificationId !== "string" || notificationId.length < 8 || notificationId.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف الإشعار غير صالح.");
+  }
+  const notificationRef = db.collection("users").doc(uid)
+    .collection("notifications").doc(notificationId);
+  await db.runTransaction(async (transaction) => {
+    const notification = await transaction.get(notificationRef);
+    if (!notification.exists) {
+      throw new HttpsError("not-found", "الإشعار غير موجود.");
+    }
+    transaction.update(notificationRef, {
+      isRead: true,
+      readAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { notificationId, isRead: true };
+});
