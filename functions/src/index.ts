@@ -458,6 +458,7 @@ export const completeMemberProfile = onCall(async (request) => {
  */
 export const setRegistrationPolicy = onCall(async (request) => {
   const actorUid = requireOwner(request);
+  const registrationSettingsRef = db.doc("platformSettings/registration");
   const enabled = request.data?.enabled;
   const minimumAge = request.data?.minimumAge;
 
