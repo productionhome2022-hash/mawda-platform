@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:uuid/uuid.dart';
+import '../services/coin_system_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String profileUserId; // صاحب البروفايل المراد زيارته
@@ -33,37 +36,127 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // 2. إهداء الكوينز لعضو آخر
-  void _showGiftCoinsDialog() {
-    TextEditingController amountController = TextEditingController();
-    showDialog(
+  final CoinSystemService _coinService = CoinSystemService();
+  bool _isTransferringCoins = false;
+
+  // 2. تحويل الكوينز عبر الخادم مع عرض العمولة والصافي قبل التأكيد.
+  Future<void> _showGiftCoinsDialog() async {
+    final amountController = TextEditingController();
+    final amount = await showDialog<int>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Gift Coins to Member 🪙'),
-          content: TextField(
-            controller: amountController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Enter Coin Amount'),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تحويل كوينز إلى العضو 🪙'),
+        content: TextField(
+          controller: amountController,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'المبلغ الإجمالي للتحويل',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final value = int.tryParse(amountController.text.trim());
+              if (value != null && value > 0) {
+                Navigator.pop(dialogContext, value);
+              }
+            },
+            child: const Text('متابعة'),
+          ),
+        ],
+      ),
+    );
+    amountController.dispose();
+
+    if (amount == null || !mounted || _isTransferringCoins) return;
+    await _quoteAndConfirmCoinTransfer(amount);
+  }
+
+  Future<void> _quoteAndConfirmCoinTransfer(int amount) async {
+    setState(() => _isTransferringCoins = true);
+    try {
+      final quote = await _coinService.getTransferQuote(amount);
+      if (!mounted) return;
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('مراجعة التحويل والعمولة'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _transferSummaryRow('المبلغ الذي سيُخصم منك', '${quote.grossAmount} كوين'),
+              _transferSummaryRow(
+                'عمولة المنصة (${quote.commissionPercent.toStringAsFixed(2)}%)',
+                '${quote.commissionAmount} كوين',
+              ),
+              const Divider(),
+              _transferSummaryRow('الصافي الذي سيصل للعضو', '${quote.netAmount} كوين'),
+            ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('إلغاء'),
+            ),
             ElevatedButton(
-              onPressed: () async {
-                int? amount = int.tryParse(amountController.text.trim());
-                if (amount != null && amount > 0) {
-                  // خصم من الزائر وإضافة لصاحب البروفايل
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Successfully gifted $amount coins! 🎁')),
-                  );
-                }
-              },
-              child: const Text('Send Gift'),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('تأكيد التحويل'),
             ),
           ],
-        );
-      },
+        ),
+      );
+
+      if (confirmed != true || !mounted) return;
+
+      final receipt = await _coinService.transferCoins(
+        recipientUid: widget.profileUserId,
+        amount: amount,
+        requestId: const Uuid().v4(),
+        expectedCommissionBps: quote.commissionBps,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'تم التحويل: وصل ${receipt.netAmount} كوين، وعمولة المنصة ${receipt.commissionAmount} كوين. رقم العملية: ${receipt.transferId}',
+          ),
+        ),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر إتمام التحويل. حاول مرة أخرى.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('حدث خطأ غير متوقع أثناء التحويل. لم نعرض نجاحاً غير مؤكد.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isTransferringCoins = false);
+    }
+  }
+
+  Widget _transferSummaryRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(child: Text(label)),
+          const SizedBox(width: 12),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+        ],
+      ),
     );
   }
 
@@ -145,8 +238,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.amber[700]),
                         icon: const Icon(Icons.monetization_on, color: Colors.black),
-                        label: const Text('Gift Coins 🪙', style: TextStyle(color: Colors.black)),
-                        onPressed: _showGiftCoinsDialog,
+                        label: Text(_isTransferringCoins ? 'جارٍ التحويل...' : 'Gift Coins 🪙', style: const TextStyle(color: Colors.black)),
+                        onPressed: _isTransferringCoins ? null : _showGiftCoinsDialog,
                       ),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
