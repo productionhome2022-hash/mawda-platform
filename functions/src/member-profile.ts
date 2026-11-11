@@ -65,7 +65,7 @@ export function validateMemberProfile(
     throw new Error("goals: اختر هدفاً معتمداً من القائمة.");
   }
   if (age < 18 && goals.some((goal) => ["romantic_dating", "marriage"].includes(goal))) {
-    throw new Error("MARRIAGE_GOAL_REQUIRES_ADULT");
+    throw new Error("ADULT_RELATIONSHIP_GOAL_REQUIRES_ADULT");
   }
   const bio = data.bio === undefined ? "" : data.bio;
   if (typeof bio !== "string" || bio.trim().length > 500) {
