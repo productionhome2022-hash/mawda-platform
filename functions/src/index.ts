@@ -431,6 +431,7 @@ export const completeMemberProfile = onCall(async (request) => {
       bio: profile.bio,
       interests: profile.interests,
       goals: profile.goals,
+      profileVisibility: "private",
       coins: 500,
       profileCompleted: true,
       createdAt,
@@ -546,5 +547,37 @@ export const getMemberProfile = onCall(async (request) => {
   if (!profile) {
     throw new HttpsError("permission-denied", "هذا الملف خاص ولا يمكن عرضه.");
   }
-  return profile;
+  return viewerUid === targetUid
+    ? { ...profile, profileVisibility: memberData.profileVisibility === "public" ? "public" : "private" }
+    : profile;
+});
+
+/** A member may change only their own profile visibility. */
+export const setMemberProfileVisibility = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const visibility = request.data?.visibility;
+  if (visibility !== "public" && visibility !== "private") {
+    throw new HttpsError("invalid-argument", "إعداد خصوصية الملف غير صالح.");
+  }
+
+  const userRef = db.collection("users").doc(uid);
+  await db.runTransaction(async (transaction) => {
+    const member = await transaction.get(userRef);
+    if (!member.exists || member.data()?.profileCompleted !== true) {
+      throw new HttpsError("failed-precondition", "يجب إكمال العضوية أولاً.");
+    }
+    transaction.update(userRef, {
+      profileVisibility: visibility,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    const auditRef = db.collection("memberPrivacyAudit").doc();
+    transaction.create(auditRef, {
+      memberUid: uid,
+      action: "profile_visibility_changed",
+      visibility,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  return { visibility };
 });
