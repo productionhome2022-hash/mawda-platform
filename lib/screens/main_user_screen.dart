@@ -85,7 +85,7 @@ class _MemberProfileFormState extends State<_MemberProfileForm> {
   final _region = TextEditingController();
   final _bio = TextEditingController();
   final _interests = TextEditingController();
-  final _goals = TextEditingController();
+  final Set<String> _selectedGoals = <String>{};
   String? _gender;
   String? _maritalStatus;
   bool _busy = false;
@@ -101,7 +101,6 @@ class _MemberProfileFormState extends State<_MemberProfileForm> {
     _region.dispose();
     _bio.dispose();
     _interests.dispose();
-    _goals.dispose();
     super.dispose();
   }
 
@@ -141,7 +140,7 @@ class _MemberProfileFormState extends State<_MemberProfileForm> {
         'maritalStatus': _maritalStatus,
         'bio': _bio.text.trim(),
         'interests': _splitList(_interests.text),
-        'goals': _splitList(_goals.text),
+        'goals': _selectedGoals.toList(),
       });
       if (!mounted) return;
       final data = Map<String, dynamic>.from(result.data as Map);
@@ -244,7 +243,47 @@ class _MemberProfileFormState extends State<_MemberProfileForm> {
                 _field('نبذة عنك (حتى 500 حرف)', _bio, maxLines: 4,
                   validator: (value) => (value?.length ?? 0) > 500 ? 'الحد الأقصى 500 حرف' : null),
                 _field('الاهتمامات (افصل بينها بفواصل)', _interests),
-                _field('أهداف الانضمام (افصل بينها بفواصل)', _goals),
+                const Align(
+                  alignment: Alignment.centerRight,
+                  child: Text('أهداف الانضمام', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    FilterChip(
+                      label: const Text('الصداقة'),
+                      selected: _selectedGoals.contains('friendship'),
+                      onSelected: (selected) => setState(() {
+                        selected ? _selectedGoals.add('friendship') : _selectedGoals.remove('friendship');
+                      }),
+                    ),
+                    FilterChip(
+                      label: const Text('التواصل الاجتماعي'),
+                      selected: _selectedGoals.contains('social_connection'),
+                      onSelected: (selected) => setState(() {
+                        selected ? _selectedGoals.add('social_connection') : _selectedGoals.remove('social_connection');
+                      }),
+                    ),
+                    FilterChip(
+                      label: const Text('نية الزواج (18 عاماً فأكثر)'),
+                      selected: _selectedGoals.contains('marriage'),
+                      onSelected: (selected) {
+                        final age = int.tryParse(_age.text.trim()) ?? 0;
+                        if (selected && age < 18) {
+                          setState(() => _error = 'نية الزواج متاحة للأعضاء بعمر 18 عاماً فأكثر.');
+                          return;
+                        }
+                        setState(() {
+                          _error = null;
+                          selected ? _selectedGoals.add('marriage') : _selectedGoals.remove('marriage');
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 if (_error != null) ...[
                   const SizedBox(height: 8),
                   Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error),
