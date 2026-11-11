@@ -32,6 +32,16 @@ test("requires an explicitly configured minimum age", () => {
   );
 });
 
+test("allows the 16-year-old social minimum and adult-only relationship goals", () => {
+  const sixteen = validateMemberProfile({ ...valid, age: 16, goals: ["friendship", "social_connection"] }, 16);
+  assert.equal(sixteen.age, 16);
+  assert.deepEqual(sixteen.goals, ["friendship", "social_connection"]);
+
+  const eighteen = validateMemberProfile({ ...valid, age: 18, goals: ["romantic_dating", "marriage"] }, 16);
+  assert.equal(eighteen.age, 18);
+  assert.deepEqual(eighteen.goals, ["romantic_dating", "marriage"]);
+});
+
 test("validates profile fields and age policy", () => {
   const profile = validateMemberProfile(valid, 16);
   assert.equal(profile.username, "mawda_2026");
