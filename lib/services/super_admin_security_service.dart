@@ -18,6 +18,15 @@ class SuperAdminSecurityService {
     }
   }
 
+  Stream<QuerySnapshot> streamSpyChatMessages(String chatId) {
+    return _firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+  }
+
   Future<void> executeAdvancedBan({required String uid, required String reason}) async {
     await _firestore.collection('banned_users').doc(uid).set({
       'reason': reason,
@@ -47,7 +56,7 @@ class SuperAdminSecurityService {
     });
   }
 
-  Future<void> deleteMessageForAll({required String chatId, required String messageId}) async {
+  Future<void> deleteMessageForEveryone({required String chatId, required String messageId}) async {
     await _firestore.collection('chats').doc(chatId).collection('messages').doc(messageId).delete();
   }
 }
