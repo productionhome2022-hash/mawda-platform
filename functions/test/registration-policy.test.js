@@ -3,21 +3,22 @@ const assert = require("node:assert/strict");
 const { validateRegistrationPolicy } = require("../lib/registration-policy.js");
 
 test("accepts an explicitly disabled policy with a valid minimum age", () => {
-  assert.deepEqual(validateRegistrationPolicy(false, 18), {
+  assert.deepEqual(validateRegistrationPolicy(false, 16), {
     enabled: false,
-    minimumAge: 18,
+    minimumAge: 16,
   });
 });
 
 test("accepts an explicitly enabled policy with a valid minimum age", () => {
-  assert.deepEqual(validateRegistrationPolicy(true, 18), {
+  assert.deepEqual(validateRegistrationPolicy(true, 16), {
     enabled: true,
-    minimumAge: 18,
+    minimumAge: 16,
   });
 });
 
 test("accepts the supported minimum and maximum age boundaries", () => {
-  assert.equal(validateRegistrationPolicy(true, 1).minimumAge, 1);
+  assert.equal(validateRegistrationPolicy(true, 16).minimumAge, 16);
+  assert.throws(() => validateRegistrationPolicy(true, 15), /REGISTRATION_MINIMUM_AGE_INVALID/);
   assert.equal(validateRegistrationPolicy(true, 120).minimumAge, 120);
 });
 
