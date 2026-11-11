@@ -5,6 +5,7 @@ import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { calculateTransferBreakdown } from "./coin-math";
+import { validateRegistrationPolicy } from "./registration-policy";
 
 initializeApp();
 
@@ -459,20 +460,23 @@ export const completeMemberProfile = onCall(async (request) => {
 export const setRegistrationPolicy = onCall(async (request) => {
   const actorUid = requireOwner(request);
   const registrationSettingsRef = db.doc("platformSettings/registration");
-  const enabled = request.data?.enabled;
-  const minimumAge = request.data?.minimumAge;
-
-  if (typeof enabled !== "boolean") {
-    throw new HttpsError("invalid-argument", "يجب تحديد حالة فتح التسجيل.");
+  let policy: { enabled: boolean; minimumAge: number };
+  try {
+    policy = validateRegistrationPolicy(
+      request.data?.enabled,
+      request.data?.minimumAge,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "INVALID_REGISTRATION_POLICY";
+    if (message === "REGISTRATION_ENABLED_INVALID") {
+      throw new HttpsError("invalid-argument", "يجب تحديد حالة فتح التسجيل.");
+    }
+    throw new HttpsError(
+      "invalid-argument",
+      "الحد الأدنى للعمر يجب أن يكون عدداً صحيحاً بين 1 و120.",
+    );
   }
-  if (
-    typeof minimumAge !== "number" ||
-    !Number.isSafeInteger(minimumAge) ||
-    minimumAge < 1 ||
-    minimumAge > 120
-  ) {
-    throw new HttpsError("invalid-argument", "الحد الأدنى للعمر يجب أن يكون عدداً صحيحاً بين 1 و120.");
-  }
+  const { enabled, minimumAge } = policy;
 
   const result = await db.runTransaction(async (transaction) => {
     const current = await transaction.get(registrationSettingsRef);
