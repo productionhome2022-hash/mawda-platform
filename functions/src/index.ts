@@ -65,9 +65,10 @@ export const transferCoins = onCall(async (request) => {
   const recipientUid = typeof data.recipientUid === "string" ? data.recipientUid.trim() : "";
   const amount = readSafeInteger(data.amount, "amount");
   const requestId = requireRequestId(data.requestId);
-  const expectedCommissionBps = data.expectedCommissionBps === undefined
-    ? undefined
-    : readSafeInteger(data.expectedCommissionBps, "expectedCommissionBps");
+  const expectedCommissionBps = readSafeInteger(
+    data.expectedCommissionBps,
+    "expectedCommissionBps",
+  );
 
   if (!recipientUid || recipientUid.length > 128) {
     throw new HttpsError("invalid-argument", "معرف المستلم غير صالح.");
@@ -100,6 +101,13 @@ export const transferCoins = onCall(async (request) => {
       if (prior.senderUid !== senderUid) {
         throw new HttpsError("permission-denied", "معرف التحويل مستخدم لعملية أخرى.");
       }
+      if (
+        prior.recipientUid !== recipientUid ||
+        prior.grossAmount !== amount ||
+        prior.commissionBps !== expectedCommissionBps
+      ) {
+        throw new HttpsError("already-exists", "أعيد استخدام معرف طلب التحويل مع بيانات مختلفة.");
+      }
       return {
         transferId,
         senderUid: prior.senderUid,
@@ -118,14 +126,15 @@ export const transferCoins = onCall(async (request) => {
       throw new HttpsError("not-found", "تعذر العثور على حساب المرسل أو المستلم.");
     }
 
+    if (!settings.exists) {
+      throw new HttpsError("failed-precondition", "لم تضبط الإدارة نسبة العمولة بعد.");
+    }
     const settingsData = settings.data() ?? {};
     if (settingsData.enabled === false) {
       throw new HttpsError("failed-precondition", "التحويلات متوقفة مؤقتاً من الإدارة.");
     }
 
-    const commissionBps = settings.exists
-      ? readSafeInteger(settingsData.commissionBps ?? 0, "commissionBps")
-      : 0;
+    const commissionBps = readSafeInteger(settingsData.commissionBps, "commissionBps");
 
     if (commissionBps < 0 || commissionBps >= 10000) {
       throw new HttpsError("failed-precondition", "إعداد نسبة العمولة غير صالح.");
@@ -138,6 +147,9 @@ export const transferCoins = onCall(async (request) => {
     const recipientData = recipientSnapshot.data()!;
     const senderBalance = readSafeInteger(senderData.coins ?? 0, "sender.coins");
     const recipientBalance = readSafeInteger(recipientData.coins ?? 0, "recipient.coins");
+    if (senderBalance < 0 || recipientBalance < 0) {
+      throw new HttpsError("failed-precondition", "أحد الأرصدة يحتوي على قيمة غير صالحة.");
+    }
 
     if (senderBalance < amount) {
       throw new HttpsError("failed-precondition", "رصيدك من الكوينز غير كافٍ.");
@@ -246,13 +258,14 @@ export const getTransferQuote = onCall(async (request) => {
   }
 
   const settings = await TRANSFER_SETTINGS.get();
+  if (!settings.exists) {
+    throw new HttpsError("failed-precondition", "لم تضبط الإدارة نسبة العمولة بعد.");
+  }
   const data = settings.data() ?? {};
   if (data.enabled === false) {
     throw new HttpsError("failed-precondition", "التحويلات متوقفة مؤقتاً من الإدارة.");
   }
-  const commissionBps = settings.exists
-    ? readSafeInteger(data.commissionBps ?? 0, "commissionBps")
-    : 0;
+  const commissionBps = readSafeInteger(data.commissionBps, "commissionBps");
 
   let breakdown;
   try {
