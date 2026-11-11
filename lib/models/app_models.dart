@@ -37,7 +37,6 @@ class UserModel {
   final String uid;
   final String username;              // المعرف الفريد (@username)
   final String email;
-  final String passwordHash;          // كلمة المرور (قابلة للاستعراض والتحديث من السوبر أدمن)
   final String displayName;           // الاسم الظاهري
   final int age;                      // العمر
   final String gender;                // ('male' / 'female')
@@ -84,7 +83,6 @@ class UserModel {
     required this.uid,
     required this.username,
     required this.email,
-    this.passwordHash = '',
     required this.displayName,
     this.age = 18,
     this.gender = 'male',
@@ -126,7 +124,6 @@ class UserModel {
       'uid': uid,
       'username': username,
       'email': email,
-      'passwordHash': passwordHash,
       'displayName': displayName,
       'age': age,
       'gender': gender,
@@ -169,7 +166,6 @@ class UserModel {
       uid: map['uid'] ?? '',
       username: map['username'] ?? '',
       email: map['email'] ?? '',
-      passwordHash: map['passwordHash'] ?? '',
       displayName: map['displayName'] ?? '',
       age: map['age'] ?? 18,
       gender: map['gender'] ?? 'male',
