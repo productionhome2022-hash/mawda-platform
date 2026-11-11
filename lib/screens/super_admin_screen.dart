@@ -17,6 +17,9 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   bool _loadingOverview = false;
   bool _searching = false;
   bool _updatingStatus = false;
+  bool _registrationEnabled = false;
+  bool _savingRegistrationPolicy = false;
+  int _minimumAge = 16;
   String? _error;
 
   @override
@@ -37,6 +40,12 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       final result = await _service.getOperationsOverview();
       if (mounted) setState(() {
         _overview = result;
+        final policy = result['registrationPolicy'] as Map<String, dynamic>? ?? {};
+        _registrationEnabled = policy['enabled'] == true;
+        final configuredAge = policy['minimumAge'];
+        _minimumAge = configuredAge is num && configuredAge.toInt() >= 16 && configuredAge.toInt() <= 120
+            ? configuredAge.toInt()
+            : 16;
         _error = null;
       });
     } on FirebaseFunctionsException catch (error) {
@@ -131,6 +140,32 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     }
   }
 
+  Future<void> _saveRegistrationPolicy() async {
+    if (_savingRegistrationPolicy) return;
+    setState(() => _savingRegistrationPolicy = true);
+    try {
+      await _service.setRegistrationPolicy(
+        enabled: _registrationEnabled,
+        minimumAge: _minimumAge,
+      );
+      await _loadOverview();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم حفظ سياسة التسجيل وتوثيق التغيير في سجل التدقيق.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر حفظ سياسة التسجيل.')),
+      );
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر حفظ السياسة؛ لم يتم تأكيد نجاح العملية.')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingRegistrationPolicy = false);
+    }
+  }
+
   Widget _metric(String label, Object? value, IconData icon) => Card(
     child: ListTile(
       leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
@@ -186,6 +221,58 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
           _metric('الغرف', _overview!['roomCount'], Icons.forum_outlined),
           _metric('عمليات تحويل الكوينز', _overview!['transferCount'], Icons.account_balance_wallet_outlined),
         ],
+        const Divider(height: 32),
+        Text('سياسة التسجيل والأهلية', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('فتح تسجيل الأعضاء الجدد'),
+                  subtitle: const Text('يبقى التسجيل مغلقاً ما لم يفعّله المالك صراحةً.'),
+                  value: _registrationEnabled,
+                  onChanged: _savingRegistrationPolicy ? null : (value) {
+                    setState(() => _registrationEnabled = value);
+                  },
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<int>(
+                  value: _minimumAge,
+                  decoration: const InputDecoration(
+                    labelText: 'الحد الأدنى لعمر التسجيل',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: List.generate(15, (index) => index + 16)
+                      .map((age) => DropdownMenuItem<int>(
+                        value: age,
+                        child: Text('$age سنة'),
+                      )).toList(),
+                  onChanged: _savingRegistrationPolicy ? null : (value) {
+                    if (value != null) setState(() => _minimumAge = value);
+                  },
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _savingRegistrationPolicy ? null : _saveRegistrationPolicy,
+                    icon: _savingRegistrationPolicy
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.save_outlined),
+                    label: const Text('حفظ سياسة التسجيل'),
+                  ),
+                ),
+                const Text(
+                  'لا يسمح النظام بحد أدنى أقل من 16 عاماً. ويظل التحقق العمري الأقوى وضوابط حماية القاصرين شرطاً قبل الإطلاق.',
+                ),
+              ],
+            ),
+          ),
+        ),
         const Divider(height: 32),
         Text('إدارة وصول الأعضاء', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
