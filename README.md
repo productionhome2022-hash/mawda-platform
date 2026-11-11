@@ -54,7 +54,7 @@ The checked-in `lib/firebase_options.dart` still contains placeholder-looking Fi
 
 The callable `completeMemberProfile` is the only supported path for creating a completed member record. It requires a signed-in Firebase Auth user whose email is verified. The server validates the profile, reserves a normalized unique username, creates the member document, grants the approved 500-coin email-verification reward, and writes its wallet-ledger entry in one Firestore transaction.
 
-The registration policy is deliberately fail-closed: the callable requires an explicitly configured integer `minimumAge` at `platformSettings/registration`. Until the owner approves and a trusted operator provisions this setting, profile completion is rejected. No minimum age is assumed by the application. The reward cannot be claimed repeatedly because the member document and deterministic reward-ledger entry are created atomically.
+The registration policy is deliberately fail-closed: the callable requires an explicitly configured integer `minimumAge` at `platformSettings/registration`. The approved baseline is 16 years for friendship and non-romantic social connection. Romantic dating and marriage intent are restricted to 18+. Registration remains closed until the owner explicitly enables this policy through the trusted callable. The reward cannot be claimed repeatedly because the member document and deterministic reward-ledger entry are created atomically.
 
 Profile fields include full name, username, age, profession, country, region, gender, marital status, a bio (maximum 500 characters), interests, and membership goals. Username registry documents are server-managed and are not readable or writable by clients.
 
@@ -87,9 +87,9 @@ The owner-only callable `setRegistrationPolicy` controls registration at `platfo
 The CI backend job runs Firestore and Storage authorization tests against the Firebase emulators using a demo project (`demo-mawda-rules`). The tests verify member-only profile and wallet-ledger reads, transfer-participant access, and denial of client writes and Storage access. These tests do not connect to or modify the production Firebase project. Run them locally from `functions/` with `npm install` followed by `npm run test:rules`; Java 17 is required by the emulator toolchain.
 
 
-The backend unit suite also covers registration-policy validation boundaries and fail-closed behavior: only explicit booleans and integer minimum ages from 1 through 120 are accepted; the callable separately enforces the platform-owner claim before changing settings.
+The backend unit suite also covers registration-policy validation boundaries and fail-closed behavior: only explicit booleans and integer minimum ages from 16 through 120 are accepted; the callable separately enforces the platform-owner claim before changing settings.
 
 
 ## Age and relationship-intent safeguards
 
-The approved baseline is a minimum age of 16 for friendship and non-romantic social connection. Marriage intent is a separate structured goal and is rejected by the trusted backend for anyone under 18. Goal values are canonical server-validated codes; free text cannot bypass the age gate. The owner-controlled minimum registration age cannot be configured below 16. Before enabling any market, review local age, child-safety, privacy, and platform obligations. Age entered in a profile is not, by itself, robust age assurance; stronger age verification and minor-safety controls remain launch requirements.
+The approved baseline is a minimum age of 16 for friendship and non-romantic social connection. Romantic dating and marriage intent are separate structured goals and are rejected by the trusted backend for anyone under 18. Goal values are canonical server-validated codes; free text cannot bypass the age gate. The owner-controlled minimum registration age cannot be configured below 16. Before enabling any market, review local age, child-safety, privacy, and platform obligations. Age entered in a profile is not, by itself, robust age assurance; stronger age verification and minor-safety controls remain launch requirements.
