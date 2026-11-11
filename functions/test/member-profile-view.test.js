@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { projectPublicMemberProfile } = require("../lib/member-profile-view");
+const { canViewMemberProfile, projectPublicMemberProfile } = require("../lib/member-profile-view");
 
 test("profile visibility is private unless explicitly public", () => {
   assert.equal(projectPublicMemberProfile("member-1", { fullName: "A" }), null);
@@ -46,4 +46,12 @@ test("display name falls back safely and text is bounded", () => {
   });
   assert.equal(result.displayName, "Mawda Member");
   assert.equal(result.bio.length, 500);
+});
+
+test("only the owner or an explicitly public member profile can be viewed", () => {
+  assert.equal(canViewMemberProfile("member-1", "member-1", "private"), true);
+  assert.equal(canViewMemberProfile("member-2", "member-1", "public"), true);
+  assert.equal(canViewMemberProfile("member-2", "member-1", "private"), false);
+  assert.equal(canViewMemberProfile("member-2", "member-1", undefined), false);
+  assert.equal(canViewMemberProfile("member-2", "member-1", "unexpected"), false);
 });
