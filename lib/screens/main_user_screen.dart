@@ -222,7 +222,7 @@ class _MemberProfileFormState extends State<_MemberProfileForm> {
                 _field('الدولة', _country),
                 _field('المحافظة / المنطقة', _region),
                 DropdownButtonFormField<String>(
-                  value: _gender,
+                  initialValue: _gender,
                   decoration: const InputDecoration(labelText: 'الجنس', border: OutlineInputBorder()),
                   items: const [
                     DropdownMenuItem(value: 'male', child: Text('ذكر')),
@@ -232,7 +232,7 @@ class _MemberProfileFormState extends State<_MemberProfileForm> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _maritalStatus,
+                  initialValue: _maritalStatus,
                   decoration: const InputDecoration(labelText: 'الحالة الاجتماعية', border: OutlineInputBorder()),
                   items: const [
                     DropdownMenuItem(value: 'single', child: Text('أعزب / عزباء')),
