@@ -1014,15 +1014,27 @@ export const setRoomModerator = onCall(async (request) => {
 /** Owner operations overview: aggregate counts only, never member secrets. */
 export const getOwnerOperationsOverview = onCall(async (request) => {
   requireOwner(request);
-  const [members, rooms, transfers] = await Promise.all([
+  const [members, rooms, transfers, registration] = await Promise.all([
     db.collection("users").count().get(),
     db.collection("rooms").count().get(),
     db.collection("coinTransfers").count().get(),
+    db.doc("platformSettings/registration").get(),
   ]);
+  const registrationData = registration.data() ?? {};
   return {
     memberCount: members.data().count,
     roomCount: rooms.data().count,
     transferCount: transfers.data().count,
+    registrationPolicy: {
+      configured: registration.exists,
+      enabled: registrationData.enabled === true,
+      minimumAge: typeof registrationData.minimumAge === "number"
+        ? registrationData.minimumAge
+        : null,
+      version: typeof registrationData.version === "number"
+        ? registrationData.version
+        : 0,
+    },
     generatedAt: Date.now(),
   };
 });
