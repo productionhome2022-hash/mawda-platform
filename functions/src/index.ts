@@ -379,8 +379,8 @@ export const completeMemberProfile = onCall(async (request) => {
           "التسجيل متوقف مؤقتاً حتى يضبط مالك المنصة سياسة الحد الأدنى للعمر.",
         );
       }
-      if (message === "MARRIAGE_GOAL_REQUIRES_ADULT") {
-      throw new HttpsError("failed-precondition", "نية الزواج متاحة للأعضاء بعمر 18 عاماً فأكثر.");
+      if (message === "ADULT_RELATIONSHIP_GOAL_REQUIRES_ADULT") {
+      throw new HttpsError("failed-precondition", "التعارف العاطفي ونية الزواج متاحان للأعضاء بعمر 18 عاماً فأكثر.");
     }
     if (message === "AGE_POLICY_NOT_MET") {
         throw new HttpsError("failed-precondition", "العمر المدخل لا يطابق سياسة التسجيل المعتمدة.");
