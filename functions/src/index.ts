@@ -343,9 +343,14 @@ export const completeMemberProfile = onCall(async (request) => {
 
   const registrationSettingsRef = db.doc("platformSettings/registration");
   const registrationSettings = await registrationSettingsRef.get();
-  const configuredMinimumAge = registrationSettings.exists
-    ? registrationSettings.data()?.minimumAge
-    : undefined;
+  const registrationData = registrationSettings.exists ? registrationSettings.data() ?? {} : {};
+  if (registrationData.enabled !== true) {
+    throw new HttpsError(
+      "failed-precondition",
+      "التسجيل مغلق حالياً حتى يفعّله مالك المنصة ويضبط سياسة العمر.",
+    );
+  }
+  const configuredMinimumAge = registrationData.minimumAge;
 
   let profile;
   try {
@@ -444,4 +449,55 @@ export const completeMemberProfile = onCall(async (request) => {
       alreadyCompleted: false,
     };
   });
+});
+
+
+/**
+ * Owner-only control for the registration gate and minimum-age policy.
+ * No default age is assumed; the owner must explicitly choose one.
+ */
+export const setRegistrationPolicy = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const enabled = request.data?.enabled;
+  const minimumAge = request.data?.minimumAge;
+
+  if (typeof enabled !== "boolean") {
+    throw new HttpsError("invalid-argument", "يجب تحديد حالة فتح التسجيل.");
+  }
+  if (
+    typeof minimumAge !== "number" ||
+    !Number.isSafeInteger(minimumAge) ||
+    minimumAge < 1 ||
+    minimumAge > 120
+  ) {
+    throw new HttpsError("invalid-argument", "الحد الأدنى للعمر يجب أن يكون عدداً صحيحاً بين 1 و120.");
+  }
+
+  const result = await db.runTransaction(async (transaction) => {
+    const current = await transaction.get(registrationSettingsRef);
+    const previous = current.data() ?? {};
+    const next = {
+      enabled,
+      minimumAge,
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: actorUid,
+      version: (typeof previous.version === "number" ? previous.version : 0) + 1,
+    };
+    transaction.set(registrationSettingsRef, next, { merge: true });
+
+    const auditRef = db.collection("adminAuditLogs").doc();
+    transaction.create(auditRef, {
+      actorUid,
+      action: "registration_policy_updated",
+      previousEnabled: previous.enabled === true,
+      previousMinimumAge: previous.minimumAge ?? null,
+      enabled,
+      minimumAge,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { enabled, minimumAge, version: next.version };
+  });
+
+  logger.info("Registration policy updated", { actorUid, ...result });
+  return result;
 });
