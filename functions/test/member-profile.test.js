@@ -13,7 +13,7 @@ const valid = {
   maritalStatus: "single",
   bio: "Hello",
   interests: ["Reading", "Travel"],
-  goals: ["Friendship"],
+  goals: ["friendship"],
 };
 
 test("normalizes usernames consistently", () => {
@@ -33,11 +33,13 @@ test("requires an explicitly configured minimum age", () => {
 });
 
 test("validates profile fields and age policy", () => {
-  const profile = validateMemberProfile(valid, 18);
+  const profile = validateMemberProfile(valid, 16);
   assert.equal(profile.username, "mawda_2026");
   assert.equal(profile.age, 25);
   assert.deepEqual(profile.interests, ["Reading", "Travel"]);
-  assert.throws(() => validateMemberProfile({ ...valid, age: 17 }, 18), /AGE_POLICY_NOT_MET/);
+  assert.deepEqual(profile.goals, ["friendship"]);
+  assert.throws(() => validateMemberProfile({ ...valid, age: 15 }, 16), /AGE_POLICY_NOT_MET/);
+  assert.throws(() => validateMemberProfile({ ...valid, age: 17, goals: ["marriage"] }, 16), /MARRIAGE_GOAL_REQUIRES_ADULT/);
   assert.throws(() => validateMemberProfile({ ...valid, bio: "x".repeat(501) }, 18));
 });
 
@@ -58,6 +60,14 @@ test("rejects malformed interest and goal collections", () => {
     () => validateMemberProfile({ ...valid, interests: "travel" }, 18),
   );
   assert.throws(
-    () => validateMemberProfile({ ...valid, goals: ["Friendship", "Friendship"] }, 18),
+    () => validateMemberProfile({ ...valid, goals: ["friendship", "friendship"] }, 18),
+  );
+});
+
+
+test("rejects unrecognized free-text goals instead of allowing age-policy bypass", () => {
+  assert.throws(
+    () => validateMemberProfile({ ...valid, goals: ["I want marriage"] }, 16),
+    /goals: اختر هدفاً معتمداً/,
   );
 });
