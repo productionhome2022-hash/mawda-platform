@@ -51,6 +51,14 @@ export function validateMemberProfile(
   if (typeof age !== "number" || !Number.isSafeInteger(age) || age < minimumAge! || age > 120) {
     throw new Error("AGE_POLICY_NOT_MET");
   }
+  const gender = requiredText(data.gender, "gender", 1, 32);
+  if (!["male", "female"].includes(gender)) {
+    throw new Error("gender: القيمة المختارة غير مدعومة.");
+  }
+  const maritalStatus = requiredText(data.maritalStatus, "maritalStatus", 1, 40);
+  if (!["single", "married", "divorced", "widowed"].includes(maritalStatus)) {
+    throw new Error("maritalStatus: القيمة المختارة غير مدعومة.");
+  }
   const bio = data.bio === undefined ? "" : data.bio;
   if (typeof bio !== "string" || bio.trim().length > 500) {
     throw new Error("bio: الحد الأقصى 500 حرف.");
@@ -62,8 +70,8 @@ export function validateMemberProfile(
     profession: requiredText(data.profession, "profession", 2, 80),
     country: requiredText(data.country, "country", 2, 80),
     region: requiredText(data.region, "region", 2, 80),
-    gender: requiredText(data.gender, "gender", 1, 32),
-    maritalStatus: requiredText(data.maritalStatus, "maritalStatus", 1, 40),
+    gender,
+    maritalStatus,
     bio: bio.trim(),
     interests: stringList(data.interests ?? [], "interests", 20, 40),
     goals: stringList(data.goals ?? [], "goals", 10, 80),
