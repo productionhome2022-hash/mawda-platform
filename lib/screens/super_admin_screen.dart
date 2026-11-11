@@ -1,169 +1,269 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import '../services/super_admin_security_service.dart';
 
 class SuperAdminScreen extends StatefulWidget {
-  const SuperAdminScreen({Key? key}) : super(key: key);
+  const SuperAdminScreen({super.key});
 
   @override
   State<SuperAdminScreen> createState() => _SuperAdminScreenState();
 }
 
 class _SuperAdminScreenState extends State<SuperAdminScreen> {
-  final SuperAdminSecurityService _securityService = SuperAdminSecurityService();
-  final TextEditingController _searchController = TextEditingController();
-  
-  Map<String, dynamic>? _foundCredentials;
-  bool _isLoading = false;
+  final SuperAdminSecurityService _service = SuperAdminSecurityService();
+  final TextEditingController _memberUidController = TextEditingController();
+  Map<String, dynamic>? _overview;
+  Map<String, dynamic>? _member;
+  bool _loadingOverview = false;
+  bool _searching = false;
+  bool _updatingStatus = false;
+  String? _error;
 
-  void _searchMember() async {
-    setState(() => _isLoading = true);
-    String query = _searchController.text.trim();
-    var data = await _securityService.getMemberCredentials(query);
-    setState(() {
-      _foundCredentials = data;
-      _isLoading = false;
-    });
-  }
-
-  void _showBanDialog(String uid, String deviceFingerprint) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        String selectedType = '24h';
-        TextEditingController reasonController = TextEditingController();
-        return AlertDialog(
-          title: const Text('Sovereign Ban System 🛡️'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: reasonController,
-                decoration: const InputDecoration(labelText: 'Ban Reason'),
-              ),
-              const SizedBox(height: 10),
-              DropdownButton<String>(
-                value: selectedType,
-                items: const [
-                  DropdownMenuItem(value: '3h', child: Text('Ban for 3 Hours')),
-                  DropdownMenuItem(value: '6h', child: Text('Ban for 6 Hours')),
-                  DropdownMenuItem(value: '24h', child: Text('Ban for 24 Hours')),
-                  DropdownMenuItem(value: '3d', child: Text('Ban for 3 Days')),
-                  DropdownMenuItem(value: '7d', child: Text('Ban for 1 Week')),
-                  DropdownMenuItem(value: 'permanent', child: Text('Permanent Account Ban')),
-                  DropdownMenuItem(value: 'hwid', child: Text('Hardware Fingerprint Ban (HWID)')),
-                ],
-                onChanged: (val) {
-                  if (val != null) selectedType = val;
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () async {
-                await _securityService.executeAdvancedBan(
-                  uid: uid,
-                  deviceFingerprint: deviceFingerprint,
-                  banDurationType: selectedType,
-                  reason: reasonController.text.trim().isEmpty ? 'Terms of service violation' : reasonController.text.trim(),
-                );
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Penalty executed successfully')),
-                );
-              },
-              child: const Text('Confirm Ban'),
-            ),
-          ],
-        );
-      },
-    );
+  @override
+  void initState() {
+    super.initState();
+    _loadOverview();
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Super Admin Operations Room 🛡️'),
-        backgroundColor: Colors.black87,
+  void dispose() {
+    _memberUidController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadOverview() async {
+    setState(() => _loadingOverview = true);
+    try {
+      final result = await _service.getOperationsOverview();
+      if (mounted) setState(() {
+        _overview = result;
+        _error = null;
+      });
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل غرفة العمليات.');
+    } catch (_) {
+      if (mounted) setState(() => _error = 'تعذر الاتصال بغرفة العمليات.');
+    } finally {
+      if (mounted) setState(() => _loadingOverview = false);
+    }
+  }
+
+  Future<void> _searchMember() async {
+    final uid = _memberUidController.text.trim();
+    if (uid.isEmpty) return;
+    setState(() {
+      _searching = true;
+      _member = null;
+    });
+    try {
+      final result = await _service.getMemberSummary(uid);
+      if (mounted) setState(() {
+        _member = result;
+        _error = null;
+      });
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر العثور على العضو.');
+    } catch (_) {
+      if (mounted) setState(() => _error = 'تعذر البحث عن العضو.');
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  Future<void> _changeMemberStatus(String status) async {
+    final member = _member;
+    if (member == null || _updatingStatus) return;
+    final reasonController = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(status == 'active' ? 'إعادة تفعيل الحساب' : status == 'banned' ? 'حظر الحساب' : 'تعليق الحساب'),
+        content: TextField(
+          controller: reasonController,
+          minLines: 2,
+          maxLines: 4,
+          maxLength: 500,
+          decoration: const InputDecoration(
+            labelText: 'سبب الإجراء (مطلوب)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = reasonController.text.trim();
+              if (value.length >= 5) Navigator.pop(dialogContext, value);
+            },
+            child: const Text('تأكيد'),
+          ),
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ListView(
-          children: [
-            const Text(
-              'Intelligence Search & Password Recovery',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Row(
+    );
+    reasonController.dispose();
+    if (reason == null || !mounted) return;
+
+    setState(() => _updatingStatus = true);
+    try {
+      await _service.setMemberAccessStatus(
+        memberUid: member['uid'] as String,
+        status: status,
+        reason: reason,
+      );
+      await _searchMember();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم تنفيذ إجراء الحساب من الخادم وإبطال جلساته.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر تنفيذ الإجراء.')),
+      );
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر تنفيذ الإجراء. لم يتم تأكيد نجاحه.')),
+      );
+    } finally {
+      if (mounted) setState(() => _updatingStatus = false);
+    }
+  }
+
+  Widget _metric(String label, Object? value, IconData icon) => Card(
+    child: ListTile(
+      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+      title: Text('$value', style: Theme.of(context).textTheme.headlineSmall),
+      subtitle: Text(label),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('غرفة عمليات مالك مودة'),
+      actions: [
+        IconButton(
+          tooltip: 'تحديث المؤشرات',
+          onPressed: _loadingOverview ? null : _loadOverview,
+          icon: const Icon(Icons.refresh),
+        ),
+      ],
+    ),
+    body: ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: const InputDecoration(
-                      hintText: 'Enter Email or UID',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
+                Text('مركز القيادة والتحكم', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 8),
+                const Text(
+                  'هذه العمليات لا تُنفذ إلا إذا تحقّق الخادم من صلاحية platformOwner. '
+                  'لا تمنح الواجهة نفسها أي صلاحية، وكل إجراء حساس يسجل في سجل التدقيق.',
                 ),
-                const SizedBox(width: 10),
-                ElevatedButton(
-                  onPressed: _searchMember,
-                  child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Search'),
-                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                ],
               ],
             ),
-            const SizedBox(height: 20),
-            if (_foundCredentials != null) ...[
-              Card(
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text('مؤشرات المنصة', style: Theme.of(context).textTheme.titleMedium),
+        if (_loadingOverview && _overview == null)
+          const Center(child: Padding(
+            padding: EdgeInsets.all(20),
+            child: CircularProgressIndicator(),
+          ))
+        else if (_overview != null) ...[
+          _metric('الأعضاء المسجلون', _overview!['memberCount'], Icons.people_outline),
+          _metric('الغرف', _overview!['roomCount'], Icons.forum_outlined),
+          _metric('عمليات تحويل الكوينز', _overview!['transferCount'], Icons.account_balance_wallet_outlined),
+        ],
+        const Divider(height: 32),
+        Text('إدارة وصول الأعضاء', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _memberUidController,
+          decoration: InputDecoration(
+            labelText: 'معرّف العضو UID',
+            border: const OutlineInputBorder(),
+            suffixIcon: IconButton(
+              onPressed: _searching ? null : _searchMember,
+              icon: const Icon(Icons.search),
+            ),
+          ),
+          onSubmitted: (_) => _searchMember(),
+        ),
+        if (_searching) const LinearProgressIndicator(),
+        if (_member != null) ...[
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_member!['displayName'] as String? ?? 'عضو مودة',
+                    style: Theme.of(context).textTheme.titleLarge),
+                  Text('@${_member!['username'] ?? ''}'),
+                  SelectableText('UID: ${_member!['uid']}'),
+                  const SizedBox(height: 8),
+                  Text('حالة الحساب: ${_member!['accountStatus'] ?? 'active'}'),
+                  Text('البريد موثق: ${_member!['emailVerified'] == true ? 'نعم' : 'لا'}'),
+                  Text('دخول Firebase معطل: ${_member!['authDisabled'] == true ? 'نعم' : 'لا'}'),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
-                      Text('Email: ${_foundCredentials!['email']}'),
-                      const Text('Password data is not displayed or retrieved by this panel.'),
-                      const SizedBox(height: 10),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.block),
-                        label: const Text('Issue Penalty / Ban'),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                        onPressed: () {
-                          _showBanDialog(_foundCredentials!['uid'] ?? 'UNKNOWN_UID', _foundCredentials!['deviceFingerprint'] ?? 'UNKNOWN_HWID');
-                        },
+                      OutlinedButton(
+                        onPressed: _updatingStatus ? null : () => _changeMemberStatus('active'),
+                        child: const Text('إعادة التفعيل'),
+                      ),
+                      OutlinedButton(
+                        onPressed: _updatingStatus ? null : () => _changeMemberStatus('suspended'),
+                        child: const Text('تعليق'),
+                      ),
+                      FilledButton.tonal(
+                        onPressed: _updatingStatus ? null : () => _changeMemberStatus('banned'),
+                        child: const Text('حظر'),
                       ),
                     ],
                   ),
-                ),
+                  if (_updatingStatus) const Padding(
+                    padding: EdgeInsets.only(top: 12),
+                    child: LinearProgressIndicator(),
+                  ),
+                ],
               ),
-            ],
-            const Divider(height: 40),
-            const Text(
-              'Sovereignty & Master Controls',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 10),
-            ListTile(
-              leading: const Icon(Icons.cleaning_services, color: Colors.blue),
-              title: const Text('Trigger Auto-Destruct Media (4 Hours)'),
-              subtitle: const Text('Delete and purge expired photos & videos'),
-              onTap: () async {
-                await _securityService.triggerAutoDestructMedia();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Media cleanup request recorded; backend cleanup is still required ⏳')),
-                );
-              },
-            ),
-          ],
+          ),
+        ],
+        const Divider(height: 32),
+        Text('ضوابط المالك', style: Theme.of(context).textTheme.titleMedium),
+        const ListTile(
+          leading: Icon(Icons.verified_user_outlined),
+          title: Text('الصلاحية خادمية وليست واجهة'),
+          subtitle: Text('يُشترط تحقق MFA وهوية مالك المنصة وcustom claim في كل عملية إدارية.'),
         ),
-      ),
-    );
-  }
+        const ListTile(
+          leading: Icon(Icons.password_outlined),
+          title: Text('استعادة الحسابات دون كشف كلمات المرور'),
+          subtitle: Text('لا يمكن قراءة كلمة المرور القديمة؛ تستخدم إجراءات إعادة تعيين آمنة.'),
+        ),
+        const ListTile(
+          leading: Icon(Icons.policy_outlined),
+          title: Text('صلاحيات المشرفين محدودة بالغرف'),
+          subtitle: Text('لا يستطيع مشرف الغرفة منح نفسه صلاحيات مالك المنصة أو إدارة أقسامها.'),
+        ),
+      ],
+    ),
+  );
 }
