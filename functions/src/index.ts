@@ -1001,3 +1001,78 @@ export const setRoomModerator = onCall(async (request) => {
   });
   return { roomId, memberUid, permissions };
 });
+
+
+/** Owner operations overview: aggregate counts only, never member secrets. */
+export const getOwnerOperationsOverview = onCall(async (request) => {
+  requireOwner(request);
+  const [members, rooms, transfers] = await Promise.all([
+    db.collection("users").count().get(),
+    db.collection("rooms").count().get(),
+    db.collection("coinTransfers").count().get(),
+  ]);
+  return {
+    memberCount: members.data().count,
+    roomCount: rooms.data().count,
+    transferCount: transfers.data().count,
+    generatedAt: Date.now(),
+  };
+});
+
+/**
+ * Owner-only account access control. This disables Firebase Auth access and
+ * revokes refresh tokens; it never exposes or changes a member's password.
+ */
+export const setMemberAccessStatus = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const targetUid = request.data?.memberUid;
+  const status = request.data?.status;
+  const reason = typeof request.data?.reason === "string" ? request.data.reason.trim() : "";
+  if (typeof targetUid !== "string" || targetUid.length < 1 || targetUid.length > 128 ||
+      targetUid === actorUid) {
+    throw new HttpsError("invalid-argument", "معرف العضو غير صالح أو لا يمكن تعطيل حساب المالك من هذه العملية.");
+  }
+  if (!["active", "suspended", "banned"].includes(status) || reason.length < 5 || reason.length > 500) {
+    throw new HttpsError("invalid-argument", "حالة الحساب أو سبب الإجراء غير صالح.");
+  }
+
+  const auth = getAuth();
+  let previousDisabled: boolean;
+  try {
+    const account = await auth.getUser(targetUid);
+    previousDisabled = account.disabled;
+  } catch {
+    throw new HttpsError("not-found", "حساب المصادقة غير موجود.");
+  }
+  const disabled = status !== "active";
+  await auth.updateUser(targetUid, { disabled });
+  try {
+    const userRef = db.collection("users").doc(targetUid);
+    await db.runTransaction(async (transaction) => {
+      const user = await transaction.get(userRef);
+      if (!user.exists) throw new HttpsError("not-found", "ملف العضو غير موجود.");
+      transaction.update(userRef, {
+        accountStatus: status,
+        accountStatusReason: reason,
+        accountStatusUpdatedAt: FieldValue.serverTimestamp(),
+        accountStatusUpdatedBy: actorUid,
+      });
+      const auditRef = db.collection("adminAuditLogs").doc();
+      transaction.create(auditRef, {
+        actorUid,
+        targetUid,
+        action: "member_access_status_changed",
+        status,
+        reason,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    });
+    await auth.revokeRefreshTokens(targetUid);
+  } catch (error) {
+    await auth.updateUser(targetUid, { disabled: previousDisabled });
+    if (error instanceof HttpsError) throw error;
+    logger.error("Owner account status update failed", { actorUid, targetUid, error });
+    throw new HttpsError("internal", "تعذر إكمال إجراء إدارة الحساب.");
+  }
+  return { memberUid: targetUid, status, sessionsRevoked: true };
+});
