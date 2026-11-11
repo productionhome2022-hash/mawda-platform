@@ -11,7 +11,6 @@ class ShopScreen extends StatefulWidget {
 
 class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final CoinSystemService _coinService = CoinSystemService();
   final TextEditingController _customCoinController = TextEditingController();
 
   @override
@@ -183,23 +182,23 @@ class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateM
     );
   }
 
-  void _purchaseFeature(String featureId, int cost) async {
-    bool success = await _coinService.deductUserCoins(widget.userId, cost);
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Successfully purchased $featureId! 🎉')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Insufficient balance in your coin wallet! ❌')),
-      );
-    }
+  void _purchaseFeature(String featureId, int cost) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'شراء $featureId غير مفعّل بعد. لن يتم خصم أي كوينز قبل ربط كتالوج المتجر والتحقق الخادمي من السعر.',
+        ),
+      ),
+    );
   }
 
-  void _topUpCoins(int amount) async {
-    await _coinService.addUserCoins(widget.userId, amount);
+  void _topUpCoins(int amount) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Successfully added $amount coins to your wallet! 🪙')),
+      SnackBar(
+        content: Text(
+          'طلب شحن $amount كوين يحتاج إلى ربط بوابة دفع والتحقق من الدفع. لم تتم إضافة أي كوينز إلى رصيدك.',
+        ),
+      ),
     );
   }
 }
