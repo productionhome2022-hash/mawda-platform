@@ -8,6 +8,8 @@ import { calculateTransferBreakdown } from "./coin-math";
 import { validateRegistrationPolicy } from "./registration-policy";
 import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
 import { validateMemberProfileUpdate } from "./member-profile-update";
+import { validateDirectMessageInput } from "./direct-message";
+import { createHash } from "node:crypto";
 
 initializeApp();
 
@@ -631,5 +633,111 @@ export const updateMemberProfile = onCall(async (request) => {
     if (error instanceof HttpsError) throw error;
     logger.error("Member profile update failed", { uid, error });
     throw new HttpsError("internal", "تعذر حفظ الملف الشخصي حالياً.");
+  }
+});
+
+
+/**
+ * Sends a text-only direct message through a trusted callable.
+ * Client writes to chat and notification collections remain denied by rules.
+ */
+export const sendDirectMessage = onCall(async (request) => {
+  const senderUid = requireAuthenticatedUid(request.auth?.uid);
+  let message;
+  try {
+    message = validateDirectMessageInput((request.data ?? {}) as Record<string, unknown>);
+  } catch {
+    throw new HttpsError("invalid-argument", "بيانات الرسالة غير صالحة أو تجاوزت الحد المسموح.");
+  }
+  const { recipientUid, text: messageText, clientMessageId } = message;
+  if (senderUid === recipientUid) {
+    throw new HttpsError("failed-precondition", "لا يمكنك مراسلة حسابك الشخصي.");
+  }
+
+  const [firstUid, secondUid] = [senderUid, recipientUid].sort();
+  const chatId = createHash("sha256").update(firstUid + ":" + secondUid).digest("hex");
+  const chatRef = db.collection("directChats").doc(chatId);
+  const senderRef = db.collection("users").doc(senderUid);
+  const recipientRef = db.collection("users").doc(recipientUid);
+  const messageId = createHash("sha256")
+    .update(senderUid + ":" + clientMessageId)
+    .digest("hex");
+  const messageRef = chatRef.collection("messages").doc(messageId);
+  const notificationRef = recipientRef.collection("notifications").doc(messageId);
+
+  try {
+    return await db.runTransaction(async (transaction) => {
+      const [senderSnapshot, recipientSnapshot, existingChat, existingMessage] = await Promise.all([
+        transaction.get(senderRef),
+        transaction.get(recipientRef),
+        transaction.get(chatRef),
+        transaction.get(messageRef),
+      ]);
+      if (!senderSnapshot.exists || !recipientSnapshot.exists) {
+        throw new HttpsError("not-found", "حساب المرسل أو المستلم غير موجود.");
+      }
+      const sender = senderSnapshot.data() ?? {};
+      const recipient = recipientSnapshot.data() ?? {};
+      if (sender.profileCompleted !== true || recipient.profileCompleted !== true ||
+          sender.isBanned === true || recipient.isBanned === true) {
+        throw new HttpsError("permission-denied", "لا يمكن إرسال الرسالة إلى هذا الحساب.");
+      }
+      const senderAge = sender.age;
+      const recipientAge = recipient.age;
+      if (!Number.isSafeInteger(senderAge) || !Number.isSafeInteger(recipientAge) ||
+          ((senderAge < 18) !== (recipientAge < 18))) {
+        throw new HttpsError("permission-denied", "المراسلة الخاصة بين القاصرين والبالغين غير متاحة.");
+      }
+      const senderBlocks = Array.isArray(sender.blockedUids) ? sender.blockedUids : [];
+      const recipientBlocks = Array.isArray(recipient.blockedUids) ? recipient.blockedUids : [];
+      if (senderBlocks.includes(recipientUid) || recipientBlocks.includes(senderUid)) {
+        throw new HttpsError("permission-denied", "لا يمكن إرسال الرسائل بين هذين الحسابين.");
+      }
+
+      if (existingMessage.exists) {
+        const prior = existingMessage.data() ?? {};
+        if (prior.senderUid !== senderUid || prior.recipientUid !== recipientUid ||
+            prior.text !== messageText) {
+          throw new HttpsError("already-exists", "معرف الرسالة مستخدم لرسالة أخرى.");
+        }
+        return { chatId, messageId, replayed: true };
+      }
+
+      const createdAt = FieldValue.serverTimestamp();
+      transaction.set(chatRef, {
+        participantUids: [firstUid, secondUid],
+        createdAt: existingChat.exists
+          ? existingChat.data()?.createdAt ?? createdAt
+          : createdAt,
+        lastMessageAt: createdAt,
+        lastMessageSenderUid: senderUid,
+        lastMessagePreview: messageText.substring(0, 120),
+      }, { merge: true });
+      transaction.create(messageRef, {
+        messageId,
+        chatId,
+        senderUid,
+        recipientUid,
+        text: messageText,
+        type: "text",
+        createdAt,
+      });
+      transaction.create(notificationRef, {
+        notificationId: messageId,
+        type: "direct_message",
+        senderUid,
+        chatId,
+        messageId,
+        title: "رسالة جديدة",
+        body: messageText.substring(0, 120),
+        isRead: false,
+        createdAt,
+      });
+      return { chatId, messageId, replayed: false };
+    });
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    logger.error("Direct message send failed", { senderUid, recipientUid, error });
+    throw new HttpsError("internal", "تعذر إرسال الرسالة حالياً.");
   }
 });
