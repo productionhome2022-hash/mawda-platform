@@ -152,7 +152,7 @@ class _LandingPageScreenState extends State<LandingPageScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.pinkAccent : Colors.white.withOpacity(0.1),
+          color: isSelected ? Colors.pinkAccent : Colors.white.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: isSelected ? Colors.pinkAccent : Colors.white24),
         ),
