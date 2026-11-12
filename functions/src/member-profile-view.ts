@@ -12,7 +12,7 @@ export type PublicMemberProfile = {
   maritalStatus: string;
   interests: string[];
   goals: string[];
-  socialLinks: Record<string, string>;
+  socialLinks: Partial<Record<string, string>>;
 };
 
 function safeText(value: unknown): string {
