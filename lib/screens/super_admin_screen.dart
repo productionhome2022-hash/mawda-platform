@@ -180,6 +180,28 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       );
       return;
     }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تأكيد إعدادات تحويل الكوينز'),
+        content: Text(
+          'الحالة الجديدة: ${_transferEnabled ? 'التحويلات مفعّلة' : 'التحويلات متوقفة'}\\n'
+          'عمولة المنصة: ${percent.toStringAsFixed(2)}%.\\n'
+          'سيُطبق الإعداد على التحويلات الجديدة فقط، وسيُسجل التغيير في سجل التدقيق.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('مراجعة لاحقاً'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('تأكيد وحفظ'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
     setState(() => _savingTransferSettings = true);
     try {
       await _service.setTransferCommission(
