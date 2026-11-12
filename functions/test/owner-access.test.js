@@ -2,22 +2,26 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { hasPlatformOwnerSession } = require("../lib/owner-access");
 
-test("owner operations require both the owner claim and a second-factor sign-in", () => {
+const now = 1_800_000_000;
+const validOwnerToken = {
+  platformOwner: true,
+  auth_time: now - 60,
+  firebase: { sign_in_second_factor: "totp" },
+};
+
+test("owner operations require owner claim, second factor and recent authentication", () => {
+  assert.equal(hasPlatformOwnerSession(validOwnerToken, now), true);
+  assert.equal(hasPlatformOwnerSession({ ...validOwnerToken, auth_time: now - 901 }, now), false);
+  assert.equal(hasPlatformOwnerSession({ ...validOwnerToken, auth_time: now + 1 }, now), false);
+  assert.equal(hasPlatformOwnerSession({ ...validOwnerToken, auth_time: undefined }, now), false);
   assert.equal(hasPlatformOwnerSession({
-    platformOwner: true,
-    firebase: { sign_in_second_factor: "totp" },
-  }), true);
-  assert.equal(hasPlatformOwnerSession({
-    platformOwner: true,
+    ...validOwnerToken,
     firebase: { sign_in_second_factor: "" },
-  }), false);
+  }, now), false);
   assert.equal(hasPlatformOwnerSession({
-    platformOwner: true,
+    ...validOwnerToken,
     firebase: { sign_in_provider: "password" },
-  }), false);
-  assert.equal(hasPlatformOwnerSession({
-    platformOwner: false,
-    firebase: { sign_in_second_factor: "totp" },
-  }), false);
-  assert.equal(hasPlatformOwnerSession({ platformOwner: true }), false);
+  }, now), false);
+  assert.equal(hasPlatformOwnerSession({ ...validOwnerToken, platformOwner: false }, now), false);
+  assert.equal(hasPlatformOwnerSession({ platformOwner: true }, now), false);
 });
