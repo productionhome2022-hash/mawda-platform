@@ -215,3 +215,11 @@ Add a dedicated workstream across the platform:
 - Do not auto-merge, auto-deploy, or automatically perform destructive remediation after a failed check. Human review and explicit owner approval remain required for merge, deployment, and high-impact operations.
 - Daily project monitoring is a separate reporting mechanism; it does not perform code changes or imply a continuously running developer. Engineering work is performed in explicit, traceable sessions and commits.
 - **Current state:** push-triggered development validation has been configured in `.github/workflows/validate.yml`. Confirm the resulting GitHub Actions run on the new workflow commit and maintain green checks on every subsequent head; do not claim successful execution until GitHub reports it.
+
+
+## Firebase production configuration guard — 12 November 2026
+
+- Added `functions/scripts/validate-firebase-config.cjs` as a reusable fail-closed validator for the Firebase CLI project alias and registered FlutterFire Web app identity.
+- The Hosting deployment workflow invokes this validator before installing the Firebase CLI or attempting deployment. It checks the approved project ID and the known registered Web App ID, and rejects missing/placeholder Web configuration fields without printing credential values.
+- Added Node tests for matching configuration, CLI/project mismatch, FlutterFire project mismatch, wrong Web App ID, placeholder credentials, and missing/malformed options.
+- **Status:** implemented on the development branch; automated CI validation is pending on the new head. This does not repair the placeholder configuration itself and does not authorize or perform a deployment.
