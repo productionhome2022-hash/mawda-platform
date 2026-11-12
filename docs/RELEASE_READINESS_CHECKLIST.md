@@ -101,3 +101,11 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] One-to-one private messages allow only verified YouTube, Instagram/Reels, and Facebook URLs.
 - [ ] URL tests cover redirects, shorteners, lookalikes, IDN/punycode, deceptive subdomains, credentials, unsafe schemes, obfuscation, embedded URLs, rich previews, and authorization bypass.
 - [ ] Global/module/character shutdown stops active generation promptly and revokes AI tool permissions.
+
+
+### Super Admin link exception and AI badge presentation
+
+- [ ] Platform Super Admin, verified server-side by platformOwner claim and fresh MFA/step-up session, can send ordinary HTTP/HTTPS links to any domain in direct chats, public rooms, and rented private rooms.
+- [ ] Dangerous executable schemes, malformed links, and credential-bearing URLs remain blocked; safe-preview and phishing/malware controls are tested.
+- [ ] Ordinary members remain blocked from all links in all chat/room surfaces; room owners/moderators retain only the approved YouTube, Instagram/Reels, and Facebook allowlist within their own rooms.
+- [ ] AI badge appears as a small visual AI marker on avatar or cover only; no explanatory pop-up and no AI announcements inside direct chats or rooms.
