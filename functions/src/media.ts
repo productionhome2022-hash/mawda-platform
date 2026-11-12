@@ -130,10 +130,7 @@ export const finalizeMediaUpload = onCall(async (request) => {
     sizeBytes <= policy.maxBytes &&
     contentType === asset.declaredContentType &&
     detectedType === asset.declaredContentType &&
-    metadata.generation &&
-    metadata.metadata &&
-    typeof metadata.metadata === "object" &&
-    (metadata.metadata as Record<string, unknown>).firebaseStorageDownloadTokens === undefined,
+    metadata.generation,
   );
 
   if (!valid) {
