@@ -14,7 +14,7 @@ export type OwnerConversationPageRequest = {
 
 function validatePageToken(value: unknown): string | null {
   if (value === undefined || value === null || value === "") return null;
-  if (typeof value !== "string" || value.length < 1 || value.length > 128 ||
+  if (typeof value !== "string" || value.length < 1 || value.length > 256 ||
       !/^[A-Za-z0-9_-]+$/.test(value)) {
     throw new Error("INVALID_PAGE_TOKEN");
   }
