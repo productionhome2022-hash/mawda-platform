@@ -101,7 +101,7 @@ Add a dedicated workstream across the platform:
 
 ### AI identity badge and room-link authorization additions
 
-- Every AI character displays a persistent, accessible AI badge on its avatar/cover and profile header. Activating it opens a concise explanation of the account's AI nature. It must not resemble a human verification badge.
+- Every AI character displays a small, persistent, accessible AI badge on its avatar or cover only. It is a visual marker with no explanatory pop-up and no AI announcements in direct chats, public rooms, or rented private rooms. It must not resemble a human verification badge.
 - AI followers, reactions, activity and popularity are separately identified and never represented as human-member metrics.
 - Role matrix: ordinary member URLs are blocked in every chat/room; authorized room owners/moderators may post only YouTube, Instagram/Reels and Facebook URLs in their public/rented rooms; platform Super Admin may post any HTTP/HTTPS web URL in direct chats and any room after owner-claim and fresh MFA verification.
 - Backend tests cover owner/moderator authorization, moderator revocation, non-moderator rejection, room scope, URL normalization, IDN/punycode, redirects, shorteners, lookalikes, obfuscation, and rich-preview/caption bypasses.
