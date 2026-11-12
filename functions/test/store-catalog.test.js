@@ -75,6 +75,10 @@ test("owner catalog input requires safe identifiers, prices, category and public
     itemId: "vip-month", name: "عنصر", description: "", category: "vip",
     priceCoins: 0, active: true,
   }));
+  assert.throws(() => validateStoreCatalogItemInput({
+    itemId: "vip-month", name: "عنصر", description: "", category: "vip",
+    priceCoins: 100, active: true, purchaseEnabled: "yes",
+  }), /INVALID_STORE_PURCHASE_ENABLED/);
 });
 
 
