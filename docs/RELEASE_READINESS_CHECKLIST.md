@@ -12,7 +12,7 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Change CI dependency installation to lockfile-enforcing commands (`flutter pub get --enforce-lockfile` and `npm ci`) after the lockfiles are committed.
 - [x] Pin Flutter to 3.47.9 and Node to 20 in validation/deployment workflows.
 - [x] Restrict manual production deployment dispatch to the repository owner and require explicit approval; deployment repeats Flutter, backend, and Firestore/Storage emulator validation before Hosting deploy.
-- [x] Block Hosting deployment while the CLI target, FlutterFire project ID, or generated Firebase app identifiers are mismatched/placeholders.
+- [x] Block Hosting deployment while the CLI target, FlutterFire project ID, or generated Firebase app identifiers are mismatched/placeholders; a dedicated tested validator now checks the approved Web App ID as well.
 - [ ] Commit dependency lockfiles and move installation to lockfile-enforcing commands.
 - [ ] Re-run all checks against the final release candidate commit.
 
@@ -20,7 +20,7 @@ This checklist is a release gate, not a statement that the listed work is comple
 
 - [ ] Independently confirm the production Firebase project is `mawda-app-2026`.
 - [ ] Register and verify the required Firebase apps for each supported platform.
-- [ ] Regenerate `lib/firebase_options.dart` using FlutterFire CLI for the confirmed project; do not hand-invent app IDs or API keys.
+- [ ] Regenerate `lib/firebase_options.dart` using FlutterFire CLI for the confirmed project; do not hand-invent app IDs or API keys. The deployment guard now verifies the known Web App ID and rejects placeholder fields.
 - [ ] Verify every generated platform option points to the intended Firebase project and registered app.
 - [ ] Verify Firebase Authentication providers, authorized domains, Firestore, Storage, and Cloud Functions are configured.
 - [ ] Keep service-account keys, private keys, tokens, and local credential files out of Git.
