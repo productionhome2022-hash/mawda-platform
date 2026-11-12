@@ -1456,7 +1456,9 @@ export const announceOwnerDirectChatReview = onCall(async (request) => {
     ownerAuthTime: request.auth?.token.auth_time ?? null,
   });
 
-  const result = await db.runTransaction(async (transaction) => {
+  let result: { idempotentReplay: boolean };
+  try {
+    result = await db.runTransaction(async (transaction) => {
     const [freshChat, existingMessage, ...existingNotifications] = await Promise.all([
       transaction.get(chatRef),
       transaction.get(messageRef),
@@ -1531,7 +1533,21 @@ export const announceOwnerDirectChatReview = onCall(async (request) => {
       });
     }
     return { idempotentReplay: false };
-  });
+    });
+  } catch (error) {
+    await appendOwnerReviewAuditEvent({
+      actorUid,
+      action: "owner_direct_chat_review_announcement_result",
+      parentAuditLogId: auditLogId,
+      chatId: input.chatId,
+      messageId,
+      participantUids,
+      reviewMode: "announced",
+      outcome: "failed",
+      failureCode: error instanceof HttpsError ? error.code : "internal",
+    });
+    throw error;
+  }
 
   await appendOwnerReviewAuditEvent({
     actorUid,
