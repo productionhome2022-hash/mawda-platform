@@ -19,6 +19,19 @@ class SuperAdminSecurityService {
     return Map<String, dynamic>.from(result.data as Map);
   }
 
+  Future<Map<String, dynamic>> createRoom({
+    required String name,
+    required String kind,
+    required int capacity,
+  }) async {
+    final result = await _functions.httpsCallable('createRoom').call({
+      'name': name.trim(),
+      'kind': kind,
+      'capacity': capacity,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
   Future<Map<String, dynamic>> setRegistrationPolicy({
     required bool enabled,
     required int minimumAge,
