@@ -8,6 +8,7 @@ import { calculateTransferBreakdown } from "./coin-math";
 import { validateRegistrationPolicy } from "./registration-policy";
 import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
 import { validateMemberProfileUpdate } from "./member-profile-update";
+import { projectMemberSocialLinks, validateMemberSocialLinks } from "./member-social-links";
 import { validateDirectMessageInput } from "./direct-message";
 import { hasActiveBiometricVerification } from "./biometric-verification";
 import { isMemberAccountInGoodStanding } from "./member-access";
@@ -566,6 +567,9 @@ export const getMemberProfile = onCall(async (request) => {
   const profile = projectPublicMemberProfile(targetUid, {
     ...memberData,
     profileVisibility: "public",
+    approvedSocialLinks: hasActiveBiometricVerification(memberData.biometricVerification)
+      ? projectMemberSocialLinks(memberData.profileSocialLinks)
+      : {},
   });
   if (!profile) {
     throw new HttpsError("permission-denied", "هذا الملف خاص ولا يمكن عرضه.");
@@ -654,6 +658,45 @@ export const updateMemberProfile = onCall(async (request) => {
     logger.error("Member profile update failed", { uid, error });
     throw new HttpsError("internal", "تعذر حفظ الملف الشخصي حالياً.");
   }
+});
+
+
+/**
+ * Saves optional profile links only while trusted biometric verification is active.
+ * Expiry/revocation is rechecked on every profile read, so stale links are hidden.
+ */
+export const setMemberProfileSocialLinks = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const userRef = db.collection("users").doc(uid);
+  let links;
+  try {
+    links = validateMemberSocialLinks(request.data?.links);
+  } catch {
+    throw new HttpsError("invalid-argument", "روابط الملف الشخصي غير صالحة أو لا تنتمي إلى النطاقات الرسمية.");
+  }
+
+  await db.runTransaction(async (transaction) => {
+    const member = await transaction.get(userRef);
+    const data = member.data() ?? {};
+    if (!member.exists || data.profileCompleted !== true) {
+      throw new HttpsError("failed-precondition", "يجب إكمال الملف الشخصي أولاً.");
+    }
+    if (!hasActiveBiometricVerification(data.biometricVerification)) {
+      throw new HttpsError("failed-precondition", "هذه الميزة متاحة للأعضاء ذوي التوثيق البيومتري النشط فقط.");
+    }
+    transaction.update(userRef, {
+      profileSocialLinks: links,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    const auditRef = db.collection("memberProfileAudit").doc();
+    transaction.create(auditRef, {
+      memberUid: uid,
+      action: "member_profile_social_links_updated",
+      providers: Object.keys(links).sort(),
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { savedProviders: Object.keys(links).sort() };
 });
 
 
