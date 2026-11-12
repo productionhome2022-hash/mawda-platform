@@ -37,6 +37,12 @@ test("approved roles and private chats can use only approved HTTPS platform host
   assert.throws(() => assertMessageLinksAllowed("https://x.com/example", true));
   assert.throws(() => assertMessageLinksAllowed("https://x.com/example", true));
   assert.throws(() => assertMessageLinksAllowed("https://twitter.com/example", true));
+  assert.throws(() => assertMessageLinksAllowed(
+    "https://t.co/example", true, false, BIOMETRIC_APPROVED_HOSTS,
+  ), /MESSAGE_LINK_NOT_ALLOWED/);
+  assert.throws(() => assertMessageLinksAllowed(
+    "http://youtube.com/watch?v=1", true, false, BIOMETRIC_APPROVED_HOSTS,
+  ), /MESSAGE_LINK_NOT_ALLOWED/);
 });
 
 test("biometrically verified members receive the same free approved-link permission", () => {
