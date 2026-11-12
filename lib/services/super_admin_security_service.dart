@@ -123,9 +123,13 @@ class SuperAdminSecurityService {
   Future<Map<String, dynamic>> getOwnerDirectChatMessages(
     String chatId, {
     String? pageToken,
+    String reviewMode = 'silent',
+    String? announcementMessageId,
   }) async {
     final result = await _functions.httpsCallable('getOwnerDirectChatMessages').call({
       'chatId': chatId,
+      'mode': reviewMode,
+      if (announcementMessageId != null) 'announcementMessageId': announcementMessageId,
       if (pageToken != null) 'pageToken': pageToken,
     });
     return Map<String, dynamic>.from(result.data as Map);
