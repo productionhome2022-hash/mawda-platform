@@ -44,11 +44,14 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Test registration, email verification, sign-in, sign-out, password reset, and account recovery against a non-production Firebase environment.
 - [ ] Test profile completion, editing, validation, privacy, and unique username behavior on physical devices.
 - [ ] Test the 500-coin verified-email reward for exactly-once behavior per successful eligible 90-day verification cycle.
-- [ ] Test coin transfer quoting, fee calculation, stale quote rejection, atomic ledger writes, idempotency, and both parties' wallet histories.
+- [ ] Complete end-to-end tests for coin transfer quoting, fee calculation, stale quote rejection, concurrent transfers, atomic ledger writes, idempotency, and both parties' wallet histories.
 - [ ] Complete and test direct-message UI, pagination, delivery/read state, push notifications, block/report, and media workflows.
 - [ ] Complete and test room discovery, invitations, moderation, rental billing, voice/video, and room finance.
-- [ ] Complete and test store catalog, secure purchase verification, premium entitlements, coin packs, and reward anti-abuse controls.
-- [ ] Complete the owner console modules for platform settings, identity/content, backgrounds, stores, finance, trust/safety, analytics, backups, and incident response.
+- [x] Add owner-managed store catalog, atomic coin purchase transaction, immutable purchase ledger/receipt, entitlement record, idempotency and stale-price checks.
+- [ ] Implement and test entitlement consumers for each product before setting `purchaseEnabled` and `fulfillmentReady`; purchases remain fail-closed until then.
+- [ ] Implement real-money coin top-ups with verified provider receipts, refunds, chargebacks, and reward anti-abuse controls.
+- [x] Add owner-only room creation, transfer commission/pause controls, and store catalog management UI with audited backend writes.
+- [ ] Complete the owner console modules for identity/content, backgrounds, trust/safety, analytics, backups, incident response, and remaining finance operations.
 
 ## 5. Media, privacy, and safety
 
