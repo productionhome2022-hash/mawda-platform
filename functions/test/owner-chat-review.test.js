@@ -99,7 +99,7 @@ test("owner participation rejects malformed chat, message text, and idempotency 
 test("owner message review accepts a validated continuation cursor", () => {
   assert.deepEqual(
     validateOwnerChatReviewRequest({ chatId, pageToken: "message_123" }),
-    { chatId, reason: null, mode: "silent", limit: 50, pageToken: "message_123" },
+    { chatId, reason: null, mode: "silent", announcementMessageId: null, limit: 50, pageToken: "message_123" },
   );
   assert.equal(validateOwnerChatReviewRequest({ chatId }).pageToken, null);
 });
