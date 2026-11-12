@@ -20,6 +20,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   bool _searching = false;
   bool _updatingStatus = false;
   bool _loadingOwnerConversations = false;
+  bool _verifyingOwnerAuditChain = false;
   bool _ownerConversationsLoaded = false;
   String? _reviewingChatId;
   List<Map<String, dynamic>> _ownerConversations = [];
@@ -580,6 +581,54 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     }
   }
 
+  Future<void> _verifyOwnerAuditChain() async {
+    if (_verifyingOwnerAuditChain) return;
+    setState(() => _verifyingOwnerAuditChain = true);
+    try {
+      final result = await _service.verifyOwnerReviewAuditChain();
+      if (!mounted) return;
+      final valid = result['valid'] == true;
+      final complete = result['complete'] == true;
+      final sequence = result['verifiedThroughSequence'] ?? result['sequence'] ?? 0;
+      final reason = result['reason'] ?? 'غير محدد';
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(
+            !complete
+                ? 'التحقق غير مكتمل'
+                : valid
+                    ? 'سجل التدقيق سليم'
+                    : 'تعذر اعتماد سلامة سجل التدقيق',
+          ),
+          content: Text(
+            !complete
+                ? 'تجاوز السجل الحد الآمن للتحقق في طلب واحد. لم يُصنّف السجل على أنه سليم. السبب: $reason'
+                : valid
+                    ? 'اجتاز تسلسل سجل مراجعات المالك فحص الترابط والبصمات حتى الحد $sequence.'
+                    : 'اكتُشف اختلاف في سجل المراجعات. رمز النتيجة: $reason. يلزم التحقيق قبل اعتماد السجل.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        ),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر التحقق من سجل التدقيق.')),
+      );
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر التحقق من سجل التدقيق؛ لم يتم تأكيد النتيجة.')),
+      );
+    } finally {
+      if (mounted) setState(() => _verifyingOwnerAuditChain = false);
+    }
+  }
+
   Future<void> _changeMemberStatus(String status) async {
     final member = _member;
     if (member == null || _updatingStatus) return;
@@ -1086,6 +1135,17 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
         ],
         const Divider(height: 32),
         Text('ضوابط المالك', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _verifyingOwnerAuditChain ? null : _verifyOwnerAuditChain,
+            icon: _verifyingOwnerAuditChain
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.fact_check_outlined),
+            label: const Text('التحقق من سلامة سجل مراجعات المالك'),
+          ),
+        ),
         const ListTile(
           leading: Icon(Icons.verified_user_outlined),
           title: Text('الصلاحية خادمية وليست واجهة'),
