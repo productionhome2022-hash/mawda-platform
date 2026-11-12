@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { validateMemberProfile } from "./member-profile";
-import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { calculateTransferBreakdown } from "./coin-math";
@@ -26,6 +26,7 @@ import { createHash } from "node:crypto";
 import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { projectStoreCatalogItem } from "./store-catalog";
+import { calculateStorePurchaseBalance, isStoreEntitlementActive } from "./store-purchase";
 
 initializeApp();
 
@@ -1508,4 +1509,117 @@ export const getStoreCatalog = onCall(async (request) => {
     .sort((left, right) => left.sortOrder - right.sortOrder || left.itemId.localeCompare(right.itemId))
     .map(({ sortOrder: _sortOrder, ...item }) => item);
   return { items };
+});
+
+
+/**
+ * Purchases a published store item with existing coins.
+ * Balance debit, immutable ledger entry, purchase receipt, and entitlement
+ * are committed atomically. Real-money top-ups are a separate unimplemented flow.
+ */
+export const purchaseStoreItem = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const itemId = request.data?.itemId;
+  const requestId = request.data?.requestId;
+  if (typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
+      typeof requestId !== "string" || requestId.length < 8 ||
+      requestId.length > 80 || !/^[A-Za-z0-9_-]+$/.test(requestId)) {
+    throw new HttpsError("invalid-argument", "بيانات شراء العنصر غير صالحة.");
+  }
+
+  const userRef = db.collection("users").doc(uid);
+  const itemRef = db.collection("storeCatalog").doc(itemId);
+  const purchaseId = `${uid}_${requestId}`;
+  const purchaseRef = db.collection("storePurchases").doc(purchaseId);
+  const ledgerRef = userRef.collection("walletLedger").doc(`store_${purchaseId}`);
+  const entitlementRef = userRef.collection("entitlements").doc(itemId);
+
+  return db.runTransaction(async (transaction) => {
+    const [member, itemSnapshot, priorPurchase, priorEntitlement] = await Promise.all([
+      transaction.get(userRef),
+      transaction.get(itemRef),
+      transaction.get(purchaseRef),
+      transaction.get(entitlementRef),
+    ]);
+    if (priorPurchase.exists) {
+      const prior = priorPurchase.data() ?? {};
+      if (prior.memberUid !== uid || prior.itemId !== itemId) {
+        throw new HttpsError("already-exists", "معرف طلب الشراء مستخدم لعملية أخرى.");
+      }
+      return {
+        purchaseId,
+        itemId,
+        priceCoins: prior.priceCoins,
+        newBalance: prior.newBalance,
+        expiresAt: prior.expiresAt?.toMillis?.() ?? null,
+        idempotentReplay: true,
+      };
+    }
+    if (!member.exists || member.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(member.data())) {
+      throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بإجراء المشتريات.");
+    }
+    if (!itemSnapshot.exists) {
+      throw new HttpsError("not-found", "عنصر المتجر غير موجود.");
+    }
+    const item = projectStoreCatalogItem(itemId, itemSnapshot.data() ?? {});
+    if (!item) {
+      throw new HttpsError("failed-precondition", "هذا العنصر غير منشور أو أن بيانات سعره غير صالحة.");
+    }
+    if (priorEntitlement.exists && isStoreEntitlementActive(priorEntitlement.data())) {
+      throw new HttpsError("already-exists", "لديك هذا الاستحقاق فعالاً بالفعل.");
+    }
+
+    const memberData = member.data() ?? {};
+    const currentBalance = memberData.coins ?? 0;
+    const newBalance = calculateStorePurchaseBalance(currentBalance, item.priceCoins);
+    if (newBalance === null) {
+      throw new HttpsError("failed-precondition", "رصيد الكوينز غير كافٍ أو يحتوي على قيمة غير صالحة.");
+    }
+
+    const createdAt = FieldValue.serverTimestamp();
+    const expiresAt = item.durationDays
+      ? Timestamp.fromMillis(Date.now() + item.durationDays * 24 * 60 * 60 * 1000)
+      : null;
+    transaction.update(userRef, { coins: newBalance, updatedAt: createdAt });
+    transaction.create(purchaseRef, {
+      purchaseId,
+      memberUid: uid,
+      itemId,
+      itemName: item.name,
+      category: item.category,
+      priceCoins: item.priceCoins,
+      durationDays: item.durationDays ?? null,
+      newBalance,
+      expiresAt,
+      status: "completed",
+      createdAt,
+    });
+    transaction.create(ledgerRef, {
+      type: "store_purchase",
+      direction: "debit",
+      amount: -item.priceCoins,
+      itemId,
+      itemName: item.name,
+      purchaseId,
+      createdAt,
+    });
+    transaction.set(entitlementRef, {
+      itemId,
+      itemName: item.name,
+      category: item.category,
+      status: "active",
+      purchaseId,
+      purchasedAt: createdAt,
+      expiresAt,
+    });
+    return {
+      purchaseId,
+      itemId,
+      priceCoins: item.priceCoins,
+      newBalance,
+      expiresAt: expiresAt?.toMillis() ?? null,
+      idempotentReplay: false,
+    };
+  });
 });
