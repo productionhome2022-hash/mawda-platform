@@ -56,3 +56,32 @@ test("only the owner or an explicitly public member profile can be viewed", () =
   assert.equal(canViewMemberProfile("member-2", "member-1", undefined), false);
   assert.equal(canViewMemberProfile("member-2", "member-1", "unexpected"), false);
 });
+
+
+test("public projection revalidates social links and drops unapproved stored values", () => {
+  const result = projectPublicMemberProfile("member-social", {
+    profileVisibility: "public",
+    approvedSocialLinks: {
+      instagram: "https://www.instagram.com/member/",
+      x: "https://x.com/member",
+      facebook: "https://facebook.com/member",
+      whatsapp: "https://wa.me/49123456789",
+      evil: "https://instagram.com.attacker.example/member",
+      unsafe: "http://www.instagram.com/member",
+    },
+  });
+  assert.deepEqual(result.socialLinks, {
+    instagram: "https://www.instagram.com/member/",
+    x: "https://x.com/member",
+    facebook: "https://facebook.com/member",
+    whatsapp: "https://wa.me/49123456789",
+  });
+});
+
+test("public projection omits malformed social-link containers", () => {
+  const result = projectPublicMemberProfile("member-social", {
+    profileVisibility: "public",
+    approvedSocialLinks: ["https://instagram.com/member"],
+  });
+  assert.deepEqual(result.socialLinks, {});
+});
