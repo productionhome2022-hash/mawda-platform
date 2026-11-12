@@ -1390,3 +1390,76 @@ export const getOwnerMemberSummary = onCall(async (request) => {
     createdAt: data.createdAt?.toMillis?.() ?? null,
   };
 });
+
+
+/**
+ * Lists the signed-in member's rooms and eligible public rooms.
+ * Only minimal room metadata is returned; messages remain behind getRoomMessages.
+ */
+export const listMemberRooms = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const user = await db.collection("users").doc(uid).get();
+  if (!user.exists || user.data()?.profileCompleted !== true) {
+    throw new HttpsError("failed-precondition", "يجب إكمال الملف الشخصي قبل تصفح الغرف.");
+  }
+  if (!isMemberAccountInGoodStanding(user.data())) {
+    throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بتصفح الغرف حالياً.");
+  }
+  const age = user.data()?.age;
+  if (!Number.isSafeInteger(age)) {
+    throw new HttpsError("failed-precondition", "بيانات العمر غير مكتملة.");
+  }
+
+  const memberships = await db.collectionGroup("members")
+    .where("uid", "==", uid)
+    .limit(100)
+    .get();
+  const joinedRoomRefs = memberships.docs
+    .map((membership) => membership.ref.parent.parent)
+    .filter((ref): ref is FirebaseFirestore.DocumentReference => ref !== null);
+  const joinedSnapshots = joinedRoomRefs.length > 0
+    ? await db.getAll(...joinedRoomRefs)
+    : [];
+  const joined = joinedSnapshots
+    .filter((room) => room.exists && room.data()?.status === "active")
+    .map((room) => ({
+      roomId: room.id,
+      name: room.data()?.name ?? "غرفة مودة",
+      kind: room.data()?.kind ?? "public",
+      audience: room.data()?.audience ?? "unknown",
+      memberCount: room.data()?.memberCount ?? 0,
+      capacity: room.data()?.capacity ?? 0,
+      isMember: true,
+    }));
+
+  const joinedIds = new Set(joined.map((room) => room.roomId));
+  const publicSnapshots = await db.collection("rooms")
+    .where("status", "==", "active")
+    .limit(100)
+    .get();
+  const discoverable = publicSnapshots.docs
+    .filter((room) => !joinedIds.has(room.id))
+    .filter((room) => {
+      const data = room.data();
+      return data.kind === "public" && canJoinRoom({
+        memberAge: age,
+        roomAudience: data.audience,
+        roomKind: "public",
+        invited: false,
+      });
+    })
+    .map((room) => {
+      const data = room.data();
+      return {
+        roomId: room.id,
+        name: data.name ?? "غرفة مودة",
+        kind: "public",
+        audience: data.audience ?? "unknown",
+        memberCount: data.memberCount ?? 0,
+        capacity: data.capacity ?? 0,
+        isMember: false,
+      };
+    });
+
+  return { joined, discoverable };
+});
