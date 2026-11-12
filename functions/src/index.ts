@@ -9,6 +9,7 @@ import { validateRegistrationPolicy } from "./registration-policy";
 import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
 import { validateMemberProfileUpdate } from "./member-profile-update";
 import { validateDirectMessageInput } from "./direct-message";
+import { hasActiveBiometricVerification } from "./biometric-verification";
 import {
   assertMessageLinksAllowed,
   BIOMETRIC_APPROVED_HOSTS,
@@ -693,7 +694,7 @@ export const sendDirectMessage = onCall(async (request) => {
       const sender = senderSnapshot.data() ?? {};
       const recipient = recipientSnapshot.data() ?? {};
       const ownerSession = hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>);
-      const isBiometricallyVerified = sender.biometricVerification?.status === "verified";
+      const isBiometricallyVerified = hasActiveBiometricVerification(sender.biometricVerification);
       try {
         assertMessageLinksAllowed(
           messageText,
@@ -886,7 +887,7 @@ export const sendRoomMessage = onCall(async (request) => {
     const isRoomOwner = roomData.ownerUid === uid;
     const isAuthorizedModerator = moderator.exists;
     const ownerSession = hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>);
-    const isBiometricallyVerified = member.data()?.biometricVerification?.status === "verified";
+    const isBiometricallyVerified = hasActiveBiometricVerification(member.data()?.biometricVerification);
     try {
       assertMessageLinksAllowed(
         content,
