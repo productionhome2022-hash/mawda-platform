@@ -43,6 +43,7 @@ This matrix connects approved product decisions to implementation phases and obj
 - Profile requirements include full name, unique username, age, profession, Arab country, region, gender, marital status, bio (maximum 500 characters), interests, and structured goals. Dating/marriage goals are adult-only under the approved policy; self-declared age is not robust age assurance.
 - Verified-email reward is 500 coins after every successfully completed eligible 90-day email verification cycle, with a unique cycle ID and atomic exactly-once ledger record.
 - Every coin transfer has one transfer ID and linked sender/recipient/platform ledger records. Sender history shows gross debit, fee, recipient ID, and net delivered; recipient history shows net received, sender ID, transfer ID, and timestamp.
+- Implemented a read-only Flutter wallet history screen backed by the member-scoped `walletLedger` stream; it displays sent/received entries, transfer identifiers, related member IDs, timestamps, and sender-side fee/net details. CI validation is pending.
 - The illustrative 20% commission is not a hardcoded rate; the owner-configured rate and quote snapshot govern the transaction.
 - Weekly attendance means seven consecutive days. Ad rewards require disclosed completion conditions and anti-fraud controls; merely opening an ad is insufficient.
 - Premium profile options approved for the roadmap include animated frames, styled/animated names, analytics, professional layouts, pinned sections, themes/backgrounds, greeting messages, clearly labeled discovery boosts, and VIP badges/tiers.
@@ -125,7 +126,9 @@ Add a dedicated workstream across the platform:
 - Implemented in the trusted Functions layer: authenticated members can save the four optional provider links only when their server-owned biometric verification is active; updates are audited.
 - Implemented in profile reads: links are withheld unless the server-side biometric lease is active and the viewer is authorized by profile visibility. The public-profile projection independently revalidates each URL against the official HTTPS host allowlist; malformed legacy values are omitted.
 - Added unit coverage for the four provider domains, deceptive/unsafe URLs, malformed stored containers, and defensive revalidation at the public projection boundary.
-- Still pending: Flutter profile-wall editing/display and individual hide controls; integration tests proving callable authorization and expiry/revocation behavior; full cross-account/privacy tests; and the actual biometric provider/capture workflow. The biometric workflow is not implemented, so this feature is not yet available to members.
+- Implemented in Flutter: the member can edit/save or clear the four links from their own profile; approved links are displayed in the profile view. The UI reports that new publishing requires active biometric verification, while removal remains available after expiry/revocation.
+- Added policy unit tests proving active verification is required to publish and expired/revoked members can still clear their links.
+- Still pending: per-link temporary hide controls; callable-level authorization/integration tests and full cross-account/privacy tests; and the actual biometric provider/capture workflow. The biometric workflow is not implemented, so this feature is not yet available to members. Current UI and backend code are foundations, not a launched biometric service.
 - Do not treat a pasted URL as provider identity verification or a verified badge. Provider OAuth/WhatsApp OTP identity checks remain separate requirements.
 
 ## Super Admin wallet controls and coin forfeiture (owner-approved addition)
