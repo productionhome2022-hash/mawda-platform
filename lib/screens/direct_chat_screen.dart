@@ -131,6 +131,31 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                       ),
                     ),
                   ),
+                if (message['isOwnerReviewNotice'] == true)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.campaign_outlined,
+                            size: 14,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'إشعار مراجعة معلنة',
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 SelectableText(text),
                 const SizedBox(height: 4),
                 Row(
