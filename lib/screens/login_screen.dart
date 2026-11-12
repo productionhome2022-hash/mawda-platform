@@ -1,6 +1,8 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../privacy_policy.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,17 +27,84 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<bool?> _confirmPrivacyBeforeRegistration() async {
+    var accepted = false;
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('إشعار خصوصية مودة'),
+          content: SizedBox(
+            width: 520,
+            height: MediaQuery.sizeOf(context).height * 0.58,
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: SelectableText(
+                      'الإصدار $mawdaPrivacyPolicyVersion\\n\\n$mawdaPrivacyNoticeArabic',
+                    ),
+                  ),
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: accepted,
+                  onChanged: (value) => setDialogState(() => accepted = value == true),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text('قرأت إشعار الخصوصية وأقر بالاطلاع على هذا الإصدار.'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('رفض وإلغاء التسجيل'),
+            ),
+            FilledButton(
+              onPressed: accepted ? () => Navigator.pop(dialogContext, true) : null,
+              child: const Text('أوافق وأتابع'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate() || _busy) return;
+    if (_register) {
+      final accepted = await _confirmPrivacyBeforeRegistration();
+      if (accepted != true || !mounted) return;
+    }
     setState(() { _busy = true; _message = null; });
     try {
       if (_register) {
         final result = await _auth.signUpWithEmail(email: _email.text, password: _password.text);
         await result.user?.sendEmailVerification();
+        try {
+          final locale = Localizations.localeOf(context).languageCode;
+          await FirebaseFunctions.instance
+              .httpsCallable('recordPrivacyAcknowledgement')
+              .call({
+            'policyVersion': mawdaPrivacyPolicyVersion,
+            'policyHash': mawdaPrivacyPolicyHash,
+            'locale': ['ar', 'en', 'fr', 'es'].contains(locale) ? locale : 'ar',
+            'actorType': 'member',
+            'appVersion': mawdaAppVersion,
+          });
+        } catch (_) {
+          await _auth.signOut();
+          if (mounted) setState(() {
+            _register = false;
+            _message = 'أنشأنا حساب الدخول وأرسلنا رسالة التحقق، لكن تعذر حفظ إقرار الخصوصية. بعد تأكيد البريد سجّل الدخول لإكمال الإقرار قبل فتح المحتوى.';
+          });
+          return;
+        }
         await _auth.signOut();
         if (mounted) setState(() {
           _register = false;
-          _message = 'تم إنشاء حساب الدخول. أرسلنا رسالة تحقق إلى بريدك؛ افتحها ثم سجّل الدخول.';
+          _message = 'تم إنشاء حساب الدخول وحفظ إقرار الخصوصية. أرسلنا رسالة تحقق إلى بريدك؛ افتحها ثم سجّل الدخول.';
         });
       } else {
         final result = await _auth.signInWithEmail(email: _email.text, password: _password.text);
