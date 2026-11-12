@@ -91,8 +91,11 @@ test("store charging stays disabled until fulfillment is explicitly ready", () =
     active: true, purchaseEnabled: true, fulfillmentReady: false,
   }), false);
   assert.equal(isStoreItemPurchasable({
-    active: true, purchaseEnabled: true, fulfillmentReady: true,
+    active: true, category: "vip", purchaseEnabled: true, fulfillmentReady: true,
   }), true);
+  assert.equal(isStoreItemPurchasable({
+    active: true, category: "theme", purchaseEnabled: true, fulfillmentReady: true,
+  }), false);
   assert.equal(isStoreItemPurchasable({
     active: false, purchaseEnabled: true, fulfillmentReady: true,
   }), false);
