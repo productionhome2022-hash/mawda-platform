@@ -51,3 +51,39 @@ test("rejects invalid or excessive page sizes", () => {
     );
   }
 });
+
+
+test("owner participation accepts only the three approved display labels", () => {
+  const base = {
+    chatId,
+    text: "مرحباً، هذه رسالة إدارية من فريق مودة.",
+    clientMessageId: "owner-message-123",
+  };
+  for (const mode of ["platform_admin", "super_admin", "anonymous"]) {
+    assert.equal(validateOwnerChatParticipationRequest({ ...base, mode }).mode, mode);
+  }
+  assert.throws(() => validateOwnerChatParticipationRequest({
+    ...base, mode: "member_impersonation",
+  }), /INVALID_OWNER_PARTICIPATION_MODE/);
+});
+
+test("owner participation rejects malformed chat, message text, and idempotency keys", () => {
+  const base = {
+    chatId,
+    text: "رسالة إدارية",
+    clientMessageId: "owner-message-123",
+    mode: "anonymous",
+  };
+  assert.throws(() => validateOwnerChatParticipationRequest({
+    ...base, chatId: "bad",
+  }), /INVALID_CHAT_ID/);
+  assert.throws(() => validateOwnerChatParticipationRequest({
+    ...base, text: "   ",
+  }), /INVALID_OWNER_MESSAGE_TEXT/);
+  assert.throws(() => validateOwnerChatParticipationRequest({
+    ...base, text: "x".repeat(4001),
+  }), /INVALID_OWNER_MESSAGE_TEXT/);
+  assert.throws(() => validateOwnerChatParticipationRequest({
+    ...base, clientMessageId: "bad key",
+  }), /INVALID_OWNER_MESSAGE_ID/);
+});
