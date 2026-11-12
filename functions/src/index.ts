@@ -1414,9 +1414,10 @@ export const listMemberRooms = onCall(async (request) => {
     .where("uid", "==", uid)
     .limit(100)
     .get();
-  const joinedRoomRefs = memberships.docs
-    .map((membership) => membership.ref.parent.parent)
-    .filter((ref): ref is FirebaseFirestore.DocumentReference => ref !== null);
+  const joinedRoomRefs = memberships.docs.flatMap((membership) => {
+    const roomRef = membership.ref.parent.parent;
+    return roomRef ? [roomRef] : [];
+  });
   const joinedSnapshots = joinedRoomRefs.length > 0
     ? await db.getAll(...joinedRoomRefs)
     : [];
