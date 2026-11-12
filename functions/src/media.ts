@@ -37,6 +37,38 @@ async function auditMediaAccess(event: Record<string, unknown>): Promise<void> {
   });
 }
 
+/** Persist authenticated denials before returning an authorization error. */
+async function requireSoleOwnerForMediaReview(
+  request: { auth?: { uid: string; token: Record<string, unknown> } | null },
+  action: string,
+): Promise<string> {
+  try {
+    return requireSoleOwner(request);
+  } catch (error) {
+    const actorUid = request.auth?.uid;
+    if (actorUid) {
+      // Fail closed: do not return an authorization denial if its audit cannot be persisted.
+      await auditMediaAccess({
+        actorUid,
+        action,
+        outcome: "denied",
+        failureCode: error instanceof HttpsError ? error.code : "permission-denied",
+        ownerAuthTime: request.auth?.token.auth_time ?? null,
+      });
+    }
+    throw error;
+  }
+}
+
+function uploaderTypeFromToken(token: Record<string, unknown>): "guest" | "member" {
+  const firebase = token.firebase;
+  if (firebase && typeof firebase === "object" && !Array.isArray(firebase) &&
+      (firebase as Record<string, unknown>).sign_in_provider === "anonymous") {
+    return "guest";
+  }
+  return "member";
+}
+
 /**
  * Issues a five-minute, single-object upload URL. Objects are written only
  * beneath a private quarantine prefix and are never made publicly readable.
@@ -69,6 +101,7 @@ export const createMediaUploadIntent = onCall(async (request) => {
   await db.collection("mediaAssets").doc(mediaId).create({
     mediaId,
     ownerUid: uid,
+    uploaderType: uploaderTypeFromToken(request.auth?.token ?? {}),
     objectPath,
     originalName: input.originalName,
     declaredContentType: input.contentType,
@@ -174,18 +207,24 @@ export const finalizeMediaUpload = onCall(async (request) => {
 
 /** Lists bounded metadata only; file bytes and download URLs are never returned here. */
 export const listOwnerMediaAssets = onCall(async (request) => {
-  const actorUid = requireSoleOwner(request);
+  const actorUid = await requireSoleOwnerForMediaReview(request, "owner_media_asset_list_attempt");
   const requestedLimit = request.data?.limit;
   const limit = Number.isSafeInteger(requestedLimit)
     ? Math.max(1, Math.min(50, requestedLimit as number))
     : 25;
   const status = typeof request.data?.status === "string" ? request.data.status : "pending_security_scan";
+  const uploaderType = typeof request.data?.uploaderType === "string" ? request.data.uploaderType : "all";
+  const allowedUploaderTypes = ["all", "member", "guest"];
+  if (!allowedUploaderTypes.includes(uploaderType)) {
+    throw new HttpsError("invalid-argument", "نوع صاحب الملف المطلوب غير صالح.");
+  }
   const allowedStatuses = ["upload_authorized", "pending_security_scan", "rejected", "security_approved"];
   if (!allowedStatuses.includes(status)) {
     throw new HttpsError("invalid-argument", "حالة الملفات المطلوبة غير صالحة.");
   }
-  let query = db.collection("mediaAssets").where("status", "==", status)
-    .orderBy("createdAt", "desc").limit(limit + 1);
+  let query = db.collection("mediaAssets").where("status", "==", status);
+  if (uploaderType !== "all") query = query.where("uploaderType", "==", uploaderType);
+  query = query.orderBy("createdAt", "desc").limit(limit + 1);
   const cursor = typeof request.data?.pageToken === "string" ? request.data.pageToken : "";
   if (cursor) {
     const cursorDoc = await db.collection("mediaAssets").doc(cursor).get();
@@ -202,6 +241,7 @@ export const listOwnerMediaAssets = onCall(async (request) => {
     action: "owner_media_asset_listed",
     outcome: "success",
     requestedStatus: status,
+    requestedUploaderType: uploaderType,
     returnedCount: docs.length,
     hasMore,
   });
@@ -211,6 +251,7 @@ export const listOwnerMediaAssets = onCall(async (request) => {
       return {
         mediaId: doc.id,
         ownerUid: data.ownerUid,
+        uploaderType: data.uploaderType ?? "legacy_unknown",
         originalName: data.originalName,
         declaredContentType: data.declaredContentType,
         detectedContentType: data.detectedContentType ?? null,
@@ -230,7 +271,7 @@ export const listOwnerMediaAssets = onCall(async (request) => {
  * explicit privileged inspection path, not a member-facing media URL.
  */
 export const getOwnerMediaInspectionUrl = onCall(async (request) => {
-  const actorUid = requireSoleOwner(request);
+  const actorUid = await requireSoleOwnerForMediaReview(request, "owner_media_inspection_attempt");
   const mediaId = typeof request.data?.mediaId === "string" ? request.data.mediaId : "";
   if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
     throw new HttpsError("invalid-argument", "معرف الملف غير صالح.");
