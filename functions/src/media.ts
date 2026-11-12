@@ -209,10 +209,22 @@ export const listOwnerMediaAssets = onCall(async (request) => {
   const uploaderType = typeof request.data?.uploaderType === "string" ? request.data.uploaderType : "all";
   const allowedUploaderTypes = ["all", "member", "guest"];
   if (!allowedUploaderTypes.includes(uploaderType)) {
+    await auditMediaAccess({
+      actorUid,
+      action: "owner_media_asset_list_attempt",
+      outcome: "denied",
+      failureCode: "invalid-uploader-type",
+    });
     throw new HttpsError("invalid-argument", "نوع صاحب الملف المطلوب غير صالح.");
   }
   const allowedStatuses = ["upload_authorized", "pending_security_scan", "rejected", "security_approved"];
   if (!allowedStatuses.includes(status)) {
+    await auditMediaAccess({
+      actorUid,
+      action: "owner_media_asset_list_attempt",
+      outcome: "denied",
+      failureCode: "invalid-status",
+    });
     throw new HttpsError("invalid-argument", "حالة الملفات المطلوبة غير صالحة.");
   }
   let query = db.collection("mediaAssets").where("status", "==", status);
@@ -221,7 +233,16 @@ export const listOwnerMediaAssets = onCall(async (request) => {
   const cursor = typeof request.data?.pageToken === "string" ? request.data.pageToken : "";
   if (cursor) {
     const cursorDoc = await db.collection("mediaAssets").doc(cursor).get();
-    if (!cursorDoc.exists || cursorDoc.data()?.status !== status) {
+    if (!cursorDoc.exists || cursorDoc.data()?.status !== status ||
+        (uploaderType !== "all" && cursorDoc.data()?.uploaderType !== uploaderType)) {
+      await auditMediaAccess({
+        actorUid,
+        action: "owner_media_asset_list_attempt",
+        outcome: "denied",
+        failureCode: "invalid-page-token",
+        requestedStatus: status,
+        requestedUploaderType: uploaderType,
+      });
       throw new HttpsError("invalid-argument", "مؤشر صفحة الملفات غير صالح.");
     }
     query = query.startAfter(cursorDoc);
