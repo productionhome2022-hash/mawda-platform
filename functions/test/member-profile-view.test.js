@@ -32,6 +32,7 @@ test("public projection returns only the approved profile allowlist", () => {
     maritalStatus: "",
     interests: ["reading"],
     goals: ["friendship"],
+    socialLinks: {},
   });
   assert.equal(Object.hasOwn(result, "age"), false);
   assert.equal(Object.hasOwn(result, "email"), false);
