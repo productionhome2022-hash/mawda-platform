@@ -51,6 +51,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
 
+  Future<void> _setSocialLinkHidden(String provider, bool hidden) async {
+    try {
+      await FirebaseFunctions.instance.httpsCallable(
+        'setMemberProfileSocialLinkVisibility',
+      ).call(<String, dynamic>{'provider': provider, 'hidden': hidden});
+      if (!mounted) return;
+      setState(() => _profileFuture = _loadProfile());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(hidden ? 'تم إخفاء الرابط من ملفك.' : 'تم إظهار الرابط في ملفك.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر تحديث خصوصية الرابط.')),
+      );
+    }
+  }
+
   Future<void> _manageSocialLinks(Map<String, dynamic> profile) async {
     final existing = Map<String, dynamic>.from(
       profile['socialLinks'] as Map? ?? const <String, dynamic>{},
@@ -493,6 +511,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             data['socialLinks'] as Map? ?? const <String, dynamic>{},
           );
           final canManageSocialLinks = data['canManageSocialLinks'] == true;
+          final hiddenSocialLinks = (data['hiddenSocialLinks'] as List<dynamic>? ?? const [])
+              .whereType<String>()
+              .toSet();
 
           return ListView(
             padding: const EdgeInsets.only(bottom: 32),
@@ -567,7 +588,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           for (final entry in socialLinks.entries)
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: SelectableText('${entry.key}: ${entry.value}'),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: SelectableText(
+                                      '${entry.key}: ${entry.value}'
+                                      '${isMyProfile && hiddenSocialLinks.contains(entry.key) ? ' (مخفي عن الأعضاء)' : ''}',
+                                    ),
+                                  ),
+                                  if (isMyProfile)
+                                    IconButton(
+                                      tooltip: hiddenSocialLinks.contains(entry.key)
+                                          ? 'إظهار الرابط للأعضاء'
+                                          : 'إخفاء الرابط عن الأعضاء',
+                                      onPressed: () => _setSocialLinkHidden(
+                                        entry.key,
+                                        !hiddenSocialLinks.contains(entry.key),
+                                      ),
+                                      icon: Icon(hiddenSocialLinks.contains(entry.key)
+                                          ? Icons.visibility_off_outlined
+                                          : Icons.visibility_outlined),
+                                    ),
+                                ],
+                              ),
                             ),
                         ],
                       ),
