@@ -39,6 +39,8 @@ test("rejects unapproved domains, deceptive hosts, credentials and insecure sche
 test("rejects common dot obfuscation", () => {
   assert.throws(() => assertMessageLinksAllowed("youtube[.]com/watch", true), /MESSAGE_LINK_NOT_ALLOWED/);
   assert.throws(() => assertMessageLinksAllowed("instagram dot com/reel", true), /MESSAGE_LINK_NOT_ALLOWED/);
+  assert.throws(() => assertMessageLinksAllowed("twitter[.]com/example", true), /MESSAGE_LINK_NOT_ALLOWED/);
+  assert.throws(() => assertMessageLinksAllowed("x dot com/example", true), /MESSAGE_LINK_NOT_ALLOWED/);
 });
 
 test("platform owner may send links to any domain using safe web schemes", () => {
