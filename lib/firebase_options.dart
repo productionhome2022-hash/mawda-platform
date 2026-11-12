@@ -28,15 +28,19 @@ class DefaultFirebaseOptions {
     }
   }
 
+  // Values supplied from Firebase Console for the registered Mawda Platform Web app.
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyActualApiKeyForMawdaPlatformReplacedSecurely',
-    appId: '1:1234567890:web:abcdef123456789',
-    messagingSenderId: '1234567890',
-    projectId: 'mawda-platform',
-    authDomain: 'mawda-platform.firebaseapp.com',
-    storageBucket: 'mawda-platform.appspot.com',
+    apiKey: 'AIzaSyC4L3XeavP-WSgnV-PF1oYnnQ4GNzMaz2g',
+    appId: '1:697303475139:web:8869603bda6f1a3c3ed376',
+    messagingSenderId: '697303475139',
+    projectId: 'mawda-app-2026',
+    authDomain: 'mawda-app-2026.firebaseapp.com',
+    storageBucket: 'mawda-app-2026.appspot.com',
+    measurementId: 'G-G9PJ9DFEBJ',
   );
 
+  // The following platform registrations have not yet been supplied/verified.
+  // Do not use these placeholder values for native builds.
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyActualApiKeyForMawdaPlatformReplacedSecurely',
     appId: '1:1234567890:android:abcdef123456789',
