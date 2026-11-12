@@ -8,7 +8,6 @@ import 'profile_screen.dart';
 import 'shop_screen.dart';
 import 'wallet_screen.dart';
 import 'rooms_screen.dart';
-import 'rooms_screen.dart';
 
 class MainUserScreen extends StatefulWidget {
   final String userId;
