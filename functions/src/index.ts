@@ -1486,7 +1486,22 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
     nextPageToken = encodeOwnerMessagePageToken(lastCreatedAt.toMillis(), lastPageDoc.id);
   }
 
-  // Log each privileged page before retrieving message bodies. Never log message content.
+  // Record completion separately so a failed query remains visible as a request
+  // without incorrectly claiming that message data was successfully returned.
+  await db.collection("adminAuditLogs").doc().create({
+    actorUid,
+    action: "owner_direct_chat_review_page_result",
+    parentAuditLogId: auditRef.id,
+    chatId: review.chatId,
+    reviewScope: "direct_chat_messages",
+    returnedCount: pageDocs.length,
+    hasMore,
+    outcome: "success",
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  // Persist the privileged access attempt before any message document is queried.
+  // Never write message bodies or excerpts to the audit collection.
   const auditRef = db.collection("adminAuditLogs").doc();
   await auditRef.create({
     actorUid,
@@ -1498,14 +1513,15 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
     reviewScope: "direct_chat_messages",
     requestedLimit: review.limit,
     cursorMessageId: review.pageToken,
-    returnedCount: pageDocs.length,
-    hasMore,
+    outcome: "requested",
     ownerAuthTime: request.auth?.token.auth_time ?? null,
     secondFactor: typeof request.auth?.token.firebase === "object" && request.auth?.token.firebase !== null
       ? (request.auth.token.firebase as Record<string, unknown>).sign_in_second_factor ?? null
       : null,
     createdAt: FieldValue.serverTimestamp(),
   });
+
+
 
   const messages = pageDocs.reverse().map((doc) => {
     const data = doc.data();
