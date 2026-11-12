@@ -23,6 +23,11 @@ test("approved roles and private chats can use only approved HTTPS platform host
   assert.doesNotThrow(() => assertMessageLinksAllowed(
     "https://twitter.com/example", true, false, BIOMETRIC_APPROVED_HOSTS,
   ));
+  assert.throws(() => assertMessageLinksAllowed(
+    "https://youtube.com/watch?v=1", true, false, BIOMETRIC_APPROVED_HOSTS,
+  ), /MESSAGE_LINK_NOT_ALLOWED/);
+  // The ordinary room-owner/moderator allowlist still includes YouTube.
+  assert.doesNotThrow(() => assertMessageLinksAllowed("https://youtube.com/watch?v=1", true));
   assert.throws(() => assertMessageLinksAllowed("https://x.com/example", true));
   assert.throws(() => assertMessageLinksAllowed("https://twitter.com/example", true));
 });
