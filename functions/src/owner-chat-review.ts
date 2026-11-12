@@ -110,6 +110,32 @@ export function validateOwnerConversationPageRequest(
   };
 }
 
+export type OwnerReviewAnnouncementRequest = {
+  chatId: string;
+  noticeText: string;
+  requestId: string;
+};
+
+/** Validate a visible owner-selected notice for announced review mode. */
+export function validateOwnerReviewAnnouncementRequest(
+  input: Record<string, unknown>,
+): OwnerReviewAnnouncementRequest {
+  const chatId = input.chatId;
+  const noticeText = typeof input.noticeText === "string" ? input.noticeText.trim() : "";
+  const requestId = input.requestId;
+  if (typeof chatId !== "string" || !/^[a-f0-9]{64}$/.test(chatId)) {
+    throw new Error("INVALID_CHAT_ID");
+  }
+  if (noticeText.length < 5 || noticeText.length > 500) {
+    throw new Error("INVALID_REVIEW_NOTICE_TEXT");
+  }
+  if (typeof requestId !== "string" || requestId.length < 8 || requestId.length > 80 ||
+      !/^[A-Za-z0-9_-]+$/.test(requestId)) {
+    throw new Error("INVALID_REVIEW_NOTICE_REQUEST_ID");
+  }
+  return { chatId, noticeText, requestId };
+}
+
 export type OwnerChatParticipationMode =
   | "platform_admin"
   | "super_admin"
