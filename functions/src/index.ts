@@ -1289,9 +1289,10 @@ export const sendOwnerDirectChatMessage = onCall(async (request) => {
   );
 
   return db.runTransaction(async (transaction) => {
-    const [freshChat, existingMessage, ...members] = await Promise.all([
+    const [freshChat, existingMessage, auditHeadSnapshot, ...members] = await Promise.all([
       transaction.get(chatRef),
       transaction.get(messageRef),
+      transaction.get(OWNER_REVIEW_AUDIT_HEAD),
       ...memberRefs.map((ref) => transaction.get(ref)),
     ]);
     const freshParticipants = freshChat.data()?.participantUids;
@@ -1353,8 +1354,15 @@ export const sendOwnerDirectChatMessage = onCall(async (request) => {
         createdAt,
       });
     }
-    const auditRef = db.collection("adminAuditLogs").doc();
-    transaction.create(auditRef, {
+    const previousAuditHead = auditHeadSnapshot.data() ?? {};
+    const previousAuditSequence = auditHeadSnapshot.exists ? previousAuditHead.sequence : 0;
+    const previousAuditHash = auditHeadSnapshot.exists ? previousAuditHead.eventHash : "GENESIS";
+    if (!Number.isSafeInteger(previousAuditSequence) || previousAuditSequence < 0 ||
+        typeof previousAuditHash !== "string" ||
+        !(previousAuditHash === "GENESIS" || /^[a-f0-9]{64}$/.test(previousAuditHash))) {
+      throw new HttpsError("internal", "تعذر التحقق من رأس سجل التدقيق قبل المشاركة.");
+    }
+    const auditEvent = {
       actorUid,
       action: "owner_direct_chat_message_sent",
       targetUids: participantUids,
@@ -1362,7 +1370,28 @@ export const sendOwnerDirectChatMessage = onCall(async (request) => {
       messageId,
       ownerParticipationMode: input.mode,
       senderLabel,
+      ownerAuthTime: request.auth?.token.auth_time ?? null,
+      secondFactor: typeof request.auth?.token.firebase === "object" && request.auth?.token.firebase !== null
+        ? (request.auth.token.firebase as Record<string, unknown>).sign_in_second_factor ?? null
+        : null,
+      outcome: "sent",
+    };
+    const auditSequence = previousAuditSequence + 1;
+    const auditHash = calculateOwnerAuditHash(auditEvent, auditSequence, previousAuditHash);
+    const auditRef = db.collection("adminAuditLogs").doc();
+    transaction.create(auditRef, {
+      ...auditEvent,
+      auditEvent,
+      auditChainId: "owner-review-v1",
+      auditSequence,
+      previousAuditHash,
+      auditHash,
       createdAt,
+    });
+    transaction.set(OWNER_REVIEW_AUDIT_HEAD, {
+      sequence: auditSequence,
+      eventHash: auditHash,
+      updatedAt: createdAt,
     });
     return { chatId: input.chatId, messageId, senderLabel, idempotentReplay: false };
   });
