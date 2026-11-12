@@ -1,6 +1,7 @@
 const APPROVED_HOSTS = new Set([
   "youtube.com", "youtu.be", "youtube-nocookie.com",
   "instagram.com", "facebook.com", "fb.watch",
+  "x.com", "twitter.com",
 ]);
 const DOMAIN_PATTERN = /(?:https?:\/\/|www\.)[^\s<>()]+|(?:[a-z0-9-]+\.)+(?:com|net|org|io|co|de|uk|fr|es|me|tv|app|dev|info|biz|xyz|online|site|live)(?:\/[^\s<>()]*)?/giu;
 const OBFUSCATION_PATTERN = /(?:youtube|instagram|facebook)\s*(?:\[.\]|\(\.\)|\{.\}|\s+dot\s+)\s*(?:com|org|net)/giu;
@@ -19,6 +20,18 @@ function isApprovedHost(hostname: string): boolean {
  * direct destinations on the explicitly approved social/video platform domains.
  * This intentionally does not fetch arbitrary URLs or follow redirects server-side.
  */
+export function canSendApprovedPlatformLinks(permissions: {
+  isBiometricallyVerified?: boolean;
+  isRoomOwner?: boolean;
+  isAuthorizedModerator?: boolean;
+  isPlatformOwner?: boolean;
+}): boolean {
+  return permissions.isBiometricallyVerified === true ||
+    permissions.isRoomOwner === true ||
+    permissions.isAuthorizedModerator === true ||
+    permissions.isPlatformOwner === true;
+}
+
 export function assertMessageLinksAllowed(
   text: string,
   allowApprovedPlatforms: boolean,
