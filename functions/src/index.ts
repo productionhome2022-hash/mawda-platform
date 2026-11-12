@@ -27,6 +27,7 @@ import {
 import { createHash } from "node:crypto";
 import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
 import { hasPlatformOwnerSession } from "./owner-access";
+import { calculateOwnerAuditHash } from "./owner-audit-chain";
 import {
   validateOwnerChatReviewRequest,
   validateOwnerConversationPageRequest,
@@ -55,6 +56,46 @@ initializeApp();
 
 const db = getFirestore();
 const TRANSFER_SETTINGS = db.doc("platformSettings/coinTransfers");
+const OWNER_REVIEW_AUDIT_HEAD = db.collection("adminAuditChainHeads").doc("ownerReview");
+
+/**
+ * Append a hash-linked owner-review audit event. A Firestore transaction
+ * serializes head updates so concurrent review requests cannot fork sequence.
+ * The head is maintained separately from the event documents.
+ */
+async function appendOwnerReviewAuditEvent(
+  event: Record<string, unknown>,
+): Promise<string> {
+  const auditRef = db.collection("adminAuditLogs").doc();
+  await db.runTransaction(async (transaction) => {
+    const headSnapshot = await transaction.get(OWNER_REVIEW_AUDIT_HEAD);
+    const head = headSnapshot.data() ?? {};
+    const previousSequence = headSnapshot.exists ? head.sequence : 0;
+    const previousHash = headSnapshot.exists ? head.eventHash : "GENESIS";
+    if (!Number.isSafeInteger(previousSequence) || previousSequence < 0 ||
+        typeof previousHash !== "string" ||
+        !(previousHash === "GENESIS" || /^[a-f0-9]{64}$/.test(previousHash))) {
+      throw new Error("OWNER_AUDIT_CHAIN_HEAD_INVALID");
+    }
+    const sequence = previousSequence + 1;
+    const eventHash = calculateOwnerAuditHash(event, sequence, previousHash);
+    transaction.create(auditRef, {
+      ...event,
+      auditChainId: "owner-review-v1",
+      auditSequence: sequence,
+      previousAuditHash: previousHash,
+      auditHash: eventHash,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    transaction.set(OWNER_REVIEW_AUDIT_HEAD, {
+      sequence,
+      eventHash,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return auditRef.id;
+}
+
 
 type TransferRequest = {
   recipientUid?: unknown;
@@ -101,7 +142,7 @@ async function requireOwnerForReview(
     if (actorUid) {
       try {
         const firebase = request.auth?.token.firebase;
-        await db.collection("adminAuditLogs").doc().create({
+        await appendOwnerReviewAuditEvent({
           actorUid,
           action,
           outcome: "denied",
@@ -110,7 +151,6 @@ async function requireOwnerForReview(
           secondFactor: firebase && typeof firebase === "object" && !Array.isArray(firebase)
             ? (firebase as Record<string, unknown>).sign_in_second_factor ?? null
             : null,
-          createdAt: FieldValue.serverTimestamp(),
         });
       } catch (auditError) {
         logger.error("Owner review denial audit write failed", { actorUid, action, auditError });
@@ -1376,8 +1416,7 @@ export const getOwnerMemberDirectChats = onCall(async (request) => {
     ? pageDocs[pageDocs.length - 1].id
     : null;
 
-  const auditRef = db.collection("adminAuditLogs").doc();
-  await auditRef.create({
+  const auditLogId = await appendOwnerReviewAuditEvent({
     actorUid,
     action: "owner_member_direct_chat_list",
     targetUid,
@@ -1391,12 +1430,20 @@ export const getOwnerMemberDirectChats = onCall(async (request) => {
     secondFactor: typeof request.auth?.token.firebase === "object" && request.auth?.token.firebase !== null
       ? (request.auth.token.firebase as Record<string, unknown>).sign_in_second_factor ?? null
       : null,
-    createdAt: FieldValue.serverTimestamp(),
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "owner_member_direct_chat_list_result",
+    parentAuditLogId: auditLogId,
+    targetUid,
+    returnedCount: pageDocs.length,
+    hasMore,
+    outcome: "success",
   });
 
   return {
     memberUid: targetUid,
-    auditLogId: auditRef.id,
+    auditLogId,
     conversations: pageDocs.map((doc) => {
       const data = doc.data();
       const participants = Array.isArray(data.participantUids)
@@ -1475,8 +1522,7 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
   }
   // Persist the privileged access attempt before any message document is queried.
   // Never write message bodies or excerpts to the audit collection.
-  const auditRef = db.collection("adminAuditLogs").doc();
-  await auditRef.create({
+  const auditLogId = await appendOwnerReviewAuditEvent({
     actorUid,
     action: "owner_direct_chat_review",
     chatId: review.chatId,
@@ -1491,7 +1537,6 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
     secondFactor: typeof request.auth?.token.firebase === "object" && request.auth?.token.firebase !== null
       ? (request.auth.token.firebase as Record<string, unknown>).sign_in_second_factor ?? null
       : null,
-    createdAt: FieldValue.serverTimestamp(),
   });
 
 
@@ -1510,16 +1555,15 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
 
   // Record completion separately so a failed query remains visible as a request
   // without incorrectly claiming that message data was successfully returned.
-  await db.collection("adminAuditLogs").doc().create({
+  await appendOwnerReviewAuditEvent({
     actorUid,
     action: "owner_direct_chat_review_page_result",
-    parentAuditLogId: auditRef.id,
+    parentAuditLogId: auditLogId,
     chatId: review.chatId,
     reviewScope: "direct_chat_messages",
     returnedCount: pageDocs.length,
     hasMore,
     outcome: "success",
-    createdAt: FieldValue.serverTimestamp(),
   });
 
   const messages = pageDocs.reverse().map((doc) => {
@@ -1545,7 +1589,7 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
     participantUids: participants,
     messages,
     reviewedAt: Date.now(),
-    auditLogId: auditRef.id,
+    auditLogId,
     nextPageToken,
     hasMore,
   };
