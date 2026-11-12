@@ -7,6 +7,21 @@ const ALLOWED_HOSTS: Record<string, readonly string[]> = {
 
 export type MemberSocialLinks = Partial<Record<keyof typeof ALLOWED_HOSTS, string>>;
 
+import { hasActiveBiometricVerification } from "./biometric-verification";
+
+/**
+ * Members may always clear links, including after verification expires or is
+ * revoked. Publishing any non-empty link set requires an active server lease.
+ */
+export function canUpdateMemberSocialLinks(
+  links: MemberSocialLinks,
+  biometricVerification: unknown,
+  nowMs = Date.now(),
+): boolean {
+  return Object.keys(links).length === 0 ||
+    hasActiveBiometricVerification(biometricVerification, nowMs);
+}
+
 /** Accept only explicit HTTPS profile/contact URLs on official provider domains. */
 export function validateMemberSocialLinks(input: unknown): MemberSocialLinks {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
