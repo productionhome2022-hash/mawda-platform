@@ -78,6 +78,9 @@ test("rejects common dot obfuscation", () => {
 test("platform owner may send links to any domain using safe web schemes", () => {
   assert.doesNotThrow(() => assertMessageLinksAllowed("https://example.org/path", false, true));
   assert.doesNotThrow(() => assertMessageLinksAllowed("http://news.example.net", false, true));
+  for (const shortener of ["https://t.co/example", "https://bit.ly/example", "https://tinyurl.com/example"]) {
+    assert.throws(() => assertMessageLinksAllowed(shortener, false, true), /MESSAGE_LINK_NOT_ALLOWED/);
+  }
   assert.throws(() => assertMessageLinksAllowed("javascript:alert(1)", false, true), /MESSAGE_LINK_NOT_ALLOWED/);
   assert.throws(() => assertMessageLinksAllowed("data:text/html,<script>alert(1)</script>", false, true), /MESSAGE_LINK_NOT_ALLOWED/);
   assert.throws(() => assertMessageLinksAllowed("vbscript:msgbox(1)", false, true), /MESSAGE_LINK_NOT_ALLOWED/);
