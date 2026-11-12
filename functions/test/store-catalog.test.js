@@ -21,6 +21,8 @@ test("projects only active catalog items with safe display fields", () => {
     priceCoins: 2500,
     durationDays: 30,
     sortOrder: 2,
+    purchaseEnabled: false,
+    fulfillmentReady: false,
   });
 });
 
@@ -61,6 +63,8 @@ test("owner catalog input requires safe identifiers, prices, category and public
     priceCoins: 2500,
     durationDays: 30,
     sortOrder: 3,
+    purchaseEnabled: false,
+    fulfillmentReady: false,
     active: true,
   });
   assert.throws(() => validateStoreCatalogItemInput({
