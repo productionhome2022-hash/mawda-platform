@@ -1,8 +1,11 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 import 'main_user_screen.dart';
+import 'privacy_acknowledgement_screen.dart';
+import '../privacy_policy.dart';
 
 class AuthGate extends StatelessWidget {
   AuthGate({super.key});
@@ -18,9 +21,109 @@ class AuthGate extends StatelessWidget {
       final user = snapshot.data;
       if (user == null) return const LoginScreen();
       if (!user.emailVerified) return const _EmailVerificationScreen();
-      return MainUserScreen(userId: user.uid);
+      return _PrivacyAcknowledgementGate(userId: user.uid);
     },
   );
+}
+
+class _PrivacyAcknowledgementGate extends StatefulWidget {
+  const _PrivacyAcknowledgementGate({required this.userId});
+  final String userId;
+
+  @override
+  State<_PrivacyAcknowledgementGate> createState() =>
+      _PrivacyAcknowledgementGateState();
+}
+
+class _PrivacyAcknowledgementGateState
+    extends State<_PrivacyAcknowledgementGate> {
+  late Future<bool> _status;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _status = _loadStatus();
+  }
+
+  Future<bool> _loadStatus() async {
+    final response = await FirebaseFunctions.instance
+        .httpsCallable('getPrivacyAcknowledgementStatus')
+        .call();
+    final data = Map<String, dynamic>.from(response.data as Map);
+    return data['acknowledged'] == true &&
+        data['policyVersion'] == mawdaPrivacyPolicyVersion &&
+        data['policyHash'] == mawdaPrivacyPolicyHash;
+  }
+
+  Future<void> _accept() async {
+    if (_saving) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final locale = Localizations.localeOf(context).languageCode;
+      await FirebaseFunctions.instance
+          .httpsCallable('recordPrivacyAcknowledgement')
+          .call({
+        'policyVersion': mawdaPrivacyPolicyVersion,
+        'policyHash': mawdaPrivacyPolicyHash,
+        'locale': ['ar', 'en', 'fr', 'es'].contains(locale) ? locale : 'ar',
+        'actorType': 'member',
+        'appVersion': mawdaAppVersion,
+      });
+      if (!mounted) return;
+      setState(() => _status = Future<bool>.value(true));
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر حفظ الإقرار.');
+    } catch (_) {
+      if (mounted) setState(() => _error = 'تعذر حفظ الإقرار. تحقق من الاتصال وحاول مجدداً.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<bool>(
+        future: _status,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (snapshot.hasError) {
+            return Scaffold(
+              body: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('تعذر التحقق من إقرار الخصوصية. لن يُفتح المحتوى المحمي حتى نجاح التحقق.'),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: () => setState(() => _status = _loadStatus()),
+                        child: const Text('إعادة المحاولة'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+          if (snapshot.data == true) {
+            return MainUserScreen(userId: widget.userId);
+          }
+          return PrivacyAcknowledgementScreen(
+            busy: _saving,
+            error: _error,
+            onAccepted: _accept,
+          );
+        },
+      );
 }
 
 class _EmailVerificationScreen extends StatefulWidget {
