@@ -8,6 +8,7 @@ import 'profile_screen.dart';
 import 'shop_screen.dart';
 import 'wallet_screen.dart';
 import 'rooms_screen.dart';
+import 'super_admin_screen.dart';
 
 class MainUserScreen extends StatefulWidget {
   final String userId;
@@ -387,6 +388,21 @@ class _CompletedProfilePanel extends StatelessWidget {
                           builder: (_) => RoomsScreen(userId: userId),
                         ),
                       ),
+                    ),
+                    FutureBuilder<IdTokenResult>(
+                      future: user.getIdTokenResult(),
+                      builder: (context, tokenSnapshot) {
+                        if (tokenSnapshot.data?.claims?['platformOwner'] != true) {
+                          return const SizedBox.shrink();
+                        }
+                        return OutlinedButton.icon(
+                          icon: const Icon(Icons.admin_panel_settings_outlined),
+                          label: const Text('لوحة السوبر أدمن'),
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const SuperAdminScreen()),
+                          ),
+                        );
+                      },
                     ),
                     OutlinedButton.icon(
                       icon: const Icon(Icons.storefront_outlined),
