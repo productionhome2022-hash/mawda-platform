@@ -4,6 +4,8 @@ const {
   validateOwnerChatReviewRequest,
   validateOwnerChatParticipationRequest,
   validateOwnerConversationPageRequest,
+  encodeOwnerMessagePageToken,
+  decodeOwnerMessagePageToken,
 } = require("../lib/owner-chat-review");
 
 const chatId = "a".repeat(64);
@@ -137,4 +139,23 @@ test("owner conversation pagination rejects invalid member, page size and cursor
     () => validateOwnerConversationPageRequest({ memberUid: "member-123", pageToken: "bad token" }),
     /INVALID_PAGE_TOKEN/,
   );
+});
+
+
+test("owner message cursors round-trip timestamp and message identity", () => {
+  const token = encodeOwnerMessagePageToken(1794500000123, "message_abc-123");
+  assert.deepEqual(decodeOwnerMessagePageToken(token), {
+    createdAtMillis: 1794500000123,
+    messageId: "message_abc-123",
+  });
+});
+
+test("owner message cursor decoder rejects malformed, noncanonical and unsafe tokens", () => {
+  for (const token of ["not-base64!", Buffer.from("[1, \"m\"]").toString("base64url") + "x",
+    Buffer.from(JSON.stringify([-1, "m"])).toString("base64url"),
+    Buffer.from(JSON.stringify([1.5, "m"])).toString("base64url"),
+    Buffer.from(JSON.stringify([1, ""])).toString("base64url")]) {
+    assert.throws(() => decodeOwnerMessagePageToken(token), /INVALID_MESSAGE_CURSOR/);
+  }
+  assert.throws(() => encodeOwnerMessagePageToken(-1, "m"), /INVALID_MESSAGE_CURSOR/);
 });
