@@ -135,6 +135,7 @@ Never fake functionality, balances, purchases, verification, availability, analy
 - A notice is not a substitute for trademark registration, legal advice, or proof of ownership.
 
 ## 14. Security and engineering rules
+- Enforce active account standing server-side for coin transfers as well as messaging and room access; suspended/banned members cannot initiate or receive new transfers.
 - Recheck server-side account standing on every sensitive social action: suspended, banned, disabled, or unknown explicit account states cannot join rooms or send direct/room messages.
 
 - Default-deny Firestore/Storage rules; privileged writes through trusted backend.
