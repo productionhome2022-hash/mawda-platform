@@ -25,6 +25,7 @@ import {
 import { createHash } from "node:crypto";
 import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
 import { hasPlatformOwnerSession } from "./owner-access";
+import { validateOwnerChatReviewRequest } from "./owner-chat-review";
 import {
   isStoreItemPurchasable,
   projectStoreCatalogItem,
@@ -890,6 +891,81 @@ export const getDirectMessages = onCall(async (request) => {
     }),
   };
 });
+
+/**
+ * Owner-only, reason-bound review of a one-to-one conversation.
+ * Every successful review attempt is recorded before message content is read.
+ * The owner claim and recent MFA session are revalidated on every invocation.
+ */
+export const getOwnerDirectChatMessages = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let review;
+  try {
+    review = validateOwnerChatReviewRequest((request.data ?? {}) as Record<string, unknown>);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "INVALID_REVIEW_REQUEST";
+    if (code === "INVALID_CHAT_ID") {
+      throw new HttpsError("invalid-argument", "معرف المحادثة غير صالح.");
+    }
+    if (code === "REVIEW_REASON_REQUIRED") {
+      throw new HttpsError("invalid-argument", "يجب تسجيل سبب واضح لمراجعة المحادثة (12 إلى 500 حرف).");
+    }
+    throw new HttpsError("invalid-argument", "عدد الرسائل المطلوب غير صالح.");
+  }
+
+  const chatRef = db.collection("directChats").doc(review.chatId);
+  const chat = await chatRef.get();
+  if (!chat.exists) {
+    throw new HttpsError("not-found", "المحادثة غير موجودة.");
+  }
+  const participants = chat.data()?.participantUids;
+  if (
+    !Array.isArray(participants) ||
+    participants.length !== 2 ||
+    participants.some((uid) => typeof uid !== "string" || uid.length < 1 || uid.length > 128) ||
+    participants[0] === participants[1]
+  ) {
+    throw new HttpsError("failed-precondition", "بيانات أطراف المحادثة غير صالحة للمراجعة.");
+  }
+
+  // Log the privileged access before retrieving message bodies. Never log message content.
+  const auditRef = db.collection("adminAuditLogs").doc();
+  await auditRef.create({
+    actorUid,
+    action: "owner_direct_chat_review",
+    chatId: review.chatId,
+    participantUids: participants,
+    reason: review.reason,
+    requestedLimit: review.limit,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  const snapshot = await chatRef.collection("messages")
+    .orderBy("createdAt", "desc")
+    .limit(review.limit)
+    .get();
+  const messages = snapshot.docs.reverse().map((doc) => {
+    const data = doc.data();
+    const deleted = data.isDeleted === true;
+    return {
+      messageId: data.messageId ?? doc.id,
+      senderUid: data.senderUid ?? "",
+      recipientUid: data.recipientUid ?? "",
+      text: deleted ? "" : (typeof data.text === "string" ? data.text : ""),
+      isDeleted: deleted,
+      createdAt: data.createdAt?.toMillis?.() ?? null,
+    };
+  });
+
+  return {
+    chatId: review.chatId,
+    participantUids: participants,
+    messages,
+    reviewedAt: Date.now(),
+    auditLogId: auditRef.id,
+  };
+});
+
 
 /** Lists only the authenticated member's own notifications. */
 export const getMyNotifications = onCall(async (request) => {
