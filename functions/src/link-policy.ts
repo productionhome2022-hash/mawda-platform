@@ -2,10 +2,8 @@ const APPROVED_HOSTS = new Set([
   "youtube.com", "youtu.be", "youtube-nocookie.com",
   "instagram.com", "facebook.com", "fb.watch",
 ]);
-// Biometric verification grants only the three explicitly approved social networks.
-// YouTube remains a room-owner/moderator permission, not a biometric-member entitlement.
 // Biometric verification grants the free, explicit four-platform entitlement:
- // Facebook, Instagram, X/Twitter, and YouTube.
+// YouTube, Facebook, Instagram, and X/Twitter.
 export const BIOMETRIC_APPROVED_HOSTS = new Set([
   "youtube.com", "youtu.be", "youtube-nocookie.com",
   "instagram.com", "facebook.com", "fb.watch",
