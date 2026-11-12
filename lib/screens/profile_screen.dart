@@ -89,7 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _editField(country, 'الدولة', maxLength: 80),
                     _editField(region, 'المنطقة / المدينة', maxLength: 80),
                     DropdownButtonFormField<String>(
-                      value: selectedGender,
+                      initialValue: selectedGender,
                       decoration: const InputDecoration(
                         labelText: 'الجنس',
                         border: OutlineInputBorder(),
@@ -106,7 +106,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: selectedMaritalStatus,
+                      initialValue: selectedMaritalStatus,
                       decoration: const InputDecoration(
                         labelText: 'الحالة الاجتماعية',
                         border: OutlineInputBorder(),
