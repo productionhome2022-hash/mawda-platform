@@ -9,7 +9,6 @@ import { validateRegistrationPolicy } from "./registration-policy";
 import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
 import { validateMemberProfileUpdate } from "./member-profile-update";
 import {
-  canUpdateMemberSocialLinks,
   projectMemberSocialLinks,
   validateMemberSocialLinks,
 } from "./member-social-links";
@@ -698,6 +697,7 @@ export const setMemberProfileSocialLinks = onCall(async (request) => {
       uid,
       member.id,
       data.profileCompleted === true,
+      links,
       data.biometricVerification,
     )) {
       throw new HttpsError(
