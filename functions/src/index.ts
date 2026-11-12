@@ -33,6 +33,7 @@ import {
   validateOwnerConversationPageRequest,
   encodeOwnerMessagePageToken,
   decodeOwnerMessagePageToken,
+  validateOwnerReviewAnnouncementRequest,
   validateOwnerChatParticipationRequest,
 } from "./owner-chat-review";
 import {
@@ -1170,6 +1171,8 @@ export const getDirectMessages = onCall(async (request) => {
           ? (typeof data.senderLabel === "string" ? data.senderLabel : "إدارة منصة مودة")
           : null,
         isPlatformOwnerMessage: data.isPlatformOwnerMessage === true,
+        isOwnerReviewNotice: data.isOwnerReviewNotice === true,
+        ownerReviewMode: data.ownerReviewMode ?? null,
         ownerParticipationMode: data.ownerParticipationMode ?? null,
         createdAt,
         isReadByPeer: isMessageReadByPeer(createdAt, peerLastReadAt),
@@ -1365,6 +1368,157 @@ export const sendOwnerDirectChatMessage = onCall(async (request) => {
   });
 });
 
+
+/**
+ * Publishes an explicit owner-selected review notice to both participants.
+ * This is deliberately separate from silent review and from owner chat replies.
+ */
+export const announceOwnerDirectChatReview = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "owner_direct_chat_review_announcement");
+  let input;
+  try {
+    input = validateOwnerReviewAnnouncementRequest((request.data ?? {}) as Record<string, unknown>);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "INVALID_REVIEW_NOTICE";
+    if (code === "INVALID_CHAT_ID") {
+      throw new HttpsError("invalid-argument", "معرف المحادثة غير صالح.");
+    }
+    if (code === "INVALID_REVIEW_NOTICE_TEXT") {
+      throw new HttpsError("invalid-argument", "نص إشعار المراجعة يجب أن يكون بين 5 و500 حرف.");
+    }
+    throw new HttpsError("invalid-argument", "معرف طلب إشعار المراجعة غير صالح.");
+  }
+
+  const chatRef = db.collection("directChats").doc(input.chatId);
+  const initialChat = await chatRef.get();
+  if (!initialChat.exists) throw new HttpsError("not-found", "المحادثة غير موجودة.");
+  const initialParticipants = initialChat.data()?.participantUids;
+  if (!Array.isArray(initialParticipants) || initialParticipants.length !== 2 ||
+      initialParticipants.some((value) => typeof value !== "string" || value.length < 1 || value.length > 128) ||
+      initialParticipants[0] === initialParticipants[1]) {
+    throw new HttpsError("failed-precondition", "المحادثة ليست محادثة ثنائية صالحة للإعلان.");
+  }
+  const participantUids = [...initialParticipants] as string[];
+  const senderLabel = "إدارة منصة مودة";
+  const messageId = createHash("sha256")
+    .update("owner-review-announcement:" + actorUid + ":" + input.chatId + ":" + input.requestId)
+    .digest("hex");
+  const messageRef = chatRef.collection("messages").doc(messageId);
+  const notificationRefs = participantUids.map((uid) =>
+    db.collection("users").doc(uid).collection("notifications").doc(messageId + "_" + uid),
+  );
+
+  const auditLogId = await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "owner_direct_chat_review_announcement",
+    chatId: input.chatId,
+    participantUids,
+    reviewMode: "announced",
+    reviewScope: "direct_chat_messages",
+    requestId: input.requestId,
+    noticeTextHash: createHash("sha256").update(input.noticeText, "utf8").digest("hex"),
+    outcome: "requested",
+    ownerAuthTime: request.auth?.token.auth_time ?? null,
+  });
+
+  const result = await db.runTransaction(async (transaction) => {
+    const [freshChat, existingMessage, ...existingNotifications] = await Promise.all([
+      transaction.get(chatRef),
+      transaction.get(messageRef),
+      ...notificationRefs.map((ref) => transaction.get(ref)),
+    ]);
+    const freshParticipants = freshChat.data()?.participantUids;
+    if (!freshChat.exists || !Array.isArray(freshParticipants) ||
+        [...freshParticipants].sort().join("|") !== [...participantUids].sort().join("|")) {
+      throw new HttpsError("failed-precondition", "تغيرت أطراف المحادثة؛ أعد تحميلها قبل الإعلان.");
+    }
+
+    if (existingMessage.exists) {
+      const prior = existingMessage.data() ?? {};
+      if (prior.senderUid !== actorUid || prior.text !== input.noticeText ||
+          prior.isOwnerReviewNotice !== true || prior.ownerReviewMode !== "announced") {
+        throw new HttpsError("already-exists", "معرف طلب الإعلان مستخدم لبيانات مختلفة.");
+      }
+      for (let index = 0; index < notificationRefs.length; index += 1) {
+        if (!existingNotifications[index].exists) {
+          transaction.create(notificationRefs[index], {
+            type: "owner_review_notice",
+            senderUid: actorUid,
+            senderLabel,
+            chatId: input.chatId,
+            messageId,
+            title: "إشعار إداري من مودة",
+            body: "تم نشر إشعار إداري في محادثتك. افتح مودة للاطلاع عليه.",
+            isRead: false,
+            createdAt: FieldValue.serverTimestamp(),
+          });
+        }
+      }
+      return { idempotentReplay: true };
+    }
+
+    if (existingNotifications.some((notification) => notification.exists)) {
+      throw new HttpsError("failed-precondition", "توجد إشعارات يتيمة مرتبطة بطلب الإعلان؛ يلزم فحص السجل.");
+    }
+
+    const createdAt = FieldValue.serverTimestamp();
+    transaction.set(chatRef, {
+      lastMessageAt: createdAt,
+      lastMessageSenderUid: actorUid,
+      lastMessagePreview: input.noticeText.substring(0, 120),
+    }, { merge: true });
+    transaction.create(messageRef, {
+      messageId,
+      chatId: input.chatId,
+      senderUid: actorUid,
+      recipientUid: null,
+      recipientUids: participantUids,
+      text: input.noticeText,
+      type: "text",
+      isPlatformOwnerMessage: true,
+      senderLabel,
+      ownerParticipationMode: "platform_admin",
+      isOwnerReviewNotice: true,
+      ownerReviewMode: "announced",
+      createdAt,
+    });
+    for (const notificationRef of notificationRefs) {
+      transaction.create(notificationRef, {
+        type: "owner_review_notice",
+        senderUid: actorUid,
+        senderLabel,
+        chatId: input.chatId,
+        messageId,
+        title: "إشعار إداري من مودة",
+        body: "تم نشر إشعار إداري في محادثتك. افتح مودة للاطلاع عليه.",
+        isRead: false,
+        createdAt,
+      });
+    }
+    return { idempotentReplay: false };
+  });
+
+  await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "owner_direct_chat_review_announcement_result",
+    parentAuditLogId: auditLogId,
+    chatId: input.chatId,
+    messageId,
+    participantUids,
+    reviewMode: "announced",
+    outcome: result.idempotentReplay ? "replayed" : "announced",
+  });
+
+  return {
+    chatId: input.chatId,
+    messageId,
+    participantUids,
+    senderLabel,
+    reviewMode: "announced",
+    idempotentReplay: result.idempotentReplay,
+    auditLogId,
+  };
+});
 
 /**
  * Owner-only discovery of a member's direct conversations.
