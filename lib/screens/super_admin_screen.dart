@@ -22,6 +22,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   bool _savingRegistrationPolicy = false;
   bool _transferEnabled = false;
   bool _savingTransferSettings = false;
+  bool _creatingRoom = false;
   int _minimumAge = 16;
   String? _error;
 
@@ -64,6 +65,109 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       if (mounted) setState(() => _error = 'تعذر الاتصال بغرفة العمليات.');
     } finally {
       if (mounted) setState(() => _loadingOverview = false);
+    }
+  }
+
+  Future<void> _createRoom() async {
+    if (_creatingRoom) return;
+    final nameController = TextEditingController();
+    final capacityController = TextEditingController(text: '50');
+    var kind = 'public';
+    final values = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('إنشاء غرفة مودة'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  maxLength: 60,
+                  decoration: const InputDecoration(
+                    labelText: 'اسم الغرفة',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: kind,
+                  decoration: const InputDecoration(
+                    labelText: 'نوع الغرفة',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'public', child: Text('عامة')),
+                    DropdownMenuItem(value: 'private', child: Text('خاصة بالدعوات')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setDialogState(() => kind = value);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: capacityController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'السعة القصوى (5–1000)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                final capacity = int.tryParse(capacityController.text.trim());
+                if (name.length >= 3 && name.length <= 60 &&
+                    capacity != null && capacity >= 5 && capacity <= 1000) {
+                  Navigator.pop(dialogContext, {
+                    'name': name,
+                    'kind': kind,
+                    'capacity': capacity,
+                  });
+                }
+              },
+              child: const Text('إنشاء'),
+            ),
+          ],
+        ),
+      ),
+    );
+    nameController.dispose();
+    capacityController.dispose();
+    if (values == null || !mounted) return;
+
+    setState(() => _creatingRoom = true);
+    try {
+      final result = await _service.createRoom(
+        name: values['name'] as String,
+        kind: values['kind'] as String,
+        capacity: values['capacity'] as int,
+      );
+      await _loadOverview();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تم إنشاء الغرفة. المعرف: ${result['roomId']}')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر إنشاء الغرفة.')),
+      );
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر إنشاء الغرفة؛ لم يتم تأكيد نجاح العملية.')),
+      );
+    } finally {
+      if (mounted) setState(() => _creatingRoom = false);
     }
   }
 
@@ -264,6 +368,31 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
           _metric('الغرف', _overview!['roomCount'], Icons.forum_outlined),
           _metric('عمليات تحويل الكوينز', _overview!['transferCount'], Icons.account_balance_wallet_outlined),
         ],
+        const SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('إدارة الغرف والمجتمعات', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                const Text('إنشاء الغرف العامة والخاصة يتم من الخادم بعد التحقق من جلسة المالك وMFA، مع فصل الجمهور العمري وتسجيل المالك وسعة الغرفة.'),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _creatingRoom ? null : _createRoom,
+                    icon: _creatingRoom
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.add_home_work_outlined),
+                    label: const Text('إنشاء غرفة جديدة'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 16),
         Card(
           child: Padding(
