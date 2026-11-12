@@ -104,7 +104,7 @@ test("owner message review accepts a validated continuation cursor", () => {
 });
 
 test("owner message review rejects malformed continuation cursors", () => {
-  for (const pageToken of [42, {}, "contains spaces", "x".repeat(129)]) {
+  for (const pageToken of [42, {}, "contains spaces", "x".repeat(257)]) {
     assert.throws(
       () => validateOwnerChatReviewRequest({ chatId, pageToken }),
       /INVALID_PAGE_TOKEN/,
