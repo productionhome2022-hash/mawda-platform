@@ -31,6 +31,12 @@ test("Storage denies uploads and downloads for signed-in and anonymous clients",
     uploadBytes(ref(signedInStorage, "avatars/alice/avatar.png"), payload),
   );
   await assertFails(
+    uploadBytes(ref(signedInStorage, "quarantine/alice/media-1"), payload),
+  );
+  await assertFails(
+    getBytes(ref(signedInStorage, "quarantine/alice/media-1")),
+  );
+  await assertFails(
     getBytes(ref(signedInStorage, "avatars/alice/avatar.png")),
   );
   await assertFails(
