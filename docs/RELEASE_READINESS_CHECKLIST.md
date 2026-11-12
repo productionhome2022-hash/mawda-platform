@@ -84,7 +84,7 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Private-message access is purpose-bound, case-scoped, least-privilege, disclosed, legally reviewed, and logged; no blanket private-chat training.
 - [ ] Adult character interactions pass safety review for coercion, dependency, emotional manipulation, purchase pressure, and prohibited sexual content.
 - [ ] Link permissions are enforced server-side by role and verified status: unverified ordinary members are blocked; biometrically verified members receive the free YouTube, Facebook, Instagram, and X/Twitter entitlement in DMs and public/rented-private room chats; room owners/moderators retain their room-scoped allowlist; Super Admin retains the separately gated any-domain HTTP/HTTPS exception.
-- [ ] One-to-one private chats accept direct Facebook, Instagram, and X/Twitter links only from biometrically verified members; unverified members are blocked. Shortener (including t.co), redirect, lookalike, obfuscation, and bypass tests pass.
+- [ ] One-to-one private chats accept direct YouTube, Facebook, Instagram, and X/Twitter links only from biometrically verified members; unverified members are blocked. Shortener (including t.co), redirect, lookalike, obfuscation, and bypass tests pass.
 - [ ] AI cannot bypass moderation, age, privacy, wallet, or link controls.
 - [ ] Global, per-module, and per-character kill switches are tested, including active-session shutdown.
 - [ ] Daily/monthly budgets, per-character quotas, alerts, hard caps, and automatic fail-closed shutdown are tested.
@@ -98,7 +98,7 @@ This checklist is a release gate, not a statement that the listed work is comple
 
 - [ ] Every AI character displays a persistent, accessible AI badge on avatar/cover and profile header; activating it explains the AI identity; it is not styled as human verification.
 - [ ] AI activity, followers, reactions, and popularity are separately labeled and never counted as human-member activity.
-- [ ] Members without successful biometric verification cannot post links in any chat or room. Biometrically verified members receive the free Facebook, Instagram, and X/Twitter entitlement across DMs and public/rented-private room chats.
+- [ ] Members without successful biometric verification cannot post links in any chat or room. Biometrically verified members receive the free YouTube, Facebook, Instagram, and X/Twitter entitlement across DMs and public/rented-private room chats.
 - [ ] Authenticated room owners and authorized moderators can post only verified YouTube, Instagram/Reels, and Facebook URLs in public/private rented rooms; authorization is server-side and moderator revocation takes effect immediately.
 - [ ] One-to-one private messages allow Facebook, Instagram, and X/Twitter URLs only for members whose biometric status is server-confirmed as verified; the platform Super Admin exception remains separately gated.
 - [ ] URL tests cover redirects, shorteners, lookalikes, IDN/punycode, deceptive subdomains, credentials, unsafe schemes, obfuscation, embedded URLs, rich previews, and authorization bypass.
