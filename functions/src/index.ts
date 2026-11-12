@@ -1431,7 +1431,7 @@ export const listMemberRooms = onCall(async (request) => {
     .get();
   const joinedRoomRefs = memberships.docs.flatMap((membership) => {
     const roomRef = membership.ref.parent.parent;
-    return roomRef ? [roomRef] : [];
+    return roomRef && roomRef.parent.id === "rooms" ? [roomRef] : [];
   });
   const joinedSnapshots = joinedRoomRefs.length > 0
     ? await db.getAll(...joinedRoomRefs)
@@ -1483,7 +1483,12 @@ export const listMemberRooms = onCall(async (request) => {
 
 /** Read-only published catalog. Purchase and entitlement changes remain separate trusted flows. */
 export const getStoreCatalog = onCall(async (request) => {
-  requireAuthenticatedUid(request.auth?.uid);
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const member = await db.collection("users").doc(uid).get();
+  if (!member.exists || member.data()?.profileCompleted !== true ||
+      !isMemberAccountInGoodStanding(member.data())) {
+    throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بتصفح المتجر حالياً.");
+  }
   const snapshot = await db.collection("storeCatalog").limit(100).get();
   const items = snapshot.docs
     .map((document) => projectStoreCatalogItem(document.id, document.data()))
