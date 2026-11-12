@@ -25,6 +25,7 @@ import {
 import { createHash } from "node:crypto";
 import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
 import { hasPlatformOwnerSession } from "./owner-access";
+import { projectStoreCatalogItem } from "./store-catalog";
 
 initializeApp();
 
@@ -1463,4 +1464,17 @@ export const listMemberRooms = onCall(async (request) => {
     });
 
   return { joined, discoverable };
+});
+
+
+/** Read-only published catalog. Purchase and entitlement changes remain separate trusted flows. */
+export const getStoreCatalog = onCall(async (request) => {
+  requireAuthenticatedUid(request.auth?.uid);
+  const snapshot = await db.collection("storeCatalog").limit(100).get();
+  const items = snapshot.docs
+    .map((document) => projectStoreCatalogItem(document.id, document.data()))
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.itemId.localeCompare(right.itemId))
+    .map(({ sortOrder: _sortOrder, ...item }) => item);
+  return { items };
 });
