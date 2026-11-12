@@ -122,3 +122,22 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] The entitlement is free and available in direct messages, public-room chats, and rented-private-room chats only while the server-owned biometric verification remains valid.
 - [ ] Expired, revoked, failed, or pending biometric status immediately loses the link entitlement; tests cover stale state, cross-account attempts, and status changes.
 - [ ] Approved destinations include YouTube, Facebook, Instagram, and X/Twitter official domains (including youtu.be and youtube-nocookie.com). Shorteners such as `t.co` remain blocked until safe redirect verification is implemented.
+
+
+## Additional approved profile and financial-control release gates
+
+### Biometrically verified member profile links
+- [ ] Active verified members can save optional Instagram, X/Twitter, Facebook, and WhatsApp profile links; each is individually editable, removable, and hideable.
+- [ ] Visitors see only links the member explicitly published and only when profile visibility permits.
+- [ ] Only normalized HTTPS URLs on the provider's approved official domains are accepted; malformed/deceptive URLs, credentials, unsafe schemes, and shorteners are rejected.
+- [ ] Expired/revoked biometric verification immediately hides published links and blocks publishing/editing; clients cannot forge verification state or bypass profile read authorization.
+- [ ] Cross-account, privacy, expiry, revocation, and URL-validation tests pass.
+
+### Super Admin financial freeze and coin adjustments
+- [ ] Owner-only global and per-operation switches pause/resume top-ups/purchases, coin crediting, transfers, refunds/redemptions/withdrawals where supported, rewards, and administrative adjustments.
+- [ ] Member-level restrictions independently control sending, receiving, top-ups, and refunds/redemptions; enforcement is server-side across all callable/transaction paths and open sessions.
+- [ ] In-flight transfers and payment-provider callbacks are safely frozen/reconciled; no duplicate credit or silent loss occurs when resuming.
+- [ ] Suspected fraud triggers reversible hold/freeze and investigation by default; partial/full forfeiture requires a substantiated case and recorded reason.
+- [ ] Every freeze, deduction, or zero-balance action requires fresh MFA, explicit target/action/amount, impact preview, separate confirmation, idempotency, and immutable audit.
+- [ ] Coin forfeiture is an atomic double-entry ledger transaction to the platform treasury/forfeiture account; historical entries are never edited/deleted, balances never go negative, and real-money refunds remain separate provider workflows.
+- [ ] Member notice, appeal/review, compensating reversal, bulk-action alerts, unauthorized-access tests, and audit completeness are verified.
