@@ -57,6 +57,39 @@ export function validateOwnerChatReviewRequest(
   };
 }
 
+/** Encode a message cursor without reading the message document again. */
+export function encodeOwnerMessagePageToken(
+  createdAtMillis: number,
+  messageId: string,
+): string {
+  if (!Number.isSafeInteger(createdAtMillis) || createdAtMillis < 0 ||
+      typeof messageId !== "string" || messageId.length < 1 || messageId.length > 150) {
+    throw new Error("INVALID_MESSAGE_CURSOR");
+  }
+  return Buffer.from(JSON.stringify([createdAtMillis, messageId]), "utf8").toString("base64url");
+}
+
+/** Decode and validate the timestamp/document-id cursor used by Firestore startAfter. */
+export function decodeOwnerMessagePageToken(
+  token: string,
+): { createdAtMillis: number; messageId: string } {
+  try {
+    const decoded = Buffer.from(token, "base64url").toString("utf8");
+    if (Buffer.from(decoded, "utf8").toString("base64url") !== token) {
+      throw new Error("INVALID_MESSAGE_CURSOR");
+    }
+    const value: unknown = JSON.parse(decoded);
+    if (!Array.isArray(value) || value.length !== 2 ||
+        typeof value[0] !== "number" || !Number.isSafeInteger(value[0]) || value[0] < 0 ||
+        typeof value[1] !== "string" || value[1].length < 1 || value[1].length > 150) {
+      throw new Error("INVALID_MESSAGE_CURSOR");
+    }
+    return { createdAtMillis: value[0], messageId: value[1] };
+  } catch {
+    throw new Error("INVALID_MESSAGE_CURSOR");
+  }
+}
+
 /** Validate a bounded, member-scoped conversation metadata page. */
 export function validateOwnerConversationPageRequest(
   input: Record<string, unknown>,
