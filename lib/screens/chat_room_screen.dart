@@ -7,6 +7,7 @@ class ChatRoomScreen extends StatefulWidget {
   final bool isPublicRoom;
   final bool isSuperAdmin;
   final bool isRoomOwner;
+  final bool isModerator;
   final String? peerName;
 
   const ChatRoomScreen({
@@ -16,6 +17,7 @@ class ChatRoomScreen extends StatefulWidget {
     this.isPublicRoom = true,
     this.isSuperAdmin = false,
     this.isRoomOwner = false,
+    this.isModerator = false,
     this.peerName,
   }) : super(key: key);
 
@@ -157,7 +159,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     final senderUid = message['senderUid'] as String? ?? '';
                     final messageId = message['messageId'] as String? ?? '';
                     final isMe = senderUid == widget.currentUserId;
-                    final canRequestDelete = isMe || widget.isSuperAdmin || widget.isRoomOwner;
+                    final canRequestDelete = isMe || widget.isSuperAdmin ||
+                        widget.isRoomOwner || widget.isModerator;
 
                     return Align(
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
