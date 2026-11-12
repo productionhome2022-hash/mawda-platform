@@ -57,6 +57,9 @@ class _RoomsScreenState extends State<RoomsScreen> {
         chatId: room['roomId'] as String,
         currentUserId: widget.userId,
         isPublicRoom: room['kind'] == 'public',
+        isSuperAdmin: room['isSuperAdmin'] == true,
+        isRoomOwner: room['isRoomOwner'] == true,
+        isModerator: room['isModerator'] == true,
         peerName: room['name'] as String?,
       ),
     ));
