@@ -5,6 +5,8 @@ const {
   mediaPolicyFor,
   normalizeMediaRequest,
   mediaUploaderTypeFromToken,
+  MEDIA_SIGNED_URL_TTL_MS,
+  mediaSignedUrlExpiresAt,
 } = require("../lib/media-security");
 
 test("media policy allowlists supported types and applies per-category size caps", () => {
@@ -44,4 +46,15 @@ test("uploader classification trusts Firebase Auth provider claims, not client f
   assert.equal(mediaUploaderTypeFromToken({ firebase: { sign_in_provider: "password" } }), "member");
   assert.equal(mediaUploaderTypeFromToken({ uploaderType: "guest" }), "member");
   assert.equal(mediaUploaderTypeFromToken({ firebase: "anonymous" }), "member");
+});
+
+
+test("signed media URLs receive bounded purpose-specific expirations", () => {
+  const now = 1_800_000_000_000;
+  assert.equal(MEDIA_SIGNED_URL_TTL_MS.upload, 5 * 60 * 1000);
+  assert.equal(MEDIA_SIGNED_URL_TTL_MS["owner-inspection"], 60 * 1000);
+  assert.equal(mediaSignedUrlExpiresAt("upload", now), now + 300_000);
+  assert.equal(mediaSignedUrlExpiresAt("owner-inspection", now), now + 60_000);
+  assert.throws(() => mediaSignedUrlExpiresAt("upload", -1));
+  assert.throws(() => mediaSignedUrlExpiresAt("upload", Number.NaN));
 });
