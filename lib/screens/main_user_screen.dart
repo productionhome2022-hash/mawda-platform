@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import 'profile_screen.dart';
 import 'shop_screen.dart';
 import 'wallet_screen.dart';
+import 'rooms_screen.dart';
 
 class MainUserScreen extends StatefulWidget {
   final String userId;
@@ -61,7 +62,7 @@ class _MainUserScreenState extends State<MainUserScreen> {
             );
           }
           if (snapshot.data == true) {
-            return const _CompletedProfilePanel();
+            return _CompletedProfilePanel(userId: widget.userId);
           }
           return _MemberProfileForm(onCompleted: _refreshProfile);
         },
@@ -329,7 +330,8 @@ class _MemberProfileFormState extends State<_MemberProfileForm> {
 }
 
 class _CompletedProfilePanel extends StatelessWidget {
-  const _CompletedProfilePanel();
+  const _CompletedProfilePanel({required this.userId});
+  final String userId;
 
   @override
   Widget build(BuildContext context) {
@@ -374,6 +376,15 @@ class _CompletedProfilePanel extends StatelessWidget {
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => WalletScreen(userId: user.uid),
+                        ),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.meeting_room_outlined),
+                      label: const Text('الغرف والمجتمعات'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => RoomsScreen(userId: userId),
                         ),
                       ),
                     ),
