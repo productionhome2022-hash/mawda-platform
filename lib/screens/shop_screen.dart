@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 class ShopScreen extends StatefulWidget {
   const ShopScreen({super.key, required this.userId});
@@ -11,6 +12,7 @@ class ShopScreen extends StatefulWidget {
 
 class _ShopScreenState extends State<ShopScreen> {
   late Future<List<Map<String, dynamic>>> _catalogFuture;
+  String? _purchasingItemId;
 
   @override
   void initState() {
@@ -30,6 +32,61 @@ class _ShopScreenState extends State<ShopScreen> {
   }
 
   void _refresh() => setState(() => _catalogFuture = _loadCatalog());
+
+  Future<void> _purchase(Map<String, dynamic> item) async {
+    final itemId = item['itemId'] as String?;
+    final name = item['name'] as String? ?? 'عنصر مودة';
+    final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
+    if (itemId == null || itemId.isEmpty || price <= 0 || _purchasingItemId != null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تأكيد شراء العنصر'),
+        content: Text('سيتم خصم $price كوين من محفظتك مقابل "$name"، ومنح الاستحقاق عبر الخادم.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('تأكيد الشراء'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _purchasingItemId = itemId);
+    try {
+      final response = await FirebaseFunctions.instance.httpsCallable('purchaseStoreItem').call({
+        'itemId': itemId,
+        'requestId': const Uuid().v4(),
+      });
+      final result = Map<String, dynamic>.from(response.data as Map);
+      if (!mounted) return;
+      final balance = (result['newBalance'] as num?)?.toInt();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          balance == null
+              ? 'تمت معالجة الشراء.'
+              : 'تم الشراء بنجاح. رصيدك الجديد: $balance كوين.',
+        )),
+      );
+      _refresh();
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر إتمام الشراء.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر إتمام الشراء؛ لم يتم تأكيد الخصم أو الاستحقاق.')),
+      );
+    } finally {
+      if (mounted) setState(() => _purchasingItemId = null);
+    }
+  }
 
   String _categoryLabel(String category) => switch (category) {
     'avatar' => 'إطارات وصور رمزية',
@@ -149,7 +206,16 @@ class _ShopScreenState extends State<ShopScreen> {
                               Text('المدة: $duration يوماً'),
                             ],
                             const Spacer(),
-                            const Text('الشراء غير متاح حالياً'),
+                            FilledButton(
+                              onPressed: _purchasingItemId == null ? () => _purchase(item) : null,
+                              child: _purchasingItemId == item['itemId']
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Text('شراء'),
+                            ),
                           ],
                         ),
                       ],
