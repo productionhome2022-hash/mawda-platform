@@ -50,6 +50,95 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
 
+  Future<void> _manageSocialLinks(Map<String, dynamic> profile) async {
+    final existing = Map<String, dynamic>.from(
+      profile['socialLinks'] as Map? ?? const <String, dynamic>{},
+    );
+    final controllers = <String, TextEditingController>{
+      'instagram': TextEditingController(text: existing['instagram'] as String? ?? ''),
+      'x': TextEditingController(text: existing['x'] as String? ?? ''),
+      'facebook': TextEditingController(text: existing['facebook'] as String? ?? ''),
+      'whatsapp': TextEditingController(text: existing['whatsapp'] as String? ?? ''),
+    };
+    final values = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('روابط التواصل في ملفي'),
+        content: SizedBox(
+          width: 460,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'تُقبل الروابط الرسمية الآمنة فقط. يتطلب نشر الروابط توثيقاً بيومترياً نشطاً، ويمكنك حذفها في أي وقت.',
+                ),
+                const SizedBox(height: 12),
+                for (final entry in controllers.entries)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: TextField(
+                      controller: entry.value,
+                      maxLength: 500,
+                      keyboardType: TextInputType.url,
+                      decoration: InputDecoration(
+                        labelText: entry.key == 'x'
+                            ? 'X / Twitter'
+                            : entry.key[0].toUpperCase() + entry.key.substring(1),
+                        hintText: 'https://...',
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+              dialogContext,
+              {
+                for (final entry in controllers.entries)
+                  if (entry.value.text.trim().isNotEmpty)
+                    entry.key: entry.value.text.trim(),
+              },
+            ),
+            child: const Text('حفظ الروابط'),
+          ),
+        ],
+      ),
+    );
+    for (final controller in controllers.values) {
+      controller.dispose();
+    }
+    if (values == null || !mounted) return;
+
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('setMemberProfileSocialLinks');
+      await callable.call(<String, dynamic>{'links': values});
+      if (!mounted) return;
+      setState(() => _profileFuture = _loadProfile());
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم تحديث روابط التواصل بأمان.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر تحديث روابط التواصل.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('حدث خطأ غير متوقع أثناء حفظ الروابط.')),
+      );
+    }
+  }
+
   Future<void> _editProfile(Map<String, dynamic> profile) async {
     final fullName = TextEditingController(text: profile['displayName'] as String? ?? '');
     final profession = TextEditingController(text: profile['profession'] as String? ?? '');
@@ -399,6 +488,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final region = (data['region'] as String?) ?? '';
           final interests = (data['interests'] as List<dynamic>? ?? const []);
           final profileVisibility = (data['profileVisibility'] as String?) ?? 'private';
+          final socialLinks = Map<String, dynamic>.from(
+            data['socialLinks'] as Map? ?? const <String, dynamic>{},
+          );
+          final canManageSocialLinks = data['canManageSocialLinks'] == true;
 
           return ListView(
             padding: const EdgeInsets.only(bottom: 32),
@@ -454,6 +547,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     icon: const Icon(Icons.edit_outlined),
                     label: const Text('تعديل بيانات الملف الشخصي'),
                     onPressed: () => _editProfile(data),
+                  ),
+                ),
+              if (socialLinks.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'روابط التواصل',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          const SizedBox(height: 8),
+                          for (final entry in socialLinks.entries)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: SelectableText('${entry.key}: ${entry.value}'),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              if (isMyProfile)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.link),
+                    label: const Text('إدارة روابط التواصل'),
+                    onPressed: () => _manageSocialLinks(data),
+                  ),
+                ),
+              if (isMyProfile && !canManageSocialLinks)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    'إضافة روابط جديدة تتطلب توثيقاً بيومترياً نشطاً. يمكنك حذف الروابط الحالية في أي وقت.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey),
                   ),
                 ),
               if (isMyProfile)
