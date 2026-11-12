@@ -1569,9 +1569,16 @@ export const purchaseStoreItem = onCall(async (request) => {
     if (!itemSnapshot.exists) {
       throw new HttpsError("not-found", "عنصر المتجر غير موجود.");
     }
-    const item = projectStoreCatalogItem(itemId, itemSnapshot.data() ?? {});
+    const itemData = itemSnapshot.data() ?? {};
+    const item = projectStoreCatalogItem(itemId, itemData);
     if (!item) {
       throw new HttpsError("failed-precondition", "هذا العنصر غير منشور أو أن بيانات سعره غير صالحة.");
+    }
+    if (itemData.purchaseEnabled !== true || itemData.fulfillmentReady !== true) {
+      throw new HttpsError(
+        "failed-precondition",
+        "شراء هذا العنصر غير متاح حتى اكتمال تنفيذ استحقاقه والتحقق منه.",
+      );
     }
     if (!isStorePurchasePriceCurrent(expectedPriceCoins, item.priceCoins)) {
       throw new HttpsError(
@@ -1660,6 +1667,8 @@ export const setStoreCatalogItem = onCall(async (request) => {
       durationDays: item.durationDays ?? null,
       sortOrder: item.sortOrder,
       active: item.active,
+      purchaseEnabled: false,
+      fulfillmentReady: false,
       createdAt: previousSnapshot.data()?.createdAt ?? now,
       updatedAt: now,
       updatedBy: actorUid,
