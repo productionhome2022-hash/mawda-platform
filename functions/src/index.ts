@@ -587,7 +587,10 @@ export const getMemberProfile = onCall(async (request) => {
     ? {
         ...profile,
         profileVisibility: memberData.profileVisibility === "public" ? "public" : "private",
-        canManageSocialLinks: hasActiveBiometricVerification(memberData.biometricVerification),
+        canManageSocialLinks: canExposeMemberSocialLinks(
+          memberData.profileCompleted === true,
+          memberData.biometricVerification,
+        ),
       }
     : profile;
 });
