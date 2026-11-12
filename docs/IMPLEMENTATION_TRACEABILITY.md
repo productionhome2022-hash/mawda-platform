@@ -74,3 +74,26 @@ For every feature or fix, record:
 - Remaining limitations and explicit release blockers.
 
 A green CI run proves only the checks executed by that workflow on that commit. It does not prove production Firebase behavior, real MFA, payment-provider correctness, device UX, legal compliance, or complete product readiness.
+
+## MAWADDA AI workstream (owner-approved direction; not implemented)
+
+Add a dedicated workstream across the platform:
+
+- **AI-1 Technical Support Assistant:** scoped case-based account/app diagnostics, support responses, error triage, owner-granted administrative tools, immutable audit trail, confirmation gates for high-impact actions, and immediate disable.
+- **AI-2 Social Characters:** configurable fictional AI characters, dialects/styles/languages, stickers, activity schedules, placements, events, and adult-only social interaction. Character profile/platform information identifies the AI nature without repetitive per-message boilerplate. No impersonation, fake human testimonials, fabricated member activity, or false popularity metrics.
+- **AI-3 Privacy and Data Governance:** least-privilege, purpose-bound access; case-scoped private-content access only when authorized; no blanket private-chat training; consent/legal review, minimization, retention limits, access logs, and member isolation.
+- **AI-4 Adult Safety:** verified 18+ eligibility for social/romantic character interaction; confirmed under-18 accounts blocked from social characters but retain limited technical support/reporting. Age self-declaration alone is insufficient. Romantic warmth is permitted for eligible adults; coercion, dependency tactics, purchase-linked affection, exploitation, and prohibited sexual content are not.
+- **AI-5 Link Safety:** no links in public chats or any public/private rented room. One-to-one private messages allow only normalized, verified YouTube, Instagram/Reels, and Facebook domains; reject shorteners, redirects, lookalikes, and obfuscation. Server-side enforcement and bypass tests required.
+- **AI-6 Monetization and Cost:** neutral promotion of real gifts/coins/subscriptions; no fabricated scarcity or emotional pressure. Per-module/character daily and monthly budgets, hard caps, alerts, quotas, and automatic shutdown.
+- **AI-7 Owner Control:** global/module/character kill switches; owner-configured permissions, placements, scopes, rates, moderation, schedules, and audit review. AI cannot merge, deploy, or perform destructive/high-impact actions without separate explicit authorization.
+
+| Workstream | Minimum exit evidence | Current status |
+|---|---|---|
+| AI-1 Technical support | Support-case authorization tests, tool allowlist, high-impact confirmation tests, audit review, prompt-injection and data-exfiltration tests | Approved direction; not implemented |
+| AI-2 Characters/events | Character configuration, AI identity disclosure in profile/platform info, authentic activity metrics, adult-only access, moderation and abuse tests | Approved direction; not implemented |
+| AI-3 Privacy | Data inventory, purpose/consent/legal review, private-content isolation, retention/deletion, access audit tests | Open blocker |
+| AI-4 Age/safety | Reliable age assurance, under-18 denial and support-only exception tests, adult interaction policy and abuse review | Open blocker |
+| AI-5 Links | Server-side URL normalization/allowlist tests across text and rich surfaces; bypass/redirect/lookalike tests | Not implemented |
+| AI-6 Cost/commerce | Budget enforcement, hard-stop/alert tests, purchase integrity, anti-coercion review | Not implemented |
+| AI-7 Governance | Global/module/character kill switch tests, permission matrix, immutable audit and recovery drills | Not implemented |
+
