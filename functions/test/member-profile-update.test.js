@@ -40,3 +40,20 @@ test("rejects invalid and oversized profile values", () => {
   assert.throws(() => validateMemberProfileUpdate({ interests: ["same", "same"] }, 25));
   assert.throws(() => validateMemberProfileUpdate({}, 25));
 });
+
+test("accepts the approved gender and marital-status profile fields", () => {
+  assert.deepEqual(
+    validateMemberProfileUpdate({
+      gender: "female",
+      maritalStatus: "married",
+    }, 32),
+    {
+      gender: "female",
+      maritalStatus: "married",
+    },
+  );
+  assert.throws(
+    () => validateMemberProfileUpdate({ maritalStatus: "unknown" }, 32),
+    /INVALID_MARITAL_STATUS/,
+  );
+});
