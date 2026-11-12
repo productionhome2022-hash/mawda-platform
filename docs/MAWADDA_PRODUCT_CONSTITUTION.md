@@ -72,6 +72,10 @@ Never fake functionality, balances, purchases, verification, availability, analy
 - Direct messages and group/room messaging with participant authorization, request/accept controls where applicable, pagination, delivery/read receipts, notification preferences, and push notifications.
 - Text, voice messages, stickers, sounds, images, GIFs, and video according to role, room policy, and validated limits.
 - No message body in notification previews by default.
+- Free link permission for successfully biometrically verified members: they may share Facebook, Instagram, and X (Twitter) links in one-to-one private chats, public-room chats, and rented private-room chats. This is an entitlement of verified status, not a paid subscription.
+- The same verified-member permission applies only to direct HTTPS destinations on Facebook, Instagram, and X/Twitter official domains; shorteners such as t.co remain blocked until safe redirect verification is implemented. Unsafe schemes, credentials, deceptive hosts, and obfuscated links remain blocked.
+- Biometric verification status must be written and maintained only by the trusted verification backend. Clients cannot self-assign or retain a verified status after expiry, revocation, or failed re-check.
+- Members without successful biometric verification cannot send links. Room owners and authorized room moderators retain their existing room-scoped Facebook/Instagram/YouTube permissions; the platform Super Admin retains the separately defined server-verified HTTP/HTTPS any-domain exception.
 - Blocks, reports, appeals, moderation cases, and safety workflows must be usable and auditable.
 - Adult/minor private-contact safeguards must be enforced on the server, not only hidden in UI.
 - No covert unrestricted chat surveillance. Any exceptional safety review must be disclosed, case-scoped, least-privilege, justified, and audited; no impersonation.
