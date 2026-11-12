@@ -214,3 +214,20 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Immutable audit covers requester, MFA freshness, reason, preview hash, exact scope, exclusions, job/batch IDs, counts/bytes, timestamps, retries, denials, cancellations, outcome and recovery status.
 - [ ] Production/test environment separation, budget alerts, anomaly detection, legal-hold enforcement, emergency stop, and documented operator runbook pass independent security review.
 - [ ] Super Admin UI distinguishes available, preview-only, and disabled/not implemented operations; no destructive control is enabled before backend and recovery gates pass.
+
+## Sole-owner content review and mandatory privacy acknowledgement release gates
+
+- [ ] Confirm the privacy policy describes the sole owner's ability to review available direct conversations (active and ended) and member/guest files, silent versus announced modes, member-facing anonymous participation, internal audit, data categories, purposes, retention, rights, and contact/complaint routes.
+- [ ] Complete jurisdiction-specific privacy/legal review and DPIA as applicable; confirm a valid legal basis and necessity/proportionality for each processing purpose. A click-to-accept acknowledgement is not treated as a waiver or standalone legal basis.
+- [ ] Registration cannot be submitted until the current localized policy version is displayed and affirmatively acknowledged; no preselected checkbox or implied consent.
+- [ ] Guest session issuance and access to protected guest/member content are blocked until a guest-specific notice is displayed and acknowledged. Public landing/policy access remains available without granting a guest session.
+- [ ] Store policy version/hash, locale, server timestamp, actor type, UID or pseudonymous guest-session ID, app version, and acceptance event; verify material policy updates trigger renewed acknowledgement where required.
+- [ ] Owner-only review is server-authorized by the sole owner's platformOwner claim plus recent authentication and fresh MFA/step-up; non-owner, moderator, support, AI, and client-flag attempts are denied.
+- [ ] Owner can open any available direct conversation (active or ended) and member/guest file without a report/case as a product-level precondition; deleted/expired/held/unavailable data is represented accurately.
+- [ ] Silent review causes no push/in-app participant notification, read receipt/read-state change, presence/typing signal, membership change, or content mutation. Announced review displays the chosen administrative notice.
+- [ ] Every successful and failed review/file access is recorded in append-only, tamper-evident audit with true actor UID, target, data category, mode, timestamp, authentication assurance, outcome, and policy version. Reason/case is optional context, not an access prerequisite.
+- [ ] Owner participation modes display exactly the selected “إدارة منصة مودة”, “السوبر أدمن”, or “مجهول” label. Anonymous messages remain internally attributed to the owner's UID and cannot impersonate a real member.
+- [ ] File previews/downloads/exports use scoped short-lived authorization, do not leak public storage URLs, and are separately audited; bulk export receives additional controls.
+- [ ] Test all non-owner denials, MFA freshness, session revocation, guest bypasses, policy version changes, cross-account isolation, silent-mode side effects, audit tamper resistance, and legal-hold/retention behavior.
+- [ ] The capability remains disabled for production until privacy/legal approval, full backend and UI implementation, and all release evidence are complete.
+
