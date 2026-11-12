@@ -62,53 +62,101 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final goals = TextEditingController(
       text: (profile['goals'] as List<dynamic>? ?? const []).join(', '),
     );
+    const genders = ['male', 'female'];
+    const maritalStatuses = ['single', 'married', 'divorced', 'widowed'];
+    var selectedGender = genders.contains(profile['gender'])
+        ? profile['gender'] as String
+        : 'male';
+    var selectedMaritalStatus = maritalStatuses.contains(profile['maritalStatus'])
+        ? profile['maritalStatus'] as String
+        : 'single';
     final formKey = GlobalKey<FormState>();
     final values = await showDialog<Map<String, String>>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('تعديل الملف الشخصي'),
-        content: SizedBox(
-          width: 440,
-          child: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _editField(fullName, 'الاسم الكامل', maxLength: 80),
-                  _editField(profession, 'المهنة', maxLength: 80),
-                  _editField(country, 'الدولة', maxLength: 80),
-                  _editField(region, 'المنطقة / المدينة', maxLength: 80),
-                  _editField(bio, 'نبذة عنك', maxLength: 500, maxLines: 4),
-                  _editField(interests, 'الاهتمامات (اختياري، افصل بينها بفاصلة)', maxLength: 800, required: false),
-                  _editField(goals, 'الأهداف (اختياري): friendship, social_connection, romantic_dating, marriage', maxLength: 400, required: false),
-                ],
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('تعديل الملف الشخصي'),
+          content: SizedBox(
+            width: 440,
+            child: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _editField(fullName, 'الاسم الكامل', maxLength: 80),
+                    _editField(profession, 'المهنة', maxLength: 80),
+                    _editField(country, 'الدولة', maxLength: 80),
+                    _editField(region, 'المنطقة / المدينة', maxLength: 80),
+                    DropdownButtonFormField<String>(
+                      value: selectedGender,
+                      decoration: const InputDecoration(
+                        labelText: 'الجنس',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'male', child: Text('ذكر')),
+                        DropdownMenuItem(value: 'female', child: Text('أنثى')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setDialogState(() => selectedGender = value);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: selectedMaritalStatus,
+                      decoration: const InputDecoration(
+                        labelText: 'الحالة الاجتماعية',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'single', child: Text('أعزب / عزباء')),
+                        DropdownMenuItem(value: 'married', child: Text('متزوج / متزوجة')),
+                        DropdownMenuItem(value: 'divorced', child: Text('مطلق / مطلقة')),
+                        DropdownMenuItem(value: 'widowed', child: Text('أرمل / أرملة')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setDialogState(() => selectedMaritalStatus = value);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _editField(bio, 'نبذة عنك', maxLength: 500, maxLines: 4),
+                    _editField(interests, 'الاهتمامات (اختياري، افصل بينها بفاصلة)', maxLength: 800, required: false),
+                    _editField(goals, 'الأهداف (اختياري): friendship, social_connection, romantic_dating, marriage', maxLength: 400, required: false),
+                  ],
+                ),
               ),
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  Navigator.pop(dialogContext, {
+                    'fullName': fullName.text.trim(),
+                    'profession': profession.text.trim(),
+                    'country': country.text.trim(),
+                    'region': region.text.trim(),
+                    'gender': selectedGender,
+                    'maritalStatus': selectedMaritalStatus,
+                    'bio': bio.text.trim(),
+                    'interests': interests.text,
+                    'goals': goals.text,
+                  });
+                }
+              },
+              child: const Text('حفظ التعديلات'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.pop(dialogContext, {
-                  'fullName': fullName.text.trim(),
-                  'profession': profession.text.trim(),
-                  'country': country.text.trim(),
-                  'region': region.text.trim(),
-                  'bio': bio.text.trim(),
-                  'interests': interests.text,
-                  'goals': goals.text,
-                });
-              }
-            },
-            child: const Text('حفظ التعديلات'),
-          ),
-        ],
       ),
     );
     fullName.dispose();
@@ -130,6 +178,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'profession': values['profession'],
       'country': values['country'],
       'region': values['region'],
+      'gender': values['gender'],
+      'maritalStatus': values['maritalStatus'],
       'bio': values['bio'],
       'interests': splitList(values['interests']!),
       'goals': splitList(values['goals']!),
