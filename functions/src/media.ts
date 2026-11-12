@@ -7,6 +7,7 @@ import {
   detectMediaSignature,
   mediaPolicyFor,
   normalizeMediaRequest,
+  mediaUploaderTypeFromToken,
 } from "./media-security";
 
 const db = getFirestore();
@@ -60,14 +61,6 @@ async function requireSoleOwnerForMediaReview(
   }
 }
 
-function uploaderTypeFromToken(token: Record<string, unknown>): "guest" | "member" {
-  const firebase = token.firebase;
-  if (firebase && typeof firebase === "object" && !Array.isArray(firebase) &&
-      (firebase as Record<string, unknown>).sign_in_provider === "anonymous") {
-    return "guest";
-  }
-  return "member";
-}
 
 /**
  * Issues a five-minute, single-object upload URL. Objects are written only
@@ -101,7 +94,7 @@ export const createMediaUploadIntent = onCall(async (request) => {
   await db.collection("mediaAssets").doc(mediaId).create({
     mediaId,
     ownerUid: uid,
-    uploaderType: uploaderTypeFromToken(request.auth?.token ?? {}),
+    uploaderType: mediaUploaderTypeFromToken(request.auth?.token ?? {}),
     objectPath,
     originalName: input.originalName,
     declaredContentType: input.contentType,
