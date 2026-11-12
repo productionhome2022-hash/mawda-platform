@@ -1269,6 +1269,12 @@ export const sendOwnerDirectChatMessage = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "تحتوي الرسالة على رابط غير آمن أو غير مسموح.");
   }
 
+  try {
+    assertMessageLinksAllowed(input.noticeText, true, true);
+  } catch {
+    throw new HttpsError("invalid-argument", "يحتوي إشعار المراجعة على رابط غير آمن أو غير مسموح.");
+  }
+
   const chatRef = db.collection("directChats").doc(input.chatId);
   const initialChat = await chatRef.get();
   if (!initialChat.exists) throw new HttpsError("not-found", "المحادثة غير موجودة.");
