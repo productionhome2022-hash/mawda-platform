@@ -3,6 +3,31 @@ import 'package:cloud_functions/cloud_functions.dart';
 class SuperAdminSecurityService {
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
+  Future<Map<String, dynamic>> listOwnerMediaAssets({
+    String status = 'pending_security_scan',
+    String uploaderType = 'all',
+    int limit = 25,
+    String? pageToken,
+  }) async {
+    final result = await _functions.httpsCallable('listOwnerMediaAssets').call({
+      'status': status,
+      'uploaderType': uploaderType,
+      'limit': limit,
+      if (pageToken != null) 'pageToken': pageToken,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  /// Issues a short-lived owner inspection URL. The caller must never persist
+  /// or log this bearer URL; the current console intentionally does not expose
+  /// it until a safe in-app preview handler is available.
+  Future<Map<String, dynamic>> getOwnerMediaInspectionUrl(String mediaId) async {
+    final result = await _functions.httpsCallable('getOwnerMediaInspectionUrl').call({
+      'mediaId': mediaId,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
   Future<Map<String, dynamic>> getOperationsOverview() async {
     final result = await _functions.httpsCallable('getOwnerOperationsOverview').call();
     return Map<String, dynamic>.from(result.data as Map);
