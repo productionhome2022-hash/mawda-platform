@@ -61,6 +61,9 @@ test("rejects unapproved domains, deceptive hosts, credentials and insecure sche
     "https://bit.ly/example",
     "http://youtube.com/watch?v=1",
     "https://user:pass@youtube.com/watch?v=1",
+    "ftp://youtube.com/watch?v=1",
+    "https:/youtube.com/watch?v=1",
+    "gopher://youtube.com/resource",
   ]) assert.throws(() => assertMessageLinksAllowed(value, true), /MESSAGE_LINK_NOT_ALLOWED/);
 });
 
