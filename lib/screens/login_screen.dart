@@ -39,6 +39,19 @@ class _LoginScreenState extends State<LoginScreen> {
             height: MediaQuery.sizeOf(context).height * 0.58,
             child: Column(
               children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.35),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    'تنبيه: هذه نسخة تقنية أولية وليست السياسة القانونية النهائية. لا يُعتمد التسجيل العام قبل استكمال السياسة ومراجعتها قانونياً.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 10),
                 Expanded(
                   child: SingleChildScrollView(
                     child: SelectableText(
