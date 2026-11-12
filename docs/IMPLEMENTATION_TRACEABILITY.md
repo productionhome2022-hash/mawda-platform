@@ -116,3 +116,23 @@ Add a dedicated workstream across the platform:
 - Pending, failed, expired, or revoked verification does not qualify. Revocation/expiry must immediately remove the entitlement.
 - Allowed direct destinations: YouTube, Facebook, Instagram, and X/Twitter official domains (including youtu.be and youtube-nocookie.com). Shorteners including `t.co` remain blocked until safe redirect verification is implemented.
 - The biometric verification workflow itself remains a separate implementation and release gate; the link-policy wiring does not prove that biometric verification is already available.
+
+
+## Member profile social links (owner-approved addition)
+
+- A member with active, server-confirmed biometric verification may publish optional personal Instagram, X/Twitter, Facebook, and WhatsApp links on their profile wall.
+- Links are individually optional, explicitly saved by the member, editable/removable/individually hideable, and visible to profile visitors only when the profile visibility policy allows.
+- Backend accepts normalized HTTPS URLs only on each service's approved official domains; reject malformed/deceptive hosts, unsafe schemes, credentials, and shorteners. Do not infer or expose phone numbers.
+- Expired/revoked/inactive biometric verification must immediately hide links from visitors and block publishing/editing until reverified. Client writes cannot grant eligibility.
+- Tests: all four providers, valid/invalid hostnames, URL normalization, per-link privacy, profile visibility, cross-account reads, status expiry/revocation, and attempts to forge verification status.
+
+## Super Admin wallet controls and coin forfeiture (owner-approved addition)
+
+- Owner-only trusted backend controls: global and per-operation pause/resume for top-ups/purchases, coin crediting, transfers, refunds/redemptions/withdrawals where supported, rewards, and administrative adjustments; plus member-level operation restrictions.
+- A freeze must be enforced by every relevant callable/transaction boundary and must account for in-flight provider callbacks and transactions.
+- Fraud suspicion defaults to reversible hold/freeze and investigation. A documented, substantiated violation may justify partial or full coin forfeiture; suspicion alone is not sufficient for irreversible confiscation.
+- High-impact actions require fresh MFA/step-up, explicit target and operation, mandatory reason/case, pre-action impact preview, separate confirmation, idempotency, and append-only audit.
+- Adjustments use atomic double-entry postings (member debit and platform treasury/forfeiture credit), unique adjustment ID, actor/target IDs, amount, reason, timestamp, before/after balances, and linked transaction/payment IDs. Never rewrite history, allow negative balances, or equate coin forfeiture with a real-money refund.
+- Member notice and appeal/review, lawful investigation exceptions, provider reconciliation, compensating reversal transactions, and alerts for bulk/unusual deductions are required.
+- No moderator, support agent, AI, or client role may call these controls.
+- Tests: each freeze switch, already-open sessions, racing/in-flight transactions, payment callbacks, per-member restrictions, unauthorized callers, MFA freshness, missing reason, duplicate idempotency, partial/full forfeiture, insufficient balance, immutable ledger, reversal, appeal/audit completeness.
