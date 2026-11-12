@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { validateMemberProfile } from "./member-profile";
-import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
+import { FieldPath, FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { calculateTransferBreakdown } from "./coin-math";
@@ -29,6 +29,7 @@ import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./ro
 import { hasPlatformOwnerSession } from "./owner-access";
 import {
   validateOwnerChatReviewRequest,
+  validateOwnerConversationPageRequest,
   validateOwnerChatParticipationRequest,
 } from "./owner-chat-review";
 import {
@@ -1328,17 +1329,59 @@ export const sendOwnerDirectChatMessage = onCall(async (request) => {
  */
 export const getOwnerMemberDirectChats = onCall(async (request) => {
   const actorUid = await requireOwnerForReview(request, "owner_member_direct_chat_list");
-  const memberUid = request.data?.memberUid;
-  if (typeof memberUid !== "string" || memberUid.trim().length < 1 ||
-      memberUid.trim().length > 128) {
-    throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+  let page;
+  try {
+    page = validateOwnerConversationPageRequest((request.data ?? {}) as Record<string, unknown>);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "INVALID_OWNER_CONVERSATION_PAGE";
+    if (code === "INVALID_MEMBER_UID") {
+      throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+    }
+    if (code === "INVALID_PAGE_TOKEN") {
+      throw new HttpsError("invalid-argument", "مؤشر صفحة المحادثات غير صالح.");
+    }
+    throw new HttpsError("invalid-argument", "حجم صفحة المحادثات غير صالح.");
   }
-  const targetUid = memberUid.trim();
+
+  const targetUid = page.memberUid;
+  const member = await db.collection("users").doc(targetUid).get();
+  if (!member.exists) {
+    throw new HttpsError("not-found", "ملف العضو غير موجود.");
+  }
+
+  const chatsQuery = db.collection("directChats")
+    .where("participantUids", "array-contains", targetUid)
+    .orderBy(FieldPath.documentId());
+  let cursorSnapshot: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+  if (page.pageToken) {
+    const cursorRef = db.collection("directChats").doc(page.pageToken);
+    const cursor = await cursorRef.get();
+    const cursorParticipants = cursor.data()?.participantUids;
+    if (!cursor.exists || !Array.isArray(cursorParticipants) ||
+        !cursorParticipants.includes(targetUid)) {
+      throw new HttpsError("invalid-argument", "مؤشر الصفحة لا ينتمي إلى محادثات هذا العضو.");
+    }
+    cursorSnapshot = cursor as FirebaseFirestore.QueryDocumentSnapshot;
+  }
+
+  const query = cursorSnapshot
+    ? chatsQuery.startAfter(cursorSnapshot).limit(page.limit + 1)
+    : chatsQuery.limit(page.limit + 1);
+  const chats = await query.get();
+  const hasMore = chats.docs.length > page.limit;
+  const pageDocs = chats.docs.slice(0, page.limit);
+  const nextPageToken = hasMore && pageDocs.length > 0
+    ? pageDocs[pageDocs.length - 1].id
+    : null;
+
   const auditRef = db.collection("adminAuditLogs").doc();
   await auditRef.create({
     actorUid,
     action: "owner_member_direct_chat_list",
     targetUid,
+    cursorChatId: page.pageToken,
+    returnedCount: pageDocs.length,
+    hasMore,
     reviewMode: "silent",
     reviewScope: "direct_chat_metadata",
     outcome: "requested",
@@ -1348,20 +1391,11 @@ export const getOwnerMemberDirectChats = onCall(async (request) => {
       : null,
     createdAt: FieldValue.serverTimestamp(),
   });
-  const member = await db.collection("users").doc(targetUid).get();
-  if (!member.exists) {
-    throw new HttpsError("not-found", "ملف العضو غير موجود.");
-  }
-
-  const chats = await db.collection("directChats")
-    .where("participantUids", "array-contains", targetUid)
-    .limit(50)
-    .get();
 
   return {
     memberUid: targetUid,
     auditLogId: auditRef.id,
-    conversations: chats.docs.map((doc) => {
+    conversations: pageDocs.map((doc) => {
       const data = doc.data();
       const participants = Array.isArray(data.participantUids)
         ? data.participantUids.filter((uid: unknown) => typeof uid === "string")
@@ -1373,6 +1407,8 @@ export const getOwnerMemberDirectChats = onCall(async (request) => {
         lastMessageAt: data.lastMessageAt?.toMillis?.() ?? null,
       };
     }),
+    nextPageToken,
+    hasMore,
   };
 });
 
@@ -1394,6 +1430,9 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
     if (code === "INVALID_REVIEW_REASON") {
       throw new HttpsError("invalid-argument", "معلومة التدقيق الاختيارية لا يمكن أن تتجاوز 500 حرف.");
     }
+    if (code === "INVALID_PAGE_TOKEN") {
+      throw new HttpsError("invalid-argument", "مؤشر صفحة الرسائل غير صالح.");
+    }
     throw new HttpsError("invalid-argument", "عدد الرسائل المطلوب غير صالح.");
   }
 
@@ -1412,7 +1451,28 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
     throw new HttpsError("failed-precondition", "بيانات أطراف المحادثة غير صالحة للمراجعة.");
   }
 
-  // Log the privileged access before retrieving message bodies. Never log message content.
+  const messagesRef = chatRef.collection("messages");
+  let cursorSnapshot: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+  if (review.pageToken) {
+    const cursor = await messagesRef.doc(review.pageToken).get();
+    if (!cursor.exists || !(cursor.data()?.createdAt instanceof Timestamp)) {
+      throw new HttpsError("invalid-argument", "مؤشر الصفحة لا ينتمي إلى رسائل هذه المحادثة.");
+    }
+    cursorSnapshot = cursor as FirebaseFirestore.QueryDocumentSnapshot;
+  }
+
+  const messagesQuery = messagesRef.orderBy("createdAt", "desc");
+  const query = cursorSnapshot
+    ? messagesQuery.startAfter(cursorSnapshot).limit(review.limit + 1)
+    : messagesQuery.limit(review.limit + 1);
+  const snapshot = await query.get();
+  const hasMore = snapshot.docs.length > review.limit;
+  const pageDocs = snapshot.docs.slice(0, review.limit);
+  const nextPageToken = hasMore && pageDocs.length > 0
+    ? pageDocs[pageDocs.length - 1].id
+    : null;
+
+  // Log each privileged page before retrieving message bodies. Never log message content.
   const auditRef = db.collection("adminAuditLogs").doc();
   await auditRef.create({
     actorUid,
@@ -1423,6 +1483,9 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
     reviewMode: review.mode,
     reviewScope: "direct_chat_messages",
     requestedLimit: review.limit,
+    cursorMessageId: review.pageToken,
+    returnedCount: pageDocs.length,
+    hasMore,
     ownerAuthTime: request.auth?.token.auth_time ?? null,
     secondFactor: typeof request.auth?.token.firebase === "object" && request.auth?.token.firebase !== null
       ? (request.auth.token.firebase as Record<string, unknown>).sign_in_second_factor ?? null
@@ -1430,11 +1493,7 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
     createdAt: FieldValue.serverTimestamp(),
   });
 
-  const snapshot = await chatRef.collection("messages")
-    .orderBy("createdAt", "desc")
-    .limit(review.limit)
-    .get();
-  const messages = snapshot.docs.reverse().map((doc) => {
+  const messages = pageDocs.reverse().map((doc) => {
     const data = doc.data();
     const deleted = data.isDeleted === true;
     return {
@@ -1458,6 +1517,8 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
     messages,
     reviewedAt: Date.now(),
     auditLogId: auditRef.id,
+    nextPageToken,
+    hasMore,
   };
 });
 
