@@ -8,6 +8,17 @@ class SuperAdminSecurityService {
     return Map<String, dynamic>.from(result.data as Map);
   }
 
+  Future<Map<String, dynamic>> setTransferCommission({
+    required int commissionBps,
+    required bool enabled,
+  }) async {
+    final result = await _functions.httpsCallable('setTransferCommission').call({
+      'commissionBps': commissionBps,
+      'enabled': enabled,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
   Future<Map<String, dynamic>> setRegistrationPolicy({
     required bool enabled,
     required int minimumAge,
