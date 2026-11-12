@@ -1,6 +1,10 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { validateMemberSocialLinks, projectMemberSocialLinks } = require("../lib/member-social-links");
+const {
+  validateMemberSocialLinks,
+  projectMemberSocialLinks,
+  canUpdateMemberSocialLinks,
+} = require("../lib/member-social-links");
 
 test("accepts only HTTPS URLs on the matching official provider domains", () => {
   assert.deepEqual(validateMemberSocialLinks({
