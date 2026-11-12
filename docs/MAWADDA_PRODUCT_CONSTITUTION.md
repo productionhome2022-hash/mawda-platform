@@ -168,7 +168,7 @@ This section must be updated with evidence as work progresses; never convert a p
 MAWADDA AI is a modular platform capability with separate trust boundaries:
 
 1. **Technical Support Assistant:** helps members with account and app-control problems, explains approved workflows, triages errors, and prepares support cases. It may inspect only the minimum account, diagnostic, and conversation context needed for the active support case. The owner may grant additional technical-administration permissions individually. High-impact actions (account suspension, data deletion, wallet changes, refunds, permission changes, production configuration, merges, and deployments) require explicit confirmation, server-side authorization, and immutable audit records. It must never expose passwords, authentication secrets, or private keys.
-2. **AI Social Characters:** owner-configured characters with distinct names, biographies, styles, dialects, languages, interests, sticker sets, activity schedules, approved placements, and interaction limits. They may host events, welcome members, join permitted public discussions, and participate in adult-only private conversations. They must not impersonate real people, claim to be human, fabricate human endorsements, or manufacture fake member counts, testimonials, reactions, relationships, or popularity metrics. Their character profile or platform information must make their AI nature reasonably clear; repeated boilerplate disclosure in every message is not required.
+2. **AI Social Characters:** owner-configured characters with distinct names, biographies, styles, dialects, languages, interests, sticker sets, activity schedules, approved placements, and interaction limits. They may host events, welcome members, join permitted public discussions, and participate in adult-only private conversations. They must not impersonate real people, claim to be human, fabricate human endorsements, or manufacture fake member counts, testimonials, reactions, relationships, or popularity metrics. Every AI social-character profile must carry a small, consistently placed AI identity badge on its avatar or cover and in the profile header. The badge opens a concise explanation that this is an AI character. Keep ordinary conversation natural; do not repeat boilerplate in every message. Do not use the badge to impersonate a human or misrepresent AI activity as human-member activity.
 3. **Events and Engagement:** prompts, games, icebreakers, competitions, themed events, and community activities. Participation and rankings must be authentic and distinguish AI participation from member participation.
 
 ### 17.1 Privacy, data use, and oversight
@@ -194,10 +194,11 @@ MAWADDA AI is a modular platform capability with separate trust boundaries:
 
 ### 17.4 Link policy
 
-- **Public direct/group chats and all public or rented private-room conversations:** block every URL and link, including shortened, obfuscated, embedded, and redirecting links. Show a clear validation message.
-- **One-to-one private conversations only:** allow links only to approved YouTube, Instagram (including Reels), and Facebook domains. Enforce a strict server-side domain allowlist after URL normalization; reject lookalike domains, URL shorteners, redirects to unapproved destinations, IP-literal hosts, and disguised links.
-- No AI character or support assistant may bypass these rules. Link policy applies consistently to text, profile prompts, stickers/captions, and other message surfaces where links can be embedded.
-- The owner may disable an allowed domain, but cannot add arbitrary domains without a reviewed policy change and security tests.
+- **Public chats and ordinary member messages in public rooms and rented private rooms:** block every URL and link, including shortened, obfuscated, embedded, and redirecting links. Show a clear validation message.
+- **Room owners and explicitly authorized moderators in public rooms and rented private rooms:** allow only validated YouTube, Instagram (including Reels), and Facebook URLs. Authorization is checked against the authenticated sender and the specific room on the trusted backend.
+- **One-to-one private conversations:** allow only the same three approved platform families: YouTube, Instagram (including Reels), and Facebook.
+- Enforce a strict server-side destination allowlist after URL normalization and safe redirect resolution. Reject lookalike/deceptive subdomains, URL shorteners, IP-literal hosts, unsafe schemes, credentials in URLs, Unicode/punycode tricks, disguised or embedded links, and redirect chains that leave the allowlist.
+- No AI character or support assistant may bypass these rules. Apply policy consistently to text, captions, previews, stickers, and rich-content surfaces. Moderator revocation must take effect immediately.
 
 ### 17.5 Owner controls, safety, and cost
 
