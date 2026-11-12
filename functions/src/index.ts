@@ -9,7 +9,7 @@ import { validateRegistrationPolicy } from "./registration-policy";
 import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
 import { validateMemberProfileUpdate } from "./member-profile-update";
 import { validateDirectMessageInput } from "./direct-message";
-import { assertMessageLinksAllowed } from "./link-policy";
+import { assertMessageLinksAllowed, canSendApprovedPlatformLinks } from "./link-policy";
 import { createHash } from "node:crypto";
 import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
 import { hasPlatformOwnerSession } from "./owner-access";
@@ -660,12 +660,6 @@ export const sendDirectMessage = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "بيانات الرسالة غير صالحة أو تجاوزت الحد المسموح.");
   }
   const { recipientUid, text: messageText, clientMessageId } = message;
-  try {
-    const ownerSession = hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>);
-    assertMessageLinksAllowed(messageText, ownerSession, ownerSession);
-  } catch {
-    throw new HttpsError("invalid-argument", "الروابط غير مسموحة أو أن صيغة الرابط غير آمنة.");
-  }
   if (senderUid === recipientUid) {
     throw new HttpsError("failed-precondition", "لا يمكنك مراسلة حسابك الشخصي.");
   }
@@ -694,6 +688,17 @@ export const sendDirectMessage = onCall(async (request) => {
       }
       const sender = senderSnapshot.data() ?? {};
       const recipient = recipientSnapshot.data() ?? {};
+      const ownerSession = hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>);
+      const isBiometricallyVerified = sender.biometricVerification?.status === "verified";
+      try {
+        assertMessageLinksAllowed(
+          messageText,
+          canSendApprovedPlatformLinks({ isBiometricallyVerified, isPlatformOwner: ownerSession }),
+          ownerSession,
+        );
+      } catch {
+        throw new HttpsError("invalid-argument", "الروابط غير مسموحة لهذه العضوية أو أن صيغة الرابط غير آمنة.");
+      }
       if (sender.profileCompleted !== true || recipient.profileCompleted !== true ||
           sender.isBanned === true || recipient.isBanned === true) {
         throw new HttpsError("permission-denied", "لا يمكن إرسال الرسالة إلى هذا الحساب.");
@@ -858,12 +863,13 @@ export const sendRoomMessage = onCall(async (request) => {
   const roomRef = db.collection("rooms").doc(roomId);
   const membershipRef = roomRef.collection("members").doc(uid);
   const moderatorRef = roomRef.collection("moderators").doc(uid);
+  const userRef = db.collection("users").doc(uid);
   const messageId = createHash("sha256").update(uid + ":" + clientMessageId).digest("hex");
   const messageRef = roomRef.collection("messages").doc(messageId);
   const result = await db.runTransaction(async (transaction) => {
-    const [room, membership, moderator, existing] = await Promise.all([
+    const [room, membership, moderator, member, existing] = await Promise.all([
       transaction.get(roomRef), transaction.get(membershipRef),
-      transaction.get(moderatorRef), transaction.get(messageRef),
+      transaction.get(moderatorRef), transaction.get(userRef), transaction.get(messageRef),
     ]);
     if (!room.exists || room.data()?.status !== "active") {
       throw new HttpsError("not-found", "الغرفة غير موجودة أو غير نشطة.");
@@ -875,18 +881,24 @@ export const sendRoomMessage = onCall(async (request) => {
     const isRoomOwner = roomData.ownerUid === uid;
     const isAuthorizedModerator = moderator.exists;
     const ownerSession = hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>);
+    const isBiometricallyVerified = member.data()?.biometricVerification?.status === "verified";
     try {
       assertMessageLinksAllowed(
         content,
-        isRoomOwner || isAuthorizedModerator || ownerSession,
+        canSendApprovedPlatformLinks({
+          isBiometricallyVerified,
+          isRoomOwner,
+          isAuthorizedModerator,
+          isPlatformOwner: ownerSession,
+        }),
         ownerSession,
       );
     } catch {
       throw new HttpsError(
         "invalid-argument",
-        isRoomOwner || isAuthorizedModerator || ownerSession
-          ? ownerSession ? "تعذر قبول الرابط أو أن صياغته غير آمنة." : "يسمح للمشرفين والمالكين بروابط YouTube وInstagram وFacebook فقط."
-          : "إرسال الروابط غير مسموح للأعضاء في هذه الغرفة.",
+        isRoomOwner || isAuthorizedModerator || ownerSession || isBiometricallyVerified
+          ? ownerSession ? "تعذر قبول الرابط أو أن صياغته غير آمنة." : "يسمح للأعضاء الموثقين بيومترياً ومالكي ومشرفي الغرف بروابط YouTube وInstagram وFacebook وX فقط."
+          : "إرسال الروابط غير مسموح للأعضاء غير الموثقين بيومترياً في هذه الغرفة.",
       );
     }
     if (existing.exists) {
