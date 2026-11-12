@@ -4,7 +4,7 @@ const APPROVED_HOSTS = new Set([
   "x.com", "twitter.com",
 ]);
 const DOMAIN_PATTERN = /(?:https?:\/\/|www\.)[^\s<>()]+|(?:[a-z0-9-]+\.)+(?:com|net|org|io|co|de|uk|fr|es|me|tv|app|dev|info|biz|xyz|online|site|live)(?:\/[^\s<>()]*)?/giu;
-const OBFUSCATION_PATTERN = /(?:youtube|instagram|facebook)\s*(?:\[.\]|\(\.\)|\{.\}|\s+dot\s+)\s*(?:com|org|net)/giu;
+const OBFUSCATION_PATTERN = /(?:youtube|instagram|facebook|twitter|x)\s*(?:\[.\]|\(\.\)|\{.\}|\s+dot\s+)\s*(?:com|org|net)/giu;
 
 function cleanCandidate(value: string): string {
   return value.replace(/[.,!?;:]+$/g, "").replace(/[)\]}]+$/g, "");
