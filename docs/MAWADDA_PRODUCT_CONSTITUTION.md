@@ -249,7 +249,7 @@ The root `pubspec.lock` and `functions/package-lock.json` were absent at the las
 
 The real `platformOwner` claim has not been provisioned and the production MFA flow has not been verified. The owner bootstrap script is prepared but has not been run against Firebase.
 
-Several product areas remain partial or unimplemented: complete DM and notification UX, media workflows, full room lifecycle and voice/video/rental billing, stores and verified purchases, full owner console, identity/background management UI, real-device and cross-platform verification, monitoring and recovery drills.
+Several product areas remain partial or unimplemented: complete DM and notification UX, media workflows, full room lifecycle and voice/video/rental billing, premium store consumers beyond VIP/title, real-money purchase verification/top-ups/refunds, full owner console, identity/background management UI, real-device and cross-platform verification, monitoring and recovery drills.
 
 The launch fallback background is an approved requirement but the final launch artwork has not yet been selected/bundled and verified.
 
