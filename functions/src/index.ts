@@ -1641,6 +1641,12 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
     if (code === "INVALID_PAGE_TOKEN") {
       throw new HttpsError("invalid-argument", "مؤشر صفحة الرسائل غير صالح.");
     }
+    if (code === "INVALID_REVIEW_MODE") {
+      throw new HttpsError("invalid-argument", "وضع المراجعة غير صالح.");
+    }
+    if (code === "INVALID_ANNOUNCEMENT_MESSAGE_ID") {
+      throw new HttpsError("invalid-argument", "معرف إشعار المراجعة غير صالح.");
+    }
     throw new HttpsError("invalid-argument", "عدد الرسائل المطلوب غير صالح.");
   }
 
@@ -1688,6 +1694,7 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
     participantUids: participants,
     reason: review.reason,
     reviewMode: review.mode,
+    announcementMessageId: review.announcementMessageId,
     reviewScope: "direct_chat_messages",
     requestedLimit: review.limit,
     cursorMessageId: review.pageToken,
@@ -1698,6 +1705,26 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
       : null,
   });
 
+
+  if (review.mode === "announced") {
+    const announcement = await messagesRef.doc(review.announcementMessageId!).get();
+    const announcementData = announcement.data() ?? {};
+    if (!announcement.exists || announcementData.senderUid !== actorUid ||
+        announcementData.isOwnerReviewNotice !== true ||
+        announcementData.ownerReviewMode !== "announced" ||
+        announcementData.chatId !== review.chatId) {
+      await appendOwnerReviewAuditEvent({
+        actorUid,
+        action: "owner_direct_chat_review_page_result",
+        parentAuditLogId: auditLogId,
+        chatId: review.chatId,
+        reviewMode: "announced",
+        announcementMessageId: review.announcementMessageId,
+        outcome: "announcement_not_found_or_not_owned",
+      });
+      throw new HttpsError("failed-precondition", "يجب نشر إشعار مراجعة معلنة صالح من المالك قبل فتح هذا الوضع.");
+    }
+  }
 
   const snapshot = await messagesQuery.limit(review.limit + 1).get();
   const hasMore = snapshot.docs.length > review.limit;
@@ -1720,6 +1747,8 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
     parentAuditLogId: auditLogId,
     chatId: review.chatId,
     reviewScope: "direct_chat_messages",
+    reviewMode: review.mode,
+    announcementMessageId: review.announcementMessageId,
     returnedCount: pageDocs.length,
     hasMore,
     outcome: "success",
@@ -1746,6 +1775,8 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
   return {
     chatId: review.chatId,
     participantUids: participants,
+    reviewMode: review.mode,
+    announcementMessageId: review.announcementMessageId,
     messages,
     reviewedAt: Date.now(),
     auditLogId,
