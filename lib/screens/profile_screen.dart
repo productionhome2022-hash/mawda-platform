@@ -2,6 +2,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../services/coin_system_service.dart';
+import 'direct_chat_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String profileUserId;
@@ -608,6 +609,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     icon: const Icon(Icons.monetization_on),
                     label: Text(_isTransferringCoins ? 'جارٍ التحويل...' : 'إهداء كوينز'),
                     onPressed: _isTransferringCoins ? null : _showGiftCoinsDialog,
+                  ),
+                ),
+              if (!isMyProfile)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    label: const Text('مراسلة العضو'),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => DirectChatScreen(
+                          peerUid: widget.profileUserId,
+                          peerName: name,
+                          currentUserId: widget.currentUserId,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               const Padding(
