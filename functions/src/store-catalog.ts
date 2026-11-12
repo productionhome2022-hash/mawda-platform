@@ -84,3 +84,13 @@ export function validateStoreCatalogItemInput(input: unknown): ValidatedStoreCat
     fulfillmentReady: false,
   };
 }
+
+
+/** Charging is denied unless the catalog entry is published and fulfillment is explicitly ready. */
+export function isStoreItemPurchasable(value: unknown): boolean {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const item = value as Record<string, unknown>;
+  return item.active === true &&
+    item.purchaseEnabled === true &&
+    item.fulfillmentReady === true;
+}
