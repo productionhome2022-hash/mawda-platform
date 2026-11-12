@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   calculateStorePurchaseBalance,
   isStoreEntitlementActive,
+  isStorePurchasePriceCurrent,
 } = require("../lib/store-purchase");
 
 const NOW = 1_800_000_000_000;
@@ -31,4 +32,13 @@ test("temporary entitlement expires exactly at its server expiry and can later r
     status: "active",
     expiresAt: { toMillis: () => { throw new Error("bad timestamp"); } },
   }, NOW), false);
+});
+
+
+test("store purchase rejects stale or malformed client price confirmations", () => {
+  assert.equal(isStorePurchasePriceCurrent(2500, 2500), true);
+  assert.equal(isStorePurchasePriceCurrent(2500, 3000), false);
+  assert.equal(isStorePurchasePriceCurrent(0, 2500), false);
+  assert.equal(isStorePurchasePriceCurrent(2500.5, 2500), false);
+  assert.equal(isStorePurchasePriceCurrent(2500, Number.MAX_SAFE_INTEGER + 1), false);
 });
