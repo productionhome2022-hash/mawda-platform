@@ -49,7 +49,10 @@ export function detectMediaSignature(bytes: Uint8Array): string | null {
       String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
       String.fromCharCode(...bytes.slice(8, 12)) === "WEBP") return "image/webp";
   if (bytes.length >= 8 && String.fromCharCode(...bytes.slice(0, 4)) === "%PDF") return "application/pdf";
-  if (bytes.length >= 12 && String.fromCharCode(...bytes.slice(4, 8)) === "ftyp") return "video/mp4";
+  if (bytes.length >= 12 && String.fromCharCode(...bytes.slice(4, 8)) === "ftyp") {
+    const brand = String.fromCharCode(...bytes.slice(8, 12));
+    return ["M4A ", "M4B ", "M4P "].includes(brand) ? "audio/mp4" : "video/mp4";
+  }
   if (bytes.length >= 4 && String.fromCharCode(...bytes.slice(0, 4)) === "OggS") return "audio/ogg";
   if (bytes.length >= 12 &&
       String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
