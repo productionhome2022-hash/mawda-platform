@@ -500,6 +500,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           final data = snapshot.data!;
           final name = (data['displayName'] as String?) ?? 'Mawda Member';
+          final vipActive = data['vipActive'] == true;
+          final activeTitle = (data['activeTitle'] as String?)?.trim() ?? '';
           final username = (data['username'] as String?) ?? '';
           final bio = (data['bio'] as String?) ?? '';
           final profession = (data['profession'] as String?) ?? '';
@@ -541,6 +543,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   children: [
                     Text(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    if (vipActive)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 6),
+                        child: Chip(
+                          avatar: Icon(Icons.workspace_premium, size: 18),
+                          label: Text('VIP'),
+                        ),
+                      ),
+                    if (activeTitle.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          activeTitle,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
                     if (username.isNotEmpty) Text('@$username'),
                     if (bio.isNotEmpty)
                       Padding(
