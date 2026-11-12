@@ -93,7 +93,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: kind,
+                  initialValue: kind,
                   decoration: const InputDecoration(
                     labelText: 'نوع الغرفة',
                     border: OutlineInputBorder(),
