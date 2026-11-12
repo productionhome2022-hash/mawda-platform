@@ -11,6 +11,7 @@ import { validateMemberProfileUpdate } from "./member-profile-update";
 import { projectMemberSocialLinks, validateMemberSocialLinks } from "./member-social-links";
 import { validateDirectMessageInput } from "./direct-message";
 import { hasActiveBiometricVerification } from "./biometric-verification";
+import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
 import { isMemberAccountInGoodStanding } from "./member-access";
 import {
   assertMessageLinksAllowed,
@@ -567,7 +568,10 @@ export const getMemberProfile = onCall(async (request) => {
   const profile = projectPublicMemberProfile(targetUid, {
     ...memberData,
     profileVisibility: "public",
-    approvedSocialLinks: hasActiveBiometricVerification(memberData.biometricVerification)
+    approvedSocialLinks: canExposeMemberSocialLinks(
+      memberData.profileCompleted === true,
+      memberData.biometricVerification,
+    )
       ? projectMemberSocialLinks(memberData.profileSocialLinks)
       : {},
   });
@@ -678,11 +682,16 @@ export const setMemberProfileSocialLinks = onCall(async (request) => {
   await db.runTransaction(async (transaction) => {
     const member = await transaction.get(userRef);
     const data = member.data() ?? {};
-    if (!member.exists || data.profileCompleted !== true) {
-      throw new HttpsError("failed-precondition", "يجب إكمال الملف الشخصي أولاً.");
-    }
-    if (!hasActiveBiometricVerification(data.biometricVerification)) {
-      throw new HttpsError("failed-precondition", "هذه الميزة متاحة للأعضاء ذوي التوثيق البيومتري النشط فقط.");
+    if (!member.exists || !canEditMemberSocialLinks(
+      uid,
+      member.id,
+      data.profileCompleted === true,
+      data.biometricVerification,
+    )) {
+      throw new HttpsError(
+        "failed-precondition",
+        "تتطلب إدارة روابط الملف إكمال الملف الشخصي وتوثيقاً بيومترياً نشطاً للحساب نفسه.",
+      );
     }
     transaction.update(userRef, {
       profileSocialLinks: links,
