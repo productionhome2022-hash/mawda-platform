@@ -1,3 +1,5 @@
+import { projectMemberSocialLinks } from "./member-social-links";
+
 export type PublicMemberProfile = {
   uid: string;
   displayName: string;
@@ -46,9 +48,9 @@ export function projectPublicMemberProfile(
     maritalStatus: safeText(data.maritalStatus),
     interests,
     goals,
-    socialLinks: data.approvedSocialLinks !== null && typeof data.approvedSocialLinks === "object" && !Array.isArray(data.approvedSocialLinks)
-      ? Object.fromEntries(Object.entries(data.approvedSocialLinks as Record<string, unknown>).filter((entry): entry is [string, string] => typeof entry[1] === "string"))
-      : {},
+    // Revalidate at the projection boundary as defense in depth. Callers must
+    // still enforce biometric entitlement before supplying the stored links.
+    socialLinks: projectMemberSocialLinks(data.approvedSocialLinks),
   };
 }
 
