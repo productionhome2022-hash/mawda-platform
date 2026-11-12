@@ -30,6 +30,8 @@ import { hasPlatformOwnerSession } from "./owner-access";
 import {
   validateOwnerChatReviewRequest,
   validateOwnerConversationPageRequest,
+  encodeOwnerMessagePageToken,
+  decodeOwnerMessagePageToken,
   validateOwnerChatParticipationRequest,
 } from "./owner-chat-review";
 import {
@@ -1452,25 +1454,37 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
   }
 
   const messagesRef = chatRef.collection("messages");
-  let cursorSnapshot: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+  let cursor: { createdAtMillis: number; messageId: string } | null = null;
   if (review.pageToken) {
-    const cursor = await messagesRef.doc(review.pageToken).get();
-    if (!cursor.exists || !(cursor.data()?.createdAt instanceof Timestamp)) {
-      throw new HttpsError("invalid-argument", "مؤشر الصفحة لا ينتمي إلى رسائل هذه المحادثة.");
+    try {
+      cursor = decodeOwnerMessagePageToken(review.pageToken);
+    } catch {
+      throw new HttpsError("invalid-argument", "مؤشر صفحة الرسائل غير صالح.");
     }
-    cursorSnapshot = cursor as FirebaseFirestore.QueryDocumentSnapshot;
   }
 
-  const messagesQuery = messagesRef.orderBy("createdAt", "desc");
-  const query = cursorSnapshot
-    ? messagesQuery.startAfter(cursorSnapshot).limit(review.limit + 1)
-    : messagesQuery.limit(review.limit + 1);
-  const snapshot = await query.get();
+  // Cursor values are carried by the token itself. Do not fetch a message
+  // document before writing the audit event for this privileged read.
+  let messagesQuery = messagesRef.orderBy("createdAt", "desc")
+    .orderBy(FieldPath.documentId());
+  if (cursor) {
+    messagesQuery = messagesQuery.startAfter(
+      Timestamp.fromMillis(cursor.createdAtMillis),
+      cursor.messageId,
+    );
+  }
+  const snapshot = await messagesQuery.limit(review.limit + 1).get();
   const hasMore = snapshot.docs.length > review.limit;
   const pageDocs = snapshot.docs.slice(0, review.limit);
-  const nextPageToken = hasMore && pageDocs.length > 0
-    ? pageDocs[pageDocs.length - 1].id
-    : null;
+  const lastPageDoc = pageDocs.length > 0 ? pageDocs[pageDocs.length - 1] : null;
+  let nextPageToken: string | null = null;
+  if (hasMore && lastPageDoc) {
+    const lastCreatedAt = lastPageDoc.data().createdAt;
+    if (!(lastCreatedAt instanceof Timestamp)) {
+      throw new HttpsError("failed-precondition", "تعذر متابعة سجل الرسائل بسبب توقيت غير صالح.");
+    }
+    nextPageToken = encodeOwnerMessagePageToken(lastCreatedAt.toMillis(), lastPageDoc.id);
+  }
 
   // Log each privileged page before retrieving message bodies. Never log message content.
   const auditRef = db.collection("adminAuditLogs").doc();
