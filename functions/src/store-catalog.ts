@@ -67,6 +67,9 @@ export function validateStoreCatalogItemInput(input: unknown): ValidatedStoreCat
     throw new Error("INVALID_STORE_ITEM_ID");
   }
   if (typeof value.active !== "boolean") throw new Error("INVALID_STORE_ACTIVE");
+  if (value.purchaseEnabled !== undefined && typeof value.purchaseEnabled !== "boolean") {
+    throw new Error("INVALID_STORE_PURCHASE_ENABLED");
+  }
   const projected = projectStoreCatalogItem(itemId, {
     ...value,
     active: true,
