@@ -27,7 +27,7 @@ import {
 import { createHash } from "node:crypto";
 import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
 import { hasPlatformOwnerSession } from "./owner-access";
-import { calculateOwnerAuditHash } from "./owner-audit-chain";
+import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
 import {
   validateOwnerChatReviewRequest,
   validateOwnerConversationPageRequest,
@@ -81,6 +81,7 @@ async function appendOwnerReviewAuditEvent(
     const eventHash = calculateOwnerAuditHash(event, sequence, previousHash);
     transaction.create(auditRef, {
       ...event,
+      auditEvent: event,
       auditChainId: "owner-review-v1",
       auditSequence: sequence,
       previousAuditHash: previousHash,
@@ -1593,6 +1594,88 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
   };
 });
 
+
+/**
+ * Verifies the owner-review hash chain against the separately maintained head.
+ * Full verification is intentionally bounded; large chains fail as incomplete,
+ * never as valid, until a paged verification workflow is used.
+ */
+export const verifyOwnerReviewAuditChain = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "owner_review_audit_chain_verify");
+  const headSnapshot = await OWNER_REVIEW_AUDIT_HEAD.get();
+  const head = headSnapshot.data() ?? {};
+  const headSequence = headSnapshot.exists ? head.sequence : 0;
+  const headHash = headSnapshot.exists ? head.eventHash : "GENESIS";
+
+  let verification: {
+    valid: boolean;
+    complete: boolean;
+    sequence: number;
+    eventHash: string;
+    reason: string | null;
+  };
+
+  if (!Number.isSafeInteger(headSequence) || headSequence < 0 ||
+      typeof headHash !== "string" ||
+      !(headHash === "GENESIS" || /^[a-f0-9]{64}$/.test(headHash))) {
+    verification = {
+      valid: false,
+      complete: true,
+      sequence: 0,
+      eventHash: "GENESIS",
+      reason: "INVALID_CHAIN_HEAD",
+    };
+  } else if (headSequence > 5000) {
+    verification = {
+      valid: false,
+      complete: false,
+      sequence: 0,
+      eventHash: "GENESIS",
+      reason: "CHAIN_REQUIRES_PAGED_VERIFICATION",
+    };
+  } else {
+    const snapshot = headSequence === 0
+      ? null
+      : await db.collection("adminAuditLogs")
+          .where("auditChainId", "==", "owner-review-v1")
+          .orderBy("auditSequence", "asc")
+          .limit(headSequence)
+          .get();
+    const entries = (snapshot?.docs ?? []).map((doc) => {
+      const data = doc.data();
+      return {
+        sequence: data.auditSequence,
+        previousHash: data.previousAuditHash,
+        eventHash: data.auditHash,
+        event: data.auditEvent,
+      };
+    });
+    const result = verifyOwnerAuditChain(entries, {
+      sequence: headSequence,
+      eventHash: headHash,
+    });
+    verification = { ...result, complete: true };
+  }
+
+  const verificationAuditLogId = await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "owner_review_audit_chain_verification",
+    outcome: verification.complete
+      ? verification.valid ? "valid" : "invalid"
+      : "incomplete",
+    verifiedThroughSequence: headSequence,
+    verifiedHeadHash: headHash,
+    scannedCount: verification.sequence,
+    verificationReason: verification.reason,
+  });
+
+  return {
+    ...verification,
+    verifiedThroughSequence: headSequence,
+    verifiedHeadHash: headHash,
+    verificationAuditLogId,
+  };
+});
 
 /** Lists only the authenticated member's own notifications. */
 export const getMyNotifications = onCall(async (request) => {
