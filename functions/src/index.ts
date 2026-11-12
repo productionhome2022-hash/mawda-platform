@@ -167,6 +167,10 @@ export const transferCoins = onCall(async (request) => {
 
     const senderData = senderSnapshot.data()!;
     const recipientData = recipientSnapshot.data()!;
+    if (!isMemberAccountInGoodStanding(senderData) ||
+        !isMemberAccountInGoodStanding(recipientData)) {
+      throw new HttpsError("permission-denied", "حالة أحد الحسابين لا تسمح بإجراء تحويل الكوينز حالياً.");
+    }
     const senderBalance = readSafeInteger(senderData.coins ?? 0, "sender.coins");
     const recipientBalance = readSafeInteger(recipientData.coins ?? 0, "recipient.coins");
     if (senderBalance < 0 || recipientBalance < 0) {
