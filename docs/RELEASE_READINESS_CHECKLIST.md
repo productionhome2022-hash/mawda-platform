@@ -127,6 +127,8 @@ This checklist is a release gate, not a statement that the listed work is comple
 ## Additional approved profile and financial-control release gates
 
 ### Biometrically verified member profile links
+
+**Current status: partial backend implementation only.** Save authorization, biometric-gated profile projection, and URL validation are present in Functions. Flutter profile-wall controls and end-to-end authorization/expiry/revocation tests remain open; the biometric capture/provider workflow is a release blocker. Keep all release gates below unchecked until those items are independently validated.
 - [ ] Active verified members can save optional Instagram, X/Twitter, Facebook, and WhatsApp profile links; each is individually editable, removable, and hideable.
 - [ ] Visitors see only links the member explicitly published and only when profile visibility permits.
 - [ ] Only normalized HTTPS URLs on the provider's approved official domains are accepted; malformed/deceptive URLs, credentials, unsafe schemes, and shorteners are rejected.
