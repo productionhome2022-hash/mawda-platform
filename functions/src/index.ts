@@ -9,7 +9,11 @@ import { validateRegistrationPolicy } from "./registration-policy";
 import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
 import { validateMemberProfileUpdate } from "./member-profile-update";
 import { validateDirectMessageInput } from "./direct-message";
-import { assertMessageLinksAllowed, canSendApprovedPlatformLinks } from "./link-policy";
+import {
+  assertMessageLinksAllowed,
+  BIOMETRIC_APPROVED_HOSTS,
+  canSendApprovedPlatformLinks,
+} from "./link-policy";
 import { createHash } from "node:crypto";
 import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
 import { hasPlatformOwnerSession } from "./owner-access";
@@ -695,6 +699,7 @@ export const sendDirectMessage = onCall(async (request) => {
           messageText,
           canSendApprovedPlatformLinks({ isBiometricallyVerified, isPlatformOwner: ownerSession }),
           ownerSession,
+          isBiometricallyVerified ? BIOMETRIC_APPROVED_HOSTS : undefined,
         );
       } catch {
         throw new HttpsError("invalid-argument", "الروابط غير مسموحة لهذه العضوية أو أن صيغة الرابط غير آمنة.");
@@ -892,12 +897,13 @@ export const sendRoomMessage = onCall(async (request) => {
           isPlatformOwner: ownerSession,
         }),
         ownerSession,
+        isBiometricallyVerified ? BIOMETRIC_APPROVED_HOSTS : undefined,
       );
     } catch {
       throw new HttpsError(
         "invalid-argument",
         isRoomOwner || isAuthorizedModerator || ownerSession || isBiometricallyVerified
-          ? ownerSession ? "تعذر قبول الرابط أو أن صياغته غير آمنة." : "يسمح للأعضاء الموثقين بيومترياً ومالكي ومشرفي الغرف بروابط YouTube وInstagram وFacebook وX فقط."
+          ? ownerSession ? "تعذر قبول الرابط أو أن صياغته غير آمنة." : "يسمح للأعضاء الموثقين بيومترياً بروابط Facebook وInstagram وX، وللمالكين والمشرفين بروابط YouTube وInstagram وFacebook."
           : "إرسال الروابط غير مسموح للأعضاء غير الموثقين بيومترياً في هذه الغرفة.",
       );
     }
