@@ -28,6 +28,11 @@ import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./ro
 import { hasPlatformOwnerSession } from "./owner-access";
 import { validateOwnerChatReviewRequest } from "./owner-chat-review";
 import {
+  PRIVACY_POLICY_HASH,
+  PRIVACY_POLICY_VERSION,
+  validatePrivacyAcknowledgement,
+} from "./privacy-acknowledgement";
+import {
   isStoreItemPurchasable,
   projectStoreCatalogItem,
   validateStoreCatalogItemInput,
@@ -407,6 +412,78 @@ export const setTransferCommission = onCall(async (request) => {
 
 
 /**
+ * Records explicit acknowledgement of the exact current privacy notice.
+ * This record is separate from the member profile so it can be captured
+ * immediately after Firebase Auth account creation and before profile access.
+ */
+export const recordPrivacyAcknowledgement = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  let acknowledgement;
+  try {
+    acknowledgement = validatePrivacyAcknowledgement({
+      ...(request.data ?? {}),
+      actorType: "member",
+    } as Record<string, unknown>);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "PRIVACY_ACKNOWLEDGEMENT_INVALID";
+    throw new HttpsError(
+      "failed-precondition",
+      code === "PRIVACY_POLICY_VERSION_MISMATCH" || code === "PRIVACY_POLICY_HASH_MISMATCH"
+        ? "تغير إشعار الخصوصية. حدّث التطبيق وراجع الإصدار الحالي قبل المتابعة."
+        : "بيانات إقرار الخصوصية غير صالحة.",
+    );
+  }
+
+  const acknowledgementRef = db.collection("privacyAcknowledgements")
+    .doc(`${uid}_${acknowledgement.policyVersion}`);
+  return db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(acknowledgementRef);
+    if (existing.exists) {
+      const data = existing.data() ?? {};
+      if (data.policyHash !== acknowledgement.policyHash || data.uid !== uid) {
+        throw new HttpsError("failed-precondition", "يتعارض سجل إقرار الخصوصية مع الإصدار الحالي.");
+      }
+      return {
+        acknowledged: true,
+        policyVersion: acknowledgement.policyVersion,
+        idempotentReplay: true,
+      };
+    }
+    transaction.create(acknowledgementRef, {
+      uid,
+      actorType: acknowledgement.actorType,
+      policyVersion: acknowledgement.policyVersion,
+      policyHash: acknowledgement.policyHash,
+      locale: acknowledgement.locale,
+      appVersion: acknowledgement.appVersion,
+      acknowledgedAt: FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return {
+      acknowledged: true,
+      policyVersion: acknowledgement.policyVersion,
+      idempotentReplay: false,
+    };
+  });
+});
+
+/** Returns whether this authenticated account accepted the current policy revision. */
+export const getPrivacyAcknowledgementStatus = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const ref = db.collection("privacyAcknowledgements")
+    .doc(`${uid}_${PRIVACY_POLICY_VERSION}`);
+  const snapshot = await ref.get();
+  const data = snapshot.data() ?? {};
+  return {
+    acknowledged: snapshot.exists && data.uid === uid &&
+      data.policyHash === PRIVACY_POLICY_HASH,
+    policyVersion: PRIVACY_POLICY_VERSION,
+    policyHash: PRIVACY_POLICY_HASH,
+  };
+});
+
+
+/**
  * Completes a verified member's Mawda profile.
  * The profile, unique username reservation, 500-coin email reward and
  * immutable wallet ledger entry are created atomically by the trusted server.
@@ -423,15 +500,26 @@ export const completeMemberProfile = onCall(async (request) => {
   const registrationSettingsRef = db.doc("platformSettings/registration");
   const userRef = db.collection("users").doc(uid);
   const rewardLedgerRef = userRef.collection("walletLedger").doc("email_verification_reward_500");
+  const privacyAcknowledgementRef = db.collection("privacyAcknowledgements")
+    .doc(`${uid}_${PRIVACY_POLICY_VERSION}`);
 
   return db.runTransaction(async (transaction) => {
     // Read the registration gate in the same transaction as member creation.
     // If the owner changes the policy concurrently, Firestore retries this
     // transaction and the new policy is enforced before any profile/reward write.
-    const [userSnapshot, registrationSettings] = await Promise.all([
+    const [userSnapshot, registrationSettings, privacyAcknowledgement] = await Promise.all([
       transaction.get(userRef),
       transaction.get(registrationSettingsRef),
+      transaction.get(privacyAcknowledgementRef),
     ]);
+    const privacyData = privacyAcknowledgement.data() ?? {};
+    if (!privacyAcknowledgement.exists || privacyData.uid !== uid ||
+        privacyData.policyHash !== PRIVACY_POLICY_HASH) {
+      throw new HttpsError(
+        "failed-precondition",
+        "يجب الاطلاع على إشعار الخصوصية الحالي والإقرار به قبل إكمال العضوية.",
+      );
+    }
 
     const registrationData = registrationSettings.exists
       ? registrationSettings.data() ?? {}
@@ -496,6 +584,9 @@ export const completeMemberProfile = onCall(async (request) => {
       email: authUser.email,
       emailVerified: true,
       emailVerifiedAt: createdAt,
+      privacyPolicyVersion: PRIVACY_POLICY_VERSION,
+      privacyPolicyHash: PRIVACY_POLICY_HASH,
+      privacyAcknowledgedAt: privacyData.acknowledgedAt ?? createdAt,
       fullName: profile.fullName,
       displayName: profile.fullName,
       username: profile.username,
