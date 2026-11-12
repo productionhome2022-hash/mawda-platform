@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'chat_room_screen.dart';
+import 'room_moderation_screen.dart';
 
 class RoomsScreen extends StatefulWidget {
   const RoomsScreen({super.key, required this.userId});
@@ -65,6 +66,15 @@ class _RoomsScreenState extends State<RoomsScreen> {
     ));
   }
 
+  Future<void> _openModeration(Map<String, dynamic> room) async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => RoomModerationScreen(
+        roomId: room['roomId'] as String,
+        roomName: room['name'] as String? ?? 'الغرفة',
+      ),
+    ));
+  }
+
   Widget _roomCard(Map<String, dynamic> room, {required bool joined}) {
     final count = room['memberCount'] is num
         ? (room['memberCount'] as num).toInt()
@@ -83,10 +93,21 @@ class _RoomsScreenState extends State<RoomsScreen> {
           ' • الأعضاء: $count${capacity > 0 ? ' / $capacity' : ''}',
         ),
         trailing: joined
-            ? IconButton(
-                tooltip: 'فتح الغرفة',
-                onPressed: () => _openRoom(room),
-                icon: const Icon(Icons.arrow_forward_ios),
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (room['isSuperAdmin'] == true || room['isRoomOwner'] == true)
+                    IconButton(
+                      tooltip: 'إدارة مشرفي الغرفة',
+                      onPressed: () => _openModeration(room),
+                      icon: const Icon(Icons.admin_panel_settings_outlined),
+                    ),
+                  IconButton(
+                    tooltip: 'فتح الغرفة',
+                    onPressed: () => _openRoom(room),
+                    icon: const Icon(Icons.arrow_forward_ios),
+                  ),
+                ],
               )
             : FilledButton(
                 onPressed: _joining ? null : () => _join(room),
