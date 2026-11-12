@@ -4,6 +4,7 @@ const {
   calculateStorePurchaseBalance,
   isStoreEntitlementActive,
   isStorePurchasePriceCurrent,
+  projectStoreEntitlementFeatures,
 } = require("../lib/store-purchase");
 
 const NOW = 1_800_000_000_000;
@@ -41,4 +42,23 @@ test("store purchase rejects stale or malformed client price confirmations", () 
   assert.equal(isStorePurchasePriceCurrent(0, 2500), false);
   assert.equal(isStorePurchasePriceCurrent(2500.5, 2500), false);
   assert.equal(isStorePurchasePriceCurrent(2500, Number.MAX_SAFE_INTEGER + 1), false);
+});
+
+
+test("profile entitlement projection exposes only active VIP and newest active title", () => {
+  const features = projectStoreEntitlementFeatures([
+    { category: "title", itemName: "لقب النخبة", status: "active", expiresAt: { toMillis: () => NOW + 5000 } },
+    { category: "vip", itemName: "VIP", status: "active", expiresAt: { toMillis: () => NOW + 1000 } },
+    { category: "title", itemName: "لقب منتهي", status: "active", expiresAt: { toMillis: () => NOW } },
+    { category: "analytics", itemName: "تحليلات", status: "active" },
+  ], NOW);
+  assert.deepEqual(features, { vipActive: true, activeTitle: "لقب النخبة" });
+});
+
+test("profile entitlement projection hides expired, revoked, and malformed entitlements", () => {
+  assert.deepEqual(projectStoreEntitlementFeatures([
+    { category: "vip", status: "expired" },
+    { category: "title", itemName: "قديم", status: "active", expiresAt: { toMillis: () => NOW - 1 } },
+    null,
+  ], NOW), { vipActive: false, activeTitle: null });
 });
