@@ -43,3 +43,33 @@ export function isStorePurchasePriceCurrent(
     currentPriceCoins > 0 &&
     expectedPriceCoins === currentPriceCoins;
 }
+
+
+export type StoreEntitlementFeatures = {
+  vipActive: boolean;
+  activeTitle: string | null;
+};
+
+/**
+ * Projects only implemented profile consumers. The caller supplies active
+ * entitlements ordered newest-first by server purchase time.
+ */
+export function projectStoreEntitlementFeatures(
+  entitlements: unknown[],
+  nowMs = Date.now(),
+): StoreEntitlementFeatures {
+  const active = entitlements.filter((item) => isStoreEntitlementActive(item, nowMs));
+  const vipActive = active.some((item) =>
+    item !== null && typeof item === "object" &&
+    (item as Record<string, unknown>).category === "vip",
+  );
+  const title = active.find((item) =>
+    item !== null && typeof item === "object" &&
+    (item as Record<string, unknown>).category === "title" &&
+    typeof (item as Record<string, unknown>).itemName === "string",
+  ) as Record<string, unknown> | undefined;
+  return {
+    vipActive,
+    activeTitle: title ? (title.itemName as string).trim().slice(0, 80) || null : null,
+  };
+}
