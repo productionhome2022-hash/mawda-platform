@@ -34,3 +34,41 @@ export function validateOwnerChatReviewRequest(
 
   return { chatId, reason: rawReason || null, mode: "silent", limit: requestedLimit };
 }
+
+
+export type OwnerChatParticipationMode =
+  | "platform_admin"
+  | "super_admin"
+  | "anonymous";
+
+export type OwnerChatParticipationRequest = {
+  chatId: string;
+  text: string;
+  clientMessageId: string;
+  mode: OwnerChatParticipationMode;
+};
+
+/** Validate the owner's explicitly labelled administrative message. */
+export function validateOwnerChatParticipationRequest(
+  input: Record<string, unknown>,
+): OwnerChatParticipationRequest {
+  const chatId = input.chatId;
+  const text = typeof input.text === "string" ? input.text.trim() : "";
+  const clientMessageId = input.clientMessageId;
+  const mode = input.mode;
+  if (typeof chatId !== "string" || !/^[a-f0-9]{64}$/.test(chatId)) {
+    throw new Error("INVALID_CHAT_ID");
+  }
+  if (text.length < 1 || text.length > 4000) {
+    throw new Error("INVALID_OWNER_MESSAGE_TEXT");
+  }
+  if (typeof clientMessageId !== "string" ||
+      clientMessageId.length < 8 || clientMessageId.length > 80 ||
+      !/^[A-Za-z0-9_-]+$/.test(clientMessageId)) {
+    throw new Error("INVALID_OWNER_MESSAGE_ID");
+  }
+  if (mode !== "platform_admin" && mode !== "super_admin" && mode !== "anonymous") {
+    throw new Error("INVALID_OWNER_PARTICIPATION_MODE");
+  }
+  return { chatId, text, clientMessageId, mode };
+}
