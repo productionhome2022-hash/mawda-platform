@@ -23,6 +23,8 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   bool _ownerConversationsLoaded = false;
   String? _reviewingChatId;
   List<Map<String, dynamic>> _ownerConversations = [];
+  String? _ownerConversationsNextPageToken;
+  bool _ownerConversationsHasMore = false;
   bool _registrationEnabled = false;
   bool _savingRegistrationPolicy = false;
   bool _transferEnabled = false;
@@ -474,6 +476,8 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       _searching = true;
       _member = null;
       _ownerConversations = [];
+      _ownerConversationsNextPageToken = null;
+      _ownerConversationsHasMore = false;
       _ownerConversationsLoaded = false;
     });
     try {
@@ -491,14 +495,29 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     }
   }
 
-  Future<void> _loadOwnerConversations() async {
+  Future<void> _loadOwnerConversations({bool loadMore = false}) async {
     final memberUid = _member?['uid'] as String?;
     if (memberUid == null || _loadingOwnerConversations) return;
+    final pageToken = loadMore ? _ownerConversationsNextPageToken : null;
+    if (loadMore && (pageToken == null || !_ownerConversationsHasMore)) return;
     setState(() => _loadingOwnerConversations = true);
     try {
-      final conversations = await _service.getOwnerMemberDirectChats(memberUid);
+      final result = await _service.getOwnerMemberDirectChats(
+        memberUid,
+        pageToken: pageToken,
+      );
+      final page = (result['conversations'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList(growable: false);
       if (mounted) setState(() {
-        _ownerConversations = conversations;
+        if (loadMore) {
+          _ownerConversations = [..._ownerConversations, ...page];
+        } else {
+          _ownerConversations = page;
+        }
+        _ownerConversationsNextPageToken = result['nextPageToken'] as String?;
+        _ownerConversationsHasMore = result['hasMore'] == true;
         _ownerConversationsLoaded = true;
         _error = null;
       });
@@ -517,40 +536,18 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     try {
       final result = await _service.getOwnerDirectChatMessages(chatId);
       if (!mounted) return;
-      final messages = (result['messages'] as List<dynamic>? ?? const [])
-          .whereType<Map>()
-          .map((item) => Map<String, dynamic>.from(item))
-          .toList(growable: false);
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: const Text('مراجعة صامتة — قراءة فقط'),
           content: SizedBox(
             width: 560,
-            child: messages.isEmpty
-                ? const Text('لا توجد رسائل في النطاق المعروض.')
-                : ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: messages.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final message = messages[index];
-                      final timestamp = message['createdAt'];
-                      final date = timestamp is num
-                          ? DateTime.fromMillisecondsSinceEpoch(timestamp.toInt()).toLocal()
-                          : null;
-                      final deleted = message['isDeleted'] == true;
-                      final text = deleted ? 'رسالة محذوفة' : (message['text'] as String? ?? '');
-                      return ListTile(
-                        dense: true,
-                        title: Text(text.isEmpty ? '—' : text),
-                        subtitle: Text([
-                          'المرسل: ${message['senderLabel'] ?? message['senderUid'] ?? 'غير معروف'}',
-                          if (date != null) date.toString(),
-                        ].join(' • ')),
-                      );
-                    },
-                  ),
+            height: 520,
+            child: OwnerChatReviewMessages(
+              chatId: chatId,
+              initialPage: result,
+              service: _service,
+            ),
           ),
           actions: [
             TextButton(
@@ -1071,6 +1068,17 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                       ),
                     );
                   }),
+                  if (_ownerConversationsHasMore)
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton.icon(
+                        onPressed: _loadingOwnerConversations
+                            ? null
+                            : () => _loadOwnerConversations(loadMore: true),
+                        icon: const Icon(Icons.expand_more),
+                        label: const Text('تحميل محادثات أقدم'),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -1096,4 +1104,117 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       ],
     ),
   );
+}
+
+
+class OwnerChatReviewMessages extends StatefulWidget {
+  const OwnerChatReviewMessages({
+    super.key,
+    required this.chatId,
+    required this.initialPage,
+    required this.service,
+  });
+
+  final String chatId;
+  final Map<String, dynamic> initialPage;
+  final SuperAdminSecurityService service;
+
+  @override
+  State<OwnerChatReviewMessages> createState() => _OwnerChatReviewMessagesState();
+}
+
+class _OwnerChatReviewMessagesState extends State<OwnerChatReviewMessages> {
+  late List<Map<String, dynamic>> _messages;
+  String? _nextPageToken;
+  bool _hasMore = false;
+  bool _loadingOlder = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _applyPage(widget.initialPage, prepend: false);
+  }
+
+  void _applyPage(Map<String, dynamic> page, {required bool prepend}) {
+    final messages = (page['messages'] as List<dynamic>? ?? const [])
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
+    _messages = prepend ? [...messages, ..._messages] : messages;
+    _nextPageToken = page['nextPageToken'] as String?;
+    _hasMore = page['hasMore'] == true;
+  }
+
+  Future<void> _loadOlder() async {
+    if (_loadingOlder || !_hasMore || _nextPageToken == null) return;
+    setState(() {
+      _loadingOlder = true;
+      _error = null;
+    });
+    try {
+      final page = await widget.service.getOwnerDirectChatMessages(
+        widget.chatId,
+        pageToken: _nextPageToken,
+      );
+      if (!mounted) return;
+      setState(() => _applyPage(page, prepend: true));
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل الرسائل الأقدم.');
+    } catch (_) {
+      if (mounted) setState(() => _error = 'تعذر تحميل الرسائل الأقدم.');
+    } finally {
+      if (mounted) setState(() => _loadingOlder = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        if (_hasMore || _loadingOlder)
+          Align(
+            alignment: Alignment.center,
+            child: TextButton.icon(
+              onPressed: _loadingOlder ? null : _loadOlder,
+              icon: _loadingOlder
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.expand_less),
+              label: const Text('تحميل رسائل أقدم'),
+            ),
+          ),
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ),
+        Expanded(
+          child: _messages.isEmpty
+              ? const Center(child: Text('لا توجد رسائل في المحادثة.'))
+              : ListView.separated(
+                  reverse: false,
+                  itemCount: _messages.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final message = _messages[index];
+                    final timestamp = message['createdAt'];
+                    final date = timestamp is num
+                        ? DateTime.fromMillisecondsSinceEpoch(timestamp.toInt()).toLocal()
+                        : null;
+                    final deleted = message['isDeleted'] == true;
+                    final messageText = deleted ? 'رسالة محذوفة' : (message['text'] as String? ?? '');
+                    return ListTile(
+                      dense: true,
+                      title: Text(messageText.isEmpty ? '—' : messageText),
+                      subtitle: Text([
+                        'المرسل: ${message['senderLabel'] ?? message['senderUid'] ?? 'غير معروف'}',
+                        if (date != null) date.toString(),
+                      ].join(' • ')),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
 }
