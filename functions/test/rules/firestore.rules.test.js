@@ -127,3 +127,22 @@ test("platform settings and all other server-managed documents are denied", asyn
     setDoc(doc(alice, "adminAuditLogs/fake"), { action: "owner_escalation" }),
   );
 });
+
+
+test("media metadata and access audit collections are server-only", async () => {
+  const alice = env.authenticatedContext("alice").firestore();
+  const bob = env.authenticatedContext("bob").firestore();
+
+  await assertFails(getDoc(doc(alice, "mediaAssets/media-1")));
+  await assertFails(getDocs(collection(alice, "mediaAssets")));
+  await assertFails(setDoc(doc(alice, "mediaAssets/fake"), {
+    ownerUid: "alice",
+    objectPath: "quarantine/alice/fake",
+    status: "security_approved",
+  }));
+  await assertFails(getDoc(doc(bob, "mediaAccessAudit/audit-1")));
+  await assertFails(setDoc(doc(alice, "mediaAccessAudit/fake"), {
+    actorUid: "alice",
+    action: "owner_media_inspection_url_issued",
+  }));
+});
