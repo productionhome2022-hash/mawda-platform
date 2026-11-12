@@ -2389,7 +2389,7 @@ export const purchaseStoreItem = onCall(async (request) => {
     if (!item) {
       throw new HttpsError("failed-precondition", "هذا العنصر غير منشور أو أن بيانات سعره غير صالحة.");
     }
-    if (!isStoreItemPurchasable(itemData)) {
+    if (!isStoreItemPurchasable(item)) {
       throw new HttpsError(
         "failed-precondition",
         "شراء هذا العنصر غير متاح حتى اكتمال تنفيذ استحقاقه والتحقق منه.",
