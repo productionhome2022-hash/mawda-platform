@@ -64,7 +64,7 @@ test("owner catalog input requires safe identifiers, prices, category and public
     durationDays: 30,
     sortOrder: 3,
     purchaseEnabled: false,
-    fulfillmentReady: false,
+    fulfillmentReady: true,
     active: true,
   });
   assert.throws(() => validateStoreCatalogItemInput({
