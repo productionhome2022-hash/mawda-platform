@@ -903,7 +903,7 @@ export const sendRoomMessage = onCall(async (request) => {
       throw new HttpsError(
         "invalid-argument",
         isRoomOwner || isAuthorizedModerator || ownerSession || isBiometricallyVerified
-          ? ownerSession ? "تعذر قبول الرابط أو أن صياغته غير آمنة." : "يسمح للأعضاء الموثقين بيومترياً بروابط Facebook وInstagram وX، وللمالكين والمشرفين بروابط YouTube وInstagram وFacebook."
+          ? ownerSession ? "تعذر قبول الرابط أو أن صياغته غير آمنة." : "يسمح للأعضاء الموثقين بيومترياً بروابط YouTube وFacebook وInstagram وX مجاناً، وللمالكين والمشرفين بصلاحيات الروابط المحددة لغرفهم."
           : "إرسال الروابط غير مسموح للأعضاء غير الموثقين بيومترياً في هذه الغرفة.",
       );
     }
