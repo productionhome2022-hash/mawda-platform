@@ -131,6 +131,19 @@ class SuperAdminSecurityService {
     return Map<String, dynamic>.from(result.data as Map);
   }
 
+  Future<Map<String, dynamic>> announceOwnerDirectChatReview({
+    required String chatId,
+    required String noticeText,
+    required String requestId,
+  }) async {
+    final result = await _functions.httpsCallable('announceOwnerDirectChatReview').call({
+      'chatId': chatId,
+      'noticeText': noticeText.trim(),
+      'requestId': requestId,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
   Future<Map<String, dynamic>> verifyOwnerReviewAuditChain() async {
     final result = await _functions.httpsCallable('verifyOwnerReviewAuditChain').call();
     return Map<String, dynamic>.from(result.data as Map);
