@@ -14,7 +14,6 @@ test("owner operations require owner claim, second factor and recent authenticat
   assert.equal(hasPlatformOwnerSession({ ...validOwnerToken, auth_time: now - 900 }, now), true);
   assert.equal(hasPlatformOwnerSession({ ...validOwnerToken, auth_time: now }, now), true);
   assert.equal(hasPlatformOwnerSession({ ...validOwnerToken, auth_time: now - 901 }, now), false);
-  assert.equal(hasPlatformOwnerSession({ ...validOwnerToken, auth_time: now - 901 }, now), false);
   assert.equal(hasPlatformOwnerSession({ ...validOwnerToken, auth_time: now + 1 }, now), false);
   assert.equal(hasPlatformOwnerSession({ ...validOwnerToken, auth_time: undefined }, now), false);
   assert.equal(hasPlatformOwnerSession({
