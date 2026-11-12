@@ -110,7 +110,7 @@ Add a dedicated workstream across the platform:
 ### Free biometric-verification link entitlement
 
 - The entitlement is free, not a premium purchase, and applies to one-to-one private chats, public-room chats, and rented-private-room chats.
-- The trusted backend grants it only when the member record contains server-owned `biometricVerification.status === "verified"`; clients cannot set this field.
+- The trusted backend grants it only when the server-owned `biometricVerification` record has `status === "verified"`, a valid future `expiresAt` timestamp, and no `revokedAt`; a bare verified status fails closed and clients cannot set this field.
 - Pending, failed, expired, or revoked verification does not qualify. Revocation/expiry must immediately remove the entitlement.
 - Allowed direct destinations: YouTube, Facebook, Instagram, and X/Twitter official domains (including youtu.be and youtube-nocookie.com). Shorteners including `t.co` remain blocked until safe redirect verification is implemented.
 - The biometric verification workflow itself remains a separate implementation and release gate; the link-policy wiring does not prove that biometric verification is already available.
