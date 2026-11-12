@@ -38,3 +38,23 @@ test("empty values remove links and malformed stored values are omitted on proje
     x: "http://x.com/member",
   }), { instagram: "https://instagram.com/member" });
 });
+
+
+test("expired or revoked members may clear links but cannot publish links", () => {
+  const links = { instagram: "https://www.instagram.com/member/" };
+  const empty = {};
+  const expired = { status: "verified", expiresAt: { toMillis: () => 1_700_000_000_000 } };
+  const revoked = {
+    status: "verified",
+    expiresAt: { toMillis: () => 1_900_000_000_000 },
+    revokedAt: { toMillis: () => 1_700_000_000_000 },
+  };
+  assert.equal(canUpdateMemberSocialLinks(empty, expired, 1_800_000_000_000), true);
+  assert.equal(canUpdateMemberSocialLinks(empty, revoked, 1_800_000_000_000), true);
+  assert.equal(canUpdateMemberSocialLinks(links, expired, 1_800_000_000_000), false);
+  assert.equal(canUpdateMemberSocialLinks(links, revoked, 1_800_000_000_000), false);
+  assert.equal(canUpdateMemberSocialLinks(links, {
+    status: "verified",
+    expiresAt: { toMillis: () => 1_900_000_000_000 },
+  }, 1_800_000_000_000), true);
+});
