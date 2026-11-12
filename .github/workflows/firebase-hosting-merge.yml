@@ -66,10 +66,31 @@ jobs:
         run: npm run test:rules
         working-directory: functions
 
+      - name: Verify Firebase production target and generated app configuration
+        env:
+          FIREBASE_PROJECT_ID: mawda-app-2026
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const alias = JSON.parse(fs.readFileSync(".firebaserc", "utf8"));
+          const options = fs.readFileSync("lib/firebase_options.dart", "utf8");
+          const expected = process.env.FIREBASE_PROJECT_ID;
+          if (alias.projects?.default !== expected) {
+            throw new Error("Firebase CLI default project does not match the approved production project.");
+          }
+          if (!options.includes("projectId: '" + expected + "'")) {
+            throw new Error("FlutterFire projectId mismatch; regenerate and verify firebase_options.dart before deployment.");
+          }
+          if (/ActualApiKeyFor|abcdef123456789|1234567890/.test(options)) {
+            throw new Error("Placeholder Firebase app identifiers detected; production deployment is blocked.");
+          }
+          NODE
+
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
       - name: Deploy to Firebase Hosting
-        run: firebase deploy --only hosting --token "${{ secrets.FIREBASE_TOKEN }}"
+        run: firebase deploy --only hosting --project "$FIREBASE_PROJECT_ID" --token "${{ secrets.FIREBASE_TOKEN }}"
         env:
+          FIREBASE_PROJECT_ID: mawda-app-2026
           FIREBASE_CLI_PREVIEWS: hostingchannels
