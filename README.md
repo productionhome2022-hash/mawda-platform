@@ -98,3 +98,11 @@ The approved baseline is a minimum age of 16 for friendship and non-romantic soc
 ## Canonical product constitution and governance
 
 `docs/MAWADDA_PRODUCT_CONSTITUTION.md` is the highest-level approved product, design, safety, and engineering reference. All implementation plans, feature work, data models, UI flows, security rules, tests, and release decisions must align with it and its approved amendments. `docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md` contains the detailed brand and experience specification; `docs/RELEASE_READINESS_CHECKLIST.md` contains evidence-based release gates. A requirement documented in any of these files is not considered implemented until code, tests, and review demonstrate it.
+
+## Approved biometric link entitlement
+
+Members whose biometric verification is confirmed by the trusted backend receive a free link-sharing entitlement in one-to-one private chats, public rooms, and rented private rooms. The approved direct HTTPS destinations are YouTube (including `youtu.be` and `youtube-nocookie.com`), Facebook, Instagram, and X/Twitter. This is not a paid subscription. Ordinary unverified members remain blocked from sending links. Room-owner/moderator permissions remain separately scoped; the platform-owner any-domain exception requires server-verified owner authorization and a fresh step-up/MFA session. Shorteners such as `t.co`, unsafe schemes, credentials, deceptive hosts, and obfuscation remain blocked. The entitlement is not live until the biometric verification workflow is implemented and verified; a client cannot assign its own verified status.
+
+## Production deployment safety
+
+The Firebase Hosting workflow is manual-only. It requires an explicit production-deployment approval input, runs Flutter analysis/tests/web build plus Cloud Functions and Firestore/Storage emulator tests, and blocks deployment if the Firebase CLI project, FlutterFire project ID, or generated app identifiers do not match the approved production configuration. Do not dispatch it until the Firebase configuration and release checklist are independently verified. CI and development-branch changes do not deploy production.
