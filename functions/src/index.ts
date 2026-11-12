@@ -8,7 +8,11 @@ import { calculateTransferBreakdown } from "./coin-math";
 import { validateRegistrationPolicy } from "./registration-policy";
 import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
 import { validateMemberProfileUpdate } from "./member-profile-update";
-import { projectMemberSocialLinks, validateMemberSocialLinks } from "./member-social-links";
+import {
+  canUpdateMemberSocialLinks,
+  projectMemberSocialLinks,
+  validateMemberSocialLinks,
+} from "./member-social-links";
 import { validateDirectMessageInput } from "./direct-message";
 import { hasActiveBiometricVerification } from "./biometric-verification";
 import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
@@ -579,7 +583,11 @@ export const getMemberProfile = onCall(async (request) => {
     throw new HttpsError("permission-denied", "هذا الملف خاص ولا يمكن عرضه.");
   }
   return viewerUid === targetUid
-    ? { ...profile, profileVisibility: memberData.profileVisibility === "public" ? "public" : "private" }
+    ? {
+        ...profile,
+        profileVisibility: memberData.profileVisibility === "public" ? "public" : "private",
+        canManageSocialLinks: hasActiveBiometricVerification(memberData.biometricVerification),
+      }
     : profile;
 });
 
