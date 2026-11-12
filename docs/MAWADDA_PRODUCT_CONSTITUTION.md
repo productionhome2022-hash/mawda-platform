@@ -54,6 +54,10 @@ Never fake functionality, balances, purchases, verification, availability, analy
 - A verified identity is not automatically a completed member profile.
 - Profile fields: full name, unique username, age, profession, Arab country, region, gender, marital status, bio (maximum 500 characters), interests, and structured goals.
 - Profile editing, privacy, visibility, media, and username reservation must be server-validated and tested.
+
+- **Verified-member personal social links:** a member with currently active, server-confirmed biometric verification may add optional personal profile links for Instagram, X/Twitter, Facebook, and WhatsApp. Show the selected links as clearly labeled external-profile icons/links on that member's public profile wall when another member visits it, subject to the profile's visibility/privacy settings. This is a free verification benefit, not a paid feature.
+- Store normalized HTTPS URLs only; allow only the official destination domains for each service (including approved Instagram profile URLs, x.com/twitter.com, facebook.com, and wa.me/whatsapp.com). Reject unsafe schemes, credentials, deceptive subdomains, malformed URLs, and shorteners. Never infer or expose a phone number from a WhatsApp link; the member chooses exactly what they publish.
+- The member can add, edit, remove, and hide each link independently. Do not publish a link until the member explicitly saves it. Expiry, revocation, or loss of active biometric status hides/disables these links from other visitors and prevents new edits until eligibility is restored; preserve the member's saved values privately so they can decide whether to republish after re-verification. Enforce this on the trusted backend and profile read path, not only in the UI.
 - Approved email-verification reward: 500 coins once only, atomically linked to the verified account and ledger.
 - Registration is fail-closed until explicitly enabled by the owner. Minimum registration age cannot be below 16; romantic dating/marriage goals are 18+.
 - Self-declared age is not robust age assurance. Stronger age assurance, minor safety, market-specific legal review, and safeguarding are launch gates.
@@ -102,6 +106,18 @@ Never fake functionality, balances, purchases, verification, availability, analy
 - Rewards include daily attendance, hourly community-density rewards, six-hour level progression, seven consecutive-day streaks, and clearly disclosed ad rewards. Every reward is configurable, anti-fraud protected, and exactly-once.
 - Ads must disclose conditions and time requirements; merely opening an ad must not count as completion.
 - No real-money purchase or production balance until payment, fraud, refund, reconciliation, and legal controls are tested.
+
+
+### 9.1 Super Admin financial controls and exceptional coin actions
+
+- The platform Super Admin must have server-enforced emergency controls to pause/resume each financial operation independently and a global financial freeze: coin top-ups/purchases and crediting, coin transfers, wallet refunds/redemptions/withdrawals where supported, rewards/bonuses, and administrative balance adjustments. A freeze must stop new requests at the trusted backend, including requests from already-open clients; UI disabling alone is insufficient. Define safe handling for in-flight payments/transfers and reconcile provider callbacks before resuming.
+- Provide member-level restrictions as well as platform-wide switches. A member-level restriction may block sending, receiving, purchasing/top-up, refund/redemption, or all wallet activity independently, with a reason, start time, optional expiry/review date, and authorized restoration.
+- The Super Admin may order a documented coin adjustment, partial forfeiture, or full coin-balance forfeiture to the platform treasury/forfeiture ledger where a substantiated fraud, exploit, chargeback abuse, or serious policy violation justifies it. A suspicion alone should normally trigger a temporary hold/freeze and investigation, not irreversible confiscation.
+- Every hold, freeze, release, deduction, forfeiture, and zero-balance action requires fresh step-up/MFA, a specific target UID, explicit operation type and amount, a mandatory reason/case reference, a pre-action balance/impact preview, and a separate final confirmation. High-impact actions must be protected against accidental repeat with idempotency keys.
+- Execute balance changes atomically on the server and record immutable, double-entry ledger postings linked to a unique adjustment ID: member debit, platform treasury/forfeiture credit, actor UID, target UID, amount, currency/coin type, reason/case, timestamp, prior and resulting balances, and any related transaction/payment IDs. Never edit or delete historical transactions, silently overwrite balances, create negative balances, or treat a ledger adjustment as a payment-provider refund.
+- Preserve purchase/refund-provider reconciliation and applicable consumer/payment law. Do not confiscate cash or claim a cash refund merely by changing a virtual coin balance. Show the affected member a clear notice and a review/appeal route unless disclosure is temporarily restricted by a lawful, documented investigation requirement.
+- Audit records must be append-only and reviewable; log failed attempts and reversals as well as successful actions. Reversal is a new compensating ledger transaction, never deletion. Add operational alerts for global freezes, unusual deductions, bulk actions, and owner-account compromise.
+- These controls are owner-only; no room owner, moderator, support agent, AI assistant, or client-supplied role may invoke them. The platform must remain able to restore service safely after investigation and reconciliation.
 
 ## 10. Stores, premium, and entitlements
 
