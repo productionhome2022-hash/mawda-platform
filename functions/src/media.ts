@@ -8,12 +8,11 @@ import {
   mediaPolicyFor,
   normalizeMediaRequest,
   mediaUploaderTypeFromToken,
+  mediaSignedUrlExpiresAt,
 } from "./media-security";
 
 const db = getFirestore();
 const bucket = getStorage().bucket();
-const MAX_UPLOAD_URL_AGE_MS = 5 * 60 * 1000;
-const OWNER_DOWNLOAD_URL_AGE_MS = 60 * 1000;
 
 function requireUid(uid: string | undefined): string {
   if (!uid) throw new HttpsError("unauthenticated", "يجب تسجيل الدخول أولاً.");
@@ -83,7 +82,7 @@ export const createMediaUploadIntent = onCall(async (request) => {
   const mediaId = randomUUID();
   const objectPath = `quarantine/${uid}/${mediaId}`;
   const file = bucket.file(objectPath);
-  const expiresAt = Date.now() + MAX_UPLOAD_URL_AGE_MS;
+  const expiresAt = mediaSignedUrlExpiresAt("upload");
   const uploadUrl = await file.getSignedUrl({
     version: "v4",
     action: "write",
@@ -303,7 +302,7 @@ export const getOwnerMediaInspectionUrl = onCall(async (request) => {
     if (String(metadata.generation) !== String(asset.storageGeneration)) {
       throw new HttpsError("failed-precondition", "تغير إصدار الملف؛ أوقف الوصول احترازياً.");
     }
-    const expiresAt = Date.now() + OWNER_DOWNLOAD_URL_AGE_MS;
+    const expiresAt = mediaSignedUrlExpiresAt("owner-inspection");
     const [downloadUrl] = await file.getSignedUrl({
       version: "v4",
       action: "read",
