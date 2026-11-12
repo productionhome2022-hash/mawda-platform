@@ -15,6 +15,7 @@ import {
 } from "./member-social-links";
 import { validateDirectMessageInput } from "./direct-message";
 import { createDirectChatId } from "./direct-chat-id";
+import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
 import { hasActiveBiometricVerification } from "./biometric-verification";
 import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
 import { isMemberAccountInGoodStanding } from "./member-access";
@@ -1041,12 +1042,21 @@ export const sendDirectMessage = onCall(async (request) => {
 });
 
 
-/** Reads the newest direct messages only after verifying chat membership. */
+/**
+ * Reads direct messages and the other participant's read cursor.
+ * Reading does not itself change receipts; markDirectChatRead is a separate,
+ * explicit member action and is never called by owner-review endpoints.
+ */
 export const getDirectMessages = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
+  const user = await db.collection("users").doc(uid).get();
+  if (!user.exists || user.data()?.profileCompleted !== true ||
+      !isMemberAccountInGoodStanding(user.data())) {
+    throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بقراءة المحادثات حالياً.");
+  }
   let chatId = request.data?.chatId;
+  const peerUid = request.data?.peerUid;
   if (typeof chatId !== "string") {
-    const peerUid = request.data?.peerUid;
     if (typeof peerUid !== "string" || peerUid.length < 1 ||
         peerUid.length > 128 || peerUid === uid) {
       throw new HttpsError("invalid-argument", "معرف المحادثة أو العضو الآخر غير صالح.");
@@ -1058,29 +1068,102 @@ export const getDirectMessages = onCall(async (request) => {
   }
   const chatRef = db.collection("directChats").doc(chatId);
   const chat = await chatRef.get();
-  // A valid pair may open a new, empty conversation before the first message.
-  if (!chat.exists) return { messages: [] };
+  // A valid peer pair may open an empty conversation before the first message.
+  if (!chat.exists) {
+    if (typeof peerUid === "string" && chatId === createDirectChatId(...[uid, peerUid].sort())) {
+      return { messages: [], peerLastReadAt: null };
+    }
+    throw new HttpsError("not-found", "المحادثة غير موجودة.");
+  }
   const participants = chat.data()?.participantUids;
-  if (!Array.isArray(participants) || !participants.includes(uid)) {
+  if (!Array.isArray(participants) || participants.length !== 2 ||
+      participants.some((value) => typeof value !== "string") ||
+      participants[0] === participants[1] || !participants.includes(uid)) {
     throw new HttpsError("permission-denied", "ليست لديك صلاحية قراءة هذه المحادثة.");
   }
+  const peer = participants.find((participant) => participant !== uid)!;
   const messages = await chatRef.collection("messages")
     .orderBy("createdAt", "desc")
     .limit(50)
     .get();
+  const receiptRefs = participants.map((participant) =>
+    chatRef.collection("readReceipts").doc(participant),
+  );
+  const receiptSnapshots = await db.getAll(...receiptRefs);
+  const peerReceipt = receiptSnapshots[participants.indexOf(peer)].data() ?? {};
+  const peerLastReadAt = peerReceipt.lastReadMessageCreatedAt?.toMillis?.() ?? null;
   return {
+    peerLastReadAt,
     messages: messages.docs.reverse().map((doc) => {
       const data = doc.data();
+      const createdAt = data.createdAt?.toMillis?.() ?? null;
       return {
-        messageId: data.messageId,
-        senderUid: data.senderUid,
-        recipientUid: data.recipientUid,
-        text: data.text,
-        type: data.type,
-        createdAt: data.createdAt?.toMillis?.() ?? null,
+        messageId: data.messageId ?? doc.id,
+        senderUid: data.senderUid ?? "",
+        recipientUid: data.recipientUid ?? "",
+        text: data.text ?? "",
+        type: data.type ?? "text",
+        createdAt,
+        isReadByPeer: isMessageReadByPeer(createdAt, peerLastReadAt),
       };
     }),
   };
+});
+
+/**
+ * Advances only the authenticated participant's read cursor to the latest
+ * server-stored message. Owner review deliberately never invokes this callable.
+ */
+export const markDirectChatRead = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const chatId = request.data?.chatId;
+  if (typeof chatId !== "string" || !/^[a-f0-9]{64}$/.test(chatId)) {
+    throw new HttpsError("invalid-argument", "معرف المحادثة غير صالح.");
+  }
+  const chatRef = db.collection("directChats").doc(chatId);
+  const chat = await chatRef.get();
+  if (!chat.exists) throw new HttpsError("not-found", "المحادثة غير موجودة.");
+  const participants = chat.data()?.participantUids;
+  if (!Array.isArray(participants) || participants.length !== 2 ||
+      !participants.includes(uid) ||
+      participants.some((value) => typeof value !== "string") ||
+      participants[0] === participants[1]) {
+    throw new HttpsError("permission-denied", "ليست لديك صلاحية تحديث حالة قراءة هذه المحادثة.");
+  }
+  const latestSnapshot = await chatRef.collection("messages")
+    .orderBy("createdAt", "desc")
+    .limit(1)
+    .get();
+  if (latestSnapshot.empty) return { marked: false };
+  const latest = latestSnapshot.docs[0];
+  const latestCreatedAt = latest.data().createdAt;
+  if (!(latestCreatedAt instanceof Timestamp)) {
+    throw new HttpsError("failed-precondition", "توقيت أحدث رسالة غير صالح.");
+  }
+
+  const receiptRef = chatRef.collection("readReceipts").doc(uid);
+  await db.runTransaction(async (transaction) => {
+    const [freshChat, existingReceipt] = await Promise.all([
+      transaction.get(chatRef),
+      transaction.get(receiptRef),
+    ]);
+    const freshParticipants = freshChat.data()?.participantUids;
+    if (!freshChat.exists || !Array.isArray(freshParticipants) ||
+        !freshParticipants.includes(uid)) {
+      throw new HttpsError("permission-denied", "لم تعد عضواً في هذه المحادثة.");
+    }
+    const previousValue = existingReceipt.data()?.lastReadMessageCreatedAt;
+    const previousMs = previousValue instanceof Timestamp ? previousValue.toMillis() : null;
+    if (!shouldAdvanceReadReceipt(previousMs, latestCreatedAt.toMillis())) return;
+    transaction.set(receiptRef, {
+      uid,
+      lastReadMessageId: latest.id,
+      lastReadMessageCreatedAt: latestCreatedAt,
+      lastReadAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+  return { marked: true, lastReadMessageId: latest.id };
 });
 
 /**
