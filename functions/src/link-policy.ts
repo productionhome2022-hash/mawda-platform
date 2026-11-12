@@ -2,8 +2,10 @@ const APPROVED_HOSTS = new Set([
   "youtube.com", "youtu.be", "youtube-nocookie.com",
   "instagram.com", "facebook.com", "fb.watch",
 ]);
+// Biometric verification grants only the three explicitly approved social networks.
+// YouTube remains a room-owner/moderator permission, not a biometric-member entitlement.
 export const BIOMETRIC_APPROVED_HOSTS = new Set([
-  ...APPROVED_HOSTS,
+  "instagram.com", "facebook.com", "fb.watch",
   "x.com", "twitter.com",
 ]);
 const DOMAIN_PATTERN = /(?:https?:\/\/|www\.)[^\s<>()]+|(?:[a-z0-9-]+\.)+(?:com|net|org|io|co|de|uk|fr|es|me|tv|app|dev|info|biz|xyz|online|site|live)(?:\/[^\s<>()]*)?/giu;
