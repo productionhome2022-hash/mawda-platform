@@ -9,6 +9,15 @@ const ALLOWED_HOSTS: Record<string, readonly string[]> = {
 
 export type MemberSocialLinks = Partial<Record<keyof typeof ALLOWED_HOSTS, string>>;
 
+/** Hiding is always allowed; revealing requires a current biometric lease. */
+export function canChangeMemberSocialLinkVisibility(
+  hidden: boolean,
+  biometricVerification: unknown,
+  nowMs = Date.now(),
+): boolean {
+  return hidden || hasActiveBiometricVerification(biometricVerification, nowMs);
+}
+
 /**
  * Members may always clear links, including after verification expires or is
  * revoked. Publishing any non-empty link set requires an active server lease.
