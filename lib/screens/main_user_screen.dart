@@ -4,6 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import 'profile_screen.dart';
+import 'shop_screen.dart';
+import 'wallet_screen.dart';
 
 class MainUserScreen extends StatefulWidget {
   final String userId;
@@ -346,7 +349,46 @@ class _CompletedProfilePanel extends StatelessWidget {
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               Text(user?.email ?? '', textAlign: TextAlign.center),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
+              if (user != null)
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.person_outline),
+                      label: const Text('ملفي الشخصي'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ProfileScreen(
+                            profileUserId: user.uid,
+                            currentUserId: user.uid,
+                          ),
+                        ),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.account_balance_wallet_outlined),
+                      label: const Text('المحفظة'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => WalletScreen(userId: user.uid),
+                        ),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.storefront_outlined),
+                      label: const Text('المتجر'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ShopScreen(userId: user.uid),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 16),
               const Text('تم إنشاء ملفك من خلال الخادم الموثوق. ستُفتح بقية أقسام المنصة بعد اكتمال مراحلها الأمنية والتشغيلية.',
                 textAlign: TextAlign.center),
             ],
