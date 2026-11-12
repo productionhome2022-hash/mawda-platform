@@ -38,9 +38,13 @@ export function normalizeModeratorPermissions(input: Record<string, unknown>): R
   if (Object.keys(input).some((key) => !allowed.includes(key))) {
     throw new Error("ROOM_MODERATOR_PERMISSION_NOT_ALLOWED");
   }
-  return {
+  const permissions = {
     manageMessages: input.manageMessages === true,
     muteMembers: input.muteMembers === true,
     removeMembers: input.removeMembers === true,
   };
+  if (!Object.values(permissions).some((enabled) => enabled)) {
+    throw new Error("ROOM_MODERATOR_PERMISSION_REQUIRED");
+  }
+  return permissions;
 }
