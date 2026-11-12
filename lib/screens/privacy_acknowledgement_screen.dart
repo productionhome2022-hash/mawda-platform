@@ -39,6 +39,19 @@ class _PrivacyAcknowledgementScreenState
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'تنبيه: هذه نسخة تقنية أولية من الإشعار وليست السياسة القانونية النهائية. لا يُعتمد فتح التسجيل العام قبل استكمال السياسة ومراجعتها قانونياً.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     Expanded(
                       child: Card(
                         child: SingleChildScrollView(
