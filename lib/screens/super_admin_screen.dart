@@ -221,6 +221,69 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
           _metric('الغرف', _overview!['roomCount'], Icons.forum_outlined),
           _metric('عمليات تحويل الكوينز', _overview!['transferCount'], Icons.account_balance_wallet_outlined),
         ],
+        const SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.cloud_sync_outlined, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'مركز إدارة السحابة ودورة حياة البيانات',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    const Chip(label: Text('قيد البناء')),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'المركز السيادي المعتمد لصيانة مودة وتنظيف البيانات والوسائط السحابية ضمن نطاقات محددة. '
+                  'لن تُفعّل عمليات الحذف الجماعي قبل اكتمال المعاينة الخادمية، وتأكيد MFA، '
+                  'والنسخ الاحتياطي القابل للاستعادة، وسجل التدقيق واختبارات الحماية.',
+                ),
+                const SizedBox(height: 12),
+                const ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.forum_outlined),
+                  title: Text('تنظيف الدردشات والرسائل'),
+                  subtitle: Text('حسب المحادثة أو الغرفة أو النطاق الزمني، دون المساس بالحسابات أو السجلات المالية والأمنية.'),
+                ),
+                const ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.perm_media_outlined),
+                  title: Text('تنظيف الوسائط السحابية'),
+                  subtitle: Text('الصور والفيديوهات والصوتيات والملفات المؤقتة والنسخ المشتقة والملفات اليتيمة.'),
+                ),
+                const ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.campaign_outlined),
+                  title: Text('أرشفة الإعلانات القديمة'),
+                  subtitle: Text('حماية الحملات النشطة وسجلات الفوترة والاحتفاظ القانوني.'),
+                ),
+                const ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.health_and_safety_outlined),
+                  title: Text('صيانة المنصة وإعادة التهيئة'),
+                  subtitle: Text('فحص الصحة، ومزامنة التخزين، وإعادة بناء الفهارس والذاكرة المشتقة، ومعالجة المهام المتعثرة.'),
+                ),
+                const Text(
+                  'الحالة الحالية: مواصفة معتمدة ومسجلة في دستور مودة؛ لا توجد بعد أزرار حذف أو تنظيف فعّالة في هذه الشاشة.',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        ),
         const Divider(height: 32),
         Text('سياسة التسجيل والأهلية', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
