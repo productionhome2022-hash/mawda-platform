@@ -56,6 +56,6 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
       - name: Run Firestore and Storage rules emulator tests
         run: npm run test:rules
