@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'privacy_policy.dart';
+import '../privacy_policy.dart';
 
 class PrivacyAcknowledgementScreen extends StatefulWidget {
   const PrivacyAcknowledgementScreen({
