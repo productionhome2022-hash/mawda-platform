@@ -29,8 +29,8 @@ jobs:
       - name: Enable Flutter Web
         run: flutter config --enable-web
 
-      - name: Install Flutter dependencies
-        run: flutter pub get
+      - name: Install Flutter dependencies from committed lockfile
+        run: flutter pub get --enforce-lockfile
 
       - name: Analyze Dart code
         run: flutter analyze
@@ -44,12 +44,12 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "20.20.2"
           cache: npm
-          cache-dependency-path: functions/package.json
+          cache-dependency-path: functions/package-lock.json
 
-      - name: Install backend dependencies
-        run: npm install --no-audit --no-fund
+      - name: Install backend dependencies from committed lockfile
+        run: npm ci --no-audit --no-fund
         working-directory: functions
 
       - name: Compile and test backend
@@ -72,8 +72,8 @@ jobs:
           FIREBASE_WEB_APP_ID: 1:697303475139:web:8869603bda6f1a3c3ed376
         run: node functions/scripts/validate-firebase-config.cjs
 
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
+      - name: Install pinned Firebase CLI
+        run: npm install --global firebase-tools@14.0.0
 
       - name: Deploy to Firebase Hosting
         run: firebase deploy --only hosting --project "$FIREBASE_PROJECT_ID" --token "${{ secrets.FIREBASE_TOKEN }}"
