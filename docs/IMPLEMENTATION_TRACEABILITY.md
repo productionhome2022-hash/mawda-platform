@@ -231,3 +231,17 @@ Add a dedicated workstream across the platform:
 - The Hosting deployment workflow invokes this validator before installing the Firebase CLI or attempting deployment. It checks the approved project ID and the known registered Web App ID, and rejects missing/placeholder Web configuration fields without printing credential values.
 - Added Node tests for matching configuration, CLI/project mismatch, FlutterFire project mismatch, wrong Web App ID, placeholder credentials, and missing/malformed options.
 - **Status:** development branch validation passed on GitHub Actions run `43256395065`: strict lockfile installs, Flutter analysis/tests/Web release build, Cloud Functions compilation/unit tests, and Firestore/Storage emulator tests all succeeded. This validates the PR integration snapshot, not production Firebase configuration or deployment. The placeholder configuration remains unresolved; no live Firebase change, merge, or deployment was performed.
+
+
+## Sole-owner review authority and privacy acknowledgement (approved; implementation pending)
+
+- Constitution authority: Sections 5.3 and 7.1.
+- Product scope: owner-only silent and announced review of any available one-to-one conversation (active or ended) and member/guest files; no report/case is required as a product-level precondition.
+- Silent mode must not emit participant notifications, alter read receipts/read state, presence, typing indicators, or message/file content. Announced mode displays an administrative notice chosen by the owner.
+- Owner participation labels: “إدارة منصة مودة”, “السوبر أدمن”, or “مجهول”. Anonymous is a display alias only; backend identity and message provenance remain bound to the sole owner's UID. Impersonation of member accounts is prohibited.
+- Privacy policy acknowledgement is required before registration submission and before guest-session issuance or protected guest/member content access. Store policy version/hash, locale, server timestamp, actor type, UID or pseudonymous guest session, app version, and event. Material policy changes trigger renewed acknowledgement where required.
+- Backend must enforce owner-only access using server-managed platformOwner claims, recent authentication and fresh MFA/step-up; append-only tamper-evident logs capture successful and failed attempts, targets, data categories, mode, timestamps, outcomes, and actor UID. A reason/case is optional audit context, not a product-level access prerequisite.
+- Existing `functions/src/owner-chat-review.ts` requires a reason of 12–500 characters and accepts only a chat ID and page size. This is narrower than the newly approved scope and must be reconciled before any capability is exposed.
+- **Current status: specification only.** Full conversation/file/guest review, read-state isolation, announced review, owner participation labels, privacy acknowledgement and guest gating, immutable audit, policy localization, legal/DPIA review, and all negative tests remain open. No claim of live functionality.
+- Release gates must include cross-account denial, non-owner denial, stale/MFA failure, silent-mode no-side-effect assertions, anonymous-label/true-actor audit binding, file URL leakage prevention, guest acknowledgement bypass prevention, policy-version re-acknowledgement, audit tamper resistance, and jurisdictional legal approval.
+
