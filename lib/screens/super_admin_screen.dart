@@ -23,6 +23,9 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   bool _transferEnabled = false;
   bool _savingTransferSettings = false;
   bool _creatingRoom = false;
+  bool _loadingCatalog = false;
+  bool _savingCatalogItem = false;
+  List<Map<String, dynamic>> _catalogItems = [];
   int _minimumAge = 16;
   String? _error;
 
@@ -30,6 +33,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   void initState() {
     super.initState();
     _loadOverview();
+    _loadCatalog();
   }
 
   @override
@@ -65,6 +69,214 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       if (mounted) setState(() => _error = 'تعذر الاتصال بغرفة العمليات.');
     } finally {
       if (mounted) setState(() => _loadingOverview = false);
+    }
+  }
+
+  Future<void> _loadCatalog() async {
+    if (_loadingCatalog) return;
+    setState(() => _loadingCatalog = true);
+    try {
+      final items = await _service.getOwnerStoreCatalog();
+      if (mounted) setState(() => _catalogItems = items);
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل كتالوج المتجر.');
+    } catch (_) {
+      if (mounted) setState(() => _error = 'تعذر تحميل كتالوج المتجر.');
+    } finally {
+      if (mounted) setState(() => _loadingCatalog = false);
+    }
+  }
+
+  Future<void> _editStoreItem([Map<String, dynamic>? existing]) async {
+    if (_savingCatalogItem) return;
+    final itemIdController = TextEditingController(text: existing?['itemId'] as String? ?? '');
+    final nameController = TextEditingController(text: existing?['name'] as String? ?? '');
+    final descriptionController = TextEditingController(text: existing?['description'] as String? ?? '');
+    final priceController = TextEditingController(
+      text: existing?['priceCoins']?.toString() ?? '1000',
+    );
+    final durationController = TextEditingController(
+      text: existing?['durationDays']?.toString() ?? '',
+    );
+    final sortController = TextEditingController(
+      text: existing?['sortOrder']?.toString() ?? '1000',
+    );
+    const categories = ['feature', 'avatar', 'theme', 'title', 'vip', 'analytics', 'discovery'];
+    var category = categories.contains(existing?['category'])
+        ? existing!['category'] as String
+        : 'feature';
+    var active = existing?['active'] != false;
+    final values = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text(existing == null ? 'إضافة عنصر للمتجر' : 'تعديل عنصر المتجر'),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: itemIdController,
+                    enabled: existing == null,
+                    maxLength: 64,
+                    decoration: const InputDecoration(
+                      labelText: 'معرف العنصر (بالإنجليزية)',
+                      hintText: 'vip-month',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  TextField(
+                    controller: nameController,
+                    maxLength: 80,
+                    decoration: const InputDecoration(
+                      labelText: 'اسم العنصر',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: descriptionController,
+                    maxLength: 500,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'الوصف',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    initialValue: category,
+                    decoration: const InputDecoration(
+                      labelText: 'التصنيف',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'feature', child: Text('ميزة')),
+                      DropdownMenuItem(value: 'avatar', child: Text('إطار وصورة رمزية')),
+                      DropdownMenuItem(value: 'theme', child: Text('سمة وخلفية')),
+                      DropdownMenuItem(value: 'title', child: Text('لقب ووسام')),
+                      DropdownMenuItem(value: 'vip', child: Text('عضوية VIP')),
+                      DropdownMenuItem(value: 'analytics', child: Text('تحليلات الملف')),
+                      DropdownMenuItem(value: 'discovery', child: Text('تعزيز الظهور')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setDialogState(() => category = value);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: priceController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'السعر بالكويـنز',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: durationController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'المدة بالأيام (اتركها فارغة للاستحقاق الدائم)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: sortController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'ترتيب العرض',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('نشر العنصر وإتاحته للشراء'),
+                    value: active,
+                    onChanged: (value) => setDialogState(() => active = value),
+                  ),
+                  const Text(
+                    'تعديل السعر يؤثر على المشتريات الجديدة فقط. إلغاء النشر يمنع الشراء الجديد ولا يسحب الاستحقاقات القائمة.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final itemId = itemIdController.text.trim();
+                final name = nameController.text.trim();
+                final price = int.tryParse(priceController.text.trim());
+                final durationText = durationController.text.trim();
+                final duration = durationText.isEmpty ? null : int.tryParse(durationText);
+                final sortOrder = int.tryParse(sortController.text.trim());
+                if (itemId.length >= 3 && name.length >= 2 &&
+                    price != null && price > 0 &&
+                    (durationText.isEmpty || (duration != null && duration > 0)) &&
+                    sortOrder != null) {
+                  Navigator.pop(dialogContext, {
+                    'itemId': itemId,
+                    'name': name,
+                    'description': descriptionController.text.trim(),
+                    'category': category,
+                    'priceCoins': price,
+                    'durationDays': duration,
+                    'sortOrder': sortOrder,
+                    'active': active,
+                  });
+                }
+              },
+              child: const Text('حفظ العنصر'),
+            ),
+          ],
+        ),
+      ),
+    );
+    itemIdController.dispose();
+    nameController.dispose();
+    descriptionController.dispose();
+    priceController.dispose();
+    durationController.dispose();
+    sortController.dispose();
+    if (values == null || !mounted) return;
+
+    setState(() => _savingCatalogItem = true);
+    try {
+      await _service.setStoreCatalogItem(
+        itemId: values['itemId'] as String,
+        name: values['name'] as String,
+        description: values['description'] as String,
+        category: values['category'] as String,
+        priceCoins: values['priceCoins'] as int,
+        durationDays: values['durationDays'] as int?,
+        sortOrder: values['sortOrder'] as int,
+        active: values['active'] as bool,
+      );
+      await _loadCatalog();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم حفظ عنصر المتجر وتسجيل التغيير في سجل التدقيق.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر حفظ عنصر المتجر.')),
+      );
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر حفظ عنصر المتجر؛ لم يتم تأكيد العملية.')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingCatalogItem = false);
     }
   }
 
@@ -474,6 +686,58 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   'الحالة الحالية: مواصفة معتمدة ومسجلة في دستور مودة؛ لا توجد بعد أزرار حذف أو تنظيف فعّالة في هذه الشاشة.',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('إدارة كتالوج المتجر', style: Theme.of(context).textTheme.titleMedium),
+                    ),
+                    IconButton(
+                      tooltip: 'تحديث الكتالوج',
+                      onPressed: _loadingCatalog ? null : _loadCatalog,
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  ],
+                ),
+                const Text('إضافة العناصر ونشرها أو إلغاء نشرها. لا يُمنح أي استحقاق إلا عبر معاملة شراء خادمية ذرية.'),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _savingCatalogItem ? null : () => _editStoreItem(),
+                    icon: const Icon(Icons.add_shopping_cart),
+                    label: const Text('إضافة عنصر جديد'),
+                  ),
+                ),
+                if (_loadingCatalog) const LinearProgressIndicator(),
+                if (!_loadingCatalog && _catalogItems.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text('لا توجد عناصر مسجلة في الكتالوج بعد.'),
+                  ),
+                ..._catalogItems.map((item) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(item['name'] as String? ?? item['itemId'] as String? ?? 'عنصر'),
+                  subtitle: Text(
+                    '${item['priceCoins'] ?? 0} كوين • '
+                    '${item['active'] == true ? 'منشور' : 'غير منشور'}',
+                  ),
+                  trailing: IconButton(
+                    tooltip: 'تعديل',
+                    onPressed: _savingCatalogItem ? null : () => _editStoreItem(item),
+                    icon: const Icon(Icons.edit_outlined),
+                  ),
+                )),
               ],
             ),
           ),
