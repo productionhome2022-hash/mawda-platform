@@ -93,3 +93,8 @@ The backend unit suite also covers registration-policy validation boundaries and
 ## Age and relationship-intent safeguards
 
 The approved baseline is a minimum age of 16 for friendship and non-romantic social connection. Romantic dating and marriage intent are separate structured goals and are rejected by the trusted backend for anyone under 18. Goal values are canonical server-validated codes; free text cannot bypass the age gate. The owner-controlled minimum registration age cannot be configured below 16. Before enabling any market, review local age, child-safety, privacy, and platform obligations. Age entered in a profile is not, by itself, robust age assurance; stronger age verification and minor-safety controls remain launch requirements.
+
+
+## Canonical product constitution and governance
+
+`docs/MAWADDA_PRODUCT_CONSTITUTION.md` is the highest-level approved product, design, safety, and engineering reference. All implementation plans, feature work, data models, UI flows, security rules, tests, and release decisions must align with it and its approved amendments. `docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md` contains the detailed brand and experience specification; `docs/RELEASE_READINESS_CHECKLIST.md` contains evidence-based release gates. A requirement documented in any of these files is not considered implemented until code, tests, and review demonstrate it.
