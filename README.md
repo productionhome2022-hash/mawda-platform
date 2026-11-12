@@ -110,3 +110,9 @@ Members whose biometric verification is confirmed by the trusted backend receive
 ## Production deployment safety
 
 The Firebase Hosting workflow is manual-only. It can be dispatched only by the repository owner with an explicit production-deployment approval input, runs Flutter analysis/tests/web build plus Cloud Functions and Firestore/Storage emulator tests, and blocks deployment if the Firebase CLI project, FlutterFire project ID, or generated app identifiers do not match the approved production configuration. Do not dispatch it until the Firebase configuration and release checklist are independently verified. CI and development-branch changes do not deploy production.
+
+## Super Admin cloud operations and data lifecycle
+
+The approved Super Admin roadmap includes a Cloud Operations & Data Lifecycle Center for scoped chat-history cleanup, cloud-media cleanup and Storage/Firestore reconciliation, archival of obsolete advertising assets, and supported maintenance/refresh operations. This center is currently documented and shown as under construction in the Super Admin screen; no bulk-delete controls are live.
+
+Every future destructive job must be owner/MFA-authorized, preview-first, scope-bound, reasoned, audited, resumable in bounded background batches, and protected by backup/restore verification and legal-hold exclusions. Generic cleanup must never remove wallet/financial ledgers, security/admin audit evidence, consent/privacy records, reports/appeals, or active advertising. Firebase infrastructure is not claimed to be restarted unless an actual supported operation confirms it.
