@@ -27,6 +27,7 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Verify Hosting configuration and deployment target before any production deployment.
 
 ## 3. Owner access and operational security
+- [ ] Verify suspended/banned/disabled/unknown account states are denied on direct-message send, room join, and room-message send, including already-joined members.
 
 - [ ] Verify the intended owner account through Firebase Authentication using a trusted operator workflow.
 - [ ] Review and authorize the owner bootstrap script before running it against the real project.
