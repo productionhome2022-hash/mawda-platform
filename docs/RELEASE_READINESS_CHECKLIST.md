@@ -153,3 +153,20 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Instagram eligibility accurately distinguishes Professional Business/Creator accounts from ordinary personal accounts; unsupported accounts are not falsely marked verified.
 - [ ] WhatsApp personal contact is labeled phone-number verified after OTP proof, not OAuth-connected; WhatsApp Business integration uses official Business Platform onboarding if required.
 - [ ] Expiry, revocation, disconnect, privacy visibility, wrong-account linking, token exposure, and all provider-specific failure paths are tested.
+
+
+## High-assurance biometric verification and 1,500-coin reward release gates
+
+- [ ] Select and assess a qualified identity-verification provider/stack; document supported jurisdictions, assurance level, provider security evidence, data locations, subprocessors, retention, and incident procedures.
+- [ ] Complete a DPIA and applicable legal review before collection, including GDPR special-category biometric-data requirements where applicable; implement explicit consent where required, purpose limitation, member rights, retention/deletion, and withdrawal handling.
+- [ ] The product's “real identity verified” claim is backed by appropriate identity proofing (for example, accepted identity-document validation and live-face match). A selfie video, voice challenge, device biometric unlock, or profile photo alone is not identity proof.
+- [ ] Implement randomized, session-bound liveness challenges and validated presentation-attack detection for printed photos, screen replay, prerecorded video/audio, masks, face swaps, deepfakes/synthetic media, virtual cameras, injected streams, and replayed sessions.
+- [ ] Treat moving selfie (3–5 seconds) and voice liveness (~20 seconds) only as supporting signals unless a validated provider confirms the required assurance; never infer gender or other sensitive traits from voice.
+- [ ] Provider results are verified server-to-server or through signed callbacks; nonce/session, provider transaction, authenticated UID, assurance level, timestamp, expiry, and revocation are checked. Client status, uploaded files, and local device biometric results cannot grant verification.
+- [ ] Prevent cross-account result reuse, replay, duplicate-account reward farming, and status transfer. Use privacy-preserving provider anti-duplication signals; no unrestricted biometric database.
+- [ ] Grant the 1,500-coin reward only after final server-confirmed approval at the required assurance level; enforce exactly-once atomic ledger posting, idempotency, and no reward for pending/failed/replayed/expired attempts.
+- [ ] Badge, profile social-link eligibility, and link-sharing permissions are server-derived and become active only after approval; expiry/revocation removes them immediately, including stale-cache and already-open-session tests.
+- [ ] Define validity period, renewal, risk-triggered re-verification, rate limits, provider outage behavior, false-rejection appeal, and human review. Automated risk scores alone do not permanently label members as fraudulent.
+- [ ] Raw face/voice media and biometric templates are minimized, encrypted, access-restricted, audited, and deleted on a documented schedule; no unrelated use, advertising, or model training.
+- [ ] Test spoof/replay/deepfake/injection, webhook forgery, UID/session mismatch, expiry/revocation, account recovery, duplicate reward attempts, deletion/withdrawal, unauthorized staff access, provider outage, false rejection, and ledger exactly-once behavior.
+- [ ] Member-facing badge wording accurately states the check completed and does not imply absolute fraud-proofing or permanent identity assurance.
