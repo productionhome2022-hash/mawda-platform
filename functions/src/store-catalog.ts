@@ -45,3 +45,30 @@ export function projectStoreCatalogItem(
     sortOrder,
   };
 }
+
+
+export type ValidatedStoreCatalogInput = StoreCatalogItem & { active: boolean };
+
+/** Validates the complete owner-authored catalog record before persistence. */
+export function validateStoreCatalogItemInput(input: unknown): ValidatedStoreCatalogInput {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("INVALID_STORE_ITEM");
+  }
+  const value = input as Record<string, unknown>;
+  const itemId = value.itemId;
+  if (typeof itemId !== "string" || !/^[a-z0-9][a-z0-9_-]{2,63}$/.test(itemId)) {
+    throw new Error("INVALID_STORE_ITEM_ID");
+  }
+  if (typeof value.active !== "boolean") throw new Error("INVALID_STORE_ACTIVE");
+  const projected = projectStoreCatalogItem(itemId, {
+    ...value,
+    active: true,
+  });
+  if (!projected) throw new Error("INVALID_STORE_ITEM_FIELDS");
+  const sortOrder = value.sortOrder === undefined ? 1000 : value.sortOrder;
+  if (typeof sortOrder !== "number" || !Number.isSafeInteger(sortOrder) ||
+      sortOrder < -100000 || sortOrder > 100000) {
+    throw new Error("INVALID_STORE_SORT_ORDER");
+  }
+  return { ...projected, active: value.active, sortOrder };
+}
