@@ -13,6 +13,10 @@ const DOMAIN_PATTERN = /(?:https?:\/\/|www\.)[^\s<>()]+|(?:[a-z0-9-]+\.)+(?:com|
 const OBFUSCATION_PATTERN = /(?:youtube|instagram|facebook|twitter|x)\s*(?:\[.\]|\(\.\)|\{.\}|\s+dot\s+)\s*(?:com|org|net)/giu;
 const UNSAFE_SCHEME_PATTERN = /\b(?:javascript|data|vbscript|file|blob|intent|filesystem|chrome|about):/giu;
 const NON_WEB_SCHEME_PATTERN = /\b(?!(?:https?):\/\/)[a-z][a-z0-9+.-]*:\/+/giu;
+const BLOCKED_SHORTENER_HOSTS = new Set([
+  "t.co", "bit.ly", "tinyurl.com", "goo.gl", "ow.ly", "buff.ly",
+  "is.gd", "cutt.ly", "rebrand.ly", "lnkd.in", "shorturl.at",
+]);
 
 function cleanCandidate(value: string): string {
   return value.replace(/[.,!?;:]+$/g, "").replace(/[)\]}]+$/g, "");
@@ -21,6 +25,11 @@ function cleanCandidate(value: string): string {
 function isApprovedHost(hostname: string, allowedHosts: ReadonlySet<string>): boolean {
   const host = hostname.toLowerCase().replace(/\.$/, "");
   return [...allowedHosts].some((root) => host === root || host.endsWith("." + root));
+}
+
+function isBlockedShortenerHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/\.$/, "");
+  return [...BLOCKED_SHORTENER_HOSTS].some((root) => host === root || host.endsWith("." + root));
 }
 
 /**
@@ -65,7 +74,8 @@ export function assertMessageLinksAllowed(
       throw new Error("MESSAGE_LINK_NOT_ALLOWED");
     }
     if ((allowAnyDomain ? !["https:", "http:"].includes(parsed.protocol) : parsed.protocol !== "https:") ||
-        parsed.username || parsed.password || (!allowAnyDomain && !isApprovedHost(parsed.hostname, allowedHosts))) {
+        parsed.username || parsed.password || isBlockedShortenerHost(parsed.hostname) ||
+        (!allowAnyDomain && !isApprovedHost(parsed.hostname, allowedHosts))) {
       throw new Error("MESSAGE_LINK_NOT_ALLOWED");
     }
   }
