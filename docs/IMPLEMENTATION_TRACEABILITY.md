@@ -250,8 +250,8 @@ Add a dedicated workstream across the platform:
 ## Owner review pagination hardening — 12 November 2026
 
 - Added bounded cursor pagination to owner member-conversation discovery and one-to-one message history; each request remains capped at 50 records.
-- Conversation cursors are validated against the target member's own conversation membership before continuing. Message cursors are resolved only within the requested chat, preventing cross-chat cursor reuse.
-- Every page is independently audited before message bodies are returned. Audit metadata records target/chat, cursor, returned count, page continuation state, actor UID, auth time and second-factor context; message content is never copied into audit records.
+- Conversation cursors are validated against the target member's own conversation membership before continuing. Message cursors encode the ordered timestamp/document-ID pair and are applied only to the requested chat's scoped query; the backend does not fetch a cursor message before writing the access audit.
+- Every page writes a privileged-access request audit record before querying message documents, then records a separate completion result with the returned count and continuation state before returning message bodies. Audit metadata records target/chat, cursor, returned count, page continuation state, actor UID, auth time and second-factor context; message content is never copied into audit records.
 - Flutter owner console now exposes a continuation action for older conversations and older messages while preserving chronological message presentation.
 - Added unit coverage for valid/default/invalid cursor inputs, member scoping inputs, and bounded page sizes.
 - **Validation state:** implementation is committed to the development branch; the GitHub Actions validation run for the new head must complete successfully before this work is marked tested. No local test run or production deployment is claimed.
