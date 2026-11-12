@@ -46,7 +46,7 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Test the 500-coin verified-email reward for exactly-once behavior per successful eligible 90-day verification cycle.
 - [ ] Complete end-to-end tests for coin transfer quoting, fee calculation, stale quote rejection, concurrent transfers, atomic ledger writes, idempotency, and both parties' wallet histories.
 - [ ] Complete and test direct-message UI, pagination, delivery/read state, push notifications, block/report, and media workflows.
-- [ ] Complete and test room discovery, invitations, moderation, rental billing, voice/video, and room finance.
+- [ ] Complete and test room invitations, moderator management, rental billing, voice/video, room finance, and device/load behavior. Room discovery/join and owner room creation foundations are implemented.
 - [x] Add owner-managed store catalog, atomic coin purchase transaction, immutable purchase ledger/receipt, entitlement record, idempotency and stale-price checks.
 - [ ] Implement and test entitlement consumers for each product before setting `purchaseEnabled` and `fulfillmentReady`; purchases remain fail-closed until then.
 - [ ] Implement real-money coin top-ups with verified provider receipts, refunds, chargebacks, and reward anti-abuse controls.
