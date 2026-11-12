@@ -266,3 +266,16 @@ Add a dedicated workstream across the platform:
 - Added unit tests for stable canonical hashes, complete-chain verification, edited-event detection, previous-hash tampering, missing sequence entries, and head mismatch.
 - **Scope and limitation:** the chain applies to new owner-review events routed through this helper. Historical audit records are not retroactively chained. The chain head and entries currently reside in the same Firebase project; this detects accidental or partial tampering but is not an independent immutable anchor against a project administrator who can rewrite both. An owner-only verification callable and Super Admin console control now verify the complete chain up to 5,000 events. External signing/anchoring and paged verification beyond 5,000 events remain open release hardening items.
 - **Validation state:** owner participation hash-chain integration and announced-review failure-audit handling passed the full CI suite on `1d383176b5242e66da2c3c4b2413e3cc2913f977` in run `43276736215`, including Flutter analysis/tests/Web release build, Cloud Functions compilation/unit tests, and Firestore/Storage emulator tests. This documentation-only update must still pass its own head CI. No local test execution or production deployment is claimed.
+
+
+
+## Secure media intake foundation — 13 November 2026
+
+- Added an authenticated, short-lived V4 upload-intent callable scoped to a random object path under the private `quarantine/{uid}/` prefix.
+- Added server-side upload finalization that verifies asset ownership, server-reported content type, object generation, actual byte count, per-type size policy, and leading-byte file signature. Mismatched uploads are deleted and recorded as rejected.
+- Supported initial formats: JPEG, PNG, WebP, MP4, MPEG/MP4/OGG/WAV audio, and PDF. The allowlist and per-category size caps are covered by unit tests.
+- Valid files remain in `pending_security_scan`; signature inspection is format validation, not malware scanning. No member-facing media read path or public Storage rule has been enabled.
+- Added sole-owner + recent-MFA callable endpoints for bounded media metadata listing and 60-second attachment-only inspection URLs. Upload intent, validation, owner listing and privileged URL issuance are recorded in `mediaAccessAudit`.
+- Firestore rules deny all client access to media metadata and audit collections; Storage rules continue to deny all client reads and writes, including quarantine paths. Emulator regression tests cover these denials.
+- **Open before release:** integrate a trusted malware/content scanner and safe image/video/audio processing pipeline; enforce upload size at the signed-upload transport layer rather than only at finalization; add per-account quotas/rate limits and abandoned-upload cleanup; add owner UI; add signed URL leakage/expiry tests, storage emulator/integration tests for callable behavior, and verify the actual production bucket CORS/configuration. Do not set `security_approved` or expose media to members until scanner verdicts are authenticated and tested.
+- **Validation:** implementation commits are on the development branch. GitHub Actions validation for the latest branch head must pass before this milestone is called tested. No local tests, production Firebase changes, or deployment are claimed.
