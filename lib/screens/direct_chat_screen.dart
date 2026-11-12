@@ -20,7 +20,7 @@ class DirectChatScreen extends StatefulWidget {
 
 class _DirectChatScreenState extends State<DirectChatScreen> {
   final TextEditingController _messageController = TextEditingController();
-  late Future<List<Map<String, dynamic>>> _messagesFuture;
+  late Future<Map<String, dynamic>> _messagesFuture;
   bool _sending = false;
 
   @override
@@ -35,15 +35,31 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     super.dispose();
   }
 
-  Future<List<Map<String, dynamic>>> _loadMessages() async {
+  Future<Map<String, dynamic>> _loadMessages() async {
     final response = await FirebaseFunctions.instance
         .httpsCallable('getDirectMessages')
         .call(<String, dynamic>{'peerUid': widget.peerUid});
     final data = Map<String, dynamic>.from(response.data as Map);
-    return (data['messages'] as List<dynamic>? ?? const [])
+    final messages = (data['messages'] as List<dynamic>? ?? const [])
         .whereType<Map>()
         .map((message) => Map<String, dynamic>.from(message))
         .toList(growable: false);
+    final chatId = data['chatId'] as String?;
+    if (chatId != null && messages.isNotEmpty) {
+      // Only the active participant UI marks its own conversation read.
+      // The separate owner-review callable never invokes this path.
+      try {
+        await FirebaseFunctions.instance
+            .httpsCallable('markDirectChatRead')
+            .call(<String, dynamic>{'chatId': chatId});
+      } on FirebaseFunctionsException {
+        // Message reading remains available if receipt persistence is temporarily unavailable.
+      }
+    }
+    return {
+      ...data,
+      'messages': messages,
+    };
   }
 
   void _refresh() {
@@ -104,9 +120,29 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
               children: [
                 SelectableText(text),
                 const SizedBox(height: 4),
-                Text(
-                  _timeLabel(message['createdAt']),
-                  style: Theme.of(context).textTheme.labelSmall,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _timeLabel(message['createdAt']),
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                    if (mine) ...[
+                      const SizedBox(width: 6),
+                      Icon(
+                        message['isReadByPeer'] == true ? Icons.done_all : Icons.check,
+                        size: 14,
+                        color: message['isReadByPeer'] == true
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        message['isReadByPeer'] == true ? 'مقروءة' : 'مرسلة',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -132,7 +168,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
+            child: FutureBuilder<Map<String, dynamic>>(
               future: _messagesFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -158,7 +194,11 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                     ),
                   );
                 }
-                final messages = snapshot.data ?? const [];
+                final data = snapshot.data ?? const <String, dynamic>{};
+                final messages = (data['messages'] as List<dynamic>? ?? const [])
+                    .whereType<Map>()
+                    .map((message) => Map<String, dynamic>.from(message))
+                    .toList(growable: false);
                 if (messages.isEmpty) {
                   return const Center(
                     child: Padding(
