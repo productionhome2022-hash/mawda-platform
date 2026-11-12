@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import '../services/super_admin_security_service.dart';
+import 'owner_chat_participation_screen.dart';
 
 class SuperAdminScreen extends StatefulWidget {
   const SuperAdminScreen({super.key});
@@ -520,7 +521,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                         dense: true,
                         title: Text(text.isEmpty ? '—' : text),
                         subtitle: Text([
-                          'المرسل: ${message['senderUid'] ?? 'غير معروف'}',
+                          'المرسل: ${message['senderLabel'] ?? message['senderUid'] ?? 'غير معروف'}',
                           if (date != null) date.toString(),
                         ].join(' • ')),
                       );
@@ -531,6 +532,16 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('إغلاق'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => OwnerChatParticipationScreen(chatId: chatId),
+                ));
+              },
+              icon: const Icon(Icons.admin_panel_settings_outlined),
+              label: const Text('مشاركة المالك'),
             ),
           ],
         ),
