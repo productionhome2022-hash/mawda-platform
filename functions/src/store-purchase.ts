@@ -28,3 +28,18 @@ export function isStoreEntitlementActive(value: unknown, nowMs = Date.now()): bo
   }
   return Number.isFinite(expiresAtMs) && expiresAtMs > nowMs;
 }
+
+
+/** Reject a stale client confirmation if the owner changed the catalog price. */
+export function isStorePurchasePriceCurrent(
+  expectedPriceCoins: unknown,
+  currentPriceCoins: unknown,
+): boolean {
+  return typeof expectedPriceCoins === "number" &&
+    Number.isSafeInteger(expectedPriceCoins) &&
+    expectedPriceCoins > 0 &&
+    typeof currentPriceCoins === "number" &&
+    Number.isSafeInteger(currentPriceCoins) &&
+    currentPriceCoins > 0 &&
+    expectedPriceCoins === currentPriceCoins;
+}
