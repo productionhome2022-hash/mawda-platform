@@ -7,18 +7,18 @@ const chatId = "a".repeat(64);
 test("accepts owner review without requiring a reason or case", () => {
   assert.deepEqual(
     validateOwnerChatReviewRequest({ chatId, limit: 25 }),
-    { chatId, reason: null, limit: 25 },
+    { chatId, reason: null, mode: "silent", limit: 25 },
   );
 });
 
 test("keeps an optional reason as audit context", () => {
   assert.deepEqual(
     validateOwnerChatReviewRequest({ chatId, reason: "Routine owner review" }),
-    { chatId, reason: "Routine owner review", limit: 50 },
+    { chatId, reason: "Routine owner review", mode: "silent", limit: 50 },
   );
-  assert.equal(
-    validateOwnerChatReviewRequest({ chatId, reason: "   " }).reason,
-    null,
+  assert.deepEqual(
+    validateOwnerChatReviewRequest({ chatId, reason: "   " }),
+    { chatId, reason: null, mode: "silent", limit: 50 },
   );
 });
 
