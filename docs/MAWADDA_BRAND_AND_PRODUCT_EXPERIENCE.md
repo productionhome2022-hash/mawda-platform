@@ -176,9 +176,9 @@ Treat security as a continuous engineering requirement:
 
 ## 15. Landing-page legal notice
 
-Display a discreet but readable legal notice at the bottom of the external landing/welcome page, responsive and localized where practical. Approved Arabic wording:
+Display a discreet but readable legal notice at the bottom of the external landing/welcome page, responsive and localized where practical. Place the official GitHub profile avatar for the repository owner beside the company name as a small circular mark. Approved Arabic wording:
 
-> © 2026 Production Home 2022. جميع الحقوق القانونية والتجارية والتقنية محفوظة لفريق Production Home 2022. يُمنع نسخ أو إعادة استخدام أو استغلال أو تعديل أي جزء من المنصة أو هويتها أو محتواها دون إذن كتابي مسبق من أصحاب الحقوق.
+ > © 2026 جميع الحقوق القانونية والتجارية والتقنية محفوظة لصالح مجموعة Production Home Company 2022. يُمنع نسخ أو إعادة استخدام أو استغلال أو تعديل أي جزء من المنصة أو هويتها أو محتواها دون إذن كتابي مسبق من أصحاب الحقوق.
 
 This notice is an attribution and reservation-of-rights statement; it does not by itself establish trademark registration, copyright ownership of third-party material, or replace legal review. Confirm the correct legal entity, ownership, jurisdiction and year before public release.
 
