@@ -34,6 +34,12 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   bool _loadingCatalog = false;
   bool _savingCatalogItem = false;
   List<Map<String, dynamic>> _catalogItems = [];
+  List<Map<String, dynamic>> _ownerMediaAssets = [];
+  String _mediaStatusFilter = 'pending_security_scan';
+  String _mediaUploaderFilter = 'all';
+  String? _mediaNextPageToken;
+  bool _mediaHasMore = false;
+  bool _loadingOwnerMedia = false;
   int _minimumAge = 16;
   String? _error;
 
@@ -49,6 +55,56 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     _memberUidController.dispose();
     _commissionPercentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadOwnerMedia({bool loadMore = false}) async {
+    if (_loadingOwnerMedia) return;
+    final pageToken = loadMore ? _mediaNextPageToken : null;
+    if (loadMore && (pageToken == null || !_mediaHasMore)) return;
+    setState(() => _loadingOwnerMedia = true);
+    try {
+      final result = await _service.listOwnerMediaAssets(
+        status: _mediaStatusFilter,
+        uploaderType: _mediaUploaderFilter,
+        limit: 25,
+        pageToken: pageToken,
+      );
+      final page = (result['assets'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList(growable: false);
+      if (!mounted) return;
+      setState(() {
+        _ownerMediaAssets = loadMore ? [..._ownerMediaAssets, ...page] : page;
+        _mediaNextPageToken = result['nextPageToken'] as String?;
+        _mediaHasMore = result['hasMore'] == true;
+        _error = null;
+      });
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل ملفات الأعضاء والضيوف.');
+    } catch (_) {
+      if (mounted) setState(() => _error = 'تعذر تحميل ملفات الأعضاء والضيوف.');
+    } finally {
+      if (mounted) setState(() => _loadingOwnerMedia = false);
+    }
+  }
+
+  String _mediaUploaderLabel(Object? value) {
+    switch (value) {
+      case 'member': return 'عضو';
+      case 'guest': return 'ضيف مجهول عبر Firebase';
+      default: return 'سجل قديم غير مصنف';
+    }
+  }
+
+  String _mediaStatusLabel(Object? value) {
+    switch (value) {
+      case 'upload_authorized': return 'رُخّص الرفع';
+      case 'pending_security_scan': return 'بانتظار الفحص الأمني';
+      case 'rejected': return 'مرفوض';
+      case 'security_approved': return 'اجتاز الفحص الأمني';
+      default: return 'حالة غير معروفة';
+    }
   }
 
   Future<void> _loadOverview() async {
@@ -1040,6 +1096,114 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                 const Text(
                   'لا يسمح النظام بحد أدنى أقل من 16 عاماً. ويظل التحقق العمري الأقوى وضوابط حماية القاصرين شرطاً قبل الإطلاق.',
                 ),
+              ],
+            ),
+          ),
+        ),
+        const Divider(height: 32),
+        Text('مراجعة ملفات الأعضاء والضيوف', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'قائمة وصفية خادمية للملفات فقط. لا تُعرض روابط التخزين أو محتويات الملفات هنا؛ '
+                  'تبقى الملفات في الحجر حتى ربط ماسح موثوق ومعاينة آمنة داخل التطبيق.',
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: _mediaStatusFilter,
+                  decoration: const InputDecoration(labelText: 'حالة الملف', border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(value: 'pending_security_scan', child: Text('بانتظار الفحص الأمني')),
+                    DropdownMenuItem(value: 'upload_authorized', child: Text('رُخّص الرفع')),
+                    DropdownMenuItem(value: 'rejected', child: Text('مرفوض')),
+                    DropdownMenuItem(value: 'security_approved', child: Text('اجتاز الفحص الأمني')),
+                  ],
+                  onChanged: _loadingOwnerMedia ? null : (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _mediaStatusFilter = value;
+                      _ownerMediaAssets = [];
+                      _mediaNextPageToken = null;
+                      _mediaHasMore = false;
+                    });
+                    _loadOwnerMedia();
+                  },
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: _mediaUploaderFilter,
+                  decoration: const InputDecoration(labelText: 'صاحب الملف', border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(value: 'all', child: Text('الجميع')),
+                    DropdownMenuItem(value: 'member', child: Text('الأعضاء')),
+                    DropdownMenuItem(value: 'guest', child: Text('الضيوف')),
+                  ],
+                  onChanged: _loadingOwnerMedia ? null : (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _mediaUploaderFilter = value;
+                      _ownerMediaAssets = [];
+                      _mediaNextPageToken = null;
+                      _mediaHasMore = false;
+                    });
+                    _loadOwnerMedia();
+                  },
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _loadingOwnerMedia ? null : () => _loadOwnerMedia(),
+                    icon: _loadingOwnerMedia
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.folder_open_outlined),
+                    label: const Text('تحميل ملفات الأعضاء والضيوف'),
+                  ),
+                ),
+                if (_loadingOwnerMedia) const LinearProgressIndicator(),
+                if (_ownerMediaAssets.isEmpty && !_loadingOwnerMedia)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text('لم تُحمّل القائمة بعد، أو لا توجد ملفات مطابقة للفلاتر.'),
+                  ),
+                ..._ownerMediaAssets.map((asset) {
+                  final size = asset['sizeBytes'];
+                  final createdAt = asset['createdAt'];
+                  final date = createdAt is num
+                      ? DateTime.fromMillisecondsSinceEpoch(createdAt.toInt()).toLocal().toString()
+                      : 'وقت غير متاح';
+                  return Card(
+                    margin: const EdgeInsets.only(top: 8),
+                    child: ListTile(
+                      leading: Icon(
+                        asset['uploaderType'] == 'guest' ? Icons.person_outline : Icons.account_circle_outlined,
+                      ),
+                      title: Text(asset['originalName'] as String? ?? 'ملف بلا اسم'),
+                      subtitle: Text(
+                        '${_mediaUploaderLabel(asset['uploaderType'])} • '
+                        '${_mediaStatusLabel(asset['status'])}\n'
+                        'النوع: ${asset['detectedContentType'] ?? asset['declaredContentType'] ?? 'غير معروف'} • '
+                        'الحجم: ${size is num ? (size / 1024).toStringAsFixed(1) + ' KB' : 'غير معروف'}\n'
+                        '${date}',
+                      ),
+                      isThreeLine: true,
+                    ),
+                  );
+                }),
+                if (_mediaHasMore)
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton.icon(
+                      onPressed: _loadingOwnerMedia ? null : () => _loadOwnerMedia(loadMore: true),
+                      icon: const Icon(Icons.expand_more),
+                      label: const Text('تحميل ملفات إضافية'),
+                    ),
+                  ),
               ],
             ),
           ),
