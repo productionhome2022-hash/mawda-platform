@@ -1,6 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
-import '../screens/chat_room_screen.dart';
+import 'chat_room_screen.dart';
 
 class RoomsScreen extends StatefulWidget {
   const RoomsScreen({super.key, required this.userId});
