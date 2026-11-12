@@ -1,7 +1,8 @@
 export type OwnerChatReviewRequest = {
   chatId: string;
   reason: string | null;
-  mode: "silent";
+  mode: "silent" | "announced";
+  announcementMessageId: string | null;
   limit: number;
   pageToken: string | null;
 };
@@ -32,6 +33,8 @@ export function validateOwnerChatReviewRequest(
   const chatId = input.chatId;
   const rawReason = typeof input.reason === "string" ? input.reason.trim() : "";
   const requestedLimit = input.limit === undefined ? 50 : input.limit;
+  const mode = input.mode === undefined ? "silent" : input.mode;
+  const rawAnnouncementId = input.announcementMessageId;
 
   if (typeof chatId !== "string" || !/^[a-f0-9]{64}$/.test(chatId)) {
     throw new Error("INVALID_CHAT_ID");
@@ -48,10 +51,25 @@ export function validateOwnerChatReviewRequest(
     throw new Error("INVALID_PAGE_SIZE");
   }
 
+  if (mode !== "silent" && mode !== "announced") {
+    throw new Error("INVALID_REVIEW_MODE");
+  }
+  let announcementMessageId: string | null = null;
+  if (mode === "announced") {
+    if (typeof rawAnnouncementId !== "string" || rawAnnouncementId.length < 8 ||
+        rawAnnouncementId.length > 128 || !/^[A-Za-z0-9_-]+$/.test(rawAnnouncementId)) {
+      throw new Error("INVALID_ANNOUNCEMENT_MESSAGE_ID");
+    }
+    announcementMessageId = rawAnnouncementId;
+  } else if (rawAnnouncementId !== undefined && rawAnnouncementId !== null) {
+    throw new Error("INVALID_ANNOUNCEMENT_MESSAGE_ID");
+  }
+
   return {
     chatId,
     reason: rawReason || null,
-    mode: "silent",
+    mode,
+    announcementMessageId,
     limit: requestedLimit,
     pageToken: validatePageToken(input.pageToken),
   };
