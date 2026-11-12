@@ -37,6 +37,7 @@ class _LandingPageScreenState extends State<LandingPageScreen> {
       'next': 'التالي',
       'regDesc': 'مرحباً بك! ستحصل فور تسجيلك على مكافأة 500 كوينز.',
       'supportDesc': 'تواصل معنا لأية شكاوى أو استفسارات.',
+      'legalNotice': '© 2026 Production Home 2022. جميع الحقوق القانونية والتجارية والتقنية محفوظة لفريق Production Home 2022. يُمنع نسخ أو إعادة استخدام أو استغلال أو تعديل أي جزء من المنصة أو هويتها أو محتواها دون إذن كتابي مسبق من أصحاب الحقوق.',
     },
     'en': {
       'title': 'Mawadda Platform',
@@ -54,6 +55,7 @@ class _LandingPageScreenState extends State<LandingPageScreen> {
       'next': 'Next',
       'regDesc': 'Welcome! You will instantly receive a 500 coins bonus upon registration.',
       'supportDesc': 'Contact us for any complaints or inquiries.',
+      'legalNotice': '© 2026 Production Home 2022. All legal, commercial and technical rights are reserved to the Production Home 2022 team. No part of this platform, its identity or content may be copied, reused, exploited or modified without prior written permission from the rights holders.',
     },
     'fr': {
       'title': 'Plateforme Mawadda',
@@ -71,6 +73,7 @@ class _LandingPageScreenState extends State<LandingPageScreen> {
       'next': 'Suivant',
       'regDesc': 'Bienvenue! Vous recevrez instantanément un bonus de 500 pièces.',
       'supportDesc': 'Contactez-nous pour toute réclamation.',
+      'legalNotice': '© 2026 Production Home 2022. Tous les droits juridiques, commerciaux et techniques sont réservés à l’équipe Production Home 2022. Toute copie, réutilisation, exploitation ou modification de la plateforme, de son identité ou de son contenu nécessite une autorisation écrite préalable des ayants droit.',
     },
     'es': {
       'title': 'Plataforma Mawadda',
@@ -88,6 +91,7 @@ class _LandingPageScreenState extends State<LandingPageScreen> {
       'next': 'Siguiente',
       'regDesc': '¡Bienvenido! Recibirás un bono de 500 monedas al registrarte.',
       'supportDesc': 'Contáctanos para cualquier queja o consulta.',
+      'legalNotice': '© 2026 Production Home 2022. Todos los derechos legales, comerciales y técnicos están reservados al equipo de Production Home 2022. Se prohíbe copiar, reutilizar, explotar o modificar cualquier parte de la plataforma, su identidad o contenido sin autorización previa por escrito de los titulares de los derechos.',
     },
   };
 
@@ -119,7 +123,38 @@ class _LandingPageScreenState extends State<LandingPageScreen> {
                   ),
                 ),
               ),
+              _buildLegalFooter(),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _verifiedEmailController.dispose();
+    _verifiedPasswordController.dispose();
+    _visitorUsernameController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildLegalFooter() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900),
+          child: Text(
+            _t('legalNotice'),
+            textAlign: TextAlign.center,
+            textDirection: _currentLocale == 'ar' ? TextDirection.rtl : TextDirection.ltr,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.58),
+              fontSize: 10,
+              height: 1.5,
+              letterSpacing: _currentLocale == 'ar' ? 0 : 0.15,
+            ),
           ),
         ),
       ),
