@@ -194,3 +194,36 @@ Release gates include:
 5. Security/privacy review, biometric vendor/legal review where applicable, penetration test and recovery drills.
 6. Accessibility, localization, performance and data-retention verification.
 7. Explicit owner approval for merge and production deployment.
+
+## 17. Company social links and owner-managed brand content (new owner-approved requirement)
+
+### 17.1 Company social links beneath the legal notice
+Show a compact, accessible social-links row directly beneath the Production Home Company 2022 rights notice on the landing/welcome surface. Reserve distinct entries and recognizable icons for:
+- Facebook
+- Instagram
+- WhatsApp
+- X (formerly Twitter)
+
+The links are intentionally unconfigured and must not point to guessed, placeholder, personal or unofficial destinations. Until the platform owner supplies and publishes the verified official URLs, render the entries as disabled/hidden (never as misleading active links). The owner can set, edit, disable and publish each destination independently from the Super Admin brand-management section. Validate allowed URL schemes and expected hostnames per provider; reject javascript:, data:, malformed URLs and unrelated domains. For WhatsApp, accept an official wa.me or approved WhatsApp destination format. Open external destinations safely and accessibly, with clear labels and screen-reader semantics. Social destinations are public content and must not expose private admin data.
+
+### 17.2 Super Admin brand and content management
+Add a dedicated section within the existing Super Admin console named “إدارة هوية ومحتوى المنصة” (Brand & Platform Content). It must allow the authenticated platform owner to manage, preview and publish:
+- Arabic and English brand descriptions/bios for the platform and app, with French and Spanish localization fields as the localization workflow supports them.
+- Short bio, full platform/app description, landing-page introductory copy, supporting tagline and selected editable public-facing text blocks.
+- Brand logo assets and logo variants (symbol-only, Arabic wordmark, Latin wordmark), including replacing the current logo when a new approved identity is ready.
+- The four official company social destinations (Facebook, Instagram, WhatsApp and X), with per-link enable/disable and publication state.
+
+Do not make every arbitrary UI string editable through an unsafe generic text replacement mechanism. Define a versioned, typed allowlist of content keys and locales, with field length limits, safe text rendering (no raw HTML/script), URL validation, and fallback to bundled defaults when a field is absent or invalid. Preserve brand consistency by keeping core legal/ownership notices protected from accidental edits; changes to the legal notice should require a separate explicit high-risk confirmation and audit event.
+
+### 17.3 Draft, preview, publish and audit
+- Provide draft editing and a preview of the landing page before publication.
+- Save drafts separately from the currently published public configuration.
+- Publish atomically so members never see a partially updated set of copy, logo and links.
+- Record the actor UID, timestamp, changed keys, prior/new version identifiers and reason in an immutable server-side audit event; do not place secrets in audit payloads.
+- Require server-verified platformOwner authorization, recent/step-up MFA for publishing or changing logo/social destinations, and rate limits. Never trust a client-side role flag.
+- Public clients may read only the sanitized published configuration. Drafts, audit history and unpublished URLs must remain owner-only.
+- Store uploaded logos in a dedicated restricted Storage path. Validate file signature/type, dimensions and size on the trusted backend; strip unsafe metadata where feasible, generate optimized responsive variants, and prevent executable content. Use a secure upload/publish workflow rather than accepting arbitrary remote image URLs.
+- Retain previous published versions for rollback, with rollback itself audited and owner-authorized.
+- Provide accessible labels, RTL/LTR support and responsive presentation. If a social URL is not configured, do not render an active icon/link.
+
+This section is an approved requirement and implementation specification. It does not mean the management UI, callable backend, storage workflow or public dynamic configuration is already implemented. Deliver and verify these as a single end-to-end feature, including authorization/rules tests, localization tests, preview/publish/rollback tests and responsive device checks.
