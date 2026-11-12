@@ -25,7 +25,11 @@ import {
 import { createHash } from "node:crypto";
 import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
 import { hasPlatformOwnerSession } from "./owner-access";
-import { projectStoreCatalogItem, validateStoreCatalogItemInput } from "./store-catalog";
+import {
+  isStoreItemPurchasable,
+  projectStoreCatalogItem,
+  validateStoreCatalogItemInput,
+} from "./store-catalog";
 import {
   calculateStorePurchaseBalance,
   isStoreEntitlementActive,
@@ -1574,7 +1578,7 @@ export const purchaseStoreItem = onCall(async (request) => {
     if (!item) {
       throw new HttpsError("failed-precondition", "هذا العنصر غير منشور أو أن بيانات سعره غير صالحة.");
     }
-    if (itemData.purchaseEnabled !== true || itemData.fulfillmentReady !== true) {
+    if (!isStoreItemPurchasable(itemData)) {
       throw new HttpsError(
         "failed-precondition",
         "شراء هذا العنصر غير متاح حتى اكتمال تنفيذ استحقاقه والتحقق منه.",
