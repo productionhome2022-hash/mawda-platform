@@ -1299,6 +1299,10 @@ export const sendRoomMessage = onCall(async (request) => {
     if (!membership.exists) {
       throw new HttpsError("permission-denied", "يجب الانضمام إلى الغرفة قبل إرسال الرسائل.");
     }
+    const mutedUntil = membership.data()?.mutedUntil;
+    if (mutedUntil instanceof Timestamp && mutedUntil.toMillis() > Date.now()) {
+      throw new HttpsError("permission-denied", "تم كتم إرسال الرسائل في هذه الغرفة حتى انتهاء المدة المحددة.");
+    }
     if (!member.exists || !isMemberAccountInGoodStanding(member.data())) {
       throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بإرسال الرسائل حالياً.");
     }
@@ -1656,6 +1660,127 @@ export const removeRoomModerator = onCall(async (request) => {
 });
 
 
+/** Temporarily mutes a room member; the restriction is enforced by sendRoomMessage. */
+export const muteRoomMember = onCall(async (request) => {
+  const actorUid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = typeof request.data?.roomId === "string" ? request.data.roomId.trim() : "";
+  const memberUid = typeof request.data?.memberUid === "string" ? request.data.memberUid.trim() : "";
+  const durationMinutes = request.data?.durationMinutes;
+  const reason = typeof request.data?.reason === "string" ? request.data.reason.trim() : "";
+  if (!roomId || roomId.length > 128 || !memberUid || memberUid.length > 128 ||
+      memberUid === actorUid || !Number.isSafeInteger(durationMinutes) ||
+      durationMinutes < 1 || durationMinutes > 1440 ||
+      reason.length < 5 || reason.length > 500) {
+    throw new HttpsError("invalid-argument", "بيانات كتم العضو غير صالحة.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId);
+  const actorMembershipRef = roomRef.collection("members").doc(actorUid);
+  const actorModeratorRef = roomRef.collection("moderators").doc(actorUid);
+  const targetMembershipRef = roomRef.collection("members").doc(memberUid);
+  await db.runTransaction(async (transaction) => {
+    const [room, actorMembership, actorModerator, targetMembership] = await Promise.all([
+      transaction.get(roomRef),
+      transaction.get(actorMembershipRef),
+      transaction.get(actorModeratorRef),
+      transaction.get(targetMembershipRef),
+    ]);
+    const platformOwner = hasPlatformOwnerSession(
+      (request.auth?.token ?? {}) as Record<string, unknown>,
+    );
+    const isRoomOwner = room.data()?.ownerUid === actorUid;
+    const canMute = actorModerator.data()?.permissions?.muteMembers === true;
+    if (!room.exists || (!platformOwner && !isRoomOwner && !canMute) ||
+        (!platformOwner && !actorMembership.exists)) {
+      throw new HttpsError("permission-denied", "لا تملك صلاحية كتم أعضاء هذه الغرفة.");
+    }
+    if (!targetMembership.exists) {
+      throw new HttpsError("not-found", "العضو غير موجود في هذه الغرفة.");
+    }
+    if (room.data()?.ownerUid === memberUid) {
+      throw new HttpsError("failed-precondition", "لا يمكن كتم مالك الغرفة.");
+    }
+    const mutedUntil = Timestamp.fromMillis(Date.now() + durationMinutes * 60 * 1000);
+    transaction.update(targetMembershipRef, {
+      mutedUntil,
+      mutedBy: actorUid,
+      muteReason: reason,
+      mutedAt: FieldValue.serverTimestamp(),
+    });
+    const auditRef = db.collection("roomAuditLogs").doc();
+    transaction.create(auditRef, {
+      roomId,
+      actorUid,
+      targetUid: memberUid,
+      action: "room_member_muted",
+      durationMinutes,
+      reason,
+      mutedUntil,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { roomId, memberUid, muted: true, durationMinutes };
+});
+
+
+/** Removes a member from a room without disabling or changing their platform account. */
+export const removeRoomMember = onCall(async (request) => {
+  const actorUid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = typeof request.data?.roomId === "string" ? request.data.roomId.trim() : "";
+  const memberUid = typeof request.data?.memberUid === "string" ? request.data.memberUid.trim() : "";
+  const reason = typeof request.data?.reason === "string" ? request.data.reason.trim() : "";
+  if (!roomId || roomId.length > 128 || !memberUid || memberUid.length > 128 ||
+      memberUid === actorUid || reason.length < 5 || reason.length > 500) {
+    throw new HttpsError("invalid-argument", "بيانات إزالة العضو غير صالحة.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId);
+  const actorMembershipRef = roomRef.collection("members").doc(actorUid);
+  const actorModeratorRef = roomRef.collection("moderators").doc(actorUid);
+  const targetMembershipRef = roomRef.collection("members").doc(memberUid);
+  const targetModeratorRef = roomRef.collection("moderators").doc(memberUid);
+  await db.runTransaction(async (transaction) => {
+    const [room, actorMembership, actorModerator, targetMembership] = await Promise.all([
+      transaction.get(roomRef),
+      transaction.get(actorMembershipRef),
+      transaction.get(actorModeratorRef),
+      transaction.get(targetMembershipRef),
+    ]);
+    const platformOwner = hasPlatformOwnerSession(
+      (request.auth?.token ?? {}) as Record<string, unknown>,
+    );
+    const isRoomOwner = room.data()?.ownerUid === actorUid;
+    const canRemove = actorModerator.data()?.permissions?.removeMembers === true;
+    if (!room.exists || (!platformOwner && !isRoomOwner && !canRemove) ||
+        (!platformOwner && !actorMembership.exists)) {
+      throw new HttpsError("permission-denied", "لا تملك صلاحية إزالة أعضاء هذه الغرفة.");
+    }
+    if (!targetMembership.exists) {
+      throw new HttpsError("not-found", "العضو غير موجود في هذه الغرفة.");
+    }
+    if (room.data()?.ownerUid === memberUid) {
+      throw new HttpsError("failed-precondition", "لا يمكن إزالة مالك الغرفة؛ استخدم إجراء نقل الملكية أو إغلاق الغرفة.");
+    }
+    const roomData = room.data() ?? {};
+    const count = Number.isSafeInteger(roomData.memberCount) ? roomData.memberCount : 1;
+    transaction.delete(targetMembershipRef);
+    transaction.delete(targetModeratorRef);
+    transaction.update(roomRef, {
+      memberCount: Math.max(0, count - 1),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    const auditRef = db.collection("roomAuditLogs").doc();
+    transaction.create(auditRef, {
+      roomId,
+      actorUid,
+      targetUid: memberUid,
+      action: "room_member_removed",
+      reason,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { roomId, memberUid, removed: true };
+});
+
+
 /** Lists room members and room-scoped moderator permissions to the room owner or platform owner. */
 export const listRoomMembers = onCall(async (request) => {
   const actorUid = requireAuthenticatedUid(request.auth?.uid);
@@ -1694,6 +1819,7 @@ export const listRoomMembers = onCall(async (request) => {
       displayName: typeof user.displayName === "string" ? user.displayName : "عضو مودة",
       username: typeof user.username === "string" ? user.username : "",
       role: membership.data().role ?? "member",
+      mutedUntil: membership.data().mutedUntil?.toMillis?.() ?? null,
       permissions: {
         manageMessages: moderator.permissions?.manageMessages === true,
         muteMembers: moderator.permissions?.muteMembers === true,
