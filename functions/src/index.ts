@@ -9,6 +9,7 @@ import { validateRegistrationPolicy } from "./registration-policy";
 import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
 import { validateMemberProfileUpdate } from "./member-profile-update";
 import { validateDirectMessageInput } from "./direct-message";
+import { assertMessageLinksAllowed } from "./link-policy";
 import { createHash } from "node:crypto";
 import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
 import { hasPlatformOwnerSession } from "./owner-access";
@@ -659,6 +660,11 @@ export const sendDirectMessage = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "بيانات الرسالة غير صالحة أو تجاوزت الحد المسموح.");
   }
   const { recipientUid, text: messageText, clientMessageId } = message;
+  try {
+    assertMessageLinksAllowed(messageText, true);
+  } catch {
+    throw new HttpsError("invalid-argument", "يسمح فقط بروابط YouTube وInstagram وFacebook في المحادثات الخاصة.");
+  }
   if (senderUid === recipientUid) {
     throw new HttpsError("failed-precondition", "لا يمكنك مراسلة حسابك الشخصي.");
   }
@@ -850,17 +856,32 @@ export const sendRoomMessage = onCall(async (request) => {
   }
   const roomRef = db.collection("rooms").doc(roomId);
   const membershipRef = roomRef.collection("members").doc(uid);
+  const moderatorRef = roomRef.collection("moderators").doc(uid);
   const messageId = createHash("sha256").update(uid + ":" + clientMessageId).digest("hex");
   const messageRef = roomRef.collection("messages").doc(messageId);
   const result = await db.runTransaction(async (transaction) => {
-    const [room, membership, existing] = await Promise.all([
-      transaction.get(roomRef), transaction.get(membershipRef), transaction.get(messageRef),
+    const [room, membership, moderator, existing] = await Promise.all([
+      transaction.get(roomRef), transaction.get(membershipRef),
+      transaction.get(moderatorRef), transaction.get(messageRef),
     ]);
     if (!room.exists || room.data()?.status !== "active") {
       throw new HttpsError("not-found", "الغرفة غير موجودة أو غير نشطة.");
     }
     if (!membership.exists) {
       throw new HttpsError("permission-denied", "يجب الانضمام إلى الغرفة قبل إرسال الرسائل.");
+    }
+    const roomData = room.data() ?? {};
+    const isRoomOwner = roomData.ownerUid === uid;
+    const isAuthorizedModerator = moderator.exists;
+    try {
+      assertMessageLinksAllowed(content, isRoomOwner || isAuthorizedModerator);
+    } catch {
+      throw new HttpsError(
+        "invalid-argument",
+        isRoomOwner || isAuthorizedModerator
+          ? "يسمح للمشرفين والمالكين بروابط YouTube وInstagram وFacebook فقط."
+          : "إرسال الروابط غير مسموح للأعضاء في هذه الغرفة.",
+      );
     }
     if (existing.exists) {
       const prior = existing.data()!;
