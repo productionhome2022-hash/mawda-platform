@@ -1071,7 +1071,7 @@ export const getDirectMessages = onCall(async (request) => {
   // A valid peer pair may open an empty conversation before the first message.
   if (!chat.exists) {
     if (typeof peerUid === "string" && chatId === createDirectChatId(...[uid, peerUid].sort())) {
-      return { messages: [], peerLastReadAt: null };
+      return { chatId, messages: [], peerLastReadAt: null };
     }
     throw new HttpsError("not-found", "المحادثة غير موجودة.");
   }
@@ -1093,6 +1093,7 @@ export const getDirectMessages = onCall(async (request) => {
   const peerReceipt = receiptSnapshots[participants.indexOf(peer)].data() ?? {};
   const peerLastReadAt = peerReceipt.lastReadMessageCreatedAt?.toMillis?.() ?? null;
   return {
+    chatId,
     peerLastReadAt,
     messages: messages.docs.reverse().map((doc) => {
       const data = doc.data();
