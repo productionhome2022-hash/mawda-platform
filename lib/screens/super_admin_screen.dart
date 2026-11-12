@@ -565,6 +565,14 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
               icon: const Icon(Icons.admin_panel_settings_outlined),
               label: const Text('مشاركة المالك'),
             ),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _announceOwnerReview(chatId);
+              },
+              icon: const Icon(Icons.campaign_outlined),
+              label: const Text('إعلان المراجعة'),
+            ),
           ],
         ),
       );
@@ -578,6 +586,63 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       );
     } finally {
       if (mounted) setState(() => _reviewingChatId = null);
+    }
+  }
+
+  Future<void> _announceOwnerReview(String chatId) async {
+    final noticeController = TextEditingController();
+    final noticeText = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('إعلان مراجعة إدارية'),
+        content: TextField(
+          controller: noticeController,
+          autofocus: true,
+          minLines: 3,
+          maxLines: 5,
+          maxLength: 500,
+          decoration: const InputDecoration(
+            labelText: 'نص الإشعار الذي سيظهر للطرفين',
+            hintText: 'تُجري إدارة منصة مودة مراجعة إدارية لهذه المحادثة.',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = noticeController.text.trim();
+              if (value.length >= 5) Navigator.pop(dialogContext, value);
+            },
+            child: const Text('إرسال الإشعار'),
+          ),
+        ],
+      ),
+    );
+    noticeController.dispose();
+    if (noticeText == null || !mounted) return;
+
+    try {
+      final requestId = 'owner-review-${DateTime.now().microsecondsSinceEpoch}';
+      await _service.announceOwnerDirectChatReview(
+        chatId: chatId,
+        noticeText: noticeText,
+        requestId: requestId,
+      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم نشر إشعار المراجعة للطرفين وتوثيق العملية.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر نشر إشعار المراجعة.')),
+      );
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر تأكيد نشر إشعار المراجعة.')),
+      );
     }
   }
 
