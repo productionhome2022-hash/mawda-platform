@@ -167,6 +167,138 @@ class _RoomModerationScreenState extends State<RoomModerationScreen> {
     }
   }
 
+  Future<void> _muteMember(Map<String, dynamic> member) async {
+    final uid = member['uid'] as String?;
+    if (uid == null || uid.isEmpty || _busyUid != null) return;
+    final durationController = TextEditingController(text: '10');
+    final reasonController = TextEditingController();
+    final values = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('كتم عضو في الغرفة'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: durationController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'مدة الكتم بالدقائق (1–1440)'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: reasonController,
+              minLines: 2,
+              maxLines: 4,
+              maxLength: 500,
+              decoration: const InputDecoration(
+                labelText: 'سبب الإجراء (5 أحرف على الأقل)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+          FilledButton(
+            onPressed: () {
+              final duration = int.tryParse(durationController.text.trim());
+              final reason = reasonController.text.trim();
+              if (duration != null && duration >= 1 && duration <= 1440 && reason.length >= 5) {
+                Navigator.pop(dialogContext, {'durationMinutes': duration, 'reason': reason});
+              }
+            },
+            child: const Text('تأكيد الكتم'),
+          ),
+        ],
+      ),
+    );
+    durationController.dispose();
+    reasonController.dispose();
+    if (values == null || !mounted) return;
+
+    setState(() => _busyUid = uid);
+    try {
+      await FirebaseFunctions.instance.httpsCallable('muteRoomMember').call({
+        'roomId': widget.roomId,
+        'memberUid': uid,
+        ...values,
+      });
+      if (!mounted) return;
+      _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تم كتم ${member['displayName'] ?? 'العضو'} لمدة ${values['durationMinutes']} دقيقة.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر كتم العضو.')),
+      );
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر تنفيذ الكتم؛ لم يتم تأكيد نجاح العملية.')),
+      );
+    } finally {
+      if (mounted) setState(() => _busyUid = null);
+    }
+  }
+
+  Future<void> _removeMember(Map<String, dynamic> member) async {
+    final uid = member['uid'] as String?;
+    if (uid == null || uid.isEmpty || _busyUid != null) return;
+    final reasonController = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('إزالة عضو من الغرفة'),
+        content: TextField(
+          controller: reasonController,
+          minLines: 2,
+          maxLines: 4,
+          maxLength: 500,
+          decoration: const InputDecoration(
+            labelText: 'سبب الإجراء (5 أحرف على الأقل)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+          FilledButton(
+            onPressed: () {
+              final value = reasonController.text.trim();
+              if (value.length >= 5) Navigator.pop(dialogContext, value);
+            },
+            child: const Text('تأكيد الإزالة'),
+          ),
+        ],
+      ),
+    );
+    reasonController.dispose();
+    if (reason == null || !mounted) return;
+
+    setState(() => _busyUid = uid);
+    try {
+      await FirebaseFunctions.instance.httpsCallable('removeRoomMember').call({
+        'roomId': widget.roomId,
+        'memberUid': uid,
+        'reason': reason,
+      });
+      if (!mounted) return;
+      _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تمت إزالة العضو من هذه الغرفة فقط؛ حسابه وبياناته الأخرى لم تتغير.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذرت إزالة العضو.')),
+      );
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذرت إزالة العضو؛ لم يتم تأكيد نجاح العملية.')),
+      );
+    } finally {
+      if (mounted) setState(() => _busyUid = null);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
@@ -247,6 +379,8 @@ class _RoomModerationScreenState extends State<RoomModerationScreen> {
                                 onSelected: (value) {
                                   if (value == 'edit') _editModerator(member);
                                   if (value == 'revoke') _revokeModerator(member);
+                                  if (value == 'mute') _muteMember(member);
+                                  if (value == 'remove') _removeMember(member);
                                 },
                                 itemBuilder: (_) => [
                                   PopupMenuItem(
@@ -257,6 +391,16 @@ class _RoomModerationScreenState extends State<RoomModerationScreen> {
                                     const PopupMenuItem(
                                       value: 'revoke',
                                       child: Text('سحب الإشراف'),
+                                    ),
+                                  if (!isOwner)
+                                    const PopupMenuItem(
+                                      value: 'mute',
+                                      child: Text('كتم العضو مؤقتاً'),
+                                    ),
+                                  if (!isOwner)
+                                    const PopupMenuItem(
+                                      value: 'remove',
+                                      child: Text('إزالة العضو من الغرفة'),
                                     ),
                                 ],
                               ),
