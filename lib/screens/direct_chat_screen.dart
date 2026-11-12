@@ -118,6 +118,19 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                if (!mine && message['isPlatformOwnerMessage'] == true)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        message['senderLabel'] as String? ?? 'إدارة منصة مودة',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
                 SelectableText(text),
                 const SizedBox(height: 4),
                 Row(
