@@ -101,7 +101,8 @@ export function validateStoreCatalogItemInput(input: unknown): ValidatedStoreCat
 export function isStoreItemPurchasable(value: unknown): boolean {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
   const item = value as Record<string, unknown>;
-  return item.active === true &&
+  return (item.category === "title" || item.category === "vip") &&
+    item.active === true &&
     item.purchaseEnabled === true &&
     item.fulfillmentReady === true;
 }
