@@ -291,3 +291,17 @@ Add a dedicated workstream across the platform:
 - **Guest scope:** this implementation supports guests represented by Firebase Anonymous Authentication. A guest who has no Firebase Auth UID/session cannot upload or be assigned a reviewable media identity yet; a separate trusted guest-session issuance/expiry model is required before such sessions are included. Legacy media records without uploader classification are returned as `legacy_unknown` in the all-items view and are not silently misclassified.
 - **Still open in phase 2:** dedicated owner-console media review UI and in-app safe preview handoff; end-to-end callable tests proving owner success and member/guest/MFA-stale denial audit events; rate-limited audit retention/export; URL expiry/replay tests; storage object lifecycle and deletion/retention policy. No production bucket configuration or live data was changed.
 - **Validation:** phase-2 changes are committed to the development branch. A fresh CI run for the latest head is required before this milestone is marked tested.
+
+## Owner media review console — 13 November 2026
+
+- Added owner-console filters for media status and trusted uploader classification (all, member, guest), plus bounded 25-item pagination.
+- The console displays metadata only: filename, uploader classification, detected/declared type, size, status and creation time. It does not render signed URLs or media bytes.
+- Added Flutter service bindings for the owner-only listing and inspection callables.
+- Deliberately withheld an inspect/open action from the UI: signed URLs are bearer credentials, and a safe in-app preview/open handler is not yet integrated. The callable remains available for a future controlled preview flow; the UI does not expose the URL.
+- This UI work is on the development branch and requires the current CI run to pass before it is considered validated.
+
+Remaining phase-two closure items:
+- End-to-end callable tests for owner success, member denial, guest denial, stale MFA denial and corresponding audit records.
+- Signed URL expiration/replay behavior tests and secure preview integration.
+- Defined audit retention/export and media retention/deletion schedules.
+- Scanner/processor integration remains a separate prerequisite before any member-facing media availability.
