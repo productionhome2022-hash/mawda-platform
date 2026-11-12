@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   flutter:
@@ -95,3 +95,47 @@ jobs:
           java-version: "21"
       - name: Run Firestore and Storage rules emulator tests
         run: npm run test:rules
+
+  persist-lockfiles:
+    name: Persist generated dependency lockfiles
+    needs: [flutter, functions]
+    if: >-
+      always() &&
+      needs.flutter.result == 'success' &&
+      needs.functions.result == 'success' &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the pull request branch
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      - name: Download generated Flutter lockfile
+        uses: actions/download-artifact@v4
+        with:
+          name: mawda-flutter-lockfile-${{ github.sha }}
+          path: /tmp/mawda-locks/flutter
+      - name: Download generated Functions lockfile
+        uses: actions/download-artifact@v4
+        with:
+          name: mawda-functions-lockfile-${{ github.sha }}
+          path: /tmp/mawda-locks/functions
+      - name: Commit lockfiles to the pull request branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp /tmp/mawda-locks/flutter/pubspec.lock pubspec.lock
+          cp /tmp/mawda-locks/functions/package-lock.json functions/package-lock.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pubspec.lock functions/package-lock.json
+          if git diff --cached --quiet; then
+            echo "Dependency lockfiles are already current."
+            exit 0
+          fi
+          git commit -m "chore: commit reproducible dependency lockfiles"
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
