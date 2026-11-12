@@ -90,3 +90,14 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] AI prompts/tooling pass prompt-injection, cross-member data isolation, secret-exposure, and unauthorized-action tests.
 - [ ] Privacy/legal review, member-facing disclosures, consent where required, retention/deletion rules, and incident procedures are complete.
 
+
+
+### Additional MAWADDA AI identity and link-policy release gates
+
+- [ ] Every AI character displays a persistent, accessible AI badge on avatar/cover and profile header; activating it explains the AI identity; it is not styled as human verification.
+- [ ] AI activity, followers, reactions, and popularity are separately labeled and never counted as human-member activity.
+- [ ] Ordinary members cannot post links in public chats or public/private rented rooms.
+- [ ] Authenticated room owners and authorized moderators can post only verified YouTube, Instagram/Reels, and Facebook URLs in public/private rented rooms; authorization is server-side and moderator revocation takes effect immediately.
+- [ ] One-to-one private messages allow only verified YouTube, Instagram/Reels, and Facebook URLs.
+- [ ] URL tests cover redirects, shorteners, lookalikes, IDN/punycode, deceptive subdomains, credentials, unsafe schemes, obfuscation, embedded URLs, rich previews, and authorization bypass.
+- [ ] Global/module/character shutdown stops active generation promptly and revokes AI tool permissions.
