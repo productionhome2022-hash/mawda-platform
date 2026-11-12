@@ -45,6 +45,10 @@ Firestore client rules are deny-by-default except for a member reading their own
 
 Storage rules currently deny all client reads and writes until authenticated upload/download endpoints, MIME validation, ownership checks, and retention jobs are implemented. This is intentional security staging, not a claim that media features are ready.
 
+## Verification renewal reward implementation status
+
+The approved product policy is recurring: 500 coins after each successfully completed eligible 90-day email-verification cycle, and 1,500 coins after each successfully completed eligible 30-day biometric-verification cycle, exactly once per cycle. **This policy is not yet fully implemented.** The current `completeMemberProfile` callable grants the initial 500-coin email reward only during first profile creation; its fixed ledger ID does not implement later renewal cycles. There is not yet a trusted email-lease renewal/finalization flow, and no biometric verification provider/capture workflow exists. Do not describe recurring renewal rewards as live until cycle IDs, server-authoritative expiry, fresh proof, atomic per-cycle ledger credits, and replay/expiry tests are implemented. The biometric reward must remain unavailable until high-assurance provider verification is integrated and validated.
+
 ## Firebase configuration blocker
 
 The checked-in `lib/firebase_options.dart` still contains placeholder-looking Firebase app identifiers and API key values, and its project ID differs from `.firebaserc`. Do not deploy or test real sign-in against production until the correct Firebase app configuration is regenerated for the confirmed project and validated. No credentials or service-account keys belong in Git.
