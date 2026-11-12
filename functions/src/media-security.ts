@@ -1,4 +1,21 @@
 export type MediaCategory = "image" | "video" | "audio" | "document";
+export type MediaSignedUrlPurpose = "upload" | "owner-inspection";
+export const MEDIA_SIGNED_URL_TTL_MS: Record<MediaSignedUrlPurpose, number> = {
+  upload: 5 * 60 * 1000,
+  "owner-inspection": 60 * 1000,
+};
+
+/** Centralize the maximum lifetime supplied to Cloud Storage V4 signing. */
+export function mediaSignedUrlExpiresAt(
+  purpose: MediaSignedUrlPurpose,
+  nowMs = Date.now(),
+): number {
+  if (!Number.isSafeInteger(nowMs) || nowMs < 0) {
+    throw new Error("Invalid signing clock.");
+  }
+  return nowMs + MEDIA_SIGNED_URL_TTL_MS[purpose];
+}
+
 
 export interface MediaPolicy {
   category: MediaCategory;
