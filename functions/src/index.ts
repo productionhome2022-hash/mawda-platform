@@ -1194,7 +1194,7 @@ export const markDirectChatRead = onCall(async (request) => {
  * is display-only and cannot impersonate a member account.
  */
 export const sendOwnerDirectChatMessage = onCall(async (request) => {
-  const actorUid = requireOwner(request);
+  const actorUid = await requireOwnerForReview(request, "owner_direct_chat_message_send");
   let input;
   try {
     input = validateOwnerChatParticipationRequest((request.data ?? {}) as Record<string, unknown>);
@@ -1225,7 +1225,7 @@ export const sendOwnerDirectChatMessage = onCall(async (request) => {
   const participantUids = [...initialParticipants] as string[];
   const memberRefs = participantUids.map((uid) => db.collection("users").doc(uid));
   const messageId = createHash("sha256")
-    .update("owner:" + actorUid + ":" + input.clientMessageId)
+    .update("owner:" + actorUid + ":" + input.chatId + ":" + input.clientMessageId)
     .digest("hex");
   const messageRef = chatRef.collection("messages").doc(messageId);
   const notificationRefs = participantUids.map((uid) =>
@@ -1277,6 +1277,10 @@ export const sendOwnerDirectChatMessage = onCall(async (request) => {
       isPlatformOwnerMessage: true,
       ownerParticipationMode: input.mode,
       senderLabel,
+      ownerAuthTime: request.auth?.token.auth_time ?? null,
+      secondFactor: typeof request.auth?.token.firebase === "object" && request.auth?.token.firebase !== null
+        ? (request.auth.token.firebase as Record<string, unknown>).sign_in_second_factor ?? null
+        : null,
       createdAt,
     });
     for (let index = 0; index < participantUids.length; index += 1) {
