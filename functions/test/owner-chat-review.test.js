@@ -1,6 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { validateOwnerChatReviewRequest } = require("../lib/owner-chat-review");
+const {
+  validateOwnerChatReviewRequest,
+  validateOwnerChatParticipationRequest,
+} = require("../lib/owner-chat-review");
 
 const chatId = "a".repeat(64);
 
