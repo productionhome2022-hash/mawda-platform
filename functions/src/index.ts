@@ -1582,8 +1582,11 @@ export const setRoomModerator = onCall(async (request) => {
     const [room, membership] = await Promise.all([
       transaction.get(roomRef), transaction.get(membershipRef),
     ]);
-    if (!room.exists || room.data()?.ownerUid !== actorUid) {
-      throw new HttpsError("permission-denied", "تعيين مشرفي الغرفة من صلاحية مالك الغرفة فقط.");
+    const platformOwner = hasPlatformOwnerSession(
+      (request.auth?.token ?? {}) as Record<string, unknown>,
+    );
+    if (!room.exists || (room.data()?.ownerUid !== actorUid && !platformOwner)) {
+      throw new HttpsError("permission-denied", "تعيين مشرفي الغرفة من صلاحية مالك الغرفة أو مالك المنصة فقط.");
     }
     if (!membership.exists) {
       throw new HttpsError("failed-precondition", "يجب أن يكون المشرف عضواً في الغرفة أولاً.");
@@ -1606,6 +1609,103 @@ export const setRoomModerator = onCall(async (request) => {
     });
   });
   return { roomId, memberUid, permissions };
+});
+
+
+/** Revokes room-scoped moderator permissions without affecting the member account. */
+export const removeRoomModerator = onCall(async (request) => {
+  const actorUid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = request.data?.roomId;
+  const memberUid = request.data?.memberUid;
+  if (typeof roomId !== "string" || roomId.trim().length < 1 || roomId.length > 128 ||
+      typeof memberUid !== "string" || memberUid.trim().length < 1 ||
+      memberUid.length > 128 || memberUid === actorUid) {
+    throw new HttpsError("invalid-argument", "بيانات سحب الإشراف غير صالحة.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId.trim());
+  const membershipRef = roomRef.collection("members").doc(memberUid.trim());
+  const moderatorRef = roomRef.collection("moderators").doc(memberUid.trim());
+  await db.runTransaction(async (transaction) => {
+    const [room, membership, moderator] = await Promise.all([
+      transaction.get(roomRef),
+      transaction.get(membershipRef),
+      transaction.get(moderatorRef),
+    ]);
+    const platformOwner = hasPlatformOwnerSession(
+      (request.auth?.token ?? {}) as Record<string, unknown>,
+    );
+    if (!room.exists || (room.data()?.ownerUid !== actorUid && !platformOwner)) {
+      throw new HttpsError("permission-denied", "سحب الإشراف متاح لمالك الغرفة أو مالك المنصة فقط.");
+    }
+    if (!membership.exists) {
+      throw new HttpsError("not-found", "عضوية الغرفة غير موجودة.");
+    }
+    if (!moderator.exists) return;
+    transaction.delete(moderatorRef);
+    transaction.update(membershipRef, { role: "member" });
+    const auditRef = db.collection("roomAuditLogs").doc();
+    transaction.create(auditRef, {
+      roomId: roomRef.id,
+      actorUid,
+      targetUid: memberUid.trim(),
+      action: "room_moderator_revoked",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { roomId: roomRef.id, memberUid: memberUid.trim(), revoked: true };
+});
+
+
+/** Lists room members and room-scoped moderator permissions to the room owner or platform owner. */
+export const listRoomMembers = onCall(async (request) => {
+  const actorUid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = request.data?.roomId;
+  if (typeof roomId !== "string" || roomId.trim().length < 1 || roomId.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId.trim());
+  const room = await roomRef.get();
+  const isPlatformOwner = hasPlatformOwnerSession(
+    (request.auth?.token ?? {}) as Record<string, unknown>,
+  );
+  if (!room.exists || (room.data()?.ownerUid !== actorUid && !isPlatformOwner)) {
+    throw new HttpsError("permission-denied", "عرض أعضاء الغرفة متاح لمالكها أو مالك المنصة فقط.");
+  }
+
+  const memberships = await roomRef.collection("members")
+    .orderBy("joinedAt", "asc")
+    .limit(100)
+    .get();
+  const memberRefs = memberships.docs.map((membership) =>
+    db.collection("users").doc(membership.id),
+  );
+  const moderatorRefs = memberships.docs.map((membership) =>
+    roomRef.collection("moderators").doc(membership.id),
+  );
+  const related = memberRefs.length > 0
+    ? await db.getAll(...memberRefs, ...moderatorRefs)
+    : [];
+  const count = memberships.docs.length;
+  const members = memberships.docs.map((membership, index) => {
+    const user = related[index]?.data() ?? {};
+    const moderator = related[count + index]?.data() ?? {};
+    return {
+      uid: membership.id,
+      displayName: typeof user.displayName === "string" ? user.displayName : "عضو مودة",
+      username: typeof user.username === "string" ? user.username : "",
+      role: membership.data().role ?? "member",
+      permissions: {
+        manageMessages: moderator.permissions?.manageMessages === true,
+        muteMembers: moderator.permissions?.muteMembers === true,
+        removeMembers: moderator.permissions?.removeMembers === true,
+      },
+    };
+  });
+  return {
+    roomId: roomRef.id,
+    members,
+    truncated: memberships.size === 100,
+  };
 });
 
 
