@@ -29,17 +29,8 @@ jobs:
           flutter-version: "3.47.9"
           channel: stable
           cache: true
-      - name: Generate and verify Flutter dependency lockfile
-        run: |
-          flutter pub get
-          flutter pub get --enforce-lockfile
-      - name: Upload generated Flutter lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: mawda-flutter-lockfile-${{ github.sha }}
-          path: pubspec.lock
-          if-no-files-found: error
-          retention-days: 3
+      - name: Install Flutter dependencies from committed lockfile
+        run: flutter pub get --enforce-lockfile
       - name: Analyze Dart code
         run: flutter analyze
       - name: Run Flutter tests
@@ -67,18 +58,9 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: functions/package.json
-      - name: Generate and verify npm dependency lockfile
-        run: |
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          npm ci --no-audit --no-fund
-      - name: Upload generated npm lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: mawda-functions-lockfile-${{ github.sha }}
-          path: functions/package-lock.json
-          if-no-files-found: error
-          retention-days: 3
+          cache-dependency-path: functions/package-lock.json
+      - name: Install Cloud Functions dependencies from committed lockfile
+        run: npm ci --no-audit --no-fund
       - name: Compile and test backend
         run: npm test
       - name: Upload compiled Cloud Functions artifact
@@ -95,55 +77,3 @@ jobs:
           java-version: "21"
       - name: Run Firestore and Storage rules emulator tests
         run: npm run test:rules
-
-  persist-lockfiles:
-    name: Persist generated dependency lockfiles
-    permissions:
-      contents: write
-    needs: [flutter, functions]
-    if: >-
-      always() &&
-      needs.flutter.result == 'success' &&
-      needs.functions.result == 'success' &&
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out the pull request branch
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ github.repository }}
-          ref: ${{ github.event.pull_request.head.ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-      - name: Download generated Flutter lockfile
-        uses: actions/download-artifact@v4
-        with:
-          name: mawda-flutter-lockfile-${{ github.sha }}
-          path: /tmp/mawda-locks/flutter
-      - name: Download generated Functions lockfile
-        uses: actions/download-artifact@v4
-        with:
-          name: mawda-functions-lockfile-${{ github.sha }}
-          path: /tmp/mawda-locks/functions
-      - name: Commit lockfiles to the pull request branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          expected_head="${{ github.event.pull_request.head.sha }}"
-          actual_head="$(git rev-parse HEAD)"
-          if [ "$actual_head" != "$expected_head" ]; then
-            echo "PR head moved while validation was running; refusing to commit stale lockfiles."
-            exit 1
-          fi
-          cp /tmp/mawda-locks/flutter/pubspec.lock pubspec.lock
-          cp /tmp/mawda-locks/functions/package-lock.json functions/package-lock.json
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pubspec.lock functions/package-lock.json
-          if git diff --cached --quiet; then
-            echo "Dependency lockfiles are already current."
-            exit 0
-          fi
-          git commit -m "chore: commit reproducible dependency lockfiles"
-          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
