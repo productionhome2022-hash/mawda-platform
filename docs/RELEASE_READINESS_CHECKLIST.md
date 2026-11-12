@@ -101,7 +101,7 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] AI activity, followers, reactions, and popularity are separately labeled and never counted as human-member activity.
 - [ ] Members without successful biometric verification cannot post links in any chat or room. Biometrically verified members receive the free YouTube, Facebook, Instagram, and X/Twitter entitlement across DMs and public/rented-private room chats.
 - [ ] Authenticated room owners and authorized moderators can post only verified YouTube, Instagram/Reels, and Facebook URLs in public/private rented rooms; authorization is server-side and moderator revocation takes effect immediately.
-- [ ] One-to-one private messages allow Facebook, Instagram, and X/Twitter URLs only for members whose biometric status is server-confirmed as verified; the platform Super Admin exception remains separately gated.
+- [ ] One-to-one private messages allow YouTube, Facebook, Instagram, and X/Twitter URLs only for members whose biometric status is server-confirmed as verified; the platform Super Admin exception remains separately gated.
 - [ ] URL tests cover redirects, shorteners, lookalikes, IDN/punycode, deceptive subdomains, credentials, unsafe schemes, obfuscation, embedded URLs, rich previews, and authorization bypass.
 - [ ] Global/module/character shutdown stops active generation promptly and revokes AI tool permissions.
 
