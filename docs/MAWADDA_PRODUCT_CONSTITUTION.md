@@ -160,3 +160,58 @@ Several product areas remain partial or unimplemented: complete DM and notificat
 The launch fallback background is an approved requirement but the final launch artwork has not yet been selected/bundled and verified.
 
 This section must be updated with evidence as work progresses; never convert a planned requirement into a completed claim without implementation and test evidence.
+
+## 17. MAWADDA AI — intelligent assistance and social characters
+
+**Status:** Owner-approved product direction; specified, not yet implemented or production-authorized.
+
+MAWADDA AI is a modular platform capability with separate trust boundaries:
+
+1. **Technical Support Assistant:** helps members with account and app-control problems, explains approved workflows, triages errors, and prepares support cases. It may inspect only the minimum account, diagnostic, and conversation context needed for the active support case. The owner may grant additional technical-administration permissions individually. High-impact actions (account suspension, data deletion, wallet changes, refunds, permission changes, production configuration, merges, and deployments) require explicit confirmation, server-side authorization, and immutable audit records. It must never expose passwords, authentication secrets, or private keys.
+2. **AI Social Characters:** owner-configured characters with distinct names, biographies, styles, dialects, languages, interests, sticker sets, activity schedules, approved placements, and interaction limits. They may host events, welcome members, join permitted public discussions, and participate in adult-only private conversations. They must not impersonate real people, claim to be human, fabricate human endorsements, or manufacture fake member counts, testimonials, reactions, relationships, or popularity metrics. Their character profile or platform information must make their AI nature reasonably clear; repeated boilerplate disclosure in every message is not required.
+3. **Events and Engagement:** prompts, games, icebreakers, competitions, themed events, and community activities. Participation and rankings must be authentic and distinguish AI participation from member participation.
+
+### 17.1 Privacy, data use, and oversight
+
+- No blanket or covert access to all private messages or rooms for model training. Access to private content is limited to a specific, authorized support or safety purpose, with least privilege, case scope, access logging, retention limits, and member-facing privacy disclosures and consent where required.
+- Public-room content may be processed for moderation and service operation under published rules. Private conversations must not be repurposed as general training data without a separate valid legal basis and meaningful consent. Prefer synthetic, public, or de-identified examples for improvement.
+- Do not expose one member's private content to another member or to an AI character outside the authorized conversation context.
+- The owner console must show which AI module accessed which data category, why, under which authorization, and when; sensitive access must be reviewable and revocable.
+
+### 17.2 Age and interaction boundaries
+
+- Social-character interaction and romantic features are restricted to adults (18+) whose age eligibility has been established through the platform's approved age-assurance process. A self-entered birthdate alone is not proof.
+- If an account is confirmed under 18, social-character interaction is blocked. A separate, limited technical-support/reporting route remains available and must not contain romantic or social-character engagement.
+- Characters may be warm, playful, affectionate, and romantically expressive with eligible adults, but must not use dependency, jealousy, exclusivity, guilt, threats, or emotional pressure to drive engagement or purchases.
+- Characters must not imply that gifts, coins, subscriptions, or premium purchases buy genuine love, exclusivity, human affection, or a real-world relationship.
+- Sexual content must follow applicable law and platform policy; prohibit coercion, exploitation, non-consensual intimate content, sexualization of minors, and any sexual interaction involving minors. Age gating is not permission to disregard these boundaries.
+
+### 17.3 Monetization and authenticity
+
+- Characters may neutrally explain available gifts, coin packs, subscriptions, and premium features, and may participate in clearly labeled promotional events.
+- No fabricated scarcity, false claims of human demand, deceptive purchase prompts, hidden paid ranking, or emotionally coercive upselling.
+- All purchases, gifts, entitlements, and balances remain server-authoritative, verified, auditable, and subject to the wallet/store constitution.
+
+### 17.4 Link policy
+
+- **Public direct/group chats and all public or rented private-room conversations:** block every URL and link, including shortened, obfuscated, embedded, and redirecting links. Show a clear validation message.
+- **One-to-one private conversations only:** allow links only to approved YouTube, Instagram (including Reels), and Facebook domains. Enforce a strict server-side domain allowlist after URL normalization; reject lookalike domains, URL shorteners, redirects to unapproved destinations, IP-literal hosts, and disguised links.
+- No AI character or support assistant may bypass these rules. Link policy applies consistently to text, profile prompts, stickers/captions, and other message surfaces where links can be embedded.
+- The owner may disable an allowed domain, but cannot add arbitrary domains without a reviewed policy change and security tests.
+
+### 17.5 Owner controls, safety, and cost
+
+- The Super Admin can enable/disable the complete MAWADDA AI service, each module, and each individual character independently; emergency kill switches must stop new generation and revoke active character sessions promptly.
+- Configure per-module and per-character permissions, data scopes, supported languages/dialects, style boundaries, allowed placements, schedules, rate limits, and moderation settings.
+- Configure daily and monthly budgets, per-module/per-character quotas, model limits, alerts, hard spending caps, and automatic fail-closed shutdown at configured limits.
+- Log prompts/actions at an appropriately minimized level, moderation decisions, tool calls, permission grants, data access, cost, and shutdown events. Do not retain unnecessary private message content in operational logs.
+- AI tools must use a trusted backend gateway, never direct client access to Firestore or privileged credentials. The assistant may prepare code changes and run approved development checks, but cannot merge to main, deploy production, or perform destructive/high-impact operations without separate explicit owner authorization.
+- Human review, appeals, incident response, abuse reporting, and rollback remain available. A kill switch does not replace these controls.
+
+### 17.6 Delivery order and release gates
+
+- Stage A: technical support assistant with narrowly scoped support access, safe diagnostics, audited owner-granted tools, budgets, and emergency disable.
+- Stage B: social characters and event engagement after age assurance, privacy disclosures/consent, data-scope enforcement, link filtering, moderation, monetization safeguards, and cost controls are tested.
+- Before release, test prompt injection, data exfiltration, cross-member isolation, unauthorized tool use, link bypasses, minor-account restrictions, emotional manipulation, purchase pressure, budget exhaustion, shutdown latency, and audit completeness.
+- This section defines approved direction only. No AI capability is considered implemented, safe, or production-ready until code, tests, privacy/legal review, and release evidence exist.
+
