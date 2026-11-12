@@ -14,18 +14,18 @@ const chatId = "a".repeat(64);
 test("accepts owner review without requiring a reason or case", () => {
   assert.deepEqual(
     validateOwnerChatReviewRequest({ chatId, limit: 25 }),
-    { chatId, reason: null, mode: "silent", limit: 25, pageToken: null },
+    { chatId, reason: null, mode: "silent", announcementMessageId: null, limit: 25, pageToken: null },
   );
 });
 
 test("keeps an optional reason as audit context", () => {
   assert.deepEqual(
     validateOwnerChatReviewRequest({ chatId, reason: "Routine owner review" }),
-    { chatId, reason: "Routine owner review", mode: "silent", limit: 50, pageToken: null },
+    { chatId, reason: "Routine owner review", mode: "silent", announcementMessageId: null, limit: 50, pageToken: null },
   );
   assert.deepEqual(
     validateOwnerChatReviewRequest({ chatId, reason: "   " }),
-    { chatId, reason: null, mode: "silent", limit: 50, pageToken: null },
+    { chatId, reason: null, mode: "silent", announcementMessageId: null, limit: 50, pageToken: null },
   );
 });
 
@@ -187,4 +187,35 @@ test("announced owner review rejects malformed chat, short/long notice and reque
   assert.throws(() => validateOwnerReviewAnnouncementRequest({ ...base, noticeText: "لا" }), /INVALID_REVIEW_NOTICE_TEXT/);
   assert.throws(() => validateOwnerReviewAnnouncementRequest({ ...base, noticeText: "x".repeat(501) }), /INVALID_REVIEW_NOTICE_TEXT/);
   assert.throws(() => validateOwnerReviewAnnouncementRequest({ ...base, requestId: "bad key" }), /INVALID_REVIEW_NOTICE_REQUEST_ID/);
+});
+
+
+test("announced review requires a valid owner notice message identifier", () => {
+  assert.deepEqual(
+    validateOwnerChatReviewRequest({
+      chatId,
+      mode: "announced",
+      announcementMessageId: "notice_message_123",
+    }),
+    {
+      chatId,
+      reason: null,
+      mode: "announced",
+      announcementMessageId: "notice_message_123",
+      limit: 50,
+      pageToken: null,
+    },
+  );
+  assert.throws(
+    () => validateOwnerChatReviewRequest({ chatId, mode: "announced" }),
+    /INVALID_ANNOUNCEMENT_MESSAGE_ID/,
+  );
+  assert.throws(
+    () => validateOwnerChatReviewRequest({ chatId, mode: "silent", announcementMessageId: "notice_123456" }),
+    /INVALID_ANNOUNCEMENT_MESSAGE_ID/,
+  );
+  assert.throws(
+    () => validateOwnerChatReviewRequest({ chatId, mode: "unknown" }),
+    /INVALID_REVIEW_MODE/,
+  );
 });
