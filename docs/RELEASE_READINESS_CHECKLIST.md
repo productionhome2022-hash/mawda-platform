@@ -187,3 +187,18 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Replace the current first-profile-only email reward with a trusted 90-day email lease renewal flow: server-authorized renewal after expiry, invalidate prior Firebase emailVerified state before sending a fresh action link, verify the pending cycle and unchanged email server-side, then atomically extend the lease and credit 500 coins once for that cycle.
 - [ ] Implement and independently validate biometric provider sessions, signed server callbacks/server-to-server verification, 30-day lease renewal, and atomic 1,500-coin per-cycle reward before enabling the biometric reward.
 - [ ] Test 90-/30-day boundaries, server/device clock mismatch, timezone display, email changes, expired/replayed renewal links, reminder deduplication, active-session expiry, cache invalidation, backend enforcement, localized notice/acknowledgement, and reward idempotency.
+
+## 12. Sovereign Cloud Operations & Data Lifecycle Center
+
+- [ ] Inventory every target Firestore collection, Storage bucket/path, ad asset, metadata reference, derivative, CDN/cache layer, retention job, legal hold, and protected record before implementation.
+- [ ] Implement server-generated dry-run previews with exact scope, paths, date range, counts, bytes, affected parties, exclusions, recoverability, preview ID/hash, expiry, and stale-preview rejection.
+- [ ] Require server-verified platformOwner, fresh MFA/step-up, scope-specific typed confirmation, reason/ticket, and additional confirmation for global/irreversible purges.
+- [ ] Implement idempotent resumable background jobs with bounded batches, checkpoints, retries, concurrency locks, safe pause/cancel, emergency stop, progress, and failure reporting.
+- [ ] Chat purge tests prove only explicitly selected message history is removed; member accounts, financial data, security/audit logs, reports, appeals, moderation evidence, legal holds, and unrelated conversations remain intact.
+- [ ] Media cleanup tests reconcile Storage objects with Firestore metadata, thumbnails/derivatives, temporary uploads, CDN/cache copies, and lifecycle queues; verify no orphaned metadata or inaccessible retained object remains.
+- [ ] Advertising cleanup tests archive/purge only ended eligible campaigns and obsolete creative assets; active/scheduled campaigns, billing, accounting evidence, disputes, consent and legal records remain intact.
+- [ ] Maintenance mode, health checks, retention retry, storage reconciliation, derived cache/index refresh and project identity checks are verified; no unsupported Firebase “restart” claim or destructive infrastructure recreation.
+- [ ] Verify backups and complete restore drills; use quarantine/soft-delete where appropriate and clearly identify irreversible provider/CDN deletion boundaries.
+- [ ] Immutable audit covers requester, MFA freshness, reason, preview hash, exact scope, exclusions, job/batch IDs, counts/bytes, timestamps, retries, denials, cancellations, outcome and recovery status.
+- [ ] Production/test environment separation, budget alerts, anomaly detection, legal-hold enforcement, emergency stop, and documented operator runbook pass independent security review.
+- [ ] Super Admin UI distinguishes available, preview-only, and disabled/not implemented operations; no destructive control is enabled before backend and recovery gates pass.
