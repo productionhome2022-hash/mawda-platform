@@ -120,11 +120,13 @@ Add a dedicated workstream across the platform:
 
 ## Member profile social links (owner-approved addition)
 
-- A member with active, server-confirmed biometric verification may publish optional personal Instagram, X/Twitter, Facebook, and WhatsApp links on their profile wall.
-- Links are individually optional, explicitly saved by the member, editable/removable/individually hideable, and visible to profile visitors only when the profile visibility policy allows.
-- Backend accepts normalized HTTPS URLs only on each service's approved official domains; reject malformed/deceptive hosts, unsafe schemes, credentials, and shorteners. Do not infer or expose phone numbers.
-- Expired/revoked/inactive biometric verification must immediately hide links from visitors and block publishing/editing until reverified. Client writes cannot grant eligibility.
-- Tests: all four providers, valid/invalid hostnames, URL normalization, per-link privacy, profile visibility, cross-account reads, status expiry/revocation, and attempts to forge verification status.
+**Implementation status: partially implemented; end-to-end release validation remains open.**
+
+- Implemented in the trusted Functions layer: authenticated members can save the four optional provider links only when their server-owned biometric verification is active; updates are audited.
+- Implemented in profile reads: links are withheld unless the server-side biometric lease is active and the viewer is authorized by profile visibility. The public-profile projection independently revalidates each URL against the official HTTPS host allowlist; malformed legacy values are omitted.
+- Added unit coverage for the four provider domains, deceptive/unsafe URLs, malformed stored containers, and defensive revalidation at the public projection boundary.
+- Still pending: Flutter profile-wall editing/display and individual hide controls; integration tests proving callable authorization and expiry/revocation behavior; full cross-account/privacy tests; and the actual biometric provider/capture workflow. The biometric workflow is not implemented, so this feature is not yet available to members.
+- Do not treat a pasted URL as provider identity verification or a verified badge. Provider OAuth/WhatsApp OTP identity checks remain separate requirements.
 
 ## Super Admin wallet controls and coin forfeiture (owner-approved addition)
 
