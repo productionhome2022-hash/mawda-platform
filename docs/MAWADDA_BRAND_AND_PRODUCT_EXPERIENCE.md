@@ -126,3 +126,71 @@ These are approved product directions and staged roadmap items. They must not be
 - Reuse existing backend contracts and data models; do not create duplicate wallet, room, profile or moderation systems.
 - Keep the Firebase project configuration blocker unresolved until actual Firebase app registrations are verified. Never fabricate API keys or app identifiers.
 - Report separately what is specified, implemented, CI-tested, emulator-tested, and verified against real Firebase/devices.
+
+
+## 11. Cross-platform support and adaptive experience (owner-approved requirement)
+
+MAWADDA is intended for phones, tablets, desktop computers and modern web browsers across supported operating systems. This is a release requirement, not a promise that every target is already built or verified.
+
+Target matrix:
+- Android phones and tablets.
+- iPhone and iPad (iOS/iPadOS).
+- Windows desktops and laptops.
+- macOS computers.
+- Linux desktops where supported by Flutter and the selected plugins.
+- Responsive web on supported current versions of Chrome, Edge, Firefox and Safari.
+
+Use adaptive layouts rather than simply scaling a phone screen. Validate portrait/landscape, narrow/wide windows, safe areas, keyboard and mouse, touch targets, hover/focus states, text scaling, RTL/LTR, screen readers, reduced motion, data saver and low-power devices. Maintain consistent account, privacy and security behavior across clients. Track each platform separately as implemented, build-verified, device-tested and release-ready. Apple targets require appropriate macOS/Xcode signing and build infrastructure; Linux and desktop plugin compatibility must be verified.
+
+## 12. Identity, email verification and optional biometric assurance
+
+- Email/password registration must use verified email before granting the approved one-time 500-coin reward. Enforce reward eligibility and idempotency on the trusted backend; never trust client flags.
+- Email verification is distinct from identity verification. Explain this distinction in product copy.
+- Optional biometric identity assurance is a separately consented, purpose-limited flow. The approved concept includes a short voice liveness sample (approximately 20 seconds) and a moving selfie video (approximately 3–5 seconds), subject to a documented threat model, vendor/legal review and feasibility assessment.
+- Do not infer gender, ethnicity, health, personality or other sensitive traits from voice, face or biometrics. Do not use biometric matching for unrelated profiling.
+- Provide clear consent, purpose, retention/deletion rules, encryption in transit/at rest, strict staff access, audit logs, vendor due diligence, appeal/manual review and an accessible alternative for people unable or unwilling to complete biometrics.
+- Prefer verification tokens/results over retaining raw biometric media. If raw samples must be processed, minimize capture, restrict access, define short retention and securely delete them. No biometric feature may be represented as active until end-to-end security, privacy, legal and device testing is complete.
+
+## 13. Security engineering and anti-abuse baseline
+
+Treat security as a continuous engineering requirement:
+- Server-authoritative authorization for every sensitive action; default-deny database and storage rules; least privilege and scoped roles.
+- Strong owner/admin authentication with MFA, server-verified owner claims, session revocation, step-up checks for sensitive operations and immutable/auditable administrative actions.
+- Never store or expose plaintext passwords, private API secrets, service-account keys, recovery codes or biometric templates in source control, client apps or logs.
+- Validate and normalize all untrusted input on the server; enforce rate limits, abuse throttles, idempotency, replay protection, transaction integrity and anti-automation controls.
+- Protect against account takeover, credential stuffing, enumeration, CSRF/XSS where applicable, injection, insecure direct object references, privilege escalation, replay, scraping, spam, fake accounts, reward farming, payment/coin fraud and malicious uploads.
+- Use secure secret management, dependency scanning, static analysis, code review, security tests, emulator/rules tests, backup/restore drills, incident response and independent penetration testing before public launch.
+- Log security-relevant events without logging passwords, tokens, message contents or unnecessary personal data. Provide transparent, case-based, permissioned and audited safety review; no covert unrestricted surveillance.
+- Apply age-category separation, block/report/appeal controls, moderation escalation and safeguards against adult-minor private contact. Self-declared age is not robust age assurance; assess stronger controls and local legal obligations before launch.
+- Security controls must not be weakened to make a feature appear functional. A failed verification or uncertain authorization must fail closed.
+
+## 14. Core product and business rules reaffirmed
+
+- Profiles support the approved fields, privacy visibility, interests, goals, posts, albums, stories, followers/friends and premium customization. Profile data changes go through validated trusted services.
+- Wallet transfers are atomic and idempotent. Each transfer has one shared transfer ID and linked ledger records for sender and recipient: sender gross debit, fee and recipient UID; recipient net credit and sender UID; both include transfer ID and timestamp. The platform commission is separately recorded. Never use client-side balance arithmetic as authority.
+- Room creation, rental, capacity, age audience, invitations, moderator assignment, billing and contributions are server-controlled and auditable. Room ranking reflects disclosed activity/contributions, not hidden paid manipulation.
+- Media types, file sizes, duration limits and retention periods must be enforced by trusted services and storage rules, not merely by UI. Explain that deletion from the service cannot erase copies already downloaded by other people.
+- Stores, coin packs, paid entitlements, rewards, ad rewards, pricing and durations are owner-configurable through authenticated backend operations. No reward for merely opening an ad; reward rules must be visible, verified and anti-fraud protected.
+- Premium options approved include animated avatar frames, colored/animated names, profile analytics, professional profile layouts, pinned sections, themes/backgrounds, greeting messages, clearly labeled discovery boosts, VIP tiers/badges and hide-coins/ghost-mode privacy controls with appropriate audit and disclosure.
+- Owner console roadmap includes trust/safety, member and room oversight, store/pricing, feature flags, wallet/commission settings, appeals, platform health, backups, incidents and localization controls. Owner authority remains technically constrained by law, platform policy, auditability and member privacy.
+
+## 15. Landing-page legal notice
+
+Display a discreet but readable legal notice at the bottom of the external landing/welcome page, responsive and localized where practical. Approved Arabic wording:
+
+> © 2026 Production Home 2022. جميع الحقوق القانونية والتجارية والتقنية محفوظة لفريق Production Home 2022. يُمنع نسخ أو إعادة استخدام أو استغلال أو تعديل أي جزء من المنصة أو هويتها أو محتواها دون إذن كتابي مسبق من أصحاب الحقوق.
+
+This notice is an attribution and reservation-of-rights statement; it does not by itself establish trademark registration, copyright ownership of third-party material, or replace legal review. Confirm the correct legal entity, ownership, jurisdiction and year before public release.
+
+## 16. Delivery gates and evidence
+
+Every feature must be reported in separate states: specified, implemented, automated-test passed, emulator/integration-tested, real-service verified, device-tested, security-reviewed and production-approved. Do not collapse these into a single "done" label.
+
+Release gates include:
+1. Reproducible dependency lockfiles and pinned toolchains.
+2. Passing analysis, unit, integration, rules, web and platform builds.
+3. Verified Firebase project/app registrations and secure deployment configuration.
+4. Real-device testing for each supported platform and screen class.
+5. Security/privacy review, biometric vendor/legal review where applicable, penetration test and recovery drills.
+6. Accessibility, localization, performance and data-retention verification.
+7. Explicit owner approval for merge and production deployment.
