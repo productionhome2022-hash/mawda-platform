@@ -8,6 +8,7 @@
 This matrix connects approved product decisions to implementation phases and objective release evidence. It is not a claim that roadmap items are complete. Update it whenever a requirement, implementation, test, risk, or release decision changes.
 
 ## Non-negotiable delivery rules
+- Account suspension/bans must be enforced by the trusted backend on every direct-message send, room join, and room-message send; never rely only on client UI or stale membership.
 
 1. The Product Constitution and owner-approved amendments are authoritative. If code, UI, data, rules, or tests conflict with them, stop and reconcile the conflict before proceeding.
 2. A requirement moves through distinct states: **specified → designed → implemented → automated-tested → emulator/integration-tested → device/platform-tested → security-reviewed → release-approved**. Never collapse these states into a single “done”.
