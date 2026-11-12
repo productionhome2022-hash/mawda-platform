@@ -35,7 +35,6 @@ test("approved roles and private chats can use only approved HTTPS platform host
   ));
   // Unverified members using the ordinary allowlist do not inherit X/Twitter access.
   assert.throws(() => assertMessageLinksAllowed("https://x.com/example", true));
-  assert.throws(() => assertMessageLinksAllowed("https://x.com/example", true));
   assert.throws(() => assertMessageLinksAllowed("https://twitter.com/example", true));
   assert.throws(() => assertMessageLinksAllowed(
     "https://t.co/example", true, false, BIOMETRIC_APPROVED_HOSTS,
@@ -58,6 +57,8 @@ test("rejects unapproved domains, deceptive hosts, credentials and insecure sche
   for (const value of [
     "https://youtube.com.evil.example/path",
     "https://youtube.com.evil.com/path",
+    "https://іnstagram.com/reel", // Cyrillic i: must not spoof instagram.com.
+    "https://xn--80ak6aa92e.com/path", // IDN/punycode lookalike.
     "https://bit.ly/example",
     "http://youtube.com/watch?v=1",
     "https://user:pass@youtube.com/watch?v=1",
