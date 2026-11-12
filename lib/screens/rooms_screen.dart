@@ -109,9 +109,20 @@ class _RoomsScreenState extends State<RoomsScreen> {
                   ),
                 ],
               )
-            : FilledButton(
-                onPressed: _joining ? null : () => _join(room),
-                child: const Text('انضمام'),
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (room['isSuperAdmin'] == true)
+                    IconButton(
+                      tooltip: 'إدارة مشرفي الغرفة',
+                      onPressed: () => _openModeration(room),
+                      icon: const Icon(Icons.admin_panel_settings_outlined),
+                    ),
+                  FilledButton(
+                    onPressed: _joining ? null : () => _join(room),
+                    child: const Text('انضمام'),
+                  ),
+                ],
               ),
       ),
     );
