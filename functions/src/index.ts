@@ -1386,6 +1386,19 @@ export const getOwnerMemberDirectChats = onCall(async (request) => {
   }
 
   const targetUid = page.memberUid;
+  const auditLogId = await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "owner_member_direct_chat_list",
+    targetUid,
+    cursorChatId: page.pageToken,
+    reviewMode: "silent",
+    reviewScope: "direct_chat_metadata",
+    outcome: "requested",
+    ownerAuthTime: request.auth?.token.auth_time ?? null,
+    secondFactor: typeof request.auth?.token.firebase === "object" && request.auth?.token.firebase !== null
+      ? (request.auth.token.firebase as Record<string, unknown>).sign_in_second_factor ?? null
+      : null,
+  });
   const member = await db.collection("users").doc(targetUid).get();
   if (!member.exists) {
     throw new HttpsError("not-found", "ملف العضو غير موجود.");
@@ -1416,21 +1429,6 @@ export const getOwnerMemberDirectChats = onCall(async (request) => {
     ? pageDocs[pageDocs.length - 1].id
     : null;
 
-  const auditLogId = await appendOwnerReviewAuditEvent({
-    actorUid,
-    action: "owner_member_direct_chat_list",
-    targetUid,
-    cursorChatId: page.pageToken,
-    returnedCount: pageDocs.length,
-    hasMore,
-    reviewMode: "silent",
-    reviewScope: "direct_chat_metadata",
-    outcome: "requested",
-    ownerAuthTime: request.auth?.token.auth_time ?? null,
-    secondFactor: typeof request.auth?.token.firebase === "object" && request.auth?.token.firebase !== null
-      ? (request.auth.token.firebase as Record<string, unknown>).sign_in_second_factor ?? null
-      : null,
-  });
   await appendOwnerReviewAuditEvent({
     actorUid,
     action: "owner_member_direct_chat_list_result",
