@@ -60,6 +60,7 @@ class _ShopScreenState extends State<ShopScreen> {
     try {
       final response = await FirebaseFunctions.instance.httpsCallable('purchaseStoreItem').call({
         'itemId': itemId,
+        'expectedPriceCoins': price,
         'requestId': const Uuid().v4(),
         'expectedPriceCoins': price,
       });
@@ -182,6 +183,8 @@ class _ShopScreenState extends State<ShopScreen> {
                 final category = item['category'] as String? ?? 'feature';
                 final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
                 final duration = (item['durationDays'] as num?)?.toInt();
+                final canPurchase = item['purchaseEnabled'] == true &&
+                    item['fulfillmentReady'] == true;
                 return Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -208,14 +211,16 @@ class _ShopScreenState extends State<ShopScreen> {
                             ],
                             const Spacer(),
                             FilledButton(
-                              onPressed: _purchasingItemId == null ? () => _purchase(item) : null,
+                              onPressed: canPurchase && _purchasingItemId == null
+                                  ? () => _purchase(item)
+                                  : null,
                               child: _purchasingItemId == item['itemId']
                                   ? const SizedBox(
                                       width: 18,
                                       height: 18,
                                       child: CircularProgressIndicator(strokeWidth: 2),
                                     )
-                                  : const Text('شراء'),
+                                  : Text(canPurchase ? 'شراء' : 'غير متاح بعد'),
                             ),
                           ],
                         ),
