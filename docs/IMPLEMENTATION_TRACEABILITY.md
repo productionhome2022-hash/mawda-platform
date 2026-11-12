@@ -204,3 +204,14 @@ Add a dedicated workstream across the platform:
 | C6 | Quarantine, backup/restore, audit and emergency stop | Restore drill and destructive-operation tabletop exercise | Open |
 | C7 | Super Admin console UI and operations history | Device/accessibility tests and owner authorization matrix | Open |
 | C8 | Production runbook and staged release | Security/legal review and explicit owner approval | Open |
+
+## Continuous engineering validation and defect-response loop
+
+- The validation workflow runs on every push to `main` and the dedicated development branch `codex/mawda-full-platform-implementation`, on pull-request updates targeting `main`, and on manual dispatch.
+- Each run validates Flutter analysis, Flutter tests, and the release web build, plus Cloud Functions compilation/unit tests and Firestore/Storage emulator rules tests.
+- Superseded runs for the same concurrency group may be cancelled so the newest commit receives the relevant validation; each job has a bounded timeout.
+- A red or cancelled check is a development blocker: inspect the failing job and logs, reproduce the issue, fix it on the development branch, add or update a regression test, push the correction, and wait for a green run on the corrected head before marking the item complete.
+- Security-sensitive, financial, identity, privacy, data-deletion, and authorization changes require focused negative/abuse tests in addition to happy-path tests. A green CI run is necessary but not sufficient for production readiness.
+- Do not auto-merge, auto-deploy, or automatically perform destructive remediation after a failed check. Human review and explicit owner approval remain required for merge, deployment, and high-impact operations.
+- Daily project monitoring is a separate reporting mechanism; it does not perform code changes or imply a continuously running developer. Engineering work is performed in explicit, traceable sessions and commits.
+- **Current state:** push-triggered development validation has been configured in `.github/workflows/validate.yml`. Confirm the resulting GitHub Actions run on the new workflow commit and maintain green checks on every subsequent head; do not claim successful execution until GitHub reports it.
