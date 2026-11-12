@@ -531,16 +531,24 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     }
   }
 
-  Future<void> _reviewOwnerConversation(String chatId) async {
+  Future<void> _reviewOwnerConversation(
+    String chatId, {
+    String reviewMode = 'silent',
+    String? announcementMessageId,
+  }) async {
     if (_reviewingChatId != null) return;
     setState(() => _reviewingChatId = chatId);
     try {
-      final result = await _service.getOwnerDirectChatMessages(chatId);
+      final result = await _service.getOwnerDirectChatMessages(
+        chatId,
+        reviewMode: reviewMode,
+        announcementMessageId: announcementMessageId,
+      );
       if (!mounted) return;
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('مراجعة صامتة — قراءة فقط'),
+          title: Text(reviewMode == 'announced' ? 'مراجعة معلنة — قراءة فقط' : 'مراجعة صامتة — قراءة فقط'),
           content: SizedBox(
             width: 560,
             height: 520,
@@ -548,6 +556,8 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
               chatId: chatId,
               initialPage: result,
               service: _service,
+              reviewMode: reviewMode,
+              announcementMessageId: announcementMessageId,
             ),
           ),
           actions: [
@@ -627,14 +637,23 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
 
     try {
       final requestId = 'owner-review-${DateTime.now().microsecondsSinceEpoch}';
-      await _service.announceOwnerDirectChatReview(
+      final result = await _service.announceOwnerDirectChatReview(
         chatId: chatId,
         noticeText: noticeText,
         requestId: requestId,
       );
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم نشر إشعار المراجعة للطرفين وتوثيق العملية.')),
       );
+      final announcementMessageId = result['messageId'] as String?;
+      if (announcementMessageId != null) {
+        await _reviewOwnerConversation(
+          chatId,
+          reviewMode: 'announced',
+          announcementMessageId: announcementMessageId,
+        );
+      }
     } on FirebaseFunctionsException catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error.message ?? 'تعذر نشر إشعار المراجعة.')),
@@ -1238,11 +1257,15 @@ class OwnerChatReviewMessages extends StatefulWidget {
     required this.chatId,
     required this.initialPage,
     required this.service,
+    required this.reviewMode,
+    required this.announcementMessageId,
   });
 
   final String chatId;
   final Map<String, dynamic> initialPage;
   final SuperAdminSecurityService service;
+  final String reviewMode;
+  final String? announcementMessageId;
 
   @override
   State<OwnerChatReviewMessages> createState() => _OwnerChatReviewMessagesState();
@@ -1281,6 +1304,8 @@ class _OwnerChatReviewMessagesState extends State<OwnerChatReviewMessages> {
       final page = await widget.service.getOwnerDirectChatMessages(
         widget.chatId,
         pageToken: _nextPageToken,
+        reviewMode: widget.reviewMode,
+        announcementMessageId: widget.announcementMessageId,
       );
       if (!mounted) return;
       setState(() => _applyPage(page, prepend: true));
