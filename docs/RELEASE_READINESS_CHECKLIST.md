@@ -170,3 +170,18 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Raw face/voice media and biometric templates are minimized, encrypted, access-restricted, audited, and deleted on a documented schedule; no unrelated use, advertising, or model training.
 - [ ] Test spoof/replay/deepfake/injection, webhook forgery, UID/session mismatch, expiry/revocation, account recovery, duplicate reward attempts, deletion/withdrawal, unauthorized staff access, provider outage, false rejection, and ledger exactly-once behavior.
 - [ ] Member-facing badge wording accurately states the check completed and does not imply absolute fraud-proofing or permanent identity assurance.
+
+
+
+## Recurring email/biometric verification and member notice release gates
+
+- [ ] Registration form shows a prominent localized notice before submission: email ownership renewal every 90 days; optional biometric renewal every 30 days to retain biometric-gated permissions; expiry consequences; biometric data/provider/retention/rights; and 500/1,500 initial verification rewards are one-time only, not repeated on renewal.
+- [ ] Notice acknowledgement is recorded with notice/policy version and timestamp. Biometric consent is separate, explicit, and obtained at capture where legally required; optional biometric verification is not forced for basic registration.
+- [ ] Email verification lease expires exactly 90 days after server-confirmed success; fresh single-use email action link renews it. Email changes require verification of the new address. Historical provider emailVerified state cannot bypass the Mawadda lease.
+- [ ] Biometric verification lease expires exactly 30 days after final server-confirmed approval; all biometric-gated permissions, badge, and dependent link entitlements are disabled immediately at expiry/revocation until successful renewal.
+- [ ] Server time controls expiry and every backend authorization/public-read path enforces it; client clock, UI state, and stale caches cannot preserve access.
+- [ ] Just-in-time notice appears before initial verification and each renewal; successful verification shows exact expiry date/time.
+- [ ] Deduplicated reminders are sent 7, 3, and 1 days before expiry and at expiry; notification preferences/quiet hours are respected and a secure renewal route is provided.
+- [ ] Email expiry gates only features/actions explicitly requiring a current verified email; basic account access and stored data are not deleted by expiry alone.
+- [ ] Initial 500-coin email and 1,500-coin biometric rewards are each issued once per eligible account; renewals never issue another reward and expiry does not claw back a legitimately earned reward.
+- [ ] Test 90-/30-day boundaries, server/device clock mismatch, timezone display, email changes, expired/replayed renewal links, reminder deduplication, active-session expiry, cache invalidation, backend enforcement, localized notice/acknowledgement, and reward idempotency.
