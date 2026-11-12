@@ -1637,7 +1637,6 @@ export const verifyOwnerReviewAuditChain = onCall(async (request) => {
     const snapshot = headSequence === 0
       ? null
       : await db.collection("adminAuditLogs")
-          .where("auditChainId", "==", "owner-review-v1")
           .orderBy("auditSequence", "asc")
           .limit(headSequence)
           .get();
