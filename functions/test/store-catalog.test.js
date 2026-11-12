@@ -40,3 +40,35 @@ test("rejects unpublished, malformed, and unsafe-price items", () => {
     priceCoins: 100, durationDays: 0,
   }), null);
 });
+
+
+test("owner catalog input requires safe identifiers, prices, category and publication state", () => {
+  const { validateStoreCatalogItemInput } = require("../lib/store-catalog");
+  assert.deepEqual(validateStoreCatalogItemInput({
+    itemId: "vip-month",
+    name: "VIP لمدة شهر",
+    description: "عضوية شهرية.",
+    category: "vip",
+    priceCoins: 2500,
+    durationDays: 30,
+    sortOrder: 3,
+    active: true,
+  }), {
+    itemId: "vip-month",
+    name: "VIP لمدة شهر",
+    description: "عضوية شهرية.",
+    category: "vip",
+    priceCoins: 2500,
+    durationDays: 30,
+    sortOrder: 3,
+    active: true,
+  });
+  assert.throws(() => validateStoreCatalogItemInput({
+    itemId: "../bad", name: "عنصر", description: "", category: "vip",
+    priceCoins: 100, active: true,
+  }));
+  assert.throws(() => validateStoreCatalogItemInput({
+    itemId: "vip-month", name: "عنصر", description: "", category: "vip",
+    priceCoins: 0, active: true,
+  }));
+});
