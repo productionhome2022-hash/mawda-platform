@@ -26,7 +26,11 @@ import { createHash } from "node:crypto";
 import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { projectStoreCatalogItem, validateStoreCatalogItemInput } from "./store-catalog";
-import { calculateStorePurchaseBalance, isStoreEntitlementActive } from "./store-purchase";
+import {
+  calculateStorePurchaseBalance,
+  isStoreEntitlementActive,
+  isStorePurchasePriceCurrent,
+} from "./store-purchase";
 
 initializeApp();
 
@@ -1521,9 +1525,12 @@ export const purchaseStoreItem = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const itemId = request.data?.itemId;
   const requestId = request.data?.requestId;
+  const expectedPriceCoins = request.data?.expectedPriceCoins;
   if (typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
       typeof requestId !== "string" || requestId.length < 8 ||
-      requestId.length > 80 || !/^[A-Za-z0-9_-]+$/.test(requestId)) {
+      requestId.length > 80 || !/^[A-Za-z0-9_-]+$/.test(requestId) ||
+      typeof expectedPriceCoins !== "number" || !Number.isSafeInteger(expectedPriceCoins) ||
+      expectedPriceCoins <= 0) {
     throw new HttpsError("invalid-argument", "بيانات شراء العنصر غير صالحة.");
   }
 
@@ -1565,6 +1572,12 @@ export const purchaseStoreItem = onCall(async (request) => {
     const item = projectStoreCatalogItem(itemId, itemSnapshot.data() ?? {});
     if (!item) {
       throw new HttpsError("failed-precondition", "هذا العنصر غير منشور أو أن بيانات سعره غير صالحة.");
+    }
+    if (!isStorePurchasePriceCurrent(expectedPriceCoins, item.priceCoins)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "تغير سعر العنصر منذ تحميل الكتالوج. حدّث المتجر وراجع السعر قبل تأكيد الشراء.",
+      );
     }
     if (priorEntitlement.exists && isStoreEntitlementActive(priorEntitlement.data())) {
       throw new HttpsError("already-exists", "لديك هذا الاستحقاق فعالاً بالفعل.");
