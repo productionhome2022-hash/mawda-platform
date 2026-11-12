@@ -1777,10 +1777,21 @@ export const listMemberRooms = onCall(async (request) => {
     .where("uid", "==", uid)
     .limit(100)
     .get();
+  const membershipByRoom = new Map(
+    memberships.docs.flatMap((membership) => {
+      const roomRef = membership.ref.parent.parent;
+      return roomRef && roomRef.parent.id === "rooms"
+        ? [[roomRef.id, membership.data()] as const]
+        : [];
+    }),
+  );
   const joinedRoomRefs = memberships.docs.flatMap((membership) => {
     const roomRef = membership.ref.parent.parent;
     return roomRef && roomRef.parent.id === "rooms" ? [roomRef] : [];
   });
+  const isPlatformOwner = hasPlatformOwnerSession(
+    (request.auth?.token ?? {}) as Record<string, unknown>,
+  );
   const joinedSnapshots = joinedRoomRefs.length > 0
     ? await db.getAll(...joinedRoomRefs)
     : [];
@@ -1794,6 +1805,9 @@ export const listMemberRooms = onCall(async (request) => {
       memberCount: room.data()?.memberCount ?? 0,
       capacity: room.data()?.capacity ?? 0,
       isMember: true,
+      isRoomOwner: room.data()?.ownerUid === uid,
+      isModerator: membershipByRoom.get(room.id)?.role === "moderator",
+      isSuperAdmin: isPlatformOwner,
     }));
 
   const joinedIds = new Set(joined.map((room) => room.roomId));
