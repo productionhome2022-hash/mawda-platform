@@ -61,6 +61,7 @@ class _ShopScreenState extends State<ShopScreen> {
       final response = await FirebaseFunctions.instance.httpsCallable('purchaseStoreItem').call({
         'itemId': itemId,
         'requestId': const Uuid().v4(),
+        'expectedPriceCoins': price,
       });
       final result = Map<String, dynamic>.from(response.data as Map);
       if (!mounted) return;
