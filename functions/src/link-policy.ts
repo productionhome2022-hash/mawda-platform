@@ -14,6 +14,7 @@ export const BIOMETRIC_APPROVED_HOSTS = new Set([
 const DOMAIN_PATTERN = /(?:https?:\/\/|www\.)[^\s<>()]+|(?:[a-z0-9-]+\.)+(?:com|net|org|io|co|de|uk|fr|es|me|tv|app|dev|info|biz|xyz|online|site|live)(?:\/[^\s<>()]*)?/giu;
 const OBFUSCATION_PATTERN = /(?:youtube|instagram|facebook|twitter|x)\s*(?:\[.\]|\(\.\)|\{.\}|\s+dot\s+)\s*(?:com|org|net)/giu;
 const UNSAFE_SCHEME_PATTERN = /\b(?:javascript|data|vbscript|file|blob|intent|filesystem|chrome|about):/giu;
+const NON_WEB_SCHEME_PATTERN = /\b(?!(?:https?):\/\/)[a-z][a-z0-9+.-]*:\/+/giu;
 
 function cleanCandidate(value: string): string {
   return value.replace(/[.,!?;:]+$/g, "").replace(/[)\]}]+$/g, "");
@@ -49,7 +50,9 @@ export function assertMessageLinksAllowed(
 ): void {
   OBFUSCATION_PATTERN.lastIndex = 0;
   UNSAFE_SCHEME_PATTERN.lastIndex = 0;
-  if (OBFUSCATION_PATTERN.test(text) || UNSAFE_SCHEME_PATTERN.test(text)) {
+  NON_WEB_SCHEME_PATTERN.lastIndex = 0;
+  if (OBFUSCATION_PATTERN.test(text) || UNSAFE_SCHEME_PATTERN.test(text) ||
+      NON_WEB_SCHEME_PATTERN.test(text)) {
     throw new Error("MESSAGE_LINK_NOT_ALLOWED");
   }
   const matches = text.match(DOMAIN_PATTERN) ?? [];
