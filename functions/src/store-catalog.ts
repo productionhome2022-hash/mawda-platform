@@ -6,6 +6,8 @@ export type StoreCatalogItem = {
   priceCoins: number;
   durationDays?: number;
   sortOrder: number;
+  purchaseEnabled: boolean;
+  fulfillmentReady: boolean;
 };
 
 /** Projects only published, display-safe catalog fields. */
@@ -43,6 +45,8 @@ export function projectStoreCatalogItem(
     priceCoins: data.priceCoins,
     ...(typeof durationDays === "number" ? { durationDays } : {}),
     sortOrder,
+    purchaseEnabled: data.purchaseEnabled === true,
+    fulfillmentReady: data.fulfillmentReady === true,
   };
 }
 
@@ -70,5 +74,13 @@ export function validateStoreCatalogItemInput(input: unknown): ValidatedStoreCat
       sortOrder < -100000 || sortOrder > 100000) {
     throw new Error("INVALID_STORE_SORT_ORDER");
   }
-  return { ...projected, active: value.active, sortOrder };
+  // Catalog publishing alone must never enable charging. A product becomes
+  // purchasable only after its entitlement consumer and fulfillment tests ship.
+  return {
+    ...projected,
+    active: value.active,
+    sortOrder,
+    purchaseEnabled: false,
+    fulfillmentReady: false,
+  };
 }
