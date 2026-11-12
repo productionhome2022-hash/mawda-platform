@@ -135,6 +135,7 @@ Never fake functionality, balances, purchases, verification, availability, analy
 - A notice is not a substitute for trademark registration, legal advice, or proof of ownership.
 
 ## 14. Security and engineering rules
+- Recheck server-side account standing on every sensitive social action: suspended, banned, disabled, or unknown explicit account states cannot join rooms or send direct/room messages.
 
 - Default-deny Firestore/Storage rules; privileged writes through trusted backend.
 - No client-controlled admin/room-owner flags, coin arithmetic, pricing, commission, reward eligibility, or purchase verification.
