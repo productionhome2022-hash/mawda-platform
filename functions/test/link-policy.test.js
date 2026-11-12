@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { assertMessageLinksAllowed } = require("../lib/link-policy");
+const { assertMessageLinksAllowed, canSendApprovedPlatformLinks } = require("../lib/link-policy");
 
 test("ordinary room members cannot send any links", () => {
   assert.throws(() => assertMessageLinksAllowed("See https://youtube.com/watch?v=1", false), /MESSAGE_LINK_NOT_ALLOWED/);
@@ -13,6 +13,17 @@ test("approved roles and private chats can use only approved HTTPS platform host
   assert.doesNotThrow(() => assertMessageLinksAllowed("https://www.instagram.com/reel/abc", true));
   assert.doesNotThrow(() => assertMessageLinksAllowed("https://www.facebook.com/page", true));
   assert.doesNotThrow(() => assertMessageLinksAllowed("https://fb.watch/abc", true));
+  assert.doesNotThrow(() => assertMessageLinksAllowed("https://x.com/example", true));
+  assert.doesNotThrow(() => assertMessageLinksAllowed("https://twitter.com/example", true));
+});
+
+test("biometrically verified members receive the same free approved-link permission", () => {
+  assert.equal(canSendApprovedPlatformLinks({ isBiometricallyVerified: true }), true);
+  assert.equal(canSendApprovedPlatformLinks({ isBiometricallyVerified: false }), false);
+  assert.equal(canSendApprovedPlatformLinks({ isRoomOwner: true }), true);
+  assert.equal(canSendApprovedPlatformLinks({ isAuthorizedModerator: true }), true);
+  assert.equal(canSendApprovedPlatformLinks({ isPlatformOwner: true }), true);
+  assert.equal(canSendApprovedPlatformLinks({}), false);
 });
 
 test("rejects unapproved domains, deceptive hosts, credentials and insecure schemes", () => {
