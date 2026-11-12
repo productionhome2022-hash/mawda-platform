@@ -25,9 +25,28 @@ class WalletScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('محفظتي وسجل العمليات')),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: ledger.snapshots(),
-        builder: (context, snapshot) {
+      body: Column(
+        children: [
+          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance.collection('users').doc(userId).snapshots(),
+            builder: (context, balanceSnapshot) {
+              final balance = balanceSnapshot.data?.data()?['coins'];
+              final coins = balance is num ? balance.toInt() : null;
+              return Card(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: ListTile(
+                  leading: const Icon(Icons.account_balance_wallet_outlined, size: 32),
+                  title: const Text('رصيدك الحالي'),
+                  subtitle: Text(coins == null ? 'الرصيد غير متاح حالياً' : '$coins كوين'),
+                  trailing: const Icon(Icons.monetization_on_outlined),
+                ),
+              );
+            },
+          ),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: ledger.snapshots(),
+              builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -130,7 +149,10 @@ class WalletScreen extends StatelessWidget {
               );
             },
           );
-        },
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
