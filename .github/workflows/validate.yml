@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   flutter:
@@ -76,7 +76,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mawda-functions-lockfile-${{ github.sha }}
-          path: package-lock.json
+          path: functions/package-lock.json
           if-no-files-found: error
           retention-days: 3
       - name: Compile and test backend
@@ -98,6 +98,8 @@ jobs:
 
   persist-lockfiles:
     name: Persist generated dependency lockfiles
+    permissions:
+      contents: write
     needs: [flutter, functions]
     if: >-
       always() &&
@@ -128,6 +130,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          expected_head="${{ github.event.pull_request.head.sha }}"
+          actual_head="$(git rev-parse HEAD)"
+          if [ "$actual_head" != "$expected_head" ]; then
+            echo "PR head moved while validation was running; refusing to commit stale lockfiles."
+            exit 1
+          fi
           cp /tmp/mawda-locks/flutter/pubspec.lock pubspec.lock
           cp /tmp/mawda-locks/functions/package-lock.json functions/package-lock.json
           git config user.name "github-actions[bot]"
