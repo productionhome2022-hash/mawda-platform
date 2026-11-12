@@ -971,8 +971,8 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
     if (code === "INVALID_CHAT_ID") {
       throw new HttpsError("invalid-argument", "معرف المحادثة غير صالح.");
     }
-    if (code === "REVIEW_REASON_REQUIRED") {
-      throw new HttpsError("invalid-argument", "يجب تسجيل سبب واضح لمراجعة المحادثة (12 إلى 500 حرف).");
+    if (code === "INVALID_REVIEW_REASON") {
+      throw new HttpsError("invalid-argument", "معلومة التدقيق الاختيارية لا يمكن أن تتجاوز 500 حرف.");
     }
     throw new HttpsError("invalid-argument", "عدد الرسائل المطلوب غير صالح.");
   }
