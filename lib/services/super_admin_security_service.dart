@@ -19,6 +19,37 @@ class SuperAdminSecurityService {
     return Map<String, dynamic>.from(result.data as Map);
   }
 
+  Future<List<Map<String, dynamic>>> getOwnerStoreCatalog() async {
+    final result = await _functions.httpsCallable('getOwnerStoreCatalog').call();
+    final data = Map<String, dynamic>.from(result.data as Map);
+    return (data['items'] as List<dynamic>? ?? const [])
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
+  }
+
+  Future<void> setStoreCatalogItem({
+    required String itemId,
+    required String name,
+    required String description,
+    required String category,
+    required int priceCoins,
+    required int? durationDays,
+    required int sortOrder,
+    required bool active,
+  }) async {
+    await _functions.httpsCallable('setStoreCatalogItem').call({
+      'itemId': itemId,
+      'name': name,
+      'description': description,
+      'category': category,
+      'priceCoins': priceCoins,
+      if (durationDays != null) 'durationDays': durationDays,
+      'sortOrder': sortOrder,
+      'active': active,
+    });
+  }
+
   Future<Map<String, dynamic>> createRoom({
     required String name,
     required String kind,
