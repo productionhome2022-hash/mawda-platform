@@ -12,6 +12,7 @@ class SuperAdminScreen extends StatefulWidget {
 class _SuperAdminScreenState extends State<SuperAdminScreen> {
   final SuperAdminSecurityService _service = SuperAdminSecurityService();
   final TextEditingController _memberUidController = TextEditingController();
+  final TextEditingController _commissionPercentController = TextEditingController();
   Map<String, dynamic>? _overview;
   Map<String, dynamic>? _member;
   bool _loadingOverview = false;
@@ -19,6 +20,8 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   bool _updatingStatus = false;
   bool _registrationEnabled = false;
   bool _savingRegistrationPolicy = false;
+  bool _transferEnabled = false;
+  bool _savingTransferSettings = false;
   int _minimumAge = 16;
   String? _error;
 
@@ -31,6 +34,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   @override
   void dispose() {
     _memberUidController.dispose();
+    _commissionPercentController.dispose();
     super.dispose();
   }
 
@@ -42,6 +46,12 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
         _overview = result;
         final policy = result['registrationPolicy'] as Map<String, dynamic>? ?? {};
         _registrationEnabled = policy['enabled'] == true;
+        final transfer = result['transferSettings'] as Map<String, dynamic>? ?? {};
+        _transferEnabled = transfer['enabled'] == true;
+        final commissionBps = transfer['commissionBps'];
+        _commissionPercentController.text = commissionBps is num
+            ? (commissionBps.toDouble() / 100).toStringAsFixed(2)
+            : '0.00';
         final configuredAge = policy['minimumAge'];
         _minimumAge = configuredAge is num && configuredAge.toInt() >= 16 && configuredAge.toInt() <= 120
             ? configuredAge.toInt()
@@ -54,6 +64,39 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       if (mounted) setState(() => _error = 'تعذر الاتصال بغرفة العمليات.');
     } finally {
       if (mounted) setState(() => _loadingOverview = false);
+    }
+  }
+
+  Future<void> _saveTransferSettings() async {
+    if (_savingTransferSettings) return;
+    final percent = double.tryParse(_commissionPercentController.text.trim());
+    if (percent == null || !percent.isFinite || percent < 0 || percent >= 100) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('أدخل عمولة صحيحة من 0% إلى أقل من 100%.')),
+      );
+      return;
+    }
+    setState(() => _savingTransferSettings = true);
+    try {
+      await _service.setTransferCommission(
+        commissionBps: (percent * 100).round(),
+        enabled: _transferEnabled,
+      );
+      await _loadOverview();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم حفظ إعدادات تحويل الكوينز وتسجيلها في سجل التدقيق.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر حفظ إعدادات التحويل.')),
+      );
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر حفظ إعدادات التحويل؛ لم يتم تأكيد نجاح العملية.')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingTransferSettings = false);
     }
   }
 
@@ -327,6 +370,53 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                 ),
                 const Text(
                   'لا يسمح النظام بحد أدنى أقل من 16 عاماً. ويظل التحقق العمري الأقوى وضوابط حماية القاصرين شرطاً قبل الإطلاق.',
+                ),
+              ],
+            ),
+          ),
+        ),
+        const Divider(height: 32),
+        Text('التحكم المالي وتحويل الكوينز', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('السماح بتحويل الكوينز'),
+                  subtitle: const Text('إيقاف التحويلات الجديدة من الخادم فور حفظ الإعداد.'),
+                  value: _transferEnabled,
+                  onChanged: _savingTransferSettings ? null : (value) {
+                    setState(() => _transferEnabled = value);
+                  },
+                ),
+                TextField(
+                  controller: _commissionPercentController,
+                  enabled: !_savingTransferSettings,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'عمولة المنصة (%)',
+                    helperText: 'تُحفظ بوحدات basis points وبحساب صحيح دقيق.',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _savingTransferSettings ? null : _saveTransferSettings,
+                    icon: _savingTransferSettings
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.save_outlined),
+                    label: const Text('حفظ إعدادات التحويل'),
+                  ),
+                ),
+                const Text(
+                  'هذا التحكم يخص تحويلات الأعضاء فقط. شحن الكوينز والمشتريات والاسترداد لا تُعرض كعمليات فعّالة قبل بناء وربط بواباتها الموثوقة.',
+                  style: TextStyle(fontSize: 12),
                 ),
               ],
             ),
