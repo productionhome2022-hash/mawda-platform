@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   validateOwnerChatReviewRequest,
   validateOwnerChatParticipationRequest,
+  validateOwnerConversationPageRequest,
 } = require("../lib/owner-chat-review");
 
 const chatId = "a".repeat(64);
@@ -89,4 +90,51 @@ test("owner participation rejects malformed chat, message text, and idempotency 
   assert.throws(() => validateOwnerChatParticipationRequest({
     ...base, clientMessageId: "bad key",
   }), /INVALID_OWNER_MESSAGE_ID/);
+});
+
+
+test("owner message review accepts a validated continuation cursor", () => {
+  assert.deepEqual(
+    validateOwnerChatReviewRequest({ chatId, pageToken: "message_123" }),
+    { chatId, reason: null, mode: "silent", limit: 50, pageToken: "message_123" },
+  );
+  assert.equal(validateOwnerChatReviewRequest({ chatId }).pageToken, null);
+});
+
+test("owner message review rejects malformed continuation cursors", () => {
+  for (const pageToken of [42, {}, "contains spaces", "x".repeat(129)]) {
+    assert.throws(
+      () => validateOwnerChatReviewRequest({ chatId, pageToken }),
+      /INVALID_PAGE_TOKEN/,
+    );
+  }
+});
+
+test("owner conversation pagination is member-scoped and bounded", () => {
+  assert.deepEqual(
+    validateOwnerConversationPageRequest({
+      memberUid: " member-123 ",
+      limit: 20,
+      pageToken: "chat_456",
+    }),
+    { memberUid: "member-123", limit: 20, pageToken: "chat_456" },
+  );
+  assert.deepEqual(
+    validateOwnerConversationPageRequest({ memberUid: "member-123" }),
+    { memberUid: "member-123", limit: 50, pageToken: null },
+  );
+});
+
+test("owner conversation pagination rejects invalid member, page size and cursor", () => {
+  assert.throws(() => validateOwnerConversationPageRequest({ memberUid: " " }), /INVALID_MEMBER_UID/);
+  for (const limit of [0, 51, 1.2, "20"]) {
+    assert.throws(
+      () => validateOwnerConversationPageRequest({ memberUid: "member-123", limit }),
+      /INVALID_PAGE_SIZE/,
+    );
+  }
+  assert.throws(
+    () => validateOwnerConversationPageRequest({ memberUid: "member-123", pageToken: "bad token" }),
+    /INVALID_PAGE_TOKEN/,
+  );
 });
