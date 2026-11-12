@@ -27,6 +27,7 @@ test("file signature detection identifies PNG, JPEG, WebP, PDF, MP4, OGG and WAV
   assert.equal(detectMediaSignature(new TextEncoder().encode("RIFF0000WEBP")), "image/webp");
   assert.equal(detectMediaSignature(new TextEncoder().encode("%PDF-1.7")), "application/pdf");
   assert.equal(detectMediaSignature(new TextEncoder().encode("0000ftypisom")), "video/mp4");
+  assert.equal(detectMediaSignature(new TextEncoder().encode("0000ftypM4A ")), "audio/mp4");
   assert.equal(detectMediaSignature(new TextEncoder().encode("OggS0000")), "audio/ogg");
   assert.equal(detectMediaSignature(new TextEncoder().encode("RIFF0000WAVE")), "audio/wav");
   assert.equal(detectMediaSignature(new TextEncoder().encode("unknown")), null);
