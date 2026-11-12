@@ -1056,12 +1056,15 @@ export const getDirectMessages = onCall(async (request) => {
   }
   let chatId = request.data?.chatId;
   const peerUid = request.data?.peerUid;
+  const expectedPeerChatId = typeof peerUid === "string" && peerUid.length > 0 &&
+      peerUid.length <= 128 && peerUid !== uid
+    ? createDirectChatId(...([uid, peerUid].sort() as [string, string]))
+    : null;
   if (typeof chatId !== "string") {
-    if (typeof peerUid !== "string" || peerUid.length < 1 ||
-        peerUid.length > 128 || peerUid === uid) {
+    if (expectedPeerChatId === null) {
       throw new HttpsError("invalid-argument", "معرف المحادثة أو العضو الآخر غير صالح.");
     }
-    chatId = createDirectChatId(uid, peerUid);
+    chatId = expectedPeerChatId;
   }
   if (!/^[a-f0-9]{64}$/.test(chatId)) {
     throw new HttpsError("invalid-argument", "معرف المحادثة غير صالح.");
@@ -1070,7 +1073,7 @@ export const getDirectMessages = onCall(async (request) => {
   const chat = await chatRef.get();
   // A valid peer pair may open an empty conversation before the first message.
   if (!chat.exists) {
-    if (typeof peerUid === "string" && chatId === createDirectChatId(...[uid, peerUid].sort())) {
+    if (expectedPeerChatId !== null && chatId === expectedPeerChatId) {
       return { chatId, messages: [], peerLastReadAt: null };
     }
     throw new HttpsError("not-found", "المحادثة غير موجودة.");
@@ -1082,6 +1085,9 @@ export const getDirectMessages = onCall(async (request) => {
     throw new HttpsError("permission-denied", "ليست لديك صلاحية قراءة هذه المحادثة.");
   }
   const peer = participants.find((participant) => participant !== uid)!;
+  if (typeof peerUid === "string" && peerUid !== peer) {
+    throw new HttpsError("permission-denied", "معرف الطرف الآخر لا يطابق أطراف المحادثة.");
+  }
   const messages = await chatRef.collection("messages")
     .orderBy("createdAt", "desc")
     .limit(50)
@@ -1117,6 +1123,11 @@ export const getDirectMessages = onCall(async (request) => {
  */
 export const markDirectChatRead = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
+  const user = await db.collection("users").doc(uid).get();
+  if (!user.exists || user.data()?.profileCompleted !== true ||
+      !isMemberAccountInGoodStanding(user.data())) {
+    throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بتحديث إيصالات القراءة.");
+  }
   const chatId = request.data?.chatId;
   if (typeof chatId !== "string" || !/^[a-f0-9]{64}$/.test(chatId)) {
     throw new HttpsError("invalid-argument", "معرف المحادثة غير صالح.");
@@ -1150,7 +1161,9 @@ export const markDirectChatRead = onCall(async (request) => {
     ]);
     const freshParticipants = freshChat.data()?.participantUids;
     if (!freshChat.exists || !Array.isArray(freshParticipants) ||
-        !freshParticipants.includes(uid)) {
+        freshParticipants.length !== 2 || !freshParticipants.includes(uid) ||
+        freshParticipants.some((value) => typeof value !== "string") ||
+        freshParticipants[0] === freshParticipants[1]) {
       throw new HttpsError("permission-denied", "لم تعد عضواً في هذه المحادثة.");
     }
     const previousValue = existingReceipt.data()?.lastReadMessageCreatedAt;
