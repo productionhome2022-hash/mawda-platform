@@ -9,6 +9,7 @@ import { validateRegistrationPolicy } from "./registration-policy";
 import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
 import { validateMemberProfileUpdate } from "./member-profile-update";
 import {
+  canChangeMemberSocialLinkVisibility,
   projectMemberSocialLinks,
   validateMemberSocialLinks,
 } from "./member-social-links";
@@ -580,15 +581,26 @@ export const getMemberProfile = onCall(async (request) => {
     throw new HttpsError("permission-denied", "هذا الملف خاص ولا يمكن عرضه.");
   }
 
+  const biometricLinksActive = canExposeMemberSocialLinks(
+    memberData.profileCompleted === true,
+    memberData.biometricVerification,
+  );
+  const approvedLinks = biometricLinksActive
+    ? projectMemberSocialLinks(memberData.profileSocialLinks)
+    : {};
+  const hiddenProviders = Array.isArray(memberData.hiddenSocialLinks)
+    ? memberData.hiddenSocialLinks.filter((provider): provider is string =>
+        provider === "instagram" || provider === "x" || provider === "facebook" || provider === "whatsapp")
+    : [];
+  const visibleLinks = viewerUid === targetUid
+    ? approvedLinks
+    : Object.fromEntries(
+        Object.entries(approvedLinks).filter(([provider]) => !hiddenProviders.includes(provider)),
+      );
   const profile = projectPublicMemberProfile(targetUid, {
     ...memberData,
     profileVisibility: "public",
-    approvedSocialLinks: canExposeMemberSocialLinks(
-      memberData.profileCompleted === true,
-      memberData.biometricVerification,
-    )
-      ? projectMemberSocialLinks(memberData.profileSocialLinks)
-      : {},
+    approvedSocialLinks: visibleLinks,
   });
   if (!profile) {
     throw new HttpsError("permission-denied", "هذا الملف خاص ولا يمكن عرضه.");
@@ -597,10 +609,8 @@ export const getMemberProfile = onCall(async (request) => {
     ? {
         ...profile,
         profileVisibility: memberData.profileVisibility === "public" ? "public" : "private",
-        canManageSocialLinks: canExposeMemberSocialLinks(
-          memberData.profileCompleted === true,
-          memberData.biometricVerification,
-        ),
+        canManageSocialLinks: biometricLinksActive,
+        hiddenSocialLinks: hiddenProviders,
       }
     : profile;
 });
@@ -716,8 +726,14 @@ export const setMemberProfileSocialLinks = onCall(async (request) => {
         "تتطلب إدارة روابط الملف إكمال الملف الشخصي وتوثيقاً بيومترياً نشطاً للحساب نفسه.",
       );
     }
+    const allowedProviders = Object.keys(links);
+    const hiddenSocialLinks = Array.isArray(data.hiddenSocialLinks)
+      ? data.hiddenSocialLinks.filter((provider): provider is string =>
+          typeof provider === "string" && allowedProviders.includes(provider))
+      : [];
     transaction.update(userRef, {
       profileSocialLinks: links,
+      hiddenSocialLinks,
       updatedAt: FieldValue.serverTimestamp(),
     });
     const auditRef = db.collection("memberProfileAudit").doc();
@@ -729,6 +745,54 @@ export const setMemberProfileSocialLinks = onCall(async (request) => {
     });
   });
   return { savedProviders: Object.keys(links).sort() };
+});
+
+
+/** Per-link privacy control. Hiding is always permitted; revealing requires active verification. */
+export const setMemberProfileSocialLinkVisibility = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const provider = request.data?.provider;
+  const hidden = request.data?.hidden;
+  const allowedProviders = ["instagram", "x", "facebook", "whatsapp"];
+  if (typeof provider !== "string" || !allowedProviders.includes(provider) || typeof hidden !== "boolean") {
+    throw new HttpsError("invalid-argument", "إعداد خصوصية رابط التواصل غير صالح.");
+  }
+
+  const userRef = db.collection("users").doc(uid);
+  await db.runTransaction(async (transaction) => {
+    const member = await transaction.get(userRef);
+    const data = member.data() ?? {};
+    if (!member.exists || data.profileCompleted !== true) {
+      throw new HttpsError("failed-precondition", "يجب إكمال الملف الشخصي أولاً.");
+    }
+    const links = projectMemberSocialLinks(data.profileSocialLinks);
+    if (!links[provider as keyof typeof links]) {
+      throw new HttpsError("not-found", "رابط التواصل المطلوب غير موجود.");
+    }
+    if (!canChangeMemberSocialLinkVisibility(hidden, data.biometricVerification)) {
+      throw new HttpsError("failed-precondition", "إظهار الرابط يتطلب توثيقاً بيومترياً نشطاً.");
+    }
+
+    const currentHidden = Array.isArray(data.hiddenSocialLinks)
+      ? data.hiddenSocialLinks.filter((value): value is string =>
+          typeof value === "string" && allowedProviders.includes(value))
+      : [];
+    const nextHidden = hidden
+      ? Array.from(new Set([...currentHidden, provider]))
+      : currentHidden.filter((value) => value !== provider);
+    transaction.update(userRef, {
+      hiddenSocialLinks: nextHidden,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    const auditRef = db.collection("memberProfileAudit").doc();
+    transaction.create(auditRef, {
+      memberUid: uid,
+      action: hidden ? "member_profile_social_link_hidden" : "member_profile_social_link_revealed",
+      provider,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { provider, hidden };
 });
 
 
