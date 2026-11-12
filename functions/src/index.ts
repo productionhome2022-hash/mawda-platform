@@ -10,6 +10,7 @@ import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profi
 import { validateMemberProfileUpdate } from "./member-profile-update";
 import { validateDirectMessageInput } from "./direct-message";
 import { hasActiveBiometricVerification } from "./biometric-verification";
+import { isMemberAccountInGoodStanding } from "./member-access";
 import {
   assertMessageLinksAllowed,
   BIOMETRIC_APPROVED_HOSTS,
@@ -706,7 +707,7 @@ export const sendDirectMessage = onCall(async (request) => {
         throw new HttpsError("invalid-argument", "الروابط غير مسموحة لهذه العضوية أو أن صيغة الرابط غير آمنة.");
       }
       if (sender.profileCompleted !== true || recipient.profileCompleted !== true ||
-          sender.isBanned === true || recipient.isBanned === true) {
+          !isMemberAccountInGoodStanding(sender) || !isMemberAccountInGoodStanding(recipient)) {
         throw new HttpsError("permission-denied", "لا يمكن إرسال الرسالة إلى هذا الحساب.");
       }
       const senderAge = sender.age;
@@ -882,6 +883,9 @@ export const sendRoomMessage = onCall(async (request) => {
     }
     if (!membership.exists) {
       throw new HttpsError("permission-denied", "يجب الانضمام إلى الغرفة قبل إرسال الرسائل.");
+    }
+    if (!member.exists || !isMemberAccountInGoodStanding(member.data())) {
+      throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بإرسال الرسائل حالياً.");
     }
     const roomData = room.data() ?? {};
     const isRoomOwner = roomData.ownerUid === uid;
@@ -1112,6 +1116,9 @@ export const joinRoom = onCall(async (request) => {
     }
     if (!user.exists || user.data()?.profileCompleted !== true) {
       throw new HttpsError("failed-precondition", "يجب إكمال العضوية قبل دخول الغرف.");
+    }
+    if (!isMemberAccountInGoodStanding(user.data())) {
+      throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بدخول الغرف حالياً.");
     }
     const data = room.data()!;
     const invited = Array.isArray(data.invitedUids) && data.invitedUids.includes(uid);
