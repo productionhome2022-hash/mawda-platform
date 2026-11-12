@@ -116,7 +116,7 @@ This checklist is a release gate, not a statement that the listed work is comple
 
 ### Free biometric-verification link entitlement release gates
 
-- [ ] A trusted biometric verification workflow is implemented and independently tested; a client cannot set or forge `biometricVerification.status = "verified"`.
+- [ ] A trusted biometric verification workflow is implemented and independently tested; a client cannot set or forge status, expiry, or revocation fields; eligibility requires a future server-owned `expiresAt` and no `revokedAt`.
 - [ ] The entitlement is free and available in direct messages, public-room chats, and rented-private-room chats only while the server-owned biometric verification remains valid.
 - [ ] Expired, revoked, failed, or pending biometric status immediately loses the link entitlement; tests cover stale state, cross-account attempts, and status changes.
 - [ ] Approved destinations include YouTube, Facebook, Instagram, and X/Twitter official domains (including youtu.be and youtube-nocookie.com). Shorteners such as `t.co` remain blocked until safe redirect verification is implemented.
