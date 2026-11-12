@@ -1,0 +1,162 @@
+# دستور مودة | MAWADDA Product Constitution
+
+**Status:** Approved product baseline; implementation and release readiness are tracked separately.
+**Product name:** مودة | MAWADDA
+**Primary tagline:** حين تلتقي القلوب… تبدأ الحكايات.
+**English tagline:** Where Hearts Find Their Story.
+
+This document is the highest-level product and engineering reference for Mawadda. Every feature, UI flow, backend service, data model, security rule, test, operational procedure, and release decision must align with this constitution and the approved amendments recorded in the project. If an implementation conflicts with it, stop and reconcile the conflict before shipping. A documented requirement is not proof of implementation.
+
+## 1. Mission and product principles
+
+Mawadda is a multilingual, cross-platform social community for friendship, purposeful connection, and serious relationships, including dating and marriage goals where lawful and age-appropriate. Build a distinctive, trustworthy, elegant, accessible, and culturally respectful experience.
+
+Priorities, in order:
+1. Safety, privacy, dignity, consent, and legal compliance.
+2. Correctness of identity, authorization, financial records, and data lifecycle.
+3. Reliability, accessibility, performance, and understandable UX.
+4. Coherent product experience and visual quality.
+5. Growth and monetization only when transparent and non-manipulative.
+
+Never fake functionality, balances, purchases, verification, availability, analytics, or completion. Do not use dark patterns, deceptive boosts, undisclosed surveillance, plaintext passwords, or client-controlled authority.
+
+## 2. Languages, platforms, and adaptive experience
+
+- Arabic, English, French, and Spanish; full RTL/LTR handling including mixed-direction text, dates, numbers, and accessibility labels.
+- Target Android phones/tablets, iPhone/iPad, Windows, macOS, Linux, and modern web browsers.
+- Design adaptively for screen size, aspect ratio, orientation, input method, and platform conventions; do not merely scale a phone layout.
+- Verify touch, mouse, keyboard, portrait/landscape, screen readers, contrast, reduced motion, network failure, and low-performance devices.
+- Do not claim platform support until that platform has a successful build and meaningful smoke tests.
+
+## 3. Brand and visual identity
+
+- Arabic brand: مودة; Latin brand: MAWADDA.
+- Core palette: deep burgundy and champagne gold, supported by pink, crystal cyan, and royal blue.
+- Visual language: refined, warm, cinematic, balanced glassmorphism; maintain readability and performance.
+- Logo concept: sculptural intertwined flowing paths forming a heart-like meeting symbol, not a flat generic heart; provide simplified vector/app-icon variants and high-quality hero artwork.
+- Intro motion: paths meet, form the symbol, pulse, then reveal name/tagline; provide skip and reduced-motion behavior.
+- Shared themes: Romantic, Modern, Classic; available without gender stereotyping.
+- Shared background library may include Moonlight & Silk, Rose & Heart-light, Royal Terrace at Sunset, and Crystal Cyan/Blue Moonlight.
+- One-to-one chats and rented public/private rooms retain their own independent backgrounds; general romantic backgrounds must not overwrite them.
+
+## 4. Launch background and background management
+
+- The exact approved launch background must be bundled locally and serve as the stable fallback whenever a remotely managed background fails, is unavailable, invalid, or offline.
+- No blank surface and no unrelated silent substitution on failure.
+- A replacement fallback requires explicit owner approval and publication through the reviewed, versioned workflow.
+- Owner background management must support approved placement targeting, upload/replace/select, previews for phone/tablet/desktop and portrait/landscape, crop/focal point, contrast overlays, reduced motion, optimized responsive assets, fallback verification, draft/preview/publish/disable/rollback, and audit history.
+- Restrict storage paths, file types, dimensions, sizes, ownership, and publication. No arbitrary remote URLs or client-side privileged writes.
+- Global backgrounds never override private-chat or rented-room backgrounds.
+
+## 5. Accounts, registration, and member profiles
+
+- Support registration, sign-in, sign-out, guest/onboarding flows where approved, email verification, password reset, and secure account recovery.
+- A verified identity is not automatically a completed member profile.
+- Profile fields: full name, unique username, age, profession, Arab country, region, gender, marital status, bio (maximum 500 characters), interests, and structured goals.
+- Profile editing, privacy, visibility, media, and username reservation must be server-validated and tested.
+- Approved email-verification reward: 500 coins once only, atomically linked to the verified account and ledger.
+- Registration is fail-closed until explicitly enabled by the owner. Minimum registration age cannot be below 16; romantic dating/marriage goals are 18+.
+- Self-declared age is not robust age assurance. Stronger age assurance, minor safety, market-specific legal review, and safeguarding are launch gates.
+- Optional biometric verification proposal: consent-based voice liveness (~20 seconds) and moving selfie (3–5 seconds); never infer gender from voice. Minimize, encrypt, restrict, and define retention/deletion before implementation.
+
+## 6. Social content and discovery
+
+- Profiles, posts, photos, videos, albums, comments, reactions, sharing, saving, stories (24 hours), followers/friends, visitor analytics, and privacy controls.
+- Discovery should use transparent, explainable signals and user controls; compatibility summaries must not claim scientific certainty.
+- Boosted discovery must be clearly labeled as paid promotion.
+- Add icebreakers, daily prompts, interest-based discovery, events, and creator tools without manipulative engagement patterns.
+- Media access, visibility, moderation, reporting, retention, and deletion are enforced server-side.
+
+## 7. Messaging, notifications, and safety
+
+- Direct messages and group/room messaging with participant authorization, request/accept controls where applicable, pagination, delivery/read receipts, notification preferences, and push notifications.
+- Text, voice messages, stickers, sounds, images, GIFs, and video according to role, room policy, and validated limits.
+- No message body in notification previews by default.
+- Blocks, reports, appeals, moderation cases, and safety workflows must be usable and auditable.
+- Adult/minor private-contact safeguards must be enforced on the server, not only hidden in UI.
+- No covert unrestricted chat surveillance. Any exceptional safety review must be disclosed, case-scoped, least-privilege, justified, and audited; no impersonation.
+
+## 8. Rooms, events, and communities
+
+- Owner-created public rooms and rented private rooms with capacities 5, 10, 25, 100, and up to 1,000 where infrastructure and moderation capacity justify it.
+- Configurable rental price/duration, scoped moderators, invitations, member controls, room-specific backgrounds, and room-specific finance.
+- Public-room media permissions: members may use text, voice messages, stickers, and sounds; moderators may use approved static/animated images; owners have broader approved media permissions.
+- Private-room media may include voice/audio/image/GIF/video subject to validation and safety controls.
+- Audio maximum 1 minute; video maximum 5 minutes; image maximum 5 MB; GIF maximum 5 MB, subject to server-side enforcement and later security review.
+- Events, polls, contributions, statistics, supporter rankings, and room leaderboards.
+- Room rank derives from authentic activity and coin contribution, not undisclosed paid ranking manipulation.
+- Rental billing, moderator assignment/revocation, mute/remove, event controls, and financial records require trusted backend authorization and audit.
+
+## 9. Wallet, coins, transfers, and rewards
+
+- All balances and financial mutations are server-authoritative. Never trust client balances, prices, commissions, eligibility, or purchase claims.
+- Coin transfer uses a quote and atomic transaction: sender gross debit, recipient net credit, platform fee, and immutable ledger records linked by one transfer ID.
+- Sender history shows gross amount, fee, recipient identifier, and net delivered. Recipient history shows net received, sender identifier, transfer ID, and timestamp.
+- Example configurable commission: 20%; a 1,000-coin transfer yields 800 to recipient and 200 platform fee. This is an example, not a hardcoded rate.
+- Idempotency, stale-quote rejection, replay safety, reconciliation, and auditability are mandatory.
+- Coin packs and custom coin requests require owner-configured offers and verified payment before credit. Purchases must use platform-compliant payment verification.
+- Rewards include daily attendance, hourly community-density rewards, six-hour level progression, seven consecutive-day streaks, and clearly disclosed ad rewards. Every reward is configurable, anti-fraud protected, and exactly-once.
+- Ads must disclose conditions and time requirements; merely opening an ad must not count as completion.
+- No real-money purchase or production balance until payment, fraud, refund, reconciliation, and legal controls are tested.
+
+## 10. Stores, premium, and entitlements
+
+- Stores: profile features, coin packs, titles/badges, premium benefits, and biometric elite features where approved and lawful.
+- Owner-configurable prices, durations, limits, categories, availability, and entitlement rules.
+- Approved premium features: animated avatar frames; colored/animated usernames; advanced profile analytics; professional profile layout and pinned sections; boosted discovery with clear labeling; profile themes/backgrounds; visitor greeting; VIP memberships/badges/tiers; hide coins; controlled ghost mode with audited identity access.
+- Entitlements must be server-verified, time-bounded where applicable, revocable, and consistent across devices. UI visibility alone never grants a paid benefit.
+
+## 11. Media retention and storage
+
+- Proposed lifecycle: chat/room media deleted after 4 hours; profile/album images after 7 days; avatar/cover images after 30 days; stories after 24 hours.
+- Retention jobs must be server-side, observable, retryable, and tested. Communicate clearly that downloaded or externally copied media cannot be guaranteed to disappear.
+- Validate MIME, actual file content, size, dimensions, ownership, malware/content policy, access, and retention. Default-deny Storage until secure upload/download flows exist.
+
+## 12. Super Admin and platform governance
+
+- The platform owner requires server-verified `platformOwner` claim, MFA/step-up verification, session freshness, secure recovery, least privilege, and immutable audit records.
+- Owner console roadmap: member lookup and account controls; registration and age policy; wallet/coin commission and reconciliation; coin packs and stores; premium entitlements; rooms and rentals; moderation, reports, appeals, blocks; platform settings and feature flags; notifications; advertising; analytics and health; backups/recovery; incidents; localization; brand/content/identity; backgrounds and visual assets.
+- Account recovery must use secure reset or temporary credentials with forced change; never expose existing passwords.
+- Emergency freeze, session revocation, audit review, and recovery procedures must be designed and tested.
+- Administrative authority is absolute only within lawful, disclosed, secure, auditable platform governance—not unrestricted covert access.
+
+## 13. Owner-managed brand and content
+
+- Dedicated owner console section for platform identity and approved public content.
+- Edit approved descriptions/about text in Arabic, English, French, and Spanish.
+- Manage logo variants and approved visual assets; support drafts, preview, publish, rollback, and audit.
+- Manage official Facebook, Instagram, WhatsApp, and X links. Links remain hidden/disabled until real official URLs are supplied and explicitly approved. Never invent URLs.
+- Legal/copyright notice currently approved for display:
+  "© 2026 جميع الحقوق القانونية والتجارية والتقنية محفوظة لصالح مجموعة Production Home Company 2022. يُمنع نسخ أو إعادة استخدام أو استغلال أو تعديل أي جزء من المنصة أو هويتها أو محتواها دون إذن كتابي مسبق من أصحاب الحقوق."
+- A notice is not a substitute for trademark registration, legal advice, or proof of ownership.
+
+## 14. Security and engineering rules
+
+- Default-deny Firestore/Storage rules; privileged writes through trusted backend.
+- No client-controlled admin/room-owner flags, coin arithmetic, pricing, commission, reward eligibility, or purchase verification.
+- Validate inputs, enforce authorization at every callable/service boundary, rate-limit abuse, protect idempotency, and audit sensitive operations.
+- Never commit credentials, private keys, service-account files, tokens, or production secrets.
+- Use dependency lockfiles, reproducible toolchains, code review, static analysis, unit/integration/emulator tests, security scanning, monitoring, backups, and recovery drills.
+- Keep production and test environments separated. Never run owner bootstrap or deploy without explicit authorization and independently verified target.
+
+## 15. Release and quality gates
+
+- A green CI run proves only the checks included in that run and commit; it does not prove production readiness.
+- Test Android/iOS/tablets/Windows/macOS/Linux/web, portrait/landscape, RTL/LTR, accessibility, network failures, performance, privacy, and security.
+- Verify Firebase project/app configuration, auth providers, domains, Firestore, Storage, Functions, Hosting, owner claim, and MFA in a non-production environment first.
+- Complete age assurance/minor safety, reporting/blocking/appeals, moderation, legal review, monitoring, backups, and incident response before public launch.
+- Merge to `main` and deploy to production only after separate explicit owner approvals.
+
+## 16. Current known implementation blockers (living section)
+
+At the time this constitution was added, the repository's `.firebaserc` selects `mawda-app-2026`, while `lib/firebase_options.dart` still contains placeholder-looking app identifiers/API key values and the different project ID `mawda-platform`. Regenerate from the verified Firebase app registrations; never fabricate values.
+
+The root `pubspec.lock` and `functions/package-lock.json` were absent at the last repository inspection. Add reviewed lockfiles and enforce deterministic installation in CI.
+
+The real `platformOwner` claim has not been provisioned and the production MFA flow has not been verified. The owner bootstrap script is prepared but has not been run against Firebase.
+
+Several product areas remain partial or unimplemented: complete DM and notification UX, media workflows, full room lifecycle and voice/video/rental billing, stores and verified purchases, full owner console, identity/background management UI, real-device and cross-platform verification, monitoring and recovery drills.
+
+The launch fallback background is an approved requirement but the final launch artwork has not yet been selected/bundled and verified.
+
+This section must be updated with evidence as work progresses; never convert a planned requirement into a completed claim without implementation and test evidence.
