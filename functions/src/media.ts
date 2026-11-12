@@ -266,36 +266,49 @@ export const listOwnerMediaAssets = onCall(async (request) => {
 export const getOwnerMediaInspectionUrl = onCall(async (request) => {
   const actorUid = await requireSoleOwnerForMediaReview(request, "owner_media_inspection_attempt");
   const mediaId = typeof request.data?.mediaId === "string" ? request.data.mediaId : "";
-  if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
-    throw new HttpsError("invalid-argument", "معرف الملف غير صالح.");
+  try {
+    if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
+      throw new HttpsError("invalid-argument", "معرف الملف غير صالح.");
+    }
+    const assetRef = db.collection("mediaAssets").doc(mediaId);
+    const snapshot = await assetRef.get();
+    if (!snapshot.exists) throw new HttpsError("not-found", "الملف غير موجود.");
+    const asset = snapshot.data()!;
+    if (!["pending_security_scan", "security_approved"].includes(String(asset.status))) {
+      throw new HttpsError("failed-precondition", "الملف غير متاح للفحص في حالته الحالية.");
+    }
+    const file = bucket.file(String(asset.objectPath));
+    const [metadata] = await file.getMetadata();
+    if (String(metadata.generation) !== String(asset.storageGeneration)) {
+      throw new HttpsError("failed-precondition", "تغير إصدار الملف؛ أوقف الوصول احترازياً.");
+    }
+    const expiresAt = Date.now() + OWNER_DOWNLOAD_URL_AGE_MS;
+    const [downloadUrl] = await file.getSignedUrl({
+      version: "v4",
+      action: "read",
+      expires: expiresAt,
+      responseDisposition: "attachment",
+    });
+    await auditMediaAccess({
+      actorUid,
+      mediaId,
+      action: "owner_media_inspection_url_issued",
+      outcome: "success",
+      objectPath: asset.objectPath,
+      storageGeneration: String(asset.storageGeneration),
+      expiresAt: new Date(expiresAt),
+    });
+    return { mediaId, downloadUrl, expiresAt };
+  } catch (error) {
+    // Every authenticated owner inspection attempt is recorded, including invalid,
+    // missing, stale-generation and storage failures. Audit failure blocks the call.
+    await auditMediaAccess({
+      actorUid,
+      mediaId: mediaId || null,
+      action: "owner_media_inspection_result",
+      outcome: "denied_or_failed",
+      failureCode: error instanceof HttpsError ? error.code : "storage_or_internal_error",
+    });
+    throw error;
   }
-  const assetRef = db.collection("mediaAssets").doc(mediaId);
-  const snapshot = await assetRef.get();
-  if (!snapshot.exists) throw new HttpsError("not-found", "الملف غير موجود.");
-  const asset = snapshot.data()!;
-  if (!["pending_security_scan", "security_approved"].includes(String(asset.status))) {
-    throw new HttpsError("failed-precondition", "الملف غير متاح للفحص في حالته الحالية.");
-  }
-  const file = bucket.file(String(asset.objectPath));
-  const [metadata] = await file.getMetadata();
-  if (String(metadata.generation) !== String(asset.storageGeneration)) {
-    throw new HttpsError("failed-precondition", "تغير إصدار الملف؛ أوقف الوصول احترازياً.");
-  }
-  const expiresAt = Date.now() + OWNER_DOWNLOAD_URL_AGE_MS;
-  const [downloadUrl] = await file.getSignedUrl({
-    version: "v4",
-    action: "read",
-    expires: expiresAt,
-    responseDisposition: "attachment",
-  });
-  await auditMediaAccess({
-    actorUid,
-    mediaId,
-    action: "owner_media_inspection_url_issued",
-    outcome: "success",
-    objectPath: asset.objectPath,
-    storageGeneration: String(asset.storageGeneration),
-    expiresAt: new Date(expiresAt),
-  });
-  return { mediaId, downloadUrl, expiresAt };
 });
