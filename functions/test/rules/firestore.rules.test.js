@@ -62,6 +62,19 @@ test("a member can read only their own profile", async () => {
   await assertFails(getDoc(doc(bob, "users/alice")));
 });
 
+test("members cannot self-assign biometric verification or mutate server-managed profiles", async () => {
+  const alice = env.authenticatedContext("alice").firestore();
+
+  await assertFails(setDoc(doc(alice, "users/alice"), {
+    uid: "alice",
+    biometricVerification: { status: "verified" },
+  }, { merge: true }));
+  await assertFails(setDoc(doc(alice, "users/alice"), {
+    biometricVerification: { status: "verified" },
+    platformOwner: true,
+  }, { merge: true }));
+});
+
 test("a member can read their own wallet ledger but cannot write it", async () => {
   const alice = env.authenticatedContext("alice").firestore();
   const bob = env.authenticatedContext("bob").firestore();
