@@ -29,3 +29,10 @@ test("rejects common dot obfuscation", () => {
   assert.throws(() => assertMessageLinksAllowed("youtube[.]com/watch", true), /MESSAGE_LINK_NOT_ALLOWED/);
   assert.throws(() => assertMessageLinksAllowed("instagram dot com/reel", true), /MESSAGE_LINK_NOT_ALLOWED/);
 });
+
+test("platform owner may send links to any domain using safe web schemes", () => {
+  assert.doesNotThrow(() => assertMessageLinksAllowed("https://example.org/path", false, true));
+  assert.doesNotThrow(() => assertMessageLinksAllowed("http://news.example.net", false, true));
+  assert.throws(() => assertMessageLinksAllowed("javascript:alert(1)", false, true), /MESSAGE_LINK_NOT_ALLOWED/);
+  assert.throws(() => assertMessageLinksAllowed("https://user:pass@example.org", false, true), /MESSAGE_LINK_NOT_ALLOWED/);
+});
