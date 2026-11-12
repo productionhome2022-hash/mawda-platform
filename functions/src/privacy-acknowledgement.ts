@@ -1,6 +1,7 @@
 export const PRIVACY_POLICY_VERSION = "2026-11-12.1";
 export const PRIVACY_POLICY_SHA256 =
   "196df486af97258e3caa12edb1f2a125f5a0e7634549811d32286932ceccfd8c";
+export const PRIVACY_POLICY_HASH = PRIVACY_POLICY_SHA256;
 
 export type PrivacyAcknowledgement = {
   policyVersion: string;
