@@ -61,3 +61,14 @@ export function detectMediaSignature(bytes: Uint8Array): string | null {
   if (bytes.length >= 2 && bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0) return "audio/mpeg";
   return null;
 }
+
+
+/** Firebase Auth's signed token is the sole source for member/anonymous-guest classification. */
+export function mediaUploaderTypeFromToken(token: Record<string, unknown>): "member" | "guest" {
+  const firebase = token.firebase;
+  if (firebase && typeof firebase === "object" && !Array.isArray(firebase) &&
+      (firebase as Record<string, unknown>).sign_in_provider === "anonymous") {
+    return "guest";
+  }
+  return "member";
+}
