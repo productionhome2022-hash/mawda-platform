@@ -12,6 +12,7 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Change CI dependency installation to lockfile-enforcing commands (`flutter pub get --enforce-lockfile` and `npm ci`) after the lockfiles are committed.
 - [x] Pin Flutter to 3.47.9 and Node to 20 in validation/deployment workflows.
 - [x] Require manual production deployment dispatch with an explicit approval input; deployment repeats Flutter, backend, and Firestore/Storage emulator validation before Hosting deploy.
+- [x] Block Hosting deployment while the CLI target, FlutterFire project ID, or generated Firebase app identifiers are mismatched/placeholders.
 - [ ] Commit dependency lockfiles and move installation to lockfile-enforcing commands.
 - [ ] Re-run all checks against the final release candidate commit.
 
