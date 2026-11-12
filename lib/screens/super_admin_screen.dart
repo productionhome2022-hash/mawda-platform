@@ -18,6 +18,9 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   bool _loadingOverview = false;
   bool _searching = false;
   bool _updatingStatus = false;
+  bool _loadingOwnerConversations = false;
+  String? _reviewingChatId;
+  List<Map<String, dynamic>> _ownerConversations = [];
   bool _registrationEnabled = false;
   bool _savingRegistrationPolicy = false;
   bool _transferEnabled = false;
@@ -444,6 +447,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     setState(() {
       _searching = true;
       _member = null;
+      _ownerConversations = [];
     });
     try {
       final result = await _service.getMemberSummary(uid);
@@ -457,6 +461,87 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       if (mounted) setState(() => _error = 'تعذر البحث عن العضو.');
     } finally {
       if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  Future<void> _loadOwnerConversations() async {
+    final memberUid = _member?['uid'] as String?;
+    if (memberUid == null || _loadingOwnerConversations) return;
+    setState(() => _loadingOwnerConversations = true);
+    try {
+      final conversations = await _service.getOwnerMemberDirectChats(memberUid);
+      if (mounted) setState(() {
+        _ownerConversations = conversations;
+        _error = null;
+      });
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل محادثات العضو.');
+    } catch (_) {
+      if (mounted) setState(() => _error = 'تعذر تحميل محادثات العضو.');
+    } finally {
+      if (mounted) setState(() => _loadingOwnerConversations = false);
+    }
+  }
+
+  Future<void> _reviewOwnerConversation(String chatId) async {
+    if (_reviewingChatId != null) return;
+    setState(() => _reviewingChatId = chatId);
+    try {
+      final result = await _service.getOwnerDirectChatMessages(chatId);
+      if (!mounted) return;
+      final messages = (result['messages'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList(growable: false);
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('مراجعة صامتة — قراءة فقط'),
+          content: SizedBox(
+            width: 560,
+            child: messages.isEmpty
+                ? const Text('لا توجد رسائل في النطاق المعروض.')
+                : ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: messages.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final message = messages[index];
+                      final timestamp = message['createdAt'];
+                      final date = timestamp is num
+                          ? DateTime.fromMillisecondsSinceEpoch(timestamp.toInt()).toLocal()
+                          : null;
+                      final deleted = message['isDeleted'] == true;
+                      final text = deleted ? 'رسالة محذوفة' : (message['text'] as String? ?? '');
+                      return ListTile(
+                        dense: true,
+                        title: Text(text.isEmpty ? '—' : text),
+                        subtitle: Text([
+                          'المرسل: ${message['senderUid'] ?? 'غير معروف'}',
+                          if (date != null) date.toString(),
+                        ].join(' • ')),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        ),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذرت مراجعة المحادثة.')),
+      );
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذرت مراجعة المحادثة؛ لم يتم تأكيد نجاح الطلب.')),
+      );
+    } finally {
+      if (mounted) setState(() => _reviewingChatId = null);
     }
   }
 
@@ -892,6 +977,59 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     padding: EdgeInsets.only(top: 12),
                     child: LinearProgressIndicator(),
                   ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        if (_member != null) ...[
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('مراجعة محادثات العضو', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'مراجعة صامتة للقراءة فقط. لا تغيّر إيصالات القراءة أو الحضور أو حالة الكتابة، '
+                    'ولا ترسل إشعاراً فورياً. كل طلب ناجح يسجل في سجل التدقيق.',
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _loadingOwnerConversations ? null : _loadOwnerConversations,
+                      icon: _loadingOwnerConversations
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.visibility_outlined),
+                      label: const Text('عرض محادثات هذا العضو'),
+                    ),
+                  ),
+                  if (_loadingOwnerConversations) const LinearProgressIndicator(),
+                  if (!_loadingOwnerConversations && _ownerConversations.isEmpty)
+                    const Text('لم تُحمّل قائمة المحادثات بعد، أو لا توجد محادثات مسجلة.'),
+                  ..._ownerConversations.map((conversation) {
+                    final participants = (conversation['participantUids'] as List<dynamic>? ?? const [])
+                        .whereType<String>()
+                        .join(' • ');
+                    final chatId = conversation['chatId'] as String? ?? '';
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('محادثة ثنائية'),
+                      subtitle: SelectableText(participants),
+                      trailing: IconButton(
+                        tooltip: 'مراجعة صامتة للقراءة فقط',
+                        onPressed: chatId.isEmpty || _reviewingChatId != null
+                            ? null
+                            : () => _reviewOwnerConversation(chatId),
+                        icon: _reviewingChatId == chatId
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.visibility_outlined),
+                      ),
+                    );
+                  }),
                 ],
               ),
             ),
