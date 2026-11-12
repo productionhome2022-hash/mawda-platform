@@ -84,7 +84,7 @@ The owner-only callable `setRegistrationPolicy` controls registration at `platfo
 
 ## Firebase Security Rules emulator tests
 
-The CI backend job runs Firestore and Storage authorization tests against the Firebase emulators using a demo project (`demo-mawda-rules`). The tests verify member-only profile and wallet-ledger reads, transfer-participant access, and denial of client writes and Storage access. These tests do not connect to or modify the production Firebase project. Run them locally from `functions/` with `npm install` followed by `npm run test:rules`; Java 17 is required by the emulator toolchain.
+The CI backend job runs Firestore and Storage authorization tests against the Firebase emulators using a demo project (`demo-mawda-rules`). The tests verify member-only profile and wallet-ledger reads, transfer-participant access, and denial of client writes and Storage access. These tests do not connect to or modify the production Firebase project. Run them locally from `functions/` with `npm install` followed by `npm run test:rules`; Java 21 is required by the emulator toolchain.
 
 
 The backend unit suite also covers registration-policy validation boundaries and fail-closed behavior: only explicit booleans and integer minimum ages from 16 through 120 are accepted; the callable separately enforces the platform-owner claim before changing settings.
