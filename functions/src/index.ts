@@ -661,9 +661,10 @@ export const sendDirectMessage = onCall(async (request) => {
   }
   const { recipientUid, text: messageText, clientMessageId } = message;
   try {
-    assertMessageLinksAllowed(messageText, true);
+    const ownerSession = hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>);
+    assertMessageLinksAllowed(messageText, ownerSession, ownerSession);
   } catch {
-    throw new HttpsError("invalid-argument", "يسمح فقط بروابط YouTube وInstagram وFacebook في المحادثات الخاصة.");
+    throw new HttpsError("invalid-argument", "الروابط غير مسموحة أو أن صيغة الرابط غير آمنة.");
   }
   if (senderUid === recipientUid) {
     throw new HttpsError("failed-precondition", "لا يمكنك مراسلة حسابك الشخصي.");
@@ -873,13 +874,18 @@ export const sendRoomMessage = onCall(async (request) => {
     const roomData = room.data() ?? {};
     const isRoomOwner = roomData.ownerUid === uid;
     const isAuthorizedModerator = moderator.exists;
+    const ownerSession = hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>);
     try {
-      assertMessageLinksAllowed(content, isRoomOwner || isAuthorizedModerator);
+      assertMessageLinksAllowed(
+        content,
+        isRoomOwner || isAuthorizedModerator || ownerSession,
+        ownerSession,
+      );
     } catch {
       throw new HttpsError(
         "invalid-argument",
         isRoomOwner || isAuthorizedModerator
-          ? "يسمح للمشرفين والمالكين بروابط YouTube وInstagram وFacebook فقط."
+          ? ownerSession ? "تعذر قبول الرابط أو أن صياغته غير آمنة." : "يسمح للمشرفين والمالكين بروابط YouTube وInstagram وFacebook فقط."
           : "إرسال الروابط غير مسموح للأعضاء في هذه الغرفة.",
       );
     }
