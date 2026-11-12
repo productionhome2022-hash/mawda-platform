@@ -227,3 +227,17 @@ Do not make every arbitrary UI string editable through an unsafe generic text re
 - Provide accessible labels, RTL/LTR support and responsive presentation. If a social URL is not configured, do not render an active icon/link.
 
 This section is an approved requirement and implementation specification. It does not mean the management UI, callable backend, storage workflow or public dynamic configuration is already implemented. Deliver and verify these as a single end-to-end feature, including authorization/rules tests, localization tests, preview/publish/rollback tests and responsive device checks.
+
+### 17.4 Owner-managed backgrounds and visual assets
+Extend the Brand & Platform Content section so the platform owner can manage the published background imagery used across the app and website without requiring a new app release for ordinary content changes. The owner workflow must support:
+- Uploading, replacing, selecting, previewing, publishing, disabling and rolling back background images.
+- Assigning backgrounds to explicit, typed placement slots (for example: landing/welcome screen, public discovery surfaces, profile surfaces, and other approved shared surfaces). Do not apply a global background to private one-to-one chats or rented public/private rooms, which retain their independent background settings and policies.
+- Separate desktop, tablet and phone crops/variants where needed; portrait and landscape previews; focal-point positioning and safe-area checks.
+- Optional localized or campaign-specific variants only through an explicit, versioned configuration model with clear fallback behavior.
+- Image format/type, file-signature, dimension, aspect-ratio and file-size validation; optimized responsive derivatives, caching and CDN delivery where supported; reject executable or malformed files and strip unsafe metadata where feasible.
+- Accessibility and readability controls: preview text and controls over the image, configurable approved overlay/contrast treatment, reduced-motion behavior, and a safe bundled fallback if loading fails.
+- Draft/preview/publish/rollback workflow consistent with section 17.3. Publication is atomic; each change records owner UID, timestamp, placement, asset/version identifiers, reason and prior/new configuration in the immutable audit trail.
+- Server-verified platformOwner authorization, recent/step-up MFA for publication, restricted Storage paths and public read access only to currently published sanitized assets/configuration. Draft assets and unpublished variants remain owner-only.
+- No arbitrary remote image URLs or client-side Storage/Firestore writes to publish backgrounds. Use a trusted upload and validation pipeline.
+
+This requirement covers shared platform/app surfaces only. Existing special-purpose backgrounds for one-to-one chats and rented rooms remain independently governed. Background management is a product requirement, not evidence that its UI, upload pipeline, delivery configuration or tests have already been implemented.
