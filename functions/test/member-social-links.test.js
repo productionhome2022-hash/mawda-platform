@@ -4,6 +4,7 @@ const {
   validateMemberSocialLinks,
   projectMemberSocialLinks,
   canUpdateMemberSocialLinks,
+  canChangeMemberSocialLinkVisibility,
 } = require("../lib/member-social-links");
 
 test("accepts only HTTPS URLs on the matching official provider domains", () => {
@@ -61,4 +62,16 @@ test("expired or revoked members may clear links but cannot publish links", () =
     status: "verified",
     expiresAt: { toMillis: () => 1_900_000_000_000 },
   }, 1_800_000_000_000), true);
+});
+
+
+test("a member may hide a link after verification expires, but revealing it requires an active lease", () => {
+  const expired = { status: "verified", expiresAt: { toMillis: () => 1_700_000_000_000 } };
+  const active = { status: "verified", expiresAt: { toMillis: () => 1_900_000_000_000 } };
+  const now = 1_800_000_000_000;
+  assert.equal(canChangeMemberSocialLinkVisibility(true, expired, now), true);
+  assert.equal(canChangeMemberSocialLinkVisibility(true, null, now), true);
+  assert.equal(canChangeMemberSocialLinkVisibility(false, expired, now), false);
+  assert.equal(canChangeMemberSocialLinkVisibility(false, null, now), false);
+  assert.equal(canChangeMemberSocialLinkVisibility(false, active, now), true);
 });
