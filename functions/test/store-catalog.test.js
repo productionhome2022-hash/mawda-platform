@@ -93,3 +93,45 @@ test("store charging stays disabled until fulfillment is explicitly ready", () =
     active: false, purchaseEnabled: true, fulfillmentReady: true,
   }), false);
 });
+
+
+test("only implemented VIP and title consumers can be explicitly enabled for purchase", () => {
+  const { validateStoreCatalogItemInput, projectStoreCatalogItem } = require("../lib/store-catalog");
+  for (const category of ["vip", "title"]) {
+    const item = validateStoreCatalogItemInput({
+      itemId: category + "-monthly",
+      name: "عنصر مدفوع",
+      description: "استحقاق ملف.",
+      category,
+      priceCoins: 500,
+      durationDays: 30,
+      sortOrder: 1,
+      active: true,
+      purchaseEnabled: true,
+    });
+    assert.equal(item.purchaseEnabled, true);
+    assert.equal(item.fulfillmentReady, true);
+  }
+  assert.throws(() => validateStoreCatalogItemInput({
+    itemId: "theme-month",
+    name: "سمة شهرية",
+    description: "خلفية.",
+    category: "theme",
+    priceCoins: 500,
+    durationDays: 30,
+    sortOrder: 1,
+    active: true,
+    purchaseEnabled: true,
+  }), /STORE_FULFILLMENT_NOT_READY/);
+  const tampered = projectStoreCatalogItem("avatar-frame", {
+    active: true,
+    name: "إطار",
+    description: "إطار رمزي.",
+    category: "avatar",
+    priceCoins: 500,
+    purchaseEnabled: true,
+    fulfillmentReady: true,
+  });
+  assert.equal(tampered.purchaseEnabled, false);
+  assert.equal(tampered.fulfillmentReady, false);
+});
