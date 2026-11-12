@@ -6,6 +6,7 @@ const {
   validateOwnerConversationPageRequest,
   encodeOwnerMessagePageToken,
   decodeOwnerMessagePageToken,
+  validateOwnerReviewAnnouncementRequest,
 } = require("../lib/owner-chat-review");
 
 const chatId = "a".repeat(64);
@@ -158,4 +159,32 @@ test("owner message cursor decoder rejects malformed, noncanonical and unsafe to
     assert.throws(() => decodeOwnerMessagePageToken(token), /INVALID_MESSAGE_CURSOR/);
   }
   assert.throws(() => encodeOwnerMessagePageToken(-1, "m"), /INVALID_MESSAGE_CURSOR/);
+});
+
+
+test("announced owner review accepts an explicit bounded notice and idempotency key", () => {
+  assert.deepEqual(
+    validateOwnerReviewAnnouncementRequest({
+      chatId,
+      noticeText: "تُجري إدارة منصة مودة مراجعة إدارية لهذه المحادثة.",
+      requestId: "owner-review-123",
+    }),
+    {
+      chatId,
+      noticeText: "تُجري إدارة منصة مودة مراجعة إدارية لهذه المحادثة.",
+      requestId: "owner-review-123",
+    },
+  );
+});
+
+test("announced owner review rejects malformed chat, short/long notice and request IDs", () => {
+  const base = {
+    chatId,
+    noticeText: "إشعار مراجعة إدارية",
+    requestId: "owner-review-123",
+  };
+  assert.throws(() => validateOwnerReviewAnnouncementRequest({ ...base, chatId: "bad" }), /INVALID_CHAT_ID/);
+  assert.throws(() => validateOwnerReviewAnnouncementRequest({ ...base, noticeText: "لا" }), /INVALID_REVIEW_NOTICE_TEXT/);
+  assert.throws(() => validateOwnerReviewAnnouncementRequest({ ...base, noticeText: "x".repeat(501) }), /INVALID_REVIEW_NOTICE_TEXT/);
+  assert.throws(() => validateOwnerReviewAnnouncementRequest({ ...base, requestId: "bad key" }), /INVALID_REVIEW_NOTICE_REQUEST_ID/);
 });
