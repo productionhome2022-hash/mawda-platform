@@ -109,21 +109,24 @@ class SuperAdminSecurityService {
     });
   }
 
-  Future<List<Map<String, dynamic>>> getOwnerMemberDirectChats(String memberUid) async {
+  Future<Map<String, dynamic>> getOwnerMemberDirectChats(
+    String memberUid, {
+    String? pageToken,
+  }) async {
     final result = await _functions.httpsCallable('getOwnerMemberDirectChats').call({
       'memberUid': memberUid.trim(),
+      if (pageToken != null) 'pageToken': pageToken,
     });
-    final data = Map<String, dynamic>.from(result.data as Map);
-    final conversations = data['conversations'] as List<dynamic>? ?? const [];
-    return conversations
-        .whereType<Map>()
-        .map((item) => Map<String, dynamic>.from(item))
-        .toList(growable: false);
+    return Map<String, dynamic>.from(result.data as Map);
   }
 
-  Future<Map<String, dynamic>> getOwnerDirectChatMessages(String chatId) async {
+  Future<Map<String, dynamic>> getOwnerDirectChatMessages(
+    String chatId, {
+    String? pageToken,
+  }) async {
     final result = await _functions.httpsCallable('getOwnerDirectChatMessages').call({
       'chatId': chatId,
+      if (pageToken != null) 'pageToken': pageToken,
     });
     return Map<String, dynamic>.from(result.data as Map);
   }
