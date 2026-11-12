@@ -3,7 +3,23 @@ export type OwnerChatReviewRequest = {
   reason: string | null;
   mode: "silent";
   limit: number;
+  pageToken: string | null;
 };
+
+export type OwnerConversationPageRequest = {
+  memberUid: string;
+  limit: number;
+  pageToken: string | null;
+};
+
+function validatePageToken(value: unknown): string | null {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value !== "string" || value.length < 1 || value.length > 128 ||
+      !/^[A-Za-z0-9_-]+$/.test(value)) {
+    throw new Error("INVALID_PAGE_TOKEN");
+  }
+  return value;
+}
 
 /**
  * Validate a narrowly scoped owner request to review a one-to-one
@@ -32,9 +48,34 @@ export function validateOwnerChatReviewRequest(
     throw new Error("INVALID_PAGE_SIZE");
   }
 
-  return { chatId, reason: rawReason || null, mode: "silent", limit: requestedLimit };
+  return {
+    chatId,
+    reason: rawReason || null,
+    mode: "silent",
+    limit: requestedLimit,
+    pageToken: validatePageToken(input.pageToken),
+  };
 }
 
+/** Validate a bounded, member-scoped conversation metadata page. */
+export function validateOwnerConversationPageRequest(
+  input: Record<string, unknown>,
+): OwnerConversationPageRequest {
+  const memberUid = typeof input.memberUid === "string" ? input.memberUid.trim() : "";
+  const requestedLimit = input.limit === undefined ? 50 : input.limit;
+  if (!memberUid || memberUid.length > 128) {
+    throw new Error("INVALID_MEMBER_UID");
+  }
+  if (typeof requestedLimit !== "number" || !Number.isSafeInteger(requestedLimit) ||
+      requestedLimit < 1 || requestedLimit > 50) {
+    throw new Error("INVALID_PAGE_SIZE");
+  }
+  return {
+    memberUid,
+    limit: requestedLimit,
+    pageToken: validatePageToken(input.pageToken),
+  };
+}
 
 export type OwnerChatParticipationMode =
   | "platform_admin"
