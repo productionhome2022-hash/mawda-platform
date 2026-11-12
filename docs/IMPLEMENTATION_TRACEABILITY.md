@@ -136,3 +136,15 @@ Add a dedicated workstream across the platform:
 - Member notice and appeal/review, lawful investigation exceptions, provider reconciliation, compensating reversal transactions, and alerts for bulk/unusual deductions are required.
 - No moderator, support agent, AI, or client role may call these controls.
 - Tests: each freeze switch, already-open sessions, racing/in-flight transactions, payment callbacks, per-member restrictions, unauthorized callers, MFA freshness, missing reason, duplicate idempotency, partial/full forfeiture, insufficient balance, immutable ledger, reversal, appeal/audit completeness.
+
+
+## Real email verification and external account ownership (approved requirements)
+
+- Registration sends a genuine, single-use, expiring email action link to the submitted address. The trusted auth provider's verified state is authoritative; client flags cannot grant verification.
+- Pending screen instructs members to check Inbox and Spam/Junk, mark the email important/move it to Inbox/add sender to trusted contacts where supported, and offers a rate-limited resend. Do not promise inbox placement.
+- Successful action link returns through a validated app/deep link to profile completion. Expired/reused links fail safely. The one-time 500-coin reward is server-side and atomic with verified status.
+- Configure sender-domain SPF/DKIM/DMARC and monitor deliverability; never log action codes or put reusable secrets in links.
+- Instagram/Facebook/X public profile connection badges require official provider OAuth and backend validation of provider account subject ID; use state + PKCE where supported, least-privilege scopes, encrypted tokens only when required, revocation/disconnect, and periodic revalidation. Never treat a pasted URL as verified.
+- Instagram official API eligibility limitation: Professional Business/Creator accounts only; ordinary personal accounts must not be shown as OAuth-verified if provider API does not support them.
+- WhatsApp consumer accounts have no general consumer OAuth identity flow equivalent to the other providers. Verify phone-number control with a one-time code via an approved SMS/voice or officially supported WhatsApp route, then create a wa.me contact link. Label as phone-number verified, not WhatsApp OAuth connected. WhatsApp Business onboarding is a separate business integration.
+- Tests: expired/replayed email links, wrong-address redemption, resend abuse, enumeration resistance, unverified reward denial, app-link tampering, OAuth state/PKCE mismatch, wrong provider subject, token leakage, revoked/disconnected accounts, provider scope minimization, Instagram personal-account ineligibility, and WhatsApp phone-number verification.
