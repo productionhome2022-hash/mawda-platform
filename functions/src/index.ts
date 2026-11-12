@@ -45,6 +45,7 @@ import {
   calculateStorePurchaseBalance,
   isStoreEntitlementActive,
   isStorePurchasePriceCurrent,
+  projectStoreEntitlementFeatures,
 } from "./store-purchase";
 
 initializeApp();
@@ -712,6 +713,13 @@ export const getMemberProfile = onCall(async (request) => {
     throw new HttpsError("permission-denied", "هذا الملف خاص ولا يمكن عرضه.");
   }
 
+  const [entitlementSnapshot] = await Promise.all([
+    db.collection("users").doc(targetUid).collection("entitlements")
+      .orderBy("purchasedAt", "desc").limit(100).get(),
+  ]);
+  const premiumFeatures = projectStoreEntitlementFeatures(
+    entitlementSnapshot.docs.map((document) => document.data()),
+  );
   const biometricLinksActive = canExposeMemberSocialLinks(
     memberData.profileCompleted === true,
     memberData.biometricVerification,
@@ -739,11 +747,12 @@ export const getMemberProfile = onCall(async (request) => {
   return viewerUid === targetUid
     ? {
         ...profile,
+        ...premiumFeatures,
         profileVisibility: memberData.profileVisibility === "public" ? "public" : "private",
         canManageSocialLinks: biometricLinksActive,
         hiddenSocialLinks: hiddenProviders,
       }
-    : profile;
+    : { ...profile, ...premiumFeatures };
 });
 
 /** A member may change only their own profile visibility. */
@@ -2487,6 +2496,8 @@ export const setStoreCatalogItem = onCall(async (request) => {
       active: item.active,
       priceCoins: item.priceCoins,
       category: item.category,
+      purchaseEnabled: item.purchaseEnabled,
+      fulfillmentReady: item.fulfillmentReady,
       createdAt: now,
     });
   });
