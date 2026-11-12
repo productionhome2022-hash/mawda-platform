@@ -37,6 +37,9 @@ export function projectStoreCatalogItem(
   }
   const sortOrder = typeof data.sortOrder === "number" &&
       Number.isSafeInteger(data.sortOrder) ? data.sortOrder : 1000;
+  const fulfillmentReady =
+    (data.category === "title" || data.category === "vip") &&
+    data.fulfillmentReady === true;
   return {
     itemId,
     name: data.name.trim(),
@@ -45,8 +48,8 @@ export function projectStoreCatalogItem(
     priceCoins: data.priceCoins,
     ...(typeof durationDays === "number" ? { durationDays } : {}),
     sortOrder,
-    purchaseEnabled: data.purchaseEnabled === true,
-    fulfillmentReady: data.fulfillmentReady === true,
+    purchaseEnabled: fulfillmentReady && data.purchaseEnabled === true,
+    fulfillmentReady,
   };
 }
 
@@ -74,14 +77,19 @@ export function validateStoreCatalogItemInput(input: unknown): ValidatedStoreCat
       sortOrder < -100000 || sortOrder > 100000) {
     throw new Error("INVALID_STORE_SORT_ORDER");
   }
-  // Catalog publishing alone must never enable charging. A product becomes
-  // purchasable only after its entitlement consumer and fulfillment tests ship.
+  // Only implemented, tested profile consumers may be explicitly enabled.
+  // Current supported categories are VIP badge and active profile title.
+  const fulfillmentReady = projected.category === "vip" || projected.category === "title";
+  const purchaseEnabled = value.purchaseEnabled === true;
+  if (purchaseEnabled && !fulfillmentReady) {
+    throw new Error("STORE_FULFILLMENT_NOT_READY");
+  }
   return {
     ...projected,
     active: value.active,
     sortOrder,
-    purchaseEnabled: false,
-    fulfillmentReady: false,
+    purchaseEnabled,
+    fulfillmentReady,
   };
 }
 
