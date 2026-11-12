@@ -305,3 +305,12 @@ Remaining phase-two closure items:
 - Signed URL expiration/replay behavior tests and secure preview integration.
 - Defined audit retention/export and media retention/deletion schedules.
 - Scanner/processor integration remains a separate prerequisite before any member-facing media availability.
+
+
+## Signed media URL lifetime policy — 13 November 2026
+
+- Centralized the V4 signed URL lifetime values in `media-security.ts` and wired both upload-intent and owner-inspection signing to that helper: five minutes for upload and 60 seconds for owner inspection.
+- Added unit tests for the exact expiry calculation and invalid clock input.
+- **Important bearer-link limitation:** a Cloud Storage V4 signed URL is reusable by anyone who obtains it until it expires (or the underlying object/credentials are invalidated). The current implementation does not provide one-time redemption or replay prevention. The UI therefore continues to withhold preview links; do not describe these links as single-use.
+- These tests validate the application expiry values passed to the signer. They do not yet exercise Cloud Storage's actual expiry enforcement, URL leakage, or post-expiry HTTP behavior; those require a Storage integration test.
+- Audit retention/export and media retention/deletion remain unconfigured. No automatic deletion schedule has been introduced because the product/legal retention period has not been approved.
