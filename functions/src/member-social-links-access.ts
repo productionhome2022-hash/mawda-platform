@@ -1,18 +1,21 @@
 import { hasActiveBiometricVerification } from "./biometric-verification";
+import { MemberSocialLinks, canUpdateMemberSocialLinks } from "./member-social-links";
 
-/** A member may edit only their own links, after completing their profile and
- * while a server-owned biometric verification lease is active. */
+/** A member may edit only their own links and only after completing their profile.
+ * Clearing links is always allowed; publishing non-empty links needs an active
+ * server-owned biometric verification lease. */
 export function canEditMemberSocialLinks(
   actorUid: string,
   memberUid: string,
   profileCompleted: boolean,
+  links: MemberSocialLinks,
   biometricVerification: unknown,
   nowMs = Date.now(),
 ): boolean {
   return actorUid.length > 0 &&
     actorUid === memberUid &&
     profileCompleted &&
-    hasActiveBiometricVerification(biometricVerification, nowMs);
+    canUpdateMemberSocialLinks(links, biometricVerification, nowMs);
 }
 
 /** Link visibility is re-evaluated for every read; expiry/revocation hides them. */
