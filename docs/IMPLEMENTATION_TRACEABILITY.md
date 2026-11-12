@@ -179,3 +179,28 @@ Add a dedicated workstream across the platform:
 - The 500-coin email reward is granted after every successfully completed eligible 90-day email verification cycle, and the 1,500-coin biometric reward after every successfully completed eligible 30-day biometric verification cycle. Each cycle has a unique verification-cycle/reward ID and is credited exactly once; replays and repeated attempts in the same cycle cannot earn extra credits.
 - **Implementation gap (not release-ready):** current `completeMemberProfile` only grants the initial 500-coin reward at first profile creation using a fixed ledger ID. A server-owned 90-day email lease renewal/finalization flow and per-cycle recurring reward are not yet implemented. No biometric provider/capture workflow or recurring 30-day biometric reward implementation exists. Treat recurring rewards as approved requirements, not live functionality, until server-authoritative cycle IDs, fresh proof, atomic per-cycle credits, and replay/expiry tests are delivered.
 - Required tests: exact 90-/30-day server-clock boundaries, timezone/device-clock tampering, renewal link expiry/replay, email change, reminder deduplication/preferences, expiry during active sessions, cache invalidation, all backend permission paths, provider outage, notice acknowledgement/localization/accessibility, and exactly one reward per successful eligible renewal cycle; retries and replays within the same cycle must not create a second reward.
+
+## Sovereign Cloud Operations & Data Lifecycle Center (approved; implementation pending)
+
+- Add an owner-only Super Admin console section for chat-history cleanup, cloud-media cleanup/reconciliation, obsolete-advertising archival/purge, platform maintenance/refresh, storage/database hygiene, and operation history.
+- Every destructive action is scoped and preview-first: server-generated dry-run preview with exact target paths/collections, date range, counts, bytes, exclusions, impact, and recoverability; preview ID/hash is bound to execution and expires.
+- Require server-verified owner claim, fresh MFA/step-up, typed scope-specific confirmation, reason/ticket, and an additional confirmation for global or irreversible jobs.
+- Execute via idempotent resumable background jobs in bounded batches with checkpoints, retries, concurrency controls, pause/cancel where safe, emergency stop, and detailed outcomes; no bulk delete from Flutter or a long-running callable.
+- Preserve wallet balances and immutable financial ledgers, transfer/purchase/refund/accounting evidence, security/admin audit logs, auth/recovery evidence, consent/privacy records, required verification evidence, reports/appeals/moderation/legal holds, and active/scheduled advertising. Any exceptional legal deletion uses a separate reviewed workflow.
+- Media cleanup must reconcile Firebase Storage objects, Firestore metadata/references, thumbnails/derivatives, temporary uploads, CDN/cache copies, and retention queues. A Firestore delete alone is not proof that cloud bytes are deleted.
+- Maintenance/refresh means supported health checks, retention-job retry, storage reconciliation, derived cache/index refresh, and maintenance mode. Do not claim Firebase infrastructure was restarted unless the service supports and confirms it.
+- Require backup verification and successful restore drills, quarantine/soft-delete where appropriate, audit of successful/failed/denied/cancelled operations, project/environment guardrails, and a documented runbook.
+- **Current state:** approved specification only. Existing Super Admin UI and backend do not yet provide safe bulk chat/media/ad cleanup or a cloud-maintenance job engine. Do not expose active destructive controls or claim this capability is available until release gates pass.
+
+### Cloud operations implementation workstream
+
+| Stage | Deliverable | Acceptance evidence | State |
+|---|---|---|---|
+| C1 | Inventory data collections, Storage paths, ad assets, retention rules, legal holds and references | Reviewed data map and ownership matrix | Open |
+| C2 | Server-side preview API and immutable preview manifest | Scope/hash/expiry/authorization tests | Open |
+| C3 | Owner/MFA-gated job queue and bounded worker | Idempotency, retries, pause/cancel, concurrency and project guard tests | Open |
+| C4 | Chat cleanup and media reconciliation | Emulator/integration tests, orphan detection, reference consistency | Open |
+| C5 | Advertising archival and cleanup | Active/scheduled protection and accounting-retention tests | Open |
+| C6 | Quarantine, backup/restore, audit and emergency stop | Restore drill and destructive-operation tabletop exercise | Open |
+| C7 | Super Admin console UI and operations history | Device/accessibility tests and owner authorization matrix | Open |
+| C8 | Production runbook and staged release | Security/legal review and explicit owner approval | Open |
