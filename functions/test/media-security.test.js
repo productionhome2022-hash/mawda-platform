@@ -4,6 +4,7 @@ const {
   detectMediaSignature,
   mediaPolicyFor,
   normalizeMediaRequest,
+  mediaUploaderTypeFromToken,
 } = require("../lib/media-security");
 
 test("media policy allowlists supported types and applies per-category size caps", () => {
@@ -35,4 +36,12 @@ test("file signature detection identifies PNG, JPEG, WebP, PDF, MP4, OGG and WAV
 
 test("signature mismatch cannot be mistaken for an allowed media format", () => {
   assert.notEqual(detectMediaSignature(new TextEncoder().encode("MZ executable")), "application/pdf");
+});
+
+
+test("uploader classification trusts Firebase Auth provider claims, not client fields", () => {
+  assert.equal(mediaUploaderTypeFromToken({ firebase: { sign_in_provider: "anonymous" } }), "guest");
+  assert.equal(mediaUploaderTypeFromToken({ firebase: { sign_in_provider: "password" } }), "member");
+  assert.equal(mediaUploaderTypeFromToken({ uploaderType: "guest" }), "member");
+  assert.equal(mediaUploaderTypeFromToken({ firebase: "anonymous" }), "member");
 });
