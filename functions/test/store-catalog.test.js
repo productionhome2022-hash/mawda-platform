@@ -76,3 +76,20 @@ test("owner catalog input requires safe identifiers, prices, category and public
     priceCoins: 0, active: true,
   }));
 });
+
+
+test("store charging stays disabled until fulfillment is explicitly ready", () => {
+  const { isStoreItemPurchasable } = require("../lib/store-catalog");
+  assert.equal(isStoreItemPurchasable({
+    active: true, purchaseEnabled: false, fulfillmentReady: false,
+  }), false);
+  assert.equal(isStoreItemPurchasable({
+    active: true, purchaseEnabled: true, fulfillmentReady: false,
+  }), false);
+  assert.equal(isStoreItemPurchasable({
+    active: true, purchaseEnabled: true, fulfillmentReady: true,
+  }), true);
+  assert.equal(isStoreItemPurchasable({
+    active: false, purchaseEnabled: true, fulfillmentReady: true,
+  }), false);
+});
