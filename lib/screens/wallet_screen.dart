@@ -96,8 +96,12 @@ class WalletScreen extends StatelessWidget {
                   ? 'تحويل كوينز صادر'
                   : type == 'coin_transfer_received'
                       ? 'تحويل كوينز وارد'
-                      : type.replaceAll('_', ' ');
-              final amountLabel = '${sent ? '' : '+'}${amount.abs()} كوين';
+                      : type == 'store_purchase'
+                          ? 'شراء من متجر مودة'
+                          : type.replaceAll('_', ' ');
+              // Ledger amounts are signed by the trusted backend: debits are
+              // negative and credits are positive, including store purchases.
+              final amountLabel = '${amount > 0 ? '+' : ''}$amount كوين';
               return Card(
                 child: Padding(
                   padding: const EdgeInsets.all(14),
@@ -132,6 +136,13 @@ class WalletScreen extends StatelessWidget {
                       if (relatedUid != null)
                         SelectableText(
                           sent ? 'معرف المستلم: $relatedUid' : 'معرف المرسل: $relatedUid',
+                        ),
+                      if (data['itemName'] is String)
+                        Text('العنصر: ${data['itemName']}'),
+                      if (data['purchaseId'] is String)
+                        SelectableText(
+                          'معرف الشراء: ${data['purchaseId']}',
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
                       if (data['transferId'] is String)
                         SelectableText(
