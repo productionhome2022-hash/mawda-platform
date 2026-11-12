@@ -957,7 +957,60 @@ export const getDirectMessages = onCall(async (request) => {
 });
 
 /**
- * Owner-only, reason-bound review of a one-to-one conversation.
+ * Owner-only discovery of a member's direct conversations.
+ * Returns identifiers and participant metadata only; never reads message bodies.
+ */
+export const getOwnerMemberDirectChats = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const memberUid = request.data?.memberUid;
+  if (typeof memberUid !== "string" || memberUid.trim().length < 1 ||
+      memberUid.trim().length > 128) {
+    throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+  }
+  const targetUid = memberUid.trim();
+  const member = await db.collection("users").doc(targetUid).get();
+  if (!member.exists) {
+    throw new HttpsError("not-found", "ملف العضو غير موجود.");
+  }
+
+  const auditRef = db.collection("adminAuditLogs").doc();
+  await auditRef.create({
+    actorUid,
+    action: "owner_member_direct_chat_list",
+    targetUid,
+    reviewMode: "silent",
+    reviewScope: "direct_chat_metadata",
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  const chats = await db.collection("directChats")
+    .where("participantUids", "array-contains", targetUid)
+    .limit(50)
+    .get();
+
+  return {
+    memberUid: targetUid,
+    auditLogId: auditRef.id,
+    conversations: chats.docs.map((doc) => {
+      const data = doc.data();
+      const participants = Array.isArray(data.participantUids)
+        ? data.participantUids.filter((uid: unknown) => typeof uid === "string")
+        : [];
+      return {
+        chatId: doc.id,
+        participantUids: participants,
+        createdAt: data.createdAt?.toMillis?.() ?? null,
+        lastMessageAt: data.lastMessageAt?.toMillis?.() ?? null,
+      };
+    }),
+  };
+});
+
+
+/**
+ * Owner-only, read-only silent review of a one-to-one conversation.
+ * Every successful review attempt is recorded before message content is read.
+ * The owner claim and recent MFA session are revalidated on every invocation.
  * Every successful review attempt is recorded before message content is read.
  * The owner claim and recent MFA session are revalidated on every invocation.
  */
@@ -1000,7 +1053,13 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
     chatId: review.chatId,
     participantUids: participants,
     reason: review.reason,
+    reviewMode: review.mode,
+    reviewScope: "direct_chat_messages",
     requestedLimit: review.limit,
+    ownerAuthTime: request.auth?.token.auth_time ?? null,
+    secondFactor: typeof request.auth?.token.firebase === "object" && request.auth?.token.firebase !== null
+      ? (request.auth.token.firebase as Record<string, unknown>).sign_in_second_factor ?? null
+      : null,
     createdAt: FieldValue.serverTimestamp(),
   });
 
