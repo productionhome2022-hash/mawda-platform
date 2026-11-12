@@ -1,3 +1,5 @@
+import { hasActiveBiometricVerification } from "./biometric-verification";
+
 const ALLOWED_HOSTS: Record<string, readonly string[]> = {
   instagram: ["instagram.com", "www.instagram.com"],
   x: ["x.com", "www.x.com", "twitter.com", "www.twitter.com"],
@@ -6,8 +8,6 @@ const ALLOWED_HOSTS: Record<string, readonly string[]> = {
 };
 
 export type MemberSocialLinks = Partial<Record<keyof typeof ALLOWED_HOSTS, string>>;
-
-import { hasActiveBiometricVerification } from "./biometric-verification";
 
 /**
  * Members may always clear links, including after verification expires or is
