@@ -27,7 +27,10 @@ import {
 import { createHash } from "node:crypto";
 import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
 import { hasPlatformOwnerSession } from "./owner-access";
-import { validateOwnerChatReviewRequest } from "./owner-chat-review";
+import {
+  validateOwnerChatReviewRequest,
+  validateOwnerChatParticipationRequest,
+} from "./owner-chat-review";
 import {
   PRIVACY_POLICY_HASH,
   PRIVACY_POLICY_VERSION,
@@ -1110,6 +1113,11 @@ export const getDirectMessages = onCall(async (request) => {
         recipientUid: data.recipientUid ?? "",
         text: data.text ?? "",
         type: data.type ?? "text",
+        senderLabel: data.isPlatformOwnerMessage === true
+          ? (typeof data.senderLabel === "string" ? data.senderLabel : "إدارة منصة مودة")
+          : null,
+        isPlatformOwnerMessage: data.isPlatformOwnerMessage === true,
+        ownerParticipationMode: data.ownerParticipationMode ?? null,
         createdAt,
         isReadByPeer: isMessageReadByPeer(createdAt, peerLastReadAt),
       };
@@ -1179,6 +1187,127 @@ export const markDirectChatRead = onCall(async (request) => {
   });
   return { marked: true, lastReadMessageId: latest.id };
 });
+
+/**
+ * Sends an owner-authored administrative message into an existing two-member
+ * conversation. The owner UID is always stored as sender; the selected label
+ * is display-only and cannot impersonate a member account.
+ */
+export const sendOwnerDirectChatMessage = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let input;
+  try {
+    input = validateOwnerChatParticipationRequest((request.data ?? {}) as Record<string, unknown>);
+  } catch {
+    throw new HttpsError("invalid-argument", "بيانات مشاركة المالك أو تسمية الظهور غير صالحة.");
+  }
+  const labels = {
+    platform_admin: "إدارة منصة مودة",
+    super_admin: "السوبر أدمن",
+    anonymous: "مجهول",
+  } as const;
+  const senderLabel = labels[input.mode];
+  try {
+    assertMessageLinksAllowed(input.text, true, true);
+  } catch {
+    throw new HttpsError("invalid-argument", "تحتوي الرسالة على رابط غير آمن أو غير مسموح.");
+  }
+
+  const chatRef = db.collection("directChats").doc(input.chatId);
+  const initialChat = await chatRef.get();
+  if (!initialChat.exists) throw new HttpsError("not-found", "المحادثة غير موجودة.");
+  const initialParticipants = initialChat.data()?.participantUids;
+  if (!Array.isArray(initialParticipants) || initialParticipants.length !== 2 ||
+      initialParticipants.some((value) => typeof value !== "string") ||
+      initialParticipants[0] === initialParticipants[1]) {
+    throw new HttpsError("failed-precondition", "المحادثة ليست محادثة ثنائية صالحة.");
+  }
+  const participantUids = [...initialParticipants] as string[];
+  const memberRefs = participantUids.map((uid) => db.collection("users").doc(uid));
+  const messageId = createHash("sha256")
+    .update("owner:" + actorUid + ":" + input.clientMessageId)
+    .digest("hex");
+  const messageRef = chatRef.collection("messages").doc(messageId);
+  const notificationRefs = participantUids.map((uid) =>
+    db.collection("users").doc(uid).collection("notifications").doc(messageId + "_" + uid),
+  );
+
+  return db.runTransaction(async (transaction) => {
+    const [freshChat, existingMessage, ...members] = await Promise.all([
+      transaction.get(chatRef),
+      transaction.get(messageRef),
+      ...memberRefs.map((ref) => transaction.get(ref)),
+    ]);
+    const freshParticipants = freshChat.data()?.participantUids;
+    if (!freshChat.exists || !Array.isArray(freshParticipants) ||
+        freshParticipants.length !== 2 ||
+        freshParticipants.some((value) => typeof value !== "string") ||
+        [...freshParticipants].sort().join("|") !== [...participantUids].sort().join("|")) {
+      throw new HttpsError("failed-precondition", "تغيرت أطراف المحادثة؛ أعد تحميلها قبل المشاركة.");
+    }
+    if (existingMessage.exists) {
+      const prior = existingMessage.data() ?? {};
+      if (prior.senderUid !== actorUid || prior.text !== input.text ||
+          prior.ownerParticipationMode !== input.mode) {
+        throw new HttpsError("already-exists", "معرف الرسالة مستخدم لعملية أخرى.");
+      }
+      return { chatId: input.chatId, messageId, senderLabel, idempotentReplay: true };
+    }
+    for (const member of members) {
+      const data = member.data() ?? {};
+      if (!member.exists || data.profileCompleted !== true || !isMemberAccountInGoodStanding(data)) {
+        throw new HttpsError("failed-precondition", "لا يمكن إرسال رسالة إدارية إلى محادثة تضم حساباً غير نشط.");
+      }
+    }
+
+    const createdAt = FieldValue.serverTimestamp();
+    transaction.set(chatRef, {
+      lastMessageAt: createdAt,
+      lastMessageSenderUid: actorUid,
+      lastMessagePreview: input.text.substring(0, 120),
+    }, { merge: true });
+    transaction.create(messageRef, {
+      messageId,
+      chatId: input.chatId,
+      senderUid: actorUid,
+      recipientUid: null,
+      recipientUids: participantUids,
+      text: input.text,
+      type: "text",
+      isPlatformOwnerMessage: true,
+      ownerParticipationMode: input.mode,
+      senderLabel,
+      createdAt,
+    });
+    for (let index = 0; index < participantUids.length; index += 1) {
+      transaction.create(notificationRefs[index], {
+        notificationId: messageId + "_" + participantUids[index],
+        type: "direct_message",
+        senderUid: actorUid,
+        senderLabel,
+        chatId: input.chatId,
+        messageId,
+        title: senderLabel,
+        body: "لديك رسالة جديدة من إدارة مودة. افتح مودة لقراءتها.",
+        isRead: false,
+        createdAt,
+      });
+    }
+    const auditRef = db.collection("adminAuditLogs").doc();
+    transaction.create(auditRef, {
+      actorUid,
+      action: "owner_direct_chat_message_sent",
+      targetUids: participantUids,
+      chatId: input.chatId,
+      messageId,
+      ownerParticipationMode: input.mode,
+      senderLabel,
+      createdAt,
+    });
+    return { chatId: input.chatId, messageId, senderLabel, idempotentReplay: false };
+  });
+});
+
 
 /**
  * Owner-only discovery of a member's direct conversations.
@@ -1301,6 +1430,11 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
       recipientUid: data.recipientUid ?? "",
       text: deleted ? "" : (typeof data.text === "string" ? data.text : ""),
       isDeleted: deleted,
+      isPlatformOwnerMessage: data.isPlatformOwnerMessage === true,
+      senderLabel: data.isPlatformOwnerMessage === true
+        ? (typeof data.senderLabel === "string" ? data.senderLabel : "إدارة منصة مودة")
+        : null,
+      ownerParticipationMode: data.ownerParticipationMode ?? null,
       createdAt: data.createdAt?.toMillis?.() ?? null,
     };
   });
