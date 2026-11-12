@@ -1,6 +1,7 @@
 export type OwnerChatReviewRequest = {
   chatId: string;
   reason: string | null;
+  mode: "silent";
   limit: number;
 };
 
@@ -31,5 +32,5 @@ export function validateOwnerChatReviewRequest(
     throw new Error("INVALID_PAGE_SIZE");
   }
 
-  return { chatId, reason: rawReason || null, limit: requestedLimit };
+  return { chatId, reason: rawReason || null, mode: "silent", limit: requestedLimit };
 }
