@@ -29,8 +29,17 @@ jobs:
           flutter-version: "3.47.9"
           channel: stable
           cache: true
-      - name: Install Flutter dependencies
-        run: flutter pub get
+      - name: Generate and verify Flutter dependency lockfile
+        run: |
+          flutter pub get
+          flutter pub get --enforce-lockfile
+      - name: Upload generated Flutter lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: mawda-flutter-lockfile-${{ github.sha }}
+          path: pubspec.lock
+          if-no-files-found: error
+          retention-days: 3
       - name: Analyze Dart code
         run: flutter analyze
       - name: Run Flutter tests
@@ -59,8 +68,17 @@ jobs:
           node-version: "20"
           cache: npm
           cache-dependency-path: functions/package.json
-      - name: Install backend dependencies
-        run: npm install --no-audit --no-fund
+      - name: Generate and verify npm dependency lockfile
+        run: |
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm ci --no-audit --no-fund
+      - name: Upload generated npm lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: mawda-functions-lockfile-${{ github.sha }}
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 3
       - name: Compile and test backend
         run: npm test
       - name: Upload compiled Cloud Functions artifact
