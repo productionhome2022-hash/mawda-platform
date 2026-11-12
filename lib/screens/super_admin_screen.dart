@@ -19,6 +19,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   bool _searching = false;
   bool _updatingStatus = false;
   bool _loadingOwnerConversations = false;
+  bool _ownerConversationsLoaded = false;
   String? _reviewingChatId;
   List<Map<String, dynamic>> _ownerConversations = [];
   bool _registrationEnabled = false;
@@ -448,6 +449,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       _searching = true;
       _member = null;
       _ownerConversations = [];
+      _ownerConversationsLoaded = false;
     });
     try {
       final result = await _service.getMemberSummary(uid);
@@ -472,6 +474,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       final conversations = await _service.getOwnerMemberDirectChats(memberUid);
       if (mounted) setState(() {
         _ownerConversations = conversations;
+        _ownerConversationsLoaded = true;
         _error = null;
       });
     } on FirebaseFunctionsException catch (error) {
@@ -1008,8 +1011,10 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     ),
                   ),
                   if (_loadingOwnerConversations) const LinearProgressIndicator(),
-                  if (!_loadingOwnerConversations && _ownerConversations.isEmpty)
-                    const Text('لم تُحمّل قائمة المحادثات بعد، أو لا توجد محادثات مسجلة.'),
+                  if (!_loadingOwnerConversations && !_ownerConversationsLoaded)
+                    const Text('اضغط على الزر لعرض المحادثات المرتبطة بهذا العضو.'),
+                  if (_ownerConversationsLoaded && _ownerConversations.isEmpty)
+                    const Text('لا توجد محادثات ثنائية مسجلة لهذا العضو.'),
                   ..._ownerConversations.map((conversation) {
                     final participants = (conversation['participantUids'] as List<dynamic>? ?? const [])
                         .whereType<String>()
