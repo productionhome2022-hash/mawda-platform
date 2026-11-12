@@ -884,7 +884,7 @@ export const sendRoomMessage = onCall(async (request) => {
     } catch {
       throw new HttpsError(
         "invalid-argument",
-        isRoomOwner || isAuthorizedModerator
+        isRoomOwner || isAuthorizedModerator || ownerSession
           ? ownerSession ? "تعذر قبول الرابط أو أن صياغته غير آمنة." : "يسمح للمشرفين والمالكين بروابط YouTube وInstagram وFacebook فقط."
           : "إرسال الروابط غير مسموح للأعضاء في هذه الغرفة.",
       );
