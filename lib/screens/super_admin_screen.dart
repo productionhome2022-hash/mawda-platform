@@ -111,6 +111,8 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
         ? existing!['category'] as String
         : 'feature';
     var active = existing?['active'] != false;
+    var purchaseEnabled = existing?['purchaseEnabled'] == true &&
+        existing?['fulfillmentReady'] == true;
     final values = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -168,7 +170,14 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                       DropdownMenuItem(value: 'discovery', child: Text('تعزيز الظهور')),
                     ],
                     onChanged: (value) {
-                      if (value != null) setDialogState(() => category = value);
+                      if (value != null) {
+                        setDialogState(() {
+                          category = value;
+                          if (category != 'title' && category != 'vip') {
+                            purchaseEnabled = false;
+                          }
+                        });
+                      }
                     },
                   ),
                   const SizedBox(height: 10),
@@ -200,12 +209,25 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('نشر العنصر وإتاحته للشراء'),
+                    title: const Text('نشر العنصر في كتالوج المتجر'),
                     value: active,
                     onChanged: (value) => setDialogState(() => active = value),
                   ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('تفعيل الشراء بالكويـنز'),
+                    subtitle: Text(
+                      category == 'title' || category == 'vip'
+                          ? 'متاح لهذه الفئة بعد اكتمال مستهلك الاستحقاق.'
+                          : 'الشراء معطل لهذه الفئة حتى تنفيذ ميزتها الفعلية.',
+                    ),
+                    value: purchaseEnabled,
+                    onChanged: category == 'title' || category == 'vip'
+                        ? (value) => setDialogState(() => purchaseEnabled = value)
+                        : null,
+                  ),
                   const Text(
-                    'تعديل السعر يؤثر على المشتريات الجديدة فقط. إلغاء النشر يمنع الشراء الجديد ولا يسحب الاستحقاقات القائمة.',
+                    'حالياً لا يدعم الشراء إلا الألقاب وعضوية VIP. تعديل السعر يؤثر على المشتريات الجديدة فقط. إلغاء النشر يمنع الشراء الجديد ولا يسحب الاستحقاقات القائمة.',
                     style: TextStyle(fontSize: 12),
                   ),
                 ],
@@ -238,6 +260,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     'durationDays': duration,
                     'sortOrder': sortOrder,
                     'active': active,
+                    'purchaseEnabled': purchaseEnabled,
                   });
                 }
               },
@@ -266,6 +289,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
         durationDays: values['durationDays'] as int?,
         sortOrder: values['sortOrder'] as int,
         active: values['active'] as bool,
+        purchaseEnabled: values['purchaseEnabled'] as bool,
       );
       await _loadCatalog();
       if (!mounted) return;
@@ -829,7 +853,8 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   title: Text(item['name'] as String? ?? item['itemId'] as String? ?? 'عنصر'),
                   subtitle: Text(
                     '${item['priceCoins'] ?? 0} كوين • '
-                    '${item['active'] == true ? 'منشور' : 'غير منشور'}',
+                    '${item['active'] == true ? 'منشور' : 'غير منشور'} • '
+                    '${item['purchaseEnabled'] == true && item['fulfillmentReady'] == true ? 'الشراء مفعّل' : 'الشراء معطّل'}',
                   ),
                   trailing: IconButton(
                     tooltip: 'تعديل',
