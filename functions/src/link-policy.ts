@@ -1,6 +1,9 @@
 const APPROVED_HOSTS = new Set([
   "youtube.com", "youtu.be", "youtube-nocookie.com",
   "instagram.com", "facebook.com", "fb.watch",
+]);
+export const BIOMETRIC_APPROVED_HOSTS = new Set([
+  ...APPROVED_HOSTS,
   "x.com", "twitter.com",
 ]);
 const DOMAIN_PATTERN = /(?:https?:\/\/|www\.)[^\s<>()]+|(?:[a-z0-9-]+\.)+(?:com|net|org|io|co|de|uk|fr|es|me|tv|app|dev|info|biz|xyz|online|site|live)(?:\/[^\s<>()]*)?/giu;
@@ -10,9 +13,9 @@ function cleanCandidate(value: string): string {
   return value.replace(/[.,!?;:]+$/g, "").replace(/[)\]}]+$/g, "");
 }
 
-function isApprovedHost(hostname: string): boolean {
+function isApprovedHost(hostname: string, allowedHosts: ReadonlySet<string>): boolean {
   const host = hostname.toLowerCase().replace(/\.$/, "");
-  return [...APPROVED_HOSTS].some((root) => host === root || host.endsWith("." + root));
+  return [...allowedHosts].some((root) => host === root || host.endsWith("." + root));
 }
 
 /**
@@ -36,6 +39,7 @@ export function assertMessageLinksAllowed(
   text: string,
   allowApprovedPlatforms: boolean,
   allowAnyDomain = false,
+  allowedHosts: ReadonlySet<string> = APPROVED_HOSTS,
 ): void {
   OBFUSCATION_PATTERN.lastIndex = 0;
   if (OBFUSCATION_PATTERN.test(text)) throw new Error("MESSAGE_LINK_NOT_ALLOWED");
@@ -51,7 +55,7 @@ export function assertMessageLinksAllowed(
       throw new Error("MESSAGE_LINK_NOT_ALLOWED");
     }
     if ((allowAnyDomain ? !["https:", "http:"].includes(parsed.protocol) : parsed.protocol !== "https:") ||
-        parsed.username || parsed.password || (!allowAnyDomain && !isApprovedHost(parsed.hostname))) {
+        parsed.username || parsed.password || (!allowAnyDomain && !isApprovedHost(parsed.hostname, allowedHosts))) {
       throw new Error("MESSAGE_LINK_NOT_ALLOWED");
     }
   }
