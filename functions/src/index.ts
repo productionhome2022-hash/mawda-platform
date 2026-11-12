@@ -13,6 +13,7 @@ import {
   validateMemberSocialLinks,
 } from "./member-social-links";
 import { validateDirectMessageInput } from "./direct-message";
+import { createDirectChatId } from "./direct-chat-id";
 import { hasActiveBiometricVerification } from "./biometric-verification";
 import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
 import { isMemberAccountInGoodStanding } from "./member-access";
@@ -739,7 +740,7 @@ export const sendDirectMessage = onCall(async (request) => {
   }
 
   const [firstUid, secondUid] = [senderUid, recipientUid].sort();
-  const chatId = createHash("sha256").update(firstUid + ":" + secondUid).digest("hex");
+  const chatId = createDirectChatId(firstUid, secondUid);
   const chatRef = db.collection("directChats").doc(chatId);
   const senderRef = db.collection("users").doc(senderUid);
   const recipientRef = db.collection("users").doc(recipientUid);
@@ -842,14 +843,24 @@ export const sendDirectMessage = onCall(async (request) => {
 /** Reads the newest direct messages only after verifying chat membership. */
 export const getDirectMessages = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
-  const chatId = request.data?.chatId;
-  if (typeof chatId !== "string" || !/^[a-f0-9]{64}$/.test(chatId)) {
+  let chatId = request.data?.chatId;
+  if (typeof chatId !== "string") {
+    const peerUid = request.data?.peerUid;
+    if (typeof peerUid !== "string" || peerUid.length < 1 ||
+        peerUid.length > 128 || peerUid === uid) {
+      throw new HttpsError("invalid-argument", "معرف المحادثة أو العضو الآخر غير صالح.");
+    }
+    chatId = createDirectChatId(uid, peerUid);
+  }
+  if (!/^[a-f0-9]{64}$/.test(chatId)) {
     throw new HttpsError("invalid-argument", "معرف المحادثة غير صالح.");
   }
   const chatRef = db.collection("directChats").doc(chatId);
   const chat = await chatRef.get();
+  // A valid pair may open a new, empty conversation before the first message.
+  if (!chat.exists) return { messages: [] };
   const participants = chat.data()?.participantUids;
-  if (!chat.exists || !Array.isArray(participants) || !participants.includes(uid)) {
+  if (!Array.isArray(participants) || !participants.includes(uid)) {
     throw new HttpsError("permission-denied", "ليست لديك صلاحية قراءة هذه المحادثة.");
   }
   const messages = await chatRef.collection("messages")
