@@ -42,7 +42,7 @@ This checklist is a release gate, not a statement that the listed work is comple
 
 - [ ] Test registration, email verification, sign-in, sign-out, password reset, and account recovery against a non-production Firebase environment.
 - [ ] Test profile completion, editing, validation, privacy, and unique username behavior on physical devices.
-- [ ] Test the 500-coin verified-email reward for exactly-once behavior.
+- [ ] Test the 500-coin verified-email reward for exactly-once behavior per successful eligible 90-day verification cycle.
 - [ ] Test coin transfer quoting, fee calculation, stale quote rejection, atomic ledger writes, idempotency, and both parties' wallet histories.
 - [ ] Complete and test direct-message UI, pagination, delivery/read state, push notifications, block/report, and media workflows.
 - [ ] Complete and test room discovery, invitations, moderation, rental billing, voice/video, and room finance.
@@ -147,7 +147,7 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Registration sends a real, single-use, expiring activation link to the submitted email; only provider-confirmed redemption sets verified status.
 - [ ] Pending screen explicitly directs members to Inbox and Spam/Junk, explains the message may land in Spam, and asks them to mark it important/move to Inbox/trust the sender where supported; delivery is not falsely guaranteed.
 - [ ] Successful activation returns via a validated app/deep link to profile completion; expired/replayed/tampered links fail safely; resend is rate-limited and resistant to account enumeration.
-- [ ] The 500-coin verified-email reward is server-side, exactly once, and unavailable before provider-confirmed verification.
+- [ ] The 500-coin verified-email reward is server-side, issued exactly once per successful eligible 90-day verification cycle, and unavailable before provider-confirmed verification.
 - [ ] Sender domain has SPF, DKIM, and DMARC; deliverability and bounce/complaint monitoring are configured; action codes are not logged.
 - [ ] Instagram/Facebook/X badges require official provider OAuth, backend validation of the provider subject ID, state/PKCE protections, least privilege, token protection, revocation/disconnect, and periodic revalidation. A pasted URL alone never earns a badge.
 - [ ] Instagram eligibility accurately distinguishes Professional Business/Creator accounts from ordinary personal accounts; unsupported accounts are not falsely marked verified.
@@ -164,7 +164,7 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Treat moving selfie (3–5 seconds) and voice liveness (~20 seconds) only as supporting signals unless a validated provider confirms the required assurance; never infer gender or other sensitive traits from voice.
 - [ ] Provider results are verified server-to-server or through signed callbacks; nonce/session, provider transaction, authenticated UID, assurance level, timestamp, expiry, and revocation are checked. Client status, uploaded files, and local device biometric results cannot grant verification.
 - [ ] Prevent cross-account result reuse, replay, duplicate-account reward farming, and status transfer. Use privacy-preserving provider anti-duplication signals; no unrestricted biometric database.
-- [ ] Grant the 1,500-coin reward only after final server-confirmed approval at the required assurance level; enforce exactly-once atomic ledger posting, idempotency, and no reward for pending/failed/replayed/expired attempts.
+- [ ] Grant the 1,500-coin reward after each successful eligible 30-day cycle only after final server-confirmed approval at the required assurance level; enforce exactly-once-per-cycle atomic ledger posting, idempotency, and no reward for pending/failed/replayed/expired attempts.
 - [ ] Badge, profile social-link eligibility, and link-sharing permissions are server-derived and become active only after approval; expiry/revocation removes them immediately, including stale-cache and already-open-session tests.
 - [ ] Define validity period, renewal, risk-triggered re-verification, rate limits, provider outage behavior, false-rejection appeal, and human review. Automated risk scores alone do not permanently label members as fraudulent.
 - [ ] Raw face/voice media and biometric templates are minimized, encrypted, access-restricted, audited, and deleted on a documented schedule; no unrelated use, advertising, or model training.
