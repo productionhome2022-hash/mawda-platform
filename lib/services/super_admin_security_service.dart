@@ -37,6 +37,7 @@ class SuperAdminSecurityService {
     required int? durationDays,
     required int sortOrder,
     required bool active,
+    required bool purchaseEnabled,
   }) async {
     await _functions.httpsCallable('setStoreCatalogItem').call({
       'itemId': itemId,
@@ -47,6 +48,7 @@ class SuperAdminSecurityService {
       if (durationDays != null) 'durationDays': durationDays,
       'sortOrder': sortOrder,
       'active': active,
+      'purchaseEnabled': purchaseEnabled,
     });
   }
 
