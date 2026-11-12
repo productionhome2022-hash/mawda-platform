@@ -11,7 +11,7 @@ const validOptions = [
   "  projectId: '" + projectId + "',",
   "  authDomain: 'mawda-app-2026.firebaseapp.com',",
   "  storageBucket: 'mawda-app-2026.firebasestorage.app',",
-  ");",
+  "  );",
 ].join("\n");
 function validate(optionsSource = validOptions, aliasProject = projectId) {
   return validateFirebaseConfiguration({
