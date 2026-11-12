@@ -397,15 +397,6 @@ class _CompletedProfilePanel extends StatelessWidget {
                         ),
                       ),
                     ),
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.forum_outlined),
-                      label: const Text('الغرف'),
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => RoomsScreen(userId: user.uid),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               const SizedBox(height: 16),
