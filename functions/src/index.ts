@@ -25,7 +25,7 @@ import {
 import { createHash } from "node:crypto";
 import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
 import { hasPlatformOwnerSession } from "./owner-access";
-import { projectStoreCatalogItem } from "./store-catalog";
+import { projectStoreCatalogItem, validateStoreCatalogItemInput } from "./store-catalog";
 import { calculateStorePurchaseBalance, isStoreEntitlementActive } from "./store-purchase";
 
 initializeApp();
@@ -1622,4 +1622,60 @@ export const purchaseStoreItem = onCall(async (request) => {
       idempotentReplay: false,
     };
   });
+});
+
+
+/** Owner/MFA-only catalog publishing; client writes to storeCatalog remain denied. */
+export const setStoreCatalogItem = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let item;
+  try {
+    item = validateStoreCatalogItemInput(request.data);
+  } catch {
+    throw new HttpsError("invalid-argument", "بيانات عنصر المتجر أو سعره أو تصنيفه غير صالحة.");
+  }
+  const itemRef = db.collection("storeCatalog").doc(item.itemId);
+  await db.runTransaction(async (transaction) => {
+    const previousSnapshot = await transaction.get(itemRef);
+    const now = FieldValue.serverTimestamp();
+    transaction.set(itemRef, {
+      itemId: item.itemId,
+      name: item.name,
+      description: item.description,
+      category: item.category,
+      priceCoins: item.priceCoins,
+      durationDays: item.durationDays ?? null,
+      sortOrder: item.sortOrder,
+      active: item.active,
+      createdAt: previousSnapshot.data()?.createdAt ?? now,
+      updatedAt: now,
+      updatedBy: actorUid,
+    });
+    const auditRef = db.collection("adminAuditLogs").doc();
+    transaction.create(auditRef, {
+      actorUid,
+      action: previousSnapshot.exists ? "store_catalog_item_updated" : "store_catalog_item_created",
+      itemId: item.itemId,
+      active: item.active,
+      priceCoins: item.priceCoins,
+      category: item.category,
+      createdAt: now,
+    });
+  });
+  return { itemId: item.itemId, active: item.active };
+});
+
+/** Returns only display-safe catalog fields to the authenticated owner. */
+export const getOwnerStoreCatalog = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await db.collection("storeCatalog").limit(100).get();
+  const items = snapshot.docs
+    .map((document) => {
+      const data = document.data();
+      const projected = projectStoreCatalogItem(document.id, { ...data, active: true });
+      return projected ? { ...projected, active: data.active === true } : null;
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.itemId.localeCompare(right.itemId));
+  return { items };
 });
