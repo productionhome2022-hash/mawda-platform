@@ -198,7 +198,8 @@ MAWADDA AI is a modular platform capability with separate trust boundaries:
 
 ### 17.4 Link policy
 
-- **Ordinary members in public chats, public rooms, rented private rooms, and one-to-one private chats:** block all URLs.
+- **Ordinary members without active biometric verification in public chats, public rooms, rented private rooms, and one-to-one private chats:** block all URLs.
+- **Members with active server-confirmed biometric verification:** receive the free entitlement to send direct HTTPS YouTube (including youtu.be and youtube-nocookie.com), Facebook, Instagram, and X/Twitter links in one-to-one private chats, public rooms, and rented private rooms. Eligibility requires a future `expiresAt` and no `revokedAt`; this is not a paid feature.
 - **Room owners and explicitly authorized room moderators:** allow only validated YouTube, Instagram (including Reels), and Facebook URLs in the public or rented private room they manage.
 - **Platform Super Admin:** may send links to any domain in direct chats, public rooms, and rented private rooms. This exception is granted only after server verification of the platformOwner claim and fresh step-up/MFA session; it is never inferred from a client flag or room moderator role.
 - The Super Admin exception permits ordinary web destinations over HTTP/HTTPS, but never executable or dangerous schemes (for example javascript:, data:, file:), credential-bearing URLs, or malformed links. All links remain subject to malware/phishing scanning and safe preview handling where available.
