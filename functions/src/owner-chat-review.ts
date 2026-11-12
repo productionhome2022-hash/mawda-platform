@@ -1,26 +1,26 @@
 export type OwnerChatReviewRequest = {
   chatId: string;
-  reason: string;
+  reason: string | null;
   limit: number;
 };
 
 /**
- * Validate a narrowly scoped, reason-bound owner request to review a
- * one-to-one conversation. Authorization and MFA are enforced separately
- * by the callable before this policy is used.
+ * Validate a narrowly scoped owner request to review a one-to-one
+ * conversation. A reason is optional audit context, never an access
+ * prerequisite. Authorization and MFA are enforced by the callable.
  */
 export function validateOwnerChatReviewRequest(
   input: Record<string, unknown>,
 ): OwnerChatReviewRequest {
   const chatId = input.chatId;
-  const reason = typeof input.reason === "string" ? input.reason.trim() : "";
+  const rawReason = typeof input.reason === "string" ? input.reason.trim() : "";
   const requestedLimit = input.limit === undefined ? 50 : input.limit;
 
   if (typeof chatId !== "string" || !/^[a-f0-9]{64}$/.test(chatId)) {
     throw new Error("INVALID_CHAT_ID");
   }
-  if (reason.length < 12 || reason.length > 500) {
-    throw new Error("REVIEW_REASON_REQUIRED");
+  if (rawReason.length > 500) {
+    throw new Error("INVALID_REVIEW_REASON");
   }
   if (
     typeof requestedLimit !== "number" ||
@@ -31,5 +31,5 @@ export function validateOwnerChatReviewRequest(
     throw new Error("INVALID_PAGE_SIZE");
   }
 
-  return { chatId, reason, limit: requestedLimit };
+  return { chatId, reason: rawReason || null, limit: requestedLimit };
 }
