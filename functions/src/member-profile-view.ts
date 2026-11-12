@@ -10,6 +10,7 @@ export type PublicMemberProfile = {
   maritalStatus: string;
   interests: string[];
   goals: string[];
+  socialLinks: Record<string, string>;
 };
 
 function safeText(value: unknown): string {
@@ -45,6 +46,9 @@ export function projectPublicMemberProfile(
     maritalStatus: safeText(data.maritalStatus),
     interests,
     goals,
+    socialLinks: data.approvedSocialLinks !== null && typeof data.approvedSocialLinks === "object" && !Array.isArray(data.approvedSocialLinks)
+      ? Object.fromEntries(Object.entries(data.approvedSocialLinks as Record<string, unknown>).filter((entry): entry is [string, string] => typeof entry[1] === "string"))
+      : {},
   };
 }
 
