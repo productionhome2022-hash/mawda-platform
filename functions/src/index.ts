@@ -72,6 +72,42 @@ function requireOwner(request: { auth?: { uid: string; token: Record<string, unk
   return uid;
 }
 
+/**
+ * Owner-review authorization failures are themselves security-relevant.
+ * Persist a minimal denial event for authenticated callers before returning.
+ * If the audit write fails, fail closed rather than silently losing the record.
+ */
+async function requireOwnerForReview(
+  request: { auth?: { uid: string; token: Record<string, unknown> } | null },
+  action: string,
+): Promise<string> {
+  try {
+    return requireOwner(request);
+  } catch (error) {
+    const actorUid = request.auth?.uid;
+    if (actorUid) {
+      try {
+        const firebase = request.auth?.token.firebase;
+        await db.collection("adminAuditLogs").doc().create({
+          actorUid,
+          action,
+          outcome: "denied",
+          failureCode: error instanceof HttpsError ? error.code : "permission-denied",
+          ownerAuthTime: request.auth?.token.auth_time ?? null,
+          secondFactor: firebase && typeof firebase === "object" && !Array.isArray(firebase)
+            ? (firebase as Record<string, unknown>).sign_in_second_factor ?? null
+            : null,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+      } catch (auditError) {
+        logger.error("Owner review denial audit write failed", { actorUid, action, auditError });
+        throw new HttpsError("internal", "تعذر توثيق محاولة الوصول؛ تم رفض العملية.");
+      }
+    }
+    throw error;
+  }
+}
+
 function requireRequestId(value: unknown): string {
   if (
     typeof value !== "string" ||
@@ -961,18 +997,13 @@ export const getDirectMessages = onCall(async (request) => {
  * Returns identifiers and participant metadata only; never reads message bodies.
  */
 export const getOwnerMemberDirectChats = onCall(async (request) => {
-  const actorUid = requireOwner(request);
+  const actorUid = await requireOwnerForReview(request, "owner_member_direct_chat_list");
   const memberUid = request.data?.memberUid;
   if (typeof memberUid !== "string" || memberUid.trim().length < 1 ||
       memberUid.trim().length > 128) {
     throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
   }
   const targetUid = memberUid.trim();
-  const member = await db.collection("users").doc(targetUid).get();
-  if (!member.exists) {
-    throw new HttpsError("not-found", "ملف العضو غير موجود.");
-  }
-
   const auditRef = db.collection("adminAuditLogs").doc();
   await auditRef.create({
     actorUid,
@@ -980,8 +1011,17 @@ export const getOwnerMemberDirectChats = onCall(async (request) => {
     targetUid,
     reviewMode: "silent",
     reviewScope: "direct_chat_metadata",
+    outcome: "requested",
+    ownerAuthTime: request.auth?.token.auth_time ?? null,
+    secondFactor: typeof request.auth?.token.firebase === "object" && request.auth?.token.firebase !== null
+      ? (request.auth.token.firebase as Record<string, unknown>).sign_in_second_factor ?? null
+      : null,
     createdAt: FieldValue.serverTimestamp(),
   });
+  const member = await db.collection("users").doc(targetUid).get();
+  if (!member.exists) {
+    throw new HttpsError("not-found", "ملف العضو غير موجود.");
+  }
 
   const chats = await db.collection("directChats")
     .where("participantUids", "array-contains", targetUid)
@@ -1009,13 +1049,10 @@ export const getOwnerMemberDirectChats = onCall(async (request) => {
 
 /**
  * Owner-only, read-only silent review of a one-to-one conversation.
- * Every successful review attempt is recorded before message content is read.
- * The owner claim and recent MFA session are revalidated on every invocation.
- * Every successful review attempt is recorded before message content is read.
  * The owner claim and recent MFA session are revalidated on every invocation.
  */
 export const getOwnerDirectChatMessages = onCall(async (request) => {
-  const actorUid = requireOwner(request);
+  const actorUid = await requireOwnerForReview(request, "owner_direct_chat_review");
   let review;
   try {
     review = validateOwnerChatReviewRequest((request.data ?? {}) as Record<string, unknown>);
