@@ -185,8 +185,8 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('تأكيد إعدادات تحويل الكوينز'),
         content: Text(
-          'الحالة الجديدة: ${_transferEnabled ? 'التحويلات مفعّلة' : 'التحويلات متوقفة'}\\n'
-          'عمولة المنصة: ${percent.toStringAsFixed(2)}%.\\n'
+          'الحالة الجديدة: ${_transferEnabled ? 'التحويلات مفعّلة' : 'التحويلات متوقفة'}\n'
+          'عمولة المنصة: ${percent.toStringAsFixed(2)}%.\n'
           'سيُطبق الإعداد على التحويلات الجديدة فقط، وسيُسجل التغيير في سجل التدقيق.',
         ),
         actions: [
