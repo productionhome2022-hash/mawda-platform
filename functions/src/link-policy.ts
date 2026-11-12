@@ -19,12 +19,16 @@ function isApprovedHost(hostname: string): boolean {
  * direct destinations on the explicitly approved social/video platform domains.
  * This intentionally does not fetch arbitrary URLs or follow redirects server-side.
  */
-export function assertMessageLinksAllowed(text: string, allowApprovedPlatforms: boolean): void {
+export function assertMessageLinksAllowed(
+  text: string,
+  allowApprovedPlatforms: boolean,
+  allowAnyDomain = false,
+): void {
   OBFUSCATION_PATTERN.lastIndex = 0;
   if (OBFUSCATION_PATTERN.test(text)) throw new Error("MESSAGE_LINK_NOT_ALLOWED");
   const matches = text.match(DOMAIN_PATTERN) ?? [];
   for (const raw of matches) {
-    if (!allowApprovedPlatforms) throw new Error("MESSAGE_LINK_NOT_ALLOWED");
+    if (!allowApprovedPlatforms && !allowAnyDomain) throw new Error("MESSAGE_LINK_NOT_ALLOWED");
     const candidate = cleanCandidate(raw);
     let parsed: URL;
     try {
@@ -33,8 +37,8 @@ export function assertMessageLinksAllowed(text: string, allowApprovedPlatforms: 
     } catch {
       throw new Error("MESSAGE_LINK_NOT_ALLOWED");
     }
-    if (parsed.protocol !== "https:" || parsed.username || parsed.password ||
-        !isApprovedHost(parsed.hostname)) {
+    if ((allowAnyDomain ? !["https:", "http:"].includes(parsed.protocol) : parsed.protocol !== "https:") ||
+        parsed.username || parsed.password || (!allowAnyDomain && !isApprovedHost(parsed.hostname))) {
       throw new Error("MESSAGE_LINK_NOT_ALLOWED");
     }
   }
