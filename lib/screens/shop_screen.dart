@@ -60,7 +60,6 @@ class _ShopScreenState extends State<ShopScreen> {
     try {
       final response = await FirebaseFunctions.instance.httpsCallable('purchaseStoreItem').call({
         'itemId': itemId,
-        'expectedPriceCoins': price,
         'requestId': const Uuid().v4(),
         'expectedPriceCoins': price,
       });
