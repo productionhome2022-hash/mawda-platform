@@ -72,3 +72,21 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Verify post-deployment health, authentication, Firestore access, Cloud Functions, and rollback readiness.
 
 **Current known blockers:** Firebase Flutter options still contain placeholder values and a project ID mismatch; Flutter and npm lockfiles are absent; the real `platformOwner` claim and MFA flow have not been provisioned/verified; multiple member-facing product modules remain incomplete. CI success does not clear these blockers.
+
+## MAWADDA AI release gates (not yet implemented)
+
+- [ ] Technical support assistant is isolated behind a trusted backend gateway with case-scoped data access and an explicit tool/permission allowlist.
+- [ ] High-impact operations require separate owner confirmation, recent authentication/MFA where appropriate, and immutable audit records.
+- [ ] AI character profiles and platform information clearly identify them as AI; no impersonation or fabricated human popularity/activity.
+- [ ] Social/romantic character access requires approved 18+ age assurance; confirmed under-18 accounts are blocked from social characters while technical support/reporting remains available.
+- [ ] Private-message access is purpose-bound, case-scoped, least-privilege, disclosed, legally reviewed, and logged; no blanket private-chat training.
+- [ ] Adult character interactions pass safety review for coercion, dependency, emotional manipulation, purchase pressure, and prohibited sexual content.
+- [ ] Public direct/group chats and all public/private rented rooms reject all links server-side.
+- [ ] One-to-one private chats accept only verified YouTube, Instagram/Reels, and Facebook domains; redirect, shortener, lookalike, obfuscation, and bypass tests pass.
+- [ ] AI cannot bypass moderation, age, privacy, wallet, or link controls.
+- [ ] Global, per-module, and per-character kill switches are tested, including active-session shutdown.
+- [ ] Daily/monthly budgets, per-character quotas, alerts, hard caps, and automatic fail-closed shutdown are tested.
+- [ ] Cost, access, tool-call, moderation, and administrative audit records are reviewable without retaining unnecessary private message bodies.
+- [ ] AI prompts/tooling pass prompt-injection, cross-member data isolation, secret-exposure, and unauthorized-action tests.
+- [ ] Privacy/legal review, member-facing disclosures, consent where required, retention/deletion rules, and incident procedures are complete.
+
