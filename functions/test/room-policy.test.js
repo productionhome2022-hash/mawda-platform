@@ -30,4 +30,7 @@ test("moderator permissions are scoped and cannot grant platform privileges", ()
   assert.throws(() => normalizeModeratorPermissions({
     manageMessages: true, platformOwner: true,
   }), /ROOM_MODERATOR_PERMISSION_NOT_ALLOWED/);
+  assert.throws(() => normalizeModeratorPermissions({
+    manageMessages: false, muteMembers: false, removeMembers: false,
+  }), /ROOM_MODERATOR_PERMISSION_REQUIRED/);
 });
