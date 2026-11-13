@@ -37,6 +37,7 @@ cd functions
 MAWDA_MEDIA_LIVE_SCANNER_E2E=1 \
 GOOGLE_CLOUD_PROJECT=<non-production-project-id> \
 MAWDA_MEDIA_TEST_BUCKET=<non-production-bucket-name> \
+MAWDA_MEDIA_TEST_CALLBACK_URL=<non-production-receiveMediaScanVerdict-https-url> \
 npm run test:media-scanner-live-e2e
 ```
 
