@@ -59,7 +59,7 @@ The guarded runner performs real HTTP signed PUT and GET requests, verifies repl
 
 - Upload purpose is recorded (`chat`, `room`, `profile_album`, `avatar_cover`, `story`), but `retentionExpiresAt` remains null and `retentionPolicyStatus` remains `owner_approval_required`. No retained-media deletion scheduler is exported or enabled. Retention periods, legal holds, export format, deletion authority, backup expiry and exception handling require owner approval before any destructive lifecycle rule is configured. Only abandoned, never-finalized upload intents are eligible for the separate cleanup job.
 - Exercise the six-hour missing-object recheck under slow-upload simulation, cleanup retry/dead-letter behavior and orphan reconciliation in non-production. Do not re-enable retained-media deletion until the owner approves exact purpose-based periods and legal-hold behavior.
-- Enforce byte limits at the transport boundary and validate CORS against actual non-production bucket origins.
+- Verify the signed byte-range header against a real non-production bucket, and validate browser CORS against the actual non-production origins.
 - Deploy and exercise the scanner in non-production with clean files, EICAR test signature, malformed images, archive bombs/limit-exceeding files, stale generation, bad HMAC, duplicate callbacks, scanner timeout, signature database refresh/staleness and Cloud Run restart/retry.
 - Build safe processing for video, audio and PDF before any of those types can be member-delivered.
 - The safe WebP preview action is now wired into the owner console. Add Flutter App Check initialization before wiring the separate attachment-stream action; keep all raw signed URLs out of the client.
