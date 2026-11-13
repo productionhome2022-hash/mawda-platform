@@ -65,6 +65,7 @@ import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, c
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
 import { DEFAULT_COIN_PACKAGES, DEFAULT_AD_PRICES, validateCoinPackages, validateAdPrices } from "./economy-pricing";
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
+import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 
 initializeApp();
 
@@ -1666,6 +1667,144 @@ export const getMyBlockedUsers = onCall(async (request) => {
   return { blockedUids };
 });
 
+/** Owner-only live-stream broadcast to an owner/member direct chat or an active public/rented-private room. */
+export const sendOwnerLiveStream = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let input;
+  try { input = validateOwnerLiveStreamInput(request.data); }
+  catch { throw new HttpsError("invalid-argument", "رابط البث أو بيانات الرسالة غير صالحة أو غير آمنة."); }
+  if (input.scope === "direct" && !/^[a-f0-9]{64}$/.test(input.targetId)) {
+    throw new HttpsError("invalid-argument", "معرف المحادثة الثنائية غير صالح.");
+  }
+  const messageId = createHash("sha256")
+    .update("owner-live-stream:" + actorUid + ":" + input.scope + ":" + input.targetId + ":" + input.requestId)
+    .digest("hex");
+  const now = FieldValue.serverTimestamp();
+  const liveStream = {
+    url: input.url, hostname: input.hostname, provider: input.provider,
+    title: input.title, description: input.description, scope: input.scope,
+    targetId: input.targetId, requestId: input.requestId,
+    createdBy: actorUid, createdAt: now,
+  };
+  const auditRef = db.collection("adminAuditLogs").doc("owner_live_stream_" + messageId);
+  let recipientUid: string | null = null;
+  let roomId: string | null = null;
+  const result = await db.runTransaction(async (transaction) => {
+    if (input.scope === "direct") {
+      const chatRef = db.collection("directChats").doc(input.targetId);
+      const messageRef = chatRef.collection("messages").doc(messageId);
+      const chat = await transaction.get(chatRef);
+      if (!chat.exists) throw new HttpsError("not-found", "المحادثة الثنائية غير موجودة.");
+      const participants = chat.data()?.participantUids;
+      if (!Array.isArray(participants) || participants.length !== 2 ||
+          participants.some((uid) => typeof uid !== "string") ||
+          !participants.includes(actorUid)) {
+        throw new HttpsError("permission-denied", "يمكن للمالك إرسال البث فقط إلى محادثة ثنائية يكون أحد طرفيها.");
+      }
+      const peer = participants.find((uid) => uid !== actorUid);
+      if (!peer) throw new HttpsError("failed-precondition", "طرف المحادثة غير صالح.");
+      const [member, existing] = await Promise.all([
+        transaction.get(db.collection("users").doc(peer)),
+        transaction.get(messageRef),
+      ]);
+      if (!member.exists || !isMemberAccountInGoodStanding(member.data())) {
+        throw new HttpsError("permission-denied", "العضو المستلم غير مؤهل لاستقبال رسائل المنصة.");
+      }
+      if (existing.exists) {
+        const prior = existing.data() ?? {};
+        if (prior.senderUid !== actorUid || prior.liveStream?.url !== input.url) {
+          throw new HttpsError("already-exists", "معرف البث مستخدم لرسالة أخرى.");
+        }
+        recipientUid = peer;
+        return { messageId, scope: input.scope, targetId: input.targetId, idempotentReplay: true };
+      }
+      recipientUid = peer;
+      transaction.create(messageRef, {
+        messageId, chatId: input.targetId, senderUid: actorUid, recipientUid: peer,
+        text: input.title || "بث مباشر من مالك منصة مودة",
+        type: "live_stream", liveStream, isPlatformOwnerMessage: true,
+        senderLabel: "إدارة منصة مودة", createdAt: now,
+      });
+      transaction.set(chatRef, {
+        lastMessageAt: now, lastMessageSenderUid: actorUid,
+        lastMessagePreview: input.title || "أرسل مالك المنصة بثاً مباشراً.",
+      }, { merge: true });
+      const notificationRef = db.collection("users").doc(peer).collection("notifications").doc("live_" + messageId);
+      transaction.create(notificationRef, {
+        notificationId: "live_" + messageId, type: "owner_live_stream",
+        senderUid: actorUid, chatId: input.targetId, messageId,
+        title: "بث مباشر من مالك مودة",
+        body: "أرسل مالك المنصة رابط بث مباشر في محادثتك.",
+        isRead: false, createdAt: now,
+      });
+    } else {
+      const roomRef = db.collection("rooms").doc(input.targetId);
+      const messageRef = roomRef.collection("messages").doc(messageId);
+      const room = await transaction.get(roomRef);
+      if (!room.exists || room.data()?.status !== "active") {
+        throw new HttpsError("failed-precondition", "لا يمكن إرسال البث إلى غرفة مغلقة أو غير نشطة.");
+      }
+      const roomData = room.data() ?? {};
+      if (roomData.kind === "private") {
+        if (roomData.isRented !== true || typeof roomData.rentalId !== "string") {
+          throw new HttpsError("failed-precondition", "الغرف الخاصة يجب أن تكون مستأجرة ونشطة لاستقبال البث.");
+        }
+        const rental = await transaction.get(db.collection("roomRentals").doc(roomData.rentalId));
+        const expiresAt = roomData.expiresAt;
+        const rentalExpiry = rental.data()?.expiresAt;
+        if (!rental.exists || rental.data()?.status !== "active" ||
+            !(expiresAt instanceof Timestamp) || expiresAt.toMillis() <= Date.now() ||
+            !(rentalExpiry instanceof Timestamp) || rentalExpiry.toMillis() <= Date.now()) {
+          throw new HttpsError("failed-precondition", "انتهت صلاحية استئجار الغرفة الخاصة.");
+        }
+      } else if (roomData.kind !== "public") {
+        throw new HttpsError("failed-precondition", "نوع الغرفة لا يدعم بث المالك.");
+      }
+      const existing = await transaction.get(messageRef);
+      if (existing.exists) {
+        const prior = existing.data() ?? {};
+        if (prior.senderUid !== actorUid || prior.liveStream?.url !== input.url) {
+          throw new HttpsError("already-exists", "معرف البث مستخدم لرسالة أخرى.");
+        }
+        roomId = input.targetId;
+        return { messageId, scope: input.scope, targetId: input.targetId, idempotentReplay: true };
+      }
+      roomId = input.targetId;
+      transaction.create(messageRef, {
+        messageId, senderUid: actorUid,
+        content: input.title || "بث مباشر من مالك منصة مودة",
+        type: "live_stream", liveStream, isPlatformOwnerMessage: true,
+        senderLabel: "إدارة منصة مودة", isDeleted: false, createdAt: now,
+      });
+    }
+    transaction.create(auditRef, {
+      actorUid, action: "owner_live_stream_broadcast",
+      scope: input.scope, targetId: input.targetId, messageId,
+      hostname: input.hostname, url: input.url, provider: input.provider,
+      title: input.title, description: input.description, createdAt: now,
+    });
+    return { messageId, scope: input.scope, targetId: input.targetId, idempotentReplay: false };
+  });
+  if (!result.idempotentReplay) {
+    if (recipientUid) {
+      await sendPushToMember(recipientUid, "بث مباشر من مالك مودة",
+        "أرسل مالك المنصة رابط بث مباشر في محادثتك.",
+        { type: "owner_live_stream", chatId: input.targetId, messageId });
+    } else if (roomId) {
+      try {
+        const members = await db.collection("rooms").doc(roomId).collection("members").limit(1000).get();
+        await Promise.all(members.docs.map((member) =>
+          sendPushToMember(member.id, "بث مباشر من مالك مودة",
+            "أرسل مالك المنصة بثاً مباشراً في غرفتك.",
+            { type: "owner_live_stream", roomId, messageId })));
+      } catch (error) {
+        logger.warn("Owner live stream room notification fan-out failed", { roomId, error });
+      }
+    }
+  }
+  return { ...result, provider: input.provider, hostname: input.hostname };
+});
+
 /**
  * Sends a text-only direct message through a trusted callable.
  * Client writes to chat and notification collections remain denied by rules.
@@ -1858,6 +1997,9 @@ export const getDirectMessages = onCall(async (request) => {
         recipientUid: data.recipientUid ?? "",
         text: data.text ?? "",
         type: data.type ?? "text",
+        liveStream: data.liveStream ?? null,
+        isPlatformOwnerMessage: data.isPlatformOwnerMessage === true,
+        senderLabel: data.senderLabel ?? null,
         mediaId: typeof data.mediaId === "string" ? data.mediaId : null,
         mediaIds: Array.isArray(data.mediaIds) ? data.mediaIds.filter((value: unknown) => typeof value === "string") : [],
         mediaCategory: typeof data.mediaCategory === "string" ? data.mediaCategory : null,
@@ -1870,6 +2012,7 @@ export const getDirectMessages = onCall(async (request) => {
           ? (typeof data.senderLabel === "string" ? data.senderLabel : "إدارة منصة مودة")
           : null,
         isPlatformOwnerMessage: data.isPlatformOwnerMessage === true,
+        liveStream: data.liveStream ?? null,
         isOwnerReviewNotice: data.isOwnerReviewNotice === true,
         ownerReviewMode: data.ownerReviewMode ?? null,
         ownerParticipationMode: data.ownerParticipationMode ?? null,
