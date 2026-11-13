@@ -196,6 +196,63 @@ class SuperAdminSecurityService {
     return Map<String, dynamic>.from(result.data as Map);
   }
 
+  Future<Map<String, dynamic>> placeMediaLegalHold({
+    required String mediaId,
+    required String authority,
+    required String legalBasis,
+    required String reference,
+    required int startsAtMs,
+    required int reviewAtMs,
+    required int endsAtMs,
+  }) async {
+    final result = await _functions.httpsCallable('placeMediaLegalHold').call({
+      'mediaId': mediaId,
+      'authority': authority,
+      'legalBasis': legalBasis,
+      'reference': reference,
+      'startsAtMs': startsAtMs,
+      'reviewAtMs': reviewAtMs,
+      'endsAtMs': endsAtMs,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> listActiveMediaLegalHolds() async {
+    final result = await _functions.httpsCallable('listActiveMediaLegalHolds').call();
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> reviewMediaLegalHold({
+    required String holdId,
+    required String reviewNote,
+    required int nextReviewAtMs,
+  }) async {
+    final result = await _functions.httpsCallable('reviewMediaLegalHold').call({
+      'holdId': holdId,
+      'reviewNote': reviewNote,
+      'nextReviewAtMs': nextReviewAtMs,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> releaseMediaLegalHold(String holdId) async {
+    final result = await _functions.httpsCallable('releaseMediaLegalHold').call({
+      'holdId': holdId,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> exportOwnerReviewAuditPage({
+    int afterSequence = 0,
+    int pageSize = 50,
+  }) async {
+    final result = await _functions.httpsCallable('exportOwnerReviewAuditPage').call({
+      'afterSequence': afterSequence,
+      'pageSize': pageSize,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
   Future<Map<String, dynamic>> verifyOwnerReviewAuditChain() async {
     final result = await _functions.httpsCallable('verifyOwnerReviewAuditChain').call();
     return Map<String, dynamic>.from(result.data as Map);
