@@ -2975,7 +2975,6 @@ export {
   finalizeMediaUpload,
   listOwnerMediaAssets,
   getOwnerMediaInspectionUrl,
-  ownerMediaPreview,
   ownerMediaInspectionStream,
   cleanupExpiredMediaUploadIntents,
   enqueueMediaSecurityScan,
