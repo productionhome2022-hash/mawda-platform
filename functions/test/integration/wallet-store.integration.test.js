@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getFirestore } = require("firebase-admin/firestore");
-const { transferCoins, purchaseStoreItem } = require("../../lib/index");
+const { transferCoins, purchaseStoreItem, getOwnerStoreCatalog } = require("../../lib/index");
 
 const db = getFirestore();
 const memberRequest = (uid, data) => ({
@@ -9,6 +9,13 @@ const memberRequest = (uid, data) => ({
   auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
 });
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+const ownerRequest = () => ({
+  data: {},
+  auth: { uid: "store-catalog-owner", token: {
+    platformOwner: true, auth_time: Math.floor(Date.now() / 1000),
+    firebase: { sign_in_second_factor: "phone" },
+  } },
+});
 
 test("coin transfer atomically writes both wallet ledgers and platform commission; retries are idempotent", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
@@ -228,5 +235,28 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
       itemRef.delete().catch(() => undefined),
       memberRef.delete().catch(() => undefined),
     ]);
+  }
+});
+
+
+test("owner catalog seeds editable starter prices without enabling unimplemented purchases", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const result = await getOwnerStoreCatalog.run(ownerRequest());
+  const items = result.items;
+  const expected = new Map([
+    ["vip_monthly", 5000], ["title_custom", 800], ["badge_special", 1200],
+    ["avatar_frame_30d", 2500], ["username_color_30d", 1200],
+    ["username_animated_30d", 3000], ["profile_analytics_30d", 1800],
+    ["profile_layout_30d", 3500], ["profile_pin_30d", 900],
+    ["discovery_boost_7d", 1500], ["profile_theme_30d", 2000],
+    ["visitor_greeting_30d", 1000], ["hide_coins_30d", 1000], ["ghost_mode_7d", 1800],
+  ]);
+  for (const [itemId, price] of expected) {
+    const item = items.find((entry) => entry.itemId === itemId);
+    assert.ok(item, `missing starter catalog item: ${itemId}`);
+    assert.equal(item.priceCoins, price);
+    assert.equal(item.active, false);
+    assert.equal(item.purchaseEnabled, false);
+    assert.equal(item.fulfillmentReady, false);
   }
 });
