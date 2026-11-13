@@ -579,6 +579,76 @@ export const dispatchMediaSecurityScan = onDocumentCreated(
   },
 );
 
+
+/**
+ * Issues a short-lived read capability only for a selected, scanner-approved
+ * profile image. Quarantine originals are never exposed to member clients.
+ */
+export const getMemberProfileMediaUrl = onCall(async (request) => {
+  const viewerUid = requireUid(request.auth?.uid);
+  const targetUid = typeof request.data?.userId === "string" ? request.data.userId.trim() : "";
+  const slot = request.data?.slot;
+  if (!targetUid || targetUid.length > 128 || (slot !== "avatar" && slot !== "cover")) {
+    throw new HttpsError("invalid-argument", "بيانات عرض صورة الملف غير صالحة.");
+  }
+
+  const userSnapshot = await mediaDb().collection("users").doc(targetUid).get();
+  if (!userSnapshot.exists) throw new HttpsError("not-found", "ملف العضو غير موجود.");
+  const user = userSnapshot.data() ?? {};
+  if (viewerUid !== targetUid && user.profileVisibility !== "public") {
+    throw new HttpsError("permission-denied", "الملف الشخصي خاص.");
+  }
+  const mediaId = user[slot === "avatar" ? "avatarMediaId" : "coverMediaId"];
+  if (typeof mediaId !== "string" || !/^[0-9a-f-]{36}$/i.test(mediaId)) {
+    return { url: null, usesDefault: true };
+  }
+
+  const assetSnapshot = await mediaDb().collection("mediaAssets").doc(mediaId).get();
+  if (!assetSnapshot.exists) throw new HttpsError("not-found", "صورة الملف غير موجودة.");
+  const asset = assetSnapshot.data() ?? {};
+  const expectedPath = `processed/${targetUid}/${mediaId}/preview.webp`;
+  if (asset.ownerUid !== targetUid || asset.mediaPurpose !== "avatar_cover" ||
+      asset.profileMediaSlot !== slot || asset.status !== "security_approved" ||
+      asset.processingStatus !== "safe_raster_derivative_ready" ||
+      asset.safePreviewPath !== expectedPath ||
+      asset.safePreviewContentType !== "image/webp" ||
+      !(asset.retentionExpiresAt instanceof Timestamp) ||
+      asset.retentionExpiresAt.toMillis() <= Date.now()) {
+    throw new HttpsError("failed-precondition", "الصورة لم تجتز الفحص أو انتهت صلاحيتها.");
+  }
+
+  const previewFile = mediaBucket().file(expectedPath);
+  const [metadata] = await previewFile.getMetadata();
+  const custom = metadata.metadata as Record<string, unknown> | undefined;
+  if (String(metadata.generation) !== String(asset.safePreviewGeneration) ||
+      metadata.contentType !== "image/webp" ||
+      Number(metadata.size) <= 0 || Number(metadata.size) > 2 * 1024 * 1024 ||
+      custom?.mediaId !== mediaId ||
+      custom?.sourceGeneration !== String(asset.storageGeneration) ||
+      custom?.scannerProvider !== asset.scannerProvider) {
+    throw new HttpsError("failed-precondition", "تعذر إثبات سلامة معاينة الصورة.");
+  }
+
+  const expiresAt = mediaSignedUrlExpiresAt("owner-inspection");
+  const [url] = await previewFile.getSignedUrl({
+    version: "v4",
+    action: "read",
+    expires: expiresAt,
+    responseType: "image/webp",
+    responseDisposition: "inline; filename=mawadda-profile.webp",
+  });
+  await auditMediaAccess({
+    actorUid: viewerUid,
+    mediaId,
+    action: "member_profile_safe_media_url",
+    outcome: "success",
+    targetUid,
+    slot,
+    previewGeneration: String(metadata.generation),
+  });
+  return { url, expiresAt, usesDefault: false };
+});
+
 export const createMediaUploadIntent = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
   let input;
