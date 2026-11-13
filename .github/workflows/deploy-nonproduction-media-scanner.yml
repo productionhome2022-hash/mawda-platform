@@ -130,7 +130,12 @@ jobs:
               --member="serviceAccount:$SCANNER_SA" \
               --role="roles/secretmanager.secretAccessor"
           done
-          gcloud storage buckets add-iam-policy-binding "gs://$BUCKET_NAME" \
+          if ! gcloud storage managed-folders describe "gs://$BUCKET_NAME/processed/" \
+            --project "$PROJECT_ID" >/dev/null 2>&1; then
+            gcloud storage managed-folders create "gs://$BUCKET_NAME/processed/" --project "$PROJECT_ID"
+          fi
+          gcloud storage managed-folders add-iam-policy-binding "gs://$BUCKET_NAME/processed/" \
+            --project "$PROJECT_ID" \
             --member="serviceAccount:$SCANNER_SA" \
             --role="roles/storage.objectCreator"
           gcloud storage buckets add-iam-policy-binding "gs://$BUCKET_NAME" \
@@ -203,6 +208,19 @@ jobs:
             --project "$PROJECT_ID" --region "$REGION" \
             --member="serviceAccount:$FUNCTIONS_SA" \
             --role="roles/run.invoker"
+          gcloud run services add-iam-policy-binding "$SERVICE_NAME" \
+            --project "$PROJECT_ID" --region "$REGION" \
+            --member="serviceAccount:${{ vars.MAWDA_NONPROD_DEPLOY_SERVICE_ACCOUNT }}" \
+            --role="roles/run.invoker"
+
+      - name: Verify authenticated scanner health and ClamAV readiness
+        env:
+          SERVICE_URL: ${{ env.SCANNER_SERVICE_URL }}
+        run: |
+          set -euo pipefail
+          TOKEN="$(gcloud auth print-identity-token --audiences="$SERVICE_URL")"
+          curl --fail --silent --show-error --retry 12 --retry-delay 10 \
+            -H "Authorization: Bearer $TOKEN" "$SERVICE_URL/healthz"
 
       - name: Connect and deploy Firebase Functions in the selected non-production project
         env:
