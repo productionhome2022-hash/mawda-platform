@@ -376,3 +376,70 @@ test("a legal hold hides the message while preventing media erasure; retry after
     ]);
   }
 });
+
+
+test("delete-for-everyone erases video, audio and document assets in one message", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+  const bucket = getStorage().bucket();
+  const suffix = Date.now().toString();
+  const [alice, bob] = [`multi-media-owner-${suffix}`, `multi-media-peer-${suffix}`];
+  const chatId = id(`multi-media-chat-${suffix}`);
+  const messageId = id(`multi-media-message-${suffix}`);
+  const media = [
+    { id: `11111111-1111-1111-1111-${suffix.padStart(12, "0").slice(-12)}`, type: "video", contentType: "video/mp4", bytes: "video-bytes" },
+    { id: `22222222-2222-2222-2222-${suffix.padStart(12, "0").slice(-12)}`, type: "audio", contentType: "audio/mpeg", bytes: "audio-bytes" },
+    { id: `33333333-3333-3333-3333-${suffix.padStart(12, "0").slice(-12)}`, type: "document", contentType: "application/pdf", bytes: "pdf-bytes" },
+  ].map((item) => ({
+    ...item,
+    path: `quarantine/${alice}/${item.id}`,
+    ref: db.collection("mediaAssets").doc(item.id),
+  }));
+  const chatRef = db.collection("directChats").doc(chatId);
+  const messageRef = chatRef.collection("messages").doc(messageId);
+  await chatRef.set({ participantUids: [alice, bob] });
+
+  try {
+    for (const item of media) {
+      const object = bucket.file(item.path);
+      await object.save(Buffer.from(item.bytes), {
+        resumable: false, metadata: { contentType: item.contentType },
+      });
+      const [metadata] = await object.getMetadata();
+      await item.ref.set({
+        mediaId: item.id,
+        ownerUid: alice,
+        uploaderType: "member",
+        mediaPurpose: "chat",
+        objectPath: item.path,
+        storageGeneration: String(metadata.generation),
+        detectedContentType: item.contentType,
+        status: "scanner_clean_pending_processing",
+        retentionPolicyStatus: "four_hour_self_destruct",
+        retentionExpiresAt: Timestamp.fromMillis(Date.now() + 4 * 60 * 60 * 1000),
+        createdAt: Timestamp.now(),
+      });
+    }
+    await messageRef.set({
+      messageId, senderUid: alice, recipientUid: bob, type: "attachment",
+      mediaIds: media.map((item) => item.id),
+      createdAt: Timestamp.now(),
+    });
+
+    const result = await deleteDirectMessageForEveryone.run(
+      memberRequest(alice, { chatId, messageId }),
+    );
+    assert.equal(result.deleted, true);
+    assert.equal((await messageRef.get()).exists, false);
+    for (const item of media) {
+      assert.equal((await item.ref.get()).data().status, "manually_deleted");
+      assert.equal((await bucket.file(item.path).exists())[0], false);
+    }
+  } finally {
+    await Promise.all([
+      chatRef.delete().catch(() => undefined),
+      ...media.map((item) => item.ref.delete().catch(() => undefined)),
+      ...media.map((item) => bucket.file(item.path).delete({ ignoreNotFound: true }).catch(() => undefined)),
+    ]);
+  }
+});
