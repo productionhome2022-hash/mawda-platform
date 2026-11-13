@@ -2640,6 +2640,66 @@ export const expireMediaLegalHolds = onSchedule(
         });
       }
     }
+
+    const dueMessages = await db.collection("messageLegalHolds")
+      .where("status", "==", "active")
+      .where("endsAt", "<=", now)
+      .orderBy("endsAt", "asc")
+      .limit(100)
+      .get();
+    for (const holdDoc of dueMessages.docs) {
+      const holdRef = holdDoc.ref;
+      const messagePath = typeof holdDoc.data().messagePath === "string"
+        ? holdDoc.data().messagePath : "";
+      let validPath = "";
+      try {
+        validPath = validateMessageLegalHoldInput({
+          messagePath,
+          authority: "Recorded authority",
+          legalBasis: "Previously validated message preservation basis.",
+          reference: "Recorded-reference",
+          startsAtMs: 0, reviewAtMs: 1, endsAtMs: 2,
+        }, 2).messagePath;
+      } catch {
+        logger.error("Invalid message legal-hold path; expiry requires owner review.", { holdId: holdDoc.id });
+        continue;
+      }
+      const messageRef = db.doc(validPath);
+      let released = false;
+      await db.runTransaction(async (transaction) => {
+        const [freshHold, messageSnapshot] = await Promise.all([
+          transaction.get(holdRef), transaction.get(messageRef),
+        ]);
+        if (!freshHold.exists || freshHold.data()?.status !== "active" ||
+            !(freshHold.data()?.endsAt instanceof Timestamp) ||
+            freshHold.data()!.endsAt.toMillis() > Date.now()) return;
+        if (messageSnapshot.exists && messageSnapshot.data()?.activeLegalHoldId === holdDoc.id) {
+          const message = messageSnapshot.data() ?? {};
+          transaction.update(messageRef, {
+            legalHoldStatus: "expired",
+            activeLegalHoldId: FieldValue.delete(),
+            retentionPolicyStatus: message.resumeRetentionPolicyStatus ?? "seven_day_chat_text",
+            resumeRetentionPolicyStatus: FieldValue.delete(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+        transaction.update(holdRef, {
+          status: "expired",
+          expiredAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        released = true;
+      });
+      if (released) {
+        await appendOwnerReviewAuditEvent({
+          actorUid: "system-legal-hold-expiry",
+          action: "message_legal_hold_expired",
+          holdId: holdDoc.id,
+          messagePath: validPath,
+          outcome: "success",
+        });
+      }
+    }
   },
 );
 
