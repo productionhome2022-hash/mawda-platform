@@ -56,11 +56,13 @@ jobs:
             exit 1
           }
           for target in "$GOOGLE_CLOUD_PROJECT" "$MAWDA_MEDIA_TEST_BUCKET"; do
-            [[ "$target" != *prod* && "$target" != *production* ]] || {
+            normalized="${target,,}"
+            without_nonprod="${normalized//nonprod/}"
+            [[ "$without_nonprod" != *prod* ]] || {
               echo "::error::Production-like target rejected."
               exit 1
             }
-            [[ "$target" =~ (test|staging|dev|demo|nonprod|sandbox) ]] || {
+            [[ "$normalized" =~ (test|staging|dev|demo|nonprod|sandbox) ]] || {
               echo "::error::Target must contain an approved non-production marker."
               exit 1
             }
