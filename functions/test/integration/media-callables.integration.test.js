@@ -653,9 +653,19 @@ test("story publication rejects media that remains quarantined pending malware s
 async function createReadyChatImage({ uid, purpose = "chat", mediaId = randomUUID() }) {
   const objectPath = `processed/${uid}/${mediaId}/preview.webp`;
   const bytes = Buffer.from("safe-webp-test-fixture");
+  const sourceGeneration = "1740000000000000";
+  const sourceSha256 = "c".repeat(64);
+  const safePreviewSha256 = createHash("sha256").update(bytes).digest("hex");
   await getStorage().bucket().file(objectPath).save(bytes, {
     resumable: false,
-    metadata: { contentType: "image/webp", metadata: { mediaId, processing: "sharp-decode-reencode-v1" } },
+    metadata: {
+      contentType: "image/webp",
+      metadata: {
+        mediaId, sourceGeneration, sourceSha256,
+        scannerProvider: "clamav-mawadda-gateway",
+        processing: "sharp-decode-reencode-v1",
+      },
+    },
   });
   const [stored] = await getStorage().bucket().file(objectPath).getMetadata();
   await db.collection("mediaAssets").doc(mediaId).set({
@@ -663,8 +673,10 @@ async function createReadyChatImage({ uid, purpose = "chat", mediaId = randomUUI
     mediaPurpose: purpose, mediaCategory: "image", detectedContentType: "image/png",
     status: "security_approved", processingStatus: "safe_raster_derivative_ready",
     processingPipelineVersion: "sharp-decode-reencode-v1",
+    storageGeneration: sourceGeneration, scannerSha256: sourceSha256,
+    scannerProvider: "clamav-mawadda-gateway",
     safePreviewPath: objectPath, safePreviewGeneration: String(stored.generation),
-    safePreviewSha256: "a".repeat(64), safePreviewContentType: "image/webp",
+    safePreviewSha256, safePreviewContentType: "image/webp",
     safePreviewSizeBytes: bytes.length, retentionExpiresAt: Timestamp.fromMillis(Date.now() + 4 * 60 * 60 * 1000),
     legalHoldStatus: "none", deliveryState: "pending",
   });
