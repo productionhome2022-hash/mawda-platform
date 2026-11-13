@@ -10,7 +10,7 @@ const { promisify } = require("node:util");
 const { execFile } = require("node:child_process");
 const sharp = require("sharp");
 const { Storage } = require("@google-cloud/storage");
-const { equalSecret, validateScanRequest } = require("./security");
+const { equalSecret, validateScanRequest, isSafeDerivativeMetadata } = require("./security");
 
 const execFileAsync = promisify(execFile);
 const PORT = Number(process.env.PORT || 8080);
@@ -41,6 +41,12 @@ async function readJson(request) {
     chunks.push(chunk);
   }
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
+
+async function sha256StorageObject(file) {
+  const hash = createHash("sha256");
+  for await (const chunk of file.createReadStream()) hash.update(chunk);
+  return hash.digest("hex");
 }
 
 async function sha256File(filePath) {
@@ -93,7 +99,7 @@ async function scanWithClamAv(filePath) {
   }
 }
 
-async function createSafeImageDerivative(sourcePath, request) {
+async function createSafeImageDerivative(sourcePath, request, sourceSha256) {
   if (!["image/jpeg", "image/png", "image/webp"].includes(request.contentType)) return null;
   const outputPath = path.join(path.dirname(sourcePath), "preview.webp");
   await sharp(sourcePath, {
@@ -114,25 +120,53 @@ async function createSafeImageDerivative(sourcePath, request) {
   const uid = request.objectPath.split("/")[1];
   const derivativePath = `processed/${uid}/${request.mediaId}/preview.webp`;
   const derivative = storage.bucket(BUCKET_NAME).file(derivativePath);
-  await derivative.save(await fs.readFile(outputPath), {
-    resumable: false,
-    preconditionOpts: { ifGenerationMatch: 0 },
-    metadata: {
-      contentType: "image/webp",
-      cacheControl: "private, no-store, max-age=0",
+  const expectedMetadata = {
+    mediaId: request.mediaId,
+    objectGeneration: request.objectGeneration,
+    sourceSha256,
+    provider: PROVIDER,
+  };
+  try {
+    await derivative.save(await fs.readFile(outputPath), {
+      resumable: false,
+      preconditionOpts: { ifGenerationMatch: 0 },
       metadata: {
-        mediaId: request.mediaId,
-        sourceGeneration: request.objectGeneration,
-        scannerProvider: PROVIDER,
-        processing: "sharp-decode-reencode-v1",
+        contentType: "image/webp",
+        cacheControl: "private, no-store, max-age=0",
+        metadata: {
+          mediaId: request.mediaId,
+          sourceGeneration: request.objectGeneration,
+          sourceSha256,
+          scannerProvider: PROVIDER,
+          processing: "sharp-decode-reencode-v1",
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    // A retry after a successful derivative upload but failed callback must be
+    // idempotent. Reuse only a derivative whose complete provenance matches.
+    if (Number(error && error.code) !== 412) throw error;
+    const [existing] = await derivative.getMetadata();
+    if (!isSafeDerivativeMetadata(existing, expectedMetadata)) {
+      throw new Error("EXISTING_SAFE_DERIVATIVE_PROVENANCE_MISMATCH");
+    }
+    const existingHash = await sha256StorageObject(derivative);
+    return {
+      safePreviewPath: derivativePath,
+      safePreviewGeneration: String(existing.generation),
+      safePreviewSha256: existingHash,
+      safePreviewContentType: "image/webp",
+    };
+  }
+
   const [metadata] = await derivative.getMetadata();
+  if (!isSafeDerivativeMetadata(metadata, expectedMetadata)) {
+    throw new Error("SAFE_DERIVATIVE_METADATA_MISMATCH");
+  }
   return {
     safePreviewPath: derivativePath,
     safePreviewGeneration: String(metadata.generation),
-    safePreviewSha256: await sha256File(outputPath),
+    safePreviewSha256: await sha256StorageObject(derivative),
     safePreviewContentType: "image/webp",
   };
 }
@@ -183,7 +217,7 @@ async function handleScan(request, response) {
     const sourceSha256 = await sha256File(sourcePath);
     const verdict = await scanWithClamAv(sourcePath);
     let derivative = null;
-    if (verdict === "clean") derivative = await createSafeImageDerivative(sourcePath, scanRequest);
+    if (verdict === "clean") derivative = await createSafeImageDerivative(sourcePath, scanRequest, sourceSha256);
 
     await sendVerdict({
       mediaId: scanRequest.mediaId,
