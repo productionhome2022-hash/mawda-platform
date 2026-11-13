@@ -2248,14 +2248,16 @@ export const deleteRoomMessage = onCall(async (request) => {
   const messageRef = roomRef.collection("messages").doc(messageId);
   const membershipRef = roomRef.collection("members").doc(uid);
   const moderatorRef = roomRef.collection("moderators").doc(uid);
-  await db.runTransaction(async (transaction) => {
-    const [room, membership, moderator, message] = await Promise.all([
+  const auditRef = db.collection("roomAuditLogs").doc(
+    createHash("sha256").update(`room:${roomId}:${messageId}:delete_for_everyone`).digest("hex"),
+  );
+  return db.runTransaction(async (transaction) => {
+    const [room, membership, moderator, message, priorAudit] = await Promise.all([
       transaction.get(roomRef), transaction.get(membershipRef),
       transaction.get(moderatorRef), transaction.get(messageRef),
+      transaction.get(auditRef),
     ]);
-    if (!room.exists || !message.exists) {
-      throw new HttpsError("not-found", "الغرفة أو الرسالة غير موجودة.");
-    }
+    if (!room.exists) throw new HttpsError("not-found", "الغرفة غير موجودة.");
     const ownerSession = hasPlatformOwnerSession(
       (request.auth?.token ?? {}) as Record<string, unknown>,
     );
@@ -2265,26 +2267,39 @@ export const deleteRoomMessage = onCall(async (request) => {
     if (!membership.exists && !ownerSession) {
       throw new HttpsError("permission-denied", "لا تملك صلاحية إدارة رسائل هذه الغرفة.");
     }
-    if (message.data()?.senderUid !== uid && !canModerate) {
+    if (!message.exists) {
+      if (priorAudit.exists) {
+        return { roomId, messageId, deleted: true, idempotentReplay: true };
+      }
+      throw new HttpsError("not-found", "الرسالة غير موجودة.");
+    }
+    const data = message.data() ?? {};
+    if (data.senderUid !== uid && !canModerate) {
       throw new HttpsError("permission-denied", "يمكنك حذف رسائلك فقط ما لم تكن تملك صلاحية الإشراف.");
     }
-    if (message.data()?.isDeleted === true) return;
-    transaction.update(messageRef, {
-      content: "",
-      isDeleted: true,
-      deletedAt: FieldValue.serverTimestamp(),
-      deletedBy: uid,
-    });
-    const auditRef = db.collection("roomAuditLogs").doc();
-    transaction.create(auditRef, {
-      roomId,
-      actorUid: uid,
-      messageId,
-      action: "room_message_deleted",
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    const hasMediaReference = data.type !== undefined && data.type !== "text" ||
+      ["storagePath", "mediaPath", "mediaUrl", "downloadUrl", "attachments", "fileUrl"]
+        .some((key) => data[key] !== undefined && data[key] !== null);
+    if (hasMediaReference) {
+      throw new HttpsError(
+        "failed-precondition",
+        "هذه الرسالة تحتوي على وسيط؛ يجب حذفها عبر مسار حذف الوسائط الآمن.",
+      );
+    }
+    transaction.delete(messageRef);
+    if (!priorAudit.exists) {
+      transaction.create(auditRef, {
+        roomId,
+        actorUid: uid,
+        messageId,
+        senderUid: data.senderUid ?? null,
+        action: "room_message_deleted_for_everyone",
+        messageType: "text",
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+    return { roomId, messageId, deleted: true, idempotentReplay: false };
   });
-  return { roomId, messageId, deleted: true };
 });
 
 /** Creates public or private rooms only through the trusted platform owner. */
