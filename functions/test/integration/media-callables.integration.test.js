@@ -407,3 +407,38 @@ test("finalization rejects an HTTP-uploaded object larger than its quota reserva
   assert.equal(quota.data().activeUploads, 0);
   assert.equal(quota.data().activeBytes, 0);
 });
+
+
+test("purpose retention cleanup deletes only the exact source and safe derivative generations", async () => {
+  const uid = `retention-owner-${Date.now()}-${Math.random()}`;
+  const mediaId = randomUUID();
+  const objectPath = `quarantine/${uid}/${mediaId}`;
+  const previewPath = `processed/${uid}/${mediaId}/preview.webp`;
+  const source = getStorage().bucket().file(objectPath);
+  const preview = getStorage().bucket().file(previewPath);
+  await source.save(Buffer.from("quarantined-source"), { metadata: { contentType: "image/png" } });
+  await preview.save(Buffer.from("safe-webp-derivative"), { metadata: { contentType: "image/webp" } });
+  const [sourceMetadata] = await source.getMetadata();
+  const [previewMetadata] = await preview.getMetadata();
+  await db.collection("mediaAssets").doc(mediaId).create({
+    mediaId, ownerUid: uid, objectPath, uploaderType: "member",
+    mediaPurpose: "avatar_cover", declaredContentType: "image/png",
+    detectedContentType: "image/png", sizeBytes: 18,
+    storageGeneration: String(sourceMetadata.generation),
+    safePreviewPath: previewPath,
+    safePreviewGeneration: String(previewMetadata.generation),
+    status: "security_approved",
+    retentionExpiresAt: new Date(Date.now() - 1000),
+  });
+
+  await cleanupRetainedMediaAssets.run();
+
+  const asset = await db.collection("mediaAssets").doc(mediaId).get();
+  assert.equal(asset.data().status, "retained_deleted");
+  const [sourceExists] = await source.exists();
+  const [previewExists] = await preview.exists();
+  assert.equal(sourceExists, false);
+  assert.equal(previewExists, false);
+  assert.ok((await auditEvents(uid)).some((event) =>
+    event.action === "media_retention_delete" && event.outcome === "success"));
+});
