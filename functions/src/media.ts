@@ -296,9 +296,13 @@ export const receiveMediaScanVerdict = onRequest(
       asset.scannerSha256 === verdict.sha256;
     if (sameVerdict) {
       if (verdict.verdict === "malicious") {
-        await mediaBucket().file(String(asset.objectPath)).delete({
+        const rejectedGeneration = Number(verdict.objectGeneration);
+        if (!Number.isSafeInteger(rejectedGeneration) || rejectedGeneration <= 0) {
+          throw new Error("INVALID_SCANNER_OBJECT_GENERATION");
+        }
+        await mediaBucket().file(String(asset.objectPath), { generation: rejectedGeneration }).delete({
           ignoreNotFound: true,
-          ifGenerationMatch: Number(verdict.objectGeneration),
+          ifGenerationMatch: rejectedGeneration,
         });
       }
       const replayJobRef = db.collection("mediaScanJobs").doc(verdict.mediaId);
@@ -444,7 +448,14 @@ export const receiveMediaScanVerdict = onRequest(
     });
   });
   if (verdict.verdict === "malicious") {
-    await file.delete({ ignoreNotFound: true, ifGenerationMatch: Number(verdict.objectGeneration) });
+    const rejectedGeneration = Number(verdict.objectGeneration);
+    if (!Number.isSafeInteger(rejectedGeneration) || rejectedGeneration <= 0) {
+      throw new Error("INVALID_SCANNER_OBJECT_GENERATION");
+    }
+    await mediaBucket().file(String(asset.objectPath), { generation: rejectedGeneration }).delete({
+      ignoreNotFound: true,
+      ifGenerationMatch: rejectedGeneration,
+    });
   }
   response.status(200).json({ mediaId: verdict.mediaId, status: nextStatus });
   },
