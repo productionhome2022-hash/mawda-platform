@@ -44,4 +44,9 @@ async function main() {
   }
 }
 
-main().catch((error) => { console.error(error); process.exitCode = 1; });
+main().catch((error) => {
+  const safeCode = typeof error?.code === "string" ? error.code :
+    error instanceof Error ? error.name : "unknown";
+  console.error(`Signed URL HTTP test failed (${safeCode})`);
+  process.exitCode = 1;
+});
