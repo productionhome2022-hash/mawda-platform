@@ -82,6 +82,8 @@ A green emulator suite does not replace the live non-production checks. A green 
 
 A manually gated workflow has been added at `.github/workflows/live-nonproduction-validation.yml`. It runs the two live scripts against an already provisioned environment; it does **not** deploy Firebase Functions or Cloud Run and does not create cloud infrastructure. GitHub only exposes `workflow_dispatch` for workflows present on the repository's default branch; until this workflow is merged to `main` through the normal reviewed PR process, it cannot be dispatched from the Actions UI. After it is present on the default branch, select the development branch/commit to validate.
 
+**Do not merge PR #2 to `main` solely to unlock this manual workflow.** The current `main` branch contains `.github/workflows/firebase-hosting-merge.yml`, which runs on every push to `main` and deploys Firebase Hosting. Merging this PR can therefore trigger a production Hosting deployment. Keep the PR unmerged unless the owner separately approves that production release. Until then, run the documented commands manually from a controlled Cloud Shell/runner authenticated to the dedicated non-production project, or use a separately approved workflow-delivery path that does not touch production.
+
 Before dispatching it:
 
 1. Create/protect the GitHub Environment named `mawda-nonproduction`; require an authorized reviewer if the repository plan/settings support environment approvals.
