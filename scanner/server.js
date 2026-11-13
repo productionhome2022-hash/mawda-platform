@@ -256,6 +256,12 @@ async function handleScan(request, response) {
     const sourcePath = path.join(tempDir, "source.bin");
     await downloadToFile(scanRequest.downloadUrl, sourcePath);
     const sourceSha256 = await sha256File(sourcePath);
+    const { stdout: versionOutput } = await execFileAsync("clamscan", ["--version"], {
+      timeout: 10_000,
+      maxBuffer: 4_096,
+    });
+    const scannerIdentity = parseClamAvVersion(versionOutput);
+    if (!scannerIdentity) throw new Error("CLAMAV_VERSION_UNAVAILABLE");
     const verdict = await scanWithClamAv(sourcePath);
     let derivative = null;
     if (verdict === "clean") derivative = await createSafeImageDerivative(sourcePath, scanRequest, sourceSha256);
@@ -264,6 +270,8 @@ async function handleScan(request, response) {
       mediaId: scanRequest.mediaId,
       provider: PROVIDER,
       verdict,
+      ...scannerIdentity,
+      signatureDatabaseAgeMs: signatures.ageMs,
       objectGeneration: scanRequest.objectGeneration,
       sha256: sourceSha256,
       scannedAtMs: Date.now(),
