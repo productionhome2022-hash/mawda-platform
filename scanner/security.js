@@ -78,7 +78,7 @@ function isSignatureDatabaseFresh(lastUpdatedMs, nowMs = Date.now(), maxAgeMs = 
 
 function parseClamAvVersion(output) {
   if (typeof output !== "string") return null;
-  const match = output.trim().match(/^ClamAV\\s+(\\d+(?:\\.\\d+){1,2})\\/(\\d+)\\/.+$/);
+  const match = output.trim().match(/^ClamAV\s+(\d+(?:\.\d+){1,2})\/(\d+)\/.+$/);
   if (!match) return null;
   return {
     scanEngine: "ClamAV",
