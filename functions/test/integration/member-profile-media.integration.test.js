@@ -1,16 +1,19 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { initializeApp, deleteApp } = require("firebase-admin/app");
+const { getApps, deleteApp } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
 
 const projectId = process.env.GCLOUD_PROJECT || "demo-mawda-profile-media";
 const rawStorageEmulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? "127.0.0.1:9199";
 process.env.STORAGE_EMULATOR_HOST = `http://${rawStorageEmulatorHost.replace("https://", "").replace("http://", "")}`;
-const app = initializeApp({ projectId, storageBucket: `${projectId}.appspot.com` });
+process.env.GCLOUD_PROJECT = projectId;
+process.env.FIREBASE_CONFIG = JSON.stringify({
+  projectId, storageBucket: `${projectId}.appspot.com`,
+});
+const { setMemberProfileMedia } = require("../../lib/index");
 const db = getFirestore();
 const bucket = getStorage().bucket();
-const { setMemberProfileMedia } = require("../../lib/index");
 const { runChatMediaRetentionSweep } = require("../../lib/retention");
 
 function memberRequest(uid, data) {
@@ -117,5 +120,5 @@ test("expired current avatar falls back to Mawda default before exact media dele
 });
 
 test.after(async () => {
-  await deleteApp(app);
+  await Promise.all(getApps().map((app) => deleteApp(app)));
 });
