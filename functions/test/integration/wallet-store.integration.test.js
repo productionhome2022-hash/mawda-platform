@@ -5,7 +5,8 @@ const {
   transferCoins, purchaseStoreItem, getOwnerStoreCatalog, getOwnerEconomyPricing,
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
   setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
-  rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, sendOwnerLiveStream,
+  rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
+  sendOwnerLiveStream,
   deleteDirectMessageForEveryone, deleteRoomMessage,
 } = require("../../lib/index");
 const { createDirectChatId } = require("../../lib/direct-chat-id");
