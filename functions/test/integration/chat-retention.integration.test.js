@@ -92,20 +92,28 @@ test("seven-day profile gallery retention removes original and preview objects b
   const ownerUid = `gallery-owner-${suffix}`;
   const mediaId = `aaaaaaaa-bbbb-cccc-dddd-${suffix.padStart(12, "0").slice(-12)}`;
   const heldMediaId = `bbbbbbbb-cccc-dddd-eeee-${suffix.padStart(12, "0").slice(-12)}`;
+  const storyMediaId = `cccccccc-dddd-eeee-ffff-${suffix.padStart(12, "0").slice(-12)}`;
   const objectPath = `quarantine/${ownerUid}/${mediaId}`;
   const previewPath = `processed/${ownerUid}/${mediaId}/preview.webp`;
   const heldObjectPath = `quarantine/${ownerUid}/${heldMediaId}`;
+  const storyObjectPath = `quarantine/${ownerUid}/${storyMediaId}`;
+  const storyPreviewPath = `processed/${ownerUid}/${storyMediaId}/preview.webp`;
   const assetRef = db.collection("mediaAssets").doc(mediaId);
   const heldAssetRef = db.collection("mediaAssets").doc(heldMediaId);
+  const storyAssetRef = db.collection("mediaAssets").doc(storyMediaId);
   const original = bucket.file(objectPath);
   const preview = bucket.file(previewPath);
   const heldOriginal = bucket.file(heldObjectPath);
+  const storyOriginal = bucket.file(storyObjectPath);
+  const storyPreview = bucket.file(storyPreviewPath);
   const old = Timestamp.fromMillis(Date.now() - 8 * 24 * 60 * 60 * 1000);
 
   await Promise.all([
     original.save(Buffer.from("gallery original"), { resumable: false }),
     preview.save(Buffer.from("gallery preview"), { resumable: false }),
     heldOriginal.save(Buffer.from("held gallery original"), { resumable: false }),
+    storyOriginal.save(Buffer.from("expired story original"), { resumable: false }),
+    storyPreview.save(Buffer.from("expired story preview"), { resumable: false }),
   ]);
   await Promise.all([
     assetRef.set({
@@ -121,6 +129,12 @@ test("seven-day profile gallery retention removes original and preview objects b
       retentionExpiresAt: old, createdAt: old,
       legalHoldStatus: "active", activeLegalHoldId: "test-gallery-hold",
     }),
+    storyAssetRef.set({
+      mediaId: storyMediaId, ownerUid, uploaderType: "member", mediaPurpose: "story",
+      objectPath: storyObjectPath, safePreviewPath: storyPreviewPath,
+      status: "security_approved", retentionPolicyStatus: "delete_at_story_expiry",
+      storyExpiresAt: old, retentionExpiresAt: old, createdAt: old,
+    }),
   ]);
 
   try {
@@ -133,6 +147,11 @@ test("seven-day profile gallery retention removes original and preview objects b
     assert.equal((await preview.exists())[0], false);
     assert.equal((await heldAssetRef.get()).data().status, "security_approved");
     assert.equal((await heldOriginal.exists())[0], true);
+    const expiredStory = (await storyAssetRef.get()).data();
+    assert.equal(expiredStory.status, "self_destructed");
+    assert.equal(expiredStory.retentionPolicyStatus, "story_expired_deleted");
+    assert.equal((await storyOriginal.exists())[0], false);
+    assert.equal((await storyPreview.exists())[0], false);
 
     // A signed upload or processor that was already in flight may recreate an
     // exact object after the first sweep. The tombstone reconciliation must
@@ -150,6 +169,9 @@ test("seven-day profile gallery retention removes original and preview objects b
     await Promise.all([
       assetRef.delete().catch(() => undefined),
       heldAssetRef.delete().catch(() => undefined),
+      storyAssetRef.delete().catch(() => undefined),
+      storyOriginal.delete({ ignoreNotFound: true }).catch(() => undefined),
+      storyPreview.delete({ ignoreNotFound: true }).catch(() => undefined),
       original.delete({ ignoreNotFound: true }).catch(() => undefined),
       preview.delete({ ignoreNotFound: true }).catch(() => undefined),
       heldOriginal.delete({ ignoreNotFound: true }).catch(() => undefined),
