@@ -5187,7 +5187,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     if (!existingMessage.exists) {
       transaction.create(messageRef, {
         messageId, chatId, senderUid: actorUid, recipientUid: requesterUid,
-        text: "تعليمات دفع طلب شراء الكوينز رقم " + input.requestId +
+        text: "تعليمات الدفع لطلب شراء الكوينز رقم " + input.requestId +
           "\nالكمية المتفق عليها: " + input.agreedCoins + " كوين" +
           "\nالسعر: " + (input.agreedPriceMinor / 100).toFixed(2) + " EUR" +
           "\nالتعليمات: " + input.instructions,
