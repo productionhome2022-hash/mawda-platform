@@ -286,11 +286,21 @@ async function deleteExpiredMediaOperationalAudit(): Promise<number> {
   return deleted;
 }
 
-/**
- * Event-driven backstop: if a scanner finishes late and writes a derivative
- * after the four-hour deadline, delete that exact newly finalized generation.
- */
-export const removeLateExpiredChatMediaDerivative = onObjectFinalized(async (event) => {
+function configuredMediaBucketName(): string | null {
+  if (typeof process.env.MAWDA_MEDIA_BUCKET_NAME === "string" && process.env.MAWDA_MEDIA_BUCKET_NAME.trim()) {
+    return process.env.MAWDA_MEDIA_BUCKET_NAME.trim();
+  }
+  try {
+    const config = JSON.parse(process.env.FIREBASE_CONFIG ?? "{}") as Record<string, unknown>;
+    return typeof config.storageBucket === "string" && config.storageBucket.trim()
+      ? config.storageBucket.trim()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+async function handleLateExpiredChatMediaDerivative(event: Parameters<typeof onObjectFinalized>[1] extends (event: infer T) => unknown ? T : never): Promise<void> {
   const object = event.data;
   const objectPath = typeof object.name === "string" ? object.name : "";
   const parts = objectPath.split("/");
@@ -324,7 +334,15 @@ export const removeLateExpiredChatMediaDerivative = onObjectFinalized(async (eve
     createdAt: FieldValue.serverTimestamp(),
     expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
   });
-});
+}
+
+// Storage trigger registration needs a real bucket name. Unit tests intentionally
+// import this module without Firebase deployment config, so do not register an
+// unusable trigger in that environment.
+const configuredBucket = configuredMediaBucketName();
+export const removeLateExpiredChatMediaDerivative = configuredBucket
+  ? onObjectFinalized({ bucket: configuredBucket }, handleLateExpiredChatMediaDerivative)
+  : undefined;
 
 /** Reconciles expired chat media every minute; disabled by default and non-production gated. */
 export const enforceChatMediaRetention = onSchedule(
