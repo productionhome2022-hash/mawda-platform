@@ -37,7 +37,7 @@ export function validatePrivacyAcknowledgement(
     policyVersion: PRIVACY_POLICY_VERSION,
     policyHash: PRIVACY_POLICY_SHA256,
     locale,
-    actorType: "member",
+    actorType: input.actorType as "member" | "guest",
     appVersion: appVersion.trim(),
   };
 }
