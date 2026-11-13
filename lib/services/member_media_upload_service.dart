@@ -38,7 +38,7 @@ class MemberMediaUploadService {
     required String purpose,
     int? storyExpiresAtMs,
   }) async {
-    if (!const {'avatar_cover', 'story', 'profile_album'}.contains(purpose)) {
+    if (!const {'avatar_cover', 'story', 'profile_album', 'chat', 'room'}.contains(purpose)) {
       throw ArgumentError.value(purpose, 'purpose');
     }
     if (purpose == 'story' &&
@@ -143,6 +143,56 @@ class MemberMediaUploadService {
         .map((item) => Map<String, dynamic>.from(item))
         .where((item) => item['url'] is String && item['mediaId'] is String)
         .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> sendChatImageAttachment({
+    required String scope,
+    required String mediaId,
+    required String clientMessageId,
+    String? recipientUid,
+    String? roomId,
+    String caption = '',
+  }) async {
+    if (scope != 'direct' && scope != 'room') {
+      throw ArgumentError.value(scope, 'scope');
+    }
+    if (scope == 'direct' && (recipientUid == null || recipientUid.isEmpty)) {
+      throw ArgumentError('recipientUid is required for direct messages.');
+    }
+    if (scope == 'room' && (roomId == null || roomId.isEmpty)) {
+      throw ArgumentError('roomId is required for room messages.');
+    }
+    final response = await _functions.httpsCallable('sendChatImageAttachment').call({
+      'scope': scope,
+      'mediaId': mediaId,
+      'clientMessageId': clientMessageId,
+      'caption': caption,
+      if (recipientUid != null) 'recipientUid': recipientUid,
+      if (roomId != null) 'roomId': roomId,
+    });
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<String> getChatImageAttachmentUrl({
+    required String scope,
+    required String mediaId,
+    required String messageId,
+    String? chatId,
+    String? roomId,
+  }) async {
+    final response = await _functions.httpsCallable('getChatImageAttachmentUrl').call({
+      'scope': scope,
+      'mediaId': mediaId,
+      'messageId': messageId,
+      if (chatId != null) 'chatId': chatId,
+      if (roomId != null) 'roomId': roomId,
+    });
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final url = data['url'];
+    if (url is! String || url.isEmpty) {
+      throw StateError('لم يُرجع الخادم رابط الصورة الآمن.');
+    }
+    return url;
   }
 
   void close() => _client.close();
