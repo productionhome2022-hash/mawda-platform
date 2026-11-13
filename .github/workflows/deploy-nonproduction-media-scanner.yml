@@ -288,6 +288,7 @@ jobs:
         env:
           GOOGLE_CLOUD_PROJECT: ${{ inputs.project_id }}
           MAWDA_MEDIA_TEST_BUCKET: ${{ inputs.bucket_name }}
+          MAWDA_MEDIA_BUCKET_NAME: ${{ inputs.bucket_name }}
           MAWDA_MEDIA_LIVE_SCANNER_E2E: "1"
         run: npm run test:media-scanner-live-e2e
 
