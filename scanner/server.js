@@ -105,8 +105,13 @@ async function createSafeImageDerivative(sourcePath, request, sourceSha256) {
   const inputOptions = { failOn: "error", limitInputPixels: 40_000_000, animated: isGif };
   const sourceMetadata = await sharp(sourcePath, inputOptions).metadata();
   // Bound animation complexity as well as compressed input size to resist GIF bombs.
-  if (isGif && (!Number.isSafeInteger(sourceMetadata.pages) || sourceMetadata.pages < 1 || sourceMetadata.pages > 100)) {
-    throw new Error("GIF_FRAME_COUNT_EXCEEDS_SAFE_LIMIT");
+  if (isGif) {
+    const pages = sourceMetadata.pages;
+    const totalPixels = Number(sourceMetadata.width) * Number(sourceMetadata.height) * Number(pages);
+    if (!Number.isSafeInteger(pages) || pages < 1 || pages > 100 ||
+        !Number.isSafeInteger(totalPixels) || totalPixels > 40_000_000) {
+      throw new Error("GIF_COMPLEXITY_EXCEEDS_SAFE_LIMIT");
+    }
   }
   const outputPath = path.join(path.dirname(sourcePath), "preview.webp");
   await sharp(sourcePath, inputOptions).rotate().resize({
