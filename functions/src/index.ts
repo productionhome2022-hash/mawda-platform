@@ -2975,4 +2975,5 @@ export {
   finalizeMediaUpload,
   listOwnerMediaAssets,
   getOwnerMediaInspectionUrl,
+  cleanupExpiredMediaUploadIntents,
 } from "./media";
