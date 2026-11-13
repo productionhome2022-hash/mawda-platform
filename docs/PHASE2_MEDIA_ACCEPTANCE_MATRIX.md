@@ -16,10 +16,12 @@ Status snapshot: 2026-11-13. This document is a release gate, not a claim that e
 
 ## Automated validation evidence
 
-- The development branch has previously passed Flutter analysis, Flutter tests, Web release build, Functions compilation/unit tests, media callable integration tests, and Firestore/Storage emulator rules tests. See PR #3 workflow run 43378886210 for successful Flutter and Functions/emulator job steps; its scanner job was cancelled before completion.
-- PR #2 latest validation at snapshot time is running on commit `cf6dddd57e76f1bec8da38a3cada6f486dbab4b8` (workflow run 43379041384). Do not treat an in-progress job as a pass.
-- PR #3 latest validation at snapshot time is running on commit `34665027dfc7f1bec8da38a3cada6f486dbab4b8` (workflow run 43379061147). Do not treat an in-progress job as a pass.
-- The opt-in real-GCS signed HTTP test has not been run because no dedicated non-production bucket credentials/configuration are available in this workflow context.
+- **Latest full green validation on the current PR #2 development head:** commit `45b707eee0f765af9ccf260753622fada47a753f`, workflow run [43379943559](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43379943559), completed successfully on 2026-11-13.
+- The exact run passed all three jobs: Flutter analysis, Flutter tests and Web release build; Cloud Functions TypeScript compilation/unit tests, media callable authorization/audit integration tests, and Firestore/Storage rules emulator tests; isolated ClamAV scanner source/security tests, container build and EICAR signature detection.
+- Earlier run [43379722894](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43379722894) failed because it attempted a V4 signed HTTP PUT against the Storage Emulator, which returns HTTP 501 for that endpoint. The current emulator integration test now uses the supported Admin Storage API to exercise object creation with the generation precondition and callable finalization. The test explicitly does not claim to validate the signed HTTP wire protocol.
+- **Real Cloud Storage signed URL HTTP verification remains pending.** The opt-in script `functions/scripts/test-signed-urls-http.cjs` must be run against a disposable non-production GCS bucket with approved credentials; it covers real PUT/GET, create-only replay, exact byte-range rejection and expiry. Emulator success is not a substitute.
+- PR #3 workflow run [43379722396](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43379722396) passed its CI jobs, but PR #3 remains based on a divergent development snapshot and its changes must be reconciled selectively, not merged wholesale.
+- Track the remaining non-production infrastructure, real-GCS, audit export/retention and owner-approval gates in [issue #4](https://github.com/productionhome2022-hash/mawda-platform/issues/4).
 
 ## Required release gates
 
@@ -28,7 +30,7 @@ Status snapshot: 2026-11-13. This document is a release gate, not a claim that e
 | Owner authorization | Owner succeeds only with sole-owner claim and fresh MFA; stale MFA, non-owner and revoked sessions denied and audited | Emulator coverage exists; latest run must pass |
 | Member/guest isolation | Member and anonymous guest cannot list, inspect, preview or read another uploader's media | Emulator coverage exists; latest run must pass |
 | Upload integrity | Exact content type, byte count, signature and create-only generation; mismatch rejected and audited | Code and emulator coverage exist; real bucket HTTP run pending |
-| Replay/expiry | First signed upload succeeds; replay rejected by generation precondition; expired URL rejected | Emulator coverage exists; real bucket HTTP run pending |
+| Replay/expiry | Emulator generation-precondition/finalization checks plus real GCS HTTP PUT/GET, replay and expiry | Emulator checks pass on run 43379943559; real bucket HTTP run pending |
 | Malware scan | Clean, EICAR/malicious, malformed, timeout, unavailable, stale, duplicate, tampered HMAC/hash/generation cases | Scanner unit/CI work in progress; non-production end-to-end run pending |
 | Safe preview | Only sanitized derivative, bounded response, generation/hash/provenance rechecked | Code and Flutter owner UI exist; full image corpus/device validation pending |
 | Cleanup | Grace period, exact path/generation deletion, missing-object recheck, retry and quota release | Code and unit/emulator coverage exist; latest run must pass |
