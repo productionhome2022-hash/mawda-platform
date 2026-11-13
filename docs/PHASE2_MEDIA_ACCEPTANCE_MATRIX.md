@@ -56,6 +56,15 @@ Status snapshot: 2026-11-13. This document is a release gate, not a claim that e
 
 A successful malware verdict does not by itself authorize member delivery. Only types with a completed safe-processing pipeline may become eligible for delivery. Images use sanitized WebP derivatives; video, audio and PDF remain unavailable until type-specific processing is implemented.
 
+## Owner audit export implementation update (13 November 2026)
+
+- Added an MFA/sole-owner protected callable `exportOwnerReviewAuditPage` for bounded, cursor-based export of the owner-review hash chain.
+- Export pages are capped at 100 returned records and scan at most 500 chain records per request. The cursor tracks the last scanned sequence so filtered pages do not repeatedly rescan the same range.
+- Filters support sequence cursor, event-time range, actor UID and action. Invalid cursors, page sizes, dates and filter values fail closed.
+- Exported event payloads are recursively projected to omit credentials, signed/download URLs, raw content/text/body and file bytes. The export operation itself is appended to the same hash-linked audit chain.
+- Added unit tests for validation and recursive redaction. GitHub Actions validation for the new callable and tests is pending; this does not yet prove export retrieval against a populated Firestore emulator or production-like data.
+- The 24-month retention/deletion control for audit evidence is **still not implemented**. It must not be implemented as a blind TTL on hash-chain events: verified checkpoints/anchoring and legally scoped holds must exist first, or deletion would make historical chain verification impossible.
+
 ## Merge and deployment boundary
 
 PR #2 and PR #3 are separate draft proposals. PR #3's head is based on an older snapshot of the development branch and the refs currently diverge; do not merge either PR until the phase-2 changes are reconciled onto one current branch and the exact final commit has a green full CI run. No production Firebase mutation, production deployment, public Storage access or merge to `main` is authorized by this engineering record.
