@@ -505,15 +505,15 @@ export const getOwnerMediaInspectionUrl = onCall(async () => {
  * cleanup/finalize race; failed object deletion is retried on the next sweep.
  */
 export const cleanupExpiredMediaUploadIntents = onSchedule(
-  { schedule: "every 15 minutes", timeZone: "UTC", retryCount: 3 },
+  { schedule: "every 15 minutes", timeZone: "UTC" },
   async () => {
     const cutoff = Timestamp.fromMillis(Date.now() - 15 * 60 * 1000);
     const assets = mediaDb().collection("mediaAssets");
     const [expired, retrying] = await Promise.all([
       assets.where("status", "==", "upload_authorized")
-        .where("createdAt", "<=", cutoff).orderBy("createdAt").limit(100).get(),
+        .where("createdAt", "<=", cutoff).orderBy("createdAt", "desc").limit(100).get(),
       assets.where("status", "==", "expired_cleanup_in_progress")
-        .orderBy("createdAt").limit(100).get(),
+        .orderBy("createdAt", "desc").limit(100).get(),
     ]);
     const candidates = new Map<string, (typeof expired.docs)[number]>();
     for (const doc of [...expired.docs, ...retrying.docs]) candidates.set(doc.id, doc);
@@ -561,13 +561,14 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
           transaction.set(mediaDb().collection("mediaUploadQuotas").doc(claimed.ownerUid), {
             ...quota, updatedAt: FieldValue.serverTimestamp(),
           });
-        });
-        await auditMediaAccess({
-          actorUid: claimed.ownerUid,
-          mediaId: candidate.id,
-          action: "media_upload_intent_expired",
-          outcome: "success",
-          objectPath: claimed.objectPath,
+          transaction.create(mediaDb().collection("mediaAccessAudit").doc(), {
+            actorUid: claimed.ownerUid,
+            mediaId: candidate.id,
+            action: "media_upload_intent_expired",
+            outcome: "success",
+            objectPath: claimed.objectPath,
+            createdAt: FieldValue.serverTimestamp(),
+          });
         });
         reclaimed += 1;
       } catch (error) {
