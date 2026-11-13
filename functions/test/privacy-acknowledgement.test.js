@@ -27,15 +27,16 @@ test("rejects stale policy versions and mismatched hashes", () => {
   }), /PRIVACY_POLICY_HASH_MISMATCH/);
 });
 
-test("accepts only supported locales and member actor type", () => {
+test("accepts only supported locales and member or guest actor type", () => {
   for (const locale of ["ar", "en", "fr", "es"]) {
     assert.equal(validatePrivacyAcknowledgement({ ...valid, locale }).locale, locale);
   }
   assert.throws(() => validatePrivacyAcknowledgement({
     ...valid, locale: "de",
   }), /PRIVACY_POLICY_LOCALE_INVALID/);
+  assert.equal(validatePrivacyAcknowledgement({ ...valid, actorType: "guest" }).actorType, "guest");
   assert.throws(() => validatePrivacyAcknowledgement({
-    ...valid, actorType: "guest",
+    ...valid, actorType: "owner",
   }), /PRIVACY_POLICY_ACTOR_INVALID/);
 });
 
