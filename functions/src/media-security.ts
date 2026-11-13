@@ -1,5 +1,6 @@
 export type MediaCategory = "image" | "video" | "audio" | "document";
 export type MediaPurpose = "chat" | "room" | "profile_album" | "avatar_cover" | "story";
+const MEDIA_PURPOSES: ReadonlySet<string> = new Set(["chat", "room", "profile_album", "avatar_cover", "story"]);
 
 // Purpose is recorded for future policy enforcement. No automatic retention
 // expiry is computed until the sole owner approves exact durations and legal holds.
@@ -53,7 +54,7 @@ export function normalizeMediaRequest(input: Record<string, unknown>): {
   const contentType = typeof input.contentType === "string" ? input.contentType.trim().toLowerCase() : "";
   const declaredSizeBytes = input.sizeBytes;
   const purpose = typeof input.purpose === "string" ? input.purpose as MediaPurpose : "";
-  if (!Object.prototype.hasOwnProperty.call(MEDIA_RETENTION_MS, purpose)) {
+  if (!MEDIA_PURPOSES.has(purpose)) {
     throw new Error("غرض حفظ الملف غير صالح.");
   }
   if (!originalName || originalName.length > 180 || /[\\/\u0000-\u001f]/.test(originalName)) {
