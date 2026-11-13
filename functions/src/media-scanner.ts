@@ -37,22 +37,24 @@ export function validateScannerVerdict(
   ];
   const hasAnyPreview = previewFields.some((field) => field !== undefined);
   const hasAllPreview = previewFields.every((field) => field !== undefined);
-  const previewPathPattern = typeof v.mediaId === "string"
-    ? new RegExp("^processed/[A-Za-z0-9_-]{1,128}/" + v.mediaId + "/preview\\\\.webp$")
-    : null;
+  const previewParts = typeof v.safePreviewPath === "string" ? v.safePreviewPath.split("/") : [];
+  const previewPathValid = previewParts.length === 4 &&
+    previewParts[0] === "processed" &&
+    /^[A-Za-z0-9_-]{1,128}$/.test(previewParts[1]) &&
+    previewParts[2] === v.mediaId &&
+    previewParts[3] === "preview.webp";
 
   if (typeof v.mediaId !== "string" || !/^[0-9a-f-]{36}$/i.test(v.mediaId) ||
       v.provider !== expectedProvider ||
       !["clean", "malicious", "error"].includes(String(v.verdict)) ||
-      typeof v.objectGeneration !== "string" || !/^\\d+$/.test(v.objectGeneration) ||
+      typeof v.objectGeneration !== "string" || !/^\d+$/.test(v.objectGeneration) ||
       typeof v.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(v.sha256) ||
       !Number.isSafeInteger(v.scannedAtMs) ||
       Math.abs(nowMs - Number(v.scannedAtMs)) > 10 * 60 * 1000 ||
       (hasAnyPreview && !hasAllPreview) ||
       (hasAllPreview && (
-        typeof v.safePreviewPath !== "string" ||
-        !previewPathPattern?.test(v.safePreviewPath) ||
-        typeof v.safePreviewGeneration !== "string" || !/^\\d+$/.test(v.safePreviewGeneration) ||
+        !previewPathValid ||
+        typeof v.safePreviewGeneration !== "string" || !/^\d+$/.test(v.safePreviewGeneration) ||
         typeof v.safePreviewSha256 !== "string" || !/^[a-f0-9]{64}$/.test(v.safePreviewSha256) ||
         v.safePreviewContentType !== "image/webp" ||
         v.verdict !== "clean"
