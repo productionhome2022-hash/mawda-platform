@@ -20,7 +20,7 @@ class FakeBiometricAdapter implements LocalBiometricAdapter {
 void main() {
   test('reports success only after the native prompt succeeds', () async {
     final adapter = FakeBiometricAdapter();
-    final result = await LocalBiometricService(adapter: adapter).authenticate();
+    final result = await LocalBiometricService(adapter: adapter, supportedPlatform: true).authenticate();
 
     expect(result.status, LocalBiometricStatus.authenticated);
     expect(result.succeeded, isTrue);
@@ -29,7 +29,7 @@ void main() {
 
   test('reports cancellation without treating it as success', () async {
     final adapter = FakeBiometricAdapter()..authenticationResult = false;
-    final result = await LocalBiometricService(adapter: adapter).authenticate();
+    final result = await LocalBiometricService(adapter: adapter, supportedPlatform: true).authenticate();
 
     expect(result.status, LocalBiometricStatus.cancelled);
     expect(result.succeeded, isFalse);
@@ -38,7 +38,7 @@ void main() {
   test('classifies missing biometric enrollment', () async {
     final adapter = FakeBiometricAdapter()
       ..platformException = PlatformException(code: 'NotEnrolled');
-    final result = await LocalBiometricService(adapter: adapter).authenticate();
+    final result = await LocalBiometricService(adapter: adapter, supportedPlatform: true).authenticate();
 
     expect(result.status, LocalBiometricStatus.notEnrolled);
   });
@@ -46,14 +46,14 @@ void main() {
   test('classifies unavailable biometric hardware', () async {
     final adapter = FakeBiometricAdapter()
       ..platformException = PlatformException(code: 'NotAvailable');
-    final result = await LocalBiometricService(adapter: adapter).authenticate();
+    final result = await LocalBiometricService(adapter: adapter, supportedPlatform: true).authenticate();
 
     expect(result.status, LocalBiometricStatus.unavailable);
   });
 
   test('fails closed when the native plugin throws an unexpected error', () async {
     final adapter = FakeBiometricAdapter()..shouldThrow = true;
-    final result = await LocalBiometricService(adapter: adapter).authenticate();
+    final result = await LocalBiometricService(adapter: adapter, supportedPlatform: true).authenticate();
 
     expect(result.status, LocalBiometricStatus.failed);
     expect(result.succeeded, isFalse);
