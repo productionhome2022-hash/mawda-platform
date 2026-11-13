@@ -1993,12 +1993,12 @@ export const exportOwnerReviewAuditPage = onCall(async (request) => {
 
   const scanLimit = 501;
   const scanned = await db.collection("adminAuditLogs")
+    .where("auditChainId", "==", "owner-review-v1")
     .where("auditSequence", ">", filters.afterSequence)
     .orderBy("auditSequence", "asc")
     .limit(scanLimit)
     .get();
   const scannedDocs = scanned.docs.filter((doc) =>
-    doc.data().auditChainId === "owner-review-v1" &&
     doc.data().auditSequence <= headSequence
   );
   const matchingDocs = scannedDocs.filter((doc) => {
