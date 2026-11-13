@@ -119,10 +119,13 @@ jobs:
         run: |
           node --check scanner/server.js
           node --check scanner/security.js
+          node --check scanner/processors.js
           sh -n scanner/start.sh
-          node --test scanner/test/*.test.js
+          node --test scanner/test/security.test.js scanner/test/processors.test.js
       - name: Build isolated ClamAV scanner container
         run: docker build --tag mawda-clamav-scanner:ci scanner
+      - name: Run real GIF, audio, video and PDF sanitization tests inside the scanner image
+        run: docker run --rm --entrypoint npm mawda-clamav-scanner:ci test
       - name: Verify ClamAV detects the harmless EICAR test signature
         run: |
           docker run --rm --entrypoint sh mawda-clamav-scanner:ci -c '
