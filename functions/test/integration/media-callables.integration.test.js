@@ -141,6 +141,24 @@ test("only a fresh MFA-authenticated platform owner may create PDF chat and room
   );
 });
 
+test("owner media privileges require the owner claim UID to match the authenticated UID", async () => {
+  const uid = `owner-claim-mismatch-${Date.now()}-${Math.random()}`;
+  const request = ownerRequest(uid, {
+    originalName: "forged-owner.pdf", contentType: "application/pdf", sizeBytes: 12, purpose: "chat",
+  });
+  request.auth.token.platformOwnerUid = "different-owner-uid";
+  await assert.rejects(
+    () => createMediaUploadIntent.run(request),
+    (error) => error && error.code === "permission-denied",
+  );
+  await assert.rejects(
+    () => listOwnerMediaAssets.run(request),
+    (error) => error && error.code === "permission-denied",
+  );
+  const assets = await db.collection("mediaAssets").where("ownerUid", "==", uid).get();
+  assert.equal(assets.empty, true);
+});
+
 test("owner media listing succeeds and writes a success audit event", async () => {
   const uid = `owner-${Date.now()}-${Math.random()}`;
   const result = await listOwnerMediaAssets.run(ownerRequest(uid));
