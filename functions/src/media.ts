@@ -953,14 +953,13 @@ export const sendChatImageAttachment = onCall(async (request) => {
   const ownerSession = request.auth?.token.platformOwner === true &&
     hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>);
   const artifact = resolveChatMediaDeliveryArtifact(asset as never, ownerSession);
-  if (asset.ownerUid !== senderUid || asset.mediaPurpose !== expectedPurpose ||
-      !artifact || artifact.category !== "image" ||
-      !["image/jpeg", "image/png", "image/webp"].includes(String(asset.detectedContentType))) {
+  if (asset.ownerUid !== senderUid || asset.mediaPurpose !== expectedPurpose || !artifact ||
+      (artifact.category === "document" && !ownerSession)) {
     await auditMediaAccess({
       actorUid: senderUid, mediaId, action: "chat_media_message_link",
-      outcome: "denied", scope, failureCode: "asset_not_safe_or_not_owned",
+      outcome: "denied", scope, failureCode: "asset_not_safe_or_not_owned_or_owner_only_document",
     });
-    throw new HttpsError("failed-precondition", "لا يمكن إرسال هذا الملف قبل اكتمال معالجة الصور الآمنة والتحقق من ملكيته.");
+    throw new HttpsError("failed-precondition", "لا يمكن إرسال هذا الملف قبل اكتمال معالجته الآمنة والتحقق من صلاحية المرسل.");
   }
 
   const messageId = createHash("sha256").update(senderUid + ":" + clientMessageId).digest("hex");
@@ -1007,16 +1006,16 @@ export const sendChatImageAttachment = onCall(async (request) => {
         participantUids: [senderUid, recipientUid].sort(),
         createdAt: chat.exists ? chat.data()?.createdAt ?? now : now,
         lastMessageAt: now, lastMessageSenderUid: senderUid,
-        lastMessagePreview: caption || "صورة",
+        lastMessagePreview: caption || (artifact.category === "image" ? "صورة" : artifact.category === "gif" ? "صورة متحركة" : artifact.category === "audio" ? "رسالة صوتية" : artifact.category === "video" ? "فيديو" : "مستند من المالك"),
       }, { merge: true });
       tx.create(messageRef, {
         messageId, chatId, senderUid, recipientUid, text: caption,
-        type: "attachment", mediaId, mediaCategory: "image",
-        contentType: "image/webp", attachmentStatus: "ready", createdAt: now,
+        type: "attachment", mediaId, mediaCategory: artifact.category,
+        contentType: artifact.contentType, attachmentStatus: "ready", createdAt: now,
       });
       tx.create(notificationRef, {
         notificationId: messageId, type: "direct_message", senderUid, chatId, messageId,
-        title: "صورة جديدة", body: "لديك صورة جديدة في محادثة مودة.",
+        title: artifact.category === "document" ? "مستند من إدارة مودة" : "مرفق جديد", body: "لديك مرفق جديد في محادثة مودة.",
         isRead: false, createdAt: now,
       });
       tx.update(assetRef, {
@@ -1042,12 +1041,12 @@ export const sendChatImageAttachment = onCall(async (request) => {
       tx.get(roomRef), tx.get(memberRef), tx.get(mediaDb().collection("users").doc(senderUid)),
       tx.get(messageRef), tx.get(assetRef),
     ]);
-    if (!room.exists || room.data()?.status !== "active" || !member.exists ||
-        !user.exists || user.data()?.status === "suspended") {
+    if (!room.exists || room.data()?.status !== "active" || (!member.exists && !ownerSession) ||
+        (!user.exists && !ownerSession) || user.data()?.status === "suspended") {
       throw new HttpsError("permission-denied", "يجب أن تكون عضواً نشطاً في الغرفة لإرسال المرفق.");
     }
     const mutedUntil = member.data()?.mutedUntil;
-    if (mutedUntil instanceof Timestamp && mutedUntil.toMillis() > Date.now()) {
+    if (!ownerSession && mutedUntil instanceof Timestamp && mutedUntil.toMillis() > Date.now()) {
       throw new HttpsError("permission-denied", "لا يمكنك إرسال مرفقات أثناء فترة الكتم.");
     }
     if (!freshAsset.exists || freshAsset.data()?.status !== "security_approved" ||
@@ -1060,7 +1059,7 @@ export const sendChatImageAttachment = onCall(async (request) => {
     if (message.exists) throw new HttpsError("already-exists", "معرف الرسالة مستخدم.");
     tx.create(messageRef, {
       messageId, senderUid, content: caption, type: "attachment",
-      mediaId, mediaCategory: "image", contentType: "image/webp",
+      mediaId, mediaCategory: artifact.category, contentType: artifact.contentType,
       attachmentStatus: "ready", isDeleted: false, createdAt: now,
     });
     tx.update(assetRef, {
@@ -1129,13 +1128,18 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
   const assetSnapshot = await assetRef.get();
   if (!assetSnapshot.exists) throw new HttpsError("not-found", "سجل المرفق غير موجود.");
   const asset = assetSnapshot.data() ?? {};
-  const artifact = resolveChatMediaDeliveryArtifact(asset as never, false);
-  if (!artifact || artifact.category !== "image" || asset.status !== "security_approved" ||
+  const artifact = resolveChatMediaDeliveryArtifact(
+    asset as never, asset.uploaderRole === "platform_owner",
+  );
+  const maxBytes = artifact?.category === "video" ? 50 * 1024 * 1024 :
+    artifact?.category === "audio" ? 25 * 1024 * 1024 :
+      artifact?.category === "document" ? 20 * 1024 * 1024 : 5 * 1024 * 1024;
+  if (!artifact || asset.status !== "security_approved" ||
       asset.deliveryState !== "ready" || asset.linkedMessageId !== messageId ||
       asset.linkedScope !== scope || asset.linkedConversationId !== conversationId ||
       !(asset.retentionExpiresAt instanceof Timestamp) || asset.retentionExpiresAt.toMillis() <= Date.now() ||
       asset.legalHoldStatus === "released") {
-    throw new HttpsError("failed-precondition", "انتهت صلاحية الصورة أو لم تجتز المعالجة الآمنة.");
+    throw new HttpsError("failed-precondition", "انتهت صلاحية المرفق أو لم يجتز المعالجة الآمنة.");
   }
   const file = mediaBucket().file(artifact.objectPath, { generation: Number(artifact.generation) });
   const [metadata] = await file.getMetadata();
@@ -1143,24 +1147,27 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
   const actualArtifactHash = await sha256Object(file);
   if (String(metadata.generation) !== artifact.generation ||
       metadata.contentType !== artifact.contentType || Number(metadata.size) <= 0 ||
-      Number(metadata.size) > 5 * 1024 * 1024 || actualArtifactHash !== artifact.sha256 ||
+      Number(metadata.size) > maxBytes || actualArtifactHash !== artifact.sha256 ||
       customMetadata?.mediaId !== mediaId ||
       customMetadata?.sourceGeneration !== String(asset.storageGeneration) ||
       customMetadata?.sourceSha256 !== String(asset.scannerSha256) ||
       customMetadata?.scannerProvider !== String(asset.scannerProvider) ||
-      customMetadata?.processing !== "sharp-decode-reencode-v1") {
-    throw new HttpsError("failed-precondition", "تعذر التحقق من نسخة الصورة الآمنة.");
+      customMetadata?.processing !== String(asset.processingPipelineVersion)) {
+    throw new HttpsError("failed-precondition", "تعذر التحقق من النسخة الآمنة للمرفق.");
   }
   const expiresAt = Date.now() + 2 * 60 * 1000;
+  const disposition = artifact.category === "document"
+    ? "attachment; filename=mawadda-document.pdf" : "inline";
   const [url] = await file.getSignedUrl({
     version: "v4", action: "read", expires: expiresAt,
-    responseType: "image/webp", responseDisposition: "inline",
+    responseType: artifact.contentType, responseDisposition: disposition,
   });
   await auditMediaAccess({
     actorUid: viewerUid, mediaId, action: "chat_media_delivery_url_issued",
-    outcome: "success", scope, messageId, objectGeneration: artifact.generation,
+    outcome: "success", scope, messageId, category: artifact.category,
+    objectGeneration: artifact.generation,
   });
-  return { url, expiresAt, contentType: "image/webp" };
+  return { url, expiresAt, contentType: artifact.contentType, category: artifact.category };
 });
 
 export const createMediaUploadIntent = onCall(async (request) => {
@@ -1907,3 +1914,7 @@ export const ownerMediaPreview = onRequest(
     }
   },
 );
+
+// Backward-compatible callable names; both routes enforce the same typed safe-derivative contract.
+export const sendChatMediaAttachment = sendChatImageAttachment;
+export const getChatMediaAttachmentUrl = getChatImageAttachmentUrl;
