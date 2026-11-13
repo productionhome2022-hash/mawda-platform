@@ -382,6 +382,9 @@ async function submitScannerVerdict({ uid, mediaId, bytes, verdict = "clean", ge
   const payload = {
     mediaId,
     provider: "test-scanner",
+    engine: "ClamAV",
+    engineVersion: "1.4.2-test",
+    signatureVersion: "test-db-1",
     verdict,
     objectGeneration: generationOverride ?? String(metadata.generation),
     sha256: hashOverride ?? createHash("sha256").update(bytes).digest("hex"),
@@ -447,7 +450,8 @@ test("scanner callback rejects invalid HMAC without changing asset state", async
   const bytes = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
   const { file } = await submitScannerVerdict({ uid, mediaId, bytes });
   const payload = Buffer.from(JSON.stringify({
-    mediaId, provider: "test-scanner", verdict: "clean",
+    mediaId, provider: "test-scanner", engine: "ClamAV",
+    engineVersion: "1.4.2-test", signatureVersion: "test-db-1", verdict: "clean",
     objectGeneration: "1", sha256: createHash("sha256").update(bytes).digest("hex"),
     scannedAtMs: Date.now(),
   }));
