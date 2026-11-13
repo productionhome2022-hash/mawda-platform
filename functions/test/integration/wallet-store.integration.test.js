@@ -5,8 +5,9 @@ const {
   transferCoins, purchaseStoreItem, getOwnerStoreCatalog, getOwnerEconomyPricing,
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
   setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
-  rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest,
+  rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, sendOwnerLiveStream,
 } = require("../../lib/index");
+const { createDirectChatId } = require("../../lib/direct-chat-id");
 
 const db = getFirestore();
 const memberRequest = (uid, data) => ({
@@ -413,5 +414,122 @@ test("custom coin request is negotiated manually and a withdrawn request cannot 
     assert.equal((await db.collection("users").doc(uid).collection("walletLedger").get()).empty, true);
   } finally {
     await Promise.all([requestDoc.delete().catch(() => undefined), userRef.delete().catch(() => undefined), db.doc("platformSettings/economyPricing").delete().catch(() => undefined)]);
+  }
+});
+
+
+test("owner live streams are scoped to owner direct chats or active rooms and are idempotent", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const ownerUid = `live_owner_${tag}`;
+  const memberUid = `live_member_${tag}`;
+  const chatId = createDirectChatId(ownerUid, memberUid);
+  const chatRef = db.collection("directChats").doc(chatId);
+  const memberRef = db.collection("users").doc(memberUid);
+  const directRequestId = `live_direct_${tag}`;
+  const directMessageId = require("node:crypto").createHash("sha256")
+    .update("owner-live-stream:" + ownerUid + ":direct:" + chatId + ":" + directRequestId).digest("hex");
+  await Promise.all([
+    chatRef.set({ participantUids: [ownerUid, memberUid].sort(), createdAt: new Date() }),
+    memberRef.set({ profileCompleted: true, accountStatus: "active", coins: 0 }),
+  ]);
+  try {
+    const directInput = {
+      requestId: directRequestId, scope: "direct", targetId: chatId,
+      url: "https://www.youtube.com/watch?v=abc123", title: "بث المباراة",
+      description: "رابط بث رسمي",
+    };
+    const sent = await sendOwnerLiveStream.run(ownerRequest(ownerUid, directInput));
+    assert.equal(sent.idempotentReplay, false);
+    assert.equal(sent.provider, "youtube");
+    const messageRef = chatRef.collection("messages").doc(directMessageId);
+    const message = await messageRef.get();
+    assert.equal(message.data().type, "live_stream");
+    assert.equal(message.data().isPlatformOwnerMessage, true);
+    assert.equal(message.data().liveStream.hostname, "www.youtube.com");
+    const replay = await sendOwnerLiveStream.run(ownerRequest(ownerUid, directInput));
+    assert.equal(replay.idempotentReplay, true);
+    await assert.rejects(
+      () => sendOwnerLiveStream.run(memberRequest(memberUid, directInput)),
+      (error) => error && error.code === "permission-denied",
+    );
+
+    const publicRoomId = `public_live_${tag}`;
+    const publicRoomRef = db.collection("rooms").doc(publicRoomId);
+    await publicRoomRef.set({ kind: "public", status: "active", ownerUid: memberUid });
+    const publicRequestId = `live_room_${tag}`;
+    const publicResult = await sendOwnerLiveStream.run(ownerRequest(ownerUid, {
+      requestId: publicRequestId, scope: "room", targetId: publicRoomId,
+      url: "https://www.tiktok.com/@channel/live", title: "بث عام",
+    }));
+    assert.equal(publicResult.scope, "room");
+    assert.equal(publicResult.provider, "tiktok");
+    const publicMessages = await publicRoomRef.collection("messages").get();
+    assert.equal(publicMessages.size, 1);
+    assert.equal(publicMessages.docs[0].data().type, "live_stream");
+
+    const rentedRoomId = `rented_live_${tag}`;
+    const rentalId = `rental_live_${tag}`;
+    const future = require("firebase-admin/firestore").Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
+    await Promise.all([
+      db.collection("rooms").doc(rentedRoomId).set({
+        kind: "private", isRented: true, rentalId, status: "active", expiresAt: future,
+      }),
+      db.collection("roomRentals").doc(rentalId).set({
+        roomId: rentedRoomId, ownerUid: memberUid, status: "active", expiresAt: future,
+      }),
+    ]);
+    const rented = await sendOwnerLiveStream.run(ownerRequest(ownerUid, {
+      requestId: `live_private_${tag}`, scope: "room", targetId: rentedRoomId,
+      url: "https://example.org/official-stream", title: "بث خاص",
+    }));
+    assert.equal(rented.idempotentReplay, false);
+
+    await db.collection("rooms").doc(`closed_${tag}`).set({
+      kind: "public", status: "closed",
+    });
+    await assert.rejects(
+      () => sendOwnerLiveStream.run(ownerRequest(ownerUid, {
+        requestId: `closed_stream_${tag}`, scope: "room", targetId: `closed_${tag}`,
+        url: "https://example.org/live",
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    const expiredRoomId = `expired_room_${tag}`;
+    const expiredRentalId = `expired_rental_${tag}`;
+    const past = require("firebase-admin/firestore").Timestamp.fromMillis(Date.now() - 1000);
+    await Promise.all([
+      db.collection("rooms").doc(expiredRoomId).set({
+        kind: "private", isRented: true, rentalId: expiredRentalId, status: "active", expiresAt: past,
+      }),
+      db.collection("roomRentals").doc(expiredRentalId).set({
+        roomId: expiredRoomId, ownerUid: memberUid, status: "active", expiresAt: past,
+      }),
+    ]);
+    await assert.rejects(
+      () => sendOwnerLiveStream.run(ownerRequest(ownerUid, {
+        requestId: `expired_stream_${tag}`, scope: "room", targetId: expiredRoomId,
+        url: "https://example.org/live",
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await assert.rejects(
+      () => sendOwnerLiveStream.run(ownerRequest(ownerUid, {
+        requestId: `unsafe_stream_${tag}`, scope: "room", targetId: publicRoomId,
+        url: "http://127.0.0.1/private",
+      })),
+      (error) => error && error.code === "invalid-argument",
+    );
+    assert.equal((await db.collection("adminAuditLogs").doc("owner_live_stream_" + directMessageId).get()).exists, true);
+  } finally {
+    await Promise.all([
+      chatRef.delete().catch(() => undefined), memberRef.delete().catch(() => undefined),
+      db.collection("rooms").doc(`public_live_${tag}`).delete().catch(() => undefined),
+      db.collection("rooms").doc(`rented_live_${tag}`).delete().catch(() => undefined),
+      db.collection("roomRentals").doc(`rental_live_${tag}`).delete().catch(() => undefined),
+      db.collection("rooms").doc(`closed_${tag}`).delete().catch(() => undefined),
+      db.collection("rooms").doc(`expired_room_${tag}`).delete().catch(() => undefined),
+      db.collection("roomRentals").doc(`expired_rental_${tag}`).delete().catch(() => undefined),
+    ]);
   }
 });
