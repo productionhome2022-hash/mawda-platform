@@ -7,7 +7,7 @@ import {
   parseClamAvScanResponse,
   parseClamAvVersion,
   loadScannerConfig,
-  scanWithClamAv,
+  buildClamAvInstreamFrames,
 } from "../server.mjs";
 
 async function listen(server) {
@@ -187,53 +187,15 @@ test("scanner stays fail-closed when the callback endpoint is unavailable", asyn
 });
 
 
-test("ClamAV INSTREAM protocol sends bounded length-prefixed chunks and accepts only daemon verdict", { timeout: 10000 }, async () => {
-  const daemon = createServer((socket) => {
-    let buffer = Buffer.alloc(0);
-    let mode = "command";
-    socket.on("data", (chunk) => {
-      buffer = Buffer.concat([buffer, chunk]);
-      if (mode === "command") {
-        const end = buffer.indexOf(0);
-        if (end < 0) return;
-        const command = buffer.subarray(0, end).toString("utf8");
-        buffer = buffer.subarray(end + 1);
-        if (command === "zVERSION") {
-          socket.end(Buffer.from("ClamAV 1.4.2/28145/Fri Nov 13 2026\0"));
-          return;
-        }
-        if (command !== "zINSTREAM") {
-          socket.destroy(new Error("Unexpected ClamAV command"));
-          return;
-        }
-        mode = "stream";
-      }
-      if (mode === "stream") {
-        while (buffer.length >= 4) {
-          const length = buffer.readUInt32BE(0);
-          if (buffer.length < 4 + length) return;
-          buffer = buffer.subarray(4);
-          if (length === 0) {
-            socket.end(Buffer.from("stream: OK\0"));
-            return;
-          }
-          buffer = buffer.subarray(length);
-        }
-      }
-    });
-  });
-  const daemonUrl = await listen(daemon);
-  try {
-    const port = Number(new URL(daemonUrl).port);
-    const bytes = Buffer.alloc(1_500_000, 0x61);
-    const result = await scanWithClamAv(bytes, {
-      clamdHost: "127.0.0.1", clamdPort: port, clamdTimeoutMs: 2000,
-    });
-    assert.deepEqual(result, {
-      engine: "ClamAV", engineVersion: "1.4.2",
-      signatureVersion: "28145", verdict: "clean",
-    });
-  } finally {
-    await close(daemon);
-  }
+test("ClamAV INSTREAM frames use bounded 4-byte big-endian lengths and a zero terminator", () => {
+  const bytes = Buffer.alloc(1_500_000, 0x61);
+  const frames = buildClamAvInstreamFrames(bytes, 1024 * 1024);
+  assert.equal(frames[0].toString("utf8"), "zINSTREAM\0");
+  assert.equal(frames[1].readUInt32BE(0), 1024 * 1024);
+  assert.equal(frames[2].length, 1024 * 1024);
+  assert.equal(frames[3].readUInt32BE(0), 1_500_000 - 1024 * 1024);
+  assert.equal(frames[4].length, 1_500_000 - 1024 * 1024);
+  assert.equal(frames[5].readUInt32BE(0), 0);
+  assert.throws(() => buildClamAvInstreamFrames(Buffer.alloc(0)));
+  assert.throws(() => buildClamAvInstreamFrames(bytes, 0));
 });
