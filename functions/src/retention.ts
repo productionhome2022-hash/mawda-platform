@@ -145,6 +145,11 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
       let succeededThisPage = 0;
       for (const assetDoc of candidates.values()) {
         const asset = assetDoc.data();
+        // A documented owner legal hold suspends deletion only for this exact asset.
+        // The original retention deadline is preserved and resumes on release/expiry.
+        if (asset.legalHoldStatus === "active" && typeof asset.activeLegalHoldId === "string") {
+          continue;
+        }
         const ownerUid = typeof asset.ownerUid === "string" ? asset.ownerUid : "";
         const mediaId = assetDoc.id;
         const paths = new Set<string>();
@@ -315,7 +320,9 @@ async function handleLateExpiredChatMediaDerivative(event: Parameters<typeof onO
   const assetSnapshot = await assetRef.get();
   if (!assetSnapshot.exists) return;
   const asset = assetSnapshot.data() ?? {};
-  if (asset.ownerUid !== ownerUid || !["chat", "room"].includes(String(asset.mediaPurpose))) return;
+  if (asset.ownerUid !== ownerUid ||
+      !["chat", "room"].includes(String(asset.mediaPurpose)) ||
+      (asset.legalHoldStatus === "active" && typeof asset.activeLegalHoldId === "string")) return;
 
   const expiry = asset.retentionExpiresAt instanceof Timestamp
     ? asset.retentionExpiresAt
