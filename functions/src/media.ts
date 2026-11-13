@@ -674,6 +674,70 @@ export const getMemberProfileMediaUrl = onCall(async (request) => {
   return { url, expiresAt, usesDefault: false };
 });
 
+
+/** Short-lived, safe-WebP-only read capability for a live, visible story. */
+export const getMemberStoryMediaUrl = onCall(async (request) => {
+  const viewerUid = requireUid(request.auth?.uid);
+  const storyId = typeof request.data?.storyId === "string" ? request.data.storyId.trim() : "";
+  if (!storyId || storyId.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف القصة غير صالح.");
+  }
+  const storySnapshot = await mediaDb().collection("stories").doc(storyId).get();
+  if (!storySnapshot.exists) throw new HttpsError("not-found", "القصة غير موجودة.");
+  const story = storySnapshot.data() ?? {};
+  const ownerUid = typeof story.ownerUid === "string" ? story.ownerUid : "";
+  const mediaId = typeof story.mediaId === "string" ? story.mediaId : "";
+  if (story.status !== "active" ||
+      !(story.expiresAt instanceof Timestamp) ||
+      story.expiresAt.toMillis() <= Date.now()) {
+    throw new HttpsError("not-found", "انتهت صلاحية القصة.");
+  }
+  const ownerSnapshot = await mediaDb().collection("users").doc(ownerUid).get();
+  if (!ownerSnapshot.exists ||
+      (viewerUid !== ownerUid && ownerSnapshot.data()?.profileVisibility !== "public")) {
+    throw new HttpsError("permission-denied", "لا تملك صلاحية مشاهدة هذه القصة.");
+  }
+  const assetSnapshot = await mediaDb().collection("mediaAssets").doc(mediaId).get();
+  if (!assetSnapshot.exists) throw new HttpsError("not-found", "وسائط القصة غير موجودة.");
+  const asset = assetSnapshot.data() ?? {};
+  const expectedPath = `processed/${ownerUid}/${mediaId}/preview.webp`;
+  if (asset.ownerUid !== ownerUid || asset.mediaPurpose !== "story" ||
+      asset.status !== "security_approved" ||
+      asset.processingStatus !== "safe_raster_derivative_ready" ||
+      asset.safePreviewPath !== expectedPath ||
+      asset.safePreviewContentType !== "image/webp") {
+    throw new HttpsError("failed-precondition", "وسائط القصة لم تجتز الفحص أو لم تجهز معاينتها الآمنة.");
+  }
+  const previewFile = mediaBucket().file(expectedPath);
+  const [metadata] = await previewFile.getMetadata();
+  const custom = metadata.metadata as Record<string, unknown> | undefined;
+  if (String(metadata.generation) !== String(asset.safePreviewGeneration) ||
+      metadata.contentType !== "image/webp" ||
+      Number(metadata.size) <= 0 || Number(metadata.size) > 2 * 1024 * 1024 ||
+      custom?.mediaId !== mediaId ||
+      custom?.sourceGeneration !== String(asset.storageGeneration) ||
+      custom?.scannerProvider !== asset.scannerProvider) {
+    throw new HttpsError("failed-precondition", "تعذر إثبات سلامة معاينة القصة.");
+  }
+  const [url] = await previewFile.getSignedUrl({
+    version: "v4",
+    action: "read",
+    expires: mediaSignedUrlExpiresAt("owner-inspection"),
+    responseType: "image/webp",
+    responseDisposition: "inline; filename=mawadda-story.webp",
+  });
+  await auditMediaAccess({
+    actorUid: viewerUid,
+    mediaId,
+    action: "member_story_safe_media_url",
+    outcome: "success",
+    storyId,
+    ownerUid,
+    previewGeneration: String(metadata.generation),
+  });
+  return { url };
+});
+
 export const createMediaUploadIntent = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
   let input;
