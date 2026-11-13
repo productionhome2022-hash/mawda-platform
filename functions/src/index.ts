@@ -1174,6 +1174,11 @@ export const getDirectMessages = onCall(async (request) => {
         recipientUid: data.recipientUid ?? "",
         text: data.text ?? "",
         type: data.type ?? "text",
+        mediaId: typeof data.mediaId === "string" ? data.mediaId : null,
+        mediaIds: Array.isArray(data.mediaIds) ? data.mediaIds.filter((value: unknown) => typeof value === "string") : [],
+        mediaContentType: typeof data.mediaContentType === "string" ? data.mediaContentType : null,
+        mediaName: typeof data.mediaName === "string" ? data.mediaName : null,
+        deletionPending: data.deletionPending === true,
         deletedForRequester: Array.isArray(data.deletedForUids) && data.deletedForUids.includes(uid),
         senderLabel: data.isPlatformOwnerMessage === true
           ? (typeof data.senderLabel === "string" ? data.senderLabel : "إدارة منصة مودة")
@@ -1185,7 +1190,7 @@ export const getDirectMessages = onCall(async (request) => {
         createdAt,
         isReadByPeer: isMessageReadByPeer(createdAt, peerLastReadAt),
       };
-    }).filter((message) => !message.deletedForRequester),
+    }).filter((message) => !message.deletedForRequester && !message.deletionPending),
   };
 });
 
@@ -2638,11 +2643,17 @@ export const getRoomMessages = onCall(async (request) => {
         messageId: doc.id,
         senderUid: data.senderUid ?? "",
         content: data.isDeleted === true ? "تم حذف هذه الرسالة" : (data.content ?? ""),
+        type: data.type ?? "text",
+        mediaId: typeof data.mediaId === "string" ? data.mediaId : null,
+        mediaIds: Array.isArray(data.mediaIds) ? data.mediaIds.filter((value: unknown) => typeof value === "string") : [],
+        mediaContentType: typeof data.mediaContentType === "string" ? data.mediaContentType : null,
+        mediaName: typeof data.mediaName === "string" ? data.mediaName : null,
+        deletionPending: data.deletionPending === true,
         isDeleted: data.isDeleted === true,
         createdAt: data.createdAt?.toMillis?.() ?? null,
         deletedForRequester: Array.isArray(data.deletedForUids) && data.deletedForUids.includes(uid),
       };
-    }).filter((message) => !message.deletedForRequester),
+    }).filter((message) => !message.deletedForRequester && !message.deletionPending),
   };
 });
 
