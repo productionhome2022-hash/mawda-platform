@@ -14,7 +14,8 @@
     "test:media-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-media \"node --test test/integration/media-callables.integration.test.js\"",
     "test:media-signed-urls-http": "npm run build && node scripts/test-signed-urls-http.cjs",
     "test:signed-urls-http": "node scripts/test-signed-urls-http.cjs",
-    "test:retention-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-retention \"node --test test/integration/chat-retention.integration.test.js\""
+    "test:retention-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-retention \"node --test test/integration/chat-retention.integration.test.js\"",
+    "test:retention-gcs": "npm run build && node scripts/test-retention-storage.cjs"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",
