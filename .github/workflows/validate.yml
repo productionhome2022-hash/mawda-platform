@@ -81,3 +81,18 @@ jobs:
         run: npm run test:media-integration
       - name: Run Firestore and Storage rules emulator tests
         run: npm run test:rules
+
+  scanner:
+    name: ClamAV gateway tests and container build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.20.2"
+      - name: Test scanner protocol, limits and signed callback
+        working-directory: scanner
+        run: node --check server.mjs && npm test
+      - name: Build isolated ClamAV container
+        run: docker build -f scanner/Dockerfile -t mawadda-media-scanner:ci .
