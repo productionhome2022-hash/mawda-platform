@@ -5,7 +5,7 @@ ENV PORT=8080
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends clamav clamav-freshclam ca-certificates ffmpeg poppler-utils python3 python3-img2pdf \
+    && apt-get install -y --no-install-recommends clamav clamav-freshclam ca-certificates ffmpeg poppler-utils python3 python3-img2pdf python3-reportlab \
     && sed -i 's/^DatabaseOwner clamav/DatabaseOwner scanner/' /etc/clamav/freshclam.conf \
     && sed -i '/^[[:space:]]*NotifyClamd[[:space:]]/d' /etc/clamav/freshclam.conf \
     && rm -rf /var/lib/apt/lists/*
@@ -13,7 +13,8 @@ RUN apt-get update \
 COPY package.json ./
 RUN npm install --omit=dev --no-audit --no-fund
 
-COPY security.js server.js start.sh ./
+COPY security.js server.js processors.js start.sh ./
+COPY test ./test
 RUN chmod 0555 /app/start.sh \
     && useradd --system --uid 10001 --home-dir /nonexistent --shell /usr/sbin/nologin scanner \
     && mkdir -p /var/lib/clamav /var/log/clamav /tmp \
