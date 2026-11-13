@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -32,7 +34,12 @@ class _MainUserScreenState extends State<MainUserScreen> {
   }
 
   Future<void> _initializePushNotifications() async {
-    await _pushNotifications.initialize();
+    await _pushNotifications.initialize(onForegroundMessage: (message) {
+      if (!mounted) return;
+      final title = message.notification?.title ?? 'إشعار جديد من مودة';
+      final body = message.notification?.body ?? 'لديك تحديث جديد.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$title — $body')));
+    });
   }
 
   Future<void> _signOut() async {
@@ -42,7 +49,7 @@ class _MainUserScreenState extends State<MainUserScreen> {
 
   @override
   void dispose() {
-    _pushNotifications.dispose();
+    unawaited(_pushNotifications.dispose());
     super.dispose();
   }
 
@@ -53,6 +60,7 @@ class _MainUserScreenState extends State<MainUserScreen> {
 
   void _refreshProfile() {
     setState(() => _profileFuture = _hasCompletedProfile());
+    unawaited(_initializePushNotifications());
   }
 
   @override
