@@ -1,0 +1,232 @@
+name: Deploy and connect Mawda media scanner (non-production only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: Dedicated non-production Firebase/GCP project ID
+        required: true
+        type: string
+      region:
+        description: Cloud Run and Functions region
+        required: true
+        default: europe-west3
+        type: string
+      bucket_name:
+        description: Dedicated non-production quarantine/media bucket
+        required: true
+        type: string
+      service_name:
+        description: Cloud Run scanner service name
+        required: true
+        default: mawda-media-scanner
+        type: string
+      artifact_repository:
+        description: Artifact Registry Docker repository
+        required: true
+        default: mawda-media
+        type: string
+      scanner_service_account:
+        description: Runtime service account for Cloud Run scanner
+        required: true
+        type: string
+      functions_service_account:
+        description: Runtime service account used by Firebase Functions
+        required: true
+        type: string
+      callback_url:
+        description: HTTPS URL of this project's receiveMediaScanVerdict function
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Build, deploy and connect scanner in non-production
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate non-production target and required configuration
+        env:
+          PROJECT_ID: ${{ inputs.project_id }}
+          BUCKET_NAME: ${{ inputs.bucket_name }}
+          REGION: ${{ inputs.region }}
+          SERVICE_NAME: ${{ inputs.service_name }}
+          SCANNER_SA: ${{ inputs.scanner_service_account }}
+          FUNCTIONS_SA: ${{ inputs.functions_service_account }}
+          CALLBACK_URL: ${{ inputs.callback_url }}
+          WIF_PROVIDER: ${{ vars.MAWDA_WIF_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ vars.MAWDA_NONPROD_DEPLOY_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          [[ -n "$WIF_PROVIDER" && -n "$WIF_SERVICE_ACCOUNT" ]] || {
+            echo "Configure MAWDA_WIF_PROVIDER and MAWDA_NONPROD_DEPLOY_SERVICE_ACCOUNT repository variables." >&2
+            exit 1
+          }
+          [[ "$PROJECT_ID" != "mawda-app-2026" && ! "$PROJECT_ID" =~ [Pp][Rr][Oo][Dd] &&
+             "$PROJECT_ID" =~ (test|staging|dev|demo|nonprod|sandbox) ]] || {
+            echo "Refusing production or unmarked project." >&2
+            exit 1
+          }
+          [[ ! "$BUCKET_NAME" =~ [Pp][Rr][Oo][Dd] &&
+             "$BUCKET_NAME" =~ (test|staging|dev|demo|nonprod|sandbox) ]] || {
+            echo "Refusing production or unmarked bucket." >&2
+            exit 1
+          }
+          [[ "$REGION" =~ ^[a-z]+-[a-z0-9]+[0-9]$ ]] || {
+            echo "Invalid Google Cloud region." >&2
+            exit 1
+          }
+          [[ "$SCANNER_SA" =~ ^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+\.iam\.gserviceaccount\.com$ ]] || exit 1
+          [[ "$FUNCTIONS_SA" =~ ^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+\.iam\.gserviceaccount\.com$ ]] || exit 1
+          [[ "$CALLBACK_URL" =~ ^https://[a-z0-9-]+\.cloudfunctions\.net/receiveMediaScanVerdict$ ]] || {
+            echo "Callback must be the exact HTTPS receiveMediaScanVerdict Cloud Functions endpoint." >&2
+            exit 1
+          }
+
+      - name: Authenticate to non-production Google Cloud with OIDC
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.MAWDA_WIF_PROVIDER }}
+          service_account: ${{ vars.MAWDA_NONPROD_DEPLOY_SERVICE_ACCOUNT }}
+          project_id: ${{ inputs.project_id }}
+          create_credentials_file: true
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Enable required Google APIs and verify secrets/service accounts
+        env:
+          PROJECT_ID: ${{ inputs.project_id }}
+          SCANNER_SA: ${{ inputs.scanner_service_account }}
+          FUNCTIONS_SA: ${{ inputs.functions_service_account }}
+        run: |
+          set -euo pipefail
+          gcloud services enable run.googleapis.com artifactregistry.googleapis.com \
+            secretmanager.googleapis.com cloudfunctions.googleapis.com cloudbuild.googleapis.com \
+            iamcredentials.googleapis.com --project "$PROJECT_ID"
+          gcloud iam service-accounts describe "$SCANNER_SA" --project "$PROJECT_ID" >/dev/null
+          gcloud iam service-accounts describe "$FUNCTIONS_SA" --project "$PROJECT_ID" >/dev/null
+          gcloud secrets describe MAWDA_MEDIA_SCANNER_API_TOKEN --project "$PROJECT_ID" >/dev/null
+          gcloud secrets describe MAWDA_MEDIA_SCANNER_HMAC_SECRET --project "$PROJECT_ID" >/dev/null
+
+      - name: Grant least-privilege runtime access
+        env:
+          PROJECT_ID: ${{ inputs.project_id }}
+          BUCKET_NAME: ${{ inputs.bucket_name }}
+          SCANNER_SA: ${{ inputs.scanner_service_account }}
+          FUNCTIONS_SA: ${{ inputs.functions_service_account }}
+        run: |
+          set -euo pipefail
+          for secret in MAWDA_MEDIA_SCANNER_API_TOKEN MAWDA_MEDIA_SCANNER_HMAC_SECRET; do
+            gcloud secrets add-iam-policy-binding "$secret" \
+              --project "$PROJECT_ID" \
+              --member="serviceAccount:$SCANNER_SA" \
+              --role="roles/secretmanager.secretAccessor"
+          done
+          gcloud storage buckets add-iam-policy-binding "gs://$BUCKET_NAME" \
+            --member="serviceAccount:$SCANNER_SA" \
+            --role="roles/storage.objectCreator"
+          gcloud storage buckets add-iam-policy-binding "gs://$BUCKET_NAME" \
+            --member="serviceAccount:$FUNCTIONS_SA" \
+            --role="roles/storage.objectViewer"
+          gcloud iam service-accounts add-iam-policy-binding "$FUNCTIONS_SA" \
+            --project "$PROJECT_ID" \
+            --member="serviceAccount:$FUNCTIONS_SA" \
+            --role="roles/iam.serviceAccountTokenCreator"
+
+      - name: Create Artifact Registry repository if needed
+        env:
+          PROJECT_ID: ${{ inputs.project_id }}
+          REGION: ${{ inputs.region }}
+          ARTIFACT_REPOSITORY: ${{ inputs.artifact_repository }}
+        run: |
+          set -euo pipefail
+          if ! gcloud artifacts repositories describe "$ARTIFACT_REPOSITORY" \
+            --location "$REGION" --project "$PROJECT_ID" >/dev/null 2>&1; then
+            gcloud artifacts repositories create "$ARTIFACT_REPOSITORY" \
+              --repository-format=docker --location "$REGION" \
+              --project "$PROJECT_ID" --description="Mawda non-production media scanner"
+          fi
+
+      - name: Build and push the isolated ClamAV scanner image
+        env:
+          PROJECT_ID: ${{ inputs.project_id }}
+          REGION: ${{ inputs.region }}
+          ARTIFACT_REPOSITORY: ${{ inputs.artifact_repository }}
+        run: |
+          set -euo pipefail
+          IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REPOSITORY/scanner:$GITHUB_SHA"
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          docker build --pull -f scanner/Dockerfile -t "$IMAGE" scanner
+          docker push "$IMAGE"
+          echo "SCANNER_IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy private Cloud Run scanner service
+        id: deploy_scanner
+        env:
+          PROJECT_ID: ${{ inputs.project_id }}
+          REGION: ${{ inputs.region }}
+          BUCKET_NAME: ${{ inputs.bucket_name }}
+          SERVICE_NAME: ${{ inputs.service_name }}
+          SCANNER_SA: ${{ inputs.scanner_service_account }}
+          CALLBACK_URL: ${{ inputs.callback_url }}
+        run: |
+          set -euo pipefail
+          gcloud run deploy "$SERVICE_NAME" \
+            --project "$PROJECT_ID" --region "$REGION" \
+            --image "$SCANNER_IMAGE" --service-account "$SCANNER_SA" \
+            --no-allow-unauthenticated --cpu 2 --memory 2Gi \
+            --timeout 360 --concurrency 1 --min 0 --max 5 \
+            --set-env-vars "SCANNER_CALLBACK_URL=$CALLBACK_URL,SCANNER_PROVIDER=clamav-mawadda-gateway,GCS_BUCKET=$BUCKET_NAME" \
+            --set-secrets "SCANNER_API_TOKEN=MAWDA_MEDIA_SCANNER_API_TOKEN:latest,SCANNER_HMAC_SECRET=MAWDA_MEDIA_SCANNER_HMAC_SECRET:latest"
+          SERVICE_URL="$(gcloud run services describe "$SERVICE_NAME" --project "$PROJECT_ID" --region "$REGION" --format='value(status.url)')"
+          [[ "$SERVICE_URL" =~ ^https:// ]] || { echo "Cloud Run did not return an HTTPS URL." >&2; exit 1; }
+          echo "SCANNER_SERVICE_URL=$SERVICE_URL" >> "$GITHUB_ENV"
+          echo "Scanner service deployed: $SERVICE_URL"
+
+      - name: Allow only Firebase Functions runtime to invoke the scanner
+        env:
+          PROJECT_ID: ${{ inputs.project_id }}
+          REGION: ${{ inputs.region }}
+          SERVICE_NAME: ${{ inputs.service_name }}
+          FUNCTIONS_SA: ${{ inputs.functions_service_account }}
+        run: |
+          set -euo pipefail
+          gcloud run services add-iam-policy-binding "$SERVICE_NAME" \
+            --project "$PROJECT_ID" --region "$REGION" \
+            --member="serviceAccount:$FUNCTIONS_SA" \
+            --role="roles/run.invoker"
+
+      - name: Connect and deploy Firebase Functions in the selected non-production project
+        env:
+          PROJECT_ID: ${{ inputs.project_id }}
+          CALLBACK_URL: ${{ inputs.callback_url }}
+        run: |
+          set -euo pipefail
+          cd functions
+          printf 'MAWDA_MEDIA_SCANNER_URL=%s\n' "$SCANNER_SERVICE_URL" > ".env.$PROJECT_ID"
+          printf 'MAWDA_MEDIA_SCANNER_CALLBACK_URL=%s\n' "$CALLBACK_URL" >> ".env.$PROJECT_ID"
+          printf 'MAWDA_MEDIA_SCANNER_PROVIDER=clamav-mawadda-gateway\n' >> ".env.$PROJECT_ID"
+          npm ci
+          npm run build
+          npm install --global firebase-tools
+          cd ..
+          firebase deploy --only functions --project "$PROJECT_ID" --non-interactive
+          rm -f "functions/.env.$PROJECT_ID"
+
+      - name: Report non-production scanner connection
+        if: success()
+        env:
+          PROJECT_ID: ${{ inputs.project_id }}
+          SERVICE_URL: ${{ env.SCANNER_SERVICE_URL }}
+        run: |
+          echo "Cloud Run scanner is private and deployed in non-production project: $PROJECT_ID"
+          echo "Service URL: $SERVICE_URL"
+          echo "Firebase Functions were deployed with this scanner URL and callback configuration."
