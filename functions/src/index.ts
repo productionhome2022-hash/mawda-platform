@@ -4223,6 +4223,7 @@ export {
   createMediaUploadIntent,
   finalizeMediaUpload,
   getMemberProfileMediaUrl,
+  listMemberProfileGallery,
   getMyMediaUploadStatus,
   getMemberStoryMediaUrl,
   listOwnerMediaAssets,
