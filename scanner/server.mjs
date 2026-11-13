@@ -39,6 +39,7 @@ function clamdCommand(config, command, payload) {
     };
     socket.setTimeout(config.clamdTimeoutMs, () => finish(new Error("CLAMAV_TIMEOUT")));
     socket.on("error", (error) => finish(error));
+    socket.on("end", () => finish(new Error("CLAMAV_CONNECTION_CLOSED_BEFORE_VERDICT")));
     socket.on("data", (chunk) => {
       response = Buffer.concat([response, chunk]);
       if (response.includes(0)) finish(null, response.toString("utf8").replace(/\0.*$/s, ""));
