@@ -25,6 +25,7 @@ const {
   cleanupExpiredMediaUploadIntents,
 } = require("../../lib/media");
 
+const { createMemberStory, listMemberStories } = require("../../lib/index");
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
@@ -538,4 +539,62 @@ test("signed upload transport rejects bytes larger than the exact quota reservat
   const asset = await db.collection("mediaAssets").doc(intent.mediaId).get();
   const [exists] = await getStorage().bucket().file(asset.data().objectPath).exists();
   assert.equal(exists, false);
+});
+
+
+test("stories publish only after malware approval and active public stories appear in feed", async () => {
+  const uid = `story-member-${Date.now()}`;
+  const mediaId = randomUUID();
+  const expiresAt = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
+  const userRef = db.collection("users").doc(uid);
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  await Promise.all([
+    userRef.set({ profileVisibility: "public", displayName: "Story Member" }),
+    assetRef.set({
+      mediaId, ownerUid: uid, mediaPurpose: "story", status: "security_approved",
+      retentionExpiresAt: expiresAt, storyExpiresAt: expiresAt,
+    }),
+  ]);
+  try {
+    const created = await createMemberStory.run(memberRequest(uid, { mediaId }));
+    assert.equal(created.mediaId, mediaId);
+    assert.equal(created.expiresAt, expiresAt.toMillis());
+    assert.equal((await assetRef.get()).data().storyDocumentId, created.storyId);
+    const feed = await listMemberStories.run(memberRequest(uid, {}));
+    assert.ok(feed.stories.some((story) => story.storyId === created.storyId));
+    await db.collection("stories").doc(created.storyId).update({
+      expiresAt: Timestamp.fromMillis(Date.now() - 1000),
+    });
+    const expiredFeed = await listMemberStories.run(memberRequest(uid, {}));
+    assert.ok(!expiredFeed.stories.some((story) => story.storyId === created.storyId));
+  } finally {
+    const stories = await db.collection("stories").where("ownerUid", "==", uid).get();
+    await Promise.all([
+      userRef.delete().catch(() => undefined),
+      assetRef.delete().catch(() => undefined),
+      ...stories.docs.map((doc) => doc.ref.delete()),
+    ]);
+  }
+});
+
+test("story publication rejects media that remains quarantined pending malware scan", async () => {
+  const uid = `story-pending-${Date.now()}`;
+  const mediaId = randomUUID();
+  const userRef = db.collection("users").doc(uid);
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  await Promise.all([
+    userRef.set({ profileVisibility: "public" }),
+    assetRef.set({
+      mediaId, ownerUid: uid, mediaPurpose: "story", status: "pending_security_scan",
+      retentionExpiresAt: Timestamp.fromMillis(Date.now() + 60 * 60 * 1000),
+    }),
+  ]);
+  try {
+    await assert.rejects(
+      () => createMemberStory.run(memberRequest(uid, { mediaId })),
+      (error) => error && error.code === "failed-precondition",
+    );
+  } finally {
+    await Promise.all([userRef.delete(), assetRef.delete()]);
+  }
 });
