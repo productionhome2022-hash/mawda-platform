@@ -23,6 +23,7 @@ import { validateSafetyReportInput, validateSafetyAppealInput } from "./safety-c
 import { createDirectChatId } from "./direct-chat-id";
 import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
 import { hasActiveBiometricVerification } from "./biometric-verification";
+import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS } from "./email-verification-cycle";
 import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
 import { isMemberAccountInGoodStanding } from "./member-access";
 import {
@@ -614,7 +615,15 @@ export const completeMemberProfile = onCall(async (request) => {
 
   const registrationSettingsRef = db.doc("platformSettings/registration");
   const userRef = db.collection("users").doc(uid);
-  const rewardLedgerRef = userRef.collection("walletLedger").doc("email_verification_reward_500");
+  const cycleStartMs = Date.now();
+  const cycleStart = Timestamp.fromMillis(cycleStartMs);
+  const initialEmailCycle = createEmailVerificationCycle({
+    uid, email: authUser.email, sequence: 1, serverNowMs: cycleStartMs,
+  });
+  const emailCycleRef = db.collection("emailVerificationCycles")
+    .doc(uid + "_" + initialEmailCycle.cycleId);
+  const rewardLedgerRef = userRef.collection("walletLedger")
+    .doc(emailVerificationRewardLedgerId(initialEmailCycle.cycleId));
   const privacyAcknowledgementRef = db.collection("privacyAcknowledgements")
     .doc(`${uid}_${PRIVACY_POLICY_VERSION}`);
 
@@ -698,7 +707,11 @@ export const completeMemberProfile = onCall(async (request) => {
       memberId: uid,
       email: authUser.email,
       emailVerified: true,
-      emailVerifiedAt: createdAt,
+      emailVerifiedAt: cycleStart,
+      emailVerificationSequence: 1,
+      emailVerificationCycleId: initialEmailCycle.cycleId,
+      emailVerificationCycleStartedAt: cycleStart,
+      emailVerificationCycleExpiresAt: Timestamp.fromMillis(initialEmailCycle.expiresAtMs),
       privacyPolicyVersion: PRIVACY_POLICY_VERSION,
       privacyPolicyHash: PRIVACY_POLICY_HASH,
       privacyAcknowledgedAt: privacyData.acknowledgedAt ?? createdAt,
@@ -715,7 +728,7 @@ export const completeMemberProfile = onCall(async (request) => {
       interests: profile.interests,
       goals: profile.goals,
       profileVisibility: "private",
-      coins: 500,
+      coins: EMAIL_VERIFICATION_REWARD_COINS,
       profileCompleted: true,
       createdAt,
       updatedAt: createdAt,
@@ -725,13 +738,25 @@ export const completeMemberProfile = onCall(async (request) => {
       username: profile.username,
       createdAt,
     });
+    transaction.create(emailCycleRef, {
+      ...initialEmailCycle,
+      status: "rewarded",
+      startedAt: cycleStart,
+      expiresAt: Timestamp.fromMillis(initialEmailCycle.expiresAtMs),
+      verifiedAt: cycleStart,
+      rewardedAt: cycleStart,
+      createdAt: cycleStart,
+      updatedAt: cycleStart,
+    });
     transaction.create(rewardLedgerRef, {
       type: "email_verification_reward",
       direction: "credit",
-      amount: 500,
-      reason: "verified_email",
-      idempotencyKey: "email_verification_reward_500",
-      createdAt,
+      amount: EMAIL_VERIFICATION_REWARD_COINS,
+      reason: "verified_email_initial_cycle",
+      cycleId: initialEmailCycle.cycleId,
+      cycleSequence: initialEmailCycle.sequence,
+      idempotencyKey: initialEmailCycle.cycleId,
+      createdAt: cycleStart,
     });
 
     return {
