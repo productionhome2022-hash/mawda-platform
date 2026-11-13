@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       region:
-        description: Cloud Run and Functions region
+        description: Cloud Run and Artifact Registry region
         required: true
         default: europe-west3
         type: string
