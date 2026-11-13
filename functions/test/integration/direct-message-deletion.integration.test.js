@@ -572,3 +572,41 @@ test("delete-for-me hides media only for the requester and preserves the shared 
     ]);
   }
 });
+
+
+test("manual deletion re-sweeps canonical Storage paths after a retention tombstone", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+  const suffix = Date.now().toString();
+  const ownerUid = `late-replay-owner-${suffix}`;
+  const mediaId = `fedcba98-7654-4321-8765-${suffix.padStart(12, "0").slice(-12)}`;
+  const objectPath = `quarantine/${ownerUid}/${mediaId}`;
+  const previewPath = `processed/${ownerUid}/${mediaId}/preview.webp`;
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const original = getStorage().bucket().file(objectPath);
+  const preview = getStorage().bucket().file(previewPath);
+  await Promise.all([
+    original.save(Buffer.from("late signed upload replay"), { resumable: false }),
+    preview.save(Buffer.from("late derivative replay"), { resumable: false }),
+  ]);
+  await assetRef.set({
+    mediaId, ownerUid, uploaderType: "member", mediaPurpose: "chat",
+    status: "self_destructed", retentionPolicyStatus: "four_hour_self_destructed",
+    createdAt: Timestamp.now(), retentionExpiresAt: Timestamp.now(),
+  });
+  try {
+    await deleteMediaAssetForMessage(mediaId, ownerUid, "chat");
+    assert.equal((await original.exists())[0], false);
+    assert.equal((await preview.exists())[0], false);
+    const tombstone = (await assetRef.get()).data();
+    assert.equal(tombstone.status, "manually_deleted");
+    assert.ok(tombstone.deletedObjectPaths.includes(objectPath));
+    assert.ok(tombstone.deletedObjectPaths.includes(previewPath));
+  } finally {
+    await Promise.all([
+      assetRef.delete().catch(() => undefined),
+      original.delete({ ignoreNotFound: true }).catch(() => undefined),
+      preview.delete({ ignoreNotFound: true }).catch(() => undefined),
+    ]);
+  }
+});
