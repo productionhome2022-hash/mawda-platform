@@ -239,17 +239,23 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
         }
         const paths = new Set<string>();
         if (typeof asset.objectPath === "string") paths.add(asset.objectPath);
-        for (const field of [
-          "safePreviewPath", "safeAnimationPath", "safeAudioPath",
-          "safeVideoPath", "safeDocumentPath",
-        ]) {
-          const candidate = asset[field];
-          if (typeof candidate === "string") paths.add(candidate);
+        if (!ownerUid || !/^[0-9a-f-]{36}$/i.test(mediaId)) {
+          throw new Error("INVALID_MEDIA_OWNER_OR_ID_FOR_RETENTION");
         }
-        if (ownerUid && /^[0-9a-f-]{36}$/i.test(mediaId)) {
-          for (const filename of [
-            "preview.webp", "animation.gif", "audio.mp3", "video.mp4", "document.pdf",
-          ]) paths.add(`processed/${ownerUid}/${mediaId}/${filename}`);
+        const derivativeFields: Record<string, string> = {
+          safePreviewPath: `processed/${ownerUid}/${mediaId}/preview.webp`,
+          safeAnimationPath: `processed/${ownerUid}/${mediaId}/animation.gif`,
+          safeAudioPath: `processed/${ownerUid}/${mediaId}/audio.mp3`,
+          safeVideoPath: `processed/${ownerUid}/${mediaId}/video.mp4`,
+          safeDocumentPath: `processed/${ownerUid}/${mediaId}/document.pdf`,
+        };
+        for (const [field, expectedPath] of Object.entries(derivativeFields)) {
+          const candidate = asset[field];
+          if (typeof candidate === "string" && candidate !== expectedPath) {
+            throw new Error("UNSAFE_MEDIA_DERIVATIVE_PATH");
+          }
+          if (typeof candidate === "string") paths.add(candidate);
+          paths.add(expectedPath);
         }
 
         try {
@@ -444,11 +450,6 @@ export function isKnownDeletedMediaObjectPath(
   ].map((filename) => `processed/${ownerUid}/${mediaId}/${filename}`);
   const candidates = [
     asset.objectPath,
-    asset.safePreviewPath,
-    asset.safeAnimationPath,
-    asset.safeAudioPath,
-    asset.safeVideoPath,
-    asset.safeDocumentPath,
     deterministicOriginal,
     ...deterministicDerivatives,
     ...(Array.isArray(asset.derivedObjectPaths) ? asset.derivedObjectPaths : []),
