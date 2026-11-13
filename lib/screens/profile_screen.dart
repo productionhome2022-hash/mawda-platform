@@ -6,6 +6,7 @@ import '../services/coin_system_service.dart';
 import '../services/member_media_upload_service.dart';
 import 'direct_chat_screen.dart';
 import 'stories_screen.dart';
+import 'profile_gallery_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String profileUserId;
@@ -720,6 +721,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onPressed: () => _editProfile(data),
                   ),
                 ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: const Text('معرض الصور'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ProfileGalleryScreen(
+                        profileUserId: widget.profileUserId,
+                        currentUserId: widget.currentUserId,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
               if (socialLinks.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
