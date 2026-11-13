@@ -580,6 +580,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final name = (data['displayName'] as String?) ?? 'Mawda Member';
           final vipActive = data['vipActive'] == true;
           final activeTitle = (data['activeTitle'] as String?)?.trim() ?? '';
+          final activeFeatures = (data['activeFeatures'] as List<dynamic>? ?? const [])
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList(growable: false);
           final username = (data['username'] as String?) ?? '';
           final bio = (data['bio'] as String?) ?? '';
           final profession = (data['profession'] as String?) ?? '';
@@ -689,6 +693,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Text(
                           activeTitle,
                           style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    if (activeFeatures.any((feature) =>
+                        feature['category'] != 'vip' && feature['category'] != 'title'))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: activeFeatures
+                              .where((feature) =>
+                                  feature['category'] != 'vip' &&
+                                  feature['category'] != 'title')
+                              .map((feature) {
+                            final category = feature['category'] as String? ?? '';
+                            final label = switch (category) {
+                              'badge' => 'وسام',
+                              'frame' => 'إطار مميز',
+                              'username_style' => 'نمط اسم',
+                              'analytics' => 'تحليلات',
+                              'profile_layout' => 'ملف احترافي',
+                              'boost' => 'ظهور معزز',
+                              'theme' => 'ثيم مميز',
+                              'greeting' => 'ترحيب الزوار',
+                              'privacy' => 'ميزة خصوصية',
+                              _ => feature['itemName'] as String? ?? 'ميزة مميزة',
+                            };
+                            return Chip(
+                              avatar: const Icon(Icons.stars_outlined, size: 16),
+                              label: Text(label),
+                              visualDensity: VisualDensity.compact,
+                            );
+                          }).toList(growable: false),
                         ),
                       ),
                     if (username.isNotEmpty) Text('@$username'),
