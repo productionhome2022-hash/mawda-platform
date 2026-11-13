@@ -75,9 +75,14 @@ const legalHoldExpiryEnabled = defineString("MAWDA_LEGAL_HOLD_EXPIRY_ENABLED", {
  */
 async function appendOwnerReviewAuditEvent(
   event: Record<string, unknown>,
+  eventId?: string,
 ): Promise<string> {
-  const auditRef = db.collection("adminAuditLogs").doc();
+  const auditRef = eventId
+    ? db.collection("adminAuditLogs").doc(eventId)
+    : db.collection("adminAuditLogs").doc();
   await db.runTransaction(async (transaction) => {
+    const existingEvent = await transaction.get(auditRef);
+    if (existingEvent.exists) return;
     const headSnapshot = await transaction.get(OWNER_REVIEW_AUDIT_HEAD);
     const head = headSnapshot.data() ?? {};
     const previousSequence = headSnapshot.exists ? head.sequence : 0;
@@ -1386,7 +1391,7 @@ export const reviewSafetyAppeal = onCall(async (request) => {
     caseId,
     decision,
     outcome: "completed",
-  });
+  }, `safety_appeal_review_${createHash("sha256").update(appealId).digest("hex")}`);
   return { appealId, caseId, decision };
 });
 
@@ -1407,7 +1412,7 @@ export const submitSafetyReport = onCall(async (request) => {
   }
   const reporterRef = db.collection("users").doc(reporterUid);
   const targetRef = db.collection("users").doc(input.targetUid);
-  const caseId = `${reporterUid}_${input.requestId}`;
+  const caseId = createHash("sha256").update(`${reporterUid}:${input.requestId}`).digest("hex");
   const caseRef = db.collection("safetyCases").doc(caseId);
   const result = await db.runTransaction(async (transaction) => {
     const [reporter, target, existing] = await Promise.all([
@@ -1439,8 +1444,7 @@ export const submitSafetyReport = onCall(async (request) => {
     });
     return { caseId, duplicate: false };
   });
-  if (!result.duplicate) {
-    await appendOwnerReviewAuditEvent({
+  await appendOwnerReviewAuditEvent({
       actorUid: reporterUid,
       action: "safety_report_submitted",
       caseId,
@@ -1448,8 +1452,7 @@ export const submitSafetyReport = onCall(async (request) => {
       category: input.category,
       contextType: input.contextType,
       outcome: "created",
-    });
-  }
+    }, `safety_report_${caseId}`);
   return result;
 });
 
@@ -1493,14 +1496,12 @@ export const submitSafetyAppeal = onCall(async (request) => {
     });
     return { caseId: input.caseId, appealId: appealRef.id, duplicate: false };
   });
-  if (!result.duplicate) {
-    await appendOwnerReviewAuditEvent({
+  await appendOwnerReviewAuditEvent({
       actorUid: appellantUid,
       action: "safety_appeal_submitted",
       caseId: input.caseId,
       outcome: "created",
-    });
-  }
+    }, `safety_appeal_${createHash("sha256").update(appealRef.id).digest("hex")}`);
   return result;
 });
 
@@ -1556,7 +1557,7 @@ export const reviewSafetyCase = onCall(async (request) => {
     subjectUid,
     decision,
     outcome: "completed",
-  });
+  }, `safety_case_review_${caseId}`);
   return { caseId, decision };
 });
 
