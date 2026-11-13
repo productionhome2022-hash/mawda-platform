@@ -1,0 +1,99 @@
+name: Non-production GCS media verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: Dedicated non-production Google Cloud project ID
+        required: true
+        type: string
+      bucket_name:
+        description: Dedicated non-production media bucket name
+        required: true
+        type: string
+      run_signed_url_http:
+        description: Test real signed PUT/GET expiry, replay and size enforcement
+        required: true
+        default: true
+        type: boolean
+      run_retention_generation_purge:
+        description: Test exact-generation deletion and bucket retention controls
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify:
+    name: Verify signed URLs and permanent object deletion (non-production only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Validate target and workload identity configuration
+        env:
+          PROJECT_ID: ${{ inputs.project_id }}
+          BUCKET_NAME: ${{ inputs.bucket_name }}
+          WIF_PROVIDER: ${{ vars.MAWDA_WIF_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ vars.MAWDA_NONPROD_TEST_SERVICE_ACCOUNT }}
+          RUN_SIGNED: ${{ inputs.run_signed_url_http }}
+          RUN_RETENTION: ${{ inputs.run_retention_generation_purge }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$WIF_PROVIDER" || -z "$WIF_SERVICE_ACCOUNT" ]]; then
+            echo "Configure repository variables MAWDA_WIF_PROVIDER and MAWDA_NONPROD_TEST_SERVICE_ACCOUNT first." >&2
+            exit 1
+          fi
+          if [[ "$PROJECT_ID" == "mawda-app-2026" || "$PROJECT_ID" =~ [Pp][Rr][Oo][Dd] ||
+                ! "$PROJECT_ID" =~ (test|staging|dev|demo|nonprod|sandbox) ]]; then
+            echo "Refusing a project that is not explicitly named as non-production." >&2
+            exit 1
+          fi
+          if [[ "$BUCKET_NAME" =~ [Pp][Rr][Oo][Dd] ||
+                ! "$BUCKET_NAME" =~ (test|staging|dev|demo|nonprod|sandbox) ]]; then
+            echo "Refusing a bucket that is not explicitly named as non-production." >&2
+            exit 1
+          fi
+          if [[ "$RUN_SIGNED" != "true" && "$RUN_RETENTION" != "true" ]]; then
+            echo "Select at least one infrastructure verification test." >&2
+            exit 1
+          fi
+
+      - name: Authenticate to the dedicated non-production project with OIDC
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.MAWDA_WIF_PROVIDER }}
+          service_account: ${{ vars.MAWDA_NONPROD_TEST_SERVICE_ACCOUNT }}
+          project_id: ${{ inputs.project_id }}
+          create_credentials_file: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install Functions dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Test real signed upload/read URL expiry, replay and size limits
+        if: inputs.run_signed_url_http
+        working-directory: functions
+        env:
+          GOOGLE_CLOUD_PROJECT: ${{ inputs.project_id }}
+          MAWDA_MEDIA_TEST_BUCKET: ${{ inputs.bucket_name }}
+          MAWDA_MEDIA_SIGNED_URL_HTTP_TEST: "1"
+        run: npm run test:media-signed-urls-http
+
+      - name: Test exact-generation permanent deletion and bucket safeguards
+        if: inputs.run_retention_generation_purge
+        working-directory: functions
+        env:
+          GOOGLE_CLOUD_PROJECT: ${{ inputs.project_id }}
+          MAWDA_MEDIA_TEST_BUCKET: ${{ inputs.bucket_name }}
+          MAWDA_RETENTION_GCS_TEST: "1"
+        run: npm run test:retention-gcs
