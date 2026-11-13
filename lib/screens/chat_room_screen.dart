@@ -1,7 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:uuid/uuid.dart';
 import '../services/member_media_upload_service.dart';
 import '../services/super_admin_security_service.dart';
 
@@ -126,6 +129,62 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
   }
 
+  Future<void> _pickAndSendAttachment() async {
+    if (_sending) return;
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const [
+        'jpg', 'jpeg', 'png', 'webp', 'gif',
+        'mp3', 'm4a', 'ogg', 'wav', 'mp4', 'pdf',
+      ],
+      allowMultiple: false,
+      withData: false,
+    );
+    if (picked == null || picked.files.isEmpty || !mounted) return;
+    final selected = picked.files.single;
+    final path = selected.path;
+    if (path == null || path.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر الوصول إلى الملف المحدد على هذا الجهاز.')),
+      );
+      return;
+    }
+    setState(() => _sending = true);
+    try {
+      final mediaId = await _mediaService.uploadChatAttachment(
+        file: XFile(path, name: selected.name),
+        scope: 'room',
+      );
+      await _mediaService.sendChatMediaAttachment(
+        scope: 'room',
+        roomId: widget.chatId,
+        mediaId: mediaId,
+        clientMessageId: const Uuid().v4(),
+      );
+      if (!mounted) return;
+      await _reloadMessages();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم إرسال المرفق بعد الفحص والمعالجة الآمنة.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تعذر إرسال المرفق: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _openAttachment(String url) async {
+    final opened = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر فتح المرفق على هذا الجهاز.')),
+      );
+    }
+  }
+
   Future<String?> _attachmentUrl(Map<String, dynamic> message) {
     final mediaId = message['mediaId'] as String? ?? '';
     final messageId = message['messageId'] as String? ?? '';
@@ -137,7 +196,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final future = () async {
       if (mediaId.isEmpty || messageId.isEmpty) return null;
       try {
-        return await _mediaService.getChatImageAttachmentUrl(
+        return await _mediaService.getChatMediaAttachmentUrl(
           scope: 'room', roomId: widget.chatId,
           messageId: messageId, mediaId: mediaId,
         );
@@ -288,13 +347,36 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                                         if (url == null) {
                                           return const Text('الصورة غير متاحة أو انتهت مدة الاحتفاظ بها.');
                                         }
-                                        return ClipRRect(
-                                          borderRadius: BorderRadius.circular(12),
-                                          child: Image.network(
-                                            url, width: 260, height: 220, fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) => const SizedBox(
-                                              height: 100,
-                                              child: Center(child: Text('تعذر تحميل الصورة الآمنة.')),
+                                        final category = message['mediaCategory'] as String? ?? 'image';
+                                        if (category == 'image' || category == 'gif') {
+                                          return ClipRRect(
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: Image.network(
+                                              url, width: 260, height: 220, fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => const SizedBox(
+                                                height: 100,
+                                                child: Center(child: Text('تعذر تحميل الصورة الآمنة.')),
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                        final isDocument = category == 'document';
+                                        final label = category == 'audio' ? 'ملف صوتي آمن' :
+                                            category == 'video' ? 'مقطع فيديو آمن' : 'مستند PDF من إدارة مودة';
+                                        final icon = category == 'audio' ? Icons.audio_file_outlined :
+                                            category == 'video' ? Icons.video_file_outlined : Icons.picture_as_pdf_outlined;
+                                        return SizedBox(
+                                          width: 260,
+                                          child: Card(
+                                            child: ListTile(
+                                              leading: Icon(icon),
+                                              title: Text(label),
+                                              subtitle: Text(isDocument ? 'تنزيل المستند' : 'فتح المرفق'),
+                                              trailing: IconButton(
+                                                tooltip: 'فتح المرفق',
+                                                onPressed: () => _openAttachment(url),
+                                                icon: const Icon(Icons.open_in_new),
+                                              ),
                                             ),
                                           ),
                                         );
@@ -336,6 +418,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     tooltip: 'إرفاق صورة',
                     onPressed: _sending ? null : _pickAndSendImage,
                     icon: const Icon(Icons.image_outlined),
+                  ),
+                  IconButton(
+                    tooltip: 'إرفاق GIF أو صوت أو فيديو أو PDF',
+                    onPressed: _sending ? null : _pickAndSendAttachment,
+                    icon: const Icon(Icons.attach_file),
                   ),
                   Expanded(
                     child: TextField(
