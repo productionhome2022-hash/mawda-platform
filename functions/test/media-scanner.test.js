@@ -64,3 +64,52 @@ test("scanner verdict accepts a fully bound safe WebP derivative and rejects par
   assert.equal(validateScannerVerdict({ ...base, ...derivative, safePreviewPath: "processed/other/another-id/preview.webp" }, base.provider, now), null);
   assert.equal(validateScannerVerdict({ ...base, ...derivative, verdict: "malicious" }, base.provider, now), null);
 });
+
+test("scanner callback validates exact GIF, audio, video and flattened-PDF derivative contracts", () => {
+  const now = 1_800_000_000_000;
+  const base = {
+    mediaId: "123e4567-e89b-12d3-a456-426614174000",
+    provider: "clamav-mawadda-gateway",
+    verdict: "clean",
+    objectGeneration: "123456",
+    sha256: "a".repeat(64),
+    scannedAtMs: now,
+    scanEngine: "ClamAV",
+    engineVersion: "1.4.6",
+    signatureDatabaseVersion: "28202",
+    signatureDatabaseAgeMs: 60 * 60 * 1000,
+  };
+  const derivatives = [
+    { category: "gif", path: "animation.gif", contentType: "image/gif", pipelineVersion: "gif-sanitize-preserve-animation-v1", processingStatus: "safe_animation_derivative_ready" },
+    { category: "audio", path: "audio.mp3", contentType: "audio/mpeg", pipelineVersion: "ffmpeg-audio-transcode-v1", processingStatus: "safe_audio_derivative_ready" },
+    { category: "video", path: "video.mp4", contentType: "video/mp4", pipelineVersion: "ffmpeg-video-transcode-v1", processingStatus: "safe_video_derivative_ready" },
+    { category: "document", path: "document.pdf", contentType: "application/pdf", pipelineVersion: "pdf-raster-flatten-v1", processingStatus: "safe_document_derivative_ready" },
+  ];
+  for (const item of derivatives) {
+    const payload = {
+      ...base,
+      processingStatus: item.processingStatus,
+      safeDerivative: {
+        category: item.category,
+        path: `processed/member_1/${base.mediaId}/${item.path}`,
+        generation: "987654",
+        sha256: "b".repeat(64),
+        contentType: item.contentType,
+        pipelineVersion: item.pipelineVersion,
+      },
+    };
+    assert.equal(validateScannerVerdict(payload, base.provider, now).safeDerivative.category, item.category);
+    assert.equal(validateScannerVerdict({
+      ...payload,
+      safeDerivative: { ...payload.safeDerivative, path: "processed/other/forged/evil.bin" },
+    }, base.provider, now), null);
+    assert.equal(validateScannerVerdict({
+      ...payload,
+      safeDerivative: { ...payload.safeDerivative, pipelineVersion: "untrusted" },
+    }, base.provider, now), null);
+    assert.equal(validateScannerVerdict({
+      ...payload,
+      processingStatus: "security_approved",
+    }, base.provider, now), null);
+  }
+});
