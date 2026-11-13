@@ -130,17 +130,20 @@ jobs:
               --member="serviceAccount:$SCANNER_SA" \
               --role="roles/secretmanager.secretAccessor"
           done
-          if ! gcloud storage managed-folders describe "gs://$BUCKET_NAME/processed/" \
-            --project "$PROJECT_ID" >/dev/null 2>&1; then
-            gcloud storage managed-folders create "gs://$BUCKET_NAME/processed/" --project "$PROJECT_ID"
-          fi
+          for folder in quarantine processed; do
+            if ! gcloud storage managed-folders describe "gs://$BUCKET_NAME/$folder/" \
+              --project "$PROJECT_ID" >/dev/null 2>&1; then
+              gcloud storage managed-folders create "gs://$BUCKET_NAME/$folder/" --project "$PROJECT_ID"
+            fi
+            gcloud storage managed-folders add-iam-policy-binding "gs://$BUCKET_NAME/$folder/" \
+              --project "$PROJECT_ID" \
+              --member="serviceAccount:$FUNCTIONS_SA" \
+              --role="roles/storage.objectAdmin"
+          done
           gcloud storage managed-folders add-iam-policy-binding "gs://$BUCKET_NAME/processed/" \
             --project "$PROJECT_ID" \
             --member="serviceAccount:$SCANNER_SA" \
             --role="roles/storage.objectCreator"
-          gcloud storage buckets add-iam-policy-binding "gs://$BUCKET_NAME" \
-            --member="serviceAccount:$FUNCTIONS_SA" \
-            --role="roles/storage.objectViewer"
           gcloud iam service-accounts add-iam-policy-binding "$FUNCTIONS_SA" \
             --project "$PROJECT_ID" \
             --member="serviceAccount:$FUNCTIONS_SA" \
