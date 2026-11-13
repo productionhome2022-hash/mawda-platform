@@ -56,6 +56,12 @@ Status snapshot: 2026-11-13. This document is a release gate, not a claim that e
 
 A successful malware verdict does not by itself authorize member delivery. Only types with a completed safe-processing pipeline may become eligible for delivery. Images use sanitized WebP derivatives; video, audio and PDF remain unavailable until type-specific processing is implemented.
 
+## Latest CI result (13 November 2026)
+
+- Commit `8b82bd2d72c1bec461ba9f57fd34f4a7c0eae6c3` passed full workflow [43389618699](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43389618699).
+- All Flutter analysis/tests/Web release build, Functions compile/unit tests, media/retention/deletion/audit-export/legal-hold Firestore emulator integration tests, Firestore/Storage rules tests, scanner security tests, Docker build and EICAR detection passed.
+- Real non-production GCS signed URL, generation/soft-delete, Cloud Run scanner deployment, backup/PITR, cache/CDN and production infrastructure evidence remain unverified.
+
 ## Owner audit export implementation update (13 November 2026)
 
 - Added an MFA/sole-owner protected callable `exportOwnerReviewAuditPage` for bounded, cursor-based export of the owner-review hash chain.
