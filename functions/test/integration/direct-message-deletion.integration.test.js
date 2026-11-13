@@ -7,6 +7,8 @@ const { createHash } = require("node:crypto");
 const {
   deleteDirectMessageForMe,
   deleteDirectMessageForEveryone,
+  deleteRoomMessage,
+  deleteRoomMessageForMe,
 } = require("../../lib/index");
 const { getFirestore } = require("firebase-admin/firestore");
 const db = getFirestore();
@@ -123,5 +125,73 @@ test("direct delete-for-everyone denies peer and refuses media records without d
     assert.equal((await messageRef.get()).data().storagePath, "chat-media/example");
   } finally {
     await Promise.all([chatRef.delete().catch(() => undefined), messageRef.delete().catch(() => undefined)]);
+  }
+});
+
+test("room delete-for-me is member-scoped and room delete-for-everyone erases text idempotently", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const suffix = Date.now().toString();
+  const [alice, bob] = [`room-alice-${suffix}`, `room-bob-${suffix}`];
+  const roomId = `room-${suffix}`;
+  const messageId = id(`room-message-${suffix}`);
+  const roomRef = db.collection("rooms").doc(roomId);
+  const messageRef = roomRef.collection("messages").doc(messageId);
+  await roomRef.set({ ownerUid: alice, status: "active" });
+  await Promise.all([alice, bob].map((uid) =>
+    roomRef.collection("members").doc(uid).set({ uid, role: "member" }),
+  ));
+  await messageRef.set({
+    messageId, senderUid: alice, content: "room text", type: "text", isDeleted: false,
+  });
+
+  try {
+    const hidden = await deleteRoomMessageForMe.run(memberRequest(bob, { roomId, messageId }));
+    assert.equal(hidden.hiddenForRequester, true);
+    assert.deepEqual((await messageRef.get()).data().deletedForUids, [bob]);
+
+    const removed = await deleteRoomMessage.run(memberRequest(alice, { roomId, messageId }));
+    assert.equal(removed.deleted, true);
+    assert.equal((await messageRef.get()).exists, false);
+    const replay = await deleteRoomMessage.run(memberRequest(alice, { roomId, messageId }));
+    assert.equal(replay.idempotentReplay, true);
+  } finally {
+    await Promise.all([
+      roomRef.delete().catch(() => undefined),
+      messageRef.delete().catch(() => undefined),
+      roomRef.collection("members").doc(alice).delete().catch(() => undefined),
+      roomRef.collection("members").doc(bob).delete().catch(() => undefined),
+    ]);
+    await db.collection("roomAuditLogs")
+      .where("roomId", "==", roomId).get()
+      .then((snapshot) => Promise.all(snapshot.docs.map((doc) => doc.ref.delete())));
+  }
+});
+
+test("room delete-for-everyone refuses media records rather than orphaning Storage objects", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const suffix = Date.now().toString();
+  const alice = `room-media-owner-${suffix}`;
+  const roomId = `room-media-${suffix}`;
+  const messageId = id(`room-media-message-${suffix}`);
+  const roomRef = db.collection("rooms").doc(roomId);
+  const messageRef = roomRef.collection("messages").doc(messageId);
+  await roomRef.set({ ownerUid: alice, status: "active" });
+  await roomRef.collection("members").doc(alice).set({ uid: alice, role: "owner" });
+  await messageRef.set({
+    messageId, senderUid: alice, content: "media", type: "image",
+    storagePath: "room-media/example",
+  });
+  try {
+    await assert.rejects(
+      () => deleteRoomMessage.run(memberRequest(alice, { roomId, messageId })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await messageRef.get()).exists, true);
+  } finally {
+    await Promise.all([
+      roomRef.delete().catch(() => undefined),
+      messageRef.delete().catch(() => undefined),
+      roomRef.collection("members").doc(alice).delete().catch(() => undefined),
+    ]);
   }
 });
