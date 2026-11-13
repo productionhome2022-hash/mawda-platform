@@ -472,7 +472,7 @@ async function handleLateExpiredChatMediaDerivative(event: Parameters<typeof onO
   if (!manualDeletionState && asset.status !== "self_destructed" &&
       (!expiry || expiry.toMillis() > Date.now())) return;
 
-  await getStorage().bucket(object.bucket).file(objectPath).delete({
+  await getStorage().bucket(object.bucket).file(objectPath, { generation }).delete({
     ignoreNotFound: true,
     ifGenerationMatch: generation,
   });
