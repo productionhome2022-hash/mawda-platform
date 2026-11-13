@@ -1360,10 +1360,14 @@ export const reviewSafetyAppeal = onCall(async (request) => {
   await db.runTransaction(async (transaction) => {
     const appeal = await transaction.get(appealRef);
     const data = appeal.data();
-    if (!appeal.exists || data?.status !== "pending" || typeof data.caseId !== "string") {
+    if (!appeal.exists || typeof data?.caseId !== "string") {
       throw new HttpsError("failed-precondition", "الاستئناف غير موجود أو سبق البت فيه.");
     }
     caseId = data.caseId;
+    if (data.status === decision && data.reviewedBy === actorUid) return;
+    if (data.status !== "pending") {
+      throw new HttpsError("failed-precondition", "الاستئناف غير موجود أو سبق البت فيه.");
+    }
     const caseRef = db.collection("safetyCases").doc(caseId);
     const safetyCase = await transaction.get(caseRef);
     if (!safetyCase.exists || safetyCase.data()?.appealStatus !== "pending") {
@@ -1537,7 +1541,14 @@ export const reviewSafetyCase = onCall(async (request) => {
   const caseRef = db.collection("safetyCases").doc(caseId);
   const subjectUid = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(caseRef);
-    if (!snapshot.exists || snapshot.data()?.status !== "open") {
+    if (!snapshot.exists) {
+      throw new HttpsError("not-found", "البلاغ غير موجود.");
+    }
+    const current = snapshot.data()!;
+    if (current.status === decision && current.reviewedBy === actorUid) {
+      return current.subjectUid as string;
+    }
+    if (current.status !== "open") {
       throw new HttpsError("failed-precondition", "البلاغ غير موجود أو سبق اتخاذ قرار بشأنه.");
     }
     transaction.update(caseRef, {
