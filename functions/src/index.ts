@@ -5150,6 +5150,11 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
   if (typeof requesterUid !== "string" || requesterUid.length < 1 || requesterUid.length > 128 ||
       requesterUid === actorUid) throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
   const ref = db.collection("coinPurchaseRequests").doc(`${requesterUid}_${input.requestId}`);
+  const chatId = createDirectChatId(actorUid, requesterUid);
+  const chatRef = db.collection("directChats").doc(chatId);
+  const notificationId = `coin_payment_${input.requestId}`;
+  const notificationRef = db.collection("users").doc(requesterUid).collection("notifications").doc(notificationId);
+  let messageId = "";
   await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists || snapshot.data()?.requesterUid !== requesterUid) {
@@ -5159,22 +5164,61 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     if (["approved", "rejected", "withdrawn"].includes(String(prior.status))) {
       throw new HttpsError("failed-precondition", "لا يمكن تعديل طلب منتهٍ.");
     }
+    const nextVersion = (Number.isSafeInteger(prior.instructionsVersion) ? prior.instructionsVersion : 0) + 1;
+    messageId = createHash("sha256").update(`coin-purchase:${requesterUid}:${input.requestId}:${nextVersion}`).digest("hex");
+    const messageRef = chatRef.collection("messages").doc(messageId);
+    const [chatSnapshot, existingMessage] = await Promise.all([
+      transaction.get(chatRef), transaction.get(messageRef),
+    ]);
+    if (chatSnapshot.exists) {
+      const participants = chatSnapshot.data()?.participantUids;
+      if (!Array.isArray(participants) || !participants.includes(actorUid) || !participants.includes(requesterUid)) {
+        throw new HttpsError("permission-denied", "تعذر ربط تعليمات الدفع بالمحادثة الثنائية.");
+      }
+    }
+    const now = FieldValue.serverTimestamp();
+    transaction.set(chatRef, {
+      participantUids: [actorUid, requesterUid].sort(),
+      createdAt: chatSnapshot.exists ? chatSnapshot.data()?.createdAt ?? now : now,
+      lastMessageAt: now, lastMessageSenderUid: actorUid,
+      lastMessagePreview: "أرسل مالك المنصة تعليمات دفع طلب الكوينز.",
+    }, { merge: true });
+    if (!existingMessage.exists) {
+      transaction.create(messageRef, {
+        messageId, chatId, senderUid: actorUid, recipientUid: requesterUid,
+        text: "تعليمات دفع طلب شراء الكوينز رقم " + input.requestId +
+          "\\nالكمية المتفق عليها: " + input.agreedCoins + " كوين" +
+          "\\nالسعر: " + (input.agreedPriceMinor / 100).toFixed(2) + " EUR" +
+          "\\nالتعليمات: " + input.instructions,
+        type: "text", isPlatformOwnerMessage: true,
+        senderLabel: "إدارة منصة مودة", adminMessageType: "coin_purchase_payment_instructions",
+        createdAt: now,
+      });
+    }
+    transaction.set(notificationRef, {
+      notificationId, type: "coin_purchase_payment_instructions", senderUid: actorUid,
+      chatId, messageId, title: "تعليمات دفع من مالك مودة",
+      body: "أرسل مالك المنصة تعليمات الدفع لطلب الكوينز. افتح المحادثة للاطلاع عليها.",
+      isRead: false, createdAt: now,
+    });
     transaction.update(ref, {
-      status: "payment_instructions_sent",
-      agreedCoins: input.agreedCoins, agreedPriceMinor: input.agreedPriceMinor,
-      currency: input.currency, paymentInstructions: input.instructions,
-      instructionsSetBy: actorUid, instructionsSetAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
+      status: "payment_instructions_sent", agreedCoins: input.agreedCoins,
+      agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
+      paymentInstructions: input.instructions, instructionsVersion: nextVersion,
+      instructionsSetBy: actorUid, instructionsSetAt: now, updatedAt: now,
     });
     const auditRef = db.collection("adminAuditLogs").doc();
     transaction.create(auditRef, {
       actorUid, targetUid: requesterUid, action: "coin_purchase_payment_instructions_set",
       requestId: input.requestId, agreedCoins: input.agreedCoins,
       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
-      createdAt: FieldValue.serverTimestamp(),
+      chatId, messageId, instructionsVersion: nextVersion, createdAt: now,
     });
   });
-  return { requestId: input.requestId, status: "payment_instructions_sent" };
+  await sendPushToMember(requesterUid, "تعليمات دفع من مالك مودة",
+    "أرسل مالك المنصة تعليمات الدفع لطلب الكوينز. افتح المحادثة للاطلاع عليها.",
+    { type: "coin_purchase_payment_instructions", chatId, messageId });
+  return { requestId: input.requestId, status: "payment_instructions_sent", chatId, messageId };
 });
 
 /** Only the owner can attest to external receipt; approval atomically credits coins and ledger. */
