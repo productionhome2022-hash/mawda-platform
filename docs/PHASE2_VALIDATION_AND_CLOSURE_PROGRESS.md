@@ -69,6 +69,13 @@ See [issue #4](https://github.com/productionhome2022-hash/mawda-platform/issues/
 - PR #3 remains a draft targeting the development branch and is divergent; it must not be merged wholesale.
 
 
+## Latest verification and follow-up audit — 13 November 2026
+
+- Rechecked the development-branch validation head `4ecf44d9aab2789a70955189e9cdf6933493d5c6`: workflow run [43383596399](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43383596399) completed successfully. Its three jobs all report success: Cloud Functions compile/unit tests; isolated ClamAV gateway tests and image build; Flutter analysis/tests/Web release build.
+- This CI result is source/build/emulator evidence only. It does not prove that Cloud Run or Firebase was deployed, that real GCS HTTP and generation deletion tests ran, or that retention workers were enabled.
+- Follow-up source audit found a concrete remaining gap: `avatar_cover` uploads receive a 30-day `retentionExpiresAt` during finalization, but the scheduled retention sweep currently iterates only `chat`, `room`, `profile_album`, and `story`. The avatar/cover lifecycle therefore is not yet enforced. The profile model stores URL fields but the current media intake path does not bind a selected avatar/cover slot or media ID to the profile, so deletion cannot safely switch a still-selected image to the built-in default. Implement the selection binding, superseded-asset marking, atomic default fallback and deletion tests before enabling this policy.
+- The retention unit-test description was also corrected to say the four-hour clock begins at validated upload finalization, matching the implementation and approved policy.
+
 ## Chat retention code and exact CI evidence — 13 November 2026
 
 - Added `functions/src/retention.ts` with separate server-side jobs for four-hour chat-media self-destruction, seven-day text-message deletion across direct/public/rented-private chats, and 90-day operational media audit cleanup.
