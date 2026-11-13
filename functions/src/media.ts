@@ -194,7 +194,9 @@ export const receiveMediaScanVerdict = onRequest(
         previewMetadata.contentType !== "image/webp" ||
         customMetadata?.mediaId !== verdict.mediaId ||
         customMetadata?.sourceGeneration !== verdict.objectGeneration ||
-        customMetadata?.scannerProvider !== verdict.provider) {
+        customMetadata?.sourceSha256 !== verdict.sha256 ||
+        customMetadata?.scannerProvider !== verdict.provider ||
+        customMetadata?.processing !== "sharp-decode-reencode-v1") {
       response.status(409).send("Safe preview metadata mismatch");
       return;
     }
