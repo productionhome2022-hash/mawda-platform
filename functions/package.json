@@ -15,6 +15,7 @@
     "test:media-signed-urls-http": "npm run build && node scripts/test-signed-urls-http.cjs",
     "test:signed-urls-http": "node scripts/test-signed-urls-http.cjs",
     "test:retention-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-retention \"node --test test/integration/chat-retention.integration.test.js\"",
+    "test:message-deletion-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-message-deletion \"node --test test/integration/direct-message-deletion.integration.test.js\"",
     "test:retention-gcs": "npm run build && node scripts/test-retention-storage.cjs"
   },
   "dependencies": {
