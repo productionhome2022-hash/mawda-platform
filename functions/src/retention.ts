@@ -268,16 +268,21 @@ export async function runChatTextRetentionSweep(): Promise<{ messages: number; f
 async function deleteExpiredMediaOperationalAudit(): Promise<number> {
   const db = getFirestore();
   const cutoff = Timestamp.fromMillis(Date.now() - 90 * 24 * 60 * 60 * 1000);
-  const snapshot = await db.collection("mediaAccessAudit")
-    .where("createdAt", "<=", cutoff)
-    .orderBy("createdAt", "asc")
-    .limit(RETENTION_BATCH_SIZE)
-    .get();
-  if (snapshot.empty) return 0;
-  const batch = db.batch();
-  for (const entry of snapshot.docs) batch.delete(entry.ref);
-  await batch.commit();
-  return snapshot.size;
+  let deleted = 0;
+  for (let page = 0; page < RETENTION_PAGES_PER_RUN; page += 1) {
+    const snapshot = await db.collection("mediaAccessAudit")
+      .where("createdAt", "<=", cutoff)
+      .orderBy("createdAt", "asc")
+      .limit(RETENTION_BATCH_SIZE)
+      .get();
+    if (snapshot.empty) break;
+    const batch = db.batch();
+    for (const entry of snapshot.docs) batch.delete(entry.ref);
+    await batch.commit();
+    deleted += snapshot.size;
+    if (snapshot.size < RETENTION_BATCH_SIZE) break;
+  }
+  return deleted;
 }
 
 /** Reconciles expired chat media every minute; disabled by default and non-production gated. */
