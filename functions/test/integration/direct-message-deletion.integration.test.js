@@ -327,6 +327,9 @@ test("a legal hold hides the message while preventing media erasure; retry after
   const [originalMeta] = await original.getMetadata();
   const [previewMeta] = await preview.getMetadata();
   await chatRef.set({ participantUids: [alice, bob] });
+  await Promise.all([alice, bob].map((uid) =>
+    db.collection("users").doc(uid).set({ profileCompleted: true, accountStatus: "active" }),
+  ));
   await assetRef.set({
     mediaId, ownerUid: alice, mediaPurpose: "chat", objectPath,
     storageGeneration: String(originalMeta.generation),
@@ -366,6 +369,8 @@ test("a legal hold hides the message while preventing media erasure; retry after
     await Promise.all([
       assetRef.delete().catch(() => undefined),
       chatRef.delete().catch(() => undefined),
+      db.collection("users").doc(alice).delete().catch(() => undefined),
+      db.collection("users").doc(bob).delete().catch(() => undefined),
       original.delete({ ignoreNotFound: true }).catch(() => undefined),
       preview.delete({ ignoreNotFound: true }).catch(() => undefined),
     ]);
