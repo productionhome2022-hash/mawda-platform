@@ -1,6 +1,12 @@
 const test = require("node:test");
 const { after } = require("node:test");
 const assert = require("node:assert/strict");
+
+// Configure the Admin Storage SDK before importing any module that loads it.
+// The emulator listens on plain HTTP even when the CLI host variable carries a scheme.
+const rawStorageEmulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? "127.0.0.1:9199";
+const storageEmulatorHost = rawStorageEmulatorHost.replace("https://", "").replace("http://", "");
+process.env.STORAGE_EMULATOR_HOST = `http://${storageEmulatorHost}`;
 const { EventEmitter } = require("node:events");
 const fs = require("node:fs");
 const os = require("node:os");
@@ -36,9 +42,6 @@ fs.writeFileSync(testCredentialsPath, JSON.stringify({
   client_id: "123456789012345678901", token_uri: "https://oauth2.googleapis.com/token",
 }), { mode: 0o600 });
 process.env.GOOGLE_APPLICATION_CREDENTIALS = testCredentialsPath;
-const storageEmulatorHost = (process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? "127.0.0.1:9199")
-  .replace("https://", "").replace("http://", "");
-process.env.STORAGE_EMULATOR_HOST = `http://${storageEmulatorHost}`;
 after(() => { try { fs.unlinkSync(testCredentialsPath); } catch {} });
 
 if (getApps().length === 0) {
