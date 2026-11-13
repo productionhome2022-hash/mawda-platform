@@ -159,6 +159,20 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "adminAuditLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "auditChainId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "auditSequence",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
