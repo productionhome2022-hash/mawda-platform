@@ -48,6 +48,7 @@ export function isStorePurchasePriceCurrent(
 export type StoreEntitlementFeatures = {
   vipActive: boolean;
   activeTitle: string | null;
+  activeFeatures: Array<{ itemId: string; itemName: string; category: string; expiresAtMs: number | null }>;
 };
 
 /**
@@ -68,8 +69,27 @@ export function projectStoreEntitlementFeatures(
     (item as Record<string, unknown>).category === "title" &&
     typeof (item as Record<string, unknown>).itemName === "string",
   ) as Record<string, unknown> | undefined;
+  const activeFeatures = active.flatMap((item) => {
+    if (item === null || typeof item !== "object") return [];
+    const value = item as Record<string, unknown>;
+    if (typeof value.itemId !== "string" || typeof value.itemName !== "string" ||
+        typeof value.category !== "string") return [];
+    let expiresAtMs: number | null = null;
+    const expiry = value.expiresAt;
+    if (expiry && typeof expiry === "object" &&
+        typeof (expiry as { toMillis?: unknown }).toMillis === "function") {
+      try { expiresAtMs = (expiry as { toMillis: () => number }).toMillis(); } catch { return []; }
+    }
+    return [{
+      itemId: value.itemId.slice(0, 64),
+      itemName: value.itemName.trim().slice(0, 80),
+      category: value.category.slice(0, 40),
+      expiresAtMs,
+    }];
+  });
   return {
     vipActive,
     activeTitle: title ? (title.itemName as string).trim().slice(0, 80) || null : null,
+    activeFeatures,
   };
 }
