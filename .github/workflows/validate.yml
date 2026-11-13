@@ -63,6 +63,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Compile and test backend
         run: npm test
+      - name: Syntax-check live non-production scanner E2E script
+        run: node --check scripts/test-live-media-scanner-e2e.cjs
       - name: Upload compiled Cloud Functions artifact
         uses: actions/upload-artifact@v4
         with:
