@@ -339,3 +339,15 @@ Remaining phase-two closure items:
 - CI run 43378886224 is validating the exact current head; an earlier run 43378461426 exposed a test-only signer credential gap and a ClamAV log-directory permission issue, both addressed in subsequent commits. Do not call this checkpoint green until all jobs complete successfully. Do not call this checkpoint green until all jobs complete successfully. The opt-in real-GCS HTTP script covers exact-size rejection, upload, replay, GET and expiry, but has not been run because a dedicated non-production bucket and credentials are not available in this environment.
 - Still open before phase-two exit: deploy and verify the scanner in non-production (including EICAR detection, clean samples, malformed/oversized objects, stale generation, bad HMAC, duplicate callback and retry behavior); execute the real-GCS HTTP test; initialize App Check in Flutter and verify supported platforms; finish safe processing for video/audio/PDF; confirm retention/legal-hold and audit-retention/export policy; test actual bucket CORS, IAM, MFA lifecycle and device flows.
 - No production Firebase data, bucket configuration, rules, deployment, merge or destructive retention action was changed or authorized.
+
+
+## Owner-approved follow-up requirements — 13 November 2026
+
+| Requirement | Required implementation | Current status |
+|---|---|---|
+| Owner live-stream broadcast | Server-authorized owner-only message type for direct chats, public rooms and active rented private rooms; recent MFA; audited/idempotent delivery; room-owner bypass only for the verified platform owner | Specified in `docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md`; implementation open |
+| Split-screen in-app playback | Provider-approved embed adapters; player in upper ~50% while chat remains below; close action; unsupported-source fallback to original URL; no DRM/paywall/geo/login bypass | Specified; Flutter player and provider/device tests open |
+| Manual coin purchase requests | Package/custom quantity request; owner contact/instructions; owner records external verification; only owner approval transaction credits coins with linked ledger/audit/idempotency | Specified; backend lifecycle, owner/member UI and emulator tests open. No payment gateway or automatic issuance |
+| Member and owner logout | Firebase signOut, best-effort token unregister, auth-gate return, clear privileged state | Main shell already exposes sign-out and AuthService.signOut; verify owner reachability, failure behavior and end-to-end auth-gate tests before acceptance |
+
+These additions are Phase 1/2 scope only. Phase 3 remains paused pending the owner's separate proposal and approval.
