@@ -31,7 +31,7 @@ export function validateOwnerLiveStreamInput(value: unknown): {
   if (typeof data.requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(data.requestId) ||
       (data.scope !== "direct" && data.scope !== "room") ||
       typeof data.targetId !== "string" || data.targetId.trim().length < 1 ||
-      data.targetId.length > 128 || /[\\u0000-\\u001f\\u007f]/.test(data.targetId) || typeof data.url !== "string" ||
+      data.targetId.length > 128 || /[\u0000-\u001f\u007f]/.test(data.targetId) || typeof data.url !== "string" ||
       data.url.length < 10 || data.url.length > 2048 ||
       /[\u0000-\u0020\u007f\\<>"'{}|^]/.test(data.url)) {
     throw new Error("INVALID_LIVE_STREAM_FIELDS");
@@ -43,6 +43,9 @@ export function validateOwnerLiveStreamInput(value: unknown): {
   try { parsed = new URL(data.url); }
   catch { throw new Error("INVALID_LIVE_STREAM_URL"); }
   const hostname = parsed.hostname.toLowerCase().replace(/\.$/, "");
+  const bareHostname = hostname.replace(/^www\./, "");
+  const isShortener = BLOCKED_SHORTENERS.has(bareHostname) ||
+    [...BLOCKED_SHORTENERS].some((domain) => bareHostname.endsWith("." + domain));
   if (parsed.protocol !== "https:" || parsed.username || parsed.password ||
       (parsed.port !== "" && parsed.port !== "443") || !hostname ||
       isIP(hostname) !== 0 || hostname === "localhost" ||
