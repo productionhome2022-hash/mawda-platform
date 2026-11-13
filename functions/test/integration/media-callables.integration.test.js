@@ -549,7 +549,7 @@ test("stories publish only after malware approval and active public stories appe
   const userRef = db.collection("users").doc(uid);
   const assetRef = db.collection("mediaAssets").doc(mediaId);
   await Promise.all([
-    userRef.set({ profileVisibility: "public", displayName: "Story Member" }),
+    userRef.set({ profileCompleted: true, profileVisibility: "public", displayName: "Story Member" }),
     assetRef.set({
       mediaId, ownerUid: uid, mediaPurpose: "story", status: "security_approved",
       processingStatus: "safe_raster_derivative_ready",
@@ -589,7 +589,7 @@ test("story publication rejects media that remains quarantined pending malware s
   const userRef = db.collection("users").doc(uid);
   const assetRef = db.collection("mediaAssets").doc(mediaId);
   await Promise.all([
-    userRef.set({ profileVisibility: "public" }),
+    userRef.set({ profileCompleted: true, profileVisibility: "public" }),
     assetRef.set({
       mediaId, ownerUid: uid, mediaPurpose: "story", status: "pending_security_scan",
       retentionExpiresAt: Timestamp.fromMillis(Date.now() + 60 * 60 * 1000),
