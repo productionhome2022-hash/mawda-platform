@@ -10,7 +10,7 @@ const {
   isKnownDeletedMediaObjectPath,
 } = require("../lib/retention");
 
-test("chat media retention is exactly four hours from the upload intent timestamp", () => {
+test("chat media retention is exactly four hours from validated upload finalization", () => {
   const createdAt = 1_800_000_000_000;
   const deadline = retentionDeadline(createdAt, CHAT_MEDIA_RETENTION_MS);
   assert.equal(deadline, createdAt + 4 * 60 * 60 * 1000);
