@@ -13,13 +13,24 @@ Validation: [GitHub Actions run 43449287825](https://github.com/productionhome20
 |---|---|---|
 | Firebase Auth and authenticated app entry | Auth foundations, verification/reset and auth-state gating in the development PR | Code/CI coverage; production Firebase options and owner MFA recovery remain open |
 | Profile completion and privacy controls | Server-side completion, username reservation, profile privacy and allowlisted edits | Code foundations; final legal policy and jurisdictional review open |
-| Coin transfers and ledger | Server-calculated commission, freshness/idempotency checks and linked sender/recipient/platform ledger entries | Firestore-emulator integration passed on exact tested SHA: linked sender/recipient/platform ledgers, 20% fee/net amount, concurrent/replayed idempotency, stale quote, suspended/blocked account and insufficient-balance rejection; payment/refund/top-up and full reconciliation remain open |
+| Coin transfers and ledger | Server-calculated commission, freshness/idempotency checks and linked sender/recipient/platform ledger entries; manual external-payment coin requests now have member/owner UI and trusted callables | Existing transfer integration passed on its recorded SHA. New manual purchase package/custom lifecycle, owner DM instructions and atomic approval are implemented in the current candidate; exact-head emulator validation is pending. Automated payment, refunds/chargebacks and reconciliation remain open |
 | Direct and room messaging | Authenticated callables, validation, idempotency, scoped reads, deletion and read cursors | Backend/emulator tests; push notifications and full realtime/abuse workflows remain open |
 | Owner review and audit | Silent/announced review, owner participation modes, server authorization and hash-linked audit verification/export | Automated tests; immutable checkpoint/24-month archive/restore and full audit export scale proof remain open |
 | Rooms and moderation | Discovery/join, owner creation, scoped moderator permissions, mute/remove and audit | Code foundations; rental billing, room lifecycle/transfer, voice/video/events and load/device testing remain open |
-| Store and entitlements | Catalog/purchase/receipt/ledger foundations; VIP/title consumers; other categories fail closed | Firestore-emulator integration passed on exact tested SHA for atomic charge, receipt, ledger, VIP entitlement, idempotency and stale-price rejection; remaining approved premium consumers and real-money operations remain open |
+| Store and entitlements | Catalog/purchase/receipt/ledger foundations; VIP/title consumers; manual top-up request flow added separately; other categories fail closed | Store-purchase emulator integration passed on its recorded SHA. Manual top-up exact-head integration validation is pending. Remaining premium consumers and all automated real-money payment/refund operations remain open |
 | Biometric verification | Server-derived entitlement checks | Provider/capture and recurring verification remain open |
 | Privacy and guest policy | Member acknowledgement/version/hash and server enforcement; Firebase anonymous users classified as guests | Final localized legal policy and unauthenticated guest lifecycle remain open |
+
+
+### Manual coin purchase requests — implementation candidate (13 November 2026)
+
+- Members can request an active fixed package or a custom coin quantity. The member cannot set or alter the agreed price.
+- The owner console lists requests, records negotiated quantity/price and manual payment instructions, and sends those instructions as an owner-authored message in the member's direct conversation.
+- The member can view request status/instructions and open the owner conversation from the wallet's coin-purchase screen.
+- Owner approval requires the server-verified sole-owner claim and a recent MFA session, an explicit external-payment-verification assertion, a bounded external reference and verification note.
+- Approval atomically credits the member balance, creates the wallet ledger entry, marks the request approved and records the owner audit entry. Replays are idempotent; pending requests and instruction delivery do not credit coins.
+- Rejection and member withdrawal are supported. Manual requests can be paused by the owner. Automated checkout remains hard-disabled; no provider, webhook, card storage or automatic issuance exists.
+- Unit validation and Firestore-emulator lifecycle tests have been added. The current exact-head workflow must complete successfully before this row can be marked CI-validated. The owner still performs the external payment verification manually.
 
 ## B. Phase 2 — media security, delivery, retention and audit
 
