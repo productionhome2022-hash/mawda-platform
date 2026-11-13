@@ -28,6 +28,7 @@ import { createHash } from "node:crypto";
 import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
+import { validateOwnerAuditExportRequest, projectOwnerAuditExportValue } from "./owner-audit-export";
 import {
   validateOwnerChatReviewRequest,
   validateOwnerConversationPageRequest,
@@ -1965,6 +1966,93 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
  * Full verification is intentionally bounded; large chains fail as incomplete,
  * never as valid, until a paged verification workflow is used.
  */
+/**
+ * Exports a bounded, redacted page of the owner's hash-chained audit ledger.
+ * The cursor is the last scanned sequence, not merely the last returned row.
+ */
+export const exportOwnerReviewAuditPage = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "owner_review_audit_export");
+  const headSnapshot = await OWNER_REVIEW_AUDIT_HEAD.get();
+  const head = headSnapshot.data() ?? {};
+  const headSequence = headSnapshot.exists ? head.sequence : 0;
+  if (!Number.isSafeInteger(headSequence) || headSequence < 0) {
+    throw new HttpsError("failed-precondition", "رأس سجل التدقيق غير صالح.");
+  }
+
+  let filters;
+  try {
+    filters = validateOwnerAuditExportRequest(
+      (request.data ?? {}) as Record<string, unknown>,
+      headSequence,
+    );
+  } catch (error) {
+    throw new HttpsError("invalid-argument", "مرشحات تصدير سجل التدقيق غير صالحة.", {
+      reason: error instanceof Error ? error.message : "INVALID_FILTERS",
+    });
+  }
+
+  const scanLimit = 501;
+  const scanned = await db.collection("adminAuditLogs")
+    .where("auditSequence", ">", filters.afterSequence)
+    .orderBy("auditSequence", "asc")
+    .limit(scanLimit)
+    .get();
+  const scannedDocs = scanned.docs.filter((doc) =>
+    doc.data().auditChainId === "owner-review-v1" &&
+    doc.data().auditSequence <= headSequence
+  );
+  const matching = scannedDocs.filter((doc) => {
+    const data = doc.data();
+    const event = data.auditEvent && typeof data.auditEvent === "object"
+      ? data.auditEvent as Record<string, unknown>
+      : {};
+    const createdAtMs = data.createdAt instanceof Timestamp
+      ? data.createdAt.toMillis()
+      : null;
+    if (filters.fromMs !== null && (createdAtMs === null || createdAtMs < filters.fromMs)) return false;
+    if (filters.toMs !== null && (createdAtMs === null || createdAtMs > filters.toMs)) return false;
+    if (filters.actorUid !== null && event.actorUid !== filters.actorUid) return false;
+    if (filters.action !== null && event.action !== filters.action) return false;
+    return true;
+  }).slice(0, filters.pageSize);
+
+  const lastScannedSequence = scannedDocs.length > 0
+    ? scannedDocs[scannedDocs.length - 1].data().auditSequence as number
+    : filters.afterSequence;
+  const hasMore = scanned.docs.length === scanLimit &&
+    lastScannedSequence < headSequence;
+  const exportAuditLogId = await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "owner_review_audit_export",
+    outcome: "success",
+    afterSequence: filters.afterSequence,
+    throughSequence: lastScannedSequence,
+    returnedCount: matching.length,
+    pageSize: filters.pageSize,
+    hasMore,
+  });
+
+  return {
+    entries: matching.map((doc) => {
+      const data = doc.data();
+      return {
+        sequence: data.auditSequence,
+        previousHash: data.previousAuditHash,
+        eventHash: data.auditHash,
+        event: projectOwnerAuditExportValue(data.auditEvent),
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : null,
+      };
+    }),
+    afterSequence: filters.afterSequence,
+    nextAfterSequence: hasMore ? lastScannedSequence : null,
+    hasMore,
+    verifiedHeadSequence: headSequence,
+    verifiedHeadHash: head.eventHash ?? "GENESIS",
+    exportAuditLogId,
+  };
+});
+
+
 export const verifyOwnerReviewAuditChain = onCall(async (request) => {
   const actorUid = await requireOwnerForReview(request, "owner_review_audit_chain_verify");
   const headSnapshot = await OWNER_REVIEW_AUDIT_HEAD.get();
