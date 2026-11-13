@@ -2974,6 +2974,7 @@ export {
   createMediaUploadIntent,
   finalizeMediaUpload,
   listOwnerMediaAssets,
+  getOwnerMediaSafePreview,
   getOwnerMediaInspectionUrl,
   ownerMediaInspectionStream,
   ownerMediaPreview,
