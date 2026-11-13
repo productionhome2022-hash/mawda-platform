@@ -215,7 +215,6 @@ jobs:
 
       - name: Verify authenticated scanner health and ClamAV readiness
         env:
-          SERVICE_URL: ${{ env.SCANNER_SERVICE_URL }}
           PROJECT_ID: ${{ inputs.project_id }}
           REGION: ${{ inputs.region }}
           SERVICE_NAME: ${{ inputs.service_name }}
@@ -229,9 +228,9 @@ jobs:
               --role="roles/run.invoker" >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
-          TOKEN="$(gcloud auth print-identity-token --audiences="$SERVICE_URL")"
+          TOKEN="$(gcloud auth print-identity-token --audiences="$SCANNER_SERVICE_URL")"
           curl --fail --silent --show-error --retry 12 --retry-delay 10 \
-            -H "Authorization: Bearer $TOKEN" "$SERVICE_URL/healthz"
+            -H "Authorization: Bearer $TOKEN" "$SCANNER_SERVICE_URL/healthz"
 
       - name: Connect and deploy Firebase Functions in the selected non-production project
         env:
@@ -240,7 +239,7 @@ jobs:
         run: |
           set -euo pipefail
           cd functions
-          printf 'MAWDA_MEDIA_SCANNER_URL=%s\n' "$SCANNER_SERVICE_URL" > ".env.$PROJECT_ID"
+          printf 'MAWDA_MEDIA_SCANNER_URL=%s\n' "$SCANNER_SERVICE_URL/scan" > ".env.$PROJECT_ID"
           printf 'MAWDA_MEDIA_SCANNER_CALLBACK_URL=%s\n' "$CALLBACK_URL" >> ".env.$PROJECT_ID"
           printf 'MAWDA_MEDIA_SCANNER_PROVIDER=clamav-mawadda-gateway\n' >> ".env.$PROJECT_ID"
           npm ci
@@ -250,12 +249,19 @@ jobs:
           firebase deploy --only functions --project "$PROJECT_ID" --non-interactive
           rm -f "functions/.env.$PROJECT_ID"
 
+      - name: Run live clean-image and EICAR scanner end-to-end verification
+        working-directory: functions
+        env:
+          GOOGLE_CLOUD_PROJECT: ${{ inputs.project_id }}
+          MAWDA_MEDIA_TEST_BUCKET: ${{ inputs.bucket_name }}
+          MAWDA_MEDIA_LIVE_SCANNER_E2E: "1"
+        run: npm run test:media-scanner-live-e2e
+
       - name: Report non-production scanner connection
         if: success()
         env:
           PROJECT_ID: ${{ inputs.project_id }}
-          SERVICE_URL: ${{ env.SCANNER_SERVICE_URL }}
         run: |
           echo "Cloud Run scanner is private and deployed in non-production project: $PROJECT_ID"
-          echo "Service URL: $SERVICE_URL"
+          echo "Service URL: $SCANNER_SERVICE_URL/scan"
           echo "Firebase Functions were deployed with this scanner URL and callback configuration."
