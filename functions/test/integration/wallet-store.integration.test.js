@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getFirestore } = require("firebase-admin/firestore");
-const { transferCoins, purchaseStoreItem, getOwnerStoreCatalog } = require("../../lib/index");
+const { transferCoins, purchaseStoreItem, getOwnerStoreCatalog, getOwnerEconomyPricing, setOwnerEconomyPricing } = require("../../lib/index");
 
 const db = getFirestore();
 const memberRequest = (uid, data) => ({
@@ -258,5 +258,39 @@ test("owner catalog seeds editable starter prices without enabling unimplemented
     assert.equal(item.active, false);
     assert.equal(item.purchaseEnabled, false);
     assert.equal(item.fulfillmentReady, false);
+  }
+});
+
+
+test("owner economy prices seed safely and can be edited without enabling real-money checkout", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const settingsRef = db.doc("platformSettings/economyPricing");
+  const previous = await settingsRef.get();
+  const previousData = previous.exists ? previous.data() : null;
+  try {
+    const seeded = await getOwnerEconomyPricing.run(ownerRequest());
+    assert.equal(seeded.realMoneyCheckoutEnabled, false);
+    assert.equal(seeded.coinPackages.length, 5);
+    assert.equal(seeded.adPrices.length, 4);
+    assert.equal(seeded.coinPackages[0].priceMinor, 99);
+    const updatedPackages = seeded.coinPackages.map((p) =>
+      p.packageId === "coins_1000" ? { ...p, priceMinor: 109 } : p);
+    const saved = await setOwnerEconomyPricing.run(ownerRequest("store-catalog-owner", {
+      coinPackages: updatedPackages, adPrices: seeded.adPrices,
+    }));
+    assert.equal(saved.saved, true);
+    assert.equal(saved.realMoneyCheckoutEnabled, false);
+    const readback = await getOwnerEconomyPricing.run(ownerRequest());
+    assert.equal(readback.version, saved.version);
+    assert.equal(readback.coinPackages.find((p) => p.packageId === "coins_1000").priceMinor, 109);
+    await assert.rejects(
+      () => setOwnerEconomyPricing.run(memberRequest("not_owner", {
+        coinPackages: updatedPackages, adPrices: seeded.adPrices,
+      })),
+      (error) => error && error.code === "permission-denied",
+    );
+  } finally {
+    if (previousData) await settingsRef.set(previousData);
+    else await settingsRef.delete().catch(() => undefined);
   }
 });
