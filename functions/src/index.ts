@@ -1752,7 +1752,7 @@ export const sendOwnerLiveStream = onCall(async (request) => {
         const rental = await transaction.get(db.collection("roomRentals").doc(roomData.rentalId));
         const expiresAt = roomData.expiresAt;
         const rentalExpiry = rental.data()?.expiresAt;
-        if (!rental.exists || rental.data()?.status !== "active" ||
+        if (!rental.exists || rental.data()?.status !== "active" || rental.data()?.roomId !== input.targetId ||
             !(expiresAt instanceof Timestamp) || expiresAt.toMillis() <= Date.now() ||
             !(rentalExpiry instanceof Timestamp) || rentalExpiry.toMillis() <= Date.now()) {
           throw new HttpsError("failed-precondition", "انتهت صلاحية استئجار الغرفة الخاصة.");
@@ -1790,13 +1790,14 @@ export const sendOwnerLiveStream = onCall(async (request) => {
       await sendPushToMember(recipientUid, "بث مباشر من مالك مودة",
         "أرسل مالك المنصة رابط بث مباشر في محادثتك.",
         { type: "owner_live_stream", chatId: input.targetId, messageId });
-    } else if (roomId) {
+    } else if (roomId !== null) {
+      const broadcastRoomId = roomId;
       try {
-        const members = await db.collection("rooms").doc(roomId).collection("members").limit(1000).get();
+        const members = await db.collection("rooms").doc(broadcastRoomId).collection("members").limit(1000).get();
         await Promise.all(members.docs.map((member) =>
           sendPushToMember(member.id, "بث مباشر من مالك مودة",
             "أرسل مالك المنصة بثاً مباشراً في غرفتك.",
-            { type: "owner_live_stream", roomId, messageId })));
+            { type: "owner_live_stream", roomId: broadcastRoomId, messageId })));
       } catch (error) {
         logger.warn("Owner live stream room notification fan-out failed", { roomId, error });
       }
