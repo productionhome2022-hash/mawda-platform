@@ -80,6 +80,70 @@ class SuperAdminSecurityService {
     });
   }
 
+  Future<Map<String, dynamic>> getRoomRentalPlans() async {
+    final result = await _functions.httpsCallable('getRoomRentalPlans').call();
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> setRoomRentalPlans(
+    List<Map<String, dynamic>> plans,
+  ) async {
+    final result = await _functions.httpsCallable('setRoomRentalPlans').call({
+      'plans': plans,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> createRentedRoom({
+    required String name,
+    required int capacity,
+    required String planId,
+    required int expectedPriceCoins,
+    required String requestId,
+  }) async {
+    final result = await _functions.httpsCallable('createRentedRoom').call({
+      'name': name,
+      'capacity': capacity,
+      'planId': planId,
+      'expectedPriceCoins': expectedPriceCoins,
+      'requestId': requestId,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> renewRoomRental({
+    required String roomId,
+    required String planId,
+    required int expectedPriceCoins,
+    required String requestId,
+  }) async {
+    final result = await _functions.httpsCallable('renewRoomRental').call({
+      'roomId': roomId,
+      'planId': planId,
+      'expectedPriceCoins': expectedPriceCoins,
+      'requestId': requestId,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> transferRoomOwnership({
+    required String roomId,
+    required String newOwnerUid,
+  }) async {
+    final result = await _functions.httpsCallable('transferRoomOwnership').call({
+      'roomId': roomId,
+      'newOwnerUid': newOwnerUid,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> closeOwnedRoom(String roomId) async {
+    final result = await _functions.httpsCallable('closeOwnedRoom').call({
+      'roomId': roomId,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
   Future<Map<String, dynamic>> createRoom({
     required String name,
     required String kind,
