@@ -145,6 +145,13 @@ The deployer service account needs Artifact Registry, Cloud Run, API enablement,
 
 **Not yet executed or dispatchable:** the workflow is staged on the development branch and requires an approved merge to the default branch before GitHub will allow manual dispatch. No GCP/WIF credentials or non-production Firebase project are available in this session. No merge or deployment has been performed; deployment and live EICAR callback remain unverified.
 
+## Validation completed — commit `72218e7` (13 November 2026)
+
+- GitHub Actions `43394918004`: **success** for Cloud Functions compile/unit tests, media callable authorization, seven-day chat retention, direct/room message deletion with Storage emulator erasure and late-upload replay, owner audit export, media legal-hold integration, Firestore/Storage rules, Flutter analyze/tests/Web release build, and ClamAV scanner tests/container/EICAR.
+- GitHub Advanced Security `43394925324`: **success**.
+- These are CI/emulator results on the development branch, not production Firebase/GCS verification. No production deploy or destructive retention schedule is enabled.
+- Phase 2 remains open pending the purpose-specific story/gallery/avatar/cover retention workflows, real bucket and backup lifecycle verification, deployed scanner gateway, client-side media upload/send/read integration, and end-to-end cross-device checks.
+
 ## Merge and deployment boundary
 
 PR #2 and PR #3 are separate draft proposals. PR #3's head is based on an older snapshot of the development branch and the refs currently diverge; do not merge either PR until the phase-2 changes are reconciled onto one current branch and the exact final commit has a green full CI run. No production Firebase mutation, production deployment, public Storage access or merge to `main` is authorized by this engineering record.
