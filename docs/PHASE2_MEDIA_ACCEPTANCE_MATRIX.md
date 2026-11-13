@@ -2,6 +2,14 @@
 
 Status snapshot: 2026-11-13. This document is a release gate, not a claim that every gate has passed.
 
+## Owner-approved chat attachment policy
+
+- Ordinary members may send only ordinary images, animated GIF images, audio and video in direct chats, public rooms and rented private rooms. The same rule applies to their ability to receive peer-sent attachments: document attachments from another member are not deliverable.
+- PDF and every other document/office-file category are prohibited for ordinary members in both directions.
+- The sole platform owner may send documents and other supported media to any eligible member, public room or rented private room. Members may receive those owner-originated documents. Owner status is derived from the trusted platform-owner token claim plus the server-side recent-MFA session check; client flags are never authority.
+- Current code allowlists PDF as the only document MIME type, and the owner-only authorization is covered by unit and emulator callable tests. Word/Excel/PowerPoint/RTF/plain-text and unknown document formats intentionally fail closed for everyone, including the owner, until type-specific signature validation, malware scanning and safe-delivery processing are implemented. This is a remaining implementation gate, not a claim that all owner document formats are currently deliverable.
+- Image, audio and video upload intents are not equivalent to a complete send/receive experience. A type may be delivered only after a complete type-specific safe-processing pipeline and message-link authorization exist. The member-facing chat attachment UI and safe audio/video/document delivery remain open work.
+
 ## Implemented in the development branch
 
 - Server-issued, short-lived, object-scoped upload intents; create-only Storage generation precondition and exact declared-size binding.
