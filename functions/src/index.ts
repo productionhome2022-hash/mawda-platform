@@ -18,6 +18,7 @@ import {
   validateMemberSocialLinks,
 } from "./member-social-links";
 import { validateDirectMessageInput } from "./direct-message";
+import { validateSafetyReportInput, validateSafetyAppealInput } from "./safety-cases";
 import { createDirectChatId } from "./direct-chat-id";
 import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
 import { hasActiveBiometricVerification } from "./biometric-verification";
@@ -1286,6 +1287,177 @@ export const setMemberBlock = onCall(async (request) => {
     });
   });
   return { targetUid, blocked };
+});
+
+/**
+ * Member safety report intake. Reports are private to the reporter and platform
+ * owner; clients cannot set workflow status, severity, or reviewer decisions.
+ */
+export const submitSafetyReport = onCall(async (request) => {
+  const reporterUid = requireAuthenticatedUid(request.auth?.uid);
+  let input;
+  try {
+    input = validateSafetyReportInput((request.data ?? {}) as Record<string, unknown>);
+  } catch (error) {
+    throw new HttpsError("invalid-argument", error instanceof Error ? error.message : "بيانات البلاغ غير صالحة.");
+  }
+  if (input.targetUid === reporterUid) {
+    throw new HttpsError("invalid-argument", "لا يمكن تقديم بلاغ ضد حسابك.");
+  }
+  const reporterRef = db.collection("users").doc(reporterUid);
+  const targetRef = db.collection("users").doc(input.targetUid);
+  const caseId = `${reporterUid}_${input.requestId}`;
+  const caseRef = db.collection("safetyCases").doc(caseId);
+  const result = await db.runTransaction(async (transaction) => {
+    const [reporter, target, existing] = await Promise.all([
+      transaction.get(reporterRef), transaction.get(targetRef), transaction.get(caseRef),
+    ]);
+    if (!reporter.exists || reporter.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(reporter.data())) {
+      throw new HttpsError("failed-precondition", "يجب أن تكون العضوية مكتملة وفعالة لتقديم بلاغ.");
+    }
+    if (!target.exists) throw new HttpsError("not-found", "الحساب موضوع البلاغ غير موجود.");
+    if (existing.exists) {
+      if (existing.data()?.reporterUid !== reporterUid) {
+        throw new HttpsError("already-exists", "معرف البلاغ مستخدم مسبقاً.");
+      }
+      return { caseId, duplicate: true };
+    }
+    transaction.create(caseRef, {
+      caseId,
+      reporterUid,
+      subjectUid: input.targetUid,
+      category: input.category,
+      contextType: input.contextType,
+      contextId: input.contextId,
+      description: input.description,
+      status: "open",
+      appealStatus: "not_available",
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return { caseId, duplicate: false };
+  });
+  if (!result.duplicate) {
+    await appendOwnerReviewAuditEvent({
+      actorUid: reporterUid,
+      action: "safety_report_submitted",
+      caseId,
+      subjectUid: input.targetUid,
+      category: input.category,
+      contextType: input.contextType,
+      outcome: "created",
+    });
+  }
+  return result;
+});
+
+/** A reported member may appeal an owner-recorded adverse decision once per case. */
+export const submitSafetyAppeal = onCall(async (request) => {
+  const appellantUid = requireAuthenticatedUid(request.auth?.uid);
+  let input;
+  try {
+    input = validateSafetyAppealInput((request.data ?? {}) as Record<string, unknown>);
+  } catch (error) {
+    throw new HttpsError("invalid-argument", error instanceof Error ? error.message : "بيانات الاستئناف غير صالحة.");
+  }
+  const caseRef = db.collection("safetyCases").doc(input.caseId);
+  const appealRef = db.collection("safetyAppeals").doc(`${input.caseId}_${appellantUid}`);
+  const result = await db.runTransaction(async (transaction) => {
+    const [caseSnapshot, appealSnapshot] = await Promise.all([
+      transaction.get(caseRef), transaction.get(appealRef),
+    ]);
+    const data = caseSnapshot.data();
+    if (!caseSnapshot.exists || data?.subjectUid !== appellantUid) {
+      throw new HttpsError("not-found", "لا يوجد قرار قابل للاستئناف لهذا الحساب.");
+    }
+    if (data.status !== "action_taken" || data.appealStatus === "accepted") {
+      throw new HttpsError("failed-precondition", "لا يمكن استئناف هذه الحالة في وضعها الحالي.");
+    }
+    if (appealSnapshot.exists) {
+      return { caseId: input.caseId, appealId: appealRef.id, duplicate: true };
+    }
+    transaction.create(appealRef, {
+      appealId: appealRef.id,
+      caseId: input.caseId,
+      appellantUid,
+      reason: input.reason,
+      status: "pending",
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.update(caseRef, {
+      appealStatus: "pending",
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return { caseId: input.caseId, appealId: appealRef.id, duplicate: false };
+  });
+  if (!result.duplicate) {
+    await appendOwnerReviewAuditEvent({
+      actorUid: appellantUid,
+      action: "safety_appeal_submitted",
+      caseId: input.caseId,
+      outcome: "created",
+    });
+  }
+  return result;
+});
+
+/** Owner-only bounded safety queue; no member can enumerate reports or appeals. */
+export const listSafetyCases = onCall(async (request) => {
+  requireOwner(request);
+  const status = request.data?.status;
+  if (status !== undefined && !["open", "action_taken", "dismissed"].includes(status)) {
+    throw new HttpsError("invalid-argument", "مرشح حالة البلاغ غير صالح.");
+  }
+  const limit = Number.isSafeInteger(request.data?.limit)
+    ? Math.max(1, Math.min(50, request.data.limit as number))
+    : 25;
+  let query = db.collection("safetyCases").orderBy("createdAt", "desc").limit(limit);
+  if (typeof status === "string") query = db.collection("safetyCases")
+    .where("status", "==", status).orderBy("createdAt", "desc").limit(limit);
+  const snapshot = await query.get();
+  return {
+    cases: snapshot.docs.map((doc) => ({ caseId: doc.id, ...doc.data() })),
+  };
+});
+
+/** Owner-only final decision. A reason is mandatory and all decisions are audited. */
+export const reviewSafetyCase = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const caseId = request.data?.caseId;
+  const decision = request.data?.decision;
+  const reason = typeof request.data?.reason === "string" ? request.data.reason.trim() : "";
+  if (typeof caseId !== "string" || caseId.length < 8 || caseId.length > 160 ||
+      !["action_taken", "dismissed"].includes(decision) || reason.length < 10 || reason.length > 1000) {
+    throw new HttpsError("invalid-argument", "بيانات قرار البلاغ غير صالحة.");
+  }
+  const caseRef = db.collection("safetyCases").doc(caseId);
+  const subjectUid = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(caseRef);
+    if (!snapshot.exists || snapshot.data()?.status !== "open") {
+      throw new HttpsError("failed-precondition", "البلاغ غير موجود أو سبق اتخاذ قرار بشأنه.");
+    }
+    transaction.update(caseRef, {
+      status: decision,
+      decisionReason: reason,
+      reviewedBy: actorUid,
+      reviewedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      appealStatus: decision === "action_taken" ? "available" : "not_available",
+    });
+    return snapshot.data()?.subjectUid as string;
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "safety_case_reviewed",
+    caseId,
+    subjectUid,
+    decision,
+    reason,
+    outcome: "completed",
+  });
+  return { caseId, decision };
 });
 
 /**
