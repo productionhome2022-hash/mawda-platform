@@ -94,6 +94,18 @@ A successful malware verdict does not by itself authorize member delivery. Only 
 - Unit and Firestore-emulator integration tests cover validation, hold placement, review/list, release, owner-only access and the original expiry clock. Latest CI is pending.
 - **Limitations:** this does not yet implement holds for text messages or profile/story media, review reminders, authority-document verification, or production-grade legal workflow approval. A hold must be treated as narrowly scoped technical metadata, not a substitute for legal review.
 
+## Real GCS verification workflow (manual, non-production only)
+
+A manual workflow is now available at `.github/workflows/nonproduction-media-verification.yml`. It runs only on `workflow_dispatch`, refuses the production Firebase project and bucket names, and authenticates with GitHub OIDC (no service-account JSON key).
+
+Before running it, configure these repository variables:
+- `MAWDA_WIF_PROVIDER`: Workload Identity Federation provider resource name.
+- `MAWDA_NONPROD_TEST_SERVICE_ACCOUNT`: dedicated non-production test service account email.
+
+The selected service account needs permission to read bucket metadata, create objects, list object versions, and delete exact generations in the dedicated test bucket. Dispatch the workflow with a project ID and bucket name containing an explicit marker such as `test`, `staging`, `dev`, `demo`, `nonprod` or `sandbox`. The scripts independently reject production-like targets, bucket soft-delete retention and bucket retention policies, and verify signed PUT replay (412), size rejection (400), GET/PUT expiry, uniform bucket-level access, public access prevention and exact-generation purge.
+
+**Not yet executed:** this workflow is a safe execution path, not proof of a successful live GCS test. No GCP project, WIF provider, service account or bucket credentials are available to this code-edit session. Phase 2 remains open until the workflow is run successfully against a dedicated non-production bucket.
+
 ## Merge and deployment boundary
 
 PR #2 and PR #3 are separate draft proposals. PR #3's head is based on an older snapshot of the development branch and the refs currently diverge; do not merge either PR until the phase-2 changes are reconciled onto one current branch and the exact final commit has a green full CI run. No production Firebase mutation, production deployment, public Storage access or merge to `main` is authorized by this engineering record.
