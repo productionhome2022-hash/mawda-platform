@@ -26,7 +26,7 @@ Per authenticated UID defaults:
 
 Reservations and asset creation are atomic in Firestore. Finalization releases active count/bytes in the same transaction as the asset state transition. The daily count and byte budgets are consumed at intent issuance, including abandoned intents, and reset at the UTC day boundary without erasing active reservations.
 
-**Transport qualification:** the V4 POST policy now enforces the exact file-part size at Cloud Storage and prevents an oversized object from being committed. Finalization independently checks actual server-reported bytes. This is a storage-side object-size gate; it is not a guarantee that an oversized request consumes zero ingress bandwidth before rejection. If ingress-bandwidth abuse must also be bounded, use a streaming upload gateway with an early byte counter.
+**Transport qualification:** the signed V4 PUT binds `x-goog-content-length-range` to the exact declared size and Cloud Storage rejects out-of-range PUT bodies with HTTP 400. The generation-match precondition rejects a replay after the first successful create with HTTP 412. Finalization independently checks actual server-reported bytes. This is a storage-side object-size gate; it is not a guarantee that an oversized request consumes zero ingress bandwidth before rejection. If ingress-bandwidth abuse must also be bounded, use a streaming upload gateway with an early byte counter.
 
 ## Abandoned upload cleanup
 
@@ -61,7 +61,7 @@ Only expired, unfinished upload intents are automatically cleaned up. Retention 
 3. Deliver a safe owner preview pipeline that serves sanitized/re-encoded derivatives only; do not decode untrusted originals directly in the owner UI.
 4. Run the opt-in signed URL HTTP test against a dedicated non-production Firebase bucket and retain dated evidence.
 5. Approve retention/export/deletion/legal-hold policy and test it in a non-production environment.
-6. Verify bucket CORS, Cloud Run invoker IAM, Secret Manager provisioning/rotation, MFA lifecycle, scanner retries/dead-letter handling, monitoring and device/platform behavior.
+6. Verify bucket CORS for the exact approved web origins, `PUT`, and the signed `Content-Type` plus `x-goog-content-length-range` headers; verify Cloud Run invoker IAM, Secret Manager provisioning/rotation, MFA lifecycle, scanner retries/dead-letter handling, monitoring and device/platform behavior.
 7. Re-run all Flutter, Functions, emulator and integration suites on the exact final phase-2 commit. No merge or production deployment is authorized by this document.
 
 ## Callable and scheduled contracts
@@ -74,4 +74,4 @@ Only expired, unfinished upload intents are automatically cleaned up. Retention 
 - `receiveMediaScanVerdict` — authenticated HMAC callback from the configured scanner gateway.
 - `cleanupExpiredMediaUploadIntents` — scheduled cleanup of expired unfinished intents only.
 
-All asset metadata is server-written. Client SDK access remains denied by the existing Firestore and Storage rules.
+The Flutter client upload flow must send a raw HTTP `PUT` using the returned URL and both exact `uploadHeaders`; it must keep the URL and headers in memory only and never log or persist them. The client-side uploader integration and browser CORS verification remain release gates. All asset metadata is server-written. Client SDK access remains denied by the existing Firestore and Storage rules.
