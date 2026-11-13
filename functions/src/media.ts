@@ -390,8 +390,59 @@ export const receiveMediaScanVerdict = onRequest(
       sizeBytes: Number(previewMetadata.size),
     };
   }
+  let safeNonImageDerivative: {
+    category: "gif" | "audio" | "video" | "document";
+    path: string; generation: string; sha256: string;
+    contentType: string; pipelineVersion: string; sizeBytes: number;
+  } | null = null;
+  if (verdict.safeDerivative) {
+    const derivative = verdict.safeDerivative;
+    const expected = {
+      gif: { filename: "animation.gif", contentType: "image/gif", pipeline: "gif-sanitize-preserve-animation-v1", maxBytes: 5 * 1024 * 1024 },
+      audio: { filename: "audio.mp3", contentType: "audio/mpeg", pipeline: "ffmpeg-audio-transcode-v1", maxBytes: 25 * 1024 * 1024 },
+      video: { filename: "video.mp4", contentType: "video/mp4", pipeline: "ffmpeg-video-transcode-v1", maxBytes: 50 * 1024 * 1024 },
+      document: { filename: "document.pdf", contentType: "application/pdf", pipeline: "pdf-raster-flatten-v1", maxBytes: 20 * 1024 * 1024 },
+    }[derivative.category];
+    const expectedPath = `processed/${String(asset.ownerUid)}/${verdict.mediaId}/${expected.filename}`;
+    if (!expected || asset.mediaPurpose !== "chat" && asset.mediaPurpose !== "room" ||
+        derivative.path !== expectedPath || derivative.contentType !== expected.contentType ||
+        derivative.pipelineVersion !== expected.pipeline ||
+        (derivative.category === "document" && asset.uploaderRole !== "platform_owner")) {
+      response.status(409).send("Safe derivative path, role or processing contract mismatch");
+      return;
+    }
+    const derivativeFile = mediaBucket().file(derivative.path);
+    let derivativeMetadata: Record<string, unknown>;
+    try {
+      const [rawDerivativeMetadata] = await derivativeFile.getMetadata();
+      derivativeMetadata = rawDerivativeMetadata as unknown as Record<string, unknown>;
+    } catch {
+      response.status(409).send("Safe media derivative is missing");
+      return;
+    }
+    const custom = derivativeMetadata.metadata as Record<string, unknown> | undefined;
+    const sizeBytes = Number(derivativeMetadata.size);
+    if (String(derivativeMetadata.generation) !== derivative.generation ||
+        derivativeMetadata.contentType !== derivative.contentType ||
+        !Number.isSafeInteger(sizeBytes) || sizeBytes <= 0 || sizeBytes > expected.maxBytes ||
+        custom?.mediaId !== verdict.mediaId ||
+        custom?.sourceGeneration !== verdict.objectGeneration ||
+        custom?.sourceSha256 !== verdict.sha256 ||
+        custom?.scannerProvider !== verdict.provider ||
+        custom?.processing !== derivative.pipelineVersion) {
+      response.status(409).send("Safe media derivative metadata mismatch");
+      return;
+    }
+    const derivativeHash = await sha256Object(derivativeFile);
+    if (derivativeHash !== derivative.sha256) {
+      response.status(409).send("Safe media derivative hash mismatch");
+      return;
+    }
+    safeNonImageDerivative = { ...derivative, sizeBytes };
+  }
+  const safeDerivativeReady = Boolean(safePreview || safeNonImageDerivative);
   const nextStatus = verdict.verdict === "malicious" ? "rejected" :
-    safePreview ? "security_approved" : "scanner_clean_pending_processing";
+    safeDerivativeReady ? "security_approved" : "scanner_clean_pending_processing";
   await db.runTransaction(async (transaction) => {
     const latest = await transaction.get(assetRef);
     const scanJobRef = db.collection("mediaScanJobs").doc(verdict.mediaId);
@@ -420,6 +471,37 @@ export const receiveMediaScanVerdict = onRequest(
         safePreviewSizeBytes: safePreview.sizeBytes,
         processingStatus: "safe_raster_derivative_ready",
         processingPipelineVersion: "sharp-decode-reencode-v1",
+      } : {}),
+      ...(safeNonImageDerivative ? {
+        ...(safeNonImageDerivative.category === "gif" ? {
+          safeAnimationPath: safeNonImageDerivative.path,
+          safeAnimationGeneration: safeNonImageDerivative.generation,
+          safeAnimationSha256: safeNonImageDerivative.sha256,
+          safeAnimationContentType: safeNonImageDerivative.contentType,
+          processingStatus: "safe_animation_derivative_ready",
+        } : {}),
+        ...(safeNonImageDerivative.category === "audio" ? {
+          safeAudioPath: safeNonImageDerivative.path,
+          safeAudioGeneration: safeNonImageDerivative.generation,
+          safeAudioSha256: safeNonImageDerivative.sha256,
+          safeAudioContentType: safeNonImageDerivative.contentType,
+          processingStatus: "safe_audio_derivative_ready",
+        } : {}),
+        ...(safeNonImageDerivative.category === "video" ? {
+          safeVideoPath: safeNonImageDerivative.path,
+          safeVideoGeneration: safeNonImageDerivative.generation,
+          safeVideoSha256: safeNonImageDerivative.sha256,
+          safeVideoContentType: safeNonImageDerivative.contentType,
+          processingStatus: "safe_video_derivative_ready",
+        } : {}),
+        ...(safeNonImageDerivative.category === "document" ? {
+          safeDocumentPath: safeNonImageDerivative.path,
+          safeDocumentGeneration: safeNonImageDerivative.generation,
+          safeDocumentSha256: safeNonImageDerivative.sha256,
+          safeDocumentContentType: safeNonImageDerivative.contentType,
+          processingStatus: "safe_document_derivative_ready",
+        } : {}),
+        processingPipelineVersion: safeNonImageDerivative.pipelineVersion,
       } : {}),
       ...(verdict.verdict === "malicious" ? { rejectionCode: "MALWARE_DETECTED" } : {}),
       updatedAt: FieldValue.serverTimestamp(),
