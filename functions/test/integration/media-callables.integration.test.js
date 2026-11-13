@@ -9,12 +9,13 @@ const {
   finalizeMediaUpload,
   getOwnerMediaInspectionUrl,
   cleanupExpiredMediaUploadIntents,
+  receiveMediaScanVerdict,
 } = require("../../lib/media");
 
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
-const { randomUUID } = require("node:crypto");
+const { randomUUID, createHmac, createHash } = require("node:crypto");
 
 if (getApps().length === 0) {
   initializeApp({ projectId: "demo-mawda-media", storageBucket: "demo-mawda-media.appspot.com" });
@@ -350,4 +351,114 @@ test("finalization rejects an HTTP-uploaded object larger than its quota reserva
   const quota = await db.collection("mediaUploadQuotas").doc(uid).get();
   assert.equal(quota.data().activeUploads, 0);
   assert.equal(quota.data().activeBytes, 0);
+});
+
+
+function scannerResponse() {
+  return {
+    code: 200,
+    body: null,
+    headers: {},
+    status(code) { this.code = code; return this; },
+    set(name, value) { this.headers[name.toLowerCase()] = value; return this; },
+    send(body) { this.body = body; return this; },
+    json(body) { this.body = body; return this; },
+  };
+}
+
+async function submitScannerVerdict({ uid, mediaId, bytes, verdict = "clean", generationOverride, hashOverride, signatureOverride }) {
+  const objectPath = `quarantine/${uid}/${mediaId}`;
+  const file = getStorage().bucket().file(objectPath);
+  await file.save(bytes, { metadata: { contentType: "image/png" } });
+  const [metadata] = await file.getMetadata();
+  await db.collection("mediaAssets").doc(mediaId).create({
+    mediaId, ownerUid: uid, objectPath, uploaderType: "member",
+    declaredContentType: "image/png", detectedContentType: "image/png",
+    declaredSizeBytes: bytes.length, sizeBytes: bytes.length,
+    storageGeneration: String(metadata.generation), status: "pending_security_scan",
+  });
+  process.env.MAWDA_MEDIA_SCANNER_PROVIDER = "test-scanner";
+  process.env.MAWDA_MEDIA_SCANNER_HMAC_SECRET = "integration-test-secret-".padEnd(48, "x");
+  const payload = {
+    mediaId,
+    provider: "test-scanner",
+    verdict,
+    objectGeneration: generationOverride ?? String(metadata.generation),
+    sha256: hashOverride ?? createHash("sha256").update(bytes).digest("hex"),
+    scannedAtMs: Date.now(),
+  };
+  const rawBody = Buffer.from(JSON.stringify(payload));
+  const signature = signatureOverride ?? createHmac("sha256", process.env.MAWDA_MEDIA_SCANNER_HMAC_SECRET)
+    .update(rawBody).digest("hex");
+  const response = scannerResponse();
+  await receiveMediaScanVerdict.run({
+    method: "POST",
+    rawBody,
+    get: (name) => name.toLowerCase() === "x-mawadda-scanner-signature" ? signature : undefined,
+  }, response);
+  return { response, file, payload };
+}
+
+test("trusted scanner callback approves only the exact current generation and full-object hash", async () => {
+  const uid = `scanner-clean-${Date.now()}-${Math.random()}`;
+  const mediaId = randomUUID();
+  const bytes = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
+  const { response, payload } = await submitScannerVerdict({ uid, mediaId, bytes });
+  assert.equal(response.code, 200);
+  assert.equal(response.body.status, "security_approved");
+  const asset = await db.collection("mediaAssets").doc(mediaId).get();
+  assert.equal(asset.data().status, "security_approved");
+  assert.equal(asset.data().scannerSha256, payload.sha256);
+  assert.ok((await auditEvents("trusted-scanner")).some((event) =>
+    event.action === "media_security_scan_verdict" && event.mediaId === mediaId && event.outcome === "clean"));
+});
+
+test("malicious scanner verdict rejects and deletes only the scanned object", async () => {
+  const uid = `scanner-malicious-${Date.now()}-${Math.random()}`;
+  const mediaId = randomUUID();
+  const bytes = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
+  const { response, file } = await submitScannerVerdict({ uid, mediaId, bytes, verdict: "malicious" });
+  assert.equal(response.code, 200);
+  assert.equal(response.body.status, "rejected");
+  const asset = await db.collection("mediaAssets").doc(mediaId).get();
+  assert.equal(asset.data().rejectionCode, "MALWARE_DETECTED");
+  const [exists] = await file.exists();
+  assert.equal(exists, false);
+});
+
+test("tampered scanner hash and stale generation cannot approve quarantined media", async () => {
+  for (const mode of ["hash", "generation"]) {
+    const uid = `scanner-tampered-${mode}-${Date.now()}-${Math.random()}`;
+    const mediaId = randomUUID();
+    const bytes = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
+    const options = mode === "hash"
+      ? { hashOverride: "f".repeat(64) }
+      : { generationOverride: "999999999999" };
+    const { response } = await submitScannerVerdict({ uid, mediaId, bytes, ...options });
+    assert.equal(response.code, 409);
+    const asset = await db.collection("mediaAssets").doc(mediaId).get();
+    assert.equal(asset.data().status, "pending_security_scan");
+  }
+});
+
+test("scanner callback rejects invalid HMAC without changing asset state", async () => {
+  const uid = `scanner-unauthorized-${Date.now()}-${Math.random()}`;
+  const mediaId = randomUUID();
+  const bytes = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
+  const { file } = await submitScannerVerdict({ uid, mediaId, bytes });
+  const payload = Buffer.from(JSON.stringify({
+    mediaId, provider: "test-scanner", verdict: "clean",
+    objectGeneration: "1", sha256: createHash("sha256").update(bytes).digest("hex"),
+    scannedAtMs: Date.now(),
+  }));
+  const response = scannerResponse();
+  await receiveMediaScanVerdict.run({
+    method: "POST", rawBody: payload,
+    get: () => "0".repeat(64),
+  }, response);
+  assert.equal(response.code, 401);
+  const asset = await db.collection("mediaAssets").doc(mediaId).get();
+  assert.equal(asset.data().status, "pending_security_scan");
+  const [exists] = await file.exists();
+  assert.equal(exists, true);
 });
