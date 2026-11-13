@@ -136,6 +136,20 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _continueAsGuest() async {
+    if (_busy) return;
+    setState(() { _busy = true; _message = null; });
+    try {
+      await _auth.signInAsGuest();
+    } on FirebaseAuthException catch (error) {
+      if (mounted) setState(() => _message = _friendlyError(error));
+    } catch (_) {
+      if (mounted) setState(() => _message = 'تعذر بدء جلسة الضيف. تحقق من الاتصال وإعدادات المصادقة.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   String _friendlyError(FirebaseAuthException e) {
     switch (e.code) {
       case 'email-already-in-use': return 'هذا البريد مرتبط بحساب موجود.';
@@ -217,6 +231,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     : Text(_register ? 'إنشاء الحساب وإرسال التحقق' : 'دخول آمن')),
               TextButton(onPressed: _busy ? null : () => setState(() { _register = !_register; _message = null; }),
                 child: Text(_register ? 'لديك حساب؟ تسجيل الدخول' : 'ليس لديك حساب؟ إنشاء حساب')),
+              if (!_register) OutlinedButton.icon(
+                onPressed: _busy ? null : _continueAsGuest,
+                icon: const Icon(Icons.person_outline),
+                label: const Text('المتابعة كضيف'),
+              ),
               const SizedBox(height: 8),
               const Text('إنشاء حساب الدخول لا يعني اكتمال الملف الشخصي؛ ستأتي خطوة استكمال بيانات العضوية لاحقاً.',
                 textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 12)),
