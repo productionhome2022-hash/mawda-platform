@@ -1216,6 +1216,88 @@ export const deleteDirectMessageForMe = onCall(async (request) => {
   return { chatId, messageId, hiddenForRequester: true };
 });
 
+/** Permanently removes a text-only direct message for both participants. */
+export const deleteDirectMessageForEveryone = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const chatId = request.data?.chatId;
+  const messageId = request.data?.messageId;
+  if (typeof chatId !== "string" || !/^[a-f0-9]{64}$/.test(chatId) ||
+      typeof messageId !== "string" || !/^[a-f0-9]{64}$/.test(messageId)) {
+    throw new HttpsError("invalid-argument", "بيانات حذف الرسالة غير صالحة.");
+  }
+
+  const chatRef = db.collection("directChats").doc(chatId);
+  const messageRef = chatRef.collection("messages").doc(messageId);
+  const auditRef = db.collection("directMessageDeletionAudit")
+    .doc(`${chatId}_${messageId}_delete_for_everyone`);
+
+  return db.runTransaction(async (transaction) => {
+    const [chat, message, priorAudit] = await Promise.all([
+      transaction.get(chatRef),
+      transaction.get(messageRef),
+      transaction.get(auditRef),
+    ]);
+    if (!chat.exists) throw new HttpsError("not-found", "المحادثة غير موجودة.");
+    const chatData = chat.data() ?? {};
+    const participants = chatData.participantUids;
+    if (!Array.isArray(participants) || participants.length !== 2 ||
+        participants.some((value) => typeof value !== "string") ||
+        !participants.includes(uid)) {
+      throw new HttpsError("permission-denied", "ليست لديك صلاحية حذف رسائل هذه المحادثة.");
+    }
+    if (!message.exists) {
+      if (priorAudit.exists) return { chatId, messageId, deleted: true, idempotentReplay: true };
+      throw new HttpsError("not-found", "الرسالة غير موجودة.");
+    }
+
+    const data = message.data() ?? {};
+    const ownerSession = hasPlatformOwnerSession(
+      (request.auth?.token ?? {}) as Record<string, unknown>,
+    );
+    if (data.senderUid !== uid && !ownerSession) {
+      throw new HttpsError("permission-denied", "يمكنك حذف رسائلك فقط.");
+    }
+
+    // This callable is intentionally text-only. Media must go through the
+    // generation-safe Storage deletion pipeline, never be orphaned by a doc delete.
+    const hasMediaReference = data.type !== undefined && data.type !== "text" ||
+      ["storagePath", "mediaPath", "mediaUrl", "downloadUrl", "attachments", "fileUrl"]
+        .some((key) => data[key] !== undefined && data[key] !== null);
+    if (hasMediaReference) {
+      throw new HttpsError(
+        "failed-precondition",
+        "هذه الرسالة تحتوي على وسيط؛ يجب حذفها عبر مسار حذف الوسائط الآمن.",
+      );
+    }
+
+    const notificationRefs = participants.map((participant) =>
+      db.collection("users").doc(participant).collection("notifications").doc(messageId),
+    );
+    const notifications = await Promise.all(notificationRefs.map((ref) => transaction.get(ref)));
+
+    transaction.delete(messageRef);
+    notifications.forEach((snapshot, index) => {
+      if (snapshot.exists) transaction.delete(notificationRefs[index]);
+    });
+    if (chatData.lastMessagePreview === data.text) {
+      transaction.update(chatRef, {
+        lastMessagePreview: "تم حذف الرسالة",
+        lastMessagePreviewUpdatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    transaction.create(auditRef, {
+      chatId,
+      messageId,
+      actorUid: uid,
+      senderUid: data.senderUid ?? null,
+      action: "delete_for_everyone",
+      messageType: "text",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { chatId, messageId, deleted: true, idempotentReplay: false };
+  });
+});
+
 /**
  * Advances only the authenticated participant's read cursor to the latest
  * server-stored message. Owner review deliberately never invokes this callable.
