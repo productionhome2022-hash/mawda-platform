@@ -33,10 +33,8 @@ test("anonymous guests must acknowledge as guests and cannot use member acknowle
       () => recordPrivacyAcknowledgement.run(request(uid, "anonymous", data("member"))),
       (error) => error && error.code === "permission-denied",
     );
-    await assert.rejects(
-      () => getPrivacyAcknowledgementStatus.run(request(uid, "password")),
-      (error) => error && error.code === "failed-precondition" ? false : false,
-    ).catch(() => undefined);
+    const memberStatus = await getPrivacyAcknowledgementStatus.run(request(uid, "password"));
+    assert.equal(memberStatus.acknowledged, false);
     assert.equal((await ref.get()).data().actorType, "guest");
   } finally {
     await ref.delete().catch(() => undefined);
