@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import 'owner_chat_participation_screen.dart';
 
 class OwnerCoinPurchaseScreen extends StatefulWidget {
   const OwnerCoinPurchaseScreen({super.key});
@@ -158,6 +159,14 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
               Text('الحالة: ' + status),
               if (item['paymentInstructions'] is String)
                 SelectableText('التعليمات الحالية: ' + (item['paymentInstructions'] as String)),
+              if (item['chatId'] is String)
+                Align(alignment: Alignment.centerLeft, child: TextButton.icon(
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => OwnerChatParticipationScreen(chatId: item['chatId'] as String),
+                  )),
+                  icon: const Icon(Icons.chat_outlined),
+                  label: const Text('فتح المحادثة الثنائية مع العضو'),
+                )),
               if (status == 'pending_owner_contact' || status == 'payment_instructions_sent')
                 Wrap(spacing: 8, children: [
                   OutlinedButton(onPressed: _busy ? null : () => _instructions(item),
