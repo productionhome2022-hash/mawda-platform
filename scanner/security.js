@@ -10,7 +10,7 @@ function equalSecret(actual, expected) {
   return a.length === b.length && a.length >= 32 && timingSafeEqual(a, b);
 }
 
-function validateScanRequest(value, provider, bucketName) {
+function validateScanRequest(value, provider, bucketName, expectedCallbackUrl) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const v = value;
   if (typeof v.mediaId !== "string" || !UUID.test(v.mediaId) ||
@@ -19,6 +19,7 @@ function validateScanRequest(value, provider, bucketName) {
       !v.objectPath.endsWith("/" + v.mediaId) ||
       typeof v.objectGeneration !== "string" || !GENERATION.test(v.objectGeneration) ||
       typeof v.downloadUrl !== "string" ||
+      typeof v.callbackUrl !== "string" || v.callbackUrl !== expectedCallbackUrl ||
       typeof v.provider !== "string" || v.provider !== provider ||
       typeof v.contentType !== "string") return null;
 
@@ -41,7 +42,11 @@ function validateScanRequest(value, provider, bucketName) {
       !allowedTypes.has(v.contentType)) {
     return null;
   }
+  let callback;
+  try { callback = new URL(v.callbackUrl); } catch { return null; }
+  if (callback.protocol !== "https:" || callback.username || callback.password || callback.hash) return null;
   return {
+    callbackUrl: callback.toString(),
     mediaId: v.mediaId,
     objectPath: v.objectPath,
     objectGeneration: v.objectGeneration,
