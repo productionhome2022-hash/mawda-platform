@@ -108,6 +108,11 @@ jobs:
           cache: npm
           cache-dependency-path: functions/package-lock.json
 
+      - name: Enable Cloud Storage API before real bucket verification
+        env:
+          PROJECT_ID: ${{ inputs.project_id }}
+        run: gcloud services enable storage.googleapis.com --project "$PROJECT_ID"
+
       - name: Install Functions dependencies and verify real bucket deletion safeguards
         working-directory: functions
         env:
