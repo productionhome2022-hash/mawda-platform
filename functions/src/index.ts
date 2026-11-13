@@ -4956,8 +4956,15 @@ export const closeOwnedRoom = onCall(async (request) => {
         !["active", "frozen"].includes(room.data()?.status)) {
       throw new HttpsError("permission-denied", "إغلاق الغرفة متاح لمالكها فقط.");
     }
-    transaction.update(roomRef, { status: "closed", closedAt: FieldValue.serverTimestamp(),
-      closedBy: uid, updatedAt: FieldValue.serverTimestamp() });
+    const rentalId = room.data()?.rentalId;
+    const rentalRef = typeof rentalId === "string" ? db.collection("roomRentals").doc(rentalId) : null;
+    const rental = rentalRef ? await transaction.get(rentalRef) : null;
+    const now = FieldValue.serverTimestamp();
+    transaction.update(roomRef, { status: "closed", closedAt: now,
+      closedBy: uid, updatedAt: now });
+    if (rentalRef && rental?.exists) {
+      transaction.update(rentalRef, { status: "closed_by_owner", closedAt: now, updatedAt: now });
+    }
     const auditRef = db.collection("roomAuditLogs").doc();
     transaction.create(auditRef, { roomId, actorUid: uid, action: "room_closed",
       createdAt: FieldValue.serverTimestamp() });
