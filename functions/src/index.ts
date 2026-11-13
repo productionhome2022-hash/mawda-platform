@@ -808,6 +808,99 @@ export const getMemberProfile = onCall(async (request) => {
 });
 
 /** A member may change only their own profile visibility. */
+/**
+ * Selects one validated custom avatar or cover and starts its 30-day lifetime.
+ * A replaced asset receives its own bounded superseded deadline.
+ */
+export const setMemberProfileMedia = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const mediaId = typeof request.data?.mediaId === "string" ? request.data.mediaId.trim() : "";
+  const slot = request.data?.slot;
+  if (!/^[0-9a-f-]{36}$/i.test(mediaId) || (slot !== "avatar" && slot !== "cover")) {
+    throw new HttpsError("invalid-argument", "بيانات الصورة الشخصية أو الغلاف غير صالحة.");
+  }
+
+  const userRef = db.collection("users").doc(uid);
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const nowMs = Date.now();
+  const newExpiry = Timestamp.fromMillis(nowMs + 30 * 24 * 60 * 60 * 1000);
+  let previousMediaId: string | null = null;
+
+  await db.runTransaction(async (transaction) => {
+    const [userSnapshot, assetSnapshot] = await Promise.all([
+      transaction.get(userRef), transaction.get(assetRef),
+    ]);
+    if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true) {
+      throw new HttpsError("failed-precondition", "أكمل ملف العضوية أولاً.");
+    }
+    if (!assetSnapshot.exists) throw new HttpsError("not-found", "ملف الصورة غير موجود.");
+    const asset = assetSnapshot.data() ?? {};
+    const assetExpiry = asset.retentionExpiresAt;
+    if (asset.ownerUid !== uid || asset.mediaPurpose !== "avatar_cover" ||
+        asset.status !== "security_approved" ||
+        !(assetExpiry instanceof Timestamp) || assetExpiry.toMillis() <= nowMs) {
+      throw new HttpsError("failed-precondition", "لا يمكن اختيار صورة لم تجتز الفحص أو انتهت صلاحيتها.");
+    }
+    if (typeof asset.profileMediaSlot === "string" && asset.profileMediaSlot !== slot) {
+      throw new HttpsError("failed-precondition", "هذه الصورة مرتبطة بخانة أخرى بالفعل.");
+    }
+
+    const userData = userSnapshot.data() ?? {};
+    const mediaField = slot === "avatar" ? "avatarMediaId" : "coverMediaId";
+    const defaultField = slot === "avatar" ? "avatarUsesDefault" : "coverUsesDefault";
+    previousMediaId = typeof userData[mediaField] === "string" ? userData[mediaField] as string : null;
+    if (previousMediaId === mediaId) return;
+
+    let previousSnapshot: FirebaseFirestore.DocumentSnapshot | null = null;
+    if (previousMediaId && previousMediaId !== mediaId) {
+      previousSnapshot = await transaction.get(db.collection("mediaAssets").doc(previousMediaId));
+    }
+    if (previousSnapshot?.exists) {
+      const previous = previousSnapshot.data() ?? {};
+      if (previous.ownerUid === uid && previous.mediaPurpose === "avatar_cover" &&
+          previous.profileMediaSlot === slot && previous.status !== "manually_deleted" &&
+          previous.status !== "self_destructed") {
+        const existingExpiry = previous.retentionExpiresAt instanceof Timestamp
+          ? previous.retentionExpiresAt.toMillis()
+          : nowMs;
+        transaction.update(previousSnapshot.ref, {
+          supersededAt: FieldValue.serverTimestamp(),
+          retentionExpiresAt: Timestamp.fromMillis(Math.min(existingExpiry, newExpiry.toMillis())),
+          retentionPolicyStatus: "thirty_day_superseded_avatar_cover",
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+    transaction.update(assetRef, {
+      profileMediaSlot: slot,
+      selectedAt: FieldValue.serverTimestamp(),
+      retentionExpiresAt: newExpiry,
+      retentionPolicyStatus: "thirty_day_avatar_cover",
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.set(userRef, {
+      [mediaField]: mediaId,
+      [defaultField]: false,
+      [`${slot}SelectedAt`]: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+
+  await db.collection("mediaAccessAudit").add({
+    actorUid: uid,
+    mediaId,
+    action: "member_profile_media_selected",
+    slot,
+    previousMediaId,
+    outcome: "success",
+    createdAt: FieldValue.serverTimestamp(),
+    expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
+  });
+  return { mediaId, slot, selected: true, previousMediaId };
+});
+
+
 export const setMemberProfileVisibility = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const visibility = request.data?.visibility;
