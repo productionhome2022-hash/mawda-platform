@@ -224,6 +224,21 @@ async function deleteExpiredChatText(): Promise<{ messages: number; failures: nu
   return { messages, failures };
 }
 
+async function deleteExpiredMediaOperationalAudit(): Promise<number> {
+  const db = getFirestore();
+  const cutoff = Timestamp.fromMillis(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  const snapshot = await db.collection("mediaAccessAudit")
+    .where("createdAt", "<=", cutoff)
+    .orderBy("createdAt", "asc")
+    .limit(RETENTION_BATCH_SIZE)
+    .get();
+  if (snapshot.empty) return 0;
+  const batch = db.batch();
+  for (const entry of snapshot.docs) batch.delete(entry.ref);
+  await batch.commit();
+  return snapshot.size;
+}
+
 /** Reconciles expired chat media every minute; disabled by default and non-production gated. */
 export const enforceChatMediaRetention = onSchedule(
   { schedule: "every 1 minutes", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
@@ -241,5 +256,15 @@ export const enforceChatTextRetention = onSchedule(
     if (!jobsMayRun()) return;
     const result = await deleteExpiredChatText();
     logger.info("Chat text retention sweep completed.", result);
+  },
+);
+
+/** Removes operational media access logs after the approved 90-day period. */
+export const enforceMediaOperationalAuditRetention = onSchedule(
+  { schedule: "every 24 hours", timeZone: "UTC", timeoutSeconds: 300, memory: "256MiB" },
+  async () => {
+    if (!jobsMayRun()) return;
+    const deleted = await deleteExpiredMediaOperationalAudit();
+    logger.info("Media operational audit retention sweep completed.", { deleted });
   },
 );
