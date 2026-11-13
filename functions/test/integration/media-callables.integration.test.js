@@ -185,6 +185,9 @@ test("upload intent reserves per-user quota atomically and audits the capability
   assert.equal(quota.data().activeBytes, 1024);
   const asset = await db.collection("mediaAssets").doc(result.mediaId).get();
   assert.equal(asset.data().status, "upload_authorized");
+  assert.equal(asset.data().purpose, "profile_album");
+  assert.equal(asset.data().retentionPolicyStatus, "owner_approval_required");
+  assert.equal(asset.data().retentionExpiresAt, null);
   assert.ok((await auditEvents(uid)).some((event) =>
     event.action === "media_upload_intent_created" && event.outcome === "success"));
 });
@@ -197,7 +200,7 @@ test("upload intent rejects a user who has exhausted the concurrent upload quota
   });
   await assert.rejects(
     () => createMediaUploadIntent.run({
-      data: { originalName: "blocked.png", contentType: "image/png", sizeBytes: 1024 },
+      data: { originalName: "blocked.png", contentType: "image/png", sizeBytes: 1024, purpose: "profile_album" },
       auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
     }),
     (error) => error && error.code === "resource-exhausted",
