@@ -701,8 +701,13 @@ export const getMyMediaUploadStatus = onCall(async (request) => {
     purpose: asset.mediaPurpose,
     status: asset.status,
     processingStatus: asset.processingStatus ?? null,
+    mediaCategory: asset.mediaCategory ?? null,
     safePreviewReady: asset.status === "security_approved" &&
       asset.processingStatus === "safe_raster_derivative_ready",
+    safeDerivativeReady: asset.status === "security_approved" &&
+      ["safe_raster_derivative_ready", "safe_animation_derivative_ready",
+        "safe_audio_derivative_ready", "safe_video_derivative_ready",
+        "safe_document_derivative_ready"].includes(String(asset.processingStatus)),
     rejectionCode: asset.status === "rejected" ? asset.rejectionCode ?? "MEDIA_REJECTED" : null,
   };
 });
