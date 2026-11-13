@@ -43,7 +43,11 @@ async function main() {
   const uniformAccess = bucketMetadata.iamConfiguration?.uniformBucketLevelAccess?.enabled === true;
   const publicAccessPrevention =
     bucketMetadata.iamConfiguration?.publicAccessPrevention === "enforced";
+  const objectVersioningEnabled = bucketMetadata.versioning?.enabled === true;
 
+  if (!objectVersioningEnabled) {
+    throw new Error("Bucket object versioning must be enabled to verify permanent deletion of multiple generations.");
+  }
   if (softDeleteSeconds > 0) {
     throw new Error(`Bucket soft-delete retention is enabled for ${softDeleteSeconds} seconds; permanent expiry cannot be certified.`);
   }
@@ -71,7 +75,9 @@ async function main() {
     });
 
     const beforeDelete = await listExactVersions();
-    if (beforeDelete.length < 1) throw new Error("No test object generation was visible to the version-aware listing.");
+    if (beforeDelete.length !== 2) {
+      throw new Error(`Expected exactly two retained test generations, found ${beforeDelete.length}.`);
+    }
     const generations = [];
     for (const version of beforeDelete) {
       const [metadata] = await version.getMetadata();
@@ -79,6 +85,10 @@ async function main() {
       if (metadata.temporaryHold === true || metadata.eventBasedHold === true) {
         throw new Error("Test object unexpectedly has a retention hold.");
       }
+    }
+
+    if (new Set(generations).size !== 2) {
+      throw new Error("The two test writes did not produce distinct object generations.");
     }
 
     await deleteExactVersions();
