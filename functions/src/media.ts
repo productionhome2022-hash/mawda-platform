@@ -851,7 +851,7 @@ export const createMediaUploadIntent = onCall(async (request) => {
   }
   const policy = mediaPolicyFor(input.contentType);
   if (!policy) throw new HttpsError("invalid-argument", "نوع الملف غير مسموح به.");
-  const token = request.auth?.token ?? {};
+  const token = (request.auth?.token ?? {}) as Record<string, unknown>;
   const isPlatformOwner = token.platformOwner === true && hasPlatformOwnerSession(token);
   if (!mediaUploadAllowedForRole(input, isPlatformOwner)) {
     throw new HttpsError(
