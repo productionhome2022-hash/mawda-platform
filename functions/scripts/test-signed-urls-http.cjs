@@ -22,7 +22,7 @@ const contentType = "text/plain";
 async function main() {
   try {
     const [putUrl] = await file.getSignedUrl({
-      version: "v4", action: "write", expires: Date.now() + 2_500,
+      version: "v4", action: "write", expires: Date.now() + 5_000,
       contentType, queryParams: { ifGenerationMatch: "0" },
     });
     const first = await fetch(putUrl, { method: "PUT", headers: { "content-type": contentType }, body: bytes });
@@ -30,12 +30,12 @@ async function main() {
     const replay = await fetch(putUrl, { method: "PUT", headers: { "content-type": contentType }, body: bytes });
     if (replay.status !== 412) throw new Error(`Replay should fail with 412; received HTTP ${replay.status}`);
 
-    const [readUrl] = await file.getSignedUrl({ version: "v4", action: "read", expires: Date.now() + 2_500 });
+    const [readUrl] = await file.getSignedUrl({ version: "v4", action: "read", expires: Date.now() + 5_000 });
     const read = await fetch(readUrl);
     if (!read.ok || Buffer.compare(Buffer.from(await read.arrayBuffer()), bytes) !== 0) {
       throw new Error(`Signed GET failed or returned different bytes: HTTP ${read.status}`);
     }
-    await new Promise((resolve) => setTimeout(resolve, 2500));
+    await new Promise((resolve) => setTimeout(resolve, 6000));
     const expired = await fetch(readUrl);
     if (expired.ok) throw new Error("Expired signed GET unexpectedly remained usable.");
     console.log(JSON.stringify({ initialPut: first.status, replayPut: replay.status, signedGet: read.status, expiredGet: expired.status, objectPath: path }));
