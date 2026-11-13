@@ -1138,7 +1138,7 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
       roomRef.collection("messages").doc(messageId).get(),
     ]);
     const ownerSession = request.auth?.token.platformOwner === true &&
-      hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>);
+      hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, viewerUid);
     if (!room.exists || (!member.exists && !ownerSession) || !msg.exists) {
       throw new HttpsError("permission-denied", "ليس لديك حق الوصول إلى مرفقات هذه الغرفة.");
     }
