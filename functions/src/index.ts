@@ -1437,7 +1437,9 @@ export const getDirectMessages = onCall(async (request) => {
         type: data.type ?? "text",
         mediaId: typeof data.mediaId === "string" ? data.mediaId : null,
         mediaIds: Array.isArray(data.mediaIds) ? data.mediaIds.filter((value: unknown) => typeof value === "string") : [],
-        mediaContentType: typeof data.mediaContentType === "string" ? data.mediaContentType : null,
+        mediaCategory: typeof data.mediaCategory === "string" ? data.mediaCategory : null,
+        mediaContentType: typeof data.contentType === "string" ? data.contentType :
+          (typeof data.mediaContentType === "string" ? data.mediaContentType : null),
         mediaName: typeof data.mediaName === "string" ? data.mediaName : null,
         deletionPending: data.deletionPending === true,
         deletedForRequester: Array.isArray(data.deletedForUids) && data.deletedForUids.includes(uid),
@@ -3194,7 +3196,9 @@ export const getRoomMessages = onCall(async (request) => {
         type: data.type ?? "text",
         mediaId: typeof data.mediaId === "string" ? data.mediaId : null,
         mediaIds: Array.isArray(data.mediaIds) ? data.mediaIds.filter((value: unknown) => typeof value === "string") : [],
-        mediaContentType: typeof data.mediaContentType === "string" ? data.mediaContentType : null,
+        mediaCategory: typeof data.mediaCategory === "string" ? data.mediaCategory : null,
+        mediaContentType: typeof data.contentType === "string" ? data.contentType :
+          (typeof data.mediaContentType === "string" ? data.mediaContentType : null),
         mediaName: typeof data.mediaName === "string" ? data.mediaName : null,
         deletionPending: data.deletionPending === true,
         isDeleted: data.isDeleted === true,
