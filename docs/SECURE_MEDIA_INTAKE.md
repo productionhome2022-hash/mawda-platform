@@ -2,7 +2,7 @@
 
 ## Security boundary
 
-- Firebase Storage client rules remain deny-all. Quarantine objects are private and no member-facing media delivery path is enabled.
+- Firebase Storage client rules remain deny-all. Quarantine objects and media metadata are private; there is no direct client Storage SDK read/write. Member delivery is limited to short-lived V4 signed reads of the exact scanner-approved WebP derivatives for avatar/cover, profile gallery and active stories, with visibility, expiry, generation and provenance checks plus access auditing. Direct/room chat attachment delivery and video/audio/PDF delivery are not enabled; original quarantine objects are never exposed.
 - Upload intents use five-minute V4 signed PUT capabilities scoped to random `quarantine/{uid}/{mediaId}` object names. `ifGenerationMatch=0` makes the write create-only: a replay after the first successful write must fail with HTTP 412. This is not a one-time URL; the bearer capability remains usable until expiry for any operation allowed by its signature.
 - Finalization validates owner, state, server object metadata, exact byte count versus the quota reservation, generation, allowlisted MIME type and leading-byte signature. Signature checks are format checks, not malware detection.
 - Quota reservation is atomic with asset creation: 5 concurrent intents, 150 MiB active reserved bytes, 500 MiB per UTC day per UID. These are conservative engineering defaults, not owner-approved production limits. The daily reservation is not refunded for abandoned attempts.
@@ -67,7 +67,7 @@ The guarded runner performs real HTTP signed PUT and GET requests, verifies repl
 - Verify the signed byte-range header against a real non-production bucket, and validate browser CORS against the actual non-production origins.
 - Deploy and exercise the scanner in non-production with clean files, EICAR test signature, malformed images, archive bombs/limit-exceeding files, stale generation, bad HMAC, duplicate callbacks, scanner timeout, signature database refresh/staleness and Cloud Run restart/retry.
 - Build safe processing for video, audio and PDF before any of those types can be member-delivered.
-- The safe WebP preview action is now wired into the owner console. Add Flutter App Check initialization before wiring the separate attachment-stream action; keep all raw signed URLs out of the client.
+- The owner safe-WebP preview action is wired and returns bounded bytes; the owner attachment-stream endpoint is not yet wired to UI and requires Flutter App Check initialization. Member profile/story signed URLs are short-lived and limited to exact approved WebP derivatives; never expose original quarantine paths or owner-inspection URLs.
 - Verify owner MFA enrollment/recovery/revocation, CORS, Android/iOS/web device flows, performance, monitoring, backups and restore in a non-production project.
 
 No production Firebase data, rules, bucket configuration, deployment, merge or destructive retention action has been changed or authorized.
