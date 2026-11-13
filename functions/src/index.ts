@@ -63,6 +63,7 @@ import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperat
 import { deleteMediaAssetForMessage } from "./media";
 import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
+import { DEFAULT_COIN_PACKAGES, DEFAULT_AD_PRICES, validateCoinPackages, validateAdPrices } from "./economy-pricing";
 
 initializeApp();
 
@@ -5007,4 +5008,72 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
       });
     });
   }
+});
+
+
+const ECONOMY_PRICING_SETTINGS = db.doc("platformSettings/economyPricing");
+
+/** Owner-only view and safe first-run seeding for editable coin and advertising prices. */
+export const getOwnerEconomyPricing = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const snapshot = await ECONOMY_PRICING_SETTINGS.get();
+  if (!snapshot.exists) {
+    await db.runTransaction(async (transaction) => {
+      const current = await transaction.get(ECONOMY_PRICING_SETTINGS);
+      if (current.exists) return;
+      transaction.create(ECONOMY_PRICING_SETTINGS, {
+        coinPackages: DEFAULT_COIN_PACKAGES,
+        adPrices: DEFAULT_AD_PRICES,
+        version: 1,
+        realMoneyCheckoutEnabled: false,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: actorUid,
+      });
+    });
+  }
+  const data = (await ECONOMY_PRICING_SETTINGS.get()).data() ?? {};
+  let coinPackages, adPrices;
+  try {
+    coinPackages = validateCoinPackages(data.coinPackages);
+    adPrices = validateAdPrices(data.adPrices);
+  } catch {
+    throw new HttpsError("failed-precondition", "إعدادات اقتصاد المنصة غير صالحة؛ راجع الدعم التقني.");
+  }
+  return {
+    coinPackages, adPrices,
+    version: Number.isSafeInteger(data.version) ? data.version : 0,
+    realMoneyCheckoutEnabled: false,
+  };
+});
+
+/** Owner/MFA-only economy price updates. This configures prices, not payment processing. */
+export const setOwnerEconomyPricing = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let coinPackages, adPrices;
+  try {
+    coinPackages = validateCoinPackages(request.data?.coinPackages);
+    adPrices = validateAdPrices(request.data?.adPrices);
+  } catch {
+    throw new HttpsError("invalid-argument", "أسعار باقات الكوينز أو الإعلانات غير صالحة.");
+  }
+  const version = await db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(ECONOMY_PRICING_SETTINGS);
+    const nextVersion = (Number.isSafeInteger(previous.data()?.version) ? previous.data()!.version : 0) + 1;
+    const now = FieldValue.serverTimestamp();
+    transaction.set(ECONOMY_PRICING_SETTINGS, {
+      coinPackages, adPrices, version: nextVersion,
+      realMoneyCheckoutEnabled: false,
+      updatedAt: now, updatedBy: actorUid,
+      createdAt: previous.data()?.createdAt ?? now,
+    });
+    const auditRef = db.collection("adminAuditLogs").doc();
+    transaction.create(auditRef, {
+      actorUid, action: "economy_pricing_updated", version: nextVersion,
+      coinPackageCount: coinPackages.length, adPlacementCount: adPrices.length,
+      realMoneyCheckoutEnabled: false, createdAt: now,
+    });
+    return nextVersion;
+  });
+  return { saved: true, version, realMoneyCheckoutEnabled: false };
 });
