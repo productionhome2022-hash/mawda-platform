@@ -163,11 +163,46 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
         const asset = assetDoc.data();
         // A documented owner legal hold suspends deletion only for this exact asset.
         // The original retention deadline is preserved and resumes on release/expiry.
-        if (shouldSuspendMediaDeletion(asset)) {
-          continue;
-        }
         const ownerUid = typeof asset.ownerUid === "string" ? asset.ownerUid : "";
         const mediaId = assetDoc.id;
+        if (shouldSuspendMediaDeletion(asset)) {
+          // Legal preservation does not extend the member-facing custom-image
+          // lifetime: switch the profile to the Mawda default at expiry, but
+          // retain the held object until the hold is released.
+          if (purpose === "avatar_cover" && !asset.defaultFallbackAppliedAt) {
+            const userRef = ownerUid ? db.collection("users").doc(ownerUid) : null;
+            await db.runTransaction(async (transaction) => {
+              const [freshAsset, userSnapshot] = await Promise.all([
+                transaction.get(assetDoc.ref),
+                userRef ? transaction.get(userRef) : Promise.resolve(null),
+              ]);
+              if (!freshAsset.exists || freshAsset.data()?.legalHoldStatus !== "active" ||
+                  freshAsset.data()?.defaultFallbackAppliedAt) return;
+              const fresh = freshAsset.data() ?? {};
+              const expiry = fresh.retentionExpiresAt;
+              if (!(expiry instanceof Timestamp) || expiry.toMillis() > Date.now()) return;
+              const slot = fresh.profileMediaSlot;
+              if (userRef && userSnapshot?.exists && (slot === "avatar" || slot === "cover")) {
+                const user = userSnapshot.data() ?? {};
+                const mediaField = slot === "avatar" ? "avatarMediaId" : "coverMediaId";
+                const defaultField = slot === "avatar" ? "avatarUsesDefault" : "coverUsesDefault";
+                if (user[mediaField] === mediaId) {
+                  transaction.update(userRef, {
+                    [mediaField]: FieldValue.delete(),
+                    [defaultField]: true,
+                    [`${slot}DefaultAppliedAt`]: FieldValue.serverTimestamp(),
+                    updatedAt: FieldValue.serverTimestamp(),
+                  });
+                }
+              }
+              transaction.update(assetDoc.ref, {
+                defaultFallbackAppliedAt: FieldValue.serverTimestamp(),
+                updatedAt: FieldValue.serverTimestamp(),
+              });
+            });
+          }
+          continue;
+        }
         if (purpose === "avatar_cover") {
           const userRef = ownerUid ? db.collection("users").doc(ownerUid) : null;
           const prepared = await db.runTransaction(async (transaction) => {
