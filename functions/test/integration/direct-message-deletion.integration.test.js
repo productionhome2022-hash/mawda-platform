@@ -10,7 +10,7 @@ const {
   deleteRoomMessage,
   deleteRoomMessageForMe,
 } = require("../../lib/index");
-const { getFirestore } = require("firebase-admin/firestore");
+const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const db = getFirestore();
 
 const id = (value) => createHash("sha256").update(value).digest("hex");
@@ -64,13 +64,16 @@ test("direct delete-for-everyone removes text and notifications, redacts preview
     db.collection("users").doc(uid).collection("notifications").doc(messageId),
   );
   const longText = "x".repeat(150);
+  const sentAt = Timestamp.now();
   await chatRef.set({
     participantUids: [alice, bob],
     lastMessagePreview: longText.substring(0, 120),
+    lastMessageSenderUid: alice,
+    lastMessageAt: sentAt,
   });
   await messageRef.set({
     messageId, chatId, senderUid: alice, recipientUid: bob,
-    text: longText, type: "text",
+    text: longText, type: "text", createdAt: sentAt,
   });
   await notifications[1].set({ type: "direct_message", messageId });
 
