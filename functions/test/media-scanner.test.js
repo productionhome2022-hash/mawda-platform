@@ -17,17 +17,17 @@ test("scanner verdict binds provider, object generation, hash and freshness", ()
   const now = 1_800_000_000_000;
   const payload = {
     mediaId: "123e4567-e89b-12d3-a456-426614174000",
-    provider: "mawadda-malware-gateway",
+    provider: "clamav-mawadda-gateway",
     verdict: "clean",
     objectGeneration: "123456",
     sha256: "a".repeat(64),
     scannedAtMs: now,
   };
-  assert.equal(validateScannerVerdict(payload, "mawadda-malware-gateway", now).verdict, "clean");
-  assert.equal(validateScannerVerdict({ ...payload, provider: "untrusted" }, "mawadda-malware-gateway", now), null);
-  assert.equal(validateScannerVerdict({ ...payload, objectGeneration: "latest" }, "mawadda-malware-gateway", now), null);
-  assert.equal(validateScannerVerdict({ ...payload, scannedAtMs: now - 700000 }, "mawadda-malware-gateway", now), null);
-  assert.equal(validateScannerVerdict({ ...payload, verdict: "approved" }, "mawadda-malware-gateway", now), null);
+  assert.equal(validateScannerVerdict(payload, "clamav-mawadda-gateway", now).verdict, "clean");
+  assert.equal(validateScannerVerdict({ ...payload, provider: "untrusted" }, "clamav-mawadda-gateway", now), null);
+  assert.equal(validateScannerVerdict({ ...payload, objectGeneration: "latest" }, "clamav-mawadda-gateway", now), null);
+  assert.equal(validateScannerVerdict({ ...payload, scannedAtMs: now - 700000 }, "clamav-mawadda-gateway", now), null);
+  assert.equal(validateScannerVerdict({ ...payload, verdict: "approved" }, "clamav-mawadda-gateway", now), null);
 });
 
 
@@ -35,7 +35,7 @@ test("scanner verdict accepts a fully bound safe WebP derivative and rejects par
   const now = 1_800_000_000_000;
   const base = {
     mediaId: "123e4567-e89b-12d3-a456-426614174000",
-    provider: "mawadda-malware-gateway",
+    provider: "clamav-mawadda-gateway",
     verdict: "clean",
     objectGeneration: "123456",
     sha256: "a".repeat(64),
