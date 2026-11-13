@@ -757,8 +757,10 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
         if (!current.exists || !data) return null;
         if (data.status === "upload_authorized") {
           const createdAt = data.createdAt as Timestamp | undefined;
-          const uploadExpiry = data.uploadUrlExpiresAt as Timestamp | undefined;
-          const expiryMs = uploadExpiry?.toMillis() ??
+          const uploadExpiry = data.uploadUrlExpiresAt;
+          const expiryMs = uploadExpiry instanceof Timestamp ? uploadExpiry.toMillis() :
+            uploadExpiry instanceof Date ? uploadExpiry.getTime() :
+            typeof uploadExpiry === "string" ? Date.parse(uploadExpiry) :
             (createdAt ? createdAt.toMillis() + MEDIA_SIGNED_URL_TTL_MS.upload : Number.NaN);
           if (!createdAt || createdAt.toMillis() > cutoff.toMillis() ||
               !uploadIntentIsEligibleForCleanup(expiryMs, nowMs)) return null;
