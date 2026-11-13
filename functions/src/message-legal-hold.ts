@@ -23,7 +23,7 @@ export function validateMessageLegalHoldInput(
     /^[a-f0-9]{64}$/.test(parts[1]) && parts[2] === "messages" &&
     /^[a-f0-9]{64}$/.test(parts[3]);
   const room = parts.length === 4 && parts[0] === "rooms" &&
-    /^[A-Za-z0-9_-]{1,128}$/.test(parts[1]) && parts[2] === "messages" &&
+    /^(?!\\.{1,2}$)[^/\\u0000-\\u001f]{1,128}$/.test(parts[1]) && parts[2] === "messages" &&
     /^[a-f0-9]{64}$/.test(parts[3]);
   if (!direct && !room) throw new Error("INVALID_MESSAGE_HOLD_PATH");
 
