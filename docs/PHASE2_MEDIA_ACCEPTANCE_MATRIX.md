@@ -56,6 +56,14 @@ Status snapshot: 2026-11-13. This document is a release gate, not a claim that e
 
 A successful malware verdict does not by itself authorize member delivery. Only types with a completed safe-processing pipeline may become eligible for delivery. Images use sanitized WebP derivatives; video, audio and PDF remain unavailable until type-specific processing is implemented.
 
+## Manual message-media deletion update (13 November 2026)
+
+- Direct and room delete-for-everyone now recognize message-linked `mediaId` / `mediaIds`, hide the message while erasure is pending, and delete the exact original object generations, sanitized WebP preview and validated known derived object paths before removing the message and notifications.
+- An active legal hold blocks media erasure. The original expiry clock is preserved; after release, the same deletion request can be retried. The media asset becomes a content-free `manually_deleted` tombstone and receives an operational audit event.
+- Integration tests run against Firestore and Storage emulators and cover direct and room media erasure, original/preview object removal, pending visibility during a legal hold, and successful retry after release.
+- Full CI passed on `602f29a02d9c569c8c252913a3b1bc1dfb671428` in [run 43390455210](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43390455210), including Flutter, Functions, all emulator integration suites, rules, scanner tests, container build and EICAR.
+- Still not complete: member-facing media send/delivery is not wired for all media types; deletion of CDN/cache/backup/PITR replicas and real GCS soft-delete/version behavior is not proven. The helper deletes exact known object paths and visible generations only.
+
 ## Latest CI result (13 November 2026)
 
 - Commit `8b82bd2d72c1bec461ba9f57fd34f4a7c0eae6c3` passed full workflow [43389618699](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43389618699).
