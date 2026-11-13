@@ -160,7 +160,7 @@ export async function deleteMediaAssetForMessage(
         expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
       });
     });
-    await mediaDb().collection("mediaScanJobs").doc(mediaId).delete().catch(() => undefined);
+    await mediaDb().collection("mediaScanJobs").doc(mediaId).delete();
   } catch (error) {
     await mediaDb().collection("mediaAccessAudit").add({
       actorUid: "system-message-deletion",
