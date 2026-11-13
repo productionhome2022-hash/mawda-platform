@@ -342,7 +342,9 @@ export const dispatchMediaSecurityScan = onDocumentCreated(
     memory: "1GiB",
   },
   async (event) => {
-    const job = event.data?.data();
+    const eventSnapshot = event.data;
+    if (!eventSnapshot) return;
+    const job = eventSnapshot.data();
     if (!job) return;
     const scannerUrl = mediaScannerUrl.value();
     const callbackUrl = mediaScannerCallbackUrl.value();
@@ -359,7 +361,7 @@ export const dispatchMediaSecurityScan = onDocumentCreated(
     const assetSnapshot = await assetRef.get();
     if (!assetSnapshot.exists || assetSnapshot.data()?.status !== "pending_security_scan" ||
         String(assetSnapshot.data()?.storageGeneration) !== String(job.objectGeneration)) {
-      await event.data?.ref.update({ state: "cancelled", updatedAt: FieldValue.serverTimestamp() });
+      await eventSnapshot.ref.update({ state: "cancelled", updatedAt: FieldValue.serverTimestamp() });
       return;
     }
     const file = mediaBucket().file(String(job.objectPath));
@@ -375,7 +377,7 @@ export const dispatchMediaSecurityScan = onDocumentCreated(
     const detectedContentType = String(assetSnapshot.data()?.detectedContentType ?? "");
     if (scanner.pathname !== "/scan") throw new Error("Scanner endpoint path must be /scan.");
     const identityToken = await cloudRunIdentityToken(scanner.origin);
-    const jobRef = event.data.ref;
+    const jobRef = eventSnapshot.ref;
     const mayDispatch = await mediaDb().runTransaction(async (transaction) => {
       const currentJob = await transaction.get(jobRef);
       if (!currentJob.exists) return false;
@@ -755,10 +757,10 @@ export const getOwnerMediaSafePreview = onCall(async (request) => {
       customMetadata?.processing !== "sharp-decode-reencode-v1") {
     throw new HttpsError("failed-precondition", "بيانات مصدر المعاينة الآمنة غير متطابقة.");
   }
-  const [bytes] = await previewFile.download({
-    validation: "crc32c",
-    ifGenerationMatch: expectedPreviewGeneration,
+  const generationPinnedPreviewFile = mediaBucket().file(asset.safePreviewPath, {
+    generation: expectedPreviewGeneration,
   });
+  const [bytes] = await generationPinnedPreviewFile.download({ validation: "crc32c" });
   const digest = createHash("sha256").update(bytes).digest("hex");
   if (digest !== asset.safePreviewSha256 || bytes.length > 2 * 1024 * 1024) {
     await auditMediaAccess({
