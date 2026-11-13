@@ -16,6 +16,7 @@ initializeApp({ credential: applicationDefault(), projectId, storageBucket: buck
 const bucket = getStorage().bucket(bucketName);
 const file = bucket.file(`quarantine-http-tests/${randomUUID()}.txt`);
 const expiredUploadFile = bucket.file(`quarantine-http-tests/${randomUUID()}-expired.txt`);
+const oversizedFile = bucket.file(`quarantine-http-tests/${randomUUID()}-oversized.txt`);
 const bytes = Buffer.from("Mawadda signed URL HTTP integration test");
 const contentType = "text/plain";
 
@@ -36,10 +37,20 @@ async function main() {
     if (!first.ok) throw new Error(`Initial signed PUT failed: HTTP ${first.status}`);
     const replay = await fetch(putUrl, { method: "PUT", headers: signedUploadHeaders, body: bytes });
     if (replay.status !== 412) throw new Error(`Replay should fail with 412; received HTTP ${replay.status}`);
-    const oversized = await fetch(putUrl, {
+    const [oversizedPutUrl] = await oversizedFile.getSignedUrl({
+      version: "v4", action: "write", expires: Date.now() + 2_500,
+      contentType,
+      extensionHeaders: { "x-goog-content-length-range": sizeRange },
+      queryParams: { ifGenerationMatch: "0" },
+    });
+    const oversized = await fetch(oversizedPutUrl, {
       method: "PUT", headers: signedUploadHeaders, body: Buffer.concat([bytes, Buffer.from("x")]),
     });
-    if (oversized.ok) throw new Error("Oversized signed PUT unexpectedly bypassed the exact content-length range.");
+    if (oversized.status !== 400) {
+      throw new Error(`Oversized signed PUT should fail with HTTP 400 before object creation; received HTTP ${oversized.status}`);
+    }
+    const [oversizedObjectExists] = await oversizedFile.exists();
+    if (oversizedObjectExists) throw new Error("Oversized request created an object despite the signed size range.");
 
     const [readUrl] = await file.getSignedUrl({ version: "v4", action: "read", expires: Date.now() + 2_500 });
     const read = await fetch(readUrl);
@@ -75,6 +86,7 @@ async function main() {
     await Promise.all([
       file.delete({ ignoreNotFound: true }),
       expiredUploadFile.delete({ ignoreNotFound: true }),
+      oversizedFile.delete({ ignoreNotFound: true }),
     ]);
   }
 }
