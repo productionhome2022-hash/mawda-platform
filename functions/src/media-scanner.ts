@@ -7,6 +7,10 @@ export interface ScannerVerdictPayload {
   objectGeneration: string;
   sha256: string;
   scannedAtMs: number;
+  scanEngine: "ClamAV";
+  engineVersion: string;
+  signatureDatabaseVersion: string;
+  signatureDatabaseAgeMs: number;
   safePreviewPath?: string;
   safePreviewGeneration?: string;
   safePreviewSha256?: string;
@@ -51,6 +55,12 @@ export function validateScannerVerdict(
       typeof v.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(v.sha256) ||
       !Number.isSafeInteger(v.scannedAtMs) ||
       Math.abs(nowMs - Number(v.scannedAtMs)) > 10 * 60 * 1000 ||
+      v.scanEngine !== "ClamAV" ||
+      typeof v.engineVersion !== "string" || !/^\\d+\\.\\d+\\.\\d+$/.test(v.engineVersion) ||
+      typeof v.signatureDatabaseVersion !== "string" || !/^\\d{1,8}$/.test(v.signatureDatabaseVersion) ||
+      !Number.isSafeInteger(v.signatureDatabaseAgeMs) ||
+      Number(v.signatureDatabaseAgeMs) < 0 ||
+      Number(v.signatureDatabaseAgeMs) > 36 * 60 * 60 * 1000 ||
       (hasAnyPreview && !hasAllPreview) ||
       (hasAllPreview && (
         !previewPathValid ||
