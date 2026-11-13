@@ -2711,7 +2711,8 @@ export const deleteRoomMessage = onCall(async (request) => {
   const auditRef = db.collection("roomAuditLogs").doc(
     createHash("sha256").update(`room:${roomId}:${messageId}:delete_for_everyone`).digest("hex"),
   );
-  return db.runTransaction(async (transaction) => {
+
+  const preparation = await db.runTransaction(async (transaction) => {
     const [room, membership, moderator, message, priorAudit] = await Promise.all([
       transaction.get(roomRef), transaction.get(membershipRef),
       transaction.get(moderatorRef), transaction.get(messageRef),
@@ -2728,38 +2729,102 @@ export const deleteRoomMessage = onCall(async (request) => {
       throw new HttpsError("permission-denied", "لا تملك صلاحية إدارة رسائل هذه الغرفة.");
     }
     if (!message.exists) {
-      if (priorAudit.exists) {
-        return { roomId, messageId, deleted: true, idempotentReplay: true };
-      }
+      if (priorAudit.exists) return { kind: "replay" as const };
       throw new HttpsError("not-found", "الرسالة غير موجودة.");
     }
     const data = message.data() ?? {};
     if (data.senderUid !== uid && !canModerate) {
       throw new HttpsError("permission-denied", "يمكنك حذف رسائلك فقط ما لم تكن تملك صلاحية الإشراف.");
     }
-    const hasMediaReference = data.type !== undefined && data.type !== "text" ||
+
+    const hasMediaReference = (data.type !== undefined && data.type !== "text") ||
       ["storagePath", "mediaPath", "mediaUrl", "downloadUrl", "attachments", "fileUrl"]
-        .some((key) => data[key] !== undefined && data[key] !== null);
+        .some((key) => data[key] !== undefined && data[key] !== null) ||
+      data.mediaId !== undefined || data.mediaIds !== undefined;
     if (hasMediaReference) {
-      throw new HttpsError(
-        "failed-precondition",
-        "هذه الرسالة تحتوي على وسيط؛ يجب حذفها عبر مسار حذف الوسائط الآمن.",
-      );
+      const ids = new Set<string>();
+      if (typeof data.mediaId === "string") ids.add(data.mediaId);
+      if (Array.isArray(data.mediaIds)) {
+        for (const value of data.mediaIds) if (typeof value === "string") ids.add(value);
+      }
+      if (Array.isArray(data.attachments)) {
+        for (const item of data.attachments) {
+          if (item && typeof item === "object" &&
+              typeof (item as Record<string, unknown>).mediaId === "string") {
+            ids.add((item as Record<string, unknown>).mediaId as string);
+          }
+        }
+      }
+      if (ids.size === 0 || ids.size > 10) {
+        throw new HttpsError("failed-precondition", "لا يحتوي سجل الوسائط على معرفات أصول موثوقة كافية للحذف الآمن.");
+      }
+      if (data.deletionPending !== true) {
+        transaction.update(messageRef, {
+          deletionPending: true,
+          deletionRequestedByUid: uid,
+          deletionRequestedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+      return {
+        kind: "media" as const,
+        mediaIds: [...ids],
+        senderUid: typeof data.senderUid === "string" ? data.senderUid : "",
+      };
     }
+
     transaction.delete(messageRef);
     if (!priorAudit.exists) {
       transaction.create(auditRef, {
-        roomId,
-        actorUid: uid,
-        messageId,
+        roomId, actorUid: uid, messageId,
         senderUid: data.senderUid ?? null,
         action: "room_message_deleted_for_everyone",
         messageType: "text",
         createdAt: FieldValue.serverTimestamp(),
       });
     }
-    return { roomId, messageId, deleted: true, idempotentReplay: false };
+    return { kind: "text" as const };
   });
+
+  if (preparation.kind === "replay") {
+    return { roomId, messageId, deleted: true, idempotentReplay: true };
+  }
+  if (preparation.kind === "text") {
+    return { roomId, messageId, deleted: true, idempotentReplay: false };
+  }
+
+  try {
+    for (const mediaId of preparation.mediaIds) {
+      await deleteMediaAssetForMessage(mediaId, preparation.senderUid, "room");
+    }
+  } catch (error) {
+    logger.error("Room message media deletion remains pending for retry.", {
+      roomId, messageId, errorName: error instanceof Error ? error.name : "unknown",
+    });
+    throw new HttpsError("unavailable", "بدأ حذف الوسائط وأُخفيت الرسالة؛ تعذر إكمال محو جميع النسخ حالياً. أعد المحاولة لاحقاً.");
+  }
+
+  await db.runTransaction(async (transaction) => {
+    const [room, message, priorAudit] = await Promise.all([
+      transaction.get(roomRef), transaction.get(messageRef), transaction.get(auditRef),
+    ]);
+    if (!message.exists) return;
+    if (!room.exists || message.data()?.deletionPending !== true) {
+      throw new HttpsError("failed-precondition", "تغيرت حالة الغرفة أثناء حذف الوسائط.");
+    }
+    transaction.delete(messageRef);
+    if (!priorAudit.exists) {
+      transaction.create(auditRef, {
+        roomId, actorUid: uid, messageId,
+        senderUid: message.data()?.senderUid ?? null,
+        action: "room_message_deleted_for_everyone",
+        messageType: "media",
+        mediaIds: preparation.mediaIds,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+  });
+  return { roomId, messageId, deleted: true, idempotentReplay: false };
 });
 
 /** Creates public or private rooms only through the trusted platform owner. */
