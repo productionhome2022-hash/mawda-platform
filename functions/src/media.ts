@@ -835,3 +835,104 @@ export const ownerMediaInspectionStream = onRequest(
     }
   },
 );
+
+
+/**
+ * Raster-only owner preview. It serves the re-encoded derivative created by
+ * the isolated scanner worker, never the original quarantined bytes.
+ */
+export const ownerMediaPreview = onRequest(
+  { cors: false, maxInstances: 5, memory: "256MiB", timeoutSeconds: 60 },
+  async (request, response) => {
+    if (request.method !== "GET") {
+      response.set("Allow", "GET").status(405).end();
+      return;
+    }
+    const match = /^Bearer ([A-Za-z0-9._-]+)$/.exec(request.get("authorization") ?? "");
+    const appCheckToken = request.get("X-Firebase-AppCheck") ?? "";
+    if (!match || !appCheckToken) {
+      response.status(401).set("Cache-Control", "no-store").end();
+      return;
+    }
+    let decoded;
+    try {
+      decoded = await getAuth().verifyIdToken(match[1], true);
+      await getAppCheck().verifyToken(appCheckToken);
+    } catch {
+      response.status(401).set("Cache-Control", "no-store").end();
+      return;
+    }
+    const actorUid = decoded.uid;
+    try {
+      requireSoleOwner({ auth: { uid: actorUid, token: decoded } });
+    } catch (error) {
+      await auditMediaAccess({
+        actorUid, action: "owner_media_preview", outcome: "denied",
+        failureCode: error instanceof HttpsError ? error.code : "permission-denied",
+      });
+      response.status(403).set("Cache-Control", "no-store").end();
+      return;
+    }
+
+    const mediaId = typeof request.query.mediaId === "string" ? request.query.mediaId : "";
+    if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
+      await auditMediaAccess({ actorUid, mediaId: null, action: "owner_media_preview", outcome: "denied", failureCode: "invalid-media-id" });
+      response.status(400).set("Cache-Control", "no-store").end();
+      return;
+    }
+
+    try {
+      const assetSnapshot = await mediaDb().collection("mediaAssets").doc(mediaId).get();
+      if (!assetSnapshot.exists) {
+        await auditMediaAccess({ actorUid, mediaId, action: "owner_media_preview", outcome: "denied", failureCode: "not-found" });
+        response.status(404).set("Cache-Control", "no-store").end();
+        return;
+      }
+      const asset = assetSnapshot.data()!;
+      const expectedPath = `processed/${String(asset.ownerUid)}/${mediaId}/preview.webp`;
+      if (asset.status !== "security_approved" ||
+          asset.processingStatus !== "safe_raster_derivative_ready" ||
+          asset.safePreviewPath !== expectedPath ||
+          asset.safePreviewContentType !== "image/webp" ||
+          typeof asset.safePreviewGeneration !== "string") {
+        await auditMediaAccess({ actorUid, mediaId, action: "owner_media_preview", outcome: "denied", failureCode: "safe-preview-not-ready" });
+        response.status(409).set("Cache-Control", "no-store").end();
+        return;
+      }
+      const previewFile = mediaBucket().file(expectedPath);
+      const [metadata] = await previewFile.getMetadata();
+      const custom = metadata.metadata as Record<string, unknown> | undefined;
+      if (String(metadata.generation) !== asset.safePreviewGeneration ||
+          metadata.contentType !== "image/webp" ||
+          custom?.mediaId !== mediaId ||
+          custom?.sourceGeneration !== String(asset.storageGeneration) ||
+          custom?.scannerProvider !== asset.scannerProvider) {
+        await auditMediaAccess({ actorUid, mediaId, action: "owner_media_preview", outcome: "denied", failureCode: "safe-preview-generation-or-metadata-mismatch" });
+        response.status(409).set("Cache-Control", "no-store").end();
+        return;
+      }
+      await auditMediaAccess({
+        actorUid, mediaId, action: "owner_media_preview",
+        outcome: "success", previewGeneration: String(metadata.generation),
+      });
+      response.status(200).set({
+        "Content-Type": "image/webp",
+        "Content-Disposition": "inline; filename=\"mawadda-preview.webp\"",
+        "Cache-Control": "private, no-store, max-age=0",
+        "Pragma": "no-cache",
+        "X-Content-Type-Options": "nosniff",
+        "Cross-Origin-Resource-Policy": "same-origin",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+        "Referrer-Policy": "no-referrer",
+      });
+      await pipeline(previewFile.createReadStream({ validation: "crc32c" }), response);
+    } catch (error) {
+      await auditMediaAccess({
+        actorUid, mediaId, action: "owner_media_preview",
+        outcome: "failed", failureCode: error instanceof Error ? error.name : "preview_error",
+      });
+      if (!response.headersSent) response.status(500).set("Cache-Control", "no-store").end();
+      else response.destroy(error instanceof Error ? error : undefined);
+    }
+  },
+);
