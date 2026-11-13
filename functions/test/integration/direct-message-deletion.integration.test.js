@@ -553,6 +553,7 @@ test("delete-for-me hides media only for the requester and preserves the shared 
       roomAssetRef.delete().catch(() => undefined),
       directChatRef.delete().catch(() => undefined),
       directMessageRef.delete().catch(() => undefined),
+      db.collection("users").doc(bob).collection("notifications").doc(directMessageId).delete().catch(() => undefined),
       roomRef.delete().catch(() => undefined),
       roomMessageRef.delete().catch(() => undefined),
       roomRef.collection("members").doc(alice).delete().catch(() => undefined),
