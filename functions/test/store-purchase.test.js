@@ -47,18 +47,18 @@ test("store purchase rejects stale or malformed client price confirmations", () 
 
 test("profile entitlement projection exposes only active VIP and newest active title", () => {
   const features = projectStoreEntitlementFeatures([
-    { category: "title", itemName: "لقب النخبة", status: "active", expiresAt: { toMillis: () => NOW + 5000 } },
-    { category: "vip", itemName: "VIP", status: "active", expiresAt: { toMillis: () => NOW + 1000 } },
+    { itemId: "title_a", category: "title", itemName: "لقب النخبة", status: "active", expiresAt: { toMillis: () => NOW + 5000 } },
+    { itemId: "vip_a", category: "vip", itemName: "VIP", status: "active", expiresAt: { toMillis: () => NOW + 1000 } },
     { category: "title", itemName: "لقب منتهي", status: "active", expiresAt: { toMillis: () => NOW } },
-    { category: "analytics", itemName: "تحليلات", status: "active" },
+    { itemId: "analytics_a", category: "analytics", itemName: "تحليلات", status: "active" },
   ], NOW);
-  assert.deepEqual(features, { vipActive: true, activeTitle: "لقب النخبة" });
+  assert.deepEqual(features, {\n    vipActive: true, activeTitle: "لقب النخبة",\n    activeFeatures: [\n      { itemId: "title_a", itemName: "لقب النخبة", category: "title", expiresAtMs: NOW + 5000 },\n      { itemId: "vip_a", itemName: "VIP", category: "vip", expiresAtMs: NOW + 1000 },\n      { itemId: "analytics_a", itemName: "تحليلات", category: "analytics", expiresAtMs: null },\n    ],\n  });
 });
 
 test("profile entitlement projection hides expired, revoked, and malformed entitlements", () => {
   assert.deepEqual(projectStoreEntitlementFeatures([
-    { category: "vip", status: "expired" },
-    { category: "title", itemName: "قديم", status: "active", expiresAt: { toMillis: () => NOW - 1 } },
+    { itemId: "vip_a", category: "vip", status: "expired" },
+    { itemId: "title_old", category: "title", itemName: "قديم", status: "active", expiresAt: { toMillis: () => NOW - 1 } },
     null,
-  ], NOW), { vipActive: false, activeTitle: null });
+  ], NOW), { vipActive: false, activeTitle: null, activeFeatures: [] });
 });
