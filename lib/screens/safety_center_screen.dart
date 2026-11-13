@@ -195,7 +195,7 @@ class _SafetyCenterScreenState extends State<SafetyCenterScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: _category,
+                  initialValue: _category,
                   decoration: const InputDecoration(labelText: 'نوع البلاغ'),
                   items: _categories.entries.map((entry) => DropdownMenuItem(
                     value: entry.key, child: Text(entry.value),
@@ -204,7 +204,7 @@ class _SafetyCenterScreenState extends State<SafetyCenterScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: _contextType,
+                  initialValue: _contextType,
                   decoration: const InputDecoration(labelText: 'مكان الواقعة'),
                   items: const [
                     DropdownMenuItem(value: 'member', child: Text('الحساب')),
