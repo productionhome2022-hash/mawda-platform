@@ -4,6 +4,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import '../services/super_admin_security_service.dart';
 import 'owner_chat_participation_screen.dart';
+import 'safety_review_screen.dart';
 
 class SuperAdminScreen extends StatefulWidget {
   const SuperAdminScreen({super.key});
@@ -1273,6 +1274,13 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     appBar: AppBar(
       title: const Text('غرفة عمليات مالك مودة'),
       actions: [
+        IconButton(
+          tooltip: 'مراجعة البلاغات والاستئنافات',
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => const SafetyReviewScreen(),
+          )),
+          icon: const Icon(Icons.gavel_outlined),
+        ),
         IconButton(
           tooltip: 'تحديث المؤشرات',
           onPressed: _loadingOverview ? null : _loadOverview,
