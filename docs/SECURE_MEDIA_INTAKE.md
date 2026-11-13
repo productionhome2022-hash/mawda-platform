@@ -22,9 +22,9 @@ Per-file limits:
 Per authenticated UID defaults:
 - At most 5 concurrent upload intents.
 - At most 150 MiB of concurrently reserved bytes.
-- At most 500 MiB of declared upload budget per UTC day.
+- At most 100 upload intents and 500 MiB of declared upload budget per UTC day.
 
-Reservations and asset creation are atomic in Firestore. Finalization releases active count/bytes in the same transaction as the asset state transition. The daily budget is consumed at intent issuance, including abandoned intents, and resets at the UTC day boundary without erasing active reservations.
+Reservations and asset creation are atomic in Firestore. Finalization releases active count/bytes in the same transaction as the asset state transition. The daily count and byte budgets are consumed at intent issuance, including abandoned intents, and reset at the UTC day boundary without erasing active reservations.
 
 **Transport limitation:** the current signed PUT capability does not enforce a hard byte ceiling while bytes are in transit. The server compares actual object size with the exact declared reservation at finalization and deletes over-sized objects, but this occurs after transfer and does not prevent bandwidth/storage-cost abuse during upload. A streaming upload gateway or storage-side enforced size condition is still required before production.
 
