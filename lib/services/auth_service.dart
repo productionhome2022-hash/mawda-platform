@@ -13,6 +13,17 @@ class AuthService {
   Future<UserCredential> signUpWithEmail({required String email, required String password}) =>
       _auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
 
+  Future<UserCredential> signInAsGuest() => _auth.signInAnonymously();
+
+  Future<UserCredential> linkGuestWithEmail({required String email, required String password}) async {
+    final user = _auth.currentUser;
+    if (user == null || !user.isAnonymous) {
+      throw FirebaseAuthException(code: 'not-a-guest', message: 'لا توجد جلسة ضيف قابلة للترقية.');
+    }
+    final credential = EmailAuthProvider.credential(email: email.trim(), password: password);
+    return user.linkWithCredential(credential);
+  }
+
   Future<void> sendEmailVerification() async {
     final user = _auth.currentUser;
     if (user == null) {
