@@ -1,5 +1,6 @@
 export type StoreCatalogItem = {
   itemId: string;
+  active: boolean;
   name: string;
   description: string;
   category: string;
@@ -42,6 +43,7 @@ export function projectStoreCatalogItem(
     data.fulfillmentReady === true;
   return {
     itemId,
+    active: true,
     name: data.name.trim(),
     description: data.description.trim(),
     category: data.category,
