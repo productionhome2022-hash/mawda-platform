@@ -15,8 +15,9 @@
 
 - Current per-UID limits are 5 active intents, 150 MiB active reserved bytes and 500 MiB reserved bytes per UTC day.
 - Per-file maxima: raster images (JPEG/PNG/WebP/GIF) 5 MiB, MP4 video 100 MiB, audio 25 MiB, PDF 20 MiB.
-- The upload intent reserves the declared size; finalization rejects and deletes an object whose actual byte count differs from that reservation.
-- Important remaining gap: the current signed PUT flow does not enforce the byte ceiling before Cloud Storage accepts the body. The post-upload check protects publication and cleans rejected objects, but it does not prevent temporary transfer/storage cost from an oversized body. A production transport boundary or separately tested upload policy is still required. Do not claim this is already enforced at transport time.
+- The upload intent reserves the declared size and signs the exact `x-goog-content-length-range: min,max` header with `min=max=declaredSizeBytes`; Cloud Storage rejects a body outside that exact range before creating the object. The signed request also binds the content type and `ifGenerationMatch=0`. Clients must send the exact `requiredHeaders` returned by the callable.
+- Finalization independently rechecks exact object byte count, MIME type, signature and generation. This is defense in depth; transport rejection does not replace finalization validation.
+- Storage Emulator HTTP tests now exercise signed upload, exact size, replay and finalization. The separate opt-in real-GCS HTTP script additionally tests oversize rejection, GET, expiry and replay against a disposable non-production bucket; it has not yet been run because no non-production bucket credentials/configuration are available here.
 
 ## Trusted malware scanner and safe image processing
 
