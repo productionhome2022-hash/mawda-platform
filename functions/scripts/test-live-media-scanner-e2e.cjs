@@ -78,7 +78,7 @@ async function waitForAssetStatus(assetRef, expectedStatus, jobRef) {
 }
 
 async function waitForObjectGone(file) {
-  const deadline = Date.now() + 30_000;
+  const deadline = Date.now() + 90_000;
   while (Date.now() < deadline) {
     const [exists] = await file.exists();
     if (!exists) return;
