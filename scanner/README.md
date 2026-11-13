@@ -9,7 +9,7 @@ This Cloud Run container runs ClamAV behind Cloud Run IAM. It does not read or w
 - Callback requests are HMAC-SHA256 signed over the exact JSON bytes using `MAWDA_MEDIA_SCANNER_HMAC_SECRET`.
 - The callback URL is pinned in the Cloud Run environment and must use HTTPS. The caller-supplied URL must exactly match it.
 - The service enforces a 100 MiB maximum request size by default and ClamAV independently enforces stream/file/scan/recursion/time limits.
-- ClamAV signature updates run every two hours. The container refuses to start if the initial signature database update fails.
+- ClamAV signature updates run every two hours. The gateway checks the database timestamp on both health and scan requests and fails closed if signatures are older than 48 hours or implausibly in the future. The container refuses to start if the initial signature database update fails.
 - Engine and signature database versions are attached to every verdict.
 - Any daemon error, timeout, invalid response, callback failure or hash mismatch fails closed. The Functions trigger retries; the asset remains quarantined.
 - The service binds ClamAV to loopback only. No scanner TCP port is exposed outside the container.
@@ -33,6 +33,7 @@ Cloud Run environment:
 - `MAWDA_MEDIA_SCANNER_CALLBACK_URL` — exactly the same callback URL.
 - `MAWDA_MEDIA_SCANNER_PROVIDER` — same provider string as Functions.
 - `MAWDA_MEDIA_SCANNER_MAX_BYTES` — 104857600 (100 MiB).
+- `MAWDA_MEDIA_SCANNER_MAX_SIGNATURE_AGE_MS` — optional; defaults to 172800000 (48 hours).
 
 ## Build and deploy to a non-production project
 
