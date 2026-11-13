@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { equalSecret, validateScanRequest, isSafeDerivativeMetadata, isSignatureDatabaseFresh, sanitizeScannerError } = require("../security");
+const { equalSecret, validateScanRequest, isSafeDerivativeMetadata, isSignatureDatabaseFresh, parseClamAvVersion, sanitizeScannerError } = require("../security");
 
 const bucket = "mawda-media-test.appspot.com";
 const mediaId = "123e4567-e89b-42d3-a456-426614174000";
@@ -72,4 +72,15 @@ test("ClamAV signature freshness fails closed for missing, stale and future time
   assert.equal(isSignatureDatabaseFresh(now - 40 * 60 * 60 * 1000, now, maxAge), false);
   assert.equal(isSignatureDatabaseFresh(Number.NaN, now, maxAge), false);
   assert.equal(isSignatureDatabaseFresh(now + 10 * 60 * 1000, now, maxAge), false);
+});
+
+
+test("ClamAV engine and signature database versions are parsed from the active scanner", () => {
+  assert.deepEqual(parseClamAvVersion("ClamAV 1.4.6/28202/Thu Nov 13 06:00:00 2026"), {
+    scanEngine: "ClamAV",
+    engineVersion: "1.4.6",
+    signatureDatabaseVersion: "28202",
+  });
+  assert.equal(parseClamAvVersion("clamav unavailable"), null);
+  assert.equal(parseClamAvVersion("ClamAV 1.4.6/0/"), null);
 });
