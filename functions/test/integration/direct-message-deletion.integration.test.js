@@ -509,6 +509,10 @@ test("delete-for-me hides media only for the requester and preserves the shared 
       messageId: directMessageId, senderUid: alice, recipientUid: bob,
       type: "image", mediaId: directMediaId, createdAt: Timestamp.now(),
     }),
+    db.collection("users").doc(bob).collection("notifications").doc(directMessageId).set({
+      notificationId: directMessageId, type: "direct_message", chatId: directChatId,
+      messageId: directMessageId, isRead: false, createdAt: Timestamp.now(),
+    }),
     roomRef.collection("members").doc(alice).set({ uid: alice, role: "owner" }),
     roomRef.collection("members").doc(bob).set({ uid: bob, role: "member" }),
     roomMessageRef.set({
@@ -521,6 +525,8 @@ test("delete-for-me hides media only for the requester and preserves the shared 
     await deleteDirectMessageForMe.run(memberRequest(bob, {
       chatId: directChatId, messageId: directMessageId,
     }));
+    assert.equal((await db.collection("users").doc(bob)
+      .collection("notifications").doc(directMessageId).get()).exists, false);
     const [directBob, directAlice] = await Promise.all([
       getDirectMessages.run(memberRequest(bob, { chatId: directChatId })),
       getDirectMessages.run(memberRequest(alice, { chatId: directChatId })),
