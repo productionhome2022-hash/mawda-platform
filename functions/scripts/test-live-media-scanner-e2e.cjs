@@ -76,6 +76,16 @@ async function waitForAssetStatus(assetRef, expectedStatus, jobRef) {
   throw new Error(`Timed out waiting for ${expectedStatus}; asset=${lastStatus}, job=${lastJobState}.`);
 }
 
+async function waitForObjectGone(file) {
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    const [exists] = await file.exists();
+    if (!exists) return;
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+  throw new Error("Scanner verdict was rejected but the quarantined object was not deleted.");
+}
+
 async function deleteExact(file) {
   const [exists] = await file.exists();
   if (!exists) return;
@@ -131,8 +141,7 @@ async function runCase(label, bytes, expectedStatus) {
       throw new Error(`Unexpected scan job state for ${label}: ${result.job?.state}`);
     }
     if (expectedStatus === "rejected") {
-      const [stillExists] = await file.exists();
-      if (stillExists) throw new Error("Malicious EICAR object remained in quarantine after rejection.");
+      await waitForObjectGone(file);
     } else {
       const safePath = result.asset?.safePreviewPath;
       if (typeof safePath !== "string" ||
