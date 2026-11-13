@@ -484,9 +484,20 @@ export const recordPrivacyAcknowledgement = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   let acknowledgement;
   try {
+    const actorType = request.data?.actorType;
+    const provider = request.auth?.token.firebase &&
+      typeof request.auth.token.firebase === "object"
+      ? (request.auth.token.firebase as Record<string, unknown>).sign_in_provider
+      : null;
+    if (actorType === "guest" && provider !== "anonymous") {
+      throw new HttpsError("permission-denied", "إقرار الضيف يتطلب جلسة ضيف موثقة.");
+    }
+    if (actorType === "member" && provider === "anonymous") {
+      throw new HttpsError("permission-denied", "يجب ترقية جلسة الضيف قبل إقرار العضوية.");
+    }
     acknowledgement = validatePrivacyAcknowledgement({
       ...(request.data ?? {}),
-      actorType: "member",
+      actorType,
     } as Record<string, unknown>);
   } catch (error) {
     const code = error instanceof Error ? error.message : "PRIVACY_ACKNOWLEDGEMENT_INVALID";
@@ -540,7 +551,11 @@ export const getPrivacyAcknowledgementStatus = onCall(async (request) => {
   const data = snapshot.data() ?? {};
   return {
     acknowledged: snapshot.exists && data.uid === uid &&
-      data.policyHash === PRIVACY_POLICY_HASH,
+      data.policyHash === PRIVACY_POLICY_HASH &&
+      data.actorType === (request.auth?.token.firebase &&
+        typeof request.auth.token.firebase === "object" &&
+        (request.auth.token.firebase as Record<string, unknown>).sign_in_provider === "anonymous"
+        ? "guest" : "member"),
     policyVersion: PRIVACY_POLICY_VERSION,
     policyHash: PRIVACY_POLICY_HASH,
   };
