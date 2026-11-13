@@ -107,15 +107,33 @@ These checks are deliberately read-only and must be completed separately from th
 - Retention and legal holds: verify the four-hour chat-media and seven-day chat-text policies, tombstone/late-upload replay cleanup, legal-hold suspension and release behavior, and operational audit expiry. A legal hold must preserve the protected asset until authorized release without exposing it to members after its normal visibility expiry.
 - Recovery: record the owner for backup monitoring, restore approval, incident response and secret rotation. Perform a restore drill only into a separate non-production project; never restore over live member data as part of this phase validation.
 
-Useful read-only inspection commands (run with an authorized operator identity and the correct non-production project; review output before sharing):
+Useful read-only inspection commands (run with an authorized operator identity and the correct non-production project; review output before sharing). These commands inspect configuration and inventory only; they do not enable PITR, create backups, change IAM, or alter log sinks:
 
 ```sh
+# Firestore PITR/database configuration, backup schedules, and actual backup inventory.
 gcloud firestore databases describe --database='(default)' --project="$GOOGLE_CLOUD_PROJECT"
 gcloud firestore backups schedules list --database='(default)' --project="$GOOGLE_CLOUD_PROJECT"
-gcloud logging sinks list --project="$GOOGLE_CLOUD_PROJECT"
+gcloud firestore backups list --project="$GOOGLE_CLOUD_PROJECT" --format='table(name,database,state,createTime)'
+
+# Project-level Data Access audit configuration and routed log sinks.
 gcloud projects get-iam-policy "$GOOGLE_CLOUD_PROJECT" --format='yaml(auditConfigs)'
+gcloud logging sinks list --project="$GOOGLE_CLOUD_PROJECT"
+
+# Confirm that recent Cloud Storage and Firestore Data Access events are actually being emitted.
+gcloud logging read 'logName:"cloudaudit.googleapis.com%2Fdata_access" AND protoPayload.serviceName="storage.googleapis.com"' --project="$GOOGLE_CLOUD_PROJECT" --freshness=7d --limit=50
+gcloud logging read 'logName:"cloudaudit.googleapis.com%2Fdata_access" AND protoPayload.serviceName="firestore.googleapis.com"' --project="$GOOGLE_CLOUD_PROJECT" --freshness=7d --limit=50
+
+# Cloud Run service identity and invocation policy.
 gcloud run services get-iam-policy "$SCANNER_SERVICE" --region="$SCANNER_REGION" --project="$GOOGLE_CLOUD_PROJECT"
 gcloud run services describe "$SCANNER_SERVICE" --region="$SCANNER_REGION" --project="$GOOGLE_CLOUD_PROJECT" --format='yaml(status.url,spec.template.spec.serviceAccountName)'
 ```
+
+Interpretation requirements:
+- A backup schedule is not evidence of a completed backup. Record the newest backup's state and creation time; require a successful state and a separately rehearsed restore into an isolated project.
+- PITR is a separate control from scheduled backups. Record the database's `pointInTimeRecoveryEnablement` value and supported recovery window.
+- Data Access audit logs are commonly disabled by default; inspect both the `auditConfigs` and actual recent log entries. A configured sink alone does not prove that Data Access logging is enabled or that records are arriving. Google documents the default behavior and the `ADMIN_READ`, `DATA_READ`, and `DATA_WRITE` log types in its [Data Access audit logging guidance](https://cloud.google.com/logging/docs/audit/configure-data-access).
+- The Firestore backup schedule and backup inventory commands are documented in the [Firestore backup guide](https://firebase.google.com/docs/firestore/backups) and the [gcloud backups list reference](https://cloud.google.com/sdk/gcloud/reference/firestore/backups/list).
+- Project-level `get-iam-policy` output does not include inherited organization/folder audit configuration. Record that limitation and have the organization administrator confirm inherited policy where applicable.
+- Never paste full IAM policies, log payloads, signed URLs, tokens, secret values, or member data into public PR comments. Redact principals where appropriate and preserve evidence in access-controlled storage.
 
 The evidence template in `docs/PHASE2_LIVE_VALIDATION_EVIDENCE_TEMPLATE.md` is the record of completion. Do not mark a check passed without an observed command/workflow result and timestamp.
