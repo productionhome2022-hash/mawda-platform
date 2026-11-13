@@ -176,7 +176,7 @@ export const receiveMediaScanVerdict = onRequest(
   if (verdict.safePreviewPath) {
     const expectedPath = `processed/${String(asset.ownerUid)}/${verdict.mediaId}/preview.webp`;
     if (verdict.safePreviewPath !== expectedPath ||
-        !["image/jpeg", "image/png", "image/webp"].includes(String(asset.detectedContentType))) {
+        !["image/jpeg", "image/png", "image/webp", "image/gif"].includes(String(asset.detectedContentType))) {
       response.status(409).send("Safe derivative path or source type mismatch");
       return;
     }
