@@ -180,7 +180,8 @@ export const receiveMediaScanVerdict = onRequest(
   response.status(200).json({ mediaId: verdict.mediaId, status: nextStatus });
   },
 );
-\nexport const createMediaUploadIntent = onCall(async (request) => {
+
+export const createMediaUploadIntent = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
   let input;
   try {
