@@ -100,13 +100,16 @@ async function scanWithClamAv(filePath) {
 }
 
 async function createSafeImageDerivative(sourcePath, request, sourceSha256) {
-  if (!["image/jpeg", "image/png", "image/webp"].includes(request.contentType)) return null;
+  if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(request.contentType)) return null;
+  const isGif = request.contentType === "image/gif";
+  const inputOptions = { failOn: "error", limitInputPixels: 40_000_000, animated: isGif };
+  const sourceMetadata = await sharp(sourcePath, inputOptions).metadata();
+  // Bound animation complexity as well as compressed input size to resist GIF bombs.
+  if (isGif && (!Number.isSafeInteger(sourceMetadata.pages) || sourceMetadata.pages < 1 || sourceMetadata.pages > 100)) {
+    throw new Error("GIF_FRAME_COUNT_EXCEEDS_SAFE_LIMIT");
+  }
   const outputPath = path.join(path.dirname(sourcePath), "preview.webp");
-  await sharp(sourcePath, {
-    failOn: "error",
-    limitInputPixels: 40_000_000,
-    animated: false,
-  }).rotate().resize({
+  await sharp(sourcePath, inputOptions).rotate().resize({
     width: 4096,
     height: 4096,
     fit: "inside",
