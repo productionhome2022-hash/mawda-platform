@@ -168,7 +168,7 @@ function requireOwner(request: { auth?: { uid: string; token: Record<string, unk
   if (token?.platformOwner !== true) {
     throw new HttpsError("permission-denied", "هذه العملية مخصصة لمالك المنصة.");
   }
-  if (!hasPlatformOwnerSession(token)) {
+  if (!hasPlatformOwnerSession(token, undefined, uid)) {
     throw new HttpsError(
       "permission-denied",
       "تتطلب العمليات السيادية جلسة مالك موثقة بالمصادقة متعددة العوامل (MFA).",
@@ -1847,7 +1847,7 @@ export const sendDirectMessage = onCall(async (request) => {
       }
       const sender = senderSnapshot.data() ?? {};
       const recipient = recipientSnapshot.data() ?? {};
-      const ownerSession = hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>);
+      const ownerSession = hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, uid);
       const isBiometricallyVerified = hasActiveBiometricVerification(sender.biometricVerification);
       try {
         assertMessageLinksAllowed(
@@ -2096,7 +2096,7 @@ export const deleteDirectMessageForEveryone = onCall(async (request) => {
 
     const data = message.data() ?? {};
     const ownerSession = hasPlatformOwnerSession(
-      (request.auth?.token ?? {}) as Record<string, unknown>,
+      (request.auth?.token ?? {}) as Record<string, unknown>, undefined, uid,
     );
     if (data.senderUid !== uid && !ownerSession) {
       throw new HttpsError("permission-denied", "يمكنك حذف رسائلك فقط.");
@@ -4317,7 +4317,7 @@ export const listRoomMembers = onCall(async (request) => {
   const roomRef = db.collection("rooms").doc(roomId.trim());
   const room = await roomRef.get();
   const isPlatformOwner = hasPlatformOwnerSession(
-    (request.auth?.token ?? {}) as Record<string, unknown>,
+    (request.auth?.token ?? {}) as Record<string, unknown>, undefined, actorUid,
   );
   if (!room.exists || (room.data()?.ownerUid !== actorUid && !isPlatformOwner)) {
     throw new HttpsError("permission-denied", "عرض أعضاء الغرفة متاح لمالكها أو مالك المنصة فقط.");
