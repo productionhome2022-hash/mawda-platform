@@ -118,6 +118,12 @@ The selected service account needs permission to read bucket metadata, create ob
 
 **Not yet executed:** this workflow is a safe execution path, not proof of a successful live GCS test. No GCP project, WIF provider, service account or bucket credentials are available to this code-edit session. Phase 2 remains open until the workflow is run successfully against a dedicated non-production bucket.
 
+## Delete-for-me notification and explicit bucket configuration (13 November 2026)
+
+- Direct delete-for-me removes the requester's direct-message notification atomically with the per-user hide marker; it does not delete the message or media object for the peer.
+- `MAWDA_MEDIA_BUCKET_NAME` is now an explicit Functions parameter. The non-production scanner deployment workflow writes the same bucket into the project-specific Functions environment, preventing the scanner and Firebase Functions from silently targeting different default buckets.
+- Full CI passed on `912f48a86a90eee851dc212d84c65c05628cb75b` in [run 43392935983](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43392935983).
+
 ## Live non-production ClamAV deployment and Firebase connection workflow
 
 A manual workflow `.github/workflows/deploy-nonproduction-media-scanner.yml` now:
