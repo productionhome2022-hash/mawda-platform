@@ -33,7 +33,7 @@ The Cloud Run runtime service account needs object-create permission for the `pr
    - `MAWDA_MEDIA_SCANNER_URL`
    - `MAWDA_MEDIA_SCANNER_CALLBACK_URL`
    - `MAWDA_MEDIA_SCANNER_PROVIDER`
-3. Build and deploy this container to Cloud Run in the same approved region. Set `SCANNER_API_TOKEN`, `SCANNER_HMAC_SECRET`, `SCANNER_CALLBACK_URL`, `SCANNER_PROVIDER`, and `GCS_BUCKET` from Secret Manager/config. Use a dedicated service account, grant `roles/run.invoker` to the Firebase Functions runtime service account, grant only the required storage object-create permission for the `processed/` derivatives, use no service-account keys, expose no shell/debug endpoints, and restrict egress where practical.
+3. Build and deploy this container to Cloud Run in the same approved region. Set `SCANNER_API_TOKEN`, `SCANNER_HMAC_SECRET`, `SCANNER_CALLBACK_URL`, `SCANNER_PROVIDER`, and `GCS_BUCKET` from Secret Manager/config. Use a dedicated service account, grant `roles/run.invoker` to the Firebase Functions runtime service account, grant only storage object-create and object-get permissions scoped to the `processed/` derivative prefix, use no service-account keys, expose no shell/debug endpoints, and restrict egress where practical.
 4. Configure Firebase Functions scanner URL and secrets to match the deployed service.
 5. Test clean EICAR-free sample images, the standard EICAR test string in a supported container (must be rejected), malformed images, oversized objects, expired signed URLs, generation mismatch, bad HMAC, stale callback, duplicate callback, scanner timeout and Cloud Run restart/retry in non-production.
 6. Do not enable member delivery for non-image media until its separate safe processing pipeline is implemented and validated.
