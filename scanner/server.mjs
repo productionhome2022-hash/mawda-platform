@@ -26,6 +26,22 @@ export function parseClamAvScanResponse(response) {
   throw new Error("CLAMAV_SCAN_DID_NOT_RETURN_A_VERDICT");
 }
 
+export function buildClamAvInstreamFrames(payload, chunkSize = 1024 * 1024) {
+  if (!Buffer.isBuffer(payload) || payload.length === 0 ||
+      !Number.isSafeInteger(chunkSize) || chunkSize < 1 || chunkSize > 1024 * 1024) {
+    throw new TypeError("Invalid ClamAV INSTREAM payload or chunk size.");
+  }
+  const frames = [Buffer.from("zINSTREAM\0")];
+  for (let offset = 0; offset < payload.length; offset += chunkSize) {
+    const part = payload.subarray(offset, Math.min(offset + chunkSize, payload.length));
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(part.length, 0);
+    frames.push(length, part);
+  }
+  frames.push(Buffer.alloc(4));
+  return frames;
+}
+
 function clamdCommand(config, command, payload) {
   return new Promise((resolve, reject) => {
     const socket = net.createConnection({ host: config.clamdHost, port: config.clamdPort });
@@ -45,17 +61,10 @@ function clamdCommand(config, command, payload) {
       if (response.includes(0)) finish(null, response.toString("utf8").replace(/\0.*$/s, ""));
     });
     socket.on("connect", () => {
-      socket.write(Buffer.from(`z${command}\0`));
       if (payload) {
-        const chunkSize = 1024 * 1024;
-        for (let offset = 0; offset < payload.length; offset += chunkSize) {
-          const part = payload.subarray(offset, Math.min(offset + chunkSize, payload.length));
-          const length = Buffer.alloc(4);
-          length.writeUInt32BE(part.length, 0);
-          socket.write(length);
-          socket.write(part);
-        }
-        socket.write(Buffer.alloc(4));
+        for (const frame of buildClamAvInstreamFrames(payload)) socket.write(frame);
+      } else {
+        socket.write(Buffer.from(`z${command}\\0`));
       }
     });
   });
