@@ -401,7 +401,7 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
       assets.where("status", "==", "expired_cleanup_in_progress")
         .orderBy("createdAt").limit(100).get(),
     ]);
-    const candidates = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+    const candidates = new Map<string, (typeof expired.docs)[number]>();
     for (const doc of [...expired.docs, ...retrying.docs]) candidates.set(doc.id, doc);
 
     let reclaimed = 0;
