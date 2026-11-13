@@ -155,15 +155,17 @@ export const receiveMediaScanVerdict = onRequest(async (request, response) => {
       ...(verdict.verdict === "malicious" ? { rejectionCode: "MALWARE_DETECTED" } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     });
-  });
-  await auditMediaAccess({
-    actorUid: "trusted-scanner",
-    mediaId: verdict.mediaId,
-    action: "media_security_scan_verdict",
-    outcome: verdict.verdict,
-    provider: verdict.provider,
-    objectGeneration: verdict.objectGeneration,
-    sha256: actualHash,
+    const auditRef = db.collection("mediaAccessAudit").doc();
+    transaction.create(auditRef, {
+      actorUid: "trusted-scanner",
+      mediaId: verdict.mediaId,
+      action: "media_security_scan_verdict",
+      outcome: verdict.verdict,
+      provider: verdict.provider,
+      objectGeneration: verdict.objectGeneration,
+      sha256: actualHash,
+      createdAt: FieldValue.serverTimestamp(),
+    });
   });
   if (verdict.verdict === "malicious") {
     await file.delete({ ignoreNotFound: true, ifGenerationMatch: Number(verdict.objectGeneration) });
@@ -451,7 +453,7 @@ export const ownerMediaPreview = onRequest(async (request, response) => {
   try { decoded = await getAuth().verifyIdToken(match[1], true); }
   catch { response.status(401).send("Authentication required"); return; }
   const actorUid = decoded.uid;
-  if (decoded.platformOwner !== true || !hasPlatformOwnerSession(decoded)) {
+  if (decoded.platformOwner !== true || !hasPlatformOwnerSession(decoded as unknown as Record<string, unknown>)) {
     await auditMediaAccess({ actorUid, action: "owner_media_preview", outcome: "denied", failureCode: "permission-denied" });
     response.status(403).send("Forbidden"); return;
   }
