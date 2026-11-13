@@ -584,6 +584,31 @@ export const dispatchMediaSecurityScan = onDocumentCreated(
  * Issues a short-lived read capability only for a selected, scanner-approved
  * profile image. Quarantine originals are never exposed to member clients.
  */
+
+/** Allows an uploader to observe only the state of their own media intake. */
+export const getMyMediaUploadStatus = onCall(async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const mediaId = typeof request.data?.mediaId === "string" ? request.data.mediaId.trim() : "";
+  if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
+    throw new HttpsError("invalid-argument", "معرف الملف غير صالح.");
+  }
+  const snapshot = await mediaDb().collection("mediaAssets").doc(mediaId).get();
+  if (!snapshot.exists) throw new HttpsError("not-found", "طلب رفع الملف غير موجود.");
+  const asset = snapshot.data() ?? {};
+  if (asset.ownerUid !== uid) {
+    throw new HttpsError("permission-denied", "لا يمكنك الاطلاع على حالة ملف لا تملكه.");
+  }
+  return {
+    mediaId,
+    purpose: asset.mediaPurpose,
+    status: asset.status,
+    processingStatus: asset.processingStatus ?? null,
+    safePreviewReady: asset.status === "security_approved" &&
+      asset.processingStatus === "safe_raster_derivative_ready",
+    rejectionCode: asset.status === "rejected" ? asset.rejectionCode ?? "MEDIA_REJECTED" : null,
+  };
+});
+
 export const getMemberProfileMediaUrl = onCall(async (request) => {
   const viewerUid = requireUid(request.auth?.uid);
   const targetUid = typeof request.data?.userId === "string" ? request.data.userId.trim() : "";
