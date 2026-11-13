@@ -94,14 +94,16 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
   let objects = 0;
   let failures = 0;
 
-  for (const purpose of ["chat", "room", "profile_album", "story"] as const) {
+  for (const purpose of ["chat", "room", "profile_album", "story", "avatar_cover"] as const) {
     const lifetimeMs = purpose === "profile_album" ? 7 * 24 * 60 * 60 * 1000
-      : purpose === "story" ? null : CHAT_MEDIA_RETENTION_MS;
+      : purpose === "story" || purpose === "avatar_cover" ? null : CHAT_MEDIA_RETENTION_MS;
     const cutoff = lifetimeMs === null ? null : Timestamp.fromMillis(Date.now() - lifetimeMs);
     const deletedPolicyStatus = purpose === "profile_album" ? "seven_day_profile_album_deleted"
-      : purpose === "story" ? "story_expired_deleted" : "four_hour_self_destructed";
+      : purpose === "story" ? "story_expired_deleted"
+        : purpose === "avatar_cover" ? "thirty_day_avatar_cover_expired" : "four_hour_self_destructed";
     const deletionAuditAction = purpose === "profile_album" ? "profile_album_media_deleted"
-      : purpose === "story" ? "story_media_expired" : "chat_media_self_destructed";
+      : purpose === "story" ? "story_media_expired"
+        : purpose === "avatar_cover" ? "avatar_cover_media_expired" : "chat_media_self_destructed";
     // Revisit content-free tombstones on a separate clock. This catches a
     // derivative written by a scanner that was already running at expiry,
     // without allowing tombstones to occupy the active-expiry query forever.
@@ -166,6 +168,40 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
         }
         const ownerUid = typeof asset.ownerUid === "string" ? asset.ownerUid : "";
         const mediaId = assetDoc.id;
+        if (purpose === "avatar_cover") {
+          const userRef = ownerUid ? db.collection("users").doc(ownerUid) : null;
+          const prepared = await db.runTransaction(async (transaction) => {
+            const [freshAsset, userSnapshot] = await Promise.all([
+              transaction.get(assetDoc.ref),
+              userRef ? transaction.get(userRef) : Promise.resolve(null),
+            ]);
+            if (!freshAsset.exists || shouldSuspendMediaDeletion(freshAsset.data() ?? {})) return false;
+            const fresh = freshAsset.data() ?? {};
+            const expiry = fresh.retentionExpiresAt;
+            if (!(expiry instanceof Timestamp) || expiry.toMillis() > Date.now()) return false;
+            const slot = fresh.profileMediaSlot;
+            if (userRef && userSnapshot?.exists && (slot === "avatar" || slot === "cover")) {
+              const user = userSnapshot.data() ?? {};
+              const mediaField = slot === "avatar" ? "avatarMediaId" : "coverMediaId";
+              const defaultField = slot === "avatar" ? "avatarUsesDefault" : "coverUsesDefault";
+              if (user[mediaField] === mediaId) {
+                transaction.update(userRef, {
+                  [mediaField]: FieldValue.delete(),
+                  [defaultField]: true,
+                  [`${slot}DefaultAppliedAt`]: FieldValue.serverTimestamp(),
+                  updatedAt: FieldValue.serverTimestamp(),
+                });
+              }
+            }
+            transaction.update(assetDoc.ref, {
+              status: "expired_cleanup_in_progress",
+              defaultFallbackAppliedAt: FieldValue.serverTimestamp(),
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+            return true;
+          });
+          if (!prepared) continue;
+        }
         const paths = new Set<string>();
         if (typeof asset.objectPath === "string") paths.add(asset.objectPath);
         if (typeof asset.safePreviewPath === "string") paths.add(asset.safePreviewPath);
@@ -202,7 +238,7 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
         } catch (error) {
           failures += 1;
           await db.collection("mediaAccessAudit").add({
-            actorUid: "system-retention", mediaId, action: purpose === "profile_album" ? "profile_album_media_delete" : purpose === "story" ? "story_media_expiry_delete_retry" : "chat_media_self_destruct",
+            actorUid: "system-retention", mediaId, action: purpose === "profile_album" ? "profile_album_media_delete" : purpose === "story" ? "story_media_expiry_delete_retry" : purpose === "avatar_cover" ? "avatar_cover_media_expiry_delete_retry" : "chat_media_self_destruct",
             outcome: "retry_required", purpose,
             failureCode: error instanceof Error ? error.name : "unknown",
             createdAt: FieldValue.serverTimestamp(),
@@ -357,7 +393,7 @@ async function handleLateExpiredChatMediaDerivative(event: Parameters<typeof onO
   if (!assetSnapshot.exists) return;
   const asset = assetSnapshot.data() ?? {};
   if (asset.ownerUid !== ownerUid ||
-      !["chat", "room", "profile_album", "story"].includes(String(asset.mediaPurpose)) ||
+      !["chat", "room", "profile_album", "story", "avatar_cover"].includes(String(asset.mediaPurpose)) ||
       asset.legalHoldStatus === "active" ||
       !isKnownDeletedMediaObjectPath(asset, objectPath, ownerUid, mediaId)) return;
 
