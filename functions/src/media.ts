@@ -489,8 +489,12 @@ export const createMediaUploadIntent = onCall(async (request) => {
       declaredContentType: input.contentType,
       declaredSizeBytes: input.declaredSizeBytes,
       mediaCategory: policy.category,
-      retentionPolicyStatus: "owner_approval_required",
-      retentionExpiresAt: null,
+      retentionPolicyStatus: input.purpose === "chat" || input.purpose === "room"
+        ? "four_hour_self_destruct"
+        : "owner_approval_required",
+      retentionExpiresAt: input.purpose === "chat" || input.purpose === "room"
+        ? Timestamp.fromMillis(Date.now() + 4 * 60 * 60 * 1000)
+        : null,
       status: "upload_authorized",
       uploadUrlExpiresAt: new Date(expiresAt),
       createdAt: now,
