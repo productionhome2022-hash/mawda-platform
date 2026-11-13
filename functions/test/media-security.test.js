@@ -102,4 +102,22 @@ test("role-aware attachment policy reserves documents for the verified platform 
   assert.equal(owner("application/pdf", "story"), false);
   assert.equal(member("audio/mpeg", "story"), false);
   assert.equal(owner("application/x-msdownload", "chat"), false);
+
+  // Other office/document formats are intentionally fail-closed until their
+  // signature validation and safe-processing pipeline is implemented.
+  for (const type of [
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "text/plain",
+    "application/rtf",
+  ]) {
+    assert.equal(mediaPolicyFor(type), null, `unsupported document type: ${type}`);
+    assert.equal(member(type, "chat"), false);
+    assert.equal(owner(type, "chat"), false);
+    assert.equal(owner(type, "room"), false);
+  }
 });
