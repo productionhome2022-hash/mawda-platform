@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../services/super_admin_security_service.dart';
 import 'owner_chat_participation_screen.dart';
 import 'owner_coin_purchase_screen.dart';
+import 'owner_room_live_stream_screen.dart';
 import 'safety_review_screen.dart';
 import 'room_rental_pricing_screen.dart';
 import 'economy_pricing_screen.dart';
@@ -1283,6 +1284,13 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
             builder: (_) => const SafetyReviewScreen(),
           )),
           icon: const Icon(Icons.gavel_outlined),
+        ),
+        IconButton(
+          tooltip: 'إرسال بث مباشر إلى غرفة',
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => const OwnerRoomLiveStreamScreen(),
+          )),
+          icon: const Icon(Icons.live_tv_outlined),
         ),
         IconButton(
           tooltip: 'تحديث المؤشرات',
