@@ -2339,12 +2339,15 @@ export const placeMessageLegalHold = onCall(async (request) => {
     const messageSnapshot = await transaction.get(messageRef);
     if (!messageSnapshot.exists) throw new HttpsError("not-found", "الرسالة غير موجودة.");
     const message = messageSnapshot.data() ?? {};
-    const hasMedia = ["mediaId", "mediaIds", "attachments", "storagePath", "objectPath"]
+    const hasMedia = ["mediaId", "mediaIds", "media", "attachment", "attachments", "storagePath", "objectPath"]
       .some((field) => {
         const value = message[field];
-        return Array.isArray(value) ? value.length > 0 : typeof value === "string" && value.length > 0;
+        if (Array.isArray(value)) return value.length > 0;
+        if (typeof value === "string") return value.length > 0;
+        return typeof value === "object" && value !== null && Object.keys(value).length > 0;
       });
-    if ((message.type !== undefined && message.type !== "text") || hasMedia) {
+    const messageType = message.type ?? message.messageType;
+    if ((messageType !== undefined && messageType !== "text") || hasMedia) {
       throw new HttpsError("failed-precondition", "يجب إنشاء حجز مستقل لكل ملف وسائط مرتبط بالرسالة.");
     }
     if (message.legalHoldStatus === "active") {
