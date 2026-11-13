@@ -166,3 +166,33 @@ The same current workflow also passed the seven-day chat text retention, four-ho
 - Real device, live Cloud Run/GCS, signed URL expiry/replay, bucket generation/version deletion, backup/PITR, CDN/cache and restore tests remain open. Retention schedules remain disabled. No production deployment or destructive operation has been performed.
 
 **Phase 2 remains open pending exact-head CI for the expanded legal-hold test and the external non-production/device acceptance gates.**
+
+
+## Exact-head full phase-one/phase-two validation reconciliation — 13 November 2026
+
+The latest branch head has now been checked directly; this replaces the earlier “pending exact-head CI” status in historical entries above.
+
+- Branch: `codex/mawda-full-platform-implementation`.
+- Tested commit: `5d89d4a3fb7deb607535afab41eae5c1f510fdfe`.
+- Run: [43446631493](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43446631493) — `completed / success`; all three jobs succeeded.
+- Scanner: source/security checks, container build, real GIF/audio/video/PDF processor tests in the built image, and EICAR detection passed.
+- Backend: compile/unit tests plus media authorization/audit, seven-day chat retention, message deletion, owner audit export, expanded media legal hold/release (including all derivative classes and late replay), profile media lifecycle, message legal hold/resumed retention, and Firestore/Storage rules emulator tests passed.
+- Flutter: strict lockfile dependency install, analysis, test suite, and Web release build passed.
+- Artifacts were generated for the Web build, Functions build and Flutter lockfile. Their existence is not a deployment or a live-service test.
+
+### What is now complete in automated CI
+
+The exact-head run verifies the current code snapshot across the scanner, backend and Flutter build layers. The expanded legal-hold test that was pending in the previous update is included and passed. The typed derivative processors and the chat UI/service path for supported images, GIF, existing audio files, video and owner-originated PDF are included in this green snapshot.
+
+### What still prevents phase closure
+
+- Real GCS signed HTTP URL behavior, replay/expiry, exact-generation permanent deletion and bucket version/soft-delete controls require a dedicated disposable non-production GCP bucket and configured Workload Identity Federation. The manual workflow is present but has not been run; no live GCS result is claimed.
+- Live Cloud Run scanner deployment/E2E, IAM, Secret Manager, callback and operational monitoring/retry verification are not proven by the isolated Docker tests.
+- Backup/PITR, exports, replicas, caches/CDN and restore/deletion evidence are not proven. This is particularly material to the approved four-hour chat-media and seven-day message-text deletion policy.
+- Android/iOS physical-device acceptance has not been run. Flutter Web build success is not native-device acceptance.
+- Voice-note recording and in-app audio/video/PDF players remain incomplete. Existing audio files can be selected; audio/video/PDF open externally. Only PDF is currently supported for owner-originated documents; Office formats remain denied.
+- The broader Phase 1 foundation still has explicit incomplete product/legal items in PR #2: final localized privacy/legal policy and jurisdictional review; guest lifecycle; push and full abuse/block/report/appeal/age-safety flows; room rental billing and room lifecycle/voice-video/events; remaining special-store entitlements and real-money payment/refund operations; biometric capture/provider and recurring verification; immutable 24-month owner/security audit archive/checkpoint/restore; production Firebase options and owner MFA recovery; monitoring, penetration, accessibility, performance and device verification.
+
+### Operational safety and decision
+
+The automated CI gate is green on the exact current head; phase 1/2 as a whole is **not yet accepted/closed** while the above non-production and product gates remain open. The GCS manual workflow requires owner-provisioned non-production WIF configuration and a disposable bucket. No production deployment, merge, live Firebase mutation, retention-worker activation or destructive purge has been performed. Keep PR #2 draft/open and development isolated until those gates have evidence and the owner approves the next release action.
