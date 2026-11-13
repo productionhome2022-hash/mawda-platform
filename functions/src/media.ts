@@ -60,16 +60,18 @@ export async function deleteMediaAssetForMessage(
     if (data.legalHoldStatus === "active") {
       throw new HttpsError("failed-precondition", "الوسيط خاضع لحجز قانوني نشط.");
     }
-    if (["manually_deleted", "self_destructed"].includes(String(data.status))) return false;
+    if (data.status === "self_destructed") return false;
     const expectedObjectPath = `quarantine/${expectedOwnerUid}/${mediaId}`;
-    if (data.objectPath !== expectedObjectPath) {
+    const expectedPreviewPath = `processed/${expectedOwnerUid}/${mediaId}/preview.webp`;
+    if (data.status !== "manually_deleted" && data.objectPath !== expectedObjectPath) {
       throw new HttpsError("failed-precondition", "مسار تخزين الوسيط غير مطابق لمعرفه ومالكه.");
     }
-    const expectedPreviewPath = `processed/${expectedOwnerUid}/${mediaId}/preview.webp`;
-    if (typeof data.safePreviewPath === "string" &&
+    if (data.status !== "manually_deleted" &&
+        typeof data.safePreviewPath === "string" &&
         data.safePreviewPath !== expectedPreviewPath) {
       throw new HttpsError("failed-precondition", "مسار معاينة الوسيط غير مطابق للمسار الآمن المتوقع.");
     }
+    if (data.status === "manually_deleted") return true;
     transaction.update(assetRef, {
       status: "manual_deletion_pending",
       retentionExpiresAt: Timestamp.now(),
@@ -80,11 +82,21 @@ export async function deleteMediaAssetForMessage(
   });
   if (!shouldDelete) return;
 
-  const paths = new Set<string>([String(assetData.objectPath)]);
-  const safePreviewPath = assetData.safePreviewPath;
-  if (typeof safePreviewPath === "string") paths.add(safePreviewPath);
-  const deterministicPreview = `processed/${expectedOwnerUid}/${mediaId}/preview.webp`;
-  paths.add(deterministicPreview);
+  const paths = new Set<string>();
+  if (typeof assetData.objectPath === "string") paths.add(assetData.objectPath);
+  if (typeof assetData.safePreviewPath === "string") paths.add(assetData.safePreviewPath);
+  const deletedPaths = Array.isArray(assetData.deletedObjectPaths)
+    ? assetData.deletedObjectPaths
+    : [];
+  for (const candidate of deletedPaths) {
+    if (typeof candidate !== "string" || candidate.startsWith("/") ||
+        candidate.split("/").includes("..")) {
+      throw new HttpsError("failed-precondition", "توجد مسارات محذوفة غير موثوقة؛ أوقفنا الحذف.");
+    }
+    paths.add(candidate);
+  }
+  paths.add(`quarantine/${expectedOwnerUid}/${mediaId}`);
+  paths.add(`processed/${expectedOwnerUid}/${mediaId}/preview.webp`);
   const derivedPaths = Array.isArray(assetData.derivedObjectPaths)
     ? assetData.derivedObjectPaths
     : [];
@@ -124,7 +136,7 @@ export async function deleteMediaAssetForMessage(
       }
       const tombstone: Record<string, unknown> = {};
       for (const key of Object.keys(latest.data() ?? {})) {
-        if (!["mediaId", "ownerUid", "uploaderType", "mediaPurpose", "createdAt", "retentionExpiresAt"].includes(key)) {
+        if (!["mediaId", "ownerUid", "uploaderType", "mediaPurpose", "createdAt", "retentionExpiresAt", "deletedObjectPaths"].includes(key)) {
           tombstone[key] = FieldValue.delete();
         }
       }
