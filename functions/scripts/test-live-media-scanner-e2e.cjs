@@ -82,10 +82,8 @@ async function waitForAuditAction(mediaId, action) {
   while (Date.now() < deadline) {
     const snapshot = await db.collection("mediaAccessAudit")
       .where("mediaId", "==", mediaId)
-      .where("action", "==", action)
-      .limit(1)
       .get();
-    if (!snapshot.empty) return;
+    if (snapshot.docs.some((doc) => doc.data().action === action)) return;
     await new Promise((resolve) => setTimeout(resolve, 1_000));
   }
   throw new Error(`Missing audit action after live replay cleanup: ${action}`);
