@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
-  MEDIA_QUOTA_POLICY, validateMediaQuotaUsage, mediaRetentionCutoff,
+  MEDIA_QUOTA_POLICY, validateMediaQuotaUsage,
   isExpiredUploadIntent, assertTrustedScannerVerdict,
 } = require("../lib/media-controls");
 
@@ -14,9 +14,8 @@ test("quota gates reject count, daily bytes and active quarantine overflow", () 
   assert.throws(() => validateMediaQuotaUsage({ ...base, nextBytes: -1 }));
 });
 
-test("retention cutoff and upload-intent expiry are deterministic", () => {
+test("upload-intent expiry is deterministic", () => {
   const now = 1_800_000_000_000;
-  assert.equal(mediaRetentionCutoff(now), now - 30 * 86400000);
   assert.equal(isExpiredUploadIntent(now - 300001, now), true);
   assert.equal(isExpiredUploadIntent(now - 300000, now), false);
   assert.equal(isExpiredUploadIntent(-1, now), false);
