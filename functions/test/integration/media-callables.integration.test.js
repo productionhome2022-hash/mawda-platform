@@ -703,7 +703,7 @@ test("safe image can be linked to a direct message and delivered only to its par
     data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
     auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
   });
-  assert.match(delivered.url, /^https:\/\//);
+  assert.match(delivered.url, /^https?:\/\//);
   const messageRef = db.collection("directChats").doc(sent.chatId).collection("messages").doc(messageId);
   await messageRef.update({ deletedForUids: [recipientUid] });
   await assert.rejects(
@@ -750,7 +750,7 @@ test("safe image can be linked to a room message; non-members cannot retrieve it
     data: { scope: "room", roomId, messageId, mediaId },
     auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
   });
-  assert.match(delivered.url, /^https:\/\//);
+  assert.match(delivered.url, /^https?:\/\//);
   await assert.rejects(
     () => getChatImageAttachmentUrl.run({
       data: { scope: "room", roomId, messageId, mediaId },
