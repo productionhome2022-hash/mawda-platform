@@ -318,7 +318,7 @@ test("owner inspection URL is owner/MFA gated, attachment-only and expires after
     uploaderType: "member", declaredContentType: "image/png",
     detectedContentType: "image/png", sizeBytes: bytes.length,
     storageGeneration: String(metadata.generation),
-    status: "pending_security_scan",
+    status: "security_approved",
   });
 
   const result = await getOwnerMediaInspectionUrl.run(ownerRequest(uid, { mediaId }));
@@ -334,6 +334,29 @@ test("owner inspection URL is owner/MFA gated, attachment-only and expires after
     event.action === "owner_media_inspection_url_issued" && event.outcome === "success"));
 });
 
+test("owner cannot download a pending original before a trusted clean verdict", async () => {
+  const uid = `http-owner-pending-${Date.now()}-${Math.random()}`;
+  const mediaId = randomUUID();
+  const objectPath = `quarantine/fixture/${mediaId}`;
+  await getStorage().bucket().file(objectPath).save(Buffer.from("unscanned fixture"), {
+    metadata: { contentType: "image/png" },
+  });
+  await db.collection("mediaAssets").doc(mediaId).create({
+    mediaId, ownerUid: "uploader-fixture", objectPath,
+    uploaderType: "member", declaredContentType: "image/png",
+    detectedContentType: "image/png", sizeBytes: 17,
+    storageGeneration: "1", status: "pending_security_scan",
+  });
+  const callsBefore = signedUrlRequests.length;
+  await assert.rejects(
+    () => getOwnerMediaInspectionUrl.run(ownerRequest(uid, { mediaId })),
+    (error) => error && error.code === "failed-precondition",
+  );
+  assert.equal(signedUrlRequests.length, callsBefore);
+  assert.ok((await auditEvents(uid)).some((event) =>
+    event.action === "owner_media_inspection_result" && event.outcome === "denied_or_failed"));
+});
+
 test("owner inspection rejects stale storage generations and audits the denial", async () => {
   const uid = `http-owner-stale-${Date.now()}-${Math.random()}`;
   const mediaId = randomUUID();
@@ -344,7 +367,7 @@ test("owner inspection rejects stale storage generations and audits the denial",
   await db.collection("mediaAssets").doc(mediaId).create({
     mediaId, ownerUid: "uploader-fixture", objectPath,
     uploaderType: "member", declaredContentType: "image/png",
-    storageGeneration: "1", status: "pending_security_scan",
+    storageGeneration: "1", status: "security_approved",
   });
   await assert.rejects(
     () => getOwnerMediaInspectionUrl.run(ownerRequest(uid, { mediaId })),
