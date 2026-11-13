@@ -14,13 +14,15 @@ import 'safety_center_screen.dart';
 class DirectChatScreen extends StatefulWidget {
   const DirectChatScreen({
     super.key,
-    required this.peerUid,
-    required this.peerName,
+    this.peerUid = '',
+    this.peerName = 'إدارة منصة مودة',
+    this.chatId,
     required this.currentUserId,
   });
 
   final String peerUid;
   final String peerName;
+  final String? chatId;
   final String currentUserId;
 
   @override
@@ -37,6 +39,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   bool _refreshing = false;
   bool _peerBlocked = false;
   bool _loadingBlockStatus = true;
+  String _resolvedPeerUid = '';
   Timer? _refreshTimer;
 
   @override
@@ -59,13 +62,14 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
   Future<void> _loadBlockStatus() async {
     try {
+      await _messagesFuture;
       final result = await FirebaseFunctions.instance
           .httpsCallable('getMyBlockedUsers')
           .call();
       final data = Map<String, dynamic>.from(result.data as Map);
       final blocked = (data['blockedUids'] as List<dynamic>? ?? const [])
           .whereType<String>()
-          .contains(widget.peerUid);
+          .contains(_resolvedPeerUid);
       if (mounted) setState(() {
         _peerBlocked = blocked;
         _loadingBlockStatus = false;
@@ -96,7 +100,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     setState(() => _loadingBlockStatus = true);
     try {
       await FirebaseFunctions.instance.httpsCallable('setMemberBlock').call({
-        'targetUid': widget.peerUid,
+        'targetUid': _resolvedPeerUid,
         'blocked': nextBlocked,
       });
       if (!mounted) return;
@@ -128,12 +132,16 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   Future<Map<String, dynamic>> _loadMessages() async {
     final response = await FirebaseFunctions.instance
         .httpsCallable('getDirectMessages')
-        .call(<String, dynamic>{'peerUid': widget.peerUid});
+        .call(<String, dynamic>{
+          if (widget.chatId != null) 'chatId': widget.chatId,
+          if (widget.chatId == null) 'peerUid': widget.peerUid,
+        });
     final data = Map<String, dynamic>.from(response.data as Map);
     final messages = (data['messages'] as List<dynamic>? ?? const [])
         .whereType<Map>()
         .map((message) => Map<String, dynamic>.from(message))
         .toList(growable: false);
+    _resolvedPeerUid = data['peerUid'] as String? ?? widget.peerUid;
     final chatId = data['chatId'] as String?;
     if (chatId != null && messages.isNotEmpty) {
       // Only the active participant UI marks its own conversation read.
@@ -170,7 +178,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     setState(() => _sending = true);
     try {
       await FirebaseFunctions.instance.httpsCallable('sendDirectMessage').call({
-        'recipientUid': widget.peerUid,
+        'recipientUid': _resolvedPeerUid,
         'text': text,
         'clientMessageId': const Uuid().v4(),
       });
@@ -263,7 +271,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       );
       await _mediaService.sendChatMediaAttachment(
         scope: 'direct',
-        recipientUid: widget.peerUid,
+        recipientUid: _resolvedPeerUid,
         mediaId: mediaId,
         clientMessageId: const Uuid().v4(),
       );
@@ -545,7 +553,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
           IconButton(
             tooltip: 'الإبلاغ عن العضو',
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => SafetyCenterScreen(initialTargetUid: widget.peerUid),
+              builder: (_) => SafetyCenterScreen(initialTargetUid: _resolvedPeerUid),
             )),
             icon: const Icon(Icons.flag_outlined),
           ),
