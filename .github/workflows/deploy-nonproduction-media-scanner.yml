@@ -101,6 +101,23 @@ jobs:
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Set up Node.js for Functions and live GCS checks
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.20.2"
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install Functions dependencies and verify real bucket deletion safeguards
+        working-directory: functions
+        env:
+          GOOGLE_CLOUD_PROJECT: ${{ inputs.project_id }}
+          MAWDA_MEDIA_TEST_BUCKET: ${{ inputs.bucket_name }}
+          MAWDA_RETENTION_GCS_TEST: "1"
+        run: |
+          npm ci --no-audit --no-fund
+          npm run test:retention-gcs
+
       - name: Enable required Google APIs and verify secrets/service accounts
         env:
           PROJECT_ID: ${{ inputs.project_id }}
@@ -247,7 +264,6 @@ jobs:
           printf 'MAWDA_MEDIA_SCANNER_URL=%s\n' "$SCANNER_SERVICE_URL/scan" >> ".env.$PROJECT_ID"
           printf 'MAWDA_MEDIA_SCANNER_CALLBACK_URL=%s\n' "$CALLBACK_URL" >> ".env.$PROJECT_ID"
           printf 'MAWDA_MEDIA_SCANNER_PROVIDER=clamav-mawadda-gateway\n' >> ".env.$PROJECT_ID"
-          npm ci
           npm run build
           npm install --global firebase-tools
           cd ..
