@@ -90,6 +90,8 @@ jobs:
         run: npm run test:owner-audit-export-integration
       - name: Run media legal hold and release integration tests
         run: npm run test:media-legal-hold-integration
+      - name: Run avatar and cover lifecycle integration tests
+        run: npm run test:profile-media-integration
       - name: Run Firestore and Storage rules emulator tests
         run: npm run test:rules
 
