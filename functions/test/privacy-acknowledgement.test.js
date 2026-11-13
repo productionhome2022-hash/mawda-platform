@@ -60,15 +60,21 @@ test("Flutter privacy notice version and body hash match the backend policy cons
   const versionStart = frontendSource.indexOf(versionMarker);
   const versionEnd = frontendSource.indexOf("';", versionStart);
   const hashMarker = "const mawdaPrivacyPolicyHash =";
-  const hashStart = frontendSource.indexOf("'", frontendSource.indexOf(hashMarker)) + 1;
+  const hashMarkerIndex = frontendSource.indexOf(hashMarker);
+  const hashStart = frontendSource.indexOf("'", hashMarkerIndex) + 1;
   const hashEnd = frontendSource.indexOf("'", hashStart);
   const bodyMarker = "const mawdaPrivacyNoticeArabic = '''";
-  const bodyStart = frontendSource.indexOf(bodyMarker) + bodyMarker.length;
+  const bodyMarkerIndex = frontendSource.indexOf(bodyMarker);
+  const bodyStart = bodyMarkerIndex + bodyMarker.length;
   const bodyEnd = frontendSource.indexOf("'''", bodyStart);
 
   assert.notEqual(versionStart, -1, "Flutter policy version must be present");
-  assert.notEqual(hashStart, 0, "Flutter policy hash must be present");
-  assert.notEqual(bodyStart, bodyMarker.length - 1, "Flutter Arabic policy body must be present");
+  assert.notEqual(versionEnd, -1, "Flutter policy version must be terminated");
+  assert.notEqual(hashMarkerIndex, -1, "Flutter policy hash must be present");
+  assert.notEqual(hashStart, 0, "Flutter policy hash value must be present");
+  assert.notEqual(hashEnd, -1, "Flutter policy hash must be terminated");
+  assert.notEqual(bodyMarkerIndex, -1, "Flutter Arabic policy body must be present");
+  assert.notEqual(bodyEnd, -1, "Flutter Arabic policy body must be terminated");
   const version = frontendSource.slice(versionStart + versionMarker.length, versionEnd);
   const hash = frontendSource.slice(hashStart, hashEnd);
   const body = frontendSource.slice(bodyStart, bodyEnd);
