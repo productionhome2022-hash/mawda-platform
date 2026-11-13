@@ -20,6 +20,8 @@ Provision these Secret Manager secrets in the Firebase/GCP project:
 - `MAWDA_MEDIA_SCANNER_BEARER_TOKEN` — random high-entropy secret, at least 32 characters.
 - `MAWDA_MEDIA_SCANNER_HMAC_SECRET` — separate random high-entropy secret, at least 32 characters.
 
+Create the Firebase Functions secrets interactively in the non-production project with `firebase functions:secrets:set MAWDA_MEDIA_SCANNER_BEARER_TOKEN --project NONPROD_PROJECT_ID` and `firebase functions:secrets:set MAWDA_MEDIA_SCANNER_HMAC_SECRET --project NONPROD_PROJECT_ID`. Enter the same secret values into the Cloud Run Secret Manager versions; do not place them in shell history or commit them.
+
 Bind the same secret values to both the Cloud Run service and Firebase Functions. Never commit secret values or put them in source-controlled environment files.
 
 Set Functions parameters (for the intended non-production project first):
@@ -37,7 +39,7 @@ Cloud Run environment:
 Run only after a dedicated non-production Firebase/GCP project and bucket are confirmed:
 
 ```sh
-gcloud builds submit --tag REGION-docker.pkg.dev/PROJECT_ID/mawadda/media-scanner:phase2 .
+gcloud builds submit --tag REGION-docker.pkg.dev/PROJECT_ID/mawadda/media-scanner:phase2 --file scanner/Dockerfile .
 gcloud run deploy mawadda-media-scanner \
   --image REGION-docker.pkg.dev/PROJECT_ID/mawadda/media-scanner:phase2 \
   --region REGION \
@@ -47,7 +49,7 @@ gcloud run deploy mawadda-media-scanner \
   --set-secrets MAWDA_MEDIA_SCANNER_BEARER_TOKEN=MAWDA_MEDIA_SCANNER_BEARER_TOKEN:latest,MAWDA_MEDIA_SCANNER_HMAC_SECRET=MAWDA_MEDIA_SCANNER_HMAC_SECRET:latest
 ```
 
-Grant `roles/run.invoker` on this Cloud Run service to the exact service account used by `dispatchMediaSecurityScan`. Configure the two Firebase Functions secrets and the three Functions parameters above. Confirm the deployed callback URL and Cloud Run URL before enabling uploads in that environment.
+Grant `roles/run.invoker` on this Cloud Run service to the exact service account used by `dispatchMediaSecurityScan`, for example with `gcloud run services add-iam-policy-binding mawadda-media-scanner --region REGION --member=serviceAccount:FUNCTIONS_SERVICE_ACCOUNT --role=roles/run.invoker`. Configure the two Firebase Functions secrets and the three Functions parameters above. Confirm the deployed callback URL and Cloud Run URL before enabling uploads in that environment.
 
 ## Verification still required
 
