@@ -3,7 +3,6 @@ const path = require("node:path");
 const { promisify } = require("node:util");
 const { execFile } = require("node:child_process");
 const { createHash } = require("node:crypto");
-const sharp = require("sharp");
 
 const execFileAsync = promisify(execFile);
 const LIMITS = Object.freeze({
@@ -99,6 +98,7 @@ async function sha256StorageObject(file) {
 }
 
 async function processGif({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
+  const sharp = require("sharp");
   const input = { failOn: "error", limitInputPixels: 40_000_000, animated: true };
   const metadata = await sharp(sourcePath, input).metadata();
   const pages = Number(metadata.pages);
