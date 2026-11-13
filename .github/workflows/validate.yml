@@ -81,6 +81,8 @@ jobs:
         run: npm run test:retention-integration
       - name: Run direct-message deletion authorization and erasure integration tests
         run: npm run test:message-deletion-integration
+      - name: Run owner audit export pagination and redaction integration tests
+        run: npm run test:owner-audit-export-integration
       - name: Run Firestore and Storage rules emulator tests
         run: npm run test:rules
 
