@@ -969,6 +969,83 @@ export const resetMemberProfileMedia = onCall(async (request) => {
 });
 
 
+/** Publishes a story only after its media passed the trusted malware pipeline. */
+export const createMemberStory = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const mediaId = typeof request.data?.mediaId === "string" ? request.data.mediaId.trim() : "";
+  if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
+    throw new HttpsError("invalid-argument", "معرف وسائط القصة غير صالح.");
+  }
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const storyRef = db.collection("stories").doc();
+  const nowMs = Date.now();
+  let expiresAtMs = 0;
+  await db.runTransaction(async (transaction) => {
+    const assetSnapshot = await transaction.get(assetRef);
+    if (!assetSnapshot.exists) throw new HttpsError("not-found", "وسائط القصة غير موجودة.");
+    const asset = assetSnapshot.data() ?? {};
+    const expiry = asset.retentionExpiresAt;
+    if (asset.ownerUid !== uid || asset.mediaPurpose !== "story" ||
+        asset.status !== "security_approved" ||
+        !(expiry instanceof Timestamp) || expiry.toMillis() <= nowMs) {
+      throw new HttpsError("failed-precondition", "لا يمكن نشر قصة قبل اجتياز فحص الوسائط أو بعد انتهاء صلاحيتها.");
+    }
+    expiresAtMs = expiry.toMillis();
+    transaction.create(storyRef, {
+      ownerUid: uid,
+      mediaId,
+      status: "active",
+      createdAt: FieldValue.serverTimestamp(),
+      expiresAt: expiry,
+    });
+    transaction.update(assetRef, {
+      storyDocumentId: storyRef.id,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+  await db.collection("mediaAccessAudit").add({
+    actorUid: uid, mediaId, action: "member_story_created",
+    storyId: storyRef.id, outcome: "success",
+    createdAt: FieldValue.serverTimestamp(),
+    expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
+  });
+  return { storyId: storyRef.id, mediaId, expiresAt: expiresAtMs };
+});
+
+/** Returns active stories only; private profiles are visible to their owner only. */
+export const listMemberStories = onCall(async (request) => {
+  const viewerUid = requireAuthenticatedUid(request.auth?.uid);
+  const requestedUid = typeof request.data?.userId === "string" ? request.data.userId.trim() : "";
+  if (requestedUid.length > 128) throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+  const now = Timestamp.now();
+  let query = db.collection("stories").where("status", "==", "active")
+    .where("expiresAt", ">", now).orderBy("expiresAt", "asc").limit(50);
+  if (requestedUid) query = query.where("ownerUid", "==", requestedUid) as typeof query;
+  const snapshot = await query.get();
+  const ownerIds = [...new Set(snapshot.docs.map((doc) => String(doc.data().ownerUid ?? "")))];
+  const users = new Map<string, Record<string, unknown>>();
+  for (const ownerId of ownerIds) {
+    const userSnapshot = await db.collection("users").doc(ownerId).get();
+    if (userSnapshot.exists) users.set(ownerId, userSnapshot.data() ?? {});
+  }
+  const stories = snapshot.docs.flatMap((doc) => {
+    const data = doc.data();
+    const ownerUid = String(data.ownerUid ?? "");
+    const owner = users.get(ownerUid);
+    if (!owner || (viewerUid !== ownerUid && owner.profileVisibility !== "public")) return [];
+    return [{
+      storyId: doc.id,
+      ownerUid,
+      displayName: typeof owner.displayName === "string" ? owner.displayName : "Mawda Member",
+      mediaId: data.mediaId,
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : null,
+      expiresAt: data.expiresAt instanceof Timestamp ? data.expiresAt.toMillis() : null,
+    }];
+  });
+  return { stories };
+});
+
+
 export const setMemberProfileVisibility = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const visibility = request.data?.visibility;
