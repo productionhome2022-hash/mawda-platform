@@ -291,6 +291,21 @@ async function handleScan(request, response) {
   }
 }
 
+const callbackEndpoint = (() => {
+  try { return new URL(CALLBACK_URL); } catch { return null; }
+})();
+if (API_TOKEN.length < 32 || HMAC_SECRET.length < 32 || !BUCKET_NAME ||
+    !callbackEndpoint || callbackEndpoint.protocol !== "https:" ||
+    !callbackEndpoint.hostname.endsWith(".cloudfunctions.net") ||
+    callbackEndpoint.pathname !== "/receiveMediaScanVerdict" ||
+    callbackEndpoint.search || callbackEndpoint.hash ||
+    !Number.isSafeInteger(MAX_DOWNLOAD_BYTES) || MAX_DOWNLOAD_BYTES <= 0 ||
+    MAX_DOWNLOAD_BYTES > 100 * 1024 * 1024 ||
+    !Number.isSafeInteger(SCAN_TIMEOUT_MS) || SCAN_TIMEOUT_MS <= 0 ||
+    !Number.isSafeInteger(MAX_SIGNATURE_AGE_MS) || MAX_SIGNATURE_AGE_MS <= 0) {
+  throw new Error("Scanner runtime configuration is incomplete or outside approved safety bounds.");
+}
+
 const server = http.createServer(async (request, response) => {
   if (request.method === "GET" && request.url === "/healthz") {
     const signatures = await signatureDatabaseStatus();
