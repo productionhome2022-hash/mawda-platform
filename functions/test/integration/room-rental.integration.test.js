@@ -114,3 +114,41 @@ test("member room rental debits atomically, renews idempotently, transfers and c
     else await settingsRef.delete().catch(() => undefined);
   }
 });
+
+
+test("scheduled rental expiry freezes for grace period then closes without deleting records", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const roomId = `expiry_room_${tag}`;
+  const ownerUid = `expiry_owner_${tag}`;
+  const roomRef = db.collection("rooms").doc(roomId);
+  const notificationQuery = db.collection("notifications").where("userId", "==", ownerUid);
+  const seededNotifications = await notificationQuery.get();
+  const oldNotificationIds = new Set(seededNotifications.docs.map((doc) => doc.id));
+  const { processExpiredRoomRentals } = require("../../lib/index");
+  try {
+    await roomRef.set({
+      roomId, ownerUid, isRented: true, status: "active",
+      expiresAt: require("firebase-admin/firestore").Timestamp.fromMillis(Date.now() - 1000),
+    });
+    await processExpiredRoomRentals.run();
+    let room = (await roomRef.get()).data();
+    assert.equal(room.status, "frozen");
+    assert.ok(room.freezeExpiresAt.toMillis() > Date.now());
+    await roomRef.update({
+      freezeExpiresAt: require("firebase-admin/firestore").Timestamp.fromMillis(Date.now() - 1000),
+    });
+    await processExpiredRoomRentals.run();
+    room = (await roomRef.get()).data();
+    assert.equal(room.status, "closed");
+    assert.equal(room.closeReason, "rental_expired");
+    const notifications = await notificationQuery.get();
+    assert.ok(notifications.docs.some((doc) => !oldNotificationIds.has(doc.id)));
+    assert.ok((await roomRef.get()).exists);
+  } finally {
+    const notifications = await notificationQuery.get();
+    await Promise.all(notifications.docs.filter((doc) => !oldNotificationIds.has(doc.id))
+      .map((doc) => doc.ref.delete()));
+    await roomRef.delete().catch(() => undefined);
+  }
+});
