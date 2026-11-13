@@ -76,6 +76,17 @@ function isSignatureDatabaseFresh(lastUpdatedMs, nowMs = Date.now(), maxAgeMs = 
     nowMs - lastUpdatedMs <= maxAgeMs;
 }
 
+function parseClamAvVersion(output) {
+  if (typeof output !== "string") return null;
+  const match = output.trim().match(/^ClamAV\\s+(\\d+(?:\\.\\d+){1,2})\\/(\\d+)\\/.+$/);
+  if (!match) return null;
+  return {
+    scanEngine: "ClamAV",
+    engineVersion: match[1],
+    signatureDatabaseVersion: match[2],
+  };
+}
+
 function sanitizeScannerError(error) {
   const message = error instanceof Error ? error.message : String(error ?? "");
   const fixed = new Set([
@@ -91,5 +102,5 @@ function sanitizeScannerError(error) {
 
 module.exports = {
   equalSecret, validateScanRequest, isSafeDerivativeMetadata, sanitizeScannerError,
-  isSignatureDatabaseFresh,
+  isSignatureDatabaseFresh, parseClamAvVersion,
 };
