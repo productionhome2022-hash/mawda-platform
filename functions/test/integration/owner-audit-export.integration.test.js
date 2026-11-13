@@ -14,6 +14,7 @@ function ownerRequest(data = {}) {
       uid: "audit-export-owner",
       token: {
         platformOwner: true,
+        platformOwnerUid: "audit-export-owner",
         auth_time: Math.floor(Date.now() / 1000),
         firebase: { sign_in_second_factor: "phone" },
       },
