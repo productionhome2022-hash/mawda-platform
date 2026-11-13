@@ -17,6 +17,7 @@ function ownerRequest(data = {}) {
       uid: "legal-hold-owner",
       token: {
         platformOwner: true,
+        platformOwnerUid: "legal-hold-owner",
         auth_time: Math.floor(Date.now() / 1000),
         firebase: { sign_in_second_factor: "phone" },
       },
