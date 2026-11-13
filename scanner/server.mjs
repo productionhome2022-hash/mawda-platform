@@ -14,9 +14,28 @@ function secureEqual(left, right) {
 }
 
 export function parseClamAvVersion(response) {
-  const match = /^ClamAV\s+([^/\s]+)\/([^/\s]+)/.exec(String(response).trim());
+  const match = /^ClamAV\s+([^/\s]+)\/([^/\s]+)\/(.+)$/.exec(String(response).trim());
   if (!match) throw new Error("CLAMAV_VERSION_RESPONSE_INVALID");
-  return { engine: "ClamAV", engineVersion: match[1], signatureVersion: match[2] };
+  const signatureUpdatedAtMs = Date.parse(match[3].trim());
+  if (!Number.isFinite(signatureUpdatedAtMs)) throw new Error("CLAMAV_SIGNATURE_DATE_INVALID");
+  return {
+    engine: "ClamAV",
+    engineVersion: match[1],
+    signatureVersion: match[2],
+    signatureUpdatedAtMs,
+  };
+}
+
+export function assertSignatureFresh(version, nowMs = Date.now(), maxAgeMs = 48 * 60 * 60 * 1000) {
+  if (!Number.isFinite(version?.signatureUpdatedAtMs) ||
+      !Number.isFinite(nowMs) || !Number.isSafeInteger(maxAgeMs) || maxAgeMs <= 0) {
+    throw new Error("CLAMAV_SIGNATURE_FRESHNESS_INPUT_INVALID");
+  }
+  const ageMs = nowMs - version.signatureUpdatedAtMs;
+  if (ageMs < -5 * 60 * 1000 || ageMs > maxAgeMs) {
+    throw new Error("CLAMAV_SIGNATURE_DATABASE_STALE");
+  }
+  return true;
 }
 
 export function parseClamAvScanResponse(response) {
@@ -73,6 +92,7 @@ function clamdCommand(config, command, payload) {
 export async function scanWithClamAv(bytes, config) {
   const versionText = await clamdCommand(config, "VERSION");
   const version = parseClamAvVersion(versionText);
+  assertSignatureFresh(version, Date.now(), config.maxSignatureAgeMs);
   const scanText = await clamdCommand(config, "INSTREAM", bytes);
   return { ...version, verdict: parseClamAvScanResponse(scanText) };
 }
@@ -102,9 +122,11 @@ export function createScannerHandler(config, scan = scanWithClamAv) {
   return async (request, response) => {
     if (request.method === "GET" && request.url === "/healthz") {
       try {
+        const version = parseClamAvVersion(await clamdCommand(config, "VERSION"));
+        assertSignatureFresh(version, Date.now(), config.maxSignatureAgeMs);
         await clamdCommand(config, "PING");
         response.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
-        response.end(JSON.stringify({ status: "ready" }));
+        response.end(JSON.stringify({ status: "ready", ...version }));
       } catch {
         response.writeHead(503, { "cache-control": "no-store" });
         response.end("scanner unavailable");
@@ -204,8 +226,13 @@ export function loadScannerConfig(env = process.env) {
     throw new Error("SCANNER_SECRETS_OR_PROVIDER_NOT_CONFIGURED");
   }
   const maxBytes = Number(env.MAWDA_MEDIA_SCANNER_MAX_BYTES ?? MAX_DEFAULT_BYTES);
+  const maxSignatureAgeMs = Number(env.MAWDA_MEDIA_SCANNER_MAX_SIGNATURE_AGE_MS ?? 48 * 60 * 60 * 1000);
   if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0 || maxBytes > MAX_DEFAULT_BYTES) {
     throw new Error("SCANNER_MAX_BYTES_INVALID");
+  }
+  if (!Number.isSafeInteger(maxSignatureAgeMs) || maxSignatureAgeMs < 60 * 60 * 1000 ||
+      maxSignatureAgeMs > 7 * 24 * 60 * 60 * 1000) {
+    throw new Error("SCANNER_SIGNATURE_MAX_AGE_INVALID");
   }
   const port = Number(env.PORT ?? 8080);
   const clamdPort = Number(env.CLAMD_PORT ?? 3310);
@@ -224,6 +251,7 @@ export function loadScannerConfig(env = process.env) {
     clamdTimeoutMs: 120_000,
     callbackTimeoutMs: 30_000,
     maxBytes,
+    maxSignatureAgeMs,
   };
 }
 
