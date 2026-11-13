@@ -36,6 +36,7 @@ test("member FCM tokens are scoped, hashed, replaceable and deactivatable", asyn
       (error) => error && error.code === "invalid-argument",
     );
   } finally {
+    await tokenRef.delete().catch(() => undefined);
     await userRef.delete().catch(() => undefined);
   }
 });
