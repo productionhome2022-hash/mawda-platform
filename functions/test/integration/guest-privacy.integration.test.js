@@ -6,11 +6,13 @@ const {
   getPrivacyAcknowledgementStatus,
 } = require("../../lib/index");
 
+const { PRIVACY_POLICY_VERSION, PRIVACY_POLICY_HASH } = require("../../lib/privacy-acknowledgement");
+
 const db = getFirestore();
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 const data = (actorType) => ({
-  policyVersion: "2026-11-12.1",
-  policyHash: "196df486af97258e3caa12edb1f2a125f5a0e7634549811d32286932ceccfd8c",
+  policyVersion: PRIVACY_POLICY_VERSION,
+  policyHash: PRIVACY_POLICY_HASH,
   locale: "ar",
   actorType,
   appVersion: "1.0.0+1",
@@ -23,7 +25,7 @@ const request = (uid, provider, payload = {}) => ({
 test("anonymous guests must acknowledge as guests and cannot use member acknowledgement", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const uid = `guest_${suffix()}`;
-  const ref = db.collection("privacyAcknowledgements").doc(`${uid}_2026-11-12.1`);
+  const ref = db.collection("privacyAcknowledgements").doc(`${uid}_${PRIVACY_POLICY_VERSION}`);
   try {
     const accepted = await recordPrivacyAcknowledgement.run(request(uid, "anonymous", data("guest")));
     assert.equal(accepted.acknowledged, true);
