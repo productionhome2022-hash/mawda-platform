@@ -533,61 +533,6 @@ export const listOwnerMediaAssets = onCall(async (request) => {
  * Authenticated owner-only raster preview. A Firebase ID token is checked on
  * every request; no storage bearer URL is returned or placed in browser history.
  */
-export const ownerMediaPreview = onRequest(async (request, response) => {
-  if (request.method !== "GET") {
-    response.status(405).set("Allow", "GET").send("Method not allowed");
-    return;
-  }
-  const match = /^Bearer (.+)$/.exec(request.get("authorization") ?? "");
-  if (!match) { response.status(401).send("Authentication required"); return; }
-  let decoded;
-  try { decoded = await getAuth().verifyIdToken(match[1], true); }
-  catch { response.status(401).send("Authentication required"); return; }
-  const actorUid = decoded.uid;
-  if (decoded.platformOwner !== true || !hasPlatformOwnerSession(decoded as unknown as Record<string, unknown>)) {
-    await auditMediaAccess({ actorUid, action: "owner_media_preview", outcome: "denied", failureCode: "permission-denied" });
-    response.status(403).send("Forbidden"); return;
-  }
-  const mediaId = typeof request.query.mediaId === "string" ? request.query.mediaId : "";
-  if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
-    await auditMediaAccess({ actorUid, action: "owner_media_preview", outcome: "denied", failureCode: "invalid-media-id" });
-    response.status(400).send("Invalid media ID"); return;
-  }
-  const snapshot = await mediaDb().collection("mediaAssets").doc(mediaId).get();
-  if (!snapshot.exists) {
-    await auditMediaAccess({ actorUid, mediaId, action: "owner_media_preview", outcome: "denied", failureCode: "not-found" });
-    response.status(404).send("Not found"); return;
-  }
-  const asset = snapshot.data()!;
-  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-  if (asset.status !== "security_approved" ||
-      !allowedTypes.includes(String(asset.detectedContentType))) {
-    await auditMediaAccess({ actorUid, mediaId, action: "owner_media_preview", outcome: "denied", failureCode: "preview-not-allowed" });
-    response.status(415).send("Media type is not eligible for inline preview"); return;
-  }
-  const file = mediaBucket().file(String(asset.objectPath));
-  let metadata;
-  try { [metadata] = await file.getMetadata(); }
-  catch { response.status(404).send("Media object not found"); return; }
-  if (String(metadata.generation) !== String(asset.storageGeneration)) {
-    await auditMediaAccess({ actorUid, mediaId, action: "owner_media_preview", outcome: "denied", failureCode: "generation-mismatch" });
-    response.status(409).send("Media generation changed"); return;
-  }
-  await auditMediaAccess({ actorUid, mediaId, action: "owner_media_preview", outcome: "success", objectGeneration: String(metadata.generation) });
-  response.set({
-    "Content-Type": String(asset.detectedContentType),
-    "Content-Disposition": "inline; filename=\"mawadda-preview\"",
-    "Cache-Control": "private, no-store, max-age=0",
-    "Pragma": "no-cache",
-    "X-Content-Type-Options": "nosniff",
-    "Cross-Origin-Resource-Policy": "same-origin",
-    "Content-Security-Policy": "default-src 'none'; sandbox",
-  });
-  file.createReadStream({ validation: "crc32c" })
-    .on("error", () => { if (!response.headersSent) response.status(502); response.end(); })
-    .pipe(response);
-});
-
 /** Legacy signed-URL callable disabled; use the authenticated streaming preview. */
 export const getOwnerMediaInspectionUrl = onCall(async () => {
   throw new HttpsError("failed-precondition", "استخدم معاينة المالك الآمنة التي تتحقق من جلسة الدخول عند كل طلب.");
