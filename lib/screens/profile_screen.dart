@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/coin_system_service.dart';
 import '../services/member_media_upload_service.dart';
+import '../services/auth_service.dart';
 import 'direct_chat_screen.dart';
 import 'stories_screen.dart';
 import 'profile_gallery_screen.dart';
@@ -538,6 +539,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
 
+  Future<void> _signOut() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تسجيل الخروج'),
+        content: const Text('هل تريد إنهاء جلسة الدخول والخروج من مودة؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.logout),
+            label: const Text('تسجيل الخروج'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await AuthService().signOut();
+      // AuthGate listens to FirebaseAuth.authStateChanges and returns to LoginScreen.
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر تسجيل الخروج. تحقق من الاتصال ثم حاول مجدداً.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isMyProfile = widget.currentUserId == widget.profileUserId;
@@ -545,6 +577,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text('الملف الشخصي | مودة'),
         backgroundColor: Colors.black87,
+        actions: [
+          if (isMyProfile)
+            IconButton(
+              tooltip: 'تسجيل الخروج',
+              onPressed: _signOut,
+              icon: const Icon(Icons.logout),
+            ),
+        ],
       ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _profileFuture,
