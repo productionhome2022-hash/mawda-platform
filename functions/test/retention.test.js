@@ -1,0 +1,39 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const {
+  CHAT_MEDIA_RETENTION_MS,
+  CHAT_TEXT_RETENTION_MS,
+  retentionDeadline,
+  isRetentionDue,
+  isSupportedChatMessagePath,
+} = require("../lib/retention");
+
+test("chat media retention is exactly four hours from the upload intent timestamp", () => {
+  const createdAt = 1_800_000_000_000;
+  const deadline = retentionDeadline(createdAt, CHAT_MEDIA_RETENTION_MS);
+  assert.equal(deadline, createdAt + 4 * 60 * 60 * 1000);
+  assert.equal(isRetentionDue(createdAt, CHAT_MEDIA_RETENTION_MS, deadline - 1), false);
+  assert.equal(isRetentionDue(createdAt, CHAT_MEDIA_RETENTION_MS, deadline), true);
+});
+
+test("chat text retention is exactly seven days for every chat type", () => {
+  const createdAt = 1_800_000_000_000;
+  const deadline = retentionDeadline(createdAt, CHAT_TEXT_RETENTION_MS);
+  assert.equal(deadline, createdAt + 7 * 24 * 60 * 60 * 1000);
+  assert.equal(isRetentionDue(createdAt, CHAT_TEXT_RETENTION_MS, deadline - 1), false);
+  assert.equal(isRetentionDue(createdAt, CHAT_TEXT_RETENTION_MS, deadline), true);
+});
+
+test("retention clock rejects invalid timestamps and durations", () => {
+  assert.throws(() => retentionDeadline(-1, CHAT_MEDIA_RETENTION_MS), /INVALID_RETENTION_CLOCK/);
+  assert.throws(() => retentionDeadline(1, 0), /INVALID_RETENTION_CLOCK/);
+  assert.throws(() => isRetentionDue(1, CHAT_TEXT_RETENTION_MS, -1), /INVALID_RETENTION_CLOCK/);
+});
+
+test("only direct and room message documents are eligible for seven-day deletion", () => {
+  assert.equal(isSupportedChatMessagePath("directChats/abc/messages/msg1"), true);
+  assert.equal(isSupportedChatMessagePath("rooms/room-1/messages/msg1"), true);
+  assert.equal(isSupportedChatMessagePath("users/u1/messages/msg1"), false);
+  assert.equal(isSupportedChatMessagePath("directChats/abc/messages"), false);
+  assert.equal(isSupportedChatMessagePath("directChats/abc/messages/msg1/attachments/a"), false);
+});
