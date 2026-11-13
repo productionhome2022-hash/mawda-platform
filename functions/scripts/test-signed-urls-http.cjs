@@ -7,7 +7,7 @@ const bucketName = process.env.MAWDA_MEDIA_TEST_BUCKET;
 if (process.env.MAWDA_MEDIA_SIGNED_URL_HTTP_TEST !== "1" || !projectId || !bucketName) {
   throw new Error("Set MAWDA_MEDIA_SIGNED_URL_HTTP_TEST=1, GOOGLE_CLOUD_PROJECT and MAWDA_MEDIA_TEST_BUCKET to run this opt-in HTTP test.");
 }
-if (projectId === "mawda-app-2026" || /prod(uction)?/i.test(projectId) || /prod(uction)?/i.test(bucketName)) {
+if (projectId === "mawda-app-2026" || /prod(uction)?/i.test(projectId) || /prod(uction)?/i.test(bucketName) ||\n    !/(test|staging|dev|nonprod|sandbox)/i.test(projectId) ||\n    !/(test|staging|dev|nonprod|sandbox)/i.test(bucketName)) {
   throw new Error("Refusing to run signed URL destructive/replay tests against a production project or bucket.");
 }
 initializeApp({ credential: applicationDefault(), projectId, storageBucket: bucketName });
@@ -20,7 +20,7 @@ const contentType = "text/plain";
 async function main() {
   try {
     const [putUrl] = await file.getSignedUrl({
-      version: "v4", action: "write", expires: Date.now() + 60_000,
+      version: "v4", action: "write", expires: Date.now() + 2_500,
       contentType, queryParams: { ifGenerationMatch: "0" },
     });
     const first = await fetch(putUrl, { method: "PUT", headers: { "content-type": contentType }, body: bytes });
@@ -28,7 +28,7 @@ async function main() {
     const replay = await fetch(putUrl, { method: "PUT", headers: { "content-type": contentType }, body: bytes });
     if (replay.status !== 412) throw new Error(`Replay should fail with 412; received HTTP ${replay.status}`);
 
-    const [readUrl] = await file.getSignedUrl({ version: "v4", action: "read", expires: Date.now() + 2_000 });
+    const [readUrl] = await file.getSignedUrl({ version: "v4", action: "read", expires: Date.now() + 2_500 });
     const read = await fetch(readUrl);
     if (!read.ok || Buffer.compare(Buffer.from(await read.arrayBuffer()), bytes) !== 0) {
       throw new Error(`Signed GET failed or returned different bytes: HTTP ${read.status}`);
