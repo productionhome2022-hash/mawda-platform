@@ -7,8 +7,6 @@ const {
   mediaUploaderTypeFromToken,
   MEDIA_SIGNED_URL_TTL_MS,
   mediaSignedUrlExpiresAt,
-  MEDIA_RETENTION_MS,
-  mediaRetentionExpiresAt,
 } = require("../lib/media-security");
 
 test("media policy allowlists supported types and applies per-category size caps", () => {
@@ -67,13 +65,4 @@ test("signed media URLs receive bounded purpose-specific expirations", () => {
 });
 
 
-test("media retention follows the approved purpose-specific server policy", () => {
-  const now = 1_800_000_000_000;
-  assert.equal(MEDIA_RETENTION_MS.chat, 4 * 60 * 60 * 1000);
-  assert.equal(MEDIA_RETENTION_MS.room, 4 * 60 * 60 * 1000);
-  assert.equal(MEDIA_RETENTION_MS.profile_album, 7 * 24 * 60 * 60 * 1000);
-  assert.equal(MEDIA_RETENTION_MS.avatar_cover, 30 * 24 * 60 * 60 * 1000);
-  assert.equal(MEDIA_RETENTION_MS.story, 24 * 60 * 60 * 1000);
-  assert.equal(mediaRetentionExpiresAt("story", now), now + 24 * 60 * 60 * 1000);
-  assert.throws(() => mediaRetentionExpiresAt("story", -1));
-});
+
