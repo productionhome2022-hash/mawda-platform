@@ -7,7 +7,9 @@ const bucketName = process.env.MAWDA_MEDIA_TEST_BUCKET;
 if (process.env.MAWDA_MEDIA_SIGNED_URL_HTTP_TEST !== "1" || !projectId || !bucketName) {
   throw new Error("Set MAWDA_MEDIA_SIGNED_URL_HTTP_TEST=1, GOOGLE_CLOUD_PROJECT and MAWDA_MEDIA_TEST_BUCKET to run this opt-in HTTP test.");
 }
-if (projectId === "mawda-app-2026" || /prod(uction)?/i.test(projectId) || /prod(uction)?/i.test(bucketName) ||\n    !/(test|staging|dev|nonprod|sandbox)/i.test(projectId) ||\n    !/(test|staging|dev|nonprod|sandbox)/i.test(bucketName)) {
+if (projectId === "mawda-app-2026" || /prod(uction)?/i.test(projectId) || /prod(uction)?/i.test(bucketName) ||
+    !/(test|staging|dev|nonprod|sandbox)/i.test(projectId) ||
+    !/(test|staging|dev|nonprod|sandbox)/i.test(bucketName)) {
   throw new Error("Refusing to run signed URL destructive/replay tests against a production project or bucket.");
 }
 initializeApp({ credential: applicationDefault(), projectId, storageBucket: bucketName });
