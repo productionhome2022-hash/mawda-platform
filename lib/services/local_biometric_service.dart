@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:local_auth/local_auth.dart';
 
 enum LocalBiometricStatus {
@@ -33,6 +34,9 @@ class LocalBiometricService {
   /// Runs a device-local biometric prompt only. No biometric material or
   /// success assertion is uploaded, persisted, or treated as server proof.
   Future<LocalBiometricResult> authenticate() async {
+    if (kIsWeb) {
+      return const LocalBiometricResult(LocalBiometricStatus.unavailable);
+    }
     try {
       if (!await _adapter.isDeviceSupported() ||
           !await _adapter.canCheckBiometrics()) {
