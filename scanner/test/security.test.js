@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { equalSecret, validateScanRequest, isSafeDerivativeMetadata } = require("../security");
+const { equalSecret, validateScanRequest, isSafeDerivativeMetadata, sanitizeScannerError } = require("../security");
 
 const bucket = "mawda-media-test.appspot.com";
 const mediaId = "123e4567-e89b-42d3-a456-426614174000";
@@ -51,4 +51,11 @@ test("safe derivative reuse is bound to source hash, generation, provider and pr
   assert.equal(isSafeDerivativeMetadata({ ...metadata, metadata: { ...metadata.metadata, sourceGeneration: "1" } }, expected), false);
   assert.equal(isSafeDerivativeMetadata({ ...metadata, size: 21 * 1024 * 1024 }, expected), false);
   assert.equal(isSafeDerivativeMetadata({ ...metadata, contentType: "image/png" }, expected), false);
+});
+
+test("scanner telemetry never emits signed URLs, tokens or temporary file paths", () => {
+  assert.equal(sanitizeScannerError(new Error("CLAMAV_SCAN_INCOMPLETE")), "CLAMAV_SCAN_INCOMPLETE");
+  assert.equal(sanitizeScannerError(new Error("SOURCE_DOWNLOAD_HTTP_403")), "SOURCE_DOWNLOAD_HTTP_403");
+  assert.equal(sanitizeScannerError(new Error("https://storage.googleapis.com/bucket/object?X-Goog-Signature=secret /tmp/scan/source.bin")), "SCAN_FAILED");
+  assert.equal(sanitizeScannerError(new Error("Bearer " + "x".repeat(48))), "SCAN_FAILED");
 });
