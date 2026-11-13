@@ -6,6 +6,10 @@ export type DirectMessageInput = {
 
 /** Normalize a text-only direct message request; authorization is checked separately. */
 export function validateDirectMessageInput(input: Record<string, unknown>): DirectMessageInput {
+  const allowedFields = new Set(["recipientUid", "text", "clientMessageId"]);
+  if (Object.keys(input).some((key) => !allowedFields.has(key))) {
+    throw new Error("UNSUPPORTED_DIRECT_MESSAGE_FIELDS");
+  }
   const recipientUid = typeof input.recipientUid === "string" ? input.recipientUid.trim() : "";
   const text = typeof input.text === "string" ? input.text.trim() : "";
   const clientMessageId = typeof input.clientMessageId === "string"
