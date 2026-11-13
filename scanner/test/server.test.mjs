@@ -6,6 +6,7 @@ import {
   createScannerHandler,
   parseClamAvScanResponse,
   parseClamAvVersion,
+  assertSignatureFresh,
   loadScannerConfig,
   buildClamAvInstreamFrames,
 } from "../server.mjs";
@@ -58,11 +59,19 @@ function requestHeaders(config, bytes, overrides = {}) {
 test("ClamAV response parsers require a known engine, signature database and explicit verdict", () => {
   assert.deepEqual(parseClamAvVersion("ClamAV 1.4.2/28145/Fri Nov 13 2026"), {
     engine: "ClamAV", engineVersion: "1.4.2", signatureVersion: "28145",
+    signatureUpdatedAtMs: Date.parse("Fri Nov 13 2026"),
   });
   assert.equal(parseClamAvScanResponse("stream: OK"), "clean");
   assert.equal(parseClamAvScanResponse("stream: Eicar-Test-Signature FOUND"), "malicious");
   assert.throws(() => parseClamAvVersion("unknown"));
   assert.throws(() => parseClamAvScanResponse("stream: ERROR"));
+});
+
+test("scanner refuses stale or implausibly future signature databases", () => {
+  const now = 2_000_000_000_000;
+  assert.equal(assertSignatureFresh({ signatureUpdatedAtMs: now - 60_000 }, now, 3_600_000), true);
+  assert.throws(() => assertSignatureFresh({ signatureUpdatedAtMs: now - 49 * 60 * 60 * 1000 }, now, 48 * 60 * 60 * 1000), /STALE/);
+  assert.throws(() => assertSignatureFresh({ signatureUpdatedAtMs: now + 6 * 60 * 1000 }, now, 48 * 60 * 60 * 1000), /STALE/);
 });
 
 test("scanner requires HTTPS callback URL and strong secrets", () => {
