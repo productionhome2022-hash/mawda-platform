@@ -115,7 +115,9 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
       const mediaId = tombstoneDoc.id;
       if (typeof ownerUid !== "string" || !/^[0-9a-f-]{36}$/i.test(mediaId)) continue;
       try {
+        const originalPath = `quarantine/${ownerUid}/${mediaId}`;
         const derivativePath = `processed/${ownerUid}/${mediaId}/preview.webp`;
+        objects += await deleteAllObjectGenerations(originalPath);
         objects += await deleteAllObjectGenerations(derivativePath);
         await tombstoneDoc.ref.update({
           retentionReconcileAt: Timestamp.fromMillis(Date.now() + MEDIA_DERIVATIVE_RECHECK_MS),
