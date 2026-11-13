@@ -1,7 +1,10 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Timestamp, getFirestore } = require("firebase-admin/firestore");
+const { getStorage } = require("firebase-admin/storage");
 const { placeMediaLegalHold, releaseMediaLegalHold, listActiveMediaLegalHolds, reviewMediaLegalHold } = require("../../lib/index");
+const { runChatMediaRetentionSweep } = require("../../lib/retention");
+const { randomUUID } = require("node:crypto");
 
 const db = getFirestore();
 const headRef = db.collection("adminAuditChainHeads").doc("ownerReview");
@@ -100,5 +103,77 @@ test("owner legal hold suspends exact chat-media expiry and release restores the
     await Promise.all(oldEntryData.map(({ ref, data }) => ref.set(data)));
     if (oldHeadData) await headRef.set(oldHeadData);
     else await headRef.delete().catch(() => undefined);
+  }
+});
+
+
+test("active legal hold protects every typed derivative; release deletes them and late replay is reconciled", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+  const bucket = getStorage().bucket();
+  const suffix = Date.now().toString();
+  const ownerUid = "legal-hold-storage-owner-" + suffix;
+  const mediaId = randomUUID();
+  const originalPath = "quarantine/" + ownerUid + "/" + mediaId;
+  const names = ["preview.webp", "animation.gif", "audio.mp3", "video.mp4", "document.pdf"];
+  const derivativePaths = names.map((name) =>
+    "processed/" + ownerUid + "/" + mediaId + "/" + name);
+  const files = [originalPath, ...derivativePaths].map((objectPath) => bucket.file(objectPath));
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const now = Date.now();
+  const holdId = "pending";
+  let createdHoldId;
+  try {
+    await Promise.all(files.map((file) =>
+      file.save(Buffer.from("legal hold fixture " + file.name), { resumable: false })));
+    await assetRef.set({
+      mediaId, ownerUid, uploaderType: "member", mediaPurpose: "chat",
+      objectPath: originalPath,
+      safePreviewPath: derivativePaths[0],
+      safeAnimationPath: derivativePaths[1],
+      safeAudioPath: derivativePaths[2],
+      safeVideoPath: derivativePaths[3],
+      safeDocumentPath: derivativePaths[4],
+      status: "security_approved",
+      retentionPolicyStatus: "four_hour_self_destruct",
+      retentionExpiresAt: Timestamp.fromMillis(now - 1000),
+      createdAt: Timestamp.fromMillis(now - 5 * 60 * 60 * 1000),
+      legalHoldStatus: "none",
+    });
+    const placed = await placeMediaLegalHold.run(ownerRequest({
+      mediaId,
+      authority: "Court order",
+      legalBasis: "Preserve the exact media evidence and all sanitized derivatives.",
+      reference: "CASE-TYPED-" + suffix,
+      startsAtMs: now,
+      reviewAtMs: now + 60 * 60 * 1000,
+      endsAtMs: now + 2 * 60 * 60 * 1000,
+    }));
+    createdHoldId = placed.holdId;
+    assert.equal(placed.status, "active");
+
+    const held = await runChatMediaRetentionSweep();
+    assert.equal(held.failures, 0);
+    for (const file of files) assert.equal((await file.exists())[0], true);
+
+    const released = await releaseMediaLegalHold.run(ownerRequest({ holdId: createdHoldId }));
+    assert.equal(released.status, "released");
+    const deleted = await runChatMediaRetentionSweep();
+    assert.equal(deleted.failures, 0);
+    for (const file of files) assert.equal((await file.exists())[0], false);
+
+    await files[4].save(Buffer.from("late PDF derivative replay"), { resumable: false });
+    await assetRef.update({
+      retentionReconcileAt: Timestamp.fromMillis(Date.now() - 1000),
+    });
+    const reconciled = await runChatMediaRetentionSweep();
+    assert.equal(reconciled.failures, 0);
+    assert.equal((await files[4].exists())[0], false);
+  } finally {
+    if (createdHoldId) {
+      await db.collection("mediaLegalHolds").doc(createdHoldId).delete().catch(() => undefined);
+    }
+    await assetRef.delete().catch(() => undefined);
+    await Promise.all(files.map((file) => file.delete({ ignoreNotFound: true }).catch(() => undefined)));
   }
 });
