@@ -1004,8 +1004,10 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "بيانات طلب الصورة غير صالحة.");
   }
   let message: Record<string, unknown> | undefined;
+  let conversationId = "";
   if (scope === "direct") {
     const chatId = typeof data.chatId === "string" ? data.chatId.trim() : "";
+    conversationId = chatId;
     if (!chatId || chatId.length > 128) throw new HttpsError("invalid-argument", "معرف المحادثة غير صالح.");
     const chatRef = mediaDb().collection("directChats").doc(chatId);
     const [chat, msg] = await Promise.all([
@@ -1018,6 +1020,7 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
     message = msg.data();
   } else {
     const roomId = typeof data.roomId === "string" ? data.roomId.trim() : "";
+    conversationId = roomId;
     if (!roomId || roomId.length > 128) throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
     const roomRef = mediaDb().collection("rooms").doc(roomId);
     const [room, member, msg] = await Promise.all([
@@ -1031,8 +1034,9 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
     }
     message = msg.data();
   }
+  const deletedForUids = Array.isArray(message?.deletedForUids) ? message.deletedForUids : [];
   if (!message || message.mediaId !== mediaId || message.attachmentStatus !== "ready" ||
-      message.isDeleted === true || message.deletionPending === true) {
+      message.isDeleted === true || message.deletionPending === true || deletedForUids.includes(viewerUid)) {
     throw new HttpsError("failed-precondition", "المرفق غير متاح.");
   }
   const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
@@ -1042,15 +1046,23 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
   const artifact = resolveChatMediaDeliveryArtifact(asset as never, false);
   if (!artifact || artifact.category !== "image" || asset.status !== "security_approved" ||
       asset.deliveryState !== "ready" || asset.linkedMessageId !== messageId ||
+      asset.linkedScope !== scope || asset.linkedConversationId !== conversationId ||
       !(asset.retentionExpiresAt instanceof Timestamp) || asset.retentionExpiresAt.toMillis() <= Date.now() ||
       asset.legalHoldStatus === "released") {
     throw new HttpsError("failed-precondition", "انتهت صلاحية الصورة أو لم تجتز المعالجة الآمنة.");
   }
   const file = mediaBucket().file(artifact.objectPath, { generation: Number(artifact.generation) });
   const [metadata] = await file.getMetadata();
+  const customMetadata = metadata.metadata as Record<string, unknown> | undefined;
+  const actualArtifactHash = await sha256Object(file);
   if (String(metadata.generation) !== artifact.generation ||
       metadata.contentType !== artifact.contentType || Number(metadata.size) <= 0 ||
-      Number(metadata.size) > 5 * 1024 * 1024) {
+      Number(metadata.size) > 5 * 1024 * 1024 || actualArtifactHash !== artifact.sha256 ||
+      customMetadata?.mediaId !== mediaId ||
+      customMetadata?.sourceGeneration !== String(asset.storageGeneration) ||
+      customMetadata?.sourceSha256 !== String(asset.scannerSha256) ||
+      customMetadata?.scannerProvider !== String(asset.scannerProvider) ||
+      customMetadata?.processing !== "sharp-decode-reencode-v1") {
     throw new HttpsError("failed-precondition", "تعذر التحقق من نسخة الصورة الآمنة.");
   }
   const expiresAt = Date.now() + 2 * 60 * 1000;
