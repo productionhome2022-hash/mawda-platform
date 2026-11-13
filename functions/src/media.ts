@@ -54,6 +54,7 @@ async function auditMediaAccess(event: Record<string, unknown>): Promise<void> {
   await mediaDb().collection("mediaAccessAudit").add({
     ...event,
     createdAt: FieldValue.serverTimestamp(),
+    expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
   });
 }
 
