@@ -33,6 +33,7 @@ test("audit export redacts credentials, signed URLs and user-generated content r
     signedUrl: "https://storage.invalid/token",
     accessToken: "secret",
     noticeText: "private user content",
+    noticeTextHash: "e".repeat(64),
     text: "raw message",
     content: "raw content",
     details: {
@@ -44,6 +45,7 @@ test("audit export redacts credentials, signed URLs and user-generated content r
   assert.deepEqual(projected, {
     action: "owner_review",
     actorUid: "owner",
+    noticeTextHash: "e".repeat(64),
     details: { count: 2, nested: [{ safe: true }] },
   });
 });
