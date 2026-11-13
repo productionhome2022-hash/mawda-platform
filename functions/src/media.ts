@@ -278,6 +278,20 @@ export const enqueueMediaSecurityScan = onDocumentUpdated(
   },
 );
 
+async function cloudRunIdentityToken(audience: string): Promise<string> {
+  const tokenUrl = new URL("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity");
+  tokenUrl.searchParams.set("audience", audience);
+  tokenUrl.searchParams.set("format", "full");
+  const result = await fetch(tokenUrl, {
+    headers: { "Metadata-Flavor": "Google" },
+    signal: AbortSignal.timeout(5_000),
+  });
+  if (!result.ok) throw new Error("Unable to obtain Cloud Run identity token for scanner dispatch.");
+  const token = (await result.text()).trim();
+  if (!token) throw new Error("Cloud Run identity token response was empty.");
+  return token;
+}
+
 export const dispatchMediaSecurityScan = onDocumentCreated(
   {
     document: "mediaScanJobs/{mediaId}",
@@ -317,10 +331,14 @@ export const dispatchMediaSecurityScan = onDocumentCreated(
       queryParams: { generation: String(job.objectGeneration) },
       responseDisposition: "attachment",
     });
+    if (scanner.pathname !== "/scan") throw new Error("Scanner endpoint path must be /scan.");
+    const identityToken = await cloudRunIdentityToken(scanner.origin);
     const dispatchResponse = await fetch(scanner.toString(), {
       method: "POST",
       headers: {
-        authorization: `Bearer ${apiToken}`, "content-type": "application/json",
+        authorization: `Bearer ${identityToken}`,
+        "x-mawadda-scanner-token": apiToken,
+        "content-type": "application/json",
         "idempotency-key": `${job.mediaId}:${job.objectGeneration}`,
       },
       body: JSON.stringify({
