@@ -392,8 +392,12 @@ export const createMediaUploadIntent = onCall(async (request) => {
     action: "write",
     expires: expiresAt,
     contentType: input.contentType,
-    // Create-only precondition: a leaked/replayed upload URL cannot overwrite
-    // the first object generation after the quarantine object is created.
+    // Cloud Storage enforces this signed PUT header before accepting bytes.
+    // Exact min=max binds the wire payload to the quota reservation.
+    extensionHeaders: {
+      "x-goog-content-length-range": `${input.declaredSizeBytes},${input.declaredSizeBytes}`,
+    },
+    // Create-only precondition: replay cannot overwrite the first generation.
     queryParams: { ifGenerationMatch: "0" },
   });
 
@@ -442,7 +446,15 @@ export const createMediaUploadIntent = onCall(async (request) => {
     declaredContentType: input.contentType,
     declaredSizeBytes: input.declaredSizeBytes,
   });
-  return { mediaId, uploadUrl: uploadUrl[0], expiresAt };
+  return {
+    mediaId,
+    uploadUrl: uploadUrl[0],
+    requiredHeaders: {
+      "Content-Type": input.contentType,
+      "x-goog-content-length-range": `${input.declaredSizeBytes},${input.declaredSizeBytes}`,
+    },
+    expiresAt,
+  };
 });
 
 /**
