@@ -1294,8 +1294,7 @@ export const getMySafetyCases = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const [reported, actions] = await Promise.all([
     db.collection("safetyCases").where("reporterUid", "==", uid).limit(30).get(),
-    db.collection("safetyCases").where("subjectUid", "==", uid)
-      .where("status", "==", "action_taken").limit(30).get(),
+    db.collection("safetyCases").where("subjectUid", "==", uid).limit(50).get(),
   ]);
   return {
     reports: reported.docs.map((doc) => {
@@ -1309,7 +1308,7 @@ export const getMySafetyCases = onCall(async (request) => {
         createdAt: data.createdAt?.toMillis?.() ?? null,
       };
     }),
-    decisions: actions.docs.map((doc) => {
+    decisions: actions.docs.filter((doc) => doc.data().status === "action_taken").slice(0, 30).map((doc) => {
       const data = doc.data();
       return {
         caseId: doc.id,
@@ -1352,7 +1351,6 @@ export const reviewSafetyAppeal = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "بيانات قرار الاستئناف غير صالحة.");
   }
   const appealRef = db.collection("safetyAppeals").doc(appealId);
-  const caseRefHolder: { ref?: FirebaseFirestore.DocumentReference } = {};
   let caseId = "";
   await db.runTransaction(async (transaction) => {
     const appeal = await transaction.get(appealRef);
@@ -1366,7 +1364,6 @@ export const reviewSafetyAppeal = onCall(async (request) => {
     if (!safetyCase.exists || safetyCase.data()?.appealStatus !== "pending") {
       throw new HttpsError("failed-precondition", "ملف البلاغ المرتبط غير متاح للمراجعة.");
     }
-    caseRefHolder.ref = caseRef;
     transaction.update(appealRef, {
       status: decision,
       decisionReason: reason,
