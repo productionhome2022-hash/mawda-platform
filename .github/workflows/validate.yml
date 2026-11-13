@@ -79,6 +79,8 @@ jobs:
         run: npm run test:media-integration
       - name: Run seven-day chat retention integration tests
         run: npm run test:retention-integration
+      - name: Run direct-message deletion authorization and erasure integration tests
+        run: npm run test:message-deletion-integration
       - name: Run Firestore and Storage rules emulator tests
         run: npm run test:rules
 
