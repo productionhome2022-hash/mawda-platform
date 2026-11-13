@@ -2,8 +2,8 @@
 
 Snapshot: 2026-11-13  
 Development branch: `codex/mawda-full-platform-implementation`  
-Last code-tested commit: `5d89d4a3fb7deb607535afab41eae5c1f510fdfe`  
-Validation: [GitHub Actions run 43446631493](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43446631493) — completed successfully, 3/3 jobs.
+Last code-tested commit: `368c6ac0ab9db01c236a4f77a4bf66dadb80ade0`  
+Validation: [GitHub Actions run 43449287825](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43449287825) — completed successfully, 3/3 jobs.
 
 > This is an acceptance ledger, not a release authorization. A green CI run proves only the automated checks listed below. It does not prove deployed infrastructure, real devices, backup/restore behavior, legal compliance, or production readiness.
 
@@ -13,11 +13,11 @@ Validation: [GitHub Actions run 43446631493](https://github.com/productionhome20
 |---|---|---|
 | Firebase Auth and authenticated app entry | Auth foundations, verification/reset and auth-state gating in the development PR | Code/CI coverage; production Firebase options and owner MFA recovery remain open |
 | Profile completion and privacy controls | Server-side completion, username reservation, profile privacy and allowlisted edits | Code foundations; final legal policy and jurisdictional review open |
-| Coin transfers and ledger | Server-calculated commission, freshness/idempotency checks and linked sender/recipient/platform ledger entries | Backend tests; payment/refund/top-up and full reconciliation operations not implemented |
+| Coin transfers and ledger | Server-calculated commission, freshness/idempotency checks and linked sender/recipient/platform ledger entries | Firestore-emulator integration passed on exact tested SHA: linked sender/recipient/platform ledgers, 20% fee/net amount, concurrent/replayed idempotency, stale quote, suspended/blocked account and insufficient-balance rejection; payment/refund/top-up and full reconciliation remain open |
 | Direct and room messaging | Authenticated callables, validation, idempotency, scoped reads, deletion and read cursors | Backend/emulator tests; push notifications and full realtime/abuse workflows remain open |
 | Owner review and audit | Silent/announced review, owner participation modes, server authorization and hash-linked audit verification/export | Automated tests; immutable checkpoint/24-month archive/restore and full audit export scale proof remain open |
 | Rooms and moderation | Discovery/join, owner creation, scoped moderator permissions, mute/remove and audit | Code foundations; rental billing, room lifecycle/transfer, voice/video/events and load/device testing remain open |
-| Store and entitlements | Catalog/purchase/receipt/ledger foundations; VIP/title consumers; other categories fail closed | Code foundations; remaining approved premium consumers and real-money operations remain open |
+| Store and entitlements | Catalog/purchase/receipt/ledger foundations; VIP/title consumers; other categories fail closed | Firestore-emulator integration passed on exact tested SHA for atomic charge, receipt, ledger, VIP entitlement, idempotency and stale-price rejection; remaining approved premium consumers and real-money operations remain open |
 | Biometric verification | Server-derived entitlement checks | Provider/capture and recurring verification remain open |
 | Privacy and guest policy | Member acknowledgement/version/hash and server enforcement; Firebase anonymous users classified as guests | Final localized legal policy and unauthenticated guest lifecycle remain open |
 
@@ -52,10 +52,10 @@ Validation: [GitHub Actions run 43446631493](https://github.com/productionhome20
 
 ## D. Final automated CI result
 
-Run [43446631493](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43446631493) on code commit `5d89d4a3fb7deb607535afab41eae5c1f510fdfe` passed:
+Run [43449287825](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43449287825) on code commit `368c6ac0ab9db01c236a4f77a4bf66dadb80ade0` passed:
 
 1. Scanner job: source/security contract checks, Docker build, GIF/audio/video/PDF processing integration tests inside the image, EICAR detection.
-2. Cloud Functions job: TypeScript build/unit tests; media authorization/audit; seven-day retention; direct-message deletion; owner audit export; expanded media legal hold/release; profile media lifecycle; message legal hold/resumed retention; Firestore and Storage rules.
+2. Cloud Functions job: TypeScript build/unit tests; media authorization/audit; seven-day retention; direct-message deletion; coin-transfer/store-purchase transactional integration (4/4 passed); owner audit export; expanded media legal hold/release; profile media lifecycle; message legal hold/resumed retention; Firestore and Storage rules.
 3. Flutter job: strict lockfile install, `flutter analyze`, `flutter test`, and `flutter build web --release`.
 
 Web build, Functions build and lockfile artifacts were produced. These are not deployed services.
@@ -71,7 +71,7 @@ Web build, Functions build and lockfile artifacts were produced. These are not d
 
 ## F. Release decision
 
-**Automated code gate: PASS on the tested code commit.**  
+**Automated code gate: PASS on exact code commit `368c6ac0ab9db01c236a4f77a4bf66dadb80ade0`.**  
 **Phase 1 + Phase 2 overall acceptance: OPEN.**
 
-The latest subsequent commits only add acceptance documentation; they do not modify executable code. The tested code commit remains the exact SHA above. The PR remains draft/open/unmerged. No production deployment, production Firebase mutation, destructive purge, or retention-worker activation has been performed. Do not advance to Phase 3 or production until the applicable closure gates above have evidence and the owner explicitly approves the release boundary.
+The wallet/store integration test and store-catalog projection fix are included in the exact tested code commit above. The PR remains draft/open/unmerged. No production deployment, production Firebase mutation, destructive purge, or retention-worker activation has been performed. Do not advance to Phase 3 or production until the applicable closure gates above have evidence and the owner explicitly approves the release boundary.
