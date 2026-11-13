@@ -83,6 +83,10 @@ jobs:
           service_account: ${{ vars.MAWDA_NONPROD_SERVICE_ACCOUNT }}
           project_id: ${{ inputs.project_id }}
 
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ inputs.project_id }}
+
       - name: Verify selected Google Cloud project
         run: |
           set -euo pipefail
