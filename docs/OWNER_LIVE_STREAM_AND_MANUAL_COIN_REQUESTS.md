@@ -43,6 +43,23 @@ Existing biometric/member link entitlements remain governed by server-side link 
 
 ## 4. Manual coin purchase request workflow
 
+### 4A. One owner identity
+
+The labels **Owner** and **Super Admin** refer to one person and one canonical owner UID. There must not be a separate Super Admin account belonging to another person. Internal legacy claims may be normalized as aliases, but every privileged operation resolves to the same owner identity, with recent MFA/step-up and audit logging. Scoped moderators are not owners and cannot approve coin issuance or change owner-only payment settings.
+
+### 4B. Two configurable payment channels
+
+The purchase experience must be designed for future owner-controlled channel selection:
+
+- **Direct/manual contact (available default):** the owner enables this channel and members can request a published package or a custom quantity. The custom-quantity path always creates a request and opens/links the member's one-to-one conversation with the owner. The owner can negotiate the amount and send the agreed payment method/instructions directly in that conversation. The request remains pending until the owner records external payment verification and explicitly approves it.
+- **Automated checkout (future, disabled by default):** the owner may later configure one or more contracted payment providers and enable checkout for selected fixed packages. The architecture must use a provider adapter and server-to-server signed payment confirmation. Only verified, captured/settled payment events can trigger one idempotent coin-credit transaction. A browser success redirect or member-uploaded receipt is not proof of payment.
+
+The owner can configure channel availability and package availability independently. If automated checkout is unavailable or disabled, the UI must not show a dead payment button; it offers the manual owner-contact route instead. A member's custom quantity request is always manually negotiated unless the owner approves a separate future product amendment.
+
+Before enabling any automated provider, require owner-supplied provider/contract details, secure secret provisioning, webhook signature and replay tests, refund/chargeback handling, reconciliation, fraud/risk controls, tax and legal review, and explicit owner activation. Never store card or bank login credentials in Mawda. Never issue coins from an unverified client event.
+
+
+
 Real-money coin acquisition is a manual, owner-approved process; no payment gateway or automatic payment collection is enabled.
 
 1. A member submits either an owner-configured coin package or a custom positive integer quantity.
