@@ -170,6 +170,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: authority,
+                    onChanged: (_) => setDialogState(() {}),
                     decoration: const InputDecoration(
                       labelText: 'الجهة المخولة',
                       border: OutlineInputBorder(),
@@ -178,6 +179,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   const SizedBox(height: 10),
                   TextField(
                     controller: basis,
+                    onChanged: (_) => setDialogState(() {}),
                     maxLines: 3,
                     decoration: const InputDecoration(
                       labelText: 'الأساس القانوني والنطاق',
@@ -187,6 +189,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   const SizedBox(height: 10),
                   TextField(
                     controller: reference,
+                    onChanged: (_) => setDialogState(() {}),
                     decoration: const InputDecoration(
                       labelText: 'رقم القضية / المرجع الرسمي',
                       border: OutlineInputBorder(),
@@ -205,7 +208,11 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                         firstDate: now,
                         lastDate: now.add(const Duration(days: 3650)),
                       );
-                      if (picked != null) setDialogState(() => reviewAt = picked);
+                      if (picked != null) {
+                        setDialogState(() => reviewAt = DateTime(
+                          picked.year, picked.month, picked.day, 23, 59,
+                        ));
+                      }
                     },
                   ),
                   ListTile(
@@ -220,7 +227,11 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                         firstDate: now,
                         lastDate: now.add(const Duration(days: 3650)),
                       );
-                      if (picked != null) setDialogState(() => endsAt = picked);
+                      if (picked != null) {
+                        setDialogState(() => endsAt = DateTime(
+                          picked.year, picked.month, picked.day, 23, 59,
+                        ));
+                      }
                     },
                   ),
                   const Text(
@@ -1444,6 +1455,14 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     label: const Text('تحميل ملفات الأعضاء والضيوف'),
                   ),
                 ),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: _showActiveMediaLegalHolds,
+                    icon: const Icon(Icons.policy_outlined),
+                    label: const Text('عرض الحجوزات القانونية النشطة'),
+                  ),
+                ),
                 if (_loadingOwnerMedia) const LinearProgressIndicator(),
                 if (_ownerMediaAssets.isEmpty && !_loadingOwnerMedia)
                   const Padding(
@@ -1477,8 +1496,11 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                         ],
                       ),
                       isThreeLine: true,
-                      trailing: asset['canPreview'] == true
-                          ? IconButton(
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (asset['canPreview'] == true)
+                            IconButton(
                               tooltip: 'معاينة آمنة',
                               onPressed: _previewingMediaId == null
                                   ? () => _previewOwnerMedia(asset)
@@ -1490,8 +1512,16 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                                       child: CircularProgressIndicator(strokeWidth: 2),
                                     )
                                   : const Icon(Icons.visibility_outlined),
-                            )
-                          : null,
+                            ),
+                          if (['chat', 'room'].contains(asset['mediaPurpose']) &&
+                              asset['retentionPolicyStatus'] != 'legal_hold')
+                            IconButton(
+                              tooltip: 'حجز قانوني لهذا الملف',
+                              onPressed: () => _placeMediaLegalHold(asset),
+                              icon: const Icon(Icons.gavel_outlined),
+                            ),
+                        ],
+                      ),
                     ),
                   );
                 }),
