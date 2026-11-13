@@ -5188,9 +5188,9 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       transaction.create(messageRef, {
         messageId, chatId, senderUid: actorUid, recipientUid: requesterUid,
         text: "تعليمات دفع طلب شراء الكوينز رقم " + input.requestId +
-          "\\nالكمية المتفق عليها: " + input.agreedCoins + " كوين" +
-          "\\nالسعر: " + (input.agreedPriceMinor / 100).toFixed(2) + " EUR" +
-          "\\nالتعليمات: " + input.instructions,
+          "\nالكمية المتفق عليها: " + input.agreedCoins + " كوين" +
+          "\nالسعر: " + (input.agreedPriceMinor / 100).toFixed(2) + " EUR" +
+          "\nالتعليمات: " + input.instructions,
         type: "text", isPlatformOwnerMessage: true,
         senderLabel: "إدارة منصة مودة", adminMessageType: "coin_purchase_payment_instructions",
         createdAt: now,
