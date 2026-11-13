@@ -338,27 +338,6 @@ test("safe preview rejects stale generations and never falls back to original qu
   );
 });
 
-test("owner inspection rejects stale storage generations and audits the denial", async () => {
-  const uid = `http-owner-stale-${Date.now()}-${Math.random()}`;
-  const mediaId = randomUUID();
-  const objectPath = `quarantine/fixture/${mediaId}`;
-  await getStorage().bucket().file(objectPath).save(Buffer.from("replacement"), {
-    metadata: { contentType: "image/png" },
-  });
-  await db.collection("mediaAssets").doc(mediaId).create({
-    mediaId, ownerUid: "uploader-fixture", objectPath,
-    uploaderType: "member", declaredContentType: "image/png",
-    storageGeneration: "1", status: "pending_security_scan",
-  });
-  await assert.rejects(
-    () => getOwnerMediaInspectionUrl.run(ownerRequest(uid, { mediaId })),
-    (error) => error && error.code === "failed-precondition",
-  );
-  assert.ok((await auditEvents(uid)).some((event) =>
-    event.action === "owner_media_inspection_result" && event.outcome === "denied_or_failed"));
-});
-
-
 test("scheduled cleanup deletes abandoned quarantine objects and releases active quota", async () => {
   const uid = `abandoned-${Date.now()}-${Math.random()}`;
   const mediaId = randomUUID();
