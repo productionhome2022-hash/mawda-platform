@@ -26,7 +26,7 @@ The Cloud Run runtime service account needs object-create permission for the `pr
 
 ## Deployment sequence (non-production only)
 
-1. Create a dedicated non-production Firebase/GCS project and bucket with uniform bucket-level access, public access prevention and versioning enabled.
+1. Create a dedicated non-production Firebase/GCS project and bucket with uniform bucket-level access and public access prevention. Do not enable soft-delete retention, bucket retention policies/locks, object holds, replication or backup copies for chat-media payloads. Object versioning may be enabled for the test only if the exact-generation purge test proves every noncurrent generation can be permanently deleted.
 2. Configure the Firebase Functions secrets and string parameters:
    - `MAWDA_MEDIA_SCANNER_API_TOKEN`
    - `MAWDA_MEDIA_SCANNER_HMAC_SECRET`
@@ -36,6 +36,7 @@ The Cloud Run runtime service account needs object-create permission for the `pr
 3. Build and deploy this container to Cloud Run in the same approved region. Set `SCANNER_API_TOKEN`, `SCANNER_HMAC_SECRET`, `SCANNER_CALLBACK_URL`, `SCANNER_PROVIDER`, and `GCS_BUCKET` from Secret Manager/config. Use a dedicated service account, grant `roles/run.invoker` to the Firebase Functions runtime service account, grant only storage object-create and object-get permissions scoped to the `processed/` derivative prefix, use no service-account keys, expose no shell/debug endpoints, and restrict egress where practical.
 4. Configure Firebase Functions scanner URL and secrets to match the deployed service.
 5. Test clean EICAR-free sample images, the standard EICAR test string in a supported container (must be rejected), malformed images, oversized objects, expired signed URLs, generation mismatch, bad HMAC, stale callback, duplicate callback, scanner timeout and Cloud Run restart/retry in non-production.
-6. Do not enable member delivery for non-image media until its separate safe processing pipeline is implemented and validated.
+6. Run `functions/scripts/test-retention-storage.cjs` with `MAWDA_RETENTION_GCS_TEST=1` against the dedicated non-production bucket. It refuses buckets with soft-delete retention or a retention policy and verifies deletion of every visible generation. This test is separate from `functions/scripts/test-signed-urls-http.cjs`.
+7. Do not enable member delivery for non-image media until its separate safe processing pipeline is implemented and validated.
 
-The service has not been deployed or connected in any Firebase environment merely by adding these source files. A successful CI build is not evidence that the malware signatures are current or that a live scanner is running.
+The service has not been deployed or connected in any Firebase environment merely by adding these source files. A green scanner image build/EICAR CI job is not proof of a live Cloud Run service or a configured bucket. Firestore PITR and scheduled backups/exports must also be disabled or proven to expire chat text within the seven-day limit. A successful CI build is not evidence that the malware signatures are current or that a live scanner is running.
