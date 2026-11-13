@@ -106,3 +106,48 @@ See `docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md` for the full requiremen
 - **Manual coin requests:** package or custom-quantity request, owner-provided payment instructions, owner-recorded external verification, then one atomic owner approval that credits coins and ledger. No gateway, no automatic cash payment, and no coin issuance before owner approval. Backend/UI/integration tests remain open.
 - **Logout:** the main member shell currently has a logout action and AuthService calls Firebase signOut. Owner reachability, push-token failure handling and end-to-end auth-gate acceptance still need explicit tests.
 - These are additional Phase 1/2 acceptance items; Phase 3 remains paused until the owner presents and approves its proposal.
+
+
+## H. Verified follow-up implementation and exact-head CI — 13 November 2026
+
+Latest verified development head: `9f11b4796fab3c5cad64e003c4cc90d2ff83666d`.
+
+GitHub Actions run [43474826351](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43474826351) completed successfully on that exact head:
+- Cloud Functions compile, unit tests and emulator integration suite: PASS.
+- Flutter analysis, tests and release web build: PASS.
+- Isolated ClamAV scanner security tests, Docker image build, media processing and EICAR detection: PASS.
+
+The preceding failure in run 43473863520 was a test-harness import omission: the canonical-owner test referenced `listOwnerCoinPurchaseRequests` without destructuring it from the compiled Functions exports. The callable existed. The test import was corrected in commit `9f11b4796fab3c5cad64e003c4cc90d2ff83666d`, and the exact-head rerun passed all three jobs.
+
+### H1. Manual coin purchase requests — implemented foundations, automated CI passed
+
+- Member UI supports fixed package requests and custom coin quantity requests.
+- Owner UI lists requests, sends payment instructions, records external payment verification and approves or rejects requests.
+- Member can withdraw an eligible pending request.
+- Pending/instruction states do not issue coins. Owner approval uses the server transaction to credit balance, create wallet ledger/audit records, and is idempotent.
+- Automated checkout remains disabled. No payment gateway, card processing, bank credential storage or automated custom-quantity settlement is enabled.
+- Emulator integration tests cover package request, no-credit-before-approval, owner instruction delivery, approval/idempotency, custom request/withdrawal and owner-claim denial.
+- Remaining: validate real owner bootstrap/MFA on a disposable non-production Firebase project, verify direct owner/member payment conversation UX end-to-end on devices, reconcile real external payments and operational disputes/refunds, and complete final UI/accessibility acceptance.
+
+### H2. Owner live-stream link broadcasts — initial end-to-end link workflow implemented; split-screen player remains open
+
+- Server callable `sendOwnerLiveStream` is owner-claim/MFA-gated, validates bounded HTTPS URLs, rejects credentials, IP literals, local hostnames, known shorteners and non-standard ports, and performs no backend URL fetch or proxying.
+- It supports an owner/member direct conversation, an active public room, and an active rented private room; closed and expired rooms are rejected.
+- Writes an idempotent `live_stream` message and owner audit record. Direct-message and room message readers expose the stream metadata.
+- Owner UI has direct-conversation and room broadcast composers; member direct/room views show the source link and open it externally.
+- Emulator tests cover direct and room sends, replay idempotency, non-owner denial, unsafe URL rejection, closed room denial and expired private rental denial.
+- **Not complete:** the requested in-app upper-half player with the conversation/room visible below, close/dispose behavior, provider-specific official embed/player adapters, device playback acceptance and robust high-volume room notification fan-out. Current behavior deliberately opens the original HTTPS source externally and does not bypass DRM, login, paywall, geoblocking or embedding restrictions.
+
+### H3. Owner identity and security — bootstrap safeguards exist; production provisioning remains open
+
+- `functions/scripts/bootstrap-owner.cjs` provisions a single owner registry record transactionally, rejects a second different UID, requires a verified enabled account and enrolled MFA, and applies the matching `platformOwner` and `platformOwnerUid` custom claims with an audit record.
+- Server owner-session checks require the claim UID to match the authenticated UID, a second-factor token and authentication within 15 minutes.
+- No production owner bootstrap or production Firebase mutation was performed in this work. The canonical owner account, MFA recovery and real token lifecycle still require controlled non-production verification and explicit production authorization.
+
+### H4. Current release boundary
+
+- PR #2 remains open, draft and unmerged. No production deployment or production resource mutation was performed.
+- Phase 1 + Phase 2 overall acceptance remains OPEN despite the green exact-head CI. Green CI validates only the automated checks executed on that commit.
+- Non-production GCS/Cloud Run scanner E2E, signed URL and generation-pinned deletion, backups/PITR/restore, FCM real delivery, mobile-device acceptance, privacy/legal review, penetration/accessibility/performance tests, owner MFA recovery and immutable 24-month audit archive/checkpoint remain release gates.
+- Generated Flutter web output and Firebase CLI cache are still tracked in the PR despite ignore rules; remove these generated artifacts from version control before closure.
+- Phase 3 remains paused pending the owner's separate proposal and approval.
