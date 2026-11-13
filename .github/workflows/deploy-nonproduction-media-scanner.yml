@@ -118,6 +118,14 @@ jobs:
           npm ci --no-audit --no-fund
           npm run test:retention-gcs
 
+      - name: Test real signed upload/read URL expiry, replay and size enforcement
+        working-directory: functions
+        env:
+          GOOGLE_CLOUD_PROJECT: ${{ inputs.project_id }}
+          MAWDA_MEDIA_TEST_BUCKET: ${{ inputs.bucket_name }}
+          MAWDA_MEDIA_SIGNED_URL_HTTP_TEST: "1"
+        run: npm run test:media-signed-urls-http
+
       - name: Enable required Google APIs and verify secrets/service accounts
         env:
           PROJECT_ID: ${{ inputs.project_id }}
