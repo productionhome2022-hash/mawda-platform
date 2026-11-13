@@ -4,6 +4,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import '../services/super_admin_security_service.dart';
 import 'owner_chat_participation_screen.dart';
+import 'owner_coin_purchase_screen.dart';
 import 'safety_review_screen.dart';
 import 'room_rental_pricing_screen.dart';
 import 'economy_pricing_screen.dart';
@@ -1355,6 +1356,17 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     )),
                     icon: const Icon(Icons.account_balance_outlined),
                     label: const Text('إدارة أسعار الكوينز والإعلانات'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const OwnerCoinPurchaseScreen(),
+                    )),
+                    icon: const Icon(Icons.payments_outlined),
+                    label: const Text('طلبات شراء الكوينز والتحقق اليدوي'),
                   ),
                 ),
                 const SizedBox(height: 8),
