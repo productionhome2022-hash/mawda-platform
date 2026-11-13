@@ -246,6 +246,15 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
 
         try {
           for (const path of paths) objects += await deleteAllObjectGenerations(path);
+          if (purpose === "story" && typeof asset.storyDocumentId === "string") {
+            await db.collection("stories").doc(asset.storyDocumentId).delete().catch((error) => {
+              logger.warn("Expired story document cleanup will retry with its media tombstone.", {
+                mediaId, storyId: asset.storyDocumentId,
+                errorName: error instanceof Error ? error.name : "unknown",
+              });
+              throw error;
+            });
+          }
           const tombstone: Record<string, unknown> = {};
           for (const key of Object.keys(asset)) {
             if (!["ownerUid", "uploaderType", "mediaPurpose", "createdAt", "retentionExpiresAt"].includes(key)) {
