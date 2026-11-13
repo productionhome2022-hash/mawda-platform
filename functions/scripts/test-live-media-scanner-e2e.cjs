@@ -143,13 +143,12 @@ async function runCase(label, bytes, expectedStatus) {
       action: "write",
       expires: Date.now() + 15 * 60 * 1000,
       contentType: "image/png",
-      extensionHeaders: { "x-goog-if-generation-match": "0" },
+      queryParams: { ifGenerationMatch: "0" },
     });
     const initialUpload = await fetch(signedPutUrl, {
       method: "PUT",
       headers: {
         "Content-Type": "image/png",
-        "x-goog-if-generation-match": "0",
       },
       body: bytes,
     });
