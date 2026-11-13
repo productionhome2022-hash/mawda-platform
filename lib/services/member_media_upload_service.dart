@@ -49,6 +49,11 @@ class MemberMediaUploadService {
     final Uint8List bytes = await file.readAsBytes();
     if (bytes.isEmpty) throw const FormatException('ملف الصورة فارغ.');
     final contentType = _imageContentType(file);
+    if ((purpose == 'chat' || purpose == 'room') && contentType == 'image/gif') {
+      throw const FormatException(
+        'إرسال الصور المتحركة GIF سيفتح بعد تفعيل معالج GIF الآمن؛ أرسل صورة ثابتة حالياً.',
+      );
+    }
     final request = <String, dynamic>{
       'originalName': file.name,
       'contentType': contentType,
