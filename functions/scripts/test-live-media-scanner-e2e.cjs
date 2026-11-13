@@ -1,6 +1,7 @@
 const { initializeApp, applicationDefault } = require("firebase-admin/app");
 const { FieldValue, Timestamp, getFirestore } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
+const { deleteMediaAssetForMessage } = require("../lib/media");
 const { randomUUID } = require("node:crypto");
 const { deflateSync } = require("node:zlib");
 
@@ -106,12 +107,6 @@ async function runCase(label, bytes, expectedStatus) {
   const jobRef = db.collection("mediaScanJobs").doc(mediaId);
   let previewFile = null;
   try {
-    await file.save(bytes, {
-      resumable: false,
-      preconditionOpts: { ifGenerationMatch: 0 },
-      metadata: { contentType: "image/png" },
-    });
-    const [metadata] = await file.getMetadata();
     const now = Timestamp.now();
     await assetRef.set({
       mediaId,
@@ -123,7 +118,7 @@ async function runCase(label, bytes, expectedStatus) {
       detectedContentType: "image/png",
       declaredSizeBytes: bytes.length,
       sizeBytes: bytes.length,
-      storageGeneration: String(metadata.generation),
+      storageGeneration: null,
       status: "upload_authorized",
       retentionPolicyStatus: "four_hour_self_destruct",
       mediaUploadedAt: now,
@@ -131,7 +126,27 @@ async function runCase(label, bytes, expectedStatus) {
       createdAt: now,
       updatedAt: now,
     });
+    const [signedPutUrl] = await file.getSignedUrl({
+      version: "v4",
+      action: "write",
+      expires: Date.now() + 15 * 60 * 1000,
+      contentType: "image/png",
+      extensionHeaders: { "x-goog-if-generation-match": "0" },
+    });
+    const initialUpload = await fetch(signedPutUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "image/png",
+        "x-goog-if-generation-match": "0",
+      },
+      body: bytes,
+    });
+    if (!initialUpload.ok) {
+      throw new Error(`Signed test upload failed: HTTP ${initialUpload.status}`);
+    }
+    const [metadata] = await file.getMetadata();
     await assetRef.update({
+      storageGeneration: String(metadata.generation),
       status: "pending_security_scan",
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -154,11 +169,35 @@ async function runCase(label, bytes, expectedStatus) {
           String(previewMetadata.generation) !== String(result.asset.safePreviewGeneration)) {
         throw new Error("Clean image preview metadata did not match the scanner verdict.");
       }
+      await deleteMediaAssetForMessage(mediaId, ownerUid, "chat");
+      await waitForObjectGone(file);
+      await waitForObjectGone(previewFile);
     }
+
+    // The same signed create-only PUT URL is still live. Reuse it after the
+    // original was deleted/rejected; the Storage finalized trigger must erase
+    // the newly created generation against the media tombstone.
+    const replay = await fetch(signedPutUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "image/png",
+        "x-goog-if-generation-match": "0",
+      },
+      body: bytes,
+    });
+    if (!replay.ok) {
+      throw new Error(`Signed upload replay did not reach the cleanup trigger: HTTP ${replay.status}`);
+    }
+    await waitForObjectGone(file);
 
     const audit = await db.collection("mediaAccessAudit")
       .where("mediaId", "==", mediaId).get();
-    if (audit.empty) throw new Error(`No media audit event was recorded for ${label}.`);
+    const hasLateReplayAudit = audit.docs.some((doc) =>
+      doc.data().action === "late_chat_media_original_deleted",
+    );
+    if (!hasLateReplayAudit) {
+      throw new Error(`No exact-generation late replay cleanup audit was recorded for ${label}.`);
+    }
     console.log(JSON.stringify({
       test: label,
       mediaId,
@@ -166,6 +205,7 @@ async function runCase(label, bytes, expectedStatus) {
       actualStatus: result.asset.status,
       jobState: result.job.state,
       previewCreated: Boolean(previewFile),
+      lateReplayDeleted: true,
       auditEvents: audit.size,
     }));
   } finally {
