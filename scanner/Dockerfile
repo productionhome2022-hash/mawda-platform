@@ -15,8 +15,8 @@ RUN npm install --omit=dev --no-audit --no-fund
 COPY security.js server.js start.sh ./
 RUN chmod 0555 /app/start.sh \
     && useradd --system --uid 10001 --home-dir /nonexistent --shell /usr/sbin/nologin scanner \
-    && mkdir -p /var/lib/clamav /tmp \
-    && chown -R scanner:scanner /app /var/lib/clamav /tmp
+    && mkdir -p /var/lib/clamav /var/log/clamav /tmp \
+    && chown -R scanner:scanner /app /var/lib/clamav /var/log/clamav /tmp
 
 USER scanner
 EXPOSE 8080
