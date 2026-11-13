@@ -2086,7 +2086,7 @@ export const placeMediaLegalHold = onCall(async (request) => {
     if (!assetSnapshot.exists) throw new HttpsError("not-found", "ملف الوسائط غير موجود.");
     const asset = assetSnapshot.data() ?? {};
     if (!["chat", "room"].includes(String(asset.mediaPurpose)) ||
-        asset.status === "self_destructed" ||
+        ["self_destructed", "manually_deleted", "manual_deletion_pending"].includes(String(asset.status)) ||
         typeof asset.objectPath !== "string" ||
         asset.legalHoldStatus === "active") {
       throw new HttpsError("failed-precondition", "لا يمكن حجز هذا الملف أو يوجد له حجز نشط بالفعل.");
