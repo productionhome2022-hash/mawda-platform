@@ -7,6 +7,7 @@ import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { reserveMediaQuota, releaseMediaQuota } from "./media-quota";
+import { MEDIA_UPLOAD_CLEANUP_GRACE_MS, uploadIntentIsEligibleForCleanup } from "./media-cleanup";
 import {
   detectMediaSignature,
   mediaPolicyFor,
@@ -486,23 +487,31 @@ export const getOwnerMediaInspectionUrl = onCall(async (request) => {
 
 
 /**
- * Reclaims abandoned upload reservations after the signed PUT capability has
- * expired plus a safety grace period. A transactional state claim prevents a
- * cleanup/finalize race; failed object deletion is retried on the next sweep.
+ * Reclaims abandoned upload reservations only after the signed PUT capability
+ * expiry plus a 30-minute grace period. A transactional state claim prevents
+ * cleanup/finalize races; exact object paths and generations are checked.
  */
 export const cleanupExpiredMediaUploadIntents = onSchedule(
   { schedule: "every 15 minutes", timeZone: "UTC", retryCount: 3 },
   async () => {
-    const cutoff = Timestamp.fromMillis(Date.now() - 15 * 60 * 1000);
+    const nowMs = Date.now();
     const assets = mediaDb().collection("mediaAssets");
-    const [expired, retrying] = await Promise.all([
+    const [authorized, retrying] = await Promise.all([
       assets.where("status", "==", "upload_authorized")
-        .where("createdAt", "<=", cutoff).orderBy("createdAt").limit(100).get(),
+        .orderBy("createdAt").limit(100).get(),
       assets.where("status", "==", "expired_cleanup_in_progress")
         .orderBy("createdAt").limit(100).get(),
     ]);
-    const candidates = new Map<string, (typeof expired.docs)[number]>();
-    for (const doc of [...expired.docs, ...retrying.docs]) candidates.set(doc.id, doc);
+    const candidates = new Map<string, (typeof authorized.docs)[number]>();
+    for (const doc of retrying.docs) candidates.set(doc.id, doc);
+    for (const doc of authorized.docs) {
+      const expiry = doc.data().uploadUrlExpiresAt;
+      const expiryMs = expiry instanceof Timestamp ? expiry.toMillis() :
+        expiry instanceof Date ? expiry.getTime() : Number.NaN;
+      if (uploadIntentIsEligibleForCleanup(expiryMs, nowMs, MEDIA_UPLOAD_CLEANUP_GRACE_MS)) {
+        candidates.set(doc.id, doc);
+      }
+    }
 
     let reclaimed = 0;
     for (const candidate of candidates.values()) {
@@ -512,48 +521,76 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
         const data = current.data();
         if (!current.exists || !data) return null;
         if (data.status === "upload_authorized") {
-          const createdAt = data.createdAt as Timestamp | undefined;
-          if (!createdAt || createdAt.toMillis() > cutoff.toMillis()) return null;
+          const expiry = data.uploadUrlExpiresAt;
+          const expiryMs = expiry instanceof Timestamp ? expiry.toMillis() :
+            expiry instanceof Date ? expiry.getTime() : Number.NaN;
+          if (!uploadIntentIsEligibleForCleanup(expiryMs, nowMs, MEDIA_UPLOAD_CLEANUP_GRACE_MS)) {
+            return null;
+          }
+        } else if (data.status !== "expired_cleanup_in_progress") {
+          return null;
+        }
+
+        const ownerUid = typeof data.ownerUid === "string" ? data.ownerUid : "";
+        const objectPath = typeof data.objectPath === "string" ? data.objectPath : "";
+        const reservedBytes = Number(data.declaredSizeBytes);
+        if (!ownerUid || objectPath !== `quarantine/${ownerUid}/${candidate.id}` ||
+            !Number.isSafeInteger(reservedBytes) || reservedBytes <= 0) {
+          throw new HttpsError("failed-precondition", "Abandoned upload metadata failed integrity checks.");
+        }
+        if (data.status === "upload_authorized") {
           transaction.update(assetRef, {
             status: "expired_cleanup_in_progress",
             cleanupStartedAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
           });
-          return { ownerUid: String(data.ownerUid), objectPath: String(data.objectPath),
-            reservedBytes: Number(data.declaredSizeBytes) };
         }
-        if (data.status === "expired_cleanup_in_progress") {
-          return { ownerUid: String(data.ownerUid), objectPath: String(data.objectPath),
-            reservedBytes: Number(data.declaredSizeBytes) };
-        }
-        return null;
+        return { ownerUid, objectPath, reservedBytes };
       });
       if (!claimed) continue;
 
       try {
-        await mediaBucket().file(claimed.objectPath).delete({ ignoreNotFound: true });
+        const file = mediaBucket().file(claimed.objectPath);
+        let generation: number | null = null;
+        try {
+          const [metadata] = await file.getMetadata();
+          generation = Number(metadata.generation);
+          if (!Number.isSafeInteger(generation) || generation <= 0) {
+            throw new Error("INVALID_STORAGE_GENERATION");
+          }
+        } catch (error) {
+          const code = (error as { code?: number | string })?.code;
+          if (code !== 404 && code !== "404") throw error;
+        }
+        if (generation !== null) {
+          await file.delete({ ignoreNotFound: true, ifGenerationMatch: generation });
+        }
+
         await mediaDb().runTransaction(async (transaction) => {
+          const quotaRef = mediaDb().collection("mediaUploadQuotas").doc(claimed.ownerUid);
           const [current, quotaSnapshot] = await Promise.all([
             transaction.get(assetRef),
-            transaction.get(mediaDb().collection("mediaUploadQuotas").doc(claimed.ownerUid)),
+            transaction.get(quotaRef),
           ]);
           if (!current.exists || current.data()?.status !== "expired_cleanup_in_progress") return;
           const quota = releaseMediaQuota(quotaSnapshot.data(), claimed.reservedBytes);
           transaction.update(assetRef, {
             status: "expired",
+            cleanupObjectGeneration: generation === null ? null : String(generation),
             expiredAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
           });
-          transaction.set(mediaDb().collection("mediaUploadQuotas").doc(claimed.ownerUid), {
-            ...quota, updatedAt: FieldValue.serverTimestamp(),
+          transaction.set(quotaRef, { ...quota, updatedAt: FieldValue.serverTimestamp() });
+          const auditRef = mediaDb().collection("mediaAccessAudit").doc();
+          transaction.create(auditRef, {
+            actorUid: claimed.ownerUid,
+            mediaId: candidate.id,
+            action: "media_upload_intent_expired",
+            outcome: "success",
+            objectPath: claimed.objectPath,
+            objectGeneration: generation === null ? null : String(generation),
+            createdAt: FieldValue.serverTimestamp(),
           });
-        });
-        await auditMediaAccess({
-          actorUid: claimed.ownerUid,
-          mediaId: candidate.id,
-          action: "media_upload_intent_expired",
-          outcome: "success",
-          objectPath: claimed.objectPath,
         });
         reclaimed += 1;
       } catch (error) {
