@@ -2979,6 +2979,7 @@ export {
   ownerMediaInspectionStream,
   ownerMediaPreview,
   cleanupExpiredMediaUploadIntents,
+  cleanupRetainedMediaAssets,
   enqueueMediaSecurityScan,
   dispatchMediaSecurityScan,
   receiveMediaScanVerdict,
