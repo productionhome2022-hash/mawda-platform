@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/coin_system_service.dart';
 import '../services/member_media_upload_service.dart';
 import '../services/auth_service.dart';
+import '../services/local_biometric_service.dart';
 import 'direct_chat_screen.dart';
 import 'stories_screen.dart';
 import 'profile_gallery_screen.dart';
@@ -28,6 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   final MemberMediaUploadService _memberMedia = MemberMediaUploadService();
   bool _changingProfileMedia = false;
+  bool _checkingLocalBiometrics = false;
   bool _isTransferringCoins = false;
   String? _pendingTransferKey;
   String? _pendingTransferRequestId;
@@ -37,6 +39,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _profileFuture = _loadProfile();
+  }
+
+  Future<void> _checkLocalBiometrics() async {
+    if (_checkingLocalBiometrics) return;
+    setState(() => _checkingLocalBiometrics = true);
+    final result = await LocalBiometricService().authenticate();
+    if (!mounted) return;
+    setState(() => _checkingLocalBiometrics = false);
+
+    final message = switch (result.status) {
+      LocalBiometricStatus.authenticated =>
+        'نجحت المصادقة المحلية على هذا الجهاز. لم تُرسل بيانات بيومترية إلى خوادم مودة، ولم تُمنح مكافأة أو صلاحية خادمية بهذه الخطوة.',
+      LocalBiometricStatus.unavailable =>
+        'هذا الجهاز أو النظام لا يتيح المصادقة البيومترية حالياً.',
+      LocalBiometricStatus.notEnrolled =>
+        'لم تُسجل بصمة أو وسيلة بيومترية على هذا الجهاز.',
+      LocalBiometricStatus.cancelled =>
+        'ألغيت المصادقة؛ لم يتم اعتماد أي تحقق.',
+      LocalBiometricStatus.failed =>
+        'تعذر إكمال المصادقة البيومترية. حاول لاحقاً أو تحقق من إعدادات الجهاز.',
+    };
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 5)),
+    );
   }
 
   Future<void> _changeProfileVisibility(String visibility) async {
@@ -867,6 +893,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     icon: const Icon(Icons.link),
                     label: const Text('إدارة روابط التواصل'),
                     onPressed: () => _manageSocialLinks(data),
+                  ),
+                ),
+              if (isMyProfile)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  child: OutlinedButton.icon(
+                    onPressed: _checkingLocalBiometrics ? null : _checkLocalBiometrics,
+                    icon: _checkingLocalBiometrics
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.fingerprint),
+                    label: const Text('اختبار المصادقة البيومترية على هذا الجهاز'),
                   ),
                 ),
               if (isMyProfile && !canManageSocialLinks)
