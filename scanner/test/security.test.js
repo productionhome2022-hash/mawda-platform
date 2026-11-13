@@ -47,6 +47,8 @@ test("safe derivative reuse is bound to source hash, generation, provider and pr
     },
   };
   assert.equal(isSafeDerivativeMetadata(metadata, expected), true);
+  assert.equal(isSafeDerivativeMetadata({ ...metadata, size: 2 * 1024 * 1024 }, expected), true);
+  assert.equal(isSafeDerivativeMetadata({ ...metadata, size: 2 * 1024 * 1024 + 1 }, expected), false);
   assert.equal(isSafeDerivativeMetadata({ ...metadata, metadata: { ...metadata.metadata, sourceSha256: "b".repeat(64) } }, expected), false);
   assert.equal(isSafeDerivativeMetadata({ ...metadata, metadata: { ...metadata.metadata, sourceGeneration: "1" } }, expected), false);
   assert.equal(isSafeDerivativeMetadata({ ...metadata, size: 21 * 1024 * 1024 }, expected), false);
