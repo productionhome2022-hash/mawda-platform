@@ -150,7 +150,8 @@ test("finalize callable accepts a matching quarantined PNG and audits the result
   const bytes = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
   await reserveFixtureQuota(uid, bytes.length);
   await db.collection("mediaAssets").doc(mediaId).create({
-    mediaId, ownerUid: uid, objectPath, uploaderType: "member",
+    mediaId, ownerUid: uid, objectPath, uploaderType: "member", mediaPurpose: "profile_album",
+    retentionPolicyStatus: "seven_day_profile_album",
     declaredContentType: "image/png", declaredSizeBytes: bytes.length,
     status: "upload_authorized",
   });
@@ -165,6 +166,10 @@ test("finalize callable accepts a matching quarantined PNG and audits the result
   assert.equal(result.status, "pending_security_scan");
   const asset = await db.collection("mediaAssets").doc(mediaId).get();
   assert.equal(asset.data().status, "pending_security_scan");
+  assert.equal(asset.data().retentionPolicyStatus, "seven_day_profile_album");
+  assert.ok(asset.data().retentionExpiresAt instanceof Timestamp);
+  assert.ok(asset.data().retentionExpiresAt.toMillis() >= Date.now() + 6 * 24 * 60 * 60 * 1000);
+  assert.ok(asset.data().retentionExpiresAt.toMillis() <= Date.now() + 7 * 24 * 60 * 60 * 1000 + 5000);
   assert.ok((await auditEvents(uid)).some((event) =>
     event.action === "media_upload_validation" && event.outcome === "pending_security_scan"));
 });
@@ -213,7 +218,7 @@ test("upload intent reserves per-user quota atomically and audits the capability
   const asset = await db.collection("mediaAssets").doc(result.mediaId).get();
   assert.equal(asset.data().status, "upload_authorized");
   assert.equal(asset.data().mediaPurpose, "profile_album");
-  assert.equal(asset.data().retentionPolicyStatus, "owner_approval_required");
+  assert.equal(asset.data().retentionPolicyStatus, "seven_day_profile_album");
   assert.equal(asset.data().retentionExpiresAt, null);
   assert.ok((await auditEvents(uid)).some((event) =>
     event.action === "media_upload_intent_created" && event.outcome === "success"));
