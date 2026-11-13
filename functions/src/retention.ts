@@ -310,11 +310,31 @@ function configuredMediaBucketName(): string | null {
   }
 }
 
+export function isKnownDeletedMediaObjectPath(
+  asset: Record<string, unknown>,
+  objectPath: string,
+  ownerUid: string,
+  mediaId: string,
+): boolean {
+  const deterministicPreview = `processed/${ownerUid}/${mediaId}/preview.webp`;
+  const candidates = [
+    asset.objectPath,
+    asset.safePreviewPath,
+    deterministicPreview,
+    ...(Array.isArray(asset.derivedObjectPaths) ? asset.derivedObjectPaths : []),
+    ...(Array.isArray(asset.deletedObjectPaths) ? asset.deletedObjectPaths : []),
+  ];
+  return candidates.some((candidate) => candidate === objectPath);
+}
+
 async function handleLateExpiredChatMediaDerivative(event: Parameters<typeof onObjectFinalized>[1] extends (event: infer T) => unknown ? T : never): Promise<void> {
   const object = event.data;
   const objectPath = typeof object.name === "string" ? object.name : "";
   const parts = objectPath.split("/");
-  if (parts.length !== 4 || parts[0] !== "processed" || parts[3] !== "preview.webp") return;
+  const isOriginal = parts.length === 3 && parts[0] === "quarantine";
+  const isDerived = parts.length === 4 && parts[0] === "processed" &&
+    parts[3] === "preview.webp";
+  if (!isOriginal && !isDerived) return;
   const ownerUid = parts[1];
   const mediaId = parts[2];
   const generation = Number(object.generation);
@@ -327,22 +347,31 @@ async function handleLateExpiredChatMediaDerivative(event: Parameters<typeof onO
   const asset = assetSnapshot.data() ?? {};
   if (asset.ownerUid !== ownerUid ||
       !["chat", "room"].includes(String(asset.mediaPurpose)) ||
-      (asset.legalHoldStatus === "active" && typeof asset.activeLegalHoldId === "string")) return;
+      asset.legalHoldStatus === "active" ||
+      !isKnownDeletedMediaObjectPath(asset, objectPath, ownerUid, mediaId)) return;
 
+  const manualDeletionState = ["manual_deletion_pending", "manually_deleted"].includes(String(asset.status));
   const expiry = asset.retentionExpiresAt instanceof Timestamp
     ? asset.retentionExpiresAt
     : asset.createdAt instanceof Timestamp
       ? Timestamp.fromMillis(asset.createdAt.toMillis() + CHAT_MEDIA_RETENTION_MS)
       : null;
-  if (asset.status !== "self_destructed" && (!expiry || expiry.toMillis() > Date.now())) return;
+  if (!manualDeletionState && asset.status !== "self_destructed" &&
+      (!expiry || expiry.toMillis() > Date.now())) return;
 
   await getStorage().bucket(object.bucket).file(objectPath).delete({
     ignoreNotFound: true,
     ifGenerationMatch: generation,
   });
   await db.collection("mediaAccessAudit").add({
-    actorUid: "system-retention", mediaId, action: "late_chat_media_derivative_deleted",
-    outcome: "success", purpose: asset.mediaPurpose,
+    actorUid: "system-retention",
+    mediaId,
+    action: isOriginal
+      ? "late_chat_media_original_deleted"
+      : "late_chat_media_derivative_deleted",
+    objectGeneration: String(generation),
+    outcome: "success",
+    purpose: asset.mediaPurpose,
     createdAt: FieldValue.serverTimestamp(),
     expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
   });
