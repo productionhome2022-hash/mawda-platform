@@ -79,6 +79,12 @@ jobs:
         run: npm run test:media-integration
       - name: Run Firestore and Storage rules emulator tests
         run: npm run test:rules
+      - name: Validate isolated malware scanner source and security contracts
+        run: |
+          node --check scanner/server.js
+          node --check scanner/security.js
+          sh -n scanner/start.sh
+          node --test scanner/test/*.test.js
 
   scanner-gateway:
     name: Isolated ClamAV scanner gateway tests and image build
