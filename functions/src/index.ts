@@ -2977,4 +2977,5 @@ export {
   getOwnerMediaInspectionUrl,
   cleanupExpiredMediaUploadIntents,
   receiveMediaScanVerdict,
+  dispatchMediaSecurityScan,
 } from "./media";
