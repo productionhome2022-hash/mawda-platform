@@ -28,3 +28,13 @@ test("rejects empty, oversized and malformed messages", () => {
     recipientUid: "", text: "Hello", clientMessageId: "message_123",
   }), /INVALID_RECIPIENT/);
 });
+
+test("rejects media attachment fields until the dedicated scanned-media delivery path exists", () => {
+  assert.throws(() => validateDirectMessageInput({
+    recipientUid: "u2",
+    text: "not an attachment",
+    clientMessageId: "message_123",
+    mediaId: "123e4567-e89b-12d3-a456-426614174000",
+    mediaContentType: "image/png",
+  }), /UNSUPPORTED_DIRECT_MESSAGE_FIELDS/);
+});
