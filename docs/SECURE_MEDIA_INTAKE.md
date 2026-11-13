@@ -34,8 +34,8 @@ A scheduled janitor runs every 15 minutes. It claims only `upload_authorized` re
 
 ## Signed URL HTTP verification
 
-- Emulator integration tests exercise an actual HTTP PUT through the returned signed URL, a replay attempt, an actual owner inspection GET, attachment disposition, stale-generation denial and an over-reservation upload rejection.
-- `functions/scripts/test-signed-urls-http.cjs` is an opt-in real-bucket test for a dedicated non-production bucket. It checks successful signed PUT, create-only replay rejection (expected HTTP 412), signed GET byte equality and expiry. It refuses the known production project and production-named buckets. It has **not** been run against a real non-production Firebase project unless a dated CI/deployment record explicitly says so.
+- Emulator integration tests verify the exact V4 signing options (create-only upload, bounded expiry, attachment-only owner read), owner/MFA authorization, stale-generation denial and over-reservation rejection. The emulator cannot mint real Google V4 signatures without signing credentials, so these tests deliberately stub only the signer.
+- `functions/scripts/test-signed-urls-http.cjs` is an opt-in real-bucket test for a dedicated non-production bucket. It checks successful signed PUT, create-only replay rejection (expected HTTP 412), signed GET byte equality and expiry. It refuses the known production project and production-named buckets. It has **not** been run against a real non-production Firebase project yet.
 - Cloud Storage V4 signed URLs are not inherently one-time. The generation precondition is the replay barrier after the first successful object creation.
 
 ## Scanner gateway contract
