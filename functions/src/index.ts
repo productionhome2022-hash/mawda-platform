@@ -4113,7 +4113,7 @@ export const setRoomModerator = onCall(async (request) => {
       transaction.get(roomRef), transaction.get(membershipRef),
     ]);
     const platformOwner = hasPlatformOwnerSession(
-      (request.auth?.token ?? {}) as Record<string, unknown>, undefined, uid,
+      (request.auth?.token ?? {}) as Record<string, unknown>, undefined, actorUid,
     );
     if (!room.exists || (room.data()?.ownerUid !== actorUid && !platformOwner)) {
       throw new HttpsError("permission-denied", "تعيين مشرفي الغرفة من صلاحية مالك الغرفة أو مالك المنصة فقط.");
