@@ -1,5 +1,11 @@
 const test = require("node:test");
+const { after } = require("node:test");
 const assert = require("node:assert/strict");
+const { EventEmitter } = require("node:events");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { generateKeyPairSync } = require("node:crypto");
 
 // Import the callable module before initializeApp(). This intentionally guards
 // against eager Admin SDK access during the Functions entry-point import phase.
@@ -17,6 +23,20 @@ const { initializeApp, getApps } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
 const { randomUUID } = require("node:crypto");
+
+// Signed URL generation needs a signer even when the target is the Storage Emulator.
+// Generate an ephemeral, test-only service account key; never use production credentials.
+const testKey = generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey
+  .export({ type: "pkcs8", format: "pem" });
+const testCredentialsPath = path.join(os.tmpdir(), `mawda-media-test-${process.pid}.json`);
+fs.writeFileSync(testCredentialsPath, JSON.stringify({
+  type: "service_account", project_id: "demo-mawda-media", private_key_id: "test-only",
+  private_key: testKey,
+  client_email: "firebase-adminsdk@demo-mawda-media.iam.gserviceaccount.com",
+  client_id: "123456789012345678901", token_uri: "https://oauth2.googleapis.com/token",
+}), { mode: 0o600 });
+process.env.GOOGLE_APPLICATION_CREDENTIALS = testCredentialsPath;
+after(() => { try { fs.unlinkSync(testCredentialsPath); } catch {} });
 
 if (getApps().length === 0) {
   initializeApp({ projectId: "demo-mawda-media", storageBucket: "demo-mawda-media.appspot.com" });
@@ -250,13 +270,13 @@ test("legacy owner inspection URL is disabled; the authenticated streaming endpo
     (error) => error && error.code === "failed-precondition",
   );
 
-  const response = {
-    statusCode: 200,
-    headers: {},
-    status(code) { this.statusCode = code; return this; },
-    set(name, value) { this.headers[name.toLowerCase()] = value; return this; },
-    end() { this.ended = true; return this; },
-  };
+  const response = new EventEmitter();
+  response.statusCode = 200;
+  response.headers = {};
+  response.status = function (code) { this.statusCode = code; return this; };
+  response.set = function (name, value) { this.headers[name.toLowerCase()] = value; return this; };
+  response.send = function (body) { this.body = body; this.ended = true; this.emit("finish"); return this; };
+  response.end = function (body) { this.body = body; this.ended = true; this.emit("finish"); return this; };
   await ownerMediaInspectionStream({
     method: "POST",
     get: () => "",
