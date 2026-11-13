@@ -64,13 +64,16 @@ export async function deleteMediaAssetForMessage(
     if (data.legalHoldStatus === "active") {
       throw new HttpsError("failed-precondition", "الوسيط خاضع لحجز قانوني نشط.");
     }
-    if (data.status === "self_destructed") return false;
+    // Even a retention tombstone may have a late derivative or a replayed
+    // signed upload. Reconstruct canonical exact object names and sweep them
+    // again rather than treating the tombstone as proof that Storage is empty.
     const expectedObjectPath = `quarantine/${expectedOwnerUid}/${mediaId}`;
     const expectedPreviewPath = `processed/${expectedOwnerUid}/${mediaId}/preview.webp`;
-    if (data.status !== "manually_deleted" && data.objectPath !== expectedObjectPath) {
+    if (!["manually_deleted", "self_destructed"].includes(String(data.status)) &&
+        data.objectPath !== expectedObjectPath) {
       throw new HttpsError("failed-precondition", "مسار تخزين الوسيط غير مطابق لمعرفه ومالكه.");
     }
-    if (data.status !== "manually_deleted" &&
+    if (!["manually_deleted", "self_destructed"].includes(String(data.status)) &&
         typeof data.safePreviewPath === "string" &&
         data.safePreviewPath !== expectedPreviewPath) {
       throw new HttpsError("failed-precondition", "مسار معاينة الوسيط غير مطابق للمسار الآمن المتوقع.");
