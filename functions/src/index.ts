@@ -1297,11 +1297,21 @@ export const deleteDirectMessageForEveryone = onCall(async (request) => {
         throw new HttpsError("failed-precondition", "لا يحتوي سجل الوسائط على معرفات أصول موثوقة كافية للحذف الآمن.");
       }
       if (data.deletionPending !== true) {
+        const notificationRefs = participants.map((participant) =>
+          db.collection("users").doc(String(participant))
+            .collection("notifications").doc(messageId),
+        );
+        const notifications = await Promise.all(
+          notificationRefs.map((ref) => transaction.get(ref)),
+        );
         transaction.update(messageRef, {
           deletionPending: true,
           deletionRequestedByUid: uid,
           deletionRequestedAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
+        });
+        notifications.forEach((snapshot, index) => {
+          if (snapshot.exists) transaction.delete(notificationRefs[index]);
         });
       }
       return {
@@ -1387,6 +1397,7 @@ export const deleteDirectMessageForEveryone = onCall(async (request) => {
     }
     if (chatData.lastMessageAt instanceof Timestamp &&
         message.data()?.createdAt instanceof Timestamp &&
+        chatData.lastMessageSenderUid === message.data()?.senderUid &&
         chatData.lastMessageAt.isEqual(message.data()!.createdAt)) {
       transaction.update(chatRef, {
         lastMessagePreview: "تم حذف الرسالة",
