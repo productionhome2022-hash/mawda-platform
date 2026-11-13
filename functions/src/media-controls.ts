@@ -5,7 +5,19 @@ export const MEDIA_QUOTA_POLICY = Object.freeze({
   retentionDays: 30,
 });
 
-export function validateMediaQuotaUsage(input) {
+export interface MediaQuotaUsage {
+  uploadCount: number;
+  declaredBytes: number;
+  activeBytes: number;
+  nextBytes: number;
+}
+
+export type MediaQuotaBlockReason =
+  | "DAILY_UPLOAD_COUNT"
+  | "DAILY_BYTES"
+  | "ACTIVE_QUARANTINE_BYTES";
+
+export function validateMediaQuotaUsage(input: MediaQuotaUsage): MediaQuotaBlockReason | null {
   const { uploadCount, declaredBytes, activeBytes, nextBytes } = input;
   for (const value of [uploadCount, declaredBytes, activeBytes, nextBytes]) {
     if (!Number.isSafeInteger(value) || value < 0) {
@@ -18,23 +30,45 @@ export function validateMediaQuotaUsage(input) {
   return null;
 }
 
-export function mediaRetentionCutoff(nowMs = Date.now()) {
+export function mediaRetentionCutoff(nowMs = Date.now()): number {
   if (!Number.isSafeInteger(nowMs) || nowMs < 0) throw new TypeError("Invalid clock value.");
   return nowMs - MEDIA_QUOTA_POLICY.retentionDays * 24 * 60 * 60 * 1000;
 }
 
-export function isExpiredUploadIntent(createdAtMs, nowMs = Date.now(), ttlMs = 5 * 60 * 1000) {
+export function isExpiredUploadIntent(
+  createdAtMs: number,
+  nowMs = Date.now(),
+  ttlMs = 5 * 60 * 1000,
+): boolean {
   return Number.isSafeInteger(createdAtMs) && Number.isSafeInteger(nowMs) &&
     Number.isSafeInteger(ttlMs) && createdAtMs >= 0 && nowMs >= 0 &&
     ttlMs > 0 && nowMs - createdAtMs > ttlMs;
 }
 
-export function assertTrustedScannerVerdict(verdict, expected) {
+export interface TrustedScannerVerdict {
+  provider: string;
+  objectGeneration: string;
+  sha256: string;
+  verdict: "clean" | "malicious" | "error";
+  scannedAtMs: number;
+}
+
+export interface ExpectedScannerEvidence {
+  provider: string;
+  objectGeneration: string;
+  sha256: string;
+  nowMs: number;
+}
+
+export function assertTrustedScannerVerdict(
+  verdict: TrustedScannerVerdict | null | undefined,
+  expected: ExpectedScannerEvidence,
+): boolean {
   if (!verdict || typeof verdict !== "object" ||
       verdict.provider !== expected.provider ||
       verdict.objectGeneration !== expected.objectGeneration ||
       verdict.sha256 !== expected.sha256 ||
-      !/^[a-f0-9]{64}$/.test(verdict.sha256 ?? "") ||
+      !/^[a-f0-9]{64}$/.test(verdict.sha256) ||
       !["clean", "malicious", "error"].includes(verdict.verdict) ||
       !Number.isSafeInteger(verdict.scannedAtMs) ||
       Math.abs(expected.nowMs - verdict.scannedAtMs) > 10 * 60 * 1000) {
