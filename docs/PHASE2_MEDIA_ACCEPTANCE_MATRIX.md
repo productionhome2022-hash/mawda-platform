@@ -56,6 +56,11 @@ Status snapshot: 2026-11-13. This document is a release gate, not a claim that e
 
 A successful malware verdict does not by itself authorize member delivery. Only types with a completed safe-processing pipeline may become eligible for delivery. Images use sanitized WebP derivatives; video, audio and PDF remain unavailable until type-specific processing is implemented.
 
+## Per-user media deletion isolation (13 November 2026)
+
+- Firestore/Storage emulator tests now prove that delete-for-me hides a media message only for the requester, leaves it visible to the peer, and preserves the original Storage object and media asset in both direct chats and rooms.
+- Full CI passed on `faf5a2e20fc4d6c8874db8cc86ecac3c0d8e7b67` in [run 43391790845](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43391790845), including all backend integration, Flutter, rules and scanner jobs.
+
 ## Cross-client refresh and all attachment categories (13 November 2026)
 
 - Direct and room message reads suppress `deletionPending` messages. Both Flutter chat screens refresh from their trusted callable every 8 seconds to converge across active devices; this is eventual polling, not realtime push.
