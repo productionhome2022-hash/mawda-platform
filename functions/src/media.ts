@@ -9,6 +9,7 @@ import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/fire
 import { defineSecret, defineString } from "firebase-functions/params";
 import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { logger } from "firebase-functions";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { reserveMediaQuota, releaseMediaQuota } from "./media-quota";
 import {
@@ -818,7 +819,7 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
         throw error;
       }
     }
-    return { reclaimed };
+    logger.info("Expired media upload cleanup completed", { reclaimed });
   },
 );
 
