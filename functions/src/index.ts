@@ -1847,6 +1847,7 @@ export const getDirectMessages = onCall(async (request) => {
   const peerLastReadAt = peerReceipt.lastReadMessageCreatedAt?.toMillis?.() ?? null;
   return {
     chatId,
+    peerUid: peer,
     peerLastReadAt,
     messages: messages.docs.reverse().map((doc) => {
       const data = doc.data();
