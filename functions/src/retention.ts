@@ -87,16 +87,16 @@ const ACTIVE_MEDIA_STATES = [
 ];
 const MEDIA_DERIVATIVE_RECHECK_MS = 5 * 60 * 1000;
 
-async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: number; failures: number }> {
+export async function runChatMediaRetentionSweep(): Promise<{ assets: number; objects: number; failures: number }> {
   const db = getFirestore();
   const now = Timestamp.fromMillis(Date.now());
-  const cutoff = Timestamp.fromMillis(Date.now() - lifetimeMs);
   let assets = 0;
   let objects = 0;
   let failures = 0;
 
   for (const purpose of ["chat", "room", "profile_album"] as const) {
     const lifetimeMs = purpose === "profile_album" ? 7 * 24 * 60 * 60 * 1000 : CHAT_MEDIA_RETENTION_MS;
+    const cutoff = Timestamp.fromMillis(Date.now() - lifetimeMs);
     const retentionLabel = purpose === "profile_album" ? "seven_day_profile_album" : "four_hour_self_destruct";
     const deletedPolicyStatus = purpose === "profile_album" ? "seven_day_profile_album_deleted" : "four_hour_self_destructed";
     const deletionAuditAction = purpose === "profile_album" ? "profile_album_media_deleted" : "chat_media_self_destructed";
@@ -397,7 +397,7 @@ export const enforceChatMediaRetention = onSchedule(
   { schedule: "every 1 minutes", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
   async () => {
     if (!jobsMayRun()) return;
-    const result = await deleteExpiredChatMedia();
+    const result = await runChatMediaRetentionSweep();
     logger.info("Chat media retention sweep completed.", result);
   },
 );
