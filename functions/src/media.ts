@@ -639,6 +639,7 @@ export const listOwnerMediaAssets = onCall(async (request) => {
         sizeBytes: data.sizeBytes ?? data.declaredSizeBytes,
         mediaCategory: data.mediaCategory,
         status: data.status,
+        canPreview: data.status === "security_approved" && typeof data.safePreviewPath === "string",
         createdAt: data.createdAt?.toMillis?.() ?? null,
       };
     }),
@@ -655,6 +656,65 @@ export const listOwnerMediaAssets = onCall(async (request) => {
  * Authenticated owner-only raster preview. A Firebase ID token is checked on
  * every request; no storage bearer URL is returned or placed in browser history.
  */
+/** Returns only a verified, re-encoded WebP derivative to the sole owner; never returns a Storage URL. */
+export const getOwnerMediaSafePreview = onCall(async (request) => {
+  const actorUid = await requireSoleOwnerForMediaReview(request, "owner_media_safe_preview_attempt");
+  const mediaId = typeof request.data?.mediaId === "string" ? request.data.mediaId : "";
+  if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
+    throw new HttpsError("invalid-argument", "معرف الملف غير صالح.");
+  }
+  const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
+  const snapshot = await assetRef.get();
+  if (!snapshot.exists) throw new HttpsError("not-found", "الملف غير موجود.");
+  const asset = snapshot.data()!;
+  if (asset.status !== "security_approved" ||
+      asset.safePreviewContentType !== "image/webp" ||
+      typeof asset.safePreviewPath !== "string" ||
+      typeof asset.safePreviewGeneration !== "string" ||
+      typeof asset.safePreviewSha256 !== "string") {
+    await auditMediaAccess({
+      actorUid, mediaId, action: "owner_media_safe_preview",
+      outcome: "denied", failureCode: "safe-preview-not-ready",
+    });
+    throw new HttpsError("failed-precondition", "المعاينة الآمنة غير متاحة لهذا الملف.");
+  }
+  const previewFile = mediaBucket().file(asset.safePreviewPath);
+  const [metadata] = await previewFile.getMetadata();
+  const customMetadata = metadata.metadata as Record<string, unknown> | undefined;
+  if (String(metadata.generation) !== asset.safePreviewGeneration ||
+      metadata.contentType !== "image/webp" ||
+      customMetadata?.mediaId !== mediaId ||
+      customMetadata?.sourceGeneration !== String(asset.storageGeneration) ||
+      customMetadata?.scannerProvider !== asset.scannerProvider ||
+      Number(metadata.size) > 2 * 1024 * 1024) {
+    await auditMediaAccess({
+      actorUid, mediaId, action: "owner_media_safe_preview",
+      outcome: "denied", failureCode: "safe-preview-metadata-mismatch",
+    });
+    throw new HttpsError("failed-precondition", "تعذر التحقق من نسخة المعاينة الآمنة.");
+  }
+  const [bytes] = await previewFile.download({ validation: "crc32c" });
+  const digest = createHash("sha256").update(bytes).digest("hex");
+  if (digest !== asset.safePreviewSha256 || bytes.length > 2 * 1024 * 1024) {
+    await auditMediaAccess({
+      actorUid, mediaId, action: "owner_media_safe_preview",
+      outcome: "denied", failureCode: "safe-preview-hash-mismatch",
+    });
+    throw new HttpsError("data-loss", "فشل التحقق من سلامة نسخة المعاينة.");
+  }
+  await auditMediaAccess({
+    actorUid, mediaId, action: "owner_media_safe_preview",
+    outcome: "success", derivativeGeneration: asset.safePreviewGeneration,
+    derivativeSha256: digest, sizeBytes: bytes.length,
+  });
+  return {
+    mediaId,
+    contentType: "image/webp",
+    sizeBytes: bytes.length,
+    imageBase64: bytes.toString("base64"),
+  };
+});
+
 /** Legacy signed-URL callable disabled; use the authenticated streaming preview. */
 export const getOwnerMediaInspectionUrl = onCall(async () => {
   throw new HttpsError("failed-precondition", "استخدم معاينة المالك الآمنة التي تتحقق من جلسة الدخول عند كل طلب.");
