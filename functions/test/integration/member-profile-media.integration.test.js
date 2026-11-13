@@ -13,6 +13,7 @@ process.env.FIREBASE_CONFIG = JSON.stringify({
 });
 const { setMemberProfileMedia, resetMemberProfileMedia } = require("../../lib/index");
 const { getMemberProfileMediaUrl } = require("../../lib/media");
+const { listMemberProfileGallery } = require("../../lib/media");
 const db = getFirestore();
 const bucket = getStorage().bucket();
 const { runChatMediaRetentionSweep } = require("../../lib/retention");
@@ -175,6 +176,33 @@ test("profile media URL callable returns default for an unset slot and denies pr
       })),
       (error) => error && error.code === "permission-denied",
     );
+  } finally {
+    await ownerRef.delete().catch(() => undefined);
+  }
+});
+
+test("profile gallery lists only through the authenticated visibility gate", async () => {
+  const suffix = Date.now().toString();
+  const ownerUid = `gallery-owner-${suffix}`;
+  const viewerUid = `gallery-viewer-${suffix}`;
+  const ownerRef = db.collection("users").doc(ownerUid);
+  await ownerRef.set({ profileCompleted: true, profileVisibility: "private" });
+  try {
+    const own = await listMemberProfileGallery.run(memberRequest(ownerUid, {
+      userId: ownerUid,
+    }));
+    assert.deepEqual(own.items, []);
+    await assert.rejects(
+      () => listMemberProfileGallery.run(memberRequest(viewerUid, {
+        userId: ownerUid,
+      })),
+      (error) => error && error.code === "permission-denied",
+    );
+    await ownerRef.update({ profileVisibility: "public" });
+    const publicView = await listMemberProfileGallery.run(memberRequest(viewerUid, {
+      userId: ownerUid,
+    }));
+    assert.deepEqual(publicView.items, []);
   } finally {
     await ownerRef.delete().catch(() => undefined);
   }
