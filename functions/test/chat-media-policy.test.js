@@ -49,6 +49,7 @@ test("documents are owner-only even if a member forges uploaderRole", () => {
     ...base, detectedContentType: "application/pdf", uploaderRole: "member",
     safeDocumentPath: `processed/member/${id}/document.pdf`,
     safeDocumentGeneration: "3", safeDocumentSha256: hash,
+    processingStatus: "safe_document_derivative_ready",
     processingPipelineVersion: "pdf-sanitize-v1",
   };
   assert.equal(chatMediaUploaderAllowed(pdf, false), false);
