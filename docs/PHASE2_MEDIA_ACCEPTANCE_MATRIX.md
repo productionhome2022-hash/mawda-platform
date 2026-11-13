@@ -160,6 +160,14 @@ The deployer service account needs Artifact Registry, Cloud Run, API enablement,
 - Commit `d66b2fd` passed GitHub Actions run `43395785257`: Functions compile/unit/integration tests, Firestore/Storage rules, Flutter analyze/tests/Web build, ClamAV image/EICAR and security workflow.
 - Still open: story expiry linkage, avatar/cover rollover/default fallback, Flutter member-side media upload/read/send experience, real production bucket/backup lifecycle verification, and deployed scanner gateway.
 
+## Story media expiry — implementation and CI verification (13 November 2026)
+
+- Story media upload intents require an explicit future expiry timestamp; the server persists it and copies it to `retentionExpiresAt` only after upload validation.
+- The media retention sweep and late-object reconciliation include story assets. Exact original/preview generations are removed at the recorded story expiry; documented active legal holds remain respected.
+- Unit, callable integration, and Firestore + Storage emulator tests pass, including expiry timestamp propagation and original/preview deletion.
+- GitHub Actions run `43396442797` passed on commit `e2427da`: Functions compile/integration/rules, Flutter analyze/tests/Web release, ClamAV container/EICAR.
+- Remaining: a complete member-facing story creation/view lifecycle is not yet implemented in Flutter. Story duration is not hard-coded; it must be supplied by the trusted story workflow.
+
 ## Merge and deployment boundary
 
 PR #2 and PR #3 are separate draft proposals. PR #3's head is based on an older snapshot of the development branch and the refs currently diverge; do not merge either PR until the phase-2 changes are reconciled onto one current branch and the exact final commit has a green full CI run. No production Firebase mutation, production deployment, public Storage access or merge to `main` is authorized by this engineering record.
