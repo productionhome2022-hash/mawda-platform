@@ -1,7 +1,9 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'package:image_picker/image_picker.dart';
 import '../services/coin_system_service.dart';
+import '../services/member_media_upload_service.dart';
 import 'direct_chat_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -20,6 +22,9 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final CoinSystemService _coinService = CoinSystemService();
+  final ImagePicker _imagePicker = ImagePicker();
+  final MemberMediaUploadService _memberMedia = MemberMediaUploadService();
+  bool _changingProfileMedia = false;
   bool _isTransferringCoins = false;
   String? _pendingTransferKey;
   String? _pendingTransferRequestId;
@@ -333,12 +338,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ),
   );
 
+  Future<void> _changeProfileMedia(String slot) async {
+    if (_changingProfileMedia || widget.currentUserId != widget.profileUserId) return;
+    final file = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 88,
+      maxWidth: 1800,
+      maxHeight: 1800,
+    );
+    if (file == null || !mounted) return;
+    setState(() => _changingProfileMedia = true);
+    try {
+      final mediaId = await _memberMedia.uploadImage(
+        file: file,
+        purpose: 'avatar_cover',
+      );
+      await _memberMedia.selectProfileImage(mediaId: mediaId, slot: slot);
+      if (!mounted) return;
+      setState(() => _profileFuture = _loadProfile());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(slot == 'avatar'
+            ? 'تم اعتماد الصورة الشخصية الجديدة بعد اجتياز الفحص.'
+            : 'تم اعتماد صورة الغلاف الجديدة بعد اجتياز الفحص.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('لم يتم تغيير الصورة: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _changingProfileMedia = false);
+    }
+  }
+
+  Future<void> _useDefaultProfileMedia(String slot) async {
+    if (_changingProfileMedia) return;
+    setState(() => _changingProfileMedia = true);
+    try {
+      await FirebaseFunctions.instance.httpsCallable('resetMemberProfileMedia')
+          .call({'slot': slot});
+      if (!mounted) return;
+      setState(() => _profileFuture = _loadProfile());
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تمت إعادة الصورة إلى تصميم مودة الافتراضي.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر إعادة الصورة الافتراضية.')),
+      );
+    } finally {
+      if (mounted) setState(() => _changingProfileMedia = false);
+    }
+  }
+
   Future<Map<String, dynamic>> _loadProfile() async {
     final callable = FirebaseFunctions.instance.httpsCallable('getMemberProfile');
     final response = await callable.call(<String, dynamic>{
       'userId': widget.profileUserId,
     });
-    return Map<String, dynamic>.from(response.data as Map);
+    final profile = Map<String, dynamic>.from(response.data as Map);
+    for (final slot in const ['avatar', 'cover']) {
+      try {
+        profile['${slot}Url'] = await _memberMedia.getSafeProfileImageUrl(
+          userId: widget.profileUserId,
+          slot: slot,
+        );
+      } catch (_) {
+        profile['${slot}Url'] = null;
+      }
+    }
+    return profile;
+  }
+
+  @override
+  void dispose() {
+    _memberMedia.close();
+    super.dispose();
   }
 
   Future<void> _showGiftCoinsDialog() async {
@@ -520,24 +596,77 @@ class _ProfileScreenState extends State<ProfileScreen> {
           return ListView(
             padding: const EdgeInsets.only(bottom: 32),
             children: [
-              Container(
-                height: 150,
-                color: Colors.blueGrey.shade900,
-                child: const Center(
-                  child: Icon(Icons.favorite, color: Colors.white, size: 52),
-                ),
+              Stack(
+                children: [
+                  Container(
+                    height: 170,
+                    width: double.infinity,
+                    color: Colors.blueGrey.shade900,
+                    child: data['coverUrl'] is String
+                        ? Image.network(
+                            data['coverUrl'] as String,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Center(
+                              child: Icon(Icons.favorite, color: Colors.white, size: 52),
+                            ),
+                          )
+                        : const Center(
+                            child: Icon(Icons.favorite, color: Colors.white, size: 52),
+                          ),
+                  ),
+                  if (isMyProfile)
+                    PositionedDirectional(
+                      end: 12,
+                      bottom: 12,
+                      child: FilledButton.tonalIcon(
+                        onPressed: _changingProfileMedia ? null : () => _changeProfileMedia('cover'),
+                        icon: const Icon(Icons.photo_camera_outlined),
+                        label: const Text('تغيير الغلاف'),
+                      ),
+                    ),
+                ],
               ),
               Transform.translate(
                 offset: const Offset(0, -42),
                 child: CircleAvatar(
-                  radius: 48,
+                  radius: 50,
                   backgroundColor: Colors.deepPurple,
-                  child: Text(
-                    name.isNotEmpty ? name.substring(0, 1) : 'M',
-                    style: const TextStyle(fontSize: 32, color: Colors.white),
-                  ),
+                  backgroundImage: data['avatarUrl'] is String
+                      ? NetworkImage(data['avatarUrl'] as String)
+                      : null,
+                  child: data['avatarUrl'] is String
+                      ? null
+                      : Text(
+                          name.isNotEmpty ? name.substring(0, 1) : 'M',
+                          style: const TextStyle(fontSize: 32, color: Colors.white),
+                        ),
                 ),
               ),
+              if (isMyProfile)
+                Transform.translate(
+                  offset: const Offset(0, -34),
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _changingProfileMedia ? null : () => _changeProfileMedia('avatar'),
+                        icon: const Icon(Icons.account_circle_outlined),
+                        label: const Text('تغيير الصورة الشخصية'),
+                      ),
+                      TextButton.icon(
+                        onPressed: _changingProfileMedia ? null : () => _useDefaultProfileMedia('avatar'),
+                        icon: const Icon(Icons.restore),
+                        label: const Text('الافتراضية'),
+                      ),
+                      TextButton.icon(
+                        onPressed: _changingProfileMedia ? null : () => _useDefaultProfileMedia('cover'),
+                        icon: const Icon(Icons.restore),
+                        label: const Text('غلاف افتراضي'),
+                      ),
+                    ],
+                  ),
+                ),
               Transform.translate(
                 offset: const Offset(0, -30),
                 child: Column(
