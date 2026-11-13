@@ -40,6 +40,19 @@ The owner catalog screen seeds missing rows only and never overwrites an existin
 
 ## Coin packages (EUR, price in euro cents)
 
+## Coin purchase channel configuration
+
+The owner is one person holding both Owner and Super Admin titles under one canonical owner UID.
+
+- **Manual owner contact:** default supported purchase channel. The owner may enable/disable it and select which coin packages are offered. A custom quantity is submitted as a request and handled only through the member's direct conversation with the owner; the owner sends the negotiated payment instructions and approves issuance after independently verifying payment.
+- **Automated provider checkout:** future optional channel, disabled by default. It can later be enabled for selected fixed packages only after a provider contract, secure provider adapter, signed server-to-server confirmation, replay/idempotency protection, refund/chargeback and reconciliation workflows, fraud controls, tax/legal review, and explicit owner activation are complete.
+- The owner controls channel and package availability separately. When automated checkout is disabled, members see the manual contact route, not a simulated checkout.
+- Custom-quantity requests remain manually negotiated by the owner; they do not use automated checkout under the current approved scope.
+- No client redirect, screenshot, self-declared payment or unverified callback can issue coins. Manual approval or verified provider settlement must precede the atomic wallet/ledger credit.
+- Do not store card details or bank credentials in the app or Firestore.
+
+
+
 | Package | Coins | Suggested price |
 |---|---:|---:|
 | Starter | 1,000 | €0.99 |
