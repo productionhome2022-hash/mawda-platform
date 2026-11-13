@@ -111,6 +111,10 @@ async function processGif({ sourcePath, tempDir, request, sourceSha256, storage,
   await sharp(sourcePath, input).resize({
     width: 2048, height: 2048, fit: "inside", withoutEnlargement: true,
   }).gif({ effort: 7 }).toFile(output);
+  const outputMetadata = await sharp(output, { animated: true }).metadata();
+  if (Number(outputMetadata.pages) !== pages) {
+    throw new Error("GIF_ANIMATION_FRAME_COUNT_CHANGED");
+  }
   const artifact = await uploadDerivative({
     storage, bucketName, outputPath: output, request, sourceSha256, provider,
     filename: "animation.gif", contentType: "image/gif",
@@ -150,7 +154,7 @@ async function processVideo({ sourcePath, tempDir, request, sourceSha256, storag
     "-map", "0:v:0", "-map", "0:a:0?", "-map_metadata", "-1", "-map_chapters", "-1",
     "-t", String(LIMITS.video.maxDurationSeconds),
     "-vf", "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,format=yuv420p",
-    "-c:v", "libx264", "-preset", "veryfast", "-crf", "28",
+    "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", "-threads", "2",
     "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", "-f", "mp4", output,
   ], { timeout: 180_000, maxBuffer: 64 * 1024 });
   const artifact = await uploadDerivative({
@@ -174,7 +178,7 @@ async function processPdf({ sourcePath, tempDir, request, sourceSha256, storage,
   // embedded files, forms, annotations, links and original document objects.
   const prefix = path.join(tempDir, "pdf-page");
   await execFileAsync("pdftoppm", [
-    "-r", "110", "-png", "-f", "1", "-l", String(LIMITS.pdf.maxPages),
+    "-scale-to", "1600", "-png", "-f", "1", "-l", String(LIMITS.pdf.maxPages),
     sourcePath, prefix,
   ], { timeout: 120_000, maxBuffer: 64 * 1024 });
   const names = (await fs.readdir(tempDir))
