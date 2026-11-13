@@ -1250,6 +1250,45 @@ export const setMemberProfileSocialLinkVisibility = onCall(async (request) => {
 
 
 /**
+ * Member-controlled block/unblock. The server owns the block list because
+ * direct-message authorization checks both participants' blockedUids fields.
+ * This action deliberately sends no notification to the blocked account.
+ */
+export const setMemberBlock = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const targetUid = typeof request.data?.targetUid === "string"
+    ? request.data.targetUid.trim()
+    : "";
+  const blocked = request.data?.blocked;
+  if (!targetUid || targetUid.length > 128 || targetUid === uid ||
+      typeof blocked !== "boolean") {
+    throw new HttpsError("invalid-argument", "بيانات الحظر غير صالحة.");
+  }
+
+  const actorRef = db.collection("users").doc(uid);
+  const targetRef = db.collection("users").doc(targetUid);
+  await db.runTransaction(async (transaction) => {
+    const [actor, target] = await Promise.all([
+      transaction.get(actorRef),
+      transaction.get(targetRef),
+    ]);
+    if (!actor.exists || actor.data()?.profileCompleted !== true) {
+      throw new HttpsError("failed-precondition", "يجب إكمال العضوية قبل إدارة قائمة الحظر.");
+    }
+    if (!target.exists) {
+      throw new HttpsError("not-found", "تعذر العثور على الحساب المطلوب.");
+    }
+    transaction.update(actorRef, {
+      blockedUids: blocked
+        ? FieldValue.arrayUnion(targetUid)
+        : FieldValue.arrayRemove(targetUid),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { targetUid, blocked };
+});
+
+/**
  * Sends a text-only direct message through a trusted callable.
  * Client writes to chat and notification collections remain denied by rules.
  */
