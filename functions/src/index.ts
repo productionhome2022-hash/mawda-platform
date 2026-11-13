@@ -133,7 +133,7 @@ async function sendPushToMember(
     const response = await getMessaging().sendEachForMulticast({
       tokens: tokenDocs.map((doc) => doc.data().token as string),
       notification: { title, body }, data,
-      android: { priority: "high", notification: { channelId: "maw hatta_messages" } },
+      android: { priority: "high", notification: { channelId: "mawda_messages" } },
       webpush: { headers: { TTL: "60" } },
     });
     const batch = db.batch();
