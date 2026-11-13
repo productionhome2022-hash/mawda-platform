@@ -1,7 +1,9 @@
+import { MEDIA_QUOTA_LIMITS } from "./media-quota";
+
 export const MEDIA_QUOTA_POLICY = Object.freeze({
-  dailyUploadCount: 100,
-  dailyDeclaredBytes: 512 * 1024 * 1024,
-  activeQuarantineBytes: 1024 * 1024 * 1024,
+  dailyUploadCount: MEDIA_QUOTA_LIMITS.maxDailyUploads,
+  dailyDeclaredBytes: MEDIA_QUOTA_LIMITS.maxDailyBytes,
+  activeQuarantineBytes: MEDIA_QUOTA_LIMITS.maxActiveBytes,
   retentionDays: 30,
 });
 
