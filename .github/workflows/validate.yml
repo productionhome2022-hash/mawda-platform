@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - codex/mawda-full-platform-implementation
   pull_request:
     branches:
       - main
@@ -32,7 +31,7 @@ jobs:
           channel: stable
           cache: true
       - name: Resolve Flutter dependencies
-        run: flutter pub get --enforce-lockfile
+        run: flutter pub get
       - name: Upload resolved dependency lockfile for review
         uses: actions/upload-artifact@v4
         with:
