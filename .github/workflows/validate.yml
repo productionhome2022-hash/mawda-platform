@@ -96,6 +96,8 @@ jobs:
         run: npm run test:message-deletion-integration
       - name: Run coin transfer and store purchase transactional integration tests
         run: npm run test:wallet-store-integration
+      - name: Run guest and member privacy acknowledgement integration tests
+        run: npm run test:guest-privacy-integration
       - name: Run owner audit export pagination and redaction integration tests
         run: npm run test:owner-audit-export-integration
       - name: Run media legal hold and release integration tests
