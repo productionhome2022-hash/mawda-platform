@@ -303,6 +303,21 @@ test("owner economy prices seed safely and can be edited without enabling real-m
 });
 
 
+test("owner authority is bound to the single canonical owner UID", async () => {
+  const mismatched = ownerRequest("different-owner", {});
+  mismatched.auth.token.platformOwnerUid = "canonical-owner";
+  await assert.rejects(
+    () => listOwnerCoinPurchaseRequests.run(mismatched),
+    (error) => error && error.code === "permission-denied",
+  );
+  const missing = ownerRequest("legacy-owner", {});
+  delete missing.auth.token.platformOwnerUid;
+  await assert.rejects(
+    () => listOwnerCoinPurchaseRequests.run(missing),
+    (error) => error && error.code === "permission-denied",
+  );
+});
+
 test("manual coin package request issues no coins until owner verifies external payment; approval is atomic and idempotent", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = suffix();
