@@ -552,6 +552,9 @@ test("stories publish only after malware approval and active public stories appe
     userRef.set({ profileVisibility: "public", displayName: "Story Member" }),
     assetRef.set({
       mediaId, ownerUid: uid, mediaPurpose: "story", status: "security_approved",
+      processingStatus: "safe_raster_derivative_ready",
+      safePreviewPath: `processed/${uid}/${mediaId}/preview.webp`,
+      safePreviewContentType: "image/webp",
       retentionExpiresAt: expiresAt, storyExpiresAt: expiresAt,
     }),
   ]);
