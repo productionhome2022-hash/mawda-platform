@@ -199,3 +199,14 @@ PR #2 and PR #3 are separate draft proposals. PR #3's head is based on an older 
 - Retention workers default to disabled and refuse to run unless the project is explicitly identified as non-production. No production deletion has run.
 - Full CI passed on `4f9d317291c3ecdab049256b32c8450f776aaaf5` in [run 43383055516](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43383055516): backend compile/unit tests, chat-retention Firestore integration, media callable integration, Firestore/Storage rules, ClamAV EICAR container, Flutter analyze/tests and Web release build.
 - Still pending: real non-production GCS generation/soft-delete test, real signed-URL HTTP test, live Cloud Run scanner lifecycle, backup/PITR configuration proof, legal-hold behavior, audit export/checkpoint retention, and story/gallery/avatar/cover jobs.
+
+
+## Chat image message linking — implementation status
+
+The backend now exposes `sendChatImageAttachment` and `getChatImageAttachmentUrl`. They link only a member-owned, scanner-approved, raster-sanitized JPEG/PNG/WebP derivative to a direct-chat or room message. The direct-chat callable checks both accounts, age-band compatibility, and mutual blocks; the room callable checks active room membership and mute status. Delivery is participant-gated, generation-pinned, short-lived, and audited.
+
+This is intentionally **not** a general attachment implementation yet:
+- GIF, audio, video and documents are rejected by this message-linking path until their distinct processors and persisted safe derivatives exist.
+- PDF remains owner-upload-only at intake, but owner PDF message delivery is not enabled until the PDF sanitization pipeline exists.
+- The Flutter chat picker, upload orchestration, progress/error states, previews and receive UI remain outstanding.
+- The four-hour retention sweeper must be verified to remove linked message documents and notifications as well as every media generation; do not claim full chat attachment lifecycle closure until that integration test passes.
