@@ -10,6 +10,7 @@ const {
   deleteRoomMessage,
   deleteRoomMessageForMe,
   getDirectMessages,
+  getRoomMessages,
 } = require("../../lib/index");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
@@ -449,6 +450,106 @@ test("delete-for-everyone erases video, audio and document assets in one message
       chatRef.delete().catch(() => undefined),
       ...media.map((item) => item.ref.delete().catch(() => undefined)),
       ...media.map((item) => bucket.file(item.path).delete({ ignoreNotFound: true }).catch(() => undefined)),
+    ]);
+  }
+});
+
+
+test("delete-for-me hides media only for the requester and preserves the shared cloud object", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+  const bucket = getStorage().bucket();
+  const suffix = Date.now().toString();
+  const [alice, bob] = [`hide-media-owner-${suffix}`, `hide-media-peer-${suffix}`];
+  const directChatId = id(`hide-media-direct-${suffix}`);
+  const directMessageId = id(`hide-media-direct-message-${suffix}`);
+  const directMediaId = `aaaaaaaa-aaaa-aaaa-aaaa-${suffix.padStart(12, "0").slice(-12)}`;
+  const directObjectPath = `quarantine/${alice}/${directMediaId}`;
+  const directAssetRef = db.collection("mediaAssets").doc(directMediaId);
+  const directObject = bucket.file(directObjectPath);
+  const directChatRef = db.collection("directChats").doc(directChatId);
+  const directMessageRef = directChatRef.collection("messages").doc(directMessageId);
+
+  const roomId = `hide-media-room-${suffix}`;
+  const roomMessageId = id(`hide-media-room-message-${suffix}`);
+  const roomMediaId = `bbbbbbbb-bbbb-bbbb-bbbb-${suffix.padStart(12, "0").slice(-12)}`;
+  const roomObjectPath = `quarantine/${alice}/${roomMediaId}`;
+  const roomAssetRef = db.collection("mediaAssets").doc(roomMediaId);
+  const roomObject = bucket.file(roomObjectPath);
+  const roomRef = db.collection("rooms").doc(roomId);
+  const roomMessageRef = roomRef.collection("messages").doc(roomMessageId);
+
+  await Promise.all([
+    directObject.save(Buffer.from("shared direct media"), { resumable: false }),
+    roomObject.save(Buffer.from("shared room media"), { resumable: false }),
+    directChatRef.set({ participantUids: [alice, bob] }),
+    roomRef.set({ ownerUid: alice, status: "active" }),
+    ...[alice, bob].map((uid) => db.collection("users").doc(uid)
+      .set({ profileCompleted: true, accountStatus: "active" })),
+  ]);
+  const [directMetadata, roomMetadata] = await Promise.all([
+    directObject.getMetadata(), roomObject.getMetadata(),
+  ]);
+  await Promise.all([
+    directAssetRef.set({
+      mediaId: directMediaId, ownerUid: alice, mediaPurpose: "chat",
+      objectPath: directObjectPath, storageGeneration: String(directMetadata[0].generation),
+      status: "security_approved", retentionPolicyStatus: "four_hour_self_destruct",
+      retentionExpiresAt: Timestamp.fromMillis(Date.now() + 4 * 60 * 60 * 1000),
+      createdAt: Timestamp.now(),
+    }),
+    roomAssetRef.set({
+      mediaId: roomMediaId, ownerUid: alice, mediaPurpose: "room",
+      objectPath: roomObjectPath, storageGeneration: String(roomMetadata[0].generation),
+      status: "security_approved", retentionPolicyStatus: "four_hour_self_destruct",
+      retentionExpiresAt: Timestamp.fromMillis(Date.now() + 4 * 60 * 60 * 1000),
+      createdAt: Timestamp.now(),
+    }),
+    directMessageRef.set({
+      messageId: directMessageId, senderUid: alice, recipientUid: bob,
+      type: "image", mediaId: directMediaId, createdAt: Timestamp.now(),
+    }),
+    roomRef.collection("members").doc(alice).set({ uid: alice, role: "owner" }),
+    roomRef.collection("members").doc(bob).set({ uid: bob, role: "member" }),
+    roomMessageRef.set({
+      messageId: roomMessageId, senderUid: alice, type: "image",
+      mediaId: roomMediaId, createdAt: Timestamp.now(),
+    }),
+  ]);
+
+  try {
+    await deleteDirectMessageForMe.run(memberRequest(bob, {
+      chatId: directChatId, messageId: directMessageId,
+    }));
+    const [directBob, directAlice] = await Promise.all([
+      getDirectMessages.run(memberRequest(bob, { chatId: directChatId })),
+      getDirectMessages.run(memberRequest(alice, { chatId: directChatId })),
+    ]);
+    assert.equal(directBob.messages.some((message) => message.messageId === directMessageId), false);
+    assert.equal(directAlice.messages.some((message) => message.messageId === directMessageId), true);
+    assert.equal((await directAssetRef.get()).data().status, "security_approved");
+    assert.equal((await directObject.exists())[0], true);
+
+    await deleteRoomMessageForMe.run(memberRequest(bob, {
+      roomId, messageId: roomMessageId,
+    }));
+    const [roomBob, roomAlice] = await Promise.all([
+      getRoomMessages.run(memberRequest(bob, { roomId })),
+      getRoomMessages.run(memberRequest(alice, { roomId })),
+    ]);
+    assert.equal(roomBob.messages.some((message) => message.messageId === roomMessageId), false);
+    assert.equal(roomAlice.messages.some((message) => message.messageId === roomMessageId), true);
+    assert.equal((await roomAssetRef.get()).data().status, "security_approved");
+    assert.equal((await roomObject.exists())[0], true);
+  } finally {
+    await Promise.all([
+      directAssetRef.delete().catch(() => undefined),
+      roomAssetRef.delete().catch(() => undefined),
+      directChatRef.delete().catch(() => undefined),
+      roomRef.delete().catch(() => undefined),
+      ...[alice, bob].map((uid) => db.collection("users").doc(uid).delete().catch(() => undefined)),
+      directObject.delete({ ignoreNotFound: true }).catch(() => undefined),
+      roomObject.delete({ ignoreNotFound: true }).catch(() => undefined),
     ]);
   }
 });
