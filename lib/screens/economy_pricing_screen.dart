@@ -58,7 +58,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
   }) => SizedBox(
     width: 125,
     child: TextFormField(
-      key: ValueKey('${label}_${value}'),
+      key: ValueKey(label),
       initialValue: value.toString(),
       enabled: !_saving,
       keyboardType: TextInputType.number,
