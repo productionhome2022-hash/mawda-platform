@@ -649,7 +649,9 @@ export const createMediaUploadIntent = onCall(async (request) => {
           ? "seven_day_profile_album"
           : input.purpose === "story"
             ? "delete_at_story_expiry"
-            : "owner_approval_required",
+            : input.purpose === "avatar_cover"
+              ? "thirty_day_avatar_cover"
+              : "owner_approval_required",
       ...(input.purpose === "story" && input.storyExpiresAtMs !== undefined ? {
         storyExpiresAt: Timestamp.fromMillis(input.storyExpiresAtMs),
       } : {}),
@@ -774,6 +776,9 @@ export const finalizeMediaUpload = onCall(async (request) => {
       } : asset.mediaPurpose === "story" && asset.storyExpiresAt instanceof Timestamp ? {
         mediaUploadedAt: FieldValue.serverTimestamp(),
         retentionExpiresAt: asset.storyExpiresAt,
+      } : asset.mediaPurpose === "avatar_cover" ? {
+        mediaUploadedAt: FieldValue.serverTimestamp(),
+        retentionExpiresAt: Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
       } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     });
