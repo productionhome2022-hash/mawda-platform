@@ -14,7 +14,7 @@
 ## Upload quotas and transport-size boundary
 
 - Current per-UID limits are 5 active intents, 150 MiB active reserved bytes and 500 MiB reserved bytes per UTC day.
-- Per-file maxima: raster images 10 MiB, MP4 video 100 MiB, audio 25 MiB, PDF 20 MiB.
+- Per-file maxima: raster images (JPEG/PNG/WebP/GIF) 5 MiB, MP4 video 100 MiB, audio 25 MiB, PDF 20 MiB.
 - The upload intent reserves the declared size; finalization rejects and deletes an object whose actual byte count differs from that reservation.
 - Important remaining gap: the current signed PUT flow does not enforce the byte ceiling before Cloud Storage accepts the body. The post-upload check protects publication and cleans rejected objects, but it does not prevent temporary transfer/storage cost from an oversized body. A production transport boundary or separately tested upload policy is still required. Do not claim this is already enforced at transport time.
 
@@ -25,7 +25,7 @@ Source code now includes an isolated Cloud Run scanner service under `scanner/`:
 - HTTPS-only source URL validation bound to the exact bucket object path and generation; no redirects or arbitrary hosts.
 - 100 MiB bounded download, ClamAV scan with explicit archive recursion/file-count/scan-size limits, and fail-closed behavior for timeouts, parser limits and incomplete scans.
 - HMAC-SHA256 callback binding media ID, provider, source generation, source SHA-256 and scan timestamp.
-- Clean raster images are decoded and re-encoded by Sharp to a bounded WebP derivative. Firebase independently verifies the source hash and derivative generation, metadata and hash before setting `security_approved`.
+- Clean raster images (including bounded animated GIFs) are decoded and re-encoded by Sharp to a bounded WebP derivative; GIF frame count is capped at 100 to reduce animation-bomb risk. Firebase independently verifies the source hash and derivative generation, metadata and hash before setting `security_approved`.
 - Malicious verdicts reject and delete only the matching source generation. Duplicate verdict callbacks are idempotent.
 - Clean video, audio and PDF assets remain `scanner_clean_pending_processing`; they are not member-accessible and cannot be previewed until type-aware safe processing is built.
 
