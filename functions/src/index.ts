@@ -3,6 +3,8 @@ import { getAuth } from "firebase-admin/auth";
 import { validateMemberProfile } from "./member-profile";
 import { FieldPath, FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { validateMediaLegalHoldInput } from "./media-legal-hold";
 import { logger } from "firebase-functions";
 import { calculateTransferBreakdown } from "./coin-math";
 import { validateRegistrationPolicy } from "./registration-policy";
@@ -1970,6 +1972,190 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
  * Exports a bounded, redacted page of the owner's hash-chained audit ledger.
  * The cursor is the last scanned sequence, not merely the last returned row.
  */
+/**
+ * Places a documented legal hold on one specific chat-media asset.
+ * Holds do not change malware verdicts or make quarantined media deliverable.
+ */
+export const placeMediaLegalHold = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "media_legal_hold_place");
+  let input;
+  try {
+    input = validateMediaLegalHoldInput((request.data ?? {}) as Record<string, unknown>);
+  } catch (error) {
+    throw new HttpsError("invalid-argument", "بيانات الحجز القانوني غير صالحة.", {
+      reason: error instanceof Error ? error.message : "INVALID_HOLD",
+    });
+  }
+  const assetRef = db.collection("mediaAssets").doc(input.mediaId);
+  const holdRef = db.collection("mediaLegalHolds").doc();
+  const requestAuditId = await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "media_legal_hold_place_requested",
+    mediaId: input.mediaId,
+    authority: input.authority,
+    legalBasis: input.legalBasis,
+    reference: input.reference,
+    startsAtMs: input.startsAtMs,
+    reviewAtMs: input.reviewAtMs,
+    endsAtMs: input.endsAtMs,
+    outcome: "requested",
+  });
+
+  await db.runTransaction(async (transaction) => {
+    const assetSnapshot = await transaction.get(assetRef);
+    if (!assetSnapshot.exists) throw new HttpsError("not-found", "ملف الوسائط غير موجود.");
+    const asset = assetSnapshot.data() ?? {};
+    if (!["chat", "room"].includes(String(asset.mediaPurpose)) ||
+        asset.status === "self_destructed" ||
+        typeof asset.objectPath !== "string" ||
+        asset.legalHoldStatus === "active") {
+      throw new HttpsError("failed-precondition", "لا يمكن حجز هذا الملف أو يوجد له حجز نشط بالفعل.");
+    }
+    transaction.create(holdRef, {
+      holdId: holdRef.id,
+      scope: "media_asset",
+      scopeId: input.mediaId,
+      mediaId: input.mediaId,
+      authority: input.authority,
+      legalBasis: input.legalBasis,
+      reference: input.reference,
+      startsAt: Timestamp.fromMillis(input.startsAtMs),
+      reviewAt: Timestamp.fromMillis(input.reviewAtMs),
+      endsAt: Timestamp.fromMillis(input.endsAtMs),
+      status: "active",
+      authorizedBy: actorUid,
+      requestAuditId,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.update(assetRef, {
+      legalHoldStatus: "active",
+      activeLegalHoldId: holdRef.id,
+      resumeRetentionPolicyStatus: asset.retentionPolicyStatus ?? "four_hour_self_destruct",
+      retentionPolicyStatus: "legal_hold",
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  const resultAuditId = await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "media_legal_hold_placed",
+    mediaId: input.mediaId,
+    holdId: holdRef.id,
+    scope: "media_asset",
+    outcome: "success",
+  });
+  return { holdId: holdRef.id, mediaId: input.mediaId, status: "active", auditLogId: resultAuditId };
+});
+
+
+/** Releases one exact media legal hold; the original expiry clock is preserved. */
+export const releaseMediaLegalHold = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "media_legal_hold_release");
+  const holdId = typeof request.data?.holdId === "string" ? request.data.holdId.trim() : "";
+  if (!/^[A-Za-z0-9]{20}$/.test(holdId)) {
+    throw new HttpsError("invalid-argument", "معرف الحجز القانوني غير صالح.");
+  }
+  const holdRef = db.collection("mediaLegalHolds").doc(holdId);
+  const holdSnapshot = await holdRef.get();
+  if (!holdSnapshot.exists) throw new HttpsError("not-found", "الحجز القانوني غير موجود.");
+  const hold = holdSnapshot.data() ?? {};
+  const mediaId = typeof hold.mediaId === "string" ? hold.mediaId : "";
+  if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
+    throw new HttpsError("failed-precondition", "نطاق الحجز القانوني غير صالح.");
+  }
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  await db.runTransaction(async (transaction) => {
+    const [freshHold, assetSnapshot] = await Promise.all([
+      transaction.get(holdRef), transaction.get(assetRef),
+    ]);
+    if (!freshHold.exists || freshHold.data()?.status !== "active") {
+      throw new HttpsError("failed-precondition", "الحجز القانوني غير نشط أو تمت معالجته مسبقاً.");
+    }
+    if (assetSnapshot.exists && assetSnapshot.data()?.activeLegalHoldId === holdId) {
+      const asset = assetSnapshot.data() ?? {};
+      transaction.update(assetRef, {
+        legalHoldStatus: "released",
+        activeLegalHoldId: FieldValue.delete(),
+        retentionPolicyStatus: asset.resumeRetentionPolicyStatus ?? "four_hour_self_destruct",
+        resumeRetentionPolicyStatus: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    transaction.update(holdRef, {
+      status: "released",
+      releasedBy: actorUid,
+      releasedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+  const auditLogId = await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "media_legal_hold_released",
+    mediaId,
+    holdId,
+    outcome: "success",
+  });
+  return { holdId, mediaId, status: "released", auditLogId };
+});
+
+
+/** Automatically releases a media hold at its recorded end time. */
+export const expireMediaLegalHolds = onSchedule(
+  { schedule: "every 60 minutes", timeZone: "UTC", timeoutSeconds: 300 },
+  async () => {
+    const now = Timestamp.now();
+    const due = await db.collection("mediaLegalHolds")
+      .where("status", "==", "active")
+      .where("endsAt", "<=", now)
+      .orderBy("endsAt", "asc")
+      .limit(100)
+      .get();
+    for (const holdDoc of due.docs) {
+      const holdRef = holdDoc.ref;
+      const hold = holdDoc.data();
+      const mediaId = typeof hold.mediaId === "string" ? hold.mediaId : "";
+      if (!/^[0-9a-f-]{36}$/i.test(mediaId)) continue;
+      const assetRef = db.collection("mediaAssets").doc(mediaId);
+      let released = false;
+      await db.runTransaction(async (transaction) => {
+        const [freshHold, assetSnapshot] = await Promise.all([
+          transaction.get(holdRef), transaction.get(assetRef),
+        ]);
+        if (!freshHold.exists || freshHold.data()?.status !== "active" ||
+            !(freshHold.data()?.endsAt instanceof Timestamp) ||
+            freshHold.data()!.endsAt.toMillis() > Date.now()) return;
+        if (assetSnapshot.exists && assetSnapshot.data()?.activeLegalHoldId === holdDoc.id) {
+          const asset = assetSnapshot.data() ?? {};
+          transaction.update(assetRef, {
+            legalHoldStatus: "expired",
+            activeLegalHoldId: FieldValue.delete(),
+            retentionPolicyStatus: asset.resumeRetentionPolicyStatus ?? "four_hour_self_destruct",
+            resumeRetentionPolicyStatus: FieldValue.delete(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+        transaction.update(holdRef, {
+          status: "expired",
+          expiredAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        released = true;
+      });
+      if (released) {
+        await appendOwnerReviewAuditEvent({
+          actorUid: "system-legal-hold-expiry",
+          action: "media_legal_hold_expired",
+          mediaId,
+          holdId: holdDoc.id,
+          outcome: "success",
+        });
+      }
+    }
+  },
+);
+
+
 export const exportOwnerReviewAuditPage = onCall(async (request) => {
   const actorUid = await requireOwnerForReview(request, "owner_review_audit_export");
   const headSnapshot = await OWNER_REVIEW_AUDIT_HEAD.get();
