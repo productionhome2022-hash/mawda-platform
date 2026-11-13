@@ -110,7 +110,7 @@ test("owner legal hold suspends exact chat-media expiry and release restores the
 test("active legal hold protects every typed derivative; release deletes them and late replay is reconciled", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
-  const bucket = getStorage().bucket();
+  const bucket = getStorage().bucket("demo-mawda-legal-hold.appspot.com");
   const suffix = Date.now().toString();
   const ownerUid = "legal-hold-storage-owner-" + suffix;
   const mediaId = randomUUID();
