@@ -2148,22 +2148,26 @@ export const reviewMediaLegalHold = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "بيانات مراجعة الحجز القانوني غير صالحة.");
   }
   const holdRef = db.collection("mediaLegalHolds").doc(holdId);
-  const holdSnapshot = await holdRef.get();
-  if (!holdSnapshot.exists || holdSnapshot.data()?.status !== "active") {
-    throw new HttpsError("not-found", "الحجز القانوني النشط غير موجود.");
-  }
-  const endsAt = holdSnapshot.data()?.endsAt;
-  if (!(endsAt instanceof Timestamp) ||
-      (nextReviewAtMs as number) <= Date.now() ||
-      (nextReviewAtMs as number) >= endsAt.toMillis()) {
-    throw new HttpsError("invalid-argument", "يجب أن يكون موعد المراجعة القادم قبل تاريخ انتهاء الحجز.");
-  }
-  await holdRef.update({
-    reviewAt: Timestamp.fromMillis(nextReviewAtMs as number),
-    lastReviewedAt: FieldValue.serverTimestamp(),
-    lastReviewedBy: actorUid,
-    reviewNote,
-    updatedAt: FieldValue.serverTimestamp(),
+  let endsAtMs = 0;
+  await db.runTransaction(async (transaction) => {
+    const holdSnapshot = await transaction.get(holdRef);
+    if (!holdSnapshot.exists || holdSnapshot.data()?.status !== "active") {
+      throw new HttpsError("not-found", "الحجز القانوني النشط غير موجود.");
+    }
+    const endsAt = holdSnapshot.data()?.endsAt;
+    if (!(endsAt instanceof Timestamp) ||
+        (nextReviewAtMs as number) <= Date.now() ||
+        (nextReviewAtMs as number) >= endsAt.toMillis()) {
+      throw new HttpsError("invalid-argument", "يجب أن يكون موعد المراجعة القادم قبل تاريخ انتهاء الحجز.");
+    }
+    endsAtMs = endsAt.toMillis();
+    transaction.update(holdRef, {
+      reviewAt: Timestamp.fromMillis(nextReviewAtMs as number),
+      lastReviewedAt: FieldValue.serverTimestamp(),
+      lastReviewedBy: actorUid,
+      reviewNote,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
   });
   const auditLogId = await appendOwnerReviewAuditEvent({
     actorUid,
@@ -2171,10 +2175,10 @@ export const reviewMediaLegalHold = onCall(async (request) => {
     holdId,
     nextReviewAtMs,
     reviewNote,
-    originalEndsAtMs: endsAt.toMillis(),
+    originalEndsAtMs: endsAtMs,
     outcome: "success",
   });
-  return { holdId, nextReviewAtMs, endsAtMs: endsAt.toMillis(), auditLogId };
+  return { holdId, nextReviewAtMs, endsAtMs, auditLogId };
 });
 
 
