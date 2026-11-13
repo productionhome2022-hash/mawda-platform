@@ -53,10 +53,11 @@ export function normalizeMediaRequest(input: Record<string, unknown>): {
   const originalName = typeof input.originalName === "string" ? input.originalName.trim() : "";
   const contentType = typeof input.contentType === "string" ? input.contentType.trim().toLowerCase() : "";
   const declaredSizeBytes = input.sizeBytes;
-  const purpose = typeof input.purpose === "string" ? input.purpose as MediaPurpose : "";
-  if (!MEDIA_PURPOSES.has(purpose)) {
+  const purposeValue = typeof input.purpose === "string" ? input.purpose : "";
+  if (!MEDIA_PURPOSES.has(purposeValue)) {
     throw new Error("غرض حفظ الملف غير صالح.");
   }
+  const purpose = purposeValue as MediaPurpose;
   if (!originalName || originalName.length > 180 || /[\\/\u0000-\u001f]/.test(originalName)) {
     throw new Error("اسم الملف غير صالح.");
   }
