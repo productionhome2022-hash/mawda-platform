@@ -61,6 +61,7 @@ import {
 } from "./store-purchase";
 import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
 import { deleteMediaAssetForMessage } from "./media";
+import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
 
 initializeApp();
 
@@ -4674,3 +4675,286 @@ export {
 } from "./media";
 
 export { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative };
+
+
+const ROOM_RENTAL_SETTINGS = db.doc("platformSettings/roomRentals");
+
+async function readRoomRentalPlans(): Promise<ReturnType<typeof validateRoomRentalPlans>> {
+  const snapshot = await ROOM_RENTAL_SETTINGS.get();
+  const raw = snapshot.data()?.plans;
+  if (raw === undefined) return DEFAULT_ROOM_RENTAL_PLANS;
+  try {
+    return validateRoomRentalPlans(raw);
+  } catch {
+    throw new HttpsError("failed-precondition", "إعدادات أسعار استئجار الغرف غير صالحة؛ راجع لوحة المالك.");
+  }
+}
+
+/** Public plan list: published plan prices are server-authored and versioned. */
+export const getRoomRentalPlans = onCall(async (request) => {
+  requireAuthenticatedUid(request.auth?.uid);
+  const snapshot = await ROOM_RENTAL_SETTINGS.get();
+  const plans = snapshot.exists ? await readRoomRentalPlans() : DEFAULT_ROOM_RENTAL_PLANS;
+  const version = Number.isSafeInteger(snapshot.data()?.version) ? snapshot.data()!.version : 0;
+  return { plans: plans.filter((plan) => plan.active), version };
+});
+
+/** Owner/MFA controls all room rental prices; every edit is versioned and audited. */
+export const setRoomRentalPlans = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let plans;
+  try {
+    plans = validateRoomRentalPlans(request.data?.plans);
+  } catch {
+    throw new HttpsError("invalid-argument", "خطط الغرف أو الأسعار أو المدد غير صالحة.");
+  }
+  const result = await db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(ROOM_RENTAL_SETTINGS);
+    const version = (Number.isSafeInteger(previous.data()?.version) ? previous.data()!.version : 0) + 1;
+    const now = FieldValue.serverTimestamp();
+    transaction.set(ROOM_RENTAL_SETTINGS, { plans, version, updatedAt: now, updatedBy: actorUid });
+    const auditRef = db.collection("adminAuditLogs").doc();
+    transaction.create(auditRef, {
+      actorUid, action: "room_rental_pricing_updated", version,
+      plans: plans.map((plan) => ({ ...plan })),
+      createdAt: now,
+    });
+    return version;
+  });
+  return { saved: true, version: result };
+});
+
+/** A member creates and rents a private room in one atomic coin debit + room creation. */
+export const createRentedRoom = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const name = typeof request.data?.name === "string" ? request.data.name.trim() : "";
+  const capacity = request.data?.capacity;
+  const planId = request.data?.planId;
+  const expectedPriceCoins = request.data?.expectedPriceCoins;
+  const requestId = requireRequestId(request.data?.requestId);
+  if (name.length < 3 || name.length > 60 || !Number.isSafeInteger(capacity) ||
+      capacity < 5 || capacity > 1000 || typeof planId !== "string" ||
+      !Number.isSafeInteger(expectedPriceCoins)) {
+    throw new HttpsError("invalid-argument", "بيانات الغرفة أو خطة الاستئجار غير صالحة.");
+  }
+  const roomRef = db.collection("rooms").doc();
+  const userRef = db.collection("users").doc(uid);
+  const memberRef = roomRef.collection("members").doc(uid);
+  const rentalRef = db.collection("roomRentals").doc(`${uid}_${requestId}`);
+  const ledgerRef = userRef.collection("walletLedger").doc(`room_${uid}_${requestId}`);
+  const nowMs = Date.now();
+  const result = await db.runTransaction(async (transaction) => {
+    const [user, settings, prior] = await Promise.all([
+      transaction.get(userRef), transaction.get(ROOM_RENTAL_SETTINGS), transaction.get(rentalRef),
+    ]);
+    if (prior.exists) {
+      const data = prior.data()!;
+      if (data.ownerUid !== uid || data.planId !== planId) {
+        throw new HttpsError("already-exists", "معرف طلب الاستئجار مستخدم لعملية أخرى.");
+      }
+      return { roomId: data.roomId, rentalId: rentalRef.id, priceCoins: data.priceCoins,
+        expiresAt: data.expiresAt.toMillis(), idempotentReplay: true };
+    }
+    if (!user.exists || user.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(user.data())) {
+      throw new HttpsError("permission-denied", "حالة العضوية لا تسمح باستئجار غرفة.");
+    }
+    const plans = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : DEFAULT_ROOM_RENTAL_PLANS;
+    const plan = plans.find((entry) => entry.planId === planId && entry.active);
+    if (!plan || plan.priceCoins !== expectedPriceCoins) {
+      throw new HttpsError("failed-precondition", "تغير سعر الخطة أو لم تعد متاحة؛ حدّث الأسعار قبل التأكيد.");
+    }
+    const userData = user.data()!;
+    const newBalance = calculateRoomRentalBalance(userData.coins ?? 0, plan.priceCoins);
+    if (newBalance === null) throw new HttpsError("failed-precondition", "رصيد الكوينز غير كافٍ للاستئجار.");
+    let audience;
+    try { audience = audienceForAge(userData.age); }
+    catch { throw new HttpsError("failed-precondition", "أكمل ملفك العمري قبل إنشاء غرفة."); }
+    const expiresAtMs = roomRentalExpiry(nowMs, plan.durationDays);
+    const expiresAt = Timestamp.fromMillis(expiresAtMs);
+    const now = FieldValue.serverTimestamp();
+    transaction.update(userRef, { coins: newBalance, updatedAt: now });
+    transaction.create(roomRef, {
+      roomId: roomRef.id, name, kind: "private", capacity, audience, ownerUid: uid,
+      memberCount: 1, status: "active", isRented: true, rentalId: rentalRef.id,
+      rentalPlanId: plan.planId, rentalPriceCoins: plan.priceCoins,
+      rentalDurationDays: plan.durationDays, expiresAt, invitedUids: [],
+      createdAt: now, updatedAt: now,
+    });
+    transaction.create(memberRef, { uid, role: "owner", joinedAt: now });
+    transaction.create(rentalRef, {
+      rentalId: rentalRef.id, roomId: roomRef.id, ownerUid: uid, planId: plan.planId,
+      priceCoins: plan.priceCoins, durationDays: plan.durationDays, status: "active",
+      startsAt: Timestamp.fromMillis(nowMs), expiresAt, createdAt: now,
+    });
+    transaction.create(ledgerRef, {
+      type: "room_rental", direction: "debit", amount: -plan.priceCoins,
+      roomId: roomRef.id, rentalId: rentalRef.id, planId: plan.planId,
+      durationDays: plan.durationDays, createdAt: now,
+    });
+    return { roomId: roomRef.id, rentalId: rentalRef.id, priceCoins: plan.priceCoins,
+      expiresAt: expiresAtMs, newBalance, idempotentReplay: false };
+  });
+  return result;
+});
+
+/** Extends the current room rental using the current catalog price, never a client-supplied price. */
+export const renewRoomRental = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = typeof request.data?.roomId === "string" ? request.data.roomId.trim() : "";
+  const planId = request.data?.planId;
+  const expectedPriceCoins = request.data?.expectedPriceCoins;
+  const requestId = requireRequestId(request.data?.requestId);
+  if (!roomId || typeof planId !== "string" || !Number.isSafeInteger(expectedPriceCoins)) {
+    throw new HttpsError("invalid-argument", "بيانات تجديد الغرفة غير صالحة.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId);
+  const userRef = db.collection("users").doc(uid);
+  const rentalRef = db.collection("roomRentals").doc(`${uid}_${requestId}`);
+  const ledgerRef = userRef.collection("walletLedger").doc(`room_${uid}_${requestId}`);
+  const nowMs = Date.now();
+  return db.runTransaction(async (transaction) => {
+    const [room, user, settings, prior] = await Promise.all([
+      transaction.get(roomRef), transaction.get(userRef), transaction.get(ROOM_RENTAL_SETTINGS),
+      transaction.get(rentalRef),
+    ]);
+    if (prior.exists) {
+      const data = prior.data()!;
+      if (data.roomId !== roomId || data.ownerUid !== uid) {
+        throw new HttpsError("already-exists", "معرف طلب التجديد مستخدم لعملية أخرى.");
+      }
+      return { renewed: true, expiresAt: data.expiresAt.toMillis(), idempotentReplay: true };
+    }
+    if (!room.exists || room.data()?.ownerUid !== uid || room.data()?.isRented !== true ||
+        !["active", "frozen"].includes(room.data()?.status)) {
+      throw new HttpsError("permission-denied", "تجديد الغرفة متاح لمالك غرفة مستأجرة فقط.");
+    }
+    if (!user.exists || !isMemberAccountInGoodStanding(user.data())) {
+      throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بالتجديد.");
+    }
+    const plans = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : DEFAULT_ROOM_RENTAL_PLANS;
+    const plan = plans.find((entry) => entry.planId === planId && entry.active);
+    if (!plan || plan.priceCoins !== expectedPriceCoins) {
+      throw new HttpsError("failed-precondition", "تغير سعر التجديد؛ حدّث الأسعار قبل التأكيد.");
+    }
+    const balance = calculateRoomRentalBalance(user.data()?.coins ?? 0, plan.priceCoins);
+    if (balance === null) throw new HttpsError("failed-precondition", "رصيد الكوينز غير كافٍ للتجديد.");
+    const previousExpiry = room.data()?.expiresAt instanceof Timestamp
+      ? room.data()!.expiresAt.toMillis() : nowMs;
+    const startMs = Math.max(nowMs, previousExpiry);
+    const expiresAt = Timestamp.fromMillis(roomRentalExpiry(startMs, plan.durationDays));
+    const now = FieldValue.serverTimestamp();
+    transaction.update(userRef, { coins: balance, updatedAt: now });
+    transaction.update(roomRef, {
+      status: "active", expiresAt, rentalPlanId: plan.planId,
+      rentalPriceCoins: plan.priceCoins, rentalDurationDays: plan.durationDays,
+      frozenAt: FieldValue.delete(), freezeExpiresAt: FieldValue.delete(), updatedAt: now,
+    });
+    transaction.create(rentalRef, {
+      rentalId: rentalRef.id, roomId, ownerUid: uid, planId: plan.planId,
+      priceCoins: plan.priceCoins, durationDays: plan.durationDays, status: "active",
+      startsAt: Timestamp.fromMillis(startMs), expiresAt, createdAt: now,
+    });
+    transaction.create(ledgerRef, {
+      type: "room_rental_renewal", direction: "debit", amount: -plan.priceCoins,
+      roomId, rentalId: rentalRef.id, planId: plan.planId,
+      durationDays: plan.durationDays, createdAt: now,
+    });
+    return { renewed: true, expiresAt: expiresAt.toMillis(), newBalance: balance, idempotentReplay: false };
+  });
+});
+
+/** Room ownership transfer is atomic and cannot transfer an expired or frozen rental. */
+export const transferRoomOwnership = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = typeof request.data?.roomId === "string" ? request.data.roomId.trim() : "";
+  const newOwnerUid = typeof request.data?.newOwnerUid === "string" ? request.data.newOwnerUid.trim() : "";
+  if (!roomId || !newOwnerUid || newOwnerUid === uid) throw new HttpsError("invalid-argument", "بيانات نقل الملكية غير صالحة.");
+  const roomRef = db.collection("rooms").doc(roomId);
+  const oldMemberRef = roomRef.collection("members").doc(uid);
+  const newMemberRef = roomRef.collection("members").doc(newOwnerUid);
+  await db.runTransaction(async (transaction) => {
+    const [room, newUser, oldMember, newMember] = await Promise.all([
+      transaction.get(roomRef), transaction.get(db.collection("users").doc(newOwnerUid)),
+      transaction.get(oldMemberRef), transaction.get(newMemberRef),
+    ]);
+    if (!room.exists || room.data()?.ownerUid !== uid || !oldMember.exists ||
+        room.data()?.status !== "active") throw new HttpsError("permission-denied", "لا يمكن نقل ملكية هذه الغرفة.");
+    if (!newUser.exists || newUser.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(newUser.data())) throw new HttpsError("failed-precondition", "المالك الجديد غير مؤهل.");
+    if (!newMember.exists) throw new HttpsError("failed-precondition", "يجب أن ينضم المالك الجديد إلى الغرفة أولاً.");
+    transaction.update(roomRef, { ownerUid: newOwnerUid, updatedAt: FieldValue.serverTimestamp() });
+    transaction.update(newMemberRef, { role: "owner", ownershipTransferredAt: FieldValue.serverTimestamp() });
+    transaction.update(oldMemberRef, { role: "member", ownershipTransferredAt: FieldValue.serverTimestamp() });
+    const auditRef = db.collection("roomAuditLogs").doc();
+    transaction.create(auditRef, { roomId, actorUid: uid, targetUid: newOwnerUid,
+      action: "room_ownership_transferred", createdAt: FieldValue.serverTimestamp() });
+  });
+  return { roomId, ownerUid: newOwnerUid, transferred: true };
+});
+
+/** Owner may close their room; closure is audited and does not refund past rental charges. */
+export const closeOwnedRoom = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = typeof request.data?.roomId === "string" ? request.data.roomId.trim() : "";
+  if (!roomId) throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+  const roomRef = db.collection("rooms").doc(roomId);
+  await db.runTransaction(async (transaction) => {
+    const room = await transaction.get(roomRef);
+    if (!room.exists || room.data()?.ownerUid !== uid ||
+        !["active", "frozen"].includes(room.data()?.status)) {
+      throw new HttpsError("permission-denied", "إغلاق الغرفة متاح لمالكها فقط.");
+    }
+    transaction.update(roomRef, { status: "closed", closedAt: FieldValue.serverTimestamp(),
+      closedBy: uid, updatedAt: FieldValue.serverTimestamp() });
+    const auditRef = db.collection("roomAuditLogs").doc();
+    transaction.create(auditRef, { roomId, actorUid: uid, action: "room_closed",
+      createdAt: FieldValue.serverTimestamp() });
+  });
+  return { roomId, closed: true };
+});
+
+/** Freeze expired rentals for a 24-hour grace period, then close; no destructive room deletion. */
+export const processExpiredRoomRentals = onSchedule("every 15 minutes", async () => {
+  const now = Timestamp.now();
+  const expired = await db.collection("rooms").where("isRented", "==", true)
+    .where("status", "==", "active").where("expiresAt", "<=", now).limit(100).get();
+  for (const document of expired.docs) {
+    const data = document.data();
+    await db.runTransaction(async (transaction) => {
+      const fresh = await transaction.get(document.ref);
+      if (!fresh.exists || fresh.data()?.status !== "active" ||
+          !(fresh.data()?.expiresAt instanceof Timestamp) ||
+          fresh.data()!.expiresAt.toMillis() > Date.now()) return;
+      transaction.update(document.ref, {
+        status: "frozen", frozenAt: FieldValue.serverTimestamp(),
+        freezeExpiresAt: Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      const notificationRef = db.collection("notifications").doc();
+      transaction.create(notificationRef, {
+        userId: data.ownerUid, title: "انتهت مدة استئجار الغرفة",
+        body: "تم إيقاف الغرفة مؤقتاً لمدة 24 ساعة. يمكنك تجديدها من داخل التطبيق.",
+        timestamp: FieldValue.serverTimestamp(), read: false,
+      });
+    });
+  }
+  const graceExpired = await db.collection("rooms").where("isRented", "==", true)
+    .where("status", "==", "frozen").where("freezeExpiresAt", "<=", now).limit(100).get();
+  for (const document of graceExpired.docs) {
+    await db.runTransaction(async (transaction) => {
+      const fresh = await transaction.get(document.ref);
+      if (!fresh.exists || fresh.data()?.status !== "frozen" ||
+          !(fresh.data()?.freezeExpiresAt instanceof Timestamp) ||
+          fresh.data()!.freezeExpiresAt.toMillis() > Date.now()) return;
+      transaction.update(document.ref, { status: "closed", closedAt: FieldValue.serverTimestamp(),
+        closeReason: "rental_expired", updatedAt: FieldValue.serverTimestamp() });
+      const notificationRef = db.collection("notifications").doc();
+      transaction.create(notificationRef, {
+        userId: fresh.data()?.ownerUid, title: "أغلقت الغرفة لانتهاء الاستئجار",
+        body: "انتهت مهلة التجديد الإضافية. يمكنك التواصل مع الدعم عند الحاجة.",
+        timestamp: FieldValue.serverTimestamp(), read: false,
+      });
+    });
+  }
+});
