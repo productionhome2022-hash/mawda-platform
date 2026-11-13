@@ -4,6 +4,7 @@ const { LIMITS, safeOutputPath } = require("../processors");
 
 test("media processors enforce bounded complexity, duration, page and output budgets", () => {
   assert.equal(LIMITS.gif.maxFrames, 100);
+  assert.equal(LIMITS.gif.maxDurationSeconds, 30);
   assert.equal(LIMITS.gif.maxPixels, 40_000_000);
   assert.equal(LIMITS.audio.maxDurationSeconds, 600);
   assert.equal(LIMITS.video.maxDurationSeconds, 90);
