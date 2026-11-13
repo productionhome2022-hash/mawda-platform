@@ -16,7 +16,7 @@ Status snapshot: 2026-11-13. This document is a release gate, not a claim that e
 
 ## Automated validation evidence
 
-- **Latest full green validation on the current PR #2 development head:** commit `45b707eee0f765af9ccf260753622fada47a753f`, workflow run [43379943559](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43379943559), completed successfully on 2026-11-13.
+- **Latest full green validation of the retention implementation:** commit `4f9d317291c3ecdab049256b32c8450f776aaaf5`, workflow run [43383055516](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43383055516), completed successfully on 2026-11-13. Earlier baseline validation also passed on `45b707eee0f765af9ccf260753622fada47a753f` in run `43379943559`.
 - The exact run passed all three jobs: Flutter analysis, Flutter tests and Web release build; Cloud Functions TypeScript compilation/unit tests, media callable authorization/audit integration tests, and Firestore/Storage rules emulator tests; isolated ClamAV scanner source/security tests, container build and EICAR signature detection.
 - Earlier run [43379722894](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43379722894) failed because it attempted a V4 signed HTTP PUT against the Storage Emulator, which returns HTTP 501 for that endpoint. The current emulator integration test now uses the supported Admin Storage API to exercise object creation with the generation precondition and callable finalization. The test explicitly does not claim to validate the signed HTTP wire protocol.
 - **Real Cloud Storage signed URL HTTP verification remains pending.** The opt-in script `functions/scripts/test-signed-urls-http.cjs` must be run against a disposable non-production GCS bucket with approved credentials; it covers real PUT/GET, create-only replay, exact byte-range rejection and expiry. Emulator success is not a substitute.
@@ -35,7 +35,7 @@ Status snapshot: 2026-11-13. This document is a release gate, not a claim that e
 | Safe preview | Only sanitized derivative, bounded response, generation/hash/provenance rechecked | Code and Flutter owner UI exist; full image corpus/device validation pending |
 | Cleanup | Grace period, exact path/generation deletion, missing-object recheck, retry and quota release | Code and unit/emulator coverage exist; latest run must pass |
 | Audit | Upload, validation, listing, preview, denial and scan outcomes are server-written; no raw file bytes or signed URLs | Core event writes exist; export/retention controls remain pending |
-| Retention | Purpose-specific schedule, legal hold, deletion authority, backup/cache treatment and appeal/export process approved and tested | Not approved; finalized-media deletion remains disabled |
+| Retention | Approved 4-hour media / 7-day text policy; exact-generation deletion, tombstone reconciliation, operational log expiry, legal holds and backup/cache behavior validated in non-production | Policy approved; chat deletion code and emulator tests pass; workers disabled and real GCS/backup/legal-hold gates pending |
 | Infrastructure | Cloud Run IAM, least-privilege bucket access, Secret Manager rotation, callback URL, CORS, monitoring and retry/dead-letter handling | Source exists; non-production provisioning/verification pending |
 | Storage/Firestore release | Rules tests pass; production rules remain deny-all for client media access | Emulator tests exist; no production mutation authorized |
 
@@ -59,3 +59,14 @@ A successful malware verdict does not by itself authorize member delivery. Only 
 ## Merge and deployment boundary
 
 PR #2 and PR #3 are separate draft proposals. PR #3's head is based on an older snapshot of the development branch and the refs currently diverge; do not merge either PR until the phase-2 changes are reconciled onto one current branch and the exact final commit has a green full CI run. No production Firebase mutation, production deployment, public Storage access or merge to `main` is authorized by this engineering record.
+
+
+## Chat retention implementation added (13 November 2026)
+
+- Chat media retention begins at server-side upload finalization. A four-hour expiry timestamp is stored for every `chat` / `room` media asset.
+- A gated, once-per-minute worker deletes the exact original object and every visible GCS generation, the safe WebP derivative and scan-job reference. It then keeps only a content-free tombstone and rechecks the deterministic derivative path every five minutes to catch a scanner already in flight.
+- A separate gated worker permanently deletes message documents in `directChats/{chatId}/messages` and `rooms/{roomId}/messages` at seven days, deletes direct-message notification documents, and clears expired direct-chat text previews.
+- Media access audit events receive 90-day expiry and a scheduled cleanup path.
+- Retention workers default to disabled and refuse to run unless the project is explicitly identified as non-production. No production deletion has run.
+- Full CI passed on `4f9d317291c3ecdab049256b32c8450f776aaaf5` in [run 43383055516](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43383055516): backend compile/unit tests, chat-retention Firestore integration, media callable integration, Firestore/Storage rules, ClamAV EICAR container, Flutter analyze/tests and Web release build.
+- Still pending: real non-production GCS generation/soft-delete test, real signed-URL HTTP test, live Cloud Run scanner lifecycle, backup/PITR configuration proof, legal-hold behavior, audit export/checkpoint retention, and story/gallery/avatar/cover jobs.
