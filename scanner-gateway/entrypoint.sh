@@ -3,6 +3,7 @@ set -eu
 
 # Do not serve requests with stale/missing signatures.
 freshclam --stdout
+freshclam --daemon --checks=12 --quiet
 clamd --foreground --config-file=/etc/clamav/clamd.conf &
 CLAMD_PID=$!
 
