@@ -8,6 +8,7 @@ const {
   listOwnerMediaAssets,
   finalizeMediaUpload,
   getOwnerMediaInspectionUrl,
+  cleanupExpiredMediaUploadIntents,
 } = require("../../lib/media");
 
 const { initializeApp, getApps } = require("firebase-admin/app");
@@ -298,7 +299,8 @@ test("scheduled cleanup deletes abandoned quarantine objects and releases active
     mediaId, ownerUid: uid, objectPath, originalName: "abandoned.png",
     declaredContentType: "image/png", declaredSizeBytes: reservedBytes,
     status: "upload_authorized",
-    createdAt: Timestamp.fromMillis(Date.now() - 30 * 60 * 1000),
+    createdAt: Timestamp.fromMillis(Date.now() - 40 * 60 * 1000),
+    uploadUrlExpiresAt: Timestamp.fromMillis(Date.now() - 35 * 60 * 1000),
   });
   const file = getStorage().bucket().file(objectPath);
   await file.save(Buffer.from("abandoned upload"), {
