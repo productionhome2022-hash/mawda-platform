@@ -4222,6 +4222,8 @@ export const getOwnerStoreCatalog = onCall(async (request) => {
 export {
   createMediaUploadIntent,
   finalizeMediaUpload,
+  sendChatImageAttachment,
+  getChatImageAttachmentUrl,
   getMemberProfileMediaUrl,
   listMemberProfileGallery,
   getMyMediaUploadStatus,
