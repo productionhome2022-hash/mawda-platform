@@ -977,11 +977,26 @@ export const createMemberStory = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "معرف وسائط القصة غير صالح.");
   }
   const assetRef = db.collection("mediaAssets").doc(mediaId);
-  const storyRef = db.collection("stories").doc();
+  // The media ID is the idempotency key: a retry cannot publish duplicates.
+  const storyRef = db.collection("stories").doc(mediaId);
   const nowMs = Date.now();
   let expiresAtMs = 0;
+  let idempotentReplay = false;
   await db.runTransaction(async (transaction) => {
-    const assetSnapshot = await transaction.get(assetRef);
+    const [assetSnapshot, existingStory] = await Promise.all([
+      transaction.get(assetRef), transaction.get(storyRef),
+    ]);
+    if (existingStory.exists) {
+      const prior = existingStory.data() ?? {};
+      if (prior.ownerUid === uid && prior.mediaId === mediaId &&
+          prior.status === "active" && prior.expiresAt instanceof Timestamp &&
+          prior.expiresAt.toMillis() > nowMs) {
+        expiresAtMs = prior.expiresAt.toMillis();
+        idempotentReplay = true;
+        return;
+      }
+      throw new HttpsError("already-exists", "سبق استخدام هذه الوسائط في قصة أخرى.");
+    }
     if (!assetSnapshot.exists) throw new HttpsError("not-found", "وسائط القصة غير موجودة.");
     const asset = assetSnapshot.data() ?? {};
     const expiry = asset.retentionExpiresAt;
@@ -1012,7 +1027,7 @@ export const createMemberStory = onCall(async (request) => {
     createdAt: FieldValue.serverTimestamp(),
     expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
   });
-  return { storyId: storyRef.id, mediaId, expiresAt: expiresAtMs };
+  return { storyId: storyRef.id, mediaId, expiresAt: expiresAtMs, idempotentReplay };
 });
 
 /** Returns active stories only; private profiles are visible to their owner only. */
