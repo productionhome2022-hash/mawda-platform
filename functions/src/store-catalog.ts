@@ -22,7 +22,7 @@ export function projectStoreCatalogItem(
   }
   if (typeof data.description !== "string" || data.description.length > 500) return null;
   if (typeof data.category !== "string" ||
-      !["feature", "avatar", "theme", "title", "vip", "analytics", "discovery"].includes(data.category)) {
+      !["feature", "avatar", "theme", "title", "vip", "analytics", "discovery", "badge", "frame", "username_style", "profile_layout", "boost", "greeting", "privacy"].includes(data.category)) {
     return null;
   }
   if (typeof data.priceCoins !== "number" ||
