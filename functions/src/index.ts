@@ -1295,15 +1295,17 @@ export const deleteDirectMessageForEveryone = onCall(async (request) => {
         lastMessagePreviewUpdatedAt: FieldValue.serverTimestamp(),
       });
     }
-    transaction.create(auditRef, {
-      chatId,
-      messageId,
-      actorUid: uid,
-      senderUid: data.senderUid ?? null,
-      action: "delete_for_everyone",
-      messageType: "text",
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    if (!priorAudit.exists) {
+      transaction.create(auditRef, {
+        chatId,
+        messageId,
+        actorUid: uid,
+        senderUid: data.senderUid ?? null,
+        action: "delete_for_everyone",
+        messageType: "text",
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
     return { chatId, messageId, deleted: true, idempotentReplay: false };
   });
 });
