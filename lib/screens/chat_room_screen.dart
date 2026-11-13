@@ -134,7 +134,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     if (_sending) return;
     final picked = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: const [
+      allowedExtensions: [
         'jpg', 'jpeg', 'png', 'webp', 'gif',
         'mp3', 'm4a', 'ogg', 'wav', 'mp4',
         if (widget.isSuperAdmin) 'pdf',
