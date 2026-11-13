@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   detectMediaSignature,
   mediaPolicyFor,
+  mediaUploadAllowedForRole,
   normalizeMediaRequest,
   mediaUploaderTypeFromToken,
   MEDIA_SIGNED_URL_TTL_MS,
@@ -81,3 +82,24 @@ test("signed media URLs receive bounded purpose-specific expirations", () => {
 
 
 
+
+test("role-aware attachment policy reserves documents for the verified platform owner", () => {
+  const member = (contentType, purpose = "chat") =>
+    mediaUploadAllowedForRole({ contentType, purpose }, false);
+  const owner = (contentType, purpose = "chat") =>
+    mediaUploadAllowedForRole({ contentType, purpose }, true);
+
+  for (const type of ["image/jpeg", "image/png", "image/webp", "image/gif",
+    "video/mp4", "audio/mpeg", "audio/mp4", "audio/ogg", "audio/wav"]) {
+    assert.equal(member(type, "chat"), true, `member chat: ${type}`);
+    assert.equal(member(type, "room"), true, `member room: ${type}`);
+  }
+  assert.equal(member("application/pdf", "chat"), false);
+  assert.equal(member("application/pdf", "room"), false);
+  assert.equal(owner("application/pdf", "chat"), true);
+  assert.equal(owner("application/pdf", "room"), true);
+  assert.equal(owner("application/pdf", "profile_album"), false);
+  assert.equal(owner("application/pdf", "story"), false);
+  assert.equal(member("audio/mpeg", "story"), false);
+  assert.equal(owner("application/x-msdownload", "chat"), false);
+});
