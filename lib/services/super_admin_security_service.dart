@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cloud_functions/cloud_functions.dart';
 
 class SuperAdminSecurityService {
@@ -16,6 +18,17 @@ class SuperAdminSecurityService {
       if (pageToken != null) 'pageToken': pageToken,
     });
     return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<List<int>> getOwnerMediaSafePreview(String mediaId) async {
+    final result = await _functions.httpsCallable('getOwnerMediaSafePreview').call({
+      'mediaId': mediaId,
+    });
+    final data = Map<String, dynamic>.from(result.data as Map);
+    if (data['contentType'] != 'image/webp' || data['imageBase64'] is! String) {
+      throw StateError('استجابة المعاينة الآمنة غير صالحة.');
+    }
+    return base64Decode(data['imageBase64'] as String);
   }
 
   Future<Map<String, dynamic>> getOperationsOverview() async {
