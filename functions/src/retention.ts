@@ -158,7 +158,7 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
   return { assets, objects, failures };
 }
 
-async function deleteExpiredChatText(): Promise<{ messages: number; failures: number }> {
+export async function runChatTextRetentionSweep(): Promise<{ messages: number; failures: number }> {
   const db = getFirestore();
   const cutoff = Timestamp.fromMillis(Date.now() - CHAT_TEXT_RETENTION_MS);
   let messages = 0;
@@ -254,7 +254,7 @@ export const enforceChatTextRetention = onSchedule(
   { schedule: "every 1 minutes", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
   async () => {
     if (!jobsMayRun()) return;
-    const result = await deleteExpiredChatText();
+    const result = await runChatTextRetentionSweep();
     logger.info("Chat text retention sweep completed.", result);
   },
 );
