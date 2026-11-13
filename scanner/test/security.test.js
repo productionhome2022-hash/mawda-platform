@@ -19,12 +19,14 @@ test("scan request accepts only exact quarantine path, UUID, generation and Goog
   const valid = {
     mediaId, objectPath: `quarantine/user/${mediaId}`,
     objectGeneration: generation, downloadUrl: url,
+    callbackUrl: "https://europe-west1-mawda-media-test.cloudfunctions.net/receiveMediaScanVerdict",
     provider: "clamav-mawadda-gateway", contentType: "image/png",
   };
-  assert.deepEqual(validateScanRequest(valid, "clamav-mawadda-gateway", bucket), valid);
-  assert.deepEqual(validateScanRequest({ ...valid, contentType: "image/gif" }, "clamav-mawadda-gateway", bucket).contentType, "image/gif");
-  assert.equal(validateScanRequest({ ...valid, objectPath: `processed/user/${mediaId}` }, valid.provider, bucket), null);
-  assert.equal(validateScanRequest({ ...valid, objectGeneration: "latest" }, valid.provider, bucket), null);
+  assert.deepEqual(validateScanRequest(valid, "clamav-mawadda-gateway", bucket, valid.callbackUrl), valid);
+  assert.deepEqual(validateScanRequest({ ...valid, contentType: "image/gif" }, "clamav-mawadda-gateway", bucket, valid.callbackUrl).contentType, "image/gif");
+  assert.equal(validateScanRequest({ ...valid, objectPath: `processed/user/${mediaId}` }, valid.provider, bucket, valid.callbackUrl), null);
+  assert.equal(validateScanRequest({ ...valid, callbackUrl: "https://attacker.example/callback" }, valid.provider, bucket, valid.callbackUrl), null);
+  assert.equal(validateScanRequest({ ...valid, objectGeneration: "latest" }, valid.provider, bucket, valid.callbackUrl), null);
   assert.equal(validateScanRequest({ ...valid, provider: "untrusted" }, valid.provider, bucket), null);
   assert.equal(validateScanRequest({ ...valid, downloadUrl: "http://127.0.0.1/admin" }, valid.provider, bucket), null);
   assert.equal(validateScanRequest({ ...valid, downloadUrl: "https://evil.example/file" }, valid.provider, bucket), null);
