@@ -18,7 +18,7 @@
     "test:message-deletion-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-message-deletion \"node --test test/integration/direct-message-deletion.integration.test.js\"",
     "test:retention-gcs": "npm run build && node scripts/test-retention-storage.cjs",
     "test:owner-audit-export-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-owner-audit \"node --test test/integration/owner-audit-export.integration.test.js\"",
-    "test:media-legal-hold-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-legal-hold \"node --test test/integration/media-legal-hold.integration.test.js\"",
+    "test:media-legal-hold-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-legal-hold \"node --test test/integration/media-legal-hold.integration.test.js\"",
     "test:media-scanner-live-e2e": "npm run build && node scripts/test-live-media-scanner-e2e.cjs",
     "test:profile-media-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-profile-media \"node --test test/integration/member-profile-media.integration.test.js\"",
     "test:message-legal-hold-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-message-hold \"node --test test/integration/message-legal-hold.integration.test.js\""
