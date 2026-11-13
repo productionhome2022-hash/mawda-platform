@@ -2100,7 +2100,7 @@ export const placeMediaLegalHold = onCall(async (request) => {
     const assetSnapshot = await transaction.get(assetRef);
     if (!assetSnapshot.exists) throw new HttpsError("not-found", "ملف الوسائط غير موجود.");
     const asset = assetSnapshot.data() ?? {};
-    if (!["chat", "room"].includes(String(asset.mediaPurpose)) ||
+    if (!["chat", "room", "profile_album", "avatar_cover", "story"].includes(String(asset.mediaPurpose)) ||
         ["self_destructed", "manually_deleted", "manual_deletion_pending"].includes(String(asset.status)) ||
         typeof asset.objectPath !== "string" ||
         asset.legalHoldStatus === "active") {
