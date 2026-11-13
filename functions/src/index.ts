@@ -530,6 +530,7 @@ export const recordPrivacyAcknowledgement = onCall(async (request) => {
       actorType,
     } as Record<string, unknown>);
   } catch (error) {
+    if (error instanceof HttpsError) throw error;
     const code = error instanceof Error ? error.message : "PRIVACY_ACKNOWLEDGEMENT_INVALID";
     throw new HttpsError(
       "failed-precondition",
