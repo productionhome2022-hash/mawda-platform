@@ -1,6 +1,8 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'direct_chat_screen.dart';
 
 class CoinPurchaseScreen extends StatefulWidget {
   const CoinPurchaseScreen({super.key});
@@ -139,6 +141,18 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                     (((item['agreedPriceMinor'] as num).toDouble() / 100).toStringAsFixed(2)) + ' EUR'),
               if (item['paymentInstructions'] is String)
                 SelectableText('تعليمات المالك: ' + (item['paymentInstructions'] as String)),
+              if (item['chatId'] is String && FirebaseAuth.instance.currentUser?.uid != null)
+                Align(alignment: Alignment.centerLeft, child: TextButton.icon(
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => DirectChatScreen(
+                      chatId: item['chatId'] as String,
+                      currentUserId: FirebaseAuth.instance.currentUser!.uid,
+                      peerName: 'إدارة منصة مودة',
+                    ),
+                  )),
+                  icon: const Icon(Icons.chat_outlined),
+                  label: const Text('فتح المحادثة مع مالك المنصة'),
+                )),
               if (item['rejectionReason'] is String)
                 Text('سبب الرفض: ' + (item['rejectionReason'] as String)),
               if (status == 'pending_owner_contact' || status == 'payment_instructions_sent')
