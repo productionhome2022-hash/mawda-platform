@@ -351,6 +351,12 @@ test("a legal hold hides the message while preventing media erasure; retry after
     messageId, senderUid: alice, recipientUid: bob, type: "image", mediaId,
     createdAt: Timestamp.now(),
   });
+  const notificationRef = db.collection("users").doc(bob)
+    .collection("notifications").doc(messageId);
+  await notificationRef.set({
+    notificationId: messageId, type: "direct_message", chatId, messageId,
+    isRead: false, createdAt: Timestamp.now(),
+  });
   try {
     await assert.rejects(
       () => deleteDirectMessageForEveryone.run(memberRequest(alice, { chatId, messageId })),
@@ -358,6 +364,7 @@ test("a legal hold hides the message while preventing media erasure; retry after
     );
     const pending = await messageRef.get();
     assert.equal(pending.data().deletionPending, true);
+    assert.equal((await notificationRef.get()).exists, false);
     assert.equal((await original.exists())[0], true);
     assert.equal((await preview.exists())[0], true);
 
@@ -379,6 +386,7 @@ test("a legal hold hides the message while preventing media erasure; retry after
     await Promise.all([
       assetRef.delete().catch(() => undefined),
       chatRef.delete().catch(() => undefined),
+      notificationRef.delete().catch(() => undefined),
       db.collection("users").doc(alice).delete().catch(() => undefined),
       db.collection("users").doc(bob).delete().catch(() => undefined),
       original.delete({ ignoreNotFound: true }).catch(() => undefined),
