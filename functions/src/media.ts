@@ -5,6 +5,7 @@ import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import { createHash } from "node:crypto";
 import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { defineSecret, defineString } from "firebase-functions/params";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { reserveMediaQuota, releaseMediaQuota } from "./media-quota";
 import { MEDIA_UPLOAD_CLEANUP_GRACE_MS, uploadIntentIsEligibleForCleanup } from "./media-cleanup";
@@ -21,6 +22,10 @@ import {
 // would make the Functions entry point fail during module loading.
 const mediaDb = () => getFirestore();
 const mediaBucket = () => getStorage().bucket();
+const mediaScannerHmacSecret = defineSecret("MAWDA_MEDIA_SCANNER_HMAC_SECRET");
+const mediaScannerProvider = defineString("MAWDA_MEDIA_SCANNER_PROVIDER", {
+  default: "mawadda-malware-gateway",
+});
 
 function requireUid(uid: string | undefined): string {
   if (!uid) throw new HttpsError("unauthenticated", "يجب تسجيل الدخول أولاً.");
@@ -85,14 +90,16 @@ async function sha256Object(file: ReturnType<ReturnType<typeof mediaBucket>["fil
 }
 
 /** Authenticated gateway callback; any missing/mismatched evidence stays quarantined. */
-export const receiveMediaScanVerdict = onRequest(async (request, response) => {
+export const receiveMediaScanVerdict = onRequest(
+  { secrets: [mediaScannerHmacSecret] },
+  async (request, response) => {
   if (request.method !== "POST") {
     response.status(405).set("Allow", "POST").send("Method not allowed");
     return;
   }
   const rawBody = request.rawBody;
-  const secret = process.env.MAWDA_MEDIA_SCANNER_HMAC_SECRET;
-  const provider = process.env.MAWDA_MEDIA_SCANNER_PROVIDER;
+  const secret = mediaScannerHmacSecret.value();
+  const provider = mediaScannerProvider.value();
   if (!rawBody || rawBody.length > 16 * 1024 || !secret || !provider ||
       !verifyScannerWebhook(rawBody, request.get("x-mawadda-scanner-signature"), secret)) {
     response.status(401).send("Unauthorized scanner callback");
@@ -168,7 +175,8 @@ export const receiveMediaScanVerdict = onRequest(async (request, response) => {
     await file.delete({ ignoreNotFound: true, ifGenerationMatch: Number(verdict.objectGeneration) });
   }
   response.status(200).json({ mediaId: verdict.mediaId, status: nextStatus });
-});
+  },
+);
 \nexport const createMediaUploadIntent = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
   let input;
