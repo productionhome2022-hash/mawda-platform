@@ -324,14 +324,23 @@ test("manual coin package request issues no coins until owner verifies external 
     const member = memberRequest(uid, { requestId, kind: "package", packageId: "test_pack" });
     const created = await createCoinPurchaseRequest.run(member);
     assert.equal(created.status, "pending_owner_contact");
+    const memberRequests = await getMyCoinPurchaseRequests.run(member);
+    assert.equal(memberRequests.requests.length, 1);
+    assert.equal(memberRequests.requests[0].requestId, requestId);
     assert.equal((await userRef.get()).data().coins, 40);
     assert.equal((await requestDoc.get()).data().status, "pending_owner_contact");
 
-    await setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
+    const instructionResult = await setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
       requesterUid: uid, requestId, instructions: "يرجى التواصل مع المالك لإتمام التحويل البنكي",
       agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
     }));
     assert.equal((await requestDoc.get()).data().status, "payment_instructions_sent");
+    assert.ok(instructionResult.chatId);
+    const chatMessages = await db.collection("directChats").doc(instructionResult.chatId)
+      .collection("messages").get();
+    assert.equal(chatMessages.size, 1);
+    assert.equal(chatMessages.docs[0].data().isPlatformOwnerMessage, true);
+    assert.match(chatMessages.docs[0].data().text, /تعليمات الدفع/);
     assert.equal((await userRef.get()).data().coins, 40);
 
     const approvalInput = {
@@ -362,6 +371,7 @@ test("manual coin package request issues no coins until owner verifies external 
       ledgerRef.delete().catch(() => undefined),
       requestDoc.delete().catch(() => undefined),
       userRef.delete().catch(() => undefined),
+      settingsRef.delete().catch(() => undefined),
     ]);
   }
 });
@@ -402,6 +412,6 @@ test("custom coin request is negotiated manually and a withdrawn request cannot 
     assert.equal((await userRef.get()).data().coins, 25);
     assert.equal((await db.collection("users").doc(uid).collection("walletLedger").get()).empty, true);
   } finally {
-    await Promise.all([requestDoc.delete().catch(() => undefined), userRef.delete().catch(() => undefined)]);
+    await Promise.all([requestDoc.delete().catch(() => undefined), userRef.delete().catch(() => undefined), db.doc("platformSettings/economyPricing").delete().catch(() => undefined)]);
   }
 });
