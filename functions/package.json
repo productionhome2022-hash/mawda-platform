@@ -13,7 +13,8 @@
     "test:rules": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-rules \"node --test test/rules/*.test.js\"",
     "test:media-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-media \"node --test test/integration/media-callables.integration.test.js\"",
     "test:media-signed-urls-http": "npm run build && node scripts/test-signed-urls-http.cjs",
-    "test:signed-urls-http": "node scripts/test-signed-urls-http.cjs"
+    "test:signed-urls-http": "node scripts/test-signed-urls-http.cjs",
+    "test:retention-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-retention \"node --test test/integration/chat-retention.integration.test.js\""
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",
