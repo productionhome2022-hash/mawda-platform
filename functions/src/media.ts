@@ -329,7 +329,8 @@ export const dispatchMediaSecurityScan = onDocumentUpdated(
         "X-Mawadda-Callback-URL": callbackUrl.toString(),
         "Content-Type": "application/octet-stream",
       },
-      body: bytes,
+      // Node fetch accepts Buffer at runtime; the type declaration omits Node's Uint8Array subclass.
+      body: bytes as unknown as BodyInit,
       signal: AbortSignal.timeout(510_000),
     });
     if (!scannerResponse.ok) {
