@@ -91,4 +91,5 @@ function sanitizeScannerError(error) {
 
 module.exports = {
   equalSecret, validateScanRequest, isSafeDerivativeMetadata, sanitizeScannerError,
+  isSignatureDatabaseFresh,
 };
