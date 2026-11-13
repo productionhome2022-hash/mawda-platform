@@ -74,32 +74,46 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   }
 
   Future<void> _deleteMessage(String messageId) async {
-    final confirmed = await showDialog<bool>(
+    final action = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('حذف الرسالة'),
-        content: const Text('هل تريد حذف هذه الرسالة من الغرفة للجميع؟'),
+        title: const Text('خيارات حذف الرسالة'),
+        content: const Text('اختر أين تريد حذف الرسالة.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('إلغاء'),
           ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'me'),
+            child: const Text('الحذف لدي'),
+          ),
           FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('حذف'),
+            onPressed: () => Navigator.pop(dialogContext, 'everyone'),
+            child: const Text('الحذف لدى الجميع'),
           ),
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (action == null || !mounted) return;
 
     try {
-      await _service.deleteRoomMessage(roomId: widget.chatId, messageId: messageId);
+      if (action == 'me') {
+        await _service.deleteRoomMessageForMe(
+          roomId: widget.chatId,
+          messageId: messageId,
+        );
+      } else {
+        await _service.deleteRoomMessage(
+          roomId: widget.chatId,
+          messageId: messageId,
+        );
+      }
       if (mounted) _reloadMessages();
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لم يُسمح بحذف الرسالة أو تعذر إتمام العملية.')),
+        const SnackBar(content: Text('لم يُسمح بالحذف أو تعذر إتمام العملية.')),
       );
     }
   }
