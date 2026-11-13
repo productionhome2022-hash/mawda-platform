@@ -23,18 +23,9 @@ if (getApps().length === 0) {
 const db = getFirestore();
 const StorageFile = getStorage().bucket().file("test-prototype").constructor;
 const signedUrlRequests = [];
-const signedPostPolicyRequests = [];
 const originalGetSignedUrl = StorageFile.prototype.getSignedUrl;
-const originalGenerateSignedPostPolicyV4 = StorageFile.prototype.generateSignedPostPolicyV4;
 
 test.before(() => {
-  StorageFile.prototype.generateSignedPostPolicyV4 = async function(options) {
-    signedPostPolicyRequests.push({ objectPath: this.name, options: structuredClone(options) });
-    return [{
-      url: "https://signed.test/post",
-      fields: { ...options.fields, key: this.name, policy: "test-policy", "x-goog-signature": "test-signature" },
-    }];
-  };
   StorageFile.prototype.getSignedUrl = async function(options) {
     signedUrlRequests.push({ objectPath: this.name, options: structuredClone(options) });
     const expiresSeconds = Math.ceil((options.expires - Date.now()) / 1000);
@@ -44,7 +35,6 @@ test.before(() => {
 
 test.after(() => {
   StorageFile.prototype.getSignedUrl = originalGetSignedUrl;
-  StorageFile.prototype.generateSignedPostPolicyV4 = originalGenerateSignedPostPolicyV4;
 });
 
 function ownerRequest(uid, data = {}) {
@@ -221,7 +211,7 @@ test("daily upload count quota rejects before a signed capability is created", a
     activeUploads: 0, activeBytes: 0, dailyBytes: 0,
     dailyUploads: 100, dailyWindow: new Date().toISOString().slice(0, 10),
   });
-  const callsBefore = signedPostPolicyRequests.length;
+  const callsBefore = signedUrlRequests.length;
   await assert.rejects(
     () => createMediaUploadIntent.run({
       data: { originalName: "daily-limit.png", contentType: "image/png", sizeBytes: 1024 },
@@ -229,13 +219,13 @@ test("daily upload count quota rejects before a signed capability is created", a
     }),
     (error) => error && error.code === "resource-exhausted",
   );
-  assert.equal(signedPostPolicyRequests.length, callsBefore);
+  assert.equal(signedUrlRequests.length, callsBefore);
 });
 
 test("signer failure atomically releases reserved capacity and leaves no upload capability", async () => {
   const uid = `signer-failure-${Date.now()}-${Math.random()}`;
-  const stubSigner = StorageFile.prototype.generateSignedPostPolicyV4;
-  StorageFile.prototype.generateSignedPostPolicyV4 = async () => { throw new Error("signer unavailable"); };
+  const stubSigner = StorageFile.prototype.getSignedUrl;
+  StorageFile.prototype.getSignedUrl = async () => { throw new Error("signer unavailable"); };
   try {
     await assert.rejects(
       () => createMediaUploadIntent.run({
@@ -245,7 +235,7 @@ test("signer failure atomically releases reserved capacity and leaves no upload 
       (error) => error && error.code === "unavailable",
     );
   } finally {
-    StorageFile.prototype.generateSignedPostPolicyV4 = stubSigner;
+    StorageFile.prototype.getSignedUrl = stubSigner;
   }
   const quota = await db.collection("mediaUploadQuotas").doc(uid).get();
   assert.equal(quota.data().activeUploads, 0);
@@ -273,21 +263,23 @@ test("upload intent rejects a user who has exhausted the concurrent upload quota
 });
 
 
-test("upload capability is signed POST with exact size and create-only generation conditions", async () => {
+test("upload capability signs exact byte range and create-only V4 PUT preconditions", async () => {
   const uid = `signed-options-${Date.now()}-${Math.random()}`;
   const result = await createMediaUploadIntent.run({
     data: { originalName: "signed-check.png", contentType: "image/png", sizeBytes: 1024 },
     auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
   });
-  assert.equal(result.uploadUrl, "https://signed.test/post");
-  assert.equal(result.uploadMethod, "POST");
+  assert.ok(result.uploadUrl.startsWith("https://signed.test/"));
+  assert.equal(result.uploadMethod, "PUT");
   assert.equal(result.maxBytes, 1024);
-  assert.equal(result.uploadFields["Content-Type"], "image/png");
-  assert.equal(result.uploadFields["x-goog-if-generation-match"], "0");
-  const call = signedPostPolicyRequests.at(-1);
-  assert.equal(call.options.fields["Content-Type"], "image/png");
-  assert.equal(call.options.fields["x-goog-if-generation-match"], "0");
-  assert.deepEqual(call.options.conditions[0], ["content-length-range", 1024, 1024]);
+  assert.equal(result.uploadHeaders["Content-Type"], "image/png");
+  assert.equal(result.uploadHeaders["x-goog-content-length-range"], "1024,1024");
+  const call = signedUrlRequests.at(-1);
+  assert.equal(call.options.version, "v4");
+  assert.equal(call.options.action, "write");
+  assert.equal(call.options.contentType, "image/png");
+  assert.equal(call.options.queryParams.ifGenerationMatch, "0");
+  assert.equal(call.options.extensionHeaders["x-goog-content-length-range"], "1024,1024");
   assert.ok(call.options.expires - Date.now() <= 5 * 60 * 1000);
   assert.ok(call.options.expires - Date.now() > 4 * 60 * 1000);
 });
