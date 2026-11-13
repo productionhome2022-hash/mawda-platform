@@ -5202,7 +5202,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       isRead: false, createdAt: now,
     });
     transaction.update(ref, {
-      status: "payment_instructions_sent", agreedCoins: input.agreedCoins,
+      status: "payment_instructions_sent", chatId, agreedCoins: input.agreedCoins,
       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
       paymentInstructions: input.instructions, instructionsVersion: nextVersion,
       instructionsSetBy: actorUid, instructionsSetAt: now, updatedAt: now,
