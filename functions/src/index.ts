@@ -6,6 +6,7 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineString } from "firebase-functions/params";
 import { validateMediaLegalHoldInput } from "./media-legal-hold";
+import { validateMessageLegalHoldInput } from "./message-legal-hold";
 import { logger } from "firebase-functions";
 import { calculateTransferBreakdown } from "./coin-math";
 import { validateRegistrationPolicy } from "./registration-policy";
@@ -2170,6 +2171,211 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
  * Places a documented legal hold on one specific chat-media asset.
  * Holds do not change malware verdicts or make quarantined media deliverable.
  */
+/** Owner-only legal hold for an exact text message path. Media assets require their own asset holds. */
+export const placeMessageLegalHold = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "message_legal_hold_place");
+  let input;
+  try {
+    input = validateMessageLegalHoldInput((request.data ?? {}) as Record<string, unknown>);
+  } catch (error) {
+    throw new HttpsError("invalid-argument", "بيانات حجز الرسالة غير صالحة.", {
+      reason: error instanceof Error ? error.message : "INVALID_MESSAGE_HOLD",
+    });
+  }
+  const messageRef = db.doc(input.messagePath);
+  const holdRef = db.collection("messageLegalHolds").doc();
+  const requestAuditId = await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "message_legal_hold_place_requested",
+    messagePath: input.messagePath,
+    authority: input.authority,
+    legalBasis: input.legalBasis,
+    reference: input.reference,
+    startsAtMs: input.startsAtMs,
+    reviewAtMs: input.reviewAtMs,
+    endsAtMs: input.endsAtMs,
+    outcome: "requested",
+  });
+
+  await db.runTransaction(async (transaction) => {
+    const messageSnapshot = await transaction.get(messageRef);
+    if (!messageSnapshot.exists) throw new HttpsError("not-found", "الرسالة غير موجودة.");
+    const message = messageSnapshot.data() ?? {};
+    const hasMedia = ["mediaId", "mediaIds", "attachments", "storagePath", "objectPath"]
+      .some((field) => {
+        const value = message[field];
+        return Array.isArray(value) ? value.length > 0 : typeof value === "string" && value.length > 0;
+      });
+    if ((message.type !== undefined && message.type !== "text") || hasMedia) {
+      throw new HttpsError("failed-precondition", "يجب إنشاء حجز مستقل لكل ملف وسائط مرتبط بالرسالة.");
+    }
+    if (message.legalHoldStatus === "active") {
+      throw new HttpsError("already-exists", "الرسالة خاضعة لحجز قانوني نشط بالفعل.");
+    }
+    transaction.create(holdRef, {
+      holdId: holdRef.id,
+      scope: "text_message",
+      messagePath: input.messagePath,
+      authority: input.authority,
+      legalBasis: input.legalBasis,
+      reference: input.reference,
+      startsAt: Timestamp.fromMillis(input.startsAtMs),
+      reviewAt: Timestamp.fromMillis(input.reviewAtMs),
+      endsAt: Timestamp.fromMillis(input.endsAtMs),
+      status: "active",
+      authorizedBy: actorUid,
+      requestAuditId,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.update(messageRef, {
+      legalHoldStatus: "active",
+      activeLegalHoldId: holdRef.id,
+      resumeRetentionPolicyStatus: message.retentionPolicyStatus ?? "seven_day_chat_text",
+      retentionPolicyStatus: "legal_hold",
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  const auditLogId = await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "message_legal_hold_placed",
+    holdId: holdRef.id,
+    messagePath: input.messagePath,
+    outcome: "success",
+  });
+  return { holdId: holdRef.id, messagePath: input.messagePath, status: "active", auditLogId };
+});
+
+
+export const releaseMessageLegalHold = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "message_legal_hold_release");
+  const holdId = typeof request.data?.holdId === "string" ? request.data.holdId.trim() : "";
+  if (!/^[A-Za-z0-9]{20}$/.test(holdId)) {
+    throw new HttpsError("invalid-argument", "معرف حجز الرسالة غير صالح.");
+  }
+  const holdRef = db.collection("messageLegalHolds").doc(holdId);
+  const holdSnapshot = await holdRef.get();
+  if (!holdSnapshot.exists) throw new HttpsError("not-found", "حجز الرسالة غير موجود.");
+  const messagePath = typeof holdSnapshot.data()?.messagePath === "string"
+    ? holdSnapshot.data()!.messagePath as string : "";
+  let validated;
+  try {
+    validated = validateMessageLegalHoldInput({
+      messagePath,
+      authority: "Recorded authority",
+      legalBasis: "Recorded legal basis for this previously validated hold.",
+      reference: "Recorded-reference",
+      startsAtMs: 0,
+      reviewAtMs: 1,
+      endsAtMs: 2,
+    }, 2);
+  } catch {
+    throw new HttpsError("failed-precondition", "مسار الرسالة في الحجز غير صالح.");
+  }
+  const messageRef = db.doc(validated.messagePath);
+  await db.runTransaction(async (transaction) => {
+    const [freshHold, messageSnapshot] = await Promise.all([
+      transaction.get(holdRef), transaction.get(messageRef),
+    ]);
+    if (!freshHold.exists || freshHold.data()?.status !== "active") {
+      throw new HttpsError("failed-precondition", "الحجز القانوني غير نشط أو تمت معالجته مسبقاً.");
+    }
+    if (messageSnapshot.exists && messageSnapshot.data()?.activeLegalHoldId === holdId) {
+      const message = messageSnapshot.data() ?? {};
+      transaction.update(messageRef, {
+        legalHoldStatus: "released",
+        activeLegalHoldId: FieldValue.delete(),
+        retentionPolicyStatus: message.resumeRetentionPolicyStatus ?? "seven_day_chat_text",
+        resumeRetentionPolicyStatus: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    transaction.update(holdRef, {
+      status: "released",
+      releasedBy: actorUid,
+      releasedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+  const auditLogId = await appendOwnerReviewAuditEvent({
+    actorUid, action: "message_legal_hold_released", holdId,
+    messagePath: validated.messagePath, outcome: "success",
+  });
+  return { holdId, messagePath: validated.messagePath, status: "released", auditLogId };
+});
+
+
+export const listActiveMessageLegalHolds = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "message_legal_hold_list");
+  const snapshot = await db.collection("messageLegalHolds")
+    .where("status", "==", "active")
+    .orderBy("reviewAt", "asc")
+    .limit(100)
+    .get();
+  const auditLogId = await appendOwnerReviewAuditEvent({
+    actorUid, action: "message_legal_hold_listed", outcome: "success",
+    returnedCount: snapshot.size,
+  });
+  return {
+    holds: snapshot.docs.map((doc) => {
+      const hold = doc.data();
+      return {
+        holdId: doc.id,
+        messagePath: hold.messagePath,
+        authority: hold.authority,
+        legalBasis: hold.legalBasis,
+        reference: hold.reference,
+        startsAtMs: hold.startsAt instanceof Timestamp ? hold.startsAt.toMillis() : null,
+        reviewAtMs: hold.reviewAt instanceof Timestamp ? hold.reviewAt.toMillis() : null,
+        endsAtMs: hold.endsAt instanceof Timestamp ? hold.endsAt.toMillis() : null,
+      };
+    }),
+    auditLogId,
+  };
+});
+
+
+export const reviewMessageLegalHold = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "message_legal_hold_review");
+  const holdId = typeof request.data?.holdId === "string" ? request.data.holdId.trim() : "";
+  const reviewNote = typeof request.data?.reviewNote === "string" ? request.data.reviewNote.trim() : "";
+  const nextReviewAtMs = request.data?.nextReviewAtMs;
+  if (!/^[A-Za-z0-9]{20}$/.test(holdId) ||
+      reviewNote.length < 10 || reviewNote.length > 500 ||
+      !Number.isSafeInteger(nextReviewAtMs)) {
+    throw new HttpsError("invalid-argument", "بيانات مراجعة حجز الرسالة غير صالحة.");
+  }
+  const holdRef = db.collection("messageLegalHolds").doc(holdId);
+  let endsAtMs = 0;
+  await db.runTransaction(async (transaction) => {
+    const holdSnapshot = await transaction.get(holdRef);
+    if (!holdSnapshot.exists || holdSnapshot.data()?.status !== "active") {
+      throw new HttpsError("not-found", "الحجز القانوني النشط غير موجود.");
+    }
+    const endsAt = holdSnapshot.data()?.endsAt;
+    if (!(endsAt instanceof Timestamp) ||
+        (nextReviewAtMs as number) <= Date.now() ||
+        (nextReviewAtMs as number) >= endsAt.toMillis()) {
+      throw new HttpsError("invalid-argument", "يجب أن يكون موعد المراجعة قبل انتهاء الحجز.");
+    }
+    endsAtMs = endsAt.toMillis();
+    transaction.update(holdRef, {
+      reviewAt: Timestamp.fromMillis(nextReviewAtMs as number),
+      lastReviewedAt: FieldValue.serverTimestamp(),
+      lastReviewedBy: actorUid,
+      reviewNote,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+  const auditLogId = await appendOwnerReviewAuditEvent({
+    actorUid, action: "message_legal_hold_reviewed", holdId,
+    nextReviewAtMs, reviewNote, originalEndsAtMs: endsAtMs, outcome: "success",
+  });
+  return { holdId, nextReviewAtMs, endsAtMs, auditLogId };
+});
+
+
 export const placeMediaLegalHold = onCall(async (request) => {
   const actorUid = await requireOwnerForReview(request, "media_legal_hold_place");
   let input;
