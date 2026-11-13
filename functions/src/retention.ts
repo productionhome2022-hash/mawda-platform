@@ -83,7 +83,7 @@ async function deleteAllObjectGenerations(objectPath: string): Promise<number> {
 
 const ACTIVE_MEDIA_STATES = [
   "upload_authorized", "pending_security_scan", "scanner_clean_pending_processing",
-  "security_approved", "rejected", "expired_cleanup_in_progress", "expired",
+  "security_approved", "rejected", "expired_cleanup_in_progress", "expired", "manual_deletion_pending",
 ];
 const MEDIA_DERIVATIVE_RECHECK_MS = 5 * 60 * 1000;
 
@@ -109,7 +109,7 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
     // without allowing tombstones to occupy the active-expiry query forever.
     const tombstones = await db.collection("mediaAssets")
       .where("mediaPurpose", "==", purpose)
-      .where("status", "==", "self_destructed")
+      .where("status", "in", ["self_destructed", "manually_deleted"])
       .where("retentionReconcileAt", "<=", now)
       .orderBy("retentionReconcileAt", "asc")
       .limit(RETENTION_BATCH_SIZE)
@@ -262,8 +262,10 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
             }
           }
           const createdAt = asset.createdAt instanceof Timestamp ? asset.createdAt : null;
-          tombstone.status = "self_destructed";
-          tombstone.retentionPolicyStatus = deletedPolicyStatus;
+          const manualDeleteRetry = asset.status === "manual_deletion_pending";
+          tombstone.status = manualDeleteRetry ? "manually_deleted" : "self_destructed";
+          tombstone.retentionPolicyStatus = manualDeleteRetry
+            ? "manual_delete_for_everyone_completed" : deletedPolicyStatus;
           tombstone.retentionExpiresAt = asset.retentionExpiresAt ??
             (createdAt && lifetimeMs !== null ? Timestamp.fromMillis(createdAt.toMillis() + lifetimeMs) : Timestamp.fromMillis(Date.now()));
           tombstone.retentionDeletedAt = FieldValue.serverTimestamp();
@@ -272,7 +274,8 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
           await assetDoc.ref.set(tombstone, { merge: true });
           await db.collection("mediaScanJobs").doc(mediaId).delete().catch(() => undefined);
           await db.collection("mediaAccessAudit").add({
-            actorUid: "system-retention", mediaId, action: deletionAuditAction,
+            actorUid: "system-retention", mediaId,
+            action: manualDeleteRetry ? "chat_media_manual_delete_for_everyone_completed" : deletionAuditAction,
             outcome: "success", purpose, objectCount: paths.size,
             createdAt: FieldValue.serverTimestamp(),
             expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
@@ -282,7 +285,7 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
         } catch (error) {
           failures += 1;
           await db.collection("mediaAccessAudit").add({
-            actorUid: "system-retention", mediaId, action: purpose === "profile_album" ? "profile_album_media_delete" : purpose === "story" ? "story_media_expiry_delete_retry" : purpose === "avatar_cover" ? "avatar_cover_media_expiry_delete_retry" : "chat_media_self_destruct",
+            actorUid: "system-retention", mediaId, action: asset.status === "manual_deletion_pending" ? "chat_media_manual_delete_retry" : purpose === "profile_album" ? "profile_album_media_delete" : purpose === "story" ? "story_media_expiry_delete_retry" : purpose === "avatar_cover" ? "avatar_cover_media_expiry_delete_retry" : "chat_media_self_destruct",
             outcome: "retry_required", purpose,
             failureCode: error instanceof Error ? error.name : "unknown",
             createdAt: FieldValue.serverTimestamp(),
