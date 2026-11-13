@@ -219,3 +219,19 @@ This is intentionally **not** a general attachment implementation yet:
 - Tightened image delivery checks: exact conversation scope/ID binding, safe derivative generation/hash and scanner metadata checks, and denial when the message is hidden for the requesting participant.
 - Manual message-media deletion failures are now eligible for the gated retention retry sweep. Successful retries become manually_deleted tombstones and receive the same five-minute late-object reconciliation. Added emulator integration coverage for retry and late replay.
 - The exact current head still requires a full green CI run. No live GCS, Cloud Run, backup/PITR, or production environment behavior is claimed from emulator checks.
+
+## Typed chat media processors and Flutter send/receive candidate — 13 November 2026
+
+The current development candidate now contains separate processor implementations and delivery contracts for:
+
+- **Animated GIF:** Sharp decodes and re-encodes the animation, preserves the frame count, caps frames at 100 and total decoded pixels at 40 million, and writes a bounded GIF derivative.
+- **Audio / voice:** FFmpeg probes the streams and duration, rejects video-containing audio inputs and audio longer than 10 minutes, strips source metadata, and transcodes to mono MP3.
+- **Video:** FFmpeg rejects files without a video stream or longer than 90 seconds, strips metadata/chapters, transcodes to bounded 1280×720 H.264/AAC MP4, and limits the output size.
+- **Owner PDF:** only a verified platform-owner upload is eligible. Poppler rasterizes each page with bounded dimensions and the image-only pages are rebuilt as a new PDF, removing the original text layer, active PDF objects, embedded files, forms, annotations and links. The limit is 30 pages and 20 MiB. Office formats and all other document MIME types remain unsupported and denied.
+- Every derivative is uploaded create-only beneath the owner's media namespace and carries source generation, source SHA-256, scanner provider and exact processor version. Firebase independently checks derivative generation, content type, size, provenance and SHA-256 before it marks the asset eligible.
+
+Flutter direct-chat and room screens now include a general file picker for JPEG/PNG/WebP/GIF, MP3/M4A/OGG/WAV, MP4 and PDF. Image/GIF previews render inline; audio/video/PDF use a short-lived signed URL and an explicit external open/download action. The UI waits for the server's safe-derivative status before linking a message.
+
+Deletion and retention paths now enumerate all canonical derivatives (preview.webp, animation.gif, audio.mp3, video.mp4, document.pdf), validate their exact per-media paths, remove every visible generation and reconcile late object replays.
+
+**Release status: NOT YET VERIFIED.** These changes are a candidate implementation, not a declaration that these categories are enabled. Keep non-image delivery blocked until the exact candidate passes the container processor integration tests, scanner callback contract tests, callable authorization tests, Flutter analyze/tests/Web build, and Firestore/Storage emulator suites. Then run the isolated scanner lifecycle and real Storage generation/expiry checks in the dedicated non-production environment. A clean ClamAV verdict alone is never sufficient for delivery.
