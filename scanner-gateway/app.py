@@ -21,6 +21,14 @@ ALLOWED_DOWNLOAD_HOSTS = {"storage.googleapis.com"}
 PROVIDER = os.environ.get("MAWDA_SCANNER_PROVIDER", "clamav-mawadda-gateway")
 
 
+class RejectRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise ValueError("redirects are not permitted for signed scanner capabilities")
+
+
+SAFE_OPENER = urllib.request.build_opener(RejectRedirect)
+
+
 def constant_time_token_match(supplied, expected):
     return bool(supplied and expected and hmac.compare_digest(supplied, expected))
 
@@ -48,8 +56,11 @@ def validate_dispatch(payload):
             path_parts[2] != media_id):
         raise ValueError("invalid quarantine path")
     download = urllib.parse.urlparse(download_url or "")
-    if download.scheme != "https" or download.hostname not in ALLOWED_DOWNLOAD_HOSTS or not download.query:
-        raise ValueError("download URL host or scheme is not allowed")
+    download_query = urllib.parse.parse_qs(download.query)
+    if (download.scheme != "https" or download.hostname not in ALLOWED_DOWNLOAD_HOSTS or
+            not download_query.get("X-Goog-Signature") or
+            not download_query.get("X-Goog-Algorithm")):
+        raise ValueError("download URL host, scheme or signature is not allowed")
     callback = urllib.parse.urlparse(callback_url or "")
     if callback.scheme != "https" or not callback.hostname or not callback.hostname.endswith(".cloudfunctions.net"):
         raise ValueError("callback URL host or scheme is not allowed")
@@ -65,7 +76,7 @@ def download_to_temp(url):
     path = Path(temp.name)
     try:
         request = urllib.request.Request(url, headers={"User-Agent": "Mawadda-ClamAV-Gateway/1.0"})
-        with urllib.request.urlopen(request, timeout=45) as response, temp:
+        with SAFE_OPENER.open(request, timeout=45) as response, temp:
             length = response.headers.get("Content-Length")
             if length and int(length) > MAX_UPLOAD_BYTES:
                 raise ValueError("file exceeds scanner transport limit")
@@ -126,7 +137,7 @@ def signed_callback(payload, callback_url, secret):
             "User-Agent": "Mawadda-ClamAV-Gateway/1.0",
         },
     )
-    with urllib.request.urlopen(request, timeout=30) as response:
+    with SAFE_OPENER.open(request, timeout=30) as response:
         if response.status != 200:
             raise RuntimeError("scanner verdict callback was not accepted")
         return response.read(4096)
