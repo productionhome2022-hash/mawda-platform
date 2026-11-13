@@ -24,7 +24,7 @@
 Source code now includes an isolated Cloud Run scanner service under `scanner/`:
 - Private Cloud Run IAM authentication (the Functions dispatcher obtains a Google identity token) plus a separate high-entropy scanner API token.
 - HTTPS-only source URL validation bound to the exact bucket object path and generation; no redirects or arbitrary hosts.
-- 100 MiB bounded download, ClamAV scan with explicit archive recursion/file-count/scan-size limits, and fail-closed behavior for timeouts, parser limits and incomplete scans.
+- 100 MiB bounded download, ClamAV scan with explicit archive recursion/file-count/scan-size limits, and fail-closed behavior for timeouts, parser limits and incomplete scans. The scanner also refuses scans and reports degraded health if the daily signature database is missing or older than 36 hours.
 - HMAC-SHA256 callback binding media ID, provider, source generation, source SHA-256 and scan timestamp.
 - Clean raster images (including bounded animated GIFs) are decoded and re-encoded by Sharp to a bounded WebP derivative; GIF frame count is capped at 100 to reduce animation-bomb risk. Firebase independently verifies the source hash and derivative generation, metadata and hash before setting `security_approved`.
 - Malicious verdicts reject and delete only the matching source generation. Duplicate verdict callbacks are idempotent.
@@ -60,7 +60,7 @@ The guarded runner performs real HTTP signed PUT and GET requests, verifies repl
 - Upload purpose is recorded (`chat`, `room`, `profile_album`, `avatar_cover`, `story`), but `retentionExpiresAt` remains null and `retentionPolicyStatus` remains `owner_approval_required`. No retained-media deletion scheduler is exported or enabled. Retention periods, legal holds, export format, deletion authority, backup expiry and exception handling require owner approval before any destructive lifecycle rule is configured. Only abandoned, never-finalized upload intents are eligible for the separate cleanup job.
 - Exercise the six-hour missing-object recheck under slow-upload simulation, cleanup retry/dead-letter behavior and orphan reconciliation in non-production. Do not re-enable retained-media deletion until the owner approves exact purpose-based periods and legal-hold behavior.
 - Enforce byte limits at the transport boundary and validate CORS against actual non-production bucket origins.
-- Deploy and exercise the scanner in non-production with clean files, EICAR test signature, malformed images, archive bombs/limit-exceeding files, stale generation, bad HMAC, duplicate callbacks, scanner timeout, signature database refresh and Cloud Run restart/retry.
+- Deploy and exercise the scanner in non-production with clean files, EICAR test signature, malformed images, archive bombs/limit-exceeding files, stale generation, bad HMAC, duplicate callbacks, scanner timeout, signature database refresh/staleness and Cloud Run restart/retry.
 - Build safe processing for video, audio and PDF before any of those types can be member-delivered.
 - The safe WebP preview action is now wired into the owner console. Add Flutter App Check initialization before wiring the separate attachment-stream action; keep all raw signed URLs out of the client.
 - Verify owner MFA enrollment/recovery/revocation, CORS, Android/iOS/web device flows, performance, monitoring, backups and restore in a non-production project.
