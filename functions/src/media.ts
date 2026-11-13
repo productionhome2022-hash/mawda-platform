@@ -26,10 +26,14 @@ import { MEDIA_UPLOAD_CLEANUP_GRACE_MS, uploadIntentIsEligibleForCleanup } from 
 // whose static imports execute before initializeApp(); eager resolution here
 // would make the Functions entry point fail during module loading.
 const mediaDb = () => getFirestore();
-const mediaBucket = () => getStorage().bucket();
+const mediaBucket = () => {
+  const configuredName = mediaBucketName.value().trim();
+  return configuredName ? getStorage().bucket(configuredName) : getStorage().bucket();
+};
 
 const mediaScannerHmacSecret = defineSecret("MAWDA_MEDIA_SCANNER_HMAC_SECRET");
 const mediaScannerApiToken = defineSecret("MAWDA_MEDIA_SCANNER_API_TOKEN");
+const mediaBucketName = defineString("MAWDA_MEDIA_BUCKET_NAME", { default: "" });
 const mediaScannerUrl = defineString("MAWDA_MEDIA_SCANNER_URL", { default: "" });
 const mediaScannerCallbackUrl = defineString("MAWDA_MEDIA_SCANNER_CALLBACK_URL", { default: "" });
 const mediaScannerProvider = defineString("MAWDA_MEDIA_SCANNER_PROVIDER", { default: "clamav-mawadda-gateway" });
