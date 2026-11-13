@@ -98,6 +98,8 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
   for (const purpose of ["chat", "room", "profile_album"] as const) {
     const lifetimeMs = purpose === "profile_album" ? 7 * 24 * 60 * 60 * 1000 : CHAT_MEDIA_RETENTION_MS;
     const retentionLabel = purpose === "profile_album" ? "seven_day_profile_album" : "four_hour_self_destruct";
+    const deletedPolicyStatus = purpose === "profile_album" ? "seven_day_profile_album_deleted" : "four_hour_self_destructed";
+    const deletionAuditAction = purpose === "profile_album" ? "profile_album_media_deleted" : "chat_media_self_destructed";
     // Revisit content-free tombstones on a separate clock. This catches a
     // derivative written by a scanner that was already running at expiry,
     // without allowing tombstones to occupy the active-expiry query forever.
@@ -177,7 +179,7 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
           }
           const createdAt = asset.createdAt instanceof Timestamp ? asset.createdAt : null;
           tombstone.status = "self_destructed";
-          tombstone.retentionPolicyStatus = `${retentionLabel}_deleted`;
+          tombstone.retentionPolicyStatus = deletedPolicyStatus;
           tombstone.retentionExpiresAt = asset.retentionExpiresAt ??
             (createdAt ? Timestamp.fromMillis(createdAt.toMillis() + lifetimeMs) : Timestamp.fromMillis(Date.now()));
           tombstone.retentionDeletedAt = FieldValue.serverTimestamp();
@@ -186,7 +188,7 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
           await assetDoc.ref.set(tombstone, { merge: true });
           await db.collection("mediaScanJobs").doc(mediaId).delete().catch(() => undefined);
           await db.collection("mediaAccessAudit").add({
-            actorUid: "system-retention", mediaId, action: `${retentionLabel}_deleted`,
+            actorUid: "system-retention", mediaId, action: deletionAuditAction,
             outcome: "success", purpose, objectCount: paths.size,
             createdAt: FieldValue.serverTimestamp(),
             expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
@@ -196,7 +198,7 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
         } catch (error) {
           failures += 1;
           await db.collection("mediaAccessAudit").add({
-            actorUid: "system-retention", mediaId, action: `${retentionLabel}_delete`,
+            actorUid: "system-retention", mediaId, action: purpose === "profile_album" ? "profile_album_media_delete" : "chat_media_self_destruct",
             outcome: "retry_required", purpose,
             failureCode: error instanceof Error ? error.name : "unknown",
             createdAt: FieldValue.serverTimestamp(),
