@@ -6,7 +6,7 @@ const {
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
   setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, sendOwnerLiveStream,
-  deleteDirectMessage, deleteRoomMessage,
+  deleteDirectMessageForEveryone, deleteRoomMessage,
 } = require("../../lib/index");
 const { createDirectChatId } = require("../../lib/direct-chat-id");
 
@@ -450,7 +450,7 @@ test("owner live streams are scoped to owner direct chats or active rooms and ar
     assert.equal(message.data().liveStream.hostname, "www.youtube.com");
     const replay = await sendOwnerLiveStream.run(ownerRequest(ownerUid, directInput));
     assert.equal(replay.idempotentReplay, true);
-    await deleteDirectMessage.run(ownerRequest(ownerUid, { chatId, messageId: directMessageId }));
+    await deleteDirectMessageForEveryone.run(ownerRequest(ownerUid, { chatId, messageId: directMessageId }));
     assert.equal((await messageRef.get()).exists, false);
     await assert.rejects(
       () => sendOwnerLiveStream.run(memberRequest(memberUid, directInput)),
