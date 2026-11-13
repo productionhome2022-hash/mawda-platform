@@ -56,6 +56,13 @@ Status snapshot: 2026-11-13. This document is a release gate, not a claim that e
 
 A successful malware verdict does not by itself authorize member delivery. Only types with a completed safe-processing pipeline may become eligible for delivery. Images use sanitized WebP derivatives; video, audio and PDF remain unavailable until type-specific processing is implemented.
 
+## Cross-client refresh and all attachment categories (13 November 2026)
+
+- Direct and room message reads suppress `deletionPending` messages. Both Flutter chat screens refresh from their trusted callable every 8 seconds to converge across active devices; this is eventual polling, not realtime push.
+- Integration tests now cover image, video, audio and PDF/document media IDs, including multiple attachments in one direct message. Legal-hold blocking and retry-after-release are tested.
+- Full validation on `8da2204f0325d19a172979da33125fb29e03e4db` passed in [run 43390815304](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43390815304), including Flutter analyze/tests/Web release, Functions compile/unit/integration, Firestore/Storage rules, scanner tests, container build and EICAR.
+- This does not create a media upload/send/rendering UX. All media categories are supported by the deletion reference contract, but member-facing upload/delivery integration remains a separate open gate.
+
 ## Manual message-media deletion update (13 November 2026)
 
 - Direct and room delete-for-everyone now recognize message-linked `mediaId` / `mediaIds`, hide the message while erasure is pending, and delete the exact original object generations, sanitized WebP preview and validated known derived object paths before removing the message and notifications.
