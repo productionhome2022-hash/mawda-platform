@@ -637,9 +637,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       : null,
                   child: data['avatarUrl'] is String
                       ? null
-                      : Text(
-                          name.isNotEmpty ? name.substring(0, 1) : 'M',
-                          style: const TextStyle(fontSize: 32, color: Colors.white),
+                      : const Icon(
+                          Icons.favorite_rounded,
+                          size: 42,
+                          color: Colors.white,
                         ),
                 ),
               ),
