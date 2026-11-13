@@ -90,7 +90,7 @@ export function resolveChatMediaDeliveryArtifact(
       route.category === "audio" ? "safe_audio_derivative_ready" :
         route.category === "video" ? "safe_video_derivative_ready" : "safe_document_derivative_ready";
   if (asset.processingStatus !== expectedProcessingStatus) return null;
-  if (route.category !== "image" && asset.processingPipelineVersion !== route.pipelineVersion) return null;
+  if (asset.processingPipelineVersion !== route.pipelineVersion) return null;
   const path = asset[route.pathField];
   const generation = asset[route.generationField];
   const sha256 = asset[route.hashField];
