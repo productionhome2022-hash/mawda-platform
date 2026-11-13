@@ -159,6 +159,7 @@ export async function deleteMediaAssetForMessage(
       tombstone.status = "manually_deleted";
       tombstone.retentionPolicyStatus = "manual_delete_for_everyone_completed";
       tombstone.manualDeletedAt = FieldValue.serverTimestamp();
+      tombstone.retentionReconcileAt = Timestamp.fromMillis(Date.now() + 5 * 60 * 1000);
       tombstone.updatedAt = FieldValue.serverTimestamp();
       const auditRef = mediaDb().collection("mediaAccessAudit").doc();
       transaction.set(assetRef, tombstone, { merge: true });
