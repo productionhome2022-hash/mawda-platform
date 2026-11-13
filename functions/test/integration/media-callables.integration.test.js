@@ -69,6 +69,7 @@ async function reserveFixtureQuota(uid, bytes) {
     activeUploads: 1,
     activeBytes: bytes,
     dailyBytes: bytes,
+    dailyUploads: 1,
     dailyWindow: new Date().toISOString().slice(0, 10),
   });
 }
@@ -202,6 +203,23 @@ test("upload intent reserves per-user quota atomically and audits the capability
   assert.equal(asset.data().status, "upload_authorized");
   assert.ok((await auditEvents(uid)).some((event) =>
     event.action === "media_upload_intent_created" && event.outcome === "success"));
+});
+
+test("daily upload count quota rejects before a signed capability is created", async () => {
+  const uid = `daily-count-limit-${Date.now()}-${Math.random()}`;
+  await db.collection("mediaUploadQuotas").doc(uid).set({
+    activeUploads: 0, activeBytes: 0, dailyBytes: 0,
+    dailyUploads: 100, dailyWindow: new Date().toISOString().slice(0, 10),
+  });
+  const callsBefore = signedUrlRequests.length;
+  await assert.rejects(
+    () => createMediaUploadIntent.run({
+      data: { originalName: "daily-limit.png", contentType: "image/png", sizeBytes: 1024 },
+      auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+    }),
+    (error) => error && error.code === "resource-exhausted",
+  );
+  assert.equal(signedUrlRequests.length, callsBefore);
 });
 
 test("signer failure atomically releases reserved capacity and leaves no upload capability", async () => {
