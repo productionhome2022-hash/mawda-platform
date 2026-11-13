@@ -13,14 +13,17 @@ class ScannerGatewayTests(unittest.TestCase):
             "mediaId": "123e4567-e89b-12d3-a456-426614174000",
             "objectPath": "quarantine/member-1/123e4567-e89b-12d3-a456-426614174000",
             "objectGeneration": "987654321",
-            "downloadUrl": "https://storage.googleapis.com/example-bucket/object?X-Goog-Signature=abc",
+            "downloadUrl": "https://storage.googleapis.com/example-bucket/object?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Signature=abc",
             "callbackUrl": "https://us-central1-example.cloudfunctions.net/receiveMediaScanVerdict",
             "provider": app.PROVIDER,
         }
 
     def test_dispatch_requires_https_gcs_and_cloud_functions_callback(self):
         self.assertEqual(app.validate_dispatch(self.payload)[0], self.payload["mediaId"])
-        bad = dict(self.payload, downloadUrl="https://evil.example/file?sig=1")
+        bad = dict(self.payload, downloadUrl="https://evil.example/file?X-Goog-Algorithm=a&X-Goog-Signature=b")
+        with self.assertRaises(ValueError):
+            app.validate_dispatch(bad)
+        bad = dict(self.payload, downloadUrl="https://storage.googleapis.com/bucket/object?unsigned=1")
         with self.assertRaises(ValueError):
             app.validate_dispatch(bad)
         bad = dict(self.payload, callbackUrl="https://evil.example/callback")
@@ -54,6 +57,11 @@ class ScannerGatewayTests(unittest.TestCase):
         run.return_value = MagicMock(returncode=2, stdout="", stderr="daemon unavailable")
         with self.assertRaises(RuntimeError):
             app.scan_file("/tmp/file")
+
+    def test_signed_capability_redirects_are_rejected(self):
+        handler = app.RejectRedirect()
+        with self.assertRaises(ValueError):
+            handler.redirect_request(None, None, 302, "Found", {}, "https://evil.example/collect")
 
     def test_gateway_never_exposes_scanner_output_in_public_errors(self):
         self.assertLessEqual(app.MAX_CONTROL_BODY, 64 * 1024)
