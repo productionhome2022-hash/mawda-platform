@@ -91,6 +91,9 @@ export const createMediaUploadIntent = onCall(async (request) => {
     action: "write",
     expires: expiresAt,
     contentType: input.contentType,
+    // Create-only precondition: a leaked/replayed upload URL cannot overwrite
+    // the first object generation after the quarantine object is created.
+    queryParams: { ifGenerationMatch: "0" },
   });
 
   await mediaDb().collection("mediaAssets").doc(mediaId).create({
