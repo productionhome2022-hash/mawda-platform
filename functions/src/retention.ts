@@ -287,6 +287,19 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
       if (succeededThisPage === 0) break;
     }
   }
+  // Expired story documents are removed immediately; media deletion remains
+  // independently generation-safe and retryable through the media asset sweep.
+  const expiredStories = await db.collection("stories")
+    .where("status", "==", "active")
+    .where("expiresAt", "<=", Timestamp.fromMillis(Date.now()))
+    .limit(RETENTION_BATCH_SIZE)
+    .get();
+  if (!expiredStories.empty) {
+    const batch = db.batch();
+    for (const story of expiredStories.docs) batch.delete(story.ref);
+    await batch.commit();
+  }
+
   return { assets, objects, failures };
 }
 
