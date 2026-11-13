@@ -23,13 +23,15 @@ const {
   ownerMediaInspectionStream,
   getOwnerMediaSafePreview,
   cleanupExpiredMediaUploadIntents,
+  sendChatImageAttachment,
+  getChatImageAttachmentUrl,
 } = require("../../lib/media");
 
 const { createMemberStory, listMemberStories } = require("../../lib/index");
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
-const { randomUUID } = require("node:crypto");
+const { randomUUID, createHash } = require("node:crypto");
 
 // Signed URL generation needs a signer even when the target is the Storage Emulator.
 // Generate an ephemeral, test-only service account key; never use production credentials.
@@ -647,3 +649,111 @@ test("story publication rejects media that remains quarantined pending malware s
     await Promise.all([userRef.delete(), assetRef.delete()]);
   }
 });
+
+async function createReadyChatImage({ uid, purpose = "chat", mediaId = randomUUID() }) {
+  const objectPath = `processed/${uid}/${mediaId}/preview.webp`;
+  const bytes = Buffer.from("safe-webp-test-fixture");
+  const [metadata] = await getStorage().bucket().file(objectPath).save(bytes, {
+    resumable: false,
+    metadata: { contentType: "image/webp", metadata: { mediaId, processing: "sharp-decode-reencode-v1" } },
+  });
+  const file = getStorage().bucket().file(objectPath);
+  const [stored] = await file.getMetadata();
+  await db.collection("mediaAssets").doc(mediaId).set({
+    mediaId, ownerUid: uid, uploaderRole: "member", uploaderType: "member",
+    mediaPurpose: purpose, mediaCategory: "image", detectedContentType: "image/png",
+    status: "security_approved", processingStatus: "safe_raster_derivative_ready",
+    safePreviewPath: objectPath, safePreviewGeneration: String(stored.generation),
+    safePreviewSha256: "a".repeat(64), safePreviewContentType: "image/webp",
+    safePreviewSizeBytes: bytes.length, retentionExpiresAt: Timestamp.fromMillis(Date.now() + 4 * 60 * 60 * 1000),
+    legalHoldStatus: "none", deliveryState: "pending",
+  });
+  return mediaId;
+}
+
+test("safe image can be linked to a direct message and delivered only to its participant", async () => {
+  const senderUid = `attachment-sender-${randomUUID()}`;
+  const recipientUid = `attachment-recipient-${randomUUID()}`;
+  await db.collection("users").doc(senderUid).set({ profileCompleted: true, age: 30, blockedUids: [] });
+  await db.collection("users").doc(recipientUid).set({ profileCompleted: true, age: 28, blockedUids: [] });
+  const mediaId = await createReadyChatImage({ uid: senderUid });
+  const clientMessageId = `img_${randomUUID().replace(/-/g, "")}`;
+  const sent = await sendChatImageAttachment.run({
+    data: { scope: "direct", recipientUid, mediaId, clientMessageId, caption: "صورة اختبار" },
+    auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+  });
+  assert.equal(sent.replayed, false);
+  const messageId = createHash("sha256").update(senderUid + ":" + clientMessageId).digest("hex");
+  const message = await db.collection("directChats").doc(sent.chatId).collection("messages").doc(messageId).get();
+  assert.equal(message.data().mediaId, mediaId);
+  assert.equal(message.data().attachmentStatus, "ready");
+  const delivered = await getChatImageAttachmentUrl.run({
+    data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+    auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+  });
+  assert.match(delivered.url, /^https:\/\//);
+  await assert.rejects(
+    () => getChatImageAttachmentUrl.run({
+      data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+      auth: { uid: `intruder-${randomUUID()}`, token: { firebase: { sign_in_provider: "password" } } },
+    }),
+    (error) => error && error.code === "permission-denied",
+  );
+});
+
+test("safe image can be linked to a room message; non-members cannot retrieve it", async () => {
+  const senderUid = `room-attachment-sender-${randomUUID()}`;
+  const roomId = `room-${randomUUID()}`;
+  await db.collection("users").doc(senderUid).set({ status: "active" });
+  await db.collection("rooms").doc(roomId).set({ status: "active", ownerUid: senderUid });
+  await db.collection("rooms").doc(roomId).collection("members").doc(senderUid).set({ role: "member" });
+  const mediaId = await createReadyChatImage({ uid: senderUid, purpose: "room" });
+  const clientMessageId = `roomimg_${randomUUID().replace(/-/g, "")}`;
+  const sent = await sendChatImageAttachment.run({
+    data: { scope: "room", roomId, mediaId, clientMessageId, caption: "صورة غرفة" },
+    auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+  });
+  assert.equal(sent.replayed, false);
+  const messageId = createHash("sha256").update(senderUid + ":" + clientMessageId).digest("hex");
+  const delivered = await getChatImageAttachmentUrl.run({
+    data: { scope: "room", roomId, messageId, mediaId },
+    auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+  });
+  assert.match(delivered.url, /^https:\/\//);
+  await assert.rejects(
+    () => getChatImageAttachmentUrl.run({
+      data: { scope: "room", roomId, messageId, mediaId },
+      auth: { uid: `outsider-${randomUUID()}`, token: { firebase: { sign_in_provider: "password" } } },
+    }),
+    (error) => error && error.code === "permission-denied",
+  );
+});
+
+test("an image attachment cannot be linked twice or use a forged owner role", async () => {
+  const uid = `forgery-member-${randomUUID()}`;
+  const peer = `forgery-peer-${randomUUID()}`;
+  await db.collection("users").doc(uid).set({ profileCompleted: true, age: 31, blockedUids: [] });
+  await db.collection("users").doc(peer).set({ profileCompleted: true, age: 29, blockedUids: [] });
+  const mediaId = await createReadyChatImage({ uid });
+  const clientMessageId = `forge_${randomUUID().replace(/-/g, "")}`;
+  const auth = { uid, token: { firebase: { sign_in_provider: "password" } } };
+  await sendChatImageAttachment.run({ data: { scope: "direct", recipientUid: peer, mediaId, clientMessageId }, auth });
+  await assert.rejects(
+    () => sendChatImageAttachment.run({ data: { scope: "direct", recipientUid: peer, mediaId, clientMessageId: `again_${randomUUID().replace(/-/g, "")}` }, auth }),
+    (error) => error && error.code === "failed-precondition",
+  );
+  const pdfId = randomUUID();
+  await db.collection("mediaAssets").doc(pdfId).set({
+    mediaId: pdfId, ownerUid: uid, uploaderRole: "platform_owner", mediaPurpose: "chat",
+    detectedContentType: "application/pdf", status: "security_approved",
+    processingStatus: "safe_document_derivative_ready",
+    safeDocumentPath: `processed/${uid}/${pdfId}/document.pdf`,
+    safeDocumentGeneration: "1", safeDocumentSha256: "b".repeat(64),
+    processingPipelineVersion: "pdf-sanitize-v1",
+  });
+  await assert.rejects(
+    () => sendChatImageAttachment.run({ data: { scope: "direct", recipientUid: peer, mediaId: pdfId, clientMessageId: `pdf_${randomUUID().replace(/-/g, "")}` }, auth }),
+    (error) => error && error.code === "failed-precondition",
+  );
+});
+
