@@ -133,6 +133,19 @@ test("seven-day profile gallery retention removes original and preview objects b
     assert.equal((await preview.exists())[0], false);
     assert.equal((await heldAssetRef.get()).data().status, "security_approved");
     assert.equal((await heldOriginal.exists())[0], true);
+
+    // A signed upload or processor that was already in flight may recreate an
+    // exact object after the first sweep. The tombstone reconciliation must
+    // remove both the original and its preview again.
+    await Promise.all([
+      original.save(Buffer.from("late original replay"), { resumable: false }),
+      preview.save(Buffer.from("late preview replay"), { resumable: false }),
+    ]);
+    await assetRef.update({ retentionReconcileAt: Timestamp.fromMillis(Date.now() - 1000) });
+    const reconciled = await runChatMediaRetentionSweep();
+    assert.equal(reconciled.failures, 0);
+    assert.equal((await original.exists())[0], false);
+    assert.equal((await preview.exists())[0], false);
   } finally {
     await Promise.all([
       assetRef.delete().catch(() => undefined),
