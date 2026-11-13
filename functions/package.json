@@ -17,7 +17,8 @@
     "test:retention-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-retention \"node --test test/integration/chat-retention.integration.test.js\"",
     "test:message-deletion-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-message-deletion \"node --test test/integration/direct-message-deletion.integration.test.js\"",
     "test:retention-gcs": "npm run build && node scripts/test-retention-storage.cjs",
-    "test:owner-audit-export-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-owner-audit \"node --test test/integration/owner-audit-export.integration.test.js\""
+    "test:owner-audit-export-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-owner-audit \"node --test test/integration/owner-audit-export.integration.test.js\"",
+    "test:media-legal-hold-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-legal-hold \"node --test test/integration/media-legal-hold.integration.test.js\""
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",
