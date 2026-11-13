@@ -295,7 +295,7 @@ export async function runChatTextRetentionSweep(): Promise<{ messages: number; f
   const cutoff = Timestamp.fromMillis(Date.now() - CHAT_TEXT_RETENTION_MS);
   let messages = 0;
   let failures = 0;
-  let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+  let cursor: any = null;
 
   for (let page = 0; page < RETENTION_PAGES_PER_RUN; page += 1) {
     let query = db.collectionGroup("messages")
