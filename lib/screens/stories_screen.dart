@@ -40,18 +40,36 @@ class _StoriesScreenState extends State<StoriesScreen> {
         .whereType<Map>()
         .map((entry) => Map<String, dynamic>.from(entry))
         .toList(growable: false);
-    for (final story in stories) {
-      try {
-        final preview = await FirebaseFunctions.instance
-            .httpsCallable('getMemberStoryMediaUrl')
-            .call({'storyId': story['storyId']});
-        story['previewUrl'] =
-            (Map<String, dynamic>.from(preview.data as Map))['url'];
-      } catch (_) {
-        story['previewUrl'] = null;
-      }
+    // Resolve previews in small parallel batches: avoid serial latency without
+    // issuing an unbounded burst of signed-URL requests.
+    for (var offset = 0; offset < stories.length; offset += 5) {
+      final end = offset + 5 < stories.length ? offset + 5 : stories.length;
+      await Future.wait(stories.sublist(offset, end).map(_loadStoryPreview));
     }
     return stories;
+  }
+
+  Future<void> _loadStoryPreview(Map<String, dynamic> story) async {
+    try {
+      final preview = await FirebaseFunctions.instance
+          .httpsCallable('getMemberStoryMediaUrl')
+          .call({'storyId': story['storyId']});
+      story['previewUrl'] =
+          (Map<String, dynamic>.from(preview.data as Map))['url'];
+    } catch (_) {
+      story['previewUrl'] = null;
+    }
+  }
+
+  void _openStoryViewer(int initialIndex, List<Map<String, dynamic>> stories) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _StoryViewer(
+          stories: stories,
+          initialIndex: initialIndex,
+        ),
+      ),
+    );
   }
 
   Future<void> _createStory() async {
@@ -171,7 +189,9 @@ class _StoriesScreenState extends State<StoriesScreen> {
               final expiresAt = story['expiresAt'] is int
                   ? DateTime.fromMillisecondsSinceEpoch(story['expiresAt'] as int)
                   : null;
-              return Card(
+              return InkWell(
+                onTap: () => _openStoryViewer(index, stories),
+                child: Card(
                 clipBehavior: Clip.antiAlias,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -199,11 +219,102 @@ class _StoriesScreenState extends State<StoriesScreen> {
                     ),
                   ],
                 ),
-              );
+              )),
             },
           );
         },
       ),
+    );
+  }
+}
+
+
+class _StoryViewer extends StatefulWidget {
+  final List<Map<String, dynamic>> stories;
+  final int initialIndex;
+
+  const _StoryViewer({
+    required this.stories,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_StoryViewer> createState() => _StoryViewerState();
+}
+
+class _StoryViewerState extends State<_StoryViewer> {
+  late final PageController _controller =
+      PageController(initialPage: widget.initialIndex);
+  late int _currentIndex = widget.initialIndex;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final story = widget.stories[_currentIndex];
+    final expiresAt = story['expiresAt'] is int
+        ? DateTime.fromMillisecondsSinceEpoch(story['expiresAt'] as int)
+        : null;
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(story['displayName'] as String? ?? 'عضو مودة'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(3),
+          child: LinearProgressIndicator(
+            value: (_currentIndex + 1) / widget.stories.length,
+            backgroundColor: Colors.white24,
+          ),
+        ),
+      ),
+      body: PageView.builder(
+        controller: _controller,
+        itemCount: widget.stories.length,
+        onPageChanged: (index) => setState(() => _currentIndex = index),
+        itemBuilder: (context, index) {
+          final previewUrl = widget.stories[index]['previewUrl'] as String?;
+          return Center(
+            child: previewUrl == null
+                ? const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text(
+                      'المعاينة الآمنة غير متاحة حالياً.',
+                      style: TextStyle(color: Colors.white),
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                : InteractiveViewer(
+                    minScale: 1,
+                    maxScale: 3,
+                    child: Image.network(
+                      previewUrl,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Text(
+                        'تعذر تحميل القصة.',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+          );
+        },
+      ),
+      bottomNavigationBar: expiresAt == null
+          ? null
+          : Container(
+              color: Colors.black,
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                'تنتهي القصة في ${MaterialLocalizations.of(context).formatMediumDate(expiresAt)} • ${TimeOfDay.fromDateTime(expiresAt).format(context)}',
+                style: const TextStyle(color: Colors.white70),
+                textAlign: TextAlign.center,
+              ),
+            ),
     );
   }
 }
