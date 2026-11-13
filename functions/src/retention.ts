@@ -316,10 +316,12 @@ export function isKnownDeletedMediaObjectPath(
   ownerUid: string,
   mediaId: string,
 ): boolean {
+  const deterministicOriginal = `quarantine/${ownerUid}/${mediaId}`;
   const deterministicPreview = `processed/${ownerUid}/${mediaId}/preview.webp`;
   const candidates = [
     asset.objectPath,
     asset.safePreviewPath,
+    deterministicOriginal,
     deterministicPreview,
     ...(Array.isArray(asset.derivedObjectPaths) ? asset.derivedObjectPaths : []),
     ...(Array.isArray(asset.deletedObjectPaths) ? asset.deletedObjectPaths : []),
@@ -350,7 +352,7 @@ async function handleLateExpiredChatMediaDerivative(event: Parameters<typeof onO
       asset.legalHoldStatus === "active" ||
       !isKnownDeletedMediaObjectPath(asset, objectPath, ownerUid, mediaId)) return;
 
-  const manualDeletionState = ["manual_deletion_pending", "manually_deleted"].includes(String(asset.status));
+  const manualDeletionState = ["manual_deletion_pending", "manually_deleted", "rejected"].includes(String(asset.status));
   const expiry = asset.retentionExpiresAt instanceof Timestamp
     ? asset.retentionExpiresAt
     : asset.createdAt instanceof Timestamp
