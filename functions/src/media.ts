@@ -331,6 +331,28 @@ export const dispatchMediaSecurityScan = onDocumentCreated(
       queryParams: { generation: String(job.objectGeneration) },
       responseDisposition: "attachment",
     });
+    const detectedContentType = String(assetSnapshot.data()?.detectedContentType ?? "");
+    const previewPath = "processed/" + String(job.ownerUid) + "/" + String(job.mediaId) + "/preview.webp";
+    let previewUploadUrl: string | null = null;
+    if (["image/jpeg", "image/png", "image/webp"].includes(detectedContentType)) {
+      if (!/^[A-Za-z0-9_-]{1,128}$/.test(String(job.ownerUid))) {
+        throw new Error("Owner UID cannot be used in a processed media object path.");
+      }
+      const previewFile = mediaBucket().file(previewPath);
+      const [signedPreviewUrl] = await previewFile.getSignedUrl({
+        version: "v4",
+        action: "write",
+        expires: Date.now() + 5 * 60 * 1000,
+        contentType: "image/webp",
+        queryParams: { ifGenerationMatch: "0" },
+        extensionHeaders: {
+          "x-goog-meta-mediaid": String(job.mediaId),
+          "x-goog-meta-sourcegeneration": String(job.objectGeneration),
+          "x-goog-meta-scannerprovider": mediaScannerProvider.value(),
+        },
+      });
+      previewUploadUrl = signedPreviewUrl;
+    }
     if (scanner.pathname !== "/scan") throw new Error("Scanner endpoint path must be /scan.");
     const identityToken = await cloudRunIdentityToken(scanner.origin);
     const dispatchResponse = await fetch(scanner.toString(), {
@@ -344,8 +366,10 @@ export const dispatchMediaSecurityScan = onDocumentCreated(
       body: JSON.stringify({
         mediaId: job.mediaId, objectPath: job.objectPath,
         objectGeneration: job.objectGeneration, downloadUrl,
-        contentType: String(assetSnapshot.data()?.detectedContentType ?? ""),
-        callbackUrl: callback.toString(), provider: mediaScannerProvider.value(),
+        contentType: detectedContentType,
+        callbackUrl: callback.toString(),
+        provider: mediaScannerProvider.value(),
+        ...(previewUploadUrl ? { previewPath, previewUploadUrl } : {}),
       }),
       signal: AbortSignal.timeout(210_000),
     });
