@@ -4,10 +4,10 @@ Status: code added to the development branch; **not deployed and not enabled**.
 
 ## Enforced application rules
 
-- Chat media assets with purpose `chat` or `room` receive a four-hour retention deadline at upload-intent creation. The minute-level server sweep removes every live and noncurrent GCS generation for the exact original object path and the deterministic sanitized WebP derivative path. It removes the scan-job record and converts the media asset to a content-free tombstone.
-- Tombstones are deliberately retained as non-content metadata so the scheduled reconciler can remove a late scanner derivative if an already-running scan finishes after the first deletion pass. The deterministic derivative path is checked on every pass.
+- Chat media assets with purpose `chat` or `room` receive a four-hour retention deadline when the server validates/finalizes the uploaded object (not when an unused upload intent is created). The minute-level server sweep removes every live and noncurrent GCS generation for the exact original object path and deterministic sanitized WebP derivative path. It removes the scan-job record and converts the media asset to a content-free tombstone.
+- Tombstones are deliberately retained as non-content metadata. A separate five-minute reconciliation clock checks the deterministic derivative path for a late scanner derivative without allowing tombstones to occupy the active-expiry query or starve newer expired assets.
 - Chat text documents under `directChats/{chatId}/messages/{messageId}` and `rooms/{roomId}/messages/{messageId}` are deleted once their server `createdAt` is at least seven days old. Direct-message notification documents are removed with the message. The direct-chat `lastMessagePreview` text copy is cleared when its timestamp is expired or missing.
-- Operational media access audit events are removed after 90 days.
+- Operational media access audit events are stamped with a 90-day expiry and removed by a scheduled cleanup job.
 - Jobs are disabled by default through `MAWDA_RETENTION_JOBS_ENABLED=false`. Enabling is additionally refused unless the active Google Cloud project ID is explicitly named as test/staging/dev/demo/nonprod/sandbox and is not the production project `mawda-app-2026`.
 - Each invocation is bounded to 10 batches of 150 records per collection/purpose. Failed object deletion leaves the tombstone for retry; failed text batches remain for retry. No bucket-wide prefix sweep is performed.
 
@@ -33,4 +33,5 @@ Status: code added to the development branch; **not deployed and not enabled**.
 ## Validation added
 
 - `functions/test/retention.test.js` verifies the exact four-hour and seven-day boundaries and limits text deletion to the two chat message paths.
+- Full CI run [43383055516](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43383055516) passed on code/index head `4f9d317291c3ecdab049256b32c8450f776aaaf5`: TypeScript build/unit tests, direct/room seven-day Firestore-emulator deletion integration test, media callable integration, Firestore/Storage rules, ClamAV EICAR container test, Flutter analysis/tests and Web release build.
 - Full TypeScript build, backend test suite, Firestore/Storage emulator tests and real non-production GCS generation/soft-delete tests must pass on the exact candidate commit before closure.
