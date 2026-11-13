@@ -32,7 +32,7 @@ The owner approved the following rules on 2026-11-13. These are binding product 
 
 - Stories: delete media immediately when the story expires; no ordinary post-expiry retention.
 - Public chats and rented private rooms: every 7 days, delete all messages and all media associated with those spaces. Direct one-to-one conversations are excluded from this weekly purge.
-- Direct one-to-one conversations: retention/deletion schedule remains unspecified and requires one explicit decision before automatic deletion is enabled for DMs.
+- Direct one-to-one conversations: excluded from the weekly public/rented-room purge; every 30 days, delete all direct-message messages and all associated media through a separate scheduled purge.
 - Profile gallery: run a 7-day purge of member-uploaded gallery media so it does not remain in the gallery; process valid deletion requests sooner where feasible.
 - Avatar/cover: only the currently selected asset is retained; delete superseded assets within 30 days. Each custom selected avatar/cover expires 30 days after selection/upload; if the member does not replace it, switch to the built-in Mawda default and delete the expired custom object.
 - Operational media logs: 3 months / 90 days.
