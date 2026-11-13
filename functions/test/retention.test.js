@@ -7,6 +7,7 @@ const {
   isRetentionDue,
   isSupportedChatMessagePath,
   shouldSuspendMediaDeletion,
+  isKnownDeletedMediaObjectPath,
 } = require("../lib/retention");
 
 test("chat media retention is exactly four hours from the upload intent timestamp", () => {
@@ -44,4 +45,19 @@ test("active media legal holds suspend exact-asset deletion fail-closed", () => 
   assert.equal(shouldSuspendMediaDeletion({ legalHoldStatus: "active" }), true);
   assert.equal(shouldSuspendMediaDeletion({ legalHoldStatus: "released" }), false);
   assert.equal(shouldSuspendMediaDeletion({}), false);
+});
+
+test("late finalized media is deleted only when its exact object path is recorded", () => {
+  const ownerUid = "member-123";
+  const mediaId = "12345678-1234-1234-1234-123456789abc";
+  const original = `quarantine/${ownerUid}/${mediaId}`;
+  const preview = `processed/${ownerUid}/${mediaId}/preview.webp`;
+  const derived = `processed/${ownerUid}/${mediaId}/thumbnail.webp`;
+  const tombstone = {
+    deletedObjectPaths: [original, preview, derived],
+  };
+  assert.equal(isKnownDeletedMediaObjectPath(tombstone, original, ownerUid, mediaId), true);
+  assert.equal(isKnownDeletedMediaObjectPath(tombstone, preview, ownerUid, mediaId), true);
+  assert.equal(isKnownDeletedMediaObjectPath(tombstone, derived, ownerUid, mediaId), true);
+  assert.equal(isKnownDeletedMediaObjectPath(tombstone, `quarantine/${ownerUid}/other`, ownerUid, mediaId), false);
 });
