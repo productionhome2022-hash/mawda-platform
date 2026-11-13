@@ -119,14 +119,37 @@ export const receiveMediaScanVerdict = onRequest(
     response.status(400).send("Invalid or stale scanner verdict");
     return;
   }
+  if (verdict.verdict === "error") {
+    response.status(503).send("Scanner reported an incomplete scan; retry required");
+    return;
+  }
   const db = mediaDb();
   const assetRef = db.collection("mediaAssets").doc(verdict.mediaId);
   const snapshot = await assetRef.get();
-  if (!snapshot.exists || snapshot.data()?.status !== "pending_security_scan") {
-    response.status(409).send("Asset is not awaiting a scan");
+  if (!snapshot.exists) {
+    response.status(409).send("Asset does not exist");
     return;
   }
   const asset = snapshot.data()!;
+  if (asset.status !== "pending_security_scan") {
+    const sameVerdict = ["scanner_clean_pending_processing", "security_approved", "rejected"].includes(String(asset.status)) &&
+      asset.scannerProvider === verdict.provider &&
+      asset.scannerVerdict === verdict.verdict &&
+      String(asset.scannerObjectGeneration) === verdict.objectGeneration &&
+      asset.scannerSha256 === verdict.sha256;
+    if (sameVerdict) {
+      if (verdict.verdict === "malicious") {
+        await mediaBucket().file(String(asset.objectPath)).delete({
+          ignoreNotFound: true,
+          ifGenerationMatch: Number(verdict.objectGeneration),
+        });
+      }
+      response.status(200).json({ mediaId: verdict.mediaId, status: asset.status, idempotentReplay: true });
+      return;
+    }
+    response.status(409).send("Asset is not awaiting this scanner verdict");
+    return;
+  }
   const file = mediaBucket().file(String(asset.objectPath));
   let metadata: Record<string, unknown>;
   try {
@@ -146,8 +169,49 @@ export const receiveMediaScanVerdict = onRequest(
     response.status(409).send("Object hash mismatch");
     return;
   }
-  const nextStatus = verdict.verdict === "clean" ? "scanner_clean_pending_processing" :
-    verdict.verdict === "malicious" ? "rejected" : "pending_security_scan";
+
+  let safePreview: {
+    path: string; generation: string; sha256: string; contentType: "image/webp";
+  } | null = null;
+  if (verdict.safePreviewPath) {
+    const expectedPath = `processed/${String(asset.ownerUid)}/${verdict.mediaId}/preview.webp`;
+    if (verdict.safePreviewPath !== expectedPath ||
+        !["image/jpeg", "image/png", "image/webp"].includes(String(asset.detectedContentType))) {
+      response.status(409).send("Safe derivative path or source type mismatch");
+      return;
+    }
+    const previewFile = mediaBucket().file(verdict.safePreviewPath);
+    let previewMetadata: Record<string, unknown>;
+    try {
+      const [rawPreviewMetadata] = await previewFile.getMetadata();
+      previewMetadata = rawPreviewMetadata as unknown as Record<string, unknown>;
+    } catch {
+      response.status(409).send("Safe preview derivative is missing");
+      return;
+    }
+    const customMetadata = previewMetadata.metadata as Record<string, unknown> | undefined;
+    if (String(previewMetadata.generation) !== verdict.safePreviewGeneration ||
+        previewMetadata.contentType !== "image/webp" ||
+        customMetadata?.mediaId !== verdict.mediaId ||
+        customMetadata?.sourceGeneration !== verdict.objectGeneration ||
+        customMetadata?.scannerProvider !== verdict.provider) {
+      response.status(409).send("Safe preview metadata mismatch");
+      return;
+    }
+    const previewHash = await sha256Object(previewFile);
+    if (previewHash !== verdict.safePreviewSha256) {
+      response.status(409).send("Safe preview hash mismatch");
+      return;
+    }
+    safePreview = {
+      path: verdict.safePreviewPath,
+      generation: verdict.safePreviewGeneration!,
+      sha256: previewHash,
+      contentType: "image/webp",
+    };
+  }
+  const nextStatus = verdict.verdict === "malicious" ? "rejected" :
+    safePreview ? "security_approved" : "scanner_clean_pending_processing";
   await db.runTransaction(async (transaction) => {
     const latest = await transaction.get(assetRef);
     if (!latest.exists || latest.data()?.status !== "pending_security_scan" ||
@@ -162,6 +226,13 @@ export const receiveMediaScanVerdict = onRequest(
       scannerObjectGeneration: verdict.objectGeneration,
       scannerScannedAt: new Date(verdict.scannedAtMs),
       scannerVerifiedAt: FieldValue.serverTimestamp(),
+      ...(safePreview ? {
+        safePreviewPath: safePreview.path,
+        safePreviewGeneration: safePreview.generation,
+        safePreviewSha256: safePreview.sha256,
+        safePreviewContentType: safePreview.contentType,
+        processingStatus: "safe_raster_derivative_ready",
+      } : {}),
       ...(verdict.verdict === "malicious" ? { rejectionCode: "MALWARE_DETECTED" } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -208,7 +279,13 @@ export const enqueueMediaSecurityScan = onDocumentUpdated(
 );
 
 export const dispatchMediaSecurityScan = onDocumentCreated(
-  { document: "mediaScanJobs/{mediaId}", retry: true, secrets: [mediaScannerApiToken] },
+  {
+    document: "mediaScanJobs/{mediaId}",
+    retry: true,
+    secrets: [mediaScannerApiToken],
+    timeoutSeconds: 240,
+    memory: "1GiB",
+  },
   async (event) => {
     const job = event.data?.data();
     if (!job) return;
@@ -249,9 +326,10 @@ export const dispatchMediaSecurityScan = onDocumentCreated(
       body: JSON.stringify({
         mediaId: job.mediaId, objectPath: job.objectPath,
         objectGeneration: job.objectGeneration, downloadUrl,
+        contentType: String(assetSnapshot.data()?.detectedContentType ?? ""),
         callbackUrl: callback.toString(), provider: mediaScannerProvider.value(),
       }),
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(210_000),
     });
     if (!dispatchResponse.ok) {
       throw new Error(`Trusted scanner gateway rejected dispatch: HTTP ${dispatchResponse.status}.`);
