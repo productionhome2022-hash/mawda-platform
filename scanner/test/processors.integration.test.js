@@ -116,7 +116,13 @@ for (const item of cases) {
       if (item.category === "gif") {
         const sharp = require("sharp");
         const metadata = await sharp(saved.data, { animated: true }).metadata();
-        assert.ok(Number(metadata.pages) >= 1);
+        assert.ok(Number(metadata.pages) > 1, "animated GIF sanitizer must preserve multiple frames");
+      }
+      if (item.category === "document") {
+        const flattenedPath = path.join(tempDir, "safe-document.pdf");
+        const extracted = await execFileAsync("pdftotext", [flattenedPath, "-"]);
+        assert.doesNotMatch(extracted.stdout, /Mawda safe document test/,
+          "raster-flattened PDF must not retain the source text layer");
       }
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true });
