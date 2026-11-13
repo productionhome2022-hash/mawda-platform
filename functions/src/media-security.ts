@@ -1,18 +1,8 @@
 export type MediaCategory = "image" | "video" | "audio" | "document";
 export type MediaPurpose = "chat" | "room" | "profile_album" | "avatar_cover" | "story";
 
-export const MEDIA_RETENTION_MS: Record<MediaPurpose, number> = {
-  chat: 4 * 60 * 60 * 1000,
-  room: 4 * 60 * 60 * 1000,
-  profile_album: 7 * 24 * 60 * 60 * 1000,
-  avatar_cover: 30 * 24 * 60 * 60 * 1000,
-  story: 24 * 60 * 60 * 1000,
-};
-
-export function mediaRetentionExpiresAt(purpose: MediaPurpose, nowMs = Date.now()): number {
-  if (!Number.isSafeInteger(nowMs) || nowMs < 0) throw new Error("Invalid media retention clock.");
-  return nowMs + MEDIA_RETENTION_MS[purpose];
-}
+// Purpose is recorded for future policy enforcement. No automatic retention
+// expiry is computed until the sole owner approves exact durations and legal holds.
 export type MediaSignedUrlPurpose = "upload" | "owner-inspection";
 export const MEDIA_SIGNED_URL_TTL_MS: Record<MediaSignedUrlPurpose, number> = {
   upload: 5 * 60 * 1000,
