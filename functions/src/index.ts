@@ -62,6 +62,7 @@ import {
 import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
 import { deleteMediaAssetForMessage } from "./media";
 import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
+import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
 
 initializeApp();
 
@@ -4638,7 +4639,25 @@ export const setStoreCatalogItem = onCall(async (request) => {
 
 /** Returns only display-safe catalog fields to the authenticated owner. */
 export const getOwnerStoreCatalog = onCall(async (request) => {
-  requireOwner(request);
+  const actorUid = requireOwner(request);
+  // Seed only missing catalogue entries. Existing owner-edited prices are never overwritten.
+  await db.runTransaction(async (transaction) => {
+    const refs = DEFAULT_STORE_CATALOG.map((item) => db.collection("storeCatalog").doc(item.itemId));
+    const snapshots = await Promise.all(refs.map((ref) => transaction.get(ref)));
+    refs.forEach((ref, index) => {
+      if (snapshots[index].exists) return;
+      const item = DEFAULT_STORE_CATALOG[index];
+      transaction.create(ref, {
+        ...item,
+        active: false,
+        purchaseEnabled: false,
+        fulfillmentReady: false,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: actorUid,
+      });
+    });
+  });
   const snapshot = await db.collection("storeCatalog").limit(100).get();
   const items = snapshot.docs
     .map((document) => {
