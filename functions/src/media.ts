@@ -979,8 +979,9 @@ export const sendChatImageAttachment = onCall(async (request) => {
       const [sender, recipient, chat, message, freshAsset] = await Promise.all([
         tx.get(senderRef), tx.get(recipientRef), tx.get(chatRef), tx.get(messageRef), tx.get(assetRef),
       ]);
-      if (!sender.exists || !recipient.exists ||
-          sender.data()?.profileCompleted !== true || recipient.data()?.profileCompleted !== true) {
+      if (!recipient.exists || recipient.data()?.profileCompleted !== true ||
+          (!ownerSession && (!sender.exists || sender.data()?.profileCompleted !== true)) ||
+          recipient.data()?.status === "suspended") {
         throw new HttpsError("permission-denied", "لا يمكن إرسال المرفق إلى هذا الحساب.");
       }
       const senderData = sender.data() ?? {};
@@ -989,9 +990,9 @@ export const sendChatImageAttachment = onCall(async (request) => {
       const recipientBlocks = Array.isArray(recipientData.blockedUids) ? recipientData.blockedUids : [];
       const senderAge = senderData.age;
       const recipientAge = recipientData.age;
-      if (senderBlocks.includes(recipientUid) || recipientBlocks.includes(senderUid) ||
+      if (!ownerSession && (senderBlocks.includes(recipientUid) || recipientBlocks.includes(senderUid) ||
           !Number.isSafeInteger(senderAge) || !Number.isSafeInteger(recipientAge) ||
-          ((senderAge < 18) !== (recipientAge < 18))) {
+          ((senderAge < 18) !== (recipientAge < 18)))) {
         throw new HttpsError("permission-denied", "سياسة الخصوصية أو العمر لا تسمح بإرسال المرفق.");
       }
       if (!freshAsset.exists || freshAsset.data()?.status !== "security_approved" ||
