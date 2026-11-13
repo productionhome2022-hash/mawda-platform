@@ -50,12 +50,12 @@ const PROCESSORS: Readonly<Record<string, {
   "image/png": { category: "image", processor: "image-raster-v1", pathField: "safePreviewPath", generationField: "safePreviewGeneration", hashField: "safePreviewSha256", contentTypes: ["image/webp"], pipelineVersion: "sharp-decode-reencode-v1" },
   "image/webp": { category: "image", processor: "image-raster-v1", pathField: "safePreviewPath", generationField: "safePreviewGeneration", hashField: "safePreviewSha256", contentTypes: ["image/webp"], pipelineVersion: "sharp-decode-reencode-v1" },
   "image/gif": { category: "gif", processor: "gif-animation-v1", pathField: "safeAnimationPath", generationField: "safeAnimationGeneration", hashField: "safeAnimationSha256", contentTypes: ["image/gif"], pipelineVersion: "gif-sanitize-preserve-animation-v1" },
-  "audio/mpeg": { category: "audio", processor: "audio-transcode-v1", pathField: "safeAudioPath", generationField: "safeAudioGeneration", hashField: "safeAudioSha256", contentTypes: ["audio/mpeg", "audio/ogg"], pipelineVersion: "audio-transcode-v1" },
+  "audio/mpeg": { category: "audio", processor: "audio-transcode-v1", pathField: "safeAudioPath", generationField: "safeAudioGeneration", hashField: "safeAudioSha256", contentTypes: ["audio/mpeg", "audio/ogg"], pipelineVersion: "ffmpeg-audio-transcode-v1" },
   "audio/mp4": { category: "audio", processor: "audio-transcode-v1", pathField: "safeAudioPath", generationField: "safeAudioGeneration", hashField: "safeAudioSha256", contentTypes: ["audio/mpeg", "audio/ogg"], pipelineVersion: "audio-transcode-v1" },
   "audio/ogg": { category: "audio", processor: "audio-transcode-v1", pathField: "safeAudioPath", generationField: "safeAudioGeneration", hashField: "safeAudioSha256", contentTypes: ["audio/mpeg", "audio/ogg"], pipelineVersion: "audio-transcode-v1" },
   "audio/wav": { category: "audio", processor: "audio-transcode-v1", pathField: "safeAudioPath", generationField: "safeAudioGeneration", hashField: "safeAudioSha256", contentTypes: ["audio/mpeg", "audio/ogg"], pipelineVersion: "audio-transcode-v1" },
-  "video/mp4": { category: "video", processor: "video-transcode-v1", pathField: "safeVideoPath", generationField: "safeVideoGeneration", hashField: "safeVideoSha256", contentTypes: ["video/mp4"], pipelineVersion: "video-transcode-v1" },
-  "application/pdf": { category: "document", processor: "pdf-sanitize-v1", pathField: "safeDocumentPath", generationField: "safeDocumentGeneration", hashField: "safeDocumentSha256", contentTypes: ["application/pdf"], pipelineVersion: "pdf-sanitize-v1" },
+  "video/mp4": { category: "video", processor: "video-transcode-v1", pathField: "safeVideoPath", generationField: "safeVideoGeneration", hashField: "safeVideoSha256", contentTypes: ["video/mp4"], pipelineVersion: "ffmpeg-video-transcode-v1" },
+  "application/pdf": { category: "document", processor: "pdf-sanitize-v1", pathField: "safeDocumentPath", generationField: "safeDocumentGeneration", hashField: "safeDocumentSha256", contentTypes: ["application/pdf"], pipelineVersion: "pdf-raster-flatten-v1" },
 };
 
 function validSafePath(value: unknown, ownerUid: string, mediaId: string): value is string {
