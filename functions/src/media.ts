@@ -11,8 +11,11 @@ import {
   mediaSignedUrlExpiresAt,
 } from "./media-security";
 
-const db = getFirestore();
-const bucket = getStorage().bucket();
+// Resolve Admin SDK services lazily. This module is re-exported by index.ts,
+// whose static imports execute before initializeApp(); eager resolution here
+// would make the Functions entry point fail during module loading.
+const mediaDb = () => getFirestore();
+const mediaBucket = () => getStorage().bucket();
 
 function requireUid(uid: string | undefined): string {
   if (!uid) throw new HttpsError("unauthenticated", "يجب تسجيل الدخول أولاً.");
@@ -31,7 +34,7 @@ function requireSoleOwner(request: {
 }
 
 async function auditMediaAccess(event: Record<string, unknown>): Promise<void> {
-  await db.collection("mediaAccessAudit").add({
+  await mediaDb().collection("mediaAccessAudit").add({
     ...event,
     createdAt: FieldValue.serverTimestamp(),
   });
@@ -81,7 +84,7 @@ export const createMediaUploadIntent = onCall(async (request) => {
 
   const mediaId = randomUUID();
   const objectPath = `quarantine/${uid}/${mediaId}`;
-  const file = bucket.file(objectPath);
+  const file = mediaBucket().file(objectPath);
   const expiresAt = mediaSignedUrlExpiresAt("upload");
   const uploadUrl = await file.getSignedUrl({
     version: "v4",
@@ -90,7 +93,7 @@ export const createMediaUploadIntent = onCall(async (request) => {
     contentType: input.contentType,
   });
 
-  await db.collection("mediaAssets").doc(mediaId).create({
+  await mediaDb().collection("mediaAssets").doc(mediaId).create({
     mediaId,
     ownerUid: uid,
     uploaderType: mediaUploaderTypeFromToken(request.auth?.token ?? {}),
@@ -127,7 +130,7 @@ export const finalizeMediaUpload = onCall(async (request) => {
   if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
     throw new HttpsError("invalid-argument", "معرف الملف غير صالح.");
   }
-  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
   const snapshot = await assetRef.get();
   if (!snapshot.exists) throw new HttpsError("not-found", "طلب رفع الملف غير موجود.");
   const asset = snapshot.data()!;
@@ -226,12 +229,12 @@ export const listOwnerMediaAssets = onCall(async (request) => {
     });
     throw new HttpsError("invalid-argument", "حالة الملفات المطلوبة غير صالحة.");
   }
-  let query = db.collection("mediaAssets").where("status", "==", status);
+  let query = mediaDb().collection("mediaAssets").where("status", "==", status);
   if (uploaderType !== "all") query = query.where("uploaderType", "==", uploaderType);
   query = query.orderBy("createdAt", "desc").limit(limit + 1);
   const cursor = typeof request.data?.pageToken === "string" ? request.data.pageToken : "";
   if (cursor) {
-    const cursorDoc = await db.collection("mediaAssets").doc(cursor).get();
+    const cursorDoc = await mediaDb().collection("mediaAssets").doc(cursor).get();
     if (!cursorDoc.exists || cursorDoc.data()?.status !== status ||
         (uploaderType !== "all" && cursorDoc.data()?.uploaderType !== uploaderType)) {
       await auditMediaAccess({
@@ -290,7 +293,7 @@ export const getOwnerMediaInspectionUrl = onCall(async (request) => {
     if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
       throw new HttpsError("invalid-argument", "معرف الملف غير صالح.");
     }
-    const assetRef = db.collection("mediaAssets").doc(mediaId);
+    const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
     const snapshot = await assetRef.get();
     if (!snapshot.exists) throw new HttpsError("not-found", "الملف غير موجود.");
     const asset = snapshot.data()!;
