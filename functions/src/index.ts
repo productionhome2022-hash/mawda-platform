@@ -4194,6 +4194,7 @@ export {
   finalizeMediaUpload,
   getMemberProfileMediaUrl,
   getMyMediaUploadStatus,
+  getMemberStoryMediaUrl,
   listOwnerMediaAssets,
   getOwnerMediaSafePreview,
   getOwnerMediaInspectionUrl,
