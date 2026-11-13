@@ -74,24 +74,63 @@ async function deleteAllObjectGenerations(objectPath: string): Promise<number> {
   return deleted;
 }
 
+const ACTIVE_CHAT_MEDIA_STATES = [
+  "upload_authorized", "pending_security_scan", "scanner_clean_pending_processing",
+  "security_approved", "rejected", "expired_cleanup_in_progress", "expired",
+];
+const MEDIA_DERIVATIVE_RECHECK_MS = 5 * 60 * 1000;
+
 async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: number; failures: number }> {
   const db = getFirestore();
+  const now = Timestamp.fromMillis(Date.now());
   const cutoff = Timestamp.fromMillis(Date.now() - CHAT_MEDIA_RETENTION_MS);
   let assets = 0;
   let objects = 0;
   let failures = 0;
 
   for (const purpose of ["chat", "room"] as const) {
+    // Revisit content-free tombstones on a separate clock. This catches a
+    // derivative written by a scanner that was already running at expiry,
+    // without allowing tombstones to occupy the active-expiry query forever.
+    const tombstones = await db.collection("mediaAssets")
+      .where("mediaPurpose", "==", purpose)
+      .where("status", "==", "self_destructed")
+      .where("retentionReconcileAt", "<=", now)
+      .orderBy("retentionReconcileAt", "asc")
+      .limit(RETENTION_BATCH_SIZE)
+      .get();
+    for (const tombstoneDoc of tombstones.docs) {
+      const ownerUid = tombstoneDoc.data().ownerUid;
+      const mediaId = tombstoneDoc.id;
+      if (typeof ownerUid !== "string" || !/^[0-9a-f-]{36}$/i.test(mediaId)) continue;
+      try {
+        const derivativePath = `processed/${ownerUid}/${mediaId}/preview.webp`;
+        objects += await deleteAllObjectGenerations(derivativePath);
+        await tombstoneDoc.ref.update({
+          retentionReconcileAt: Timestamp.fromMillis(Date.now() + MEDIA_DERIVATIVE_RECHECK_MS),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      } catch (error) {
+        failures += 1;
+        logger.error("Late media derivative reconciliation failed; retry remains scheduled.", {
+          mediaId, purpose, errorName: error instanceof Error ? error.name : "unknown",
+        });
+      }
+    }
+
     for (let page = 0; page < RETENTION_PAGES_PER_RUN; page += 1) {
+      const dueAt = Timestamp.fromMillis(Date.now());
       const [due, legacy] = await Promise.all([
         db.collection("mediaAssets")
           .where("mediaPurpose", "==", purpose)
-          .where("retentionExpiresAt", "<=", Timestamp.fromMillis(Date.now()))
+          .where("status", "in", ACTIVE_CHAT_MEDIA_STATES)
+          .where("retentionExpiresAt", "<=", dueAt)
           .orderBy("retentionExpiresAt", "asc")
           .limit(RETENTION_BATCH_SIZE)
           .get(),
         db.collection("mediaAssets")
           .where("mediaPurpose", "==", purpose)
+          .where("status", "in", ACTIVE_CHAT_MEDIA_STATES)
           .where("retentionExpiresAt", "==", null)
           .where("createdAt", "<=", cutoff)
           .orderBy("createdAt", "asc")
@@ -102,62 +141,49 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
       for (const doc of [...due.docs, ...legacy.docs]) candidates.set(doc.id, doc);
       if (candidates.size === 0) break;
 
+      let succeededThisPage = 0;
       for (const assetDoc of candidates.values()) {
         const asset = assetDoc.data();
         const ownerUid = typeof asset.ownerUid === "string" ? asset.ownerUid : "";
         const mediaId = assetDoc.id;
-        const alreadyTombstoned = asset.status === "self_destructed";
         const paths = new Set<string>();
         if (typeof asset.objectPath === "string") paths.add(asset.objectPath);
         if (typeof asset.safePreviewPath === "string") paths.add(asset.safePreviewPath);
-        // Deterministic scanner output is checked on every reconciliation pass.
         if (ownerUid && /^[0-9a-f-]{36}$/i.test(mediaId)) {
           paths.add(`processed/${ownerUid}/${mediaId}/preview.webp`);
         }
 
         try {
           for (const path of paths) objects += await deleteAllObjectGenerations(path);
-
-          // Keep a content-free tombstone so an in-flight scanner cannot leave
-          // a late derivative permanently orphaned. Reconciliation repeats the
-          // deterministic derivative deletion on every subsequent sweep.
           const tombstone: Record<string, unknown> = {};
           for (const key of Object.keys(asset)) {
             if (!["ownerUid", "uploaderType", "mediaPurpose", "createdAt", "retentionExpiresAt"].includes(key)) {
               tombstone[key] = FieldValue.delete();
             }
           }
+          const createdAt = asset.createdAt instanceof Timestamp ? asset.createdAt : null;
           tombstone.status = "self_destructed";
           tombstone.retentionPolicyStatus = "four_hour_self_destructed";
-          const createdAt = asset.createdAt instanceof Timestamp ? asset.createdAt : null;
           tombstone.retentionExpiresAt = asset.retentionExpiresAt ??
             (createdAt ? Timestamp.fromMillis(createdAt.toMillis() + CHAT_MEDIA_RETENTION_MS) : Timestamp.fromMillis(Date.now()));
-          tombstone.retentionDeletedAt = asset.retentionDeletedAt ?? FieldValue.serverTimestamp();
+          tombstone.retentionDeletedAt = FieldValue.serverTimestamp();
+          tombstone.retentionReconcileAt = Timestamp.fromMillis(Date.now() + MEDIA_DERIVATIVE_RECHECK_MS);
           tombstone.updatedAt = FieldValue.serverTimestamp();
           await assetDoc.ref.set(tombstone, { merge: true });
           await db.collection("mediaScanJobs").doc(mediaId).delete().catch(() => undefined);
-
-          if (!alreadyTombstoned) {
-            await db.collection("mediaAccessAudit").add({
-              actorUid: "system-retention",
-              mediaId,
-              action: "chat_media_self_destructed",
-              outcome: "success",
-              purpose,
-              objectCount: paths.size,
-              createdAt: FieldValue.serverTimestamp(),
-              expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
-            });
-            assets += 1;
-          }
+          await db.collection("mediaAccessAudit").add({
+            actorUid: "system-retention", mediaId, action: "chat_media_self_destructed",
+            outcome: "success", purpose, objectCount: paths.size,
+            createdAt: FieldValue.serverTimestamp(),
+            expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
+          });
+          assets += 1;
+          succeededThisPage += 1;
         } catch (error) {
           failures += 1;
           await db.collection("mediaAccessAudit").add({
-            actorUid: "system-retention",
-            mediaId,
-            action: "chat_media_self_destruct",
-            outcome: "retry_required",
-            purpose,
+            actorUid: "system-retention", mediaId, action: "chat_media_self_destruct",
+            outcome: "retry_required", purpose,
             failureCode: error instanceof Error ? error.name : "unknown",
             createdAt: FieldValue.serverTimestamp(),
             expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
@@ -167,6 +193,7 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
           });
         }
       }
+      if (succeededThisPage === 0) break;
     }
   }
   return { assets, objects, failures };
