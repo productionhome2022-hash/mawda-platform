@@ -1289,6 +1289,110 @@ export const setMemberBlock = onCall(async (request) => {
   return { targetUid, blocked };
 });
 
+/** Returns only the caller's own reports and adverse decisions. */
+export const getMySafetyCases = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const [reported, actions] = await Promise.all([
+    db.collection("safetyCases").where("reporterUid", "==", uid).limit(30).get(),
+    db.collection("safetyCases").where("subjectUid", "==", uid)
+      .where("status", "==", "action_taken").limit(30).get(),
+  ]);
+  return {
+    reports: reported.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        caseId: doc.id,
+        category: data.category,
+        contextType: data.contextType,
+        status: data.status,
+        appealStatus: data.appealStatus,
+        createdAt: data.createdAt?.toMillis?.() ?? null,
+      };
+    }),
+    decisions: actions.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        caseId: doc.id,
+        status: data.status,
+        decisionReason: data.decisionReason ?? "",
+        appealStatus: data.appealStatus,
+        reviewedAt: data.reviewedAt?.toMillis?.() ?? null,
+      };
+    }),
+  };
+});
+
+/** Owner-only queue of member appeals. */
+export const listSafetyAppeals = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await db.collection("safetyAppeals")
+    .where("status", "==", "pending").limit(50).get();
+  return {
+    appeals: snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        appealId: doc.id,
+        caseId: data.caseId,
+        appellantUid: data.appellantUid,
+        reason: data.reason,
+        createdAt: data.createdAt?.toMillis?.() ?? null,
+      };
+    }),
+  };
+});
+
+/** Owner resolves an appeal; accepting it overturns the adverse case decision. */
+export const reviewSafetyAppeal = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const appealId = request.data?.appealId;
+  const decision = request.data?.decision;
+  const reason = typeof request.data?.reason === "string" ? request.data.reason.trim() : "";
+  if (typeof appealId !== "string" || appealId.length < 8 || appealId.length > 300 ||
+      !["accepted", "rejected"].includes(decision) || reason.length < 10 || reason.length > 1000) {
+    throw new HttpsError("invalid-argument", "بيانات قرار الاستئناف غير صالحة.");
+  }
+  const appealRef = db.collection("safetyAppeals").doc(appealId);
+  const caseRefHolder: { ref?: FirebaseFirestore.DocumentReference } = {};
+  let caseId = "";
+  await db.runTransaction(async (transaction) => {
+    const appeal = await transaction.get(appealRef);
+    const data = appeal.data();
+    if (!appeal.exists || data?.status !== "pending" || typeof data.caseId !== "string") {
+      throw new HttpsError("failed-precondition", "الاستئناف غير موجود أو سبق البت فيه.");
+    }
+    caseId = data.caseId;
+    const caseRef = db.collection("safetyCases").doc(caseId);
+    const safetyCase = await transaction.get(caseRef);
+    if (!safetyCase.exists || safetyCase.data()?.appealStatus !== "pending") {
+      throw new HttpsError("failed-precondition", "ملف البلاغ المرتبط غير متاح للمراجعة.");
+    }
+    caseRefHolder.ref = caseRef;
+    transaction.update(appealRef, {
+      status: decision,
+      decisionReason: reason,
+      reviewedBy: actorUid,
+      reviewedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.update(caseRef, {
+      status: decision === "accepted" ? "dismissed" : "action_taken",
+      appealStatus: decision,
+      appealReviewedBy: actorUid,
+      appealReviewedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      ...(decision === "accepted" ? { decisionOverturnedAt: FieldValue.serverTimestamp() } : {}),
+    });
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "safety_appeal_reviewed",
+    caseId,
+    decision,
+    outcome: "completed",
+  });
+  return { appealId, caseId, decision };
+});
+
 /**
  * Member safety report intake. Reports are private to the reporter and platform
  * owner; clients cannot set workflow status, severity, or reviewer decisions.
@@ -1454,7 +1558,6 @@ export const reviewSafetyCase = onCall(async (request) => {
     caseId,
     subjectUid,
     decision,
-    reason,
     outcome: "completed",
   });
   return { caseId, decision };
