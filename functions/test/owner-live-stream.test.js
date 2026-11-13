@@ -27,6 +27,7 @@ test("rejects unsafe schemes, credentials, local/IP hosts, nonstandard ports and
     "https://[::1]/live",
     "https://example.com:8443/live",
     "https://bit.ly/stream",
+    "https://www.bit.ly/stream",
     "https://service.local/live",
   ]) assert.throws(() => validateOwnerLiveStreamInput(valid({url})));
 });
