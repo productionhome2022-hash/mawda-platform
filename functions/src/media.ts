@@ -171,7 +171,7 @@ export const receiveMediaScanVerdict = onRequest(
   }
 
   let safePreview: {
-    path: string; generation: string; sha256: string; contentType: "image/webp";
+    path: string; generation: string; sha256: string; contentType: "image/webp"; sizeBytes: number;
   } | null = null;
   if (verdict.safePreviewPath) {
     const expectedPath = `processed/${String(asset.ownerUid)}/${verdict.mediaId}/preview.webp`;
@@ -210,6 +210,7 @@ export const receiveMediaScanVerdict = onRequest(
       generation: verdict.safePreviewGeneration!,
       sha256: previewHash,
       contentType: "image/webp",
+      sizeBytes: Number(previewMetadata.size),
     };
   }
   const nextStatus = verdict.verdict === "malicious" ? "rejected" :
@@ -233,6 +234,7 @@ export const receiveMediaScanVerdict = onRequest(
         safePreviewGeneration: safePreview.generation,
         safePreviewSha256: safePreview.sha256,
         safePreviewContentType: safePreview.contentType,
+        safePreviewSizeBytes: safePreview.sizeBytes,
         processingStatus: "safe_raster_derivative_ready",
       } : {}),
       ...(verdict.verdict === "malicious" ? { rejectionCode: "MALWARE_DETECTED" } : {}),
@@ -617,7 +619,10 @@ export const listOwnerMediaAssets = onCall(async (request) => {
         sizeBytes: data.sizeBytes ?? data.declaredSizeBytes,
         mediaCategory: data.mediaCategory,
         status: data.status,
-        canPreview: data.status === "security_approved" && typeof data.safePreviewPath === "string",
+        canPreview: data.status === "security_approved" &&
+          typeof data.safePreviewPath === "string" &&
+          Number.isSafeInteger(data.safePreviewSizeBytes) &&
+          Number(data.safePreviewSizeBytes) > 0 && Number(data.safePreviewSizeBytes) <= 2 * 1024 * 1024,
         createdAt: data.createdAt?.toMillis?.() ?? null,
       };
     }),
@@ -968,6 +973,7 @@ export const ownerMediaPreview = onRequest(
       const custom = metadata.metadata as Record<string, unknown> | undefined;
       if (String(metadata.generation) !== asset.safePreviewGeneration ||
           metadata.contentType !== "image/webp" ||
+          Number(metadata.size) <= 0 || Number(metadata.size) > 2 * 1024 * 1024 ||
           custom?.mediaId !== mediaId ||
           custom?.sourceGeneration !== String(asset.storageGeneration) ||
           custom?.scannerProvider !== asset.scannerProvider) {
