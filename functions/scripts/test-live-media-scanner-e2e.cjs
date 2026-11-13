@@ -11,8 +11,8 @@ if (process.env.MAWDA_MEDIA_LIVE_SCANNER_E2E !== "1" || !projectId || !bucketNam
 }
 if (projectId === "mawda-app-2026" || /prod(uction)?/i.test(projectId) ||
     /prod(uction)?/i.test(bucketName) ||
-    !/(test|staging|dev|demo|nonprod|sandbox)/i.test(projectId) ||
-    !/(test|staging|dev|demo|nonprod|sandbox)/i.test(bucketName)) {
+    !/(test|staging|dev|nonprod|sandbox|qa)/i.test(projectId) ||
+    !/(test|staging|dev|nonprod|sandbox|qa)/i.test(bucketName)) {
   throw new Error("Refusing to run live scanner E2E against a production or unmarked target.");
 }
 
