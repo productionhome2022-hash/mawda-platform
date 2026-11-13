@@ -39,13 +39,21 @@ Status snapshot: 2026-11-13. This document is a release gate, not a claim that e
 | Infrastructure | Cloud Run IAM, least-privilege bucket access, Secret Manager rotation, callback URL, CORS, monitoring and retry/dead-letter handling | Source exists; non-production provisioning/verification pending |
 | Storage/Firestore release | Rules tests pass; production rules remain deny-all for client media access | Emulator tests exist; no production mutation authorized |
 
-## Retention safety policy
+## Owner-approved retention policy (recorded 2026-11-13; implementation and tests still required)
 
-1. Unfinished upload intents are eligible for narrowly scoped cleanup only after the signed upload capability expires and the configured grace period elapses. Missing-object reservations receive a second check before release.
-2. Finalized media is not automatically deleted until the owner approves purpose-specific retention periods and the applicable legal/privacy review is complete.
-3. Audit records are append-only from client perspective and server-written. Do not set a TTL or delete audit evidence until an approved audit-retention schedule, export format, legal-hold behavior and recovery process exist.
-4. Any future deletion job must support dry-run previews, exact object generations, idempotent batches, legal-hold exclusions, audit records and recoverability checks. It must never sweep an entire bucket prefix.
-5. A successful malware verdict does not by itself authorize member delivery. Only types with a completed safe-processing pipeline may become eligible for delivery. Images use sanitized WebP derivatives; video, audio and PDF remain unavailable until type-specific processing is implemented.
+1. **Stories:** delete the story media immediately when the story expires. No post-expiry retention window or ordinary grace period is allowed. Any legally binding preservation order must be isolated as a documented legal hold, not treated as routine retention.
+2. **Public chats and rented private rooms:** run a scheduled purge every 7 days that deletes all messages and their associated uploaded media in those spaces. The purge must be idempotent, generation-safe, auditable and retryable; do not purge direct one-to-one conversations under this rule.
+3. **Direct one-to-one conversations:** explicitly excluded from the weekly public/room purge. Their message and attachment retention/deletion lifecycle still needs a precise owner decision (see issue #4); do not infer the 7-day room policy applies to them.
+4. **Profile gallery media:** every 7 days, purge member-uploaded gallery media so uploaded photos and other media do not remain in the profile gallery. A valid deletion request must be processed sooner where technically possible; do not retain gallery originals as a long-term archive.
+5. **Avatar and cover:** retain only the currently selected avatar/cover asset. A superseded asset must be deleted within 30 days. A selected avatar/cover is valid for at most 30 days from its selection/upload; at expiry the member must replace it, otherwise the platform must switch the profile to the built-in Mawda default avatar/cover and delete the expired custom object. Confirm product behavior for separate avatar and cover defaults during implementation.
+6. **Operational media logs:** retain for 3 months (90 days), then expire them through a controlled scheduled process.
+7. **Owner-review and sensitive security audit evidence:** retain for 24 months. Preserve integrity verification, exportability and legal-hold support; never silently shorten this period.
+8. **Unfinished upload intents:** clean only after the signed upload capability expires plus the configured grace period, with a missing-object recheck and exact-generation safety.
+9. **Legal holds and exceptions:** a documented, authorized legal hold may suspend deletion only for the specifically scoped objects/records and duration required. Record who authorized it, legal basis/reference, scope, start/review/end dates and every access. On release, deletion resumes immediately according to the underlying policy.
+10. **Deletion controls:** all scheduled purges must use dry-run previews, exact object generations, idempotent batches, retry/dead-letter handling, audit evidence and recovery checks. Never sweep an entire bucket prefix. Backups/caches must have an aligned, documented expiry and must not silently reintroduce deleted content.
+11. **Unfinished policy item:** the one-to-one conversation retention schedule is not yet specified and must be confirmed before enabling automated deletion for direct messages.
+
+A successful malware verdict does not by itself authorize member delivery. Only types with a completed safe-processing pipeline may become eligible for delivery. Images use sanitized WebP derivatives; video, audio and PDF remain unavailable until type-specific processing is implemented.
 
 ## Merge and deployment boundary
 
