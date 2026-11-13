@@ -6,6 +6,7 @@ const {
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
   setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, sendOwnerLiveStream,
+  deleteDirectMessage, deleteRoomMessage,
 } = require("../../lib/index");
 const { createDirectChatId } = require("../../lib/direct-chat-id");
 
@@ -449,6 +450,8 @@ test("owner live streams are scoped to owner direct chats or active rooms and ar
     assert.equal(message.data().liveStream.hostname, "www.youtube.com");
     const replay = await sendOwnerLiveStream.run(ownerRequest(ownerUid, directInput));
     assert.equal(replay.idempotentReplay, true);
+    await deleteDirectMessage.run(ownerRequest(ownerUid, { chatId, messageId: directMessageId }));
+    assert.equal((await messageRef.get()).exists, false);
     await assert.rejects(
       () => sendOwnerLiveStream.run(memberRequest(memberUid, directInput)),
       (error) => error && error.code === "permission-denied",
@@ -467,6 +470,10 @@ test("owner live streams are scoped to owner direct chats or active rooms and ar
     const publicMessages = await publicRoomRef.collection("messages").get();
     assert.equal(publicMessages.size, 1);
     assert.equal(publicMessages.docs[0].data().type, "live_stream");
+    await deleteRoomMessage.run(ownerRequest(ownerUid, {
+      roomId: publicRoomId, messageId: publicMessages.docs[0].id,
+    }));
+    assert.equal((await publicRoomRef.collection("messages").doc(publicMessages.docs[0].id).get()).exists, false);
 
     const rentedRoomId = `rented_live_${tag}`;
     const rentalId = `rental_live_${tag}`;
