@@ -4871,7 +4871,7 @@ export const renewRoomRental = onCall(async (request) => {
     const now = FieldValue.serverTimestamp();
     transaction.update(userRef, { coins: balance, updatedAt: now });
     transaction.update(roomRef, {
-      status: "active", expiresAt, rentalPlanId: plan.planId,
+      status: "active", expiresAt, rentalId: rentalRef.id, rentalPlanId: plan.planId,
       rentalPriceCoins: plan.priceCoins, rentalDurationDays: plan.durationDays,
       frozenAt: FieldValue.delete(), freezeExpiresAt: FieldValue.delete(), updatedAt: now,
     });
