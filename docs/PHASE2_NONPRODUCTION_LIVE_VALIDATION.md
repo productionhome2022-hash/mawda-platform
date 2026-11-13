@@ -75,3 +75,47 @@ Record the commit SHA, non-production project and bucket identifiers (never cred
 - [ ] Security review of client access paths: only approved derivatives are readable; quarantine originals remain private; signed read capabilities are short-lived.
 
 A green emulator suite does not replace the live non-production checks. A green live check does not authorize production deployment. Production rollout requires a separate explicit approval and a reviewed deployment plan.
+
+
+## GitHub Actions live validation (manual, non-production only)
+
+A manually gated workflow is available at `.github/workflows/live-nonproduction-validation.yml`. It runs the two live scripts against an already provisioned environment; it does **not** deploy Firebase Functions or Cloud Run and does not create cloud infrastructure.
+
+Before dispatching it:
+
+1. Create/protect the GitHub Environment named `mawda-nonproduction`; require an authorized reviewer if the repository plan/settings support environment approvals.
+2. Add these non-secret environment variables to that environment:
+   - `MAWDA_NONPROD_WIF_PROVIDER`: full Workload Identity Provider resource name.
+   - `MAWDA_NONPROD_SERVICE_ACCOUNT`: dedicated test operator service-account email.
+3. Configure Workload Identity Federation to trust only this repository and the intended workflow/ref. Do not use a downloadable service-account key.
+4. Grant the operator identity only the permissions needed for this test: Firestore fixture read/write/delete in the non-production project and object metadata/read/write/delete on the dedicated test bucket. Do not grant project Owner or Editor.
+5. Provision the private Cloud Run scanner and deploy the Firebase Functions from the exact commit being validated. Confirm Cloud Run IAM grants invocation only to the Functions runtime identity, not `allUsers`.
+6. Bind the scanner and Functions secrets from Secret Manager / Firebase secret parameters. Confirm the values are matching per environment without printing or copying their values. The scanner token and HMAC secret must be independently generated, at least 32 characters, and never stored in GitHub variables.
+7. Confirm the test bucket contains no member data and is intentionally configured for this test: object versioning enabled, uniform bucket-level access enabled, public access prevention enforced, and no soft-delete or bucket-retention policy that blocks permanent deletion of test objects.
+
+Then use Actions → **Live non-production media and retention validation** → Run workflow. Supply the exact project and bucket names and type `RUN-NONPRODUCTION-LIVE-VALIDATION`. The workflow rejects unmarked or production-like names, uses GitHub OIDC / Workload Identity Federation, compiles Functions, runs the scanner E2E first, and then performs the destructive exact-generation GCS proof. A successful workflow proves the live test path for that commit and those supplied non-production resources; it does not prove production readiness.
+
+## Backup, point-in-time recovery, IAM and audit evidence
+
+These checks are deliberately read-only and must be completed separately from the destructive GCS fixture test. Record only configuration state and resource identifiers; never paste secret values, access tokens, signed URLs, or member content into evidence.
+
+- Firestore: verify Point-in-Time Recovery (PITR) is enabled where required, verify a scheduled backup policy exists, record the latest successful backup timestamp and retention period, and confirm a restore has been rehearsed in a separate non-production project. A configured backup schedule alone is not proof that a restore works.
+- Cloud Storage: document object versioning, soft-delete policy, retention policy/lock, lifecycle rules, bucket IAM, uniform bucket-level access and public access prevention. Resolve any conflict between backup/retention requirements and the four-hour chat-media deletion policy before production rollout; do not silently disable a legal or compliance retention control.
+- Cloud Run: inspect the deployed service identity and IAM policy. The scanner must require authenticated invocation and must not grant `allUsers` or `allAuthenticatedUsers` access. Only the intended Functions runtime identity should invoke `/scan`.
+- Functions and secrets: verify the deployed Functions use the expected non-production bucket, scanner URL, callback URL and provider. Verify secret bindings exist for both API token and HMAC secret; inspect secret versions/rotation metadata without exposing secret payloads. Confirm the callback signature is verified and invalid/missing signatures fail closed.
+- Audit: verify Cloud Audit Logs configuration includes the required Data Access coverage for Firestore and Cloud Storage, the relevant logs are routed to an access-controlled sink/bucket, retention meets the approved policy, and alerting exists for scanner failures, stale signatures, repeated callback failures, retention retries and denied IAM calls. Avoid logging credentials, signed URLs or private message/media contents.
+- Retention and legal holds: verify the four-hour chat-media and seven-day chat-text policies, tombstone/late-upload replay cleanup, legal-hold suspension and release behavior, and operational audit expiry. A legal hold must preserve the protected asset until authorized release without exposing it to members after its normal visibility expiry.
+- Recovery: record the owner for backup monitoring, restore approval, incident response and secret rotation. Perform a restore drill only into a separate non-production project; never restore over live member data as part of this phase validation.
+
+Useful read-only inspection commands (run with an authorized operator identity and the correct non-production project; review output before sharing):
+
+```sh
+gcloud firestore databases describe --database='(default)' --project="$GOOGLE_CLOUD_PROJECT"
+gcloud firestore backups schedules list --database='(default)' --project="$GOOGLE_CLOUD_PROJECT"
+gcloud logging sinks list --project="$GOOGLE_CLOUD_PROJECT"
+gcloud projects get-iam-policy "$GOOGLE_CLOUD_PROJECT" --format='yaml(auditConfigs)'
+gcloud run services get-iam-policy "$SCANNER_SERVICE" --region="$SCANNER_REGION" --project="$GOOGLE_CLOUD_PROJECT"
+gcloud run services describe "$SCANNER_SERVICE" --region="$SCANNER_REGION" --project="$GOOGLE_CLOUD_PROJECT" --format='yaml(status.url,spec.template.spec.serviceAccountName)'
+```
+
+The evidence template in `docs/PHASE2_LIVE_VALIDATION_EVIDENCE_TEMPLATE.md` is the record of completion. Do not mark a check passed without an observed command/workflow result and timestamp.
