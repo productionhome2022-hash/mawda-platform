@@ -661,8 +661,8 @@ export const getOwnerMediaInspectionUrl = onCall(async (request) => {
     const snapshot = await assetRef.get();
     if (!snapshot.exists) throw new HttpsError("not-found", "الملف غير موجود.");
     const asset = snapshot.data()!;
-    if (!["pending_security_scan", "security_approved"].includes(String(asset.status))) {
-      throw new HttpsError("failed-precondition", "الملف غير متاح للفحص في حالته الحالية.");
+    if (asset.status !== "security_approved") {
+      throw new HttpsError("failed-precondition", "لا يمكن تنزيل الملف الأصلي قبل اعتماد نتيجة الفحص الأمني.");
     }
     const file = mediaBucket().file(String(asset.objectPath));
     const [metadata] = await file.getMetadata();
