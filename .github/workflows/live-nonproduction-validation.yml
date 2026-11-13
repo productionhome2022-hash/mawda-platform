@@ -1,0 +1,112 @@
+name: Live non-production media and retention validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: Dedicated non-production Google Cloud / Firebase project ID
+        required: true
+        type: string
+      bucket_name:
+        description: Dedicated non-production GCS bucket name (no member data)
+        required: true
+        type: string
+      confirmation:
+        description: Type RUN-NONPRODUCTION-LIVE-VALIDATION to authorize destructive test fixtures
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: mawda-live-nonproduction-validation
+  cancel-in-progress: false
+
+jobs:
+  live-validation:
+    name: Live scanner E2E and GCS generation-retention proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: mawda-nonproduction
+    env:
+      GOOGLE_CLOUD_PROJECT: ${{ inputs.project_id }}
+      MAWDA_MEDIA_TEST_BUCKET: ${{ inputs.bucket_name }}
+    steps:
+      - name: Enforce explicit non-production target and operator confirmation
+        shell: bash
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+          WIF_PROVIDER: ${{ vars.MAWDA_NONPROD_WIF_PROVIDER }}
+          SERVICE_ACCOUNT: ${{ vars.MAWDA_NONPROD_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          [[ "$CONFIRMATION" == "RUN-NONPRODUCTION-LIVE-VALIDATION" ]] || {
+            echo "::error::Explicit destructive-test confirmation is missing."
+            exit 1
+          }
+          [[ -n "$WIF_PROVIDER" && -n "$SERVICE_ACCOUNT" ]] || {
+            echo "::error::Configure MAWDA_NONPROD_WIF_PROVIDER and MAWDA_NONPROD_SERVICE_ACCOUNT in the protected mawda-nonproduction environment."
+            exit 1
+          }
+          for target in "$GOOGLE_CLOUD_PROJECT" "$MAWDA_MEDIA_TEST_BUCKET"; do
+            [[ "$target" != *prod* && "$target" != *production* ]] || {
+              echo "::error::Production-like target rejected."
+              exit 1
+            }
+            [[ "$target" =~ (test|staging|dev|demo|nonprod|sandbox) ]] || {
+              echo "::error::Target must contain an approved non-production marker."
+              exit 1
+            }
+          done
+          [[ "$GOOGLE_CLOUD_PROJECT" != "mawda-app-2026" ]] || {
+            echo "::error::Production Mawda project rejected."
+            exit 1
+          }
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.20.2"
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - id: auth
+        name: Authenticate with Google Cloud using GitHub OIDC / Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.MAWDA_NONPROD_WIF_PROVIDER }}
+          service_account: ${{ vars.MAWDA_NONPROD_SERVICE_ACCOUNT }}
+          project_id: ${{ inputs.project_id }}
+
+      - name: Verify selected Google Cloud project
+        run: |
+          set -euo pipefail
+          gcloud config set project "$GOOGLE_CLOUD_PROJECT"
+          actual="$(gcloud config get-value project 2>/dev/null)"
+          [[ "$actual" == "$GOOGLE_CLOUD_PROJECT" ]] || {
+            echo "::error::Google Cloud CLI project does not match the requested non-production project."
+            exit 1
+          }
+
+      - name: Install and compile Cloud Functions test client
+        working-directory: functions
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Run live Firebase Functions to private Cloud Run ClamAV E2E
+        working-directory: functions
+        env:
+          MAWDA_MEDIA_LIVE_SCANNER_E2E: "1"
+        run: npm run test:media-scanner-live-e2e
+
+      - name: Run live GCS object-versioning and exact-generation deletion proof
+        working-directory: functions
+        env:
+          MAWDA_RETENTION_GCS_TEST: "1"
+        run: npm run test:retention-gcs
