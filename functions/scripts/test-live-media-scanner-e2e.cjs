@@ -2,6 +2,7 @@ const { initializeApp, applicationDefault } = require("firebase-admin/app");
 const { FieldValue, Timestamp, getFirestore } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
 const { deleteMediaAssetForMessage } = require("../lib/media");
+const { isExplicitNonProductionTarget } = require("../lib/nonproduction-target");
 const { randomUUID } = require("node:crypto");
 const { deflateSync } = require("node:zlib");
 
@@ -10,10 +11,9 @@ const bucketName = process.env.MAWDA_MEDIA_TEST_BUCKET;
 if (process.env.MAWDA_MEDIA_LIVE_SCANNER_E2E !== "1" || !projectId || !bucketName) {
   throw new Error("Set MAWDA_MEDIA_LIVE_SCANNER_E2E=1, GOOGLE_CLOUD_PROJECT and MAWDA_MEDIA_TEST_BUCKET.");
 }
-if (projectId === "mawda-app-2026" || /prod(uction)?/i.test(projectId) ||
-    /prod(uction)?/i.test(bucketName) ||
-    !/(test|staging|dev|nonprod|sandbox|qa)/i.test(projectId) ||
-    !/(test|staging|dev|nonprod|sandbox|qa)/i.test(bucketName)) {
+if (projectId === "mawda-app-2026" ||
+    !isExplicitNonProductionTarget(projectId, ["test", "staging", "dev", "nonprod", "sandbox", "qa"]) ||
+    !isExplicitNonProductionTarget(bucketName, ["test", "staging", "dev", "nonprod", "sandbox", "qa"])) {
   throw new Error("Refusing to run live scanner E2E against a production or unmarked target.");
 }
 
