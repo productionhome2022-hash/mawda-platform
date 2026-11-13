@@ -146,6 +146,212 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     return 'محرك الفحص: $engine $version • قاعدة التواقيع: $database • عمرها: $ageHours ساعة';
   }
 
+  Future<void> _placeMediaLegalHold(Map<String, dynamic> asset) async {
+    final mediaId = asset['mediaId'] as String?;
+    if (mediaId == null || mediaId.isEmpty) return;
+    final authority = TextEditingController();
+    final basis = TextEditingController();
+    final reference = TextEditingController();
+    DateTime? reviewAt;
+    DateTime? endsAt;
+    final now = DateTime.now();
+    final values = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('حجز قانوني لملف وسائط محدد'),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('معرف الملف: $mediaId'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: authority,
+                    decoration: const InputDecoration(
+                      labelText: 'الجهة المخولة',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: basis,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'الأساس القانوني والنطاق',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: reference,
+                    decoration: const InputDecoration(
+                      labelText: 'رقم القضية / المرجع الرسمي',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('موعد المراجعة'),
+                    subtitle: Text(reviewAt?.toLocal().toString() ?? 'لم يُحدد'),
+                    trailing: const Icon(Icons.calendar_month),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: dialogContext,
+                        initialDate: reviewAt ?? now.add(const Duration(days: 7)),
+                        firstDate: now,
+                        lastDate: now.add(const Duration(days: 3650)),
+                      );
+                      if (picked != null) setDialogState(() => reviewAt = picked);
+                    },
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('تاريخ انتهاء الحجز'),
+                    subtitle: Text(endsAt?.toLocal().toString() ?? 'لم يُحدد'),
+                    trailing: const Icon(Icons.event_available),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: dialogContext,
+                        initialDate: endsAt ?? now.add(const Duration(days: 30)),
+                        firstDate: now,
+                        lastDate: now.add(const Duration(days: 3650)),
+                      );
+                      if (picked != null) setDialogState(() => endsAt = picked);
+                    },
+                  ),
+                  const Text(
+                    'يوقف الحجز حذف هذا الملف وحده. لا يمدد الحجز تلقائياً، ولا يجعل الملف متاحاً للعرض.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: authority.text.trim().length < 3 ||
+                      basis.text.trim().length < 10 ||
+                      reference.text.trim().length < 3 ||
+                      reviewAt == null ||
+                      endsAt == null ||
+                      !endsAt!.isAfter(reviewAt!)
+                  ? null
+                  : () => Navigator.pop(dialogContext, {
+                        'authority': authority.text.trim(),
+                        'legalBasis': basis.text.trim(),
+                        'reference': reference.text.trim(),
+                        'reviewAt': reviewAt,
+                        'endsAt': endsAt,
+                      }),
+              child: const Text('تسجيل الحجز'),
+            ),
+          ],
+        ),
+      ),
+    );
+    authority.dispose();
+    basis.dispose();
+    reference.dispose();
+    if (values == null || !mounted) return;
+    try {
+      await _service.placeMediaLegalHold(
+        mediaId: mediaId,
+        authority: values['authority'] as String,
+        legalBasis: values['legalBasis'] as String,
+        reference: values['reference'] as String,
+        startsAtMs: now.millisecondsSinceEpoch,
+        reviewAtMs: (values['reviewAt'] as DateTime).millisecondsSinceEpoch,
+        endsAtMs: (values['endsAt'] as DateTime).millisecondsSinceEpoch,
+      );
+      await _loadOwnerMedia();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم تسجيل الحجز القانوني وتوثيقه.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر تسجيل الحجز القانوني.')),
+      );
+    }
+  }
+
+  Future<void> _showActiveMediaLegalHolds() async {
+    try {
+      final result = await _service.listActiveMediaLegalHolds();
+      final holds = List<Map<String, dynamic>>.from(result['holds'] as List? ?? const []);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('الحجوزات القانونية النشطة'),
+          content: SizedBox(
+            width: 560,
+            child: holds.isEmpty
+                ? const Text('لا توجد حجوزات قانونية نشطة.')
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: holds.length,
+                    itemBuilder: (context, index) {
+                      final hold = holds[index];
+                      return ListTile(
+                        title: Text(hold['reference'] as String? ?? hold['holdId'] as String),
+                        subtitle: Text(
+                          'الملف: ${hold['mediaId']}\n'
+                          'الجهة: ${hold['authority']}\n'
+                          'المراجعة: ${hold['reviewAtMs'] == null ? 'غير محدد' : DateTime.fromMillisecondsSinceEpoch((hold['reviewAtMs'] as num).toInt()).toLocal()}\n'
+                          'الانتهاء: ${hold['endsAtMs'] == null ? 'غير محدد' : DateTime.fromMillisecondsSinceEpoch((hold['endsAtMs'] as num).toInt()).toLocal()}',
+                        ),
+                        isThreeLine: true,
+                        trailing: IconButton(
+                          tooltip: 'إطلاق الحجز',
+                          icon: const Icon(Icons.lock_open),
+                          onPressed: () async {
+                            try {
+                              await _service.releaseMediaLegalHold(hold['holdId'] as String);
+                              if (!dialogContext.mounted) return;
+                              Navigator.pop(dialogContext);
+                              await _loadOwnerMedia();
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('تم إطلاق الحجز واستئناف جدول الاحتفاظ الأصلي.')),
+                              );
+                            } on FirebaseFunctionsException catch (error) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(error.message ?? 'تعذر إطلاق الحجز.')),
+                              );
+                            }
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        ),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر تحميل الحجوزات القانونية.')),
+      );
+    }
+  }
+
   Future<void> _previewOwnerMedia(Map<String, dynamic> asset) async {
     final mediaId = asset['mediaId'] as String?;
     if (mediaId == null || asset['canPreview'] != true || _previewingMediaId != null) return;
