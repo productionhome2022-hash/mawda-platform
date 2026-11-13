@@ -61,7 +61,11 @@ test("member selects a clean custom avatar; old asset receives a bounded superse
       (error) => error && error.code === "failed-precondition",
     );
   } finally {
-    await Promise.all([userRef.delete(), oldRef.delete(), newRef.delete()]);
+    const audits = await db.collection("mediaAccessAudit").where("actorUid", "==", uid).get();
+    await Promise.all([
+      userRef.delete(), oldRef.delete(), newRef.delete(),
+      ...audits.docs.map((doc) => doc.ref.delete()),
+    ]);
   }
 });
 
@@ -101,11 +105,13 @@ test("expired current avatar falls back to Mawda default before exact media dele
     assert.equal((await original.exists())[0], false);
     assert.equal((await preview.exists())[0], false);
   } finally {
+    const audits = await db.collection("mediaAccessAudit").where("mediaId", "==", mediaId).get();
     await Promise.all([
       userRef.delete().catch(() => undefined),
       assetRef.delete().catch(() => undefined),
       original.delete({ ignoreNotFound: true }).catch(() => undefined),
       preview.delete({ ignoreNotFound: true }).catch(() => undefined),
+      ...audits.docs.map((doc) => doc.ref.delete()),
     ]);
   }
 });
