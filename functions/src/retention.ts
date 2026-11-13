@@ -120,9 +120,12 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
       if (typeof ownerUid !== "string" || !/^[0-9a-f-]{36}$/i.test(mediaId)) continue;
       try {
         const originalPath = `quarantine/${ownerUid}/${mediaId}`;
-        const derivativePath = `processed/${ownerUid}/${mediaId}/preview.webp`;
         objects += await deleteAllObjectGenerations(originalPath);
-        objects += await deleteAllObjectGenerations(derivativePath);
+        for (const filename of [
+          "preview.webp", "animation.gif", "audio.mp3", "video.mp4", "document.pdf",
+        ]) {
+          objects += await deleteAllObjectGenerations(`processed/${ownerUid}/${mediaId}/${filename}`);
+        }
         await tombstoneDoc.ref.update({
           retentionReconcileAt: Timestamp.fromMillis(Date.now() + MEDIA_DERIVATIVE_RECHECK_MS),
           updatedAt: FieldValue.serverTimestamp(),
