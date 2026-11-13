@@ -267,11 +267,6 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
             ),
           ),
           actions: [
-        IconButton(
-          tooltip: 'تسجيل خروج المالك',
-          onPressed: _signOutOwner,
-          icon: const Icon(Icons.logout),
-        ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('إلغاء'),
@@ -1302,6 +1297,11 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     appBar: AppBar(
       title: const Text('غرفة عمليات مالك مودة'),
       actions: [
+        IconButton(
+          tooltip: 'تسجيل خروج المالك',
+          onPressed: _signOutOwner,
+          icon: const Icon(Icons.logout),
+        ),
         IconButton(
           tooltip: 'مراجعة البلاغات والاستئنافات',
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(
