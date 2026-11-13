@@ -6,6 +6,7 @@ const {
   retentionDeadline,
   isRetentionDue,
   isSupportedChatMessagePath,
+  shouldSuspendMediaDeletion,
 } = require("../lib/retention");
 
 test("chat media retention is exactly four hours from the upload intent timestamp", () => {
@@ -36,4 +37,11 @@ test("only direct and room message documents are eligible for seven-day deletion
   assert.equal(isSupportedChatMessagePath("users/u1/messages/msg1"), false);
   assert.equal(isSupportedChatMessagePath("directChats/abc/messages"), false);
   assert.equal(isSupportedChatMessagePath("directChats/abc/messages/msg1/attachments/a"), false);
+});
+
+test("active media legal holds suspend exact-asset deletion fail-closed", () => {
+  assert.equal(shouldSuspendMediaDeletion({ legalHoldStatus: "active", activeLegalHoldId: "hold-1" }), true);
+  assert.equal(shouldSuspendMediaDeletion({ legalHoldStatus: "active" }), true);
+  assert.equal(shouldSuspendMediaDeletion({ legalHoldStatus: "released" }), false);
+  assert.equal(shouldSuspendMediaDeletion({}), false);
 });
