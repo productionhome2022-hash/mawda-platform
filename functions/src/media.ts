@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { pipeline } from "node:stream/promises";
+import { getAppCheck } from "firebase-admin/app-check";
+import { getAuth } from "firebase-admin/auth";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
@@ -582,5 +585,109 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
       }
     }
     return { reclaimed };
+  },
+);
+
+
+/**
+ * Authenticated owner-only attachment stream. Unlike a signed URL, the object
+ * path is never turned into a bearer URL or placed in browser history/query
+ * strings. App Check, revocation-aware ID-token verification, owner claim and
+ * recent MFA are all mandatory. Content is forced to octet-stream/attachment.
+ */
+export const ownerMediaInspectionStream = onRequest(
+  { cors: false, maxInstances: 5, memory: "512MiB", timeoutSeconds: 120 },
+  async (request, response) => {
+    if (request.method !== "POST") {
+      response.set("Allow", "POST").status(405).end();
+      return;
+    }
+    const authorization = request.get("authorization") ?? "";
+    const match = /^Bearer ([A-Za-z0-9._-]+)$/.exec(authorization);
+    const appCheckToken = request.get("X-Firebase-AppCheck") ?? "";
+    if (!match || !appCheckToken) {
+      response.status(401).set("Cache-Control", "no-store").end();
+      return;
+    }
+
+    let decoded;
+    try {
+      decoded = await getAuth().verifyIdToken(match[1], true);
+      await getAppCheck().verifyToken(appCheckToken);
+    } catch {
+      response.status(401).set("Cache-Control", "no-store").end();
+      return;
+    }
+    const actorUid = decoded.uid;
+    try {
+      requireSoleOwner({ auth: { uid: actorUid, token: decoded } });
+    } catch (error) {
+      await auditMediaAccess({
+        actorUid,
+        action: "owner_media_stream_attempt",
+        outcome: "denied",
+        failureCode: error instanceof HttpsError ? error.code : "permission-denied",
+      });
+      response.status(403).set("Cache-Control", "no-store").end();
+      return;
+    }
+
+    const mediaId = typeof request.body?.mediaId === "string" ? request.body.mediaId : "";
+    if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
+      await auditMediaAccess({
+        actorUid, action: "owner_media_stream_attempt",
+        outcome: "denied", failureCode: "invalid-media-id",
+      });
+      response.status(400).set("Cache-Control", "no-store").end();
+      return;
+    }
+
+    try {
+      const snapshot = await mediaDb().collection("mediaAssets").doc(mediaId).get();
+      if (!snapshot.exists) {
+        response.status(404).set("Cache-Control", "no-store").end();
+        return;
+      }
+      const asset = snapshot.data()!;
+      if (!["pending_security_scan", "security_approved"].includes(String(asset.status))) {
+        response.status(409).set("Cache-Control", "no-store").end();
+        return;
+      }
+      const file = mediaBucket().file(String(asset.objectPath));
+      const [metadata] = await file.getMetadata();
+      if (String(metadata.generation) !== String(asset.storageGeneration)) {
+        response.status(409).set("Cache-Control", "no-store").end();
+        return;
+      }
+      await auditMediaAccess({
+        actorUid,
+        mediaId,
+        action: "owner_media_stream_started",
+        outcome: "success",
+        storageGeneration: String(asset.storageGeneration),
+      });
+      response.status(200);
+      response.set({
+        "Content-Type": "application/octet-stream",
+        "Content-Disposition": "attachment; filename=\"mawadda-owner-inspection.bin\"",
+        "Content-Length": String(metadata.size),
+        "Cache-Control": "private, no-store, max-age=0",
+        "Pragma": "no-cache",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+        "Referrer-Policy": "no-referrer",
+      });
+      await pipeline(file.createReadStream({ validation: "crc32c" }), response);
+    } catch (error) {
+      await auditMediaAccess({
+        actorUid,
+        mediaId,
+        action: "owner_media_stream_result",
+        outcome: "failed",
+        failureCode: error instanceof Error ? error.name : "stream_error",
+      });
+      if (!response.headersSent) response.status(500).set("Cache-Control", "no-store").end();
+      else response.destroy(error instanceof Error ? error : undefined);
+    }
   },
 );
