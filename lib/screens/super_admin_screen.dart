@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import '../services/super_admin_security_service.dart';
@@ -40,6 +42,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   String? _mediaNextPageToken;
   bool _mediaHasMore = false;
   bool _loadingOwnerMedia = false;
+  String? _previewingMediaId;
   int _minimumAge = 16;
   String? _error;
 
@@ -99,11 +102,46 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
 
   String _mediaStatusLabel(Object? value) {
     switch (value) {
+      case 'scanner_clean_pending_processing': return 'الفحص نظيف؛ بانتظار المعالجة الآمنة';
       case 'upload_authorized': return 'رُخّص الرفع';
       case 'pending_security_scan': return 'بانتظار الفحص الأمني';
       case 'rejected': return 'مرفوض';
       case 'security_approved': return 'اجتاز الفحص الأمني';
       default: return 'حالة غير معروفة';
+    }
+  }
+
+  Future<void> _previewOwnerMedia(Map<String, dynamic> asset) async {
+    final mediaId = asset['mediaId'] as String?;
+    if (mediaId == null || asset['canPreview'] != true || _previewingMediaId != null) return;
+    setState(() => _previewingMediaId = mediaId);
+    try {
+      final bytes = await _service.getOwnerMediaSafePreview(mediaId);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(asset['originalName'] as String? ?? 'معاينة آمنة'),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520, maxHeight: 520),
+            child: Image.memory(
+              Uint8List.fromList(bytes),
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Text('تعذر عرض نسخة المعاينة الآمنة.'),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      if (mounted) setState(() => _error = 'تعذر تحميل المعاينة الآمنة أو التحقق من سلامتها.');
+    } finally {
+      if (mounted) setState(() => _previewingMediaId = null);
     }
   }
 
@@ -1110,8 +1148,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'قائمة وصفية خادمية للملفات فقط. لا تُعرض روابط التخزين أو محتويات الملفات هنا؛ '
-                  'تبقى الملفات في الحجر حتى ربط ماسح موثوق ومعاينة آمنة داخل التطبيق.',
+                  'قائمة خادمية للبيانات الوصفية. يبقى الملف الأصلي في الحجر؛ ولا تتاح المعاينة إلا لنسخة WebP أعاد الماسح الآمن ترميزها والتحقق منها. لا تُعرض روابط التخزين.',
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
@@ -1119,6 +1156,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   decoration: const InputDecoration(labelText: 'حالة الملف', border: OutlineInputBorder()),
                   items: const [
                     DropdownMenuItem(value: 'pending_security_scan', child: Text('بانتظار الفحص الأمني')),
+                    DropdownMenuItem(value: 'scanner_clean_pending_processing', child: Text('فحص نظيف؛ بانتظار المعالجة')),
                     DropdownMenuItem(value: 'upload_authorized', child: Text('رُخّص الرفع')),
                     DropdownMenuItem(value: 'rejected', child: Text('مرفوض')),
                     DropdownMenuItem(value: 'security_approved', child: Text('اجتاز الفحص الأمني')),
@@ -1192,6 +1230,21 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                         '${date}',
                       ),
                       isThreeLine: true,
+                      trailing: asset['canPreview'] == true
+                          ? IconButton(
+                              tooltip: 'معاينة آمنة',
+                              onPressed: _previewingMediaId == null
+                                  ? () => _previewOwnerMedia(asset)
+                                  : null,
+                              icon: _previewingMediaId == asset['mediaId']
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.visibility_outlined),
+                            )
+                          : null,
                     ),
                   );
                 }),
