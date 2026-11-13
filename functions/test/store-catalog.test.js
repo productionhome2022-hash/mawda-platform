@@ -15,6 +15,7 @@ test("projects only active catalog items with safe display fields", () => {
     paymentSecret: "must-not-leak",
   }), {
     itemId: "vip-30",
+    active: true,
     name: "VIP لمدة شهر",
     description: "شارة VIP وامتيازات الملف المعتمدة.",
     category: "vip",
