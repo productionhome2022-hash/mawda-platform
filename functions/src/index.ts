@@ -4224,6 +4224,8 @@ export {
   finalizeMediaUpload,
   sendChatImageAttachment,
   getChatImageAttachmentUrl,
+  sendChatMediaAttachment,
+  getChatMediaAttachmentUrl,
   getMemberProfileMediaUrl,
   listMemberProfileGallery,
   getMyMediaUploadStatus,
