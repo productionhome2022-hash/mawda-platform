@@ -106,6 +106,19 @@ export function createScannerHandler(config, scan = scanWithClamAv) {
       response.end("not found");
       return;
     }
+    if (request.headers["content-type"] !== "application/octet-stream") {
+      response.writeHead(415, { "cache-control": "no-store", "x-content-type-options": "nosniff" });
+      response.end("unsupported content type");
+      return;
+    }
+    const declaredLength = request.headers["content-length"] === undefined
+      ? null : Number(request.headers["content-length"]);
+    if (declaredLength !== null && (!Number.isSafeInteger(declaredLength) ||
+        declaredLength <= 0 || declaredLength > config.maxBytes)) {
+      response.writeHead(413, { "cache-control": "no-store" });
+      response.end("payload too large");
+      return;
+    }
     if (!secureEqual(request.headers["x-mawadda-scanner-token"], config.bearerToken)) {
       response.writeHead(401, { "cache-control": "no-store" });
       response.end("unauthorized");
@@ -184,14 +197,20 @@ export function loadScannerConfig(env = process.env) {
   if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0 || maxBytes > MAX_DEFAULT_BYTES) {
     throw new Error("SCANNER_MAX_BYTES_INVALID");
   }
+  const port = Number(env.PORT ?? 8080);
+  const clamdPort = Number(env.CLAMD_PORT ?? 3310);
+  if (!Number.isInteger(port) || port < 1 || port > 65535 ||
+      !Number.isInteger(clamdPort) || clamdPort < 1 || clamdPort > 65535) {
+    throw new Error("SCANNER_PORT_CONFIGURATION_INVALID");
+  }
   return {
-    port: Number(env.PORT ?? 8080),
+    port,
     bearerToken,
     hmacSecret,
     provider,
     callbackUrl: callbackUrl.toString(),
     clamdHost: env.CLAMD_HOST ?? "127.0.0.1",
-    clamdPort: Number(env.CLAMD_PORT ?? 3310),
+    clamdPort,
     clamdTimeoutMs: 120_000,
     callbackTimeoutMs: 30_000,
     maxBytes,
@@ -200,6 +219,9 @@ export function loadScannerConfig(env = process.env) {
 
 export function startScannerServer(config = loadScannerConfig()) {
   const server = createServer(createScannerHandler(config));
+  server.requestTimeout = 600_000;
+  server.headersTimeout = 65_000;
+  server.keepAliveTimeout = 5_000;
   server.listen(config.port, "0.0.0.0");
   return server;
 }
