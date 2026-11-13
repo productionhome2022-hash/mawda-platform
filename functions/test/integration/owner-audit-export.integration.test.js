@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Timestamp, getFirestore } = require("firebase-admin/firestore");
-const { exportOwnerReviewAuditPage } = require("../../lib/index");
+const { exportOwnerReviewAuditPage, verifyOwnerReviewAuditChain } = require("../../lib/index");
 const { calculateOwnerAuditHash } = require("../../lib/owner-audit-chain");
 
 const db = getFirestore();
@@ -103,6 +103,9 @@ test("owner audit export pages preserve sequence, redact raw text and retain int
       doc.data().auditEvent?.outcome === "denied" &&
       doc.data().auditEvent?.actorUid === "not-the-owner"
     ));
+    const verification = await verifyOwnerReviewAuditChain.run(ownerRequest());
+    assert.equal(verification.valid, true);
+    assert.equal(verification.complete, true);
   } finally {
     const generated = await db.collection("adminAuditLogs")
       .where("auditChainId", "==", "owner-review-v1").get();
