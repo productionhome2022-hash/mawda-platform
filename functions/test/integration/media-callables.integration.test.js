@@ -204,6 +204,31 @@ test("upload intent reserves per-user quota atomically and audits the capability
     event.action === "media_upload_intent_created" && event.outcome === "success"));
 });
 
+test("signer failure atomically releases reserved capacity and leaves no upload capability", async () => {
+  const uid = `signer-failure-${Date.now()}-${Math.random()}`;
+  const stubSigner = StorageFile.prototype.getSignedUrl;
+  StorageFile.prototype.getSignedUrl = async () => { throw new Error("signer unavailable"); };
+  try {
+    await assert.rejects(
+      () => createMediaUploadIntent.run({
+        data: { originalName: "signer-failure.png", contentType: "image/png", sizeBytes: 4096 },
+        auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+      }),
+      (error) => error && error.code === "unavailable",
+    );
+  } finally {
+    StorageFile.prototype.getSignedUrl = stubSigner;
+  }
+  const quota = await db.collection("mediaUploadQuotas").doc(uid).get();
+  assert.equal(quota.data().activeUploads, 0);
+  assert.equal(quota.data().activeBytes, 0);
+  const assets = await db.collection("mediaAssets").where("ownerUid", "==", uid).get();
+  assert.equal(assets.size, 1);
+  assert.equal(assets.docs[0].data().status, "upload_authorization_failed");
+  assert.ok((await auditEvents(uid)).some((event) =>
+    event.action === "media_upload_intent_signing" && event.outcome === "failed"));
+});
+
 test("upload intent rejects a user who has exhausted the concurrent upload quota", async () => {
   const uid = `quota-exhausted-${Date.now()}-${Math.random()}`;
   await db.collection("mediaUploadQuotas").doc(uid).set({
