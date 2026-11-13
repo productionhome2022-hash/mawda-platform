@@ -571,7 +571,7 @@ test("stories publish only after malware approval and active public stories appe
     await db.collection("stories").doc(created.storyId).update({
       expiresAt: Timestamp.fromMillis(Date.now() - 1000),
     });
-    const expiredFeed = await listMemberStories.run(memberRequest(uid, {}));
+    const expiredFeed = await listMemberStories.run({ data: {}, auth: { uid, token: {} } });
     assert.ok(!expiredFeed.stories.some((story) => story.storyId === created.storyId));
   } finally {
     const stories = await db.collection("stories").where("ownerUid", "==", uid).get();
@@ -597,7 +597,7 @@ test("story publication rejects media that remains quarantined pending malware s
   ]);
   try {
     await assert.rejects(
-      () => createMemberStory.run(memberRequest(uid, { mediaId })),
+      () => createMemberStory.run({ data: { mediaId }, auth: { uid, token: {} } }),
       (error) => error && error.code === "failed-precondition",
     );
   } finally {
