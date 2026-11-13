@@ -1,6 +1,7 @@
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onObjectFinalized } from "firebase-functions/v2/storage";
 import { defineString } from "firebase-functions/params";
 import { logger } from "firebase-functions";
 
@@ -284,6 +285,46 @@ async function deleteExpiredMediaOperationalAudit(): Promise<number> {
   }
   return deleted;
 }
+
+/**
+ * Event-driven backstop: if a scanner finishes late and writes a derivative
+ * after the four-hour deadline, delete that exact newly finalized generation.
+ */
+export const removeLateExpiredChatMediaDerivative = onObjectFinalized(async (event) => {
+  const object = event.data;
+  const objectPath = typeof object.name === "string" ? object.name : "";
+  const parts = objectPath.split("/");
+  if (parts.length !== 4 || parts[0] !== "processed" || parts[3] !== "preview.webp") return;
+  const ownerUid = parts[1];
+  const mediaId = parts[2];
+  const generation = Number(object.generation);
+  if (!/^[0-9a-f-]{36}$/i.test(mediaId) || !Number.isSafeInteger(generation) || generation <= 0) return;
+
+  const db = getFirestore();
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const assetSnapshot = await assetRef.get();
+  if (!assetSnapshot.exists) return;
+  const asset = assetSnapshot.data() ?? {};
+  if (asset.ownerUid !== ownerUid || !["chat", "room"].includes(String(asset.mediaPurpose))) return;
+
+  const expiry = asset.retentionExpiresAt instanceof Timestamp
+    ? asset.retentionExpiresAt
+    : asset.createdAt instanceof Timestamp
+      ? Timestamp.fromMillis(asset.createdAt.toMillis() + CHAT_MEDIA_RETENTION_MS)
+      : null;
+  if (asset.status !== "self_destructed" && (!expiry || expiry.toMillis() > Date.now())) return;
+
+  await getStorage().bucket(object.bucket).file(objectPath).delete({
+    ignoreNotFound: true,
+    ifGenerationMatch: generation,
+  });
+  await db.collection("mediaAccessAudit").add({
+    actorUid: "system-retention", mediaId, action: "late_chat_media_derivative_deleted",
+    outcome: "success", purpose: asset.mediaPurpose,
+    createdAt: FieldValue.serverTimestamp(),
+    expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
+  });
+});
 
 /** Reconciles expired chat media every minute; disabled by default and non-production gated. */
 export const enforceChatMediaRetention = onSchedule(
