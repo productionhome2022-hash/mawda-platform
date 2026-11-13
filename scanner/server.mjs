@@ -64,7 +64,7 @@ function clamdCommand(config, command, payload) {
       if (payload) {
         for (const frame of buildClamAvInstreamFrames(payload)) socket.write(frame);
       } else {
-        socket.write(Buffer.from(`z${command}\\0`));
+        socket.write(Buffer.from(`z${command}\0`));
       }
     });
   });
