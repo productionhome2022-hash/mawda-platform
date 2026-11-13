@@ -133,3 +133,11 @@ The same current workflow also passed the seven-day chat text retention, four-ho
 - Added emulator integration coverage for direct-message linking/delivery, room linking/delivery, outsider denial, duplicate attachment attempts and forged owner-role/document attempts.
 - The message-linking slice currently enables only JPEG/PNG/WebP raster derivatives. GIF, audio, video and documents remain fail-closed pending their own real processing pipelines. No UI or production deployment is implied.
 - CI validation for the latest candidate is pending; this change is not closed until backend integration, Firestore/Storage rules and Flutter Web jobs pass on the exact branch head.
+
+## Follow-up implementation — chat image attachments and retryable erasure (13 November 2026)
+
+- Added the direct-chat and room UI path for selecting, uploading, sending and receiving scanner-approved raster images. The UI uses the existing trusted media upload service and backend message-link/delivery callables; original quarantine objects are never displayed.
+- Signed image URLs are refreshed before expiry, and the backend binds each delivery request to the exact linked conversation and message, validates the safe derivative's generation/hash/scanner metadata, and rejects messages hidden for the requesting member.
+- The chat image UI fails fast for GIF until the animation-preserving sanitizer is implemented. Audio, video and documents remain intentionally unavailable for member delivery.
+- Closed a retention retry gap: manual_deletion_pending media is now picked up by the gated non-production retention sweep; successful retries retain a content-free manually_deleted tombstone and schedule late-object reconciliation. Added a Storage/Firestore emulator integration test for retry and late replay.
+- Latest PR head is awaiting exact-commit CI validation. Do not describe phase 2 as closed until the full workflow passes and remaining non-emulator infrastructure/governance checks are resolved.
