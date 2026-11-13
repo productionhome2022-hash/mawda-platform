@@ -174,7 +174,7 @@ test("finalize callable rejects and deletes a file whose bytes contradict its de
 test("upload intent reserves per-user quota atomically and audits the capability issuance", async () => {
   const uid = `quota-uploader-${Date.now()}-${Math.random()}`;
   const result = await createMediaUploadIntent.run({
-    data: { originalName: "quota.png", contentType: "image/png", sizeBytes: 1024 },
+    data: { originalName: "quota.png", contentType: "image/png", sizeBytes: 1024, purpose: "profile_album" },
     auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
   });
   assert.equal(typeof result.mediaId, "string");
@@ -209,7 +209,7 @@ test("signed upload URL performs a real Storage Emulator HTTP PUT and rejects re
   const uid = `http-upload-${Date.now()}-${Math.random()}`;
   const png = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
   const intent = await createMediaUploadIntent.run({
-    data: { originalName: "http-check.png", contentType: "image/png", sizeBytes: png.length },
+    data: { originalName: "http-check.png", contentType: "image/png", sizeBytes: png.length, purpose: "chat" },
     auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
   });
 
@@ -379,7 +379,7 @@ test("finalization rejects an HTTP-uploaded object larger than its quota reserva
   const uid = `http-size-mismatch-${Date.now()}-${Math.random()}`;
   const png = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
   const intent = await createMediaUploadIntent.run({
-    data: { originalName: "oversized.png", contentType: "image/png", sizeBytes: 8 },
+    data: { originalName: "oversized.png", contentType: "image/png", sizeBytes: 8, purpose: "chat" },
     auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
   });
   const put = await fetch(intent.uploadUrl, {
