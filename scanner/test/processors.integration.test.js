@@ -114,9 +114,15 @@ for (const item of cases) {
       assert.equal(saved.metadata.metadata.processing, result.safeDerivative.pipelineVersion);
       assert.ok(Number(saved.metadata.size) > 0);
       if (item.category === "gif") {
-        const sharp = require("sharp");
-        const metadata = await sharp(saved.data, { animated: true }).metadata();
-        assert.ok(Number(metadata.pages) > 1, "animated GIF sanitizer must preserve multiple frames");
+        const outputGif = path.join(tempDir, "saved-animation.gif");
+        await fs.writeFile(outputGif, saved.data);
+        const probe = await execFileAsync("ffprobe", [
+          "-v", "error", "-count_frames", "-select_streams", "v:0",
+          "-show_entries", "stream=nb_read_frames",
+          "-of", "default=nokey=1:noprint_wrappers=1", outputGif,
+        ]);
+        assert.ok(Number(probe.stdout.trim()) > 1,
+          "animated GIF sanitizer must preserve multiple frames");
       }
       if (item.category === "document") {
         const flattenedPath = path.join(tempDir, "safe-document.pdf");
