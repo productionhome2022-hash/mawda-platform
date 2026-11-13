@@ -28,9 +28,9 @@
 | Invalid/missing callback signature rejected | | |
 | Derivative is WebP and provenance matches source generation/hash | | |
 | Quarantined original remains private | | |
-| Rejected object exact generation removed | | |
+| Rejected object exact generation permanently removed (including noncurrent generation listing) | | |
 | Four-hour chat-media deletion path verified | | |
-| Replayed create-only signed PUT URL cleaned after tombstone | | |
+| Replayed create-only signed PUT URL cleaned after tombstone, including exact generation deletion | | |
 | Late replay cleanup audit record written | | |
 | No secrets, signed URLs or member content in logs | | |
 
