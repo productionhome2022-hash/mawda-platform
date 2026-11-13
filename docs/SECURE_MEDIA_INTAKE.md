@@ -69,7 +69,7 @@ Only expired, unfinished upload intents are automatically cleaned up. Retention 
 - `createMediaUploadIntent({ originalName, contentType, sizeBytes })` — returns a five-minute signed PUT URL, signed `uploadHeaders`, `uploadMethod: PUT`, exact `maxBytes` and expiry.
 - `finalizeMediaUpload({ mediaId })`
 - `listOwnerMediaAssets({ status?, uploaderType?, limit?, pageToken? })`
-- `getOwnerMediaInspectionUrl({ mediaId })`
+- `getOwnerMediaInspectionUrl({ mediaId })` — attachment-only and `security_approved` only; pending/rejected originals are denied.
 - `dispatchMediaSecurityScan` — retryable Firestore transition trigger that sends quarantined bytes to the IAM-protected scanner gateway.
 - `receiveMediaScanVerdict` — authenticated HMAC callback from the configured scanner gateway.
 - `cleanupExpiredMediaUploadIntents` — scheduled cleanup of expired unfinished intents only.
