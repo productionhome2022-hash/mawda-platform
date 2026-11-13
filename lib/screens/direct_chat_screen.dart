@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
@@ -22,15 +24,21 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   late Future<Map<String, dynamic>> _messagesFuture;
   bool _sending = false;
+  bool _refreshing = false;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _messagesFuture = _loadMessages();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+      if (mounted && !_sending) _refresh();
+    });
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _messageController.dispose();
     super.dispose();
   }
@@ -62,8 +70,16 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     };
   }
 
-  void _refresh() {
-    setState(() => _messagesFuture = _loadMessages());
+  Future<void> _refresh() async {
+    if (!mounted || _refreshing) return;
+    setState(() => _refreshing = true);
+    try {
+      final next = _loadMessages();
+      setState(() => _messagesFuture = next);
+      await next;
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
   }
 
   Future<void> _sendMessage() async {
