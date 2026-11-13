@@ -562,6 +562,9 @@ test("stories publish only after malware approval and active public stories appe
     const created = await createMemberStory.run({ data: { mediaId }, auth: { uid, token: {} } });
     assert.equal(created.mediaId, mediaId);
     assert.equal(created.expiresAt, expiresAt.toMillis());
+    const replay = await createMemberStory.run({ data: { mediaId }, auth: { uid, token: {} } });
+    assert.equal(replay.storyId, created.storyId);
+    assert.equal(replay.idempotentReplay, true);
     assert.equal((await assetRef.get()).data().storyDocumentId, created.storyId);
     const feed = await listMemberStories.run({ data: {}, auth: { uid, token: {} } });
     assert.ok(feed.stories.some((story) => story.storyId === created.storyId));
