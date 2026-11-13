@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/member_media_upload_service.dart';
+import 'safety_center_screen.dart';
 
 class DirectChatScreen extends StatefulWidget {
   const DirectChatScreen({
@@ -34,12 +35,15 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   late Future<Map<String, dynamic>> _messagesFuture;
   bool _sending = false;
   bool _refreshing = false;
+  bool _peerBlocked = false;
+  bool _loadingBlockStatus = true;
   Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _messagesFuture = _loadMessages();
+    _loadBlockStatus();
     _refreshTimer = Timer.periodic(const Duration(seconds: 8), (_) {
       if (mounted && !_sending) _refresh();
     });
@@ -51,6 +55,74 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     _messageController.dispose();
     _mediaService.close();
     super.dispose();
+  }
+
+  Future<void> _loadBlockStatus() async {
+    try {
+      final result = await FirebaseFunctions.instance
+          .httpsCallable('getMyBlockedUsers')
+          .call();
+      final data = Map<String, dynamic>.from(result.data as Map);
+      final blocked = (data['blockedUids'] as List<dynamic>? ?? const [])
+          .whereType<String>()
+          .contains(widget.peerUid);
+      if (mounted) setState(() {
+        _peerBlocked = blocked;
+        _loadingBlockStatus = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingBlockStatus = false);
+    }
+  }
+
+  Future<void> _togglePeerBlock() async {
+    if (_sending || _loadingBlockStatus) return;
+    final nextBlocked = !_peerBlocked;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(nextBlocked ? 'حظر العضو' : 'إلغاء حظر العضو'),
+        content: Text(nextBlocked
+            ? 'لن تتمكن أنت أو هذا العضو من إرسال رسائل خاصة لبعضكما ما دام الحظر قائماً.'
+            : 'سيُسمح بإرسال الرسائل الخاصة مجدداً إذا لم يوجد حظر من الطرف الآخر.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(nextBlocked ? 'تأكيد الحظر' : 'إلغاء الحظر')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _loadingBlockStatus = true);
+    try {
+      await FirebaseFunctions.instance.httpsCallable('setMemberBlock').call({
+        'targetUid': widget.peerUid,
+        'blocked': nextBlocked,
+      });
+      if (!mounted) return;
+      setState(() {
+        _peerBlocked = nextBlocked;
+        _loadingBlockStatus = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(nextBlocked ? 'تم حظر العضو.' : 'تم إلغاء الحظر.'),
+      ));
+      await _refresh();
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) {
+        setState(() => _loadingBlockStatus = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message ?? 'تعذر تحديث قائمة الحظر.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadingBlockStatus = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر تحديث قائمة الحظر؛ لم يتم تأكيد نجاح العملية.')),
+        );
+      }
+    }
   }
 
   Future<Map<String, dynamic>> _loadMessages() async {
@@ -470,6 +542,18 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       appBar: AppBar(
         title: Text(widget.peerName.isEmpty ? 'محادثة خاصة' : widget.peerName),
         actions: [
+          IconButton(
+            tooltip: 'الإبلاغ عن العضو',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => SafetyCenterScreen(initialTargetUid: widget.peerUid),
+            )),
+            icon: const Icon(Icons.flag_outlined),
+          ),
+          IconButton(
+            tooltip: _peerBlocked ? 'إلغاء حظر العضو' : 'حظر العضو',
+            onPressed: _loadingBlockStatus ? null : _togglePeerBlock,
+            icon: Icon(_peerBlocked ? Icons.person_remove_outlined : Icons.block_outlined),
+          ),
           IconButton(
             tooltip: 'تحديث الرسائل',
             onPressed: _refresh,
