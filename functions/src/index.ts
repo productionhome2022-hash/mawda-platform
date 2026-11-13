@@ -2339,7 +2339,7 @@ export const placeMessageLegalHold = onCall(async (request) => {
     const messageSnapshot = await transaction.get(messageRef);
     if (!messageSnapshot.exists) throw new HttpsError("not-found", "الرسالة غير موجودة.");
     const message = messageSnapshot.data() ?? {};
-    const hasMedia = ["mediaId", "mediaIds", "media", "attachment", "attachments", "storagePath", "objectPath"]
+    const hasMedia = ["mediaId", "mediaIds", "media", "attachment", "attachments", "mediaAssetId", "assetId", "mediaUrl", "fileUrl", "downloadUrl", "storagePath", "objectPath"]
       .some((field) => {
         const value = message[field];
         if (Array.isArray(value)) return value.length > 0;
