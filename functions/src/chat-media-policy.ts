@@ -9,6 +9,7 @@ export interface ChatMediaAssetForDelivery {
   mediaCategory: unknown;
   detectedContentType: unknown;
   status: unknown;
+  processingStatus?: unknown;
   safePreviewPath?: unknown;
   safePreviewGeneration?: unknown;
   safePreviewSha256?: unknown;
@@ -84,7 +85,12 @@ export function resolveChatMediaDeliveryArtifact(
   if (!route) return null;
   if (route.category === "document" && (!isVerifiedPlatformOwner || asset.uploaderRole !== "platform_owner")) return null;
   if (route.category !== "document" && asset.uploaderRole !== "member" && asset.uploaderRole !== "platform_owner") return null;
-  if (asset.processingPipelineVersion !== route.pipelineVersion) return null;
+  const expectedProcessingStatus = route.category === "image" ? "safe_raster_derivative_ready" :
+    route.category === "gif" ? "safe_animation_derivative_ready" :
+      route.category === "audio" ? "safe_audio_derivative_ready" :
+        route.category === "video" ? "safe_video_derivative_ready" : "safe_document_derivative_ready";
+  if (asset.processingStatus !== expectedProcessingStatus) return null;
+  if (route.category !== "image" && asset.processingPipelineVersion !== route.pipelineVersion) return null;
   const path = asset[route.pathField];
   const generation = asset[route.generationField];
   const sha256 = asset[route.hashField];
