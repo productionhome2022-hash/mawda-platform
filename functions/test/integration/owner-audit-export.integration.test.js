@@ -27,7 +27,7 @@ test("owner audit export pages preserve sequence, redact raw text and retain int
   const oldHeadData = oldHead.exists ? oldHead.data() : null;
   const oldEntries = await db.collection("adminAuditLogs")
     .where("auditChainId", "==", "owner-review-v1").get();
-  const cleanupRefs = oldEntries.docs.map((doc) => doc.ref);
+  const oldEntryData = oldEntries.docs.map((doc) => ({ ref: doc.ref, data: doc.data() }));
   let previousHash = "GENESIS";
   const seededRefs = [];
 
@@ -83,9 +83,8 @@ test("owner audit export pages preserve sequence, redact raw text and retain int
   } finally {
     const generated = await db.collection("adminAuditLogs")
       .where("auditChainId", "==", "owner-review-v1").get();
-    await Promise.all([...generated.docs.map((doc) => doc.ref.delete()),
-      ...cleanupRefs.map((ref) => ref.delete().catch(() => undefined)),
-      ...seededRefs.map((ref) => ref.delete().catch(() => undefined))]);
+    await Promise.all(generated.docs.map((doc) => doc.ref.delete()));
+    await Promise.all(oldEntryData.map(({ ref, data }) => ref.set(data)));
     if (oldHeadData) await headRef.set(oldHeadData);
     else await headRef.delete().catch(() => undefined);
   }
