@@ -178,3 +178,29 @@ test("seven-day profile gallery retention removes original and preview objects b
     ]);
   }
 });
+
+
+test("expired story documents are removed from the feed while active stories remain", async () => {
+  const expiredRef = db.collection("stories").doc(`expired-story-${Date.now()}`);
+  const activeRef = db.collection("stories").doc(`active-story-${Date.now()}`);
+  await Promise.all([
+    expiredRef.set({
+      ownerUid: "story-owner", mediaId: "expired-media",
+      status: "active", expiresAt: Timestamp.fromMillis(Date.now() - 1000),
+    }),
+    activeRef.set({
+      ownerUid: "story-owner", mediaId: "active-media",
+      status: "active", expiresAt: Timestamp.fromMillis(Date.now() + 60 * 60 * 1000),
+    }),
+  ]);
+  try {
+    await runChatMediaRetentionSweep();
+    assert.equal((await expiredRef.get()).exists, false);
+    assert.equal((await activeRef.get()).exists, true);
+  } finally {
+    await Promise.all([
+      expiredRef.delete().catch(() => undefined),
+      activeRef.delete().catch(() => undefined),
+    ]);
+  }
+});
