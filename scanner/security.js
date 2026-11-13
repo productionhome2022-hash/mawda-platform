@@ -25,9 +25,20 @@ function validateScanRequest(value, provider, bucketName) {
   let url;
   try { url = new URL(v.downloadUrl); } catch { return null; }
   const allowedHosts = new Set(["storage.googleapis.com", `${bucketName}.storage.googleapis.com`]);
+  let decodedPath;
+  try { decodedPath = decodeURIComponent(url.pathname); } catch { return null; }
+  const expectedPath = url.hostname === "storage.googleapis.com"
+    ? `/${bucketName}/${v.objectPath}`
+    : `/${v.objectPath}`;
+  const allowedTypes = new Set([
+    "image/jpeg", "image/png", "image/webp", "video/mp4",
+    "audio/mpeg", "audio/mp4", "audio/ogg", "audio/wav", "application/pdf",
+  ]);
   if (url.protocol !== "https:" || !allowedHosts.has(url.hostname) ||
       url.username || url.password || url.hash ||
-      (url.searchParams.has("generation") && url.searchParams.get("generation") !== v.objectGeneration)) {
+      decodedPath !== expectedPath ||
+      url.searchParams.get("generation") !== v.objectGeneration ||
+      !allowedTypes.has(v.contentType)) {
     return null;
   }
   return {
