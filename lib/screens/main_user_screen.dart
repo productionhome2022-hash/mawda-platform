@@ -25,6 +25,7 @@ class MainUserScreen extends StatefulWidget {
 
 class _MainUserScreenState extends State<MainUserScreen> {
   late Future<bool> _profileFuture;
+  bool _signingOut = false;
   final PushNotificationService _pushNotifications = PushNotificationService();
 
   @override
@@ -44,8 +45,26 @@ class _MainUserScreenState extends State<MainUserScreen> {
   }
 
   Future<void> _signOut() async {
-    await _pushNotifications.unregister();
-    await AuthService().signOut();
+    if (_signingOut) return;
+    setState(() => _signingOut = true);
+    try {
+      // Push-token cleanup is best-effort: a network failure must never keep
+      // an authenticated member or owner signed in.
+      try {
+        await _pushNotifications.unregister();
+      } catch (_) {
+        // Firebase Auth sign-out remains mandatory even when token cleanup fails.
+      }
+      await AuthService().signOut();
+      // AuthGate observes FirebaseAuth state and returns to the entry screen.
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر إنهاء جلسة الدخول. تحقق من الاتصال ثم أعد المحاولة.')),
+      );
+    } finally {
+      if (mounted) setState(() => _signingOut = false);
+    }
   }
 
   @override
@@ -86,8 +105,10 @@ class _MainUserScreenState extends State<MainUserScreen> {
           ),
           IconButton(
             tooltip: 'تسجيل الخروج',
-            onPressed: _signOut,
-            icon: const Icon(Icons.logout),
+            onPressed: _signingOut ? null : _signOut,
+            icon: _signingOut
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.logout),
           ),
         ],
       ),
