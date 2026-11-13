@@ -1,4 +1,18 @@
 export type MediaCategory = "image" | "video" | "audio" | "document";
+export type MediaPurpose = "chat" | "room" | "profile_album" | "avatar_cover" | "story";
+
+export const MEDIA_RETENTION_MS: Record<MediaPurpose, number> = {
+  chat: 4 * 60 * 60 * 1000,
+  room: 4 * 60 * 60 * 1000,
+  profile_album: 7 * 24 * 60 * 60 * 1000,
+  avatar_cover: 30 * 24 * 60 * 60 * 1000,
+  story: 24 * 60 * 60 * 1000,
+};
+
+export function mediaRetentionExpiresAt(purpose: MediaPurpose, nowMs = Date.now()): number {
+  if (!Number.isSafeInteger(nowMs) || nowMs < 0) throw new Error("Invalid media retention clock.");
+  return nowMs + MEDIA_RETENTION_MS[purpose];
+}
 export type MediaSignedUrlPurpose = "upload" | "owner-inspection";
 export const MEDIA_SIGNED_URL_TTL_MS: Record<MediaSignedUrlPurpose, number> = {
   upload: 5 * 60 * 1000,
@@ -43,10 +57,15 @@ export function normalizeMediaRequest(input: Record<string, unknown>): {
   originalName: string;
   contentType: string;
   declaredSizeBytes: number;
+  purpose: MediaPurpose;
 } {
   const originalName = typeof input.originalName === "string" ? input.originalName.trim() : "";
   const contentType = typeof input.contentType === "string" ? input.contentType.trim().toLowerCase() : "";
   const declaredSizeBytes = input.sizeBytes;
+  const purpose = typeof input.purpose === "string" ? input.purpose as MediaPurpose : "";
+  if (!Object.prototype.hasOwnProperty.call(MEDIA_RETENTION_MS, purpose)) {
+    throw new Error("غرض حفظ الملف غير صالح.");
+  }
   if (!originalName || originalName.length > 180 || /[\\/\u0000-\u001f]/.test(originalName)) {
     throw new Error("اسم الملف غير صالح.");
   }
@@ -54,7 +73,11 @@ export function normalizeMediaRequest(input: Record<string, unknown>): {
   if (typeof declaredSizeBytes !== "number" || !Number.isSafeInteger(declaredSizeBytes) || declaredSizeBytes <= 0) {
     throw new Error("حجم الملف المعلن غير صالح.");
   }
-  return { originalName, contentType, declaredSizeBytes };
+  const category = mediaPolicyFor(contentType)!.category;
+  if ((purpose === "profile_album" || purpose === "avatar_cover") && category !== "image") {
+    throw new Error("هذا الغرض مخصص للصور فقط.");
+  }
+  return { originalName, contentType, declaredSizeBytes, purpose };
 }
 
 /** Detect common file signatures from the first 32 bytes; not a malware scanner. */
