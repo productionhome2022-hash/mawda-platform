@@ -1168,6 +1168,7 @@ export const getDirectMessages = onCall(async (request) => {
         recipientUid: data.recipientUid ?? "",
         text: data.text ?? "",
         type: data.type ?? "text",
+        deletedForRequester: Array.isArray(data.deletedForUids) && data.deletedForUids.includes(uid),
         senderLabel: data.isPlatformOwnerMessage === true
           ? (typeof data.senderLabel === "string" ? data.senderLabel : "إدارة منصة مودة")
           : null,
@@ -1178,8 +1179,41 @@ export const getDirectMessages = onCall(async (request) => {
         createdAt,
         isReadByPeer: isMessageReadByPeer(createdAt, peerLastReadAt),
       };
-    }),
+    }).filter((message) => !message.deletedForRequester),
   };
+});
+
+/** Hides one direct message only for the authenticated participant. */
+export const deleteDirectMessageForMe = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const chatId = request.data?.chatId;
+  const messageId = request.data?.messageId;
+  if (typeof chatId !== "string" || !/^[a-f0-9]{64}$/.test(chatId) ||
+      typeof messageId !== "string" || !/^[a-f0-9]{64}$/.test(messageId)) {
+    throw new HttpsError("invalid-argument", "بيانات حذف الرسالة غير صالحة.");
+  }
+  const chatRef = db.collection("directChats").doc(chatId);
+  const messageRef = chatRef.collection("messages").doc(messageId);
+  await db.runTransaction(async (transaction) => {
+    const [chat, message] = await Promise.all([
+      transaction.get(chatRef), transaction.get(messageRef),
+    ]);
+    const participants = chat.data()?.participantUids;
+    if (!chat.exists || !message.exists || !Array.isArray(participants) ||
+        participants.length !== 2 || !participants.includes(uid)) {
+      throw new HttpsError("permission-denied", "لا تملك صلاحية إخفاء هذه الرسالة.");
+    }
+    transaction.update(messageRef, {
+      deletedForUids: FieldValue.arrayUnion(uid),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    const auditRef = db.collection("directMessageDeletionAudit").doc();
+    transaction.create(auditRef, {
+      chatId, messageId, actorUid: uid, action: "delete_for_me",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { chatId, messageId, hiddenForRequester: true };
 });
 
 /**
