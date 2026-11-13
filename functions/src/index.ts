@@ -4972,11 +4972,11 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
     .where("status", "==", "active").where("expiresAt", "<=", now).limit(100).get();
   for (const document of expired.docs) {
     const data = document.data();
-    await db.runTransaction(async (transaction) => {
+    const frozen = await db.runTransaction(async (transaction) => {
       const fresh = await transaction.get(document.ref);
       if (!fresh.exists || fresh.data()?.status !== "active" ||
           !(fresh.data()?.expiresAt instanceof Timestamp) ||
-          fresh.data()!.expiresAt.toMillis() > Date.now()) return;
+          fresh.data()!.expiresAt.toMillis() > Date.now()) return false;
       transaction.update(document.ref, {
         status: "frozen", frozenAt: FieldValue.serverTimestamp(),
         freezeExpiresAt: Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000),
@@ -4988,16 +4988,22 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
         body: "تم إيقاف الغرفة مؤقتاً لمدة 24 ساعة. يمكنك تجديدها من داخل التطبيق.",
         timestamp: FieldValue.serverTimestamp(), read: false,
       });
+      return true;
     });
+    if (frozen && typeof data.ownerUid === "string") {
+      await sendPushToMember(data.ownerUid, "انتهت مدة استئجار الغرفة",
+        "تم إيقاف الغرفة مؤقتاً لمدة 24 ساعة. يمكنك تجديدها من داخل التطبيق.",
+        { type: "room_rental_frozen", roomId: document.id });
+    }
   }
   const graceExpired = await db.collection("rooms").where("isRented", "==", true)
     .where("status", "==", "frozen").where("freezeExpiresAt", "<=", now).limit(100).get();
   for (const document of graceExpired.docs) {
-    await db.runTransaction(async (transaction) => {
+    const ownerUid = await db.runTransaction(async (transaction) => {
       const fresh = await transaction.get(document.ref);
       if (!fresh.exists || fresh.data()?.status !== "frozen" ||
           !(fresh.data()?.freezeExpiresAt instanceof Timestamp) ||
-          fresh.data()!.freezeExpiresAt.toMillis() > Date.now()) return;
+          fresh.data()!.freezeExpiresAt.toMillis() > Date.now()) return null;
       transaction.update(document.ref, { status: "closed", closedAt: FieldValue.serverTimestamp(),
         closeReason: "rental_expired", updatedAt: FieldValue.serverTimestamp() });
       const notificationRef = db.collection("notifications").doc();
@@ -5006,7 +5012,13 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
         body: "انتهت مهلة التجديد الإضافية. يمكنك التواصل مع الدعم عند الحاجة.",
         timestamp: FieldValue.serverTimestamp(), read: false,
       });
+      return typeof fresh.data()?.ownerUid === "string" ? fresh.data()!.ownerUid : null;
     });
+    if (ownerUid) {
+      await sendPushToMember(ownerUid, "أغلقت الغرفة لانتهاء الاستئجار",
+        "انتهت مهلة التجديد الإضافية. يمكنك التواصل مع الدعم عند الحاجة.",
+        { type: "room_rental_closed", roomId: document.id });
+    }
   }
 });
 
