@@ -390,6 +390,49 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     return '$hour:$minute';
   }
 
+  Future<void> _openLiveStream(String rawUrl) async {
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null || uri.scheme != 'https') return;
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر فتح رابط البث في التطبيق أو المتصفح الخارجي.')),
+      );
+    }
+  }
+
+  Widget _liveStreamCard(Map<String, dynamic> message) {
+    final stream = Map<String, dynamic>.from(message['liveStream'] as Map);
+    final url = stream['url'] as String? ?? '';
+    final title = stream['title'] as String? ?? 'بث مباشر من مالك مودة';
+    final description = stream['description'] as String? ?? '';
+    final host = stream['hostname'] as String? ?? '';
+    return Card(
+      margin: const EdgeInsets.only(top: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Row(children: [
+            Icon(Icons.live_tv_outlined), SizedBox(width: 8),
+            Text('بث مباشر من إدارة مودة', style: TextStyle(fontWeight: FontWeight.bold)),
+          ]),
+          const SizedBox(height: 8),
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          if (description.isNotEmpty) Text(description),
+          if (host.isNotEmpty) Text(host, style: Theme.of(context).textTheme.labelSmall),
+          const SizedBox(height: 8),
+          const Text('يُفتح البث من المصدر الأصلي؛ قد لا تسمح بعض المنصات بالتشغيل المضمّن داخل مودة.'),
+          const SizedBox(height: 8),
+          FilledButton.icon(
+            onPressed: url.isEmpty ? null : () => _openLiveStream(url),
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('فتح البث من المصدر الرسمي'),
+          ),
+        ]),
+      ),
+    );
+  }
+
   Widget _messageBubble(Map<String, dynamic> message) {
     final mine = message['senderUid'] == widget.currentUserId;
     final text = message['text'] as String? ?? '';
@@ -501,6 +544,8 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                       },
                     ),
                   ),
+                if (message['type'] == 'live_stream' && message['liveStream'] is Map)
+                  _liveStreamCard(message),
                 if (text.isNotEmpty) SelectableText(text),
                 const SizedBox(height: 4),
                 Row(
