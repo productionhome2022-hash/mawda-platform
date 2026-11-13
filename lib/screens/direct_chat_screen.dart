@@ -27,7 +27,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
   final MemberMediaUploadService _mediaService = MemberMediaUploadService();
-  final Map<String, Future<String?>> _attachmentUrlFutures = {};
+  final Map<String, ({Future<String?> future, DateTime expiresAt})> _attachmentUrlFutures = {};
   late Future<Map<String, dynamic>> _messagesFuture;
   bool _sending = false;
   bool _refreshing = false;
@@ -159,7 +159,11 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     final mediaId = message['mediaId'] as String? ?? '';
     final messageId = message['messageId'] as String? ?? '';
     final key = '$messageId:$mediaId';
-    return _attachmentUrlFutures.putIfAbsent(key, () async {
+    final cached = _attachmentUrlFutures[key];
+    if (cached != null && cached.expiresAt.isAfter(DateTime.now())) {
+      return cached.future;
+    }
+    final future = () async {
       if (mediaId.isEmpty || messageId.isEmpty) return null;
       try {
         final conversation = await _messagesFuture;
@@ -172,7 +176,12 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       } catch (_) {
         return null;
       }
-    });
+    }();
+    _attachmentUrlFutures[key] = (
+      future: future,
+      expiresAt: DateTime.now().add(const Duration(seconds: 100)),
+    );
+    return future;
   }
 
   Future<void> _deleteMessage(Map<String, dynamic> message) async {
