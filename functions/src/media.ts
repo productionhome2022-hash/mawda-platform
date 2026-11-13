@@ -18,7 +18,9 @@ import {
   normalizeMediaRequest,
   mediaUploaderTypeFromToken,
   mediaSignedUrlExpiresAt,
+  MEDIA_SIGNED_URL_TTL_MS,
 } from "./media-security";
+import { MEDIA_UPLOAD_CLEANUP_GRACE_MS, uploadIntentIsEligibleForCleanup } from "./media-cleanup";
 
 // Resolve Admin SDK services lazily. This module is re-exported by index.ts,
 // whose static imports execute before initializeApp(); eager resolution here
@@ -733,7 +735,9 @@ export const getOwnerMediaInspectionUrl = onCall(async () => {
 export const cleanupExpiredMediaUploadIntents = onSchedule(
   { schedule: "every 15 minutes", timeZone: "UTC" },
   async () => {
-    const cutoff = Timestamp.fromMillis(Date.now() - 15 * 60 * 1000);
+    const nowMs = Date.now();
+    const cleanupAgeMs = MEDIA_SIGNED_URL_TTL_MS.upload + MEDIA_UPLOAD_CLEANUP_GRACE_MS;
+    const cutoff = Timestamp.fromMillis(nowMs - cleanupAgeMs);
     const assets = mediaDb().collection("mediaAssets");
     const [expired, retrying] = await Promise.all([
       assets.where("status", "==", "upload_authorized")
@@ -753,7 +757,11 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
         if (!current.exists || !data) return null;
         if (data.status === "upload_authorized") {
           const createdAt = data.createdAt as Timestamp | undefined;
-          if (!createdAt || createdAt.toMillis() > cutoff.toMillis()) return null;
+          const uploadExpiry = data.uploadUrlExpiresAt as Timestamp | undefined;
+          const expiryMs = uploadExpiry?.toMillis() ??
+            (createdAt ? createdAt.toMillis() + MEDIA_SIGNED_URL_TTL_MS.upload : Number.NaN);
+          if (!createdAt || createdAt.toMillis() > cutoff.toMillis() ||
+              !uploadIntentIsEligibleForCleanup(expiryMs, nowMs)) return null;
           transaction.update(assetRef, {
             status: "expired_cleanup_in_progress",
             cleanupStartedAt: FieldValue.serverTimestamp(),
@@ -763,6 +771,8 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
             reservedBytes: Number(data.declaredSizeBytes) };
         }
         if (data.status === "expired_cleanup_in_progress") {
+          const recheckAt = data.cleanupMissingObjectRecheckAt as Timestamp | undefined;
+          if (recheckAt && recheckAt.toMillis() > nowMs) return null;
           return { ownerUid: String(data.ownerUid), objectPath: String(data.objectPath),
             reservedBytes: Number(data.declaredSizeBytes) };
         }
@@ -772,15 +782,49 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
 
       try {
         const abandonedFile = mediaBucket().file(claimed.objectPath);
+        let objectMissing = false;
+        let objectMetadata: Record<string, unknown> | null = null;
         try {
-          const [objectMetadata] = await abandonedFile.getMetadata();
-          const generation = Number(objectMetadata.generation);
+          const [metadata] = await abandonedFile.getMetadata();
+          objectMetadata = metadata as unknown as Record<string, unknown>;
+        } catch (error) {
+          if ((error as { code?: number }).code !== 404) throw error;
+          objectMissing = true;
+        }
+        if (objectMissing) {
+          const current = await assetRef.get();
+          const recheckAt = current.data()?.cleanupMissingObjectRecheckAt as Timestamp | undefined;
+          if (!recheckAt) {
+            await mediaDb().runTransaction(async (transaction) => {
+              const latest = await transaction.get(assetRef);
+              const latestData = latest.data();
+              if (!latest.exists || latestData?.status !== "expired_cleanup_in_progress" ||
+                  latestData.cleanupMissingObjectRecheckAt) return;
+              transaction.update(assetRef, {
+                cleanupMissingObjectFirstSeenAt: FieldValue.serverTimestamp(),
+                cleanupMissingObjectRecheckAt: Timestamp.fromMillis(Date.now() + 6 * 60 * 60 * 1000),
+                updatedAt: FieldValue.serverTimestamp(),
+              });
+              transaction.create(mediaDb().collection("mediaAccessAudit").doc(), {
+                actorUid: claimed.ownerUid,
+                mediaId: candidate.id,
+                action: "media_upload_cleanup_waiting_for_object",
+                outcome: "deferred",
+                objectPath: claimed.objectPath,
+                createdAt: FieldValue.serverTimestamp(),
+              });
+            });
+            continue;
+          }
+          if (recheckAt.toMillis() > Date.now()) continue;
+          // After a six-hour recheck window, no object exists and the signed
+          // upload capability has long expired; safe to release the reservation.
+        } else {
+          const generation = Number(objectMetadata?.generation);
           if (!Number.isSafeInteger(generation) || generation <= 0) {
             throw new Error("Abandoned media object has an invalid generation.");
           }
           await abandonedFile.delete({ ignoreNotFound: true, ifGenerationMatch: generation });
-        } catch (error) {
-          if ((error as { code?: number }).code !== 404) throw error;
         }
         await mediaDb().runTransaction(async (transaction) => {
           const [current, quotaSnapshot] = await Promise.all([
