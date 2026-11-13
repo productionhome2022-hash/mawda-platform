@@ -35,11 +35,17 @@ test("coin transfer atomically writes both wallet ledgers and platform commissio
     const request = memberRequest(senderUid, {
       recipientUid, amount: 1000, requestId, expectedCommissionBps: 2000,
     });
-    const result = await transferCoins.run(request);
+    const concurrentResults = await Promise.all([
+      transferCoins.run(request),
+      transferCoins.run(request),
+    ]);
+    assert.equal(concurrentResults.filter((value) => value.idempotentReplay === false).length, 1);
+    assert.equal(concurrentResults.filter((value) => value.idempotentReplay === true).length, 1);
+    const result = concurrentResults.find((value) => value.idempotentReplay === false);
+    assert.ok(result);
     assert.equal(result.grossAmount, 1000);
     assert.equal(result.commissionAmount, 200);
     assert.equal(result.netAmount, 800);
-    assert.equal(result.idempotentReplay, false);
 
     const [sender, recipient, senderLedger, recipientLedger, platformLedger, transfer] =
       await Promise.all([
