@@ -10,6 +10,8 @@ const {
   getOwnerMediaInspectionUrl,
   ownerMediaInspectionStream,
   getOwnerMediaSafePreview,
+  cleanupExpiredMediaUploadIntents,
+  cleanupRetainedMediaAssets,
 } = require("../../lib/media");
 
 const { initializeApp, getApps } = require("firebase-admin/app");
