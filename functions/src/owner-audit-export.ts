@@ -50,7 +50,7 @@ export function validateOwnerAuditExportRequest(
   };
 }
 
-const OMIT_AUDIT_KEYS = /token|secret|password|signed.?url|download.?url|raw.?body|file.?bytes|message.?text|notice.?text|content.?body/i;
+const OMIT_AUDIT_KEYS = /token|secret|password|signed.?url|download.?url|raw.?body|file.?bytes|message.?text|notice.?text|content.?body|^text$|^body$|^content$/i;
 
 /** Remove credentials and user-generated content from exported audit metadata. */
 export function projectOwnerAuditExportValue(value: unknown): unknown {
