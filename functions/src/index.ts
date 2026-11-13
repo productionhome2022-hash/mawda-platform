@@ -2071,9 +2071,44 @@ export const getRoomMessages = onCall(async (request) => {
         content: data.isDeleted === true ? "تم حذف هذه الرسالة" : (data.content ?? ""),
         isDeleted: data.isDeleted === true,
         createdAt: data.createdAt?.toMillis?.() ?? null,
+        deletedForRequester: Array.isArray(data.deletedForUids) && data.deletedForUids.includes(uid),
       };
-    }),
+    }).filter((message) => !message.deletedForRequester),
   };
+});
+
+/** Hides a room message only for the requesting member on all their synced clients. */
+export const deleteRoomMessageForMe = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = request.data?.roomId;
+  const messageId = request.data?.messageId;
+  if (typeof roomId !== "string" || roomId.length < 1 || roomId.length > 128 ||
+      typeof messageId !== "string" || !/^[a-f0-9]{64}$/.test(messageId)) {
+    throw new HttpsError("invalid-argument", "بيانات إخفاء الرسالة غير صالحة.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId);
+  const membershipRef = roomRef.collection("members").doc(uid);
+  const messageRef = roomRef.collection("messages").doc(messageId);
+  await db.runTransaction(async (transaction) => {
+    const [room, membership, message] = await Promise.all([
+      transaction.get(roomRef), transaction.get(membershipRef), transaction.get(messageRef),
+    ]);
+    if (!room.exists || !membership.exists || !message.exists) {
+      throw new HttpsError("not-found", "الرسالة أو عضوية الغرفة غير موجودة.");
+    }
+    if (message.data()?.isDeleted === true) return;
+    transaction.update(messageRef, {
+      deletedForUids: FieldValue.arrayUnion(uid),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    const auditRef = db.collection("roomAuditLogs").doc();
+    transaction.create(auditRef, {
+      roomId, actorUid: uid, messageId,
+      action: "room_message_deleted_for_me",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { roomId, messageId, hiddenForRequester: true };
 });
 
 export const deleteRoomMessage = onCall(async (request) => {
