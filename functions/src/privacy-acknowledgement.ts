@@ -7,7 +7,7 @@ export type PrivacyAcknowledgement = {
   policyVersion: string;
   policyHash: string;
   locale: "ar" | "en" | "fr" | "es";
-  actorType: "member";
+  actorType: "member" | "guest";
   appVersion: string;
 };
 
@@ -25,7 +25,7 @@ export function validatePrivacyAcknowledgement(
   if (locale !== "ar" && locale !== "en" && locale !== "fr" && locale !== "es") {
     throw new Error("PRIVACY_POLICY_LOCALE_INVALID");
   }
-  if (input.actorType !== "member") {
+  if (input.actorType !== "member" && input.actorType !== "guest") {
     throw new Error("PRIVACY_POLICY_ACTOR_INVALID");
   }
   const appVersion = input.appVersion;
