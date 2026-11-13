@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
@@ -166,12 +167,17 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         'mp3', 'm4a', 'ogg', 'wav', 'mp4', 'pdf',
       ],
       allowMultiple: false,
-      withData: false,
+      withData: kIsWeb,
     );
     if (picked == null || picked.files.isEmpty || !mounted) return;
     final selected = picked.files.single;
     final path = selected.path;
-    if (path == null || path.isEmpty) {
+    final XFile? selectedFile = path != null && path.isNotEmpty
+        ? XFile(path, name: selected.name)
+        : selected.bytes != null
+            ? XFile.fromData(selected.bytes!, name: selected.name)
+            : null;
+    if (selectedFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تعذر الوصول إلى الملف المحدد على هذا الجهاز.')),
       );
@@ -180,7 +186,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     setState(() => _sending = true);
     try {
       final mediaId = await _mediaService.uploadChatAttachment(
-        file: XFile(path, name: selected.name),
+        file: selectedFile,
         scope: 'direct',
       );
       await _mediaService.sendChatMediaAttachment(
