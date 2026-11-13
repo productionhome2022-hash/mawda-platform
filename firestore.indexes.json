@@ -69,6 +69,38 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "mediaAssets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "mediaPurpose",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "retentionExpiresAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "mediaAssets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "mediaPurpose",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "retentionExpiresAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
