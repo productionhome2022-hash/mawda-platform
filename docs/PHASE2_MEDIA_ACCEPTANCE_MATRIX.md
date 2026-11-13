@@ -114,7 +114,7 @@ Before running it, configure these repository variables:
 - `MAWDA_WIF_PROVIDER`: Workload Identity Federation provider resource name.
 - `MAWDA_NONPROD_TEST_SERVICE_ACCOUNT`: dedicated non-production test service account email.
 
-The selected service account needs permission to read bucket metadata, create objects, list object versions, and delete exact generations in the dedicated test bucket. Dispatch the workflow with a project ID and bucket name containing an explicit marker such as `test`, `staging`, `dev`, `demo`, `nonprod` or `sandbox`. The scripts independently reject production-like targets, bucket soft-delete retention and bucket retention policies, and verify signed PUT replay (412), size rejection (400), GET/PUT expiry, uniform bucket-level access, public access prevention and exact-generation purge.
+The selected service account needs permission to read bucket metadata, create objects, list object versions, and delete exact generations in the dedicated test bucket. Dispatch the workflow with a project ID and bucket name containing an explicit marker such as `test`, `staging`, `dev`, `nonprod`, `sandbox` or `qa`. The scripts independently reject production-like targets, bucket soft-delete retention and bucket retention policies, and verify signed PUT replay (412), size rejection (400), GET/PUT expiry, uniform bucket-level access, public access prevention and exact-generation purge.
 
 **Not yet executed:** this workflow is a safe execution path, not proof of a successful live GCS test. No GCP project, WIF provider, service account or bucket credentials are available to this code-edit session. Phase 2 remains open until the workflow is run successfully against a dedicated non-production bucket.
 
