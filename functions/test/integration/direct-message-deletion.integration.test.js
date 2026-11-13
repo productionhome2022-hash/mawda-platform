@@ -12,6 +12,7 @@ const {
   getDirectMessages,
   getRoomMessages,
   setMemberBlock,
+  sendDirectMessage,
 } = require("../../lib/index");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
@@ -31,8 +32,8 @@ test("member block and unblock are server-authorized, idempotent state updates",
   const targetUid = `blocked-${suffix}`;
   const actorRef = db.collection("users").doc(actorUid);
   const targetRef = db.collection("users").doc(targetUid);
-  await actorRef.set({ uid: actorUid, profileCompleted: true, blockedUids: [] });
-  await targetRef.set({ uid: targetUid, profileCompleted: true });
+  await actorRef.set({ uid: actorUid, profileCompleted: true, age: 30, accountStatus: "active", blockedUids: [] });
+  await targetRef.set({ uid: targetUid, profileCompleted: true, age: 30, accountStatus: "active" });
 
   try {
     const block = await setMemberBlock.run(memberRequest(actorUid, {
@@ -40,6 +41,12 @@ test("member block and unblock are server-authorized, idempotent state updates",
     }));
     assert.deepEqual(block, { targetUid, blocked: true });
     assert.deepEqual((await actorRef.get()).data().blockedUids, [targetUid]);
+    await assert.rejects(
+      () => sendDirectMessage.run(memberRequest(actorUid, {
+        recipientUid: targetUid, text: "blocked delivery must fail", clientMessageId: `blocked-${suffix}`,
+      })),
+      (error) => error && error.code === "permission-denied",
+    );
 
     const replay = await setMemberBlock.run(memberRequest(actorUid, {
       targetUid, blocked: true,
