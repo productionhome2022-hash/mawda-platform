@@ -295,6 +295,104 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     }
   }
 
+  Future<void> _reviewMediaLegalHold(Map<String, dynamic> hold) async {
+    final holdId = hold['holdId'] as String?;
+    final endsAtMs = hold['endsAtMs'];
+    if (holdId == null || endsAtMs is! num) return;
+    final note = TextEditingController();
+    DateTime? nextReviewAt;
+    final now = DateTime.now();
+    final endsAt = DateTime.fromMillisecondsSinceEpoch(endsAtMs.toInt());
+    final values = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('مراجعة الحجز القانوني'),
+          content: SizedBox(
+            width: 440,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('المرجع: ${hold['reference'] ?? holdId}'),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: note,
+                  onChanged: (_) => setDialogState(() {}),
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'نتيجة المراجعة ومبررات استمرار الحجز',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('موعد المراجعة القادم'),
+                  subtitle: Text(nextReviewAt?.toLocal().toString() ?? 'لم يُحدد'),
+                  trailing: const Icon(Icons.calendar_month),
+                  onTap: () async {
+                    final latestAllowed = endsAt.subtract(const Duration(days: 1));
+                    if (!latestAllowed.isAfter(now)) return;
+                    final picked = await showDatePicker(
+                      context: dialogContext,
+                      initialDate: nextReviewAt ?? now.add(const Duration(days: 7)),
+                      firstDate: now,
+                      lastDate: latestAllowed,
+                    );
+                    if (picked != null) {
+                      setDialogState(() => nextReviewAt = DateTime(
+                        picked.year, picked.month, picked.day, 23, 59,
+                      ));
+                    }
+                  },
+                ),
+                const Text(
+                  'لا يؤدي هذا الإجراء إلى تمديد تاريخ انتهاء الحجز.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: note.text.trim().length < 10 ||
+                      nextReviewAt == null ||
+                      !nextReviewAt!.isBefore(endsAt)
+                  ? null
+                  : () => Navigator.pop(dialogContext, {
+                        'note': note.text.trim(),
+                        'nextReviewAt': nextReviewAt,
+                      }),
+              child: const Text('تسجيل المراجعة'),
+            ),
+          ],
+        ),
+      ),
+    );
+    note.dispose();
+    if (values == null || !mounted) return;
+    try {
+      await _service.reviewMediaLegalHold(
+        holdId: holdId,
+        reviewNote: values['note'] as String,
+        nextReviewAtMs: (values['nextReviewAt'] as DateTime).millisecondsSinceEpoch,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم تسجيل مراجعة الحجز القانوني.')),
+      );
+      await _showActiveMediaLegalHolds();
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذرت مراجعة الحجز القانوني.')),
+      );
+    }
+  }
+
   Future<void> _showActiveMediaLegalHolds() async {
     try {
       final result = await _service.listActiveMediaLegalHolds();
@@ -322,26 +420,39 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                           'الانتهاء: ${hold['endsAtMs'] == null ? 'غير محدد' : DateTime.fromMillisecondsSinceEpoch((hold['endsAtMs'] as num).toInt()).toLocal()}',
                         ),
                         isThreeLine: true,
-                        trailing: IconButton(
-                          tooltip: 'إطلاق الحجز',
-                          icon: const Icon(Icons.lock_open),
-                          onPressed: () async {
-                            try {
-                              await _service.releaseMediaLegalHold(hold['holdId'] as String);
-                              if (!dialogContext.mounted) return;
-                              Navigator.pop(dialogContext);
-                              await _loadOwnerMedia();
-                              if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('تم إطلاق الحجز واستئناف جدول الاحتفاظ الأصلي.')),
-                              );
-                            } on FirebaseFunctionsException catch (error) {
-                              if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(error.message ?? 'تعذر إطلاق الحجز.')),
-                              );
-                            }
-                          },
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: 'تسجيل مراجعة',
+                              icon: const Icon(Icons.fact_check_outlined),
+                              onPressed: () async {
+                                Navigator.pop(dialogContext);
+                                await _reviewMediaLegalHold(hold);
+                              },
+                            ),
+                            IconButton(
+                              tooltip: 'إطلاق الحجز',
+                              icon: const Icon(Icons.lock_open),
+                              onPressed: () async {
+                                try {
+                                  await _service.releaseMediaLegalHold(hold['holdId'] as String);
+                                  if (!dialogContext.mounted) return;
+                                  Navigator.pop(dialogContext);
+                                  await _loadOwnerMedia();
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('تم إطلاق الحجز واستئناف جدول الاحتفاظ الأصلي.')),
+                                  );
+                                } on FirebaseFunctionsException catch (error) {
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(error.message ?? 'تعذر إطلاق الحجز.')),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
                         ),
                       );
                     },
