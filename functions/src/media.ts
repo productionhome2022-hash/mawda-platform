@@ -183,7 +183,8 @@ export const receiveMediaScanVerdict = onRequest(
   response.status(200).json({ mediaId: verdict.mediaId, status: nextStatus });
   },
 );
-\n
+
+
 /** Queue a single scan job whenever an asset enters the quarantined scan state. */
 export const enqueueMediaSecurityScan = onDocumentUpdated(
   { document: "mediaAssets/{mediaId}", retry: true },
