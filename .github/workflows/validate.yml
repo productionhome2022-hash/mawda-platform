@@ -102,7 +102,7 @@ jobs:
           docker run --rm --entrypoint sh mawda-clamav-scanner:ci -c '
             set -eu
             freshclam --stdout
-            printf "%s" '\''X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'\'' > /tmp/eicar.com
+            printf '%s' 'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=' | base64 -d > /tmp/eicar.com
             set +e
             clamscan --infected --no-summary /tmp/eicar.com
             result=$?
