@@ -3694,7 +3694,7 @@ export const sendRoomMessage = onCall(async (request) => {
     const roomData = room.data() ?? {};
     const isRoomOwner = roomData.ownerUid === uid;
     const isAuthorizedModerator = moderator.exists;
-    const ownerSession = hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>);
+    const ownerSession = hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, uid);
     const isBiometricallyVerified = hasActiveBiometricVerification(member.data()?.biometricVerification);
     try {
       assertMessageLinksAllowed(
@@ -3851,7 +3851,7 @@ export const deleteRoomMessage = onCall(async (request) => {
     ]);
     if (!room.exists) throw new HttpsError("not-found", "الغرفة غير موجودة.");
     const ownerSession = hasPlatformOwnerSession(
-      (request.auth?.token ?? {}) as Record<string, unknown>,
+      (request.auth?.token ?? {}) as Record<string, unknown>, undefined, uid,
     );
     const permissions = moderator.data()?.permissions ?? {};
     const canModerate = room.data()?.ownerUid === uid ||
@@ -4113,7 +4113,7 @@ export const setRoomModerator = onCall(async (request) => {
       transaction.get(roomRef), transaction.get(membershipRef),
     ]);
     const platformOwner = hasPlatformOwnerSession(
-      (request.auth?.token ?? {}) as Record<string, unknown>,
+      (request.auth?.token ?? {}) as Record<string, unknown>, undefined, uid,
     );
     if (!room.exists || (room.data()?.ownerUid !== actorUid && !platformOwner)) {
       throw new HttpsError("permission-denied", "تعيين مشرفي الغرفة من صلاحية مالك الغرفة أو مالك المنصة فقط.");
@@ -4542,7 +4542,7 @@ export const listMemberRooms = onCall(async (request) => {
     return roomRef && roomRef.parent.id === "rooms" ? [roomRef] : [];
   });
   const isPlatformOwner = hasPlatformOwnerSession(
-    (request.auth?.token ?? {}) as Record<string, unknown>,
+    (request.auth?.token ?? {}) as Record<string, unknown>, undefined, uid,
   );
   const joinedSnapshots = joinedRoomRefs.length > 0
     ? await db.getAll(...joinedRoomRefs)
