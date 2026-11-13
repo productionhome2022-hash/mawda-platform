@@ -33,6 +33,8 @@ test("audit export redacts credentials, signed URLs and user-generated content r
     signedUrl: "https://storage.invalid/token",
     accessToken: "secret",
     noticeText: "private user content",
+    text: "raw message",
+    content: "raw content",
     details: {
       messageText: "private",
       count: 2,
