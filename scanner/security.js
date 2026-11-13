@@ -64,4 +64,19 @@ function isSafeDerivativeMetadata(metadata, expected) {
     custom.processing === "sharp-decode-reencode-v1");
 }
 
-module.exports = { equalSecret, validateScanRequest, isSafeDerivativeMetadata };
+function sanitizeScannerError(error) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const fixed = new Set([
+    "REQUEST_TOO_LARGE", "SOURCE_EXCEEDS_SCAN_LIMIT", "EMPTY_SOURCE_OBJECT",
+    "CLAMAV_SCAN_INCOMPLETE", "SAFE_DERIVATIVE_SIZE_INVALID",
+    "GIF_COMPLEXITY_EXCEEDS_SAFE_LIMIT", "EXISTING_SAFE_DERIVATIVE_PROVENANCE_MISMATCH",
+    "SAFE_DERIVATIVE_METADATA_MISMATCH", "SCANNER_CALLBACK_NOT_CONFIGURED",
+  ]);
+  if (fixed.has(message) || /^SOURCE_DOWNLOAD_HTTP_\\d{3}$/.test(message) ||
+      /^SCANNER_CALLBACK_HTTP_\\d{3}$/.test(message)) return message;
+  return "SCAN_FAILED";
+}
+
+module.exports = {
+  equalSecret, validateScanRequest, isSafeDerivativeMetadata, sanitizeScannerError,
+};
