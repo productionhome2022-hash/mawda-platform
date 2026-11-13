@@ -189,13 +189,13 @@ async function createSafeImageDerivative(sourcePath, request, sourceSha256) {
   };
 }
 
-async function sendVerdict(payload) {
+async function sendVerdict(payload, callbackUrl) {
   if (!CALLBACK_URL || !HMAC_SECRET || HMAC_SECRET.length < 32) {
     throw new Error("SCANNER_CALLBACK_NOT_CONFIGURED");
   }
   const body = Buffer.from(JSON.stringify(payload));
   const signature = createHmac("sha256", HMAC_SECRET).update(body).digest("hex");
-  const response = await fetch(CALLBACK_URL, {
+  const response = await fetch(callbackUrl, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -223,7 +223,7 @@ async function handleScan(request, response) {
       return;
     }
     const body = await readJson(request);
-    scanRequest = validateScanRequest(body, PROVIDER, BUCKET_NAME);
+    scanRequest = validateScanRequest(body, PROVIDER, BUCKET_NAME, CALLBACK_URL);
     if (!scanRequest) {
       json(response, 400, { error: "invalid_scan_request" });
       return;
@@ -245,7 +245,7 @@ async function handleScan(request, response) {
       sha256: sourceSha256,
       scannedAtMs: Date.now(),
       ...(derivative || {}),
-    });
+    }, scanRequest.callbackUrl);
     console.info(JSON.stringify({
       event: "media_scan_completed",
       mediaId: scanRequest.mediaId,
