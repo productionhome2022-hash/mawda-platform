@@ -4,7 +4,7 @@ This service is the isolated scanning worker called by the Firebase Functions di
 
 ## Security model
 
-- HTTPS endpoint accepts only POST `/scan` and requires a high-entropy bearer API token (minimum 32 bytes).
+- Cloud Run must be deployed with IAM authentication enabled (no unauthenticated invoker). Firebase Functions obtains a Google-signed identity token for the Cloud Run service audience; Cloud Run IAM validates it before the request reaches this container. The container also requires a separate high-entropy `x-mawadda-scanner-token` (minimum 32 bytes).
 - Request validation binds a UUID media ID, exact quarantine object path, generation, provider and a Google Cloud Storage HTTPS signed-read URL. Redirects and non-GCS hosts are rejected.
 - Downloads are bounded to 100 MiB and streamed to a private temporary file. The signed URL, token and file contents are never written to logs.
 - ClamAV runs with explicit archive recursion, file-count, scan-size and file-size limits. Any timeout, parser limit, incomplete scan or scanner error is a failure, never a clean verdict.
@@ -33,7 +33,7 @@ The Cloud Run runtime service account needs object-create permission for the `pr
    - `MAWDA_MEDIA_SCANNER_URL`
    - `MAWDA_MEDIA_SCANNER_CALLBACK_URL`
    - `MAWDA_MEDIA_SCANNER_PROVIDER`
-3. Build and deploy this container to Cloud Run in the same approved region. Set `SCANNER_API_TOKEN`, `SCANNER_HMAC_SECRET`, `SCANNER_CALLBACK_URL`, `SCANNER_PROVIDER`, and `GCS_BUCKET` from Secret Manager/config. Use a dedicated service account, minimal storage object-create permission, no service-account keys, no shell/debug endpoints, and restricted egress where practical.
+3. Build and deploy this container to Cloud Run in the same approved region. Set `SCANNER_API_TOKEN`, `SCANNER_HMAC_SECRET`, `SCANNER_CALLBACK_URL`, `SCANNER_PROVIDER`, and `GCS_BUCKET` from Secret Manager/config. Use a dedicated service account, grant `roles/run.invoker` to the Firebase Functions runtime service account, grant only the required storage object-create permission for the `processed/` derivatives, use no service-account keys, expose no shell/debug endpoints, and restrict egress where practical.
 4. Configure Firebase Functions scanner URL and secrets to match the deployed service.
 5. Test clean EICAR-free sample images, the standard EICAR test string in a supported container (must be rejected), malformed images, oversized objects, expired signed URLs, generation mismatch, bad HMAC, stale callback, duplicate callback, scanner timeout and Cloud Run restart/retry in non-production.
 6. Do not enable member delivery for non-image media until its separate safe processing pipeline is implemented and validated.
