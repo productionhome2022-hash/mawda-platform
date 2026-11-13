@@ -56,17 +56,27 @@ test("Flutter privacy notice version and body hash match the backend policy cons
     path.join(__dirname, "../../lib/privacy_policy.dart"),
     "utf8",
   );
-  const version = frontendSource.match(/const mawdaPrivacyPolicyVersion = '([^']+)';/);
-  const hash = frontendSource.match(/const mawdaPrivacyPolicyHash =\\s*'([^']+)';/);
-  const body = frontendSource.match(/const mawdaPrivacyNoticeArabic = '''([\\s\\S]*?)''';/);
+  const versionMarker = "const mawdaPrivacyPolicyVersion = '";
+  const versionStart = frontendSource.indexOf(versionMarker);
+  const versionEnd = frontendSource.indexOf("';", versionStart);
+  const hashMarker = "const mawdaPrivacyPolicyHash =";
+  const hashStart = frontendSource.indexOf("'", frontendSource.indexOf(hashMarker)) + 1;
+  const hashEnd = frontendSource.indexOf("'", hashStart);
+  const bodyMarker = "const mawdaPrivacyNoticeArabic = '''";
+  const bodyStart = frontendSource.indexOf(bodyMarker) + bodyMarker.length;
+  const bodyEnd = frontendSource.indexOf("'''", bodyStart);
 
-  assert.ok(version, "Flutter policy version must be present");
-  assert.ok(hash, "Flutter policy hash must be present");
-  assert.ok(body, "Flutter Arabic policy body must be present");
-  assert.equal(version[1], PRIVACY_POLICY_VERSION);
-  assert.equal(hash[1], PRIVACY_POLICY_SHA256);
+  assert.notEqual(versionStart, -1, "Flutter policy version must be present");
+  assert.notEqual(hashStart, 0, "Flutter policy hash must be present");
+  assert.notEqual(bodyStart, bodyMarker.length - 1, "Flutter Arabic policy body must be present");
+  const version = frontendSource.slice(versionStart + versionMarker.length, versionEnd);
+  const hash = frontendSource.slice(hashStart, hashEnd);
+  const body = frontendSource.slice(bodyStart, bodyEnd);
+
+  assert.equal(version, PRIVACY_POLICY_VERSION);
+  assert.equal(hash, PRIVACY_POLICY_SHA256);
   assert.equal(
-    createHash("sha256").update(body[1], "utf8").digest("hex"),
+    createHash("sha256").update(body, "utf8").digest("hex"),
     PRIVACY_POLICY_SHA256,
   );
 });
