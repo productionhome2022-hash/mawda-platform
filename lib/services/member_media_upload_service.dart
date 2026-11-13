@@ -111,6 +111,135 @@ class MemberMediaUploadService {
     throw TimeoutException('لم يكتمل فحص الصورة خلال المهلة المحددة؛ بقيت الصورة غير متاحة.', timeout);
   }
 
+  String _chatAttachmentContentType(XFile file) {
+    final supplied = file.mimeType?.toLowerCase();
+    const allowed = {
+      'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+      'audio/mpeg', 'audio/mp4', 'audio/ogg', 'audio/wav',
+      'video/mp4', 'application/pdf',
+    };
+    if (supplied != null && allowed.contains(supplied)) return supplied;
+    final name = file.name.toLowerCase();
+    if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
+    if (name.endsWith('.png')) return 'image/png';
+    if (name.endsWith('.webp')) return 'image/webp';
+    if (name.endsWith('.gif')) return 'image/gif';
+    if (name.endsWith('.mp3')) return 'audio/mpeg';
+    if (name.endsWith('.m4a')) return 'audio/mp4';
+    if (name.endsWith('.ogg')) return 'audio/ogg';
+    if (name.endsWith('.wav')) return 'audio/wav';
+    if (name.endsWith('.mp4')) return 'video/mp4';
+    if (name.endsWith('.pdf')) return 'application/pdf';
+    throw const FormatException('نوع المرفق غير مدعوم؛ المسموح الصور وGIF والصوت وMP4 وPDF.');
+  }
+
+  Future<String> uploadChatAttachment({
+    required XFile file,
+    required String scope,
+  }) async {
+    if (scope != 'direct' && scope != 'room') {
+      throw ArgumentError.value(scope, 'scope');
+    }
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) throw const FormatException('ملف المرفق فارغ.');
+    final contentType = _chatAttachmentContentType(file);
+    final intentResponse = await _functions.httpsCallable('createMediaUploadIntent').call({
+      'originalName': file.name,
+      'contentType': contentType,
+      'sizeBytes': bytes.length,
+      'purpose': scope == 'direct' ? 'chat' : 'room',
+    });
+    final intent = Map<String, dynamic>.from(intentResponse.data as Map);
+    final uploadUrl = intent['uploadUrl'] as String?;
+    final mediaId = intent['mediaId'] as String?;
+    final headers = Map<String, dynamic>.from(
+      intent['requiredHeaders'] as Map? ?? const <String, dynamic>{},
+    );
+    if (uploadUrl == null || mediaId == null || headers.isEmpty) {
+      throw StateError('استجابة طلب رفع المرفق غير مكتملة.');
+    }
+    final uploadResponse = await _client.put(
+      Uri.parse(uploadUrl),
+      headers: headers.map((key, value) => MapEntry(key, '$value')),
+      body: bytes,
+    );
+    if (uploadResponse.statusCode != 200) {
+      throw StateError('فشل رفع المرفق الآمن (HTTP ${uploadResponse.statusCode}).');
+    }
+    await _functions.httpsCallable('finalizeMediaUpload').call({'mediaId': mediaId});
+    await waitForSafeAttachmentApproval(mediaId);
+    return mediaId;
+  }
+
+  Future<void> waitForSafeAttachmentApproval(
+    String mediaId, {
+    Duration timeout = const Duration(minutes: 3),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      final response = await _functions.httpsCallable('getMyMediaUploadStatus')
+          .call({'mediaId': mediaId});
+      final status = Map<String, dynamic>.from(response.data as Map);
+      if (status['safeDerivativeReady'] == true) return;
+      if (status['status'] == 'rejected') {
+        throw StateError('رفض نظام الأمان المرفق: ${status['rejectionCode'] ?? 'MEDIA_REJECTED'}');
+      }
+      if (['self_destructed', 'expired', 'manually_deleted'].contains(status['status'])) {
+        throw StateError('انتهت صلاحية المرفق قبل اكتمال المعالجة.');
+      }
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
+    throw TimeoutException('لم تكتمل معالجة المرفق الآمنة؛ بقي غير قابل للإرسال.', timeout);
+  }
+
+  Future<Map<String, dynamic>> sendChatMediaAttachment({
+    required String scope,
+    required String mediaId,
+    required String clientMessageId,
+    String? recipientUid,
+    String? roomId,
+    String caption = '',
+  }) async {
+    if (scope != 'direct' && scope != 'room') throw ArgumentError.value(scope, 'scope');
+    if (scope == 'direct' && (recipientUid == null || recipientUid.isEmpty)) {
+      throw ArgumentError('recipientUid is required for direct messages.');
+    }
+    if (scope == 'room' && (roomId == null || roomId.isEmpty)) {
+      throw ArgumentError('roomId is required for room messages.');
+    }
+    final response = await _functions.httpsCallable('sendChatMediaAttachment').call({
+      'scope': scope,
+      'mediaId': mediaId,
+      'clientMessageId': clientMessageId,
+      'caption': caption,
+      if (recipientUid != null) 'recipientUid': recipientUid,
+      if (roomId != null) 'roomId': roomId,
+    });
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<String> getChatMediaAttachmentUrl({
+    required String scope,
+    required String mediaId,
+    required String messageId,
+    String? chatId,
+    String? roomId,
+  }) async {
+    final response = await _functions.httpsCallable('getChatMediaAttachmentUrl').call({
+      'scope': scope,
+      'mediaId': mediaId,
+      'messageId': messageId,
+      if (chatId != null) 'chatId': chatId,
+      if (roomId != null) 'roomId': roomId,
+    });
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final url = data['url'];
+    if (url is! String || url.isEmpty) {
+      throw StateError('لم يُرجع الخادم رابط المرفق الآمن.');
+    }
+    return url;
+  }
+
   Future<void> selectProfileImage({
     required String mediaId,
     required String slot,
