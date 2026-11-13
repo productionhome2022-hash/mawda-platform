@@ -162,7 +162,7 @@ async function handleScan(request, response) {
   let tempDir;
   let scanRequest;
   try {
-    if (!equalSecret(request.headers.authorization?.replace(/^Bearer\s+/i, ""), API_TOKEN)) {
+    if (!equalSecret(request.headers["x-mawadda-scanner-token"], API_TOKEN)) {
       json(response, 401, { error: "unauthorized" });
       return;
     }
