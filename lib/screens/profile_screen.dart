@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/coin_system_service.dart';
 import '../services/member_media_upload_service.dart';
 import 'direct_chat_screen.dart';
+import 'stories_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String profileUserId;
@@ -782,6 +783,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: TextStyle(color: Colors.grey),
                   ),
                 ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.auto_awesome),
+                  label: const Text('مشاهدة قصص مودة'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => StoriesScreen(currentUserId: widget.currentUserId),
+                    ),
+                  ),
+                ),
+              ),
               if (isMyProfile)
                 SwitchListTile(
                   title: const Text('إتاحة ملفي للأعضاء'),
