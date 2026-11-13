@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../services/super_admin_security_service.dart';
 import 'owner_chat_participation_screen.dart';
 import 'safety_review_screen.dart';
+import 'room_rental_pricing_screen.dart';
 
 class SuperAdminScreen extends StatefulWidget {
   const SuperAdminScreen({super.key});
@@ -1334,6 +1335,17 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                 const SizedBox(height: 8),
                 const Text('إنشاء الغرف العامة والخاصة يتم من الخادم بعد التحقق من جلسة المالك وMFA، مع فصل الجمهور العمري وتسجيل المالك وسعة الغرفة.'),
                 const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const RoomRentalPricingScreen(),
+                    )),
+                    icon: const Icon(Icons.price_change_outlined),
+                    label: const Text('إدارة أسعار باقات استئجار الغرف'),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
