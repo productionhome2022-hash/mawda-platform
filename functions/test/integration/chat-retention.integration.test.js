@@ -2,11 +2,12 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { initializeApp, deleteApp } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+const { getStorage } = require("firebase-admin/storage");
 
 const projectId = process.env.GCLOUD_PROJECT || "demo-mawda-retention";
 const app = initializeApp({ projectId });
 const db = getFirestore();
-const { runChatTextRetentionSweep } = require("../../lib/retention");
+const { runChatTextRetentionSweep, runChatMediaRetentionSweep } = require("../../lib/retention");
 
 test("seven-day sweep deletes direct and room text, notifications and expired previews only", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
@@ -75,4 +76,65 @@ test("seven-day sweep deletes direct and room text, notifications and expired pr
 
 test.after(async () => {
   await deleteApp(app);
+});
+
+
+test("seven-day profile gallery retention removes original and preview objects but honors a legal hold", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+  const bucket = getStorage().bucket();
+  const suffix = Date.now().toString();
+  const ownerUid = `gallery-owner-${suffix}`;
+  const mediaId = `aaaaaaaa-bbbb-cccc-dddd-${suffix.padStart(12, "0").slice(-12)}`;
+  const heldMediaId = `bbbbbbbb-cccc-dddd-eeee-${suffix.padStart(12, "0").slice(-12)}`;
+  const objectPath = `quarantine/${ownerUid}/${mediaId}`;
+  const previewPath = `processed/${ownerUid}/${mediaId}/preview.webp`;
+  const heldObjectPath = `quarantine/${ownerUid}/${heldMediaId}`;
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const heldAssetRef = db.collection("mediaAssets").doc(heldMediaId);
+  const original = bucket.file(objectPath);
+  const preview = bucket.file(previewPath);
+  const heldOriginal = bucket.file(heldObjectPath);
+  const old = Timestamp.fromMillis(Date.now() - 8 * 24 * 60 * 60 * 1000);
+
+  await Promise.all([
+    original.save(Buffer.from("gallery original"), { resumable: false }),
+    preview.save(Buffer.from("gallery preview"), { resumable: false }),
+    heldOriginal.save(Buffer.from("held gallery original"), { resumable: false }),
+  ]);
+  await Promise.all([
+    assetRef.set({
+      mediaId, ownerUid, uploaderType: "member", mediaPurpose: "profile_album",
+      objectPath, safePreviewPath: previewPath, status: "security_approved",
+      retentionPolicyStatus: "seven_day_profile_album",
+      retentionExpiresAt: old, createdAt: old,
+    }),
+    heldAssetRef.set({
+      mediaId: heldMediaId, ownerUid, uploaderType: "member", mediaPurpose: "profile_album",
+      objectPath: heldObjectPath, status: "security_approved",
+      retentionPolicyStatus: "seven_day_profile_album",
+      retentionExpiresAt: old, createdAt: old,
+      legalHoldStatus: "active", activeLegalHoldId: "test-gallery-hold",
+    }),
+  ]);
+
+  try {
+    const result = await runChatMediaRetentionSweep();
+    assert.equal(result.failures, 0);
+    const deletedAsset = (await assetRef.get()).data();
+    assert.equal(deletedAsset.status, "self_destructed");
+    assert.equal(deletedAsset.retentionPolicyStatus, "seven_day_profile_album_deleted");
+    assert.equal((await original.exists())[0], false);
+    assert.equal((await preview.exists())[0], false);
+    assert.equal((await heldAssetRef.get()).data().status, "security_approved");
+    assert.equal((await heldOriginal.exists())[0], true);
+  } finally {
+    await Promise.all([
+      assetRef.delete().catch(() => undefined),
+      heldAssetRef.delete().catch(() => undefined),
+      original.delete({ ignoreNotFound: true }).catch(() => undefined),
+      preview.delete({ ignoreNotFound: true }).catch(() => undefined),
+      heldOriginal.delete({ ignoreNotFound: true }).catch(() => undefined),
+    ]);
+  }
 });
