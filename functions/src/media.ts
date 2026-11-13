@@ -593,6 +593,7 @@ export const getOwnerMediaInspectionUrl = onCall(async () => {
   throw new HttpsError("failed-precondition", "استخدم معاينة المالك الآمنة التي تتحقق من جلسة الدخول عند كل طلب.");
 });
 
+/**
  * Reclaims abandoned upload reservations after the signed PUT capability has
  * expired plus a safety grace period. A transactional state claim prevents a
  * cleanup/finalize race; failed object deletion is retried on the next sweep.
