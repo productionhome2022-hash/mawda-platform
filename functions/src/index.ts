@@ -3081,6 +3081,10 @@ export const markNotificationRead = onCall(async (request) => {
  */
 export const sendRoomMessage = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
+  const allowedFields = new Set(["roomId", "content", "clientMessageId"]);
+  if (Object.keys(request.data ?? {}).some((key) => !allowedFields.has(key))) {
+    throw new HttpsError("invalid-argument", "حقول مرفقات الغرفة غير مدعومة في مسار الرسائل النصية.");
+  }
   const roomId = request.data?.roomId;
   const content = typeof request.data?.content === "string" ? request.data.content.trim() : "";
   const clientMessageId = request.data?.clientMessageId;
