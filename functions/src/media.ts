@@ -493,9 +493,8 @@ export const createMediaUploadIntent = onCall(async (request) => {
       retentionPolicyStatus: input.purpose === "chat" || input.purpose === "room"
         ? "four_hour_self_destruct"
         : "owner_approval_required",
-      retentionExpiresAt: input.purpose === "chat" || input.purpose === "room"
-        ? Timestamp.fromMillis(Date.now() + 4 * 60 * 60 * 1000)
-        : null,
+      // Start the four-hour clock after the uploaded object is validated, not at intent creation.
+      retentionExpiresAt: null,
       status: "upload_authorized",
       uploadUrlExpiresAt: new Date(expiresAt),
       createdAt: now,
@@ -606,6 +605,10 @@ export const finalizeMediaUpload = onCall(async (request) => {
       sizeBytes,
       storageGeneration: String(metadata.generation),
       finalizedAt: FieldValue.serverTimestamp(),
+      ...(asset.mediaPurpose === "chat" || asset.mediaPurpose === "room" ? {
+        mediaUploadedAt: FieldValue.serverTimestamp(),
+        retentionExpiresAt: Timestamp.fromMillis(Date.now() + 4 * 60 * 60 * 1000),
+      } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     });
     transaction.set(quotaRef, { ...reservation, updatedAt: FieldValue.serverTimestamp() });
