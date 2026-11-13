@@ -3,6 +3,7 @@ import { getStorage } from "firebase-admin/storage";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onObjectFinalized } from "firebase-functions/v2/storage";
 import { defineString } from "firebase-functions/params";
+import { isExplicitNonProductionTarget } from "./nonproduction-target";
 import { logger } from "firebase-functions";
 
 export const CHAT_MEDIA_RETENTION_MS = 4 * 60 * 60 * 1000;
@@ -39,8 +40,7 @@ export function isSupportedChatMessagePath(path: string): boolean {
 function nonProductionProject(): boolean {
   const projectId = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? "";
   return projectId !== "mawda-app-2026" &&
-    /(test|staging|dev|demo|nonprod|sandbox)/i.test(projectId) &&
-    !/prod(uction)?/i.test(projectId);
+    isExplicitNonProductionTarget(projectId, ["test", "staging", "dev", "demo", "nonprod", "sandbox"]);
 }
 
 function jobsMayRun(): boolean {
