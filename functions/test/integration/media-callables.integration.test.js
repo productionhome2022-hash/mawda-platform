@@ -8,6 +8,7 @@ const {
   listOwnerMediaAssets,
   finalizeMediaUpload,
   getOwnerMediaInspectionUrl,
+  ownerMediaInspectionStream,
 } = require("../../lib/media");
 
 const { initializeApp, getApps } = require("firebase-admin/app");
@@ -235,31 +236,30 @@ test("signed upload URL performs a real Storage Emulator HTTP PUT and rejects re
   assert.ok(asset.data().storageGeneration);
 });
 
-test("owner inspection URL is owner/MFA gated and its signed HTTP GET returns the exact quarantined object", async () => {
-  const uid = `http-owner-${Date.now()}-${Math.random()}`;
-  const mediaId = randomUUID();
-  const objectPath = `quarantine/fixture/${mediaId}`;
-  const bytes = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
-  const file = getStorage().bucket().file(objectPath);
-  await file.save(bytes, { metadata: { contentType: "image/png" } });
-  const [metadata] = await file.getMetadata();
-  await db.collection("mediaAssets").doc(mediaId).create({
-    mediaId, ownerUid: "uploader-fixture", objectPath,
-    uploaderType: "member", declaredContentType: "image/png",
-    detectedContentType: "image/png", sizeBytes: bytes.length,
-    storageGeneration: String(metadata.generation),
-    status: "pending_security_scan",
-  });
+test("legacy owner inspection URL is disabled; the authenticated streaming endpoint rejects missing credentials", async () => {
+  const uid = `http-owner-disabled-${Date.now()}-${Math.random()}`;
+  await assert.rejects(
+    () => getOwnerMediaInspectionUrl.run(ownerRequest(uid, {
+      mediaId: "123e4567-e89b-12d3-a456-426614174000",
+    })),
+    (error) => error && error.code === "failed-precondition",
+  );
 
-  const result = await getOwnerMediaInspectionUrl.run(ownerRequest(uid, { mediaId }));
-  assert.equal(result.mediaId, mediaId);
-  assert.equal(new URL(result.downloadUrl).searchParams.get("X-Goog-Expires"), "60");
-  const response = await fetch(result.downloadUrl);
-  assert.equal(response.status, 200, await response.text());
-  assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes);
-  assert.match(response.headers.get("content-disposition") ?? "", /attachment/i);
-  assert.ok((await auditEvents(uid)).some((event) =>
-    event.action === "owner_media_inspection_url_issued" && event.outcome === "success"));
+  const response = {
+    statusCode: 200,
+    headers: {},
+    status(code) { this.statusCode = code; return this; },
+    set(name, value) { this.headers[name.toLowerCase()] = value; return this; },
+    end() { this.ended = true; return this; },
+  };
+  await ownerMediaInspectionStream({
+    method: "POST",
+    get: () => "",
+    body: { mediaId: "123e4567-e89b-12d3-a456-426614174000" },
+  }, response);
+  assert.equal(response.statusCode, 401);
+  assert.equal(response.headers["cache-control"], "no-store");
+  assert.equal(response.ended, true);
 });
 
 test("owner inspection rejects stale storage generations and audits the denial", async () => {
