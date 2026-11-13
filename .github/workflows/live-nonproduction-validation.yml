@@ -11,6 +11,10 @@ on:
         description: Dedicated non-production GCS bucket name (no member data)
         required: true
         type: string
+      callback_url:
+        description: Exact HTTPS URL of this project's receiveMediaScanVerdict function
+        required: true
+        type: string
       confirmation:
         description: Type RUN-NONPRODUCTION-LIVE-VALIDATION to authorize destructive test fixtures
         required: true
@@ -33,6 +37,7 @@ jobs:
     env:
       GOOGLE_CLOUD_PROJECT: ${{ inputs.project_id }}
       MAWDA_MEDIA_TEST_BUCKET: ${{ inputs.bucket_name }}
+      MAWDA_MEDIA_TEST_CALLBACK_URL: ${{ inputs.callback_url }}
     steps:
       - name: Enforce explicit non-production target and operator confirmation
         shell: bash
@@ -62,6 +67,11 @@ jobs:
           done
           [[ "$GOOGLE_CLOUD_PROJECT" != "mawda-app-2026" ]] || {
             echo "::error::Production Mawda project rejected."
+            exit 1
+          }
+          CALLBACK_URL="${{ inputs.callback_url }}"
+          [[ "$CALLBACK_URL" =~ ^https://[a-z0-9-]+\.cloudfunctions\.net/receiveMediaScanVerdict$ ]] || {
+            echo "::error::Callback URL must be the exact HTTPS receiveMediaScanVerdict endpoint."
             exit 1
           }
 
