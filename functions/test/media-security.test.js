@@ -28,6 +28,21 @@ test("upload request rejects unsafe names, unsupported types and invalid sizes",
   assert.throws(() => normalizeMediaRequest({ originalName: "audio.mp3", contentType: "audio/mpeg", sizeBytes: 1024, purpose: "avatar_cover" }));
 });
 
+test("story media requires an explicit future expiry and rejects expiry metadata for other purposes", () => {
+  const now = Date.now();
+  const base = {
+    originalName: "story.png", contentType: "image/png", sizeBytes: 1024, purpose: "story",
+  };
+  assert.throws(() => normalizeMediaRequest(base));
+  assert.throws(() => normalizeMediaRequest({ ...base, storyExpiresAtMs: now - 1 }));
+  const normalized = normalizeMediaRequest({ ...base, storyExpiresAtMs: now + 60_000 });
+  assert.equal(normalized.storyExpiresAtMs, now + 60_000);
+  assert.throws(() => normalizeMediaRequest({
+    originalName: "gallery.png", contentType: "image/png", sizeBytes: 1024,
+    purpose: "profile_album", storyExpiresAtMs: now + 60_000,
+  }));
+});
+
 test("file signature detection identifies GIF, PNG, JPEG, WebP, PDF, MP4, OGG and WAV", () => {
   assert.equal(detectMediaSignature(new TextEncoder().encode("GIF89a")), "image/gif");
   assert.equal(detectMediaSignature(Uint8Array.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a])), "image/png");
