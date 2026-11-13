@@ -508,7 +508,8 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
       const expiry = doc.data().uploadUrlExpiresAt;
       const expiryMs = expiry instanceof Timestamp ? expiry.toMillis() :
         expiry instanceof Date ? expiry.getTime() : Number.NaN;
-      if (uploadIntentIsEligibleForCleanup(expiryMs, nowMs, MEDIA_UPLOAD_CLEANUP_GRACE_MS)) {
+      if (Number.isSafeInteger(expiryMs) &&
+          uploadIntentIsEligibleForCleanup(expiryMs, nowMs, MEDIA_UPLOAD_CLEANUP_GRACE_MS)) {
         candidates.set(doc.id, doc);
       }
     }
@@ -524,7 +525,8 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
           const expiry = data.uploadUrlExpiresAt;
           const expiryMs = expiry instanceof Timestamp ? expiry.toMillis() :
             expiry instanceof Date ? expiry.getTime() : Number.NaN;
-          if (!uploadIntentIsEligibleForCleanup(expiryMs, nowMs, MEDIA_UPLOAD_CLEANUP_GRACE_MS)) {
+          if (!Number.isSafeInteger(expiryMs) ||
+              !uploadIntentIsEligibleForCleanup(expiryMs, nowMs, MEDIA_UPLOAD_CLEANUP_GRACE_MS)) {
             return null;
           }
         } else if (data.status !== "expired_cleanup_in_progress") {
