@@ -21,23 +21,30 @@ const contentType = "text/plain";
 
 async function main() {
   try {
-    const [postPolicy] = await file.generateSignedPostPolicyV4({
+    const contentLengthRange = `${bytes.length},${bytes.length}`;
+    const [putUrl] = await file.getSignedUrl({
+      version: "v4",
+      action: "write",
       expires: Date.now() + 5_000,
-      fields: {
-        "Content-Type": contentType,
-        "x-goog-if-generation-match": "0",
-      },
-      conditions: [["content-length-range", bytes.length, bytes.length]],
+      contentType,
+      extensionHeaders: { "x-goog-content-length-range": contentLengthRange },
+      queryParams: { ifGenerationMatch: "0" },
     });
-    const makeUploadForm = () => {
-      const form = new FormData();
-      for (const [key, value] of Object.entries(postPolicy.fields)) form.append(key, value);
-      form.append("file", new Blob([bytes], { type: contentType }), "payload.txt");
-      return form;
-    };
-    const first = await fetch(postPolicy.url, { method: "POST", body: makeUploadForm() });
-    if (!first.ok) throw new Error(`Initial signed POST failed: HTTP ${first.status}`);
-    const replay = await fetch(postPolicy.url, { method: "POST", body: makeUploadForm() });
+    const put = (payload) => fetch(putUrl, {
+      method: "PUT",
+      headers: {
+        "content-type": contentType,
+        "x-goog-content-length-range": contentLengthRange,
+      },
+      body: payload,
+    });
+    const oversized = await put(Buffer.concat([bytes, Buffer.from("x")]));
+    if (oversized.status !== 400) throw new Error(`Oversized PUT should fail with 400; received HTTP ${oversized.status}`);
+    const undersized = await put(bytes.subarray(0, bytes.length - 1));
+    if (undersized.status !== 400) throw new Error(`Undersized PUT should fail with 400; received HTTP ${undersized.status}`);
+    const first = await put(bytes);
+    if (!first.ok) throw new Error(`Initial signed PUT failed: HTTP ${first.status}`);
+    const replay = await put(bytes);
     if (replay.status !== 412) throw new Error(`Replay should fail with 412; received HTTP ${replay.status}`);
 
     const [readUrl] = await file.getSignedUrl({ version: "v4", action: "read", expires: Date.now() + 5_000 });
@@ -48,7 +55,7 @@ async function main() {
     await new Promise((resolve) => setTimeout(resolve, 6000));
     const expired = await fetch(readUrl);
     if (expired.ok) throw new Error("Expired signed GET unexpectedly remained usable.");
-    console.log(JSON.stringify({ initialPost: first.status, replayPost: replay.status, signedGet: read.status, expiredGet: expired.status, objectPath: path }));
+    console.log(JSON.stringify({ oversizedPut: oversized.status, undersizedPut: undersized.status, initialPut: first.status, replayPut: replay.status, signedGet: read.status, expiredGet: expired.status, objectPath: path }));
   } finally {
     await file.delete({ ignoreNotFound: true });
   }
