@@ -51,7 +51,7 @@ Status snapshot: 2026-11-13. This document is a release gate, not a claim that e
 8. **Unfinished upload intents:** clean only after the signed upload capability expires plus the configured grace period, with a missing-object recheck and exact-generation safety.
 9. **Legal holds and exceptions:** a documented, authorized legal hold may suspend deletion only for the specifically scoped objects/records and duration required. Record who authorized it, legal basis/reference, scope, start/review/end dates and every access. On release, deletion resumes immediately according to the underlying policy.
 10. **Deletion controls:** all scheduled purges must use dry-run previews, exact object generations, idempotent batches, retry/dead-letter handling, audit evidence and recovery checks. Never sweep an entire bucket prefix. Backups/caches must have an aligned, documented expiry and must not silently reintroduce deleted content.
-11. **Unfinished policy item:** the one-to-one conversation retention schedule is not yet specified and must be confirmed before enabling automated deletion for direct messages.
+11. **Direct-message retention:** the owner-approved schedule is to delete all direct one-to-one messages and associated media every 30 days, separately from the 7-day public/rented-room purge.
 
 A successful malware verdict does not by itself authorize member delivery. Only types with a completed safe-processing pipeline may become eligible for delivery. Images use sanitized WebP derivatives; video, audio and PDF remain unavailable until type-specific processing is implemented.
 
