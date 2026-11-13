@@ -180,6 +180,8 @@ export const finalizeMediaUpload = onCall(async (request) => {
     Number.isSafeInteger(sizeBytes) &&
     sizeBytes > 0 &&
     sizeBytes <= policy.maxBytes &&
+    // Quotas reserve declared bytes; reject any object whose actual size differs.
+    sizeBytes === Number(asset.declaredSizeBytes) &&
     contentType === asset.declaredContentType &&
     detectedType === asset.declaredContentType &&
     metadata.generation,
