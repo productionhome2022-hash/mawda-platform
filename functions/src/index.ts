@@ -5125,7 +5125,11 @@ export const listOwnerCoinPurchaseRequests = onCall(async (request) => {
 export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
   const actorUid = requireOwner(request);
   let input;
-  try { input = validateOwnerPaymentInstructionInput(request.data); }
+  try { input = validateOwnerPaymentInstructionInput({
+    requestId: request.data?.requestId, instructions: request.data?.instructions,
+    agreedCoins: request.data?.agreedCoins, agreedPriceMinor: request.data?.agreedPriceMinor,
+    currency: request.data?.currency,
+  }); }
   catch { throw new HttpsError("invalid-argument", "تعليمات الدفع أو الكمية أو السعر غير صالحة."); }
   const requesterUid = request.data?.requesterUid;
   if (typeof requesterUid !== "string" || requesterUid.length < 1 || requesterUid.length > 128 ||
@@ -5162,7 +5166,12 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
 export const approveCoinPurchaseRequest = onCall(async (request) => {
   const actorUid = requireOwner(request);
   let input;
-  try { input = validateExternalPaymentVerification(request.data); }
+  try { input = validateExternalPaymentVerification({
+    requestId: request.data?.requestId,
+    externalPaymentVerified: request.data?.externalPaymentVerified,
+    externalPaymentReference: request.data?.externalPaymentReference,
+    verificationNote: request.data?.verificationNote,
+  }); }
   catch { throw new HttpsError("invalid-argument", "إثبات الدفع الخارجي غير مكتمل."); }
   const requesterUid = request.data?.requesterUid;
   if (typeof requesterUid !== "string" || requesterUid.length < 1 || requesterUid.length > 128 ||
