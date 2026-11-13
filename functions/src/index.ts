@@ -5042,6 +5042,21 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
 
 
 
+/** Public member-facing package catalogue; returns prices only, never payment or credit authority. */
+export const getAvailableCoinPackages = onCall(async () => {
+  const snapshot = await ECONOMY_PRICING_SETTINGS.get();
+  const data = snapshot.data() ?? {};
+  if (data.manualCoinPurchasesEnabled === false) return { packages: [], manualPurchasesEnabled: false };
+  let packages;
+  try { packages = validateCoinPackages(data.coinPackages ?? DEFAULT_COIN_PACKAGES); }
+  catch { throw new HttpsError("failed-precondition", "قائمة باقات الكوينز غير صالحة."); }
+  return {
+    packages: packages.filter((item) => item.active),
+    manualPurchasesEnabled: true,
+    automatedCheckoutEnabled: false,
+  };
+});
+
 /** Member requests a fixed package or a negotiated custom coin quantity. No coins are issued here. */
 export const createCoinPurchaseRequest = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
