@@ -25,6 +25,8 @@ const {
   cleanupExpiredMediaUploadIntents,
   sendChatImageAttachment,
   getChatImageAttachmentUrl,
+  sendChatMediaAttachment,
+  getChatMediaAttachmentUrl,
 } = require("../../lib/media");
 
 const { createMemberStory, listMemberStories } = require("../../lib/index");
@@ -681,6 +683,83 @@ async function createReadyChatImage({ uid, purpose = "chat", mediaId = randomUUI
     legalHoldStatus: "none", deliveryState: "pending",
   });
   return mediaId;
+}
+
+async function createReadyTypedChatMedia({ uid, category, purpose = "chat", mediaId = randomUUID(), owner = false }) {
+  const specs = {
+    gif: { source: "image/gif", suffix: "animation.gif", output: "image/gif", path: "safeAnimationPath", generation: "safeAnimationGeneration", hash: "safeAnimationSha256", pipeline: "gif-sanitize-preserve-animation-v1", status: "safe_animation_derivative_ready" },
+    audio: { source: "audio/wav", suffix: "audio.mp3", output: "audio/mpeg", path: "safeAudioPath", generation: "safeAudioGeneration", hash: "safeAudioSha256", pipeline: "ffmpeg-audio-transcode-v1", status: "safe_audio_derivative_ready" },
+    video: { source: "video/mp4", suffix: "video.mp4", output: "video/mp4", path: "safeVideoPath", generation: "safeVideoGeneration", hash: "safeVideoSha256", pipeline: "ffmpeg-video-transcode-v1", status: "safe_video_derivative_ready" },
+    document: { source: "application/pdf", suffix: "document.pdf", output: "application/pdf", path: "safeDocumentPath", generation: "safeDocumentGeneration", hash: "safeDocumentSha256", pipeline: "pdf-raster-flatten-v1", status: "safe_document_derivative_ready" },
+  };
+  const spec = specs[category];
+  const objectPath = "processed/" + uid + "/" + mediaId + "/" + spec.suffix;
+  const bytes = Buffer.from("safe-" + category + "-fixture-" + mediaId);
+  const sourceGeneration = "1740000000000000";
+  const sourceSha256 = "c".repeat(64);
+  const digest = createHash("sha256").update(bytes).digest("hex");
+  const file = getStorage().bucket().file(objectPath);
+  await file.save(bytes, {
+    resumable: false,
+    metadata: {
+      contentType: spec.output,
+      metadata: {
+        mediaId, sourceGeneration, sourceSha256,
+        scannerProvider: "clamav-mawadda-gateway",
+        processing: spec.pipeline,
+      },
+    },
+  });
+  const [stored] = await file.getMetadata();
+  await db.collection("mediaAssets").doc(mediaId).set({
+    mediaId, ownerUid: uid, uploaderRole: owner ? "platform_owner" : "member",
+    uploaderType: "member", mediaPurpose: purpose, mediaCategory: category,
+    detectedContentType: spec.source, status: "security_approved",
+    processingStatus: spec.status, processingPipelineVersion: spec.pipeline,
+    storageGeneration: sourceGeneration, scannerSha256: sourceSha256,
+    scannerProvider: "clamav-mawadda-gateway",
+    [spec.path]: objectPath, [spec.generation]: String(stored.generation), [spec.hash]: digest,
+    retentionExpiresAt: Timestamp.fromMillis(Date.now() + 4 * 60 * 60 * 1000),
+    legalHoldStatus: "none", deliveryState: "pending",
+  });
+  return mediaId;
+}
+
+for (const item of [
+  { category: "gif", owner: false },
+  { category: "audio", owner: false },
+  { category: "video", owner: false },
+  { category: "document", owner: true },
+]) {
+  test("safe " + item.category + " attachment links and delivers only after its dedicated processor", async () => {
+    const senderUid = (item.owner ? "platform-owner" : "member") + "-" + item.category + "-" + randomUUID();
+    const recipientUid = "recipient-" + item.category + "-" + randomUUID();
+    await db.collection("users").doc(recipientUid).set({ profileCompleted: true, age: 30, blockedUids: [] });
+    if (!item.owner) {
+      await db.collection("users").doc(senderUid).set({ profileCompleted: true, age: 30, blockedUids: [] });
+    }
+    const mediaId = await createReadyTypedChatMedia({
+      uid: senderUid, category: item.category, owner: item.owner,
+    });
+    const clientMessageId = "typed_" + randomUUID().replace(/-/g, "");
+    const auth = item.owner ? ownerRequest(senderUid).auth :
+      { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } };
+    const sent = await sendChatMediaAttachment.run({
+      data: { scope: "direct", recipientUid, mediaId, clientMessageId },
+      auth,
+    });
+    const messageId = createHash("sha256").update(senderUid + ":" + clientMessageId).digest("hex");
+    const message = await db.collection("directChats").doc(sent.chatId)
+      .collection("messages").doc(messageId).get();
+    assert.equal(message.data().mediaCategory, item.category);
+    const delivered = await getChatMediaAttachmentUrl.run({
+      data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+      auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+    });
+    assert.match(delivered.url, /^https?:\/\//);
+    assert.equal(delivered.category, item.category);
+    assert.ok(delivered.contentType);
+  });
 }
 
 test("safe image can be linked to a direct message and delivered only to its participant", async () => {
