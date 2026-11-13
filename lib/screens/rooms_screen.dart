@@ -52,6 +52,171 @@ class _RoomsScreenState extends State<RoomsScreen> {
     }
   }
 
+  Future<void> _rentRoom() async {
+    try {
+      final response = await FirebaseFunctions.instance.httpsCallable('getRoomRentalPlans').call();
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final plans = (data['plans'] as List<dynamic>? ?? const [])
+          .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      if (!mounted || plans.isEmpty) return;
+      final name = TextEditingController();
+      final capacity = TextEditingController(text: '50');
+      String selected = plans.first['planId'] as String;
+      final values = await showDialog<Map<String, dynamic>>(context: context,
+        builder: (ctx) => StatefulBuilder(builder: (ctx, update) {
+          final plan = plans.firstWhere((p) => p['planId'] == selected);
+          return AlertDialog(
+            title: const Text('استئجار غرفة خاصة'),
+            content: SizedBox(width: 420, child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم الغرفة')),
+              TextField(controller: capacity, keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'السعة (5 إلى 1000)')),
+              DropdownButtonFormField<String>(
+                value: selected,
+                decoration: const InputDecoration(labelText: 'مدة الاستئجار والسعر'),
+                items: plans.map((p) => DropdownMenuItem<String>(
+                  value: p['planId'] as String,
+                  child: Text('${p['name']} • ${p['durationDays']} يوم • ${p['priceCoins']} كوين'),
+                )).toList(),
+                onChanged: (value) { if (value != null) update(() => selected = value); },
+              ),
+              const SizedBox(height: 8),
+              Text('السعر النهائي: ${plan['priceCoins']} كوين'),
+            ])),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+              FilledButton(onPressed: () {
+                final count = int.tryParse(capacity.text);
+                if (name.text.trim().length < 3 || count == null || count < 5 || count > 1000) return;
+                Navigator.pop(ctx, {'name': name.text.trim(), 'capacity': count,
+                  'planId': selected, 'priceCoins': plan['priceCoins']});
+              }, child: const Text('تأكيد الاستئجار')),
+            ],
+          );
+        }));
+      name.dispose(); capacity.dispose();
+      if (values == null || !mounted) return;
+      setState(() => _joining = true);
+      final result = await FirebaseFunctions.instance.httpsCallable('createRentedRoom').call({
+        ...values,
+        'expectedPriceCoins': values['priceCoins'],
+        'requestId': 'room_rent_${DateTime.now().microsecondsSinceEpoch}',
+      });
+      if (!mounted) return;
+      final roomId = (result.data as Map)['roomId'] as String?;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم استئجار الغرفة وخصم الكوينز ذرياً.')),
+      );
+      _refresh();
+      if (roomId != null) {
+        await _openRoom({'roomId': roomId, 'kind': 'private', 'name': values['name'],
+          'isRoomOwner': true});
+      }
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر استئجار الغرفة.')));
+    } finally { if (mounted) setState(() => _joining = false); }
+  }
+
+  Future<void> _leaveRoom(Map<String, dynamic> room) async {
+    try {
+      await FirebaseFunctions.instance.httpsCallable('leaveRoom').call({'roomId': room['roomId']});
+      if (!mounted) return;
+      _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('غادرت الغرفة.')));
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر مغادرة الغرفة.')));
+    }
+  }
+
+  Future<void> _renewRoom(Map<String, dynamic> room) async {
+    try {
+      final response = await FirebaseFunctions.instance.httpsCallable('getRoomRentalPlans').call();
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final plans = (data['plans'] as List<dynamic>? ?? const [])
+          .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      if (!mounted || plans.isEmpty) return;
+      String selected = plans.first['planId'] as String;
+      final plan = await showDialog<Map<String, dynamic>>(context: context,
+        builder: (ctx) => StatefulBuilder(builder: (ctx, update) => AlertDialog(
+          title: const Text('تجديد استئجار الغرفة'),
+          content: DropdownButtonFormField<String>(
+            value: selected,
+            items: plans.map((p) => DropdownMenuItem<String>(
+              value: p['planId'] as String,
+              child: Text('${p['name']} • ${p['durationDays']} يوم • ${p['priceCoins']} كوين'),
+            )).toList(),
+            onChanged: (value) { if (value != null) update(() => selected = value); },
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+            FilledButton(onPressed: () => Navigator.pop(ctx,
+              plans.firstWhere((p) => p['planId'] == selected)), child: const Text('تأكيد')),
+          ],
+        )));
+      if (plan == null || !mounted) return;
+      await FirebaseFunctions.instance.httpsCallable('renewRoomRental').call({
+        'roomId': room['roomId'], 'planId': plan['planId'],
+        'expectedPriceCoins': plan['priceCoins'],
+        'requestId': 'room_renew_${DateTime.now().microsecondsSinceEpoch}',
+      });
+      if (!mounted) return;
+      _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تجديد الغرفة.')));
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر تجديد الغرفة.')));
+    }
+  }
+
+  Future<void> _closeRoom(Map<String, dynamic> room) async {
+    final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('إغلاق الغرفة؟'),
+      content: const Text('سيتم إيقاف الغرفة دون حذف سجلاتها أو رد رسوم الاستئجار السابقة.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('تراجع')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('إغلاق الغرفة')),
+      ],
+    ));
+    if (confirmed != true) return;
+    try {
+      await FirebaseFunctions.instance.httpsCallable('closeOwnedRoom').call({'roomId': room['roomId']});
+      if (!mounted) return;
+      _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إغلاق الغرفة.')));
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر إغلاق الغرفة.')));
+    }
+  }
+
+  Future<void> _transferRoom(Map<String, dynamic> room) async {
+    final controller = TextEditingController();
+    final uid = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('نقل ملكية الغرفة'),
+      content: TextField(controller: controller, decoration: const InputDecoration(labelText: 'معرف العضو الجديد')),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+          child: const Text('نقل الملكية')),
+      ],
+    ));
+    controller.dispose();
+    if (uid == null || uid.isEmpty || !mounted) return;
+    try {
+      await FirebaseFunctions.instance.httpsCallable('transferRoomOwnership').call({
+        'roomId': room['roomId'], 'newOwnerUid': uid,
+      });
+      if (!mounted) return;
+      _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نقل ملكية الغرفة.')));
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر نقل الملكية.')));
+    }
+  }
+
   Future<void> _openRoom(Map<String, dynamic> room) async {
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => ChatRoomScreen(
@@ -101,6 +266,26 @@ class _RoomsScreenState extends State<RoomsScreen> {
                       tooltip: 'إدارة مشرفي الغرفة',
                       onPressed: () => _openModeration(room),
                       icon: const Icon(Icons.admin_panel_settings_outlined),
+                    ),
+                  if (room['isRoomOwner'] == true)
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'renew') _renewRoom(room);
+                        if (value == 'transfer') _transferRoom(room);
+                        if (value == 'close') _closeRoom(room);
+                      },
+                      itemBuilder: (_) => [
+                        if (room['isRented'] == true)
+                          const PopupMenuItem(value: 'renew', child: Text('تجديد الاستئجار')),
+                        const PopupMenuItem(value: 'transfer', child: Text('نقل الملكية')),
+                        const PopupMenuItem(value: 'close', child: Text('إغلاق الغرفة')),
+                      ],
+                    )
+                  else
+                    IconButton(
+                      tooltip: 'مغادرة الغرفة',
+                      onPressed: () => _leaveRoom(room),
+                      icon: const Icon(Icons.logout),
                     ),
                   IconButton(
                     tooltip: 'فتح الغرفة',
@@ -173,7 +358,16 @@ class _RoomsScreenState extends State<RoomsScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text('غرفي', style: Theme.of(context).textTheme.titleLarge),
+              Row(
+                children: [
+                  Expanded(child: Text('غرفي', style: Theme.of(context).textTheme.titleLarge)),
+                  FilledButton.tonalIcon(
+                    onPressed: _joining ? null : _rentRoom,
+                    icon: const Icon(Icons.add_home_work_outlined),
+                    label: const Text('استئجار غرفة'),
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
               if (joined.isEmpty)
                 const Padding(
