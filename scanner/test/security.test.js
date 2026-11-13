@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { equalSecret, validateScanRequest } = require("../security");
+const { equalSecret, validateScanRequest, isSafeDerivativeMetadata } = require("../security");
 
 const bucket = "mawda-media-test.appspot.com";
 const mediaId = "123e4567-e89b-42d3-a456-426614174000";
@@ -28,4 +28,26 @@ test("scan request accepts only exact quarantine path, UUID, generation and Goog
   assert.equal(validateScanRequest({ ...valid, downloadUrl: "http://127.0.0.1/admin" }, valid.provider, bucket), null);
   assert.equal(validateScanRequest({ ...valid, downloadUrl: "https://evil.example/file" }, valid.provider, bucket), null);
   assert.equal(validateScanRequest({ ...valid, downloadUrl: url.replace(generation, "1") }, valid.provider, bucket), null);
+});
+
+test("safe derivative reuse is bound to source hash, generation, provider and processing version", () => {
+  const expected = {
+    mediaId, objectGeneration: generation, sourceSha256: "a".repeat(64),
+    provider: "clamav-mawadda-gateway",
+  };
+  const metadata = {
+    contentType: "image/webp", size: 4096,
+    metadata: {
+      mediaId,
+      sourceGeneration: generation,
+      sourceSha256: "a".repeat(64),
+      scannerProvider: expected.provider,
+      processing: "sharp-decode-reencode-v1",
+    },
+  };
+  assert.equal(isSafeDerivativeMetadata(metadata, expected), true);
+  assert.equal(isSafeDerivativeMetadata({ ...metadata, metadata: { ...metadata.metadata, sourceSha256: "b".repeat(64) } }, expected), false);
+  assert.equal(isSafeDerivativeMetadata({ ...metadata, metadata: { ...metadata.metadata, sourceGeneration: "1" } }, expected), false);
+  assert.equal(isSafeDerivativeMetadata({ ...metadata, size: 21 * 1024 * 1024 }, expected), false);
+  assert.equal(isSafeDerivativeMetadata({ ...metadata, contentType: "image/png" }, expected), false);
 });
