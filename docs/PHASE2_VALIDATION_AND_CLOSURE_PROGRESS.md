@@ -26,7 +26,7 @@ The preceding run [43379722894](https://github.com/productionhome2022-hash/mawda
 - Media client access remains deny-all in Firestore/Storage rules.
 - Owner console has paginated media listing/filtering, safe-preview action and owner-review audit-chain verification control.
 
-## Owner-approved retention policy — implementation pending
+## Owner-approved retention policy — core chat implementation added; infrastructure and remaining media types pending
 
 The owner approved the following rules on 2026-11-13. These are binding product requirements for implementation; they are not yet proof that scheduled deletion jobs exist or have been exercised.
 
@@ -41,7 +41,7 @@ The owner approved the following rules on 2026-11-13. These are binding product 
 - Legal holds: only documented, authorized and narrowly scoped holds may suspend deletion; record authority, basis/reference, scope, dates, reviews and access. Resume deletion immediately on release.
 - Deletion jobs must be idempotent, exact-generation-safe, auditable, retryable, dry-run capable and backup/cache aware. No bucket-wide prefix sweeps.
 
-The implementation must distinguish media objects, metadata, operational logs, and tamper-evident security/owner audit records. Do not activate destructive schedules until code, tests, dry-run evidence, legal-hold handling and backup expiry are verified. Legal review may identify mandatory preservation exceptions; this must not become routine extra retention.
+The implementation must distinguish media objects, metadata, operational logs, and tamper-evident security/owner audit records. The four-hour chat-media and seven-day all-chat text workers have now been added behind a disabled-by-default, non-production-only gate and have passed emulator integration tests. Do not enable even in non-production until dry-run evidence, real-bucket deletion, legal-hold handling and backup expiry are verified. Legal review may identify mandatory preservation exceptions; this must not become routine extra retention.
 
 ## Outstanding release gates
 
@@ -67,3 +67,14 @@ See [issue #4](https://github.com/productionhome2022-hash/mawda-platform/issues/
 
 - PR #2 remains a draft against `main`; its latest code-validation head above is green, but the non-production and governance gates are not complete.
 - PR #3 remains a draft targeting the development branch and is divergent; it must not be merged wholesale.
+
+
+## Chat retention code and exact CI evidence — 13 November 2026
+
+- Added `functions/src/retention.ts` with separate server-side jobs for four-hour chat-media self-destruction, seven-day text-message deletion across direct/public/rented-private chats, and 90-day operational media audit cleanup.
+- The four-hour clock starts after the server validates/finalizes the uploaded object. Expiry removes every listed GCS generation for the exact original object and deterministic safe WebP derivative; a content-free tombstone is retained and its derivative path is reconciled every five minutes to catch late scanner output.
+- The seven-day job deletes direct-chat and room message documents, direct-message notification documents, and expired direct-chat `lastMessagePreview` copies. It does not delete unrelated `users/*/messages/*` documents.
+- Retention jobs are disabled by default (`MAWDA_RETENTION_JOBS_ENABLED=false`) and have a second non-production project-name guard. No production project or live data was changed.
+- Added exact-boundary unit tests and a Firestore-emulator integration test. Added an opt-in real-GCS retention script that checks soft-delete/retention policy, bucket access protections, and deletion of every visible object generation.
+- Full validation run [43383055516](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43383055516) passed on code/index commit `4f9d317291c3ecdab049256b32c8450f776aaaf5`: Functions build/unit tests; media callable authorization/audit integration; seven-day retention integration; Firestore/Storage rules; Flutter analyze/tests/Web release; ClamAV image build and EICAR detection.
+- This is not phase closure. Still required: real non-production GCS retention and signed-URL HTTP runs, actual Firebase/Cloud Run scanner lifecycle, backup/PITR and soft-delete configuration proof, legal-hold behavior, 24-month audit export/checkpoint design, story/gallery/avatar/cover retention jobs, and final review on one candidate commit.
