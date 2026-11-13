@@ -23,9 +23,10 @@ export interface MediaPolicy {
 }
 
 const POLICIES: Record<string, MediaPolicy> = {
-  "image/jpeg": { category: "image", maxBytes: 10 * 1024 * 1024 },
-  "image/png": { category: "image", maxBytes: 10 * 1024 * 1024 },
-  "image/webp": { category: "image", maxBytes: 10 * 1024 * 1024 },
+  "image/jpeg": { category: "image", maxBytes: 5 * 1024 * 1024 },
+  "image/png": { category: "image", maxBytes: 5 * 1024 * 1024 },
+  "image/webp": { category: "image", maxBytes: 5 * 1024 * 1024 },
+  "image/gif": { category: "image", maxBytes: 5 * 1024 * 1024 },
   "video/mp4": { category: "video", maxBytes: 100 * 1024 * 1024 },
   "audio/mpeg": { category: "audio", maxBytes: 25 * 1024 * 1024 },
   "audio/mp4": { category: "audio", maxBytes: 25 * 1024 * 1024 },
@@ -58,6 +59,10 @@ export function normalizeMediaRequest(input: Record<string, unknown>): {
 
 /** Detect common file signatures from the first 32 bytes; not a malware scanner. */
 export function detectMediaSignature(bytes: Uint8Array): string | null {
+  if (bytes.length >= 6) {
+    const gifHeader = String.fromCharCode(...bytes.slice(0, 6));
+    if (gifHeader === "GIF87a" || gifHeader === "GIF89a") return "image/gif";
+  }
   if (bytes.length >= 8 &&
       bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 &&
       bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a) return "image/png";
