@@ -88,10 +88,13 @@ export async function deleteMediaAssetForMessage(
   const deletedPaths = Array.isArray(assetData.deletedObjectPaths)
     ? assetData.deletedObjectPaths
     : [];
+  const expectedOriginalPath = `quarantine/${expectedOwnerUid}/${mediaId}`;
+  const expectedProcessedPrefix = `processed/${expectedOwnerUid}/${mediaId}/`;
   for (const candidate of deletedPaths) {
     if (typeof candidate !== "string" || candidate.startsWith("/") ||
-        candidate.split("/").includes("..")) {
-      throw new HttpsError("failed-precondition", "توجد مسارات محذوفة غير موثوقة؛ أوقفنا الحذف.");
+        candidate.split("/").includes("..") ||
+        (candidate !== expectedOriginalPath && !candidate.startsWith(expectedProcessedPrefix))) {
+      throw new HttpsError("failed-precondition", "توجد مسارات محذوفة خارج نطاق هذا الملف؛ أوقفنا الحذف.");
     }
     paths.add(candidate);
   }
