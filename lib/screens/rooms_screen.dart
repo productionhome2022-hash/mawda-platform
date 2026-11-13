@@ -72,7 +72,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
               TextField(controller: capacity, keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: 'السعة (5 إلى 1000)')),
               DropdownButtonFormField<String>(
-                value: selected,
+                initialValue: selected,
                 decoration: const InputDecoration(labelText: 'مدة الاستئجار والسعر'),
                 items: plans.map((p) => DropdownMenuItem<String>(
                   value: p['planId'] as String,
@@ -142,7 +142,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
         builder: (ctx) => StatefulBuilder(builder: (ctx, update) => AlertDialog(
           title: const Text('تجديد استئجار الغرفة'),
           content: DropdownButtonFormField<String>(
-            value: selected,
+            initialValue: selected,
             items: plans.map((p) => DropdownMenuItem<String>(
               value: p['planId'] as String,
               child: Text('${p['name']} • ${p['durationDays']} يوم • ${p['priceCoins']} كوين'),
