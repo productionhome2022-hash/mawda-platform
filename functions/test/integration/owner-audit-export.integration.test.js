@@ -80,6 +80,29 @@ test("owner audit export pages preserve sequence, redact raw text and retain int
     assert.equal(third.entries[0].sequence, 3);
     assert.equal(third.hasMore, false);
     assert.equal(typeof third.exportAuditLogId, "string");
+
+    await assert.rejects(
+      () => exportOwnerReviewAuditPage.run({
+        data: {},
+        auth: {
+          uid: "not-the-owner",
+          token: {
+            auth_time: Math.floor(Date.now() / 1000),
+            firebase: { sign_in_second_factor: "phone" },
+          },
+        },
+      }),
+      (error) => error && error.code === "permission-denied",
+    );
+    const denied = await db.collection("adminAuditLogs")
+      .where("auditChainId", "==", "owner-review-v1")
+      .where("auditSequence", ">", 3)
+      .get();
+    assert.ok(denied.docs.some((doc) =>
+      doc.data().auditEvent?.action === "owner_review_audit_export" &&
+      doc.data().auditEvent?.outcome === "denied" &&
+      doc.data().auditEvent?.actorUid === "not-the-owner"
+    ));
   } finally {
     const generated = await db.collection("adminAuditLogs")
       .where("auditChainId", "==", "owner-review-v1").get();
