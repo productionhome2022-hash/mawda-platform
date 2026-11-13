@@ -3789,6 +3789,7 @@ export {
   createMediaUploadIntent,
   finalizeMediaUpload,
   getMemberProfileMediaUrl,
+  getMyMediaUploadStatus,
   listOwnerMediaAssets,
   getOwnerMediaSafePreview,
   getOwnerMediaInspectionUrl,
