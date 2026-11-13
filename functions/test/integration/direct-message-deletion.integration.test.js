@@ -13,6 +13,7 @@ const {
 } = require("../../lib/index");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
+const { deleteMediaAssetForMessage } = require("../../lib/media");
 const db = getFirestore();
 
 const id = (value) => createHash("sha256").update(value).digest("hex");
@@ -277,9 +278,17 @@ test("direct and room delete-for-everyone erase original and sanitized media gen
     );
     assert.equal(directResult.deleted, true);
     assert.equal((await directMessageRef.get()).exists, false);
-    assert.equal((await directAssetRef.get()).data().status, "manually_deleted");
+    const directTombstone = (await directAssetRef.get()).data();
+    assert.equal(directTombstone.status, "manually_deleted");
+    assert.ok(directTombstone.deletedObjectPaths.includes(directObjectPath));
+    assert.ok(directTombstone.deletedObjectPaths.includes(directPreviewPath));
     assert.equal((await directOriginal.exists())[0], false);
     assert.equal((await directPreview.exists())[0], false);
+
+    // Simulate a still-live signed PUT capability replay after message deletion.
+    await directOriginal.save(Buffer.from("late signed upload replay"), { resumable: false });
+    await deleteMediaAssetForMessage(directMediaId, alice, "chat");
+    assert.equal((await directOriginal.exists())[0], false);
 
     const roomResult = await deleteRoomMessage.run(
       memberRequest(alice, { roomId, messageId: roomMessageId }),
