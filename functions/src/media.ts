@@ -392,16 +392,19 @@ export const createMediaUploadIntent = onCall(async (request) => {
   });
 
   let uploadUrl: string;
+  let uploadFields: Record<string, string>;
   try {
-    const [signedUrl] = await file.getSignedUrl({
-      version: "v4",
-      action: "write",
+    const [policyDocument] = await file.generateSignedPostPolicyV4({
       expires: expiresAt,
-      contentType: input.contentType,
-      // Create-only precondition: a replay cannot overwrite the first object generation.
-      queryParams: { ifGenerationMatch: "0" },
+      fields: {
+        "Content-Type": input.contentType,
+        "x-goog-if-generation-match": "0",
+      },
+      // The storage service rejects an over-sized or under-sized file before accepting it.
+      conditions: [["content-length-range", input.declaredSizeBytes, input.declaredSizeBytes]],
     });
-    uploadUrl = signedUrl;
+    uploadUrl = policyDocument.url;
+    uploadFields = policyDocument.fields;
   } catch {
     // A signer outage must not strand a quota reservation or leave a usable intent.
     await mediaDb().runTransaction(async (transaction) => {
@@ -439,7 +442,14 @@ export const createMediaUploadIntent = onCall(async (request) => {
     declaredContentType: input.contentType,
     declaredSizeBytes: input.declaredSizeBytes,
   });
-  return { mediaId, uploadUrl, expiresAt };
+  return {
+    mediaId,
+    uploadUrl,
+    uploadFields,
+    uploadMethod: "POST",
+    maxBytes: input.declaredSizeBytes,
+    expiresAt,
+  };
 });
 
 /**
