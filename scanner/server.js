@@ -10,7 +10,7 @@ const { promisify } = require("node:util");
 const { execFile } = require("node:child_process");
 const sharp = require("sharp");
 const { Storage } = require("@google-cloud/storage");
-const { equalSecret, validateScanRequest, isSafeDerivativeMetadata, sanitizeScannerError } = require("./security");
+const { equalSecret, validateScanRequest, isSafeDerivativeMetadata, sanitizeScannerError, isSignatureDatabaseFresh } = require("./security");
 
 const execFileAsync = promisify(execFile);
 const PORT = Number(process.env.PORT || 8080);
@@ -21,6 +21,8 @@ const CALLBACK_URL = process.env.SCANNER_CALLBACK_URL || "";
 const BUCKET_NAME = process.env.GCS_BUCKET || "";
 const MAX_DOWNLOAD_BYTES = Number(process.env.MAX_DOWNLOAD_BYTES || 100 * 1024 * 1024);
 const SCAN_TIMEOUT_MS = Number(process.env.SCAN_TIMEOUT_MS || 150_000);
+const CLAMAV_DB_DIR = process.env.CLAMAV_DB_DIR || "/var/lib/clamav";
+const MAX_SIGNATURE_AGE_MS = Number(process.env.MAX_SIGNATURE_AGE_MS || 36 * 60 * 60 * 1000);
 const MAX_SAFE_PREVIEW_BYTES = 2 * 1024 * 1024;
 const storage = new Storage();
 
@@ -77,6 +79,22 @@ async function downloadToFile(url, destination) {
   await pipeline(require("node:stream").Readable.fromWeb(response.body), limiter, createWriteStream(destination, { flags: "wx", mode: 0o600 }));
   if (received < 1) throw new Error("EMPTY_SOURCE_OBJECT");
   return received;
+}
+
+async function signatureDatabaseStatus() {
+  const candidates = ["daily.cvd", "daily.cld"];
+  const mtimes = [];
+  for (const name of candidates) {
+    try {
+      const metadata = await fs.stat(path.join(CLAMAV_DB_DIR, name));
+      mtimes.push(metadata.mtimeMs);
+    } catch {}
+  }
+  const lastUpdatedMs = mtimes.length ? Math.max(...mtimes) : Number.NaN;
+  return {
+    fresh: isSignatureDatabaseFresh(lastUpdatedMs, Date.now(), MAX_SIGNATURE_AGE_MS),
+    ageMs: Number.isFinite(lastUpdatedMs) ? Math.max(0, Date.now() - lastUpdatedMs) : null,
+  };
 }
 
 async function scanWithClamAv(filePath) {
@@ -222,6 +240,11 @@ async function handleScan(request, response) {
       json(response, 503, { error: "scanner_not_configured" });
       return;
     }
+    const signatures = await signatureDatabaseStatus();
+    if (!signatures.fresh) {
+      json(response, 503, { error: "scanner_signatures_stale" });
+      return;
+    }
     const body = await readJson(request);
     scanRequest = validateScanRequest(body, PROVIDER, BUCKET_NAME, CALLBACK_URL);
     if (!scanRequest) {
@@ -270,7 +293,12 @@ async function handleScan(request, response) {
 
 const server = http.createServer(async (request, response) => {
   if (request.method === "GET" && request.url === "/healthz") {
-    json(response, 200, { status: "ok", provider: PROVIDER });
+    const signatures = await signatureDatabaseStatus();
+    json(response, signatures.fresh ? 200 : 503, {
+      status: signatures.fresh ? "ok" : "degraded",
+      provider: PROVIDER,
+      signatureAgeMs: signatures.ageMs,
+    });
     return;
   }
   if (request.method !== "POST" || request.url !== "/scan") {
