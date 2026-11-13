@@ -851,15 +851,14 @@ export const setMemberProfileMedia = onCall(async (request) => {
     previousMediaId = typeof userData[mediaField] === "string" ? userData[mediaField] as string : null;
     if (previousMediaId === mediaId) return;
 
-    let previousSnapshot: FirebaseFirestore.DocumentSnapshot | null = null;
-    if (previousMediaId && previousMediaId !== mediaId) {
-      previousSnapshot = await transaction.get(db.collection("mediaAssets").doc(previousMediaId));
-    }
+    const previousSnapshot = previousMediaId && previousMediaId !== mediaId
+      ? await transaction.get(db.collection("mediaAssets").doc(previousMediaId))
+      : null;
     if (previousSnapshot?.exists) {
       const previous = previousSnapshot.data() ?? {};
       if (previous.ownerUid === uid && previous.mediaPurpose === "avatar_cover" &&
           previous.profileMediaSlot === slot && previous.status !== "manually_deleted" &&
-          previous.status !== "self_destructed") {
+          previous.status !== "manual_deletion_pending" && previous.status !== "self_destructed") {
         const existingExpiry = previous.retentionExpiresAt instanceof Timestamp
           ? previous.retentionExpiresAt.toMillis()
           : nowMs;
