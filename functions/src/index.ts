@@ -1285,7 +1285,11 @@ export const deleteDirectMessageForEveryone = onCall(async (request) => {
     });
     const deletedText = typeof data.text === "string" ? data.text : "";
     if (deletedText.length > 0 &&
-        chatData.lastMessagePreview === deletedText.substring(0, 120)) {
+        chatData.lastMessagePreview === deletedText.substring(0, 120) &&
+        chatData.lastMessageSenderUid === data.senderUid &&
+        chatData.lastMessageAt instanceof Timestamp &&
+        data.createdAt instanceof Timestamp &&
+        chatData.lastMessageAt.isEqual(data.createdAt)) {
       transaction.update(chatRef, {
         lastMessagePreview: "تم حذف الرسالة",
         lastMessagePreviewUpdatedAt: FieldValue.serverTimestamp(),
