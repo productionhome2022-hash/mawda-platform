@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
-import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
+import { createHash } from "node:crypto";
+import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { reserveMediaQuota, releaseMediaQuota } from "./media-quota";
@@ -70,7 +72,103 @@ async function requireSoleOwnerForMediaReview(
  * Issues a five-minute, single-object upload URL. Objects are written only
  * beneath a private quarantine prefix and are never made publicly readable.
  */
-export const createMediaUploadIntent = onCall(async (request) => {
+
+async function sha256Object(file: ReturnType<ReturnType<typeof mediaBucket>["file"]>): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const hash = createHash("sha256");
+    const stream = file.createReadStream();
+    stream.on("data", (chunk: Buffer) => hash.update(chunk));
+    stream.on("error", reject);
+    stream.on("end", () => resolve(hash.digest("hex")));
+  });
+}
+
+/** Authenticated gateway callback; any missing/mismatched evidence stays quarantined. */
+export const receiveMediaScanVerdict = onRequest(async (request, response) => {
+  if (request.method !== "POST") {
+    response.status(405).set("Allow", "POST").send("Method not allowed");
+    return;
+  }
+  const rawBody = request.rawBody;
+  const secret = process.env.MAWDA_MEDIA_SCANNER_HMAC_SECRET;
+  const provider = process.env.MAWDA_MEDIA_SCANNER_PROVIDER;
+  if (!rawBody || rawBody.length > 16 * 1024 || !secret || !provider ||
+      !verifyScannerWebhook(rawBody, request.get("x-mawadda-scanner-signature"), secret)) {
+    response.status(401).send("Unauthorized scanner callback");
+    return;
+  }
+  let decoded: unknown;
+  try { decoded = JSON.parse(rawBody.toString("utf8")); } catch {
+    response.status(400).send("Invalid JSON");
+    return;
+  }
+  const verdict = validateScannerVerdict(decoded, provider);
+  if (!verdict) {
+    response.status(400).send("Invalid or stale scanner verdict");
+    return;
+  }
+  const db = mediaDb();
+  const assetRef = db.collection("mediaAssets").doc(verdict.mediaId);
+  const snapshot = await assetRef.get();
+  if (!snapshot.exists || snapshot.data()?.status !== "pending_security_scan") {
+    response.status(409).send("Asset is not awaiting a scan");
+    return;
+  }
+  const asset = snapshot.data()!;
+  const file = mediaBucket().file(String(asset.objectPath));
+  let metadata: Record<string, unknown>;
+  try {
+    const [rawMetadata] = await file.getMetadata();
+    metadata = rawMetadata as unknown as Record<string, unknown>;
+  } catch {
+    response.status(409).send("Quarantined object is missing");
+    return;
+  }
+  if (String(metadata.generation) !== verdict.objectGeneration ||
+      String(asset.storageGeneration) !== verdict.objectGeneration) {
+    response.status(409).send("Object generation mismatch");
+    return;
+  }
+  const actualHash = await sha256Object(file);
+  if (actualHash !== verdict.sha256) {
+    response.status(409).send("Object hash mismatch");
+    return;
+  }
+  const nextStatus = verdict.verdict === "clean" ? "security_approved" :
+    verdict.verdict === "malicious" ? "rejected" : "pending_security_scan";
+  await db.runTransaction(async (transaction) => {
+    const latest = await transaction.get(assetRef);
+    if (!latest.exists || latest.data()?.status !== "pending_security_scan" ||
+        String(latest.data()?.storageGeneration) !== verdict.objectGeneration) {
+      throw new HttpsError("failed-precondition", "Asset state changed during scanner callback.");
+    }
+    transaction.update(assetRef, {
+      status: nextStatus,
+      scannerProvider: verdict.provider,
+      scannerVerdict: verdict.verdict,
+      scannerSha256: actualHash,
+      scannerObjectGeneration: verdict.objectGeneration,
+      scannerScannedAt: new Date(verdict.scannedAtMs),
+      scannerVerifiedAt: FieldValue.serverTimestamp(),
+      ...(verdict.verdict === "malicious" ? { rejectionCode: "MALWARE_DETECTED" } : {}),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+  await auditMediaAccess({
+    actorUid: "trusted-scanner",
+    mediaId: verdict.mediaId,
+    action: "media_security_scan_verdict",
+    outcome: verdict.verdict,
+    provider: verdict.provider,
+    objectGeneration: verdict.objectGeneration,
+    sha256: actualHash,
+  });
+  if (verdict.verdict === "malicious") {
+    await file.delete({ ignoreNotFound: true, ifGenerationMatch: Number(verdict.objectGeneration) });
+  }
+  response.status(200).json({ mediaId: verdict.mediaId, status: nextStatus });
+});
+\nexport const createMediaUploadIntent = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
   let input;
   try {
