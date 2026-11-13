@@ -57,6 +57,7 @@ import {
   projectStoreEntitlementFeatures,
 } from "./store-purchase";
 import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
+import { deleteMediaAssetForMessage } from "./media";
 
 initializeApp();
 
@@ -1240,11 +1241,9 @@ export const deleteDirectMessageForEveryone = onCall(async (request) => {
   const auditRef = db.collection("directMessageDeletionAudit")
     .doc(`${chatId}_${messageId}_delete_for_everyone`);
 
-  return db.runTransaction(async (transaction) => {
+  const preparation = await db.runTransaction(async (transaction) => {
     const [chat, message, priorAudit] = await Promise.all([
-      transaction.get(chatRef),
-      transaction.get(messageRef),
-      transaction.get(auditRef),
+      transaction.get(chatRef), transaction.get(messageRef), transaction.get(auditRef),
     ]);
     if (!chat.exists) throw new HttpsError("not-found", "المحادثة غير موجودة.");
     const chatData = chat.data() ?? {};
@@ -1255,7 +1254,7 @@ export const deleteDirectMessageForEveryone = onCall(async (request) => {
       throw new HttpsError("permission-denied", "ليست لديك صلاحية حذف رسائل هذه المحادثة.");
     }
     if (!message.exists) {
-      if (priorAudit.exists) return { chatId, messageId, deleted: true, idempotentReplay: true };
+      if (priorAudit.exists) return { kind: "replay" as const };
       throw new HttpsError("not-found", "الرسالة غير موجودة.");
     }
 
@@ -1267,23 +1266,46 @@ export const deleteDirectMessageForEveryone = onCall(async (request) => {
       throw new HttpsError("permission-denied", "يمكنك حذف رسائلك فقط.");
     }
 
-    // This callable is intentionally text-only. Media must go through the
-    // generation-safe Storage deletion pipeline, never be orphaned by a doc delete.
-    const hasMediaReference = data.type !== undefined && data.type !== "text" ||
-      ["storagePath", "mediaPath", "mediaUrl", "downloadUrl", "attachments", "fileUrl"]
-        .some((key) => data[key] !== undefined && data[key] !== null);
+    const legacyMediaKeys = ["storagePath", "mediaPath", "mediaUrl", "downloadUrl", "attachments", "fileUrl"];
+    const hasMediaReference = (data.type !== undefined && data.type !== "text") ||
+      legacyMediaKeys.some((key) => data[key] !== undefined && data[key] !== null) ||
+      data.mediaId !== undefined || data.mediaIds !== undefined;
     if (hasMediaReference) {
-      throw new HttpsError(
-        "failed-precondition",
-        "هذه الرسالة تحتوي على وسيط؛ يجب حذفها عبر مسار حذف الوسائط الآمن.",
-      );
+      const ids = new Set<string>();
+      if (typeof data.mediaId === "string") ids.add(data.mediaId);
+      if (Array.isArray(data.mediaIds)) {
+        for (const value of data.mediaIds) if (typeof value === "string") ids.add(value);
+      }
+      if (Array.isArray(data.attachments)) {
+        for (const item of data.attachments) {
+          if (item && typeof item === "object" &&
+              typeof (item as Record<string, unknown>).mediaId === "string") {
+            ids.add((item as Record<string, unknown>).mediaId as string);
+          }
+        }
+      }
+      if (ids.size === 0 || ids.size > 10) {
+        throw new HttpsError("failed-precondition", "لا يحتوي سجل الوسائط على معرفات أصول موثوقة كافية للحذف الآمن.");
+      }
+      if (data.deletionPending !== true) {
+        transaction.update(messageRef, {
+          deletionPending: true,
+          deletionRequestedByUid: uid,
+          deletionRequestedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+      return {
+        kind: "media" as const,
+        mediaIds: [...ids],
+        senderUid: typeof data.senderUid === "string" ? data.senderUid : "",
+      };
     }
 
     const notificationRefs = participants.map((participant) =>
       db.collection("users").doc(participant).collection("notifications").doc(messageId),
     );
     const notifications = await Promise.all(notificationRefs.map((ref) => transaction.get(ref)));
-
     transaction.delete(messageRef);
     notifications.forEach((snapshot, index) => {
       if (snapshot.exists) transaction.delete(notificationRefs[index]);
@@ -1302,17 +1324,68 @@ export const deleteDirectMessageForEveryone = onCall(async (request) => {
     }
     if (!priorAudit.exists) {
       transaction.create(auditRef, {
-        chatId,
-        messageId,
-        actorUid: uid,
-        senderUid: data.senderUid ?? null,
-        action: "delete_for_everyone",
-        messageType: "text",
+        chatId, messageId, actorUid: uid, senderUid: data.senderUid ?? null,
+        action: "delete_for_everyone", messageType: "text",
         createdAt: FieldValue.serverTimestamp(),
       });
     }
-    return { chatId, messageId, deleted: true, idempotentReplay: false };
+    return { kind: "text" as const };
   });
+
+  if (preparation.kind === "replay") {
+    return { chatId, messageId, deleted: true, idempotentReplay: true };
+  }
+  if (preparation.kind === "text") {
+    return { chatId, messageId, deleted: true, idempotentReplay: false };
+  }
+
+  try {
+    for (const mediaId of preparation.mediaIds) {
+      await deleteMediaAssetForMessage(mediaId, preparation.senderUid, "chat");
+    }
+  } catch (error) {
+    logger.error("Direct message media deletion remains pending for retry.", {
+      chatId, messageId, errorName: error instanceof Error ? error.name : "unknown",
+    });
+    throw new HttpsError("unavailable", "بدأ حذف الوسائط وأُخفيت الرسالة؛ تعذر إكمال محو جميع النسخ حالياً. أعد المحاولة لاحقاً.");
+  }
+
+  await db.runTransaction(async (transaction) => {
+    const [chat, message, priorAudit] = await Promise.all([
+      transaction.get(chatRef), transaction.get(messageRef), transaction.get(auditRef),
+    ]);
+    if (!message.exists) return;
+    const chatData = chat.data() ?? {};
+    const participants = Array.isArray(chatData.participantUids) ? chatData.participantUids : [];
+    if (!participants.includes(uid) || message.data()?.deletionPending !== true) {
+      throw new HttpsError("failed-precondition", "تغيرت حالة المحادثة أثناء حذف الوسائط.");
+    }
+    const notificationRefs = participants.map((participant) =>
+      db.collection("users").doc(String(participant)).collection("notifications").doc(messageId),
+    );
+    const notifications = await Promise.all(notificationRefs.map((ref) => transaction.get(ref)));
+    transaction.delete(messageRef);
+    notifications.forEach((snapshot, index) => {
+      if (snapshot.exists) transaction.delete(notificationRefs[index]);
+    });
+    if (!priorAudit.exists) {
+      transaction.create(auditRef, {
+        chatId, messageId, actorUid: uid, senderUid: message.data()?.senderUid ?? null,
+        action: "delete_for_everyone", messageType: "media",
+        mediaIds: preparation.mediaIds,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+    if (chatData.lastMessageAt instanceof Timestamp &&
+        message.data()?.createdAt instanceof Timestamp &&
+        chatData.lastMessageAt.isEqual(message.data()!.createdAt)) {
+      transaction.update(chatRef, {
+        lastMessagePreview: "تم حذف الرسالة",
+        lastMessagePreviewUpdatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+  });
+  return { chatId, messageId, deleted: true, idempotentReplay: false };
 });
 
 /**
