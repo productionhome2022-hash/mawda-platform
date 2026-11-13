@@ -65,6 +65,14 @@ A successful malware verdict does not by itself authorize member delivery. Only 
 - Added unit tests for validation and recursive redaction. GitHub Actions validation for the new callable and tests is pending; this does not yet prove export retrieval against a populated Firestore emulator or production-like data.
 - The 24-month retention/deletion control for audit evidence is **still not implemented**. It must not be implemented as a blind TTL on hash-chain events: verified checkpoints/anchoring and legally scoped holds must exist first, or deletion would make historical chain verification impossible.
 
+## Media legal-hold implementation update (13 November 2026)
+
+- Sole-owner/MFA callables now place, list, review and release legal holds for one exact chat-media asset. Every hold records authority, legal basis, reference, scope, start, review and end dates.
+- Review updates the review date and note without extending the recorded end date. Release/expiry restores the original retention policy and original expiry timestamp.
+- Chat-media expiry workers skip assets with an active legal hold. An hourly expiry function exists but is disabled by default and only runs when explicitly enabled on a named non-production project.
+- Unit and Firestore-emulator integration tests cover validation, hold placement, review/list, release, owner-only access and the original expiry clock. Latest CI is pending.
+- **Limitations:** this does not yet implement holds for text messages or profile/story media, review reminders, authority-document verification, or production-grade legal workflow approval. A hold must be treated as narrowly scoped technical metadata, not a substitute for legal review.
+
 ## Merge and deployment boundary
 
 PR #2 and PR #3 are separate draft proposals. PR #3's head is based on an older snapshot of the development branch and the refs currently diverge; do not merge either PR until the phase-2 changes are reconciled onto one current branch and the exact final commit has a green full CI run. No production Firebase mutation, production deployment, public Storage access or merge to `main` is authorized by this engineering record.
