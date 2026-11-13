@@ -94,12 +94,16 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
   let objects = 0;
   let failures = 0;
 
-  for (const purpose of ["chat", "room", "profile_album"] as const) {
-    const lifetimeMs = purpose === "profile_album" ? 7 * 24 * 60 * 60 * 1000 : CHAT_MEDIA_RETENTION_MS;
-    const cutoff = Timestamp.fromMillis(Date.now() - lifetimeMs);
-    const retentionLabel = purpose === "profile_album" ? "seven_day_profile_album" : "four_hour_self_destruct";
-    const deletedPolicyStatus = purpose === "profile_album" ? "seven_day_profile_album_deleted" : "four_hour_self_destructed";
-    const deletionAuditAction = purpose === "profile_album" ? "profile_album_media_deleted" : "chat_media_self_destructed";
+  for (const purpose of ["chat", "room", "profile_album", "story"] as const) {
+    const lifetimeMs = purpose === "profile_album" ? 7 * 24 * 60 * 60 * 1000
+      : purpose === "story" ? null : CHAT_MEDIA_RETENTION_MS;
+    const cutoff = lifetimeMs === null ? null : Timestamp.fromMillis(Date.now() - lifetimeMs);
+    const retentionLabel = purpose === "profile_album" ? "seven_day_profile_album"
+      : purpose === "story" ? "story_expiry" : "four_hour_self_destruct";
+    const deletedPolicyStatus = purpose === "profile_album" ? "seven_day_profile_album_deleted"
+      : purpose === "story" ? "story_expired_deleted" : "four_hour_self_destructed";
+    const deletionAuditAction = purpose === "profile_album" ? "profile_album_media_deleted"
+      : purpose === "story" ? "story_media_expired" : "chat_media_self_destructed";
     // Revisit content-free tombstones on a separate clock. This catches a
     // derivative written by a scanner that was already running at expiry,
     // without allowing tombstones to occupy the active-expiry query forever.
@@ -133,25 +137,25 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
 
     for (let page = 0; page < RETENTION_PAGES_PER_RUN; page += 1) {
       const dueAt = Timestamp.fromMillis(Date.now());
-      const [due, legacy] = await Promise.all([
-        db.collection("mediaAssets")
-          .where("mediaPurpose", "==", purpose)
-          .where("status", "in", ACTIVE_MEDIA_STATES)
-          .where("retentionExpiresAt", "<=", dueAt)
-          .orderBy("retentionExpiresAt", "asc")
-          .limit(RETENTION_BATCH_SIZE)
-          .get(),
-        db.collection("mediaAssets")
+      const due = await db.collection("mediaAssets")
+        .where("mediaPurpose", "==", purpose)
+        .where("status", "in", ACTIVE_MEDIA_STATES)
+        .where("retentionExpiresAt", "<=", dueAt)
+        .orderBy("retentionExpiresAt", "asc")
+        .limit(RETENTION_BATCH_SIZE)
+        .get();
+      const legacyDocs = lifetimeMs === null || cutoff === null
+        ? []
+        : (await db.collection("mediaAssets")
           .where("mediaPurpose", "==", purpose)
           .where("status", "in", ACTIVE_MEDIA_STATES)
           .where("retentionExpiresAt", "==", null)
           .where("createdAt", "<=", cutoff)
           .orderBy("createdAt", "asc")
           .limit(RETENTION_BATCH_SIZE)
-          .get(),
-      ]);
+          .get()).docs;
       const candidates = new Map<string, (typeof due.docs)[number]>();
-      for (const doc of [...due.docs, ...legacy.docs]) candidates.set(doc.id, doc);
+      for (const doc of [...due.docs, ...legacyDocs]) candidates.set(doc.id, doc);
       if (candidates.size === 0) break;
 
       let succeededThisPage = 0;
@@ -183,7 +187,7 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
           tombstone.status = "self_destructed";
           tombstone.retentionPolicyStatus = deletedPolicyStatus;
           tombstone.retentionExpiresAt = asset.retentionExpiresAt ??
-            (createdAt ? Timestamp.fromMillis(createdAt.toMillis() + lifetimeMs) : Timestamp.fromMillis(Date.now()));
+            (createdAt && lifetimeMs !== null ? Timestamp.fromMillis(createdAt.toMillis() + lifetimeMs) : Timestamp.fromMillis(Date.now()));
           tombstone.retentionDeletedAt = FieldValue.serverTimestamp();
           tombstone.retentionReconcileAt = Timestamp.fromMillis(Date.now() + MEDIA_DERIVATIVE_RECHECK_MS);
           tombstone.updatedAt = FieldValue.serverTimestamp();
@@ -200,7 +204,7 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
         } catch (error) {
           failures += 1;
           await db.collection("mediaAccessAudit").add({
-            actorUid: "system-retention", mediaId, action: purpose === "profile_album" ? "profile_album_media_delete" : "chat_media_self_destruct",
+            actorUid: "system-retention", mediaId, action: purpose === "profile_album" ? "profile_album_media_delete" : purpose === "story" ? "story_media_expiry_delete_retry" : "chat_media_self_destruct",
             outcome: "retry_required", purpose,
             failureCode: error instanceof Error ? error.name : "unknown",
             createdAt: FieldValue.serverTimestamp(),
@@ -355,7 +359,7 @@ async function handleLateExpiredChatMediaDerivative(event: Parameters<typeof onO
   if (!assetSnapshot.exists) return;
   const asset = assetSnapshot.data() ?? {};
   if (asset.ownerUid !== ownerUid ||
-      !["chat", "room", "profile_album"].includes(String(asset.mediaPurpose)) ||
+      !["chat", "room", "profile_album", "story"].includes(String(asset.mediaPurpose)) ||
       asset.legalHoldStatus === "active" ||
       !isKnownDeletedMediaObjectPath(asset, objectPath, ownerUid, mediaId)) return;
 
