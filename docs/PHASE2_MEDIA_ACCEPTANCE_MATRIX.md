@@ -235,3 +235,23 @@ Flutter direct-chat and room screens now include a general file picker for JPEG/
 Deletion and retention paths now enumerate all canonical derivatives (preview.webp, animation.gif, audio.mp3, video.mp4, document.pdf), validate their exact per-media paths, remove every visible generation and reconcile late object replays.
 
 **Release status: NOT YET VERIFIED.** These changes are a candidate implementation, not a declaration that these categories are enabled. Keep non-image delivery blocked until the exact candidate passes the container processor integration tests, scanner callback contract tests, callable authorization tests, Flutter analyze/tests/Web build, and Firestore/Storage emulator suites. Then run the isolated scanner lifecycle and real Storage generation/expiry checks in the dedicated non-production environment. A clean ClamAV verdict alone is never sufficient for delivery.
+
+
+## Acceptance status update — 13 November 2026
+
+Latest fully green CI evidence is run 43445820387 on commit 2754b74560d5a49996c3582187b45bc8ab63c7e0:
+- Scanner container built; real GIF/audio/video/PDF processor integration tests passed; ClamAV EICAR detection passed.
+- Cloud Functions compiled and all integration suites passed, including typed media authorization/delivery, four-hour media retention, seven-day text retention, deletion/late derivative reconciliation, media legal hold/release, message legal hold, profile media lifecycle, owner audit export, and Firestore/Storage rules.
+- Flutter dependency resolution, analysis, tests and Web release build passed.
+
+A further legal-hold integration test has been added on the current head to exercise all five derivative object paths during an active hold, release, expiry deletion and late PDF replay. Its exact-head CI is pending; do not count this additional test as passed until that run completes.
+
+Remaining acceptance gaps:
+- Voice-note capture from the microphone is not yet implemented in Flutter. Current audio UI uploads existing MP3/M4A/OGG/WAV files.
+- Audio/video/PDF are opened via short-lived signed URLs in the external handler; in-app audio/video players are not yet implemented.
+- Only PDF is supported for owner-originated documents. DOC/DOCX/XLS/XLSX/PPT/PPTX and other document formats remain denied.
+- No real-device Android/iOS verification has been completed.
+- Live Cloud Run scanner deployment, real GCS generation-pinned signed URL expiry, object versioning/soft-delete, backup/PITR, CDN/cache/replica behavior and operational restore evidence remain non-production infrastructure gates.
+- Retention schedules remain disabled; no destructive production operation has been enabled.
+
+**Phase 2 status: NOT CLOSED.** CI now validates the candidate processors and app build, but the external infrastructure and device acceptance rows remain open.
