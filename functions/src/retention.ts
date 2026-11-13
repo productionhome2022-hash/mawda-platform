@@ -239,9 +239,17 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
         }
         const paths = new Set<string>();
         if (typeof asset.objectPath === "string") paths.add(asset.objectPath);
-        if (typeof asset.safePreviewPath === "string") paths.add(asset.safePreviewPath);
+        for (const field of [
+          "safePreviewPath", "safeAnimationPath", "safeAudioPath",
+          "safeVideoPath", "safeDocumentPath",
+        ]) {
+          const candidate = asset[field];
+          if (typeof candidate === "string") paths.add(candidate);
+        }
         if (ownerUid && /^[0-9a-f-]{36}$/i.test(mediaId)) {
-          paths.add(`processed/${ownerUid}/${mediaId}/preview.webp`);
+          for (const filename of [
+            "preview.webp", "animation.gif", "audio.mp3", "video.mp4", "document.pdf",
+          ]) paths.add(`processed/${ownerUid}/${mediaId}/${filename}`);
         }
 
         try {
@@ -431,12 +439,18 @@ export function isKnownDeletedMediaObjectPath(
   mediaId: string,
 ): boolean {
   const deterministicOriginal = `quarantine/${ownerUid}/${mediaId}`;
-  const deterministicPreview = `processed/${ownerUid}/${mediaId}/preview.webp`;
+  const deterministicDerivatives = [
+    "preview.webp", "animation.gif", "audio.mp3", "video.mp4", "document.pdf",
+  ].map((filename) => `processed/${ownerUid}/${mediaId}/${filename}`);
   const candidates = [
     asset.objectPath,
     asset.safePreviewPath,
+    asset.safeAnimationPath,
+    asset.safeAudioPath,
+    asset.safeVideoPath,
+    asset.safeDocumentPath,
     deterministicOriginal,
-    deterministicPreview,
+    ...deterministicDerivatives,
     ...(Array.isArray(asset.derivedObjectPaths) ? asset.derivedObjectPaths : []),
     ...(Array.isArray(asset.deletedObjectPaths) ? asset.deletedObjectPaths : []),
   ];
@@ -449,7 +463,7 @@ async function handleLateExpiredChatMediaDerivative(event: Parameters<typeof onO
   const parts = objectPath.split("/");
   const isOriginal = parts.length === 3 && parts[0] === "quarantine";
   const isDerived = parts.length === 4 && parts[0] === "processed" &&
-    parts[3] === "preview.webp";
+    ["preview.webp", "animation.gif", "audio.mp3", "video.mp4", "document.pdf"].includes(parts[3]);
   if (!isOriginal && !isDerived) return;
   const ownerUid = parts[1];
   const mediaId = parts[2];
