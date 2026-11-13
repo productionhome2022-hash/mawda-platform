@@ -111,6 +111,41 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     }
   }
 
+  String _mediaPurposeLabel(Object? value) {
+    switch (value) {
+      case 'chat': return 'مرفق محادثة';
+      case 'room': return 'مرفق غرفة';
+      case 'profile_album': return 'ألبوم الملف الشخصي';
+      case 'avatar_cover': return 'صورة أو غلاف الملف الشخصي';
+      case 'story': return 'قصة';
+      default: return 'غرض غير محدد';
+    }
+  }
+
+  String _mediaRetentionLabel(Map<String, dynamic> asset) {
+    final expires = asset['retentionExpiresAt'];
+    if (asset['retentionPolicyStatus'] == 'owner_approval_required' || expires == null) {
+      return 'الاحتفاظ: بانتظار اعتماد المالك؛ لا يوجد حذف تلقائي.';
+    }
+    if (expires is num) {
+      final date = DateTime.fromMillisecondsSinceEpoch(expires.toInt()).toLocal();
+      return 'موعد انتهاء الاحتفاظ المعتمد: $date';
+    }
+    return 'الاحتفاظ: غير محدد';
+  }
+
+  String _mediaScannerLabel(Map<String, dynamic> asset) {
+    final engine = asset['scannerEngine'];
+    final version = asset['scannerEngineVersion'];
+    final database = asset['scannerSignatureDatabaseVersion'];
+    final age = asset['scannerSignatureDatabaseAgeMs'];
+    if (engine is! String || version is! String || database is! String || age is! num) {
+      return 'الفحص الأمني: لم تكتمل نتيجة موثوقة بعد.';
+    }
+    final ageHours = (age / (60 * 60 * 1000)).toStringAsFixed(1);
+    return 'محرك الفحص: $engine $version • قاعدة التواقيع: $database • عمرها: $ageHours ساعة';
+  }
+
   Future<void> _previewOwnerMedia(Map<String, dynamic> asset) async {
     final mediaId = asset['mediaId'] as String?;
     if (mediaId == null || asset['canPreview'] != true || _previewingMediaId != null) return;
@@ -1222,12 +1257,18 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                         asset['uploaderType'] == 'guest' ? Icons.person_outline : Icons.account_circle_outlined,
                       ),
                       title: Text(asset['originalName'] as String? ?? 'ملف بلا اسم'),
-                      subtitle: Text(
-                        '${_mediaUploaderLabel(asset['uploaderType'])} • '
-                        '${_mediaStatusLabel(asset['status'])}\n'
-                        'النوع: ${asset['detectedContentType'] ?? asset['declaredContentType'] ?? 'غير معروف'} • '
-                        'الحجم: ${size is num ? (size / 1024).toStringAsFixed(1) + ' KB' : 'غير معروف'}\n'
-                        '${date}',
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${_mediaUploaderLabel(asset['uploaderType'])} • ${_mediaStatusLabel(asset['status'])}\n'
+                            'النوع: ${asset['detectedContentType'] ?? asset['declaredContentType'] ?? 'غير معروف'} • '
+                            'الحجم: ${size is num ? (size / 1024).toStringAsFixed(1) + ' KB' : 'غير معروف'} • $date',
+                          ),
+                          Text('الغرض: ${_mediaPurposeLabel(asset['mediaPurpose'])}'),
+                          Text(_mediaRetentionLabel(asset)),
+                          Text(_mediaScannerLabel(asset)),
+                        ],
                       ),
                       isThreeLine: true,
                       trailing: asset['canPreview'] == true
