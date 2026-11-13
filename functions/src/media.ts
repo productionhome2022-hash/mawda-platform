@@ -5,6 +5,8 @@ import { getAuth } from "firebase-admin/auth";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
+import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { defineSecret, defineString } from "firebase-functions/params";
 import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { hasPlatformOwnerSession } from "./owner-access";
@@ -22,6 +24,12 @@ import {
 // would make the Functions entry point fail during module loading.
 const mediaDb = () => getFirestore();
 const mediaBucket = () => getStorage().bucket();
+
+const mediaScannerHmacSecret = defineSecret("MAWDA_MEDIA_SCANNER_HMAC_SECRET");
+const mediaScannerApiToken = defineSecret("MAWDA_MEDIA_SCANNER_API_TOKEN");
+const mediaScannerUrl = defineString("MAWDA_MEDIA_SCANNER_URL", { default: "" });
+const mediaScannerCallbackUrl = defineString("MAWDA_MEDIA_SCANNER_CALLBACK_URL", { default: "" });
+const mediaScannerProvider = defineString("MAWDA_MEDIA_SCANNER_PROVIDER", { default: "clamav-mawadda-gateway" });
 
 function requireUid(uid: string | undefined): string {
   if (!uid) throw new HttpsError("unauthenticated", "يجب تسجيل الدخول أولاً.");
@@ -86,14 +94,16 @@ async function sha256Object(file: ReturnType<ReturnType<typeof mediaBucket>["fil
 }
 
 /** Authenticated gateway callback; any missing/mismatched evidence stays quarantined. */
-export const receiveMediaScanVerdict = onRequest(async (request, response) => {
+export const receiveMediaScanVerdict = onRequest(
+  { secrets: [mediaScannerHmacSecret] },
+  async (request, response) => {
   if (request.method !== "POST") {
     response.status(405).set("Allow", "POST").send("Method not allowed");
     return;
   }
   const rawBody = request.rawBody;
-  const secret = process.env.MAWDA_MEDIA_SCANNER_HMAC_SECRET;
-  const provider = process.env.MAWDA_MEDIA_SCANNER_PROVIDER;
+  const secret = mediaScannerHmacSecret.value();
+  const provider = mediaScannerProvider.value();
   if (!rawBody || rawBody.length > 16 * 1024 || !secret || !provider ||
       !verifyScannerWebhook(rawBody, request.get("x-mawadda-scanner-signature"), secret)) {
     response.status(401).send("Unauthorized scanner callback");
@@ -171,8 +181,88 @@ export const receiveMediaScanVerdict = onRequest(async (request, response) => {
     await file.delete({ ignoreNotFound: true, ifGenerationMatch: Number(verdict.objectGeneration) });
   }
   response.status(200).json({ mediaId: verdict.mediaId, status: nextStatus });
-});
-\nexport const createMediaUploadIntent = onCall(async (request) => {
+  },
+);
+\n
+/** Queue a single scan job whenever an asset enters the quarantined scan state. */
+export const enqueueMediaSecurityScan = onDocumentUpdated(
+  { document: "mediaAssets/{mediaId}", retry: true },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after || before.status === "pending_security_scan" ||
+        after.status !== "pending_security_scan") return;
+    const mediaId = String(event.params.mediaId);
+    const jobRef = mediaDb().collection("mediaScanJobs").doc(mediaId);
+    await mediaDb().runTransaction(async (transaction) => {
+      const existing = await transaction.get(jobRef);
+      if (existing.exists) return;
+      transaction.create(jobRef, {
+        mediaId, ownerUid: String(after.ownerUid), objectPath: String(after.objectPath),
+        objectGeneration: String(after.storageGeneration), state: "queued", attempts: 0,
+        createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
+  },
+);
+
+export const dispatchMediaSecurityScan = onDocumentCreated(
+  { document: "mediaScanJobs/{mediaId}", retry: true, secrets: [mediaScannerApiToken] },
+  async (event) => {
+    const job = event.data?.data();
+    if (!job) return;
+    const scannerUrl = mediaScannerUrl.value();
+    const callbackUrl = mediaScannerCallbackUrl.value();
+    const apiToken = mediaScannerApiToken.value();
+    if (!scannerUrl || !callbackUrl || !apiToken) {
+      throw new Error("Trusted malware scanner gateway is not configured; asset remains quarantined.");
+    }
+    const scanner = new URL(scannerUrl);
+    const callback = new URL(callbackUrl);
+    if (scanner.protocol !== "https:" || callback.protocol !== "https:") {
+      throw new Error("Scanner and callback endpoints must use HTTPS.");
+    }
+    const assetRef = mediaDb().collection("mediaAssets").doc(String(job.mediaId));
+    const assetSnapshot = await assetRef.get();
+    if (!assetSnapshot.exists || assetSnapshot.data()?.status !== "pending_security_scan" ||
+        String(assetSnapshot.data()?.storageGeneration) !== String(job.objectGeneration)) {
+      await event.data?.ref.update({ state: "cancelled", updatedAt: FieldValue.serverTimestamp() });
+      return;
+    }
+    const file = mediaBucket().file(String(job.objectPath));
+    const [metadata] = await file.getMetadata();
+    if (String(metadata.generation) !== String(job.objectGeneration)) {
+      throw new Error("Scanner dispatch refused a changed Storage generation.");
+    }
+    const [downloadUrl] = await file.getSignedUrl({
+      version: "v4", action: "read", expires: Date.now() + 5 * 60 * 1000,
+      queryParams: { generation: String(job.objectGeneration) },
+      responseDisposition: "attachment",
+    });
+    const dispatchResponse = await fetch(scanner.toString(), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${apiToken}`, "content-type": "application/json",
+        "idempotency-key": `${job.mediaId}:${job.objectGeneration}`,
+      },
+      body: JSON.stringify({
+        mediaId: job.mediaId, objectPath: job.objectPath,
+        objectGeneration: job.objectGeneration, downloadUrl,
+        callbackUrl: callback.toString(), provider: mediaScannerProvider.value(),
+      }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!dispatchResponse.ok) {
+      throw new Error(`Trusted scanner gateway rejected dispatch: HTTP ${dispatchResponse.status}.`);
+    }
+    await event.data?.ref.update({
+      state: "dispatched", attempts: FieldValue.increment(1),
+      dispatchedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+    });
+  },
+);
+
+export const createMediaUploadIntent = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
   let input;
   try {
