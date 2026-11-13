@@ -33,7 +33,7 @@ export function createEmailVerificationCycle(input: {
     throw new Error("INVALID_CYCLE_CLOCK_OR_SEQUENCE");
   }
   const cycleId = createHash("sha256")
-    .update(\`mawda-email-verification-v1|\${uid}|\${email}|\${input.sequence}\`)
+    .update("mawda-email-verification-v1|" + uid + "|" + email + "|" + input.sequence)
     .digest("hex");
   return {
     cycleId, uid, email, sequence: input.sequence, status: "pending",
