@@ -29,3 +29,26 @@ test("scanner verdict binds provider, object generation, hash and freshness", ()
   assert.equal(validateScannerVerdict({ ...payload, scannedAtMs: now - 700000 }, "mawadda-malware-gateway", now), null);
   assert.equal(validateScannerVerdict({ ...payload, verdict: "approved" }, "mawadda-malware-gateway", now), null);
 });
+
+
+test("scanner verdict accepts a fully bound safe WebP derivative and rejects partial or unsafe paths", () => {
+  const now = 1_800_000_000_000;
+  const base = {
+    mediaId: "123e4567-e89b-12d3-a456-426614174000",
+    provider: "mawadda-malware-gateway",
+    verdict: "clean",
+    objectGeneration: "123456",
+    sha256: "a".repeat(64),
+    scannedAtMs: now,
+  };
+  const derivative = {
+    safePreviewPath: "processed/member_123/123e4567-e89b-12d3-a456-426614174000/preview.webp",
+    safePreviewGeneration: "987654",
+    safePreviewSha256: "b".repeat(64),
+    safePreviewContentType: "image/webp",
+  };
+  assert.equal(validateScannerVerdict({ ...base, ...derivative }, base.provider, now).safePreviewGeneration, "987654");
+  assert.equal(validateScannerVerdict({ ...base, safePreviewPath: derivative.safePreviewPath }, base.provider, now), null);
+  assert.equal(validateScannerVerdict({ ...base, ...derivative, safePreviewPath: "processed/other/another-id/preview.webp" }, base.provider, now), null);
+  assert.equal(validateScannerVerdict({ ...base, ...derivative, verdict: "malicious" }, base.provider, now), null);
+});
