@@ -75,3 +75,14 @@ Web build, Functions build and lockfile artifacts were produced. These are not d
 **Phase 1 + Phase 2 overall acceptance: OPEN.**
 
 The wallet/store integration test and store-catalog projection fix are included in the exact tested code commit above. The PR remains draft/open/unmerged. No production deployment, production Firebase mutation, destructive purge, or retention-worker activation has been performed. Do not advance to Phase 3 or production until the applicable closure gates above have evidence and the owner explicitly approves the release boundary.
+
+
+## G. Owner-approved follow-up requirements added 13 November 2026
+
+See `docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md` for the full requirement and test matrix.
+
+- **Owner live-stream/video links:** specified for owner-to-member direct conversations, public rooms and active rented private rooms. Implementation remains open: owner-only callable, room membership bypass limited to verified owner, audit/idempotency, canonical URL validation, message rendering and split-screen playback are not yet complete.
+- **Split-screen player:** required in the upper approximately 50% of the active conversation viewport while messages remain visible below. Provider restrictions must be honored; unsupported embeds fall back to opening the original HTTPS link.
+- **Manual coin requests:** package or custom-quantity request, owner-provided payment instructions, owner-recorded external verification, then one atomic owner approval that credits coins and ledger. No gateway, no automatic cash payment, and no coin issuance before owner approval. Backend/UI/integration tests remain open.
+- **Logout:** the main member shell currently has a logout action and AuthService calls Firebase signOut. Owner reachability, push-token failure handling and end-to-end auth-gate acceptance still need explicit tests.
+- These are additional Phase 1/2 acceptance items; Phase 3 remains paused until the owner presents and approves its proposal.
