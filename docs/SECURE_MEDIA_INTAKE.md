@@ -2,42 +2,66 @@
 
 ## Security boundary
 
-- Storage client rules remain deny-all. Quarantine objects are private and no member-facing media delivery path is enabled.
+- Firebase Storage client rules remain deny-all. Quarantine objects are private and no member-facing media delivery path is enabled.
 - Upload intents use five-minute V4 signed PUT capabilities scoped to random `quarantine/{uid}/{mediaId}` object names. `ifGenerationMatch=0` makes the write create-only: a replay after the first successful write must fail with HTTP 412. This is not a one-time URL; the bearer capability remains usable until expiry for any operation allowed by its signature.
-- Finalization validates owner, state, server object metadata, generation, byte count, allowlisted MIME type and leading-byte signature. Signature checks are format checks, not malware detection.
-- Quota reservation is atomic with asset creation: 5 concurrent intents, 150 MiB active reserved bytes, 500 MiB per UTC day per UID. These are conservative engineering defaults, not yet owner-approved production limits. The daily reservation is not refunded for abandoned attempts.
-- The scheduled cleanup runs every 15 minutes, claims only expired upload intents, releases active reservations transactionally and audits success/retry. The current cleanup implementation still requires generation-precondition hardening and failure/recovery tests before release approval.
-- Owner metadata listing is bounded and paginated. Owner image preview now checks a revoked-aware Firebase ID token and recent second-factor owner session on every request, streams only JPEG/PNG/WebP, returns no signed URL, sets no-store/nosniff/CSP headers, checks object generation and audits access. The legacy signed-URL callable is disabled.
+- Finalization validates owner, state, server object metadata, exact byte count versus the quota reservation, generation, allowlisted MIME type and leading-byte signature. Signature checks are format checks, not malware detection.
+- Quota reservation is atomic with asset creation: 5 concurrent intents, 150 MiB active reserved bytes, 500 MiB per UTC day per UID. These are conservative engineering defaults, not owner-approved production limits. The daily reservation is not refunded for abandoned attempts.
+- The 15-minute scheduled cleanup claims only expired intents, uses the exact object generation for deletion, releases active reservations transactionally and writes a success audit event in the same transaction. Failed cleanup retains its claim for retry. Missing-object/in-flight upload recovery still requires additional delayed recheck coverage before release approval.
+- Owner metadata listing is bounded and paginated. The former signed-URL inspection callable is disabled. Owner inspection uses an authenticated streaming endpoint requiring a revocation-aware Firebase ID token, App Check, sole-owner claim and recent MFA; it returns an attachment, not a bearer Storage URL.
+- Inline owner image preview is separate and stricter: it serves only the server-generated WebP derivative after a clean scanner verdict, successful image decode/re-encode, exact derivative generation/hash/metadata verification, owner MFA and App Check. It never renders the original quarantined bytes.
 - Firestore media metadata/audit and Firebase Storage client rules remain deny-all. Do not weaken these rules for client convenience.
 
-## Scanner gateway contract
+## Upload quotas and transport-size boundary
 
-- `receiveMediaScanVerdict` accepts only POST requests with a body no larger than 16 KiB, a configured provider name, and an HMAC-SHA256 signature in `x-mawadda-scanner-signature`. The secret must be at least 32 characters and supplied through a managed secret/environment configuration, never committed.
-- The callback binds the verdict to media ID, configured provider, exact Storage generation, SHA-256 of the server-read object bytes, verdict and a scan timestamp no older than ten minutes. Asset approval and its audit event are committed atomically.
-- A clean verdict changes the record to `security_approved`; malicious changes it to `rejected` and the exact generation is deleted; scanner error leaves the record quarantined.
-- **Important:** the gateway receiver and its cryptographic verification are implemented, but no external malware-scanning provider/service has been provisioned or connected to invoke it. Therefore no actual malware scan has been completed and no file may be treated as security-approved until a trusted scanner is deployed, configured, and tested end-to-end. A scanner gateway should use an isolated workload, current malware signatures, bounded decompression, archive-bomb protections, type-aware parsers, and safe re-encoding/CDR where appropriate.
+- Current per-UID limits are 5 active intents, 150 MiB active reserved bytes and 500 MiB reserved bytes per UTC day.
+- Per-file maxima: raster images 10 MiB, MP4 video 100 MiB, audio 25 MiB, PDF 20 MiB.
+- The upload intent reserves the declared size; finalization rejects and deletes an object whose actual byte count differs from that reservation.
+- Important remaining gap: the current signed PUT flow does not enforce the byte ceiling before Cloud Storage accepts the body. The post-upload check protects publication and cleans rejected objects, but it does not prevent temporary transfer/storage cost from an oversized body. A production transport boundary or separately tested upload policy is still required. Do not claim this is already enforced at transport time.
 
-## Real HTTP signed URL test
+## Trusted malware scanner and safe image processing
 
-Run only against a dedicated, disposable non-production bucket with application-default credentials:
+Source code now includes an isolated Cloud Run scanner service under `scanner/`:
+- Private Cloud Run IAM authentication (the Functions dispatcher obtains a Google identity token) plus a separate high-entropy scanner API token.
+- HTTPS-only source URL validation bound to the exact bucket object path and generation; no redirects or arbitrary hosts.
+- 100 MiB bounded download, ClamAV scan with explicit archive recursion/file-count/scan-size limits, and fail-closed behavior for timeouts, parser limits and incomplete scans.
+- HMAC-SHA256 callback binding media ID, provider, source generation, source SHA-256 and scan timestamp.
+- Clean raster images are decoded and re-encoded by Sharp to a bounded WebP derivative. Firebase independently verifies the source hash and derivative generation, metadata and hash before setting `security_approved`.
+- Malicious verdicts reject and delete only the matching source generation. Duplicate verdict callbacks are idempotent.
+- Clean video, audio and PDF assets remain `scanner_clean_pending_processing`; they are not member-accessible and cannot be previewed until type-aware safe processing is built.
+
+**Deployment status:** the scanner service source and CI security tests exist, but the Cloud Run service has not been deployed or connected to a non-production Firebase project in this environment. No actual file has yet been scanned by this service. Until deployment, secret configuration and end-to-end verification are complete, every upload remains quarantined and must not be treated as security-approved.
+
+## Scanner deployment contract
+
+See `scanner/README.md`. Required managed configuration:
+- Firebase secrets: `MAWDA_MEDIA_SCANNER_API_TOKEN`, `MAWDA_MEDIA_SCANNER_HMAC_SECRET`.
+- Firebase parameters: `MAWDA_MEDIA_SCANNER_URL` (Cloud Run HTTPS URL ending in `/scan`), `MAWDA_MEDIA_SCANNER_CALLBACK_URL`, `MAWDA_MEDIA_SCANNER_PROVIDER`.
+- Cloud Run secrets/env: matching API token and HMAC secret, callback URL, provider and exact `GCS_BUCKET`.
+- Cloud Run must reject unauthenticated invocations. Grant `roles/run.invoker` only to the Firebase Functions runtime service account. Grant the scanner runtime only the required object-create/object-get access to the `processed/` prefix; do not grant bucket administration.
+- Keep all secrets outside Git and never place signed URLs, tokens or file contents in logs.
+
+## Real Cloud Storage HTTP test
+
+Run only against a disposable non-production bucket with application-default credentials:
 
 ```sh
 cd functions
 MAWDA_MEDIA_SIGNED_URL_HTTP_TEST=1 \
-GOOGLE_CLOUD_PROJECT=your-nonproduction-project \
-MAWDA_MEDIA_TEST_BUCKET=your-nonproduction-bucket \
+GOOGLE_CLOUD_PROJECT=mawda-media-test \
+MAWDA_MEDIA_TEST_BUCKET=mawda-media-test.appspot.com \
 npm run test:media-signed-urls-http
 ```
 
-The test performs a real HTTP signed PUT, verifies replay/create-only rejection (412), downloads and compares bytes through a signed GET, waits for expiry and verifies the expired GET is denied, then deletes its uniquely named test object. It refuses the known production project ID and bucket names containing `prod`. This opt-in test has not yet been run because no non-production bucket credentials/configuration have been supplied in this environment.
+The guarded runner performs real HTTP signed PUT and GET requests, verifies replay/create-only rejection (412), verifies expiry for both upload and read URLs, and deletes its uniquely named test objects. It refuses the known production project ID and project/bucket names that do not explicitly identify a non-production environment. This test has not yet been run because no non-production bucket credentials/configuration are available here.
 
-## Remaining release gates
+## Retention, audit and release gates
 
-- Connect and verify a real trusted scanner and safe processing pipeline; include clean, malicious, timeout, invalid-HMAC, stale-verdict, generation-race and retry/dead-letter tests.
-- Enforce maximum transfer size at the HTTP transport boundary, not only after upload. Validate CORS against the actual non-production bucket.
-- Harden cleanup with exact-generation deletion, retry/reconciliation tests and orphan detection.
-- Define owner-approved retention, export, legal-hold, deletion and backup-expiry policy before enabling destructive retention jobs.
-- Test owner preview authorization, revoked tokens, stale MFA, content-type rejection, no-store headers, streaming failures and audit failure behavior.
-- Run the real HTTP signed URL test, emulator suites, Flutter regression tests and device/browser tests against the exact candidate commit.
+- No automatic retention deletion is enabled. Retention periods, legal holds, export format, deletion authority, backup expiry and exception handling require owner approval before destructive lifecycle rules are configured.
+- Add delayed missing-object/in-flight-upload cleanup rechecks, cleanup retry/dead-letter tests and orphan reconciliation.
+- Enforce byte limits at the transport boundary and validate CORS against actual non-production bucket origins.
+- Deploy and exercise the scanner in non-production with clean files, EICAR test signature, malformed images, archive bombs/limit-exceeding files, stale generation, bad HMAC, duplicate callbacks, scanner timeout, signature database refresh and Cloud Run restart/retry.
+- Build safe processing for video, audio and PDF before any of those types can be member-delivered.
+- Add Flutter App Check initialization and wire the owner preview/attachment actions to the authenticated endpoints; the current owner console intentionally does not expose a raw signed URL or preview button.
+- Verify owner MFA enrollment/recovery/revocation, CORS, Android/iOS/web device flows, performance, monitoring, backups and restore in a non-production project.
 
-No production Firebase data, rules, bucket configuration, or deployment has been changed. No merge or production release is authorized by this implementation work.
+No production Firebase data, rules, bucket configuration, deployment, merge or destructive retention action has been changed or authorized.
