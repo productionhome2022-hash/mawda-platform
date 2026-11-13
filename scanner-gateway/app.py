@@ -40,7 +40,12 @@ def validate_dispatch(payload):
         raise ValueError("invalid object generation")
     if provider != PROVIDER:
         raise ValueError("provider mismatch")
-    if not isinstance(object_path, str) or not object_path.startswith("quarantine/") or ".." in object_path.split("/"):
+    if not isinstance(object_path, str):
+        raise ValueError("invalid quarantine path")
+    path_parts = object_path.split("/")
+    if (len(path_parts) != 3 or path_parts[0] != "quarantine" or
+            not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", path_parts[1]) or
+            path_parts[2] != media_id):
         raise ValueError("invalid quarantine path")
     download = urllib.parse.urlparse(download_url or "")
     if download.scheme != "https" or download.hostname not in ALLOWED_DOWNLOAD_HOSTS or not download.query:
