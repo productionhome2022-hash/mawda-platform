@@ -131,9 +131,7 @@ async function processGif({ sourcePath, tempDir, request, sourceSha256, storage,
     filename: "animation.gif", contentType: "image/gif",
     pipelineVersion: "gif-sanitize-preserve-animation-v1", maxBytes: LIMITS.gif.maxBytes,
   });
-  return { safeAnimationPath: artifact.path, safeAnimationGeneration: artifact.generation,
-    safeAnimationSha256: artifact.sha256, safeAnimationContentType: artifact.contentType,
-    processingPipelineVersion: artifact.pipelineVersion, processingStatus: "safe_animation_derivative_ready" };
+  return { safeDerivative: { category: "gif", ...artifact }, processingStatus: "safe_animation_derivative_ready" };
 }
 
 async function processAudio({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
@@ -153,9 +151,7 @@ async function processAudio({ sourcePath, tempDir, request, sourceSha256, storag
     filename: "audio.mp3", contentType: "audio/mpeg",
     pipelineVersion: "ffmpeg-audio-transcode-v1", maxBytes: LIMITS.audio.maxBytes,
   });
-  return { safeAudioPath: artifact.path, safeAudioGeneration: artifact.generation,
-    safeAudioSha256: artifact.sha256, safeAudioContentType: artifact.contentType,
-    processingPipelineVersion: artifact.pipelineVersion, processingStatus: "safe_audio_derivative_ready" };
+  return { safeDerivative: { category: "audio", ...artifact }, processingStatus: "safe_audio_derivative_ready" };
 }
 
 async function processVideo({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
@@ -177,9 +173,7 @@ async function processVideo({ sourcePath, tempDir, request, sourceSha256, storag
     filename: "video.mp4", contentType: "video/mp4",
     pipelineVersion: "ffmpeg-video-transcode-v1", maxBytes: LIMITS.video.maxBytes,
   });
-  return { safeVideoPath: artifact.path, safeVideoGeneration: artifact.generation,
-    safeVideoSha256: artifact.sha256, safeVideoContentType: artifact.contentType,
-    processingPipelineVersion: artifact.pipelineVersion, processingStatus: "safe_video_derivative_ready" };
+  return { safeDerivative: { category: "video", ...artifact }, processingStatus: "safe_video_derivative_ready" };
 }
 
 async function processPdf({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
@@ -212,9 +206,7 @@ async function processPdf({ sourcePath, tempDir, request, sourceSha256, storage,
     filename: "document.pdf", contentType: "application/pdf",
     pipelineVersion: "pdf-raster-flatten-v1", maxBytes: LIMITS.pdf.maxBytes,
   });
-  return { safeDocumentPath: artifact.path, safeDocumentGeneration: artifact.generation,
-    safeDocumentSha256: artifact.sha256, safeDocumentContentType: artifact.contentType,
-    processingPipelineVersion: artifact.pipelineVersion, processingStatus: "safe_document_derivative_ready" };
+  return { safeDerivative: { category: "document", ...artifact }, processingStatus: "safe_document_derivative_ready" };
 }
 
 async function processSafeDerivative(context) {
