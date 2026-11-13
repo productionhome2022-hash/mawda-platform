@@ -98,8 +98,6 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
     const lifetimeMs = purpose === "profile_album" ? 7 * 24 * 60 * 60 * 1000
       : purpose === "story" ? null : CHAT_MEDIA_RETENTION_MS;
     const cutoff = lifetimeMs === null ? null : Timestamp.fromMillis(Date.now() - lifetimeMs);
-    const retentionLabel = purpose === "profile_album" ? "seven_day_profile_album"
-      : purpose === "story" ? "story_expiry" : "four_hour_self_destruct";
     const deletedPolicyStatus = purpose === "profile_album" ? "seven_day_profile_album_deleted"
       : purpose === "story" ? "story_expired_deleted" : "four_hour_self_destructed";
     const deletionAuditAction = purpose === "profile_album" ? "profile_album_media_deleted"
@@ -398,7 +396,7 @@ export const removeLateExpiredChatMediaDerivative = configuredBucket
   ? onObjectFinalized({ bucket: configuredBucket }, handleLateExpiredChatMediaDerivative)
   : undefined;
 
-/** Reconciles expired chat and profile-gallery media every minute; disabled by default and non-production gated. */
+/** Reconciles expired chat, gallery and story media every minute; disabled by default and non-production gated. */
 export const enforceChatMediaRetention = onSchedule(
   { schedule: "every 1 minutes", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
   async () => {
