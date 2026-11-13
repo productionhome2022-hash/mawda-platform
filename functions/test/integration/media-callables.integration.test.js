@@ -357,7 +357,8 @@ test("scheduled cleanup deletes abandoned quarantine objects and releases active
     mediaId, ownerUid: uid, objectPath, originalName: "abandoned.png",
     declaredContentType: "image/png", declaredSizeBytes: reservedBytes,
     status: "upload_authorized",
-    createdAt: Timestamp.fromMillis(Date.now() - 30 * 60 * 1000),
+    createdAt: Timestamp.fromMillis(Date.now() - 60 * 60 * 1000),
+    uploadUrlExpiresAt: new Date(Date.now() - 55 * 60 * 1000),
   });
   const file = getStorage().bucket().file(objectPath);
   await file.save(Buffer.from("abandoned upload"), {
@@ -378,6 +379,48 @@ test("scheduled cleanup deletes abandoned quarantine objects and releases active
     event.action === "media_upload_intent_expired" && event.outcome === "success"));
 });
 
+
+
+
+test("missing-object cleanup retains quota until a delayed recheck confirms no late upload", async () => {
+  const uid = `missing-abandoned-${Date.now()}-${Math.random()}`;
+  const mediaId = randomUUID();
+  const objectPath = `quarantine/${uid}/${mediaId}`;
+  const reservedBytes = 1024;
+  await db.collection("mediaUploadQuotas").doc(uid).set({
+    activeUploads: 1,
+    activeBytes: reservedBytes,
+    dailyBytes: reservedBytes,
+    dailyWindow: new Date().toISOString().slice(0, 10),
+  });
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  await assetRef.create({
+    mediaId, ownerUid: uid, objectPath, originalName: "missing.png",
+    declaredContentType: "image/png", declaredSizeBytes: reservedBytes,
+    status: "upload_authorized",
+    createdAt: Timestamp.fromMillis(Date.now() - 60 * 60 * 1000),
+    uploadUrlExpiresAt: new Date(Date.now() - 55 * 60 * 1000),
+  });
+
+  await cleanupExpiredMediaUploadIntents.run();
+  let asset = await assetRef.get();
+  assert.equal(asset.data().status, "expired_cleanup_in_progress");
+  assert.ok(asset.data().cleanupMissingObjectRecheckAt.toMillis() > Date.now());
+  let quota = await db.collection("mediaUploadQuotas").doc(uid).get();
+  assert.equal(quota.data().activeUploads, 1);
+  assert.equal(quota.data().activeBytes, reservedBytes);
+
+  await assetRef.update({
+    cleanupMissingObjectRecheckAt: Timestamp.fromMillis(Date.now() - 1),
+  });
+  await cleanupExpiredMediaUploadIntents.run();
+  asset = await assetRef.get();
+  assert.equal(asset.data().status, "expired");
+  quota = await db.collection("mediaUploadQuotas").doc(uid).get();
+  assert.equal(quota.data().activeUploads, 0);
+  assert.equal(quota.data().activeBytes, 0);
+  assert.equal(quota.data().dailyBytes, reservedBytes);
+});
 
 test("signed upload transport rejects bytes larger than the exact quota reservation", async () => {
   const uid = `http-size-mismatch-${Date.now()}-${Math.random()}`;
