@@ -85,3 +85,29 @@ See [issue #4](https://github.com/productionhome2022-hash/mawda-platform/issues/
 - Added exact-boundary unit tests and a Firestore-emulator integration test. Added an opt-in real-GCS retention script that checks soft-delete/retention policy, bucket access protections, and deletion of every visible object generation.
 - Full validation run [43383055516](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43383055516) passed on code/index commit `4f9d317291c3ecdab049256b32c8450f776aaaf5`: Functions build/unit tests; media callable authorization/audit integration; seven-day retention integration; Firestore/Storage rules; Flutter analyze/tests/Web release; ClamAV image build and EICAR detection.
 - This is not phase closure. Still required: real non-production GCS retention and signed-URL HTTP runs, actual Firebase/Cloud Run scanner lifecycle, backup/PITR and soft-delete configuration proof, legal-hold behavior, 24-month audit export/checkpoint design, story/gallery/avatar/cover retention jobs, and final review on one candidate commit.
+
+
+## Member profile media and story UI implementation — 13 November 2026
+- Added a member-authenticated callable that returns a 60-second signed read URL only for the selected avatar/cover's exact, scanner-approved WebP derivative. It checks profile visibility, owner, slot, media status, expiry, derivative generation and scanner metadata, and records an access audit event. No original quarantine URL is returned.
+- Added an uploader-scoped media-status callable. The Flutter upload client waits for a verified clean scan and safe WebP derivative before allowing profile selection; rejected, expired or timed-out assets are not displayed.
+- Added a cross-platform Flutter image upload client using image_picker and signed V4 Storage PUT with the exact required headers, followed by server finalization. Added avatar/cover selection controls and explicit reset-to-default actions.
+- Added resetMemberProfileMedia: transactionally clears the selected media ID, sets the built-in Mawda default flag, bounds the superseded asset's expiry, preserves active legal holds, and writes an operational audit record.
+- Added story publish/feed callables. A story can be published only from the authenticated member's own story asset after security_approved, and its document expiry is copied from the server-validated upload intent. The feed excludes expired stories and private-profile stories for other viewers.
+- Added short-lived story safe-preview URLs that validate the story lifetime, profile visibility, approved status, exact preview generation and scanner metadata. Added a member-facing Stories screen with user-selected expiration date/time; no fixed story duration was assumed.
+- The retention sweep now removes expired story documents from the feed while media object erasure continues through the exact-generation, retryable asset cleanup path. Added the stories(status, expiresAt) index.
+- Added emulator integration coverage for profile reset, safe-profile URL default/private authorization, story publication only after scanner approval, story feed expiry, and expired story document cleanup.
+- These changes are on the draft development PR. The validation run for the current candidate is pending; do not treat the code as CI-verified until all jobs finish green.
+
+## Media send/receive path audit — current limitation
+
+- Direct-chat and room Flutter screens currently send text only. The corresponding sendDirectMessage and sendRoomMessage callables validate and write type=text messages; no member-facing image/video/audio/document attachment send path is implemented in these screens.
+- Read projections contain optional media ID fields for compatibility, but they do not constitute an attachment delivery path. Firestore/Storage member rules remain restrictive, and the new profile/story flows expose only signed safe WebP derivatives after trusted scan approval.
+- This means I found no active chat UI route that bypasses scanning; however, the full chat attachment feature for image/GIF/video/audio/PDF is still missing. The scanner currently produces a safe raster derivative only for supported images; non-image clean verdicts remain in a pending-processing state and must not be exposed until a safe processing/delivery design is implemented and tested.
+
+## Backup, audit and legal-hold governance — still blocking destructive activation
+
+- Media legal holds are asset-scoped and integrated with retention workers. Profile expiry still applies the built-in default while a held object is preserved; deletion resumes after hold release/expiry.
+- The current legal-hold model does not yet prove preservation/release behavior for audit exports, immutable checkpoints, Firestore exports/PITR, object soft-delete, replicas or disaster-recovery copies.
+- Owner-review audit export and hash-chain verification callables exist, but there is no demonstrated immutable 24-month archive/checkpoint/restore exercise in the non-production environment. Operational media logs have a 90-day cleanup path; this must remain distinct from the 24-month sensitive owner/security evidence.
+- Real GCS generation/soft-delete verification and live Cloud Run scanner execution remain blocked on dedicated non-production GCP resources, WIF and Secret Manager configuration. The manual deployment workflows are staged on this development branch; they cannot be dispatched until the owner explicitly authorizes the required default-branch workflow availability and provisions the non-production identities/secrets.
+- No retention schedule was enabled, no GCS/Cloud Run deployment was performed, and no production resources or data were changed.
