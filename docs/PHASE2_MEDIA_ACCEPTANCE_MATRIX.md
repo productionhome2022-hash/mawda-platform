@@ -210,3 +210,12 @@ This is intentionally **not** a general attachment implementation yet:
 - PDF remains owner-upload-only at intake, but owner PDF message delivery is not enabled until the PDF sanitization pipeline exists.
 - The Flutter chat picker, upload orchestration, progress/error states, previews and receive UI remain outstanding.
 - The four-hour retention sweeper must be verified to remove linked message documents and notifications as well as every media generation; do not claim full chat attachment lifecycle closure until that integration test passes.
+
+## Follow-up — chat image attachment delivery and deletion retry (13 November 2026)
+
+- Added direct-chat and room Flutter image pick/upload/send/receive UI using the trusted quarantine upload intent, server finalization and scanner-approved WebP derivative only.
+- Added short-lived signed-URL refresh in both chat screens; cached links are refreshed before the two-minute server expiry.
+- GIF uploads are explicitly rejected by the current chat image picker client until the separate animation-preserving sanitizer is available. Audio/video/PDF/office files remain fail-closed.
+- Tightened image delivery checks: exact conversation scope/ID binding, safe derivative generation/hash and scanner metadata checks, and denial when the message is hidden for the requesting participant.
+- Manual message-media deletion failures are now eligible for the gated retention retry sweep. Successful retries become manually_deleted tombstones and receive the same five-minute late-object reconciliation. Added emulator integration coverage for retry and late replay.
+- The exact current head still requires a full green CI run. No live GCS, Cloud Run, backup/PITR, or production environment behavior is claimed from emulator checks.
