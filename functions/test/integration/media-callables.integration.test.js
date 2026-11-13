@@ -222,6 +222,27 @@ test("daily upload count quota rejects before a signed capability is created", a
   assert.equal(signedUrlRequests.length, callsBefore);
 });
 
+test("upload capability signs exact byte range and create-only V4 PUT preconditions", async () => {
+  const uid = `signed-options-${Date.now()}-${Math.random()}`;
+  const result = await createMediaUploadIntent.run({
+    data: { originalName: "signed-check.png", contentType: "image/png", sizeBytes: 1024 },
+    auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+  });
+  assert.ok(result.uploadUrl.startsWith("https://signed.test/"));
+  assert.equal(result.uploadMethod, "PUT");
+  assert.equal(result.maxBytes, 1024);
+  assert.equal(result.uploadHeaders["Content-Type"], "image/png");
+  assert.equal(result.uploadHeaders["x-goog-content-length-range"], "1024,1024");
+  const call = signedUrlRequests.at(-1);
+  assert.equal(call.options.version, "v4");
+  assert.equal(call.options.action, "write");
+  assert.equal(call.options.contentType, "image/png");
+  assert.equal(call.options.queryParams.ifGenerationMatch, "0");
+  assert.equal(call.options.extensionHeaders["x-goog-content-length-range"], "1024,1024");
+  assert.ok(call.options.expires - Date.now() <= 5 * 60 * 1000);
+  assert.ok(call.options.expires - Date.now() > 4 * 60 * 1000);
+});
+
 test("signer failure atomically releases reserved capacity and leaves no upload capability", async () => {
   const uid = `signer-failure-${Date.now()}-${Math.random()}`;
   const stubSigner = StorageFile.prototype.getSignedUrl;
