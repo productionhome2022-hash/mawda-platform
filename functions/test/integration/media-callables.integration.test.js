@@ -662,6 +662,7 @@ async function createReadyChatImage({ uid, purpose = "chat", mediaId = randomUUI
     mediaId, ownerUid: uid, uploaderRole: "member", uploaderType: "member",
     mediaPurpose: purpose, mediaCategory: "image", detectedContentType: "image/png",
     status: "security_approved", processingStatus: "safe_raster_derivative_ready",
+    processingPipelineVersion: "sharp-decode-reencode-v1",
     safePreviewPath: objectPath, safePreviewGeneration: String(stored.generation),
     safePreviewSha256: "a".repeat(64), safePreviewContentType: "image/webp",
     safePreviewSizeBytes: bytes.length, retentionExpiresAt: Timestamp.fromMillis(Date.now() + 4 * 60 * 60 * 1000),
