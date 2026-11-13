@@ -3788,6 +3788,7 @@ export const getOwnerStoreCatalog = onCall(async (request) => {
 export {
   createMediaUploadIntent,
   finalizeMediaUpload,
+  getMemberProfileMediaUrl,
   listOwnerMediaAssets,
   getOwnerMediaSafePreview,
   getOwnerMediaInspectionUrl,
