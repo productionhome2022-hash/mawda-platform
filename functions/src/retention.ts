@@ -32,7 +32,7 @@ export function isSupportedChatMessagePath(path: string): boolean {
 function nonProductionProject(): boolean {
   const projectId = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? "";
   return projectId !== "mawda-app-2026" &&
-    /(test|staging|dev|nonprod|sandbox)/i.test(projectId) &&
+    /(test|staging|dev|demo|nonprod|sandbox)/i.test(projectId) &&
     !/prod(uction)?/i.test(projectId);
 }
 
@@ -81,14 +81,16 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
   let failures = 0;
 
   for (const purpose of ["chat", "room"] as const) {
-    const snapshot = await db.collection("mediaAssets")
-      .where("mediaPurpose", "==", purpose)
-      .where("createdAt", "<=", cutoff)
-      .orderBy("createdAt", "asc")
-      .limit(RETENTION_BATCH_SIZE)
-      .get();
+    for (let page = 0; page < 10; page += 1) {
+      const snapshot = await db.collection("mediaAssets")
+        .where("mediaPurpose", "==", purpose)
+        .where("createdAt", "<=", cutoff)
+        .orderBy("createdAt", "asc")
+        .limit(RETENTION_BATCH_SIZE)
+        .get();
+      if (snapshot.empty) break;
 
-    for (const assetDoc of snapshot.docs) {
+      for (const assetDoc of snapshot.docs) {
       const asset = assetDoc.data();
       const ownerUid = typeof asset.ownerUid === "string" ? asset.ownerUid : "";
       const mediaId = assetDoc.id;
@@ -131,6 +133,7 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
         });
       }
     }
+    }
   }
   return { assets, objects, failures };
 }
@@ -138,15 +141,19 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
 async function deleteExpiredChatText(): Promise<{ messages: number; failures: number }> {
   const db = getFirestore();
   const cutoff = Timestamp.fromMillis(Date.now() - CHAT_TEXT_RETENTION_MS);
+  let messages = 0;
+  let failures = 0;
+  for (let page = 0; page < 10; page += 1) {
   const snapshot = await db.collectionGroup("messages")
     .where("createdAt", "<=", cutoff)
     .orderBy("createdAt", "asc")
     .limit(RETENTION_BATCH_SIZE)
     .get();
+  if (snapshot.empty) break;
 
   const batch = db.batch();
   const directChatIds = new Set<string>();
-  let messages = 0;
+  let batchMessages = 0;
   for (const messageDoc of snapshot.docs) {
     if (!isSupportedChatMessagePath(messageDoc.ref.path)) continue;
     const parts = messageDoc.ref.path.split("/");
@@ -160,12 +167,13 @@ async function deleteExpiredChatText(): Promise<{ messages: number; failures: nu
       directChatIds.add(parts[1]);
     }
     batch.delete(messageDoc.ref);
-    messages += 1;
+    batchMessages += 1;
   }
-  if (messages === 0) return { messages: 0, failures: 0 };
+  if (batchMessages === 0) break;
 
   try {
     await batch.commit();
+    messages += batchMessages;
     // lastMessagePreview is a text copy. Remove it when its timestamp is expired.
     for (const chatId of directChatIds) {
       const chatRef = db.collection("directChats").doc(chatId);
@@ -183,13 +191,15 @@ async function deleteExpiredChatText(): Promise<{ messages: number; failures: nu
         }
       });
     }
-    return { messages, failures: 0 };
   } catch (error) {
     logger.error("Chat text deletion batch failed; scheduled sweep will retry.", {
       errorName: error instanceof Error ? error.name : "unknown",
     });
-    return { messages: 0, failures: messages };
+    failures += batchMessages;
+    break;
   }
+  }
+  return { messages, failures };
 }
 
 /** Reconciles expired chat media every minute; disabled by default and non-production gated. */
