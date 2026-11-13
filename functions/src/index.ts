@@ -1561,6 +1561,18 @@ export const reviewSafetyCase = onCall(async (request) => {
   return { caseId, decision };
 });
 
+/** Returns the caller's own block list only. */
+export const getMyBlockedUsers = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const user = await db.collection("users").doc(uid).get();
+  if (!user.exists) throw new HttpsError("not-found", "ملف العضوية غير موجود.");
+  const blockedUids = Array.isArray(user.data()?.blockedUids)
+    ? user.data()!.blockedUids.filter((value: unknown): value is string =>
+        typeof value === "string" && value.length > 0 && value.length <= 128)
+    : [];
+  return { blockedUids };
+});
+
 /**
  * Sends a text-only direct message through a trusted callable.
  * Client writes to chat and notification collections remain denied by rules.
