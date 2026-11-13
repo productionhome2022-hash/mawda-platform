@@ -11,7 +11,7 @@ const {
 } = require("../../lib/media");
 
 const { initializeApp, getApps } = require("firebase-admin/app");
-const { getFirestore } = require("firebase-admin/firestore");
+const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
 const { randomUUID } = require("node:crypto");
 
@@ -280,4 +280,41 @@ test("owner inspection rejects stale storage generations and audits the denial",
   );
   assert.ok((await auditEvents(uid)).some((event) =>
     event.action === "owner_media_inspection_result" && event.outcome === "denied_or_failed"));
+});
+
+
+test("scheduled cleanup deletes abandoned quarantine objects and releases active quota", async () => {
+  const uid = `abandoned-${Date.now()}-${Math.random()}`;
+  const mediaId = randomUUID();
+  const objectPath = `quarantine/${uid}/${mediaId}`;
+  const reservedBytes = 2048;
+  await db.collection("mediaUploadQuotas").doc(uid).set({
+    activeUploads: 1,
+    activeBytes: reservedBytes,
+    dailyBytes: reservedBytes,
+    dailyWindow: new Date().toISOString().slice(0, 10),
+  });
+  await db.collection("mediaAssets").doc(mediaId).create({
+    mediaId, ownerUid: uid, objectPath, originalName: "abandoned.png",
+    declaredContentType: "image/png", declaredSizeBytes: reservedBytes,
+    status: "upload_authorized",
+    createdAt: Timestamp.fromMillis(Date.now() - 30 * 60 * 1000),
+  });
+  const file = getStorage().bucket().file(objectPath);
+  await file.save(Buffer.from("abandoned upload"), {
+    metadata: { contentType: "image/png" },
+  });
+
+  await cleanupExpiredMediaUploadIntents.run();
+
+  const asset = await db.collection("mediaAssets").doc(mediaId).get();
+  assert.equal(asset.data().status, "expired");
+  const [exists] = await file.exists();
+  assert.equal(exists, false);
+  const quota = await db.collection("mediaUploadQuotas").doc(uid).get();
+  assert.equal(quota.data().activeUploads, 0);
+  assert.equal(quota.data().activeBytes, 0);
+  assert.equal(quota.data().dailyBytes, reservedBytes);
+  assert.ok((await auditEvents(uid)).some((event) =>
+    event.action === "media_upload_intent_expired" && event.outcome === "success"));
 });
