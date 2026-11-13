@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions";
 import { createHash } from "node:crypto";
 import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -619,6 +620,6 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
         throw error;
       }
     }
-    return { reclaimed };
+    logger.info("Media upload cleanup completed", { reclaimed });
   },
 );
