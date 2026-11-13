@@ -77,6 +77,20 @@ async function waitForAssetStatus(assetRef, expectedStatus, jobRef) {
   throw new Error(`Timed out waiting for ${expectedStatus}; asset=${lastStatus}, job=${lastJobState}.`);
 }
 
+async function waitForAuditAction(mediaId, action) {
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    const snapshot = await db.collection("mediaAccessAudit")
+      .where("mediaId", "==", mediaId)
+      .where("action", "==", action)
+      .limit(1)
+      .get();
+    if (!snapshot.empty) return;
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+  throw new Error(`Missing audit action after live replay cleanup: ${action}`);
+}
+
 async function waitForObjectGone(file) {
   const deadline = Date.now() + 90_000;
   while (Date.now() < deadline) {
@@ -189,6 +203,7 @@ async function runCase(label, bytes, expectedStatus) {
       throw new Error(`Signed upload replay did not reach the cleanup trigger: HTTP ${replay.status}`);
     }
     await waitForObjectGone(file);
+    await waitForAuditAction(mediaId, "late_chat_media_original_deleted");
 
     const audit = await db.collection("mediaAccessAudit")
       .where("mediaId", "==", mediaId).get();
