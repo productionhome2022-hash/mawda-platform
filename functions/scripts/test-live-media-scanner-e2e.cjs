@@ -89,25 +89,43 @@ async function waitForAuditAction(mediaId, action) {
   throw new Error(`Missing audit action after live replay cleanup: ${action}`);
 }
 
+async function listExactVersions(file) {
+  const [versions] = await bucket.getFiles({
+    prefix: file.name,
+    versions: true,
+    autoPaginate: true,
+  });
+  return versions.filter((candidate) => candidate.name === file.name);
+}
+
 async function waitForObjectGone(file) {
   const deadline = Date.now() + 90_000;
   while (Date.now() < deadline) {
-    const [exists] = await file.exists();
-    if (!exists) return;
+    const versions = await listExactVersions(file);
+    if (versions.length === 0) return;
     await new Promise((resolve) => setTimeout(resolve, 1_000));
   }
-  throw new Error("Scanner verdict was rejected but the quarantined object was not deleted.");
+  const remaining = await listExactVersions(file);
+  throw new Error(`Object still has ${remaining.length} live/noncurrent generation(s) after cleanup.`);
 }
 
 async function deleteExact(file) {
-  const [exists] = await file.exists();
-  if (!exists) return;
-  const [metadata] = await file.getMetadata();
-  const generation = Number(metadata.generation);
-  if (!Number.isSafeInteger(generation) || generation <= 0) {
-    throw new Error("Storage returned an invalid generation during E2E cleanup.");
+  const versions = await listExactVersions(file);
+  for (const version of versions) {
+    const [metadata] = await version.getMetadata();
+    const generation = Number(metadata.generation);
+    if (!Number.isSafeInteger(generation) || generation <= 0) {
+      throw new Error("Storage returned an invalid generation during E2E cleanup.");
+    }
+    await bucket.file(file.name, { generation }).delete({
+      ignoreNotFound: true,
+      ifGenerationMatch: generation,
+    });
   }
-  await file.delete({ ignoreNotFound: true, ifGenerationMatch: generation });
+  const remaining = await listExactVersions(file);
+  if (remaining.length !== 0) {
+    throw new Error(`E2E cleanup left ${remaining.length} object generation(s).`);
+  }
 }
 
 async function runCase(label, bytes, expectedStatus) {
