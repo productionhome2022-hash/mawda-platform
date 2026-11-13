@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 // Import the callable module before initializeApp(). This intentionally guards
 // against eager Admin SDK access during the Functions entry-point import phase.
 const {
+  createMediaUploadIntent,
   listOwnerMediaAssets,
   finalizeMediaUpload,
 } = require("../../lib/media");
@@ -43,6 +44,15 @@ function memberRequest(uid, provider = "password") {
       },
     },
   };
+}
+
+async function reserveFixtureQuota(uid, bytes) {
+  await db.collection("mediaUploadQuotas").doc(uid).set({
+    activeUploads: 1,
+    activeBytes: bytes,
+    dailyBytes: bytes,
+    dailyWindow: new Date().toISOString().slice(0, 10),
+  });
 }
 
 async function auditEvents(uid) {
@@ -108,6 +118,7 @@ test("finalize callable accepts a matching quarantined PNG and audits the result
   const mediaId = randomUUID();
   const objectPath = `quarantine/${uid}/${mediaId}`;
   const bytes = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
+  await reserveFixtureQuota(uid, bytes.length);
   await db.collection("mediaAssets").doc(mediaId).create({
     mediaId, ownerUid: uid, objectPath, uploaderType: "member",
     declaredContentType: "image/png", declaredSizeBytes: bytes.length,
@@ -138,6 +149,7 @@ test("finalize callable rejects and deletes a file whose bytes contradict its de
     declaredContentType: "image/png", declaredSizeBytes: bytes.length,
     status: "upload_authorized",
   });
+  await reserveFixtureQuota(uid, bytes.length);
   const file = getStorage().bucket().file(objectPath);
   await file.save(bytes, { metadata: { contentType: "image/png" } });
 
@@ -154,4 +166,37 @@ test("finalize callable rejects and deletes a file whose bytes contradict its de
   assert.equal(exists, false);
   assert.ok((await auditEvents(uid)).some((event) =>
     event.action === "media_upload_validation" && event.outcome === "rejected"));
+});
+
+test("upload intent reserves per-user quota atomically and audits the capability issuance", async () => {
+  const uid = `quota-uploader-${Date.now()}-${Math.random()}`;
+  const result = await createMediaUploadIntent.run({
+    data: { originalName: "quota.png", contentType: "image/png", sizeBytes: 1024 },
+    auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+  });
+  assert.equal(typeof result.mediaId, "string");
+  assert.equal(typeof result.uploadUrl, "string");
+  assert.ok(result.uploadUrl.startsWith("http"));
+  const quota = await db.collection("mediaUploadQuotas").doc(uid).get();
+  assert.equal(quota.data().activeUploads, 1);
+  assert.equal(quota.data().activeBytes, 1024);
+  const asset = await db.collection("mediaAssets").doc(result.mediaId).get();
+  assert.equal(asset.data().status, "upload_authorized");
+  assert.ok((await auditEvents(uid)).some((event) =>
+    event.action === "media_upload_intent_created" && event.outcome === "success"));
+});
+
+test("upload intent rejects a user who has exhausted the concurrent upload quota", async () => {
+  const uid = `quota-exhausted-${Date.now()}-${Math.random()}`;
+  await db.collection("mediaUploadQuotas").doc(uid).set({
+    activeUploads: 5, activeBytes: 1024, dailyBytes: 1024,
+    dailyWindow: new Date().toISOString().slice(0, 10),
+  });
+  await assert.rejects(
+    () => createMediaUploadIntent.run({
+      data: { originalName: "blocked.png", contentType: "image/png", sizeBytes: 1024 },
+      auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+    }),
+    (error) => error && error.code === "resource-exhausted",
+  );
 });
