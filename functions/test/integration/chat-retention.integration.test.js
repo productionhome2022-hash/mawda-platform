@@ -101,6 +101,7 @@ test("seven-day profile gallery retention removes original and preview objects b
   const assetRef = db.collection("mediaAssets").doc(mediaId);
   const heldAssetRef = db.collection("mediaAssets").doc(heldMediaId);
   const storyAssetRef = db.collection("mediaAssets").doc(storyMediaId);
+  const storyRef = db.collection("stories").doc(`expired-story-${suffix}`);
   const original = bucket.file(objectPath);
   const preview = bucket.file(previewPath);
   const heldOriginal = bucket.file(heldObjectPath);
@@ -133,7 +134,10 @@ test("seven-day profile gallery retention removes original and preview objects b
       mediaId: storyMediaId, ownerUid, uploaderType: "member", mediaPurpose: "story",
       objectPath: storyObjectPath, safePreviewPath: storyPreviewPath,
       status: "security_approved", retentionPolicyStatus: "delete_at_story_expiry",
-      storyExpiresAt: old, retentionExpiresAt: old, createdAt: old,
+      storyExpiresAt: old, retentionExpiresAt: old, storyDocumentId: storyRef.id, createdAt: old,
+    }),
+    storyRef.set({
+      ownerUid, mediaId: storyMediaId, status: "active", createdAt: old, expiresAt: old,
     }),
   ]);
 
@@ -152,6 +156,7 @@ test("seven-day profile gallery retention removes original and preview objects b
     assert.equal(expiredStory.retentionPolicyStatus, "story_expired_deleted");
     assert.equal((await storyOriginal.exists())[0], false);
     assert.equal((await storyPreview.exists())[0], false);
+    assert.equal((await storyRef.get()).exists, false);
 
     // A signed upload or processor that was already in flight may recreate an
     // exact object after the first sweep. The tombstone reconciliation must
@@ -170,6 +175,7 @@ test("seven-day profile gallery retention removes original and preview objects b
       assetRef.delete().catch(() => undefined),
       heldAssetRef.delete().catch(() => undefined),
       storyAssetRef.delete().catch(() => undefined),
+      storyRef.delete().catch(() => undefined),
       storyOriginal.delete({ ignoreNotFound: true }).catch(() => undefined),
       storyPreview.delete({ ignoreNotFound: true }).catch(() => undefined),
       original.delete({ ignoreNotFound: true }).catch(() => undefined),
