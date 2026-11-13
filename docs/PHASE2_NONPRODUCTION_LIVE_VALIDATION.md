@@ -40,7 +40,7 @@ MAWDA_MEDIA_TEST_BUCKET=<non-production-bucket-name> \
 npm run test:media-scanner-live-e2e
 ```
 
-The script exercises a clean PNG and an EICAR-bearing PNG, waits for the corresponding approved/rejected state, checks derivative provenance and generation, verifies rejected-object cleanup across all live and noncurrent generations, verifies message-media deletion, replays the original create-only signed upload capability against the tombstone, and checks late-replay cleanup audit plus exact-generation removal. The scanner callback and late-replay handler must delete a generation-scoped File reference; deleting only the live object name is insufficient when object versioning is enabled.
+The script first proves the callback rejects missing and invalid HMAC signatures, then exercises a clean PNG and an EICAR-bearing PNG, waits for the corresponding approved/rejected state, checks derivative provenance and generation, verifies rejected-object cleanup across all live and noncurrent generations, verifies message-media deletion, replays the original create-only signed upload capability against the tombstone, and checks late-replay cleanup audit plus exact-generation removal. The scanner callback and late-replay handler must delete a generation-scoped File reference; deleting only the live object name is insufficient when object versioning is enabled.
 
 A pass must end with:
 `Live Firebase Functions → private Cloud Run ClamAV → signed callback E2E passed.`
@@ -93,7 +93,7 @@ Before dispatching it:
 6. Bind the scanner and Functions secrets from Secret Manager / Firebase secret parameters. Confirm the values are matching per environment without printing or copying their values. The scanner token and HMAC secret must be independently generated, at least 32 characters, and never stored in GitHub variables.
 7. Confirm the test bucket contains no member data and is intentionally configured for this test: object versioning enabled, uniform bucket-level access enabled, public access prevention enforced, and no soft-delete or bucket-retention policy that blocks permanent deletion of test objects.
 
-Then use Actions → **Live non-production media and retention validation** → Run workflow. Supply the exact project and bucket names and type `RUN-NONPRODUCTION-LIVE-VALIDATION`. The workflow rejects unmarked or production-like names, uses GitHub OIDC / Workload Identity Federation, compiles Functions, performs the GCS policy/versioning proof first, and runs the scanner E2E only after the bucket passes its deletion-safety checks. A successful workflow proves the live test path for that commit and those supplied non-production resources; it does not prove production readiness.
+Then use Actions → **Live non-production media and retention validation** → Run workflow. Supply the exact project and bucket names, the non-production `receiveMediaScanVerdict` HTTPS URL, and type `RUN-NONPRODUCTION-LIVE-VALIDATION`. The workflow rejects unmarked or production-like names, uses GitHub OIDC / Workload Identity Federation, compiles Functions, performs the GCS policy/versioning proof first, and runs the scanner E2E only after the bucket passes its deletion-safety checks. A successful workflow proves the live test path for that commit and those supplied non-production resources; it does not prove production readiness.
 
 ## Backup, point-in-time recovery, IAM and audit evidence
 
