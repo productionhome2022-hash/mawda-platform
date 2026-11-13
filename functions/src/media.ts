@@ -6,6 +6,7 @@ import { logger } from "firebase-functions";
 import { createHash } from "node:crypto";
 import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { defineSecret, defineString } from "firebase-functions/params";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { reserveMediaQuota, releaseMediaQuota } from "./media-quota";
@@ -24,6 +25,9 @@ import {
 const mediaDb = () => getFirestore();
 const mediaBucket = () => getStorage().bucket();
 const mediaScannerHmacSecret = defineSecret("MAWDA_MEDIA_SCANNER_HMAC_SECRET");
+const mediaScannerBearerToken = defineSecret("MAWDA_MEDIA_SCANNER_BEARER_TOKEN");
+const mediaScannerUrl = defineString("MAWDA_MEDIA_SCANNER_URL");
+const mediaScannerCallbackUrl = defineString("MAWDA_MEDIA_SCANNER_CALLBACK_URL");
 const mediaScannerProvider = defineString("MAWDA_MEDIA_SCANNER_PROVIDER", {
   default: "mawadda-malware-gateway",
 });
@@ -133,12 +137,32 @@ export async function handleMediaScanVerdict(
   const db = mediaDb();
   const assetRef = db.collection("mediaAssets").doc(verdict.mediaId);
   const snapshot = await assetRef.get();
-  if (!snapshot.exists || snapshot.data()?.status !== "pending_security_scan") {
-    response.status(409).send("Asset is not awaiting a scan");
+  if (!snapshot.exists) {
+    response.status(404).send("Asset does not exist");
     return;
   }
   const asset = snapshot.data()!;
-  const file = mediaBucket().file(String(asset.objectPath));
+  const expectedObjectPath = `quarantine/${String(asset.ownerUid)}/${verdict.mediaId}`;
+  if (asset.objectPath !== expectedObjectPath) {
+    response.status(409).send("Quarantined object path mismatch");
+    return;
+  }
+  const file = mediaBucket().file(expectedObjectPath);
+  if (asset.status !== "pending_security_scan") {
+    const duplicate = asset.scannerObjectGeneration === verdict.objectGeneration &&
+      asset.scannerSha256 === verdict.sha256 && asset.scannerVerdict === verdict.verdict &&
+      ((verdict.verdict === "clean" && asset.status === "security_approved") ||
+       (verdict.verdict === "malicious" && asset.status === "rejected"));
+    if (!duplicate) {
+      response.status(409).send("Asset is not awaiting this scan verdict");
+      return;
+    }
+    if (verdict.verdict === "malicious") {
+      await file.delete({ ignoreNotFound: true, ifGenerationMatch: Number(verdict.objectGeneration) });
+    }
+    response.status(200).json({ mediaId: verdict.mediaId, status: asset.status, duplicate: true });
+    return;
+  }
   let metadata: Record<string, unknown>;
   try {
     const [rawMetadata] = await file.getMetadata();
@@ -148,7 +172,9 @@ export async function handleMediaScanVerdict(
     return;
   }
   if (String(metadata.generation) !== verdict.objectGeneration ||
-      String(asset.storageGeneration) !== verdict.objectGeneration) {
+      String(asset.storageGeneration) !== verdict.objectGeneration ||
+      Number(metadata.size) !== Number(asset.sizeBytes) ||
+      String(metadata.contentType) !== String(asset.detectedContentType ?? asset.declaredContentType)) {
     response.status(409).send("Object generation mismatch");
     return;
   }
@@ -179,15 +205,20 @@ export async function handleMediaScanVerdict(
       ...(verdict.verdict === "malicious" ? { rejectionCode: "MALWARE_DETECTED" } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     });
-  });
-  await auditMediaAccess({
-    actorUid: "trusted-scanner",
-    mediaId: verdict.mediaId,
-    action: "media_security_scan_verdict",
-    outcome: verdict.verdict,
-    provider: verdict.provider,
-    objectGeneration: verdict.objectGeneration,
-    sha256: actualHash,
+    const auditRef = db.collection("mediaAccessAudit").doc();
+    transaction.create(auditRef, {
+      actorUid: "trusted-scanner",
+      mediaId: verdict.mediaId,
+      action: "media_security_scan_verdict",
+      outcome: verdict.verdict,
+      provider: verdict.provider,
+      engine: verdict.engine,
+      engineVersion: verdict.engineVersion,
+      signatureVersion: verdict.signatureVersion,
+      objectGeneration: verdict.objectGeneration,
+      sha256: actualHash,
+      createdAt: FieldValue.serverTimestamp(),
+    });
   });
   if (verdict.verdict === "malicious") {
     await file.delete({ ignoreNotFound: true, ifGenerationMatch: Number(verdict.objectGeneration) });
@@ -199,6 +230,94 @@ export const receiveMediaScanVerdict = onRequest(
   { secrets: [mediaScannerHmacSecret] },
   handleMediaScanVerdict,
 );
+
+/**
+ * Sends each newly quarantined asset to the isolated Cloud Run scanner. IAM
+ * identity tokens protect the service invocation; a separate rotated secret
+ * provides application-level defense in depth. Failed scans are retried.
+ */
+async function getScannerIdentityToken(audience: string): Promise<string> {
+  const endpoint = new URL("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity");
+  endpoint.searchParams.set("audience", audience);
+  endpoint.searchParams.set("format", "full");
+  const tokenResponse = await fetch(endpoint, {
+    headers: { "Metadata-Flavor": "Google" },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!tokenResponse.ok) throw new Error("SCANNER_IDENTITY_TOKEN_UNAVAILABLE");
+  const token = await tokenResponse.text();
+  if (!token) throw new Error("SCANNER_IDENTITY_TOKEN_EMPTY");
+  return token;
+}
+
+export const dispatchMediaSecurityScan = onDocumentUpdated(
+  {
+    document: "mediaAssets/{mediaId}",
+    retry: true,
+    memory: "1GiB",
+    timeoutSeconds: 540,
+    maxInstances: 2,
+    secrets: [mediaScannerBearerToken],
+  },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after || before.status === "pending_security_scan" ||
+        after.status !== "pending_security_scan") return;
+
+    const mediaId = event.params.mediaId;
+    const ownerUid = String(after.ownerUid ?? "");
+    const objectPath = String(after.objectPath ?? "");
+    if (!ownerUid || objectPath !== `quarantine/${ownerUid}/${mediaId}`) {
+      throw new Error("SCANNER_OBJECT_PATH_INVALID");
+    }
+    const scannerUrl = new URL(mediaScannerUrl.value());
+    const callbackUrl = new URL(mediaScannerCallbackUrl.value());
+    if (scannerUrl.protocol !== "https:" || callbackUrl.protocol !== "https:" ||
+        !scannerUrl.pathname.endsWith("/scan")) {
+      throw new Error("SCANNER_ENDPOINT_CONFIGURATION_INVALID");
+    }
+    const bearerToken = mediaScannerBearerToken.value();
+    if (!bearerToken || bearerToken.length < 32) {
+      throw new Error("SCANNER_BEARER_SECRET_NOT_CONFIGURED");
+    }
+
+    const file = mediaBucket().file(objectPath);
+    const [metadata] = await file.getMetadata();
+    const generation = String(metadata.generation);
+    const policy = mediaPolicyFor(String(after.declaredContentType));
+    const actualSize = Number(metadata.size);
+    if (!policy || generation !== String(after.storageGeneration) ||
+        actualSize !== Number(after.sizeBytes) || actualSize <= 0 ||
+        actualSize > policy.maxBytes ||
+        String(metadata.contentType) !== String(after.declaredContentType)) {
+      throw new Error("SCANNER_OBJECT_METADATA_MISMATCH");
+    }
+    const [bytes] = await file.download();
+    if (bytes.length !== actualSize) throw new Error("SCANNER_OBJECT_LENGTH_MISMATCH");
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const identityToken = await getScannerIdentityToken(scannerUrl.origin);
+    const scannerResponse = await fetch(scannerUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${identityToken}`,
+        "X-Mawadda-Scanner-Token": bearerToken,
+        "X-Mawadda-Media-Id": mediaId,
+        "X-Mawadda-Object-Generation": generation,
+        "X-Mawadda-Expected-SHA256": sha256,
+        "X-Mawadda-Provider": mediaScannerProvider.value(),
+        "X-Mawadda-Callback-URL": callbackUrl.toString(),
+        "Content-Type": "application/octet-stream",
+      },
+      body: bytes,
+      signal: AbortSignal.timeout(510_000),
+    });
+    if (!scannerResponse.ok) {
+      throw new Error(`SCANNER_GATEWAY_HTTP_${scannerResponse.status}`);
+    }
+  },
+);
+
 
 export const createMediaUploadIntent = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
