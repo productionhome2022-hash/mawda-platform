@@ -32,8 +32,8 @@ class _RoomRentalPricingScreenState extends State<RoomRentalPricingScreen> {
   Future<void> _edit([Map<String, dynamic>? current]) async {
     final id = TextEditingController(text: current?['planId'] as String? ?? '');
     final name = TextEditingController(text: current?['name'] as String? ?? '');
-    final days = TextEditingController(text: '\u0024{current?['durationDays'] ?? 30}');
-    final price = TextEditingController(text: '\u0024{current?['priceCoins'] ?? 1000}');
+    final days = TextEditingController(text: '${current?['durationDays'] ?? 30}');
+    final price = TextEditingController(text: '${current?['priceCoins'] ?? 1000}');
     bool active = current?['active'] != false;
     final value = await showDialog<Map<String, dynamic>>(context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, update) => AlertDialog(
@@ -93,7 +93,7 @@ class _RoomRentalPricingScreenState extends State<RoomRentalPricingScreen> {
         if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         ..._plans.map((p) => Card(child: ListTile(
           title: Text(p['name'] as String? ?? p['planId'] as String? ?? 'باقة'),
-          subtitle: Text('\u0024{p['durationDays']} يوم • \u0024{p['priceCoins']} كوين • \u0024{p['active'] == true ? 'متاحة' : 'متوقفة'}'),
+          subtitle: Text('${p['durationDays']} يوم • ${p['priceCoins']} كوين • ${p['active'] == true ? 'متاحة' : 'متوقفة'}'),
           trailing: IconButton(onPressed: _saving ? null : () => _edit(p), icon: const Icon(Icons.edit_outlined)),
         ))),
         OutlinedButton.icon(onPressed: _saving ? null : () => _edit(), icon: const Icon(Icons.add), label: const Text('إضافة باقة')),
