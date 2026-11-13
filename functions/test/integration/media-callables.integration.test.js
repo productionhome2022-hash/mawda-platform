@@ -9,6 +9,7 @@ const {
   finalizeMediaUpload,
   getOwnerMediaInspectionUrl,
   ownerMediaInspectionStream,
+  getOwnerMediaSafePreview,
 } = require("../../lib/media");
 
 const { initializeApp, getApps } = require("firebase-admin/app");
@@ -260,6 +261,81 @@ test("legacy owner inspection URL is disabled; the authenticated streaming endpo
   assert.equal(response.statusCode, 401);
   assert.equal(response.headers["cache-control"], "no-store");
   assert.equal(response.ended, true);
+});
+
+
+test("owner receives only a hash-verified WebP derivative and never a Storage URL", async () => {
+  const uid = `safe-preview-owner-${Date.now()}-${Math.random()}`;
+  const mediaId = randomUUID();
+  const objectPath = `quarantine/uploader/${mediaId}`;
+  const previewPath = `processed/uploader/${mediaId}/preview.webp`;
+  const sourceGeneration = "1740000000000000";
+  const previewBytes = Buffer.from("RIFF0000WEBP-safe-preview-fixture");
+  const previewFile = getStorage().bucket().file(previewPath);
+  await previewFile.save(previewBytes, {
+    metadata: {
+      contentType: "image/webp",
+      metadata: {
+        mediaId,
+        sourceGeneration,
+        scannerProvider: "clamav-mawadda-gateway",
+        processing: "sharp-decode-reencode-v1",
+      },
+    },
+  });
+  const [previewMetadata] = await previewFile.getMetadata();
+  const { createHash } = require("node:crypto");
+  const safePreviewSha256 = createHash("sha256").update(previewBytes).digest("hex");
+  await db.collection("mediaAssets").doc(mediaId).create({
+    mediaId,
+    ownerUid: "uploader",
+    objectPath,
+    storageGeneration: sourceGeneration,
+    status: "security_approved",
+    scannerProvider: "clamav-mawadda-gateway",
+    detectedContentType: "image/png",
+    safePreviewPath: previewPath,
+    safePreviewGeneration: String(previewMetadata.generation),
+    safePreviewSha256,
+    safePreviewContentType: "image/webp",
+  });
+
+  const result = await getOwnerMediaSafePreview.run(ownerRequest(uid, { mediaId }));
+  assert.equal(result.contentType, "image/webp");
+  assert.equal(result.sizeBytes, previewBytes.length);
+  assert.deepEqual(Buffer.from(result.imageBase64, "base64"), previewBytes);
+  assert.equal("downloadUrl" in result, false);
+  assert.ok((await auditEvents(uid)).some((event) =>
+    event.action === "owner_media_safe_preview" && event.outcome === "success"));
+});
+
+test("safe preview rejects stale generations and never falls back to original quarantine bytes", async () => {
+  const uid = `safe-preview-stale-${Date.now()}-${Math.random()}`;
+  const mediaId = randomUUID();
+  const previewPath = `processed/uploader/${mediaId}/preview.webp`;
+  const bytes = Buffer.from("RIFF0000WEBP-safe-preview-fixture");
+  const file = getStorage().bucket().file(previewPath);
+  await file.save(bytes, {
+    metadata: {
+      contentType: "image/webp",
+      metadata: {
+        mediaId,
+        sourceGeneration: "10",
+        scannerProvider: "clamav-mawadda-gateway",
+      },
+    },
+  });
+  await db.collection("mediaAssets").doc(mediaId).create({
+    mediaId, ownerUid: "uploader", objectPath: `quarantine/uploader/${mediaId}`,
+    storageGeneration: "10", status: "security_approved",
+    scannerProvider: "clamav-mawadda-gateway", detectedContentType: "image/png",
+    safePreviewPath: previewPath, safePreviewGeneration: "1",
+    safePreviewSha256: "a".repeat(64), safePreviewContentType: "image/webp",
+  });
+  await assert.rejects(
+    () => getOwnerMediaSafePreview.run(ownerRequest(uid, { mediaId })),
+    (error) => error && error.code === "failed-precondition",
+  );
 });
 
 test("owner inspection rejects stale storage generations and audits the denial", async () => {
