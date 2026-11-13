@@ -90,7 +90,7 @@ Never fake functionality, balances, purchases, verification, availability, analy
 - Approved email-verification reward: 500 coins for every successfully completed eligible 90-day email verification cycle, atomically linked to that cycle and ledger; one credit maximum per cycle.
 - Registration is fail-closed until explicitly enabled by the owner. Minimum registration age cannot be below 16; romantic dating/marriage goals are 18+.
 - Self-declared age is not robust age assurance. Stronger age assurance, minor safety, market-specific legal review, and safeguarding are launch gates.
-- Optional biometric verification proposal: consent-based voice liveness (~20 seconds) and moving selfie (3–5 seconds); never infer gender from voice. Minimize, encrypt, restrict, and define retention/deletion before implementation.
+- Initial biometric implementation decision: use Android BiometricPrompt on Android and Apple LocalAuthentication on iOS/iPadOS for optional device-local authentication. Mawda receives only the local authentication outcome; it must not collect or upload biometric images, samples, or templates. These APIs confirm a local OS authentication event, not civil identity and not an independently verifiable server assertion. No external biometric provider is used in the initial phase; a specialist provider may be evaluated after launch and real user growth. Any server entitlement or 1,500-coin 30-day reward remains blocked until the backend can validate eligibility and prevent forged client calls and replay. Never infer gender from voice.
 
 ### 5.3 Mandatory privacy-policy notice and pre-entry acknowledgement (approved requirement)
 
