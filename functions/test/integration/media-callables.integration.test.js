@@ -5,13 +5,16 @@ const assert = require("node:assert/strict");
 // against eager Admin SDK access during the Functions entry-point import phase.
 const {
   listOwnerMediaAssets,
-} = require("../lib/media");
+  finalizeMediaUpload,
+} = require("../../lib/media");
 
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
+const { getStorage } = require("firebase-admin/storage");
+const { randomUUID } = require("node:crypto");
 
 if (getApps().length === 0) {
-  initializeApp({ projectId: "demo-mawda-media" });
+  initializeApp({ projectId: "demo-mawda-media", storageBucket: "demo-mawda-media.appspot.com" });
 }
 const db = getFirestore();
 
@@ -98,4 +101,57 @@ test("owner invalid filters are rejected and audited", async () => {
     event.action === "owner_media_asset_list_attempt" &&
     event.outcome === "denied" &&
     event.failureCode === "invalid-uploader-type"));
+});
+
+test("finalize callable accepts a matching quarantined PNG and audits the result", async () => {
+  const uid = `uploader-${Date.now()}-${Math.random()}`;
+  const mediaId = randomUUID();
+  const objectPath = `quarantine/${uid}/${mediaId}`;
+  const bytes = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
+  await db.collection("mediaAssets").doc(mediaId).create({
+    mediaId, ownerUid: uid, objectPath, uploaderType: "member",
+    declaredContentType: "image/png", declaredSizeBytes: bytes.length,
+    status: "upload_authorized",
+  });
+  await getStorage().bucket().file(objectPath).save(bytes, {
+    metadata: { contentType: "image/png" },
+  });
+
+  const result = await finalizeMediaUpload.run({
+    data: { mediaId },
+    auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+  });
+  assert.equal(result.status, "pending_security_scan");
+  const asset = await db.collection("mediaAssets").doc(mediaId).get();
+  assert.equal(asset.data().status, "pending_security_scan");
+  assert.ok((await auditEvents(uid)).some((event) =>
+    event.action === "media_upload_validation" && event.outcome === "pending_security_scan"));
+});
+
+test("finalize callable rejects and deletes a file whose bytes contradict its declared type", async () => {
+  const uid = `uploader-invalid-${Date.now()}-${Math.random()}`;
+  const mediaId = randomUUID();
+  const objectPath = `quarantine/${uid}/${mediaId}`;
+  const bytes = Buffer.from("MZ executable");
+  await db.collection("mediaAssets").doc(mediaId).create({
+    mediaId, ownerUid: uid, objectPath, uploaderType: "member",
+    declaredContentType: "image/png", declaredSizeBytes: bytes.length,
+    status: "upload_authorized",
+  });
+  const file = getStorage().bucket().file(objectPath);
+  await file.save(bytes, { metadata: { contentType: "image/png" } });
+
+  await assert.rejects(
+    () => finalizeMediaUpload.run({
+      data: { mediaId },
+      auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+    }),
+    (error) => error && error.code === "invalid-argument",
+  );
+  const asset = await db.collection("mediaAssets").doc(mediaId).get();
+  assert.equal(asset.data().status, "rejected");
+  const [exists] = await file.exists();
+  assert.equal(exists, false);
+  assert.ok((await auditEvents(uid)).some((event) =>
+    event.action === "media_upload_validation" && event.outcome === "rejected"));
 });
