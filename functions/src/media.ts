@@ -223,7 +223,7 @@ function requireSoleOwner(request: {
 }): string {
   const uid = requireUid(request.auth?.uid);
   if (request.auth?.token.platformOwner !== true ||
-      !hasPlatformOwnerSession(request.auth.token)) {
+      !hasPlatformOwnerSession(request.auth.token, undefined, uid)) {
     throw new HttpsError("permission-denied", "الوصول إلى ملفات المنصة مخصص للمالك بعد تحقق MFA حديث.");
   }
   return uid;
@@ -978,7 +978,7 @@ export const sendChatImageAttachment = onCall(async (request) => {
   const asset = assetSnapshot.data() ?? {};
   const expectedPurpose = scope === "direct" ? "chat" : "room";
   const ownerSession = request.auth?.token.platformOwner === true &&
-    hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>);
+    hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, senderUid);
   const artifact = resolveChatMediaDeliveryArtifact(asset as never, ownerSession);
   if (asset.ownerUid !== senderUid || asset.mediaPurpose !== expectedPurpose || !artifact ||
       (artifact.category === "document" && !ownerSession)) {
@@ -1209,7 +1209,7 @@ export const createMediaUploadIntent = onCall(async (request) => {
   const policy = mediaPolicyFor(input.contentType);
   if (!policy) throw new HttpsError("invalid-argument", "نوع الملف غير مسموح به.");
   const token = (request.auth?.token ?? {}) as Record<string, unknown>;
-  const isPlatformOwner = token.platformOwner === true && hasPlatformOwnerSession(token);
+  const isPlatformOwner = token.platformOwner === true && hasPlatformOwnerSession(token, undefined, uid);
   if (!mediaUploadAllowedForRole(input, isPlatformOwner)) {
     throw new HttpsError(
       "permission-denied",
