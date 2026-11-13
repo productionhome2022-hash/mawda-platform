@@ -2975,6 +2975,7 @@ export {
   finalizeMediaUpload,
   listOwnerMediaAssets,
   getOwnerMediaInspectionUrl,
+  ownerMediaPreview,
   cleanupExpiredMediaUploadIntents,
   receiveMediaScanVerdict,
 } from "./media";
