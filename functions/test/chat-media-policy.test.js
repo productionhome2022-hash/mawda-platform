@@ -9,7 +9,7 @@ const {
 const id = "123e4567-e89b-12d3-a456-426614174000";
 const hash = "a".repeat(64);
 const base = {
-  mediaId: id, mediaPurpose: "chat", uploaderRole: "member",
+  mediaId: id, ownerUid: "member", mediaPurpose: "chat", uploaderRole: "member",
   mediaCategory: "image", detectedContentType: "image/png",
   status: "security_approved", safePreviewPath: `processed/member/${id}/preview.webp`,
   safePreviewGeneration: "12", safePreviewSha256: hash,
