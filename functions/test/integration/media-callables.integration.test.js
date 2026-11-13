@@ -61,6 +61,7 @@ function ownerRequest(uid, data = {}) {
       uid,
       token: {
         platformOwner: true,
+        platformOwnerUid: uid,
         auth_time: Math.floor(Date.now() / 1000),
         firebase: { sign_in_provider: "password", sign_in_second_factor: "phone" },
       },
