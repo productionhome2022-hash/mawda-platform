@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../services/super_admin_security_service.dart';
 
@@ -30,23 +32,35 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final SuperAdminSecurityService _service = SuperAdminSecurityService();
   late Future<List<Map<String, dynamic>>> _messagesFuture;
   bool _sending = false;
+  bool _refreshing = false;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _messagesFuture = _service.getRoomMessages(widget.chatId);
+    _refreshTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+      if (mounted && !_sending) _reloadMessages();
+    });
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _messageController.dispose();
     super.dispose();
   }
 
-  void _reloadMessages() {
-    setState(() {
-      _messagesFuture = _service.getRoomMessages(widget.chatId);
-    });
+  Future<void> _reloadMessages() async {
+    if (!mounted || _refreshing) return;
+    setState(() => _refreshing = true);
+    try {
+      final next = _service.getRoomMessages(widget.chatId);
+      setState(() => _messagesFuture = next);
+      await next;
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
   }
 
   Future<void> _sendMessage() async {
