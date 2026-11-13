@@ -69,3 +69,59 @@ test("attachment role policy rejects spoofed owner flags and unsupported documen
   assert.equal(chatMediaUploaderAllowed({ uploaderRole: "platform_owner", detectedContentType: "application/pdf" }, true), true);
   assert.equal(chatMediaUploaderAllowed({ uploaderRole: "member", detectedContentType: "application/msword" }, true), false);
 });
+
+test("each non-raster category requires its own exact sanitized derivative and pipeline", () => {
+  const fixtures = [
+    {
+      category: "gif", contentType: "image/gif", path: "safeAnimationPath",
+      generation: "safeAnimationGeneration", hash: "safeAnimationSha256",
+      status: "safe_animation_derivative_ready", pipeline: "gif-sanitize-preserve-animation-v1",
+      suffix: "animation.gif",
+    },
+    {
+      category: "audio", contentType: "audio/wav", path: "safeAudioPath",
+      generation: "safeAudioGeneration", hash: "safeAudioSha256",
+      status: "safe_audio_derivative_ready", pipeline: "ffmpeg-audio-transcode-v1",
+      suffix: "audio.mp3",
+    },
+    {
+      category: "video", contentType: "video/mp4", path: "safeVideoPath",
+      generation: "safeVideoGeneration", hash: "safeVideoSha256",
+      status: "safe_video_derivative_ready", pipeline: "ffmpeg-video-transcode-v1",
+      suffix: "video.mp4",
+    },
+    {
+      category: "document", contentType: "application/pdf", path: "safeDocumentPath",
+      generation: "safeDocumentGeneration", hash: "safeDocumentSha256",
+      status: "safe_document_derivative_ready", pipeline: "pdf-raster-flatten-v1",
+      suffix: "document.pdf",
+    },
+  ];
+  for (const item of fixtures) {
+    const asset = {
+      ...base,
+      detectedContentType: item.contentType,
+      uploaderRole: item.category === "document" ? "platform_owner" : "member",
+      processingStatus: item.status,
+      processingPipelineVersion: item.pipeline,
+      [item.path]: `processed/member/${id}/${item.suffix}`,
+      [item.generation]: "77",
+      [item.hash]: hash,
+    };
+    const artifact = resolveChatMediaDeliveryArtifact(asset, true);
+    assert.equal(artifact?.category, item.category);
+    assert.equal(artifact?.objectPath, asset[item.path]);
+    assert.equal(resolveChatMediaDeliveryArtifact({
+      ...asset, processingPipelineVersion: "untrusted",
+    }, true), null);
+    assert.equal(resolveChatMediaDeliveryArtifact({
+      ...asset, [item.generation]: "0",
+    }, true), null);
+    if (item.category === "document") {
+      assert.equal(resolveChatMediaDeliveryArtifact(asset, false), null);
+      assert.equal(resolveChatMediaDeliveryArtifact({
+        ...asset, uploaderRole: "member",
+      }, true), null);
+    }
+  }
+});
