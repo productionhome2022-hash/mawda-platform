@@ -79,7 +79,7 @@ A green emulator suite does not replace the live non-production checks. A green 
 
 ## GitHub Actions live validation (manual, non-production only)
 
-A manually gated workflow is available at `.github/workflows/live-nonproduction-validation.yml`. It runs the two live scripts against an already provisioned environment; it does **not** deploy Firebase Functions or Cloud Run and does not create cloud infrastructure.
+A manually gated workflow has been added at `.github/workflows/live-nonproduction-validation.yml`. It runs the two live scripts against an already provisioned environment; it does **not** deploy Firebase Functions or Cloud Run and does not create cloud infrastructure. GitHub only exposes `workflow_dispatch` for workflows present on the repository's default branch; until this workflow is merged to `main` through the normal reviewed PR process, it cannot be dispatched from the Actions UI. After it is present on the default branch, select the development branch/commit to validate.
 
 Before dispatching it:
 
