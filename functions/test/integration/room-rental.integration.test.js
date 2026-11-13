@@ -9,7 +9,7 @@ const memberRequest = (uid, data) => ({
   data, auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
 });
 const ownerRequest = (uid, data) => ({
-  data, auth: { uid, token: { platformOwner: true, auth_time: Math.floor(Date.now()/1000),
+  data, auth: { uid, token: { platformOwner: true, platformOwnerUid: uid, auth_time: Math.floor(Date.now()/1000),
     firebase: { sign_in_second_factor: "phone" } } },
 });
 
