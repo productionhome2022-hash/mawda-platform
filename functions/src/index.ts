@@ -987,6 +987,9 @@ export const createMemberStory = onCall(async (request) => {
     const expiry = asset.retentionExpiresAt;
     if (asset.ownerUid !== uid || asset.mediaPurpose !== "story" ||
         asset.status !== "security_approved" ||
+        asset.processingStatus !== "safe_raster_derivative_ready" ||
+        asset.safePreviewPath !== `processed/${uid}/${mediaId}/preview.webp` ||
+        asset.safePreviewContentType !== "image/webp" ||
         !(expiry instanceof Timestamp) || expiry.toMillis() <= nowMs) {
       throw new HttpsError("failed-precondition", "لا يمكن نشر قصة قبل اجتياز فحص الوسائط أو بعد انتهاء صلاحيتها.");
     }
