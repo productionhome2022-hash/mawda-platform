@@ -295,23 +295,30 @@ export async function runChatTextRetentionSweep(): Promise<{ messages: number; f
   const cutoff = Timestamp.fromMillis(Date.now() - CHAT_TEXT_RETENTION_MS);
   let messages = 0;
   let failures = 0;
+  let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
 
   for (let page = 0; page < RETENTION_PAGES_PER_RUN; page += 1) {
-    const snapshot = await db.collectionGroup("messages")
+    let query = db.collectionGroup("messages")
       .where("createdAt", "<=", cutoff)
       .orderBy("createdAt", "asc")
-      .limit(RETENTION_BATCH_SIZE)
-      .get();
+      .limit(RETENTION_BATCH_SIZE);
+    if (cursor) query = query.startAfter(cursor);
+    const snapshot = await query.get();
     if (snapshot.empty) break;
+    cursor = snapshot.docs[snapshot.docs.length - 1];
 
     const batch = db.batch();
     const directChatIds = new Set<string>();
     let batchMessages = 0;
     for (const messageDoc of snapshot.docs) {
       if (!isSupportedChatMessagePath(messageDoc.ref.path)) continue;
+      const data = messageDoc.data();
+      // A documented active message hold suspends the seven-day text purge.
+      // Cursor pagination ensures a page containing only held messages cannot
+      // starve later expired messages in other conversations.
+      if (data.legalHoldStatus === "active") continue;
       const parts = messageDoc.ref.path.split("/");
       if (parts[0] === "directChats") {
-        const data = messageDoc.data();
         const recipientUid = typeof data.recipientUid === "string" ? data.recipientUid : "";
         if (recipientUid) {
           batch.delete(db.collection("users").doc(recipientUid)
@@ -322,36 +329,38 @@ export async function runChatTextRetentionSweep(): Promise<{ messages: number; f
       batch.delete(messageDoc.ref);
       batchMessages += 1;
     }
-    if (batchMessages === 0) break;
 
-    // Clear text previews in the same atomic batch as their expired messages.
-    // Keep at most 150 messages per batch so message, notification and chat
-    // metadata writes stay below Firestore's 500-write batch limit.
-    for (const chatId of directChatIds) {
-      const chatRef = db.collection("directChats").doc(chatId);
-      const chat = await chatRef.get();
-      const lastMessageAt = chat.data()?.lastMessageAt;
-      if (chat.exists && (!(lastMessageAt instanceof Timestamp) ||
-          lastMessageAt.toMillis() <= cutoff.toMillis())) {
-        batch.update(chatRef, {
-          lastMessagePreview: FieldValue.delete(),
-          lastMessageAt: FieldValue.delete(),
-          lastMessageSenderUid: FieldValue.delete(),
-          textRetentionPurgedAt: FieldValue.serverTimestamp(),
+    if (batchMessages > 0) {
+      // Clear text previews in the same atomic batch as their expired messages.
+      // Keep at most 150 messages per batch so message, notification and chat
+      // metadata writes stay below Firestore's 500-write batch limit.
+      for (const chatId of directChatIds) {
+        const chatRef = db.collection("directChats").doc(chatId);
+        const chat = await chatRef.get();
+        const lastMessageAt = chat.data()?.lastMessageAt;
+        if (chat.exists && (!(lastMessageAt instanceof Timestamp) ||
+            lastMessageAt.toMillis() <= cutoff.toMillis())) {
+          batch.update(chatRef, {
+            lastMessagePreview: FieldValue.delete(),
+            lastMessageAt: FieldValue.delete(),
+            lastMessageSenderUid: FieldValue.delete(),
+            textRetentionPurgedAt: FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
+      try {
+        await batch.commit();
+        messages += batchMessages;
+      } catch (error) {
+        logger.error("Chat text deletion batch failed; scheduled sweep will retry.", {
+          errorName: error instanceof Error ? error.name : "unknown",
         });
+        failures += batchMessages;
+        break;
       }
     }
-
-    try {
-      await batch.commit();
-      messages += batchMessages;
-    } catch (error) {
-      logger.error("Chat text deletion batch failed; scheduled sweep will retry.", {
-        errorName: error instanceof Error ? error.name : "unknown",
-      });
-      failures += batchMessages;
-      break;
-    }
+    if (snapshot.size < RETENTION_BATCH_SIZE) break;
   }
   return { messages, failures };
 }
