@@ -4399,7 +4399,8 @@ export const listMemberRooms = onCall(async (request) => {
     ? await db.getAll(...joinedRoomRefs)
     : [];
   const joined = joinedSnapshots
-    .filter((room) => room.exists && room.data()?.status === "active")
+    .filter((room) => room.exists && (room.data()?.status === "active" ||
+      (room.data()?.ownerUid === uid && room.data()?.status === "frozen")))
     .map((room) => ({
       roomId: room.id,
       name: room.data()?.name ?? "غرفة مودة",
@@ -4411,6 +4412,10 @@ export const listMemberRooms = onCall(async (request) => {
       isRoomOwner: room.data()?.ownerUid === uid,
       isModerator: membershipByRoom.get(room.id)?.role === "moderator",
       isSuperAdmin: isPlatformOwner,
+      status: room.data()?.status ?? "unknown",
+      isRented: room.data()?.isRented === true,
+      rentalPlanId: room.data()?.rentalPlanId ?? null,
+      expiresAt: room.data()?.expiresAt instanceof Timestamp ? room.data()!.expiresAt.toMillis() : null,
     }));
 
   const joinedIds = new Set(joined.map((room) => room.roomId));
