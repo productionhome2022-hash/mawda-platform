@@ -2,6 +2,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class OwnerChatParticipationScreen extends StatefulWidget {
   const OwnerChatParticipationScreen({
@@ -86,6 +87,63 @@ class _OwnerChatParticipationScreenState
     }
   }
 
+  Future<void> _composeLiveStream() async {
+    final url = TextEditingController();
+    final title = TextEditingController();
+    final description = TextEditingController();
+    final accepted = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
+      title: const Text('إرسال رابط بث مباشر'),
+      content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Text('يُقبل رابط HTTPS فقط. لا يتجاوز هذا الإجراء قيود تسجيل الدخول أو DRM أو الحجب الجغرافي أو منع التضمين.'),
+        TextField(controller: url, keyboardType: TextInputType.url,
+          decoration: const InputDecoration(labelText: 'رابط البث HTTPS')),
+        TextField(controller: title, decoration: const InputDecoration(labelText: 'عنوان اختياري')),
+        TextField(controller: description, maxLines: 3,
+          decoration: const InputDecoration(labelText: 'وصف اختياري')),
+      ])),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+        FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('إرسال البث')),
+      ],
+    ));
+    if (accepted != true || !mounted) {
+      url.dispose(); title.dispose(); description.dispose(); return;
+    }
+    final rawUrl = url.text.trim();
+    if (!rawUrl.startsWith('https://') || rawUrl.length > 2048 ||
+        title.text.trim().length > 120 || description.text.trim().length > 500) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تحقق من رابط HTTPS وحدود العنوان والوصف.')),
+      );
+      url.dispose(); title.dispose(); description.dispose(); return;
+    }
+    setState(() => _sending = true);
+    try {
+      await FirebaseFunctions.instance.httpsCallable('sendOwnerLiveStream').call({
+        'requestId': const Uuid().v4().replaceAll('-', '_'),
+        'scope': 'direct', 'targetId': widget.chatId, 'url': rawUrl,
+        'title': title.text.trim(), 'description': description.text.trim(),
+      });
+      _refresh();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم إرسال رابط البث إلى المحادثة.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر إرسال رابط البث.')),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+      url.dispose(); title.dispose(); description.dispose();
+    }
+  }
+
+  Future<void> _openLiveStream(String rawUrl) async {
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null || uri.scheme != 'https') return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   @override
   Widget build(BuildContext context) {
     final ownerUid = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -93,6 +151,11 @@ class _OwnerChatParticipationScreenState
       appBar: AppBar(
         title: const Text('مشاركة المالك في المحادثة'),
         actions: [
+          IconButton(
+            tooltip: 'إرسال رابط بث مباشر',
+            onPressed: _sending ? null : _composeLiveStream,
+            icon: const Icon(Icons.live_tv_outlined),
+          ),
           IconButton(
             tooltip: 'تحديث المحادثة',
             onPressed: _refresh,
@@ -182,6 +245,21 @@ class _OwnerChatParticipationScreenState
                                 Text(deleted
                                     ? 'تم حذف هذه الرسالة'
                                     : (message['text'] as String? ?? '')),
+                                if (!deleted && message['type'] == 'live_stream' &&
+                                    message['liveStream'] is Map)
+                                  Builder(builder: (context) {
+                                    final stream = Map<String, dynamic>.from(message['liveStream'] as Map);
+                                    final streamUrl = stream['url'] as String? ?? '';
+                                    return Card(child: ListTile(
+                                      leading: const Icon(Icons.live_tv_outlined),
+                                      title: Text(stream['title'] as String? ?? 'بث مباشر'),
+                                      subtitle: Text(stream['hostname'] as String? ?? ''),
+                                      trailing: IconButton(
+                                        onPressed: streamUrl.isEmpty ? null : () => _openLiveStream(streamUrl),
+                                        icon: const Icon(Icons.open_in_new),
+                                      ),
+                                    ));
+                                  }),
                               ],
                             ),
                           ),
