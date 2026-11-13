@@ -675,6 +675,97 @@ export const getMemberProfileMediaUrl = onCall(async (request) => {
 });
 
 
+/**
+ * Lists only approved, unexpired profile-gallery images and returns short-lived
+ * URLs for verified raster derivatives. Original quarantine objects are never
+ * exposed to profile viewers.
+ */
+export const listMemberProfileGallery = onCall(async (request) => {
+  const viewerUid = requireUid(request.auth?.uid);
+  const targetUid = typeof request.data?.userId === "string" ? request.data.userId.trim() : "";
+  if (!targetUid || targetUid.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+  }
+
+  const userSnapshot = await mediaDb().collection("users").doc(targetUid).get();
+  if (!userSnapshot.exists) throw new HttpsError("not-found", "ملف العضو غير موجود.");
+  const user = userSnapshot.data() ?? {};
+  if (viewerUid !== targetUid && user.profileVisibility !== "public") {
+    throw new HttpsError("permission-denied", "معرض صور هذا الملف خاص.");
+  }
+
+  const snapshot = await mediaDb().collection("mediaAssets")
+    .where("ownerUid", "==", targetUid)
+    .where("mediaPurpose", "==", "profile_album")
+    .where("status", "==", "security_approved")
+    .where("retentionExpiresAt", ">", Timestamp.now())
+    .orderBy("retentionExpiresAt", "asc")
+    .limit(40)
+    .get();
+
+  const items: Array<Record<string, unknown>> = [];
+  for (const document of snapshot.docs) {
+    const asset = document.data();
+    const mediaId = document.id;
+    const expectedPath = `processed/${targetUid}/${mediaId}/preview.webp`;
+    if (asset.ownerUid !== targetUid ||
+        asset.mediaPurpose !== "profile_album" ||
+        asset.status !== "security_approved" ||
+        asset.processingStatus !== "safe_raster_derivative_ready" ||
+        asset.safePreviewPath !== expectedPath ||
+        asset.safePreviewContentType !== "image/webp" ||
+        !(asset.retentionExpiresAt instanceof Timestamp) ||
+        asset.retentionExpiresAt.toMillis() <= Date.now() ||
+        typeof asset.safePreviewGeneration !== "string") {
+      continue;
+    }
+
+    const previewFile = mediaBucket().file(expectedPath);
+    const [metadata] = await previewFile.getMetadata();
+    const custom = metadata.metadata as Record<string, unknown> | undefined;
+    if (String(metadata.generation) !== asset.safePreviewGeneration ||
+        metadata.contentType !== "image/webp" ||
+        Number(metadata.size) <= 0 || Number(metadata.size) > 2 * 1024 * 1024 ||
+        custom?.mediaId !== mediaId ||
+        custom?.sourceGeneration !== String(asset.storageGeneration) ||
+        custom?.scannerProvider !== asset.scannerProvider) {
+      await auditMediaAccess({
+        actorUid: viewerUid,
+        mediaId,
+        action: "member_profile_gallery_safe_url",
+        outcome: "denied",
+        targetUid,
+        failureCode: "safe-preview-generation-or-metadata-mismatch",
+      });
+      continue;
+    }
+
+    const [url] = await previewFile.getSignedUrl({
+      version: "v4",
+      action: "read",
+      expires: mediaSignedUrlExpiresAt("owner-inspection"),
+      responseType: "image/webp",
+      responseDisposition: "inline; filename=mawadda-gallery.webp",
+    });
+    await auditMediaAccess({
+      actorUid: viewerUid,
+      mediaId,
+      action: "member_profile_gallery_safe_url",
+      outcome: "success",
+      targetUid,
+      previewGeneration: String(metadata.generation),
+    });
+    items.push({
+      mediaId,
+      url,
+      expiresAt: asset.retentionExpiresAt.toMillis(),
+      createdAt: asset.createdAt instanceof Timestamp ? asset.createdAt.toMillis() : null,
+    });
+  }
+
+  return { items };
+});
+
 /** Short-lived, safe-WebP-only read capability for a live, visible story. */
 export const getMemberStoryMediaUrl = onCall(async (request) => {
   const viewerUid = requireUid(request.auth?.uid);
