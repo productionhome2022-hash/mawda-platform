@@ -51,4 +51,17 @@ function validateScanRequest(value, provider, bucketName) {
   };
 }
 
-module.exports = { equalSecret, validateScanRequest };
+function isSafeDerivativeMetadata(metadata, expected) {
+  const custom = metadata && metadata.metadata;
+  const size = Number(metadata && metadata.size);
+  return Boolean(metadata && custom &&
+    metadata.contentType === "image/webp" &&
+    Number.isSafeInteger(size) && size > 0 && size <= 20 * 1024 * 1024 &&
+    custom.mediaId === expected.mediaId &&
+    custom.sourceGeneration === expected.objectGeneration &&
+    custom.sourceSha256 === expected.sourceSha256 &&
+    custom.scannerProvider === expected.provider &&
+    custom.processing === "sharp-decode-reencode-v1");
+}
+
+module.exports = { equalSecret, validateScanRequest, isSafeDerivativeMetadata };
