@@ -70,12 +70,12 @@ jobs:
             exit 1
           }
           [[ "$PROJECT_ID" != "mawda-app-2026" && ! "$PROJECT_ID" =~ [Pp][Rr][Oo][Dd] &&
-             "$PROJECT_ID" =~ (test|staging|dev|demo|nonprod|sandbox) ]] || {
+             "$PROJECT_ID" =~ (test|staging|dev|nonprod|sandbox|qa) ]] || {
             echo "Refusing production or unmarked project." >&2
             exit 1
           }
           [[ ! "$BUCKET_NAME" =~ [Pp][Rr][Oo][Dd] &&
-             "$BUCKET_NAME" =~ (test|staging|dev|demo|nonprod|sandbox) ]] || {
+             "$BUCKET_NAME" =~ (test|staging|dev|nonprod|sandbox|qa) ]] || {
             echo "Refusing production or unmarked bucket." >&2
             exit 1
           }
