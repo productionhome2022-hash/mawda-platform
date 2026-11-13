@@ -134,6 +134,22 @@ export async function handleMediaScanVerdict(
     response.status(400).send("Invalid or stale scanner verdict");
     return;
   }
+  if (verdict.verdict === "error") {
+    await auditMediaAccess({
+      actorUid: "trusted-scanner",
+      mediaId: verdict.mediaId,
+      action: "media_security_scan_verdict",
+      outcome: "error",
+      provider: verdict.provider,
+      engine: verdict.engine,
+      engineVersion: verdict.engineVersion,
+      signatureVersion: verdict.signatureVersion,
+      objectGeneration: verdict.objectGeneration,
+      sha256: verdict.sha256,
+    });
+    response.status(503).send("Scanner reported an error; retry required");
+    return;
+  }
   const db = mediaDb();
   const assetRef = db.collection("mediaAssets").doc(verdict.mediaId);
   const snapshot = await assetRef.get();
@@ -227,7 +243,7 @@ export async function handleMediaScanVerdict(
 }
 
 export const receiveMediaScanVerdict = onRequest(
-  { secrets: [mediaScannerHmacSecret] },
+  { secrets: [mediaScannerHmacSecret], timeoutSeconds: 180, memory: "1GiB", maxInstances: 5 },
   handleMediaScanVerdict,
 );
 
