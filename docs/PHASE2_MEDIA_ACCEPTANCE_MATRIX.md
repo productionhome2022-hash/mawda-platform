@@ -118,6 +118,27 @@ The selected service account needs permission to read bucket metadata, create ob
 
 **Not yet executed:** this workflow is a safe execution path, not proof of a successful live GCS test. No GCP project, WIF provider, service account or bucket credentials are available to this code-edit session. Phase 2 remains open until the workflow is run successfully against a dedicated non-production bucket.
 
+## Live non-production ClamAV deployment and Firebase connection workflow
+
+A manual workflow `.github/workflows/deploy-nonproduction-media-scanner.yml` now:
+1. Refuses production or unmarked project/bucket names and authenticates through GitHub OIDC.
+2. Builds the isolated scanner image and pushes it to Artifact Registry.
+3. Grants the scanner runtime service account Secret Manager access and object-create access only to the `processed/` managed folder; grants the Functions runtime service account bucket object-view, Cloud Run invoke and its own signBlob permission.
+4. Deploys Cloud Run with IAM authentication only, verifies the authenticated `/healthz` endpoint, and removes the temporary deployer invoker binding.
+5. Writes the non-production scanner URL/callback/provider parameters into a temporary project-specific Functions env file, deploys Functions only to the selected non-production Firebase project, then runs a live clean-PNG plus EICAR end-to-end scan through Firebase trigger → private Cloud Run → signed callback.
+
+Required repository variables:
+- `MAWDA_WIF_PROVIDER`
+- `MAWDA_NONPROD_DEPLOY_SERVICE_ACCOUNT`
+
+Required pre-created Secret Manager secrets in the selected project:
+- `MAWDA_MEDIA_SCANNER_API_TOKEN`
+- `MAWDA_MEDIA_SCANNER_HMAC_SECRET`
+
+The deployer service account needs Artifact Registry, Cloud Run, API enablement, Secret Manager IAM, service-account IAM, Firebase Functions deployment and Eventarc permissions. For the live E2E fixture it also needs Firestore data write/read and Storage object create/list/delete permissions scoped to the dedicated non-production project/bucket. The scanner runtime service account receives only Secret Accessor plus object-create on the `processed/` managed folder. The Functions runtime service account must already be the actual runtime identity configured for that non-production Firebase project.
+
+**Not yet executed:** no GCP/WIF credentials or non-production Firebase project are available in this session. The workflow is now executable after the owner configures the listed identities/secrets and dispatches it; deployment and live EICAR callback remain unverified until it succeeds.
+
 ## Merge and deployment boundary
 
 PR #2 and PR #3 are separate draft proposals. PR #3's head is based on an older snapshot of the development branch and the refs currently diverge; do not merge either PR until the phase-2 changes are reconciled onto one current branch and the exact final commit has a green full CI run. No production Firebase mutation, production deployment, public Storage access or merge to `main` is authorized by this engineering record.
