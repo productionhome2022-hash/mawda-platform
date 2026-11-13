@@ -4883,6 +4883,32 @@ export const renewRoomRental = onCall(async (request) => {
   });
 });
 
+/** A room member may leave; ownership must be transferred or closed first. */
+export const leaveRoom = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = typeof request.data?.roomId === "string" ? request.data.roomId.trim() : "";
+  if (!roomId) throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+  const roomRef = db.collection("rooms").doc(roomId);
+  const memberRef = roomRef.collection("members").doc(uid);
+  const moderatorRef = roomRef.collection("moderators").doc(uid);
+  await db.runTransaction(async (transaction) => {
+    const [room, member] = await Promise.all([transaction.get(roomRef), transaction.get(memberRef)]);
+    if (!room.exists || !member.exists) throw new HttpsError("not-found", "عضوية الغرفة غير موجودة.");
+    if (room.data()?.ownerUid === uid) {
+      throw new HttpsError("failed-precondition", "مالك الغرفة لا يمكنه المغادرة قبل نقل الملكية أو إغلاق الغرفة.");
+    }
+    const count = Number.isSafeInteger(room.data()?.memberCount) ? room.data()!.memberCount : 1;
+    transaction.delete(memberRef);
+    transaction.delete(moderatorRef);
+    transaction.update(roomRef, { memberCount: Math.max(0, count - 1), invitedUids: FieldValue.arrayRemove(uid),
+      updatedAt: FieldValue.serverTimestamp() });
+    const auditRef = db.collection("roomAuditLogs").doc();
+    transaction.create(auditRef, { roomId, actorUid: uid, action: "room_member_left",
+      createdAt: FieldValue.serverTimestamp() });
+  });
+  return { roomId, left: true };
+});
+
 /** Room ownership transfer is atomic and cannot transfer an expired or frozen rental. */
 export const transferRoomOwnership = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
