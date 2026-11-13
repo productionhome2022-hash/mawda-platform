@@ -1,8 +1,10 @@
 import 'dart:typed_data';
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/super_admin_security_service.dart';
+import '../services/push_notification_service.dart';
 import 'owner_chat_participation_screen.dart';
 import 'owner_coin_purchase_screen.dart';
 import 'owner_room_live_stream_screen.dart';
@@ -63,6 +65,23 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     _memberUidController.dispose();
     _commissionPercentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _signOutOwner() async {
+    final push = PushNotificationService();
+    try {
+      try { await push.unregister(); } catch (_) {
+        // Token cleanup is best-effort; authentication must still end.
+      }
+      await FirebaseAuth.instance.signOut();
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر إنهاء جلسة المالك. حاول مرة أخرى.')),
+      );
+    } finally {
+      await push.dispose();
+    }
   }
 
   Future<void> _loadOwnerMedia({bool loadMore = false}) async {
@@ -248,6 +267,11 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
             ),
           ),
           actions: [
+        IconButton(
+          tooltip: 'تسجيل خروج المالك',
+          onPressed: _signOutOwner,
+          icon: const Icon(Icons.logout),
+        ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('إلغاء'),
