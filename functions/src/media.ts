@@ -71,7 +71,19 @@ export async function deleteMediaAssetForMessage(
     // signed upload. Reconstruct canonical exact object names and sweep them
     // again rather than treating the tombstone as proof that Storage is empty.
     const expectedObjectPath = `quarantine/${expectedOwnerUid}/${mediaId}`;
-    const expectedPreviewPath = `processed/${expectedOwnerUid}/${mediaId}/preview.webp`;
+    const expectedDerivativePaths: Record<string, string> = {
+      safePreviewPath: `processed/${expectedOwnerUid}/${mediaId}/preview.webp`,
+      safeAnimationPath: `processed/${expectedOwnerUid}/${mediaId}/animation.gif`,
+      safeAudioPath: `processed/${expectedOwnerUid}/${mediaId}/audio.mp3`,
+      safeVideoPath: `processed/${expectedOwnerUid}/${mediaId}/video.mp4`,
+      safeDocumentPath: `processed/${expectedOwnerUid}/${mediaId}/document.pdf`,
+    };
+    for (const [field, expectedPath] of Object.entries(expectedDerivativePaths)) {
+      if (typeof data[field] === "string" && data[field] !== expectedPath) {
+        throw new HttpsError("failed-precondition", "مسار نسخة مشتقة غير مطابق للمسار الآمن المتوقع.");
+      }
+    }
+    const expectedPreviewPath = expectedDerivativePaths.safePreviewPath;
     if (!["manually_deleted", "self_destructed"].includes(String(data.status)) &&
         data.objectPath !== expectedObjectPath) {
       throw new HttpsError("failed-precondition", "مسار تخزين الوسيط غير مطابق لمعرفه ومالكه.");
