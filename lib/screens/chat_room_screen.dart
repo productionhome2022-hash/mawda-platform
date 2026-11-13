@@ -347,7 +347,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                                         if (url == null) {
                                           return const Text('الصورة غير متاحة أو انتهت مدة الاحتفاظ بها.');
                                         }
-                                        final category = message['mediaCategory'] as String? ?? 'image';
+                                        final mediaType = message['mediaContentType'] as String? ?? '';
+                        final category = message['mediaCategory'] as String? ??
+                            (mediaType == 'image/gif' ? 'gif' :
+                              mediaType.startsWith('audio/') ? 'audio' :
+                              mediaType.startsWith('video/') ? 'video' :
+                              mediaType == 'application/pdf' ? 'document' : 'image');
                                         if (category == 'image' || category == 'gif') {
                                           return ClipRRect(
                                             borderRadius: BorderRadius.circular(12),
