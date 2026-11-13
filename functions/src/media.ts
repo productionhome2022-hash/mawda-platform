@@ -17,6 +17,8 @@ import {
   normalizeMediaRequest,
   mediaUploaderTypeFromToken,
   mediaSignedUrlExpiresAt,
+  mediaRetentionExpiresAt,
+  type MediaPurpose,
 } from "./media-security";
 
 // Resolve Admin SDK services lazily. This module is re-exported by index.ts,
@@ -215,6 +217,13 @@ export const receiveMediaScanVerdict = onRequest(
   }
   const nextStatus = verdict.verdict === "malicious" ? "rejected" :
     safePreview ? "security_approved" : "scanner_clean_pending_processing";
+  const mediaPurpose = typeof asset.mediaPurpose === "string" ? asset.mediaPurpose as MediaPurpose : null;
+  if (verdict.verdict === "clean" && !mediaPurpose) {
+    response.status(409).send("Approved media must have an explicit retention purpose");
+    return;
+  }
+  const retentionExpiresAt = verdict.verdict === "clean"
+    ? new Date(mediaRetentionExpiresAt(mediaPurpose!)) : null;
   await db.runTransaction(async (transaction) => {
     const latest = await transaction.get(assetRef);
     if (!latest.exists || latest.data()?.status !== "pending_security_scan" ||
@@ -229,6 +238,7 @@ export const receiveMediaScanVerdict = onRequest(
       scannerObjectGeneration: verdict.objectGeneration,
       scannerScannedAt: new Date(verdict.scannedAtMs),
       scannerVerifiedAt: FieldValue.serverTimestamp(),
+      ...(retentionExpiresAt ? { retentionExpiresAt, retentionPolicy: mediaPurpose } : {}),
       ...(safePreview ? {
         safePreviewPath: safePreview.path,
         safePreviewGeneration: safePreview.generation,
@@ -375,6 +385,10 @@ export const createMediaUploadIntent = onCall(async (request) => {
   }
   const policy = mediaPolicyFor(input.contentType);
   if (!policy) throw new HttpsError("invalid-argument", "نوع الملف غير مسموح به.");
+  const uploaderType = mediaUploaderTypeFromToken(request.auth?.token ?? {});
+  if (uploaderType === "guest" && !["chat", "room"].includes(input.purpose)) {
+    throw new HttpsError("permission-denied", "حساب الضيف يقتصر رفعه على وسائط المحادثات والغرف.");
+  }
   if (input.declaredSizeBytes > policy.maxBytes) {
     throw new HttpsError("invalid-argument", "حجم الملف يتجاوز الحد المسموح لهذا النوع.");
   }
@@ -414,7 +428,8 @@ export const createMediaUploadIntent = onCall(async (request) => {
     transaction.create(assetRef, {
       mediaId,
       ownerUid: uid,
-      uploaderType: mediaUploaderTypeFromToken(request.auth?.token ?? {}),
+      uploaderType,
+      mediaPurpose: input.purpose,
       objectPath,
       originalName: input.originalName,
       declaredContentType: input.contentType,
@@ -618,6 +633,8 @@ export const listOwnerMediaAssets = onCall(async (request) => {
         detectedContentType: data.detectedContentType ?? null,
         sizeBytes: data.sizeBytes ?? data.declaredSizeBytes,
         mediaCategory: data.mediaCategory,
+        mediaPurpose: data.mediaPurpose ?? null,
+        retentionExpiresAt: data.retentionExpiresAt?.toMillis?.() ?? null,
         status: data.status,
         canPreview: data.status === "security_approved" &&
           typeof data.safePreviewPath === "string" &&
