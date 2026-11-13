@@ -61,9 +61,14 @@ export async function deleteMediaAssetForMessage(
       throw new HttpsError("failed-precondition", "الوسيط خاضع لحجز قانوني نشط.");
     }
     if (["manually_deleted", "self_destructed"].includes(String(data.status))) return false;
-    if (typeof data.objectPath !== "string" ||
-        !data.objectPath.startsWith(`quarantine/${expectedOwnerUid}/`)) {
-      throw new HttpsError("failed-precondition", "مسار تخزين الوسيط غير صالح للحذف الآمن.");
+    const expectedObjectPath = `quarantine/${expectedOwnerUid}/${mediaId}`;
+    if (data.objectPath !== expectedObjectPath) {
+      throw new HttpsError("failed-precondition", "مسار تخزين الوسيط غير مطابق لمعرفه ومالكه.");
+    }
+    const expectedPreviewPath = `processed/${expectedOwnerUid}/${mediaId}/preview.webp`;
+    if (typeof data.safePreviewPath === "string" &&
+        data.safePreviewPath !== expectedPreviewPath) {
+      throw new HttpsError("failed-precondition", "مسار معاينة الوسيط غير مطابق للمسار الآمن المتوقع.");
     }
     transaction.update(assetRef, {
       status: "manual_deletion_pending",
