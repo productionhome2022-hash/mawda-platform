@@ -318,3 +318,34 @@ test("scheduled cleanup deletes abandoned quarantine objects and releases active
   assert.ok((await auditEvents(uid)).some((event) =>
     event.action === "media_upload_intent_expired" && event.outcome === "success"));
 });
+
+
+test("finalization rejects an HTTP-uploaded object larger than its quota reservation", async () => {
+  const uid = `http-size-mismatch-${Date.now()}-${Math.random()}`;
+  const png = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
+  const intent = await createMediaUploadIntent.run({
+    data: { originalName: "oversized.png", contentType: "image/png", sizeBytes: 8 },
+    auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+  });
+  const put = await fetch(intent.uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": "image/png" },
+    body: png,
+  });
+  assert.equal(put.status, 200, await put.text());
+  await assert.rejects(
+    () => finalizeMediaUpload.run({
+      data: { mediaId: intent.mediaId },
+      auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+    }),
+    (error) => error && error.code === "invalid-argument",
+  );
+  const asset = await db.collection("mediaAssets").doc(intent.mediaId).get();
+  assert.equal(asset.data().status, "rejected");
+  assert.equal(asset.data().rejectionCode, "CONTENT_TYPE_SIZE_OR_SIGNATURE_MISMATCH");
+  const [exists] = await getStorage().bucket().file(asset.data().objectPath).exists();
+  assert.equal(exists, false);
+  const quota = await db.collection("mediaUploadQuotas").doc(uid).get();
+  assert.equal(quota.data().activeUploads, 0);
+  assert.equal(quota.data().activeBytes, 0);
+});
