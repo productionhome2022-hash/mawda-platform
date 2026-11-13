@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 import 'main_user_screen.dart';
+import 'guest_session_screen.dart';
 import 'privacy_acknowledgement_screen.dart';
 import '../privacy_policy.dart';
 
@@ -20,15 +21,19 @@ class AuthGate extends StatelessWidget {
       }
       final user = snapshot.data;
       if (user == null) return const LoginScreen();
+      if (user.isAnonymous) {
+        return _PrivacyAcknowledgementGate(userId: user.uid, actorType: 'guest');
+      }
       if (!user.emailVerified) return const _EmailVerificationScreen();
-      return _PrivacyAcknowledgementGate(userId: user.uid);
+      return _PrivacyAcknowledgementGate(userId: user.uid, actorType: 'member');
     },
   );
 }
 
 class _PrivacyAcknowledgementGate extends StatefulWidget {
-  const _PrivacyAcknowledgementGate({required this.userId});
+  const _PrivacyAcknowledgementGate({required this.userId, required this.actorType});
   final String userId;
+  final String actorType;
 
   @override
   State<_PrivacyAcknowledgementGate> createState() =>
@@ -71,7 +76,7 @@ class _PrivacyAcknowledgementGateState
         'policyVersion': mawdaPrivacyPolicyVersion,
         'policyHash': mawdaPrivacyPolicyHash,
         'locale': ['ar', 'en', 'fr', 'es'].contains(locale) ? locale : 'ar',
-        'actorType': 'member',
+        'actorType': widget.actorType,
         'appVersion': mawdaAppVersion,
       });
       if (!mounted) return;
@@ -115,7 +120,9 @@ class _PrivacyAcknowledgementGateState
             );
           }
           if (snapshot.data == true) {
-            return MainUserScreen(userId: widget.userId);
+            return widget.actorType == 'guest'
+                ? const GuestSessionScreen()
+                : MainUserScreen(userId: widget.userId);
           }
           return PrivacyAcknowledgementScreen(
             busy: _saving,
