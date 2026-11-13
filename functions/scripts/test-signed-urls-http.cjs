@@ -13,7 +13,7 @@ if (projectId === "mawda-app-2026" || /prod(uction)?/i.test(projectId) || /prod(
 initializeApp({ credential: applicationDefault(), projectId, storageBucket: bucketName });
 const bucket = getStorage().bucket(bucketName);
 const path = `quarantine-http-tests/${randomUUID()}.txt`;
-const file = bucket.file(path);
+const file = bucket.file(path);\nconst expiredUploadFile = bucket.file(`quarantine-http-tests/${randomUUID()}-expired.txt`);
 const bytes = Buffer.from("Mawadda signed URL HTTP integration test");
 const contentType = "text/plain";
 
@@ -38,7 +38,7 @@ async function main() {
     if (expired.ok) throw new Error("Expired signed GET unexpectedly remained usable.");
     console.log(JSON.stringify({ initialPut: first.status, replayPut: replay.status, signedGet: read.status, expiredGet: expired.status, objectPath: path }));
   } finally {
-    await file.delete({ ignoreNotFound: true });
+    await Promise.all([file.delete({ ignoreNotFound: true }), expiredUploadFile.delete({ ignoreNotFound: true })]);
   }
 }
 
