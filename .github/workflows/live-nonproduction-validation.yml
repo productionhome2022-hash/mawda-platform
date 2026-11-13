@@ -103,14 +103,16 @@ jobs:
           npm ci --no-audit --no-fund
           npm run build
 
-      - name: Run live Firebase Functions to private Cloud Run ClamAV E2E
-        working-directory: functions
-        env:
-          MAWDA_MEDIA_LIVE_SCANNER_E2E: "1"
-        run: npm run test:media-scanner-live-e2e
-
+      # Validate bucket policy and prove versioned-generation deletion before creating scanner fixtures.
+      # This makes the destructive scanner E2E fail fast if soft-delete or retention controls block cleanup.
       - name: Run live GCS object-versioning and exact-generation deletion proof
         working-directory: functions
         env:
           MAWDA_RETENTION_GCS_TEST: "1"
         run: npm run test:retention-gcs
+
+      - name: Run live Firebase Functions to private Cloud Run ClamAV E2E
+        working-directory: functions
+        env:
+          MAWDA_MEDIA_LIVE_SCANNER_E2E: "1"
+        run: npm run test:media-scanner-live-e2e
