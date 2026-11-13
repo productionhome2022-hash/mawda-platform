@@ -7,6 +7,7 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends clamav clamav-freshclam ca-certificates \
     && sed -i 's/^DatabaseOwner clamav/DatabaseOwner scanner/' /etc/clamav/freshclam.conf \
+    && sed -i '/^[[:space:]]*NotifyClamd[[:space:]]/d' /etc/clamav/freshclam.conf \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json ./
