@@ -977,15 +977,20 @@ export const createMemberStory = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "معرف وسائط القصة غير صالح.");
   }
   const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const memberRef = db.collection("users").doc(uid);
   // The media ID is the idempotency key: a retry cannot publish duplicates.
   const storyRef = db.collection("stories").doc(mediaId);
   const nowMs = Date.now();
   let expiresAtMs = 0;
   let idempotentReplay = false;
   await db.runTransaction(async (transaction) => {
-    const [assetSnapshot, existingStory] = await Promise.all([
-      transaction.get(assetRef), transaction.get(storyRef),
+    const [assetSnapshot, existingStory, memberSnapshot] = await Promise.all([
+      transaction.get(assetRef), transaction.get(storyRef), transaction.get(memberRef),
     ]);
+    if (!memberSnapshot.exists || memberSnapshot.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(memberSnapshot.data())) {
+      throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بنشر القصص.");
+    }
     if (existingStory.exists) {
       const prior = existingStory.data() ?? {};
       if (prior.ownerUid === uid && prior.mediaId === mediaId &&
