@@ -174,6 +174,42 @@ test("finalize callable accepts a matching quarantined PNG and audits the result
     event.action === "media_upload_validation" && event.outcome === "pending_security_scan"));
 });
 
+test("story upload requires and preserves its explicit expiry as the retention deadline", async () => {
+  const uid = `story-uploader-${Date.now()}-${Math.random()}`;
+  const intentExpiry = Date.now() + 60 * 60 * 1000;
+  const intent = await createMediaUploadIntent.run({
+    data: {
+      originalName: "story.png",
+      contentType: "image/png",
+      sizeBytes: 12,
+      purpose: "story",
+      storyExpiresAtMs: intentExpiry,
+    },
+    auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+  });
+  const assetRef = db.collection("mediaAssets").doc(intent.mediaId);
+  const before = await assetRef.get();
+  assert.equal(before.data().retentionPolicyStatus, "delete_at_story_expiry");
+  assert.equal(before.data().storyExpiresAt.toMillis(), intentExpiry);
+  const bytes = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
+  const file = getStorage().bucket().file(before.data().objectPath);
+  await file.save(bytes, { metadata: { contentType: "image/png" } });
+
+  const result = await finalizeMediaUpload.run({
+    data: { mediaId: intent.mediaId },
+    auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+  });
+  assert.equal(result.status, "pending_security_scan");
+  const after = await assetRef.get();
+  assert.equal(after.data().retentionExpiresAt.toMillis(), intentExpiry);
+  assert.equal(after.data().storyExpiresAt.toMillis(), intentExpiry);
+  await Promise.all([
+    assetRef.delete().catch(() => undefined),
+    db.collection("mediaUploadQuotas").doc(uid).delete().catch(() => undefined),
+    file.delete({ ignoreNotFound: true }).catch(() => undefined),
+  ]);
+});
+
 test("finalize callable rejects and deletes a file whose bytes contradict its declared type", async () => {
   const uid = `uploader-invalid-${Date.now()}-${Math.random()}`;
   const mediaId = randomUUID();
