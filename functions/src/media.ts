@@ -18,6 +18,7 @@ import {
   normalizeMediaRequest,
   mediaUploaderTypeFromToken,
   mediaSignedUrlExpiresAt,
+  mediaUploadAllowedForRole,
   MEDIA_SIGNED_URL_TTL_MS,
 } from "./media-security";
 import { MEDIA_UPLOAD_CLEANUP_GRACE_MS, uploadIntentIsEligibleForCleanup } from "./media-cleanup";
@@ -850,7 +851,15 @@ export const createMediaUploadIntent = onCall(async (request) => {
   }
   const policy = mediaPolicyFor(input.contentType);
   if (!policy) throw new HttpsError("invalid-argument", "نوع الملف غير مسموح به.");
-  const uploaderType = mediaUploaderTypeFromToken(request.auth?.token ?? {});
+  const token = request.auth?.token ?? {};
+  const isPlatformOwner = token.platformOwner === true && hasPlatformOwnerSession(token);
+  if (!mediaUploadAllowedForRole(input, isPlatformOwner)) {
+    throw new HttpsError(
+      "permission-denied",
+      "إرسال المستندات محصور بمالك المنصة، ووسائط الأعضاء تقتصر على الصور والصوت والفيديو.",
+    );
+  }
+  const uploaderType = mediaUploaderTypeFromToken(token);
   if (uploaderType === "guest" && !["chat", "room"].includes(input.purpose)) {
     throw new HttpsError("permission-denied", "حساب الضيف يقتصر رفعه على وسائط المحادثات والغرف.");
   }
@@ -898,6 +907,7 @@ export const createMediaUploadIntent = onCall(async (request) => {
       mediaId,
       ownerUid: uid,
       uploaderType,
+      uploaderRole: isPlatformOwner ? "platform_owner" : "member",
       mediaPurpose: input.purpose,
       objectPath,
       originalName: input.originalName,
