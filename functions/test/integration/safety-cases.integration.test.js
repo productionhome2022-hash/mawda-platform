@@ -74,7 +74,7 @@ test("safety report, owner decision, member appeal and owner appeal resolution a
     const appealPayload = {
       caseId,
       reason: "I dispute the decision and request a fresh review of the evidence.",
-      requestId: `appeal_${suffix()}`,
+      requestId: `appeal_${tag()}`,
     };
     const appeal = await submitSafetyAppeal.run(memberRequest(subjectUid, appealPayload));
     const appealReplay = await submitSafetyAppeal.run(memberRequest(subjectUid, appealPayload));
