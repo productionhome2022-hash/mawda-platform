@@ -255,7 +255,48 @@ async function runCase(label, bytes, expectedStatus) {
   }
 }
 
+async function verifyCallbackRejectsUnauthenticatedRequests() {
+  const callbackUrl = process.env.MAWDA_MEDIA_TEST_CALLBACK_URL;
+  if (!callbackUrl) {
+    throw new Error("Set MAWDA_MEDIA_TEST_CALLBACK_URL to the exact non-production callback endpoint.");
+  }
+  const parsed = new URL(callbackUrl);
+  if (parsed.protocol !== "https:" || !parsed.hostname.endsWith(".cloudfunctions.net") ||
+      parsed.pathname !== "/receiveMediaScanVerdict" || parsed.search || parsed.hash ||
+      parsed.username || parsed.password) {
+    throw new Error("Refusing to probe an unrecognized scanner callback endpoint.");
+  }
+
+  const body = JSON.stringify({});
+  const missing = await fetch(callbackUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body,
+  });
+  if (missing.status !== 401) {
+    throw new Error(`Callback accepted a request without an HMAC signature (HTTP ${missing.status}).`);
+  }
+
+  const invalid = await fetch(callbackUrl, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-mawadda-scanner-signature": "0".repeat(64),
+    },
+    body,
+  });
+  if (invalid.status !== 401) {
+    throw new Error(`Callback accepted an invalid HMAC signature (HTTP ${invalid.status}).`);
+  }
+  console.log(JSON.stringify({
+    test: "callback-authentication-negative-cases",
+    missingSignatureRejected: true,
+    invalidSignatureRejected: true,
+  }));
+}
+
 async function main() {
+  await verifyCallbackRejectsUnauthenticatedRequests();
   const clean = tinyPng();
   const eicar = Buffer.from(
     "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*",
