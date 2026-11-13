@@ -52,7 +52,15 @@ test("profile entitlement projection exposes only active VIP and newest active t
     { category: "title", itemName: "لقب منتهي", status: "active", expiresAt: { toMillis: () => NOW } },
     { itemId: "analytics_a", category: "analytics", itemName: "تحليلات", status: "active" },
   ], NOW);
-  assert.deepEqual(features, {\n    vipActive: true, activeTitle: "لقب النخبة",\n    activeFeatures: [\n      { itemId: "title_a", itemName: "لقب النخبة", category: "title", expiresAtMs: NOW + 5000 },\n      { itemId: "vip_a", itemName: "VIP", category: "vip", expiresAtMs: NOW + 1000 },\n      { itemId: "analytics_a", itemName: "تحليلات", category: "analytics", expiresAtMs: null },\n    ],\n  });
+  assert.deepEqual(features, {
+    vipActive: true,
+    activeTitle: "لقب النخبة",
+    activeFeatures: [
+      { itemId: "title_a", itemName: "لقب النخبة", category: "title", expiresAtMs: NOW + 5000 },
+      { itemId: "vip_a", itemName: "VIP", category: "vip", expiresAtMs: NOW + 1000 },
+      { itemId: "analytics_a", itemName: "تحليلات", category: "analytics", expiresAtMs: null },
+    ],
+  });
 });
 
 test("profile entitlement projection hides expired, revoked, and malformed entitlements", () => {
