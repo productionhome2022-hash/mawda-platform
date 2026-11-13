@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 import unittest
+from PIL import Image
 from unittest.mock import patch, MagicMock
 
 import app
@@ -62,6 +63,33 @@ class ScannerGatewayTests(unittest.TestCase):
         handler = app.RejectRedirect()
         with self.assertRaises(ValueError):
             handler.redirect_request(None, None, 302, "Found", {}, "https://evil.example/collect")
+
+    def test_safe_preview_reencodes_static_rasters_as_metadata_free_webp(self):
+        with tempfile.NamedTemporaryFile(suffix=".png") as source:
+            image = Image.new("RGB", (12, 8), (180, 30, 60))
+            image.save(source.name, format="PNG")
+            preview = app.make_safe_webp_preview(source.name)
+        self.assertIsNotNone(preview)
+        self.assertTrue(preview.startswith(b"RIFF"))
+        self.assertEqual(preview[8:12], b"WEBP")
+        with tempfile.NamedTemporaryFile(suffix=".webp") as output:
+            output.write(preview)
+            output.flush()
+            with Image.open(output.name) as decoded:
+                self.assertEqual(decoded.format, "WEBP")
+                self.assertEqual(decoded.size, (12, 8))
+                self.assertEqual(len(decoded.getexif()), 0)
+
+    def test_safe_preview_rejects_animated_and_oversized_rasters(self):
+        with tempfile.NamedTemporaryFile(suffix=".gif") as source:
+            first = Image.new("RGB", (4, 4), "red")
+            second = Image.new("RGB", (4, 4), "blue")
+            first.save(source.name, save_all=True, append_images=[second], format="GIF")
+            self.assertIsNone(app.make_safe_webp_preview(source.name))
+        with tempfile.NamedTemporaryFile(suffix=".png") as source:
+            image = Image.new("RGB", (10001, 1), "black")
+            image.save(source.name, format="PNG")
+            self.assertIsNone(app.make_safe_webp_preview(source.name))
 
     def test_gateway_never_exposes_scanner_output_in_public_errors(self):
         self.assertLessEqual(app.MAX_CONTROL_BODY, 64 * 1024)
