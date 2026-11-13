@@ -63,3 +63,13 @@ test("scanner telemetry never emits signed URLs, tokens or temporary file paths"
   assert.equal(sanitizeScannerError(new Error("https://storage.googleapis.com/bucket/object?X-Goog-Signature=secret /tmp/scan/source.bin")), "SCAN_FAILED");
   assert.equal(sanitizeScannerError(new Error("Bearer " + "x".repeat(48))), "SCAN_FAILED");
 });
+
+
+test("ClamAV signature freshness fails closed for missing, stale and future timestamps", () => {
+  const now = 1_800_000_000_000;
+  const maxAge = 36 * 60 * 60 * 1000;
+  assert.equal(isSignatureDatabaseFresh(now - 60 * 60 * 1000, now, maxAge), true);
+  assert.equal(isSignatureDatabaseFresh(now - 40 * 60 * 60 * 1000, now, maxAge), false);
+  assert.equal(isSignatureDatabaseFresh(Number.NaN, now, maxAge), false);
+  assert.equal(isSignatureDatabaseFresh(now + 10 * 60 * 1000, now, maxAge), false);
+});
