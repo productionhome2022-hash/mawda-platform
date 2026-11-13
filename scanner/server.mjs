@@ -14,7 +14,7 @@ function secureEqual(left, right) {
 }
 
 export function parseClamAvVersion(response) {
-  const match = /^ClamAV\s+([^/\s]+)\\/([^/\s]+)/.exec(String(response).trim());
+  const match = /^ClamAV\s+([^/\s]+)\/([^/\s]+)/.exec(String(response).trim());
   if (!match) throw new Error("CLAMAV_VERSION_RESPONSE_INVALID");
   return { engine: "ClamAV", engineVersion: match[1], signatureVersion: match[2] };
 }
