@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { equalSecret, validateScanRequest, isSafeDerivativeMetadata, sanitizeScannerError } = require("../security");
+const { equalSecret, validateScanRequest, isSafeDerivativeMetadata, isSignatureDatabaseFresh, sanitizeScannerError } = require("../security");
 
 const bucket = "mawda-media-test.appspot.com";
 const mediaId = "123e4567-e89b-42d3-a456-426614174000";
