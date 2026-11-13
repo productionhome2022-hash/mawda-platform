@@ -17,7 +17,7 @@
 - Per-file maxima: raster images (JPEG/PNG/WebP/GIF) 5 MiB, MP4 video 100 MiB, audio 25 MiB, PDF 20 MiB.
 - The upload intent reserves the declared size and signs the exact `x-goog-content-length-range: min,max` header with `min=max=declaredSizeBytes`; Cloud Storage rejects a body outside that exact range before creating the object. The signed request also binds the content type and `ifGenerationMatch=0`. Clients must send the exact `requiredHeaders` returned by the callable.
 - Finalization independently rechecks exact object byte count, MIME type, signature and generation. This is defense in depth; transport rejection does not replace finalization validation.
-- Storage Emulator HTTP tests now exercise signed upload, exact size, replay and finalization. The separate opt-in real-GCS HTTP script additionally tests oversize rejection, GET, expiry and replay against a disposable non-production bucket; it has not yet been run because no non-production bucket credentials/configuration are available here.
+- Storage Emulator integration tests verify the signed intent's exact required headers and create-only precondition, then use the Admin SDK to seed an object and exercise finalization; the emulator returns HTTP 501 for signed PUT endpoints and is not treated as evidence of the signed-URL wire protocol. The separate opt-in real-GCS HTTP script tests actual signed PUT/GET, exact-size rejection, expiry and replay against a disposable non-production bucket; it has not yet been run because no non-production bucket credentials/configuration are available here.
 
 ## Trusted malware scanner and safe image processing
 
