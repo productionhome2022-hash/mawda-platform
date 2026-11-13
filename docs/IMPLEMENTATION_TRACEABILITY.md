@@ -316,3 +316,13 @@ Remaining phase-two closure items:
 - **Important bearer-link limitation:** a Cloud Storage V4 signed URL is reusable by anyone who obtains it until it expires (or the underlying object/credentials are invalidated). The current implementation does not provide one-time redemption or replay prevention. The UI therefore continues to withhold preview links; do not describe these links as single-use.
 - These tests validate the application expiry values passed to the signer. They do not yet exercise Cloud Storage's actual expiry enforcement, URL leakage, or post-expiry HTTP behavior; those require a Storage integration test.
 - Audit retention/export and media retention/deletion remain unconfigured. No automatic deletion schedule has been introduced because the product/legal retention period has not been approved.
+
+
+## Phase 2 — media security implementation checkpoint (13 November 2026)
+
+- Added a server-side per-UID upload quota reservation in the same Firestore transaction as upload-intent creation. Initial defaults: 5 active intents, 150 MiB active reserved bytes, and 500 MiB reserved per UTC day. Concurrent reservations are transactionally serialized.
+- Finalization releases active quota in the same transaction as the asset's transition to `pending_security_scan` or `rejected`. Daily usage is not refunded for rejected or abandoned attempts; the daily window rolls over in UTC.
+- Added unit coverage for concurrent count, active-byte, daily-byte, UTC rollover and inconsistent release state; added emulator integration coverage for successful reservation and exhausted concurrent quota.
+- These commits are implementation work, not yet validated until the current exact-head CI completes. The existing green baseline remains commit `8438775ffc5a0ec4535d69fbdf3a0a07fc4566d5`, run `43375529010`.
+- Still open: real HTTP PUT/GET signed URL behavior against a dedicated non-production GCS bucket (including expiry, create-only replay/overwrite and generation checks); replace the owner inspection bearer URL handoff with an authenticated streaming preview; integrate a trusted malware scanner and isolated content processing; expired-intent cleanup and abandoned-reservation recovery; retention/export/legal-hold policy approval; App Check/MFA lifecycle and real-device verification.
+- Do not treat the new quota defaults as owner-approved production policy. Do not enable member delivery or `security_approved` until a trusted scanner verdict and safe processing pipeline are verified. No production Firebase changes, merge, or deployment.
