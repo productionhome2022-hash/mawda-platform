@@ -85,6 +85,27 @@ test("owner message legal hold suspends seven-day text deletion and release resu
       }),
       (error) => error && error.code === "permission-denied",
     );
+
+    const mediaMessageId = "b".repeat(64);
+    const mediaMessagePath = `rooms/${roomId}/messages/${mediaMessageId}`;
+    await db.doc(mediaMessagePath).set({
+      type: "image",
+      attachments: [{ mediaId: "11111111-2222-3333-4444-555555555555" }],
+      createdAt,
+    });
+    await assert.rejects(
+      () => placeMessageLegalHold.run(ownerRequest({
+        messagePath: mediaMessagePath,
+        authority: "Court order",
+        legalBasis: "Preserve the specifically identified text message evidence.",
+        reference: "CASE-2026-457",
+        startsAtMs: now,
+        reviewAtMs: now + 60 * 60 * 1000,
+        endsAtMs: now + 2 * 60 * 60 * 1000,
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await db.doc(mediaMessagePath).delete();
   } finally {
     await messageRef.delete().catch(() => undefined);
     if (holdId) await db.collection("messageLegalHolds").doc(holdId).delete().catch(() => undefined);
