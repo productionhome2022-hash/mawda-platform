@@ -69,13 +69,18 @@ jobs:
             echo "Configure MAWDA_WIF_PROVIDER and MAWDA_NONPROD_DEPLOY_SERVICE_ACCOUNT repository variables." >&2
             exit 1
           }
-          [[ "$PROJECT_ID" != "mawda-app-2026" && ! "$PROJECT_ID" =~ [Pp][Rr][Oo][Dd] &&
-             "$PROJECT_ID" =~ (test|staging|dev|nonprod|sandbox|qa) ]] || {
+          PROJECT_ID_LOWER="${PROJECT_ID,,}"
+          PROJECT_ID_WITHOUT_NONPROD="${PROJECT_ID_LOWER//nonprod/}"
+          BUCKET_NAME_LOWER="${BUCKET_NAME,,}"
+          BUCKET_NAME_WITHOUT_NONPROD="${BUCKET_NAME_LOWER//nonprod/}"
+          [[ "$PROJECT_ID" != "mawda-app-2026" &&
+             "$PROJECT_ID_WITHOUT_NONPROD" != *prod* &&
+             "$PROJECT_ID_LOWER" =~ (test|staging|dev|nonprod|sandbox|qa) ]] || {
             echo "Refusing production or unmarked project." >&2
             exit 1
           }
-          [[ ! "$BUCKET_NAME" =~ [Pp][Rr][Oo][Dd] &&
-             "$BUCKET_NAME" =~ (test|staging|dev|nonprod|sandbox|qa) ]] || {
+          [[ "$BUCKET_NAME_WITHOUT_NONPROD" != *prod* &&
+             "$BUCKET_NAME_LOWER" =~ (test|staging|dev|nonprod|sandbox|qa) ]] || {
             echo "Refusing production or unmarked bucket." >&2
             exit 1
           }
