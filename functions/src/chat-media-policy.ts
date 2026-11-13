@@ -3,6 +3,7 @@ export type ChatMediaProcessor = "image-raster-v1" | "gif-animation-v1" | "audio
 
 export interface ChatMediaAssetForDelivery {
   mediaId: string;
+  ownerUid: string;
   mediaPurpose: unknown;
   uploaderRole: unknown;
   mediaCategory: unknown;
@@ -56,10 +57,9 @@ const PROCESSORS: Readonly<Record<string, {
   "application/pdf": { category: "document", processor: "pdf-sanitize-v1", pathField: "safeDocumentPath", generationField: "safeDocumentGeneration", hashField: "safeDocumentSha256", contentTypes: ["application/pdf"], pipelineVersion: "pdf-sanitize-v1" },
 };
 
-function validSafePath(value: unknown, mediaId: string, category: ChatMediaCategory): value is string {
-  if (typeof value !== "string" || value.startsWith("/") || value.split("/").includes("..")) return false;
-  const expectedPrefix = category === "image" ? "processed/" : "processed/";
-  return value.startsWith(expectedPrefix) && value.includes(`/${mediaId}/`);
+function validSafePath(value: unknown, ownerUid: string, mediaId: string): value is string {
+  if (typeof value !== "string" || !ownerUid || value.startsWith("/") || value.split("/").includes("..")) return false;
+  return value.startsWith(`processed/${ownerUid}/${mediaId}/`);
 }
 
 /** Returns an isolated processor route; unknown types never fall back to a generic handler. */
@@ -88,7 +88,7 @@ export function resolveChatMediaDeliveryArtifact(
   const path = asset[route.pathField];
   const generation = asset[route.generationField];
   const sha256 = asset[route.hashField];
-  if (!validSafePath(path, asset.mediaId, route.category) ||
+  if (typeof asset.ownerUid !== "string" || !validSafePath(path, asset.ownerUid, asset.mediaId) ||
       typeof generation !== "string" || !/^[1-9][0-9]*$/.test(generation) ||
       typeof sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(sha256)) return null;
   return {
