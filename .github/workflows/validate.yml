@@ -77,6 +77,8 @@ jobs:
           java-version: "21"
       - name: Run media callable authorization and audit integration tests
         run: npm run test:media-integration
+      - name: Run seven-day chat retention integration tests
+        run: npm run test:retention-integration
       - name: Run Firestore and Storage rules emulator tests
         run: npm run test:rules
 
