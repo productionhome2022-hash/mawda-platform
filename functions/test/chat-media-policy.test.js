@@ -11,7 +11,7 @@ const hash = "a".repeat(64);
 const base = {
   mediaId: id, ownerUid: "member", mediaPurpose: "chat", uploaderRole: "member",
   mediaCategory: "image", detectedContentType: "image/png",
-  status: "security_approved", safePreviewPath: `processed/member/${id}/preview.webp`,
+  status: "security_approved", processingStatus: "safe_raster_derivative_ready", safePreviewPath: `processed/member/${id}/preview.webp`,
   safePreviewGeneration: "12", safePreviewSha256: hash,
   processingPipelineVersion: "sharp-decode-reencode-v1",
 };
