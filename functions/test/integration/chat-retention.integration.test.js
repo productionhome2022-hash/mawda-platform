@@ -221,15 +221,25 @@ test("manual message-media deletion pending state is retried and reconciled", as
   const mediaId = `dddddddd-eeee-ffff-aaaa-${suffix.padStart(12, "0").slice(-12)}`;
   const objectPath = `quarantine/${ownerUid}/${mediaId}`;
   const previewPath = `processed/${ownerUid}/${mediaId}/preview.webp`;
+  const derivativePaths = [
+    `processed/${ownerUid}/${mediaId}/animation.gif`,
+    `processed/${ownerUid}/${mediaId}/audio.mp3`,
+    `processed/${ownerUid}/${mediaId}/video.mp4`,
+    `processed/${ownerUid}/${mediaId}/document.pdf`,
+  ];
   const original = bucket.file(objectPath);
   const preview = bucket.file(previewPath);
+  const derivatives = derivativePaths.map((path) => bucket.file(path));
   const assetRef = db.collection("mediaAssets").doc(mediaId);
   await Promise.all([
     original.save(Buffer.from("pending manual delete original"), { resumable: false }),
     preview.save(Buffer.from("pending manual delete preview"), { resumable: false }),
+    ...derivatives.map((file) => file.save(Buffer.from("pending typed derivative"), { resumable: false })),
     assetRef.set({
       mediaId, ownerUid, uploaderType: "member", mediaPurpose: "chat",
       objectPath, safePreviewPath: previewPath,
+      safeAnimationPath: derivativePaths[0], safeAudioPath: derivativePaths[1],
+      safeVideoPath: derivativePaths[2], safeDocumentPath: derivativePaths[3],
       status: "manual_deletion_pending",
       retentionExpiresAt: Timestamp.fromMillis(Date.now() - 1000),
       createdAt: Timestamp.fromMillis(Date.now() - 60 * 60 * 1000),
@@ -245,21 +255,25 @@ test("manual message-media deletion pending state is retried and reconciled", as
     assert.ok(tombstone.retentionReconcileAt instanceof Timestamp);
     assert.equal((await original.exists())[0], false);
     assert.equal((await preview.exists())[0], false);
+    for (const file of derivatives) assert.equal((await file.exists())[0], false);
 
     await Promise.all([
       original.save(Buffer.from("late replay original"), { resumable: false }),
       preview.save(Buffer.from("late replay preview"), { resumable: false }),
+      derivatives[0].save(Buffer.from("late replay animation"), { resumable: false }),
     ]);
     await assetRef.update({ retentionReconcileAt: Timestamp.fromMillis(Date.now() - 1000) });
     const reconciled = await runChatMediaRetentionSweep();
     assert.equal(reconciled.failures, 0);
     assert.equal((await original.exists())[0], false);
     assert.equal((await preview.exists())[0], false);
+    assert.equal((await derivatives[0].exists())[0], false);
   } finally {
     await Promise.all([
       assetRef.delete().catch(() => undefined),
       original.delete({ ignoreNotFound: true }).catch(() => undefined),
       preview.delete({ ignoreNotFound: true }).catch(() => undefined),
+      ...derivatives.map((file) => file.delete({ ignoreNotFound: true }).catch(() => undefined)),
     ]);
   }
 });
