@@ -127,6 +127,16 @@ class SuperAdminSecurityService {
     });
   }
 
+  Future<void> deleteDirectMessageForMe({
+    required String chatId,
+    required String messageId,
+  }) async {
+    await _functions.httpsCallable('deleteDirectMessageForMe').call({
+      'chatId': chatId,
+      'messageId': messageId,
+    });
+  }
+
   Future<void> deleteRoomMessageForMe({
     required String roomId,
     required String messageId,
