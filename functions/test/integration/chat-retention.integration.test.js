@@ -4,8 +4,8 @@ const { initializeApp, deleteApp } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 
 const projectId = process.env.GCLOUD_PROJECT || "demo-mawda-retention";
-const app = initializeApp({ projectId }, "retention-integration");
-const db = getFirestore(app);
+const app = initializeApp({ projectId });
+const db = getFirestore();
 const { runChatTextRetentionSweep } = require("../../lib/retention");
 
 test("seven-day sweep deletes direct and room text, notifications and expired previews only", async () => {
