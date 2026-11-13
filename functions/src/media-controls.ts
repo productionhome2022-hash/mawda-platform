@@ -4,7 +4,6 @@ export const MEDIA_QUOTA_POLICY = Object.freeze({
   dailyUploadCount: MEDIA_QUOTA_LIMITS.maxDailyUploads,
   dailyDeclaredBytes: MEDIA_QUOTA_LIMITS.maxDailyBytes,
   activeQuarantineBytes: MEDIA_QUOTA_LIMITS.maxActiveBytes,
-  retentionDays: 30,
 });
 
 export interface MediaQuotaUsage {
@@ -30,11 +29,6 @@ export function validateMediaQuotaUsage(input: MediaQuotaUsage): MediaQuotaBlock
   if (declaredBytes + nextBytes > MEDIA_QUOTA_POLICY.dailyDeclaredBytes) return "DAILY_BYTES";
   if (activeBytes + nextBytes > MEDIA_QUOTA_POLICY.activeQuarantineBytes) return "ACTIVE_QUARANTINE_BYTES";
   return null;
-}
-
-export function mediaRetentionCutoff(nowMs = Date.now()): number {
-  if (!Number.isSafeInteger(nowMs) || nowMs < 0) throw new TypeError("Invalid clock value.");
-  return nowMs - MEDIA_QUOTA_POLICY.retentionDays * 24 * 60 * 60 * 1000;
 }
 
 export function isExpiredUploadIntent(
