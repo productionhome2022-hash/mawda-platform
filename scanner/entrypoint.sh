@@ -17,7 +17,7 @@ trap cleanup EXIT INT TERM
 
 READY=0
 for attempt in $(seq 1 60); do
-  if printf 'zPING\\0' | nc -w 2 127.0.0.1 3310 2>/dev/null | grep -q PONG; then
+  if printf 'zPING\0' | nc -w 2 127.0.0.1 3310 2>/dev/null | grep -q PONG; then
     READY=1
     break
   fi
@@ -28,4 +28,6 @@ if [ "$READY" -ne 1 ]; then
   exit 1
 fi
 
-exec su -s /bin/sh node -c "node /app/server.mjs"
+su -s /bin/sh node -c "node /app/server.mjs" &
+NODE_PID=$!
+wait "$NODE_PID"
