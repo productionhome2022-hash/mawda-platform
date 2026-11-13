@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { getAuth } from "firebase-admin/auth";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
@@ -434,58 +435,70 @@ export const listOwnerMediaAssets = onCall(async (request) => {
  * Owner-only short-lived read URL for a quarantined object. This is an
  * explicit privileged inspection path, not a member-facing media URL.
  */
-export const getOwnerMediaInspectionUrl = onCall(async (request) => {
-  const actorUid = await requireSoleOwnerForMediaReview(request, "owner_media_inspection_attempt");
-  const mediaId = typeof request.data?.mediaId === "string" ? request.data.mediaId : "";
-  try {
-    if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
-      throw new HttpsError("invalid-argument", "معرف الملف غير صالح.");
-    }
-    const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
-    const snapshot = await assetRef.get();
-    if (!snapshot.exists) throw new HttpsError("not-found", "الملف غير موجود.");
-    const asset = snapshot.data()!;
-    if (!["pending_security_scan", "security_approved"].includes(String(asset.status))) {
-      throw new HttpsError("failed-precondition", "الملف غير متاح للفحص في حالته الحالية.");
-    }
-    const file = mediaBucket().file(String(asset.objectPath));
-    const [metadata] = await file.getMetadata();
-    if (String(metadata.generation) !== String(asset.storageGeneration)) {
-      throw new HttpsError("failed-precondition", "تغير إصدار الملف؛ أوقف الوصول احترازياً.");
-    }
-    const expiresAt = mediaSignedUrlExpiresAt("owner-inspection");
-    const [downloadUrl] = await file.getSignedUrl({
-      version: "v4",
-      action: "read",
-      expires: expiresAt,
-      responseDisposition: "attachment",
-    });
-    await auditMediaAccess({
-      actorUid,
-      mediaId,
-      action: "owner_media_inspection_url_issued",
-      outcome: "success",
-      objectPath: asset.objectPath,
-      storageGeneration: String(asset.storageGeneration),
-      expiresAt: new Date(expiresAt),
-    });
-    return { mediaId, downloadUrl, expiresAt };
-  } catch (error) {
-    // Every authenticated owner inspection attempt is recorded, including invalid,
-    // missing, stale-generation and storage failures. Audit failure blocks the call.
-    await auditMediaAccess({
-      actorUid,
-      mediaId: mediaId || null,
-      action: "owner_media_inspection_result",
-      outcome: "denied_or_failed",
-      failureCode: error instanceof HttpsError ? error.code : "storage_or_internal_error",
-    });
-    throw error;
+/**
+ * Authenticated owner-only raster preview. A Firebase ID token is checked on
+ * every request; no storage bearer URL is returned or placed in browser history.
+ */
+export const ownerMediaPreview = onRequest(async (request, response) => {
+  if (request.method !== "GET") {
+    response.status(405).set("Allow", "GET").send("Method not allowed");
+    return;
   }
+  const match = /^Bearer (.+)$/.exec(request.get("authorization") ?? "");
+  if (!match) { response.status(401).send("Authentication required"); return; }
+  let decoded;
+  try { decoded = await getAuth().verifyIdToken(match[1], true); }
+  catch { response.status(401).send("Authentication required"); return; }
+  const actorUid = decoded.uid;
+  if (decoded.platformOwner !== true || !hasPlatformOwnerSession(decoded)) {
+    await auditMediaAccess({ actorUid, action: "owner_media_preview", outcome: "denied", failureCode: "permission-denied" });
+    response.status(403).send("Forbidden"); return;
+  }
+  const mediaId = typeof request.query.mediaId === "string" ? request.query.mediaId : "";
+  if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
+    await auditMediaAccess({ actorUid, action: "owner_media_preview", outcome: "denied", failureCode: "invalid-media-id" });
+    response.status(400).send("Invalid media ID"); return;
+  }
+  const snapshot = await mediaDb().collection("mediaAssets").doc(mediaId).get();
+  if (!snapshot.exists) {
+    await auditMediaAccess({ actorUid, mediaId, action: "owner_media_preview", outcome: "denied", failureCode: "not-found" });
+    response.status(404).send("Not found"); return;
+  }
+  const asset = snapshot.data()!;
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  if (!["pending_security_scan", "security_approved"].includes(String(asset.status)) ||
+      !allowedTypes.includes(String(asset.detectedContentType))) {
+    await auditMediaAccess({ actorUid, mediaId, action: "owner_media_preview", outcome: "denied", failureCode: "preview-not-allowed" });
+    response.status(415).send("Media type is not eligible for inline preview"); return;
+  }
+  const file = mediaBucket().file(String(asset.objectPath));
+  let metadata;
+  try { [metadata] = await file.getMetadata(); }
+  catch { response.status(404).send("Media object not found"); return; }
+  if (String(metadata.generation) !== String(asset.storageGeneration)) {
+    await auditMediaAccess({ actorUid, mediaId, action: "owner_media_preview", outcome: "denied", failureCode: "generation-mismatch" });
+    response.status(409).send("Media generation changed"); return;
+  }
+  await auditMediaAccess({ actorUid, mediaId, action: "owner_media_preview", outcome: "success", objectGeneration: String(metadata.generation) });
+  response.set({
+    "Content-Type": String(asset.detectedContentType),
+    "Content-Disposition": "inline; filename=\"mawadda-preview\"",
+    "Cache-Control": "private, no-store, max-age=0",
+    "Pragma": "no-cache",
+    "X-Content-Type-Options": "nosniff",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Content-Security-Policy": "default-src 'none'; sandbox",
+  });
+  file.createReadStream({ validation: "crc32c" })
+    .on("error", () => { if (!response.headersSent) response.status(502); response.end(); })
+    .pipe(response);
 });
 
+/** Legacy signed-URL callable disabled; use the authenticated streaming preview. */
+export const getOwnerMediaInspectionUrl = onCall(async () => {
+  throw new HttpsError("failed-precondition", "استخدم معاينة المالك الآمنة التي تتحقق من جلسة الدخول عند كل طلب.");
+});
 
-/**
  * Reclaims abandoned upload reservations after the signed PUT capability has
  * expired plus a safety grace period. A transactional state claim prevents a
  * cleanup/finalize race; failed object deletion is retried on the next sweep.
