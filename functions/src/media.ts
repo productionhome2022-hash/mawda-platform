@@ -3,6 +3,7 @@ import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { hasPlatformOwnerSession } from "./owner-access";
+import { reserveMediaQuota, releaseMediaQuota } from "./media-quota";
 import {
   detectMediaSignature,
   mediaPolicyFor,
@@ -96,19 +97,38 @@ export const createMediaUploadIntent = onCall(async (request) => {
     queryParams: { ifGenerationMatch: "0" },
   });
 
-  await mediaDb().collection("mediaAssets").doc(mediaId).create({
-    mediaId,
-    ownerUid: uid,
-    uploaderType: mediaUploaderTypeFromToken(request.auth?.token ?? {}),
-    objectPath,
-    originalName: input.originalName,
-    declaredContentType: input.contentType,
-    declaredSizeBytes: input.declaredSizeBytes,
-    mediaCategory: policy.category,
-    status: "upload_authorized",
-    uploadUrlExpiresAt: new Date(expiresAt),
-    createdAt: FieldValue.serverTimestamp(),
-    updatedAt: FieldValue.serverTimestamp(),
+  const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
+  const quotaRef = mediaDb().collection("mediaUploadQuotas").doc(uid);
+  await mediaDb().runTransaction(async (transaction) => {
+    const [quotaSnapshot, existingAsset] = await Promise.all([
+      transaction.get(quotaRef),
+      transaction.get(assetRef),
+    ]);
+    if (existingAsset.exists) {
+      throw new HttpsError("already-exists", "معرف طلب الرفع مستخدم مسبقاً.");
+    }
+    let reservation;
+    try {
+      reservation = reserveMediaQuota(quotaSnapshot.data(), input.declaredSizeBytes);
+    } catch {
+      throw new HttpsError("resource-exhausted", "تم بلوغ حصة الرفع المؤقتة أو اليومية. حاول لاحقاً.");
+    }
+    const now = FieldValue.serverTimestamp();
+    transaction.set(quotaRef, { ...reservation, updatedAt: now });
+    transaction.create(assetRef, {
+      mediaId,
+      ownerUid: uid,
+      uploaderType: mediaUploaderTypeFromToken(request.auth?.token ?? {}),
+      objectPath,
+      originalName: input.originalName,
+      declaredContentType: input.contentType,
+      declaredSizeBytes: input.declaredSizeBytes,
+      mediaCategory: policy.category,
+      status: "upload_authorized",
+      uploadUrlExpiresAt: new Date(expiresAt),
+      createdAt: now,
+      updatedAt: now,
+    });
   });
   await auditMediaAccess({
     actorUid: uid,
@@ -166,10 +186,22 @@ export const finalizeMediaUpload = onCall(async (request) => {
 
   if (!valid) {
     await file.delete({ ignoreNotFound: true });
-    await assetRef.update({
-      status: "rejected",
-      rejectionCode: "CONTENT_TYPE_SIZE_OR_SIGNATURE_MISMATCH",
-      updatedAt: FieldValue.serverTimestamp(),
+    const quotaRef = mediaDb().collection("mediaUploadQuotas").doc(uid);
+    await mediaDb().runTransaction(async (transaction) => {
+      const [latestAsset, quotaSnapshot] = await Promise.all([
+        transaction.get(assetRef),
+        transaction.get(quotaRef),
+      ]);
+      if (!latestAsset.exists || latestAsset.data()?.status !== "upload_authorized") {
+        throw new HttpsError("failed-precondition", "تغيرت حالة طلب الرفع أثناء التحقق.");
+      }
+      const reservation = releaseMediaQuota(quotaSnapshot.data(), Number(asset.declaredSizeBytes));
+      transaction.update(assetRef, {
+        status: "rejected",
+        rejectionCode: "CONTENT_TYPE_SIZE_OR_SIGNATURE_MISMATCH",
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.set(quotaRef, { ...reservation, updatedAt: FieldValue.serverTimestamp() });
     });
     await auditMediaAccess({
       actorUid: uid,
@@ -183,13 +215,25 @@ export const finalizeMediaUpload = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "رُفض الملف لأن نوع المحتوى أو حجمه أو بصمته لا يطابق البيانات المعلنة.");
   }
 
-  await assetRef.update({
-    status: "pending_security_scan",
-    detectedContentType: detectedType,
-    sizeBytes,
-    storageGeneration: String(metadata.generation),
-    finalizedAt: FieldValue.serverTimestamp(),
-    updatedAt: FieldValue.serverTimestamp(),
+  const quotaRef = mediaDb().collection("mediaUploadQuotas").doc(uid);
+  await mediaDb().runTransaction(async (transaction) => {
+    const [latestAsset, quotaSnapshot] = await Promise.all([
+      transaction.get(assetRef),
+      transaction.get(quotaRef),
+    ]);
+    if (!latestAsset.exists || latestAsset.data()?.status !== "upload_authorized") {
+      throw new HttpsError("failed-precondition", "تمت معالجة طلب الرفع مسبقاً أو تغيرت حالته.");
+    }
+    const reservation = releaseMediaQuota(quotaSnapshot.data(), Number(asset.declaredSizeBytes));
+    transaction.update(assetRef, {
+      status: "pending_security_scan",
+      detectedContentType: detectedType,
+      sizeBytes,
+      storageGeneration: String(metadata.generation),
+      finalizedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.set(quotaRef, { ...reservation, updatedAt: FieldValue.serverTimestamp() });
   });
   await auditMediaAccess({
     actorUid: uid,
