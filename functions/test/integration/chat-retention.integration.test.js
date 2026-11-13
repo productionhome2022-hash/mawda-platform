@@ -210,3 +210,56 @@ test("expired story documents are removed from the feed while active stories rem
     ]);
   }
 });
+
+
+test("manual message-media deletion pending state is retried and reconciled", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+  const bucket = getStorage().bucket();
+  const suffix = Date.now().toString();
+  const ownerUid = `manual-delete-owner-${suffix}`;
+  const mediaId = `dddddddd-eeee-ffff-aaaa-${suffix.padStart(12, "0").slice(-12)}`;
+  const objectPath = `quarantine/${ownerUid}/${mediaId}`;
+  const previewPath = `processed/${ownerUid}/${mediaId}/preview.webp`;
+  const original = bucket.file(objectPath);
+  const preview = bucket.file(previewPath);
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  await Promise.all([
+    original.save(Buffer.from("pending manual delete original"), { resumable: false }),
+    preview.save(Buffer.from("pending manual delete preview"), { resumable: false }),
+    assetRef.set({
+      mediaId, ownerUid, uploaderType: "member", mediaPurpose: "chat",
+      objectPath, safePreviewPath: previewPath,
+      status: "manual_deletion_pending",
+      retentionExpiresAt: Timestamp.fromMillis(Date.now() - 1000),
+      createdAt: Timestamp.fromMillis(Date.now() - 60 * 60 * 1000),
+      legalHoldStatus: "none",
+    }),
+  ]);
+  try {
+    const result = await runChatMediaRetentionSweep();
+    assert.equal(result.failures, 0);
+    const tombstone = (await assetRef.get()).data();
+    assert.equal(tombstone.status, "manually_deleted");
+    assert.equal(tombstone.retentionPolicyStatus, "manual_delete_for_everyone_completed");
+    assert.ok(tombstone.retentionReconcileAt instanceof Timestamp);
+    assert.equal((await original.exists())[0], false);
+    assert.equal((await preview.exists())[0], false);
+
+    await Promise.all([
+      original.save(Buffer.from("late replay original"), { resumable: false }),
+      preview.save(Buffer.from("late replay preview"), { resumable: false }),
+    ]);
+    await assetRef.update({ retentionReconcileAt: Timestamp.fromMillis(Date.now() - 1000) });
+    const reconciled = await runChatMediaRetentionSweep();
+    assert.equal(reconciled.failures, 0);
+    assert.equal((await original.exists())[0], false);
+    assert.equal((await preview.exists())[0], false);
+  } finally {
+    await Promise.all([
+      assetRef.delete().catch(() => undefined),
+      original.delete({ ignoreNotFound: true }).catch(() => undefined),
+      preview.delete({ ignoreNotFound: true }).catch(() => undefined),
+    ]);
+  }
+});
