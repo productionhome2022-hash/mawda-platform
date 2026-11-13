@@ -59,7 +59,7 @@ MAWDA_MEDIA_TEST_BUCKET=<non-production-bucket-name> \
 npm run test:retention-gcs
 ```
 
-It verifies uniform bucket-level access and public access prevention, rejects soft-delete or bucket-retention policies that would prevent the expected permanent deletion, creates and enumerates object generations, deletes each exact generation with a generation precondition, and confirms that no versions remain.
+It requires object versioning to be enabled so the test can prove that two writes create two distinct retained generations. It also verifies uniform bucket-level access and public access prevention, rejects soft-delete or bucket-retention policies that would prevent the expected permanent deletion, deletes each exact generation with a generation precondition, and confirms that no versions remain. The project and bucket names must each contain one of: `test`, `staging`, `dev`, `demo`, `nonprod`, or `sandbox` (and must not contain `prod`/`production`).
 
 ## Phase 2 evidence required before closure
 
