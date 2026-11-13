@@ -64,6 +64,7 @@ import { deleteMediaAssetForMessage } from "./media";
 import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
 import { DEFAULT_COIN_PACKAGES, DEFAULT_AD_PRICES, validateCoinPackages, validateAdPrices } from "./economy-pricing";
+import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 
 initializeApp();
 
@@ -5040,6 +5041,238 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
 });
 
 
+
+/** Member requests a fixed package or a negotiated custom coin quantity. No coins are issued here. */
+export const createCoinPurchaseRequest = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  let input;
+  try { input = validateCoinPurchaseRequestInput(request.data); }
+  catch { throw new HttpsError("invalid-argument", "بيانات طلب شراء الكوينز غير صالحة."); }
+  const userRef = db.collection("users").doc(uid);
+  const settingsRef = db.doc("platformSettings/economyPricing");
+  const requestRef = db.collection("coinPurchaseRequests").doc(`${uid}_${input.requestId}`);
+  const result = await db.runTransaction(async (transaction) => {
+    const [user, settings, existing] = await Promise.all([
+      transaction.get(userRef), transaction.get(settingsRef), transaction.get(requestRef),
+    ]);
+    if (!user.exists || user.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(user.data())) {
+      throw new HttpsError("permission-denied", "يجب أن يكون حساب العضو مكتملاً ونشطاً.");
+    }
+    const economy = settings.data() ?? {};
+    if (economy.manualCoinPurchasesEnabled === false || economy.automatedCoinCheckoutEnabled === true) {
+      throw new HttpsError("failed-precondition", "طلبات الشراء اليدوية غير متاحة حالياً.");
+    }
+    let packageSnapshot: Record<string, unknown> | null = null;
+    let requestedCoins: number | null = null;
+    if (input.kind === "package") {
+      let packages;
+      try { packages = validateCoinPackages(economy.coinPackages ?? DEFAULT_COIN_PACKAGES); }
+      catch { throw new HttpsError("failed-precondition", "قائمة باقات الكوينز غير صالحة."); }
+      const selected = packages.find((item) => item.packageId === input.packageId && item.active);
+      if (!selected) throw new HttpsError("not-found", "الباقة غير متاحة حالياً.");
+      packageSnapshot = { ...selected };
+      requestedCoins = selected.coins;
+    } else {
+      requestedCoins = input.requestedCoins ?? null;
+    }
+    if (existing.exists) {
+      const prior = existing.data() ?? {};
+      if (prior.requesterUid !== uid || prior.kind !== input.kind ||
+          prior.packageId !== (input.packageId ?? null) ||
+          prior.requestedCoins !== requestedCoins) {
+        throw new HttpsError("already-exists", "معرف الطلب مستخدم لطلب مختلف.");
+      }
+      return { requestId: input.requestId, status: prior.status, idempotentReplay: true };
+    }
+    transaction.create(requestRef, {
+      requestId: input.requestId, requesterUid: uid, kind: input.kind,
+      packageId: input.packageId ?? null, packageSnapshot,
+      requestedCoins, status: "pending_owner_contact",
+      paymentChannel: "manual_owner_contact", currency: "EUR",
+      createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+    });
+    return { requestId: input.requestId, status: "pending_owner_contact", idempotentReplay: false };
+  });
+  return result;
+});
+
+/** Member can inspect only their own manual purchase requests. */
+export const getMyCoinPurchaseRequests = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const snapshot = await db.collection("coinPurchaseRequests")
+    .where("requesterUid", "==", uid).orderBy("createdAt", "desc").limit(50).get();
+  return { requests: snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) };
+});
+
+/** Owner-only bounded inbox for manual coin purchase requests. */
+export const listOwnerCoinPurchaseRequests = onCall(async (request) => {
+  requireOwner(request);
+  const status = request.data?.status;
+  const allowed = ["pending_owner_contact", "payment_instructions_sent",
+    "approved", "rejected", "withdrawn"];
+  if (status !== undefined && !allowed.includes(status)) {
+    throw new HttpsError("invalid-argument", "حالة الطلب غير صالحة.");
+  }
+  let query = db.collection("coinPurchaseRequests").orderBy("createdAt", "desc").limit(100);
+  if (typeof status === "string") query = db.collection("coinPurchaseRequests")
+    .where("status", "==", status).orderBy("createdAt", "desc").limit(100);
+  const snapshot = await query.get();
+  return { requests: snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) };
+});
+
+/** Owner records negotiated amount and sends manual payment instructions; this never credits coins. */
+export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let input;
+  try { input = validateOwnerPaymentInstructionInput(request.data); }
+  catch { throw new HttpsError("invalid-argument", "تعليمات الدفع أو الكمية أو السعر غير صالحة."); }
+  const requesterUid = request.data?.requesterUid;
+  if (typeof requesterUid !== "string" || requesterUid.length < 1 || requesterUid.length > 128 ||
+      requesterUid === actorUid) throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+  const ref = db.collection("coinPurchaseRequests").doc(`${requesterUid}_${input.requestId}`);
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists || snapshot.data()?.requesterUid !== requesterUid) {
+      throw new HttpsError("not-found", "طلب الشراء غير موجود.");
+    }
+    const prior = snapshot.data()!;
+    if (["approved", "rejected", "withdrawn"].includes(String(prior.status))) {
+      throw new HttpsError("failed-precondition", "لا يمكن تعديل طلب منتهٍ.");
+    }
+    transaction.update(ref, {
+      status: "payment_instructions_sent",
+      agreedCoins: input.agreedCoins, agreedPriceMinor: input.agreedPriceMinor,
+      currency: input.currency, paymentInstructions: input.instructions,
+      instructionsSetBy: actorUid, instructionsSetAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    const auditRef = db.collection("adminAuditLogs").doc();
+    transaction.create(auditRef, {
+      actorUid, targetUid: requesterUid, action: "coin_purchase_payment_instructions_set",
+      requestId: input.requestId, agreedCoins: input.agreedCoins,
+      agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { requestId: input.requestId, status: "payment_instructions_sent" };
+});
+
+/** Only the owner can attest to external receipt; approval atomically credits coins and ledger. */
+export const approveCoinPurchaseRequest = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let input;
+  try { input = validateExternalPaymentVerification(request.data); }
+  catch { throw new HttpsError("invalid-argument", "إثبات الدفع الخارجي غير مكتمل."); }
+  const requesterUid = request.data?.requesterUid;
+  if (typeof requesterUid !== "string" || requesterUid.length < 1 || requesterUid.length > 128 ||
+      requesterUid === actorUid) throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+  const requestRef = db.collection("coinPurchaseRequests").doc(`${requesterUid}_${input.requestId}`);
+  const userRef = db.collection("users").doc(requesterUid);
+  const ledgerId = `coin_purchase_${input.requestId}`;
+  const ledgerRef = userRef.collection("walletLedger").doc(ledgerId);
+  const auditRef = db.collection("adminAuditLogs").doc(`coin_purchase_approval_${requesterUid}_${input.requestId}`);
+  const result = await db.runTransaction(async (transaction) => {
+    const [purchase, user, ledger] = await Promise.all([
+      transaction.get(requestRef), transaction.get(userRef), transaction.get(ledgerRef),
+    ]);
+    if (!purchase.exists || purchase.data()?.requesterUid !== requesterUid) {
+      throw new HttpsError("not-found", "طلب الشراء غير موجود.");
+    }
+    const data = purchase.data()!;
+    if (data.status === "approved") return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null };
+    if (data.status !== "payment_instructions_sent") {
+      throw new HttpsError("failed-precondition", "لا يمكن اعتماد الطلب قبل إرسال تعليمات الدفع.");
+    }
+    if (!user.exists || !isMemberAccountInGoodStanding(user.data())) {
+      throw new HttpsError("permission-denied", "حساب العضو غير مؤهل لاستلام الكوينز.");
+    }
+    if (ledger.exists) throw new HttpsError("already-exists", "يوجد سجل مالي سابق لهذا الطلب؛ يلزم تدقيقه.");
+    const coins = data.agreedCoins;
+    if (!Number.isSafeInteger(coins) || coins < 1 || coins > 1000000000) {
+      throw new HttpsError("failed-precondition", "الكمية المتفق عليها غير صالحة.");
+    }
+    const oldBalance = user.data()?.coins ?? 0;
+    if (!Number.isSafeInteger(oldBalance) || oldBalance < 0 || oldBalance + coins > 2000000000) {
+      throw new HttpsError("failed-precondition", "رصيد العضو لا يسمح بإتمام العملية.");
+    }
+    const now = FieldValue.serverTimestamp();
+    transaction.update(userRef, { coins: oldBalance + coins, walletUpdatedAt: now });
+    transaction.create(ledgerRef, {
+      type: "coin_purchase_manual_credit", amount: coins, balanceBefore: oldBalance,
+      balanceAfter: oldBalance + coins, purchaseRequestId: input.requestId,
+      externalPaymentReference: input.externalPaymentReference,
+      priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR",
+      actorUid, createdAt: now,
+    });
+    transaction.update(requestRef, {
+      status: "approved", externalPaymentVerified: true,
+      externalPaymentReference: input.externalPaymentReference,
+      verificationNote: input.verificationNote, verifiedBy: actorUid,
+      verifiedAt: now, creditedCoins: coins, updatedAt: now,
+    });
+    transaction.create(auditRef, {
+      actorUid, targetUid: requesterUid, action: "coin_purchase_manually_verified_and_approved",
+      requestId: input.requestId, externalPaymentReference: input.externalPaymentReference,
+      verificationNote: input.verificationNote, creditedCoins: coins,
+      priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR", createdAt: now,
+    });
+    return { status: "approved", idempotentReplay: false, newBalance: oldBalance + coins };
+  });
+  return result;
+});
+
+/** Owner rejection requires a bounded reason and never modifies a wallet. */
+export const rejectCoinPurchaseRequest = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const requesterUid = request.data?.requesterUid;
+  const requestId = request.data?.requestId;
+  const reason = typeof request.data?.reason === "string" ? request.data.reason.trim() : "";
+  if (typeof requesterUid !== "string" || requesterUid.length < 1 || requesterUid.length > 128 ||
+      requesterUid === actorUid || typeof requestId !== "string" ||
+      !/^[A-Za-z0-9_-]{8,80}$/.test(requestId) || reason.length < 5 || reason.length > 500) {
+    throw new HttpsError("invalid-argument", "سبب الرفض أو معرف الطلب غير صالح.");
+  }
+  const ref = db.collection("coinPurchaseRequests").doc(`${requesterUid}_${requestId}`);
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists || snapshot.data()?.requesterUid !== requesterUid) {
+      throw new HttpsError("not-found", "طلب الشراء غير موجود.");
+    }
+    if (snapshot.data()?.status === "approved") throw new HttpsError("failed-precondition", "لا يمكن رفض طلب معتمد.");
+    if (["rejected", "withdrawn"].includes(String(snapshot.data()?.status))) return;
+    transaction.update(ref, { status: "rejected", rejectionReason: reason,
+      rejectedBy: actorUid, rejectedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+    const auditRef = db.collection("adminAuditLogs").doc();
+    transaction.create(auditRef, { actorUid, targetUid: requesterUid,
+      action: "coin_purchase_request_rejected", requestId, reason, createdAt: FieldValue.serverTimestamp() });
+  });
+  return { requestId, status: "rejected" };
+});
+
+/** Members may withdraw their own request before approval. */
+export const withdrawCoinPurchaseRequest = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const requestId = request.data?.requestId;
+  if (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestId)) {
+    throw new HttpsError("invalid-argument", "معرف الطلب غير صالح.");
+  }
+  const ref = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists || snapshot.data()?.requesterUid !== uid) {
+      throw new HttpsError("not-found", "طلب الشراء غير موجود.");
+    }
+    if (["approved", "rejected"].includes(String(snapshot.data()?.status))) {
+      throw new HttpsError("failed-precondition", "لا يمكن سحب طلب منتهٍ.");
+    }
+    if (snapshot.data()?.status === "withdrawn") return;
+    transaction.update(ref, { status: "withdrawn", withdrawnAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp() });
+  });
+  return { requestId, status: "withdrawn" };
+});
+
 const ECONOMY_PRICING_SETTINGS = db.doc("platformSettings/economyPricing");
 
 /** Owner-only view and safe first-run seeding for editable coin and advertising prices. */
@@ -5055,6 +5288,8 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
         adPrices: DEFAULT_AD_PRICES,
         version: 1,
         realMoneyCheckoutEnabled: false,
+        manualCoinPurchasesEnabled: true,
+        automatedCoinCheckoutEnabled: false,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: actorUid,
@@ -5073,6 +5308,8 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
     coinPackages, adPrices,
     version: Number.isSafeInteger(data.version) ? data.version : 0,
     realMoneyCheckoutEnabled: false,
+    manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled !== false,
+    automatedCoinCheckoutEnabled: false,
   };
 });
 
@@ -5092,6 +5329,8 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
     const now = FieldValue.serverTimestamp();
     transaction.set(ECONOMY_PRICING_SETTINGS, {
       coinPackages, adPrices, version: nextVersion,
+      manualCoinPurchasesEnabled: request.data?.manualCoinPurchasesEnabled !== false,
+      automatedCoinCheckoutEnabled: false,
       realMoneyCheckoutEnabled: false,
       updatedAt: now, updatedBy: actorUid,
       createdAt: previous.data()?.createdAt ?? now,
