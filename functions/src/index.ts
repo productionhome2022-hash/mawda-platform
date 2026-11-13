@@ -52,7 +52,7 @@ import {
   isStorePurchasePriceCurrent,
   projectStoreEntitlementFeatures,
 } from "./store-purchase";
-import { enforceChatMediaRetention, enforceChatTextRetention } from "./retention";
+import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention } from "./retention";
 
 initializeApp();
 
@@ -2985,4 +2985,4 @@ export {
   receiveMediaScanVerdict,
 } from "./media";
 
-export { enforceChatMediaRetention, enforceChatTextRetention };
+export { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention };
