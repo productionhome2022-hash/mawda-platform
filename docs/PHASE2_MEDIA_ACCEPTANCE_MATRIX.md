@@ -255,3 +255,43 @@ Remaining acceptance gaps:
 - Retention schedules remain disabled; no destructive production operation has been enabled.
 
 **Phase 2 status: NOT CLOSED.** CI now validates the candidate processors and app build, but the external infrastructure and device acceptance rows remain open.
+
+
+## Authoritative exact-head reconciliation — 13 November 2026
+
+This section supersedes older statements above that describe the typed media CI or expanded legal-hold test as pending. Those statements are historical snapshots.
+
+- Development branch: `codex/mawda-full-platform-implementation`.
+- Exact tested head: `5d89d4a3fb7deb607535afab41eae5c1f510fdfe`.
+- GitHub Actions run: [43446631493](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43446631493) — completed **success** on this exact head; all three jobs and every listed step completed successfully.
+- Scanner job: scanner source/security contract tests, isolated Docker image build, actual GIF/audio/video/PDF processing integration tests inside the image, and harmless EICAR detection.
+- Functions job: TypeScript compile and unit suite; media callable authorization/audit; seven-day chat retention; direct-message deletion/erasure; owner audit export pagination/redaction; expanded media legal-hold/release including original and all derivative classes plus late derivative reconciliation; avatar/cover lifecycle; message legal-hold/resumed retention; Firestore and Storage rules emulator tests.
+- Flutter job: strict dependency install from committed lockfile, `flutter analyze`, `flutter test`, and `flutter build web --release`.
+- The run produced Web build, Functions build, and dependency-lock artifacts. These are CI artifacts, not a deployment.
+- The expanded legal-hold test previously marked pending is now covered by the successful exact-head Functions job.
+
+### Current code/CI acceptance
+
+| Area | Exact-head evidence | Result |
+|---|---|---|
+| Image/GIF/audio/video/PDF safe processors | Scanner container integration tests; output bounds, animation preservation, transcoding and PDF raster flattening | Passed in CI |
+| Scanner malware gate | ClamAV container and EICAR detection | Passed in CI |
+| Typed derivative trust | Callback path/version/generation/hash and provenance validation; backend independently verifies derivative object | Passed in unit/integration suites |
+| Chat send/receive authorization | Direct/room callable tests, participant/outsider checks, owner-only PDF policy | Passed in emulator suites |
+| Media deletion/retention | Original and derivative cleanup, retry/tombstone/late-object reconciliation, legal-hold block/release | Passed in emulator suites |
+| Profile media | Avatar/cover and story lifecycle tests | Passed in emulator suites |
+| Firestore/Storage access | Rules emulator suite | Passed in CI |
+| Flutter application | Analyze, tests, Web release build | Passed in CI |
+
+### Remaining gates — not represented as passed by CI
+
+1. Real non-production Cloud Storage signed HTTP PUT/GET, replay/expiry, exact generation deletion, versioning/soft-delete and retention safeguards. The manual workflow `.github/workflows/nonproduction-media-verification.yml` exists, but requires owner-provisioned non-production WIF variables and an explicitly named disposable test project/bucket. No such live run is claimed here.
+2. Live non-production Cloud Run scanner deployment and end-to-end upload → scan → sanitized derivative → callback → member delivery, including IAM, Secret Manager, callback authentication, retry/dead-letter and monitoring. Container tests do not prove deployed Cloud Run operation.
+3. Backup/PITR/export/replica/cache/CDN deletion and restore exercises, including evidence that chat media cannot be recovered after the four-hour deadline and text after seven days. Emulator object deletion does not prove backup expiry.
+4. Real Android/iOS device verification, including camera/file picker, permissions, upload/resume, URL expiry, accessibility, background/poor-network behavior and layout.
+5. Voice-note recording is not implemented; selecting an existing audio file is supported. Audio/video/PDF use external open/download handlers, not in-app playback. PDF is the only supported document type and is owner-originated only; Office formats remain denied.
+6. Phase-one product/legal/operational items explicitly listed as incomplete in PR #2 remain open where applicable: finalized localized privacy/legal policy and legal review; guest lifecycle beyond Firebase Anonymous Auth; push notifications and complete abuse/block/report/appeal/age-safety workflows; room billing/lifecycle/voice-video/events; full store entitlements and real-money payments/refunds; biometric provider/capture and recurring verification; owner audit immutable checkpoint/24-month archive and restore; production Firebase options/owner MFA recovery; monitoring, penetration, accessibility, performance and device testing.
+
+### Closure decision
+
+The exact-head automated code gate is **green**. Phase 2 is **not closed** because the external infrastructure, backup/restore, and real-device gates above have no evidence yet, and several product capabilities remain explicitly incomplete. Retention workers remain disabled by default. No production deployment, production data mutation, or destructive retention activation has occurred. Do not merge the draft PR or move to production on the strength of CI alone.
