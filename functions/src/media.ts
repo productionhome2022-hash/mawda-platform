@@ -141,7 +141,7 @@ export const finalizeMediaUpload = onCall(async (request) => {
     throw new HttpsError("permission-denied", "لا تملك صلاحية إكمال رفع هذا الملف.");
   }
 
-  const file = bucket.file(String(asset.objectPath));
+  const file = mediaBucket().file(String(asset.objectPath));
   let metadata: Record<string, unknown>;
   try {
     const [rawMetadata] = await file.getMetadata();
@@ -303,7 +303,7 @@ export const getOwnerMediaInspectionUrl = onCall(async (request) => {
     if (!["pending_security_scan", "security_approved"].includes(String(asset.status))) {
       throw new HttpsError("failed-precondition", "الملف غير متاح للفحص في حالته الحالية.");
     }
-    const file = bucket.file(String(asset.objectPath));
+    const file = mediaBucket().file(String(asset.objectPath));
     const [metadata] = await file.getMetadata();
     if (String(metadata.generation) !== String(asset.storageGeneration)) {
       throw new HttpsError("failed-precondition", "تغير إصدار الملف؛ أوقف الوصول احترازياً.");
