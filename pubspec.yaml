@@ -1,4 +1,5 @@
 name: mawda_app
+# CI refreshes pubspec.lock with the pinned Flutter SDK before strict validation.
 description: تطبيق مودة للتعارف والصداقة والزواج
 publish_to: 'none'
 version: 1.0.0+1
