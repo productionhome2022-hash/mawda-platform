@@ -94,6 +94,13 @@ A successful malware verdict does not by itself authorize member delivery. Only 
 - Unit and Firestore-emulator integration tests cover validation, hold placement, review/list, release, owner-only access and the original expiry clock. Latest CI is pending.
 - **Limitations:** this does not yet implement holds for text messages or profile/story media, review reminders, authority-document verification, or production-grade legal workflow approval. A hold must be treated as narrowly scoped technical metadata, not a substitute for legal review.
 
+## Signed upload replay cleanup and latest verification (13 November 2026)
+
+- Manual deletion tombstones retain exact object-name references in `deletedObjectPaths`, allowing the Storage-finalized trigger to remove an original object recreated by a still-live signed PUT URL, as well as known derivatives. The manual delete helper also retries against tombstoned paths.
+- The Firestore/Storage emulator integration test simulates a post-delete upload replay and verifies a second exact-generation cleanup.
+- Commit `1a6c6ad3686b887c75416e039e553ecb5b95aefc` passed full CI in [run 43391265176](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43391265176), including all backend integration suites, Flutter analysis/tests/Web build, Firestore/Storage rules, ClamAV/container/EICAR.
+- This is emulator proof only. The separate manual non-production GCS workflow must still be dispatched successfully to prove real signed URL expiry/replay and real bucket generation/soft-delete behavior.
+
 ## Real GCS verification workflow (manual, non-production only)
 
 A manual workflow is now available at `.github/workflows/nonproduction-media-verification.yml`. It runs only on `workflow_dispatch`, refuses the production Firebase project and bucket names, and authenticates with GitHub OIDC (no service-account JSON key).
