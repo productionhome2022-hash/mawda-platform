@@ -7,6 +7,7 @@ const {
   createMediaUploadIntent,
   listOwnerMediaAssets,
   finalizeMediaUpload,
+  getOwnerMediaInspectionUrl,
 } = require("../../lib/media");
 
 const { initializeApp, getApps } = require("firebase-admin/app");
@@ -199,4 +200,84 @@ test("upload intent rejects a user who has exhausted the concurrent upload quota
     }),
     (error) => error && error.code === "resource-exhausted",
   );
+});
+
+
+test("signed upload URL performs a real Storage Emulator HTTP PUT and rejects replay", async () => {
+  const uid = `http-upload-${Date.now()}-${Math.random()}`;
+  const png = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
+  const intent = await createMediaUploadIntent.run({
+    data: { originalName: "http-check.png", contentType: "image/png", sizeBytes: png.length },
+    auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+  });
+
+  const firstPut = await fetch(intent.uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": "image/png" },
+    body: png,
+  });
+  assert.equal(firstPut.status, 200, await firstPut.text());
+
+  const replayPut = await fetch(intent.uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": "image/png" },
+    body: png,
+  });
+  assert.ok([400, 403, 412].includes(replayPut.status),
+    `Expected create-only replay rejection, received HTTP ${replayPut.status}`);
+
+  const finalized = await finalizeMediaUpload.run({
+    data: { mediaId: intent.mediaId },
+    auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+  });
+  assert.equal(finalized.status, "pending_security_scan");
+  const asset = await db.collection("mediaAssets").doc(intent.mediaId).get();
+  assert.ok(asset.data().storageGeneration);
+});
+
+test("owner inspection URL is owner/MFA gated and its signed HTTP GET returns the exact quarantined object", async () => {
+  const uid = `http-owner-${Date.now()}-${Math.random()}`;
+  const mediaId = randomUUID();
+  const objectPath = `quarantine/fixture/${mediaId}`;
+  const bytes = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
+  const file = getStorage().bucket().file(objectPath);
+  await file.save(bytes, { metadata: { contentType: "image/png" } });
+  const [metadata] = await file.getMetadata();
+  await db.collection("mediaAssets").doc(mediaId).create({
+    mediaId, ownerUid: "uploader-fixture", objectPath,
+    uploaderType: "member", declaredContentType: "image/png",
+    detectedContentType: "image/png", sizeBytes: bytes.length,
+    storageGeneration: String(metadata.generation),
+    status: "pending_security_scan",
+  });
+
+  const result = await getOwnerMediaInspectionUrl.run(ownerRequest(uid, { mediaId }));
+  assert.equal(result.mediaId, mediaId);
+  assert.equal(new URL(result.downloadUrl).searchParams.get("X-Goog-Expires"), "60");
+  const response = await fetch(result.downloadUrl);
+  assert.equal(response.status, 200, await response.text());
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes);
+  assert.match(response.headers.get("content-disposition") ?? "", /attachment/i);
+  assert.ok((await auditEvents(uid)).some((event) =>
+    event.action === "owner_media_inspection_url_issued" && event.outcome === "success"));
+});
+
+test("owner inspection rejects stale storage generations and audits the denial", async () => {
+  const uid = `http-owner-stale-${Date.now()}-${Math.random()}`;
+  const mediaId = randomUUID();
+  const objectPath = `quarantine/fixture/${mediaId}`;
+  await getStorage().bucket().file(objectPath).save(Buffer.from("replacement"), {
+    metadata: { contentType: "image/png" },
+  });
+  await db.collection("mediaAssets").doc(mediaId).create({
+    mediaId, ownerUid: "uploader-fixture", objectPath,
+    uploaderType: "member", declaredContentType: "image/png",
+    storageGeneration: "1", status: "pending_security_scan",
+  });
+  await assert.rejects(
+    () => getOwnerMediaInspectionUrl.run(ownerRequest(uid, { mediaId })),
+    (error) => error && error.code === "failed-precondition",
+  );
+  assert.ok((await auditEvents(uid)).some((event) =>
+    event.action === "owner_media_inspection_result" && event.outcome === "denied_or_failed"));
 });
