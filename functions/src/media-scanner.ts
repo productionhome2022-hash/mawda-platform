@@ -69,22 +69,26 @@ export function validateScannerVerdict(
       video: { filename: "video.mp4", contentType: "video/mp4", version: "ffmpeg-video-transcode-v1" },
       document: { filename: "document.pdf", contentType: "application/pdf", version: "pdf-raster-flatten-v1" },
     } as const;
-    const category = typeof d.category === "string" ? d.category as keyof typeof route : null;
-    const expected = category ? route[category] : undefined;
+    const category = typeof d.category === "string" &&
+      Object.prototype.hasOwnProperty.call(route, d.category)
+      ? d.category as keyof typeof route : null;
+    if (!category) return null;
+    const expected = route[category];
+    const expectedProcessingStatus = {
+      gif: "safe_animation_derivative_ready",
+      audio: "safe_audio_derivative_ready",
+      video: "safe_video_derivative_ready",
+      document: "safe_document_derivative_ready",
+    } as const;
     const parts = typeof d.path === "string" ? d.path.split("/") : [];
-    if (!expected || parts.length !== 4 || parts[0] !== "processed" ||
+    if (parts.length !== 4 || parts[0] !== "processed" ||
         !/^[A-Za-z0-9_-]{1,128}$/.test(parts[1]) || parts[2] !== v.mediaId ||
         parts[3] !== expected.filename || d.contentType !== expected.contentType ||
         d.pipelineVersion !== expected.version ||
         typeof d.generation !== "string" || !/^[1-9][0-9]*$/.test(d.generation) ||
         typeof d.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(d.sha256) ||
         v.verdict !== "clean" || hasAnyPreview ||
-        v.processingStatus !== ({
-          gif: "safe_animation_derivative_ready",
-          audio: "safe_audio_derivative_ready",
-          video: "safe_video_derivative_ready",
-          document: "safe_document_derivative_ready",
-        } as const)[category]) return null;
+        v.processingStatus !== expectedProcessingStatus[category]) return null;
     safeDerivative = {
       category, path: d.path as string, generation: d.generation as string,
       sha256: d.sha256 as string, contentType: d.contentType as ScannerSafeDerivative["contentType"],
