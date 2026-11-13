@@ -111,3 +111,16 @@ See [issue #4](https://github.com/productionhome2022-hash/mawda-platform/issues/
 - Owner-review audit export and hash-chain verification callables exist, but there is no demonstrated immutable 24-month archive/checkpoint/restore exercise in the non-production environment. Operational media logs have a 90-day cleanup path; this must remain distinct from the 24-month sensitive owner/security evidence.
 - Real GCS generation/soft-delete verification and live Cloud Run scanner execution remain blocked on dedicated non-production GCP resources, WIF and Secret Manager configuration. The manual deployment workflows are staged on this development branch; they cannot be dispatched until the owner explicitly authorizes the required default-branch workflow availability and provisions the non-production identities/secrets.
 - No retention schedule was enabled, no GCS/Cloud Run deployment was performed, and no production resources or data were changed.
+
+
+## Reconciliation against development head 6c3cb518 — 13 November 2026
+
+The earlier avatar/cover gap recorded above has since been addressed in the current development source and is covered by the green validation run [43434464095](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43434464095):
+
+- The retention sweep now includes the `avatar_cover` purpose, applies the built-in Mawda default when the selected custom avatar/cover expires, and deletes the exact original and safe-preview object generations.
+- Selection/reset flows bind the chosen media ID and slot to the member profile, bound superseded assets, preserve an active asset-scoped legal hold, and resume deletion after release.
+- The avatar/cover lifecycle emulator integration job passed, including expiry-to-default and legal-hold/release behavior.
+
+This closes the previously noted code/test gap for the avatar/cover lifecycle in emulator scope; it does **not** prove real-bucket generation deletion, backup/soft-delete expiry, or live scheduled execution. The retention jobs remain disabled by default and guarded to explicit non-production projects.
+
+The same current workflow also passed the seven-day chat text retention, four-hour media retention, media authorization/audit, message deletion, legal-hold, Firestore/Storage rules, Flutter analysis/tests/Web build, and ClamAV image/EICAR checks. The member-facing chat attachment send/receive path for images, GIFs, video, audio and documents remains unimplemented; current chat UI sends text only. Phase 2 therefore remains open pending secure attachment delivery, real non-production GCS/Cloud Run validation, backup and legal-hold governance evidence, and final candidate review.
