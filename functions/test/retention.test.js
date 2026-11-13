@@ -59,5 +59,8 @@ test("late finalized media is deleted only when its exact object path is recorde
   assert.equal(isKnownDeletedMediaObjectPath(tombstone, original, ownerUid, mediaId), true);
   assert.equal(isKnownDeletedMediaObjectPath(tombstone, preview, ownerUid, mediaId), true);
   assert.equal(isKnownDeletedMediaObjectPath(tombstone, derived, ownerUid, mediaId), true);
+  // Rejected scan assets may retain no path fields; the deterministic original
+  // path must still be recognized for a still-valid signed PUT replay.
+  assert.equal(isKnownDeletedMediaObjectPath({}, original, ownerUid, mediaId), true);
   assert.equal(isKnownDeletedMediaObjectPath(tombstone, `quarantine/${ownerUid}/other`, ownerUid, mediaId), false);
 });
