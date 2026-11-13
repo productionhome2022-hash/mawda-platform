@@ -47,12 +47,12 @@ jobs:
             exit 1
           fi
           if [[ "$PROJECT_ID" == "mawda-app-2026" || "$PROJECT_ID" =~ [Pp][Rr][Oo][Dd] ||
-                ! "$PROJECT_ID" =~ (test|staging|dev|demo|nonprod|sandbox) ]]; then
+                ! "$PROJECT_ID" =~ (test|staging|dev|nonprod|sandbox|qa) ]]; then
             echo "Refusing a project that is not explicitly named as non-production." >&2
             exit 1
           fi
           if [[ "$BUCKET_NAME" =~ [Pp][Rr][Oo][Dd] ||
-                ! "$BUCKET_NAME" =~ (test|staging|dev|demo|nonprod|sandbox) ]]; then
+                ! "$BUCKET_NAME" =~ (test|staging|dev|nonprod|sandbox|qa) ]]; then
             echo "Refusing a bucket that is not explicitly named as non-production." >&2
             exit 1
           fi
