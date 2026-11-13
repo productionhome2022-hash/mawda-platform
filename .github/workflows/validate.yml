@@ -75,5 +75,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      - name: Run media callable authorization and audit integration tests
+        run: npm run test:media-integration
       - name: Run Firestore and Storage rules emulator tests
         run: npm run test:rules
