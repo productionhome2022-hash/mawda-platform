@@ -192,7 +192,6 @@ async function runCase(label, bytes, expectedStatus) {
       method: "PUT",
       headers: {
         "Content-Type": "image/png",
-        "x-goog-if-generation-match": "0",
       },
       body: bytes,
     });
