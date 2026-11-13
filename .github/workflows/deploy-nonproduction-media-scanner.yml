@@ -235,11 +235,13 @@ jobs:
       - name: Connect and deploy Firebase Functions in the selected non-production project
         env:
           PROJECT_ID: ${{ inputs.project_id }}
+          BUCKET_NAME: ${{ inputs.bucket_name }}
           CALLBACK_URL: ${{ inputs.callback_url }}
         run: |
           set -euo pipefail
           cd functions
-          printf 'MAWDA_MEDIA_SCANNER_URL=%s\n' "$SCANNER_SERVICE_URL/scan" > ".env.$PROJECT_ID"
+          printf 'MAWDA_MEDIA_BUCKET_NAME=%s\n' "$BUCKET_NAME" > ".env.$PROJECT_ID"
+          printf 'MAWDA_MEDIA_SCANNER_URL=%s\n' "$SCANNER_SERVICE_URL/scan" >> ".env.$PROJECT_ID"
           printf 'MAWDA_MEDIA_SCANNER_CALLBACK_URL=%s\n' "$CALLBACK_URL" >> ".env.$PROJECT_ID"
           printf 'MAWDA_MEDIA_SCANNER_PROVIDER=clamav-mawadda-gateway\n' >> ".env.$PROJECT_ID"
           npm ci
