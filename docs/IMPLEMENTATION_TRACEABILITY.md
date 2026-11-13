@@ -289,8 +289,8 @@ Add a dedicated workstream across the platform:
 - Owner inspection links remain V4 signed read URLs with a 60-second expiry and attachment disposition. No client SDK read permission, public bucket access, or member-facing media URL was introduced.
 - Added Firestore composite indexes for status/uploader-type/creation-time owner listing. Added unit tests proving anonymous-provider classification is token-derived and caller-supplied labels cannot self-classify as guest.
 - **Guest scope:** this implementation supports guests represented by Firebase Anonymous Authentication. A guest who has no Firebase Auth UID/session cannot upload or be assigned a reviewable media identity yet; a separate trusted guest-session issuance/expiry model is required before such sessions are included. Legacy media records without uploader classification are returned as `legacy_unknown` in the all-items view and are not silently misclassified.
-- **Still open in phase 2:** dedicated owner-console media review UI and in-app safe preview handoff; end-to-end callable tests proving owner success and member/guest/MFA-stale denial audit events; rate-limited audit retention/export; URL expiry/replay tests; storage object lifecycle and deletion/retention policy. No production bucket configuration or live data was changed.
-- **Validation:** phase-2 changes are committed to the development branch. A fresh CI run for the latest head is required before this milestone is marked tested.
+- **Completed in CI:** owner/member/anonymous-guest/stale-MFA callable authorization cases, audit-event assertions, invalid uploader-filter rejection, valid quarantined PNG finalization, and rejection/deletion of a file whose bytes contradict its declared type. The integration suite deliberately imports the media module before Admin initialization to guard against eager initialization regressions.
+- **Validation:** full GitHub Actions run `43375143894` passed on commit `7cf6819bca43b07d921b117e9ce6e89443fb9728`: Flutter analysis, Flutter tests, Web release build, locked Functions dependency install, Functions compilation/unit tests, media callable authorization/audit integration tests on Firestore+Storage emulators, and Firestore/Storage rules emulator tests. This is CI evidence for that exact commit, not production/device/security-scanner approval. No production bucket configuration, live data, or deployment was changed.
 
 ## Owner media review console — 13 November 2026
 
@@ -301,10 +301,12 @@ Add a dedicated workstream across the platform:
 - This UI work is on the development branch and requires the current CI run to pass before it is considered validated.
 
 Remaining phase-two closure items:
-- End-to-end callable tests for owner success, member denial, guest denial, stale MFA denial and corresponding audit records.
-- Signed URL expiration/replay behavior tests and secure preview integration.
-- Defined audit retention/export and media retention/deletion schedules.
-- Scanner/processor integration remains a separate prerequisite before any member-facing media availability.
+- Exercise actual signed URL HTTP behavior against the Storage emulator or a dedicated isolated test bucket: successful upload/read, expiry enforcement, generation preconditions, and replay/overwrite attempts. Do not claim single-use semantics; V4 signed URLs remain bearer links until expiry.
+- Implement a controlled in-app owner preview handoff that never exposes bearer URLs to logs, analytics, navigation history, or member UI; retain attachment-only behavior unless a safe processing/streaming proxy is implemented.
+- Integrate an authenticated trusted malware/content scanner and safe image/video/audio processing pipeline. Keep all media quarantined and do not set `security_approved` or expose member-facing media until a trusted verdict and processing result are verified server-side.
+- Define owner-auditable, rate-limited audit retention/export and an owner-approved media retention/deletion schedule; add lifecycle/deletion tests only after the retention period is approved.
+- Enforce upload-size limits at the transport boundary, add per-account quotas/rate limits, and test abandoned-upload cleanup.
+- Validate real Firebase bucket configuration/CORS and owner MFA lifecycle in a non-production Firebase project; complete device/platform verification.
 
 
 ## Signed media URL lifetime policy — 13 November 2026
