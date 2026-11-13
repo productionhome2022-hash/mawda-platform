@@ -58,6 +58,15 @@ export function normalizeMediaRequest(input: Record<string, unknown>): {
     throw new Error("غرض حفظ الملف غير صالح.");
   }
   const purpose = purposeValue as MediaPurpose;
+  const storyExpiresAtMs = input.storyExpiresAtMs;
+  if (purpose === "story") {
+    if (typeof storyExpiresAtMs !== "number" || !Number.isSafeInteger(storyExpiresAtMs) ||
+        storyExpiresAtMs <= Date.now()) {
+      throw new Error("يجب تحديد موعد انتهاء صالح للقصة.");
+    }
+  } else if (storyExpiresAtMs !== undefined) {
+    throw new Error("موعد انتهاء القصة لا يقبل إلا لغرض القصة.");
+  }
   if (!originalName || originalName.length > 180 || /[\\/\u0000-\u001f]/.test(originalName)) {
     throw new Error("اسم الملف غير صالح.");
   }
@@ -69,7 +78,10 @@ export function normalizeMediaRequest(input: Record<string, unknown>): {
   if ((purpose === "profile_album" || purpose === "avatar_cover") && category !== "image") {
     throw new Error("هذا الغرض مخصص للصور فقط.");
   }
-  return { originalName, contentType, declaredSizeBytes, purpose };
+  return {
+    originalName, contentType, declaredSizeBytes, purpose,
+    ...(purpose === "story" ? { storyExpiresAtMs: storyExpiresAtMs as number } : {}),
+  };
 }
 
 /** Detect common file signatures from the first 32 bytes; not a malware scanner. */
