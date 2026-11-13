@@ -83,15 +83,26 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
 
   for (const purpose of ["chat", "room"] as const) {
     for (let page = 0; page < RETENTION_PAGES_PER_RUN; page += 1) {
-      const snapshot = await db.collection("mediaAssets")
-        .where("mediaPurpose", "==", purpose)
-        .where("createdAt", "<=", cutoff)
-        .orderBy("createdAt", "asc")
-        .limit(RETENTION_BATCH_SIZE)
-        .get();
-      if (snapshot.empty) break;
+      const [due, legacy] = await Promise.all([
+        db.collection("mediaAssets")
+          .where("mediaPurpose", "==", purpose)
+          .where("retentionExpiresAt", "<=", Timestamp.fromMillis(Date.now()))
+          .orderBy("retentionExpiresAt", "asc")
+          .limit(RETENTION_BATCH_SIZE)
+          .get(),
+        db.collection("mediaAssets")
+          .where("mediaPurpose", "==", purpose)
+          .where("retentionExpiresAt", "==", null)
+          .where("createdAt", "<=", cutoff)
+          .orderBy("createdAt", "asc")
+          .limit(RETENTION_BATCH_SIZE)
+          .get(),
+      ]);
+      const candidates = new Map<string, (typeof due.docs)[number]>();
+      for (const doc of [...due.docs, ...legacy.docs]) candidates.set(doc.id, doc);
+      if (candidates.size === 0) break;
 
-      for (const assetDoc of snapshot.docs) {
+      for (const assetDoc of candidates.values()) {
         const asset = assetDoc.data();
         const ownerUid = typeof asset.ownerUid === "string" ? asset.ownerUid : "";
         const mediaId = assetDoc.id;
@@ -112,12 +123,15 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
           // deterministic derivative deletion on every subsequent sweep.
           const tombstone: Record<string, unknown> = {};
           for (const key of Object.keys(asset)) {
-            if (!["ownerUid", "uploaderType", "mediaPurpose", "createdAt"].includes(key)) {
+            if (!["ownerUid", "uploaderType", "mediaPurpose", "createdAt", "retentionExpiresAt"].includes(key)) {
               tombstone[key] = FieldValue.delete();
             }
           }
           tombstone.status = "self_destructed";
           tombstone.retentionPolicyStatus = "four_hour_self_destructed";
+          const createdAt = asset.createdAt instanceof Timestamp ? asset.createdAt : null;
+          tombstone.retentionExpiresAt = asset.retentionExpiresAt ??
+            (createdAt ? Timestamp.fromMillis(createdAt.toMillis() + CHAT_MEDIA_RETENTION_MS) : Timestamp.fromMillis(Date.now()));
           tombstone.retentionDeletedAt = asset.retentionDeletedAt ?? FieldValue.serverTimestamp();
           tombstone.updatedAt = FieldValue.serverTimestamp();
           await assetDoc.ref.set(tombstone, { merge: true });
