@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { reserveMediaQuota, releaseMediaQuota } from "./media-quota";
 import {
@@ -382,3 +383,91 @@ export const getOwnerMediaInspectionUrl = onCall(async (request) => {
     throw error;
   }
 });
+
+
+/**
+ * Reclaims abandoned upload reservations after the signed PUT capability has
+ * expired plus a safety grace period. A transactional state claim prevents a
+ * cleanup/finalize race; failed object deletion is retried on the next sweep.
+ */
+export const cleanupExpiredMediaUploadIntents = onSchedule(
+  { schedule: "every 15 minutes", timeZone: "UTC", retryCount: 3 },
+  async () => {
+    const cutoff = Timestamp.fromMillis(Date.now() - 15 * 60 * 1000);
+    const assets = mediaDb().collection("mediaAssets");
+    const [expired, retrying] = await Promise.all([
+      assets.where("status", "==", "upload_authorized")
+        .where("createdAt", "<=", cutoff).orderBy("createdAt").limit(100).get(),
+      assets.where("status", "==", "expired_cleanup_in_progress")
+        .orderBy("createdAt").limit(100).get(),
+    ]);
+    const candidates = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+    for (const doc of [...expired.docs, ...retrying.docs]) candidates.set(doc.id, doc);
+
+    let reclaimed = 0;
+    for (const candidate of candidates.values()) {
+      const assetRef = candidate.ref;
+      const claimed = await mediaDb().runTransaction(async (transaction) => {
+        const current = await transaction.get(assetRef);
+        const data = current.data();
+        if (!current.exists || !data) return null;
+        if (data.status === "upload_authorized") {
+          const createdAt = data.createdAt as Timestamp | undefined;
+          if (!createdAt || createdAt.toMillis() > cutoff.toMillis()) return null;
+          transaction.update(assetRef, {
+            status: "expired_cleanup_in_progress",
+            cleanupStartedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+          return { ownerUid: String(data.ownerUid), objectPath: String(data.objectPath),
+            reservedBytes: Number(data.declaredSizeBytes) };
+        }
+        if (data.status === "expired_cleanup_in_progress") {
+          return { ownerUid: String(data.ownerUid), objectPath: String(data.objectPath),
+            reservedBytes: Number(data.declaredSizeBytes) };
+        }
+        return null;
+      });
+      if (!claimed) continue;
+
+      try {
+        await mediaBucket().file(claimed.objectPath).delete({ ignoreNotFound: true });
+        await mediaDb().runTransaction(async (transaction) => {
+          const [current, quotaSnapshot] = await Promise.all([
+            transaction.get(assetRef),
+            transaction.get(mediaDb().collection("mediaUploadQuotas").doc(claimed.ownerUid)),
+          ]);
+          if (!current.exists || current.data()?.status !== "expired_cleanup_in_progress") return;
+          const quota = releaseMediaQuota(quotaSnapshot.data(), claimed.reservedBytes);
+          transaction.update(assetRef, {
+            status: "expired",
+            expiredAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+          transaction.set(mediaDb().collection("mediaUploadQuotas").doc(claimed.ownerUid), {
+            ...quota, updatedAt: FieldValue.serverTimestamp(),
+          });
+        });
+        await auditMediaAccess({
+          actorUid: claimed.ownerUid,
+          mediaId: candidate.id,
+          action: "media_upload_intent_expired",
+          outcome: "success",
+          objectPath: claimed.objectPath,
+        });
+        reclaimed += 1;
+      } catch (error) {
+        // Keep the cleanup claim so the next scheduled sweep retries safely.
+        await auditMediaAccess({
+          actorUid: claimed.ownerUid,
+          mediaId: candidate.id,
+          action: "media_upload_intent_expired",
+          outcome: "retry_required",
+          failureCode: error instanceof Error ? error.name : "cleanup_error",
+        });
+        throw error;
+      }
+    }
+    return { reclaimed };
+  },
+);
