@@ -138,7 +138,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                 Text('السعر المتفق عليه: ' +
                     (((item['agreedPriceMinor'] as num).toDouble() / 100).toStringAsFixed(2)) + ' EUR'),
               if (item['paymentInstructions'] is String)
-                SelectableText('تعليمات المالك: ' + item['paymentInstructions'] as String),
+                SelectableText('تعليمات المالك: ' + (item['paymentInstructions'] as String)),
               if (item['rejectionReason'] is String)
                 Text('سبب الرفض: ' + (item['rejectionReason'] as String)),
               if (status == 'pending_owner_contact' || status == 'payment_instructions_sent')
