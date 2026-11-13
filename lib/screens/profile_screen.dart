@@ -43,6 +43,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _checkLocalBiometrics() async {
     if (_checkingLocalBiometrics) return;
+    final consent = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('موافقة مستقلة على المصادقة البيومترية'),
+        content: const Text(
+          'هذا اختبار اختياري لمصادقة الجهاز عبر Android BiometricPrompt أو Apple LocalAuthentication. '
+          'يتولى نظام التشغيل المطابقة محلياً؛ لا ترسل مودة بصمتك أو صورة وجهك أو قالبك البيومتري إلى خوادمها. '
+          'النتيجة لا تثبت هويتك المدنية ولا تمنح كوينز أو صلاحية خادمية. يمكنك الإلغاء دون أثر على الميزات الأساسية.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('ليس الآن'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('أوافق وأتابع'),
+          ),
+        ],
+      ),
+    );
+    if (consent != true || !mounted) return;
     setState(() => _checkingLocalBiometrics = true);
     final result = await LocalBiometricService().authenticate();
     if (!mounted) return;
