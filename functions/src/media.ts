@@ -11,6 +11,8 @@ import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { hasPlatformOwnerSession } from "./owner-access";
+import { createDirectChatId } from "./direct-chat-id";
+import { resolveChatMediaDeliveryArtifact } from "./chat-media-policy";
 import { reserveMediaQuota, releaseMediaQuota } from "./media-quota";
 import {
   detectMediaSignature,
@@ -839,6 +841,227 @@ export const getMemberStoryMediaUrl = onCall(async (request) => {
     previewGeneration: String(metadata.generation),
   });
   return { url };
+});
+
+
+/**
+ * Atomically links a previously scanned and raster-sanitized image to a
+ * direct-chat or room message. Other categories remain fail-closed until
+ * their independent processors are deployed and verified.
+ */
+export const sendChatImageAttachment = onCall(async (request) => {
+  const senderUid = requireUid(request.auth?.uid);
+  const data = request.data ?? {};
+  const scope = data.scope;
+  const mediaId = typeof data.mediaId === "string" ? data.mediaId.trim() : "";
+  const clientMessageId = typeof data.clientMessageId === "string" ? data.clientMessageId.trim() : "";
+  const caption = typeof data.caption === "string" ? data.caption.trim() : "";
+  if ((scope !== "direct" && scope !== "room") ||
+      !/^[0-9a-f-]{36}$/i.test(mediaId) ||
+      !/^[A-Za-z0-9_-]{8,80}$/.test(clientMessageId) || caption.length > 1000) {
+    throw new HttpsError("invalid-argument", "بيانات إرسال المرفق غير صالحة.");
+  }
+  const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
+  const assetSnapshot = await assetRef.get();
+  if (!assetSnapshot.exists) throw new HttpsError("not-found", "المرفق غير موجود.");
+  const asset = assetSnapshot.data() ?? {};
+  const expectedPurpose = scope === "direct" ? "chat" : "room";
+  const ownerSession = request.auth?.token.platformOwner === true &&
+    hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>);
+  const artifact = resolveChatMediaDeliveryArtifact(asset as never, ownerSession);
+  if (asset.ownerUid !== senderUid || asset.mediaPurpose !== expectedPurpose ||
+      !artifact || artifact.category !== "image" ||
+      !["image/jpeg", "image/png", "image/webp"].includes(String(asset.detectedContentType))) {
+    await auditMediaAccess({
+      actorUid: senderUid, mediaId, action: "chat_media_message_link",
+      outcome: "denied", scope, failureCode: "asset_not_safe_or_not_owned",
+    });
+    throw new HttpsError("failed-precondition", "لا يمكن إرسال هذا الملف قبل اكتمال معالجة الصور الآمنة والتحقق من ملكيته.");
+  }
+
+  const messageId = createHash("sha256").update(senderUid + ":" + clientMessageId).digest("hex");
+  const now = FieldValue.serverTimestamp();
+  if (scope === "direct") {
+    const recipientUid = typeof data.recipientUid === "string" ? data.recipientUid.trim() : "";
+    if (!recipientUid || recipientUid.length > 128 || recipientUid === senderUid) {
+      throw new HttpsError("invalid-argument", "معرف المستلم غير صالح.");
+    }
+    const chatId = createDirectChatId(senderUid, recipientUid);
+    const chatRef = mediaDb().collection("directChats").doc(chatId);
+    const senderRef = mediaDb().collection("users").doc(senderUid);
+    const recipientRef = mediaDb().collection("users").doc(recipientUid);
+    const messageRef = chatRef.collection("messages").doc(messageId);
+    const notificationRef = recipientRef.collection("notifications").doc(messageId);
+    return mediaDb().runTransaction(async (tx) => {
+      const [sender, recipient, chat, message, freshAsset] = await Promise.all([
+        tx.get(senderRef), tx.get(recipientRef), tx.get(chatRef), tx.get(messageRef), tx.get(assetRef),
+      ]);
+      if (!sender.exists || !recipient.exists ||
+          sender.data()?.profileCompleted !== true || recipient.data()?.profileCompleted !== true) {
+        throw new HttpsError("permission-denied", "لا يمكن إرسال المرفق إلى هذا الحساب.");
+      }
+      const senderData = sender.data() ?? {};
+      const recipientData = recipient.data() ?? {};
+      const senderBlocks = Array.isArray(senderData.blockedUids) ? senderData.blockedUids : [];
+      const recipientBlocks = Array.isArray(recipientData.blockedUids) ? recipientData.blockedUids : [];
+      const senderAge = senderData.age;
+      const recipientAge = recipientData.age;
+      if (senderBlocks.includes(recipientUid) || recipientBlocks.includes(senderUid) ||
+          !Number.isSafeInteger(senderAge) || !Number.isSafeInteger(recipientAge) ||
+          ((senderAge < 18) !== (recipientAge < 18))) {
+        throw new HttpsError("permission-denied", "سياسة الخصوصية أو العمر لا تسمح بإرسال المرفق.");
+      }
+      if (!freshAsset.exists || freshAsset.data()?.status !== "security_approved" ||
+          freshAsset.data()?.linkedMessageId) {
+        if (message.exists && message.data()?.mediaId === mediaId && message.data()?.senderUid === senderUid) {
+          return { chatId, messageId, replayed: true };
+        }
+        throw new HttpsError("failed-precondition", "المرفق سبق ربطه أو لم يعد معتمداً.");
+      }
+      if (message.exists) throw new HttpsError("already-exists", "معرف الرسالة مستخدم.");
+      tx.set(chatRef, {
+        participantUids: [senderUid, recipientUid].sort(),
+        createdAt: chat.exists ? chat.data()?.createdAt ?? now : now,
+        lastMessageAt: now, lastMessageSenderUid: senderUid,
+        lastMessagePreview: caption || "صورة",
+      }, { merge: true });
+      tx.create(messageRef, {
+        messageId, chatId, senderUid, recipientUid, text: caption,
+        type: "attachment", mediaId, mediaCategory: "image",
+        contentType: "image/webp", attachmentStatus: "ready", createdAt: now,
+      });
+      tx.create(notificationRef, {
+        notificationId: messageId, type: "direct_message", senderUid, chatId, messageId,
+        title: "صورة جديدة", body: "لديك صورة جديدة في محادثة مودة.",
+        isRead: false, createdAt: now,
+      });
+      tx.update(assetRef, {
+        linkedMessageId: messageId, linkedConversationId: chatId,
+        linkedScope: "direct", linkedRecipientUid: recipientUid,
+        deliveryState: "ready", linkedAt: now, updatedAt: now,
+      });
+      tx.create(mediaDb().collection("mediaAccessAudit").doc(), {
+        actorUid: senderUid, mediaId, action: "chat_media_message_linked",
+        outcome: "success", scope: "direct", messageId, createdAt: now,
+      });
+      return { chatId, messageId, replayed: false };
+    });
+  }
+
+  const roomId = typeof data.roomId === "string" ? data.roomId.trim() : "";
+  if (!roomId || roomId.length > 128) throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+  const roomRef = mediaDb().collection("rooms").doc(roomId);
+  const memberRef = roomRef.collection("members").doc(senderUid);
+  const messageRef = roomRef.collection("messages").doc(messageId);
+  return mediaDb().runTransaction(async (tx) => {
+    const [room, member, user, message, freshAsset] = await Promise.all([
+      tx.get(roomRef), tx.get(memberRef), tx.get(mediaDb().collection("users").doc(senderUid)),
+      tx.get(messageRef), tx.get(assetRef),
+    ]);
+    if (!room.exists || room.data()?.status !== "active" || !member.exists ||
+        !user.exists || user.data()?.status === "suspended") {
+      throw new HttpsError("permission-denied", "يجب أن تكون عضواً نشطاً في الغرفة لإرسال المرفق.");
+    }
+    const mutedUntil = member.data()?.mutedUntil;
+    if (mutedUntil instanceof Timestamp && mutedUntil.toMillis() > Date.now()) {
+      throw new HttpsError("permission-denied", "لا يمكنك إرسال مرفقات أثناء فترة الكتم.");
+    }
+    if (!freshAsset.exists || freshAsset.data()?.status !== "security_approved" ||
+        freshAsset.data()?.linkedMessageId) {
+      if (message.exists && message.data()?.mediaId === mediaId && message.data()?.senderUid === senderUid) {
+        return { roomId, messageId, replayed: true };
+      }
+      throw new HttpsError("failed-precondition", "المرفق سبق ربطه أو لم يعد معتمداً.");
+    }
+    if (message.exists) throw new HttpsError("already-exists", "معرف الرسالة مستخدم.");
+    tx.create(messageRef, {
+      messageId, senderUid, content: caption, type: "attachment",
+      mediaId, mediaCategory: "image", contentType: "image/webp",
+      attachmentStatus: "ready", isDeleted: false, createdAt: now,
+    });
+    tx.update(assetRef, {
+      linkedMessageId: messageId, linkedConversationId: roomId,
+      linkedScope: "room", deliveryState: "ready", linkedAt: now, updatedAt: now,
+    });
+    tx.create(mediaDb().collection("mediaAccessAudit").doc(), {
+      actorUid: senderUid, mediaId, action: "chat_media_message_linked",
+      outcome: "success", scope: "room", roomId, messageId, createdAt: now,
+    });
+    return { roomId, messageId, replayed: false };
+  });
+});
+
+/** Issues a two-minute generation-pinned URL only to a linked conversation participant. */
+export const getChatImageAttachmentUrl = onCall(async (request) => {
+  const viewerUid = requireUid(request.auth?.uid);
+  const data = request.data ?? {};
+  const scope = data.scope;
+  const mediaId = typeof data.mediaId === "string" ? data.mediaId.trim() : "";
+  const messageId = typeof data.messageId === "string" ? data.messageId.trim() : "";
+  if ((scope !== "direct" && scope !== "room") ||
+      !/^[0-9a-f-]{36}$/i.test(mediaId) || !/^[a-f0-9]{64}$/i.test(messageId)) {
+    throw new HttpsError("invalid-argument", "بيانات طلب الصورة غير صالحة.");
+  }
+  let message: Record<string, unknown> | undefined;
+  if (scope === "direct") {
+    const chatId = typeof data.chatId === "string" ? data.chatId.trim() : "";
+    if (!chatId || chatId.length > 128) throw new HttpsError("invalid-argument", "معرف المحادثة غير صالح.");
+    const chatRef = mediaDb().collection("directChats").doc(chatId);
+    const [chat, msg] = await Promise.all([
+      chatRef.get(), chatRef.collection("messages").doc(messageId).get(),
+    ]);
+    const participants = chat.data()?.participantUids;
+    if (!chat.exists || !Array.isArray(participants) || !participants.includes(viewerUid) || !msg.exists) {
+      throw new HttpsError("permission-denied", "ليس لديك حق الوصول إلى هذه المحادثة.");
+    }
+    message = msg.data();
+  } else {
+    const roomId = typeof data.roomId === "string" ? data.roomId.trim() : "";
+    if (!roomId || roomId.length > 128) throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+    const roomRef = mediaDb().collection("rooms").doc(roomId);
+    const [room, member, msg] = await Promise.all([
+      roomRef.get(), roomRef.collection("members").doc(viewerUid).get(),
+      roomRef.collection("messages").doc(messageId).get(),
+    ]);
+    const ownerSession = request.auth?.token.platformOwner === true &&
+      hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>);
+    if (!room.exists || (!member.exists && !ownerSession) || !msg.exists) {
+      throw new HttpsError("permission-denied", "ليس لديك حق الوصول إلى مرفقات هذه الغرفة.");
+    }
+    message = msg.data();
+  }
+  if (!message || message.mediaId !== mediaId || message.attachmentStatus !== "ready" ||
+      message.isDeleted === true || message.deletionPending === true) {
+    throw new HttpsError("failed-precondition", "المرفق غير متاح.");
+  }
+  const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
+  const assetSnapshot = await assetRef.get();
+  if (!assetSnapshot.exists) throw new HttpsError("not-found", "سجل المرفق غير موجود.");
+  const asset = assetSnapshot.data() ?? {};
+  const artifact = resolveChatMediaDeliveryArtifact(asset as never, false);
+  if (!artifact || artifact.category !== "image" || asset.status !== "security_approved" ||
+      asset.deliveryState !== "ready" || asset.linkedMessageId !== messageId ||
+      !(asset.retentionExpiresAt instanceof Timestamp) || asset.retentionExpiresAt.toMillis() <= Date.now() ||
+      asset.legalHoldStatus === "released") {
+    throw new HttpsError("failed-precondition", "انتهت صلاحية الصورة أو لم تجتز المعالجة الآمنة.");
+  }
+  const file = mediaBucket().file(artifact.objectPath, { generation: Number(artifact.generation) });
+  const [metadata] = await file.getMetadata();
+  if (String(metadata.generation) !== artifact.generation ||
+      metadata.contentType !== artifact.contentType || Number(metadata.size) <= 0 ||
+      Number(metadata.size) > 5 * 1024 * 1024) {
+    throw new HttpsError("failed-precondition", "تعذر التحقق من نسخة الصورة الآمنة.");
+  }
+  const expiresAt = Date.now() + 2 * 60 * 1000;
+  const [url] = await file.getSignedUrl({
+    version: "v4", action: "read", expires: expiresAt,
+    responseType: "image/webp", responseDisposition: "inline",
+  });
+  await auditMediaAccess({
+    actorUid: viewerUid, mediaId, action: "chat_media_delivery_url_issued",
+    outcome: "success", scope, messageId, objectGeneration: artifact.generation,
+  });
+  return { url, expiresAt, contentType: "image/webp" };
 });
 
 export const createMediaUploadIntent = onCall(async (request) => {
