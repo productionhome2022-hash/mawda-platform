@@ -4984,11 +4984,16 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
       if (!fresh.exists || fresh.data()?.status !== "active" ||
           !(fresh.data()?.expiresAt instanceof Timestamp) ||
           fresh.data()!.expiresAt.toMillis() > Date.now()) return false;
+      const rentalId = fresh.data()?.rentalId;
+      const rentalRef = typeof rentalId === "string" ? db.collection("roomRentals").doc(rentalId) : null;
+      const rental = rentalRef ? await transaction.get(rentalRef) : null;
+      const now = FieldValue.serverTimestamp();
       transaction.update(document.ref, {
-        status: "frozen", frozenAt: FieldValue.serverTimestamp(),
+        status: "frozen", frozenAt: now,
         freezeExpiresAt: Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000),
-        updatedAt: FieldValue.serverTimestamp(),
+        updatedAt: now,
       });
+      if (rentalRef && rental?.exists) transaction.update(rentalRef, { status: "grace_period", updatedAt: now });
       const notificationRef = db.collection("notifications").doc();
       transaction.create(notificationRef, {
         userId: data.ownerUid, title: "انتهت مدة استئجار الغرفة",
@@ -5011,8 +5016,13 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
       if (!fresh.exists || fresh.data()?.status !== "frozen" ||
           !(fresh.data()?.freezeExpiresAt instanceof Timestamp) ||
           fresh.data()!.freezeExpiresAt.toMillis() > Date.now()) return null;
-      transaction.update(document.ref, { status: "closed", closedAt: FieldValue.serverTimestamp(),
-        closeReason: "rental_expired", updatedAt: FieldValue.serverTimestamp() });
+      const rentalId = fresh.data()?.rentalId;
+      const rentalRef = typeof rentalId === "string" ? db.collection("roomRentals").doc(rentalId) : null;
+      const rental = rentalRef ? await transaction.get(rentalRef) : null;
+      const now = FieldValue.serverTimestamp();
+      transaction.update(document.ref, { status: "closed", closedAt: now,
+        closeReason: "rental_expired", updatedAt: now });
+      if (rentalRef && rental?.exists) transaction.update(rentalRef, { status: "expired", closedAt: now, updatedAt: now });
       const notificationRef = db.collection("notifications").doc();
       transaction.create(notificationRef, {
         userId: fresh.data()?.ownerUid, title: "أغلقت الغرفة لانتهاء الاستئجار",
