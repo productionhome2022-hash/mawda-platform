@@ -94,7 +94,13 @@ export async function deleteMediaAssetForMessage(
 
   const paths = new Set<string>();
   if (typeof assetData.objectPath === "string") paths.add(assetData.objectPath);
-  if (typeof assetData.safePreviewPath === "string") paths.add(assetData.safePreviewPath);
+  for (const field of [
+    "safePreviewPath", "safeAnimationPath", "safeAudioPath",
+    "safeVideoPath", "safeDocumentPath",
+  ]) {
+    const candidate = assetData[field];
+    if (typeof candidate === "string") paths.add(candidate);
+  }
   const deletedPaths = Array.isArray(assetData.deletedObjectPaths)
     ? assetData.deletedObjectPaths
     : [];
@@ -109,7 +115,11 @@ export async function deleteMediaAssetForMessage(
     paths.add(candidate);
   }
   paths.add(`quarantine/${expectedOwnerUid}/${mediaId}`);
-  paths.add(`processed/${expectedOwnerUid}/${mediaId}/preview.webp`);
+  for (const filename of [
+    "preview.webp", "animation.gif", "audio.mp3", "video.mp4", "document.pdf",
+  ]) {
+    paths.add(`processed/${expectedOwnerUid}/${mediaId}/${filename}`);
+  }
   const derivedPaths = Array.isArray(assetData.derivedObjectPaths)
     ? assetData.derivedObjectPaths
     : [];
