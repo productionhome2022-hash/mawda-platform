@@ -93,6 +93,49 @@ async function auditEvents(uid) {
   return snapshot.docs.map((doc) => doc.data());
 }
 
+
+test("members cannot create PDF chat or room upload intents", async () => {
+  for (const purpose of ["chat", "room"]) {
+    const uid = `member-pdf-denied-${purpose}-${Date.now()}-${Math.random()}`;
+    await assert.rejects(
+      () => createMediaUploadIntent.run({
+        data: { originalName: "policy.pdf", contentType: "application/pdf", sizeBytes: 12, purpose },
+        auth: memberRequest(uid).auth,
+      }),
+      (error) => error && error.code === "permission-denied",
+    );
+    const assets = await db.collection("mediaAssets").where("ownerUid", "==", uid).get();
+    assert.equal(assets.empty, true);
+  }
+});
+
+test("only a fresh MFA-authenticated platform owner may create PDF chat and room upload intents", async () => {
+  for (const purpose of ["chat", "room"]) {
+    const uid = `owner-pdf-allowed-${purpose}-${Date.now()}-${Math.random()}`;
+    const intent = await createMediaUploadIntent.run(ownerRequest(uid, {
+      originalName: "owner-document.pdf", contentType: "application/pdf", sizeBytes: 12, purpose,
+    }));
+    const assetRef = db.collection("mediaAssets").doc(intent.mediaId);
+    const asset = await assetRef.get();
+    assert.equal(asset.data().uploaderRole, "platform_owner");
+    assert.equal(asset.data().mediaPurpose, purpose);
+    await Promise.all([
+      assetRef.delete(),
+      db.collection("mediaUploadQuotas").doc(uid).delete(),
+    ]);
+  }
+
+  const staleUid = `owner-pdf-stale-mfa-${Date.now()}-${Math.random()}`;
+  const stale = ownerRequest(staleUid, {
+    originalName: "stale.pdf", contentType: "application/pdf", sizeBytes: 12, purpose: "chat",
+  });
+  stale.auth.token.auth_time -= 16 * 60;
+  await assert.rejects(
+    () => createMediaUploadIntent.run(stale),
+    (error) => error && error.code === "permission-denied",
+  );
+});
+
 test("owner media listing succeeds and writes a success audit event", async () => {
   const uid = `owner-${Date.now()}-${Math.random()}`;
   const result = await listOwnerMediaAssets.run(ownerRequest(uid));
