@@ -11,6 +11,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
   List<Map<String, dynamic>> _packages = [];
   List<Map<String, dynamic>> _ads = [];
   bool _loading = true, _saving = false;
+  bool _manualPurchasesEnabled = true;
   int _version = 0;
   String? _error;
 
@@ -29,6 +30,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
         _ads = (data['adPrices'] as List<dynamic>? ?? const [])
             .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
         _version = data['version'] as int? ?? 0;
+        _manualPurchasesEnabled = data['manualCoinPurchasesEnabled'] != false;
       });
     } on FirebaseFunctionsException catch (e) {
       if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل إعدادات الاقتصاد.');
@@ -41,6 +43,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
     try {
       final result = await _functions.httpsCallable('setOwnerEconomyPricing').call({
         'coinPackages': _packages, 'adPrices': _ads,
+        'manualCoinPurchasesEnabled': _manualPurchasesEnabled,
       });
       final data = Map<String, dynamic>.from(result.data as Map);
       if (!mounted) return;
@@ -83,6 +86,12 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
             const Text('الأسعار النقدية باليورو (السنت). هذه جداول تسعير فقط؛ الدفع النقدي وإصدار الكوينز مقابل الدفع معطلان حتى ربط مزود دفع مرخص واختباره.'),
           ]))),
         if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+        Card(child: SwitchListTile(
+          title: const Text('تفعيل طلبات شراء الكوينز اليدوية'),
+          subtitle: const Text('عند الإيقاف لن يتمكن الأعضاء من إنشاء طلبات جديدة. لا يوجد دفع إلكتروني آلي؛ يبقى معطلاً دائماً.'),
+          value: _manualPurchasesEnabled,
+          onChanged: _saving ? null : (value) => setState(() => _manualPurchasesEnabled = value),
+        )),
         Text('باقات الكوينز', style: Theme.of(context).textTheme.titleLarge),
         ..._packages.asMap().entries.map((entry) {
           final i = entry.key, item = entry.value;
