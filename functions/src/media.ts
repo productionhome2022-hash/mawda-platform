@@ -582,7 +582,7 @@ export const listOwnerMediaAssets = onCall(async (request) => {
     });
     throw new HttpsError("invalid-argument", "نوع صاحب الملف المطلوب غير صالح.");
   }
-  const allowedStatuses = ["upload_authorized", "pending_security_scan", "scanner_clean_pending_processing", "rejected", "security_approved"];
+  const allowedStatuses = ["upload_authorized", "pending_security_scan", "scanner_clean_pending_processing", "rejected", "security_approved", "retention_cleanup_in_progress", "retained_deleted"];
   if (!allowedStatuses.includes(status)) {
     await auditMediaAccess({
       actorUid,
