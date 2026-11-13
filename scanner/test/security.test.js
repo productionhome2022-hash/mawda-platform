@@ -22,6 +22,7 @@ test("scan request accepts only exact quarantine path, UUID, generation and Goog
     provider: "clamav-mawadda-gateway", contentType: "image/png",
   };
   assert.deepEqual(validateScanRequest(valid, "clamav-mawadda-gateway", bucket), valid);
+  assert.deepEqual(validateScanRequest({ ...valid, contentType: "image/gif" }, "clamav-mawadda-gateway", bucket).contentType, "image/gif");
   assert.equal(validateScanRequest({ ...valid, objectPath: `processed/user/${mediaId}` }, valid.provider, bucket), null);
   assert.equal(validateScanRequest({ ...valid, objectGeneration: "latest" }, valid.provider, bucket), null);
   assert.equal(validateScanRequest({ ...valid, provider: "untrusted" }, valid.provider, bucket), null);
