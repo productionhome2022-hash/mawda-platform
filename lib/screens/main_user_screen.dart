@@ -9,6 +9,7 @@ import 'shop_screen.dart';
 import 'wallet_screen.dart';
 import 'rooms_screen.dart';
 import 'super_admin_screen.dart';
+import 'safety_center_screen.dart';
 
 class MainUserScreen extends StatefulWidget {
   final String userId;
@@ -42,6 +43,13 @@ class _MainUserScreenState extends State<MainUserScreen> {
       appBar: AppBar(
         title: const Text('مودة | MAWDA'),
         actions: [
+          IconButton(
+            tooltip: 'مركز الأمان والخصوصية',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const SafetyCenterScreen(),
+            )),
+            icon: const Icon(Icons.shield_outlined),
+          ),
           IconButton(
             tooltip: 'تسجيل الخروج',
             onPressed: () => AuthService().signOut(),
