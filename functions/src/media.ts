@@ -822,6 +822,104 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
 );
 
 
+
+/**
+ * Deletes retained source objects and safe derivatives only after the
+ * purpose-specific retention deadline. Every delete is generation-pinned;
+ * failed work remains claimed for a later retry and is never silently skipped.
+ */
+export const cleanupRetainedMediaAssets = onSchedule(
+  { schedule: "every 15 minutes", timeZone: "UTC" },
+  async () => {
+    const now = Timestamp.fromMillis(Date.now());
+    const assets = mediaDb().collection("mediaAssets");
+    const [expired, retrying] = await Promise.all([
+      assets.where("status", "in", ["security_approved", "scanner_clean_pending_processing"])
+        .where("retentionExpiresAt", "<=", now)
+        .orderBy("retentionExpiresAt").limit(100).get(),
+      assets.where("status", "==", "retention_cleanup_in_progress").limit(100).get(),
+    ]);
+    const candidates = new Map<string, (typeof expired.docs)[number]>();
+    for (const doc of [...expired.docs, ...retrying.docs]) candidates.set(doc.id, doc);
+    let deleted = 0;
+
+    for (const candidate of candidates.values()) {
+      const ref = candidate.ref;
+      const claim = await mediaDb().runTransaction(async (transaction) => {
+        const current = await transaction.get(ref);
+        const data = current.data();
+        if (!current.exists || !data) return null;
+        if (data.status !== "retention_cleanup_in_progress") {
+          const expires = data.retentionExpiresAt as Timestamp | undefined;
+          if (!["security_approved", "scanner_clean_pending_processing"].includes(String(data.status)) ||
+              !expires || expires.toMillis() > now.toMillis()) return null;
+          transaction.update(ref, {
+            status: "retention_cleanup_in_progress",
+            retentionCleanupStartedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+        return {
+          ownerUid: String(data.ownerUid),
+          objectPath: String(data.objectPath),
+          storageGeneration: String(data.storageGeneration ?? ""),
+          safePreviewPath: typeof data.safePreviewPath === "string" ? data.safePreviewPath : "",
+          safePreviewGeneration: String(data.safePreviewGeneration ?? ""),
+        };
+      });
+      if (!claim) continue;
+
+      const deleteExactGeneration = async (path: string, generation: string) => {
+        if (!path) return;
+        if (!/^\d+$/.test(generation)) throw new Error("Retention delete refused an unpinned object generation.");
+        const numericGeneration = Number(generation);
+        if (!Number.isSafeInteger(numericGeneration) || numericGeneration <= 0) {
+          throw new Error("Retention delete generation is outside the safe integer range.");
+        }
+        await mediaBucket().file(path).delete({
+          ignoreNotFound: true,
+          ifGenerationMatch: numericGeneration,
+        });
+      };
+
+      try {
+        await deleteExactGeneration(claim.objectPath, claim.storageGeneration);
+        await deleteExactGeneration(claim.safePreviewPath, claim.safePreviewGeneration);
+        await mediaDb().runTransaction(async (transaction) => {
+          const latest = await transaction.get(ref);
+          if (!latest.exists || latest.data()?.status !== "retention_cleanup_in_progress") return;
+          transaction.update(ref, {
+            status: "retained_deleted",
+            storageDeletedAt: FieldValue.serverTimestamp(),
+            retentionCleanupCompletedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+          transaction.create(mediaDb().collection("mediaAccessAudit").doc(), {
+            actorUid: claim.ownerUid,
+            mediaId: candidate.id,
+            action: "media_retention_delete",
+            outcome: "success",
+            objectPath: claim.objectPath,
+            safePreviewPath: claim.safePreviewPath || null,
+            createdAt: FieldValue.serverTimestamp(),
+          });
+        });
+        deleted += 1;
+      } catch (error) {
+        await auditMediaAccess({
+          actorUid: claim.ownerUid,
+          mediaId: candidate.id,
+          action: "media_retention_delete",
+          outcome: "retry_required",
+          failureCode: error instanceof Error ? error.name : "retention_cleanup_error",
+        });
+        throw error;
+      }
+    }
+    return { deleted };
+  },
+);
+
 /**
  * Authenticated owner-only attachment stream. Unlike a signed URL, the object
  * path is never turned into a bearer URL or placed in browser history/query
