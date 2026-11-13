@@ -90,10 +90,24 @@ async function sha256Object(file: ReturnType<ReturnType<typeof mediaBucket>["fil
   });
 }
 
+/** Minimal HTTP contract keeps the scanner callback directly integration-testable. */
+interface MediaScanCallbackRequest {
+  method: string;
+  rawBody?: Buffer;
+  get(name: string): string | undefined;
+}
+interface MediaScanCallbackResponse {
+  status(code: number): MediaScanCallbackResponse;
+  set(name: string, value: string): MediaScanCallbackResponse;
+  send(body: string): MediaScanCallbackResponse;
+  json(body: Record<string, unknown>): MediaScanCallbackResponse;
+}
+
 /** Authenticated gateway callback; any missing/mismatched evidence stays quarantined. */
-export const receiveMediaScanVerdict = onRequest(
-  { secrets: [mediaScannerHmacSecret] },
-  async (request, response) => {
+export async function handleMediaScanVerdict(
+  request: MediaScanCallbackRequest,
+  response: MediaScanCallbackResponse,
+): Promise<void> {
   if (request.method !== "POST") {
     response.status(405).set("Allow", "POST").send("Method not allowed");
     return;
@@ -179,7 +193,11 @@ export const receiveMediaScanVerdict = onRequest(
     await file.delete({ ignoreNotFound: true, ifGenerationMatch: Number(verdict.objectGeneration) });
   }
   response.status(200).json({ mediaId: verdict.mediaId, status: nextStatus });
-  },
+}
+
+export const receiveMediaScanVerdict = onRequest(
+  { secrets: [mediaScannerHmacSecret] },
+  handleMediaScanVerdict,
 );
 
 export const createMediaUploadIntent = onCall(async (request) => {
@@ -200,16 +218,6 @@ export const createMediaUploadIntent = onCall(async (request) => {
   const objectPath = `quarantine/${uid}/${mediaId}`;
   const file = mediaBucket().file(objectPath);
   const expiresAt = mediaSignedUrlExpiresAt("upload");
-  const uploadUrl = await file.getSignedUrl({
-    version: "v4",
-    action: "write",
-    expires: expiresAt,
-    contentType: input.contentType,
-    // Create-only precondition: a leaked/replayed upload URL cannot overwrite
-    // the first object generation after the quarantine object is created.
-    queryParams: { ifGenerationMatch: "0" },
-  });
-
   const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
   const quotaRef = mediaDb().collection("mediaUploadQuotas").doc(uid);
   await mediaDb().runTransaction(async (transaction) => {
@@ -243,6 +251,46 @@ export const createMediaUploadIntent = onCall(async (request) => {
       updatedAt: now,
     });
   });
+
+  let uploadUrl: string;
+  try {
+    const [signedUrl] = await file.getSignedUrl({
+      version: "v4",
+      action: "write",
+      expires: expiresAt,
+      contentType: input.contentType,
+      // Create-only precondition: a replay cannot overwrite the first object generation.
+      queryParams: { ifGenerationMatch: "0" },
+    });
+    uploadUrl = signedUrl;
+  } catch {
+    // A signer outage must not strand a quota reservation or leave a usable intent.
+    await mediaDb().runTransaction(async (transaction) => {
+      const [latestAsset, quotaSnapshot] = await Promise.all([
+        transaction.get(assetRef),
+        transaction.get(quotaRef),
+      ]);
+      if (!latestAsset.exists || latestAsset.data()?.status !== "upload_authorized") return;
+      const reservation = releaseMediaQuota(quotaSnapshot.data(), input.declaredSizeBytes);
+      transaction.update(assetRef, {
+        status: "upload_authorization_failed",
+        failureCode: "SIGNED_URL_ISSUANCE_FAILED",
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.set(quotaRef, { ...reservation, updatedAt: FieldValue.serverTimestamp() });
+      const auditRef = mediaDb().collection("mediaAccessAudit").doc();
+      transaction.create(auditRef, {
+        actorUid: uid,
+        mediaId,
+        action: "media_upload_intent_signing",
+        outcome: "failed",
+        failureCode: "SIGNED_URL_ISSUANCE_FAILED",
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    });
+    throw new HttpsError("unavailable", "تعذر إنشاء رابط رفع آمن. حاول مرة أخرى لاحقاً.");
+  }
+
   await auditMediaAccess({
     actorUid: uid,
     mediaId,
@@ -252,7 +300,7 @@ export const createMediaUploadIntent = onCall(async (request) => {
     declaredContentType: input.contentType,
     declaredSizeBytes: input.declaredSizeBytes,
   });
-  return { mediaId, uploadUrl: uploadUrl[0], expiresAt };
+  return { mediaId, uploadUrl, expiresAt };
 });
 
 /**
