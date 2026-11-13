@@ -7,8 +7,8 @@
 - Finalization validates owner, state, server object metadata, exact byte count versus the quota reservation, generation, allowlisted MIME type and leading-byte signature. Signature checks are format checks, not malware detection.
 - Quota reservation is atomic with asset creation: 5 concurrent intents, 150 MiB active reserved bytes, 500 MiB per UTC day per UID. These are conservative engineering defaults, not owner-approved production limits. The daily reservation is not refunded for abandoned attempts.
 - The 15-minute scheduled cleanup claims only expired intents, uses the exact object generation for deletion, releases active reservations transactionally and writes a success audit event in the same transaction. Failed cleanup retains its claim for retry. Missing-object/in-flight upload recovery still requires additional delayed recheck coverage before release approval.
-- Owner metadata listing is bounded and paginated. The former signed-URL inspection callable is disabled. Owner inspection uses an authenticated streaming endpoint requiring a revocation-aware Firebase ID token, App Check, sole-owner claim and recent MFA; it returns an attachment, not a bearer Storage URL.
-- Inline owner image preview is separate and stricter: it serves only the server-generated WebP derivative after a clean scanner verdict, successful image decode/re-encode, exact derivative generation/hash/metadata verification, owner MFA and App Check. It never renders the original quarantined bytes.
+- Owner metadata listing is bounded and paginated. The former signed-URL inspection callable is disabled. The owner console offers a preview action only when a verified safe WebP derivative exists. A callable checks the sole-owner claim and recent MFA, rechecks derivative generation, provenance metadata and SHA-256, then returns bounded image bytes—not a Storage URL. The UI renders only that derivative, never the original quarantine bytes.
+- A separate authenticated attachment-stream endpoint exists for owner investigation; it requires a revocation-aware Firebase ID token, App Check, sole-owner claim and recent MFA, and forces octet-stream/attachment. It is not yet wired to a UI action.
 - Firestore media metadata/audit and Firebase Storage client rules remain deny-all. Do not weaken these rules for client convenience.
 
 ## Upload quotas and transport-size boundary
@@ -56,12 +56,12 @@ The guarded runner performs real HTTP signed PUT and GET requests, verifies repl
 
 ## Retention, audit and release gates
 
-- No automatic retention deletion is enabled. Retention periods, legal holds, export format, deletion authority, backup expiry and exception handling require owner approval before destructive lifecycle rules are configured.
-- Add delayed missing-object/in-flight-upload cleanup rechecks, cleanup retry/dead-letter tests and orphan reconciliation.
+- Upload purpose is recorded (`chat`, `room`, `profile_album`, `avatar_cover`, `story`), but `retentionExpiresAt` remains null and `retentionPolicyStatus` remains `owner_approval_required`. No retained-media deletion scheduler is exported or enabled. Retention periods, legal holds, export format, deletion authority, backup expiry and exception handling require owner approval before any destructive lifecycle rule is configured. Only abandoned, never-finalized upload intents are eligible for the separate cleanup job.
+- Add delayed missing-object/in-flight-upload cleanup rechecks, cleanup retry/dead-letter tests and orphan reconciliation. Do not re-enable retained-media deletion until the owner approves exact purpose-based periods and legal-hold behavior.
 - Enforce byte limits at the transport boundary and validate CORS against actual non-production bucket origins.
 - Deploy and exercise the scanner in non-production with clean files, EICAR test signature, malformed images, archive bombs/limit-exceeding files, stale generation, bad HMAC, duplicate callbacks, scanner timeout, signature database refresh and Cloud Run restart/retry.
 - Build safe processing for video, audio and PDF before any of those types can be member-delivered.
-- Add Flutter App Check initialization and wire the owner preview/attachment actions to the authenticated endpoints; the current owner console intentionally does not expose a raw signed URL or preview button.
+- The safe WebP preview action is now wired into the owner console. Add Flutter App Check initialization before wiring the separate attachment-stream action; keep all raw signed URLs out of the client.
 - Verify owner MFA enrollment/recovery/revocation, CORS, Android/iOS/web device flows, performance, monitoring, backups and restore in a non-production project.
 
 No production Firebase data, rules, bucket configuration, deployment, merge or destructive retention action has been changed or authorized.
