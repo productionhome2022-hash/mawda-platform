@@ -11,7 +11,8 @@ process.env.GCLOUD_PROJECT = projectId;
 process.env.FIREBASE_CONFIG = JSON.stringify({
   projectId, storageBucket: `${projectId}.appspot.com`,
 });
-const { setMemberProfileMedia } = require("../../lib/index");
+const { setMemberProfileMedia, resetMemberProfileMedia } = require("../../lib/index");
+const { getMemberProfileMediaUrl } = require("../../lib/media");
 const db = getFirestore();
 const bucket = getStorage().bucket();
 const { runChatMediaRetentionSweep } = require("../../lib/retention");
@@ -116,6 +117,66 @@ test("expired current avatar falls back to Mawda default before exact media dele
       preview.delete({ ignoreNotFound: true }).catch(() => undefined),
       ...audits.docs.map((doc) => doc.ref.delete()),
     ]);
+  }
+});
+
+
+
+test("member can reset a selected avatar to the default while superseding the old asset safely", async () => {
+  const suffix = Date.now().toString();
+  const uid = `reset-profile-member-${suffix}`;
+  const mediaId = `55555555-eeee-ffff-aaaa-${suffix.padStart(12, "0").slice(-12)}`;
+  const userRef = db.collection("users").doc(uid);
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const existingExpiry = Timestamp.fromMillis(Date.now() + 20 * 24 * 60 * 60 * 1000);
+  await Promise.all([
+    userRef.set({ profileCompleted: true, avatarMediaId: mediaId, avatarUsesDefault: false }),
+    assetRef.set({
+      mediaId, ownerUid: uid, mediaPurpose: "avatar_cover", profileMediaSlot: "avatar",
+      status: "security_approved", retentionExpiresAt: existingExpiry,
+      retentionPolicyStatus: "thirty_day_avatar_cover",
+    }),
+  ]);
+  try {
+    const result = await resetMemberProfileMedia.run(memberRequest(uid, { slot: "avatar" }));
+    assert.equal(result.usesDefault, true);
+    const user = (await userRef.get()).data();
+    assert.equal(user.avatarMediaId, undefined);
+    assert.equal(user.avatarUsesDefault, true);
+    const asset = (await assetRef.get()).data();
+    assert.equal(asset.retentionPolicyStatus, "thirty_day_superseded_avatar_cover");
+    assert.ok(asset.supersededAt instanceof Timestamp);
+    assert.equal(asset.retentionExpiresAt.toMillis(), existingExpiry.toMillis());
+  } finally {
+    const audits = await db.collection("mediaAccessAudit").where("actorUid", "==", uid).get();
+    await Promise.all([
+      userRef.delete().catch(() => undefined),
+      assetRef.delete().catch(() => undefined),
+      ...audits.docs.map((doc) => doc.ref.delete()),
+    ]);
+  }
+});
+
+test("profile media URL callable returns default for an unset slot and denies private profiles to others", async () => {
+  const suffix = Date.now().toString();
+  const ownerUid = `profile-url-owner-${suffix}`;
+  const viewerUid = `profile-url-viewer-${suffix}`;
+  const ownerRef = db.collection("users").doc(ownerUid);
+  await ownerRef.set({ profileCompleted: true, profileVisibility: "private", avatarUsesDefault: true });
+  try {
+    const own = await getMemberProfileMediaUrl.run(memberRequest(ownerUid, {
+      userId: ownerUid, slot: "avatar",
+    }));
+    assert.equal(own.url, null);
+    assert.equal(own.usesDefault, true);
+    await assert.rejects(
+      () => getMemberProfileMediaUrl.run(memberRequest(viewerUid, {
+        userId: ownerUid, slot: "avatar",
+      })),
+      (error) => error && error.code === "permission-denied",
+    );
+  } finally {
+    await ownerRef.delete().catch(() => undefined);
   }
 });
 
