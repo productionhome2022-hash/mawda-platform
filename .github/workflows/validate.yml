@@ -101,7 +101,7 @@ jobs:
         run: |
           docker run --rm --entrypoint sh mawda-clamav-scanner:ci -c '
             set -eu
-            freshclam --stdout --log=/dev/stdout
+            freshclam --stdout --log=/tmp/freshclam.log
             printf '%s' 'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=' | base64 -d > /tmp/eicar.com
             set +e
             clamscan --infected --no-summary /tmp/eicar.com
