@@ -392,19 +392,23 @@ export const createMediaUploadIntent = onCall(async (request) => {
   });
 
   let uploadUrl: string;
-  let uploadFields: Record<string, string>;
+  const uploadHeaders = {
+    "Content-Type": input.contentType,
+    "x-goog-content-length-range": `${input.declaredSizeBytes},${input.declaredSizeBytes}`,
+  };
   try {
-    const [policyDocument] = await file.generateSignedPostPolicyV4({
+    const [signedUrl] = await file.getSignedUrl({
+      version: "v4",
+      action: "write",
       expires: expiresAt,
-      fields: {
-        "Content-Type": input.contentType,
-        "x-goog-if-generation-match": "0",
+      contentType: input.contentType,
+      // The range and create-only precondition are both part of the V4 signature.
+      extensionHeaders: {
+        "x-goog-content-length-range": uploadHeaders["x-goog-content-length-range"],
       },
-      // The storage service rejects an over-sized or under-sized file before accepting it.
-      conditions: [["content-length-range", input.declaredSizeBytes, input.declaredSizeBytes]],
+      queryParams: { ifGenerationMatch: "0" },
     });
-    uploadUrl = policyDocument.url;
-    uploadFields = policyDocument.fields;
+    uploadUrl = signedUrl;
   } catch {
     // A signer outage must not strand a quota reservation or leave a usable intent.
     await mediaDb().runTransaction(async (transaction) => {
@@ -445,8 +449,8 @@ export const createMediaUploadIntent = onCall(async (request) => {
   return {
     mediaId,
     uploadUrl,
-    uploadFields,
-    uploadMethod: "POST",
+    uploadHeaders,
+    uploadMethod: "PUT",
     maxBytes: input.declaredSizeBytes,
     expiresAt,
   };
