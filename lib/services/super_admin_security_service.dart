@@ -18,16 +18,6 @@ class SuperAdminSecurityService {
     return Map<String, dynamic>.from(result.data as Map);
   }
 
-  /// Issues a short-lived owner inspection URL. The caller must never persist
-  /// or log this bearer URL; the current console intentionally does not expose
-  /// it until a safe in-app preview handler is available.
-  Future<Map<String, dynamic>> getOwnerMediaInspectionUrl(String mediaId) async {
-    final result = await _functions.httpsCallable('getOwnerMediaInspectionUrl').call({
-      'mediaId': mediaId,
-    });
-    return Map<String, dynamic>.from(result.data as Map);
-  }
-
   Future<Map<String, dynamic>> getOperationsOverview() async {
     final result = await _functions.httpsCallable('getOwnerOperationsOverview').call();
     return Map<String, dynamic>.from(result.data as Map);
