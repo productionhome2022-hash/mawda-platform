@@ -153,6 +153,9 @@ export const receiveMediaScanVerdict = onRequest(
     transaction.update(assetRef, {
       status: nextStatus,
       scannerProvider: verdict.provider,
+      scannerEngine: verdict.engine,
+      scannerEngineVersion: verdict.engineVersion,
+      scannerSignatureVersion: verdict.signatureVersion,
       scannerVerdict: verdict.verdict,
       scannerSha256: actualHash,
       scannerObjectGeneration: verdict.objectGeneration,
