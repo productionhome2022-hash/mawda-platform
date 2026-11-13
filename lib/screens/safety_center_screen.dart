@@ -2,7 +2,9 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 
 class SafetyCenterScreen extends StatefulWidget {
-  const SafetyCenterScreen({super.key});
+  const SafetyCenterScreen({super.key, this.initialTargetUid});
+
+  final String? initialTargetUid;
 
   @override
   State<SafetyCenterScreen> createState() => _SafetyCenterScreenState();
@@ -31,6 +33,7 @@ class _SafetyCenterScreenState extends State<SafetyCenterScreen> {
   @override
   void initState() {
     super.initState();
+    _targetUid.text = widget.initialTargetUid ?? '';
     _cases = _loadCases();
   }
 
@@ -153,8 +156,7 @@ class _SafetyCenterScreenState extends State<SafetyCenterScreen> {
     final caseId = item['caseId'] as String? ?? '';
     final status = item['status'] as String? ?? 'unknown';
     final appealStatus = item['appealStatus'] as String? ?? 'not_available';
-    final canAppeal = decision && status == 'action_taken' &&
-        (appealStatus == 'available' || appealStatus == 'not_available');
+    final canAppeal = decision && status == 'action_taken' && appealStatus == 'available';
     return Card(
       child: ListTile(
         title: Text(decision ? 'قرار إداري على الحساب' : 'بلاغ مقدم من حسابك'),
