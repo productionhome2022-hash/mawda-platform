@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import io
 import json
 import os
 import re
@@ -10,11 +11,18 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import warnings
+from PIL import Image, ImageOps, UnidentifiedImageError
+from google.api_core.exceptions import PreconditionFailed
+from google.cloud import storage
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 MAX_CONTROL_BODY = 64 * 1024
+MAX_SAFE_PREVIEW_BYTES = 2 * 1024 * 1024
+MAX_IMAGE_PIXELS = 20_000_000
+Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
 MEDIA_ID_RE = re.compile(r"^[0-9a-f-]{36}$", re.I)
 GENERATION_RE = re.compile(r"^\d+$")
 ALLOWED_DOWNLOAD_HOSTS = {"storage.googleapis.com"}
@@ -138,6 +146,71 @@ def signature_database_version():
     return ','.join(versions)
 
 
+
+def make_safe_webp_preview(source_path):
+    """Decode a bounded static raster and re-encode metadata-free WebP."""
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(source_path) as probe:
+                if probe.format not in {"JPEG", "PNG", "WEBP"} or getattr(probe, "n_frames", 1) != 1:
+                    return None
+                width, height = probe.size
+                if width <= 0 or height <= 0 or width > 10000 or height > 10000 or width * height > MAX_IMAGE_PIXELS:
+                    return None
+                probe.verify()
+            with Image.open(source_path) as source:
+                source.load()
+                normalized = ImageOps.exif_transpose(source)
+                has_alpha = "A" in normalized.getbands() or (
+                    normalized.mode == "P" and "transparency" in normalized.info
+                )
+                raster = normalized.convert("RGBA" if has_alpha else "RGB")
+                output = io.BytesIO()
+                raster.save(output, format="WEBP", quality=88, method=4, exact=True)
+                result = output.getvalue()
+                if not result or len(result) > MAX_SAFE_PREVIEW_BYTES:
+                    return None
+                return result
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError, Image.DecompressionBombWarning):
+        return None
+
+
+def upload_safe_preview(owner_uid, media_id, source_generation, source_sha256, image_bytes):
+    bucket_name = os.environ.get("MAWDA_MEDIA_BUCKET", "")
+    if not bucket_name:
+        raise RuntimeError("media bucket is not configured for safe derivative storage")
+    preview_path = f"processed/{owner_uid}/{media_id}/preview.webp"
+    blob = storage.Client().bucket(bucket_name).blob(preview_path)
+    metadata = {
+        "mediaId": media_id,
+        "sourceGeneration": source_generation,
+        "sourceSha256": source_sha256,
+        "scannerProvider": PROVIDER,
+        "processingProfile": "raster-webp-v1",
+    }
+    blob.metadata = metadata
+    blob.cache_control = "private,no-store,max-age=0"
+    try:
+        blob.upload_from_string(image_bytes, content_type="image/webp", if_generation_match=0)
+        blob.reload()
+    except PreconditionFailed:
+        # A retried job may already have written this exact deterministic derivative.
+        blob.reload()
+        if blob.metadata != metadata or blob.content_type != "image/webp":
+            raise RuntimeError("existing safe derivative does not match the retry identity")
+        existing = blob.download_as_bytes()
+        if hashlib.sha256(existing).hexdigest() != hashlib.sha256(image_bytes).hexdigest():
+            raise RuntimeError("existing safe derivative hash differs from retry output")
+    if not blob.generation:
+        raise RuntimeError("safe derivative generation was not returned by Storage")
+    return {
+        "safePreviewPath": preview_path,
+        "safePreviewGeneration": str(blob.generation),
+        "safePreviewSha256": hashlib.sha256(image_bytes).hexdigest(),
+        "safePreviewContentType": "image/webp",
+    }
+
 def signed_callback(payload, callback_url, secret):
     raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     signature = hmac.new(secret.encode("utf-8"), raw, hashlib.sha256).hexdigest()
@@ -183,6 +256,11 @@ def process_dispatch(payload):
             "engineVersion": version,
             "signatureDatabaseVersion": signature_database_version(),
         }
+        if verdict == "clean" and payload.get("contentType") in {"image/jpeg", "image/png", "image/webp"}:
+            preview_bytes = make_safe_webp_preview(path)
+            if preview_bytes:
+                owner_uid = payload["objectPath"].split("/")[1]
+                result.update(upload_safe_preview(owner_uid, media_id, generation, digest, preview_bytes))
         signed_callback(result, callback_url, secret)
         return {"accepted": True, "mediaId": media_id, "verdict": verdict}
     finally:
