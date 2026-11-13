@@ -1847,7 +1847,7 @@ export const sendDirectMessage = onCall(async (request) => {
       }
       const sender = senderSnapshot.data() ?? {};
       const recipient = recipientSnapshot.data() ?? {};
-      const ownerSession = hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, uid);
+      const ownerSession = hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, senderUid);
       const isBiometricallyVerified = hasActiveBiometricVerification(sender.biometricVerification);
       try {
         assertMessageLinksAllowed(
