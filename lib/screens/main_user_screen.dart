@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/push_notification_service.dart';
 import 'profile_screen.dart';
 import 'shop_screen.dart';
 import 'wallet_screen.dart';
@@ -21,11 +22,28 @@ class MainUserScreen extends StatefulWidget {
 
 class _MainUserScreenState extends State<MainUserScreen> {
   late Future<bool> _profileFuture;
+  final PushNotificationService _pushNotifications = PushNotificationService();
 
   @override
   void initState() {
     super.initState();
     _profileFuture = _hasCompletedProfile();
+    _initializePushNotifications();
+  }
+
+  Future<void> _initializePushNotifications() async {
+    await _pushNotifications.initialize();
+  }
+
+  Future<void> _signOut() async {
+    await _pushNotifications.unregister();
+    await AuthService().signOut();
+  }
+
+  @override
+  void dispose() {
+    _pushNotifications.dispose();
+    super.dispose();
   }
 
   Future<bool> _hasCompletedProfile() async {
@@ -52,7 +70,7 @@ class _MainUserScreenState extends State<MainUserScreen> {
           ),
           IconButton(
             tooltip: 'تسجيل الخروج',
-            onPressed: () => AuthService().signOut(),
+            onPressed: _signOut,
             icon: const Icon(Icons.logout),
           ),
         ],
