@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:cloud_functions/cloud_functions.dart';
@@ -77,7 +78,32 @@ class MemberMediaUploadService {
     }
 
     await _functions.httpsCallable('finalizeMediaUpload').call({'mediaId': mediaId});
+    await waitForSafeApproval(mediaId);
     return mediaId;
+  }
+
+  Future<void> waitForSafeApproval(
+    String mediaId, {
+    Duration timeout = const Duration(seconds: 90),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      final response = await _functions
+          .httpsCallable('getMyMediaUploadStatus')
+          .call({'mediaId': mediaId});
+      final status = Map<String, dynamic>.from(response.data as Map);
+      if (status['safePreviewReady'] == true) return;
+      if (status['status'] == 'rejected') {
+        throw StateError('رفض نظام الفحص الصورة: ${status['rejectionCode'] ?? 'MEDIA_REJECTED'}');
+      }
+      if (status['status'] == 'self_destructed' ||
+          status['status'] == 'expired' ||
+          status['status'] == 'manually_deleted') {
+        throw StateError('انتهت صلاحية الصورة قبل اكتمال الفحص.');
+      }
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
+    throw TimeoutException('لم يكتمل فحص الصورة خلال المهلة المحددة؛ بقيت الصورة غير متاحة.', timeout);
   }
 
   Future<void> selectProfileImage({
