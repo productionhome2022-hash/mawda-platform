@@ -56,8 +56,8 @@ export function validateScannerVerdict(
       !Number.isSafeInteger(v.scannedAtMs) ||
       Math.abs(nowMs - Number(v.scannedAtMs)) > 10 * 60 * 1000 ||
       v.scanEngine !== "ClamAV" ||
-      typeof v.engineVersion !== "string" || !/^\\d+\\.\\d+\\.\\d+$/.test(v.engineVersion) ||
-      typeof v.signatureDatabaseVersion !== "string" || !/^\\d{1,8}$/.test(v.signatureDatabaseVersion) ||
+      typeof v.engineVersion !== "string" || !/^\d+\.\d+\.\d+$/.test(v.engineVersion) ||
+      typeof v.signatureDatabaseVersion !== "string" || !/^\d{1,8}$/.test(v.signatureDatabaseVersion) ||
       !Number.isSafeInteger(v.signatureDatabaseAgeMs) ||
       Number(v.signatureDatabaseAgeMs) < 0 ||
       Number(v.signatureDatabaseAgeMs) > 36 * 60 * 60 * 1000 ||
