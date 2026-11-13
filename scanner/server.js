@@ -9,6 +9,7 @@ const { Transform } = require("node:stream");
 const { promisify } = require("node:util");
 const { execFile } = require("node:child_process");
 const sharp = require("sharp");
+const { processSafeDerivative } = require("./processors");
 const { Storage } = require("@google-cloud/storage");
 const { equalSecret, validateScanRequest, isSafeDerivativeMetadata, sanitizeScannerError, isSignatureDatabaseFresh } = require("./security");
 
@@ -119,7 +120,7 @@ async function scanWithClamAv(filePath) {
 }
 
 async function createSafeImageDerivative(sourcePath, request, sourceSha256) {
-  if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(request.contentType)) return null;
+  if (!["image/jpeg", "image/png", "image/webp"].includes(request.contentType)) return null;
   const isGif = request.contentType === "image/gif";
   const inputOptions = { failOn: "error", limitInputPixels: 40_000_000, animated: isGif };
   const sourceMetadata = await sharp(sourcePath, inputOptions).metadata();
@@ -264,7 +265,15 @@ async function handleScan(request, response) {
     if (!scannerIdentity) throw new Error("CLAMAV_VERSION_UNAVAILABLE");
     const verdict = await scanWithClamAv(sourcePath);
     let derivative = null;
-    if (verdict === "clean") derivative = await createSafeImageDerivative(sourcePath, scanRequest, sourceSha256);
+    if (verdict === "clean") {
+      derivative = await createSafeImageDerivative(sourcePath, scanRequest, sourceSha256);
+      if (!derivative) {
+        derivative = await processSafeDerivative({
+          sourcePath, tempDir, request: scanRequest, sourceSha256,
+          storage, bucketName: BUCKET_NAME, provider: PROVIDER,
+        });
+      }
+    }
 
     await sendVerdict({
       mediaId: scanRequest.mediaId,
@@ -283,6 +292,7 @@ async function handleScan(request, response) {
       provider: PROVIDER,
       verdict,
       derivativeCreated: Boolean(derivative),
+      derivativeType: derivative ? Object.keys(derivative).find((key) => key.startsWith("safe") && key.endsWith("Path")) || "unknown" : null,
       durationMs: Date.now() - started,
     }));
     json(response, 202, { accepted: true, mediaId: scanRequest.mediaId, verdict });
