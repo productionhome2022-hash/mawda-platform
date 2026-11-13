@@ -908,6 +908,67 @@ export const setMemberProfileMedia = onCall(async (request) => {
 });
 
 
+/** Reverts one selected custom profile image to the built-in Mawda default. */
+export const resetMemberProfileMedia = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const slot = request.data?.slot;
+  if (slot !== "avatar" && slot !== "cover") {
+    throw new HttpsError("invalid-argument", "خانة الصورة غير صالحة.");
+  }
+  const userRef = db.collection("users").doc(uid);
+  let previousMediaId: string | null = null;
+  await db.runTransaction(async (transaction) => {
+    const userSnapshot = await transaction.get(userRef);
+    if (!userSnapshot.exists) throw new HttpsError("not-found", "ملف العضو غير موجود.");
+    const user = userSnapshot.data() ?? {};
+    const mediaField = slot === "avatar" ? "avatarMediaId" : "coverMediaId";
+    const defaultField = slot === "avatar" ? "avatarUsesDefault" : "coverUsesDefault";
+    previousMediaId = typeof user[mediaField] === "string" ? user[mediaField] as string : null;
+    if (previousMediaId) {
+      const assetRef = db.collection("mediaAssets").doc(previousMediaId);
+      const assetSnapshot = await transaction.get(assetRef);
+      if (assetSnapshot.exists) {
+        const asset = assetSnapshot.data() ?? {};
+        if (asset.ownerUid === uid && asset.mediaPurpose === "avatar_cover" &&
+            asset.profileMediaSlot === slot &&
+            !["self_destructed", "manually_deleted", "manual_deletion_pending"].includes(String(asset.status))) {
+          const currentExpiry = asset.retentionExpiresAt instanceof Timestamp
+            ? asset.retentionExpiresAt.toMillis()
+            : Date.now();
+          const supersededExpiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
+          transaction.update(assetRef, {
+            supersededAt: FieldValue.serverTimestamp(),
+            retentionExpiresAt: Timestamp.fromMillis(Math.min(currentExpiry, supersededExpiry)),
+            retentionPolicyStatus: asset.legalHoldStatus === "active"
+              ? "legal_hold" : "thirty_day_superseded_avatar_cover",
+            ...(asset.legalHoldStatus === "active"
+              ? { resumeRetentionPolicyStatus: "thirty_day_superseded_avatar_cover" }
+              : {}),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+      }
+    }
+    transaction.set(userRef, {
+      [mediaField]: FieldValue.delete(),
+      [defaultField]: true,
+      [`${slot}DefaultAppliedAt`]: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+  await db.collection("mediaAccessAudit").add({
+    actorUid: uid,
+    mediaId: previousMediaId,
+    action: "member_profile_media_reset_to_default",
+    slot,
+    outcome: "success",
+    createdAt: FieldValue.serverTimestamp(),
+    expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
+  });
+  return { slot, usesDefault: true, previousMediaId };
+});
+
+
 export const setMemberProfileVisibility = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const visibility = request.data?.visibility;
