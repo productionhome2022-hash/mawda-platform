@@ -5,7 +5,12 @@ const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
 
 const projectId = process.env.GCLOUD_PROJECT || "demo-mawda-retention";
-const app = initializeApp({ projectId });
+const rawStorageEmulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? "127.0.0.1:9199";
+process.env.STORAGE_EMULATOR_HOST = `http://${rawStorageEmulatorHost.replace("https://", "").replace("http://", "")}`;
+const app = initializeApp({
+  projectId,
+  storageBucket: `${projectId}.appspot.com`,
+});
 const db = getFirestore();
 const { runChatTextRetentionSweep, runChatMediaRetentionSweep } = require("../../lib/retention");
 
