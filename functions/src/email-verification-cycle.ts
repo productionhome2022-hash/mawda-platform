@@ -67,5 +67,5 @@ export function canRewardEmailVerificationCycle(input: {
 
 export function emailVerificationRewardLedgerId(cycleId: string): string {
   if (!/^[a-f0-9]{64}$/.test(cycleId)) throw new Error("INVALID_EMAIL_CYCLE_ID");
-  return \`email_verification_\${cycleId}\`;
+  return "email_verification_" + cycleId;
 }
