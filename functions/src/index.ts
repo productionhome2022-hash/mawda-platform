@@ -2102,6 +2102,82 @@ export const releaseMediaLegalHold = onCall(async (request) => {
 });
 
 
+/** Lists the owner's active, narrowly scoped media holds in review-date order. */
+export const listActiveMediaLegalHolds = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "media_legal_hold_list");
+  const snapshot = await db.collection("mediaLegalHolds")
+    .where("status", "==", "active")
+    .orderBy("reviewAt", "asc")
+    .limit(100)
+    .get();
+  const auditLogId = await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "media_legal_hold_listed",
+    outcome: "success",
+    returnedCount: snapshot.size,
+  });
+  return {
+    holds: snapshot.docs.map((doc) => {
+      const hold = doc.data();
+      return {
+        holdId: doc.id,
+        mediaId: hold.mediaId,
+        authority: hold.authority,
+        legalBasis: hold.legalBasis,
+        reference: hold.reference,
+        startsAtMs: hold.startsAt instanceof Timestamp ? hold.startsAt.toMillis() : null,
+        reviewAtMs: hold.reviewAt instanceof Timestamp ? hold.reviewAt.toMillis() : null,
+        endsAtMs: hold.endsAt instanceof Timestamp ? hold.endsAt.toMillis() : null,
+        authorizedBy: hold.authorizedBy,
+      };
+    }),
+    auditLogId,
+  };
+});
+
+
+/** Records a periodic review without silently extending the legal hold end date. */
+export const reviewMediaLegalHold = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "media_legal_hold_review");
+  const holdId = typeof request.data?.holdId === "string" ? request.data.holdId.trim() : "";
+  const reviewNote = typeof request.data?.reviewNote === "string" ? request.data.reviewNote.trim() : "";
+  const nextReviewAtMs = request.data?.nextReviewAtMs;
+  if (!/^[A-Za-z0-9]{20}$/.test(holdId) ||
+      reviewNote.length < 10 || reviewNote.length > 500 ||
+      !Number.isSafeInteger(nextReviewAtMs)) {
+    throw new HttpsError("invalid-argument", "بيانات مراجعة الحجز القانوني غير صالحة.");
+  }
+  const holdRef = db.collection("mediaLegalHolds").doc(holdId);
+  const holdSnapshot = await holdRef.get();
+  if (!holdSnapshot.exists || holdSnapshot.data()?.status !== "active") {
+    throw new HttpsError("not-found", "الحجز القانوني النشط غير موجود.");
+  }
+  const endsAt = holdSnapshot.data()?.endsAt;
+  if (!(endsAt instanceof Timestamp) ||
+      (nextReviewAtMs as number) <= Date.now() ||
+      (nextReviewAtMs as number) >= endsAt.toMillis()) {
+    throw new HttpsError("invalid-argument", "يجب أن يكون موعد المراجعة القادم قبل تاريخ انتهاء الحجز.");
+  }
+  await holdRef.update({
+    reviewAt: Timestamp.fromMillis(nextReviewAtMs as number),
+    lastReviewedAt: FieldValue.serverTimestamp(),
+    lastReviewedBy: actorUid,
+    reviewNote,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  const auditLogId = await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "media_legal_hold_reviewed",
+    holdId,
+    nextReviewAtMs,
+    reviewNote,
+    originalEndsAtMs: endsAt.toMillis(),
+    outcome: "success",
+  });
+  return { holdId, nextReviewAtMs, endsAtMs: endsAt.toMillis(), auditLogId };
+});
+
+
 /** Automatically releases a media hold at its recorded end time. */
 export const expireMediaLegalHolds = onSchedule(
   { schedule: "every 60 minutes", timeZone: "UTC", timeoutSeconds: 300 },
