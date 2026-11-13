@@ -128,6 +128,9 @@ export async function deleteMediaAssetForMessage(
           tombstone[key] = FieldValue.delete();
         }
       }
+      // Retain only exact object-name tombstones so an unexpired signed PUT
+      // replay cannot recreate content after manual deletion.
+      tombstone.deletedObjectPaths = [...paths];
       tombstone.status = "manually_deleted";
       tombstone.retentionPolicyStatus = "manual_delete_for_everyone_completed";
       tombstone.manualDeletedAt = FieldValue.serverTimestamp();
