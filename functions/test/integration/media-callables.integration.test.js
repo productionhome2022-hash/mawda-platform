@@ -653,12 +653,11 @@ test("story publication rejects media that remains quarantined pending malware s
 async function createReadyChatImage({ uid, purpose = "chat", mediaId = randomUUID() }) {
   const objectPath = `processed/${uid}/${mediaId}/preview.webp`;
   const bytes = Buffer.from("safe-webp-test-fixture");
-  const [metadata] = await getStorage().bucket().file(objectPath).save(bytes, {
+  await getStorage().bucket().file(objectPath).save(bytes, {
     resumable: false,
     metadata: { contentType: "image/webp", metadata: { mediaId, processing: "sharp-decode-reencode-v1" } },
   });
-  const file = getStorage().bucket().file(objectPath);
-  const [stored] = await file.getMetadata();
+  const [stored] = await getStorage().bucket().file(objectPath).getMetadata();
   await db.collection("mediaAssets").doc(mediaId).set({
     mediaId, ownerUid: uid, uploaderRole: "member", uploaderType: "member",
     mediaPurpose: purpose, mediaCategory: "image", detectedContentType: "image/png",
