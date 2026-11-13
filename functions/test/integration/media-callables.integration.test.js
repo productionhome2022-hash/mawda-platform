@@ -36,7 +36,8 @@ fs.writeFileSync(testCredentialsPath, JSON.stringify({
   client_id: "123456789012345678901", token_uri: "https://oauth2.googleapis.com/token",
 }), { mode: 0o600 });
 process.env.GOOGLE_APPLICATION_CREDENTIALS = testCredentialsPath;
-process.env.STORAGE_EMULATOR_HOST = process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? "127.0.0.1:9199";
+const storageEmulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? "127.0.0.1:9199";
+process.env.STORAGE_EMULATOR_HOST = storageEmulatorHost.startsWith("http") ? storageEmulatorHost : `http://${storageEmulatorHost}`;
 after(() => { try { fs.unlinkSync(testCredentialsPath); } catch {} });
 
 if (getApps().length === 0) {
