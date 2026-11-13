@@ -16,7 +16,7 @@ from pathlib import Path
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 MAX_CONTROL_BODY = 64 * 1024
 MEDIA_ID_RE = re.compile(r"^[0-9a-f-]{36}$", re.I)
-GENERATION_RE = re.compile(r"^\\d+$")
+GENERATION_RE = re.compile(r"^\d+$")
 ALLOWED_DOWNLOAD_HOSTS = {"storage.googleapis.com"}
 PROVIDER = os.environ.get("MAWDA_SCANNER_PROVIDER", "clamav-mawadda-gateway")
 
@@ -87,7 +87,7 @@ def download_to_temp(url):
 def clamd_ready():
     try:
         with socket.create_connection(("127.0.0.1", 3310), timeout=2) as connection:
-            connection.sendall(b"PING\\n")
+            connection.sendall(b"PING\n")
             return connection.recv(16).strip() == b"PONG"
     except OSError:
         return False
@@ -209,7 +209,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def log_message(self, fmt, *args):
         # Default access logs can contain query strings or secrets; keep logs metadata-only.
-        print(json.dumps({"event": "http_access", "status": args[1] if len(args) > 1 else "unknown"}))
+        print(json.dumps({"event": "http_access", "status": args[0] if args else "unknown"}))
 
 
 def main():
