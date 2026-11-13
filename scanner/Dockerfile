@@ -5,7 +5,7 @@ ENV PORT=8080
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends clamav clamav-freshclam ca-certificates \
+    && apt-get install -y --no-install-recommends clamav clamav-freshclam ca-certificates ffmpeg poppler-utils python3 python3-img2pdf \
     && sed -i 's/^DatabaseOwner clamav/DatabaseOwner scanner/' /etc/clamav/freshclam.conf \
     && sed -i '/^[[:space:]]*NotifyClamd[[:space:]]/d' /etc/clamav/freshclam.conf \
     && rm -rf /var/lib/apt/lists/*
