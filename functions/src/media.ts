@@ -147,6 +147,18 @@ export const receiveMediaScanVerdict = onRequest(
           ifGenerationMatch: Number(verdict.objectGeneration),
         });
       }
+      const replayJobRef = db.collection("mediaScanJobs").doc(verdict.mediaId);
+      await db.runTransaction(async (transaction) => {
+        const replayJob = await transaction.get(replayJobRef);
+        if (replayJob.exists && !["completed", "rejected"].includes(String(replayJob.data()?.state))) {
+          transaction.update(replayJobRef, {
+            state: verdict.verdict === "malicious" ? "rejected" : "completed",
+            verdict: verdict.verdict,
+            completedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+      });
       response.status(200).json({ mediaId: verdict.mediaId, status: asset.status, idempotentReplay: true });
       return;
     }
@@ -220,12 +232,18 @@ export const receiveMediaScanVerdict = onRequest(
     safePreview ? "security_approved" : "scanner_clean_pending_processing";
   await db.runTransaction(async (transaction) => {
     const latest = await transaction.get(assetRef);
+    const scanJobRef = db.collection("mediaScanJobs").doc(verdict.mediaId);
+    const scanJob = await transaction.get(scanJobRef);
     if (!latest.exists || latest.data()?.status !== "pending_security_scan" ||
         String(latest.data()?.storageGeneration) !== verdict.objectGeneration) {
       throw new HttpsError("failed-precondition", "Asset state changed during scanner callback.");
     }
     transaction.update(assetRef, {
       status: nextStatus,
+      scannerEngine: verdict.scanEngine,
+      scannerEngineVersion: verdict.engineVersion,
+      scannerSignatureDatabaseVersion: verdict.signatureDatabaseVersion,
+      scannerSignatureDatabaseAgeMs: verdict.signatureDatabaseAgeMs,
       scannerProvider: verdict.provider,
       scannerVerdict: verdict.verdict,
       scannerSha256: actualHash,
@@ -243,6 +261,18 @@ export const receiveMediaScanVerdict = onRequest(
       ...(verdict.verdict === "malicious" ? { rejectionCode: "MALWARE_DETECTED" } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     });
+    if (scanJob.exists) {
+      transaction.update(scanJobRef, {
+        state: verdict.verdict === "malicious" ? "rejected" : "completed",
+        verdict: verdict.verdict,
+        scannerEngine: verdict.scanEngine,
+        engineVersion: verdict.engineVersion,
+        signatureDatabaseVersion: verdict.signatureDatabaseVersion,
+        signatureDatabaseAgeMs: verdict.signatureDatabaseAgeMs,
+        completedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
     const auditRef = db.collection("mediaAccessAudit").doc();
     transaction.create(auditRef, {
       actorUid: "trusted-scanner",
@@ -250,6 +280,10 @@ export const receiveMediaScanVerdict = onRequest(
       action: "media_security_scan_verdict",
       outcome: verdict.verdict,
       provider: verdict.provider,
+      scanEngine: verdict.scanEngine,
+      engineVersion: verdict.engineVersion,
+      signatureDatabaseVersion: verdict.signatureDatabaseVersion,
+      signatureDatabaseAgeMs: verdict.signatureDatabaseAgeMs,
       objectGeneration: verdict.objectGeneration,
       sha256: actualHash,
       createdAt: FieldValue.serverTimestamp(),
@@ -341,6 +375,21 @@ export const dispatchMediaSecurityScan = onDocumentCreated(
     const detectedContentType = String(assetSnapshot.data()?.detectedContentType ?? "");
     if (scanner.pathname !== "/scan") throw new Error("Scanner endpoint path must be /scan.");
     const identityToken = await cloudRunIdentityToken(scanner.origin);
+    const jobRef = event.data.ref;
+    const mayDispatch = await mediaDb().runTransaction(async (transaction) => {
+      const currentJob = await transaction.get(jobRef);
+      if (!currentJob.exists) return false;
+      const currentState = currentJob.data()?.state;
+      if (["completed", "rejected", "cancelled"].includes(String(currentState))) return false;
+      transaction.update(jobRef, {
+        state: "dispatching",
+        attempts: FieldValue.increment(1),
+        lastAttemptAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return true;
+    });
+    if (!mayDispatch) return;
     const dispatchResponse = await fetch(scanner.toString(), {
       method: "POST",
       headers: {
@@ -361,9 +410,15 @@ export const dispatchMediaSecurityScan = onDocumentCreated(
     if (!dispatchResponse.ok) {
       throw new Error(`Trusted scanner gateway rejected dispatch: HTTP ${dispatchResponse.status}.`);
     }
-    await event.data?.ref.update({
-      state: "dispatched", attempts: FieldValue.increment(1),
-      dispatchedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+    await mediaDb().runTransaction(async (transaction) => {
+      const currentJob = await transaction.get(jobRef);
+      if (currentJob.exists && currentJob.data()?.state === "dispatching") {
+        transaction.update(jobRef, {
+          state: "dispatched",
+          dispatchedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
     });
   },
 );
@@ -630,7 +685,12 @@ export const listOwnerMediaAssets = onCall(async (request) => {
         sizeBytes: data.sizeBytes ?? data.declaredSizeBytes,
         mediaCategory: data.mediaCategory,
         mediaPurpose: data.mediaPurpose ?? null,
+        retentionPolicyStatus: data.retentionPolicyStatus ?? "owner_approval_required",
         retentionExpiresAt: data.retentionExpiresAt?.toMillis?.() ?? null,
+        scannerEngine: data.scannerEngine ?? null,
+        scannerEngineVersion: data.scannerEngineVersion ?? null,
+        scannerSignatureDatabaseVersion: data.scannerSignatureDatabaseVersion ?? null,
+        scannerSignatureDatabaseAgeMs: data.scannerSignatureDatabaseAgeMs ?? null,
         status: data.status,
         canPreview: data.status === "security_approved" &&
           typeof data.safePreviewPath === "string" &&
@@ -689,7 +749,16 @@ export const getOwnerMediaSafePreview = onCall(async (request) => {
     });
     throw new HttpsError("failed-precondition", "تعذر التحقق من نسخة المعاينة الآمنة.");
   }
-  const [bytes] = await previewFile.download({ validation: "crc32c" });
+  const expectedPreviewGeneration = Number(asset.safePreviewGeneration);
+  if (!Number.isSafeInteger(expectedPreviewGeneration) || expectedPreviewGeneration <= 0 ||
+      customMetadata?.sourceSha256 !== asset.scannerSha256 ||
+      customMetadata?.processing !== "sharp-decode-reencode-v1") {
+    throw new HttpsError("failed-precondition", "بيانات مصدر المعاينة الآمنة غير متطابقة.");
+  }
+  const [bytes] = await previewFile.download({
+    validation: "crc32c",
+    ifGenerationMatch: expectedPreviewGeneration,
+  });
   const digest = createHash("sha256").update(bytes).digest("hex");
   if (digest !== asset.safePreviewSha256 || bytes.length > 2 * 1024 * 1024) {
     await auditMediaAccess({
