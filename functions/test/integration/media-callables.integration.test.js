@@ -556,11 +556,11 @@ test("stories publish only after malware approval and active public stories appe
     }),
   ]);
   try {
-    const created = await createMemberStory.run(memberRequest(uid, { mediaId }));
+    const created = await createMemberStory.run({ data: { mediaId }, auth: { uid, token: {} } });
     assert.equal(created.mediaId, mediaId);
     assert.equal(created.expiresAt, expiresAt.toMillis());
     assert.equal((await assetRef.get()).data().storyDocumentId, created.storyId);
-    const feed = await listMemberStories.run(memberRequest(uid, {}));
+    const feed = await listMemberStories.run({ data: {}, auth: { uid, token: {} } });
     assert.ok(feed.stories.some((story) => story.storyId === created.storyId));
     await db.collection("stories").doc(created.storyId).update({
       expiresAt: Timestamp.fromMillis(Date.now() - 1000),
