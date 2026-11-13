@@ -9,9 +9,9 @@ const memberRequest = (uid, data) => ({
   auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
 });
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-const ownerRequest = () => ({
-  data: {},
-  auth: { uid: "store-catalog-owner", token: {
+const ownerRequest = (uid = "store-catalog-owner", data = {}) => ({
+  data,
+  auth: { uid, token: {
     platformOwner: true, auth_time: Math.floor(Date.now() / 1000),
     firebase: { sign_in_second_factor: "phone" },
   } },
