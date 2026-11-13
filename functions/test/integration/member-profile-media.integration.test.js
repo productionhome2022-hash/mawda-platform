@@ -122,3 +122,55 @@ test("expired current avatar falls back to Mawda default before exact media dele
 test.after(async () => {
   await Promise.all(getApps().map((app) => deleteApp(app)));
 });
+
+
+test("avatar expiry applies Mawda default during a legal hold but delays object erasure until release", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+  const suffix = Date.now().toString();
+  const uid = `held-avatar-member-${suffix}`;
+  const mediaId = `44444444-dddd-eeee-ffff-${suffix.padStart(12, "0").slice(-12)}`;
+  const objectPath = `quarantine/${uid}/${mediaId}`;
+  const userRef = db.collection("users").doc(uid);
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const original = bucket.file(objectPath);
+  const expired = Timestamp.fromMillis(Date.now() - 1000);
+  await Promise.all([
+    original.save(Buffer.from("held expired avatar"), { resumable: false }),
+    userRef.set({ profileCompleted: true, avatarMediaId: mediaId, avatarUsesDefault: false }),
+    assetRef.set({
+      mediaId, ownerUid: uid, uploaderType: "member", mediaPurpose: "avatar_cover",
+      profileMediaSlot: "avatar", objectPath,
+      status: "security_approved", legalHoldStatus: "active",
+      activeLegalHoldId: "test-avatar-hold",
+      retentionPolicyStatus: "legal_hold", resumeRetentionPolicyStatus: "thirty_day_avatar_cover",
+      retentionExpiresAt: expired, createdAt: expired,
+    }),
+  ]);
+
+  try {
+    await runChatMediaRetentionSweep();
+    const user = (await userRef.get()).data();
+    assert.equal(user.avatarMediaId, undefined);
+    assert.equal(user.avatarUsesDefault, true);
+    assert.equal((await assetRef.get()).data().status, "security_approved");
+    assert.equal((await original.exists())[0], true);
+
+    const { FieldValue } = require("firebase-admin/firestore");
+    await assetRef.update({
+      legalHoldStatus: "released",
+      activeLegalHoldId: FieldValue.delete(),
+      retentionPolicyStatus: "thirty_day_avatar_cover",
+      resumeRetentionPolicyStatus: FieldValue.delete(),
+    });
+    await runChatMediaRetentionSweep();
+    assert.equal((await assetRef.get()).data().status, "self_destructed");
+    assert.equal((await original.exists())[0], false);
+  } finally {
+    await Promise.all([
+      userRef.delete().catch(() => undefined),
+      assetRef.delete().catch(() => undefined),
+      original.delete({ ignoreNotFound: true }).catch(() => undefined),
+    ]);
+  }
+});
