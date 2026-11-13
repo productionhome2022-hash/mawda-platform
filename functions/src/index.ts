@@ -2001,7 +2001,7 @@ export const exportOwnerReviewAuditPage = onCall(async (request) => {
     doc.data().auditChainId === "owner-review-v1" &&
     doc.data().auditSequence <= headSequence
   );
-  const matching = scannedDocs.filter((doc) => {
+  const matchingDocs = scannedDocs.filter((doc) => {
     const data = doc.data();
     const event = data.auditEvent && typeof data.auditEvent === "object"
       ? data.auditEvent as Record<string, unknown>
@@ -2014,13 +2014,17 @@ export const exportOwnerReviewAuditPage = onCall(async (request) => {
     if (filters.actorUid !== null && event.actorUid !== filters.actorUid) return false;
     if (filters.action !== null && event.action !== filters.action) return false;
     return true;
-  }).slice(0, filters.pageSize);
-
+  });
+  const matching = matchingDocs.slice(0, filters.pageSize);
   const lastScannedSequence = scannedDocs.length > 0
     ? scannedDocs[scannedDocs.length - 1].data().auditSequence as number
     : filters.afterSequence;
-  const hasMore = scanned.docs.length === scanLimit &&
-    lastScannedSequence < headSequence;
+  const pageFilledBeforeScanEnd = matchingDocs.length > filters.pageSize;
+  const hasMore = pageFilledBeforeScanEnd ||
+    (scanned.docs.length === scanLimit && lastScannedSequence < headSequence);
+  const nextAfterSequence = pageFilledBeforeScanEnd
+    ? matching[matching.length - 1].data().auditSequence as number
+    : lastScannedSequence;
   const exportAuditLogId = await appendOwnerReviewAuditEvent({
     actorUid,
     action: "owner_review_audit_export",
@@ -2044,7 +2048,7 @@ export const exportOwnerReviewAuditPage = onCall(async (request) => {
       };
     }),
     afterSequence: filters.afterSequence,
-    nextAfterSequence: hasMore ? lastScannedSequence : null,
+    nextAfterSequence: hasMore ? nextAfterSequence : null,
     hasMore,
     verifiedHeadSequence: headSequence,
     verifiedHeadHash: head.eventHash ?? "GENESIS",
