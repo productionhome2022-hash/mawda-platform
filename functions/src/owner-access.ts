@@ -7,8 +7,12 @@ const OWNER_SESSION_MAX_AGE_SECONDS = 15 * 60;
 export function hasPlatformOwnerSession(
   token: Record<string, unknown>,
   nowSeconds = Math.floor(Date.now() / 1000),
+  expectedOwnerUid?: string,
 ): boolean {
-  if (token.platformOwner !== true) return false;
+  if (token.platformOwner !== true ||
+      typeof token.platformOwnerUid !== "string" ||
+      token.platformOwnerUid.trim().length === 0 ||
+      (expectedOwnerUid !== undefined && token.platformOwnerUid !== expectedOwnerUid)) return false;
   const firebase = token.firebase;
   if (!firebase || typeof firebase !== "object" || Array.isArray(firebase)) {
     return false;
