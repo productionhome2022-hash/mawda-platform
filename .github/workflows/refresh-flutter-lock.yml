@@ -34,6 +34,11 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add pubspec.lock
             git commit -m "chore(flutter): refresh pubspec.lock"
+            # The development branch may receive concurrent source commits while
+            # Flutter resolves dependencies. Rebase the lock-only commit before
+            # pushing so the generated lockfile is not lost to a non-fast-forward.
+            git fetch origin codex/mawda-full-platform-implementation
+            git rebase origin/codex/mawda-full-platform-implementation
             git push origin HEAD:codex/mawda-full-platform-implementation
           fi
       - name: Validate Flutter sources
