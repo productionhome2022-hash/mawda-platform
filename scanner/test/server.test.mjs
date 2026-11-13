@@ -11,12 +11,20 @@ import {
 } from "../server.mjs";
 
 async function listen(server) {
+  server.testSockets = new Set();
+  server.on("connection", (socket) => {
+    server.testSockets.add(socket);
+    socket.on("close", () => server.testSockets.delete(socket));
+  });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   return `http://127.0.0.1:${server.address().port}`;
 }
 
 async function close(server) {
-  if (server.listening) await new Promise((resolve) => server.close(resolve));
+  if (server.listening) {
+    for (const socket of server.testSockets ?? []) socket.destroy();
+    await new Promise((resolve) => server.close(resolve));
+  }
 }
 
 function makeConfig(callbackUrl, overrides = {}) {
@@ -179,7 +187,7 @@ test("scanner stays fail-closed when the callback endpoint is unavailable", asyn
 });
 
 
-test("ClamAV INSTREAM protocol sends bounded length-prefixed chunks and accepts only daemon verdict", async () => {
+test("ClamAV INSTREAM protocol sends bounded length-prefixed chunks and accepts only daemon verdict", { timeout: 10000 }, async () => {
   const daemon = createServer((socket) => {
     let buffer = Buffer.alloc(0);
     let mode = "command";
