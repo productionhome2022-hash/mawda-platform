@@ -146,7 +146,7 @@ export const receiveMediaScanVerdict = onRequest(
     response.status(409).send("Object hash mismatch");
     return;
   }
-  const nextStatus = verdict.verdict === "clean" ? "security_approved" :
+  const nextStatus = verdict.verdict === "clean" ? "scanner_clean_pending_processing" :
     verdict.verdict === "malicious" ? "rejected" : "pending_security_scan";
   await db.runTransaction(async (transaction) => {
     const latest = await transaction.get(assetRef);
@@ -462,7 +462,7 @@ export const listOwnerMediaAssets = onCall(async (request) => {
     });
     throw new HttpsError("invalid-argument", "نوع صاحب الملف المطلوب غير صالح.");
   }
-  const allowedStatuses = ["upload_authorized", "pending_security_scan", "rejected", "security_approved"];
+  const allowedStatuses = ["upload_authorized", "pending_security_scan", "scanner_clean_pending_processing", "rejected", "security_approved"];
   if (!allowedStatuses.includes(status)) {
     await auditMediaAccess({
       actorUid,
@@ -560,7 +560,7 @@ export const ownerMediaPreview = onRequest(async (request, response) => {
   }
   const asset = snapshot.data()!;
   const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-  if (!["pending_security_scan", "security_approved"].includes(String(asset.status)) ||
+  if (asset.status !== "security_approved" ||
       !allowedTypes.includes(String(asset.detectedContentType))) {
     await auditMediaAccess({ actorUid, mediaId, action: "owner_media_preview", outcome: "denied", failureCode: "preview-not-allowed" });
     response.status(415).send("Media type is not eligible for inline preview"); return;
@@ -751,7 +751,7 @@ export const ownerMediaInspectionStream = onRequest(
         return;
       }
       const asset = snapshot.data()!;
-      if (!["pending_security_scan", "security_approved"].includes(String(asset.status))) {
+      if (!["pending_security_scan", "scanner_clean_pending_processing", "security_approved"].includes(String(asset.status))) {
         response.status(409).set("Cache-Control", "no-store").end();
         return;
       }
