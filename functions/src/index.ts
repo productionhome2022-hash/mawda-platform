@@ -4,6 +4,7 @@ import { validateMemberProfile } from "./member-profile";
 import { FieldPath, FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { defineString } from "firebase-functions/params";
 import { validateMediaLegalHoldInput } from "./media-legal-hold";
 import { logger } from "firebase-functions";
 import { calculateTransferBreakdown } from "./coin-math";
@@ -62,6 +63,7 @@ initializeApp();
 const db = getFirestore();
 const TRANSFER_SETTINGS = db.doc("platformSettings/coinTransfers");
 const OWNER_REVIEW_AUDIT_HEAD = db.collection("adminAuditChainHeads").doc("ownerReview");
+const legalHoldExpiryEnabled = defineString("MAWDA_LEGAL_HOLD_EXPIRY_ENABLED", { default: "false" });
 
 /**
  * Append a hash-linked owner-review audit event. A Firestore transaction
@@ -2104,6 +2106,14 @@ export const releaseMediaLegalHold = onCall(async (request) => {
 export const expireMediaLegalHolds = onSchedule(
   { schedule: "every 60 minutes", timeZone: "UTC", timeoutSeconds: 300 },
   async () => {
+    const projectId = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? "";
+    const nonProduction = projectId !== "mawda-app-2026" &&
+      /(test|staging|dev|demo|nonprod|sandbox)/i.test(projectId) &&
+      !/prod(uction)?/i.test(projectId);
+    if (legalHoldExpiryEnabled.value() !== "true" || !nonProduction) {
+      logger.info("Media legal-hold expiry sweep skipped; explicit non-production enablement is required.");
+      return;
+    }
     const now = Timestamp.now();
     const due = await db.collection("mediaLegalHolds")
       .where("status", "==", "active")
