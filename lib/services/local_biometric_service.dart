@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 
@@ -23,10 +24,17 @@ abstract interface class LocalBiometricAdapter {
 }
 
 class LocalBiometricService {
-  LocalBiometricService({LocalBiometricAdapter? adapter})
-      : _adapter = adapter ?? _LocalAuthAdapter();
+  LocalBiometricService({
+    LocalBiometricAdapter? adapter,
+    bool? supportedPlatform,
+  })  : _adapter = adapter ?? _LocalAuthAdapter(),
+        _supportedPlatform = supportedPlatform ??
+            (!kIsWeb &&
+                (defaultTargetPlatform == TargetPlatform.android ||
+                    defaultTargetPlatform == TargetPlatform.iOS));
 
   final LocalBiometricAdapter _adapter;
+  final bool _supportedPlatform;
 
   /// Runs the native biometric prompt only. No biometric material or
   /// success assertion is uploaded, persisted, or treated as server proof.
@@ -35,7 +43,7 @@ class LocalBiometricService {
   /// cannot enumerate every biometric modality (for example, face unlock).
   /// Let the OS decide whether an enrolled biometric can authenticate.
   Future<LocalBiometricResult> authenticate() async {
-    if (kIsWeb) {
+    if (!_supportedPlatform) {
       return const LocalBiometricResult(LocalBiometricStatus.unavailable);
     }
 
