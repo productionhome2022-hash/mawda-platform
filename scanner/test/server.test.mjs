@@ -191,7 +191,7 @@ test("ClamAV INSTREAM protocol sends bounded length-prefixed chunks and accepts 
         const command = buffer.subarray(0, end).toString("utf8");
         buffer = buffer.subarray(end + 1);
         if (command === "zVERSION") {
-          socket.end(Buffer.from("ClamAV 1.4.2/28145/Fri Nov 13 2026\\0"));
+          socket.end(Buffer.from("ClamAV 1.4.2/28145/Fri Nov 13 2026\0"));
           return;
         }
         if (command !== "zINSTREAM") {
@@ -206,7 +206,7 @@ test("ClamAV INSTREAM protocol sends bounded length-prefixed chunks and accepts 
           if (buffer.length < 4 + length) return;
           buffer = buffer.subarray(4);
           if (length === 0) {
-            socket.end(Buffer.from("stream: OK\\0"));
+            socket.end(Buffer.from("stream: OK\0"));
             return;
           }
           buffer = buffer.subarray(length);
