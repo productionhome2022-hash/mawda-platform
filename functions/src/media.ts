@@ -282,6 +282,10 @@ export const dispatchMediaSecurityScan = onDocumentUpdated(
         after.status !== "pending_security_scan") return;
 
     const mediaId = event.params.mediaId;
+    // A previous delivery may have completed the callback even if the
+    // gateway response was lost. Never rescan an already-terminal asset.
+    const latestAsset = await mediaDb().collection("mediaAssets").doc(mediaId).get();
+    if (!latestAsset.exists || latestAsset.data()?.status !== "pending_security_scan") return;
     const ownerUid = String(after.ownerUid ?? "");
     const objectPath = String(after.objectPath ?? "");
     if (!ownerUid || objectPath !== `quarantine/${ownerUid}/${mediaId}`) {
