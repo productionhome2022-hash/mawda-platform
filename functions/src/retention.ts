@@ -64,7 +64,8 @@ async function deleteAllObjectGenerations(objectPath: string): Promise<number> {
   if (!objectPath || objectPath.startsWith("/") || objectPath.split("/").includes("..")) {
     throw new Error("UNSAFE_MEDIA_OBJECT_PATH");
   }
-  const bucket = getStorage().bucket();
+  const configuredBucket = configuredMediaBucketName();
+  const bucket = configuredBucket ? getStorage().bucket(configuredBucket) : getStorage().bucket();
   const [listed] = await bucket.getFiles({ prefix: objectPath, versions: true, autoPaginate: true });
   const exactVersions = listed.filter((file) => file.name === objectPath);
   let deleted = 0;
@@ -80,7 +81,7 @@ async function deleteAllObjectGenerations(objectPath: string): Promise<number> {
   return deleted;
 }
 
-const ACTIVE_CHAT_MEDIA_STATES = [
+const ACTIVE_MEDIA_STATES = [
   "upload_authorized", "pending_security_scan", "scanner_clean_pending_processing",
   "security_approved", "rejected", "expired_cleanup_in_progress", "expired",
 ];
@@ -89,12 +90,14 @@ const MEDIA_DERIVATIVE_RECHECK_MS = 5 * 60 * 1000;
 async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: number; failures: number }> {
   const db = getFirestore();
   const now = Timestamp.fromMillis(Date.now());
-  const cutoff = Timestamp.fromMillis(Date.now() - CHAT_MEDIA_RETENTION_MS);
+  const cutoff = Timestamp.fromMillis(Date.now() - lifetimeMs);
   let assets = 0;
   let objects = 0;
   let failures = 0;
 
-  for (const purpose of ["chat", "room"] as const) {
+  for (const purpose of ["chat", "room", "profile_album"] as const) {
+    const lifetimeMs = purpose === "profile_album" ? 7 * 24 * 60 * 60 * 1000 : CHAT_MEDIA_RETENTION_MS;
+    const retentionLabel = purpose === "profile_album" ? "seven_day_profile_album" : "four_hour_self_destruct";
     // Revisit content-free tombstones on a separate clock. This catches a
     // derivative written by a scanner that was already running at expiry,
     // without allowing tombstones to occupy the active-expiry query forever.
@@ -129,14 +132,14 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
       const [due, legacy] = await Promise.all([
         db.collection("mediaAssets")
           .where("mediaPurpose", "==", purpose)
-          .where("status", "in", ACTIVE_CHAT_MEDIA_STATES)
+          .where("status", "in", ACTIVE_MEDIA_STATES)
           .where("retentionExpiresAt", "<=", dueAt)
           .orderBy("retentionExpiresAt", "asc")
           .limit(RETENTION_BATCH_SIZE)
           .get(),
         db.collection("mediaAssets")
           .where("mediaPurpose", "==", purpose)
-          .where("status", "in", ACTIVE_CHAT_MEDIA_STATES)
+          .where("status", "in", ACTIVE_MEDIA_STATES)
           .where("retentionExpiresAt", "==", null)
           .where("createdAt", "<=", cutoff)
           .orderBy("createdAt", "asc")
@@ -174,16 +177,16 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
           }
           const createdAt = asset.createdAt instanceof Timestamp ? asset.createdAt : null;
           tombstone.status = "self_destructed";
-          tombstone.retentionPolicyStatus = "four_hour_self_destructed";
+          tombstone.retentionPolicyStatus = `${retentionLabel}_deleted`;
           tombstone.retentionExpiresAt = asset.retentionExpiresAt ??
-            (createdAt ? Timestamp.fromMillis(createdAt.toMillis() + CHAT_MEDIA_RETENTION_MS) : Timestamp.fromMillis(Date.now()));
+            (createdAt ? Timestamp.fromMillis(createdAt.toMillis() + lifetimeMs) : Timestamp.fromMillis(Date.now()));
           tombstone.retentionDeletedAt = FieldValue.serverTimestamp();
           tombstone.retentionReconcileAt = Timestamp.fromMillis(Date.now() + MEDIA_DERIVATIVE_RECHECK_MS);
           tombstone.updatedAt = FieldValue.serverTimestamp();
           await assetDoc.ref.set(tombstone, { merge: true });
           await db.collection("mediaScanJobs").doc(mediaId).delete().catch(() => undefined);
           await db.collection("mediaAccessAudit").add({
-            actorUid: "system-retention", mediaId, action: "chat_media_self_destructed",
+            actorUid: "system-retention", mediaId, action: `${retentionLabel}_deleted`,
             outcome: "success", purpose, objectCount: paths.size,
             createdAt: FieldValue.serverTimestamp(),
             expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
@@ -193,7 +196,7 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
         } catch (error) {
           failures += 1;
           await db.collection("mediaAccessAudit").add({
-            actorUid: "system-retention", mediaId, action: "chat_media_self_destruct",
+            actorUid: "system-retention", mediaId, action: `${retentionLabel}_delete`,
             outcome: "retry_required", purpose,
             failureCode: error instanceof Error ? error.name : "unknown",
             createdAt: FieldValue.serverTimestamp(),
@@ -348,7 +351,7 @@ async function handleLateExpiredChatMediaDerivative(event: Parameters<typeof onO
   if (!assetSnapshot.exists) return;
   const asset = assetSnapshot.data() ?? {};
   if (asset.ownerUid !== ownerUid ||
-      !["chat", "room"].includes(String(asset.mediaPurpose)) ||
+      !["chat", "room", "profile_album"].includes(String(asset.mediaPurpose)) ||
       asset.legalHoldStatus === "active" ||
       !isKnownDeletedMediaObjectPath(asset, objectPath, ownerUid, mediaId)) return;
 
@@ -387,7 +390,7 @@ export const removeLateExpiredChatMediaDerivative = configuredBucket
   ? onObjectFinalized({ bucket: configuredBucket }, handleLateExpiredChatMediaDerivative)
   : undefined;
 
-/** Reconciles expired chat media every minute; disabled by default and non-production gated. */
+/** Reconciles expired chat and profile-gallery media every minute; disabled by default and non-production gated. */
 export const enforceChatMediaRetention = onSchedule(
   { schedule: "every 1 minutes", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
   async () => {
