@@ -439,15 +439,11 @@ export const createMediaUploadIntent = onCall(async (request) => {
       createdAt: now,
       updatedAt: now,
     });
-  });
-  await auditMediaAccess({
-    actorUid: uid,
-    mediaId,
-    action: "media_upload_intent_created",
-    outcome: "success",
-    objectPath,
-    declaredContentType: input.contentType,
-    declaredSizeBytes: input.declaredSizeBytes,
+    transaction.create(mediaDb().collection("mediaAccessAudit").doc(), {
+      actorUid: uid, mediaId, action: "media_upload_intent_created", outcome: "success",
+      objectPath, declaredContentType: input.contentType,
+      declaredSizeBytes: input.declaredSizeBytes, createdAt: FieldValue.serverTimestamp(),
+    });
   });
   return {
     mediaId,
@@ -522,15 +518,12 @@ export const finalizeMediaUpload = onCall(async (request) => {
         updatedAt: FieldValue.serverTimestamp(),
       });
       transaction.set(quotaRef, { ...reservation, updatedAt: FieldValue.serverTimestamp() });
-    });
-    await auditMediaAccess({
-      actorUid: uid,
-      mediaId,
-      action: "media_upload_validation",
-      outcome: "rejected",
-      detectedContentType: detectedType,
-      declaredContentType: asset.declaredContentType,
-      sizeBytes: Number.isFinite(sizeBytes) ? sizeBytes : null,
+      transaction.create(mediaDb().collection("mediaAccessAudit").doc(), {
+        actorUid: uid, mediaId, action: "media_upload_validation", outcome: "rejected",
+        detectedContentType: detectedType, declaredContentType: asset.declaredContentType,
+        sizeBytes: Number.isFinite(sizeBytes) ? sizeBytes : null,
+        createdAt: FieldValue.serverTimestamp(),
+      });
     });
     throw new HttpsError("invalid-argument", "رُفض الملف لأن نوع المحتوى أو حجمه أو بصمته لا يطابق البيانات المعلنة.");
   }
@@ -554,15 +547,11 @@ export const finalizeMediaUpload = onCall(async (request) => {
       updatedAt: FieldValue.serverTimestamp(),
     });
     transaction.set(quotaRef, { ...reservation, updatedAt: FieldValue.serverTimestamp() });
-  });
-  await auditMediaAccess({
-    actorUid: uid,
-    mediaId,
-    action: "media_upload_validation",
-    outcome: "pending_security_scan",
-    detectedContentType: detectedType,
-    sizeBytes,
-    storageGeneration: String(metadata.generation),
+    transaction.create(mediaDb().collection("mediaAccessAudit").doc(), {
+      actorUid: uid, mediaId, action: "media_upload_validation", outcome: "pending_security_scan",
+      detectedContentType: detectedType, sizeBytes, storageGeneration: String(metadata.generation),
+      createdAt: FieldValue.serverTimestamp(),
+    });
   });
   return { mediaId, status: "pending_security_scan", detectedContentType: detectedType, sizeBytes };
 });
