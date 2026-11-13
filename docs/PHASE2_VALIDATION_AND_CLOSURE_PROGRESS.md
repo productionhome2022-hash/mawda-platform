@@ -124,3 +124,12 @@ The earlier avatar/cover gap recorded above has since been addressed in the curr
 This closes the previously noted code/test gap for the avatar/cover lifecycle in emulator scope; it does **not** prove real-bucket generation deletion, backup/soft-delete expiry, or live scheduled execution. The retention jobs remain disabled by default and guarded to explicit non-production projects.
 
 The same current workflow also passed the seven-day chat text retention, four-hour media retention, media authorization/audit, message deletion, legal-hold, Firestore/Storage rules, Flutter analysis/tests/Web build, and ClamAV image/EICAR checks. The member-facing chat attachment send/receive path for images, GIFs, video, audio and documents remains unimplemented; current chat UI sends text only. Phase 2 therefore remains open pending secure attachment delivery, real non-production GCS/Cloud Run validation, backup and legal-hold governance evidence, and final candidate review.
+
+
+## Follow-up implementation — secure chat image attachment slice
+
+- Added a dedicated backend callable to link a previously approved raster-safe image to a direct chat or room message.
+- Added a recipient callable that issues a two-minute, generation-pinned Storage URL only after verifying conversation membership, message-to-media linkage, approval state, expiry and processing metadata; successful issuance is audited.
+- Added emulator integration coverage for direct-message linking/delivery, room linking/delivery, outsider denial, duplicate attachment attempts and forged owner-role/document attempts.
+- The message-linking slice currently enables only JPEG/PNG/WebP raster derivatives. GIF, audio, video and documents remain fail-closed pending their own real processing pipelines. No UI or production deployment is implied.
+- CI validation for the latest candidate is pending; this change is not closed until backend integration, Firestore/Storage rules and Flutter Web jobs pass on the exact branch head.
