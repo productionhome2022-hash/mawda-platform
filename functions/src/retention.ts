@@ -11,6 +11,11 @@ const RETENTION_BATCH_SIZE = 150;
 const RETENTION_PAGES_PER_RUN = 10;
 const retentionJobsEnabled = defineString("MAWDA_RETENTION_JOBS_ENABLED", { default: "false" });
 
+/** Fail closed when a specific media asset is under a documented active hold. */
+export function shouldSuspendMediaDeletion(asset: Record<string, unknown>): boolean {
+  return asset.legalHoldStatus === "active";
+}
+
 export function retentionDeadline(createdAtMs: number, lifetimeMs: number): number {
   if (!Number.isSafeInteger(createdAtMs) || createdAtMs < 0 ||
       !Number.isSafeInteger(lifetimeMs) || lifetimeMs <= 0) {
@@ -147,7 +152,7 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
         const asset = assetDoc.data();
         // A documented owner legal hold suspends deletion only for this exact asset.
         // The original retention deadline is preserved and resumes on release/expiry.
-        if (asset.legalHoldStatus === "active" && typeof asset.activeLegalHoldId === "string") {
+        if (shouldSuspendMediaDeletion(asset)) {
           continue;
         }
         const ownerUid = typeof asset.ownerUid === "string" ? asset.ownerUid : "";
