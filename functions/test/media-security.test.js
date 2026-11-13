@@ -7,6 +7,8 @@ const {
   mediaUploaderTypeFromToken,
   MEDIA_SIGNED_URL_TTL_MS,
   mediaSignedUrlExpiresAt,
+  MEDIA_RETENTION_MS,
+  mediaRetentionExpiresAt,
 } = require("../lib/media-security");
 
 test("media policy allowlists supported types and applies per-category size caps", () => {
@@ -21,9 +23,11 @@ test("upload request rejects unsafe names, unsupported types and invalid sizes",
   assert.throws(() => normalizeMediaRequest({ originalName: "../secret.pdf", contentType: "application/pdf", sizeBytes: 20 }));
   assert.throws(() => normalizeMediaRequest({ originalName: "file.exe", contentType: "application/x-msdownload", sizeBytes: 20 }));
   assert.throws(() => normalizeMediaRequest({ originalName: "file.png", contentType: "image/png", sizeBytes: -1 }));
-  assert.deepEqual(normalizeMediaRequest({ originalName: "photo.png", contentType: "image/png", sizeBytes: 1024 }), {
-    originalName: "photo.png", contentType: "image/png", declaredSizeBytes: 1024,
+  assert.throws(() => normalizeMediaRequest({ originalName: "photo.png", contentType: "image/png", sizeBytes: 1024 }));
+  assert.deepEqual(normalizeMediaRequest({ originalName: "photo.png", contentType: "image/png", sizeBytes: 1024, purpose: "profile_album" }), {
+    originalName: "photo.png", contentType: "image/png", declaredSizeBytes: 1024, purpose: "profile_album",
   });
+  assert.throws(() => normalizeMediaRequest({ originalName: "audio.mp3", contentType: "audio/mpeg", sizeBytes: 1024, purpose: "avatar_cover" }));
 });
 
 test("file signature detection identifies GIF, PNG, JPEG, WebP, PDF, MP4, OGG and WAV", () => {
@@ -60,4 +64,16 @@ test("signed media URLs receive bounded purpose-specific expirations", () => {
   assert.equal(mediaSignedUrlExpiresAt("owner-inspection", now), now + 60_000);
   assert.throws(() => mediaSignedUrlExpiresAt("upload", -1));
   assert.throws(() => mediaSignedUrlExpiresAt("upload", Number.NaN));
+});
+
+
+test("media retention follows the approved purpose-specific server policy", () => {
+  const now = 1_800_000_000_000;
+  assert.equal(MEDIA_RETENTION_MS.chat, 4 * 60 * 60 * 1000);
+  assert.equal(MEDIA_RETENTION_MS.room, 4 * 60 * 60 * 1000);
+  assert.equal(MEDIA_RETENTION_MS.profile_album, 7 * 24 * 60 * 60 * 1000);
+  assert.equal(MEDIA_RETENTION_MS.avatar_cover, 30 * 24 * 60 * 60 * 1000);
+  assert.equal(MEDIA_RETENTION_MS.story, 24 * 60 * 60 * 1000);
+  assert.equal(mediaRetentionExpiresAt("story", now), now + 24 * 60 * 60 * 1000);
+  assert.throws(() => mediaRetentionExpiresAt("story", -1));
 });
