@@ -1,7 +1,12 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getFirestore } = require("firebase-admin/firestore");
-const { transferCoins, purchaseStoreItem, getOwnerStoreCatalog, getOwnerEconomyPricing, setOwnerEconomyPricing } = require("../../lib/index");
+const {
+  transferCoins, purchaseStoreItem, getOwnerStoreCatalog, getOwnerEconomyPricing,
+  setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
+  setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
+  rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest,
+} = require("../../lib/index");
 
 const db = getFirestore();
 const memberRequest = (uid, data) => ({
@@ -292,5 +297,111 @@ test("owner economy prices seed safely and can be edited without enabling real-m
   } finally {
     if (previousData) await settingsRef.set(previousData);
     else await settingsRef.delete().catch(() => undefined);
+  }
+});
+
+
+test("manual coin package request issues no coins until owner verifies external payment; approval is atomic and idempotent", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const uid = `manual_coin_member_${tag}`;
+  const requestId = `manual_${tag}`;
+  const requestDoc = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
+  const userRef = db.collection("users").doc(uid);
+  const ledgerRef = userRef.collection("walletLedger").doc(`coin_purchase_${requestId}`);
+  const settingsRef = db.doc("platformSettings/economyPricing");
+  await Promise.all([
+    userRef.set({ coins: 40, profileCompleted: true, accountStatus: "active" }),
+    settingsRef.set({
+      coinPackages: [{ packageId: "test_pack", name: "Test package", coins: 900,
+        priceMinor: 500, currency: "EUR", active: true }],
+      adPrices: [{ placementId: "test_ad", name: "Test ad", billingModel: "daily",
+        priceMinor: 100, currency: "EUR", active: true }],
+      manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, version: 1,
+    }),
+  ]);
+  try {
+    const member = memberRequest(uid, { requestId, kind: "package", packageId: "test_pack" });
+    const created = await createCoinPurchaseRequest.run(member);
+    assert.equal(created.status, "pending_owner_contact");
+    assert.equal((await userRef.get()).data().coins, 40);
+    assert.equal((await requestDoc.get()).data().status, "pending_owner_contact");
+
+    await setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
+      requesterUid: uid, requestId, instructions: "يرجى التواصل مع المالك لإتمام التحويل البنكي",
+      agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
+    }));
+    assert.equal((await requestDoc.get()).data().status, "payment_instructions_sent");
+    assert.equal((await userRef.get()).data().coins, 40);
+
+    const approvalInput = {
+      requesterUid: uid, requestId, externalPaymentVerified: true,
+      externalPaymentReference: `verified-${tag}`,
+      verificationNote: "تحقق المالك يدوياً من وصول المبلغ إلى الحساب الخارجي",
+    };
+    const approved = await approveCoinPurchaseRequest.run(ownerRequest("manual-owner", approvalInput));
+    assert.equal(approved.status, "approved");
+    assert.equal(approved.newBalance, 940);
+    assert.equal(approved.idempotentReplay, false);
+    const [user, ledger, purchase] = await Promise.all([
+      userRef.get(), ledgerRef.get(), requestDoc.get(),
+    ]);
+    assert.equal(user.data().coins, 940);
+    assert.equal(ledger.data().amount, 900);
+    assert.equal(ledger.data().type, "coin_purchase_manual_credit");
+    assert.equal(ledger.data().externalPaymentReference, `verified-${tag}`);
+    assert.equal(purchase.data().status, "approved");
+
+    const replay = await approveCoinPurchaseRequest.run(ownerRequest("manual-owner", approvalInput));
+    assert.equal(replay.idempotentReplay, true);
+    assert.equal((await userRef.get()).data().coins, 940);
+    assert.equal((await db.collection("adminAuditLogs")
+      .doc(`coin_purchase_approval_${uid}_${requestId}`).get()).exists, true);
+  } finally {
+    await Promise.all([
+      ledgerRef.delete().catch(() => undefined),
+      requestDoc.delete().catch(() => undefined),
+      userRef.delete().catch(() => undefined),
+    ]);
+  }
+});
+
+test("custom coin request is negotiated manually and a withdrawn request cannot be credited", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const uid = `manual_custom_member_${tag}`;
+  const requestId = `custom_${tag}`;
+  const requestDoc = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
+  const userRef = db.collection("users").doc(uid);
+  await Promise.all([
+    userRef.set({ coins: 25, profileCompleted: true, accountStatus: "active" }),
+    db.doc("platformSettings/economyPricing").set({
+      coinPackages: [{ packageId: "test_pack", name: "Test package", coins: 900,
+        priceMinor: 500, currency: "EUR", active: true }],
+      adPrices: [{ placementId: "test_ad", name: "Test ad", billingModel: "daily",
+        priceMinor: 100, currency: "EUR", active: true }],
+      manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, version: 1,
+    }),
+  ]);
+  try {
+    await createCoinPurchaseRequest.run(memberRequest(uid, {
+      requestId, kind: "custom", requestedCoins: 12345,
+    }));
+    assert.equal((await requestDoc.get()).data().requestedCoins, 12345);
+    assert.equal((await userRef.get()).data().coins, 25);
+    await withdrawCoinPurchaseRequest.run(memberRequest(uid, { requestId }));
+    assert.equal((await requestDoc.get()).data().status, "withdrawn");
+    await assert.rejects(
+      () => approveCoinPurchaseRequest.run(ownerRequest("manual-owner", {
+        requesterUid: uid, requestId, externalPaymentVerified: true,
+        externalPaymentReference: "external-ref-123",
+        verificationNote: "تم التحقق يدوياً من التحويل",
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await userRef.get()).data().coins, 25);
+    assert.equal((await db.collection("users").doc(uid).collection("walletLedger").get()).empty, true);
+  } finally {
+    await Promise.all([requestDoc.delete().catch(() => undefined), userRef.delete().catch(() => undefined)]);
   }
 });
