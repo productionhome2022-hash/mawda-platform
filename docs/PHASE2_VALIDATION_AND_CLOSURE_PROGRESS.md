@@ -153,3 +153,16 @@ The same current workflow also passed the seven-day chat text retention, four-ho
 - Added policy and scanner callback tests for exact pipeline versions, derivative paths, generation/hash and owner-only document rules.
 
 **Verification state:** implementation has been committed to the development branch but the new exact branch head has not yet completed CI. Do not enable or announce non-image member delivery until the scanner container integration tests, backend compile/unit/callable/retention/rules suites, Flutter analysis/tests/Web build all pass on one exact commit. Live Cloud Run/GCS signed URL, version deletion, backup/PITR/cache and legal-hold behavior remain separate non-production infrastructure gates. No live deployment or destructive retention schedule has been run.
+
+
+## Typed media pipeline CI result and remaining acceptance gates — 13 November 2026
+
+- Full CI run 43445820387 passed on commit 2754b74560d5a49996c3582187b45bc8ab63c7e0. All three jobs completed successfully.
+- Scanner job: isolated container build, real GIF/audio/video/PDF processor integration tests, and ClamAV EICAR detection passed.
+- Cloud Functions job: compile/unit, typed media callable integration, retention and late-object reconciliation, direct-message deletion, owner audit export, media legal hold/release, profile media lifecycle, message legal hold and Firestore/Storage rules all passed.
+- Flutter job: dependency install, analyze, tests and release Web build passed.
+- Additional typed-derivative legal-hold test is now present on the current branch head. It checks that an active hold protects original + image/GIF/audio/video/PDF derivatives, release resumes expiry deletion, and a late PDF replay is reconciled. This new test's exact-head CI is pending and must be checked separately.
+- Current Flutter UI supports selecting existing audio files, not microphone voice-note recording. Audio/video/PDF are opened externally from short-lived signed URLs; in-app playback is still a gap. PDF is the only supported owner document format; office formats remain blocked.
+- Real device, live Cloud Run/GCS, signed URL expiry/replay, bucket generation/version deletion, backup/PITR, CDN/cache and restore tests remain open. Retention schedules remain disabled. No production deployment or destructive operation has been performed.
+
+**Phase 2 remains open pending exact-head CI for the expanded legal-hold test and the external non-production/device acceptance gates.**
