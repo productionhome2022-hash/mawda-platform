@@ -131,7 +131,7 @@ A manual workflow `.github/workflows/deploy-nonproduction-media-scanner.yml` now
 2. Builds the isolated scanner image and pushes it to Artifact Registry.
 3. Grants the scanner runtime service account Secret Manager access and object-create access only to the `processed/` managed folder; grants the Functions runtime service account bucket object-view, Cloud Run invoke and its own signBlob permission.
 4. Deploys Cloud Run with IAM authentication only, verifies the authenticated `/healthz` endpoint, and removes the temporary deployer invoker binding.
-5. Writes the non-production scanner URL/callback/provider parameters into a temporary project-specific Functions env file, deploys Functions only to the selected non-production Firebase project, then runs a live clean-PNG plus EICAR end-to-end scan through Firebase trigger → private Cloud Run → signed callback.
+5. Runs the real GCS exact-generation purge/bucket-safeguard test before deployment. It writes the non-production bucket/scanner URL/callback/provider parameters into a temporary project-specific Functions env file, deploys Functions only to the selected non-production Firebase project, then runs a live clean-PNG plus EICAR end-to-end scan through Firebase trigger → private Cloud Run → signed callback.
 
 Required repository variables:
 - `MAWDA_WIF_PROVIDER`
