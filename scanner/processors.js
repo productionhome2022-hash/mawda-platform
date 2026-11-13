@@ -6,7 +6,7 @@ const { createHash } = require("node:crypto");
 
 const execFileAsync = promisify(execFile);
 const LIMITS = Object.freeze({
-  gif: { maxFrames: 100, maxPixels: 40_000_000, maxBytes: 5 * 1024 * 1024 },
+  gif: { maxFrames: 100, maxPixels: 40_000_000, maxDurationSeconds: 30, maxBytes: 5 * 1024 * 1024 },
   audio: { maxDurationSeconds: 600, maxBytes: 25 * 1024 * 1024 },
   video: { maxDurationSeconds: 90, maxBytes: 50 * 1024 * 1024 },
   pdf: { maxPages: 30, maxBytes: 20 * 1024 * 1024 },
@@ -97,24 +97,41 @@ async function sha256StorageObject(file) {
   return hash.digest("hex");
 }
 
-async function processGif({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
-  const sharp = require("sharp");
-  const input = { failOn: "error", limitInputPixels: 40_000_000, animated: true };
-  const metadata = await sharp(sourcePath, input).metadata();
-  const pages = Number(metadata.pages);
-  const pixels = Number(metadata.width) * Number(metadata.height) * pages;
-  if (!Number.isSafeInteger(pages) || pages < 1 || pages > LIMITS.gif.maxFrames ||
-      !Number.isSafeInteger(pixels) || pixels > LIMITS.gif.maxPixels) {
+async function probeGif(sourcePath) {
+  const { stdout } = await execFileAsync("ffprobe", [
+    "-v", "error", "-count_frames", "-select_streams", "v:0",
+    "-show_entries", "format=duration:stream=width,height,nb_read_frames",
+    "-of", "json", sourcePath,
+  ], { timeout: 15_000, maxBuffer: 64 * 1024 });
+  const result = JSON.parse(stdout);
+  const stream = Array.isArray(result.streams) ? result.streams[0] : null;
+  const duration = Number(result.format && result.format.duration);
+  const frames = Number(stream && stream.nb_read_frames);
+  const width = Number(stream && stream.width);
+  const height = Number(stream && stream.height);
+  if (!Number.isSafeInteger(frames) || frames < 1 || frames > LIMITS.gif.maxFrames ||
+      !Number.isSafeInteger(width) || width < 1 ||
+      !Number.isSafeInteger(height) || height < 1 ||
+      !Number.isFinite(duration) || duration <= 0 ||
+      duration > LIMITS.gif.maxDurationSeconds ||
+      width * height * frames > LIMITS.gif.maxPixels) {
     throw new Error("GIF_COMPLEXITY_EXCEEDS_SAFE_LIMIT");
   }
+  return { frames };
+}
+
+async function processGif({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
+  const { frames } = await probeGif(sourcePath);
   const output = path.join(tempDir, "safe-animation.gif");
-  await sharp(sourcePath, input).resize({
-    width: 2048, height: 2048, fit: "inside", withoutEnlargement: true,
-  }).gif({ effort: 7 }).toFile(output);
-  const outputMetadata = await sharp(output, { animated: true }).metadata();
-  if (Number(outputMetadata.pages) !== pages) {
-    throw new Error("GIF_ANIMATION_FRAME_COUNT_CHANGED");
-  }
+  await execFileAsync("ffmpeg", [
+    "-nostdin", "-v", "error", "-y", "-i", sourcePath,
+    "-map", "0:v:0", "-map_metadata", "-1", "-map_chapters", "-1",
+    "-vf", "scale=2048:2048:force_original_aspect_ratio=decrease:flags=lanczos",
+    "-vsync", "0", "-frames:v", String(LIMITS.gif.maxFrames),
+    "-loop", "0", "-f", "gif", output,
+  ], { timeout: 120_000, maxBuffer: 64 * 1024 });
+  const outputFrames = await probeGif(output);
+  if (outputFrames.frames !== frames) throw new Error("GIF_ANIMATION_FRAME_COUNT_CHANGED");
   const artifact = await uploadDerivative({
     storage, bucketName, outputPath: output, request, sourceSha256, provider,
     filename: "animation.gif", contentType: "image/gif",
@@ -211,4 +228,4 @@ async function processSafeDerivative(context) {
   }
 }
 
-module.exports = { LIMITS, safeOutputPath, probeMedia, processSafeDerivative };
+module.exports = { LIMITS, safeOutputPath, probeMedia, probeGif, processSafeDerivative };
