@@ -22,12 +22,20 @@ test("scanner verdict binds provider, object generation, hash and freshness", ()
     objectGeneration: "123456",
     sha256: "a".repeat(64),
     scannedAtMs: now,
+    scanEngine: "ClamAV",
+    engineVersion: "1.4.6",
+    signatureDatabaseVersion: "28202",
+    signatureDatabaseAgeMs: 60 * 60 * 1000,
   };
   assert.equal(validateScannerVerdict(payload, "clamav-mawadda-gateway", now).verdict, "clean");
   assert.equal(validateScannerVerdict({ ...payload, provider: "untrusted" }, "clamav-mawadda-gateway", now), null);
   assert.equal(validateScannerVerdict({ ...payload, objectGeneration: "latest" }, "clamav-mawadda-gateway", now), null);
   assert.equal(validateScannerVerdict({ ...payload, scannedAtMs: now - 700000 }, "clamav-mawadda-gateway", now), null);
   assert.equal(validateScannerVerdict({ ...payload, verdict: "approved" }, "clamav-mawadda-gateway", now), null);
+  assert.equal(validateScannerVerdict({ ...payload, scanEngine: "unknown" }, "clamav-mawadda-gateway", now), null);
+  assert.equal(validateScannerVerdict({ ...payload, engineVersion: "latest" }, "clamav-mawadda-gateway", now), null);
+  assert.equal(validateScannerVerdict({ ...payload, signatureDatabaseVersion: "unknown" }, "clamav-mawadda-gateway", now), null);
+  assert.equal(validateScannerVerdict({ ...payload, signatureDatabaseAgeMs: 37 * 60 * 60 * 1000 }, "clamav-mawadda-gateway", now), null);
 });
 
 
