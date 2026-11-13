@@ -9,6 +9,23 @@ This document is the highest-level product and engineering reference for Mawadda
 
 ## 1. Mission and product principles
 
+## Owner identity and authority model
+
+- Mawda has one human platform owner: the same person is both **Owner** and **Super Admin**. These are two descriptive names for one trusted identity, not two people, two independent accounts, or two separate owner profiles.
+- The platform must maintain one canonical owner UID. Any internal `platformOwner` / `superAdmin` role labels or legacy claims are aliases of that same verified owner identity, never independent ways to create a second owner.
+- All privileged owner actions, audit records, payment approvals, room broadcasts, pricing changes and recovery operations resolve to that canonical owner identity and are protected by server-side authorization, recent MFA/step-up and immutable audit evidence.
+- The owner may delegate narrowly scoped moderator/operator tasks where explicitly supported, but delegation never grants or transfers the unique owner identity.
+
+## Owner-configurable coin purchase channels
+
+- Coin acquisition supports two separately controlled channels: (1) direct/manual purchase requests handled personally by the owner, and (2) optional automated checkout through a future payment-provider integration.
+- Manual contact is the default supported channel. Members may choose an owner-configured package or request a custom quantity. Custom-quantity requests are always handled through the member's direct conversation with the single owner; the owner may send payment instructions and agree a price/quantity there.
+- Automated payment is a future capability, not enabled merely by configuring a bank account or displaying payment details. It requires a selected and contracted provider, verified server-to-server payment events, signature validation, idempotency, refunds/chargebacks, reconciliation, fraud controls, tax/legal review and explicit owner activation.
+- The owner can enable/disable each payment channel and configure which packages are available. Automated checkout may be enabled for selected fixed packages only. Custom quantities remain owner-negotiated/manual unless a separately approved future specification explicitly changes that rule.
+- No coins are issued until either the owner manually approves an externally verified payment or a fully integrated, owner-enabled provider confirms a valid payment server-to-server. Client redirects, screenshots, member declarations, browser callbacks and unverified webhooks never mint coins.
+- Never store raw bank credentials or payment-card data in Mawda. Provider secrets belong in managed secrets storage, not Firestore documents or client apps.
+
+
 Mawadda is a multilingual, cross-platform social community for friendship, purposeful connection, and serious relationships, including dating and marriage goals where lawful and age-appropriate. Build a distinctive, trustworthy, elegant, accessible, and culturally respectful experience.
 
 Priorities, in order:
