@@ -69,6 +69,13 @@ function isSafeDerivativeMetadata(metadata, expected) {
     custom.processing === "sharp-decode-reencode-v1");
 }
 
+function isSignatureDatabaseFresh(lastUpdatedMs, nowMs = Date.now(), maxAgeMs = 36 * 60 * 60 * 1000) {
+  return Number.isFinite(lastUpdatedMs) && Number.isFinite(nowMs) &&
+    Number.isFinite(maxAgeMs) && maxAgeMs > 0 &&
+    lastUpdatedMs <= nowMs + 5 * 60 * 1000 &&
+    nowMs - lastUpdatedMs <= maxAgeMs;
+}
+
 function sanitizeScannerError(error) {
   const message = error instanceof Error ? error.message : String(error ?? "");
   const fixed = new Set([
