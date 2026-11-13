@@ -124,6 +124,20 @@ def scan_file(path):
     raise RuntimeError("ClamAV scan failed or returned an indeterminate result")
 
 
+def signature_database_version():
+    databases = sorted(Path('/var/lib/clamav').glob('*.cvd')) + sorted(Path('/var/lib/clamav').glob('*.cld'))
+    versions = []
+    for database in databases:
+        result = subprocess.run(['sigtool', '--info', str(database)], capture_output=True, text=True, timeout=10, check=False)
+        if result.returncode == 0:
+            version = next((line.split(':', 1)[1].strip() for line in result.stdout.splitlines() if line.lower().startswith('version:')), '')
+            if version:
+                versions.append(database.name + ':' + version)
+    if not versions:
+        raise RuntimeError('ClamAV signature database version is unavailable')
+    return ','.join(versions)
+
+
 def signed_callback(payload, callback_url, secret):
     raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     signature = hmac.new(secret.encode("utf-8"), raw, hashlib.sha256).hexdigest()
@@ -167,7 +181,7 @@ def process_dispatch(payload):
             "scannedAtMs": int(time.time() * 1000),
             "scanEngine": "ClamAV",
             "engineVersion": version,
-            "signatureDatabaseVersion": "clamd-current-database",
+            "signatureDatabaseVersion": signature_database_version(),
         }
         signed_callback(result, callback_url, secret)
         return {"accepted": True, "mediaId": media_id, "verdict": verdict}
@@ -195,8 +209,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         expected = os.environ.get("MAWDA_SCANNER_API_TOKEN", "")
-        supplied = self.headers.get("Authorization", "")
-        if not constant_time_token_match(supplied, "Bearer " + expected) or len(expected) < 32:
+        supplied = self.headers.get("X-Mawadda-Scanner-Token", "")
+        if not constant_time_token_match(supplied, expected) or len(expected) < 32:
             self.send_error(401)
             return
         try:
