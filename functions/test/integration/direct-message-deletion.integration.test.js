@@ -11,6 +11,7 @@ const {
   deleteRoomMessageForMe,
   getDirectMessages,
   getRoomMessages,
+  setMemberBlock,
 } = require("../../lib/index");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
@@ -21,6 +22,50 @@ const id = (value) => createHash("sha256").update(value).digest("hex");
 const memberRequest = (uid, data) => ({
   data,
   auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+});
+
+test("member block and unblock are server-authorized, idempotent state updates", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const suffix = Date.now().toString();
+  const actorUid = `blocker-${suffix}`;
+  const targetUid = `blocked-${suffix}`;
+  const actorRef = db.collection("users").doc(actorUid);
+  const targetRef = db.collection("users").doc(targetUid);
+  await actorRef.set({ uid: actorUid, profileCompleted: true, blockedUids: [] });
+  await targetRef.set({ uid: targetUid, profileCompleted: true });
+
+  try {
+    const block = await setMemberBlock.run(memberRequest(actorUid, {
+      targetUid, blocked: true,
+    }));
+    assert.deepEqual(block, { targetUid, blocked: true });
+    assert.deepEqual((await actorRef.get()).data().blockedUids, [targetUid]);
+
+    const replay = await setMemberBlock.run(memberRequest(actorUid, {
+      targetUid, blocked: true,
+    }));
+    assert.equal(replay.blocked, true);
+    assert.deepEqual((await actorRef.get()).data().blockedUids, [targetUid]);
+
+    const unblock = await setMemberBlock.run(memberRequest(actorUid, {
+      targetUid, blocked: false,
+    }));
+    assert.equal(unblock.blocked, false);
+    assert.deepEqual((await actorRef.get()).data().blockedUids, []);
+
+    await assert.rejects(
+      () => setMemberBlock.run(memberRequest(actorUid, { targetUid: actorUid, blocked: true })),
+      (error) => error && error.code === "invalid-argument",
+    );
+    await assert.rejects(
+      () => setMemberBlock.run(memberRequest(actorUid, {
+        targetUid: `missing-${suffix}`, blocked: true,
+      })),
+      (error) => error && error.code === "not-found",
+    );
+  } finally {
+    await Promise.all([actorRef.delete().catch(() => undefined), targetRef.delete().catch(() => undefined)]);
+  }
 });
 
 test("direct delete-for-me hides only for the caller and preserves peer copy", async () => {
