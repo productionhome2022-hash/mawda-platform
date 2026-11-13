@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Timestamp, getFirestore } = require("firebase-admin/firestore");
-const { placeMediaLegalHold, releaseMediaLegalHold } = require("../../lib/index");
+const { placeMediaLegalHold, releaseMediaLegalHold, listActiveMediaLegalHolds, reviewMediaLegalHold } = require("../../lib/index");
 
 const db = getFirestore();
 const headRef = db.collection("adminAuditChainHeads").doc("ownerReview");
@@ -58,6 +58,17 @@ test("owner legal hold suspends exact chat-media expiry and release restores the
     assert.equal(heldAsset.data().legalHoldStatus, "active");
     assert.equal(heldAsset.data().retentionPolicyStatus, "legal_hold");
     assert.equal(heldAsset.data().retentionExpiresAt.toMillis(), now - 1000);
+
+    const listed = await listActiveMediaLegalHolds.run(ownerRequest());
+    assert.ok(listed.holds.some((hold) => hold.holdId === placed.holdId));
+    const reviewed = await reviewMediaLegalHold.run(ownerRequest({
+      holdId: placed.holdId,
+      reviewNote: "Reviewed case scope and confirmed the hold remains necessary.",
+      nextReviewAtMs: now + 90 * 60 * 1000,
+    }));
+    assert.equal(reviewed.endsAtMs, now + 2 * 60 * 60 * 1000);
+    assert.equal((await db.collection("mediaLegalHolds").doc(placed.holdId).get())
+      .data().reviewAt.toMillis(), now + 90 * 60 * 1000);
 
     const released = await releaseMediaLegalHold.run(ownerRequest({ holdId: placed.holdId }));
     assert.equal(released.status, "released");
