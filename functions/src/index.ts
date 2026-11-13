@@ -862,10 +862,14 @@ export const setMemberProfileMedia = onCall(async (request) => {
         const existingExpiry = previous.retentionExpiresAt instanceof Timestamp
           ? previous.retentionExpiresAt.toMillis()
           : nowMs;
+        const supersededPolicy = "thirty_day_superseded_avatar_cover";
         transaction.update(previousSnapshot.ref, {
           supersededAt: FieldValue.serverTimestamp(),
           retentionExpiresAt: Timestamp.fromMillis(Math.min(existingExpiry, newExpiry.toMillis())),
-          retentionPolicyStatus: "thirty_day_superseded_avatar_cover",
+          retentionPolicyStatus: previous.legalHoldStatus === "active" ? "legal_hold" : supersededPolicy,
+          ...(previous.legalHoldStatus === "active" ? {
+            resumeRetentionPolicyStatus: supersededPolicy,
+          } : {}),
           updatedAt: FieldValue.serverTimestamp(),
         });
       }
@@ -875,7 +879,10 @@ export const setMemberProfileMedia = onCall(async (request) => {
       profileMediaSlot: slot,
       selectedAt: FieldValue.serverTimestamp(),
       retentionExpiresAt: newExpiry,
-      retentionPolicyStatus: "thirty_day_avatar_cover",
+      retentionPolicyStatus: asset.legalHoldStatus === "active" ? "legal_hold" : "thirty_day_avatar_cover",
+      ...(asset.legalHoldStatus === "active" ? {
+        resumeRetentionPolicyStatus: "thirty_day_avatar_cover",
+      } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     });
     transaction.set(userRef, {
