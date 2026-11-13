@@ -10,7 +10,7 @@ const { promisify } = require("node:util");
 const { execFile } = require("node:child_process");
 const sharp = require("sharp");
 const { Storage } = require("@google-cloud/storage");
-const { equalSecret, validateScanRequest, isSafeDerivativeMetadata } = require("./security");
+const { equalSecret, validateScanRequest, isSafeDerivativeMetadata, sanitizeScannerError } = require("./security");
 
 const execFileAsync = promisify(execFile);
 const PORT = Number(process.env.PORT || 8080);
@@ -259,7 +259,7 @@ async function handleScan(request, response) {
     console.error(JSON.stringify({
       event: "media_scan_failed",
       mediaId: scanRequest?.mediaId || null,
-      errorCode: error instanceof Error ? error.message : "scanner_error",
+      errorCode: sanitizeScannerError(error),
       durationMs: Date.now() - started,
     }));
     json(response, 503, { error: "scan_unavailable" });
