@@ -6,6 +6,7 @@ on:
       - codex/mawda-full-platform-implementation
     paths:
       - pubspec.yaml
+      - pubspec.lock
       - .github/workflows/refresh-flutter-lock.yml
   workflow_dispatch:
 
