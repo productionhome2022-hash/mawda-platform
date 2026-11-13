@@ -96,7 +96,6 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
   Future<void> _deleteMessage(Map<String, dynamic> message) async {
     final messageId = message['messageId'] as String? ?? '';
-    final chatId = _messagesFuture == null ? '' : '';
     if (messageId.isEmpty) return;
     final mine = message['senderUid'] == widget.currentUserId;
     final action = await showDialog<String>(
