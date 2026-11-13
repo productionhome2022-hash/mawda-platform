@@ -10,7 +10,7 @@ A green CI run is therefore necessary but is not proof that the deployed Functio
 
 Run the live checks only against a dedicated non-production Firebase project and a dedicated non-production bucket.
 
-Both scripts refuse production-like or unmarked project/bucket names. Do not weaken or bypass these checks. The live scanner E2E creates temporary Firestore documents and Storage objects, deliberately replays a still-valid signed upload URL to test tombstone cleanup, and removes its own fixtures. The GCS retention test creates multiple object generations and permanently deletes those test generations.
+Both scripts refuse production-like or unmarked project/bucket names. Do not weaken or bypass these checks. The live scanner E2E creates temporary Firestore documents and Storage objects, deliberately replays a still-valid signed upload URL to test tombstone cleanup, and removes every live/noncurrent generation of its own fixtures. The GCS retention test creates multiple object generations and permanently deletes those test generations. The manual workflow runs the GCS policy/versioning proof first so an incompatible soft-delete or retention policy blocks before scanner fixtures are created.
 
 Never point either script at `mawda-app-2026`, a production bucket, or any bucket containing member data. Never use a bucket with retention lock, soft-delete retention, or other policy that prevents the intended test cleanup.
 
@@ -40,7 +40,7 @@ MAWDA_MEDIA_TEST_BUCKET=<non-production-bucket-name> \
 npm run test:media-scanner-live-e2e
 ```
 
-The script exercises a clean PNG and an EICAR-bearing PNG, waits for the corresponding approved/rejected state, checks derivative provenance and generation, verifies rejected-object cleanup, verifies message-media deletion, replays the original create-only signed upload capability against the tombstone, and checks the late-replay cleanup audit.
+The script exercises a clean PNG and an EICAR-bearing PNG, waits for the corresponding approved/rejected state, checks derivative provenance and generation, verifies rejected-object cleanup across all live and noncurrent generations, verifies message-media deletion, replays the original create-only signed upload capability against the tombstone, and checks late-replay cleanup audit plus exact-generation removal. The scanner callback and late-replay handler must delete a generation-scoped File reference; deleting only the live object name is insufficient when object versioning is enabled.
 
 A pass must end with:
 `Live Firebase Functions → private Cloud Run ClamAV → signed callback E2E passed.`
