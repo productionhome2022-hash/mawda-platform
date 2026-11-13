@@ -49,6 +49,7 @@ export function normalizeMediaRequest(input: Record<string, unknown>): {
   contentType: string;
   declaredSizeBytes: number;
   purpose: MediaPurpose;
+  storyExpiresAtMs?: number;
 } {
   const originalName = typeof input.originalName === "string" ? input.originalName.trim() : "";
   const contentType = typeof input.contentType === "string" ? input.contentType.trim().toLowerCase() : "";
