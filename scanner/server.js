@@ -271,7 +271,7 @@ async function handleScan(request, response) {
       provider: PROVIDER,
       verdict,
       ...scannerIdentity,
-      signatureDatabaseAgeMs: signatures.ageMs,
+      signatureDatabaseAgeMs: Math.max(0, Math.floor(signatures.ageMs)),
       objectGeneration: scanRequest.objectGeneration,
       sha256: sourceSha256,
       scannedAtMs: Date.now(),
