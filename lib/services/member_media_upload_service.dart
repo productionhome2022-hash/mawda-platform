@@ -130,5 +130,20 @@ class MemberMediaUploadService {
     return data['url'] as String?;
   }
 
+  Future<List<Map<String, dynamic>>> getProfileGalleryItems({
+    required String userId,
+  }) async {
+    final response = await _functions
+        .httpsCallable('listMemberProfileGallery')
+        .call({'userId': userId});
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final rawItems = data['items'] as List<dynamic>? ?? const [];
+    return rawItems
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .where((item) => item['url'] is String && item['mediaId'] is String)
+        .toList(growable: false);
+  }
+
   void close() => _client.close();
 }
