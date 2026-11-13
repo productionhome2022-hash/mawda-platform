@@ -21,6 +21,7 @@ const CALLBACK_URL = process.env.SCANNER_CALLBACK_URL || "";
 const BUCKET_NAME = process.env.GCS_BUCKET || "";
 const MAX_DOWNLOAD_BYTES = Number(process.env.MAX_DOWNLOAD_BYTES || 100 * 1024 * 1024);
 const SCAN_TIMEOUT_MS = Number(process.env.SCAN_TIMEOUT_MS || 150_000);
+const MAX_SAFE_PREVIEW_BYTES = 2 * 1024 * 1024;
 const storage = new Storage();
 
 function json(response, status, body) {
@@ -114,14 +115,23 @@ async function createSafeImageDerivative(sourcePath, request, sourceSha256) {
     }
   }
   const outputPath = path.join(path.dirname(sourcePath), "preview.webp");
-  await sharp(sourcePath, inputOptions).rotate().resize({
-    width: 4096,
-    height: 4096,
-    fit: "inside",
-    withoutEnlargement: true,
-  }).webp({ quality: 82, effort: 4 }).toFile(outputPath);
-  const outputStat = await fs.stat(outputPath);
-  if (!outputStat.size || outputStat.size > 20 * 1024 * 1024) {
+  let width = 4096;
+  let quality = 82;
+  let outputStat;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    await fs.rm(outputPath, { force: true });
+    await sharp(sourcePath, inputOptions).rotate().resize({
+      width,
+      height: width,
+      fit: "inside",
+      withoutEnlargement: true,
+    }).webp({ quality, effort: 5 }).toFile(outputPath);
+    outputStat = await fs.stat(outputPath);
+    if (outputStat.size > 0 && outputStat.size <= MAX_SAFE_PREVIEW_BYTES) break;
+    width = Math.max(512, Math.floor(width * 0.75));
+    quality = Math.max(55, quality - 7);
+  }
+  if (!outputStat || !outputStat.size || outputStat.size > MAX_SAFE_PREVIEW_BYTES) {
     throw new Error("SAFE_DERIVATIVE_SIZE_INVALID");
   }
 
