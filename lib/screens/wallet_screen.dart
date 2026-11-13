@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'coin_purchase_screen.dart';
 
 /// Read-only wallet history. All balance changes are performed by trusted
 /// Cloud Functions; this screen only reads the member-scoped immutable ledger.
@@ -24,7 +25,12 @@ class WalletScreen extends StatelessWidget {
         .orderBy('createdAt', descending: true);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('محفظتي وسجل العمليات')),
+      appBar: AppBar(title: const Text('محفظتي وسجل العمليات'), actions: [
+        IconButton(tooltip: 'طلب شراء كوينز', icon: const Icon(Icons.add_card),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => const CoinPurchaseScreen(),
+          ))),
+      ]),
       body: Column(
         children: [
           StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
