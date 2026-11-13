@@ -226,7 +226,7 @@ test("signed upload URL performs a real Storage Emulator HTTP PUT and rejects re
 
   const replayPut = await fetch(intent.uploadUrl, {
     method: "PUT",
-    headers: { "Content-Type": "image/png" },
+    headers: intent.requiredHeaders,
     body: png,
   });
   assert.ok([400, 403, 412].includes(replayPut.status),
