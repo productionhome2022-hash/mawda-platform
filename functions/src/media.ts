@@ -1,12 +1,10 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { pipeline } from "node:stream/promises";
 import { getAppCheck } from "firebase-admin/app-check";
-import { getAuth } from "firebase-admin/auth";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
-import { createHash } from "node:crypto";
 import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { hasPlatformOwnerSession } from "./owner-access";
