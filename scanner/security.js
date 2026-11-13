@@ -31,7 +31,7 @@ function validateScanRequest(value, provider, bucketName) {
     ? `/${bucketName}/${v.objectPath}`
     : `/${v.objectPath}`;
   const allowedTypes = new Set([
-    "image/jpeg", "image/png", "image/webp", "video/mp4",
+    "image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4",
     "audio/mpeg", "audio/mp4", "audio/ogg", "audio/wav", "application/pdf",
   ]);
   if (url.protocol !== "https:" || !allowedHosts.has(url.hostname) ||
