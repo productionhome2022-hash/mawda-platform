@@ -6,7 +6,8 @@ import { logger } from "firebase-functions";
 
 export const CHAT_MEDIA_RETENTION_MS = 4 * 60 * 60 * 1000;
 export const CHAT_TEXT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-const RETENTION_BATCH_SIZE = 250;
+const RETENTION_BATCH_SIZE = 150;
+const RETENTION_PAGES_PER_RUN = 10;
 const retentionJobsEnabled = defineString("MAWDA_RETENTION_JOBS_ENABLED", { default: "false" });
 
 export function retentionDeadline(createdAtMs: number, lifetimeMs: number): number {
@@ -54,7 +55,7 @@ function jobsMayRun(): boolean {
  * disabled/validated separately before this job can be enabled.
  */
 async function deleteAllObjectGenerations(objectPath: string): Promise<number> {
-  if (!objectPath || objectPath.startsWith("/") || objectPath.includes("..")) {
+  if (!objectPath || objectPath.startsWith("/") || objectPath.split("/").includes("..")) {
     throw new Error("UNSAFE_MEDIA_OBJECT_PATH");
   }
   const bucket = getStorage().bucket();
@@ -81,7 +82,7 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
   let failures = 0;
 
   for (const purpose of ["chat", "room"] as const) {
-    for (let page = 0; page < 10; page += 1) {
+    for (let page = 0; page < RETENTION_PAGES_PER_RUN; page += 1) {
       const snapshot = await db.collection("mediaAssets")
         .where("mediaPurpose", "==", purpose)
         .where("createdAt", "<=", cutoff)
@@ -91,48 +92,67 @@ async function deleteExpiredChatMedia(): Promise<{ assets: number; objects: numb
       if (snapshot.empty) break;
 
       for (const assetDoc of snapshot.docs) {
-      const asset = assetDoc.data();
-      const ownerUid = typeof asset.ownerUid === "string" ? asset.ownerUid : "";
-      const mediaId = assetDoc.id;
-      const paths = new Set<string>();
-      if (typeof asset.objectPath === "string") paths.add(asset.objectPath);
-      if (typeof asset.safePreviewPath === "string") paths.add(asset.safePreviewPath);
-      // The scanner's only supported cloud derivative is this deterministic WebP path.
-      if (ownerUid && /^[0-9a-f-]{36}$/i.test(mediaId)) {
-        paths.add(`processed/${ownerUid}/${mediaId}/preview.webp`);
+        const asset = assetDoc.data();
+        const ownerUid = typeof asset.ownerUid === "string" ? asset.ownerUid : "";
+        const mediaId = assetDoc.id;
+        const alreadyTombstoned = asset.status === "self_destructed";
+        const paths = new Set<string>();
+        if (typeof asset.objectPath === "string") paths.add(asset.objectPath);
+        if (typeof asset.safePreviewPath === "string") paths.add(asset.safePreviewPath);
+        // Deterministic scanner output is checked on every reconciliation pass.
+        if (ownerUid && /^[0-9a-f-]{36}$/i.test(mediaId)) {
+          paths.add(`processed/${ownerUid}/${mediaId}/preview.webp`);
+        }
+
+        try {
+          for (const path of paths) objects += await deleteAllObjectGenerations(path);
+
+          // Keep a content-free tombstone so an in-flight scanner cannot leave
+          // a late derivative permanently orphaned. Reconciliation repeats the
+          // deterministic derivative deletion on every subsequent sweep.
+          const tombstone: Record<string, unknown> = {};
+          for (const key of Object.keys(asset)) {
+            if (!["ownerUid", "uploaderType", "mediaPurpose", "createdAt"].includes(key)) {
+              tombstone[key] = FieldValue.delete();
+            }
+          }
+          tombstone.status = "self_destructed";
+          tombstone.retentionPolicyStatus = "four_hour_self_destructed";
+          tombstone.retentionDeletedAt = asset.retentionDeletedAt ?? FieldValue.serverTimestamp();
+          tombstone.updatedAt = FieldValue.serverTimestamp();
+          await assetDoc.ref.set(tombstone, { merge: true });
+          await db.collection("mediaScanJobs").doc(mediaId).delete().catch(() => undefined);
+
+          if (!alreadyTombstoned) {
+            await db.collection("mediaAccessAudit").add({
+              actorUid: "system-retention",
+              mediaId,
+              action: "chat_media_self_destructed",
+              outcome: "success",
+              purpose,
+              objectCount: paths.size,
+              createdAt: FieldValue.serverTimestamp(),
+              expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
+            });
+            assets += 1;
+          }
+        } catch (error) {
+          failures += 1;
+          await db.collection("mediaAccessAudit").add({
+            actorUid: "system-retention",
+            mediaId,
+            action: "chat_media_self_destruct",
+            outcome: "retry_required",
+            purpose,
+            failureCode: error instanceof Error ? error.name : "unknown",
+            createdAt: FieldValue.serverTimestamp(),
+            expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
+          });
+          logger.error("Chat media deletion failed; asset remains for retry.", {
+            mediaId, purpose, errorName: error instanceof Error ? error.name : "unknown",
+          });
+        }
       }
-      try {
-        for (const path of paths) objects += await deleteAllObjectGenerations(path);
-        await db.collection("mediaScanJobs").doc(mediaId).delete().catch(() => undefined);
-        await assetDoc.ref.delete();
-        await db.collection("mediaAccessAudit").add({
-          actorUid: "system-retention",
-          mediaId,
-          action: "chat_media_self_destructed",
-          outcome: "success",
-          purpose,
-          objectCount: paths.size,
-          createdAt: FieldValue.serverTimestamp(),
-          expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
-        });
-        assets += 1;
-      } catch (error) {
-        failures += 1;
-        await db.collection("mediaAccessAudit").add({
-          actorUid: "system-retention",
-          mediaId,
-          action: "chat_media_self_destruct",
-          outcome: "retry_required",
-          purpose,
-          failureCode: error instanceof Error ? error.name : "unknown",
-          createdAt: FieldValue.serverTimestamp(),
-          expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
-        });
-        logger.error("Chat media deletion failed; asset remains for retry.", {
-          mediaId, purpose, errorName: error instanceof Error ? error.name : "unknown",
-        });
-      }
-    }
     }
   }
   return { assets, objects, failures };
@@ -143,61 +163,63 @@ async function deleteExpiredChatText(): Promise<{ messages: number; failures: nu
   const cutoff = Timestamp.fromMillis(Date.now() - CHAT_TEXT_RETENTION_MS);
   let messages = 0;
   let failures = 0;
-  for (let page = 0; page < 10; page += 1) {
-  const snapshot = await db.collectionGroup("messages")
-    .where("createdAt", "<=", cutoff)
-    .orderBy("createdAt", "asc")
-    .limit(RETENTION_BATCH_SIZE)
-    .get();
-  if (snapshot.empty) break;
 
-  const batch = db.batch();
-  const directChatIds = new Set<string>();
-  let batchMessages = 0;
-  for (const messageDoc of snapshot.docs) {
-    if (!isSupportedChatMessagePath(messageDoc.ref.path)) continue;
-    const parts = messageDoc.ref.path.split("/");
-    if (parts[0] === "directChats") {
-      const data = messageDoc.data();
-      const recipientUid = typeof data.recipientUid === "string" ? data.recipientUid : "";
-      if (recipientUid) {
-        batch.delete(db.collection("users").doc(recipientUid)
-          .collection("notifications").doc(messageDoc.id));
+  for (let page = 0; page < RETENTION_PAGES_PER_RUN; page += 1) {
+    const snapshot = await db.collectionGroup("messages")
+      .where("createdAt", "<=", cutoff)
+      .orderBy("createdAt", "asc")
+      .limit(RETENTION_BATCH_SIZE)
+      .get();
+    if (snapshot.empty) break;
+
+    const batch = db.batch();
+    const directChatIds = new Set<string>();
+    let batchMessages = 0;
+    for (const messageDoc of snapshot.docs) {
+      if (!isSupportedChatMessagePath(messageDoc.ref.path)) continue;
+      const parts = messageDoc.ref.path.split("/");
+      if (parts[0] === "directChats") {
+        const data = messageDoc.data();
+        const recipientUid = typeof data.recipientUid === "string" ? data.recipientUid : "";
+        if (recipientUid) {
+          batch.delete(db.collection("users").doc(recipientUid)
+            .collection("notifications").doc(messageDoc.id));
+        }
+        directChatIds.add(parts[1]);
       }
-      directChatIds.add(parts[1]);
+      batch.delete(messageDoc.ref);
+      batchMessages += 1;
     }
-    batch.delete(messageDoc.ref);
-    batchMessages += 1;
-  }
-  if (batchMessages === 0) break;
+    if (batchMessages === 0) break;
 
-  try {
-    await batch.commit();
-    messages += batchMessages;
-    // lastMessagePreview is a text copy. Remove it when its timestamp is expired.
+    // Clear text previews in the same atomic batch as their expired messages.
+    // Keep at most 150 messages per batch so message, notification and chat
+    // metadata writes stay below Firestore's 500-write batch limit.
     for (const chatId of directChatIds) {
       const chatRef = db.collection("directChats").doc(chatId);
-      await db.runTransaction(async (transaction) => {
-        const chat = await transaction.get(chatRef);
-        const lastMessageAt = chat.data()?.lastMessageAt;
-        if (chat.exists && lastMessageAt instanceof Timestamp &&
-            lastMessageAt.toMillis() <= cutoff.toMillis()) {
-          transaction.update(chatRef, {
-            lastMessagePreview: FieldValue.delete(),
-            lastMessageAt: FieldValue.delete(),
-            lastMessageSenderUid: FieldValue.delete(),
-            textRetentionPurgedAt: FieldValue.serverTimestamp(),
-          });
-        }
-      });
+      const chat = await chatRef.get();
+      const lastMessageAt = chat.data()?.lastMessageAt;
+      if (chat.exists && (!(lastMessageAt instanceof Timestamp) ||
+          lastMessageAt.toMillis() <= cutoff.toMillis())) {
+        batch.update(chatRef, {
+          lastMessagePreview: FieldValue.delete(),
+          lastMessageAt: FieldValue.delete(),
+          lastMessageSenderUid: FieldValue.delete(),
+          textRetentionPurgedAt: FieldValue.serverTimestamp(),
+        });
+      }
     }
-  } catch (error) {
-    logger.error("Chat text deletion batch failed; scheduled sweep will retry.", {
-      errorName: error instanceof Error ? error.name : "unknown",
-    });
-    failures += batchMessages;
-    break;
-  }
+
+    try {
+      await batch.commit();
+      messages += batchMessages;
+    } catch (error) {
+      logger.error("Chat text deletion batch failed; scheduled sweep will retry.", {
+        errorName: error instanceof Error ? error.name : "unknown",
+      });
+      failures += batchMessages;
+      break;
+    }
   }
   return { messages, failures };
 }
