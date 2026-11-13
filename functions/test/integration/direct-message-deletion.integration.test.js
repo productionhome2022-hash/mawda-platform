@@ -63,13 +63,14 @@ test("direct delete-for-everyone removes text and notifications, redacts preview
   const notifications = [alice, bob].map((uid) =>
     db.collection("users").doc(uid).collection("notifications").doc(messageId),
   );
+  const longText = "x".repeat(150);
   await chatRef.set({
     participantUids: [alice, bob],
-    lastMessagePreview: "remove this text",
+    lastMessagePreview: longText.substring(0, 120),
   });
   await messageRef.set({
     messageId, chatId, senderUid: alice, recipientUid: bob,
-    text: "remove this text", type: "text",
+    text: longText, type: "text",
   });
   await notifications[1].set({ type: "direct_message", messageId });
 
