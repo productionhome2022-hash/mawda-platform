@@ -149,5 +149,5 @@ The preceding failure in run 43473863520 was a test-harness import omission: the
 - PR #2 remains open, draft and unmerged. No production deployment or production resource mutation was performed.
 - Phase 1 + Phase 2 overall acceptance remains OPEN despite the green exact-head CI. Green CI validates only the automated checks executed on that commit.
 - Non-production GCS/Cloud Run scanner E2E, signed URL and generation-pinned deletion, backups/PITR/restore, FCM real delivery, mobile-device acceptance, privacy/legal review, penetration/accessibility/performance tests, owner MFA recovery and immutable 24-month audit archive/checkpoint remain release gates.
-- Generated Flutter web output and Firebase CLI cache are still tracked in the PR despite ignore rules; remove these generated artifacts from version control before closure.
+- Generated Flutter web output and Firebase CLI cache are removed from the PR as file deletions; `.gitignore` continues to exclude future generated output. The release workflow rebuilds `build/web` from the committed Flutter source and lockfile.
 - Phase 3 remains paused pending the owner's separate proposal and approval.
