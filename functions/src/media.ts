@@ -34,6 +34,129 @@ const mediaScannerUrl = defineString("MAWDA_MEDIA_SCANNER_URL", { default: "" })
 const mediaScannerCallbackUrl = defineString("MAWDA_MEDIA_SCANNER_CALLBACK_URL", { default: "" });
 const mediaScannerProvider = defineString("MAWDA_MEDIA_SCANNER_PROVIDER", { default: "clamav-mawadda-gateway" });
 
+/**
+ * Permanently removes one message-linked chat media asset and every exact-name
+ * Storage generation/known derivative. The tombstone is content-free and
+ * retryable; active legal holds always block this path.
+ */
+export async function deleteMediaAssetForMessage(
+  mediaId: string,
+  expectedOwnerUid: string,
+  expectedPurpose: "chat" | "room",
+): Promise<void> {
+  if (!/^[0-9a-f-]{36}$/i.test(mediaId) || !expectedOwnerUid) {
+    throw new HttpsError("invalid-argument", "معرف الوسيط أو مالكه غير صالح.");
+  }
+  const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
+  let assetData: Record<string, unknown> = {};
+  const shouldDelete = await mediaDb().runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(assetRef);
+    if (!snapshot.exists) throw new HttpsError("failed-precondition", "سجل الوسيط غير موجود؛ لا يمكن إثبات اكتمال الحذف.");
+    const data = snapshot.data() ?? {};
+    assetData = data;
+    if (data.ownerUid !== expectedOwnerUid || data.mediaPurpose !== expectedPurpose) {
+      throw new HttpsError("permission-denied", "لا يطابق مالك الوسيط أو غرضه الرسالة.");
+    }
+    if (data.legalHoldStatus === "active") {
+      throw new HttpsError("failed-precondition", "الوسيط خاضع لحجز قانوني نشط.");
+    }
+    if (["manually_deleted", "self_destructed"].includes(String(data.status))) return false;
+    if (typeof data.objectPath !== "string" ||
+        !data.objectPath.startsWith(`quarantine/${expectedOwnerUid}/`)) {
+      throw new HttpsError("failed-precondition", "مسار تخزين الوسيط غير صالح للحذف الآمن.");
+    }
+    transaction.update(assetRef, {
+      status: "manual_deletion_pending",
+      retentionExpiresAt: Timestamp.now(),
+      manualDeletionRequestedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return true;
+  });
+  if (!shouldDelete) return;
+
+  const paths = new Set<string>([String(assetData.objectPath)]);
+  const safePreviewPath = assetData.safePreviewPath;
+  if (typeof safePreviewPath === "string") paths.add(safePreviewPath);
+  const deterministicPreview = `processed/${expectedOwnerUid}/${mediaId}/preview.webp`;
+  paths.add(deterministicPreview);
+  const derivedPaths = Array.isArray(assetData.derivedObjectPaths)
+    ? assetData.derivedObjectPaths
+    : [];
+  for (const candidate of derivedPaths) {
+    if (typeof candidate !== "string" ||
+        !candidate.startsWith(`processed/${expectedOwnerUid}/${mediaId}/`) ||
+        candidate.startsWith("/") || candidate.split("/").includes("..")) {
+      throw new HttpsError("failed-precondition", "توجد نسخة مشتقة بمسار غير موثوق؛ أوقفنا الحذف.");
+    }
+    paths.add(candidate);
+  }
+
+  try {
+    for (const objectPath of paths) {
+      if (objectPath.startsWith("/") || objectPath.split("/").includes("..")) {
+        throw new Error("UNSAFE_MEDIA_OBJECT_PATH");
+      }
+      const [listed] = await mediaBucket().getFiles({
+        prefix: objectPath, versions: true, autoPaginate: true,
+      });
+      const exact = listed.filter((file) => file.name === objectPath);
+      for (const version of exact) {
+        const [metadata] = await version.getMetadata();
+        const generation = Number(metadata.generation);
+        if (!Number.isSafeInteger(generation) || generation <= 0) {
+          throw new Error("INVALID_STORAGE_GENERATION");
+        }
+        await version.delete({ ignoreNotFound: true, ifGenerationMatch: generation });
+      }
+    }
+
+    await mediaDb().runTransaction(async (transaction) => {
+      const latest = await transaction.get(assetRef);
+      if (!latest.exists) throw new Error("MEDIA_ASSET_DISAPPEARED_DURING_DELETE");
+      if (latest.data()?.legalHoldStatus === "active") {
+        throw new HttpsError("failed-precondition", "تم تسجيل حجز قانوني أثناء الحذف؛ يلزم تدخل المالك.");
+      }
+      const tombstone: Record<string, unknown> = {};
+      for (const key of Object.keys(latest.data() ?? {})) {
+        if (!["mediaId", "ownerUid", "uploaderType", "mediaPurpose", "createdAt", "retentionExpiresAt"].includes(key)) {
+          tombstone[key] = FieldValue.delete();
+        }
+      }
+      tombstone.status = "manually_deleted";
+      tombstone.retentionPolicyStatus = "manual_delete_for_everyone_completed";
+      tombstone.manualDeletedAt = FieldValue.serverTimestamp();
+      tombstone.updatedAt = FieldValue.serverTimestamp();
+      const auditRef = mediaDb().collection("mediaAccessAudit").doc();
+      transaction.set(assetRef, tombstone, { merge: true });
+      transaction.create(auditRef, {
+        actorUid: "system-message-deletion",
+        mediaId,
+        action: "chat_media_manual_delete_for_everyone",
+        purpose: expectedPurpose,
+        outcome: "success",
+        deletedObjectPathCount: paths.size,
+        createdAt: FieldValue.serverTimestamp(),
+        expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      });
+    });
+    await mediaDb().collection("mediaScanJobs").doc(mediaId).delete().catch(() => undefined);
+  } catch (error) {
+    await mediaDb().collection("mediaAccessAudit").add({
+      actorUid: "system-message-deletion",
+      mediaId,
+      action: "chat_media_manual_delete_for_everyone",
+      purpose: expectedPurpose,
+      outcome: "retry_required",
+      failureCode: error instanceof Error ? error.name : "unknown",
+      createdAt: FieldValue.serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
+    }).catch(() => undefined);
+    throw error;
+  }
+}
+
+
 function requireUid(uid: string | undefined): string {
   if (!uid) throw new HttpsError("unauthenticated", "يجب تسجيل الدخول أولاً.");
   return uid;
