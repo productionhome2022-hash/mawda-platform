@@ -120,6 +120,56 @@ test("coin transfer rejects a suspended account and leaves both balances unchang
   }
 });
 
+test("coin transfer rejects an ineligible recipient and insufficient sender balance without partial writes", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const senderUid = `eligible_sender_${tag}`;
+  const blockedRecipientUid = `blocked_recipient_${tag}`;
+  const poorSenderUid = `poor_sender_${tag}`;
+  const eligibleRecipientUid = `eligible_recipient_${tag}`;
+  const refs = [
+    db.collection("users").doc(senderUid),
+    db.collection("users").doc(blockedRecipientUid),
+    db.collection("users").doc(poorSenderUid),
+    db.collection("users").doc(eligibleRecipientUid),
+  ];
+  await Promise.all([
+    refs[0].set({ coins: 1000, accountStatus: "active" }),
+    refs[1].set({ coins: 100, accountStatus: "disabled" }),
+    refs[2].set({ coins: 10, accountStatus: "active" }),
+    refs[3].set({ coins: 50, accountStatus: "active" }),
+    db.doc("platformSettings/coinTransfers").set({ enabled: true, commissionBps: 1000 }),
+  ]);
+  try {
+    await assert.rejects(
+      () => transferCoins.run(memberRequest(senderUid, {
+        recipientUid: blockedRecipientUid, amount: 100,
+        requestId: `blocked_recipient_${tag}`, expectedCommissionBps: 1000,
+      })),
+      (error) => error && error.code === "permission-denied",
+    );
+    await assert.rejects(
+      () => transferCoins.run(memberRequest(poorSenderUid, {
+        recipientUid: eligibleRecipientUid, amount: 100,
+        requestId: `insufficient_${tag}`, expectedCommissionBps: 1000,
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await refs[0].get()).data().coins, 1000);
+    assert.equal((await refs[1].get()).data().coins, 100);
+    assert.equal((await refs[2].get()).data().coins, 10);
+    assert.equal((await refs[3].get()).data().coins, 50);
+    const failedTransfers = await db.collection("coinTransfers")
+      .where("senderUid", "in", [senderUid, poorSenderUid]).get();
+    assert.equal(failedTransfers.empty, true);
+  } finally {
+    await Promise.all([
+      ...refs.map((ref) => ref.delete().catch(() => undefined)),
+      db.doc("platformSettings/coinTransfers").set({ enabled: false, commissionBps: 0, version: 0 }),
+    ]);
+  }
+});
+
 test("store purchase atomically charges, records receipt and ledger, grants entitlement, and is idempotent", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = suffix();
