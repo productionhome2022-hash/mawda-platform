@@ -152,6 +152,14 @@ The deployer service account needs Artifact Registry, Cloud Run, API enablement,
 - These are CI/emulator results on the development branch, not production Firebase/GCS verification. No production deploy or destructive retention schedule is enabled.
 - Phase 2 remains open pending the purpose-specific story/gallery/avatar/cover retention workflows, real bucket and backup lifecycle verification, deployed scanner gateway, client-side media upload/send/read integration, and end-to-end cross-device checks.
 
+## Profile gallery retention — implementation and CI verification (13 November 2026)
+
+- Validated `profile_album` uploads receive the `seven_day_profile_album` policy. The seven-day clock starts only after server-side upload validation/finalization.
+- The retention sweep includes profile gallery assets, deletes exact generations from the configured media bucket, records a content-free tombstone, and reconciles late previews. Active legal holds suspend deletion of the exact held asset.
+- Firestore + Storage emulator integration test proves original/preview deletion and hold preservation.
+- Commit `d66b2fd` passed GitHub Actions run `43395785257`: Functions compile/unit/integration tests, Firestore/Storage rules, Flutter analyze/tests/Web build, ClamAV image/EICAR and security workflow.
+- Still open: story expiry linkage, avatar/cover rollover/default fallback, Flutter member-side media upload/read/send experience, real production bucket/backup lifecycle verification, and deployed scanner gateway.
+
 ## Merge and deployment boundary
 
 PR #2 and PR #3 are separate draft proposals. PR #3's head is based on an older snapshot of the development branch and the refs currently diverge; do not merge either PR until the phase-2 changes are reconciled onto one current branch and the exact final commit has a green full CI run. No production Firebase mutation, production deployment, public Storage access or merge to `main` is authorized by this engineering record.
