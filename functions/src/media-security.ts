@@ -44,6 +44,23 @@ export function mediaPolicyFor(contentType: string): MediaPolicy | null {
   return POLICIES[contentType] ?? null;
 }
 
+/**
+ * Role-aware upload policy. Documents are never member-to-member attachments.
+ * Only a verified platform-owner session may upload an allowlisted document to
+ * a direct chat or room. Profile/gallery/story media remain image-only.
+ */
+export function mediaUploadAllowedForRole(
+  input: { contentType: string; purpose: MediaPurpose },
+  isPlatformOwner: boolean,
+): boolean {
+  const policy = mediaPolicyFor(input.contentType);
+  if (!policy) return false;
+  if (input.purpose === "chat" || input.purpose === "room") {
+    return policy.category !== "document" || isPlatformOwner;
+  }
+  return policy.category === "image";
+}
+
 export function normalizeMediaRequest(input: Record<string, unknown>): {
   originalName: string;
   contentType: string;
