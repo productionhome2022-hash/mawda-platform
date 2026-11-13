@@ -38,17 +38,37 @@ async function main() {
     throw new Error("Enroll and verify a second factor on the owner account before provisioning platformOwner.");
   }
 
-  const auditRef = db.collection("adminAuditLogs").doc();
+  const ownerRegistryRef = db.doc("platformSettings/platformOwner");
+  await db.runTransaction(async (transaction) => {
+    const registry = await transaction.get(ownerRegistryRef);
+    if (registry.exists) {
+      if (registry.data()?.ownerUid !== ownerUid) {
+        throw new Error("A different canonical platform owner is already registered; owner transfer requires a separately audited recovery process.");
+      }
+      return;
+    }
+    transaction.create(ownerRegistryRef, {
+      ownerUid,
+      ownerEmail: owner.email.toLowerCase(),
+      identityModel: "single_platform_owner",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+
   const existingClaims = owner.customClaims ?? {};
-  if (existingClaims.platformOwner === true) {
-    console.log("The selected account already has platformOwner=true; no claim change was made.");
+  const claimsAreCurrent = existingClaims.platformOwner === true &&
+    existingClaims.platformOwnerUid === ownerUid;
+  if (claimsAreCurrent) {
+    console.log("The selected account is already the canonical platform owner; no claim change was made.");
     return;
   }
 
+  const auditRef = db.collection("adminAuditLogs").doc();
   await auditRef.create({
     action: "platform_owner_bootstrap_started",
     targetUid: ownerUid,
     targetEmail: owner.email,
+    identityModel: "single_platform_owner",
     status: "pending",
     createdAt: FieldValue.serverTimestamp(),
   });
@@ -57,13 +77,14 @@ async function main() {
     await auth.setCustomUserClaims(ownerUid, {
       ...existingClaims,
       platformOwner: true,
+      platformOwnerUid: ownerUid,
     });
     await auditRef.update({
       action: "platform_owner_bootstrap_completed",
       status: "completed",
       completedAt: FieldValue.serverTimestamp(),
     });
-    console.log("Owner claim provisioned successfully for the verified account.");
+    console.log("Canonical owner claim provisioned successfully for the verified account.");
   } catch (error) {
     await auditRef.update({
       status: "failed",
