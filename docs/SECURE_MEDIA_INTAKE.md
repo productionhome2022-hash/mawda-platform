@@ -3,7 +3,7 @@
 ## Security boundary
 
 - Firebase Storage client rules remain deny-all. Firestore client access to `mediaAssets` and `mediaAccessAudit` remains denied. No member-facing media download path is enabled.
-- Each authenticated upload intent creates a random object path under `quarantine/{uid}/{mediaId}`, with a five-minute V4 signed PUT capability and `ifGenerationMatch=0`. The precondition prevents a second successful create over an existing generation; it does **not** make a signed URL universally single-use. Anyone who obtains the bearer URL may attempt a PUT until expiry.
+- Each authenticated upload intent creates a random object path under `quarantine/{uid}/{mediaId}`, with a five-minute V4 signed POST policy. The policy fixes `Content-Type`, applies an exact `content-length-range` equal to the declared byte count, and includes `x-goog-if-generation-match=0`. Cloud Storage rejects a size mismatch or a second successful create over an existing live generation; the capability remains a bearer credential until expiry and is not universally single-use.
 - Finalization verifies owner UID, exact declared-vs-actual byte count, allowlisted content type, server metadata, generation and leading-byte signature. Mismatches are rejected, deleted and audited. Signature validation is not malware detection.
 - Accepted files remain `pending_security_scan`. A file becomes `security_approved` only after the signed scanner callback validates the provider, HMAC, timestamp, media ID, exact Storage generation and full-object SHA-256.
 - Scanner callback HMAC uses constant-time comparison. Callback payloads are size-limited and freshness-checked. Malicious verdicts are rejected and the exact scanned generation is deleted. Missing, invalid, stale or mismatched verdicts never approve a file.
@@ -26,7 +26,7 @@ Per authenticated UID defaults:
 
 Reservations and asset creation are atomic in Firestore. Finalization releases active count/bytes in the same transaction as the asset state transition. The daily count and byte budgets are consumed at intent issuance, including abandoned intents, and reset at the UTC day boundary without erasing active reservations.
 
-**Transport limitation:** the current signed PUT capability does not enforce a hard byte ceiling while bytes are in transit. The server compares actual object size with the exact declared reservation at finalization and deletes over-sized objects, but this occurs after transfer and does not prevent bandwidth/storage-cost abuse during upload. A streaming upload gateway or storage-side enforced size condition is still required before production.
+**Transport qualification:** the V4 POST policy now enforces the exact file-part size at Cloud Storage and prevents an oversized object from being committed. Finalization independently checks actual server-reported bytes. This is a storage-side object-size gate; it is not a guarantee that an oversized request consumes zero ingress bandwidth before rejection. If ingress-bandwidth abuse must also be bounded, use a streaming upload gateway with an early byte counter.
 
 ## Abandoned upload cleanup
 
@@ -34,8 +34,8 @@ A scheduled janitor runs every 15 minutes. It claims only `upload_authorized` re
 
 ## Signed URL HTTP verification
 
-- Emulator integration tests verify the exact V4 signing options (create-only upload, bounded expiry, attachment-only owner read), owner/MFA authorization, stale-generation denial and over-reservation rejection. The emulator cannot mint real Google V4 signatures without signing credentials, so these tests deliberately stub only the signer.
-- `functions/scripts/test-signed-urls-http.cjs` is an opt-in real-bucket test for a dedicated non-production bucket. It checks successful signed PUT, create-only replay rejection (expected HTTP 412), signed GET byte equality and expiry. It refuses the known production project and production-named buckets. It has **not** been run against a real non-production Firebase project yet.
+- Emulator integration tests verify the exact V4 POST policy (exact file-size condition, create-only generation precondition, bounded expiry), attachment-only owner read, owner/MFA authorization, stale-generation denial and finalization rejection. The emulator cannot mint real Google V4 signatures without signing credentials, so these tests deliberately stub only the signer.
+- `functions/scripts/test-signed-urls-http.cjs` is an opt-in real-bucket test for a dedicated non-production bucket. It checks successful signed POST with exact file size, create-only replay rejection (expected HTTP 412), signed GET byte equality and expiry. It refuses the known production project and production-named buckets. It has **not** been run against a real non-production Firebase project yet.
 - Cloud Storage V4 signed URLs are not inherently one-time. The generation precondition is the replay barrier after the first successful object creation.
 
 ## Scanner gateway contract
@@ -57,7 +57,7 @@ Only expired, unfinished upload intents are automatically cleaned up. Retention 
 ## Remaining phase-2 release gates
 
 1. Build and deploy the ClamAV gateway to a dedicated non-production Cloud Run service with IAM-only invocation, shared Secret Manager secrets, a working signature database and a verified callback URL; test clean, EICAR/malicious, timeout, unavailable, stale, duplicate and tampered-callback cases.
-2. Replace or harden the signed PUT transport so declared size is enforced before/during transfer, not only at finalization.
+2. Run the exact-size signed POST policy against a dedicated non-production bucket; decide whether a separate streaming proxy is required to limit ingress bandwidth as well as committed object size.
 3. Deliver a safe owner preview pipeline that serves sanitized/re-encoded derivatives only; do not decode untrusted originals directly in the owner UI.
 4. Run the opt-in signed URL HTTP test against a dedicated non-production Firebase bucket and retain dated evidence.
 5. Approve retention/export/deletion/legal-hold policy and test it in a non-production environment.
@@ -66,7 +66,7 @@ Only expired, unfinished upload intents are automatically cleaned up. Retention 
 
 ## Callable and scheduled contracts
 
-- `createMediaUploadIntent({ originalName, contentType, sizeBytes })`
+- `createMediaUploadIntent({ originalName, contentType, sizeBytes })` — returns a five-minute POST URL, signed form fields, `uploadMethod: POST`, exact `maxBytes` and expiry.
 - `finalizeMediaUpload({ mediaId })`
 - `listOwnerMediaAssets({ status?, uploaderType?, limit?, pageToken? })`
 - `getOwnerMediaInspectionUrl({ mediaId })`
