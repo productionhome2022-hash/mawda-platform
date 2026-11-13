@@ -14,15 +14,15 @@ function secureEqual(left, right) {
 }
 
 export function parseClamAvVersion(response) {
-  const match = /^ClamAV\\s+([^/\\s]+)\\/([^/\\s]+)/.exec(String(response).trim());
+  const match = /^ClamAV\s+([^/\s]+)\\/([^/\s]+)/.exec(String(response).trim());
   if (!match) throw new Error("CLAMAV_VERSION_RESPONSE_INVALID");
   return { engine: "ClamAV", engineVersion: match[1], signatureVersion: match[2] };
 }
 
 export function parseClamAvScanResponse(response) {
   const text = String(response).trim();
-  if (/^stream:\\s*OK$/i.test(text)) return "clean";
-  if (/^stream:.+\\sFOUND$/i.test(text)) return "malicious";
+  if (/^stream:\s*OK$/i.test(text)) return "clean";
+  if (/^stream:.+\sFOUND$/i.test(text)) return "malicious";
   throw new Error("CLAMAV_SCAN_DID_NOT_RETURN_A_VERDICT");
 }
 
@@ -41,10 +41,10 @@ function clamdCommand(config, command, payload) {
     socket.on("error", (error) => finish(error));
     socket.on("data", (chunk) => {
       response = Buffer.concat([response, chunk]);
-      if (response.includes(0)) finish(null, response.toString("utf8").replace(/\\0.*$/s, ""));
+      if (response.includes(0)) finish(null, response.toString("utf8").replace(/\0.*$/s, ""));
     });
     socket.on("connect", () => {
-      socket.write(Buffer.from(`z${command}\\0`));
+      socket.write(Buffer.from(`z${command}\0`));
       if (payload) {
         const chunkSize = 1024 * 1024;
         for (let offset = 0; offset < payload.length; offset += chunkSize) {
@@ -118,7 +118,7 @@ export function createScannerHandler(config, scan = scanWithClamAv) {
       const expectedSha256 = String(request.headers["x-mawadda-expected-sha256"] ?? "");
       const provider = String(request.headers["x-mawadda-provider"] ?? "");
       const callbackUrl = String(request.headers["x-mawadda-callback-url"] ?? "");
-      if (!UUID.test(mediaId) || !/^\\d+$/.test(objectGeneration) ||
+      if (!UUID.test(mediaId) || !/^\d+$/.test(objectGeneration) ||
           !SHA256.test(expectedSha256) || provider !== config.provider ||
           callbackUrl !== config.callbackUrl) {
         response.writeHead(400, { "cache-control": "no-store" });
