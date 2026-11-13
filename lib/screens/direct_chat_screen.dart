@@ -206,7 +206,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       final mediaId = await _mediaService.uploadImage(file: file, purpose: 'chat');
       await _mediaService.sendChatImageAttachment(
         scope: 'direct',
-        recipientUid: widget.peerUid,
+        recipientUid: _resolvedPeerUid,
         mediaId: mediaId,
         clientMessageId: const Uuid().v4(),
       );
