@@ -48,6 +48,10 @@ test("scanner verdict accepts a fully bound safe WebP derivative and rejects par
     objectGeneration: "123456",
     sha256: "a".repeat(64),
     scannedAtMs: now,
+    scanEngine: "ClamAV",
+    engineVersion: "1.4.6",
+    signatureDatabaseVersion: "28202",
+    signatureDatabaseAgeMs: 60 * 60 * 1000,
   };
   const derivative = {
     safePreviewPath: "processed/member_123/123e4567-e89b-12d3-a456-426614174000/preview.webp",
