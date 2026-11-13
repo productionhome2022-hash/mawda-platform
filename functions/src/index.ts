@@ -2103,7 +2103,7 @@ export const deleteDirectMessageForEveryone = onCall(async (request) => {
     }
 
     const legacyMediaKeys = ["storagePath", "mediaPath", "mediaUrl", "downloadUrl", "attachments", "fileUrl"];
-    const hasMediaReference = (data.type !== undefined && data.type !== "text") ||
+    const hasMediaReference = (data.type !== undefined && data.type !== "text" && data.type !== "live_stream") ||
       legacyMediaKeys.some((key) => data[key] !== undefined && data[key] !== null) ||
       data.mediaId !== undefined || data.mediaIds !== undefined;
     if (hasMediaReference) {
@@ -2866,6 +2866,8 @@ export const getOwnerDirectChatMessages = onCall(async (request) => {
       senderLabel: data.isPlatformOwnerMessage === true
         ? (typeof data.senderLabel === "string" ? data.senderLabel : "إدارة منصة مودة")
         : null,
+      type: data.type ?? "text",
+      liveStream: data.liveStream ?? null,
       ownerParticipationMode: data.ownerParticipationMode ?? null,
       createdAt: data.createdAt?.toMillis?.() ?? null,
     };
@@ -3866,7 +3868,7 @@ export const deleteRoomMessage = onCall(async (request) => {
       throw new HttpsError("permission-denied", "يمكنك حذف رسائلك فقط ما لم تكن تملك صلاحية الإشراف.");
     }
 
-    const hasMediaReference = (data.type !== undefined && data.type !== "text") ||
+    const hasMediaReference = (data.type !== undefined && data.type !== "text" && data.type !== "live_stream") ||
       ["storagePath", "mediaPath", "mediaUrl", "downloadUrl", "attachments", "fileUrl"]
         .some((key) => data[key] !== undefined && data[key] !== null) ||
       data.mediaId !== undefined || data.mediaIds !== undefined;
