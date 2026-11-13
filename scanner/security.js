@@ -72,8 +72,8 @@ function sanitizeScannerError(error) {
     "GIF_COMPLEXITY_EXCEEDS_SAFE_LIMIT", "EXISTING_SAFE_DERIVATIVE_PROVENANCE_MISMATCH",
     "SAFE_DERIVATIVE_METADATA_MISMATCH", "SCANNER_CALLBACK_NOT_CONFIGURED",
   ]);
-  if (fixed.has(message) || /^SOURCE_DOWNLOAD_HTTP_\\d{3}$/.test(message) ||
-      /^SCANNER_CALLBACK_HTTP_\\d{3}$/.test(message)) return message;
+  if (fixed.has(message) || /^SOURCE_DOWNLOAD_HTTP_\d{3}$/.test(message) ||
+      /^SCANNER_CALLBACK_HTTP_\d{3}$/.test(message)) return message;
   return "SCAN_FAILED";
 }
 
