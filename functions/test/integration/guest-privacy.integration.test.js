@@ -46,7 +46,7 @@ test("anonymous guests must acknowledge as guests and cannot use member acknowle
 test("password-authenticated members must acknowledge as members", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const uid = `member_${suffix()}`;
-  const ref = db.collection("privacyAcknowledgements").doc(`${uid}_2026-11-12.1`);
+  const ref = db.collection("privacyAcknowledgements").doc(`${uid}_${PRIVACY_POLICY_VERSION}`);
   try {
     const accepted = await recordPrivacyAcknowledgement.run(request(uid, "password", data("member")));
     assert.equal(accepted.acknowledged, true);
