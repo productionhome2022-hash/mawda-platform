@@ -94,6 +94,61 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     }
   }
 
+  Future<void> _deleteMessage(Map<String, dynamic> message) async {
+    final messageId = message['messageId'] as String? ?? '';
+    final chatId = _messagesFuture == null ? '' : '';
+    if (messageId.isEmpty) return;
+    final mine = message['senderUid'] == widget.currentUserId;
+    final action = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('خيارات حذف الرسالة'),
+        content: const Text('اختر طريقة الحذف.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'me'),
+            child: const Text('الحذف لدي'),
+          ),
+          if (mine)
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, 'everyone'),
+              child: const Text('الحذف لدى الجميع'),
+            ),
+        ],
+      ),
+    );
+    if (action == null || !mounted) return;
+    try {
+      final data = await _messagesFuture;
+      final currentChatId = data['chatId'] as String? ?? '';
+      if (currentChatId.isEmpty) {
+        throw StateError('المحادثة غير متاحة');
+      }
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        action == 'me' ? 'deleteDirectMessageForMe' : 'deleteDirectMessageForEveryone',
+      );
+      await callable.call(<String, dynamic>{
+        'chatId': currentChatId,
+        'messageId': messageId,
+      });
+      if (mounted) _refresh();
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر حذف الرسالة.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر حذف الرسالة. حاول تحديث المحادثة ثم أعد المحاولة.')),
+      );
+    }
+  }
+
   String _timeLabel(dynamic value) {
     if (value is! num) return '';
     final date = DateTime.fromMillisecondsSinceEpoch(value.toInt()).toLocal();
@@ -180,6 +235,15 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                         style: Theme.of(context).textTheme.labelSmall,
                       ),
                     ],
+                    const SizedBox(width: 4),
+                    IconButton(
+                      tooltip: 'حذف الرسالة',
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      onPressed: () => _deleteMessage(message),
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                    ),
                   ],
                 ),
               ],
