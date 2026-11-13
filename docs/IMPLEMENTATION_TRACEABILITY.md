@@ -351,3 +351,13 @@ Remaining phase-two closure items:
 | Member and owner logout | Firebase signOut, best-effort token unregister, auth-gate return, clear privileged state | Main shell already exposes sign-out and AuthService.signOut; verify owner reachability, failure behavior and end-to-end auth-gate tests before acceptance |
 
 These additions are Phase 1/2 scope only. Phase 3 remains paused pending the owner's separate proposal and approval.
+
+
+## Owner identity and configurable payment-channel amendment — 13 November 2026
+
+- The Owner and Super Admin labels belong to one human and one canonical owner UID. There must be no second independent owner/Super Admin identity. Internal claims may be aliases, but all privileged operations resolve to the same canonical owner.
+- Coin purchase has two independently owner-controlled channels: direct/manual owner contact (the default supported route) and optional automated provider checkout (future, disabled until provider and compliance gates pass).
+- Fixed packages may later be assigned to an enabled automated provider. Custom quantities remain negotiated in the member's one-to-one conversation with the owner, who sends payment instructions and approves coin issuance after external verification.
+- The owner controls payment-channel availability and package visibility from the owner console. No client-side success callback, screenshot or unverified webhook can credit coins.
+- Implementation and acceptance are open: canonical owner UID/claim migration audit, owner payment-channel settings UI and callable, manual request/conversation lifecycle, provider adapter/webhook signature/replay/refund/reconciliation tests, and end-to-end issuance gating.
+- Automated checkout remains disabled and no provider, bank account, payment contract or credential is assumed to exist.
