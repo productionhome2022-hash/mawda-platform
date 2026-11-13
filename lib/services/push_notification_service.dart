@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 class PushNotificationService {
   static const _webVapidKey = String.fromEnvironment('MAWDA_FCM_VAPID_KEY');
   StreamSubscription<String>? _tokenSubscription;
+  StreamSubscription<RemoteMessage>? _foregroundSubscription;
 
   String get _platform {
     if (kIsWeb) return 'web';
@@ -22,7 +23,7 @@ class PushNotificationService {
     }
   }
 
-  Future<void> initialize() async {
+  Future<void> initialize({void Function(RemoteMessage message)? onForegroundMessage}) async {
     if (kIsWeb && _webVapidKey.isEmpty) {
       debugPrint('Mawda push notifications are disabled: MAWDA_FCM_VAPID_KEY is not configured.');
       return;
@@ -38,6 +39,10 @@ class PushNotificationService {
       );
       if (token != null && token.isNotEmpty) await _register(token);
       await _tokenSubscription?.cancel();
+      await _foregroundSubscription?.cancel();
+      if (onForegroundMessage != null) {
+        _foregroundSubscription = FirebaseMessaging.onMessage.listen(onForegroundMessage);
+      }
       _tokenSubscription = messaging.onTokenRefresh.listen((value) {
         if (value.isNotEmpty) unawaited(_register(value));
       });
@@ -70,6 +75,8 @@ class PushNotificationService {
 
   Future<void> dispose() async {
     await _tokenSubscription?.cancel();
+    await _foregroundSubscription?.cancel();
     _tokenSubscription = null;
+    _foregroundSubscription = null;
   }
 }
