@@ -1,26 +1,17 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mawda_app/services/local_biometric_service.dart';
 
 class FakeBiometricAdapter implements LocalBiometricAdapter {
-  bool supported = true;
-  bool canCheck = true;
-  List<String> enrolled = <String>['fingerprint'];
   bool authenticationResult = true;
+  PlatformException? platformException;
   bool shouldThrow = false;
   int promptCalls = 0;
 
   @override
-  Future<bool> isDeviceSupported() async => supported;
-
-  @override
-  Future<bool> canCheckBiometrics() async => canCheck;
-
-  @override
-  Future<List<String>> getAvailableBiometrics() async => enrolled;
-
-  @override
   Future<bool> authenticate() async {
     promptCalls += 1;
+    if (platformException != null) throw platformException!;
     if (shouldThrow) throw StateError('native prompt failed');
     return authenticationResult;
   }
@@ -36,23 +27,7 @@ void main() {
     expect(adapter.promptCalls, 1);
   });
 
-  test('does not show a prompt when the device lacks biometric support', () async {
-    final adapter = FakeBiometricAdapter()..supported = false;
-    final result = await LocalBiometricService(adapter: adapter).authenticate();
-
-    expect(result.status, LocalBiometricStatus.unavailable);
-    expect(adapter.promptCalls, 0);
-  });
-
-  test('does not show a prompt when biometrics are not enrolled', () async {
-    final adapter = FakeBiometricAdapter()..enrolled = <String>[];
-    final result = await LocalBiometricService(adapter: adapter).authenticate();
-
-    expect(result.status, LocalBiometricStatus.notEnrolled);
-    expect(adapter.promptCalls, 0);
-  });
-
-  test('reports user cancellation without treating it as success', () async {
+  test('reports cancellation without treating it as success', () async {
     final adapter = FakeBiometricAdapter()..authenticationResult = false;
     final result = await LocalBiometricService(adapter: adapter).authenticate();
 
@@ -60,7 +35,23 @@ void main() {
     expect(result.succeeded, isFalse);
   });
 
-  test('fails closed when the native plugin throws', () async {
+  test('classifies missing biometric enrollment', () async {
+    final adapter = FakeBiometricAdapter()
+      ..platformException = PlatformException(code: 'NotEnrolled');
+    final result = await LocalBiometricService(adapter: adapter).authenticate();
+
+    expect(result.status, LocalBiometricStatus.notEnrolled);
+  });
+
+  test('classifies unavailable biometric hardware', () async {
+    final adapter = FakeBiometricAdapter()
+      ..platformException = PlatformException(code: 'NotAvailable');
+    final result = await LocalBiometricService(adapter: adapter).authenticate();
+
+    expect(result.status, LocalBiometricStatus.unavailable);
+  });
+
+  test('fails closed when the native plugin throws an unexpected error', () async {
     final adapter = FakeBiometricAdapter()..shouldThrow = true;
     final result = await LocalBiometricService(adapter: adapter).authenticate();
 
