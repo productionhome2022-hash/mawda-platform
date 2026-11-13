@@ -24,7 +24,7 @@ jobs:
         run: flutter config --enable-web
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Analyze
         run: flutter analyze
