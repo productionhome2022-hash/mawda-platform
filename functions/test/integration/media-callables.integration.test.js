@@ -37,7 +37,7 @@ fs.writeFileSync(testCredentialsPath, JSON.stringify({
 }), { mode: 0o600 });
 process.env.GOOGLE_APPLICATION_CREDENTIALS = testCredentialsPath;
 const storageEmulatorHost = (process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? "127.0.0.1:9199")
-  .replace(/^https?:\\/\\//i, "");
+  .replace("https://", "").replace("http://", "");
 process.env.STORAGE_EMULATOR_HOST = `http://${storageEmulatorHost}`;
 after(() => { try { fs.unlinkSync(testCredentialsPath); } catch {} });
 
