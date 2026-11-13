@@ -168,6 +168,15 @@ The deployer service account needs Artifact Registry, Cloud Run, API enablement,
 - GitHub Actions run `43396442797` passed on commit `e2427da`: Functions compile/integration/rules, Flutter analyze/tests/Web release, ClamAV container/EICAR.
 - Remaining: a complete member-facing story creation/view lifecycle is not yet implemented in Flutter. Story duration is not hard-coded; it must be supplied by the trusted story workflow.
 
+## Avatar/cover 30-day lifecycle — backend and CI verification (13 November 2026)
+
+- Validated custom `avatar_cover` uploads receive a 30-day expiry. A member-only callable selects a clean asset for exactly one slot and starts the selected 30-day clock.
+- Replaced assets receive a superseded deadline no later than 30 days after replacement, without extending an earlier expiry.
+- At expiry, if the asset is still current, the backend atomically switches the member record to the Mawda default flag before deleting exact original/preview generations. Under an active legal hold, the default fallback still occurs on time while the object remains preserved until release.
+- Firestore + Storage emulator tests cover selection, supersession, expiry, default fallback and legal-hold release; upload-finalization expiry is tested separately.
+- GitHub Actions run `43397290259` passed on commit `0ae25ab`: Functions/integration/rules, Flutter analyze/tests/Web release, ClamAV container/EICAR.
+- Remaining: Flutter upload/select/display UI and member-side media access are not yet connected to this backend lifecycle.
+
 ## Merge and deployment boundary
 
 PR #2 and PR #3 are separate draft proposals. PR #3's head is based on an older snapshot of the development branch and the refs currently diverge; do not merge either PR until the phase-2 changes are reconciled onto one current branch and the exact final commit has a green full CI run. No production Firebase mutation, production deployment, public Storage access or merge to `main` is authorized by this engineering record.
