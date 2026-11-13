@@ -18,6 +18,9 @@ test("scanner verdict binds provider, object generation, hash and freshness", ()
   const payload = {
     mediaId: "123e4567-e89b-12d3-a456-426614174000",
     provider: "mawadda-malware-gateway",
+    engine: "ClamAV",
+    engineVersion: "1.4.2",
+    signatureVersion: "20261113-090000",
     verdict: "clean",
     objectGeneration: "123456",
     sha256: "a".repeat(64),
