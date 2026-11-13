@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { getMessaging } from "firebase-admin/messaging";
 import { validateMemberProfile } from "./member-profile";
 import { FieldPath, FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
@@ -120,6 +121,35 @@ type TransferRequest = {
   expectedCommissionBps?: unknown;
 };
 
+async function sendPushToMember(
+  uid: string, title: string, body: string, data: Record<string, string>,
+): Promise<void> {
+  try {
+    const tokensSnapshot = await db.collection("users").doc(uid)
+      .collection("pushTokens").where("active", "==", true).limit(500).get();
+    const tokenDocs = tokensSnapshot.docs.filter((doc) =>
+      typeof doc.data().token === "string" && doc.data().token.length > 0);
+    if (tokenDocs.length === 0) return;
+    const response = await getMessaging().sendEachForMulticast({
+      tokens: tokenDocs.map((doc) => doc.data().token as string),
+      notification: { title, body }, data,
+      android: { priority: "high", notification: { channelId: "maw hatta_messages" } },
+      webpush: { headers: { TTL: "60" } },
+    });
+    const batch = db.batch();
+    let staleTokens = 0;
+    response.responses.forEach((result, index) => {
+      if (!result.success && result.error &&
+          ["messaging/registration-token-not-registered", "messaging/invalid-registration-token"].includes(result.error.code)) {
+        batch.update(tokenDocs[index].ref, { active: false, invalidatedAt: FieldValue.serverTimestamp() });
+        staleTokens += 1;
+      }
+    });
+    if (staleTokens > 0) await batch.commit();
+  } catch (error) {
+    logger.warn("Mawda push notification delivery failed", { recipientUid: uid, error });
+  }
+}
 function requireAuthenticatedUid(uid: string | undefined): string {
   if (!uid) {
     throw new HttpsError("unauthenticated", "يجب تسجيل الدخول أولاً.");
@@ -1587,6 +1617,38 @@ export const reviewSafetyCase = onCall(async (request) => {
   return { caseId, decision };
 });
 
+/** Registers a member-owned FCM token; token values are never returned to clients. */
+export const registerPushToken = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const token = typeof request.data?.token === "string" ? request.data.token.trim() : "";
+  const platform = request.data?.platform;
+  if (token.length < 100 || token.length > 4096 ||
+      !["web", "android", "ios", "macos", "windows", "linux", "other"].includes(platform)) {
+    throw new HttpsError("invalid-argument", "رمز الإشعارات أو نوع الجهاز غير صالح.");
+  }
+  const userRef = db.collection("users").doc(uid);
+  const user = await userRef.get();
+  if (!user.exists || user.data()?.profileCompleted !== true || !isMemberAccountInGoodStanding(user.data())) {
+    throw new HttpsError("permission-denied", "تسجيل الإشعارات متاح للأعضاء الفعالين فقط.");
+  }
+  const tokenId = createHash("sha256").update(token).digest("hex");
+  await userRef.collection("pushTokens").doc(tokenId).set({
+    token, platform, active: true, updatedAt: FieldValue.serverTimestamp(), createdAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return { registered: true, tokenId };
+});
+
+/** Deactivates only the authenticated member's exact FCM token. */
+export const unregisterPushToken = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const token = typeof request.data?.token === "string" ? request.data.token.trim() : "";
+  if (token.length < 100 || token.length > 4096) throw new HttpsError("invalid-argument", "رمز الإشعارات غير صالح.");
+  const tokenId = createHash("sha256").update(token).digest("hex");
+  await db.collection("users").doc(uid).collection("pushTokens").doc(tokenId).set({
+    active: false, deactivatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return { registered: false };
+});
 /** Returns the caller's own block list only. */
 export const getMyBlockedUsers = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
@@ -1628,7 +1690,7 @@ export const sendDirectMessage = onCall(async (request) => {
   const notificationRef = recipientRef.collection("notifications").doc(messageId);
 
   try {
-    return await db.runTransaction(async (transaction) => {
+    const result = await db.runTransaction(async (transaction) => {
       const [senderSnapshot, recipientSnapshot, existingChat, existingMessage] = await Promise.all([
         transaction.get(senderRef),
         transaction.get(recipientRef),
@@ -1709,6 +1771,11 @@ export const sendDirectMessage = onCall(async (request) => {
       });
       return { chatId, messageId, replayed: false };
     });
+    if (!result.replayed) {
+      await sendPushToMember(recipientUid, "رسالة جديدة في مودة", "لديك رسالة جديدة. افتح مودة لقراءتها.",
+        { type: "direct_message", chatId, messageId });
+    }
+    return result;
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     logger.error("Direct message send failed", { senderUid, recipientUid, error });
@@ -3517,6 +3584,16 @@ export const sendRoomMessage = onCall(async (request) => {
     });
     return { messageId, idempotentReplay: false };
   });
+  if (!result.idempotentReplay) {
+    try {
+      const members = await roomRef.collection("members").limit(1000).get();
+      await Promise.all(members.docs.filter((member) => member.id !== uid).map((member) =>
+        sendPushToMember(member.id, "رسالة جديدة في غرفة مودة", "هناك رسالة جديدة في إحدى غرفك. افتح مودة لمتابعتها.",
+          { type: "room_message", roomId, messageId })));
+    } catch (error) {
+      logger.warn("Room push fan-out failed", { roomId, error });
+    }
+  }
   return result;
 });
 
