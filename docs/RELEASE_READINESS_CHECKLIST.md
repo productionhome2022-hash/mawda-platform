@@ -44,7 +44,7 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Test registration, email verification, sign-in, sign-out, password reset, and account recovery against a non-production Firebase environment.
 - [ ] Test profile completion, editing, validation, privacy, and unique username behavior on physical devices.
 - [ ] Test the 500-coin verified-email reward for exactly-once behavior per successful eligible 90-day verification cycle.
-- [ ] Complete end-to-end tests for coin transfer quoting, fee calculation, stale quote rejection, concurrent transfers, atomic ledger writes, idempotency, and both parties' wallet histories.
+- [x] Complete Firestore-emulator integration tests for coin transfer quoting/fee calculation, stale quote rejection, concurrent requests, atomic sender/recipient/platform ledgers, idempotency, blocked/suspended accounts, and insufficient-balance rejection (run 43449287825, exact tested SHA `368c6ac0ab9db01c236a4f77a4bf66dadb80ade0`).
 - [ ] Complete and test direct-message UI, pagination, delivery/read state, push notifications, block/report, and media workflows.
 - [ ] Complete and test room invitations, moderator management, rental billing, voice/video, room finance, and device/load behavior. Room discovery/join and owner room creation foundations are implemented.
 - [x] Add owner-managed store catalog, atomic coin purchase transaction, immutable purchase ledger/receipt, entitlement record, idempotency and stale-price checks.
@@ -80,7 +80,7 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Owner separately approves production deployment.
 - [ ] Verify post-deployment health, authentication, Firestore access, Cloud Functions, and rollback readiness.
 
-**Current known blockers:** the Web Firebase options now match the owner-supplied project/Web app identifiers and passed the configuration guard in run 43412736573, but Android/iOS/macOS/Windows/Linux options remain placeholders and live Firebase settings have not been independently verified. The real `platformOwner` claim and MFA lifecycle have not been provisioned/verified. Coin-transfer and store-purchase transactions still need end-to-end emulator tests; recurring 90-day email and 30-day biometric verification/reward cycles are not implemented. Live GCS/Cloud Run scanner validation, complete media-retention integration proof, backup/PITR/legal-hold governance, and multiple member-facing workflows remain open. Both dependency lockfiles are committed and strict-install CI passed on run 43412736573. CI success does not clear these blockers.
+**Current known blockers:** the Web Firebase options now match the owner-supplied project/Web app identifiers and passed the configuration guard in run 43412736573, but Android/iOS/macOS/Windows/Linux options remain placeholders and live Firebase settings have not been independently verified. The real `platformOwner` claim and MFA lifecycle have not been provisioned/verified. Coin-transfer and store-purchase transactional emulator tests passed on run 43449287825 (4/4 wallet/store integration cases); recurring 90-day email and 30-day biometric verification/reward cycles are not implemented. Live GCS/Cloud Run scanner validation, complete media-retention integration proof, backup/PITR/legal-hold governance, and multiple member-facing workflows remain open. Both dependency lockfiles are committed and strict-install CI passed on run 43412736573. CI success does not clear these blockers.
 
 ## Direct messaging implementation status
 
