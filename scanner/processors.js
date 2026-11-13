@@ -3,8 +3,6 @@ const path = require("node:path");
 const { promisify } = require("node:util");
 const { execFile } = require("node:child_process");
 const { createHash } = require("node:crypto");
-const { pipeline } = require("node:stream/promises");
-const { createReadStream } = require("node:fs");
 const sharp = require("sharp");
 
 const execFileAsync = promisify(execFile);
@@ -14,19 +12,6 @@ const LIMITS = Object.freeze({
   video: { maxDurationSeconds: 90, maxBytes: 50 * 1024 * 1024 },
   pdf: { maxPages: 30, maxBytes: 20 * 1024 * 1024 },
 });
-
-async function sha256File(filePath) {
-  const hash = createHash("sha256");
-  await pipeline(createReadStream(filePath), async function* (source) {
-    for await (const chunk of source) {
-      hash.update(chunk);
-      yield chunk;
-    }
-  }, async function* (source) {
-    for await (const chunk of source) yield chunk;
-  });
-  return hash.digest("hex");
-}
 
 function safeOutputPath(ownerUid, mediaId, filename) {
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(ownerUid) ||
