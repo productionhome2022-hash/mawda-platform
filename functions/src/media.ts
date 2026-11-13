@@ -637,7 +637,17 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
       if (!claimed) continue;
 
       try {
-        await mediaBucket().file(claimed.objectPath).delete({ ignoreNotFound: true });
+        const abandonedFile = mediaBucket().file(claimed.objectPath);
+        try {
+          const [objectMetadata] = await abandonedFile.getMetadata();
+          const generation = Number(objectMetadata.generation);
+          if (!Number.isSafeInteger(generation) || generation <= 0) {
+            throw new Error("Abandoned media object has an invalid generation.");
+          }
+          await abandonedFile.delete({ ignoreNotFound: true, ifGenerationMatch: generation });
+        } catch (error) {
+          if ((error as { code?: number }).code !== 404) throw error;
+        }
         await mediaDb().runTransaction(async (transaction) => {
           const [current, quotaSnapshot] = await Promise.all([
             transaction.get(assetRef),
