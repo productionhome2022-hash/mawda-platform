@@ -1194,9 +1194,12 @@ export const deleteDirectMessageForMe = onCall(async (request) => {
   }
   const chatRef = db.collection("directChats").doc(chatId);
   const messageRef = chatRef.collection("messages").doc(messageId);
+  const auditRef = db.collection("directMessageDeletionAudit").doc(
+    createHash("sha256").update(`direct:${chatId}:${messageId}:${uid}:delete_for_me`).digest("hex"),
+  );
   await db.runTransaction(async (transaction) => {
-    const [chat, message] = await Promise.all([
-      transaction.get(chatRef), transaction.get(messageRef),
+    const [chat, message, audit] = await Promise.all([
+      transaction.get(chatRef), transaction.get(messageRef), transaction.get(auditRef),
     ]);
     const participants = chat.data()?.participantUids;
     if (!chat.exists || !message.exists || !Array.isArray(participants) ||
@@ -1207,10 +1210,6 @@ export const deleteDirectMessageForMe = onCall(async (request) => {
       deletedForUids: FieldValue.arrayUnion(uid),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    const auditRef = db.collection("directMessageDeletionAudit").doc(
-      createHash("sha256").update(`direct:${chatId}:${messageId}:${uid}:delete_for_me`).digest("hex"),
-    );
-    const audit = await transaction.get(auditRef);
     if (!audit.exists) {
       transaction.create(auditRef, {
         chatId, messageId, actorUid: uid, action: "delete_for_me",
@@ -2210,9 +2209,13 @@ export const deleteRoomMessageForMe = onCall(async (request) => {
   const roomRef = db.collection("rooms").doc(roomId);
   const membershipRef = roomRef.collection("members").doc(uid);
   const messageRef = roomRef.collection("messages").doc(messageId);
+  const auditRef = db.collection("roomAuditLogs").doc(
+    createHash("sha256").update(`room:${roomId}:${messageId}:${uid}:delete_for_me`).digest("hex"),
+  );
   await db.runTransaction(async (transaction) => {
-    const [room, membership, message] = await Promise.all([
-      transaction.get(roomRef), transaction.get(membershipRef), transaction.get(messageRef),
+    const [room, membership, message, audit] = await Promise.all([
+      transaction.get(roomRef), transaction.get(membershipRef),
+      transaction.get(messageRef), transaction.get(auditRef),
     ]);
     if (!room.exists || !membership.exists || !message.exists) {
       throw new HttpsError("not-found", "الرسالة أو عضوية الغرفة غير موجودة.");
@@ -2222,10 +2225,6 @@ export const deleteRoomMessageForMe = onCall(async (request) => {
       deletedForUids: FieldValue.arrayUnion(uid),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    const auditRef = db.collection("roomAuditLogs").doc(
-      createHash("sha256").update(`room:${roomId}:${messageId}:${uid}:delete_for_me`).digest("hex"),
-    );
-    const audit = await transaction.get(auditRef);
     if (!audit.exists) {
       transaction.create(auditRef, {
         roomId, actorUid: uid, messageId,
