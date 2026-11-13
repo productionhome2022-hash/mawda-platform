@@ -4162,7 +4162,7 @@ export const removeRoomModerator = onCall(async (request) => {
       transaction.get(moderatorRef),
     ]);
     const platformOwner = hasPlatformOwnerSession(
-      (request.auth?.token ?? {}) as Record<string, unknown>,
+      (request.auth?.token ?? {}) as Record<string, unknown>, undefined, actorUid,
     );
     if (!room.exists || (room.data()?.ownerUid !== actorUid && !platformOwner)) {
       throw new HttpsError("permission-denied", "سحب الإشراف متاح لمالك الغرفة أو مالك المنصة فقط.");
@@ -4211,7 +4211,7 @@ export const muteRoomMember = onCall(async (request) => {
       transaction.get(targetMembershipRef),
     ]);
     const platformOwner = hasPlatformOwnerSession(
-      (request.auth?.token ?? {}) as Record<string, unknown>,
+      (request.auth?.token ?? {}) as Record<string, unknown>, undefined, actorUid,
     );
     const isRoomOwner = room.data()?.ownerUid === actorUid;
     const canMute = actorModerator.data()?.permissions?.muteMembers === true;
@@ -4271,7 +4271,7 @@ export const removeRoomMember = onCall(async (request) => {
       transaction.get(targetMembershipRef),
     ]);
     const platformOwner = hasPlatformOwnerSession(
-      (request.auth?.token ?? {}) as Record<string, unknown>,
+      (request.auth?.token ?? {}) as Record<string, unknown>, undefined, actorUid,
     );
     const isRoomOwner = room.data()?.ownerUid === actorUid;
     const canRemove = actorModerator.data()?.permissions?.removeMembers === true;
