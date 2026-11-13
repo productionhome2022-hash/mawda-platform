@@ -11,6 +11,8 @@ RUN apt-get update \
     && chown -R clamav:clamav /var/lib/clamav /run/clamav /var/log/clamav
 
 WORKDIR /app
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir --requirement /app/requirements.txt
 COPY clamd.conf /etc/clamav/clamd.conf
 COPY clamdscan.conf /etc/clamav/clamdscan.conf
 COPY entrypoint.sh /app/entrypoint.sh
