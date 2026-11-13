@@ -24,6 +24,7 @@ const ownerRequest = (data = {}) => ({
     uid: "platform_owner_safety_test",
     token: {
       platformOwner: true,
+      platformOwnerUid: "platform_owner_safety_test",
       auth_time: Math.floor(Date.now() / 1000),
       firebase: { sign_in_provider: "custom", sign_in_second_factor: "phone" },
     },
