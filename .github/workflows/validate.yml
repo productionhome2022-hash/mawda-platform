@@ -79,3 +79,17 @@ jobs:
         run: npm run test:media-integration
       - name: Run Firestore and Storage rules emulator tests
         run: npm run test:rules
+
+  scanner-gateway:
+    name: Isolated ClamAV scanner gateway tests and image build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run scanner gateway security tests
+        run: python -m unittest discover -s scanner-gateway -p "test_*.py"
+      - name: Build isolated scanner container
+        run: docker build --tag mawda-clamav-gateway:ci scanner-gateway
