@@ -216,8 +216,19 @@ jobs:
       - name: Verify authenticated scanner health and ClamAV readiness
         env:
           SERVICE_URL: ${{ env.SCANNER_SERVICE_URL }}
+          PROJECT_ID: ${{ inputs.project_id }}
+          REGION: ${{ inputs.region }}
+          SERVICE_NAME: ${{ inputs.service_name }}
+          DEPLOYER_SA: ${{ vars.MAWDA_NONPROD_DEPLOY_SERVICE_ACCOUNT }}
         run: |
           set -euo pipefail
+          cleanup() {
+            gcloud run services remove-iam-policy-binding "$SERVICE_NAME" \
+              --project "$PROJECT_ID" --region "$REGION" \
+              --member="serviceAccount:$DEPLOYER_SA" \
+              --role="roles/run.invoker" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
           TOKEN="$(gcloud auth print-identity-token --audiences="$SERVICE_URL")"
           curl --fail --silent --show-error --retry 12 --retry-delay 10 \
             -H "Authorization: Bearer $TOKEN" "$SERVICE_URL/healthz"
