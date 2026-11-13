@@ -187,7 +187,7 @@ test("upload intent reserves per-user quota atomically and audits the capability
   assert.equal(quota.data().activeBytes, 1024);
   const asset = await db.collection("mediaAssets").doc(result.mediaId).get();
   assert.equal(asset.data().status, "upload_authorized");
-  assert.equal(asset.data().purpose, "profile_album");
+  assert.equal(asset.data().mediaPurpose, "profile_album");
   assert.equal(asset.data().retentionPolicyStatus, "owner_approval_required");
   assert.equal(asset.data().retentionExpiresAt, null);
   assert.ok((await auditEvents(uid)).some((event) =>
