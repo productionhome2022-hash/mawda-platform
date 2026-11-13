@@ -164,7 +164,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       type: FileType.custom,
       allowedExtensions: const [
         'jpg', 'jpeg', 'png', 'webp', 'gif',
-        'mp3', 'm4a', 'ogg', 'wav', 'mp4', 'pdf',
+        'mp3', 'm4a', 'ogg', 'wav', 'mp4',
       ],
       allowMultiple: false,
       withData: kIsWeb,
@@ -542,7 +542,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                     icon: const Icon(Icons.image_outlined),
                   ),
                   IconButton(
-                    tooltip: 'إرفاق GIF أو صوت أو فيديو أو PDF',
+                    tooltip: 'إرفاق GIF أو صوت أو فيديو',
                     onPressed: _sending ? null : _pickAndSendAttachment,
                     icon: const Icon(Icons.attach_file),
                   ),
