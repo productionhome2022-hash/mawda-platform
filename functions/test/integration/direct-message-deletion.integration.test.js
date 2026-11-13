@@ -43,7 +43,7 @@ test("direct delete-for-me hides only for the caller and preserves peer copy", a
       (error) => error && error.code === "permission-denied",
     );
   } finally {
-    await chatRef.delete().catch(() => undefined);
+    await Promise.all([chatRef.delete().catch(() => undefined), messageRef.delete().catch(() => undefined)]);
     await db.collection("directMessageDeletionAudit")
       .where("chatId", "==", chatId).get()
       .then((snapshot) => Promise.all(snapshot.docs.map((doc) => doc.ref.delete())));
@@ -86,6 +86,7 @@ test("direct delete-for-everyone removes text and notifications, redacts preview
   } finally {
     await Promise.all([
       chatRef.delete().catch(() => undefined),
+      messageRef.delete().catch(() => undefined),
       ...notifications.map((ref) => ref.delete().catch(() => undefined)),
       ...[alice, bob].map((uid) => db.collection("users").doc(uid).delete().catch(() => undefined)),
     ]);
@@ -121,6 +122,6 @@ test("direct delete-for-everyone denies peer and refuses media records without d
     assert.equal((await messageRef.get()).exists, true);
     assert.equal((await messageRef.get()).data().storagePath, "chat-media/example");
   } finally {
-    await chatRef.delete().catch(() => undefined);
+    await Promise.all([chatRef.delete().catch(() => undefined), messageRef.delete().catch(() => undefined)]);
   }
 });
