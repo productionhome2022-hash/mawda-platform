@@ -418,6 +418,7 @@ export const receiveMediaScanVerdict = onRequest(
         safePreviewContentType: safePreview.contentType,
         safePreviewSizeBytes: safePreview.sizeBytes,
         processingStatus: "safe_raster_derivative_ready",
+        processingPipelineVersion: "sharp-decode-reencode-v1",
       } : {}),
       ...(verdict.verdict === "malicious" ? { rejectionCode: "MALWARE_DETECTED" } : {}),
       updatedAt: FieldValue.serverTimestamp(),
