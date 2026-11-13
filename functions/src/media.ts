@@ -645,7 +645,9 @@ export const createMediaUploadIntent = onCall(async (request) => {
       mediaCategory: policy.category,
       retentionPolicyStatus: input.purpose === "chat" || input.purpose === "room"
         ? "four_hour_self_destruct"
-        : "owner_approval_required",
+        : input.purpose === "profile_album"
+          ? "seven_day_profile_album"
+          : "owner_approval_required",
       // Start the four-hour clock after the uploaded object is validated, not at intent creation.
       retentionExpiresAt: null,
       status: "upload_authorized",
@@ -761,6 +763,9 @@ export const finalizeMediaUpload = onCall(async (request) => {
       ...(asset.mediaPurpose === "chat" || asset.mediaPurpose === "room" ? {
         mediaUploadedAt: FieldValue.serverTimestamp(),
         retentionExpiresAt: Timestamp.fromMillis(Date.now() + 4 * 60 * 60 * 1000),
+      } : asset.mediaPurpose === "profile_album" ? {
+        mediaUploadedAt: FieldValue.serverTimestamp(),
+        retentionExpiresAt: Timestamp.fromMillis(Date.now() + 7 * 24 * 60 * 60 * 1000),
       } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     });
