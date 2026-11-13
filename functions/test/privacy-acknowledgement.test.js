@@ -1,5 +1,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const { createHash } = require("node:crypto");
 const {
   PRIVACY_POLICY_VERSION,
   PRIVACY_POLICY_SHA256,
@@ -46,4 +49,24 @@ test("rejects missing, oversized, or malformed app versions", () => {
       ...valid, appVersion,
     }), /PRIVACY_POLICY_APP_VERSION_INVALID/);
   }
+});
+
+test("Flutter privacy notice version and body hash match the backend policy constants", () => {
+  const frontendSource = fs.readFileSync(
+    path.join(__dirname, "../../lib/privacy_policy.dart"),
+    "utf8",
+  );
+  const version = frontendSource.match(/const mawdaPrivacyPolicyVersion = '([^']+)';/);
+  const hash = frontendSource.match(/const mawdaPrivacyPolicyHash =\\s*'([^']+)';/);
+  const body = frontendSource.match(/const mawdaPrivacyNoticeArabic = '''([\\s\\S]*?)''';/);
+
+  assert.ok(version, "Flutter policy version must be present");
+  assert.ok(hash, "Flutter policy hash must be present");
+  assert.ok(body, "Flutter Arabic policy body must be present");
+  assert.equal(version[1], PRIVACY_POLICY_VERSION);
+  assert.equal(hash[1], PRIVACY_POLICY_SHA256);
+  assert.equal(
+    createHash("sha256").update(body[1], "utf8").digest("hex"),
+    PRIVACY_POLICY_SHA256,
+  );
 });
