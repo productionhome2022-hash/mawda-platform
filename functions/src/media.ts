@@ -696,23 +696,17 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
   async () => {
     const nowMs = Date.now();
     const assets = mediaDb().collection("mediaAssets");
+    const expiryCutoff = Timestamp.fromMillis(nowMs - MEDIA_UPLOAD_CLEANUP_GRACE_MS);
     const [authorized, retrying] = await Promise.all([
       assets.where("status", "==", "upload_authorized")
-        .orderBy("createdAt").limit(100).get(),
+        .where("uploadUrlExpiresAt", "<=", expiryCutoff)
+        .orderBy("uploadUrlExpiresAt", "asc").limit(100).get(),
       assets.where("status", "==", "expired_cleanup_in_progress")
-        .orderBy("createdAt").limit(100).get(),
+        .orderBy("createdAt", "asc").limit(100).get(),
     ]);
     const candidates = new Map<string, (typeof authorized.docs)[number]>();
     for (const doc of retrying.docs) candidates.set(doc.id, doc);
-    for (const doc of authorized.docs) {
-      const expiry = doc.data().uploadUrlExpiresAt;
-      const expiryMs = expiry instanceof Timestamp ? expiry.toMillis() :
-        expiry instanceof Date ? expiry.getTime() : Number.NaN;
-      if (Number.isSafeInteger(expiryMs) &&
-          uploadIntentIsEligibleForCleanup(expiryMs, nowMs, MEDIA_UPLOAD_CLEANUP_GRACE_MS)) {
-        candidates.set(doc.id, doc);
-      }
-    }
+    for (const doc of authorized.docs) candidates.set(doc.id, doc);
 
     let reclaimed = 0;
     for (const candidate of candidates.values()) {
