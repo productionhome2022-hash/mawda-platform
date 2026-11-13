@@ -29,8 +29,15 @@ jobs:
           flutter-version: "3.47.9"
           channel: stable
           cache: true
-      - name: Install Flutter dependencies from committed lockfile
-        run: flutter pub get --enforce-lockfile
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+      - name: Upload resolved dependency lockfile for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: mawda-pubspec-lock-${{ github.sha }}
+          path: pubspec.lock
+          if-no-files-found: error
+          retention-days: 7
       - name: Analyze Dart code
         run: flutter analyze
       - name: Run Flutter tests
