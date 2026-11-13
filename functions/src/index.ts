@@ -593,7 +593,7 @@ export const completeMemberProfile = onCall(async (request) => {
     ]);
     const privacyData = privacyAcknowledgement.data() ?? {};
     if (!privacyAcknowledgement.exists || privacyData.uid !== uid ||
-        privacyData.policyHash !== PRIVACY_POLICY_HASH) {
+        privacyData.actorType !== "member" || privacyData.policyHash !== PRIVACY_POLICY_HASH) {
       throw new HttpsError(
         "failed-precondition",
         "يجب الاطلاع على إشعار الخصوصية الحالي والإقرار به قبل إكمال العضوية.",
