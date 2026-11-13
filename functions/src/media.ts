@@ -1036,8 +1036,11 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
     message = msg.data();
   }
   const deletedForUids = Array.isArray(message?.deletedForUids) ? message.deletedForUids : [];
+  if (deletedForUids.includes(viewerUid)) {
+    throw new HttpsError("permission-denied", "حذفت هذا المرفق من محادثتك ولم يعد متاحاً لحسابك.");
+  }
   if (!message || message.mediaId !== mediaId || message.attachmentStatus !== "ready" ||
-      message.isDeleted === true || message.deletionPending === true || deletedForUids.includes(viewerUid)) {
+      message.isDeleted === true || message.deletionPending === true) {
     throw new HttpsError("failed-precondition", "المرفق غير متاح.");
   }
   const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
