@@ -127,6 +127,16 @@ class SuperAdminSecurityService {
     });
   }
 
+  Future<void> deleteRoomMessageForMe({
+    required String roomId,
+    required String messageId,
+  }) async {
+    await _functions.httpsCallable('deleteRoomMessageForMe').call({
+      'roomId': roomId,
+      'messageId': messageId,
+    });
+  }
+
   Future<void> deleteRoomMessage({
     required String roomId,
     required String messageId,
