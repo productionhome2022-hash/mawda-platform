@@ -1207,11 +1207,16 @@ export const deleteDirectMessageForMe = onCall(async (request) => {
       deletedForUids: FieldValue.arrayUnion(uid),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    const auditRef = db.collection("directMessageDeletionAudit").doc();
-    transaction.create(auditRef, {
-      chatId, messageId, actorUid: uid, action: "delete_for_me",
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    const auditRef = db.collection("directMessageDeletionAudit").doc(
+      createHash("sha256").update(`direct:${chatId}:${messageId}:${uid}:delete_for_me`).digest("hex"),
+    );
+    const audit = await transaction.get(auditRef);
+    if (!audit.exists) {
+      transaction.create(auditRef, {
+        chatId, messageId, actorUid: uid, action: "delete_for_me",
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
   });
   return { chatId, messageId, hiddenForRequester: true };
 });
@@ -2217,12 +2222,17 @@ export const deleteRoomMessageForMe = onCall(async (request) => {
       deletedForUids: FieldValue.arrayUnion(uid),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    const auditRef = db.collection("roomAuditLogs").doc();
-    transaction.create(auditRef, {
-      roomId, actorUid: uid, messageId,
-      action: "room_message_deleted_for_me",
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    const auditRef = db.collection("roomAuditLogs").doc(
+      createHash("sha256").update(`room:${roomId}:${messageId}:${uid}:delete_for_me`).digest("hex"),
+    );
+    const audit = await transaction.get(auditRef);
+    if (!audit.exists) {
+      transaction.create(auditRef, {
+        roomId, actorUid: uid, messageId,
+        action: "room_message_deleted_for_me",
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
   });
   return { roomId, messageId, hiddenForRequester: true };
 });
