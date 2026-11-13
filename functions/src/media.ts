@@ -647,7 +647,12 @@ export const createMediaUploadIntent = onCall(async (request) => {
         ? "four_hour_self_destruct"
         : input.purpose === "profile_album"
           ? "seven_day_profile_album"
-          : "owner_approval_required",
+          : input.purpose === "story"
+            ? "delete_at_story_expiry"
+            : "owner_approval_required",
+      ...(input.purpose === "story" && input.storyExpiresAtMs !== undefined ? {
+        storyExpiresAt: Timestamp.fromMillis(input.storyExpiresAtMs),
+      } : {}),
       // Start the four-hour clock after the uploaded object is validated, not at intent creation.
       retentionExpiresAt: null,
       status: "upload_authorized",
@@ -766,6 +771,9 @@ export const finalizeMediaUpload = onCall(async (request) => {
       } : asset.mediaPurpose === "profile_album" ? {
         mediaUploadedAt: FieldValue.serverTimestamp(),
         retentionExpiresAt: Timestamp.fromMillis(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      } : asset.mediaPurpose === "story" && asset.storyExpiresAt instanceof Timestamp ? {
+        mediaUploadedAt: FieldValue.serverTimestamp(),
+        retentionExpiresAt: asset.storyExpiresAt,
       } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     });
