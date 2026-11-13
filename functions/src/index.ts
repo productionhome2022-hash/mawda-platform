@@ -1205,12 +1205,15 @@ export const deleteDirectMessageForMe = onCall(async (request) => {
   }
   const chatRef = db.collection("directChats").doc(chatId);
   const messageRef = chatRef.collection("messages").doc(messageId);
+  const notificationRef = db.collection("users").doc(uid)
+    .collection("notifications").doc(messageId);
   const auditRef = db.collection("directMessageDeletionAudit").doc(
     createHash("sha256").update(`direct:${chatId}:${messageId}:${uid}:delete_for_me`).digest("hex"),
   );
   await db.runTransaction(async (transaction) => {
-    const [chat, message, audit] = await Promise.all([
-      transaction.get(chatRef), transaction.get(messageRef), transaction.get(auditRef),
+    const [chat, message, audit, notification] = await Promise.all([
+      transaction.get(chatRef), transaction.get(messageRef),
+      transaction.get(auditRef), transaction.get(notificationRef),
     ]);
     const participants = chat.data()?.participantUids;
     if (!chat.exists || !message.exists || !Array.isArray(participants) ||
@@ -1221,6 +1224,7 @@ export const deleteDirectMessageForMe = onCall(async (request) => {
       deletedForUids: FieldValue.arrayUnion(uid),
       updatedAt: FieldValue.serverTimestamp(),
     });
+    if (notification.exists) transaction.delete(notificationRef);
     if (!audit.exists) {
       transaction.create(auditRef, {
         chatId, messageId, actorUid: uid, action: "delete_for_me",
