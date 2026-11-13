@@ -332,9 +332,12 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   onTap: () async {
                     final latestAllowed = endsAt.subtract(const Duration(days: 1));
                     if (!latestAllowed.isAfter(now)) return;
+                    final suggested = now.add(const Duration(days: 7));
+                    final initial = nextReviewAt ??
+                        (suggested.isAfter(latestAllowed) ? latestAllowed : suggested);
                     final picked = await showDatePicker(
                       context: dialogContext,
-                      initialDate: nextReviewAt ?? now.add(const Duration(days: 7)),
+                      initialDate: initial,
                       firstDate: now,
                       lastDate: latestAllowed,
                     );
