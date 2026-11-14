@@ -7352,6 +7352,7 @@ export const startTimedAdvertisement = onCall(async (request) => {
   const sessionRef = db.collection("timedAdSessions").doc(sessionId);
   const counterRef = db.collection("timedAdMemberCounters").doc(`${uid}_${campaignId}`);
   const result = await db.runTransaction(async (transaction) => {
+    let releasedFromCurrentCampaign = 0;
     const [user, campaign, active, counter] = await Promise.all([
       transaction.get(userRef), transaction.get(campaignRef),
       transaction.get(activeRef), transaction.get(counterRef),
@@ -7373,10 +7374,14 @@ export const startTimedAdvertisement = onCall(async (request) => {
         if (expiredCampaign.exists) {
           const reserved = readSafeInteger(expiredCampaign.data()?.reservedRewardCoins ?? 0, "reservedRewardCoins");
           const reward = readSafeInteger(expiredData.rewardCoins, "rewardCoins");
-          transaction.update(expiredCampaignRef, {
-            reservedRewardCoins: Math.max(0, reserved - reward),
-            updatedAt: FieldValue.serverTimestamp(),
-          });
+          if (expiredData.campaignId === campaignId) {
+            releasedFromCurrentCampaign = reward;
+          } else {
+            transaction.update(expiredCampaignRef, {
+              reservedRewardCoins: Math.max(0, reserved - reward),
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+          }
         }
         transaction.update(activeSession.ref, {
           status: "expired", lastHeartbeatAtMs: null,
@@ -7386,8 +7391,9 @@ export const startTimedAdvertisement = onCall(async (request) => {
     }
     if (!campaign.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
     const data = campaign.data()!;
+    const availableReservation = Math.max(0, (data.reservedRewardCoins ?? 0) - releasedFromCurrentCampaign);
     if (data.status !== "published" || data.startsAtMs > nowMs || data.endsAtMs <= nowMs ||
-        data.spentRewardCoins + (data.reservedRewardCoins ?? 0) + data.rewardCoins > data.rewardBudgetCoins) {
+        data.spentRewardCoins + availableReservation + data.rewardCoins > data.rewardBudgetCoins) {
       throw new HttpsError("failed-precondition", "الحملة غير متاحة حالياً.");
     }
     if (typeof data.mediaId === "string") {
@@ -7414,7 +7420,7 @@ export const startTimedAdvertisement = onCall(async (request) => {
       startedAtMs: nowMs, expiresAtMs,
     });
     transaction.update(campaignRef, {
-      reservedRewardCoins: (data.reservedRewardCoins ?? 0) + data.rewardCoins,
+      reservedRewardCoins: availableReservation + data.rewardCoins,
       updatedAt: FieldValue.serverTimestamp(),
     });
     transaction.set(activeRef, { sessionId, campaignId, expiresAtMs, updatedAt: FieldValue.serverTimestamp() });
