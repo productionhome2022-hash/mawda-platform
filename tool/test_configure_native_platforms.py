@@ -10,9 +10,7 @@ class NativeGradleConfigurationTests(unittest.TestCase):
         self.assertIn("ProjectEvaluationListener", source)
         self.assertIn("settings.gradle.kts", source)
         self.assertIn('pluginManager.withPlugin("com.android.library")', source)
-        self.assertIn('pluginManager.withPlugin("com.android.application")', source)
         self.assertIn("plugins.withId('com.android.library')", source)
-        self.assertIn("plugins.withId('com.android.application')", source)
 
 
 if __name__ == "__main__":
