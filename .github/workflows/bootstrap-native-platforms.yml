@@ -9,6 +9,7 @@ on:
       - "tool/patch_android_plugin_compile_sdk.py"
       - "tool/test_patch_android_plugin_compile_sdk.py"
       - "tool/test_configure_native_platforms.py"
+      - "tool/test_native_workflow_contract.py"
       - ".github/workflows/bootstrap-native-platforms.yml"
       - "pubspec.yaml"
       - "pubspec.lock"
