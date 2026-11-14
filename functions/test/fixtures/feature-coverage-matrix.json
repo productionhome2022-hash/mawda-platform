@@ -93,7 +93,11 @@
         "public-room-audio-attachment-send-receive",
         "direct-message-denial",
         "store-purchase-denial",
-        "member-block-operation-denial"
+        "member-block-operation-denial",
+        "anonymous-provider-required",
+        "unapproved-all-ages-room-denial",
+        "wallet-transfer-denial",
+        "room-event-read-and-create-denial"
       ],
       "plannedCases": [
         "real-device-audio-recording-and-playback",
