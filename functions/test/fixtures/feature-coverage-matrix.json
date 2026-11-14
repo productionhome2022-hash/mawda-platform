@@ -76,7 +76,11 @@
       "id": "GUEST-001",
       "area": "guest",
       "actors": [
-        "guest-preview"
+        "guest-preview",
+        "email-member",
+        "counterparty-member",
+        "biometric-member",
+        "owner-operator"
       ],
       "command": "npm run test:guest-session-integration",
       "status": "partial",
@@ -97,7 +101,11 @@
         "anonymous-provider-required",
         "unapproved-all-ages-room-denial",
         "wallet-transfer-denial",
-        "room-event-read-and-create-denial"
+        "room-event-read-and-create-denial",
+        "biometric-member-basic-chat-without-proof",
+        "biometric-gated-link-denial-without-proof",
+        "owner-operator-no-claims-room-chat",
+        "owner-operator-denied-owner-appeals-access"
       ],
       "plannedCases": [
         "real-device-audio-recording-and-playback",
