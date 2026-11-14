@@ -316,7 +316,7 @@ class _OwnerMfaGateState extends State<_OwnerMfaGate> {
                         child: const Text('إعادة المحاولة'),
                       ),
                       TextButton(
-                        onPressed: () => FirebaseAuth.instance.signOut(),
+                        onPressed: () => AuthService().signOut(),
                         child: const Text('تسجيل الخروج'),
                       ),
                     ],
