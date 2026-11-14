@@ -262,6 +262,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
 
+  Future<void> _editCustomTitle(String currentTitle) async {
+    final controller = TextEditingController(text: currentTitle);
+    final title = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تخصيص لقبي'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 40,
+          decoration: const InputDecoration(
+            labelText: 'اللقب الذي سيظهر في ملفك',
+            helperText: 'من حرفين إلى 40 حرفاً',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.length >= 2 && value.length <= 40) {
+                Navigator.pop(dialogContext, value);
+              }
+            },
+            child: const Text('حفظ اللقب'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (title == null || !mounted) return;
+
+    try {
+      await FirebaseFunctions.instance
+          .httpsCallable('setMemberCustomTitle')
+          .call(<String, dynamic>{'title': title});
+      if (!mounted) return;
+      setState(() => _profileFuture = _loadProfile());
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم تحديث لقبك المميز.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر تحديث اللقب.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر حفظ اللقب؛ لم يتم تأكيد التغيير.')),
+      );
+    }
+  }
+
+
   Future<void> _editVisitorGreeting(String currentGreeting) async {
     final controller = TextEditingController(text: currentGreeting);
     final greeting = await showDialog<String>(
@@ -1114,6 +1173,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           activeTitle,
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
+                      ),
+                    if (isMyProfile && activeItemIds.contains('title_custom'))
+                      TextButton.icon(
+                        onPressed: () => _editCustomTitle(activeTitle),
+                        icon: const Icon(Icons.edit_outlined, size: 16),
+                        label: const Text('تخصيص اللقب'),
                       ),
                     if (activeFeatures.any((feature) =>
                         feature['category'] != 'vip' && feature['category'] != 'title'))
