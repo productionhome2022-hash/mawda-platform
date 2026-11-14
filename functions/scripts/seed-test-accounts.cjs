@@ -78,7 +78,8 @@ async function ensureUser(persona) {
     });
   }
 
-  // Intentionally do not set platformOwner, biometricVerified, wallet, or reward claims.
+  // Never set platformOwner or biometricVerified claims/proof in the seeder.
+  // The emulator-only coin balance below is test fixture data, not a reward or payment.
   // Privileged and verified states must be produced by their real server-side flows.
   await db.collection("users").doc(user.uid).set({
     uid: user.uid,
