@@ -1,7 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:uuid/uuid.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/coin_system_service.dart';
@@ -32,6 +32,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final MemberMediaUploadService _memberMedia = MemberMediaUploadService();
   bool _changingProfileMedia = false;
   bool _checkingLocalBiometrics = false;
+  bool _checkingEmailRenewal = false;
   bool _isTransferringCoins = false;
   String? _pendingTransferKey;
   String? _pendingTransferRequestId;
@@ -123,6 +124,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     } finally {
       if (mounted) setState(() => _checkingLocalBiometrics = false);
+    }
+  }
+
+
+  Future<void> _renewEmailVerification() async {
+    if (_checkingEmailRenewal) return;
+    setState(() => _checkingEmailRenewal = true);
+    try {
+      await FirebaseFunctions.instance
+          .httpsCallable('startEmailVerificationRenewal')
+          .call();
+      var user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw StateError('AUTH_USER_UNAVAILABLE');
+      }
+      await user.reload();
+      user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw StateError('AUTH_USER_UNAVAILABLE');
+      }
+
+      if (user.emailVerified) {
+        final response = await FirebaseFunctions.instance
+            .httpsCallable('completeEmailVerificationRenewal')
+            .call();
+        if (!mounted) return;
+        final data = Map<String, dynamic>.from(response.data as Map);
+        final balance = (data['newBalance'] as num?)?.toInt();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'تم تجديد التحقق من البريد وإضافة 500 كوين إلى محفظتك${balance == null ? '' : '؛ رصيدك الجديد $balance'}.',
+            ),
+            duration: const Duration(seconds: 6),
+          ),
+        );
+      } else {
+        await user.sendEmailVerification();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('أرسلنا رابط تحقق جديد إلى بريدك. افتحه ثم ارجع إلى هنا واضغط الزر نفسه لاعتماد مكافأة 500 كوين.'),
+            duration: Duration(seconds: 8),
+          ),
+        );
+      }
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر بدء أو إكمال دورة التحقق من البريد.')),
+      );
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر إرسال رسالة التحقق. حاول لاحقاً.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر إكمال دورة البريد؛ لم تُمنح المكافأة.')),
+      );
+    } finally {
+      if (mounted) setState(() => _checkingEmailRenewal = false);
     }
   }
 
@@ -954,6 +1018,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     icon: const Icon(Icons.link),
                     label: const Text('إدارة روابط التواصل'),
                     onPressed: () => _manageSocialLinks(data),
+                  ),
+                ),
+              if (isMyProfile)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                  child: OutlinedButton.icon(
+                    onPressed: _checkingEmailRenewal ? null : _renewEmailVerification,
+                    icon: _checkingEmailRenewal
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.mark_email_read_outlined),
+                    label: const Text('تجديد التحقق من البريد (500 كوين كل 90 يوماً)'),
                   ),
                 ),
               if (isMyProfile)
