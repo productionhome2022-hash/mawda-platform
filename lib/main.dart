@@ -1,8 +1,26 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
-import 'firebase_options.dart';
+import 'firebase_options.dart' as production_firebase;
+import 'firebase_options_nonprod.dart' as nonproduction_firebase;
 import 'screens/auth_gate.dart';
+
+FirebaseOptions _firebaseOptionsForBuild() {
+  const environment = String.fromEnvironment(
+    'MAWDDA_FIREBASE_ENV',
+    defaultValue: 'nonprod',
+  );
+  switch (environment) {
+    case 'production':
+      return production_firebase.DefaultFirebaseOptions.currentPlatform;
+    case 'nonprod':
+      return nonproduction_firebase.DefaultFirebaseOptions.currentPlatform;
+    default:
+      throw UnsupportedError(
+        'Unsupported Mawdda Firebase environment. Use nonprod or production.',
+      );
+  }
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,7 +75,7 @@ class _FirebaseBootstrapScreenState extends State<_FirebaseBootstrapScreen> {
     try {
       if (Firebase.apps.isEmpty) {
         await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
+          options: _firebaseOptionsForBuild(),
         );
       }
       if (!mounted) return;
