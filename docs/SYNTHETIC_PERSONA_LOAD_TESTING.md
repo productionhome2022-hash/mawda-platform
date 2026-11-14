@@ -17,7 +17,7 @@ A single isolated emulator session provisions 500 synthetic identities, then run
 
 Each pair executes a server-side coin transfer, repeats the same transfer to prove idempotency, sends a direct message, and reads the delivered message as the recipient. Each transfer checks gross amount, commission, net amount, both wallet balances, and both linked wallet-ledger entries.
 
-Concurrency is bounded to batches of 20 pairs. This is a controlled emulator workload, not an unbounded denial-of-service test.
+Concurrency is bounded to batches of up to 125 pairs. At the 500-persona tier, all 250 pairs (500 identities) participate in the same concurrent wave. This is a controlled emulator workload, not an unbounded denial-of-service test.
 
 ## Metrics
 For each cohort the test reports elapsed time, operation throughput, transfer/message/receive p50 and p95 latency, maximum latency, operation counts and errors. Any callable failure, missing inbox delivery, duplicate debit/credit, or ledger/balance mismatch fails the test.
