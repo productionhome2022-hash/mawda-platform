@@ -126,12 +126,12 @@ for (const count of [500, 1000, 2500, 5000]) {
     await settingsRef.set({ enabled: true, commissionBps: 1000, version: 1 });
     const pairs = [];
     for (let i = 0; i < cohort.length; i += 2) pairs.push([cohort[i], cohort[i + 1]]);
+    const personaIdByUid = new Map(cohort.map((persona) => [persona.uid, persona.personaId]));
     const personaCoverage = new Map(cohort.map((persona) => [persona.personaId, {
       personaId: persona.personaId,
       uid: persona.uid,
       walletTransferCompleted: false,
-      senderLedgerReconciled: false,
-      recipientLedgerReconciled: false,
+      walletLedgerReconciled: false,
       directMessagesSent: 0,
       directMessagesReceived: 0
     }]));
@@ -239,13 +239,13 @@ for (const count of [500, 1000, 2500, 5000]) {
       assert.equal(transferErrors, 0);
       assert.equal(messageErrors, 0);
       for (const transfer of allTransfers) {
-        personaCoverage.get(cohort.find((p) => p.uid === transfer.senderUid).personaId).senderLedgerReconciled = transfer.senderLedger;
-        personaCoverage.get(cohort.find((p) => p.uid === transfer.recipientUid).personaId).recipientLedgerReconciled = transfer.recipientLedger;
+        personaCoverage.get(personaIdByUid.get(transfer.senderUid)).walletLedgerReconciled = transfer.senderLedger;
+        personaCoverage.get(personaIdByUid.get(transfer.recipientUid)).walletLedgerReconciled = transfer.recipientLedger;
       }
       const coverageRows = cohort.map((persona) => personaCoverage.get(persona.personaId));
       assert.equal(coverageRows.length, count, "every persona must have a coverage record");
       assert.ok(coverageRows.every((row) => row.walletTransferCompleted &&
-        row.senderLedgerReconciled && row.recipientLedgerReconciled &&
+        row.walletLedgerReconciled &&
         row.directMessagesSent === 1 && row.directMessagesReceived === 1),
       "every persona must complete a transfer, reconcile its ledger role, and send/receive a direct message");
       if (count === 5000) metrics.personaCoverage = coverageRows;
