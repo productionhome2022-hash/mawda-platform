@@ -13,7 +13,12 @@ export function hasActiveBiometricVerification(
   }
 
   const verification = value as Record<string, unknown>;
-  if (verification.status !== "verified" || verification.revokedAt != null) {
+  if (
+    verification.status !== "verified" ||
+    verification.revokedAt != null ||
+    verification.verificationMethod === "local_os_biometric_prompt" ||
+    verification.trustModel === "client_claim_after_local_os_prompt"
+  ) {
     return false;
   }
 
