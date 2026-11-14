@@ -127,7 +127,7 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: mawdda-persona-load-report-${{ github.sha }}
-          path: functions/.mawdda-load/
+          path: functions/mawdda-load-artifacts/
           if-no-files-found: error
           retention-days: 7
       - name: Run owner audit export pagination and redaction integration tests
