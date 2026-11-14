@@ -48,7 +48,7 @@ test("rejects unpublished, malformed, and unsafe-price items", () => {
 test("owner catalog input requires safe identifiers, prices, category and publication state", () => {
   const { validateStoreCatalogItemInput } = require("../lib/store-catalog");
   assert.deepEqual(validateStoreCatalogItemInput({
-    itemId: "vip-month",
+    itemId: "vip_monthly",
     name: "VIP لمدة شهر",
     description: "عضوية شهرية.",
     category: "vip",
@@ -73,7 +73,7 @@ test("owner catalog input requires safe identifiers, prices, category and public
     priceCoins: 100, active: true,
   }));
   assert.throws(() => validateStoreCatalogItemInput({
-    itemId: "vip-month", name: "عنصر", description: "", category: "vip",
+    itemId: "vip_monthly", name: "عنصر", description: "", category: "vip",
     priceCoins: 0, active: true,
   }));
   assert.throws(() => validateStoreCatalogItemInput({
@@ -92,10 +92,10 @@ test("store charging stays disabled until fulfillment is explicitly ready", () =
     active: true, purchaseEnabled: true, fulfillmentReady: false,
   }), false);
   assert.equal(isStoreItemPurchasable({
-    active: true, category: "vip", purchaseEnabled: true, fulfillmentReady: true,
+    active: true, itemId: "vip_monthly", category: "vip", purchaseEnabled: true, fulfillmentReady: true,
   }), true);
   assert.equal(isStoreItemPurchasable({
-    active: true, category: "theme", purchaseEnabled: true, fulfillmentReady: true,
+    active: true, itemId: "profile_theme_30d", category: "theme", purchaseEnabled: true, fulfillmentReady: true,
   }), false);
   assert.equal(isStoreItemPurchasable({
     active: false, purchaseEnabled: true, fulfillmentReady: true,
@@ -103,13 +103,27 @@ test("store charging stays disabled until fulfillment is explicitly ready", () =
 });
 
 
-test("only implemented VIP and title consumers can be explicitly enabled for purchase", () => {
-  const { validateStoreCatalogItemInput, projectStoreCatalogItem } = require("../lib/store-catalog");
-  for (const category of ["vip", "title"]) {
+test("only shipped premium profile consumers can be explicitly enabled for purchase", () => {
+  const { validateStoreCatalogItemInput, projectStoreCatalogItem, isStoreItemPurchasable } = require("../lib/store-catalog");
+  const ready = [
+    ["vip_monthly", "vip"],
+    ["title_custom", "title"],
+    ["badge_special", "badge"],
+    ["avatar_frame_30d", "frame"],
+    ["username_color_30d", "username_style"],
+    ["username_animated_30d", "username_style"],
+    ["profile_analytics_30d", "analytics"],
+    ["profile_layout_30d", "profile_layout"],
+    ["profile_pin_30d", "profile_layout"],
+    ["discovery_boost_7d", "boost"],
+    ["profile_theme_30d", "theme"],
+    ["visitor_greeting_30d", "greeting"],
+  ];
+  for (const [itemId, category] of ready) {
     const item = validateStoreCatalogItemInput({
-      itemId: category + "-monthly",
-      name: "عنصر مدفوع",
-      description: "استحقاق ملف.",
+      itemId,
+      name: "عنصر مميز",
+      description: "استحقاق ملف شخصي.",
       category,
       priceCoins: 500,
       durationDays: 30,
@@ -117,29 +131,30 @@ test("only implemented VIP and title consumers can be explicitly enabled for pur
       active: true,
       purchaseEnabled: true,
     });
-    assert.equal(item.purchaseEnabled, true);
-    assert.equal(item.fulfillmentReady, true);
+    assert.equal(item.purchaseEnabled, true, itemId);
+    assert.equal(item.fulfillmentReady, true, itemId);
+    assert.equal(isStoreItemPurchasable(item), true, itemId);
   }
   assert.throws(() => validateStoreCatalogItemInput({
-    itemId: "theme-month",
-    name: "سمة شهرية",
-    description: "خلفية.",
-    category: "theme",
+    itemId: "hide_coins_30d",
+    name: "إخفاء الرصيد",
+    description: "إخفاء الرصيد.",
+    category: "privacy",
     priceCoins: 500,
     durationDays: 30,
     sortOrder: 1,
     active: true,
     purchaseEnabled: true,
   }), /STORE_FULFILLMENT_NOT_READY/);
-  const tampered = projectStoreCatalogItem("avatar-frame", {
+  const tampered = projectStoreCatalogItem("avatar_frame_30d", {
     active: true,
     name: "إطار",
     description: "إطار رمزي.",
-    category: "avatar",
+    category: "frame",
     priceCoins: 500,
     purchaseEnabled: true,
     fulfillmentReady: true,
   });
-  assert.equal(tampered.purchaseEnabled, false);
-  assert.equal(tampered.fulfillmentReady, false);
+  assert.equal(tampered.purchaseEnabled, true);
+  assert.equal(tampered.fulfillmentReady, true);
 });
