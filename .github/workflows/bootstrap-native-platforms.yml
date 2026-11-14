@@ -176,7 +176,7 @@ jobs:
           PY
           )
           test -n "$IOS_APP_ID"
-          firebase apps:sdkconfig IOS "$IOS_APP_ID" --project mawdda-platform-nonprod-2026 --out ios/Runner/GoogleService-Info.plist --token "$FIREBASE_TOKEN"
+          firebase apps:sdkconfig IOS "$IOS_APP_ID" --project mawda-platform-nonprod-2026 --out ios/Runner/GoogleService-Info.plist --token "$FIREBASE_TOKEN"
           python3 - <<'PY'
           import plistlib
           import re
@@ -199,7 +199,7 @@ jobs:
               config = plistlib.load(handle)
           expected = {
               "BUNDLE_ID": "com.mawdda.platform.app",
-              "PROJECT_ID": "mawdda-platform-nonprod-2026",
+              "PROJECT_ID": "mawda-platform-nonprod-2026",
               "GOOGLE_APP_ID": dart_value("appId"),
               "GCM_SENDER_ID": dart_value("messagingSenderId"),
           }
