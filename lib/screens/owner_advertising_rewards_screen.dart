@@ -217,7 +217,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم حفظ الحملة ${data['campaignId']} كمسودة. انشرها بعد مراجعتها.')),
+        SnackBar(content: Text('تم حفظ الحملة ${data['campaignId']} بالحالة ${data['status'] ?? 'مسودة'}.')),
       );
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذر إنشاء الحملة.');
@@ -333,7 +333,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
             Text(_editingCampaignId == null ? 'إنشاء إعلان من المالك' : 'تعديل الحملة ${_editingCampaignId}',
               style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
-            const Text('يمكن للمالك رفع الصور وGIF والفيديو إلى مسار الحجر والفحص الأمني، ولا تُقبل المادة للحملة قبل اعتماد النسخة الآمنة. ملاحظة: حملات الفيديو تبقى مسودات ولا يمكن نشرها حتى يكتمل مشغل الفيديو داخل التطبيق واختبار الأجهزة. الحملات النصية مستقلة عن أي مزود خارجي مستقبلي.'),
+            const Text('يمكن للمالك رفع الصور وGIF والفيديو إلى مسار الحجر والفحص الأمني، ولا تُقبل المادة للحملة قبل اعتماد النسخة الآمنة. حملات الفيديو تبقى مسودات حتى يكتمل المشغل واختبار الأجهزة، وموضع الرئيسية غير قابل للنشر حتى اكتمال واجهته. الحملات النصية مستقلة عن أي مزود خارجي مستقبلي.'),
             const SizedBox(height: 12),
             TextField(controller: _title, enabled: !_saving, decoration: const InputDecoration(labelText: 'عنوان الحملة')),
             TextField(controller: _sponsor, enabled: !_saving, decoration: const InputDecoration(labelText: 'اسم المعلن / الراعي')),
@@ -365,7 +365,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
               decoration: const InputDecoration(labelText: 'موضع العرض', border: OutlineInputBorder()),
               items: const [
                 DropdownMenuItem(value: 'reward_center', child: Text('مركز المكافآت')),
-                DropdownMenuItem(value: 'home', child: Text('الرئيسية')),
+                DropdownMenuItem(value: 'home', enabled: false, child: Text('الرئيسية (قيد التنفيذ)')),
               ],
               onChanged: _saving ? null : (value) => setState(() => _placement = value ?? 'reward_center'),
             ),
