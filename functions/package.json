@@ -34,7 +34,7 @@
     "test:emulator-backup-restore": "node scripts/test-emulator-backup-restore.cjs",
     "test:guest-session-integration": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-guest-session \"MAWDDA_ALLOW_TEST_SEED=1 node scripts/seed-test-accounts.cjs && node --test test/integration/guest-session.integration.test.js\"",
     "test:seeded-persona-interaction": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-personas \"MAWDDA_ALLOW_TEST_SEED=1 node scripts/seed-test-accounts.cjs && node --test test/integration/test-persona-interaction.integration.test.js\"",
-    "test:persona-load": "node scripts/generate-persona-load-fixtures.cjs --count=500 --output=.mawdda-load/personas.json && firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-persona-load 'MAWDDA_LOAD_FIXTURE=.mawdda-load/personas.json MAWDDA_LOAD_REPORT=.mawdda-load/report.json node --test test/integration/persona-load.integration.test.js'"
+    "test:persona-load": "node scripts/generate-persona-load-fixtures.cjs --count=500 --output=mawdda-load-artifacts/personas.json && firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-persona-load 'MAWDDA_LOAD_FIXTURE=mawdda-load-artifacts/personas.json MAWDDA_LOAD_REPORT=mawdda-load-artifacts/report.json node --test test/integration/persona-load.integration.test.js'"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",
