@@ -417,10 +417,16 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
             isThreeLine: true,
             trailing: PopupMenuButton<String>(
               enabled: !_saving && status != 'archived',
-              onSelected: (value) => _changeStatus(id, value),
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _editCampaign(campaign);
+                } else {
+                  _changeStatus(id, value);
+                }
+              },
               itemBuilder: (_) => [
                 if (status == 'draft' || status == 'paused')
-                  PopupMenuItem(value: 'edit', child: const Text('تعديل'), onTap: () => _editCampaign(campaign)),
+                  const PopupMenuItem(value: 'edit', child: Text('تعديل')),
                 if (status != 'published') const PopupMenuItem(value: 'published', child: Text('نشر')),
                 if (status == 'published') const PopupMenuItem(value: 'paused', child: Text('إيقاف مؤقت')),
                 if (status != 'archived') const PopupMenuItem(value: 'archived', child: Text('أرشفة')),
