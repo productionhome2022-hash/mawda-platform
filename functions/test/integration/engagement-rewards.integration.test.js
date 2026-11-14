@@ -180,3 +180,59 @@ test("timed advertisements require foreground heartbeat duration and pay once", 
     await userRef.delete().catch(() => undefined);
   }
 });
+
+
+test("campaigns can bind only approved owner-uploaded advertisement media", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const ownerUid = `ad_media_owner_${tag}`;
+  const mediaId = require("node:crypto").randomUUID();
+  const mediaRef = db.collection("mediaAssets").doc(mediaId);
+  let campaignId;
+  await mediaRef.set({
+    ownerUid, uploaderRole: "platform_owner", mediaPurpose: "advertisement",
+    status: "security_approved", mediaCategory: "image",
+    detectedContentType: "image/gif",
+  });
+  try {
+    const result = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      title: "Creative-bound campaign",
+      sponsorLabel: "Verified sponsor",
+      body: "A synthetic campaign with a verified animated creative attached.",
+      placement: "reward_center",
+      durationSeconds: 20,
+      rewardCoins: 5,
+      startsAtMs: Date.now() - 1000,
+      endsAtMs: Date.now() + 3600000,
+      maxClaimsPerMember: 1,
+      rewardBudgetCoins: 50,
+      mediaId,
+    }));
+    campaignId = result.campaignId;
+    assert.equal(result.creativeType, "gif");
+    const campaign = await db.collection("timedAdCampaigns").doc(campaignId).get();
+    assert.equal(campaign.data().mediaId, mediaId);
+    assert.equal(campaign.data().mediaOwnerUid, ownerUid);
+    await assert.rejects(
+      () => setTimedAdCampaign.run(memberRequest(ownerUid, {
+        title: "Unauthorized creative",
+        sponsorLabel: "Fake sponsor",
+        body: "A member must never create owner-only advertisement campaigns.",
+        placement: "reward_center",
+        durationSeconds: 20,
+        rewardCoins: 5,
+        startsAtMs: Date.now() - 1000,
+        endsAtMs: Date.now() + 3600000,
+        maxClaimsPerMember: 1,
+        rewardBudgetCoins: 50,
+        mediaId,
+      })),
+      (error) => error && error.code === "permission-denied",
+    );
+  } finally {
+    await Promise.all([
+      mediaRef.delete(),
+      ...(campaignId ? [db.collection("timedAdCampaigns").doc(campaignId).delete()] : []),
+    ]);
+  }
+});
