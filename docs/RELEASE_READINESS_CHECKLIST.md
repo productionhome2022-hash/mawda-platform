@@ -245,3 +245,20 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Emulator clock advancement/reset is confined to test fixture setup; no production client or callable accepts client-supplied timestamps or clock overrides.
 - [ ] Session expiry blocks protected room access immediately without deleting privacy acknowledgement, audit records or unrelated account data. Guest upgrade/conversion preserves only records that are explicitly safe and policy-compatible.
 
+## Guest preview runtime acceptance — 14 November 2026
+
+Implementation review on the development branch confirms the following code is present; these checkmarks mean implementation is present in source, not that the newest commit has passed CI or production acceptance:
+
+- [x] Guest entry collects username, country and gender only; no age, date-of-birth or age-band is stored for the anonymous guest.
+- [x] Trusted callables exist for anonymous-provider enforcement, guest session start/status/end, 60-minute expiry, 24-hour cooldown and idempotent start.
+- [x] Guest public-room discovery filters to active public rooms explicitly approved as `all_ages`; room approval is owner-controlled.
+- [x] Guest room UI supports text and audio-file attachment workflows; server-side guest authorization is included in join, send, read and audio attachment delivery paths.
+- [x] Guest/member integration test source covers no-age persistence, provider rejection, room approval, member/guest room interaction, private/adult/unapproved room denial, direct-message and member-feature denial, and cooldown/session lifecycle cases.
+- [ ] Run the newest guest-session integration test and seeded five-persona interaction workflow on the exact current development-branch head; record the run URL, commit SHA and complete test totals.
+- [ ] Add/verify native Flutter UI-to-callable end-to-end tests for guest entry, room discovery, join, text send/receive, audio send/receive, expiry, session end and upgrade.
+- [ ] Add a deterministic emulator clock-advance test for the 60-minute expiry and 24-hour cooldown boundaries.
+- [ ] Implement in-app microphone recording and in-app audio playback controls; current guest UI selects an existing audio file and opens received audio externally.
+- [ ] Verify guest session limits against anonymous-account recreation, App Check/device attestation and abuse controls; same-UID cooldown alone does not prevent a new anonymous UID on another device or after identity loss.
+- [ ] Complete real Android/iOS microphone permission and media-delivery smoke tests after valid native Firebase app registration and native build configuration are supplied.
+
+The last independently inspected all-green validation run, 43593225423, completed its Flutter, Cloud Functions and scanner jobs successfully. It is not evidence that the guest-runtime and seeded-persona workflows added later passed on the current head. No production deployment or merge is authorized by these implementation notes.
