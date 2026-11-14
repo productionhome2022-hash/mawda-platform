@@ -123,7 +123,7 @@ jobs:
         run: npm run test:guest-session-integration
       - name: Provision emulator-only test personas and exercise cross-persona wallet interaction
         run: npm run test:seeded-persona-interaction
-      - name: Stress test 200, 300 and 500 synthetic personas in isolated Firebase emulators
+      - name: Stress test 500, 1000, 2500 and 5000 synthetic personas in isolated Firebase emulators
         run: npm run test:persona-load
       - name: Upload synthetic persona profiles and load-test metrics
         uses: actions/upload-artifact@v5
