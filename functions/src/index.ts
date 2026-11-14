@@ -7558,7 +7558,7 @@ export const completeTimedAdvertisement = onCall(async (request) => {
       ? await transaction.get(db.collection("mediaAssets").doc(campaignMediaId))
       : null;
     if (claim.exists) {
-      return { completed: true, idempotentReplay: true, amountCoins: claim.data()?.amountCoins ?? 0 };
+      return { completed: true, idempotentReplay: true, cancelled: false, reason: null, amountCoins: claim.data()?.amountCoins ?? 0 };
     }
     if (!["active", "paused"].includes(String(data.status)) ||
         active.data()?.sessionId !== sessionId) {
@@ -7632,7 +7632,7 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     }, { merge: true });
     transaction.update(sessionRef, { status: "completed", completedAt: now });
     if (active.exists) transaction.delete(activeRef);
-    return { completed: true, idempotentReplay: false, amountCoins: data.rewardCoins };
+    return { completed: true, idempotentReplay: false, cancelled: false, reason: null, amountCoins: data.rewardCoins };
   });
   if (result.cancelled) {
     if (result.reason === "expired") {
