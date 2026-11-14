@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
+      - codex/mawda-full-platform-implementation
   pull_request:
     branches:
       - main
+      - codex/mawda-full-platform-implementation
   workflow_dispatch:
 
 concurrency:
