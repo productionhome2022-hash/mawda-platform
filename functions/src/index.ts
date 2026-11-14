@@ -7338,9 +7338,32 @@ export const startTimedAdvertisement = onCall(async (request) => {
     return {
       sessionId, campaignId, durationSeconds: data.durationSeconds,
       rewardCoins: data.rewardCoins, expiresAtMs, heartbeatIntervalMs: 5000,
+      title: data.title, sponsorLabel: data.sponsorLabel, body: data.body,
     };
   });
   return result;
+});
+
+export const getActiveTimedAdSession = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const active = await db.collection("activeTimedAdSessions").doc(uid).get();
+  if (!active.exists || typeof active.data()?.sessionId !== "string") return { active: false };
+  const sessionId = active.data()!.sessionId as string;
+  const session = await db.collection("timedAdSessions").doc(sessionId).get();
+  if (!session.exists || session.data()?.uid !== uid ||
+      !["active", "paused"].includes(String(session.data()?.status)) ||
+      session.data()?.expiresAtMs <= Date.now()) return { active: false };
+  const data = session.data()!;
+  const campaign = await db.collection("timedAdCampaigns").doc(String(data.campaignId)).get();
+  return {
+    active: true, sessionId, campaignId: data.campaignId,
+    durationSeconds: data.durationSeconds, rewardCoins: data.rewardCoins,
+    expiresAtMs: data.expiresAtMs, heartbeatSequence: data.heartbeatSequence,
+    eligibleMs: data.eligibleMs, status: data.status,
+    title: campaign.data()?.title ?? "إعلان",
+    sponsorLabel: campaign.data()?.sponsorLabel ?? "",
+    body: campaign.data()?.body ?? "",
+  };
 });
 
 export const heartbeatTimedAdvertisement = onCall(async (request) => {
