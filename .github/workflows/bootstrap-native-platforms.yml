@@ -103,7 +103,7 @@ jobs:
           print("Verified generated iOS Firebase plist: project, app, bundle, sender and API key.")
           PY
 
-      - name: Resolve locked Flutter dependencies"
+      - name: Resolve locked Flutter dependencies
         run: flutter pub get --enforce-lockfile
 
       - name: Apply Android API 36 to every resolved Flutter plugin module
