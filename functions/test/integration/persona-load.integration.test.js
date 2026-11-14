@@ -21,6 +21,12 @@ const fixture = JSON.parse(fs.readFileSync(fixturePath, "utf8"));
 const personas = fixture.personas;
 const BATCH_SIZE = 125;
 const metrics = { createdUsers: 0, scenarios: [], personaCoverage: [], lifecycleCoverage: [] };
+const LIFECYCLE_REQUIRED_FIELDS = [
+  "premiumEntitlementsProvisioned", "storePurchaseCompleted", "storeReceiptAndLedgerVerified",
+  "greetingAndPinnedSectionUpdated", "peerProfileViewed", "profileAnalyticsVerified",
+  "discoveryExecuted", "boostedDiscoveryVerified", "blockUnblockVerified",
+  "pushTokenLifecycleVerified", "roomJoined", "eventListed", "eventRsvpConfirmed",
+];
 
 function percentile(values, p) {
   if (!values.length) return 0;
@@ -323,7 +329,20 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
     eventListed: false,
     eventRsvpConfirmed: false,
   }]));
-
+  const recordLifecycleProgress = (stage) => {
+    const rows = [...coverage.values()];
+    metrics.lifecycleCoverage = rows;
+    const stageCounts = Object.fromEntries(LIFECYCLE_REQUIRED_FIELDS.map((field) => [
+      field, rows.filter((row) => row[field]).length,
+    ]));
+    console.log("[persona-lifecycle:progress] " + JSON.stringify({
+      stage,
+      personas: rows.length,
+      completedRows: rows.filter((row) => LIFECYCLE_REQUIRED_FIELDS.every((field) => row[field])).length,
+      stageCounts,
+    }));
+  };
+  metrics.lifecycleCoverage = [...coverage.values()];
 
   try {
     // Publish one fulfillment-ready SKU only inside this emulator project.
@@ -365,6 +384,7 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       await batch.commit();
       coverage.get(persona.personaId).premiumEntitlementsProvisioned = true;
     });
+    recordLifecycleProgress("premium-entitlements-provisioned");
 
     // Every persona makes a real callable purchase in the emulator, replays
     // the same request, and reconciles the immutable receipt and wallet ledger.
@@ -393,6 +413,7 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       coverage.get(persona.personaId).storePurchaseCompleted = true;
       coverage.get(persona.personaId).storeReceiptAndLedgerVerified = true;
     });
+    recordLifecycleProgress("store-purchase-and-ledger-verified");
 
     await inBatches(personas, 25, async (persona) => {
       const greeting = "مرحباً من " + persona.personaId;
@@ -402,6 +423,7 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       await setMemberCustomTitle.run({ data: { title: customTitle }, auth: callableAuth(persona.uid) });
       coverage.get(persona.personaId).greetingAndPinnedSectionUpdated = true;
     });
+    recordLifecycleProgress("premium-profile-greeting-and-pin");
 
     // Run peer views only after every profile update has committed; this avoids
     // nondeterministic reads of a partner profile still being provisioned.
@@ -415,6 +437,7 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       assert.equal(viewed.pinnedProfileSection, "interests");
       coverage.get(persona.personaId).peerProfileViewed = true;
     });
+    recordLifecycleProgress("peer-profile-views");
 
     await inBatches(personas, 25, async (persona) => {
       const ownProfile = await getMemberProfile.run({
@@ -425,6 +448,7 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       assert.equal(ownProfile.profileAnalytics.last7DaysViews, 1);
       coverage.get(persona.personaId).profileAnalyticsVerified = true;
     });
+    recordLifecycleProgress("profile-analytics-verified");
 
     await inBatches(personas, 25, async (persona) => {
       const result = await discoverMembers.run({ data: {}, auth: callableAuth(persona.uid) });
@@ -435,6 +459,7 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       coverage.get(persona.personaId).discoveryExecuted = true;
       coverage.get(persona.personaId).boostedDiscoveryVerified = true;
     });
+    recordLifecycleProgress("boosted-discovery-verified");
 
     // Exercise each member's block/unblock privacy control against their
     // deterministic peer, then register and deactivate one synthetic FCM token.
@@ -452,6 +477,7 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       assert.ok(!unblocked.includes(peer.uid));
       coverage.get(persona.personaId).blockUnblockVerified = true;
     });
+    recordLifecycleProgress("block-unblock-verified");
 
     await inBatches(personas, 25, async (persona) => {
       const token = "mawdda_test_fcm_token_" + persona.personaId + "_" + "x".repeat(180);
@@ -468,6 +494,7 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       assert.equal(saved.data().active, false);
       coverage.get(persona.personaId).pushTokenLifecycleVerified = true;
     });
+    recordLifecycleProgress("push-token-lifecycle-verified");
 
     await inBatches(roomGroups, 10, async (group) => {
       const roomRef = db.collection("rooms").doc(group.roomId);
@@ -491,20 +518,22 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       });
       coverage.get(persona.personaId).roomJoined = true;
     });
+    recordLifecycleProgress("all-personas-joined-rooms");
 
     await inBatches(roomGroups, 10, async (group) => {
       const created = await createRoomEvent.run({
         data: {
           roomId: group.roomId, title: "لقاء مجتمع مودة التجريبي",
           description: "حدث آلي لاختبار دورة حياة الشخصيات الاصطناعية.",
-          eventType: "announcement", startsAtMs: Date.now() + 60 * 60 * 1000,
-          durationMinutes: 30,
+          eventType: "announcement", startsAtMs: Date.now() + 6 * 60 * 1000,
+          durationMinutes: 240,
         },
         auth: callableAuth(group.owner.uid),
       });
       assert.equal(created.status, "scheduled");
       group.eventId = created.eventId;
     });
+    recordLifecycleProgress("room-events-created");
 
     await inBatches(personas, 25, async (persona) => {
       const group = roomGroupByPersona.get(persona.uid);
@@ -524,6 +553,7 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       assert.equal(ownEvent.isAttending, true);
       coverage.get(persona.personaId).eventRsvpConfirmed = true;
     });
+    recordLifecycleProgress("all-event-rsvps-confirmed");
 
     await inBatches(roomGroups, 10, async (group) => {
       await setRoomEventStatus.run({
@@ -535,25 +565,32 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       const finalEvent = await db.collection("roomEvents").doc(group.eventId).get();
       assert.equal(finalEvent.data().status, "completed");
     });
+    recordLifecycleProgress("events-completed");
 
     const rows = [...coverage.values()];
-    const required = [
-      "premiumEntitlementsProvisioned", "storePurchaseCompleted", "storeReceiptAndLedgerVerified", "greetingAndPinnedSectionUpdated",
-      "peerProfileViewed", "profileAnalyticsVerified", "discoveryExecuted", "boostedDiscoveryVerified", "blockUnblockVerified", "pushTokenLifecycleVerified", "roomJoined", "eventListed", "eventRsvpConfirmed",
-    ];
-    for (const field of required) {
+    for (const field of LIFECYCLE_REQUIRED_FIELDS) {
       assert.equal(rows.filter((row) => row[field]).length, 5000,
         "all 5000 personas must complete " + field);
     }
     metrics.lifecycleCoverage = rows;
     console.log("[persona-lifecycle:coverage] " + JSON.stringify({
-      personas: rows.length, stages: required,
-      completedRows: rows.filter((row) => required.every((field) => row[field])).length,
+      personas: rows.length, stages: LIFECYCLE_REQUIRED_FIELDS,
+      completedRows: rows.filter((row) => LIFECYCLE_REQUIRED_FIELDS.every((field) => row[field])).length,
       roomGroups: roomGroups.length,
       rooms: roomGroups.length,
       events: roomGroups.length,
     }));
   } finally {
+    metrics.lifecycleCoverage = [...coverage.values()];
+    const snapshot = metrics.lifecycleCoverage;
+    const stageCounts = Object.fromEntries(LIFECYCLE_REQUIRED_FIELDS.map((field) => [
+      field, snapshot.filter((row) => row[field]).length,
+    ]));
+    console.log("[persona-lifecycle:snapshot] " + JSON.stringify({
+      personas: snapshot.length,
+      completedRows: snapshot.filter((row) => LIFECYCLE_REQUIRED_FIELDS.every((field) => row[field])).length,
+      stageCounts,
+    }));
     await Promise.all(roomGroups.map(async (group) => {
       if (group.eventId) {
         await db.recursiveDelete(db.collection("roomEvents").doc(group.eventId)).catch(() => undefined);
@@ -565,6 +602,12 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
 
 test("emit machine-readable load-test report", () => {
   const reportPath = process.env.MAWDDA_LOAD_REPORT || "mawdda-load-artifacts/report.json";
+  const lifecycleRows = metrics.lifecycleCoverage;
+  const lifecycleStageCounts = Object.fromEntries(LIFECYCLE_REQUIRED_FIELDS.map((field) => [
+    field, lifecycleRows.filter((row) => row[field]).length,
+  ]));
+  const lifecycleCompletedPersonaCount = lifecycleRows.filter((row) =>
+    LIFECYCLE_REQUIRED_FIELDS.every((field) => row[field])).length;
   fs.mkdirSync(require("node:path").dirname(reportPath), { recursive: true });
   fs.writeFileSync(reportPath, JSON.stringify({
     schemaVersion: 1,
@@ -573,8 +616,10 @@ test("emit machine-readable load-test report", () => {
     provisionedPersonas: metrics.createdUsers,
     personaCoverageCount: metrics.personaCoverage.length,
     personaCoverage: metrics.personaCoverage,
-    lifecycleCoverageCount: metrics.lifecycleCoverage.length,
-    lifecycleCoverage: metrics.lifecycleCoverage,
+    lifecycleCoverageCount: lifecycleRows.length,
+    lifecycleCompletedPersonaCount,
+    lifecycleStageCounts,
+    lifecycleCoverage: lifecycleRows,
     scenarios: metrics.scenarios
   }, null, 2) + "\n", { mode: 0o600 });
   console.log(`[persona-load] report=${reportPath}`);
