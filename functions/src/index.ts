@@ -7158,4 +7158,4 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
 });
 
 
-export { startGuestSession, getGuestSessionStatus, endGuestSession, listGuestPublicRooms } from "./guest-sessions";
+export { startGuestSession, getGuestSessionStatus, endGuestSession, listGuestPublicRooms, cleanupExpiredGuestSessions } from "./guest-sessions";
