@@ -5,7 +5,7 @@ const { getFirestore } = require("firebase-admin/firestore");
 const {
   startGuestSession, getGuestSessionStatus, endGuestSession, listGuestPublicRooms,
   joinRoom, sendRoomMessage, getRoomMessages, setRoomAudience, sendChatMediaAttachment,
-  sendDirectMessage, purchaseStoreItem, setMemberBlock,
+  sendDirectMessage, purchaseStoreItem, setMemberBlock, createMediaUploadIntent,
 } = require("../../lib/index");
 
 const db = getFirestore();
@@ -143,6 +143,10 @@ test("guest onboarding stores no age and grants only active all-ages public-room
     assert.equal(replay.idempotentReplay, true);
     const read = await getRoomMessages.run(guestRequest(uid, { roomId }));
     assert.ok(read.messages.some((item) => item.content === "مرحباً بالجميع"));
+    const memberRead = await getRoomMessages.run({
+      data: { roomId }, auth: { uid: emailUid, token: { firebase: { sign_in_provider: "password" } } },
+    });
+    assert.ok(memberRead.messages.some((item) => item.content === "مرحباً بالجميع"));
 
     const memberAudioAsset = {
       mediaId: memberAudioMediaId, ownerUid: emailUid, uploaderType: "member", uploaderRole: "member",
@@ -157,6 +161,14 @@ test("guest onboarding stores no age and grants only active all-ages public-room
       data: { scope: "room", roomId, mediaId: memberAudioMediaId, clientMessageId: "member_audio_0001" },
       auth: { uid: emailUid, token: { firebase: { sign_in_provider: "password" } } },
     });
+
+    await assert.rejects(
+      () => createMediaUploadIntent.run(guestRequest(uid, {
+        originalName: "guest-photo.png", contentType: "image/png",
+        sizeBytes: 128, purpose: "room",
+      })),
+      (error) => error && error.code === "permission-denied",
+    );
 
     const safeAudioAsset = {
       mediaId: audioMediaId, ownerUid: uid, uploaderType: "guest", uploaderRole: "guest",
