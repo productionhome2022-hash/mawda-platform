@@ -1,0 +1,69 @@
+name: Mawdda Test Center
+
+on:
+  pull_request:
+    branches:
+      - main
+      - codex/mawda-full-platform-implementation
+  push:
+    branches:
+      - codex/mawdda-test-account-system
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mawdda-test-center-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter-validation:
+    name: Flutter analyze, tests and web release build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+      - name: Enable Flutter Web
+        run: flutter config --enable-web
+      - name: Install locked Flutter dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Analyze Dart
+        run: flutter analyze
+      - name: Run Flutter tests
+        run: flutter test
+      - name: Build release web artifact
+        run: flutter build web --release
+
+  backend-emulator-validation:
+    name: Backend, Firebase rules and integration suites
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20.20.2"
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install backend dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: functions
+      - name: Run complete emulator test center
+        run: npm run test:all
+        working-directory: functions
+      - name: Upload local test account fixture manifest (no credentials)
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: mawdda-test-center-fixtures
+          path: functions/test/fixtures/test-account-personas.json
+          if-no-files-found: error
+          retention-days: 7
