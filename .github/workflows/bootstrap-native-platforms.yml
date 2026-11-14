@@ -14,6 +14,19 @@ on:
       - "pubspec.yaml"
       - "pubspec.lock"
       - "lib/**"\n      - "web/**"
+  pull_request:
+    branches:
+      - main
+      - codex/mawda-full-platform-implementation
+    paths:
+      - "tool/configure_native_platforms.py"
+      - "tool/patch_android_plugin_compile_sdk.py"
+      - "tool/test_*.py"
+      - ".github/workflows/bootstrap-native-platforms.yml"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "lib/**"
+      - "web/**"
   workflow_dispatch:
 
 permissions:
