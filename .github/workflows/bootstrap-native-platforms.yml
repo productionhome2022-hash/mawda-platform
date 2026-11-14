@@ -74,8 +74,8 @@ jobs:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
           test -n "$FIREBASE_TOKEN"
-          firebase apps:list --project mawda-app-2026 --token "$FIREBASE_TOKEN"
-          flutterfire configure --project=mawda-app-2026 --platforms=android,ios,web --android-package-name=com.mawdda.platform.app --ios-bundle-id=com.mawdda.platform.app --out=lib/firebase_options.dart --yes
+          firebase apps:list --project mawda-platform-nonprod-2026 --token "$FIREBASE_TOKEN"
+          flutterfire configure --project=mawda-platform-nonprod-2026 --platforms=android,ios,web --android-package-name=com.mawdda.platform.app --ios-bundle-id=com.mawdda.platform.app --out=lib/firebase_options.dart --yes
           python3 - <<'PY'
           import re
           from pathlib import Path
@@ -89,7 +89,7 @@ jobs:
               if match is None:
                   raise SystemExit(f"Missing Firebase options for {platform}.")
               block = match.group(1)
-              if "projectId: 'mawda-app-2026'" not in block:
+              if "projectId: 'mawda-platform-nonprod-2026'" not in block:
                   raise SystemExit(f"{platform} Firebase options target the wrong project.")
               if any(value in block for value in ("AIzaSyActualApiKey", "1234567890", "abcdef123456789")):
                   raise SystemExit(f"{platform} Firebase options still contain placeholders.")
@@ -160,13 +160,38 @@ jobs:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
           test -n "$FIREBASE_TOKEN"
-          firebase apps:list --project mawda-app-2026 --token "$FIREBASE_TOKEN"
+          firebase apps:list --project mawda-platform-nonprod-2026 --token "$FIREBASE_TOKEN"
           rm -f ios/Runner/GoogleService-Info.plist
-          firebase apps:sdkconfig IOS 1:697303475139:ios:7be58cfe1ac9c4c23ed376 --project mawda-app-2026 --out ios/Runner/GoogleService-Info.plist --token "$FIREBASE_TOKEN"
+          IOS_APP_ID=$(python3 - <<'PY'
+          import re
+          from pathlib import Path
+          source = Path("lib/firebase_options.dart").read_text()
+          match = re.search(r"static const FirebaseOptions ios = FirebaseOptions\\((.*?)\\n  \\);", source, re.S)
+          if match is None:
+              raise SystemExit("Missing generated iOS Firebase options.")
+          app = re.search(r"appId: '([^']+)'", match.group(1))
+          if app is None:
+              raise SystemExit("Missing iOS Firebase appId.")
+          print(app.group(1))
+          PY
+          )
+          test -n "$IOS_APP_ID"
+          firebase apps:sdkconfig IOS "$IOS_APP_ID" --project mawdda-platform-nonprod-2026 --out ios/Runner/GoogleService-Info.plist --token "$FIREBASE_TOKEN"
           python3 - <<'PY'
           import plistlib
+          import re
           from pathlib import Path
 
+          source = Path("lib/firebase_options.dart").read_text()
+          match = re.search(r"static const FirebaseOptions ios = FirebaseOptions\\((.*?)\\n  \\);", source, re.S)
+          if match is None:
+              raise SystemExit("Missing generated iOS Firebase options.")
+          block = match.group(1)
+          def dart_value(key):
+              value = re.search(rf"{key}: '([^']+)'", block)
+              if value is None:
+                  raise SystemExit(f"Missing {key} in generated iOS options.")
+              return value.group(1)
           path = Path("ios/Runner/GoogleService-Info.plist")
           if not path.is_file():
               raise SystemExit("Firebase CLI did not generate ios/Runner/GoogleService-Info.plist on macOS.")
@@ -174,16 +199,16 @@ jobs:
               config = plistlib.load(handle)
           expected = {
               "BUNDLE_ID": "com.mawdda.platform.app",
-              "PROJECT_ID": "mawda-app-2026",
-              "GOOGLE_APP_ID": "1:697303475139:ios:7be58cfe1ac9c4c23ed376",
-              "GCM_SENDER_ID": "697303475139",
+              "PROJECT_ID": "mawdda-platform-nonprod-2026",
+              "GOOGLE_APP_ID": dart_value("appId"),
+              "GCM_SENDER_ID": dart_value("messagingSenderId"),
           }
           for key, value in expected.items():
               if config.get(key) != value:
                   raise SystemExit(f"iOS Firebase plist mismatch for {key}.")
           if not isinstance(config.get("API_KEY"), str) or not config["API_KEY"].strip():
               raise SystemExit("iOS Firebase plist is missing API_KEY.")
-          print("Verified iOS Firebase plist on macOS: project, app, bundle, sender and API key.")
+          print("Verified non-production iOS Firebase plist against generated FlutterFire options.")
           PY
 
       - name: Resolve locked Flutter dependencies
