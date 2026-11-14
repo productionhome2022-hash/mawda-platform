@@ -136,7 +136,7 @@ jobs:
       - name: Add generated platform directories
         run: |
           tar -xzf native-artifact/native-platforms.tar.gz -C .
-          tar -xzf native-artifact/native-platforms.tar.gz -C .\n          git add android ios lib/firebase_options.dart
+          git add android ios lib/firebase_options.dart
           if git diff --cached --quiet; then
             echo "Native platform scaffolding is already current."
             exit 0
