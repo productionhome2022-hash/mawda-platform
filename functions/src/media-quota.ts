@@ -69,7 +69,7 @@ export function releaseMediaQuota(
   const dailyBytes = current?.dailyBytes ?? 0;
   const dailyUploads = current?.dailyUploads ?? 0;
   const dailyWindow = current?.dailyWindow ?? utcDay(Date.now());
-  if (![activeUploads, activeBytes, dailyBytes].every((value) =>
+  if (![activeUploads, activeBytes, dailyBytes, dailyUploads].every((value) =>
     Number.isSafeInteger(value) && value >= 0) ||
     activeUploads < 1 || activeBytes < bytes) {
     throw new Error("Media quota reservation is inconsistent.");
