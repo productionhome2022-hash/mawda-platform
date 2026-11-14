@@ -4411,7 +4411,7 @@ export const archiveOwnerReviewAuditLogs = onSchedule(
         eligible[eligible.length - 1].createdAtMs,
       );
       const file = bucket.file(objectName);
-      let objectGeneration: string | undefined;
+      let objectGeneration: string | number | undefined;
       try {
         await file.save(archive.payload, {
           resumable: false,
