@@ -1027,7 +1027,7 @@ export const getMemberProfile = onCall(async (request) => {
 export const setMemberCustomTitle = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const title = typeof request.data?.title === "string" ? request.data.title.trim() : "";
-  if (title.length < 2 || title.length > 40 || /[\\u0000-\\u001F\\u007F]/.test(title)) {
+  if (title.length < 2 || title.length > 40 || /[\u0000-\u001F\u007F]/.test(title)) {
     throw new HttpsError("invalid-argument", "يجب أن يتراوح اللقب بين حرفين و40 حرفاً دون محارف تحكم.");
   }
 
