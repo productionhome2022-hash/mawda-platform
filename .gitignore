@@ -23,3 +23,6 @@ functions/.env*
 
 # Firebase Emulator debug logs
 firestore-debug.log
+
+# IDE project metadata
+*.iml
