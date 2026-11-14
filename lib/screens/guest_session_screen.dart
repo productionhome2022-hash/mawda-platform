@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -22,12 +23,30 @@ class _GuestSessionScreenState extends State<GuestSessionScreen> {
   Map<String, dynamic> _status = {};
   List<Map<String, dynamic>> _rooms = [];
   String? _message;
+  Timer? _sessionTicker;
+  bool _expiryRefreshRequested = false;
 
   @override
-  void initState() { super.initState(); _loadStatus(); }
+  void initState() {
+    super.initState();
+    _loadStatus();
+    _sessionTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || _status['active'] != true) return;
+      final expiry = _status['expiresAt'];
+      if (expiry is num && DateTime.now().millisecondsSinceEpoch >= expiry.toInt()) {
+        if (!_expiryRefreshRequested) {
+          _expiryRefreshRequested = true;
+          _loadStatus();
+        }
+      } else {
+        setState(() {});
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _sessionTicker?.cancel();
     _username.dispose(); _country.dispose(); _email.dispose(); _password.dispose(); super.dispose();
   }
 
@@ -51,7 +70,7 @@ class _GuestSessionScreenState extends State<GuestSessionScreen> {
         final gender = profile['gender'];
         if (gender == 'male' || gender == 'female') _gender = gender;
       }
-      if (mounted) setState(() { _status = status; _rooms = rooms; _loading = false; });
+      if (mounted) setState(() { _status = status; _rooms = rooms; _loading = false; _expiryRefreshRequested = false; });
     } on FirebaseFunctionsException catch (e) {
       if (mounted) setState(() { _message = e.message ?? 'تعذر تحميل حالة جلسة الزائر.'; _loading = false; });
     } catch (_) {
