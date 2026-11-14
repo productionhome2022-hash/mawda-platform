@@ -46,8 +46,36 @@ class _SafetyCenterScreenState extends State<SafetyCenterScreen> {
   }
 
   Future<Map<String, dynamic>> _loadCases() async {
-    final result = await FirebaseFunctions.instance.httpsCallable('getMySafetyCases').call();
-    return Map<String, dynamic>.from(result.data as Map);
+    final results = await Future.wait([
+      FirebaseFunctions.instance.httpsCallable('getMySafetyCases').call(),
+      FirebaseFunctions.instance.httpsCallable('getMyBlockedUsers').call(),
+    ]);
+    return {
+      ...Map<String, dynamic>.from(results[0].data as Map),
+      ...Map<String, dynamic>.from(results[1].data as Map),
+    };
+  }
+
+  Future<void> _unblockMember(String targetUid) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await FirebaseFunctions.instance.httpsCallable('setMemberBlock').call({
+        'targetUid': targetUid,
+        'blocked': false,
+      });
+      if (!mounted) return;
+      _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم إلغاء الحظر.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر إلغاء الحظر.')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   void _refresh() => setState(() => _cases = _loadCases());
@@ -255,6 +283,25 @@ class _SafetyCenterScreenState extends State<SafetyCenterScreen> {
                   for (final item in (snapshot.data?['decisions'] as List<dynamic>? ?? const [])
                       .whereType<Map>().map((value) => Map<String, dynamic>.from(value)))
                     _caseCard(item, decision: true),
+                  const SizedBox(height: 20),
+                  Text('قائمة الحظر', style: Theme.of(context).textTheme.titleLarge),
+                  for (final targetUid in (snapshot.data?['blockedUids'] as List<dynamic>? ?? const [])
+                      .whereType<String>())
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.block_outlined),
+                        title: Text(targetUid, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        trailing: TextButton(
+                          onPressed: _busy ? null : () => _unblockMember(targetUid),
+                          child: const Text('إلغاء الحظر'),
+                        ),
+                      ),
+                    ),
+                  if ((snapshot.data?['blockedUids'] as List<dynamic>? ?? const []).isEmpty)
+                    const ListTile(
+                      leading: Icon(Icons.check_circle_outline),
+                      title: Text('لا توجد حسابات محظورة.'),
+                    ),
                 ],
               ],
             ),
