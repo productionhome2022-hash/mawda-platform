@@ -24,6 +24,15 @@ test("guest onboarding stores no age and grants only active all-ages public-room
   const ownerUid = `room_owner_${suffix()}`;
   const audioMediaId = randomUUID();
   const imageMediaId = randomUUID();
+  const memberAudioMediaId = randomUUID();
+  const guestPersonaRef = db.collection("testAccountProfiles").doc("guest-preview");
+  const previousGuestPersona = await guestPersonaRef.get();
+  const emailPersona = await db.collection("testAccountProfiles").doc("email-member").get();
+  const counterPersona = await db.collection("testAccountProfiles").doc("counterparty-member").get();
+  assert.ok(emailPersona.exists, "email-member persona must be seeded");
+  assert.ok(counterPersona.exists, "counterparty-member persona must be seeded");
+  const emailUid = emailPersona.data().uid;
+  const counterUid = counterPersona.data().uid;
   const roomIds = [roomId, adultRoomId, privateRoomId];
   const roomRef = (id) => db.collection("rooms").doc(id);
   const guestProfileRef = db.collection("guestProfiles").doc(uid);
@@ -48,6 +57,14 @@ test("guest onboarding stores no age and grants only active all-ages public-room
     });
     assert.equal(audienceUpdate.guestAudienceApproved, true);
 
+    await guestPersonaRef.set({
+      uid, runtimeStatus: "active-test-only", accountKind: "anonymous-client-flow",
+      profile: { username: "guest-test-user", country: "CH", gender: "female" },
+    }, { merge: true });
+    await Promise.all([
+      joinRoom.run({ data: { roomId }, auth: { uid: emailUid, token: { firebase: { sign_in_provider: "password" } } } }),
+      joinRoom.run({ data: { roomId }, auth: { uid: counterUid, token: { firebase: { sign_in_provider: "password" } } } }),
+    ]);
     const started = await startGuestSession.run(guestRequest(uid, {
       username: "guest-test-user", country: "CH", gender: "female", age: 18, dateOfBirth: "2008-01-01",
     }));
@@ -92,6 +109,21 @@ test("guest onboarding stores no age and grants only active all-ages public-room
     assert.equal(listed.rooms.some((room) => room.roomId === privateRoomId), false);
 
     await joinRoom.run(guestRequest(uid, { roomId }));
+    const memberText = await sendRoomMessage.run({
+      data: { roomId, content: "رسالة من عضو البريد التجريبي", clientMessageId: "member_msg_0001" },
+      auth: { uid: emailUid, token: { firebase: { sign_in_provider: "password" } } },
+    });
+    assert.equal(memberText.idempotentReplay, false);
+    await sendRoomMessage.run({
+      data: { roomId, content: "رسالة من العضو المقابل التجريبي", clientMessageId: "counter_msg_0001" },
+      auth: { uid: counterUid, token: { firebase: { sign_in_provider: "password" } } },
+    });
+    const memberToGuestDm = {
+      data: { recipientUid: uid, text: "خاص إلى الزائر", clientMessageId: "member_guest_dm_0001" },
+      auth: { uid: emailUid, token: { firebase: { sign_in_provider: "password" } } },
+    };
+    await assert.rejects(() => sendDirectMessage.run(memberToGuestDm),
+      (error) => error && (error.code === "not-found" || error.code === "permission-denied"));
     await assert.rejects(
       () => joinRoom.run(guestRequest(uid, { roomId: adultRoomId })),
       (error) => error && error.code === "permission-denied",
@@ -112,6 +144,20 @@ test("guest onboarding stores no age and grants only active all-ages public-room
     const read = await getRoomMessages.run(guestRequest(uid, { roomId }));
     assert.ok(read.messages.some((item) => item.content === "مرحباً بالجميع"));
 
+    const memberAudioAsset = {
+      mediaId: memberAudioMediaId, ownerUid: emailUid, uploaderType: "member", uploaderRole: "member",
+      mediaPurpose: "room", mediaCategory: "audio", detectedContentType: "audio/mpeg",
+      status: "security_approved", processingStatus: "safe_audio_derivative_ready",
+      safeAudioPath: `processed/${emailUid}/${memberAudioMediaId}/audio.mp3`,
+      safeAudioGeneration: "1", safeAudioSha256: "c".repeat(64),
+      processingPipelineVersion: "ffmpeg-audio-transcode-v1",
+    };
+    await db.collection("mediaAssets").doc(memberAudioMediaId).set(memberAudioAsset);
+    await sendChatMediaAttachment.run({
+      data: { scope: "room", roomId, mediaId: memberAudioMediaId, clientMessageId: "member_audio_0001" },
+      auth: { uid: emailUid, token: { firebase: { sign_in_provider: "password" } } },
+    });
+
     const safeAudioAsset = {
       mediaId: audioMediaId, ownerUid: uid, uploaderType: "guest", uploaderRole: "guest",
       mediaPurpose: "room", mediaCategory: "audio", detectedContentType: "audio/mpeg",
@@ -127,6 +173,9 @@ test("guest onboarding stores no age and grants only active all-ages public-room
     assert.equal(audioSend.replayed, false);
     const afterAudio = await getRoomMessages.run(guestRequest(uid, { roomId }));
     assert.ok(afterAudio.messages.some((item) => item.mediaId === audioMediaId && item.mediaCategory === "audio"));
+    assert.ok(afterAudio.messages.some((item) => item.mediaId === memberAudioMediaId && item.mediaCategory === "audio"));
+    assert.ok(afterAudio.messages.some((item) => item.content === "رسالة من عضو البريد التجريبي"));
+    assert.ok(afterAudio.messages.some((item) => item.content === "رسالة من العضو المقابل التجريبي"));
 
     const unsafeImageAsset = {
       ...safeAudioAsset, mediaId: imageMediaId, mediaCategory: "image",
@@ -167,6 +216,8 @@ test("guest onboarding stores no age and grants only active all-ages public-room
       userRef.delete().catch(() => undefined),
       db.collection("mediaAssets").doc(audioMediaId).delete().catch(() => undefined),
       db.collection("mediaAssets").doc(imageMediaId).delete().catch(() => undefined),
+      db.collection("mediaAssets").doc(memberAudioMediaId).delete().catch(() => undefined),
+      previousGuestPersona.exists ? guestPersonaRef.set(previousGuestPersona.data()) : guestPersonaRef.delete().catch(() => undefined),
       db.collection("roomAuditLogs").where("roomId", "in", roomIds).get().then((snapshot) =>
         Promise.all(snapshot.docs.map((doc) => doc.ref.delete()))),
       ...roomIds.map(async (id) => {
