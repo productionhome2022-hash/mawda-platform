@@ -61,6 +61,9 @@ test("timed-ad campaign validation bounds duration, rewards, dates and budget", 
 });
 
 test("timed-ad heartbeat credits only sequential, visible foreground intervals", () => {
+  assert.deepEqual(eligibleHeartbeatDelta(null, 5000, 1, 1, true, true), {
+    deltaMs: 0, nextHeartbeatAtMs: 5000, nextSequence: 2, paused: false,
+  });
   assert.deepEqual(eligibleHeartbeatDelta(1000, 6000, 1, 1, true, true), {
     deltaMs: 5000, nextHeartbeatAtMs: 6000, nextSequence: 2, paused: false,
   });
