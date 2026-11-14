@@ -81,19 +81,20 @@
       "command": "npm run test:guest-privacy-integration",
       "status": "partial",
       "cases": [
-        "anonymous-guest-privacy-acknowledgement",
-        "member-acknowledgement-rejects-anonymous-session"
-      ],
-      "plannedCases": [
-        "public-discovery",
-        "public-shop-catalog",
-        "public-ads",
+        "guest-minimal-profile-no-age",
+        "server-session-start-and-idempotency",
+        "general-audience-public-room-discovery",
         "public-room-join",
         "public-room-text-send-receive",
-        "public-room-audio-send-receive",
-        "60-minute-expiry",
-        "rolling-24-hour-denial",
-        "re-entry-after-window",
+        "text-message-idempotency",
+        "adult-and-private-room-denial",
+        "session-end-and-cooldown-denial"
+      ],
+      "plannedCases": [
+        "real-device-audio-recording-and-playback",
+        "60-minute-live-expiry-clock-integration",
+        "cross-installation-abuse-resistance",
+        "full-flutter-ui-to-backend-e2e",
         "no-rewards",
         "no-direct-messages",
         "no-private-rooms",
@@ -101,11 +102,9 @@
         "no-purchase",
         "no-room-rental",
         "no-gifts",
-        "no-image-gif-video-or-document-messages",
-        "no-private-data",
-        "emulator-clock-forward-and-reset"
+        "no-image-gif-video-or-document-messages"
       ],
-      "releaseBlocker": "Guest room access and the one-hour/24-hour server session are not implemented in the app/backend branch; the current command tests privacy acknowledgement only."
+      "releaseBlocker": "Guest profile, server session, general-audience public-room join and text messaging are implemented in the development branch with emulator coverage. Full Flutter UI/device E2E, audio pipeline acceptance, exhaustive denied-capability matrix and cross-installation anti-abuse assurance remain release blockers."
     },
     {
       "id": "PROFILE-001",
