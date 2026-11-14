@@ -34,12 +34,34 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Install Firebase CLI and FlutterFire CLI
+        run: |
+          npm install --global firebase-tools@14.0.0
+          dart pub global activate flutterfire_cli
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+
       - name: Generate missing Android and iOS runners
         run: |
           if [ ! -d android ] || [ ! -d ios ]; then
             flutter create --platforms=android,ios --org com.mawdda.platform --project-name app .
           fi
           python3 tool/configure_native_platforms.py
+
+      - name: Generate verified Firebase native configuration
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          test -n "$FIREBASE_TOKEN"
+          firebase apps:list --project mawda-app-2026 --token "$FIREBASE_TOKEN"
+          flutterfire configure --project=mawda-app-2026 --platforms=android,ios,web --android-package-name=com.mawdda.platform.app --ios-bundle-id=com.mawdda.platform.app --out=lib/firebase_options.dart --yes
+          python3 - <<'PY'
+          from pathlib import Path
+          source = Path("lib/firebase_options.dart").read_text()
+          if "AIzaSyActualApiKey" in source or "1234567890" in source or "abcdef123456789" in source:
+              raise SystemExit("FlutterFire left placeholder Firebase options; refusing native build.")
+          if source.count("projectId: 'mawda-app-2026'") < 3:
+              raise SystemExit("Android/iOS/Web Firebase project IDs are not consistently configured.")
+          PY
 
       - name: Resolve locked Flutter dependencies
         run: flutter pub get --enforce-lockfile
@@ -48,7 +70,7 @@ jobs:
         run: flutter build apk --debug
 
       - name: Package generated native projects
-        run: tar -czf native-platforms.tar.gz android ios
+        run: tar -czf native-platforms.tar.gz android ios lib/firebase_options.dart
 
       - uses: actions/upload-artifact@v5
         with:
@@ -114,7 +136,7 @@ jobs:
       - name: Add generated platform directories
         run: |
           tar -xzf native-artifact/native-platforms.tar.gz -C .
-          git add android ios
+          tar -xzf native-artifact/native-platforms.tar.gz -C .\n          git add android ios lib/firebase_options.dart
           if git diff --cached --quiet; then
             echo "Native platform scaffolding is already current."
             exit 0
