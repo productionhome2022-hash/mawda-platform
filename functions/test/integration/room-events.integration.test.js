@@ -22,7 +22,6 @@ test("room event lifecycle is owner-controlled, age-scoped and RSVP-idempotent",
   const ownerRef = db.collection("users").doc(ownerUid);
   const memberRef = db.collection("users").doc(memberUid);
   const minorRef = db.collection("users").doc(minorUid);
-  const eventRef = db.collection("roomEvents").doc();
   const startsAtMs = Date.now() + 6 * 60 * 1000;
 
   await Promise.all([
@@ -37,11 +36,12 @@ test("room event lifecycle is owner-controlled, age-scoped and RSVP-idempotent",
       audience: "adult",
       status: "active",
       capacity: 20,
-      memberCount: 2,
+      memberCount: 3,
       invitedUids: [],
     }),
     roomRef.collection("members").doc(ownerUid).set({ uid: ownerUid, role: "owner" }),
     roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" }),
+    roomRef.collection("members").doc(minorUid).set({ uid: minorUid, role: "member" }),
   ]);
 
   let createdEventId;
