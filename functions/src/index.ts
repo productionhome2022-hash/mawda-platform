@@ -7362,9 +7362,26 @@ export const startTimedAdvertisement = onCall(async (request) => {
     }
     if (active.exists) {
       const activeSession = await transaction.get(db.collection("timedAdSessions").doc(String(active.data()?.sessionId ?? "")));
-      if (activeSession.exists && activeSession.data()?.expiresAtMs > nowMs &&
+      if (activeSession.exists &&
           ["active", "paused"].includes(String(activeSession.data()?.status))) {
-        throw new HttpsError("already-exists", "لديك جلسة إعلان مفتوحة بالفعل.");
+        if (activeSession.data()?.expiresAtMs > nowMs) {
+          throw new HttpsError("already-exists", "لديك جلسة إعلان مفتوحة بالفعل.");
+        }
+        const expiredData = activeSession.data()!;
+        const expiredCampaignRef = db.collection("timedAdCampaigns").doc(String(expiredData.campaignId));
+        const expiredCampaign = await transaction.get(expiredCampaignRef);
+        if (expiredCampaign.exists) {
+          const reserved = readSafeInteger(expiredCampaign.data()?.reservedRewardCoins ?? 0, "reservedRewardCoins");
+          const reward = readSafeInteger(expiredData.rewardCoins, "rewardCoins");
+          transaction.update(expiredCampaignRef, {
+            reservedRewardCoins: Math.max(0, reserved - reward),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+        transaction.update(activeSession.ref, {
+          status: "expired", lastHeartbeatAtMs: null,
+          expiredAt: FieldValue.serverTimestamp(),
+        });
       }
     }
     if (!campaign.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
