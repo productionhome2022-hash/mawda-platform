@@ -102,7 +102,9 @@ jobs:
         run: python3 tool/patch_android_plugin_compile_sdk.py
 
       - name: Build Android debug APK
-        run: flutter build apk --debug
+        run: |
+          flutter build apk --debug
+          sha256sum build/app/outputs/flutter-apk/app-debug.apk > build/app/outputs/flutter-apk/app-debug.apk.sha256
 
       - name: Package generated native projects
         run: tar -czf native-platforms.tar.gz android ios lib/firebase_options.dart pubspec.lock
@@ -117,7 +119,9 @@ jobs:
       - uses: actions/upload-artifact@v5
         with:
           name: mawdda-android-debug-${{ github.sha }}
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          path: |
+            build/app/outputs/flutter-apk/app-debug.apk
+            build/app/outputs/flutter-apk/app-debug.apk.sha256
           if-no-files-found: error
           retention-days: 14
 
@@ -186,7 +190,19 @@ jobs:
         run: flutter pub get --enforce-lockfile
 
       - name: Build iOS without signing
-        run: flutter build ios --no-codesign
+        run: |
+          flutter build ios --no-codesign
+          ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app mawdda-ios-unsigned-device.zip
+          shasum -a 256 mawdda-ios-unsigned-device.zip > mawdda-ios-unsigned-device.zip.sha256
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: mawdda-ios-unsigned-device-${{ github.sha }}
+          path: |
+            mawdda-ios-unsigned-device.zip
+            mawdda-ios-unsigned-device.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Package verified iOS Firebase service file
         run: tar -czf ios-firebase-config.tar.gz ios/Runner/GoogleService-Info.plist
