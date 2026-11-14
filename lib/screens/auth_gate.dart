@@ -184,7 +184,10 @@ class _EmailVerificationScreenState extends State<_EmailVerificationScreen> {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         const Icon(Icons.mark_email_unread_outlined, size: 64),
         const SizedBox(height: 16),
-        const Text('تحقق من بريدك الإلكتروني قبل متابعة إنشاء عضويتك في مودة.', textAlign: TextAlign.center),
+        const Text(
+          'تحقق من صندوق الوارد (Inbox) ومجلد الرسائل غير المرغوب فيها (Spam/Junk). إذا وجدت رسالة مودة في Spam، انقلها إلى Inbox أو أضف المرسل إلى جهات الاتصال الموثوقة إن كان مزود بريدك يتيح ذلك، ثم افتح رابط التحقق.',
+          textAlign: TextAlign.center,
+        ),
         if (_message != null) ...[const SizedBox(height: 12), Text(_message!, textAlign: TextAlign.center)],
         const SizedBox(height: 20),
         FilledButton(onPressed: _busy ? null : _refresh, child: const Text('لقد تحققت، تحديث الحالة')),
