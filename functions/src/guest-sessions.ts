@@ -1,4 +1,4 @@
-import { FieldPath, FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
+import { FieldPath, FieldValue, Timestamp, getFirestore, type QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 
@@ -41,7 +41,7 @@ async function cleanupGuestRoomMemberships(uid: string): Promise<void> {
     .where("uid", "==", uid)
     .orderBy(FieldPath.documentId())
     .limit(200);
-  let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+  let cursor: QueryDocumentSnapshot | undefined;
 
   while (true) {
     const query = cursor ? baseQuery.startAfter(cursor) : baseQuery;
