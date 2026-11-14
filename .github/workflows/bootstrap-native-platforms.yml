@@ -1,0 +1,125 @@
+name: Bootstrap and validate Mawdda native platforms
+
+on:
+  push:
+    branches:
+      - codex/mawda-full-platform-implementation
+    paths:
+      - "tool/configure_native_platforms.py"
+      - ".github/workflows/bootstrap-native-platforms.yml"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mawdda-native-platform-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  generate-and-build-android:
+    name: Generate native runners and build Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: codex/mawda-full-platform-implementation
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+
+      - name: Generate missing Android and iOS runners
+        run: |
+          if [ ! -d android ] || [ ! -d ios ]; then
+            flutter create --platforms=android,ios --org com.mawdda.platform --project-name app .
+          fi
+          python3 tool/configure_native_platforms.py
+
+      - name: Resolve locked Flutter dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build Android debug APK
+        run: flutter build apk --debug
+
+      - name: Package generated native projects
+        run: tar -czf native-platforms.tar.gz android ios
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: mawdda-native-platforms-${{ github.sha }}
+          path: native-platforms.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: mawdda-android-debug-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  build-ios:
+    name: Build iOS without code signing
+    needs: generate-and-build-android
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: codex/mawda-full-platform-implementation
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: mawdda-native-platforms-${{ github.sha }}
+          path: native-artifact
+
+      - name: Restore generated iOS project
+        run: tar -xzf native-artifact/native-platforms.tar.gz -C .
+
+      - name: Resolve locked Flutter dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build iOS without signing
+        run: flutter build ios --no-codesign
+
+  commit-native-projects:
+    name: Commit validated native project scaffolding
+    needs:
+      - generate-and-build-android
+      - build-ios
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: codex/mawda-full-platform-implementation
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: mawdda-native-platforms-${{ github.sha }}
+          path: native-artifact
+
+      - name: Add generated platform directories
+        run: |
+          tar -xzf native-artifact/native-platforms.tar.gz -C .
+          git add android ios
+          if git diff --cached --quiet; then
+            echo "Native platform scaffolding is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build: add validated Android and iOS native runners"
+          git push origin HEAD:codex/mawda-full-platform-implementation
