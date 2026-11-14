@@ -88,7 +88,8 @@ class _RoomEventsScreenState extends State<RoomEventsScreen> {
                     decoration: const InputDecoration(labelText: 'الوصف (اختياري)'),
                   ),
                   DropdownButtonFormField<String>(
-                    value: eventType,
+                    key: ValueKey(eventType),
+                    initialValue: eventType,
                     decoration: const InputDecoration(labelText: 'نوع الحدث'),
                     items: const [
                       DropdownMenuItem(value: 'announcement', child: Text('إعلان أو لقاء')),
