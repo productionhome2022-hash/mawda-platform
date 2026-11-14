@@ -6,7 +6,7 @@ const {
   startGuestSession, getGuestSessionStatus, endGuestSession, listGuestPublicRooms,
   joinRoom, sendRoomMessage, getRoomMessages, setRoomAudience, sendChatMediaAttachment,
   sendDirectMessage, purchaseStoreItem, setMemberBlock, createMediaUploadIntent,
-  transferCoins, listRoomEvents, createRoomEvent,
+  transferCoins, listRoomEvents, createRoomEvent, listSafetyAppeals,
 } = require("../../lib/index");
 
 const db = getFirestore();
