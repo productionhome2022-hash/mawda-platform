@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'push_notification_service.dart';
 
 class AuthService {
   AuthService({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
@@ -37,5 +38,9 @@ class AuthService {
   }
   Future<void> sendPasswordResetEmail(String email) =>
       _auth.sendPasswordResetEmail(email: email.trim());
-  Future<void> signOut() => _auth.signOut();
+  Future<void> signOut() async {
+    // Deactivate this device's server-side FCM token before invalidating auth.
+    await PushNotificationService().unregister();
+    await _auth.signOut();
+  }
 }
