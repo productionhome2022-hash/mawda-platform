@@ -4538,6 +4538,243 @@ export const markNotificationRead = onCall(async (request) => {
  * Room messages are written only through trusted callables. Membership and
  * room-scoped moderation permissions are checked on every operation.
  */
+/**
+ * Creates a scheduled room event. Only the room owner or platform owner may publish.
+ */
+export const createRoomEvent = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = request.data?.roomId;
+  if (typeof roomId !== "string" || roomId.length < 1 || roomId.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+  }
+  let input;
+  try {
+    input = normalizeRoomEventInput(request.data ?? {});
+  } catch (error) {
+    throw new HttpsError("invalid-argument", error instanceof Error ? error.message : "بيانات الحدث غير صالحة.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId);
+  const userRef = db.collection("users").doc(uid);
+  const eventRef = db.collection("roomEvents").doc();
+  const ownerSession = hasPlatformOwnerSession(
+    (request.auth?.token ?? {}) as Record<string, unknown>,
+    undefined,
+    uid,
+  );
+  await db.runTransaction(async (transaction) => {
+    const [roomSnapshot, userSnapshot, membershipSnapshot] = await Promise.all([
+      transaction.get(roomRef),
+      transaction.get(userRef),
+      transaction.get(roomRef.collection("members").doc(uid)),
+    ]);
+    if (!roomSnapshot.exists || roomSnapshot.data()?.status !== "active") {
+      throw new HttpsError("not-found", "الغرفة غير موجودة أو غير نشطة.");
+    }
+    const room = roomSnapshot.data()!;
+    if (room.ownerUid !== uid && !ownerSession) {
+      throw new HttpsError("permission-denied", "إنشاء أحداث الغرفة متاح لمالكها فقط.");
+    }
+    if (!userSnapshot.exists || !isMemberAccountInGoodStanding(userSnapshot.data()) ||
+        (!membershipSnapshot.exists && !ownerSession)) {
+      throw new HttpsError("permission-denied", "لا تملك عضوية صالحة لإدارة أحداث الغرفة.");
+    }
+    if (!canJoinRoom({
+      memberAge: userSnapshot.data()?.age,
+      roomAudience: room.audience,
+      roomKind: room.kind,
+      invited: true,
+    })) {
+      throw new HttpsError("permission-denied", "فئة العمر لا تطابق جمهور الغرفة.");
+    }
+    const startsAt = Timestamp.fromMillis(input.startsAtMs);
+    const endsAt = Timestamp.fromMillis(input.startsAtMs + input.durationMinutes * 60 * 1000);
+    transaction.create(eventRef, {
+      eventId: eventRef.id,
+      roomId,
+      title: input.title,
+      description: input.description,
+      eventType: input.eventType,
+      streamUrl: input.streamUrl,
+      startsAt,
+      endsAt,
+      durationMinutes: input.durationMinutes,
+      status: "scheduled",
+      attendeeCount: 0,
+      createdByUid: uid,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { eventId: eventRef.id, roomId, status: "scheduled" };
+});
+
+/** Lists events only to age-eligible room members. */
+export const listRoomEvents = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = request.data?.roomId;
+  if (typeof roomId !== "string" || roomId.length < 1 || roomId.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId);
+  const userRef = db.collection("users").doc(uid);
+  const [roomSnapshot, userSnapshot, membershipSnapshot] = await Promise.all([
+    roomRef.get(),
+    userRef.get(),
+    roomRef.collection("members").doc(uid).get(),
+  ]);
+  if (!roomSnapshot.exists || roomSnapshot.data()?.status !== "active" ||
+      !userSnapshot.exists || !isMemberAccountInGoodStanding(userSnapshot.data())) {
+    throw new HttpsError("permission-denied", "لا يمكن عرض أحداث هذه الغرفة.");
+  }
+  const room = roomSnapshot.data()!;
+  const ownerSession = hasPlatformOwnerSession(
+    (request.auth?.token ?? {}) as Record<string, unknown>,
+    undefined,
+    uid,
+  );
+  if (!membershipSnapshot.exists && room.ownerUid !== uid && !ownerSession) {
+    throw new HttpsError("permission-denied", "انضم إلى الغرفة قبل عرض أحداثها.");
+  }
+  if (!canJoinRoom({
+    memberAge: userSnapshot.data()?.age,
+    roomAudience: room.audience,
+    roomKind: room.kind,
+    invited: true,
+  })) {
+    throw new HttpsError("permission-denied", "فئة العمر لا تطابق جمهور الغرفة.");
+  }
+  const snapshot = await db.collection("roomEvents")
+    .where("roomId", "==", roomId)
+    .orderBy("startsAt", "desc")
+    .limit(50)
+    .get();
+  const events = await Promise.all(snapshot.docs.map(async (document) => {
+    const event = document.data();
+    const attendee = await document.ref.collection("attendees").doc(uid).get();
+    const startsAt = event.startsAt instanceof Timestamp ? event.startsAt.toMillis() : 0;
+    const endsAt = event.endsAt instanceof Timestamp ? event.endsAt.toMillis() : 0;
+    return {
+      eventId: document.id,
+      title: event.title,
+      description: event.description,
+      eventType: event.eventType,
+      streamUrl: event.streamUrl ?? null,
+      startsAtMs: startsAt,
+      endsAtMs: endsAt,
+      durationMinutes: event.durationMinutes,
+      status: event.status,
+      attendeeCount: event.attendeeCount ?? 0,
+      isAttending: attendee.exists,
+      canManage: room.ownerUid === uid || ownerSession,
+    };
+  }));
+  return { events };
+});
+
+/** Records one RSVP per member and enforces the room's age audience. */
+export const rsvpRoomEvent = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const eventId = request.data?.eventId;
+  if (typeof eventId !== "string" || eventId.length < 1 || eventId.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف الحدث غير صالح.");
+  }
+  const eventRef = db.collection("roomEvents").doc(eventId);
+  await db.runTransaction(async (transaction) => {
+    const eventSnapshot = await transaction.get(eventRef);
+    if (!eventSnapshot.exists) throw new HttpsError("not-found", "الحدث غير موجود.");
+    const event = eventSnapshot.data()!;
+    const roomRef = db.collection("rooms").doc(event.roomId);
+    const userRef = db.collection("users").doc(uid);
+    const membershipRef = roomRef.collection("members").doc(uid);
+    const attendeeRef = eventRef.collection("attendees").doc(uid);
+    const [roomSnapshot, userSnapshot, membershipSnapshot, attendeeSnapshot] = await Promise.all([
+      transaction.get(roomRef),
+      transaction.get(userRef),
+      transaction.get(membershipRef),
+      transaction.get(attendeeRef),
+    ]);
+    if (event.status !== "scheduled" && event.status !== "live") {
+      throw new HttpsError("failed-precondition", "لم يعد التسجيل متاحاً لهذا الحدث.");
+    }
+    if (!roomSnapshot.exists || roomSnapshot.data()?.status !== "active" ||
+        !userSnapshot.exists || !isMemberAccountInGoodStanding(userSnapshot.data()) ||
+        !membershipSnapshot.exists) {
+      throw new HttpsError("permission-denied", "يجب أن تكون عضواً نشطاً في الغرفة.");
+    }
+    const room = roomSnapshot.data()!;
+    if (!canJoinRoom({
+      memberAge: userSnapshot.data()?.age,
+      roomAudience: room.audience,
+      roomKind: room.kind,
+      invited: true,
+    })) {
+      throw new HttpsError("permission-denied", "فئة العمر لا تطابق جمهور الغرفة.");
+    }
+    if (attendeeSnapshot.exists) return;
+    transaction.create(attendeeRef, {
+      uid,
+      rsvpedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.update(eventRef, {
+      attendeeCount: FieldValue.increment(1),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { eventId, attending: true };
+});
+
+/** Owner-controlled event transitions: scheduled -> live/cancelled -> completed. */
+export const setRoomEventStatus = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const eventId = request.data?.eventId;
+  const nextStatus = request.data?.status;
+  if (typeof eventId !== "string" || eventId.length < 1 || eventId.length > 128 ||
+      !["live", "completed", "cancelled"].includes(String(nextStatus))) {
+    throw new HttpsError("invalid-argument", "معرف الحدث أو الحالة غير صالح.");
+  }
+  const eventRef = db.collection("roomEvents").doc(eventId);
+  await db.runTransaction(async (transaction) => {
+    const eventSnapshot = await transaction.get(eventRef);
+    if (!eventSnapshot.exists) throw new HttpsError("not-found", "الحدث غير موجود.");
+    const event = eventSnapshot.data()!;
+    const roomRef = db.collection("rooms").doc(event.roomId);
+    const roomSnapshot = await transaction.get(roomRef);
+    const ownerSession = hasPlatformOwnerSession(
+      (request.auth?.token ?? {}) as Record<string, unknown>,
+      undefined,
+      uid,
+    );
+    if (!roomSnapshot.exists ||
+        (roomSnapshot.data()?.ownerUid !== uid && !ownerSession)) {
+      throw new HttpsError("permission-denied", "إدارة الحدث متاحة لمالك الغرفة فقط.");
+    }
+    let actualNext;
+    try {
+      actualNext = nextRoomEventStatus(event.status, nextStatus);
+    } catch {
+      throw new HttpsError("failed-precondition", "حالة الحدث تغيرت؛ حدّث القائمة ثم حاول مجدداً.");
+    }
+    const now = Date.now();
+    const startsAtMs = event.startsAt instanceof Timestamp ? event.startsAt.toMillis() : 0;
+    const endsAtMs = event.endsAt instanceof Timestamp ? event.endsAt.toMillis() : 0;
+    if (actualNext === "live" && now < startsAtMs - 15 * 60 * 1000) {
+      throw new HttpsError("failed-precondition", "يمكن بدء الحدث قبل موعده بربع ساعة فقط.");
+    }
+    if (actualNext === "live" && now > endsAtMs) {
+      throw new HttpsError("failed-precondition", "انتهى وقت الحدث المجدول.");
+    }
+    transaction.update(eventRef, {
+      status: actualNext,
+      startedAt: actualNext === "live" ? FieldValue.serverTimestamp() : event.startedAt ?? null,
+      endedAt: actualNext === "completed" || actualNext === "cancelled"
+        ? FieldValue.serverTimestamp()
+        : event.endedAt ?? null,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { eventId, status: nextStatus };
+});
+
 export const sendRoomMessage = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const allowedFields = new Set(["roomId", "content", "clientMessageId"]);
