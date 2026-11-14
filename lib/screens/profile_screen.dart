@@ -150,8 +150,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _checkingLocalBiometrics = true);
     final result = await LocalBiometricService().authenticate();
     if (!mounted) return;
-    setState(() => _checkingLocalBiometrics = false);
 
+    // Keep the action locked until the server has finalized the reward cycle.
     String message;
     if (result.status == LocalBiometricStatus.authenticated) {
       try {
@@ -197,6 +197,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       };
     }
     if (!mounted) return;
+    setState(() => _checkingLocalBiometrics = false);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
     );
