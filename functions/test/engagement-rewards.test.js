@@ -37,10 +37,8 @@ test("UTC hourly/daily periods and ISO week-year boundaries are deterministic", 
   assert.equal(utcRewardPeriod("daily", instant), "20260101");
   assert.equal(utcRewardPeriod("weekly", Date.UTC(2021, 0, 1, 12)), "2020-W53");
   assert.equal(utcRewardPeriod("weekly", Date.UTC(2021, 0, 4, 12)), "2021-W01");
-  assert.equal(
-    utcRewardPeriod("daily", Date.UTC(2026, 0, 1, 0)),
-    utcRewardPeriod("daily", Date.UTC(2025, 11, 31, 19)),
-  );
+  // Device timezone is never an input; the same UTC instant has one stable key.
+  assert.equal(utcRewardPeriod("daily", instant), "20260101");
 });
 
 test("timed-ad campaign validation bounds duration, rewards, dates and budget", () => {
