@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 import '../services/member_media_upload_service.dart';
+import '../widgets/chat_audio_controls.dart';
 import '../services/super_admin_security_service.dart';
 import 'room_events_screen.dart';
 
@@ -416,7 +417,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                               mediaType.startsWith('audio/') ? 'audio' :
                               mediaType.startsWith('video/') ? 'video' :
                               mediaType == 'application/pdf' ? 'document' : 'image');
-                                        if (category == 'image' || category == 'gif') {
+                                        if (category == 'audio') {
+                          return ChatAudioMessagePlayer(
+                            url: url,
+                            messageId: message['messageId'] as String? ?? '',
+                          );
+                        }
+                        if (category == 'image' || category == 'gif') {
                                           return ClipRRect(
                                             borderRadius: BorderRadius.circular(12),
                                             child: Image.network(
@@ -493,6 +500,20 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                     tooltip: 'إرفاق GIF أو صوت أو فيديو أو PDF',
                     onPressed: _sending ? null : _pickAndSendAttachment,
                     icon: const Icon(Icons.attach_file),
+                  ),
+                  ChatAudioComposerButton(
+                    scope: 'room',
+                    roomId: widget.chatId,
+                    enabled: !_sending,
+                    onBusyChanged: (busy) {
+                      if (mounted && _sending != busy) setState(() => _sending = busy);
+                    },
+                    onSent: _reloadMessages,
+                    onError: (message) {
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(message)),
+                      );
+                    },
                   ),
                   Expanded(
                     child: TextField(
