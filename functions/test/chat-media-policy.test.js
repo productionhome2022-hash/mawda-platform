@@ -125,3 +125,26 @@ test("each non-raster category requires its own exact sanitized derivative and p
     }
   }
 });
+
+
+test("guest uploads can only resolve to safe audio derivatives in room scope", () => {
+  const base = {
+    mediaId: "123e4567-e89b-12d3-a456-426614174000",
+    ownerUid: "guest-uid",
+    mediaPurpose: "room",
+    uploaderRole: "guest",
+    mediaCategory: "audio",
+    detectedContentType: "audio/mpeg",
+    status: "security_approved",
+    processingStatus: "safe_audio_derivative_ready",
+    safeAudioPath: "processed/guest-uid/123e4567-e89b-12d3-a456-426614174000/audio.mp3",
+    safeAudioGeneration: "3",
+    safeAudioSha256: "a".repeat(64),
+    processingPipelineVersion: "ffmpeg-audio-transcode-v1",
+  };
+  assert.equal(resolveChatMediaDeliveryArtifact(base, false)?.category, "audio");
+  assert.equal(resolveChatMediaDeliveryArtifact({ ...base, mediaPurpose: "chat" }, false), null);
+  assert.equal(resolveChatMediaDeliveryArtifact({ ...base, detectedContentType: "image/jpeg", mediaCategory: "image" }, false), null);
+  assert.equal(chatMediaUploaderAllowed({ uploaderRole: "guest", detectedContentType: "audio/mpeg" }, false), true);
+  assert.equal(chatMediaUploaderAllowed({ uploaderRole: "guest", detectedContentType: "image/jpeg" }, false), false);
+});
