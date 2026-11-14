@@ -6,7 +6,7 @@ const {
   releaseMediaQuota,
 } = require("../lib/media-quota");
 
-test("media quota enforces concurrent count, active bytes and UTC daily bytes", () => {
+test("media quota enforces concurrent count, active bytes, UTC daily bytes and upload count", () => {
   const now = Date.UTC(2026, 10, 13, 12);
   const empty = { activeUploads: 0, activeBytes: 0, dailyBytes: 0, dailyUploads: 0, dailyWindow: "2026-11-13" };
   assert.deepEqual(reserveMediaQuota(empty, 10 * 1024 * 1024, now), {
