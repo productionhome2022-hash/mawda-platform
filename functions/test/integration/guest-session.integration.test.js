@@ -209,6 +209,8 @@ test("guest onboarding stores no age and grants only active all-ages public-room
     );
 
     await endGuestSession.run(guestRequest(uid));
+    assert.equal((await roomRef(roomId).collection("members").doc(uid).get()).exists, false);
+    assert.equal((await roomRef(roomId).get()).data().memberCount, 2);
     await assert.rejects(
       () => sendRoomMessage.run(guestRequest(uid, {
         roomId, content: "رسالة بعد الإنهاء", clientMessageId: "guest_msg_0002",
