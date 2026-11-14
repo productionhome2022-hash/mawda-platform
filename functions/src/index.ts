@@ -7266,6 +7266,9 @@ export const setTimedAdCampaignStatus = onCall(async (request) => {
     if (data.status === "archived" && status !== "archived") {
       throw new HttpsError("failed-precondition", "لا يمكن إعادة تنشيط حملة مؤرشفة.");
     }
+    if (status === "published" && data.placement === "home") {
+      throw new HttpsError("failed-precondition", "موضع الرئيسية غير منشور حتى اكتمال واجهة العرض واختبارات موضعها؛ استخدم مركز المكافآت حالياً.");
+    }
     if (status === "published" && data.creativeType === "video") {
       throw new HttpsError("failed-precondition", "نشر إعلانات الفيديو متوقف حتى اكتمال مشغل الفيديو واختبارات الأجهزة؛ لا نعرض إعلاناً لا يمكن تشغيله داخل التجربة المقفلة.");
     }
@@ -7310,7 +7313,8 @@ export const getActiveTimedAdCampaigns = onCall(async (request) => {
     .where("status", "==", "published").limit(100).get();
   return {
     campaigns: snapshot.docs
-      .filter((doc) => doc.data().startsAtMs <= now && doc.data().endsAtMs > now &&
+      .filter((doc) => doc.data().placement === "reward_center" &&
+        doc.data().startsAtMs <= now && doc.data().endsAtMs > now &&
         doc.data().spentRewardCoins + doc.data().rewardCoins <= doc.data().rewardBudgetCoins)
       .map((doc) => {
         const data = doc.data();
