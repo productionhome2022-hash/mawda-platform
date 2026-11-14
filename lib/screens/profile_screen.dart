@@ -1075,11 +1075,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       : null,
                   child: Column(
                   children: [
-                    AnimatedPremiumUsername(
-                      text: name,
-                      colored: hasColoredUsername,
-                      animated: hasAnimatedUsername,
-                    ),
+                    if (hasAnimatedUsername)
+                      AnimatedPremiumUsername(
+                        text: name,
+                        colored: hasColoredUsername,
+                        animated: true,
+                      )
+                    else
+                      Text(
+                        name,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: hasColoredUsername ? const Color(0xFF8B4AC8) : null,
+                        ),
+                      ),
                     if (discoveryBoostActive)
                       const Padding(
                         padding: EdgeInsets.only(top: 4),
