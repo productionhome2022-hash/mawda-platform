@@ -10,8 +10,9 @@ export type DefaultStoreCatalogEntry = {
 
 /**
  * Initial editable price suggestions, expressed only in platform coins.
- * All entries deliberately start unpublished and non-purchasable until their
- * complete user-facing consumer and acceptance tests are enabled.
+ * Entries remain unpublished and non-purchasable until the owner enables them.
+ * Implemented profile consumers are marked fulfillment-ready by the server;
+ * privacy add-ons remain fail-closed until their semantics are implemented.
  */
 export const DEFAULT_STORE_CATALOG: DefaultStoreCatalogEntry[] = [
   { itemId: "vip_monthly", name: "عضوية VIP", description: "شارة وامتيازات العضوية المميزة", category: "vip", priceCoins: 5000, durationDays: 30, sortOrder: 10 },
