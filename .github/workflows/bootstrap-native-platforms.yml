@@ -172,6 +172,16 @@ jobs:
       - name: Build iOS without signing
         run: flutter build ios --no-codesign
 
+      - name: Package verified iOS Firebase service file
+        run: tar -czf ios-firebase-config.tar.gz ios/Runner/GoogleService-Info.plist
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: mawdda-ios-firebase-config-${{ github.sha }}
+          path: ios-firebase-config.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
   commit-native-projects:
     name: Commit validated native project scaffolding
     needs:
@@ -189,9 +199,15 @@ jobs:
           name: mawdda-native-platforms-${{ github.sha }}
           path: native-artifact
 
+      - uses: actions/download-artifact@v5
+        with:
+          name: mawdda-ios-firebase-config-${{ github.sha }}
+          path: ios-firebase-config
+
       - name: Add generated platform directories
         run: |
           tar -xzf native-artifact/native-platforms.tar.gz -C .
+          tar -xzf ios-firebase-config/ios-firebase-config.tar.gz -C .
           git add android ios lib/firebase_options.dart pubspec.lock
           if git diff --cached --quiet; then
             echo "Native platform scaffolding is already current."
