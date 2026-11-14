@@ -151,6 +151,12 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
         _ => '',
       };
       if (contentType.isEmpty) throw StateError('صيغة الملف غير مدعومة.');
+      final maximumBytes = contentType.startsWith('video/')
+          ? 100 * 1024 * 1024
+          : 5 * 1024 * 1024;
+      if (bytes.length > maximumBytes) {
+        throw StateError('حجم الملف يتجاوز الحد المسموح لهذا النوع.');
+      }
       final intentResponse = await _functions.httpsCallable('createMediaUploadIntent').call({
         'originalName': file.name,
         'contentType': contentType,
