@@ -33,7 +33,8 @@ import {
   canSendApprovedPlatformLinks,
 } from "./link-policy";
 import { createHash, randomUUID } from "node:crypto";
-import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
+import { audienceForAge, canJoinRoom, canJoinGuestRoom, normalizeModeratorPermissions } from "./room-policy";
+import { isGuestSessionActive } from "./guest-sessions";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
 import {
@@ -5110,6 +5111,10 @@ export const setRoomEventStatus = onCall(async (request) => {
 
 export const sendRoomMessage = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
+  const provider = request.auth?.token?.firebase &&
+    typeof request.auth.token.firebase === "object"
+    ? (request.auth.token.firebase as Record<string, unknown>).sign_in_provider : null;
+  const isGuest = provider === "anonymous";
   const allowedFields = new Set(["roomId", "content", "clientMessageId"]);
   if (Object.keys(request.data ?? {}).some((key) => !allowedFields.has(key))) {
     throw new HttpsError("invalid-argument", "حقول مرفقات الغرفة غير مدعومة في مسار الرسائل النصية.");
@@ -5127,12 +5132,15 @@ export const sendRoomMessage = onCall(async (request) => {
   const membershipRef = roomRef.collection("members").doc(uid);
   const moderatorRef = roomRef.collection("moderators").doc(uid);
   const userRef = db.collection("users").doc(uid);
+  const guestProfileRef = db.collection("guestProfiles").doc(uid);
+  const guestSessionRef = db.collection("guestSessions").doc(uid);
   const messageId = createHash("sha256").update(uid + ":" + clientMessageId).digest("hex");
   const messageRef = roomRef.collection("messages").doc(messageId);
   const result = await db.runTransaction(async (transaction) => {
-    const [room, membership, moderator, member, existing] = await Promise.all([
+    const [room, membership, moderator, member, existing, guestProfile, guestSession] = await Promise.all([
       transaction.get(roomRef), transaction.get(membershipRef),
       transaction.get(moderatorRef), transaction.get(userRef), transaction.get(messageRef),
+      transaction.get(guestProfileRef), transaction.get(guestSessionRef),
     ]);
     if (!room.exists || room.data()?.status !== "active") {
       throw new HttpsError("not-found", "الغرفة غير موجودة أو غير نشطة.");
@@ -5144,14 +5152,20 @@ export const sendRoomMessage = onCall(async (request) => {
     if (mutedUntil instanceof Timestamp && mutedUntil.toMillis() > Date.now()) {
       throw new HttpsError("permission-denied", "تم كتم إرسال الرسائل في هذه الغرفة حتى انتهاء المدة المحددة.");
     }
-    if (!member.exists || !isMemberAccountInGoodStanding(member.data())) {
+    const roomData = room.data() ?? {};
+    if (isGuest) {
+      if (!guestProfile.exists || !isGuestSessionActive(guestSession.data()) ||
+          !canJoinGuestRoom({ roomAudience: roomData.audience, roomKind: roomData.kind, roomStatus: roomData.status }) ||
+          membership.data()?.accountType !== "guest") {
+        throw new HttpsError("permission-denied", "لا تملك جلسة زائر نشطة ومصرحاً لها بهذه الغرفة.");
+      }
+    } else if (!member.exists || !isMemberAccountInGoodStanding(member.data())) {
       throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بإرسال الرسائل حالياً.");
     }
-    const roomData = room.data() ?? {};
-    const isRoomOwner = roomData.ownerUid === uid;
-    const isAuthorizedModerator = moderator.exists;
-    const ownerSession = hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, uid);
-    const isBiometricallyVerified = hasActiveBiometricVerification(member.data()?.biometricVerification);
+    const isRoomOwner = !isGuest && roomData.ownerUid === uid;
+    const isAuthorizedModerator = !isGuest && moderator.exists;
+    const ownerSession = !isGuest && hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, uid);
+    const isBiometricallyVerified = !isGuest && hasActiveBiometricVerification(member.data()?.biometricVerification);
     try {
       assertMessageLinksAllowed(
         content,
@@ -5165,12 +5179,7 @@ export const sendRoomMessage = onCall(async (request) => {
         isBiometricallyVerified ? BIOMETRIC_APPROVED_HOSTS : undefined,
       );
     } catch {
-      throw new HttpsError(
-        "invalid-argument",
-        isRoomOwner || isAuthorizedModerator || ownerSession || isBiometricallyVerified
-          ? ownerSession ? "تعذر قبول الرابط أو أن صياغته غير آمنة." : "يسمح للأعضاء الموثقين بيومترياً بروابط YouTube وFacebook وInstagram وX مجاناً، وللمالكين والمشرفين بصلاحيات الروابط المحددة لغرفهم."
-          : "إرسال الروابط غير مسموح للأعضاء غير الموثقين بيومترياً في هذه الغرفة.",
-      );
+      throw new HttpsError("invalid-argument", "الرابط غير مسموح أو أن صياغته غير آمنة في هذه الغرفة.");
     }
     if (existing.exists) {
       const prior = existing.data()!;
@@ -5182,6 +5191,9 @@ export const sendRoomMessage = onCall(async (request) => {
     transaction.create(messageRef, {
       messageId,
       senderUid: uid,
+      senderDisplayName: isGuest ? (guestProfile.data()?.username ?? "زائر") :
+        (member.data()?.displayName ?? ""),
+      senderAccountType: isGuest ? "guest" : "member",
       content,
       type: "text",
       isDeleted: false,
@@ -5189,7 +5201,7 @@ export const sendRoomMessage = onCall(async (request) => {
     });
     return { messageId, idempotentReplay: false };
   });
-  if (!result.idempotentReplay) {
+  if (!result.idempotentReplay && !isGuest) {
     try {
       const members = await roomRef.collection("members").limit(1000).get();
       await Promise.all(members.docs.filter((member) => member.id !== uid).map((member) =>
@@ -5204,17 +5216,31 @@ export const sendRoomMessage = onCall(async (request) => {
 
 export const getRoomMessages = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
+  const provider = request.auth?.token?.firebase &&
+    typeof request.auth.token.firebase === "object"
+    ? (request.auth.token.firebase as Record<string, unknown>).sign_in_provider : null;
+  const isGuest = provider === "anonymous";
   const roomId = request.data?.roomId;
   if (typeof roomId !== "string" || roomId.length < 1 || roomId.length > 128) {
     throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
   }
   const roomRef = db.collection("rooms").doc(roomId);
   const [room, membership] = await Promise.all([
-    roomRef.get(),
-    roomRef.collection("members").doc(uid).get(),
+    roomRef.get(), roomRef.collection("members").doc(uid).get(),
   ]);
-  if (!room.exists || !membership.exists) {
+  if (!room.exists || !membership.exists || room.data()?.status !== "active") {
     throw new HttpsError("permission-denied", "لا تملك صلاحية قراءة رسائل هذه الغرفة.");
+  }
+  if (isGuest) {
+    const [profile, session] = await Promise.all([
+      db.collection("guestProfiles").doc(uid).get(),
+      db.collection("guestSessions").doc(uid).get(),
+    ]);
+    if (!profile.exists || !isGuestSessionActive(session.data()) ||
+        !canJoinGuestRoom({ roomAudience: room.data()?.audience, roomKind: room.data()?.kind, roomStatus: room.data()?.status }) ||
+        membership.data()?.accountType !== "guest") {
+      throw new HttpsError("permission-denied", "انتهت صلاحية جلسة الزائر أو لا تسمح سياسة الغرفة بالوصول.");
+    }
   }
   const messages = await roomRef.collection("messages")
     .orderBy("createdAt", "desc").limit(50).get();
@@ -5224,10 +5250,12 @@ export const getRoomMessages = onCall(async (request) => {
       return {
         messageId: doc.id,
         senderUid: data.senderUid ?? "",
+        senderDisplayName: data.senderDisplayName ?? null,
+        senderAccountType: data.senderAccountType ?? "member",
         content: data.isDeleted === true ? "تم حذف هذه الرسالة" : (data.content ?? ""),
         type: data.type ?? "text",
-        liveStream: data.liveStream ?? null,
-        isPlatformOwnerMessage: data.isPlatformOwnerMessage === true,
+        liveStream: isGuest ? null : (data.liveStream ?? null),
+        isPlatformOwnerMessage: !isGuest && data.isPlatformOwnerMessage === true,
         senderLabel: data.senderLabel ?? null,
         mediaId: typeof data.mediaId === "string" ? data.mediaId : null,
         mediaIds: Array.isArray(data.mediaIds) ? data.mediaIds.filter((value: unknown) => typeof value === "string") : [],
@@ -5240,7 +5268,8 @@ export const getRoomMessages = onCall(async (request) => {
         createdAt: data.createdAt?.toMillis?.() ?? null,
         deletedForRequester: Array.isArray(data.deletedForUids) && data.deletedForUids.includes(uid),
       };
-    }).filter((message) => !message.deletedForRequester && !message.deletionPending),
+    }).filter((message) => !message.deletedForRequester && !message.deletionPending &&
+      (!isGuest || message.type === "text" || message.type === "audio")),
   };
 });
 
@@ -5501,6 +5530,10 @@ export const inviteMemberToRoom = onCall(async (request) => {
 /** Joins a public room or an invited private room, enforcing audience and capacity. */
 export const joinRoom = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
+  const provider = request.auth?.token?.firebase &&
+    typeof request.auth.token.firebase === "object"
+    ? (request.auth.token.firebase as Record<string, unknown>).sign_in_provider : null;
+  const isGuest = provider === "anonymous";
   const roomId = request.data?.roomId;
   if (typeof roomId !== "string" || roomId.length < 1 || roomId.length > 128) {
     throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
@@ -5508,42 +5541,59 @@ export const joinRoom = onCall(async (request) => {
   const roomRef = db.collection("rooms").doc(roomId);
   const userRef = db.collection("users").doc(uid);
   const membershipRef = roomRef.collection("members").doc(uid);
+  const guestProfileRef = db.collection("guestProfiles").doc(uid);
+  const guestSessionRef = db.collection("guestSessions").doc(uid);
   await db.runTransaction(async (transaction) => {
-    const [room, user, membership] = await Promise.all([
+    const [room, user, membership, guestProfile, guestSession] = await Promise.all([
       transaction.get(roomRef), transaction.get(userRef), transaction.get(membershipRef),
+      transaction.get(guestProfileRef), transaction.get(guestSessionRef),
     ]);
     if (!room.exists || room.data()?.status !== "active") {
       throw new HttpsError("not-found", "الغرفة غير موجودة أو غير نشطة.");
     }
-    if (!user.exists || user.data()?.profileCompleted !== true) {
-      throw new HttpsError("failed-precondition", "يجب إكمال العضوية قبل دخول الغرف.");
-    }
-    if (!isMemberAccountInGoodStanding(user.data())) {
-      throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بدخول الغرف حالياً.");
-    }
     const data = room.data()!;
-    const invited = Array.isArray(data.invitedUids) && data.invitedUids.includes(uid);
-    if (!canJoinRoom({
-      memberAge: user.data()?.age,
-      roomAudience: data.audience,
-      roomKind: data.kind,
-      invited,
-    })) {
-      throw new HttpsError("permission-denied", "لا تملك صلاحية دخول هذه الغرفة أو فئتها العمرية غير مناسبة.");
+    if (isGuest) {
+      if (!guestProfile.exists || !isGuestSessionActive(guestSession.data())) {
+        throw new HttpsError("permission-denied", "جلسة الزائر غير مكتملة أو انتهت صلاحيتها.");
+      }
+      if (!canJoinGuestRoom({ roomAudience: data.audience, roomKind: data.kind, roomStatus: data.status })) {
+        throw new HttpsError("permission-denied", "يمكن للزائر دخول الغرف العامة المصنفة لجميع الأعمار فقط.");
+      }
+    } else {
+      if (!user.exists || user.data()?.profileCompleted !== true) {
+        throw new HttpsError("failed-precondition", "يجب إكمال العضوية قبل دخول الغرف.");
+      }
+      if (!isMemberAccountInGoodStanding(user.data())) {
+        throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بدخول الغرف حالياً.");
+      }
+      const invited = Array.isArray(data.invitedUids) && data.invitedUids.includes(uid);
+      if (!canJoinRoom({
+        memberAge: user.data()?.age,
+        roomAudience: data.audience,
+        roomKind: data.kind,
+        invited,
+      })) {
+        throw new HttpsError("permission-denied", "لا تملك صلاحية دخول هذه الغرفة أو فئتها العمرية غير مناسبة.");
+      }
     }
     if (membership.exists) return;
     if (!Number.isSafeInteger(data.memberCount) || data.memberCount >= data.capacity) {
       throw new HttpsError("resource-exhausted", "اكتمل العدد المسموح به في الغرفة.");
     }
     const now = FieldValue.serverTimestamp();
-    transaction.create(membershipRef, { uid, role: "member", joinedAt: now });
+    transaction.create(membershipRef, {
+      uid, role: isGuest ? "guest" : "member",
+      accountType: isGuest ? "guest" : "member",
+      joinedAt: now,
+    });
     transaction.update(roomRef, {
       memberCount: data.memberCount + 1,
-      invitedUids: invited ? FieldValue.arrayRemove(uid) : data.invitedUids,
+      invitedUids: !isGuest && Array.isArray(data.invitedUids) && data.invitedUids.includes(uid)
+        ? FieldValue.arrayRemove(uid) : data.invitedUids,
       updatedAt: now,
     });
   });
-  return { roomId, joined: true };
+  return { roomId, joined: true, guest: isGuest };
 });
 
 /** Assigns room-only moderation capabilities; moderators cannot manage the platform. */
@@ -7048,3 +7098,6 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
   });
   return { saved: true, version, realMoneyCheckoutEnabled: false };
 });
+
+
+export { startGuestSession, getGuestSessionStatus, endGuestSession, listGuestPublicRooms } from "./guest-sessions";
