@@ -1213,7 +1213,7 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
     asset as never, asset.uploaderRole === "platform_owner",
   );
   if (mediaUploaderTypeFromToken((request.auth?.token ?? {}) as Record<string, unknown>) === "guest" &&
-      (scope !== "room" || artifact?.category !== "audio" || asset.uploaderType !== "guest")) {
+      (scope !== "room" || artifact?.category !== "audio")) {
     throw new HttpsError("permission-denied", "لا يستطيع الزائر قراءة إلا الرسائل الصوتية في الغرف العامة.");
   }
   const maxBytes = artifact?.category === "video" ? 50 * 1024 * 1024 :
