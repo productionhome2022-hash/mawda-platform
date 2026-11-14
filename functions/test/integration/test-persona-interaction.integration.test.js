@@ -48,6 +48,7 @@ test("seeded Mawdda member personas can transact with each other inside the isol
   const transferRef = db.collection("coinTransfers").doc(transferId);
   const senderBalance = senderBefore.coins;
   const recipientBalance = recipientBefore.coins;
+  let directChatId = "";
 
   await settingsRef.set({ enabled: true, commissionBps: 1000, version: 1 });
   try {
@@ -99,6 +100,7 @@ test("seeded Mawdda member personas can transact with each other inside the isol
       auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
     };
     const direct = await sendDirectMessage.run(directRequest);
+    directChatId = direct.chatId;
     assert.equal(direct.replayed, false);
     const directReplay = await sendDirectMessage.run(directRequest);
     assert.equal(directReplay.replayed, true);
@@ -133,13 +135,14 @@ test("seeded Mawdda member personas can transact with each other inside the isol
       platformLedgerRef.delete().catch(() => undefined),
       transferRef.delete().catch(() => undefined),
       (async () => {
-        const chatId = createDirectChatId(senderUid, recipientUid);
-        const chatRef = db.collection("directChats").doc(chatId);
-        const messages = await chatRef.collection("messages").get();
-        const batch = db.batch();
-        messages.docs.forEach((doc) => batch.delete(doc.ref));
-        batch.delete(chatRef);
-        await batch.commit();
+        if (directChatId) {
+          const chatRef = db.collection("directChats").doc(directChatId);
+          const messages = await chatRef.collection("messages").get();
+          const batch = db.batch();
+          messages.docs.forEach((doc) => batch.delete(doc.ref));
+          batch.delete(chatRef);
+          await batch.commit();
+        }
         await recipientRef.collection("notifications").doc(
           require("node:crypto").createHash("sha256").update(senderUid + ":persona_dm_" + tag).digest("hex"),
         ).delete().catch(() => undefined);
