@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -20,14 +21,24 @@ class _GuestRoomChatScreenState extends State<GuestRoomChatScreen> {
   List<Map<String, dynamic>> _messages = [];
   bool _loading = true, _busy = false;
   String? _error;
+  Timer? _messagePoller;
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    _load();
+    _messagePoller = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted && !_busy) _load(showLoading: false);
+    });
+  }
   @override
-  void dispose() { _message.dispose(); _media.close(); super.dispose(); }
+  void dispose() {
+    _messagePoller?.cancel();
+    _message.dispose(); _media.close(); super.dispose();
+  }
 
-  Future<void> _load() async {
-    if (mounted) setState(() { _loading = true; _error = null; });
+  Future<void> _load({bool showLoading = true}) async {
+    if (mounted) setState(() { if (showLoading) _loading = true; _error = null; });
     try {
       final response = await _functions.httpsCallable('getRoomMessages').call({'roomId': widget.roomId});
       final data = Map<String, dynamic>.from(response.data as Map);
@@ -50,7 +61,7 @@ class _GuestRoomChatScreenState extends State<GuestRoomChatScreen> {
         'roomId': widget.roomId, 'content': content,
         'clientMessageId': 'guest_${DateTime.now().microsecondsSinceEpoch}',
       });
-      _message.clear(); await _load();
+      _message.clear(); await _load(showLoading: false);
     } on FirebaseFunctionsException catch (e) {
       if (mounted) setState(() => _error = e.message ?? 'تعذر إرسال الرسالة النصية.');
     } finally { if (mounted) setState(() => _busy = false); }
@@ -75,7 +86,7 @@ class _GuestRoomChatScreenState extends State<GuestRoomChatScreen> {
         scope: 'room', roomId: widget.roomId, mediaId: mediaId,
         clientMessageId: 'guest_audio_${DateTime.now().microsecondsSinceEpoch}',
       );
-      await _load();
+      await _load(showLoading: false);
     } catch (e) {
       if (mounted) setState(() => _error = 'تعذر إرسال الرسالة الصوتية: $e');
     } finally { if (mounted) setState(() => _busy = false); }
