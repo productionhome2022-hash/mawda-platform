@@ -13,7 +13,7 @@ const auth = getAuth();
 const fixturePath = process.env.MAWDDA_LOAD_FIXTURE || ".mawdda-load/personas.json";
 const fixture = JSON.parse(fs.readFileSync(fixturePath, "utf8"));
 const personas = fixture.personas;
-const BATCH_SIZE = 20;
+const BATCH_SIZE = 125;
 const metrics = { createdUsers: 0, scenarios: [] };
 
 function percentile(values, p) {
@@ -211,7 +211,7 @@ for (const count of [200, 300, 500]) {
         transferErrors,
         messageErrors,
         elapsedMs: Number(elapsedMs.toFixed(2)),
-        throughputOperationsPerSecond: Number(((pairs.length * 3) / (elapsedMs / 1000)).toFixed(2)),
+        throughputOperationsPerSecond: Number(((pairs.length * 4) / (elapsedMs / 1000)).toFixed(2)),
         transferLatencyMs: { p50: percentile(transferTimes, 0.50), p95: percentile(transferTimes, 0.95), max: Number(Math.max(...transferTimes).toFixed(2)) },
         messageLatencyMs: { p50: percentile(messageTimes, 0.50), p95: percentile(messageTimes, 0.95), max: Number(Math.max(...messageTimes).toFixed(2)) },
         receiveLatencyMs: { p50: percentile(receiveTimes, 0.50), p95: percentile(receiveTimes, 0.95), max: Number(Math.max(...receiveTimes).toFixed(2)) }
