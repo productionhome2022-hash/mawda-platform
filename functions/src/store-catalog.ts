@@ -1,21 +1,20 @@
-const FULFILLMENT_READY_ITEM_IDS = new Set([
-  "vip_monthly",
-  "title_custom",
-  "badge_special",
-  "avatar_frame_30d",
-  "username_color_30d",
-  "username_animated_30d",
-  "profile_analytics_30d",
-  "profile_layout_30d",
-  "profile_pin_30d",
-  "discovery_boost_7d",
-  "profile_theme_30d",
-  "visitor_greeting_30d",
-]);
+const FULFILLMENT_READY_ITEM_CATEGORIES: Record<string, string> = {
+  vip_monthly: "vip",
+  title_custom: "title",
+  badge_special: "badge",
+  avatar_frame_30d: "frame",
+  username_color_30d: "username_style",
+  username_animated_30d: "username_style",
+  profile_analytics_30d: "analytics",
+  profile_layout_30d: "profile_layout",
+  profile_pin_30d: "profile_layout",
+  discovery_boost_7d: "boost",
+  profile_theme_30d: "theme",
+  visitor_greeting_30d: "greeting",
+};
 
 function isStoreFulfillmentReady(itemId: string, category: string): boolean {
-  if (!FULFILLMENT_READY_ITEM_IDS.has(itemId)) return false;
-  return category !== "privacy";
+  return FULFILLMENT_READY_ITEM_CATEGORIES[itemId] === category;
 }
 
 export type StoreCatalogItem = {
