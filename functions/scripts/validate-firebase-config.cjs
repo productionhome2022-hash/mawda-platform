@@ -5,6 +5,7 @@ const path = require("node:path");
 function validateFirebaseConfiguration({ alias, optionsSource, expectedProjectId, expectedWebAppId }) {
   const errors = [];
   if (!expectedProjectId || typeof expectedProjectId !== "string") errors.push("EXPECTED_FIREBASE_PROJECT_ID_MISSING");
+  if (!alias || alias.projects?.default !== "mawda-platform-nonprod-2026") errors.push("FIREBASE_CLI_DEFAULT_NOT_NONPRODUCTION");
   if (!alias || alias.projects?.production !== expectedProjectId) errors.push("FIREBASE_CLI_PRODUCTION_ALIAS_MISMATCH");
   if (typeof optionsSource !== "string") errors.push("FIREBASE_OPTIONS_MISSING");
   else {
