@@ -170,6 +170,7 @@ test("timed advertisements require foreground heartbeat duration and pay once", 
     assert.equal(user.data().coins, 35);
     assert.equal(ledger.data().amount, 10);
     assert.equal(campaign.data().spentRewardCoins, 10);
+    assert.equal(campaign.data().reservedRewardCoins, 0);
     assert.equal(claim.exists, true);
     assert.equal((await getActiveTimedAdSession.run(memberRequest(uid))).active, false);
   } finally {
