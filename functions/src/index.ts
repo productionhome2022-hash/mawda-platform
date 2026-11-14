@@ -5269,7 +5269,8 @@ export const getRoomMessages = onCall(async (request) => {
         deletedForRequester: Array.isArray(data.deletedForUids) && data.deletedForUids.includes(uid),
       };
     }).filter((message) => !message.deletedForRequester && !message.deletionPending &&
-      (!isGuest || message.type === "text" || message.type === "audio")),
+      (!isGuest || message.type === "text" || message.type === "audio" ||
+        (message.type === "attachment" && message.mediaCategory === "audio"))),
   };
 });
 
