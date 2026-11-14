@@ -116,6 +116,8 @@ jobs:
         run: npm run test:media-legal-hold-integration
       - name: Run avatar and cover lifecycle integration tests
         run: npm run test:profile-media-integration
+      - name: Run premium profile, analytics, greeting, pin and discovery integration tests
+        run: npm run test:premium-profile-integration
       - name: Run message legal hold and resumed retention integration tests
         run: npm run test:message-legal-hold-integration
       - name: Run Firestore and Storage rules emulator tests
