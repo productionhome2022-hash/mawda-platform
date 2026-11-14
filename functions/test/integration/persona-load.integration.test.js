@@ -6,7 +6,7 @@ const fs = require("node:fs");
 const { performance } = require("node:perf_hooks");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { getAuth } = require("firebase-admin/auth");
-const { transferCoins, sendDirectMessage } = require("../../lib/index");
+const { transferCoins, sendDirectMessage, getDirectMessages } = require("../../lib/index");
 
 const db = getFirestore();
 const auth = getAuth();
@@ -128,6 +128,7 @@ for (const count of [200, 300, 500]) {
     for (let i = 0; i < cohort.length; i += 2) pairs.push([cohort[i], cohort[i + 1]]);
     const transferTimes = [];
     const messageTimes = [];
+    const receiveTimes = [];
     let transferErrors = 0;
     let messageErrors = 0;
     const started = performance.now();
@@ -166,6 +167,14 @@ for (const count of [200, 300, 500]) {
           });
           assert.equal(message.replayed, false);
           messageTimes.push(performance.now() - messageStart);
+          const receiveStart = performance.now();
+          const inbox = await getDirectMessages.run({
+            data: { chatId: message.chatId },
+            auth: callableAuth(recipient.uid)
+          });
+          assert.ok(inbox.messages.some((item) => item.messageId === message.messageId),
+            "the recipient must be able to read the delivered message");
+          receiveTimes.push(performance.now() - receiveStart);
         } catch (error) {
           messageErrors += 1;
           throw error;
@@ -198,12 +207,14 @@ for (const count of [200, 300, 500]) {
         transfers: pairs.length,
         idempotentReplays: pairs.length,
         directMessages: pairs.length,
+        receivedMessages: pairs.length,
         transferErrors,
         messageErrors,
         elapsedMs: Number(elapsedMs.toFixed(2)),
         throughputOperationsPerSecond: Number(((pairs.length * 3) / (elapsedMs / 1000)).toFixed(2)),
         transferLatencyMs: { p50: percentile(transferTimes, 0.50), p95: percentile(transferTimes, 0.95), max: Number(Math.max(...transferTimes).toFixed(2)) },
-        messageLatencyMs: { p50: percentile(messageTimes, 0.50), p95: percentile(messageTimes, 0.95), max: Number(Math.max(...messageTimes).toFixed(2)) }
+        messageLatencyMs: { p50: percentile(messageTimes, 0.50), p95: percentile(messageTimes, 0.95), max: Number(Math.max(...messageTimes).toFixed(2)) },
+        receiveLatencyMs: { p50: percentile(receiveTimes, 0.50), p95: percentile(receiveTimes, 0.95), max: Number(Math.max(...receiveTimes).toFixed(2)) }
       };
       metrics.scenarios.push(scenario);
       console.log("[persona-load:metrics] " + JSON.stringify(scenario));
