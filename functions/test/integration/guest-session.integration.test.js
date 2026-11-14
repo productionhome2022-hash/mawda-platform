@@ -30,11 +30,17 @@ test("guest onboarding stores no age and grants only active all-ages public-room
   const previousGuestPersona = await guestPersonaRef.get();
   const emailPersona = await db.collection("testAccountProfiles").doc("email-member").get();
   const counterPersona = await db.collection("testAccountProfiles").doc("counterparty-member").get();
+  const biometricPersona = await db.collection("testAccountProfiles").doc("biometric-member").get();
+  const ownerOperatorPersona = await db.collection("testAccountProfiles").doc("owner-operator").get();
   assert.ok(emailPersona.exists, "email-member persona must be seeded");
   assert.ok(counterPersona.exists, "counterparty-member persona must be seeded");
+  assert.ok(biometricPersona.exists, "biometric-member persona must be seeded");
+  assert.ok(ownerOperatorPersona.exists, "owner-operator persona must be seeded");
   const emailUid = emailPersona.data().uid;
   const ownerUid = emailUid;
   const counterUid = counterPersona.data().uid;
+  const biometricUid = biometricPersona.data().uid;
+  const ownerOperatorUid = ownerOperatorPersona.data().uid;
   const roomIds = [roomId, adultRoomId, privateRoomId, unapprovedRoomId];
   const roomRef = (id) => db.collection("rooms").doc(id);
   const guestProfileRef = db.collection("guestProfiles").doc(uid);
