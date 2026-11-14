@@ -2671,6 +2671,15 @@ export const getDirectMessages = onCall(async (request) => {
   if (typeof peerUid === "string" && peerUid !== peer) {
     throw new HttpsError("permission-denied", "معرف الطرف الآخر لا يطابق أطراف المحادثة.");
   }
+  const peerSnapshot = await db.collection("users").doc(peer).get();
+  const currentUserData = user.data() ?? {};
+  const peerData = peerSnapshot.data() ?? {};
+  const currentBlocks = Array.isArray(currentUserData.blockedUids) ? currentUserData.blockedUids : [];
+  const peerBlocks = Array.isArray(peerData.blockedUids) ? peerData.blockedUids : [];
+  if (!peerSnapshot.exists || !isMemberAccountInGoodStanding(peerData) ||
+      currentBlocks.includes(peer) || peerBlocks.includes(uid)) {
+    throw new HttpsError("permission-denied", "لم تعد هذه المحادثة متاحة بسبب حالة العضوية أو إعدادات الحظر.");
+  }
   const messages = await chatRef.collection("messages")
     .orderBy("createdAt", "desc")
     .limit(50)
@@ -2716,6 +2725,92 @@ export const getDirectMessages = onCall(async (request) => {
     }).filter((message) => !message.deletedForRequester && !message.deletionPending),
   };
 });
+
+/**
+ * Returns a safe, recent-only inbox projection for the signed-in member.
+ * It never exposes messages or conversations involving a blocked participant.
+ */
+export const getMyDirectChats = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const userSnapshot = await db.collection("users").doc(uid).get();
+  const currentUser = userSnapshot.data() ?? {};
+  if (!userSnapshot.exists || currentUser.profileCompleted !== true ||
+      !isMemberAccountInGoodStanding(currentUser)) {
+    throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بفتح صندوق الرسائل.");
+  }
+
+  const chatsSnapshot = await db.collection("directChats")
+    .where("participantUids", "array-contains", uid)
+    .orderBy("lastMessageAt", "desc")
+    .limit(50)
+    .get();
+  const validChats = chatsSnapshot.docs.map((document) => {
+    const data = document.data();
+    const participants = data.participantUids;
+    if (!Array.isArray(participants) || participants.length !== 2 ||
+        participants.some((value: unknown) => typeof value !== "string") ||
+        participants[0] === participants[1] || !participants.includes(uid)) {
+      return null;
+    }
+    const peerUid = participants.find((participant: string) => participant !== uid);
+    return typeof peerUid === "string" ? { document, data, peerUid } : null;
+  }).filter((value): value is NonNullable<typeof value> => value !== null);
+
+  if (validChats.length === 0) return { chats: [] };
+
+  const peerSnapshots = await db.getAll(
+    ...validChats.map(({ peerUid }) => db.collection("users").doc(peerUid)),
+  );
+  const receiptSnapshots = await db.getAll(
+    ...validChats.map(({ document }) =>
+      document.ref.collection("readReceipts").doc(uid),
+    ),
+  );
+  const currentBlocks = new Set(
+    Array.isArray(currentUser.blockedUids) ? currentUser.blockedUids : [],
+  );
+
+  const chats = validChats.flatMap((chat, index) => {
+    const peerSnapshot = peerSnapshots[index];
+    const peer = peerSnapshot.data() ?? {};
+    const peerBlocks = Array.isArray(peer.blockedUids) ? peer.blockedUids : [];
+    if (!peerSnapshot.exists || peer.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(peer) || currentBlocks.has(chat.peerUid) ||
+        peerBlocks.includes(uid)) {
+      return [];
+    }
+
+    const receipt = receiptSnapshots[index].data() ?? {};
+    const lastMessageAt = chat.data.lastMessageAt instanceof Timestamp
+      ? chat.data.lastMessageAt.toMillis()
+      : null;
+    const lastReadAt = receipt.lastReadMessageCreatedAt instanceof Timestamp
+      ? receipt.lastReadMessageCreatedAt.toMillis()
+      : 0;
+    const senderUid = typeof chat.data.lastMessageSenderUid === "string"
+      ? chat.data.lastMessageSenderUid
+      : "";
+    const peerName = [
+      peer.displayName,
+      peer.fullName,
+      peer.username,
+    ].find((value) => typeof value === "string" && value.trim().length > 0) ?? "عضو مودة";
+    return [{
+      chatId: chat.document.id,
+      peerUid: chat.peerUid,
+      peerName: peerName.toString().trim().slice(0, 80),
+      lastMessagePreview: typeof chat.data.lastMessagePreview === "string"
+        ? chat.data.lastMessagePreview.slice(0, 120)
+        : "",
+      lastMessageAt,
+      lastMessageSenderUid: senderUid,
+      hasUnread: senderUid !== uid && lastMessageAt !== null && lastMessageAt > lastReadAt,
+    }];
+  });
+
+  return { chats };
+});
+
 
 /** Hides one direct message only for the authenticated participant. */
 export const deleteDirectMessageForMe = onCall(async (request) => {
@@ -2955,6 +3050,16 @@ export const markDirectChatRead = onCall(async (request) => {
       participants.some((value) => typeof value !== "string") ||
       participants[0] === participants[1]) {
     throw new HttpsError("permission-denied", "ليست لديك صلاحية تحديث حالة قراءة هذه المحادثة.");
+  }
+  const peerUid = participants.find((participant) => participant !== uid)!;
+  const peerSnapshot = await db.collection("users").doc(peerUid).get();
+  const currentUserData = user.data() ?? {};
+  const peerData = peerSnapshot.data() ?? {};
+  const currentBlocks = Array.isArray(currentUserData.blockedUids) ? currentUserData.blockedUids : [];
+  const peerBlocks = Array.isArray(peerData.blockedUids) ? peerData.blockedUids : [];
+  if (!peerSnapshot.exists || !isMemberAccountInGoodStanding(peerData) ||
+      currentBlocks.includes(peerUid) || peerBlocks.includes(uid)) {
+    throw new HttpsError("permission-denied", "لا يمكن تحديث إيصال قراءة محادثة محظورة أو غير متاحة.");
   }
   const latestSnapshot = await chatRef.collection("messages")
     .orderBy("createdAt", "desc")
