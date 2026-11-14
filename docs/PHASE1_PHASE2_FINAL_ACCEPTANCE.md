@@ -158,10 +158,10 @@ The preceding failure in run 43473863520 was a test-harness import omission: the
 This addendum supersedes older snapshot statements above wherever they conflict with the current development branch. Historical test-run references remain as historical evidence only.
 
 ### Exact-head automated validation
-- Current reconciled code head at the time of this addendum: `7aa8e7c031001ebdf326552225021182c116fd4e`.
-- [Run 43606233324](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43606233324) passed all three validation jobs: Flutter analysis (no issues), 11 Flutter tests, Web release build; Cloud Functions build and configured emulator integration/rules suites; isolated scanner tests and image build.
+- Current reconciled code head: `570bfe410d33a8aa698dd1d2bcd2d8b76788743c`.
+- [Run 43607804675](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43607804675) passed all three validation jobs: Flutter analysis (no issues), 11 Flutter tests, Web release build; Cloud Functions build, 201 unit tests and configured emulator integration/rules suites; isolated scanner tests and image build.
 - [Run 43606228297](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43606228297) generated native Android/iOS runners, configured Android/iOS/Web Firebase options, built an Android debug APK, completed an unsigned iOS build, and committed the generated native scaffolding.
-- A later shared member audio-controls implementation was included in the green Flutter analysis/tests/Web build and native builds. A redundant guest-room approval predicate was removed after that green run; its exact-head rerun is tracked separately.
+- Shared member audio-controls and the duplicate guest-room approval predicate cleanup are included in the green exact-head validation run `43607804675`.
 
 ### Current product corrections
 - Guest preview is no longer merely an anonymous account marker: the development branch implements age-free username/country/gender onboarding, guest privacy acknowledgement, trusted 60-minute session and 24-hour cooldown, all-ages approved public-room discovery, text/audio send/receive, and server-side denial of private/adult/unapproved rooms, DMs, wallet, store, gifts and member-only operations. Emulator suites cover guest session/privacy and seeded persona interaction. Physical-device UI-to-callable tests and anonymous-account recreation/App Check abuse resistance remain open.
