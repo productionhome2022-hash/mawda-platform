@@ -38,12 +38,16 @@ import { hasPlatformOwnerSession } from "./owner-access";
 import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
 import {
   OWNER_AUDIT_ARCHIVE_BATCH_SIZE,
+  OWNER_AUDIT_ARCHIVE_MIN_AGE_MS,
   OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS,
+  ADDITIONAL_AUDIT_COLLECTIONS,
   isOwnerAuditArchiveEligible,
   validateLockedAuditArchiveBucket,
   verifyOwnerAuditArchiveChunk,
   ownerAuditArchiveObjectName,
   serializeOwnerAuditArchive,
+  auditCollectionArchiveObjectName,
+  serializeAuditCollectionArchive,
 } from "./audit-archive";
 import { validateOwnerAuditExportRequest, projectOwnerAuditExportValue } from "./owner-audit-export";
 import {
@@ -4481,6 +4485,181 @@ export const archiveOwnerReviewAuditLogs = onSchedule(
       await releaseLease().catch(() => undefined);
       logger.error("Owner audit archive failed closed", { error });
       throw error;
+    }
+  },
+);
+
+/**
+ * Archives the remaining approved audit collections to the same locked,
+ * create-only bucket. Each collection has its own cursor, lease and GCS-backed
+ * checkpoint so Firestore cursor tampering cannot silently skip a batch.
+ */
+export const archiveAdditionalAuditCollections = onSchedule(
+  { schedule: "every 15 minutes", timeZone: "UTC", timeoutSeconds: 540 },
+  async () => {
+    if (ownerAuditArchiveEnabled.value().trim().toLowerCase() !== "true") return;
+    const bucketName = ownerAuditArchiveBucketName.value().trim();
+    if (!bucketName) throw new Error("MAWDA_AUDIT_ARCHIVE_BUCKET_REQUIRED");
+    const bucket = getStorage().bucket(bucketName);
+    const [bucketMetadata] = await bucket.getMetadata();
+    validateLockedAuditArchiveBucket(bucketMetadata);
+    const nowMs = Date.now();
+    const cutoff = Timestamp.fromMillis(nowMs - OWNER_AUDIT_ARCHIVE_MIN_AGE_MS);
+
+    for (const collectionName of ADDITIONAL_AUDIT_COLLECTIONS) {
+      const stateRef = db.collection("auditArchiveState").doc("collection_" + collectionName);
+      const leaseId = randomUUID();
+      let lastDocId: string | null = null;
+      let previousObjectName: string | null = null;
+      let previousArchiveSha256: string | null = null;
+      const acquired = await db.runTransaction(async (transaction) => {
+        const stateSnapshot = await transaction.get(stateRef);
+        const state = stateSnapshot.data() ?? {};
+        const leaseUntil = state.leaseUntil instanceof Timestamp
+          ? state.leaseUntil.toMillis()
+          : 0;
+        if (leaseUntil > nowMs) return false;
+        lastDocId = typeof state.lastDocId === "string" ? state.lastDocId : null;
+        previousObjectName = typeof state.lastObject === "string" ? state.lastObject : null;
+        previousArchiveSha256 = typeof state.lastArchiveSha256 === "string"
+          ? state.lastArchiveSha256
+          : null;
+        transaction.set(stateRef, {
+          leaseId,
+          leaseUntil: Timestamp.fromMillis(nowMs + 10 * 60 * 1000),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+        return true;
+      });
+      if (!acquired) continue;
+
+      const releaseLease = async () => {
+        await db.runTransaction(async (transaction) => {
+          const stateSnapshot = await transaction.get(stateRef);
+          if (stateSnapshot.data()?.leaseId === leaseId) {
+            transaction.set(stateRef, {
+              leaseId: FieldValue.delete(),
+              leaseUntil: FieldValue.delete(),
+              updatedAt: FieldValue.serverTimestamp(),
+            }, { merge: true });
+          }
+        });
+      };
+
+      try {
+        let query = db.collection(collectionName)
+          .where("createdAt", "<", cutoff)
+          .orderBy("createdAt", "asc");
+        if (lastDocId) {
+          if (!previousObjectName || !previousArchiveSha256) {
+            throw new Error("AUDIT_COLLECTION_EXTERNAL_CHECKPOINT_MISSING:" + collectionName);
+          }
+          const [previousObjectMetadata] = await bucket.file(previousObjectName).getMetadata();
+          if (previousObjectMetadata.metadata?.archiveSha256 !== previousArchiveSha256 ||
+              previousObjectMetadata.metadata?.collectionName !== collectionName ||
+              previousObjectMetadata.metadata?.lastDocId !== lastDocId) {
+            throw new Error("AUDIT_COLLECTION_EXTERNAL_CHECKPOINT_MISMATCH:" + collectionName);
+          }
+          const cursorSnapshot = await db.collection(collectionName).doc(lastDocId).get();
+          if (!cursorSnapshot.exists) {
+            throw new Error("AUDIT_COLLECTION_CURSOR_DOCUMENT_MISSING:" + collectionName);
+          }
+          query = query.startAfter(cursorSnapshot);
+        } else if (previousObjectName !== null || previousArchiveSha256 !== null) {
+          throw new Error("AUDIT_COLLECTION_GENESIS_CHECKPOINT_INVALID:" + collectionName);
+        }
+
+        const snapshot = await query.limit(OWNER_AUDIT_ARCHIVE_BATCH_SIZE).get();
+        if (snapshot.empty) {
+          await releaseLease();
+          continue;
+        }
+        const entries = snapshot.docs.map((document) => {
+          const data = document.data();
+          if (!(data.createdAt instanceof Timestamp)) {
+            throw new Error("AUDIT_COLLECTION_CREATED_AT_INVALID:" + collectionName);
+          }
+          return {
+            docId: document.id,
+            createdAtMs: data.createdAt.toMillis(),
+            data: projectOwnerAuditExportValue(data),
+          };
+        });
+        const first = entries[0];
+        const last = entries[entries.length - 1];
+        const archive = serializeAuditCollectionArchive(collectionName, entries, {
+          firstDocId: first.docId,
+          lastDocId: last.docId,
+          firstCreatedAtMs: first.createdAtMs,
+          lastCreatedAtMs: last.createdAtMs,
+          archivedAtMs: nowMs,
+        });
+        const objectName = auditCollectionArchiveObjectName(
+          collectionName,
+          first.docId,
+          last.docId,
+          last.createdAtMs,
+        );
+        const file = bucket.file(objectName);
+        let objectGeneration: string | number | undefined;
+        try {
+          await file.save(archive.payload, {
+            resumable: false,
+            contentType: "application/x-ndjson",
+            preconditionOpts: { ifGenerationMatch: 0 },
+            metadata: {
+              metadata: {
+                archiveSha256: archive.sha256,
+                collectionName,
+                firstDocId: first.docId,
+                lastDocId: last.docId,
+                lastCreatedAtMs: String(last.createdAtMs),
+                retentionSeconds: String(OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS),
+              },
+            },
+          });
+          const [createdMetadata] = await file.getMetadata();
+          objectGeneration = createdMetadata.generation;
+        } catch (error) {
+          if ((error as { code?: number }).code !== 412) throw error;
+          const [existingMetadata] = await file.getMetadata();
+          if (existingMetadata.metadata?.archiveSha256 !== archive.sha256 ||
+              existingMetadata.metadata?.collectionName !== collectionName ||
+              existingMetadata.metadata?.lastDocId !== last.docId) {
+            throw new Error("AUDIT_COLLECTION_ARCHIVE_OBJECT_COLLISION:" + collectionName);
+          }
+          objectGeneration = existingMetadata.generation;
+        }
+
+        await db.runTransaction(async (transaction) => {
+          const stateSnapshot = await transaction.get(stateRef);
+          if (stateSnapshot.data()?.leaseId !== leaseId) {
+            throw new Error("AUDIT_COLLECTION_ARCHIVE_LEASE_LOST:" + collectionName);
+          }
+          transaction.set(stateRef, {
+            lastDocId: last.docId,
+            lastCreatedAtMs: last.createdAtMs,
+            lastObject: objectName,
+            lastObjectGeneration: objectGeneration ?? null,
+            lastArchiveSha256: archive.sha256,
+            lastArchivedAt: Timestamp.fromMillis(nowMs),
+            leaseId: FieldValue.delete(),
+            leaseUntil: FieldValue.delete(),
+            updatedAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+        });
+        logger.info("Audit collection archive created", {
+          collectionName,
+          firstDocId: first.docId,
+          lastDocId: last.docId,
+          objectName,
+          archiveSha256: archive.sha256,
+        });
+      } catch (error) {
+        await releaseLease().catch(() => undefined);
+        logger.error("Audit collection archive failed closed", { collectionName, error });
+        throw error;
+      }
     }
   },
 );
