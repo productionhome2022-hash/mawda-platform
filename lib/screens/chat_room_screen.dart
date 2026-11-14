@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 import '../services/member_media_upload_service.dart';
 import '../services/super_admin_security_service.dart';
+import 'room_events_screen.dart';
 
 class ChatRoomScreen extends StatefulWidget {
   final String chatId;
@@ -315,6 +316,18 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       appBar: AppBar(
         title: Text(roomTitle),
         actions: [
+          IconButton(
+            tooltip: 'أحداث الغرفة',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => RoomEventsScreen(
+                  roomId: widget.chatId,
+                  canManageEvents: widget.isRoomOwner || widget.isSuperAdmin,
+                ),
+              ),
+            ),
+            icon: const Icon(Icons.event_available_outlined),
+          ),
           IconButton(
             tooltip: 'تحديث الرسائل',
             onPressed: _reloadMessages,
