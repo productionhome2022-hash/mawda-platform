@@ -113,7 +113,7 @@ test("guest onboarding stores no age and grants only active all-ages public-room
     );
     await assert.rejects(
       () => createRoomEvent.run(guestRequest(uid, {
-        roomId, title: "Guest event", description: "Not allowed", eventType: "watch_party",
+        roomId, title: "Guest event", description: "Not allowed", eventType: "announcement",
         startsAtMs: Date.now() + 60 * 60 * 1000, durationMinutes: 30,
       })),
       (error) => error && error.code === "permission-denied",
