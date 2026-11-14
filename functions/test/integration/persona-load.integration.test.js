@@ -398,7 +398,8 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       const greeting = "مرحباً من " + persona.personaId;
       await setMemberProfileVisitorGreeting.run({ data: { greeting }, auth: callableAuth(persona.uid) });
       await setMemberPinnedProfileSection.run({ data: { section: "interests" }, auth: callableAuth(persona.uid) });
-      await setMemberCustomTitle.run({ data: { title: "سفير " + persona.personaId }, auth: callableAuth(persona.uid) });
+      const customTitle = "سفير " + persona.personaId.slice(0, 30);
+      await setMemberCustomTitle.run({ data: { title: customTitle }, auth: callableAuth(persona.uid) });
       coverage.get(persona.personaId).greetingAndPinnedSectionUpdated = true;
     });
 
@@ -420,7 +421,7 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
         data: { userId: persona.uid }, auth: callableAuth(persona.uid),
       });
       assert.equal(ownProfile.vipActive, true);
-      assert.equal(ownProfile.activeTitle, "سفير " + persona.personaId);
+      assert.equal(ownProfile.activeTitle, "سفير " + persona.personaId.slice(0, 30));
       assert.equal(ownProfile.profileAnalytics.last7DaysViews, 1);
       coverage.get(persona.personaId).profileAnalyticsVerified = true;
     });
