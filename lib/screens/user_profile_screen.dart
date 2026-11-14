@@ -54,15 +54,22 @@ class UserProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 60),
             Text(userName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 5),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.verified, color: Colors.pink, size: 18),
-                SizedBox(width: 5),
-                Text('Mawda VIP Member', style: TextStyle(color: Colors.grey)),
-              ],
-            ),
+            if (userBadges.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: userBadges
+                      .where((badge) => badge.trim().isNotEmpty)
+                      .map((badge) => Chip(
+                            avatar: const Icon(Icons.military_tech, size: 16),
+                            label: Text(badge),
+                          ))
+                      .toList(growable: false),
+                ),
+              ),
             const SizedBox(height: 15),
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
