@@ -5,6 +5,7 @@ const {
   getMemberProfile,
   setMemberProfileVisitorGreeting,
   setMemberPinnedProfileSection,
+  setMemberCustomTitle,
   discoverMembers,
 } = require("../../lib/index");
 
@@ -92,6 +93,17 @@ test("premium profile features enforce entitlements, count unique views, and ran
     assert.equal(ownerView.profileAnalytics.last7DaysViews, 1);
     assert.equal(ownerView.vipActive, true);
     assert.equal(ownerView.activeTitle, "لقب النخبة");
+    await setMemberCustomTitle.run(call(targetUid, { title: "سفير مودة" }));
+    const customizedTitleView = await getMemberProfile.run(call(targetUid, { userId: targetUid }));
+    assert.equal(customizedTitleView.activeTitle, "سفير مودة");
+    await assert.rejects(
+      () => setMemberCustomTitle.run(call(viewerUid, { title: "لقب غير مستحق" })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await assert.rejects(
+      () => setMemberCustomTitle.run(call(targetUid, { title: "x".repeat(41) })),
+      (error) => error && error.code === "invalid-argument",
+    );
     assert.deepEqual(
       new Set(ownerView.activeFeatures.map((feature) => feature.itemId)),
       new Set(profileEntitlements.map(([itemId]) => itemId)),
