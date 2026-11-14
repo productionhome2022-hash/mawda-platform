@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getFirestore } = require("firebase-admin/firestore");
 const {
-  transferCoins, purchaseStoreItem, getOwnerStoreCatalog, getOwnerEconomyPricing,
+  transferCoins, purchaseStoreItem, getOwnerStoreCatalog, setStoreCatalogItem, getOwnerEconomyPricing,
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
   setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
@@ -592,9 +592,8 @@ test("every shipped premium store category charges once and grants its matching 
   });
 
   try {
-    await Promise.all(catalogRefs.map((ref, index) => {
-      const [itemId, category, durationDays] = items[index];
-      return ref.set({
+    await Promise.all(items.map(([itemId, category, durationDays], index) =>
+      setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
         itemId,
         name: `ميزة ${itemId}`,
         description: "اختبار تكامل لاستحقاق متجر مميز.",
@@ -604,9 +603,8 @@ test("every shipped premium store category charges once and grants its matching 
         sortOrder: index + 1,
         active: true,
         purchaseEnabled: true,
-        fulfillmentReady: true,
-      });
-    }));
+      })),
+    ));
 
     for (const [index, [itemId]] of items.entries()) {
       const requestId = `premium_${tag}_${index}`;
@@ -661,17 +659,31 @@ test("every shipped premium store category charges once and grants its matching 
     assert.ok(member.discoveryBoostExpiresAt.toMillis() > Date.now());
 
     const disabledPrivacyItem = db.collection("storeCatalog").doc("hide_coins_30d");
-    await disabledPrivacyItem.set({
+    await assert.rejects(
+      () => setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
+        itemId: "hide_coins_30d",
+        name: "إخفاء الرصيد",
+        description: "ميزة خصوصية غير مفعلة.",
+        category: "privacy",
+        priceCoins,
+        durationDays: 30,
+        sortOrder: 99,
+        active: true,
+        purchaseEnabled: true,
+      })),
+      (error) => error && error.code === "invalid-argument",
+    );
+    await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
       itemId: "hide_coins_30d",
       name: "إخفاء الرصيد",
       description: "ميزة خصوصية غير مفعلة.",
       category: "privacy",
       priceCoins,
       durationDays: 30,
+      sortOrder: 99,
       active: true,
       purchaseEnabled: false,
-      fulfillmentReady: false,
-    });
+    }));
     await assert.rejects(
       () => purchaseStoreItem.run(memberRequest(uid, {
         itemId: "hide_coins_30d",
