@@ -116,6 +116,10 @@ jobs:
         run: npm run test:safety-integration
       - name: Run guest and member privacy acknowledgement integration tests
         run: npm run test:guest-privacy-integration
+      - name: Run guest session and public-room interaction integration tests
+        run: npm run test:guest-session-integration
+      - name: Provision emulator-only test personas and exercise cross-persona wallet interaction
+        run: npm run test:seeded-persona-interaction
       - name: Run owner audit export pagination and redaction integration tests
         run: npm run test:owner-audit-export-integration
       - name: Run media legal hold and release integration tests
