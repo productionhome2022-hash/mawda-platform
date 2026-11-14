@@ -6,6 +6,7 @@ const {
   startGuestSession, getGuestSessionStatus, endGuestSession, listGuestPublicRooms,
   joinRoom, sendRoomMessage, getRoomMessages, setRoomAudience, sendChatMediaAttachment,
   sendDirectMessage, purchaseStoreItem, setMemberBlock, createMediaUploadIntent,
+  transferCoins, listRoomEvents, createRoomEvent,
 } = require("../../lib/index");
 
 const db = getFirestore();
@@ -21,6 +22,7 @@ test("guest onboarding stores no age and grants only active all-ages public-room
   const roomId = `guest_public_${suffix()}`;
   const adultRoomId = `guest_adult_${suffix()}`;
   const privateRoomId = `guest_private_${suffix()}`;
+  const unapprovedRoomId = `guest_unapproved_${suffix()}`;
   const ownerUid = emailUid;
   const audioMediaId = randomUUID();
   const imageMediaId = randomUUID();
@@ -33,7 +35,7 @@ test("guest onboarding stores no age and grants only active all-ages public-room
   assert.ok(counterPersona.exists, "counterparty-member persona must be seeded");
   const emailUid = emailPersona.data().uid;
   const counterUid = counterPersona.data().uid;
-  const roomIds = [roomId, adultRoomId, privateRoomId];
+  const roomIds = [roomId, adultRoomId, privateRoomId, unapprovedRoomId];
   const roomRef = (id) => db.collection("rooms").doc(id);
   const guestProfileRef = db.collection("guestProfiles").doc(uid);
   const guestSessionRef = db.collection("guestSessions").doc(uid);
@@ -43,6 +45,7 @@ test("guest onboarding stores no age and grants only active all-ages public-room
       roomRef(roomId).set({ name: "Guest-safe public", status: "active", kind: "public", audience: "adult", guestAudienceApproved: false, ownerUid, capacity: 20, memberCount: 0 }),
       roomRef(adultRoomId).set({ name: "Adult only", status: "active", kind: "public", audience: "adult", capacity: 20, memberCount: 0 }),
       roomRef(privateRoomId).set({ name: "Private", status: "active", kind: "private", audience: "all_ages", guestAudienceApproved: true, capacity: 20, memberCount: 0 }),
+      roomRef(unapprovedRoomId).set({ name: "Unapproved", status: "active", kind: "public", audience: "all_ages", guestAudienceApproved: false, capacity: 20, memberCount: 0 }),
     ]);
     await assert.rejects(
       () => setRoomAudience.run({
@@ -65,6 +68,13 @@ test("guest onboarding stores no age and grants only active all-ages public-room
       joinRoom.run({ data: { roomId }, auth: { uid: emailUid, token: { firebase: { sign_in_provider: "password" } } } }),
       joinRoom.run({ data: { roomId }, auth: { uid: counterUid, token: { firebase: { sign_in_provider: "password" } } } }),
     ]);
+    await assert.rejects(
+      () => startGuestSession.run({
+        data: { username: "not-a-guest", country: "CH", gender: "male" },
+        auth: { uid: "member_provider", token: { firebase: { sign_in_provider: "password" } } },
+      }),
+      (error) => error && error.code === "permission-denied",
+    );
     const started = await startGuestSession.run(guestRequest(uid, {
       username: "guest-test-user", country: "CH", gender: "female", age: 18, dateOfBirth: "2008-01-01",
     }));
@@ -92,6 +102,23 @@ test("guest onboarding stores no age and grants only active all-ages public-room
       (error) => error && error.code === "permission-denied",
     );
     await assert.rejects(
+      () => transferCoins.run(guestRequest(uid, {
+        recipientUid: emailUid, amount: 10, requestId: "guest_transfer_0001", expectedCommissionBps: 1000,
+      })),
+      (error) => error && (error.code === "permission-denied" || error.code === "failed-precondition"),
+    );
+    await assert.rejects(
+      () => listRoomEvents.run(guestRequest(uid, { roomId })),
+      (error) => error && error.code === "permission-denied",
+    );
+    await assert.rejects(
+      () => createRoomEvent.run(guestRequest(uid, {
+        roomId, title: "Guest event", description: "Not allowed", eventType: "watch_party",
+        startsAtMs: Date.now() + 60 * 60 * 1000, durationMinutes: 30,
+      })),
+      (error) => error && error.code === "permission-denied",
+    );
+    await assert.rejects(
       () => setMemberBlock.run(guestRequest(uid, { targetUid: "member_target_fixture", blocked: true })),
       (error) => error && (error.code === "failed-precondition" || error.code === "permission-denied"),
     );
@@ -107,6 +134,7 @@ test("guest onboarding stores no age and grants only active all-ages public-room
     assert.ok(listed.rooms.some((room) => room.roomId === roomId));
     assert.equal(listed.rooms.some((room) => room.roomId === adultRoomId), false);
     assert.equal(listed.rooms.some((room) => room.roomId === privateRoomId), false);
+    assert.equal(listed.rooms.some((room) => room.roomId === unapprovedRoomId), false);
 
     await joinRoom.run(guestRequest(uid, { roomId }));
     const memberText = await sendRoomMessage.run({
@@ -126,6 +154,10 @@ test("guest onboarding stores no age and grants only active all-ages public-room
       (error) => error && (error.code === "not-found" || error.code === "permission-denied"));
     await assert.rejects(
       () => joinRoom.run(guestRequest(uid, { roomId: adultRoomId })),
+      (error) => error && error.code === "permission-denied",
+    );
+    await assert.rejects(
+      () => joinRoom.run(guestRequest(uid, { roomId: unapprovedRoomId })),
       (error) => error && error.code === "permission-denied",
     );
     await assert.rejects(
