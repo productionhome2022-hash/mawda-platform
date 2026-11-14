@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:image_picker/image_picker.dart';
@@ -48,9 +49,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('موافقة مستقلة على المصادقة البيومترية'),
         content: const Text(
-          'هذا اختبار اختياري لمصادقة الجهاز عبر Android BiometricPrompt أو Apple LocalAuthentication. '
-          'يتولى نظام التشغيل المطابقة محلياً؛ لا ترسل مودة بصمتك أو صورة وجهك أو قالبك البيومتري إلى خوادمها. '
-          'النتيجة لا تثبت هويتك المدنية ولا تمنح كوينز أو صلاحية خادمية. يمكنك الإلغاء دون أثر على الميزات الأساسية.',
+          'سيطلب النظام تأكيد المصادقة على هذا الجهاز عبر Android BiometricPrompt أو Apple LocalAuthentication. '
+          'تتم المطابقة محلياً ولا ترسل مودة بصمة أو صورة وجه أو قالباً بيومترياً إلى الخادم. '
+          'تعتمد المكافأة على إتمام نافذة النظام بنجاح، ولا تمثل هذه الخطوة إثباتاً للهوية المدنية أو فحصاً مستقلاً للحيوية.',
         ),
         actions: [
           TextButton(
@@ -65,26 +66,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (consent != true || !mounted) return;
+
     setState(() => _checkingLocalBiometrics = true);
     final result = await LocalBiometricService().authenticate();
     if (!mounted) return;
-    setState(() => _checkingLocalBiometrics = false);
 
-    final message = switch (result.status) {
-      LocalBiometricStatus.authenticated =>
-        'نجحت المصادقة المحلية على هذا الجهاز. لم تُرسل بيانات بيومترية إلى خوادم مودة، ولم تُمنح مكافأة أو صلاحية خادمية بهذه الخطوة.',
-      LocalBiometricStatus.unavailable =>
-        'هذا الجهاز أو النظام لا يتيح المصادقة البيومترية حالياً.',
-      LocalBiometricStatus.notEnrolled =>
-        'لم تُسجل بصمة أو وسيلة بيومترية على هذا الجهاز.',
-      LocalBiometricStatus.cancelled =>
-        'ألغيت المصادقة؛ لم يتم اعتماد أي تحقق.',
-      LocalBiometricStatus.failed =>
-        'تعذر إكمال المصادقة البيومترية. حاول لاحقاً أو تحقق من إعدادات الجهاز.',
-    };
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 5)),
-    );
+    if (!result.succeeded) {
+      setState(() => _checkingLocalBiometrics = false);
+      final message = switch (result.status) {
+        LocalBiometricStatus.unavailable =>
+          'هذا الجهاز أو النظام لا يتيح المصادقة البيومترية حالياً.',
+        LocalBiometricStatus.notEnrolled =>
+          'لم تُسجل بصمة أو وسيلة بيومترية على هذا الجهاز.',
+        LocalBiometricStatus.cancelled =>
+          'ألغيت المصادقة؛ لم تُمنح المكافأة.',
+        LocalBiometricStatus.failed =>
+          'تعذر إكمال المصادقة البيومترية. حاول لاحقاً أو تحقق من إعدادات الجهاز.',
+        LocalBiometricStatus.authenticated => 'اكتملت المصادقة المحلية.',
+      };
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 5)),
+      );
+      return;
+    }
+
+    try {
+      final platform = defaultTargetPlatform == TargetPlatform.android
+          ? 'android'
+          : 'ios';
+      final response = await FirebaseFunctions.instance
+          .httpsCallable('completeBiometricVerification')
+          .call(<String, dynamic>{
+        'localAuthSucceeded': true,
+        'platform': platform,
+      });
+      if (!mounted) return;
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final rewardGranted = data['rewardGranted'] == true;
+      final balance = (data['newBalance'] as num?)?.toInt();
+      final message = rewardGranted
+          ? 'تم اعتماد إكمال المصادقة المحلية وإضافة 1,500 كوين إلى محفظتك${balance == null ? '' : '؛ رصيدك الجديد $balance'}.'
+          : 'توثيقك المحلي ما زال سارياً؛ لن تتكرر مكافأة الدورة الحالية.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'نجحت نافذة الجهاز، لكن تعذر تسجيل المكافأة على الخادم.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('نجحت نافذة الجهاز، لكن لم يؤكد الخادم تسجيل المكافأة.')),
+      );
+    } finally {
+      if (mounted) setState(() => _checkingLocalBiometrics = false);
+    }
   }
 
   Future<void> _changeProfileVisibility(String visibility) async {
