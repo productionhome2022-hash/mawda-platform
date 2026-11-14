@@ -32,6 +32,19 @@ test("expired, revoked, pending, and failed biometric records are ineligible", (
   }, NOW), false);
 });
 
+test("client-asserted local OS prompt is not trusted as biometric verification", () => {
+  assert.equal(hasActiveBiometricVerification({
+    status: "verified",
+    verificationMethod: "local_os_biometric_prompt",
+    expiresAt: futureTimestamp,
+  }, NOW), false);
+  assert.equal(hasActiveBiometricVerification({
+    status: "verified",
+    trustModel: "client_claim_after_local_os_prompt",
+    expiresAt: futureTimestamp,
+  }, NOW), false);
+});
+
 test("bare verified status or missing/invalid expiry fails closed", () => {
   assert.equal(hasActiveBiometricVerification({ status: "verified" }, NOW), false);
   assert.equal(hasActiveBiometricVerification({
