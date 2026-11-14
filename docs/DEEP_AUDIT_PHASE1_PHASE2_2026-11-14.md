@@ -1,8 +1,8 @@
 # Mawdda Platform — Deep Audit of Phase 1 and Phase 2
 **Audit date:** 2026-11-14  
 **Initial audited head:** `4ed7394235ea531e4b4abbb24431731da15eaf47`. This historical audit has been reconciled by the 14 November follow-up below.  
-**Current development head at reconciliation:** `7aa8e7c031001ebdf326552225021182c116fd4e`.  
-**Current exact-head validation:** [run 43606233324](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43606233324), all 3 jobs successful.  
+**Current development head at reconciliation:** `570bfe410d33a8aa698dd1d2bcd2d8b76788743c`.  
+**Current exact-head validation:** [run 43607804675](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43607804675), all 3 jobs successful.  
 **Native build validation:** [run 43606228297](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43606228297), Android debug APK and unsigned iOS build plus native scaffolding commit successful.  
 **Release decision:** Phase 1 and Phase 2 remain OPEN. This audit is not production approval.
 
