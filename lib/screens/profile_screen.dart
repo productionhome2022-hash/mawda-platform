@@ -1130,7 +1130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               .map((feature) {
                             final category = feature['category'] as String? ?? '';
                             final label = switch (category) {
-                              'badge' => 'وسام',
+                              'badge' => feature['itemName'] as String? ?? 'وسام',
                               'frame' => 'إطار مميز',
                               'username_style' => 'نمط اسم',
                               'analytics' => 'تحليلات',
