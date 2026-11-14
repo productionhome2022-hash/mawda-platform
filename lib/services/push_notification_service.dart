@@ -10,6 +10,7 @@ class PushNotificationService {
   static const _webVapidKey = String.fromEnvironment('MAWDA_FCM_VAPID_KEY');
   StreamSubscription<String>? _tokenSubscription;
   StreamSubscription<RemoteMessage>? _foregroundSubscription;
+  StreamSubscription<RemoteMessage>? _openedSubscription;
 
   String get _platform {
     if (kIsWeb) return 'web';
@@ -23,7 +24,10 @@ class PushNotificationService {
     }
   }
 
-  Future<void> initialize({void Function(RemoteMessage message)? onForegroundMessage}) async {
+  Future<void> initialize({
+    void Function(RemoteMessage message)? onForegroundMessage,
+    void Function(RemoteMessage message)? onOpenedMessage,
+  }) async {
     if (kIsWeb && _webVapidKey.isEmpty) {
       debugPrint('Mawda push notifications are disabled: MAWDA_FCM_VAPID_KEY is not configured.');
       return;
@@ -40,8 +44,14 @@ class PushNotificationService {
       if (token != null && token.isNotEmpty) await _register(token);
       await _tokenSubscription?.cancel();
       await _foregroundSubscription?.cancel();
+      await _openedSubscription?.cancel();
       if (onForegroundMessage != null) {
         _foregroundSubscription = FirebaseMessaging.onMessage.listen(onForegroundMessage);
+      }
+      if (onOpenedMessage != null) {
+        _openedSubscription = FirebaseMessaging.onMessageOpenedApp.listen(onOpenedMessage);
+        final initialMessage = await messaging.getInitialMessage();
+        if (initialMessage != null) onOpenedMessage(initialMessage);
       }
       _tokenSubscription = messaging.onTokenRefresh.listen((value) {
         if (value.isNotEmpty) unawaited(_register(value));
@@ -76,7 +86,9 @@ class PushNotificationService {
   Future<void> dispose() async {
     await _tokenSubscription?.cancel();
     await _foregroundSubscription?.cancel();
+    await _openedSubscription?.cancel();
     _tokenSubscription = null;
     _foregroundSubscription = null;
+    _openedSubscription = null;
   }
 }
