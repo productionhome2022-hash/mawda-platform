@@ -250,3 +250,71 @@ test("campaigns can bind only approved owner-uploaded advertisement media", asyn
     ]);
   }
 });
+
+
+test("timed-ad reward is withheld if its approved creative is revoked before completion", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const ownerUid = `ad_revocation_owner_${tag}`;
+  const uid = `ad_revocation_member_${tag}`;
+  const mediaId = require("node:crypto").randomUUID();
+  const userRef = db.collection("users").doc(uid);
+  const mediaRef = db.collection("mediaAssets").doc(mediaId);
+  let campaignId;
+  let sessionId;
+  await userRef.set({ coins: 0, profileCompleted: true, accountStatus: "active" });
+  await mediaRef.set({
+    ownerUid, uploaderRole: "platform_owner", mediaPurpose: "advertisement",
+    status: "security_approved", mediaCategory: "image",
+    detectedContentType: "image/png",
+  });
+  try {
+    const campaign = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      title: "Revocation test campaign",
+      sponsorLabel: "Verified sponsor",
+      body: "This test verifies that revoked creative assets cannot earn rewards.",
+      placement: "reward_center",
+      durationSeconds: 15,
+      rewardCoins: 7,
+      startsAtMs: Date.now() - 1000,
+      endsAtMs: Date.now() + 3600000,
+      maxClaimsPerMember: 1,
+      rewardBudgetCoins: 70,
+      mediaId,
+    }));
+    campaignId = campaign.campaignId;
+    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "published" }));
+    const started = await startTimedAdvertisement.run(memberRequest(uid, { campaignId }));
+    sessionId = started.sessionId;
+    await db.collection("timedAdSessions").doc(sessionId).update({
+      eligibleMs: 15000, heartbeatSequence: 0, lastHeartbeatAtMs: Date.now() - 5000,
+    });
+    await heartbeatTimedAdvertisement.run(memberRequest(uid, {
+      sessionId, sequence: 1, foreground: true, visible: true,
+    }));
+    await mediaRef.update({ status: "pending_security_scan" });
+    await assert.rejects(
+      () => completeTimedAdvertisement.run(memberRequest(uid, { sessionId })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    const [user, claim, ledger] = await Promise.all([
+      userRef.get(),
+      db.collection("timedAdRewardClaims").doc(sessionId).get(),
+      userRef.collection("walletLedger").doc(`timed_ad_${sessionId}`).get(),
+    ]);
+    assert.equal(user.data().coins, 0);
+    assert.equal(claim.exists, false);
+    assert.equal(ledger.exists, false);
+  } finally {
+    await Promise.all([
+      mediaRef.delete().catch(() => undefined),
+      userRef.delete().catch(() => undefined),
+      ...(campaignId ? [db.collection("timedAdCampaigns").doc(campaignId).delete().catch(() => undefined)] : []),
+      ...(sessionId ? [
+        db.collection("timedAdSessions").doc(sessionId).delete().catch(() => undefined),
+        db.collection("activeTimedAdSessions").doc(uid).delete().catch(() => undefined),
+        db.collection("timedAdMemberCounters").doc(`${uid}_${campaignId}`).delete().catch(() => undefined),
+      ] : []),
+    ]);
+  }
+});
