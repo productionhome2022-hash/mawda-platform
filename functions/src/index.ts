@@ -89,6 +89,7 @@ import {
   utcRewardPeriod,
   validateTimedAdCampaignInput,
   eligibleHeartbeatDelta,
+  AttendanceRewardType,
 } from "./engagement-rewards";
 
 initializeApp();
@@ -7081,13 +7082,7 @@ export { startGuestSession, getGuestSessionStatus, endGuestSession, listGuestPub
 
 // Owner-configurable attendance rewards and platform-managed timed advertisements.
 // All balances and reward claims are server-owned; client timestamps are ignored.
-import {
-  defaultAttendanceRewardPolicy,
-  validateAttendanceRewardPolicy,
-  utcRewardPeriod,
-  validateTimedAdCampaignInput,
-  eligibleHeartbeatDelta,
-} from "./engagement-rewards";
+
 
 const ATTENDANCE_REWARD_POLICY = db.doc("platformSettings/attendanceRewards");
 
@@ -7119,10 +7114,11 @@ export const setAttendanceRewardPolicy = onCall(async (request) => {
 
 export const claimAttendanceReward = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
-  const type = request.data?.type;
-  if (type !== "hourly" && type !== "daily" && type !== "weekly") {
+  const requestedType = request.data?.type;
+  if (requestedType !== "hourly" && requestedType !== "daily" && requestedType !== "weekly") {
     throw new HttpsError("invalid-argument", "نوع مكافأة الحضور غير صالح.");
   }
+  const type = requestedType as AttendanceRewardType;
   const firebaseIdentity = request.auth?.token.firebase;
   if (firebaseIdentity && typeof firebaseIdentity === "object" &&
       (firebaseIdentity as Record<string, unknown>).sign_in_provider === "anonymous") {
@@ -7489,10 +7485,10 @@ export const getRewardCenter = onCall(async (request) => {
     daily: utcRewardPeriod("daily", now),
     weekly: utcRewardPeriod("weekly", now),
   };
-  const claimRefs = Object.entries(periods).map(([type, period]) =>
-    db.collection("attendanceRewardClaims").doc(`${uid}_${type}_${period}`).get());
   const [hourly, daily, weekly, ads] = await Promise.all([
-    ...claimRefs,
+    db.collection("attendanceRewardClaims").doc(`${uid}_hourly_${periods.hourly}`).get(),
+    db.collection("attendanceRewardClaims").doc(`${uid}_daily_${periods.daily}`).get(),
+    db.collection("attendanceRewardClaims").doc(`${uid}_weekly_${periods.weekly}`).get(),
     db.collection("timedAdCampaigns").where("status", "==", "published").limit(100).get(),
   ]);
   const claims = { hourly: hourly.exists, daily: daily.exists, weekly: weekly.exists };
