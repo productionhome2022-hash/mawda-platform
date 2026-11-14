@@ -35,13 +35,14 @@ export function isGuestCooldownActive(session: Record<string, unknown> | undefin
 
 function validateGuestProfile(data: Record<string, unknown>) {
   const username = typeof data.username === "string" ? data.username.trim() : "";
-  const country = typeof data.country === "string" ? data.country.trim().toUpperCase() : "";
+  const country = typeof data.country === "string" ? data.country.trim() : "";
   const gender = data.gender;
   if (!/^[\p{L}\p{N}_ .-]{3,24}$/u.test(username) || /[<>]/.test(username)) {
     throw new HttpsError("invalid-argument", "اسم المستخدم يجب أن يكون من 3 إلى 24 حرفاً أو رقماً.");
   }
-  if (!/^[A-Z]{2}$/.test(country)) {
-    throw new HttpsError("invalid-argument", "اختر الدولة من القائمة.");
+  if (country.length < 2 || country.length > 60 ||
+      /[<>\u0000-\u001f]/.test(country)) {
+    throw new HttpsError("invalid-argument", "أدخل اسم دولة صحيحاً.");
   }
   if (gender !== "male" && gender !== "female") {
     throw new HttpsError("invalid-argument", "اختر الجنس بصورة صحيحة.");
