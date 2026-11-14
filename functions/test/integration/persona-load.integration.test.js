@@ -288,10 +288,20 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
 
   const now = Date.now();
   const expiresAt = Timestamp.fromMillis(now + 7 * 24 * 60 * 60 * 1000);
-  const roomId = "persona_lifecycle_" + fixture.generatedAt.replace(/[^0-9]/g, "").slice(0, 14);
-  const owner = personas[0];
-  const ownerUid = owner.uid;
-  const roomRef = db.collection("rooms").doc(roomId);
+  const runTag = fixture.generatedAt.replace(/[^0-9]/g, "").slice(0, 14);
+  const ROOM_COHORT_SIZE = 50;
+  const roomGroups = [];
+  for (let offset = 0; offset < personas.length; offset += ROOM_COHORT_SIZE) {
+    const members = personas.slice(offset, offset + ROOM_COHORT_SIZE);
+    roomGroups.push({
+      roomId: "persona_lifecycle_" + runTag + "_" + String(roomGroups.length).padStart(3, "0"),
+      members,
+      owner: members[0],
+      eventId: null,
+    });
+  }
+  const roomGroupByPersona = new Map();
+  roomGroups.forEach((group) => group.members.forEach((persona) => roomGroupByPersona.set(persona.uid, group)));
   const coverage = new Map(personas.map((persona) => [persona.personaId, {
     personaId: persona.personaId, uid: persona.uid,
     premiumEntitlementsProvisioned: false,
@@ -306,7 +316,7 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
     eventListed: false,
     eventRsvpConfirmed: false,
   }]));
-  let eventId = null;
+
 
   try {
     // Publish one fulfillment-ready SKU only inside this emulator project.
@@ -418,47 +428,72 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       coverage.get(persona.personaId).boostedDiscoveryVerified = true;
     });
 
-    await roomRef.set({
-      roomId, name: "Mawdda 5000 Persona Lifecycle Lab", kind: "public",
-      audience: "all_ages", status: "active", ownerUid, capacity: 6000,
-      memberCount: 0, invitedUids: [], isTestAccount: true, loadTestRun: fixture.generatedAt,
+    await inBatches(roomGroups, 10, async (group) => {
+      const roomRef = db.collection("rooms").doc(group.roomId);
+      await roomRef.set({
+        roomId: group.roomId, name: "Mawdda Persona Lifecycle " + group.roomId,
+        kind: "public", audience: "all_ages", status: "active",
+        ownerUid: group.owner.uid, capacity: 60, memberCount: 1,
+        invitedUids: [], isTestAccount: true, loadTestRun: fixture.generatedAt,
+      });
+      await roomRef.collection("members").doc(group.owner.uid).set({
+        uid: group.owner.uid, role: "owner",
+      });
+      coverage.get(group.owner.personaId).roomJoined = true;
     });
-    await roomRef.collection("members").doc(ownerUid).set({ uid: ownerUid, role: "owner" });
-    coverage.get(owner.personaId).roomJoined = true;
 
-    await inBatches(personas.slice(1), 25, async (persona) => {
-      await joinRoom.run({ data: { roomId }, auth: callableAuth(persona.uid) });
+    const nonOwnerAssignments = roomGroups.flatMap((group) =>
+      group.members.slice(1).map((persona) => ({ group, persona })));
+    await inBatches(nonOwnerAssignments, 25, async ({ group, persona }) => {
+      await joinRoom.run({
+        data: { roomId: group.roomId }, auth: callableAuth(persona.uid),
+      });
       coverage.get(persona.personaId).roomJoined = true;
     });
 
-    const created = await createRoomEvent.run({
-      data: {
-        roomId, title: "لقاء مجتمع مودة التجريبي",
-        description: "حدث آلي لاختبار دورة حياة الشخصيات الاصطناعية.",
-        eventType: "announcement", startsAtMs: Date.now() + 60 * 60 * 1000,
-        durationMinutes: 30,
-      },
-      auth: callableAuth(ownerUid),
+    await inBatches(roomGroups, 10, async (group) => {
+      const created = await createRoomEvent.run({
+        data: {
+          roomId: group.roomId, title: "لقاء مجتمع مودة التجريبي",
+          description: "حدث آلي لاختبار دورة حياة الشخصيات الاصطناعية.",
+          eventType: "announcement", startsAtMs: Date.now() + 60 * 60 * 1000,
+          durationMinutes: 30,
+        },
+        auth: callableAuth(group.owner.uid),
+      });
+      assert.equal(created.status, "scheduled");
+      group.eventId = created.eventId;
     });
-    eventId = created.eventId;
-    assert.equal(created.status, "scheduled");
 
     await inBatches(personas, 25, async (persona) => {
-      const listed = await listRoomEvents.run({ data: { roomId }, auth: callableAuth(persona.uid) });
-      assert.ok(listed.events.some((event) => event.eventId === eventId));
+      const group = roomGroupByPersona.get(persona.uid);
+      const listed = await listRoomEvents.run({
+        data: { roomId: group.roomId }, auth: callableAuth(persona.uid),
+      });
+      assert.ok(listed.events.some((event) => event.eventId === group.eventId));
       coverage.get(persona.personaId).eventListed = true;
-      await rsvpRoomEvent.run({ data: { eventId }, auth: callableAuth(persona.uid) });
-      const verified = await listRoomEvents.run({ data: { roomId }, auth: callableAuth(persona.uid) });
-      const ownEvent = verified.events.find((event) => event.eventId === eventId);
+      await rsvpRoomEvent.run({
+        data: { eventId: group.eventId }, auth: callableAuth(persona.uid),
+      });
+      const verified = await listRoomEvents.run({
+        data: { roomId: group.roomId }, auth: callableAuth(persona.uid),
+      });
+      const ownEvent = verified.events.find((event) => event.eventId === group.eventId);
       assert.ok(ownEvent);
       assert.equal(ownEvent.isAttending, true);
       coverage.get(persona.personaId).eventRsvpConfirmed = true;
     });
 
-    await setRoomEventStatus.run({ data: { eventId, status: "live" }, auth: callableAuth(ownerUid) });
-    await setRoomEventStatus.run({ data: { eventId, status: "completed" }, auth: callableAuth(ownerUid) });
-    const finalEvent = await db.collection("roomEvents").doc(eventId).get();
-    assert.equal(finalEvent.data().status, "completed");
+    await inBatches(roomGroups, 10, async (group) => {
+      await setRoomEventStatus.run({
+        data: { eventId: group.eventId, status: "live" }, auth: callableAuth(group.owner.uid),
+      });
+      await setRoomEventStatus.run({
+        data: { eventId: group.eventId, status: "completed" }, auth: callableAuth(group.owner.uid),
+      });
+      const finalEvent = await db.collection("roomEvents").doc(group.eventId).get();
+      assert.equal(finalEvent.data().status, "completed");
+    });
 
     const rows = [...coverage.values()];
     const required = [
@@ -473,13 +508,17 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
     console.log("[persona-lifecycle:coverage] " + JSON.stringify({
       personas: rows.length, stages: required,
       completedRows: rows.filter((row) => required.every((field) => row[field])).length,
-      roomId, eventId,
+      roomGroups: roomGroups.length,
+      rooms: roomGroups.length,
+      events: roomGroups.length,
     }));
   } finally {
-    if (eventId) await db.recursiveDelete(db.collection("roomEvents").doc(eventId)).catch(() => undefined);
-    await db.recursiveDelete(roomRef).catch(() => undefined);
-    const eventAudit = await db.collection("roomEventAuditLogs").where("roomId", "==", roomId).get().catch(() => null);
-    if (eventAudit) await Promise.all(eventAudit.docs.map((doc) => doc.ref.delete().catch(() => undefined)));
+    await Promise.all(roomGroups.map(async (group) => {
+      if (group.eventId) {
+        await db.recursiveDelete(db.collection("roomEvents").doc(group.eventId)).catch(() => undefined);
+      }
+      await db.recursiveDelete(db.collection("rooms").doc(group.roomId)).catch(() => undefined);
+    }));
   }
 });
 
