@@ -50,7 +50,7 @@ test("guest onboarding stores no age and grants only active all-ages public-room
     await assert.rejects(
       () => setRoomAudience.run({
         data: { roomId, audience: "all_ages", confirmGeneralAudienceModeration: true },
-        auth: { uid: "not_the_owner", token: { firebase: { sign_in_provider: "password" } } },
+        auth: { uid: ownerOperatorUid, token: { firebase: { sign_in_provider: "password" } } },
       }),
       (error) => error && error.code === "permission-denied",
     );
@@ -67,6 +67,8 @@ test("guest onboarding stores no age and grants only active all-ages public-room
     await Promise.all([
       joinRoom.run({ data: { roomId }, auth: { uid: emailUid, token: { firebase: { sign_in_provider: "password" } } } }),
       joinRoom.run({ data: { roomId }, auth: { uid: counterUid, token: { firebase: { sign_in_provider: "password" } } } }),
+      joinRoom.run({ data: { roomId }, auth: { uid: biometricUid, token: { firebase: { sign_in_provider: "password" } } } }),
+      joinRoom.run({ data: { roomId }, auth: { uid: ownerOperatorUid, token: { firebase: { sign_in_provider: "password" } } } }),
     ]);
     await assert.rejects(
       () => startGuestSession.run({
@@ -146,6 +148,27 @@ test("guest onboarding stores no age and grants only active all-ages public-room
       data: { roomId, content: "رسالة من العضو المقابل التجريبي", clientMessageId: "counter_msg_0001" },
       auth: { uid: counterUid, token: { firebase: { sign_in_provider: "password" } } },
     });
+    await sendRoomMessage.run({
+      data: { roomId, content: "رسالة من عضو التوثيق البيومتري التجريبي", clientMessageId: "biometric_msg_0001" },
+      auth: { uid: biometricUid, token: { firebase: { sign_in_provider: "password" } } },
+    });
+    await assert.rejects(
+      () => sendRoomMessage.run({
+        data: { roomId, content: "https://example.com", clientMessageId: "biometric_link_0001" },
+        auth: { uid: biometricUid, token: { firebase: { sign_in_provider: "password" } } },
+      }),
+      (error) => error && error.code === "invalid-argument",
+    );
+    await sendRoomMessage.run({
+      data: { roomId, content: "رسالة من شخصية مشغل المالك دون صلاحيات مالك", clientMessageId: "owner_persona_msg_0001" },
+      auth: { uid: ownerOperatorUid, token: { firebase: { sign_in_provider: "password" } } },
+    });
+    await assert.rejects(
+      () => listSafetyAppeals.run({
+        data: {}, auth: { uid: ownerOperatorUid, token: { firebase: { sign_in_provider: "password" } } },
+      }),
+      (error) => error && error.code === "permission-denied",
+    );
     const memberToGuestDm = {
       data: { recipientUid: uid, text: "خاص إلى الزائر", clientMessageId: "member_guest_dm_0001" },
       auth: { uid: emailUid, token: { firebase: { sign_in_provider: "password" } } },
@@ -220,6 +243,12 @@ test("guest onboarding stores no age and grants only active all-ages public-room
     assert.ok(afterAudio.messages.some((item) => item.mediaId === memberAudioMediaId && item.mediaCategory === "audio"));
     assert.ok(afterAudio.messages.some((item) => item.content === "رسالة من عضو البريد التجريبي"));
     assert.ok(afterAudio.messages.some((item) => item.content === "رسالة من العضو المقابل التجريبي"));
+    assert.ok(afterAudio.messages.some((item) => item.content === "رسالة من عضو التوثيق البيومتري التجريبي"));
+    assert.ok(afterAudio.messages.some((item) => item.content === "رسالة من شخصية مشغل المالك دون صلاحيات مالك"));
+    const memberAfterGuestAudio = await getRoomMessages.run({
+      data: { roomId }, auth: { uid: emailUid, token: { firebase: { sign_in_provider: "password" } } },
+    });
+    assert.ok(memberAfterGuestAudio.messages.some((item) => item.mediaId === audioMediaId && item.mediaCategory === "audio"));
 
     const unsafeImageAsset = {
       ...safeAudioAsset, mediaId: imageMediaId, mediaCategory: "image",
@@ -242,7 +271,7 @@ test("guest onboarding stores no age and grants only active all-ages public-room
 
     await endGuestSession.run(guestRequest(uid));
     assert.equal((await roomRef(roomId).collection("members").doc(uid).get()).exists, false);
-    assert.equal((await roomRef(roomId).get()).data().memberCount, 2);
+    assert.equal((await roomRef(roomId).get()).data().memberCount, 4);
     await assert.rejects(
       () => sendRoomMessage.run(guestRequest(uid, {
         roomId, content: "رسالة بعد الإنهاء", clientMessageId: "guest_msg_0002",
