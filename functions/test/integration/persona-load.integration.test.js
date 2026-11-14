@@ -10,6 +10,7 @@ const {
   getMemberProfile, setMemberProfileVisitorGreeting, setMemberPinnedProfileSection,
   setMemberCustomTitle, discoverMembers, joinRoom, createRoomEvent,
   listRoomEvents, rsvpRoomEvent, setRoomEventStatus, purchaseStoreItem, setStoreCatalogItem,
+  setMemberBlock, registerPushToken, unregisterPushToken,
 } = require("../../lib/index");
 const { getAuth } = require("firebase-admin/auth");
 
@@ -316,6 +317,8 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
     profileAnalyticsVerified: false,
     discoveryExecuted: false,
     boostedDiscoveryVerified: false,
+    blockUnblockVerified: false,
+    pushTokenLifecycleVerified: false,
     roomJoined: false,
     eventListed: false,
     eventRsvpConfirmed: false,
@@ -432,6 +435,39 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       coverage.get(persona.personaId).boostedDiscoveryVerified = true;
     });
 
+    // Exercise each member's block/unblock privacy control against their
+    // deterministic peer, then register and deactivate one synthetic FCM token.
+    await inBatches(personas, 25, async (persona) => {
+      const peer = peerByUid.get(persona.uid);
+      await setMemberBlock.run({
+        data: { targetUid: peer.uid, blocked: true }, auth: callableAuth(persona.uid),
+      });
+      const blocked = (await db.collection("users").doc(persona.uid).get()).data().blockedUids || [];
+      assert.ok(blocked.includes(peer.uid));
+      await setMemberBlock.run({
+        data: { targetUid: peer.uid, blocked: false }, auth: callableAuth(persona.uid),
+      });
+      const unblocked = (await db.collection("users").doc(persona.uid).get()).data().blockedUids || [];
+      assert.ok(!unblocked.includes(peer.uid));
+      coverage.get(persona.personaId).blockUnblockVerified = true;
+    });
+
+    await inBatches(personas, 25, async (persona) => {
+      const token = "mawdda_test_fcm_token_" + persona.personaId + "_" + "x".repeat(180);
+      const registered = await registerPushToken.run({
+        data: { token, platform: "android" }, auth: callableAuth(persona.uid),
+      });
+      assert.equal(registered.registered, true);
+      const removed = await unregisterPushToken.run({
+        data: { token }, auth: callableAuth(persona.uid),
+      });
+      assert.equal(removed.registered, false);
+      const tokenId = require("node:crypto").createHash("sha256").update(token).digest("hex");
+      const saved = await db.collection("users").doc(persona.uid).collection("pushTokens").doc(tokenId).get();
+      assert.equal(saved.data().active, false);
+      coverage.get(persona.personaId).pushTokenLifecycleVerified = true;
+    });
+
     await inBatches(roomGroups, 10, async (group) => {
       const roomRef = db.collection("rooms").doc(group.roomId);
       await roomRef.set({
@@ -502,7 +538,7 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
     const rows = [...coverage.values()];
     const required = [
       "premiumEntitlementsProvisioned", "storePurchaseCompleted", "storeReceiptAndLedgerVerified", "greetingAndPinnedSectionUpdated",
-      "peerProfileViewed", "profileAnalyticsVerified", "discoveryExecuted", "boostedDiscoveryVerified", "roomJoined", "eventListed", "eventRsvpConfirmed",
+      "peerProfileViewed", "profileAnalyticsVerified", "discoveryExecuted", "boostedDiscoveryVerified", "blockUnblockVerified", "pushTokenLifecycleVerified", "roomJoined", "eventListed", "eventRsvpConfirmed",
     ];
     for (const field of required) {
       assert.equal(rows.filter((row) => row[field]).length, 5000,
