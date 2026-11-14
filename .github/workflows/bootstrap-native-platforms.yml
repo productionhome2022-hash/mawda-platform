@@ -9,6 +9,7 @@ on:
       - ".github/workflows/bootstrap-native-platforms.yml"
       - "pubspec.yaml"
       - "pubspec.lock"
+      - "lib/**"
   workflow_dispatch:
 
 permissions:
