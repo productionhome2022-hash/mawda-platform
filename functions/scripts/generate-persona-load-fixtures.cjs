@@ -7,10 +7,10 @@ const path = require("node:path");
 
 const countArg = process.argv.find((arg) => arg.startsWith("--count="));
 const outputArg = process.argv.find((arg) => arg.startsWith("--output="));
-const count = countArg ? Number(countArg.split("=")[1]) : 500;
+const count = countArg ? Number(countArg.split("=")[1]) : 5000;
 const output = outputArg ? outputArg.slice("--output=".length) : "mawdda-load-artifacts/personas.json";
-if (!Number.isSafeInteger(count) || count < 2 || count > 500) {
-  throw new Error("--count must be an integer from 2 through 500.");
+if (!Number.isSafeInteger(count) || count < 2 || count > 5000) {
+  throw new Error("--count must be an integer from 2 through 5000.");
 }
 const professions = ["مصمم منتجات", "مهندس برمجيات", "محلل أعمال", "معلم", "طبيب تجريبي", "باحث", "مصمم جرافيك", "محاسب"];
 const interests = [["التقنية", "القراءة"], ["السفر", "التصوير"], ["الرياضة", "الموسيقى"], ["التصميم", "الأعمال"], ["العلوم", "التعلم"]];
