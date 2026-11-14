@@ -20,6 +20,7 @@ class ChatAudioComposerButton extends StatefulWidget {
     required this.onBusyChanged,
     required this.onError,
     this.enabled = true,
+    this.maxDurationSeconds = 120,
     this.recipientUid,
     this.roomId,
   }) : assert(scope == 'direct' || scope == 'room');
@@ -31,6 +32,7 @@ class ChatAudioComposerButton extends StatefulWidget {
   final ValueChanged<bool> onBusyChanged;
   final ValueChanged<String> onError;
   final bool enabled;
+  final int maxDurationSeconds;
 
   @override
   State<ChatAudioComposerButton> createState() => _ChatAudioComposerButtonState();
@@ -46,7 +48,6 @@ class _ChatAudioComposerButtonState extends State<ChatAudioComposerButton> {
   bool _stopping = false;
 
   static const int _maxPcmBytes = 8 * 1024 * 1024;
-  static const Duration _maxDuration = Duration(seconds: 120);
 
   @override
   void dispose() {
@@ -92,7 +93,7 @@ class _ChatAudioComposerButtonState extends State<ChatAudioComposerButton> {
       if (!mounted) return;
       setState(() => _recording = true);
       widget.onBusyChanged(true);
-      _limit = Timer(_maxDuration, () => unawaited(_stop()));
+      _limit = Timer(Duration(seconds: widget.maxDurationSeconds), () => unawaited(_stop()));
     } catch (error) {
       widget.onError('تعذر بدء التسجيل الصوتي: $error');
       widget.onBusyChanged(false);
