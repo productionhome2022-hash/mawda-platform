@@ -142,6 +142,7 @@ jobs:
         run: |
           test -n "$FIREBASE_TOKEN"
           firebase apps:list --project mawda-app-2026 --token "$FIREBASE_TOKEN"
+          rm -f ios/Runner/GoogleService-Info.plist
           firebase apps:sdkconfig IOS 1:697303475139:ios:7be58cfe1ac9c4c23ed376 --project mawda-app-2026 --out ios/Runner/GoogleService-Info.plist --token "$FIREBASE_TOKEN"
           python3 - <<'PY'
           import plistlib
@@ -149,7 +150,7 @@ jobs:
 
           path = Path("ios/Runner/GoogleService-Info.plist")
           if not path.is_file():
-              raise SystemExit("FlutterFire did not generate ios/Runner/GoogleService-Info.plist on macOS.")
+              raise SystemExit("Firebase CLI did not generate ios/Runner/GoogleService-Info.plist on macOS.")
           with path.open("rb") as handle:
               config = plistlib.load(handle)
           expected = {
