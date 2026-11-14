@@ -1,11 +1,12 @@
 name: Validate Mawda
 
 on:
-  # The development branch is validated by its PR event below; avoid running
-  # the same full matrix twice for every push to an already-open PR.
+  # Validate the isolated development branch on every commit, including while
+  # the draft PR is open. Concurrency deduplicates push/PR runs for the same SHA.
   push:
     branches:
       - main
+      - codex/mawda-full-platform-implementation
   pull_request:
     branches:
       - main
