@@ -45,6 +45,7 @@ test("scanner verdict accepts a fully bound safe WebP derivative and rejects par
   const now = 1_800_000_000_000;
   const base = {
     mediaId: "123e4567-e89b-12d3-a456-426614174000",
+    purpose: "room",
     provider: "clamav-mawadda-gateway",
     verdict: "clean",
     objectGeneration: "123456",
@@ -71,6 +72,7 @@ test("scanner callback validates exact GIF, audio, video and flattened-PDF deriv
   const now = 1_800_000_000_000;
   const base = {
     mediaId: "123e4567-e89b-12d3-a456-426614174000",
+    purpose: "room",
     provider: "clamav-mawadda-gateway",
     verdict: "clean",
     objectGeneration: "123456",
