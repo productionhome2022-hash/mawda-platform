@@ -47,6 +47,7 @@ class _PrivacyAcknowledgementGate extends StatefulWidget {
 
 class _PrivacyAcknowledgementGateState
     extends State<_PrivacyAcknowledgementGate> {
+  final AuthService _auth = AuthService();
   late Future<bool> _status;
   bool _saving = false;
   String? _error;
