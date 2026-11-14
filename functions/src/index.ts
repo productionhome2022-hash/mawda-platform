@@ -7498,6 +7498,10 @@ export const completeTimedAdvertisement = onCall(async (request) => {
       transaction.get(claimRef), transaction.get(userRef), transaction.get(campaignRef),
       transaction.get(activeRef), transaction.get(counterRef),
     ]);
+    const campaignMediaId = campaign.data()?.mediaId;
+    const campaignMedia = typeof campaignMediaId === "string"
+      ? await transaction.get(db.collection("mediaAssets").doc(campaignMediaId))
+      : null;
     if (claim.exists) {
       return { completed: true, idempotentReplay: true, amountCoins: claim.data()?.amountCoins ?? 0 };
     }
@@ -7512,6 +7516,15 @@ export const completeTimedAdvertisement = onCall(async (request) => {
       throw new HttpsError("permission-denied", "الحساب أو الحملة لم تعد مؤهلة للمكافأة.");
     }
     const campaignData = campaign.data()!;
+    if (typeof campaignMediaId === "string") {
+      const mediaData = campaignMedia?.data();
+      if (!campaignMedia?.exists || mediaData?.ownerUid !== campaignData.mediaOwnerUid ||
+          mediaData?.uploaderRole !== "platform_owner" ||
+          mediaData?.mediaPurpose !== "advertisement" ||
+          mediaData?.status !== "security_approved") {
+        throw new HttpsError("failed-precondition", "لم تعد مادة الإعلان معتمدة عند إتمام المشاهدة.");
+      }
+    }
     const spent = readSafeInteger(campaignData.spentRewardCoins ?? 0, "spentRewardCoins");
     const budget = readSafeInteger(campaignData.rewardBudgetCoins, "rewardBudgetCoins");
     const claims = readSafeInteger(counter.data()?.claimCount ?? 0, "claimCount");
