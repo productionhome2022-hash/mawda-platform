@@ -242,25 +242,32 @@ class _LoginScreenState extends State<LoginScreen> {
             'appVersion': mawdaAppVersion,
           });
         } catch (_) {
-          await _auth.signOut();
+          // Keep the newly-created session alive. AuthGate will show the
+          // verification screen, then the privacy-acknowledgement gate if the
+          // acknowledgement call needs to be retried. Signing out here made
+          // the user lose the in-app verification continuation.
           if (mounted) setState(() {
             _register = false;
-            _message = 'أنشأنا حساب الدخول وأرسلنا رسالة التحقق، لكن تعذر حفظ إقرار الخصوصية. بعد تأكيد البريد سجّل الدخول لإكمال الإقرار قبل فتح المحتوى.';
+            _message = 'تم إنشاء الحساب وإرسال رسالة التحقق، لكن تعذر حفظ إقرار الخصوصية الآن. أكّد بريدك أولاً؛ ستظهر لك خطوة إقرار الخصوصية قبل دخول المنصة.';
           });
           return;
         }
-        await _auth.signOut();
+        // Do not sign out after registration. The AuthGate keeps this session
+        // on the verification screen and reloads it when the user returns.
         if (mounted) setState(() {
           _register = false;
-          _message = 'تم إنشاء حساب الدخول وحفظ إقرار الخصوصية. أرسلنا رسالة تحقق إلى بريدك؛ افتحها ثم سجّل الدخول.';
+          _message = 'تم إنشاء الحساب وحفظ إقرار الخصوصية. افتح رسالة التحقق ثم ارجع إلى مودة واضغط «لقد تحققت، تحديث الحالة».';
         });
       } else {
         try {
           final result = await _auth.signInWithEmail(email: _email.text, password: _password.text);
           await result.user?.reload();
-          if (result.user == null || !result.user!.emailVerified) {
-            await _auth.signOut();
-            if (mounted) setState(() => _message = 'يجب تأكيد بريدك الإلكتروني أولاً. افتح رسالة التحقق ثم حاول مجدداً.');
+          final refreshedUser = _auth.currentUser;
+          if (refreshedUser == null || !refreshedUser.emailVerified) {
+            // Keep the authenticated session so AuthGate can offer the
+            // in-app resend/refresh verification actions instead of forcing
+            // the user through another sign-in attempt.
+            if (mounted) setState(() => _message = 'تم تسجيل الدخول، لكن البريد لم يظهر مؤكداً بعد. افتح رسالة التحقق ثم اضغط «لقد تحققت، تحديث الحالة».');
           }
         } on FirebaseAuthMultiFactorException catch (error) {
           await _resolveMultiFactorSignIn(error);
@@ -299,6 +306,13 @@ class _LoginScreenState extends State<LoginScreen> {
       case 'invalid-credential': return 'بيانات الدخول غير صحيحة.';
       case 'too-many-requests': return 'محاولات كثيرة. انتظر قليلاً ثم حاول.';
       case 'network-request-failed': return 'تعذر الاتصال. تحقق من الإنترنت.';
+      case 'operation-not-allowed':
+        return 'طريقة الدخول هذه غير مفعّلة في إعدادات Firebase لهذا المشروع. أبلغ فريق التطوير برمز: operation-not-allowed.';
+      case 'app-not-authorized':
+      case 'unauthorized-domain':
+        return 'إعدادات اعتماد التطبيق أو النطاق غير مكتملة في Firebase. أبلغ فريق التطوير برمز: ' + e.code + '.';
+      case 'account-exists-with-different-credential':
+        return 'هذا البريد مرتبط بطريقة دخول أخرى. استخدم طريقة الدخول الأصلية أو استعادة الحساب.';
       default: return 'تعذر إكمال العملية (' + e.code + ').';
     }
   }
