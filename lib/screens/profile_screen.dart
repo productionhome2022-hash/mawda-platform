@@ -944,7 +944,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final hasProfilePin = activeItemIds.contains('profile_pin_30d');
           final hasVisitorGreeting = activeItemIds.contains('visitor_greeting_30d');
           final hasProfileAnalytics = activeItemIds.contains('profile_analytics_30d');
-          final pinnedSection = (data['pinnedProfileSection'] as String?) ?? 'interests';
+          final pinnedSection = hasProfilePin ? (data['pinnedProfileSection'] as String? ?? 'interests') : '';
           final visitorGreeting = (data['visitorGreeting'] as String?) ?? '';
           final analytics = Map<String, dynamic>.from(
             data['profileAnalytics'] as Map? ?? const <String, dynamic>{},
