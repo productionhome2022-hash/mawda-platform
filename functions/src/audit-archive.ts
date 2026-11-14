@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { calculateOwnerAuditHash } from "./owner-audit-chain";
 import type { OwnerAuditEvent } from "./owner-audit-chain";
 
-export const OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS = 63_072_000;
+export const OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS = 63_115_200;
 export const OWNER_AUDIT_ARCHIVE_MIN_AGE_MS = 5 * 60 * 1000;
 export const OWNER_AUDIT_ARCHIVE_BATCH_SIZE = 500;
 
