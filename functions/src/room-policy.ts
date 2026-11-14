@@ -1,4 +1,4 @@
-export type RoomAudience = "adult" | "minor";
+export type RoomAudience = "adult" | "minor" | "all_ages";
 export type RoomKind = "public" | "private";
 export type RoomModeratorPermissions = {
   manageMessages: boolean;
@@ -26,8 +26,8 @@ export function canJoinRoom(args: {
   } catch {
     return false;
   }
-  if (args.roomAudience !== "adult" && args.roomAudience !== "minor") return false;
-  if (audience !== args.roomAudience) return false;
+  if (args.roomAudience !== "adult" && args.roomAudience !== "minor" && args.roomAudience !== "all_ages") return false;
+  if (args.roomAudience !== "all_ages" && audience !== args.roomAudience) return false;
   if (args.roomKind === "public") return true;
   return args.roomKind === "private" && args.invited;
 }
@@ -47,4 +47,16 @@ export function normalizeModeratorPermissions(input: Record<string, unknown>): R
     throw new Error("ROOM_MODERATOR_PERMISSION_REQUIRED");
   }
   return permissions;
+}
+
+
+/** Unknown-age guests are admitted only to public rooms explicitly reviewed for a general audience. */
+export function canJoinGuestRoom(args: {
+  roomAudience: unknown;
+  roomKind: unknown;
+  roomStatus: unknown;
+}): boolean {
+  return args.roomStatus === "active" &&
+    args.roomKind === "public" &&
+    args.roomAudience === "all_ages";
 }
