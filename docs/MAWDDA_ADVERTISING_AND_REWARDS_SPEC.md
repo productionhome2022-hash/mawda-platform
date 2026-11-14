@@ -80,3 +80,22 @@ The first release can ship platform-managed campaigns without a provider only af
 Future provider mode stays disabled until a provider is selected, contract/terms are reviewed, adapter and webhook verification are implemented, secrets are configured securely and end-to-end tests pass.
 
 Report each capability separately as implemented, CI-tested, emulator-only, real-device-tested, provider-dependent or awaiting owner configuration. A specification or fixture that writes Firestore directly is not proof of a completed feature.
+
+
+## Implementation status (2026-11-14)
+
+Implemented on the development branch (not deployed):
+- `setAttendanceRewardPolicy` / `getOwnerAttendanceRewardPolicy`: owner-only policy read/write; production defaults are disabled and zero.
+- `claimAttendanceReward`: server UTC hour/day/ISO-week periods, exactly-once claim IDs, atomic user balance and wallet-ledger credit.
+- `setTimedAdCampaign`, `getOwnerTimedAdCampaigns`, `setTimedAdCampaignStatus`: owner-managed campaign drafts, publication, pause and archive.
+- `startTimedAdvertisement`, `heartbeatTimedAdvertisement`, `completeTimedAdvertisement`: active-session binding, sequential heartbeats, bounded gaps, server-side eligible duration, campaign budget and member caps, exactly-once wallet reward.
+- `getRewardCenter`, `getActiveTimedAdSession` and `getTimedAdCreativeUrl`: member reward data, session restoration and short-lived safe-derivative delivery.
+- Owner image/GIF/video uploads use `createMediaUploadIntent` / `finalizeMediaUpload` with the new `advertisement` purpose, owner/MFA gate, quarantine, signature validation and malware scanning. Only security-approved media can be bound to a campaign.
+- The Flutter owner console and member reward center are connected. The member viewer locks navigation and sends foreground heartbeats; image and GIF creatives render in the viewer.
+
+Remaining release gates:
+- Video media may be uploaded and scanned, but publication is deliberately blocked until an in-app video player, pause/resume behavior and Android/iOS/web device tests are completed.
+- The foreground heartbeat is a defensive control, not cryptographic proof that a modified client remained visible. Abuse telemetry, platform-integrity signals and fraud thresholds remain necessary before production rewards.
+- Real cloud Storage/ClamAV deployment, quotas, retention/deletion, backups, provider economics/legal review and production monitoring are not validated by emulator tests.
+- No third-party advertising provider is connected; no provider connection is simulated.
+- All new code is development-branch only. CI must pass on the exact latest commit before any phase exit review; no production deployment or merge is authorized by this document.
