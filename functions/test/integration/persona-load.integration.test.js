@@ -47,7 +47,7 @@ test("load-test fixture is emulator-only and contains 5000 unique synthetic pers
   assert.ok(personas.every((p) => p.testOnly === true && p.email.endsWith("@test.mawdda.invalid")));
 });
 
-test("provision 500 emulator-only identities and synthetic member profiles", async () => {
+test("provision all 5000 emulator-only identities and synthetic member profiles", async () => {
   await inBatches(personas, 25, async (persona) => {
     const user = await auth.createUser({
       email: persona.email,
@@ -87,7 +87,7 @@ test("provision 500 emulator-only identities and synthetic member profiles", asy
       uid: user.uid,
       displayName: persona.displayName,
       accountKind: "load-test-email",
-      capabilities: ["profile.readWrite", "discovery.browse", "chat.direct", "wallet.transfer"],
+      capabilities: ["profile.readWrite", "discovery.browse", "chat.direct", "wallet.transfer", "premium.profile", "rooms.public.join", "rooms.events.rsvp"],
       deniedCapabilities: ["owner.console", "productionOwnerMutation"],
       profile: {
         uniqueHandle: persona.username,
