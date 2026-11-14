@@ -30,7 +30,7 @@ npm test
 
 ## Firebase project note
 
-`.firebaserc` currently selects `mawda-app-2026`, while the checked-in FlutterFire options file contains placeholder-looking values and a different project ID. Verify the actual Firebase app registrations and regenerate FlutterFire configuration from the intended project before production use. Do not infer project identity from the alias alone.
+`.firebaserc` selects `mawda-app-2026`. The Web FlutterFire options match that project and the registered Web app ID; the Android, iOS, macOS, Windows and Linux entries still contain placeholder-looking identifiers/API keys and use the different project ID `mawda-platform`. Confirm each native app registration in Firebase Console and regenerate those platform options before building or releasing native binaries. Do not infer that native Firebase setup is complete from the Web configuration.
 
 ## Product specification
 
@@ -51,7 +51,7 @@ The approved product policy is recurring: 500 coins after each successfully comp
 
 ## Firebase configuration blocker
 
-The checked-in `lib/firebase_options.dart` still contains placeholder-looking Firebase app identifiers and API key values, and its project ID differs from `.firebaserc`. Do not deploy or test real sign-in against production until the correct Firebase app configuration is regenerated for the confirmed project and validated. No credentials or service-account keys belong in Git.
+The Web entry in `lib/firebase_options.dart` matches `.firebaserc` (`mawda-app-2026`) and the registered Web app ID. Native Android/iOS/macOS/Windows/Linux entries still use placeholder-looking app identifiers/API keys and `mawda-platform`; those native configurations are not production-ready. Do not release native binaries or claim mobile sign-in readiness until the actual native app registrations are confirmed, FlutterFire options are regenerated for the approved project, and Android/iOS builds and device smoke tests pass. No service-account keys or private credentials belong in Git.
 
 
 ## Member profile completion
