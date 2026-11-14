@@ -27,7 +27,19 @@
       "otherMedia"
     ],
     "biometricRewardRequiresServerVerification": true,
-    "financialWritesMustUseServerTransactions": true
+    "financialWritesMustUseServerTransactions": true,
+    "guestSession": {
+      "durationSeconds": 3600,
+      "rollingWindowSeconds": 86400,
+      "publicRoomsOnly": true,
+      "allowedMessageTypes": [
+        "text",
+        "audio"
+      ],
+      "directMessagesAllowed": false,
+      "privateRoomsAllowed": false,
+      "emulatorClockOverrideOnly": true
+    }
   },
   "personas": {
     "guest": [
@@ -71,14 +83,20 @@
         "public-discovery",
         "public-shop-catalog",
         "public-ads",
+        "public-room-join",
+        "public-room-text-send-receive",
+        "public-room-audio-send-receive",
         "60-minute-expiry",
         "rolling-24-hour-denial",
         "re-entry-after-window",
         "no-rewards",
-        "no-chat",
+        "no-direct-messages",
+        "no-private-rooms",
         "no-wallet",
         "no-purchase",
-        "no-room",
+        "no-room-rental",
+        "no-gifts",
+        "no-image-gif-video-or-document-messages",
         "no-private-data",
         "emulator-clock-forward-and-reset"
       ]
