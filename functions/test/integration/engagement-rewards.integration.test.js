@@ -317,6 +317,9 @@ test("timed-ad reward is withheld if its approved creative is revoked before com
     assert.equal(user.data().coins, 0);
     assert.equal(claim.exists, false);
     assert.equal(ledger.exists, false);
+    assert.equal((await db.collection("timedAdSessions").doc(sessionId).get()).data().status, "cancelled");
+    assert.equal((await db.collection("activeTimedAdSessions").doc(uid).get()).exists, false);
+    assert.equal((await db.collection("timedAdCampaigns").doc(campaignId).get()).data().reservedRewardCoins, 0);
   } finally {
     await Promise.all([
       mediaRef.delete().catch(() => undefined),
