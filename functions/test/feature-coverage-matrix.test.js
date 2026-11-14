@@ -30,6 +30,18 @@ test("every journey maps to an executable npm script", () => {
   }
 });
 
+
+test("guest journey status does not overstate unimplemented room/session behavior", () => {
+  const guest = matrix.journeys.find((journey) => journey.id === "GUEST-001");
+  assert.ok(guest);
+  assert.equal(guest.status, "partial");
+  assert.ok(guest.cases.includes("anonymous-guest-privacy-acknowledgement"));
+  assert.ok(guest.plannedCases.includes("public-room-text-send-receive"));
+  assert.ok(guest.plannedCases.includes("public-room-audio-send-receive"));
+  assert.ok(guest.plannedCases.includes("60-minute-expiry"));
+  assert.match(guest.releaseBlocker, /not implemented/i);
+});
+
 test("full member personas have the same baseline member capability set", () => {
   const ids = matrix.personas.fullMembers;
   const capabilities = ids.map((id) => {
