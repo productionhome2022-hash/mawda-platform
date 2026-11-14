@@ -7305,6 +7305,7 @@ export const getActiveTimedAdCampaigns = onCall(async (request) => {
           body: data.body, placement: data.placement,
           durationSeconds: data.durationSeconds, rewardCoins: data.rewardCoins,
           version: data.version,
+          mediaId: data.mediaId ?? null, creativeType: data.creativeType ?? "text",
         };
       }),
   };
@@ -7557,6 +7558,8 @@ export const getRewardCenter = onCall(async (request) => {
         sponsorLabel: doc.data().sponsorLabel, body: doc.data().body,
         durationSeconds: doc.data().durationSeconds,
         rewardCoins: doc.data().rewardCoins,
+        mediaId: doc.data().mediaId ?? null,
+        creativeType: doc.data().creativeType ?? "text",
       })),
   };
 });
