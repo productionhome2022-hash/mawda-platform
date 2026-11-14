@@ -7506,3 +7506,18 @@ export const getRewardCenter = onCall(async (request) => {
       })),
   };
 });
+
+
+export const getOwnerAttendanceRewardPolicy = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await ATTENDANCE_REWARD_POLICY.get();
+  let policy;
+  try {
+    policy = snapshot.exists
+      ? validateAttendanceRewardPolicy(snapshot.data()?.policy)
+      : defaultAttendanceRewardPolicy();
+  } catch {
+    throw new HttpsError("failed-precondition", "سياسة مكافآت الحضور غير صالحة؛ تم إيقاف التعديل.");
+  }
+  return { policy, version: snapshot.data()?.version ?? 0 };
+});
