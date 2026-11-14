@@ -2,14 +2,13 @@
   "name": "mawda-platform-functions",
   "private": true,
   "main": "lib/index.js",
-  "engines": {
-    "node": "20"
-  },
+  "engines": { "node": "20" },
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "test": "npm run build && node --check scripts/bootstrap-owner.cjs && node --check scripts/test-signed-urls-http.cjs && node --check scripts/test-retention-storage.cjs && node --test test/*.test.js",
+    "test": "npm run build && node --check scripts/bootstrap-owner.cjs && node --check scripts/test-signed-urls-http.cjs && node --check scripts/test-retention-storage.cjs && node --check scripts/seed-test-accounts.cjs && node --test test/*.test.js",
     "bootstrap:owner": "node scripts/bootstrap-owner.cjs",
+    "test:seed-accounts": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawdda-test-accounts \"MAWDDA_ALLOW_TEST_SEED=1 node scripts/seed-test-accounts.cjs\"",
     "test:rules": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-rules \"node --test test/rules/*.test.js\"",
     "test:media-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-media \"node --test test/integration/media-callables.integration.test.js\"",
     "test:media-signed-urls-http": "npm run build && node scripts/test-signed-urls-http.cjs",
