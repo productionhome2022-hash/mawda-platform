@@ -6359,6 +6359,7 @@ export {
   enqueueMediaSecurityScan,
   dispatchMediaSecurityScan,
   receiveMediaScanVerdict,
+  getTimedAdCreativeUrl,
 } from "./media";
 
 export { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative };
@@ -7187,26 +7188,53 @@ export const setTimedAdCampaign = onCall(async (request) => {
       (typeof requestedId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestedId))) {
     throw new HttpsError("invalid-argument", "معرف الحملة غير صالح.");
   }
+  const mediaId = request.data?.mediaId;
+  if (mediaId !== undefined &&
+      (typeof mediaId !== "string" || !/^[0-9a-f-]{36}$/i.test(mediaId))) {
+    throw new HttpsError("invalid-argument", "معرف مادة الإعلان غير صالح.");
+  }
   const campaignRef = requestedId
     ? db.collection("timedAdCampaigns").doc(requestedId)
     : db.collection("timedAdCampaigns").doc(randomUUID());
+  const mediaRef = typeof mediaId === "string" ? db.collection("mediaAssets").doc(mediaId) : null;
   const result = await db.runTransaction(async (transaction) => {
-    const previous = await transaction.get(campaignRef);
+    const [previous, mediaSnapshot] = await Promise.all([
+      transaction.get(campaignRef),
+      mediaRef ? transaction.get(mediaRef) : Promise.resolve(null),
+    ]);
     if (previous.exists && !["draft", "paused"].includes(String(previous.data()?.status))) {
       throw new HttpsError("failed-precondition", "أوقف الحملة قبل تعديل إعداداتها.");
+    }
+    let creativeType = "text";
+    let creativeContentType: string | null = null;
+    if (mediaRef && mediaSnapshot?.exists) {
+      const media = mediaSnapshot.data()!;
+      if (media.ownerUid !== actorUid || media.uploaderRole !== "platform_owner" ||
+          media.mediaPurpose !== "advertisement" || media.status !== "security_approved" ||
+          !["image", "video"].includes(String(media.mediaCategory))) {
+        throw new HttpsError("failed-precondition", "مادة الإعلان يجب أن تكون مرفوعة من المالك واجتازت الفحص الأمني.");
+      }
+      creativeType = media.mediaCategory === "video"
+        ? "video" : media.detectedContentType === "image/gif" ? "gif" : "image";
+      creativeContentType = String(media.detectedContentType ?? media.declaredContentType);
+    } else if (mediaRef) {
+      throw new HttpsError("not-found", "مادة الإعلان غير موجودة.");
     }
     const version = (Number.isSafeInteger(previous.data()?.version)
       ? previous.data()!.version : 0) + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(campaignRef, {
-      ...input, campaignId: campaignRef.id, creativeType: "text",
+      ...input, campaignId: campaignRef.id, creativeType,
+      mediaId: mediaId ?? null,
+      mediaOwnerUid: mediaId ? actorUid : null,
+      creativeContentType,
       status: previous.exists ? previous.data()?.status : "draft",
       version, spentRewardCoins: previous.data()?.spentRewardCoins ?? 0,
       createdAt: previous.data()?.createdAt ?? now,
       createdBy: previous.data()?.createdBy ?? actorUid,
       updatedAt: now, updatedBy: actorUid,
     });
-    return { campaignId: campaignRef.id, version, status: previous.exists ? previous.data()?.status : "draft" };
+    return { campaignId: campaignRef.id, version, status: previous.exists ? previous.data()?.status : "draft", creativeType };
   });
   await appendOwnerReviewAuditEvent({
     actorUid, action: "timed_ad_campaign_saved", ...result, outcome: "success",
@@ -7339,6 +7367,7 @@ export const startTimedAdvertisement = onCall(async (request) => {
       sessionId, campaignId, durationSeconds: data.durationSeconds,
       rewardCoins: data.rewardCoins, expiresAtMs, heartbeatIntervalMs: 5000,
       title: data.title, sponsorLabel: data.sponsorLabel, body: data.body,
+      mediaId: data.mediaId ?? null, creativeType: data.creativeType ?? "text",
     };
   });
   return result;
@@ -7363,6 +7392,8 @@ export const getActiveTimedAdSession = onCall(async (request) => {
     title: campaign.data()?.title ?? "إعلان",
     sponsorLabel: campaign.data()?.sponsorLabel ?? "",
     body: campaign.data()?.body ?? "",
+    mediaId: campaign.data()?.mediaId ?? null,
+    creativeType: campaign.data()?.creativeType ?? "text",
   };
 });
 
