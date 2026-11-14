@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { calculateOwnerAuditHash, OwnerAuditEvent } from "./owner-audit-chain";
+import { calculateOwnerAuditHash } from "./owner-audit-chain";
+import type { OwnerAuditEvent } from "./owner-audit-chain";
 
 export const OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS = 63_072_000;
 export const OWNER_AUDIT_ARCHIVE_MIN_AGE_MS = 5 * 60 * 1000;
@@ -100,6 +101,7 @@ export function ownerAuditArchiveObjectName(
     throw new Error("INVALID_AUDIT_ARCHIVE_OBJECT_RANGE");
   }
   const date = new Date(createdAtMs);
+  if (!Number.isFinite(date.getTime())) throw new Error("INVALID_AUDIT_ARCHIVE_DATE");
   const yyyy = date.getUTCFullYear();
   const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
   const dd = String(date.getUTCDate()).padStart(2, "0");
