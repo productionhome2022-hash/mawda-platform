@@ -1,8 +1,9 @@
 # Mawdda Platform — Deep Audit of Phase 1 and Phase 2
 **Audit date:** 2026-11-14  
-**Audited development head:** `4ed7394235ea531e4b4abbb24431731da15eaf47`  
-**Follow-up work:** fast-forwarded into `codex/mawda-full-platform-implementation`; no merge to `main`.  
-**Exact-head CI:** [run 43580251762](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43580251762), 3/3 jobs successful on the audited head.  
+**Initial audited head:** `4ed7394235ea531e4b4abbb24431731da15eaf47`. This historical audit has been reconciled by the 14 November follow-up below.  
+**Current development head at reconciliation:** `7aa8e7c031001ebdf326552225021182c116fd4e`.  
+**Current exact-head validation:** [run 43606233324](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43606233324), all 3 jobs successful.  
+**Native build validation:** [run 43606228297](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43606228297), Android debug APK and unsigned iOS build plus native scaffolding commit successful.  
 **Release decision:** Phase 1 and Phase 2 remain OPEN. This audit is not production approval.
 
 ## 1. Executive result
@@ -16,7 +17,7 @@ The current development baseline has substantial working foundations and a green
 
 The store is not a single undifferentiated feature. Twelve premium SKUs are server-allowlisted and covered by transactional emulator tests; two privacy SKUs are deliberately fail-closed. Most of the twelve have concrete profile consumers. The custom-title SKU previously exposed the catalog title but had no member editor. The follow-up adds an entitlement-gated custom-title callable, profile editor, audit entry, and expiry tests; the exact-head CI run passed.
 
-The native Android and iOS project directories are absent from the development tree. Therefore the web release build does not validate Android BiometricPrompt, iOS LocalAuthentication/Face ID, native permissions, or mobile app packaging. No Android APK/AAB or iOS build is claimed here.
+At the initial audit snapshot, native Android/iOS projects were absent. Follow-up workflow `43606228297` generated both runners, configured Firebase app options and microphone permissions, built an Android debug APK, completed an unsigned iOS build, and committed the generated native scaffolding. This is CI build evidence only; signed release packaging, Firebase Console review, physical-device installation, Auth, push, biometric, microphone, and media acceptance remain open.
 
 ## 2. Store-by-store audit
 
@@ -96,17 +97,17 @@ The native Android and iOS project directories are absent from the development t
 - The 90-day renewal callable resets the Auth verification state, creates a pending cycle, and credits 500 coins only after Firebase Auth reports the same email verified again. Emulator tests simulate link redemption by updating the Auth emulator user; they do not prove real email deliverability or inbox/deep-link behavior.
 
 ### Guest lifecycle
-- Anonymous Firebase Auth guest sessions, guest-specific privacy acknowledgement, restricted guest screen, upgrade by linking email/password, and explicit guest account deletion/sign-out are present.
-- The guest is not granted member wallet, store or private-chat access.
-- The upgrade flow still needs real Auth emulator/device acceptance for collisions, interrupted verification, link expiry, account recovery and data continuity.
+- The development branch now includes age-free guest onboarding (username, country, gender only), guest privacy acknowledgement, server-authoritative 60-minute session/24-hour cooldown, explicit session start/status/end, and public-room discovery limited to active rooms approved as `all_ages`.
+- Guest server authorization covers room join, text send/read, and audio attachment delivery; guests are denied DMs, private/adult/unapproved rooms, wallet, store, coin and member-only features. Guest UI includes text, microphone recording and in-app audio playback.
+- Emulator suites cover guest session/privacy and seeded persona interaction. Native Flutter UI-to-callable device E2E, account recreation abuse controls, App Check/device attestation, upgrade collision/recovery and physical-device media acceptance remain open.
 
 ### Local biometric prompt and reward — exact trust boundary
-- Flutter uses `local_auth` for a native OS prompt; the app does not collect or upload biometric samples/templates.
-- On successful prompt, the client calls `completeBiometricVerificationCycle`; the backend atomically applies the 30-day interval, 1,500-coin reward, wallet ledger and audit record once per cycle.
-- The server explicitly records `client_claim_after_local_os_prompt`. It cannot cryptographically prove that the native prompt was shown by an unmodified app. A modified client could forge the claim.
-- This is the owner-approved engagement-reward model, not civil identity proof, liveness detection, secure account recovery, or an alternative to email/password authentication. It must not authorize high-risk identity decisions.
-- The client now keeps the biometric action locked until the server response completes, avoiding duplicate concurrent UI requests.
-- **Critical platform gap:** `android/` and `ios/` directories are absent. Android `FlutterFragmentActivity`/BiometricPrompt configuration, iOS Face ID usage description, native builds and physical-device tests remain unimplemented/unverified.
+- Flutter can invoke the native OS local-auth prompt; the app does not collect or upload biometric samples/templates.
+- A local OS prompt result is not cryptographic proof to the backend. The backend callable now fails closed and does not issue the 1,500-coin reward, create biometric verification status, or write a reward ledger entry from client-only claims.
+- Historical records with `local_os_biometric_prompt` or `client_claim_after_local_os_prompt` are ineligible for biometric entitlements. Historical wallet credits are not automatically clawed back; any remediation requires a separate ledger audit and owner approval.
+- The 1,500-coin reward remains disabled until challenge-bound device-key proof, nonce freshness, UID/platform/key binding, signature validation, replay protection, revocation/expiry, atomic idempotent ledger credit, and physical-device acceptance are implemented.
+- This local device unlock is not civil identity proof, liveness detection, secure account recovery, or an alternative to email/password authentication. It must not authorize high-risk identity decisions.
+- Android/iOS runner scaffolding and native CI builds now exist; physical-device biometric tests and cryptographic attestation remain open.
 
 ## 5. Owner / Super Admin operations console
 
@@ -153,7 +154,7 @@ Baseline run [43578704801](https://github.com/productionhome2022-hash/mawda-plat
 
 The follow-up branch adds custom-title fulfillment tests, biometric UI duplicate-action protection, this audit, and a CI trigger for pushes/PRs targeting the development branch. Those follow-up changes passed the exact-head CI run 43580251762. The three jobs (Flutter, Cloud Functions/emulator suite, and ClamAV scanner) all completed successfully.
 
-The current Flutter test inventory contains only the coin-transfer model test and local-biometric service test. Flutter CI does not yet exercise the login, profile, shop, owner console, room or media screens as widget tests.
+The current green Flutter CI run reports 11 tests passed and `flutter analyze` with no issues. This remains a small unit/widget test inventory relative to the full product: login, profile, shop, owner console, room, guest lifecycle and member-media screens still need broader widget/integration and physical-device coverage.
 
 ## 8. Required closure plan
 
@@ -162,7 +163,8 @@ The current Flutter test inventory contains only the coin-transfer model test an
 - [ ] Add Flutter widget/integration tests for email sign-up/login/verification gate, guest upgrade/end, shop filters/purchase-disabled state, profile premium effects/expiry, and owner console navigation/error states.
 - [ ] Expand owner-console controls and observability only against approved product requirements; do not invent active controls for unimplemented backend operations.
 - [ ] Reconcile all constitution requirements with actual code, including social-provider verification, privacy policy version migration, guest scope and owner review scope.
-- [ ] Add native Android/iOS project scaffolding and platform configuration, then run Android debug/release builds and iOS no-code-sign build in CI.
+- [x] Generate Android/iOS native scaffolding, configure Firebase options and microphone permissions, build Android debug APK, and complete unsigned iOS build in CI run `43606228297`.
+- [ ] Produce signed release artifacts only after owner-controlled signing configuration and release approval; complete physical-device acceptance.
 - [ ] Add a clear email verification instruction to check Inbox and Spam/Junk and verify the real action-link continuation on configured Firebase Auth domains.
 - [ ] Add/verify negative tests for revoked/expired entitlements, account suspension, direct API bypass, price changes, purchase replay, and wallet ledger invariants.
 
@@ -183,6 +185,6 @@ The current Flutter test inventory contains only the coin-transfer model test an
 ## 9. Release boundary
 
 - PR #2 remains Draft/open/unmerged to `main`.
-- PR #10 is a Draft follow-up to the development branch; it is not a production change.
+- PR #13 (member inbox/privacy), PR #15 (premium purchase/profile acceptance), and PR #16 (test center/personas) remain separate Draft follow-ups; none is a production change.
 - No production Firebase mutation, Cloud Run deployment, GCS bucket configuration, destructive retention schedule, or production deployment is claimed.
 - Phase 1 and Phase 2 remain **OPEN** until every applicable code, emulator, live-cloud, security, legal, recovery and device gate has evidence.
