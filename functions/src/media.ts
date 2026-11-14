@@ -1556,10 +1556,24 @@ export const getTimedAdCreativeUrl = onCall(async (request) => {
   try { [metadata] = await file.getMetadata(); } catch {
     throw new HttpsError("failed-precondition", "تعذر التحقق من نسخة الإعلان الآمنة.");
   }
+  const custom = metadata.metadata as Record<string, unknown> | undefined;
+  const derivativeSha256 = isVideo ? asset.safeVideoSha256
+    : isGif ? asset.safeAnimationSha256 : asset.safePreviewSha256;
+  const processingPipeline = isVideo ? "ffmpeg-video-transcode-v1"
+    : isGif ? "gif-sanitize-preserve-animation-v1" : "sharp-decode-reencode-v1";
+  const maximumBytes = isVideo ? 50 * 1024 * 1024
+    : isGif ? 5 * 1024 * 1024 : 2 * 1024 * 1024;
   if (String(metadata.generation) !== derivativeGeneration ||
       metadata.contentType !== expectedContentType ||
-      !Number.isSafeInteger(Number(metadata.size)) || Number(metadata.size) <= 0) {
-    throw new HttpsError("failed-precondition", "تغيرت نسخة الإعلان الآمنة.");
+      !Number.isSafeInteger(Number(metadata.size)) || Number(metadata.size) <= 0 ||
+      Number(metadata.size) > maximumBytes ||
+      typeof derivativeSha256 !== "string" ||
+      custom?.mediaId !== mediaId ||
+      custom?.sourceGeneration !== String(asset.storageGeneration) ||
+      custom?.sourceSha256 !== asset.scannerSha256 ||
+      custom?.scannerProvider !== asset.scannerProvider ||
+      custom?.processing !== processingPipeline) {
+    throw new HttpsError("failed-precondition", "تغيرت نسخة الإعلان الآمنة أو تعذر إثبات مصدرها.");
   }
   const expiresAt = Date.now() + 2 * 60 * 1000;
   const [url] = await file.getSignedUrl({
