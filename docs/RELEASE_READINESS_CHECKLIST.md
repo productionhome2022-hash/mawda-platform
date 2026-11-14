@@ -268,3 +268,17 @@ Implementation review on the development branch confirms the following code is p
 - [ ] Complete real Android/iOS microphone permission and media-delivery smoke tests. Native Firebase app configuration, generated runners, Android debug APK and unsigned iOS CI build have passed; physical-device installation, permission prompts, recording, upload, playback, interruption and CORS checks remain required.
 
 Latest exact-head automated validation: [run 43607804675](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43607804675) passed on `570bfe410d33a8aa698dd1d2bcd2d8b76788743c`; it includes the guest-session and seeded persona interactions, member/guest privacy, wallet/store, media, retention, legal-hold and rules suites. Native CI builds are green in [run 43606228297](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43606228297). Physical-device and live-cloud acceptance remain open. No production deployment or merge is authorized by these implementation notes.
+
+
+## Latest development-head reconciliation — 14 November 2026
+
+- Current development head at this documentation update: `dec6f66e6f49858c436b0b5709a59b84f91de31c` (documentation-only reconciliation after the validated code head).
+- Exact application-code head immediately before this documentation update: `f4e69e166f6ad7651f63fdf5391f1844ee124c9e`.
+- Validation run [43611868764](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43611868764) passed all three jobs on that exact application-code head: Flutter analysis/tests/Web release build; Cloud Functions compile, unit/integration and Firestore/Storage emulator rules suites; isolated ClamAV scanner image and sanitization/security tests.
+- Documentation-only commits do not change the application code covered by that run. Any subsequent application-code change must receive fresh exact-head validation before being marked verified.
+- Earlier native bootstrap run [43606228297](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43606228297) produced an Android debug APK and unsigned iOS build on an earlier code head. These are not signed release artifacts and do not replace final-candidate native builds or physical-device acceptance.
+- PR #2 remains Draft/open/unmerged. Production Firebase deployment, live data mutation, irreversible retention locking, destructive cleanup and payment activation remain unauthorized.
+
+### Firebase owner-side evidence request — read-only
+
+Before enabling live media, independently confirm the actual Storage bucket name(s) in Firebase Console / Google Cloud Storage for project `mawda-app-2026`. The historical owner-supplied configuration record lists `mawda-app-2026.appspot.com`; current FlutterFire-generated client configuration lists `mawda-app-2026.firebasestorage.app`. Record which bucket is the default Firebase Storage bucket, whether the other bucket exists and what purpose it serves, and the region. Then verify the non-production Functions runtime bucket, `MAWDA_MEDIA_TEST_BUCKET`, IAM and CORS. Do not test uploads or deletions against production data. Never paste access tokens, private keys, service-account JSON, or full credential files into chat.
