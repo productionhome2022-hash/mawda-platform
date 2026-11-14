@@ -151,3 +151,33 @@ The preceding failure in run 43473863520 was a test-harness import omission: the
 - Non-production GCS/Cloud Run scanner E2E, signed URL and generation-pinned deletion, backups/PITR/restore, FCM real delivery, mobile-device acceptance, privacy/legal review, penetration/accessibility/performance tests, owner MFA recovery and immutable 24-month audit archive/checkpoint remain release gates.
 - Generated Flutter web output and Firebase CLI cache are removed from the PR as file deletions; `.gitignore` continues to exclude future generated output. The release workflow rebuilds `build/web` from the committed Flutter source and lockfile.
 - Phase 3 remains paused pending the owner's separate proposal and approval.
+
+
+## I. 14 November 2026 — current implementation and acceptance reconciliation
+
+This addendum supersedes older snapshot statements above wherever they conflict with the current development branch. Historical test-run references remain as historical evidence only.
+
+### Exact-head automated validation
+- Current reconciled code head at the time of this addendum: `7aa8e7c031001ebdf326552225021182c116fd4e`.
+- [Run 43606233324](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43606233324) passed all three validation jobs: Flutter analysis (no issues), 11 Flutter tests, Web release build; Cloud Functions build and configured emulator integration/rules suites; isolated scanner tests and image build.
+- [Run 43606228297](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43606228297) generated native Android/iOS runners, configured Android/iOS/Web Firebase options, built an Android debug APK, completed an unsigned iOS build, and committed the generated native scaffolding.
+- A later shared member audio-controls implementation was included in the green Flutter analysis/tests/Web build and native builds. A redundant guest-room approval predicate was removed after that green run; its exact-head rerun is tracked separately.
+
+### Current product corrections
+- Guest preview is no longer merely an anonymous account marker: the development branch implements age-free username/country/gender onboarding, guest privacy acknowledgement, trusted 60-minute session and 24-hour cooldown, all-ages approved public-room discovery, text/audio send/receive, and server-side denial of private/adult/unapproved rooms, DMs, wallet, store, gifts and member-only operations. Emulator suites cover guest session/privacy and seeded persona interaction. Physical-device UI-to-callable tests and anonymous-account recreation/App Check abuse resistance remain open.
+- In-app audio capture and playback are implemented in guest rooms, member direct chats and member public rooms. CI proves analysis/build compatibility; device microphone, permission, upload, playback, CORS and interruption acceptance remain open.
+- Android/iOS native project scaffolding and Firebase app configuration are now generated in CI. Android debug APK and unsigned iOS build succeeded; neither is a signed store-ready release.
+- The biometric 1,500-coin reward is intentionally disabled fail-closed. A local Android/iOS OS prompt is not cryptographic server proof; the backend rejects client-only claims without wallet credit or entitlement. Re-enable only after challenge-bound device-key proof, nonce freshness, UID/platform/key binding, replay/revocation/expiry controls, atomic idempotent credit and real-device acceptance.
+- The 90-day email verification renewal callable and emulator coverage exist; real Firebase Auth email delivery, link continuation and device acceptance remain open.
+- The premium catalog has 12 server-allowlisted purchasable items with emulator coverage for wallet debit, receipt, ledger, entitlement projection and idempotent retry; two privacy add-ons remain fail-closed until their full semantics are implemented.
+- Member inbox and two-way blocked-chat read privacy are implemented in separate Draft PR #13; premium purchase-to-profile coverage is in Draft PR #15; isolated seeded test personas and test-center runbooks are in Draft PR #16. These PRs remain unmerged.
+
+### Remaining Phase 1/2 release gates
+- Live non-production GCS signed-upload/download, actual bucket reconciliation, scanner Cloud Run deployment/IAM/WIF, media retention and exact-generation deletion.
+- App Check/device attestation, protection against anonymous UID recreation, physical-device acceptance for Android/iOS, signed release configuration and independent Firebase Console review.
+- Canonical owner account bootstrap, real MFA enrollment/recovery and owner operations acceptance in a disposable non-production project.
+- Real-money payment gateway, verified provider webhooks, refunds/chargebacks and settlement/reconciliation; manual owner-approved external-payment coin requests are a separate implemented workflow.
+- Voice/video calling, room rental lifecycle/billing acceptance, full owner observability, FCM real delivery, immutable 24-month audit archive/checkpoint/restore drills.
+- Legal/privacy/DPIA review, accessibility, penetration, performance/load and incident-recovery exercises.
+
+**Release decision remains OPEN.** PR #2 and follow-up PRs remain Draft/open/unmerged. No production deployment, live Firebase mutation, destructive retention activation, or Phase 3 work is authorized by this addendum.
