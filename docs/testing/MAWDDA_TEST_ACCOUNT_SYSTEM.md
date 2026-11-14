@@ -14,7 +14,7 @@ Status: **Phase 0/1 foundation**. This specification and its validated persona c
 ## Persona catalogue
 The machine-readable catalogue is functions/test/fixtures/test-account-personas.json.
 
-1. **guest-preview** — anonymous visitor; browse only public member discovery, public shops/catalogue and ads. No rewards, wallet, messaging, gifts, room participation/rental, purchases or member-only data. Real policy: one hour per rolling 24 hours. Emulator-only test clock controls can advance/reset time; they must never be callable in staging/production.
+1. **guest-preview** — anonymous visitor; one hour per rolling 24 hours. May browse public discovery, shops/catalogue and ads, join public rooms, and send/receive text and audio messages there only. No direct messages, private rooms, room rental/moderation, gifts, rewards, wallet, purchases, images, GIFs, video, documents or member-only data. Emulator-only test clock controls can advance/reset time; they must never be callable in staging/production.
 2. **email-member** — Firebase email/password account with email verification completed in the emulator; exercises the ordinary member entitlement set.
 3. **biometric-member** — verified email member plus a separately seeded, expiring biometric-verification fixture in emulator only. The app must still exercise the actual biometric challenge flow on supported physical devices before claiming hardware acceptance.
 4. **owner-operator** — isolated owner-console test identity. Owner actions remain blocked unless the test environment completes the same MFA second-factor flow and recent-auth requirements enforced by hasPlatformOwnerSession. A persona fixture must never bypass MFA or create a production owner.
@@ -29,7 +29,7 @@ The app's canonical user schema is authoritative. Before writing users/{uid}, th
 
 ## Capability and scenario coverage
 - Authentication: anonymous guest, email verification, expired/revoked sessions, sign-out, account upgrade and re-authentication.
-- Guest boundary: browse permitted public discovery, shop catalogue and ads; deny private profiles, messages, media, wallet, rewards, room join/rental, gifts and all purchase mutations.
+- Guest boundary: browse public discovery, shop catalogue and ads; join public rooms and send/receive text and audio there. Deny direct messages, private rooms, images/GIF/video/documents, wallet, rewards, gifts, room rental and all purchase mutations.
 - Member profiles: create/edit/view privacy, profile media, premium layout, pinned sections, themes/backgrounds, avatar frames, colored/animated names, analytics, greeting, VIP badges and discovery boost.
 - Chat/media: direct and room messaging, delivery/read receipts, block/report/delete, retry/idempotency, upload/download and retention. Members may exchange only ordinary images, GIF, audio and video; PDF/documents remain owner-only.
 - Wallet/economy: coin packages, sandbox top-up lifecycle, balance checks, two-sided transfer ledger, fees, gift debit/credit, duplicate request protection, insufficient balance and reversal/refund paths.
