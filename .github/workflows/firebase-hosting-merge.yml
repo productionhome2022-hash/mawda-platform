@@ -41,7 +41,7 @@ jobs:
       - name: Build Web Release
         env:
           MAWDA_FCM_VAPID_KEY: ${{ vars.MAWDA_FCM_VAPID_KEY }}
-        run: flutter build web --release --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY"
+        run: flutter build web --release --dart-define=MAWDDA_FIREBASE_ENV=production --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY"
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
