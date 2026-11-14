@@ -22,9 +22,6 @@
         "emulatorClockOverrideOnly": true
       },
       "capabilities": [
-        "browse.publicMemberDiscovery",
-        "browse.publicShopCatalog",
-        "browse.publicAds",
         "rooms.public.join",
         "chat.publicRooms.text.send",
         "chat.publicRooms.text.receive",
