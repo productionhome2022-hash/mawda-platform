@@ -90,7 +90,10 @@
         "adult-and-private-room-denial",
         "session-end-and-cooldown-denial",
         "owner-explicit-general-audience-approval",
-        "public-room-audio-attachment-send-receive"
+        "public-room-audio-attachment-send-receive",
+        "direct-message-denial",
+        "store-purchase-denial",
+        "member-block-operation-denial"
       ],
       "plannedCases": [
         "real-device-audio-recording-and-playback",
