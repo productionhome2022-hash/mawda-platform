@@ -56,20 +56,30 @@ test("premium profile features enforce entitlements, count unique views, and ran
     minorRef.set(profile(17)),
     blockedRef.set(profile(30, { blockedUids: [viewerUid] })),
   ]);
-  await Promise.all([
-    targetRef.collection("entitlements").doc("profile_analytics_30d").set({
-      itemId: "profile_analytics_30d", itemName: "تحليلات الملف",
-      category: "analytics", status: "active", purchasedAt: Timestamp.fromMillis(now), expiresAt: future,
+  const profileEntitlements = [
+    ["vip_monthly", "عضوية VIP", "vip"],
+    ["title_custom", "لقب النخبة", "title"],
+    ["badge_special", "وسام مودة", "badge"],
+    ["avatar_frame_30d", "إطار مميز", "frame"],
+    ["username_color_30d", "اسم ملون", "username_style"],
+    ["username_animated_30d", "اسم متحرك", "username_style"],
+    ["profile_analytics_30d", "تحليلات الملف", "analytics"],
+    ["profile_layout_30d", "ملف احترافي", "profile_layout"],
+    ["profile_pin_30d", "قسم مثبت", "profile_layout"],
+    ["discovery_boost_7d", "ظهور معزز", "boost"],
+    ["profile_theme_30d", "سمة مميزة", "theme"],
+    ["visitor_greeting_30d", "ترحيب الزوار", "greeting"],
+  ];
+  await Promise.all(profileEntitlements.map(([itemId, itemName, category]) =>
+    targetRef.collection("entitlements").doc(itemId).set({
+      itemId,
+      itemName,
+      category,
+      status: "active",
+      purchasedAt: Timestamp.fromMillis(now),
+      expiresAt: future,
     }),
-    targetRef.collection("entitlements").doc("visitor_greeting_30d").set({
-      itemId: "visitor_greeting_30d", itemName: "ترحيب الزوار",
-      category: "greeting", status: "active", purchasedAt: Timestamp.fromMillis(now), expiresAt: future,
-    }),
-    targetRef.collection("entitlements").doc("profile_pin_30d").set({
-      itemId: "profile_pin_30d", itemName: "قسم مثبت",
-      category: "profile_layout", status: "active", purchasedAt: Timestamp.fromMillis(now), expiresAt: future,
-    }),
-  ]);
+  ));
 
   try {
     const firstView = await getMemberProfile.run(call(viewerUid, { userId: targetUid }));
@@ -80,6 +90,12 @@ test("premium profile features enforce entitlements, count unique views, and ran
     await getMemberProfile.run(call(viewerUid, { userId: targetUid }));
     const ownerView = await getMemberProfile.run(call(targetUid, { userId: targetUid }));
     assert.equal(ownerView.profileAnalytics.last7DaysViews, 1);
+    assert.equal(ownerView.vipActive, true);
+    assert.equal(ownerView.activeTitle, "لقب النخبة");
+    assert.deepEqual(
+      new Set(ownerView.activeFeatures.map((feature) => feature.itemId)),
+      new Set(profileEntitlements.map(([itemId]) => itemId)),
+    );
 
     await setMemberProfileVisitorGreeting.run(call(targetUid, { greeting: "أهلاً بك في مودة!" }));
     await setMemberPinnedProfileSection.run(call(targetUid, { section: "gallery" }));
