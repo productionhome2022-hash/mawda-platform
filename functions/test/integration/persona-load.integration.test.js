@@ -5,7 +5,12 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const { performance } = require("node:perf_hooks");
 const { transferCoins, sendDirectMessage, getDirectMessages } = require("../../lib/index");
-const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
+const {
+  getMemberProfile, setMemberProfileVisitorGreeting, setMemberPinnedProfileSection,
+  setMemberCustomTitle, discoverMembers, joinRoom, createRoomEvent,
+  listRoomEvents, rsvpRoomEvent, setRoomEventStatus,
+} = require("../../lib/index");
 const { getAuth } = require("firebase-admin/auth");
 
 const db = getFirestore();
@@ -14,7 +19,7 @@ const fixturePath = process.env.MAWDDA_LOAD_FIXTURE || "mawdda-load-artifacts/pe
 const fixture = JSON.parse(fs.readFileSync(fixturePath, "utf8"));
 const personas = fixture.personas;
 const BATCH_SIZE = 125;
-const metrics = { createdUsers: 0, scenarios: [], personaCoverage: [] };
+const metrics = { createdUsers: 0, scenarios: [], personaCoverage: [], lifecycleCoverage: [] };
 
 function percentile(values, p) {
   if (!values.length) return 0;
@@ -275,6 +280,139 @@ for (const count of [500, 1000, 2500, 5000]) {
   });
 }
 
+
+test("all 5000 personas complete a connected member, premium-profile, discovery, room and event lifecycle", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  assert.ok(process.env.FIREBASE_AUTH_EMULATOR_HOST, "Auth emulator is required");
+  assert.equal(metrics.createdUsers, 5000, "the complete 5000-persona fixture must be provisioned first");
+
+  const now = Date.now();
+  const expiresAt = Timestamp.fromMillis(now + 7 * 24 * 60 * 60 * 1000);
+  const roomId = "persona_lifecycle_" + fixture.generatedAt.replace(/[^0-9]/g, "").slice(0, 14);
+  const owner = personas[0];
+  const ownerUid = owner.uid;
+  const roomRef = db.collection("rooms").doc(roomId);
+  const coverage = new Map(personas.map((persona) => [persona.personaId, {
+    personaId: persona.personaId, uid: persona.uid,
+    premiumEntitlementsProvisioned: false,
+    greetingAndPinnedSectionUpdated: false,
+    peerProfileViewed: false,
+    discoveryExecuted: false,
+    roomJoined: false,
+    eventListed: false,
+    eventRsvpConfirmed: false,
+  }]));
+  let eventId = null;
+
+  try {
+    // Sandbox entitlement fixtures only: never real purchases or payment grants.
+    await inBatches(personas, 25, async (persona) => {
+      const userRef = db.collection("users").doc(persona.uid);
+      const entitlementIds = [
+        ["vip_monthly", "vip"], ["title_custom", "title"],
+        ["profile_analytics_30d", "analytics"], ["profile_pin_30d", "profile_layout"],
+        ["visitor_greeting_30d", "greeting"], ["discovery_boost_7d", "boost"],
+      ];
+      const batch = db.batch();
+      for (const [itemId, category] of entitlementIds) {
+        batch.set(userRef.collection("entitlements").doc(itemId), {
+          itemId, itemName: "TEST_ONLY_" + itemId, category, status: "active",
+          purchasedAt: Timestamp.fromMillis(now), expiresAt,
+          testOnly: true, loadTestRun: fixture.generatedAt,
+        });
+      }
+      batch.update(userRef, { profileVisibility: "public", profileCompleted: true, accountStatus: "active" });
+      await batch.commit();
+      coverage.get(persona.personaId).premiumEntitlementsProvisioned = true;
+    });
+
+    await inBatches(personas, 25, async (persona, index) => {
+      const greeting = "مرحباً من " + persona.personaId;
+      await setMemberProfileVisitorGreeting.run({ data: { greeting }, auth: callableAuth(persona.uid) });
+      await setMemberPinnedProfileSection.run({ data: { section: "interests" }, auth: callableAuth(persona.uid) });
+      await setMemberCustomTitle.run({ data: { title: "سفير " + persona.personaId }, auth: callableAuth(persona.uid) });
+      const peer = personas[index % 2 === 0 ? index + 1 : index - 1];
+      const viewed = await getMemberProfile.run({
+        data: { userId: peer.uid }, auth: callableAuth(persona.uid),
+      });
+      assert.equal(viewed.uid, peer.uid);
+      assert.equal(viewed.visitorGreeting, "مرحباً من " + peer.personaId);
+      assert.equal(viewed.pinnedProfileSection, "interests");
+      coverage.get(persona.personaId).greetingAndPinnedSectionUpdated = true;
+      coverage.get(persona.personaId).peerProfileViewed = true;
+    });
+
+    await inBatches(personas, 25, async (persona) => {
+      const result = await discoverMembers.run({ data: {}, auth: callableAuth(persona.uid) });
+      assert.ok(Array.isArray(result.members), "discovery must return a members array");
+      coverage.get(persona.personaId).discoveryExecuted = true;
+    });
+
+    await roomRef.set({
+      roomId, name: "Mawdda 5000 Persona Lifecycle Lab", kind: "public",
+      audience: "all_ages", status: "active", ownerUid, capacity: 6000,
+      memberCount: 0, invitedUids: [], isTestAccount: true, loadTestRun: fixture.generatedAt,
+    });
+    await roomRef.collection("members").doc(ownerUid).set({ uid: ownerUid, role: "owner" });
+    coverage.get(owner.personaId).roomJoined = true;
+
+    await inBatches(personas.slice(1), 25, async (persona) => {
+      await joinRoom.run({ data: { roomId }, auth: callableAuth(persona.uid) });
+      coverage.get(persona.personaId).roomJoined = true;
+    });
+
+    const created = await createRoomEvent.run({
+      data: {
+        roomId, title: "لقاء مجتمع مودة التجريبي",
+        description: "حدث آلي لاختبار دورة حياة الشخصيات الاصطناعية.",
+        eventType: "announcement", startsAtMs: Date.now() + 60 * 60 * 1000,
+        durationMinutes: 30,
+      },
+      auth: callableAuth(ownerUid),
+    });
+    eventId = created.eventId;
+    assert.equal(created.status, "scheduled");
+
+    await inBatches(personas, 25, async (persona) => {
+      const listed = await listRoomEvents.run({ data: { roomId }, auth: callableAuth(persona.uid) });
+      assert.ok(listed.events.some((event) => event.eventId === eventId));
+      coverage.get(persona.personaId).eventListed = true;
+      await rsvpRoomEvent.run({ data: { eventId }, auth: callableAuth(persona.uid) });
+      const verified = await listRoomEvents.run({ data: { roomId }, auth: callableAuth(persona.uid) });
+      const ownEvent = verified.events.find((event) => event.eventId === eventId);
+      assert.ok(ownEvent);
+      assert.equal(ownEvent.isAttending, true);
+      coverage.get(persona.personaId).eventRsvpConfirmed = true;
+    });
+
+    await setRoomEventStatus.run({ data: { eventId, status: "live" }, auth: callableAuth(ownerUid) });
+    await setRoomEventStatus.run({ data: { eventId, status: "completed" }, auth: callableAuth(ownerUid) });
+    const finalEvent = await db.collection("roomEvents").doc(eventId).get();
+    assert.equal(finalEvent.data().status, "completed");
+
+    const rows = [...coverage.values()];
+    const required = [
+      "premiumEntitlementsProvisioned", "greetingAndPinnedSectionUpdated",
+      "peerProfileViewed", "discoveryExecuted", "roomJoined", "eventListed", "eventRsvpConfirmed",
+    ];
+    for (const field of required) {
+      assert.equal(rows.filter((row) => row[field]).length, 5000,
+        "all 5000 personas must complete " + field);
+    }
+    metrics.lifecycleCoverage = rows;
+    console.log("[persona-lifecycle:coverage] " + JSON.stringify({
+      personas: rows.length, stages: required,
+      completedRows: rows.filter((row) => required.every((field) => row[field])).length,
+      roomId, eventId,
+    }));
+  } finally {
+    if (eventId) await db.recursiveDelete(db.collection("roomEvents").doc(eventId)).catch(() => undefined);
+    await db.recursiveDelete(roomRef).catch(() => undefined);
+    const eventAudit = await db.collection("roomEventAuditLogs").where("roomId", "==", roomId).get().catch(() => null);
+    if (eventAudit) await Promise.all(eventAudit.docs.map((doc) => doc.ref.delete().catch(() => undefined)));
+  }
+});
+
 test("emit machine-readable load-test report", () => {
   const reportPath = process.env.MAWDDA_LOAD_REPORT || "mawdda-load-artifacts/report.json";
   fs.mkdirSync(require("node:path").dirname(reportPath), { recursive: true });
@@ -285,6 +423,8 @@ test("emit machine-readable load-test report", () => {
     provisionedPersonas: metrics.createdUsers,
     personaCoverageCount: metrics.personaCoverage.length,
     personaCoverage: metrics.personaCoverage,
+    lifecycleCoverageCount: metrics.lifecycleCoverage.length,
+    lifecycleCoverage: metrics.lifecycleCoverage,
     scenarios: metrics.scenarios
   }, null, 2) + "\n", { mode: 0o600 });
   console.log(`[persona-load] report=${reportPath}`);
