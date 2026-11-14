@@ -7319,7 +7319,6 @@ export const startTimedAdvertisement = onCall(async (request) => {
           ["active", "paused"].includes(String(activeSession.data()?.status))) {
         throw new HttpsError("already-exists", "لديك جلسة إعلان مفتوحة بالفعل.");
       }
-      transaction.delete(activeRef);
     }
     if (!campaign.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
     const data = campaign.data()!;
@@ -7373,8 +7372,6 @@ export const heartbeatTimedAdvertisement = onCall(async (request) => {
     const data = session.data()!;
     const nowMs = Date.now();
     if (data.expiresAtMs <= nowMs) {
-      transaction.update(sessionRef, { status: "expired", lastHeartbeatAtMs: null });
-      transaction.delete(activeRef);
       throw new HttpsError("deadline-exceeded", "انتهت جلسة مشاهدة الإعلان.");
     }
     let delta;
