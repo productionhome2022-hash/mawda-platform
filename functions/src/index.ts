@@ -4547,7 +4547,7 @@ export const createRoomEvent = onCall(async (request) => {
   if (typeof roomId !== "string" || roomId.length < 1 || roomId.length > 128) {
     throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
   }
-  let input;
+  let input: ReturnType<typeof normalizeRoomEventInput>;
   try {
     input = normalizeRoomEventInput(request.data ?? {});
   } catch (error) {
@@ -4748,7 +4748,7 @@ export const setRoomEventStatus = onCall(async (request) => {
         (roomSnapshot.data()?.ownerUid !== uid && !ownerSession)) {
       throw new HttpsError("permission-denied", "إدارة الحدث متاحة لمالك الغرفة فقط.");
     }
-    let actualNext;
+    let actualNext: ReturnType<typeof nextRoomEventStatus>;
     try {
       actualNext = nextRoomEventStatus(event.status, nextStatus);
     } catch {
