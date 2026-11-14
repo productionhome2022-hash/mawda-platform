@@ -315,12 +315,17 @@ export const receiveMediaScanVerdict = onRequest(
     return;
   }
   const asset = snapshot.data()!;
+  if (asset.mediaPurpose !== verdict.purpose) {
+    response.status(409).send("Scanner media purpose mismatch");
+    return;
+  }
   if (asset.status !== "pending_security_scan") {
     const sameVerdict = ["scanner_clean_pending_processing", "security_approved", "rejected"].includes(String(asset.status)) &&
       asset.scannerProvider === verdict.provider &&
       asset.scannerVerdict === verdict.verdict &&
       String(asset.scannerObjectGeneration) === verdict.objectGeneration &&
-      asset.scannerSha256 === verdict.sha256;
+      asset.scannerSha256 === verdict.sha256 &&
+      asset.mediaPurpose === verdict.purpose;
     if (sameVerdict) {
       if (verdict.verdict === "malicious") {
         const rejectedGeneration = Number(verdict.objectGeneration);
@@ -422,7 +427,7 @@ export const receiveMediaScanVerdict = onRequest(
     const derivative = verdict.safeDerivative;
     const expected = {
       gif: { filename: "animation.gif", contentType: "image/gif", pipeline: "gif-sanitize-preserve-animation-v1", maxBytes: 5 * 1024 * 1024 },
-      audio: { filename: "audio.mp3", contentType: "audio/mpeg", pipeline: "ffmpeg-audio-transcode-v1", maxBytes: 25 * 1024 * 1024 },
+      audio: { filename: "audio.mp3", contentType: "audio/mpeg", pipeline: "ffmpeg-audio-transcode-v2-purpose-duration-v1", maxBytes: 25 * 1024 * 1024 },
       video: { filename: "video.mp4", contentType: "video/mp4", pipeline: "ffmpeg-video-transcode-v1", maxBytes: 50 * 1024 * 1024 },
       document: { filename: "document.pdf", contentType: "application/pdf", pipeline: "pdf-raster-flatten-v1", maxBytes: 20 * 1024 * 1024 },
     }[derivative.category];
@@ -679,6 +684,7 @@ export const dispatchMediaSecurityScan = onDocumentCreated(
         mediaId: job.mediaId, objectPath: job.objectPath,
         objectGeneration: job.objectGeneration, downloadUrl,
         contentType: detectedContentType,
+        purpose: String(assetSnapshot.data()?.mediaPurpose ?? ""),
         callbackUrl: callback.toString(),
         provider: mediaScannerProvider.value(),
       }),

@@ -2,6 +2,7 @@ const { timingSafeEqual } = require("node:crypto");
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const GENERATION = /^\d{1,24}$/;
+const MEDIA_PURPOSES = new Set(["chat", "room", "profile_album", "avatar_cover", "story"]);
 
 function equalSecret(actual, expected) {
   if (typeof actual !== "string" || typeof expected !== "string") return false;
@@ -21,7 +22,8 @@ function validateScanRequest(value, provider, bucketName, expectedCallbackUrl) {
       typeof v.downloadUrl !== "string" ||
       typeof v.callbackUrl !== "string" || v.callbackUrl !== expectedCallbackUrl ||
       typeof v.provider !== "string" || v.provider !== provider ||
-      typeof v.contentType !== "string") return null;
+      typeof v.contentType !== "string" ||
+      typeof v.purpose !== "string" || !MEDIA_PURPOSES.has(v.purpose)) return null;
 
   let url;
   try { url = new URL(v.downloadUrl); } catch { return null; }
@@ -53,6 +55,7 @@ function validateScanRequest(value, provider, bucketName, expectedCallbackUrl) {
     downloadUrl: url.toString(),
     provider: v.provider,
     contentType: v.contentType,
+    purpose: v.purpose,
   };
 }
 

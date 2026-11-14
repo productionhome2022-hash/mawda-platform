@@ -17,6 +17,7 @@ test("scanner verdict binds provider, object generation, hash and freshness", ()
   const now = 1_800_000_000_000;
   const payload = {
     mediaId: "123e4567-e89b-12d3-a456-426614174000",
+    purpose: "room",
     provider: "clamav-mawadda-gateway",
     verdict: "clean",
     objectGeneration: "123456",
@@ -29,6 +30,7 @@ test("scanner verdict binds provider, object generation, hash and freshness", ()
   };
   assert.equal(validateScannerVerdict(payload, "clamav-mawadda-gateway", now).verdict, "clean");
   assert.equal(validateScannerVerdict({ ...payload, provider: "untrusted" }, "clamav-mawadda-gateway", now), null);
+  assert.equal(validateScannerVerdict({ ...payload, purpose: "untrusted" }, "clamav-mawadda-gateway", now), null);
   assert.equal(validateScannerVerdict({ ...payload, objectGeneration: "latest" }, "clamav-mawadda-gateway", now), null);
   assert.equal(validateScannerVerdict({ ...payload, scannedAtMs: now - 700000 }, "clamav-mawadda-gateway", now), null);
   assert.equal(validateScannerVerdict({ ...payload, verdict: "approved" }, "clamav-mawadda-gateway", now), null);
@@ -81,7 +83,7 @@ test("scanner callback validates exact GIF, audio, video and flattened-PDF deriv
   };
   const derivatives = [
     { category: "gif", path: "animation.gif", contentType: "image/gif", pipelineVersion: "gif-sanitize-preserve-animation-v1", processingStatus: "safe_animation_derivative_ready" },
-    { category: "audio", path: "audio.mp3", contentType: "audio/mpeg", pipelineVersion: "ffmpeg-audio-transcode-v1", processingStatus: "safe_audio_derivative_ready" },
+    { category: "audio", path: "audio.mp3", contentType: "audio/mpeg", pipelineVersion: "ffmpeg-audio-transcode-v2-purpose-duration-v1", processingStatus: "safe_audio_derivative_ready" },
     { category: "video", path: "video.mp4", contentType: "video/mp4", pipelineVersion: "ffmpeg-video-transcode-v1", processingStatus: "safe_video_derivative_ready" },
     { category: "document", path: "document.pdf", contentType: "application/pdf", pipelineVersion: "pdf-raster-flatten-v1", processingStatus: "safe_document_derivative_ready" },
   ];

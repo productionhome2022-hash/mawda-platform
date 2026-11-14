@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+const MEDIA_PURPOSES = new Set(["chat", "room", "profile_album", "avatar_cover", "story"]);
+
 export interface ScannerSafeDerivative {
   category: "gif" | "audio" | "video" | "document";
   path: string;
@@ -11,6 +13,7 @@ export interface ScannerSafeDerivative {
 
 export interface ScannerVerdictPayload {
   mediaId: string;
+  purpose: "chat" | "room" | "profile_album" | "avatar_cover" | "story";
   provider: string;
   verdict: "clean" | "malicious" | "error";
   objectGeneration: string;
@@ -65,7 +68,7 @@ export function validateScannerVerdict(
     const d = v.safeDerivative as Record<string, unknown>;
     const route = {
       gif: { filename: "animation.gif", contentType: "image/gif", version: "gif-sanitize-preserve-animation-v1" },
-      audio: { filename: "audio.mp3", contentType: "audio/mpeg", version: "ffmpeg-audio-transcode-v1" },
+      audio: { filename: "audio.mp3", contentType: "audio/mpeg", version: "ffmpeg-audio-transcode-v2-purpose-duration-v1" },
       video: { filename: "video.mp4", contentType: "video/mp4", version: "ffmpeg-video-transcode-v1" },
       document: { filename: "document.pdf", contentType: "application/pdf", version: "pdf-raster-flatten-v1" },
     } as const;
@@ -97,6 +100,7 @@ export function validateScannerVerdict(
   }
 
   if (typeof v.mediaId !== "string" || !/^[0-9a-f-]{36}$/i.test(v.mediaId) ||
+      typeof v.purpose !== "string" || !MEDIA_PURPOSES.has(v.purpose) ||
       v.provider !== expectedProvider ||
       !["clean", "malicious", "error"].includes(String(v.verdict)) ||
       typeof v.objectGeneration !== "string" || !/^\d+$/.test(v.objectGeneration) ||
