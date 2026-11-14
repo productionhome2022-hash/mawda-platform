@@ -105,10 +105,7 @@
         "cross-installation-abuse-resistance",
         "full-flutter-ui-to-backend-e2e",
         "no-rewards",
-        "no-direct-messages",
-        "no-private-rooms",
-        "no-wallet",
-        "no-purchase",
+        "no-wallet-read-and-top-up",
         "no-room-rental",
         "no-gifts",
         "no-image-gif-video-or-document-messages"
