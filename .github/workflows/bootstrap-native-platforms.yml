@@ -55,12 +55,22 @@ jobs:
           firebase apps:list --project mawda-app-2026 --token "$FIREBASE_TOKEN"
           flutterfire configure --project=mawda-app-2026 --platforms=android,ios,web --android-package-name=com.mawdda.platform.app --ios-bundle-id=com.mawdda.platform.app --out=lib/firebase_options.dart --yes
           python3 - <<'PY'
+          import re
           from pathlib import Path
           source = Path("lib/firebase_options.dart").read_text()
-          if "AIzaSyActualApiKey" in source or "1234567890" in source or "abcdef123456789" in source:
-              raise SystemExit("FlutterFire left placeholder Firebase options; refusing native build.")
-          if source.count("projectId: 'mawda-app-2026'") < 3:
-              raise SystemExit("Android/iOS/Web Firebase project IDs are not consistently configured.")
+          for platform in ("web", "android", "ios"):
+              match = re.search(
+                  rf"static const FirebaseOptions {platform} = FirebaseOptions\\((.*?)\\n  \\);",
+                  source,
+                  re.S,
+              )
+              if match is None:
+                  raise SystemExit(f"Missing Firebase options for {platform}.")
+              block = match.group(1)
+              if "projectId: 'mawda-app-2026'" not in block:
+                  raise SystemExit(f"{platform} Firebase options target the wrong project.")
+              if any(value in block for value in ("AIzaSyActualApiKey", "1234567890", "abcdef123456789")):
+                  raise SystemExit(f"{platform} Firebase options still contain placeholders.")
           PY
 
       - name: Resolve locked Flutter dependencies
