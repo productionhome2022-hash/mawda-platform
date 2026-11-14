@@ -1521,7 +1521,7 @@ export const getTimedAdCreativeUrl = onCall(async (request) => {
       session.data()?.campaignId !== campaignId || active.data()?.sessionId !== sessionId ||
       !["active", "paused"].includes(String(session.data()?.status)) ||
       session.data()?.expiresAtMs <= Date.now() ||
-      !["published", "paused"].includes(String(campaign.data()?.status))) {
+      !["published", "paused", "archived"].includes(String(campaign.data()?.status))) {
     throw new HttpsError("permission-denied", "لا توجد جلسة مشاهدة صالحة لهذا الإعلان.");
   }
   const campaignData = campaign.data()!;
