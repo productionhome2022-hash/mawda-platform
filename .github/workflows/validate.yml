@@ -102,6 +102,8 @@ jobs:
         run: npm run test:room-rental-integration
       - name: Run FCM token registration and deactivation integration tests
         run: npm run test:push-token-integration
+      - name: Run 30-day biometric reward cycle integration tests
+        run: npm run test:biometric-integration
       - name: Run safety report and appeal lifecycle integration tests
         run: npm run test:safety-integration
       - name: Run guest and member privacy acknowledgement integration tests
