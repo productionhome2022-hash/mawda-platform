@@ -104,6 +104,8 @@ jobs:
         run: npm run test:push-token-integration
       - name: Run 30-day biometric reward cycle integration tests
         run: npm run test:biometric-integration
+      - name: Run 90-day email verification renewal and reward integration tests
+        run: npm run test:email-renewal-integration
       - name: Run safety report and appeal lifecycle integration tests
         run: npm run test:safety-integration
       - name: Run guest and member privacy acknowledgement integration tests
