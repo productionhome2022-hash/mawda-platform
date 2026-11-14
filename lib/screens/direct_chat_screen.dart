@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/member_media_upload_service.dart';
+import '../widgets/chat_audio_controls.dart';
 import 'safety_center_screen.dart';
 
 class DirectChatScreen extends StatefulWidget {
@@ -509,6 +510,12 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                               mediaType.startsWith('audio/') ? 'audio' :
                               mediaType.startsWith('video/') ? 'video' :
                               mediaType == 'application/pdf' ? 'document' : 'image');
+                        if (category == 'audio') {
+                          return ChatAudioMessagePlayer(
+                            url: url,
+                            messageId: message['messageId'] as String? ?? '',
+                          );
+                        }
                         if (category == 'image' || category == 'gif') {
                           return ClipRRect(
                             borderRadius: BorderRadius.circular(12),
@@ -682,6 +689,20 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                     tooltip: 'إرفاق GIF أو صوت أو فيديو',
                     onPressed: _sending ? null : _pickAndSendAttachment,
                     icon: const Icon(Icons.attach_file),
+                  ),
+                  ChatAudioComposerButton(
+                    scope: 'direct',
+                    recipientUid: _resolvedPeerUid,
+                    enabled: !_sending,
+                    onBusyChanged: (busy) {
+                      if (mounted && _sending != busy) setState(() => _sending = busy);
+                    },
+                    onSent: _refresh,
+                    onError: (message) {
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(message)),
+                      );
+                    },
                   ),
                   Expanded(
                     child: TextField(
