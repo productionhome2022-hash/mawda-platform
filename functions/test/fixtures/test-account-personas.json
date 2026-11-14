@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 1,
+  "environmentPolicy": {
+    "allowedProjectIdPrefix": "demo-mawda-",
+    "requiredEmulators": [
+      "FIREBASE_AUTH_EMULATOR_HOST",
+      "FIRESTORE_EMULATOR_HOST"
+    ],
+    "neverSeedProduction": true
+  },
+  "personas": [
+    {
+      "id": "guest-preview",
+      "displayName": "زائر مودة التجريبي",
+      "accountKind": "anonymous",
+      "emailVerified": false,
+      "biometricFixture": false,
+      "ownerAccess": false,
+      "guestWindow": {
+        "durationSeconds": 3600,
+        "rollingWindowSeconds": 86400,
+        "emulatorClockOverrideOnly": true
+      },
+      "capabilities": [
+        "browse.publicMemberDiscovery",
+        "browse.publicShopCatalog",
+        "browse.publicAds"
+      ],
+      "deniedCapabilities": [
+        "rewards.claim",
+        "wallet.read",
+        "wallet.write",
+        "chat.send",
+        "chat.readPrivate",
+        "media.upload",
+        "media.downloadPrivate",
+        "gifts.send",
+        "gifts.receive",
+        "rooms.join",
+        "rooms.rent",
+        "store.purchase",
+        "coins.topUp",
+        "memberOnly.read"
+      ]
+    },
+    {
+      "id": "email-member",
+      "displayName": "عضو البريد التجريبي",
+      "accountKind": "emailPassword",
+      "emailVerified": true,
+      "biometricFixture": false,
+      "ownerAccess": false,
+      "capabilities": [
+        "profile.readWrite",
+        "discovery.browse",
+        "chat.direct",
+        "chat.rooms",
+        "media.memberAllowedTypes",
+        "wallet.readWrite",
+        "wallet.transfer",
+        "gifts.sendReceive",
+        "coins.sandboxTopUp",
+        "store.purchaseAll",
+        "rooms.publicRent",
+        "rooms.privateRent",
+        "badges.titles",
+        "premiumFeatures"
+      ],
+      "deniedCapabilities": [
+        "owner.console",
+        "owner.sovereignMutations",
+        "memberOnly.documentExchange"
+      ]
+    },
+    {
+      "id": "biometric-member",
+      "displayName": "عضو التوثيق البيومتري التجريبي",
+      "accountKind": "emailPassword",
+      "emailVerified": true,
+      "biometricFixture": "emulator-server-record-only",
+      "ownerAccess": false,
+      "capabilities": [
+        "profile.readWrite",
+        "discovery.browse",
+        "chat.direct",
+        "chat.rooms",
+        "media.memberAllowedTypes",
+        "wallet.readWrite",
+        "wallet.transfer",
+        "gifts.sendReceive",
+        "coins.sandboxTopUp",
+        "store.purchaseAll",
+        "rooms.publicRent",
+        "rooms.privateRent",
+        "badges.titles",
+        "premiumFeatures",
+        "biometric.challengeFlow"
+      ],
+      "deniedCapabilities": [
+        "owner.console",
+        "owner.sovereignMutations",
+        "memberOnly.documentExchange"
+      ]
+    },
+    {
+      "id": "counterparty-member",
+      "displayName": "عضو مودة المقابل التجريبي",
+      "accountKind": "emailPassword",
+      "emailVerified": true,
+      "biometricFixture": false,
+      "ownerAccess": false,
+      "capabilities": [
+        "profile.readWrite",
+        "chat.direct",
+        "chat.rooms",
+        "media.memberAllowedTypes",
+        "wallet.readWrite",
+        "wallet.transfer",
+        "gifts.sendReceive",
+        "store.purchaseAll",
+        "rooms.publicRent",
+        "rooms.privateRent"
+      ],
+      "deniedCapabilities": [
+        "owner.console",
+        "owner.sovereignMutations",
+        "memberOnly.documentExchange"
+      ]
+    },
+    {
+      "id": "owner-operator",
+      "displayName": "مالك مودة التجريبي",
+      "accountKind": "emailPassword",
+      "emailVerified": true,
+      "biometricFixture": false,
+      "ownerAccess": "mfa-required-no-bypass",
+      "capabilities": [
+        "owner.console.afterMfa",
+        "owner.memberManagement.afterMfa",
+        "owner.moderation.afterMfa",
+        "owner.audit.afterMfa",
+        "owner.storeEconomyControls.afterMfa",
+        "owner.roomControls.afterMfa",
+        "owner.settings.afterMfa"
+      ],
+      "deniedCapabilities": [
+        "owner.actionWithoutMfa",
+        "owner.actionWithStaleAuth",
+        "productionOwnerMutation"
+      ]
+    }
+  ],
+  "profileFixtureRequirements": [
+    "displayName",
+    "uniqueHandle",
+    "avatarFixture",
+    "coverFixture",
+    "biography",
+    "locale",
+    "profileVisibility",
+    "accountState",
+    "badgesAndTitles",
+    "shopEntitlements",
+    "walletFixture",
+    "roomPermissions",
+    "notificationPreferences",
+    "testLabels"
+  ],
+  "mediaPolicy": {
+    "memberAllowed": [
+      "image",
+      "gif",
+      "audio",
+      "video"
+    ],
+    "memberDenied": [
+      "pdf",
+      "documents"
+    ],
+    "ownerAllowed": [
+      "image",
+      "gif",
+      "audio",
+      "video",
+      "pdf",
+      "documents",
+      "otherMedia"
+    ]
+  },
+  "paymentPolicy": {
+    "mode": "sandbox-only",
+    "liveChargesAllowed": false
+  },
+  "biometricPolicy": {
+    "emulatorFixtureIsNotHardwareProof": true,
+    "grantRewardsOnlyAfterAuthoritativeServerVerification": true
+  }
+}
