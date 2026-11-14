@@ -221,14 +221,14 @@ export const listGuestPublicRooms = onCall(async (request) => {
 
 /** Scheduled cleanup prevents expired guest memberships from inflating room counts. */
 export const cleanupExpiredGuestSessions = onSchedule("every 5 minutes", async () => {
+  const nowMs = Date.now();
   const snapshot = await db().collection("guestSessions")
-    .where("status", "==", "active")
+    .where("expiresAt", "<=", Timestamp.fromMillis(nowMs))
     .limit(200)
     .get();
-  const nowMs = Date.now();
   for (const document of snapshot.docs) {
     const data = document.data();
-    if (isGuestSessionActive(data, nowMs)) continue;
+    if (data.status !== "active" || isGuestSessionActive(data, nowMs)) continue;
     await db().runTransaction(async (transaction) => {
       const latest = await transaction.get(document.ref);
       if (!latest.exists || latest.data()?.status !== "active" ||
