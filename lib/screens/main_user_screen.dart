@@ -15,6 +15,8 @@ import 'rooms_screen.dart';
 import 'super_admin_screen.dart';
 import 'safety_center_screen.dart';
 import 'notification_center_screen.dart';
+import 'conversations_screen.dart';
+import 'stories_screen.dart';
 
 class MainUserScreen extends StatefulWidget {
   final String userId;
@@ -432,6 +434,24 @@ class _CompletedProfilePanel extends StatelessWidget {
                             profileUserId: user.uid,
                             currentUserId: user.uid,
                           ),
+                        ),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.chat_bubble_outline),
+                      label: const Text('الرسائل'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => ConversationsScreen(currentUserId: user.uid),
+                        ),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.auto_awesome_motion_outlined),
+                      label: const Text('القصص'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => StoriesScreen(currentUserId: user.uid),
                         ),
                       ),
                     ),
