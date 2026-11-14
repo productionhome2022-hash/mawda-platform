@@ -1,0 +1,25 @@
+// Apply before Android plugin project configuration so every Flutter plugin
+// and the app compile against the same supported Android API level.
+gradle.beforeProject { project ->
+    ["com.android.application", "com.android.library"].each { pluginId ->
+        project.pluginManager.withPlugin(pluginId) {
+            def androidExtension = project.extensions.findByName("android")
+            if (androidExtension == null) {
+                throw new GradleException("Android extension missing for ${project.path}")
+            }
+            def setter = androidExtension.class.methods.find { method ->
+                method.name == "setCompileSdkVersion" &&
+                    method.parameterCount == 1 &&
+                    (method.parameterTypes[0] == Integer.TYPE ||
+                     method.parameterTypes[0] == Integer.class)
+            }
+            if (setter == null) {
+                throw new GradleException(
+                    "No integer compileSdkVersion setter found for ${project.path}"
+                )
+            }
+            setter.invoke(androidExtension, Integer.valueOf(36))
+            logger.lifecycle("Mawdda Android SDK override: ${project.path} -> compileSdk 36")
+        }
+    }
+}
