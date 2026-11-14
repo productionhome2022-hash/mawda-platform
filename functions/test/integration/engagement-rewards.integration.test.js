@@ -127,6 +127,8 @@ test("timed advertisements require foreground heartbeat duration and pay once", 
 
     const started = await startTimedAdvertisement.run(memberRequest(uid, { campaignId }));
     sessionId = started.sessionId;
+    // Archiving prevents new sessions but does not strand a session already in progress.
+    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "archived" }));
     const restored = await getActiveTimedAdSession.run(memberRequest(uid));
     assert.equal(restored.active, true);
     assert.equal(restored.sessionId, sessionId);
