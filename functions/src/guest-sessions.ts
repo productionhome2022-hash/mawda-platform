@@ -1,5 +1,6 @@
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 
 const db = () => getFirestore();
 const GUEST_DURATION_MS = 60 * 60 * 1000;
@@ -31,6 +32,33 @@ export function isGuestCooldownActive(session: Record<string, unknown> | undefin
   const nextEligibleAtMs = nextEligibleAt instanceof Timestamp ? nextEligibleAt.toMillis()
     : typeof nextEligibleAt === "number" ? nextEligibleAt : 0;
   return Number.isFinite(nextEligibleAtMs) && nextEligibleAtMs > nowMs;
+}
+
+async function cleanupGuestRoomMemberships(uid: string): Promise<void> {
+  const memberships = await db().collectionGroup("members")
+    .where("uid", "==", uid)
+    .limit(200)
+    .get();
+  await Promise.all(memberships.docs.map(async (membership) => {
+    const roomRef = membership.ref.parent.parent;
+    if (!roomRef) return;
+    await db().runTransaction(async (transaction) => {
+      const [latestMembership, room] = await Promise.all([
+        transaction.get(membership.ref), transaction.get(roomRef),
+      ]);
+      if (!latestMembership.exists) return;
+      transaction.delete(membership.ref);
+      if (room.exists) {
+        const currentCount = room.data()?.memberCount;
+        const nextCount = Number.isSafeInteger(currentCount)
+          ? Math.max(0, Number(currentCount) - 1) : 0;
+        transaction.update(roomRef, {
+          memberCount: nextCount,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+    });
+  }));
 }
 
 function validateGuestProfile(data: Record<string, unknown>) {
@@ -118,8 +146,17 @@ export const getGuestSessionStatus = onCall(async (request) => {
     db().collection("guestProfiles").doc(uid).get(),
     db().collection("guestSessions").doc(uid).get(),
   ]);
-  const data = session.data() ?? {};
+  let data = session.data() ?? {};
   const active = isGuestSessionActive(data);
+  if (!active && data.status === "active") {
+    await db().collection("guestSessions").doc(uid).update({
+      status: "expired",
+      expiredAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    await cleanupGuestRoomMemberships(uid);
+    data = { ...data, status: "expired" };
+  }
   const asMillis = (value: unknown) => value instanceof Timestamp ? value.toMillis()
     : typeof value === "number" ? value : null;
   return {
@@ -148,6 +185,7 @@ export const endGuestSession = onCall(async (request) => {
       updatedAt: FieldValue.serverTimestamp(),
     });
   });
+  await cleanupGuestRoomMemberships(uid);
   return { ended: true };
 });
 
@@ -178,4 +216,29 @@ export const listGuestPublicRooms = onCall(async (request) => {
       capacity: room.data().capacity ?? 0,
     })),
   };
+});
+
+
+/** Scheduled cleanup prevents expired guest memberships from inflating room counts. */
+export const cleanupExpiredGuestSessions = onSchedule("every 5 minutes", async () => {
+  const snapshot = await db().collection("guestSessions")
+    .where("status", "==", "active")
+    .limit(200)
+    .get();
+  const nowMs = Date.now();
+  for (const document of snapshot.docs) {
+    const data = document.data();
+    if (isGuestSessionActive(data, nowMs)) continue;
+    await db().runTransaction(async (transaction) => {
+      const latest = await transaction.get(document.ref);
+      if (!latest.exists || latest.data()?.status !== "active" ||
+          isGuestSessionActive(latest.data(), nowMs)) return;
+      transaction.update(document.ref, {
+        status: "expired",
+        expiredAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
+    await cleanupGuestRoomMemberships(document.id);
+  }
 });
