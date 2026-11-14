@@ -128,7 +128,7 @@ test("seeded Mawdda member personas can transact with each other inside the isol
     });
   } finally {
     await Promise.all([
-      senderRef.update({ coins: senderBalance }),
+      senderRef.update({ coins: senderBalance, blockedUids: Array.isArray(senderBefore.blockedUids) ? senderBefore.blockedUids : [] }),
       recipientRef.update({ coins: recipientBalance }),
       senderLedgerRef.delete().catch(() => undefined),
       recipientLedgerRef.delete().catch(() => undefined),
