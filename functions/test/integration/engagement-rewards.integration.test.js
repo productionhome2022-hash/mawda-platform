@@ -406,3 +406,57 @@ test("abandoned expired ad sessions release their reserved campaign budget", asy
     ]);
   }
 });
+
+
+test("concurrent members cannot reserve the same final ad reward budget", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const ownerUid = `ad_concurrent_owner_${tag}`;
+  const memberUids = [`ad_concurrent_a_${tag}`, `ad_concurrent_b_${tag}`];
+  const users = memberUids.map((uid) => db.collection("users").doc(uid));
+  let campaignId;
+  let winnerUid;
+  let winnerSessionId;
+  await Promise.all(users.map((ref) => ref.set({
+    coins: 0, profileCompleted: true, accountStatus: "active",
+  })));
+  try {
+    const campaign = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      title: "Concurrent reservation campaign",
+      sponsorLabel: "Mawdda test sponsor",
+      body: "Two simultaneous members compete for one reserved reward.",
+      placement: "reward_center",
+      durationSeconds: 15,
+      rewardCoins: 10,
+      startsAtMs: Date.now() - 1000,
+      endsAtMs: Date.now() + 3600000,
+      maxClaimsPerMember: 1,
+      rewardBudgetCoins: 10,
+    }));
+    campaignId = campaign.campaignId;
+    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "published" }));
+    const results = await Promise.allSettled(memberUids.map((uid) =>
+      startTimedAdvertisement.run(memberRequest(uid, { campaignId }))));
+    const winners = results.map((result, index) => ({ result, index }))
+      .filter((entry) => entry.result.status === "fulfilled");
+    const losers = results.filter((result) => result.status === "rejected");
+    assert.equal(winners.length, 1);
+    assert.equal(losers.length, 1);
+    assert.equal(losers[0].reason.code, "failed-precondition");
+    winnerUid = memberUids[winners[0].index];
+    winnerSessionId = winners[0].result.value.sessionId;
+    const stored = await db.collection("timedAdCampaigns").doc(campaignId).get();
+    assert.equal(stored.data().reservedRewardCoins, 10);
+  } finally {
+    if (winnerSessionId) {
+      await Promise.all([
+        db.collection("timedAdSessions").doc(winnerSessionId).delete().catch(() => undefined),
+        db.collection("activeTimedAdSessions").doc(winnerUid).delete().catch(() => undefined),
+      ]);
+    }
+    await Promise.all([
+      ...users.map((ref) => ref.delete().catch(() => undefined)),
+      ...(campaignId ? [db.collection("timedAdCampaigns").doc(campaignId).delete().catch(() => undefined)] : []),
+    ]);
+  }
+});
