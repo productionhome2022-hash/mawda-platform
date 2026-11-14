@@ -30,7 +30,8 @@
     "test:biometric-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-biometric \"node --test test/integration/biometric-verification.integration.test.js\"",
     "test:email-renewal-integration": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-email-renewal \"node --test test/integration/email-verification-renewal.integration.test.js\"",
     "test:premium-profile-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-premium-profile \"node --test test/integration/premium-profile.integration.test.js\"",
-    "test:room-events-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-room-events \"node --test test/integration/room-events.integration.test.js\""
+    "test:room-events-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-room-events \"node --test test/integration/room-events.integration.test.js\"",
+    "test:emulator-backup-restore": "node scripts/test-emulator-backup-restore.cjs"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",
