@@ -10,6 +10,8 @@ const {
   deleteRoomMessage,
   deleteRoomMessageForMe,
   getDirectMessages,
+  getMyDirectChats,
+  markDirectChatRead,
   getRoomMessages,
   setMemberBlock,
   sendDirectMessage,
@@ -74,6 +76,87 @@ test("member block and unblock are server-authorized, idempotent state updates",
     await Promise.all([actorRef.delete().catch(() => undefined), targetRef.delete().catch(() => undefined)]);
   }
 });
+
+test("member inbox is recent, unread-aware, and hides conversations when either side blocks", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const suffix = Date.now().toString();
+  const [alice, bob] = [`inbox-alice-${suffix}`, `inbox-bob-${suffix}`];
+  const aliceRef = db.collection("users").doc(alice);
+  const bobRef = db.collection("users").doc(bob);
+  const messageId = `inbox-message-${suffix}`;
+  const notificationRef = bobRef.collection("notifications").doc(id(`${alice}:${messageId}`));
+
+  await Promise.all([
+    aliceRef.set({
+      uid: alice, profileCompleted: true, accountStatus: "active", age: 30,
+      displayName: "Alice Inbox", blockedUids: [],
+    }),
+    bobRef.set({
+      uid: bob, profileCompleted: true, accountStatus: "active", age: 31,
+      displayName: "Bob Inbox", blockedUids: [],
+    }),
+  ]);
+
+  let chatId;
+  try {
+    const sent = await sendDirectMessage.run(memberRequest(alice, {
+      recipientUid: bob,
+      text: "رسالة اختبار صندوق الوارد",
+      clientMessageId: messageId,
+    }));
+    chatId = sent.chatId;
+
+    const unreadInbox = await getMyDirectChats.run(memberRequest(bob));
+    assert.equal(unreadInbox.chats.length, 1);
+    assert.equal(unreadInbox.chats[0].chatId, chatId);
+    assert.equal(unreadInbox.chats[0].peerUid, alice);
+    assert.equal(unreadInbox.chats[0].peerName, "Alice Inbox");
+    assert.equal(unreadInbox.chats[0].hasUnread, true);
+    assert.equal(unreadInbox.chats[0].lastMessagePreview, "رسالة اختبار صندوق الوارد");
+
+    const messages = await getDirectMessages.run(memberRequest(bob, { chatId }));
+    assert.equal(messages.messages.length, 1);
+    await markDirectChatRead.run(memberRequest(bob, { chatId }));
+    const readInbox = await getMyDirectChats.run(memberRequest(bob));
+    assert.equal(readInbox.chats[0].hasUnread, false);
+
+    await setMemberBlock.run(memberRequest(bob, { targetUid: alice, blocked: true }));
+    assert.equal((await getMyDirectChats.run(memberRequest(bob))).chats.length, 0);
+    assert.equal((await getMyDirectChats.run(memberRequest(alice))).chats.length, 0);
+    await assert.rejects(
+      () => getDirectMessages.run(memberRequest(bob, { chatId })),
+      (error) => error && error.code === "permission-denied",
+    );
+    await assert.rejects(
+      () => markDirectChatRead.run(memberRequest(alice, { chatId })),
+      (error) => error && error.code === "permission-denied",
+    );
+
+    await setMemberBlock.run(memberRequest(bob, { targetUid: alice, blocked: false }));
+    const restoredInbox = await getMyDirectChats.run(memberRequest(bob));
+    assert.equal(restoredInbox.chats.length, 1);
+    assert.equal(restoredInbox.chats[0].hasUnread, false);
+  } finally {
+    if (chatId) {
+      const chatRef = db.collection("directChats").doc(chatId);
+      const [messages, receipts] = await Promise.all([
+        chatRef.collection("messages").get(),
+        chatRef.collection("readReceipts").get(),
+      ]);
+      await Promise.all([
+        ...messages.docs.map((document) => document.ref.delete()),
+        ...receipts.docs.map((document) => document.ref.delete()),
+        chatRef.delete().catch(() => undefined),
+      ]);
+    }
+    await Promise.all([
+      notificationRef.delete().catch(() => undefined),
+      aliceRef.delete().catch(() => undefined),
+      bobRef.delete().catch(() => undefined),
+    ]);
+  }
+});
+
 
 test("direct delete-for-me hides only for the caller and preserves peer copy", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");

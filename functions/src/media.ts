@@ -1115,6 +1115,7 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
   }
   let message: Record<string, unknown> | undefined;
   let conversationId = "";
+  let directPeerUid = "";
   if (scope === "direct") {
     const chatId = typeof data.chatId === "string" ? data.chatId.trim() : "";
     conversationId = chatId;
@@ -1124,9 +1125,12 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
       chatRef.get(), chatRef.collection("messages").doc(messageId).get(),
     ]);
     const participants = chat.data()?.participantUids;
-    if (!chat.exists || !Array.isArray(participants) || !participants.includes(viewerUid) || !msg.exists) {
+    if (!chat.exists || !Array.isArray(participants) || participants.length !== 2 ||
+        !participants.includes(viewerUid) || participants.some((value) => typeof value !== "string") ||
+        participants[0] === participants[1] || !msg.exists) {
       throw new HttpsError("permission-denied", "ليس لديك حق الوصول إلى هذه المحادثة.");
     }
+    directPeerUid = participants.find((participant) => participant !== viewerUid)!;
     message = msg.data();
   } else {
     const roomId = typeof data.roomId === "string" ? data.roomId.trim() : "";
@@ -1156,6 +1160,31 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
   const assetSnapshot = await assetRef.get();
   if (!assetSnapshot.exists) throw new HttpsError("not-found", "سجل المرفق غير موجود.");
   const asset = assetSnapshot.data() ?? {};
+  if (scope === "direct") {
+    const [viewerSnapshot, peerSnapshot] = await Promise.all([
+      mediaDb().collection("users").doc(viewerUid).get(),
+      mediaDb().collection("users").doc(directPeerUid).get(),
+    ]);
+    const viewer = viewerSnapshot.data() ?? {};
+    const peer = peerSnapshot.data() ?? {};
+    const viewerToken = (request.auth?.token ?? {}) as Record<string, unknown>;
+    const viewerIsOwner = viewerToken.platformOwner === true &&
+      hasPlatformOwnerSession(viewerToken, undefined, viewerUid);
+    const peerIsOwner = asset.uploaderRole === "platform_owner" &&
+      asset.ownerUid === directPeerUid;
+    const inactiveStatuses = ["suspended", "banned", "disabled", "deleted"];
+    const viewerStatus = String(viewer.accountStatus ?? "active").toLowerCase();
+    const peerStatus = String(peer.accountStatus ?? "active").toLowerCase();
+    const viewerBlocks = Array.isArray(viewer.blockedUids) ? viewer.blockedUids : [];
+    const peerBlocks = Array.isArray(peer.blockedUids) ? peer.blockedUids : [];
+    if ((!viewerSnapshot.exists && !viewerIsOwner) ||
+        (!peerSnapshot.exists && !peerIsOwner) ||
+        (viewerSnapshot.exists && (viewer.profileCompleted !== true || inactiveStatuses.includes(viewerStatus))) ||
+        (peerSnapshot.exists && (peer.profileCompleted !== true || inactiveStatuses.includes(peerStatus))) ||
+        viewerBlocks.includes(directPeerUid) || peerBlocks.includes(viewerUid)) {
+      throw new HttpsError("permission-denied", "لم يعد هذا المرفق متاحاً بسبب الحظر أو حالة العضوية.");
+    }
+  }
   const artifact = resolveChatMediaDeliveryArtifact(
     asset as never, asset.uploaderRole === "platform_owner",
   );
