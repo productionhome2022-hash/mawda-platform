@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:uuid/uuid.dart';
@@ -49,10 +50,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('موافقة مستقلة على المصادقة البيومترية'),
         content: const Text(
-          'تستخدم مودة نافذة المصادقة المحلية في Android أو Apple. يتولى نظام التشغيل التحقق على الجهاز؛ '
-          'لا نلتقط البصمة أو الوجه ولا نرسل بيانات بيومترية إلى الخادم. عند نجاح النافذة، يطلب التطبيق من الخادم '
-          'اعتماد دورة مدتها 30 يوماً ومنح 1500 كوينز مرة واحدة في الدورة. هذه مكافأة على نجاح المصادقة المحلية '
-          'وليست إثباتاً للهوية المدنية.',
+          'سيطلب النظام تأكيد المصادقة على هذا الجهاز عبر Android BiometricPrompt أو Apple LocalAuthentication. '
+          'تتم المطابقة محلياً ولا ترسل مودة بصمة أو صورة وجه أو قالباً بيومترياً إلى الخادم. '
+          'تعتمد المكافأة على إتمام نافذة النظام بنجاح، ولا تمثل هذه الخطوة إثباتاً للهوية المدنية أو فحصاً مستقلاً للحيوية.',
         ),
         actions: [
           TextButton(
@@ -67,59 +67,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (consent != true || !mounted) return;
+
     setState(() => _checkingLocalBiometrics = true);
     final result = await LocalBiometricService().authenticate();
     if (!mounted) return;
-    setState(() => _checkingLocalBiometrics = false);
 
-    String message;
-    if (result.status == LocalBiometricStatus.authenticated) {
-      try {
-        final platform = switch (defaultTargetPlatform) {
-          TargetPlatform.android => 'android',
-          TargetPlatform.iOS => 'ios',
-          _ => 'unsupported',
-        };
-        if (platform == 'unsupported') {
-          message = 'نجحت المصادقة المحلية، لكن مكافأة هذه الدورة متاحة عبر تطبيق Android أو iOS فقط.';
-        } else {
-          final response = await FirebaseFunctions.instance
-              .httpsCallable('completeBiometricVerificationCycle')
-              .call(<String, dynamic>{
-            'localAuthenticationSucceeded': true,
-            'platform': platform,
-            'attemptId': const Uuid().v4(),
-          });
-          final data = Map<String, dynamic>.from(response.data as Map);
-          if (data['rewardGranted'] == true) {
-            message = 'تم اعتماد المصادقة المحلية بنجاح، وأضيفت 1500 كوينز إلى محفظتك. تتجدد أهليتك بعد 30 يوماً.';
-            if (mounted) setState(() => _profileFuture = _loadProfile());
-          } else {
-            message = 'تم التحقق محلياً. سبق منح مكافأة هذه الدورة؛ يمكنك الحصول على المكافأة التالية بعد اكتمال 30 يوماً.';
-          }
-        }
-      } on FirebaseFunctionsException catch (error) {
-        message = error.message ?? 'نجحت المصادقة المحلية، لكن تعذر اعتماد المكافأة من الخادم حالياً.';
-      } catch (_) {
-        message = 'نجحت المصادقة المحلية، لكن تعذر إكمال طلب المكافأة من الخادم.';
-      }
-    } else {
-      message = switch (result.status) {
+    if (!result.succeeded) {
+      setState(() => _checkingLocalBiometrics = false);
+      final message = switch (result.status) {
         LocalBiometricStatus.unavailable =>
           'هذا الجهاز أو النظام لا يتيح المصادقة البيومترية حالياً.',
         LocalBiometricStatus.notEnrolled =>
           'لم تُسجل بصمة أو وسيلة بيومترية على هذا الجهاز.',
         LocalBiometricStatus.cancelled =>
-          'ألغيت المصادقة؛ لم يتم اعتماد أي تحقق أو منح مكافأة.',
+          'ألغيت المصادقة؛ لم تُمنح المكافأة.',
         LocalBiometricStatus.failed =>
           'تعذر إكمال المصادقة البيومترية. حاول لاحقاً أو تحقق من إعدادات الجهاز.',
         LocalBiometricStatus.authenticated => 'اكتملت المصادقة المحلية.',
       };
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 5)),
+      );
+      return;
     }
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
-    );
+
+    try {
+      final platform = defaultTargetPlatform == TargetPlatform.android
+          ? 'android'
+          : 'ios';
+      final response = await FirebaseFunctions.instance
+          .httpsCallable('completeBiometricVerification')
+          .call(<String, dynamic>{
+        'localAuthSucceeded': true,
+        'platform': platform,
+      });
+      if (!mounted) return;
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final rewardGranted = data['rewardGranted'] == true;
+      final balance = (data['newBalance'] as num?)?.toInt();
+      final message = rewardGranted
+          ? 'تم اعتماد إكمال المصادقة المحلية وإضافة 1,500 كوين إلى محفظتك${balance == null ? '' : '؛ رصيدك الجديد $balance'}.'
+          : 'توثيقك المحلي ما زال سارياً؛ لن تتكرر مكافأة الدورة الحالية.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'نجحت نافذة الجهاز، لكن تعذر تسجيل المكافأة على الخادم.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('نجحت نافذة الجهاز، لكن لم يؤكد الخادم تسجيل المكافأة.')),
+      );
+    } finally {
+      if (mounted) setState(() => _checkingLocalBiometrics = false);
+    }
   }
 
   Future<void> _changeProfileVisibility(String visibility) async {
