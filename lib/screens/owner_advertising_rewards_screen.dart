@@ -357,7 +357,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _selectedMediaId,
+              initialValue: _selectedMediaId,
               decoration: const InputDecoration(labelText: 'المادة المعتمدة للحملة (اختياري)', border: OutlineInputBorder()),
               items: [
                 const DropdownMenuItem<String>(value: null, child: Text('إعلان نصي فقط')),
@@ -370,7 +370,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _placement,
+              initialValue: _placement,
               decoration: const InputDecoration(labelText: 'موضع العرض', border: OutlineInputBorder()),
               items: const [
                 DropdownMenuItem(value: 'reward_center', child: Text('مركز المكافآت')),
