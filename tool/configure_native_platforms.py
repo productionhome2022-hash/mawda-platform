@@ -128,29 +128,38 @@ def configure_android() -> None:
     root_source = root_build.read_text(encoding="utf-8")
     if root_kts.is_file():
         override = """
-// Mawdda: align every plugin subproject with Android API 36 metadata requirements.
+// Mawdda: align plugin Android extensions before their project evaluation completes.
 subprojects {
-    afterEvaluate {
-        val androidExtension = extensions.findByName("android")
+    val targetProject = this
+    fun applyMawddaCompileSdkOverride() {
+        val androidExtension = targetProject.extensions.findByName("android")
         if (androidExtension != null) {
             val setter = androidExtension.javaClass.methods.firstOrNull {
                 it.name == "setCompileSdkVersion" && it.parameterCount == 1
-            }
-            setter?.invoke(androidExtension, 36)
+            } ?: throw GradleException("Could not find Android compileSdkVersion setter for ${targetProject.path}.")
+            setter.invoke(androidExtension, 36)
         }
+    }
+    targetProject.pluginManager.withPlugin("com.android.library") {
+        applyMawddaCompileSdkOverride()
+    }
+    targetProject.pluginManager.withPlugin("com.android.application") {
+        applyMawddaCompileSdkOverride()
     }
 }
 """
     else:
         override = """
-// Mawdda: align every plugin subproject with Android API 36 metadata requirements.
-subprojects {
-    afterEvaluate { project ->
+// Mawdda: align plugin Android extensions before their project evaluation completes.
+subprojects { project ->
+    def applyMawddaCompileSdkOverride = {
         def androidExtension = project.extensions.findByName('android')
         if (androidExtension != null) {
             androidExtension.compileSdkVersion 36
         }
     }
+    project.plugins.withId('com.android.library') { applyMawddaCompileSdkOverride() }
+    project.plugins.withId('com.android.application') { applyMawddaCompileSdkOverride() }
 }
 """
     if "align every plugin subproject with Android API 36" not in root_source:
