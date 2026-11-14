@@ -213,6 +213,13 @@ test("campaigns can bind only approved owner-uploaded advertisement media", asyn
     const campaign = await db.collection("timedAdCampaigns").doc(campaignId).get();
     assert.equal(campaign.data().mediaId, mediaId);
     assert.equal(campaign.data().mediaOwnerUid, ownerUid);
+    await mediaRef.update({ status: "pending_security_scan" });
+    await assert.rejects(
+      () => setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "published" })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await mediaRef.update({ status: "security_approved" });
+    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "published" }));
     await assert.rejects(
       () => setTimedAdCampaign.run(memberRequest(ownerUid, {
         title: "Unauthorized creative",
