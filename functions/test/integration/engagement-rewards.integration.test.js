@@ -1,0 +1,167 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { getFirestore } = require("firebase-admin/firestore");
+const {
+  setAttendanceRewardPolicy,
+  claimAttendanceReward,
+  setTimedAdCampaign,
+  setTimedAdCampaignStatus,
+  getActiveTimedAdCampaigns,
+  startTimedAdvertisement,
+  heartbeatTimedAdvertisement,
+  completeTimedAdvertisement,
+} = require("../../lib/index");
+
+const db = getFirestore();
+const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+const memberRequest = (uid, data = {}) => ({
+  data,
+  auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+});
+const ownerRequest = (uid, data = {}) => ({
+  data,
+  auth: { uid, token: {
+    platformOwner: true, platformOwnerUid: uid,
+    auth_time: Math.floor(Date.now() / 1000),
+    firebase: { sign_in_second_factor: "phone" },
+  } },
+});
+
+test("attendance rewards are server-policy gated, UTC-period idempotent and ledger-atomic", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const ownerUid = `attendance_owner_${tag}`;
+  const uid = `attendance_member_${tag}`;
+  const userRef = db.collection("users").doc(uid);
+  const policyRef = db.doc("platformSettings/attendanceRewards");
+  await userRef.set({ coins: 100, profileCompleted: true, accountStatus: "active" });
+  const previousPolicy = await policyRef.get();
+  try {
+    await setAttendanceRewardPolicy.run(ownerRequest(ownerUid, { policy: {
+      hourly: { enabled: false, amountCoins: 0 },
+      daily: { enabled: true, amountCoins: 12 },
+      weekly: { enabled: true, amountCoins: 40 },
+    } }));
+    const results = await Promise.all([
+      claimAttendanceReward.run(memberRequest(uid, { type: "daily" })),
+      claimAttendanceReward.run(memberRequest(uid, { type: "daily" })),
+    ]);
+    assert.equal(results.filter((r) => r.idempotentReplay === false).length, 1);
+    assert.equal(results.filter((r) => r.idempotentReplay === true).length, 1);
+    const [user, ledger, claims] = await Promise.all([
+      userRef.get(),
+      userRef.collection("walletLedger").get(),
+      db.collection("attendanceRewardClaims").where("uid", "==", uid).get(),
+    ]);
+    assert.equal(user.data().coins, 112);
+    assert.equal(ledger.size, 1);
+    assert.equal(ledger.docs[0].data().type, "attendance_reward");
+    assert.equal(ledger.docs[0].data().amount, 12);
+    assert.equal(claims.size, 1);
+
+    await assert.rejects(
+      () => claimAttendanceReward.run(memberRequest(uid, { type: "hourly" })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await assert.rejects(
+      () => setAttendanceRewardPolicy.run(memberRequest(uid, { policy: {} })),
+      (error) => error && error.code === "permission-denied",
+    );
+  } finally {
+    const ledger = await userRef.collection("walletLedger").get();
+    const claims = await db.collection("attendanceRewardClaims").where("uid", "==", uid).get();
+    await Promise.all([
+      ...ledger.docs.map((doc) => doc.ref.delete()),
+      ...claims.docs.map((doc) => doc.ref.delete()),
+      userRef.delete(),
+      previousPolicy.exists ? policyRef.set(previousPolicy.data()) : policyRef.delete(),
+    ]);
+  }
+});
+
+test("timed advertisements require foreground heartbeat duration and pay once", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const ownerUid = `ad_owner_${tag}`;
+  const uid = `ad_member_${tag}`;
+  const userRef = db.collection("users").doc(uid);
+  await userRef.set({ coins: 25, profileCompleted: true, accountStatus: "active" });
+  let campaignId;
+  let sessionId;
+  try {
+    const created = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      title: "Test campaign",
+      sponsorLabel: "Mawdda test sponsor",
+      body: "This is a synthetic test-only advertisement for CI validation.",
+      placement: "reward_center",
+      durationSeconds: 15,
+      rewardCoins: 10,
+      startsAtMs: Date.now() - 60000,
+      endsAtMs: Date.now() + 3600000,
+      maxClaimsPerMember: 1,
+      rewardBudgetCoins: 100,
+    }));
+    campaignId = created.campaignId;
+    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, {
+      campaignId, status: "published",
+    }));
+    const active = await getActiveTimedAdCampaigns.run(memberRequest(uid));
+    assert.equal(active.campaigns.some((item) => item.campaignId === campaignId), true);
+
+    const started = await startTimedAdvertisement.run(memberRequest(uid, { campaignId }));
+    sessionId = started.sessionId;
+    await assert.rejects(
+      () => completeTimedAdvertisement.run(memberRequest(uid, { sessionId })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await assert.rejects(
+      () => startTimedAdvertisement.run(memberRequest(uid, { campaignId })),
+      (error) => error && error.code === "already-exists",
+    );
+
+    // Advance only the emulator fixture's server-owned accumulated time. The
+    // callable still validates the next sequential heartbeat and completion.
+    await db.collection("timedAdSessions").doc(sessionId).update({
+      eligibleMs: 15000,
+      heartbeatSequence: 0,
+      lastHeartbeatAtMs: Date.now() - 5000,
+    });
+    const heartbeat = await heartbeatTimedAdvertisement.run(memberRequest(uid, {
+      sessionId, sequence: 1, foreground: true, visible: true,
+    }));
+    assert.equal(heartbeat.eligibleMs >= 15000, true);
+
+    const completed = await completeTimedAdvertisement.run(memberRequest(uid, { sessionId }));
+    assert.equal(completed.completed, true);
+    assert.equal(completed.amountCoins, 10);
+    const replay = await completeTimedAdvertisement.run(memberRequest(uid, { sessionId }));
+    assert.equal(replay.idempotentReplay, true);
+
+    const [user, ledger, campaign, claim] = await Promise.all([
+      userRef.get(),
+      userRef.collection("walletLedger").doc(`timed_ad_${sessionId}`).get(),
+      db.collection("timedAdCampaigns").doc(campaignId).get(),
+      db.collection("timedAdRewardClaims").doc(sessionId).get(),
+    ]);
+    assert.equal(user.data().coins, 35);
+    assert.equal(ledger.data().amount, 10);
+    assert.equal(campaign.data().spentRewardCoins, 10);
+    assert.equal(claim.exists, true);
+  } finally {
+    if (sessionId) {
+      await Promise.all([
+        db.collection("timedAdSessions").doc(sessionId).delete().catch(() => undefined),
+        db.collection("timedAdRewardClaims").doc(sessionId).delete().catch(() => undefined),
+        db.collection("activeTimedAdSessions").doc(uid).delete().catch(() => undefined),
+        userRef.collection("walletLedger").doc(`timed_ad_${sessionId}`).delete().catch(() => undefined),
+      ]);
+    }
+    if (campaignId) {
+      await Promise.all([
+        db.collection("timedAdCampaigns").doc(campaignId).delete().catch(() => undefined),
+        db.collection("timedAdMemberCounters").doc(`${uid}_${campaignId}`).delete().catch(() => undefined),
+      ]);
+    }
+    await userRef.delete().catch(() => undefined);
+  }
+});
