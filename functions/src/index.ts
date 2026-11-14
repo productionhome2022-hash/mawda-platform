@@ -7658,3 +7658,47 @@ export const getOwnerAttendanceRewardPolicy = onCall(async (request) => {
   }
   return { policy, version: snapshot.data()?.version ?? 0 };
 });
+
+
+/** Releases reward-budget reservations for abandoned sessions after their server expiry. */
+export const cleanupExpiredTimedAdSessions = onSchedule("every 15 minutes", async () => {
+  const nowMs = Date.now();
+  const candidates = await db.collection("timedAdSessions")
+    .where("status", "in", ["active", "paused"])
+    .limit(250)
+    .get();
+  let cleaned = 0;
+  for (const candidate of candidates.docs) {
+    if (!Number.isSafeInteger(candidate.data().expiresAtMs) ||
+        candidate.data().expiresAtMs > nowMs) continue;
+    const wasCleaned = await db.runTransaction(async (transaction) => {
+      const session = await transaction.get(candidate.ref);
+      if (!session.exists ||
+          !["active", "paused"].includes(String(session.data()?.status)) ||
+          !Number.isSafeInteger(session.data()?.expiresAtMs) ||
+          session.data()!.expiresAtMs > nowMs) return false;
+      const data = session.data()!;
+      const campaignRef = db.collection("timedAdCampaigns").doc(String(data.campaignId));
+      const activeRef = db.collection("activeTimedAdSessions").doc(String(data.uid));
+      const [campaign, active] = await Promise.all([
+        transaction.get(campaignRef), transaction.get(activeRef),
+      ]);
+      if (campaign.exists) {
+        const reserved = readSafeInteger(campaign.data()?.reservedRewardCoins ?? 0, "reservedRewardCoins");
+        const reward = readSafeInteger(data.rewardCoins, "rewardCoins");
+        transaction.update(campaignRef, {
+          reservedRewardCoins: Math.max(0, reserved - reward),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+      transaction.update(candidate.ref, {
+        status: "expired", lastHeartbeatAtMs: null,
+        expiredAt: FieldValue.serverTimestamp(),
+      });
+      if (active.data()?.sessionId === candidate.id) transaction.delete(activeRef);
+      return true;
+    });
+    if (wasCleaned) cleaned += 1;
+  }
+  logger.info("Expired timed-ad sessions cleaned", { inspected: candidates.size, cleaned });
+});
