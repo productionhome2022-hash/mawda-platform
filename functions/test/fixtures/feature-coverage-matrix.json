@@ -1,0 +1,420 @@
+{
+  "schemaVersion": 1,
+  "environment": "firebase-emulator-only",
+  "policy": {
+    "ordinaryMemberGetsAllMemberFeatures": true,
+    "ownerPrivilegesRequireRealMfaFlow": true,
+    "guestRestrictionsRemainEnforced": true,
+    "testClockMayOnlyBeOverriddenInEmulator": true,
+    "paymentMode": "sandbox-only",
+    "memberMediaAllow": [
+      "image",
+      "gif",
+      "audio",
+      "video"
+    ],
+    "memberMediaDeny": [
+      "pdf",
+      "documents"
+    ],
+    "ownerMediaAllow": [
+      "image",
+      "gif",
+      "audio",
+      "video",
+      "pdf",
+      "documents",
+      "otherMedia"
+    ],
+    "biometricRewardRequiresServerVerification": true,
+    "financialWritesMustUseServerTransactions": true,
+    "guestSession": {
+      "durationSeconds": 3600,
+      "rollingWindowSeconds": 86400,
+      "publicRoomsOnly": true,
+      "allowedMessageTypes": [
+        "text",
+        "audio"
+      ],
+      "directMessagesAllowed": false,
+      "privateRoomsAllowed": false,
+      "emulatorClockOverrideOnly": true
+    }
+  },
+  "personas": {
+    "guest": [
+      "guest-preview"
+    ],
+    "fullMembers": [
+      "email-member",
+      "biometric-member",
+      "counterparty-member"
+    ],
+    "owner": [
+      "owner-operator"
+    ]
+  },
+  "journeys": [
+    {
+      "id": "AUTH-001",
+      "area": "authentication",
+      "actors": [
+        "email-member",
+        "counterparty-member"
+      ],
+      "command": "npm test",
+      "cases": [
+        "sign-in",
+        "sign-out",
+        "invalid-credentials",
+        "expired-session",
+        "email-verification-gate",
+        "account-disabled"
+      ]
+    },
+    {
+      "id": "GUEST-001",
+      "area": "guest",
+      "actors": [
+        "guest-preview"
+      ],
+      "command": "npm run test:guest-privacy-integration",
+      "status": "partial",
+      "cases": [
+        "anonymous-guest-privacy-acknowledgement",
+        "member-acknowledgement-rejects-anonymous-session"
+      ],
+      "plannedCases": [
+        "public-discovery",
+        "public-shop-catalog",
+        "public-ads",
+        "public-room-join",
+        "public-room-text-send-receive",
+        "public-room-audio-send-receive",
+        "60-minute-expiry",
+        "rolling-24-hour-denial",
+        "re-entry-after-window",
+        "no-rewards",
+        "no-direct-messages",
+        "no-private-rooms",
+        "no-wallet",
+        "no-purchase",
+        "no-room-rental",
+        "no-gifts",
+        "no-image-gif-video-or-document-messages",
+        "no-private-data",
+        "emulator-clock-forward-and-reset"
+      ],
+      "releaseBlocker": "Guest room access and the one-hour/24-hour server session are not implemented in the app/backend branch; the current command tests privacy acknowledgement only."
+    },
+    {
+      "id": "PROFILE-001",
+      "area": "profiles",
+      "actors": [
+        "email-member",
+        "biometric-member",
+        "counterparty-member"
+      ],
+      "command": "npm run test:premium-profile-integration",
+      "cases": [
+        "create",
+        "edit",
+        "avatar",
+        "cover",
+        "bio",
+        "privacy",
+        "interests",
+        "badges",
+        "titles",
+        "premium-entitlements",
+        "analytics",
+        "pinned-sections",
+        "greeting",
+        "discovery-boost",
+        "block-and-report",
+        "account-state"
+      ]
+    },
+    {
+      "id": "CHAT-001",
+      "area": "messaging",
+      "actors": [
+        "email-member",
+        "counterparty-member"
+      ],
+      "command": "npm run test:message-deletion-integration",
+      "cases": [
+        "direct-chat",
+        "send-receive",
+        "delivery-and-read",
+        "reactions",
+        "blocking",
+        "reporting",
+        "delete-for-me",
+        "delete-for-everyone",
+        "idempotency",
+        "retention",
+        "legal-hold"
+      ]
+    },
+    {
+      "id": "MEDIA-001",
+      "area": "media",
+      "actors": [
+        "email-member",
+        "counterparty-member",
+        "owner-operator"
+      ],
+      "command": "npm run test:media-integration",
+      "cases": [
+        "image",
+        "gif",
+        "audio",
+        "video",
+        "mime-validation",
+        "size-quota",
+        "malware-quarantine",
+        "approved-preview",
+        "unauthorized-download",
+        "member-pdf-denied",
+        "owner-document-allowed",
+        "retention",
+        "legal-hold",
+        "deletion"
+      ]
+    },
+    {
+      "id": "WALLET-001",
+      "area": "wallet-and-coins",
+      "actors": [
+        "email-member",
+        "counterparty-member",
+        "owner-operator"
+      ],
+      "command": "npm run test:wallet-store-integration",
+      "cases": [
+        "balance-read",
+        "ledger-read",
+        "member-cannot-write-balance",
+        "two-party-transfer",
+        "sender-fee",
+        "recipient-net-amount",
+        "shared-transfer-id",
+        "duplicate-replay",
+        "insufficient-funds",
+        "gift-send-receive",
+        "sandbox-topup",
+        "manual-purchase-request",
+        "owner-verification",
+        "audit-log"
+      ]
+    },
+    {
+      "id": "STORE-001",
+      "area": "stores-and-entitlements",
+      "actors": [
+        "email-member",
+        "biometric-member",
+        "counterparty-member",
+        "owner-operator"
+      ],
+      "command": "npm run test:wallet-store-integration",
+      "cases": [
+        "catalogue",
+        "item-details",
+        "purchase",
+        "insufficient-balance",
+        "duplicate-purchase",
+        "entitlement-grant",
+        "entitlement-revoke",
+        "premium-store",
+        "avatar-frames",
+        "animated-names",
+        "profile-themes",
+        "vip",
+        "badges",
+        "titles",
+        "analytics",
+        "discovery-boost"
+      ]
+    },
+    {
+      "id": "ROOM-001",
+      "area": "rooms",
+      "actors": [
+        "email-member",
+        "counterparty-member",
+        "owner-operator"
+      ],
+      "command": "npm run test:room-rental-integration",
+      "cases": [
+        "public-room-rent",
+        "private-room-rent",
+        "owner-invite",
+        "join",
+        "leave",
+        "roles",
+        "moderation",
+        "billing",
+        "expiry",
+        "renewal",
+        "concurrent-rent",
+        "room-events",
+        "audit"
+      ]
+    },
+    {
+      "id": "BIO-001",
+      "area": "biometric",
+      "actors": [
+        "biometric-member",
+        "owner-operator"
+      ],
+      "command": "npm run test:biometric-integration",
+      "cases": [
+        "challenge-create",
+        "challenge-expiry",
+        "invalid-proof",
+        "replay-denied",
+        "server-verification",
+        "reward-once-only",
+        "prompt-only-no-reward",
+        "emulator-fixture-not-hardware-proof",
+        "device-camera-microphone-permissions"
+      ]
+    },
+    {
+      "id": "OWNER-001",
+      "area": "owner-console",
+      "actors": [
+        "owner-operator"
+      ],
+      "command": "npm run test:owner-audit-export-integration",
+      "cases": [
+        "mfa-required",
+        "fresh-auth-required",
+        "stale-auth-denied",
+        "member-management",
+        "moderation",
+        "economy-controls",
+        "room-controls",
+        "platform-settings",
+        "audit-every-mutation",
+        "export-audit",
+        "no-production-target"
+      ]
+    },
+    {
+      "id": "SAFETY-001",
+      "area": "trust-and-safety",
+      "actors": [
+        "email-member",
+        "counterparty-member",
+        "owner-operator"
+      ],
+      "command": "npm run test:safety-integration",
+      "cases": [
+        "report-user",
+        "block-user",
+        "report-content",
+        "moderation-decision",
+        "appeal",
+        "abuse-rate-limits",
+        "owner-audit"
+      ]
+    },
+    {
+      "id": "PUSH-001",
+      "area": "notifications",
+      "actors": [
+        "email-member",
+        "counterparty-member"
+      ],
+      "command": "npm run test:push-token-integration",
+      "cases": [
+        "register-token",
+        "refresh-token",
+        "invalid-token",
+        "logout-unregister",
+        "notification-preferences",
+        "no-token-leak"
+      ]
+    },
+    {
+      "id": "LOAD-001",
+      "area": "reliability-and-load",
+      "actors": [
+        "email-member",
+        "counterparty-member"
+      ],
+      "command": "npm test",
+      "cases": [
+        "parallel-transfers",
+        "parallel-purchases",
+        "duplicate-call-replay",
+        "concurrent-room-rent",
+        "retry-after-timeout",
+        "transaction-conflict",
+        "bounded-query-pagination",
+        "large-payload-rejection"
+      ]
+    },
+    {
+      "id": "RULES-001",
+      "area": "authorization-and-data-isolation",
+      "actors": [
+        "guest-preview",
+        "email-member",
+        "biometric-member",
+        "counterparty-member",
+        "owner-operator"
+      ],
+      "command": "npm run test:rules",
+      "cases": [
+        "cross-user-profile-read",
+        "cross-user-profile-write",
+        "client-wallet-write",
+        "client-biometric-claim-write",
+        "client-owner-claim-write",
+        "private-chat-read",
+        "storage-read",
+        "storage-write",
+        "test-data-production-isolation"
+      ]
+    },
+    {
+      "id": "PERSONA-001",
+      "area": "seeded-persona-interaction",
+      "actors": [
+        "email-member",
+        "counterparty-member"
+      ],
+      "command": "npm run test:seeded-persona-interaction",
+      "cases": [
+        "seed-auth-identities",
+        "seed-canonical-user-documents",
+        "member-to-member-coin-transfer",
+        "sender-and-recipient-ledgers",
+        "platform-commission",
+        "idempotent-replay",
+        "restore-fixture-balances"
+      ]
+    }
+  ],
+  "releaseGates": [
+    "backend-build",
+    "backend-unit-tests",
+    "firestore-storage-rules",
+    "all-emulator-integration-journeys",
+    "flutter-analyze",
+    "flutter-tests",
+    "flutter-web-release-build",
+    "real-device-biometric",
+    "real-device-camera-microphone",
+    "owner-mfa-review",
+    "security-review",
+    "manual-acceptance-review",
+    "staging-smoke-tests",
+    "explicit-pilot-approval"
+  ]
+}
