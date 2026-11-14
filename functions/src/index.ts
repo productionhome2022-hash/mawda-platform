@@ -5155,7 +5155,7 @@ export const sendRoomMessage = onCall(async (request) => {
     const roomData = room.data() ?? {};
     if (isGuest) {
       if (!guestProfile.exists || !isGuestSessionActive(guestSession.data()) ||
-          !canJoinGuestRoom({ roomAudience: roomData.audience, roomKind: roomData.kind, roomStatus: roomData.status }) ||
+          !canJoinGuestRoom({ roomAudience: roomData.audience, roomKind: roomData.kind, roomStatus: roomData.status, guestAudienceApproved: roomData.guestAudienceApproved }) ||
           membership.data()?.accountType !== "guest") {
         throw new HttpsError("permission-denied", "لا تملك جلسة زائر نشطة ومصرحاً لها بهذه الغرفة.");
       }
@@ -5237,7 +5237,7 @@ export const getRoomMessages = onCall(async (request) => {
       db.collection("guestSessions").doc(uid).get(),
     ]);
     if (!profile.exists || !isGuestSessionActive(session.data()) ||
-        !canJoinGuestRoom({ roomAudience: room.data()?.audience, roomKind: room.data()?.kind, roomStatus: room.data()?.status }) ||
+        !canJoinGuestRoom({ roomAudience: room.data()?.audience, roomKind: room.data()?.kind, roomStatus: room.data()?.status, guestAudienceApproved: room.data()?.guestAudienceApproved }) ||
         membership.data()?.accountType !== "guest") {
       throw new HttpsError("permission-denied", "انتهت صلاحية جلسة الزائر أو لا تسمح سياسة الغرفة بالوصول.");
     }
@@ -5557,7 +5557,7 @@ export const joinRoom = onCall(async (request) => {
       if (!guestProfile.exists || !isGuestSessionActive(guestSession.data())) {
         throw new HttpsError("permission-denied", "جلسة الزائر غير مكتملة أو انتهت صلاحيتها.");
       }
-      if (!canJoinGuestRoom({ roomAudience: data.audience, roomKind: data.kind, roomStatus: data.status })) {
+      if (!canJoinGuestRoom({ roomAudience: data.audience, roomKind: data.kind, roomStatus: data.status, guestAudienceApproved: data.guestAudienceApproved })) {
         throw new HttpsError("permission-denied", "يمكن للزائر دخول الغرف العامة المصنفة لجميع الأعمار فقط.");
       }
     } else {
