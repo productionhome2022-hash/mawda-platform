@@ -7561,15 +7561,32 @@ export const completeTimedAdvertisement = onCall(async (request) => {
       return { completed: true, idempotentReplay: true, amountCoins: claim.data()?.amountCoins ?? 0 };
     }
     if (!["active", "paused"].includes(String(data.status)) ||
-        data.eligibleMs < data.durationSeconds * 1000 ||
-        data.expiresAtMs <= Date.now() ||
         active.data()?.sessionId !== sessionId) {
+      throw new HttpsError("failed-precondition", "جلسة المشاهدة لم تعد نشطة.");
+    }
+    if (data.eligibleMs < data.durationSeconds * 1000) {
       throw new HttpsError("failed-precondition", "لم تكتمل مدة المشاهدة الفعلية المطلوبة.");
     }
+    const cancelSession = (reason: "expired" | "ineligible" | "creative_revoked") => {
+      if (campaign.exists) {
+        const reserved = readSafeInteger(campaign.data()?.reservedRewardCoins ?? 0, "reservedRewardCoins");
+        const reward = readSafeInteger(data.rewardCoins, "rewardCoins");
+        transaction.update(campaignRef, {
+          reservedRewardCoins: Math.max(0, reserved - reward),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+      transaction.update(sessionRef, {
+        status: "cancelled", lastHeartbeatAtMs: null,
+        cancelledAt: FieldValue.serverTimestamp(), cancellationReason: reason,
+      });
+      transaction.delete(activeRef);
+      return { completed: false, cancelled: true, reason };
+    };
+    if (data.expiresAtMs <= Date.now()) return cancelSession("expired");
     if (!user.exists || user.data()?.profileCompleted !== true ||
-        !isMemberAccountInGoodStanding(user.data()) ||
-        !campaign.exists) {
-      throw new HttpsError("permission-denied", "الحساب أو الحملة لم تعد مؤهلة للمكافأة.");
+        !isMemberAccountInGoodStanding(user.data()) || !campaign.exists) {
+      return cancelSession("ineligible");
     }
     const campaignData = campaign.data()!;
     if (typeof campaignMediaId === "string") {
@@ -7578,7 +7595,7 @@ export const completeTimedAdvertisement = onCall(async (request) => {
           mediaData?.uploaderRole !== "platform_owner" ||
           mediaData?.mediaPurpose !== "advertisement" ||
           mediaData?.status !== "security_approved") {
-        throw new HttpsError("failed-precondition", "لم تعد مادة الإعلان معتمدة عند إتمام المشاهدة.");
+        return cancelSession("creative_revoked");
       }
     }
     const spent = readSafeInteger(campaignData.spentRewardCoins ?? 0, "spentRewardCoins");
@@ -7617,6 +7634,15 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     if (active.exists) transaction.delete(activeRef);
     return { completed: true, idempotentReplay: false, amountCoins: data.rewardCoins };
   });
+  if (result.cancelled) {
+    if (result.reason === "expired") {
+      throw new HttpsError("deadline-exceeded", "انتهت جلسة مشاهدة الإعلان وتم تحرير ميزانيتها.");
+    }
+    if (result.reason === "creative_revoked") {
+      throw new HttpsError("failed-precondition", "لم تعد مادة الإعلان معتمدة؛ ألغيت الجلسة دون مكافأة.");
+    }
+    throw new HttpsError("permission-denied", "الحساب أو الحملة لم تعد مؤهلة؛ ألغيت الجلسة دون مكافأة.");
+  }
   return result;
 });
 
