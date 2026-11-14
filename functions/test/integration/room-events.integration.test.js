@@ -55,6 +55,7 @@ test("room event lifecycle is owner-controlled, age-scoped and RSVP-idempotent",
       durationMinutes: 30,
     }));
     createdEventId = created.eventId;
+    const eventRef = db.collection("roomEvents").doc(createdEventId);
     assert.equal(created.status, "scheduled");
 
     const listed = await listRoomEvents.run(call(memberUid, { roomId }));
