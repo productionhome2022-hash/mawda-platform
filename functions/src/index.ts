@@ -7460,6 +7460,16 @@ export const heartbeatTimedAdvertisement = onCall(async (request) => {
     const data = session.data()!;
     const nowMs = Date.now();
     if (data.expiresAtMs <= nowMs) {
+      const campaignRef = db.collection("timedAdCampaigns").doc(String(data.campaignId));
+      const campaign = await transaction.get(campaignRef);
+      if (campaign.exists) {
+        const reserved = readSafeInteger(campaign.data()?.reservedRewardCoins ?? 0, "reservedRewardCoins");
+        const reward = readSafeInteger(data.rewardCoins, "rewardCoins");
+        transaction.update(campaignRef, {
+          reservedRewardCoins: Math.max(0, reserved - reward),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
       transaction.update(sessionRef, {
         status: "expired", lastHeartbeatAtMs: null,
         expiredAt: FieldValue.serverTimestamp(),
