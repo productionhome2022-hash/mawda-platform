@@ -78,8 +78,8 @@ jobs:
                   raise SystemExit(f"{platform} Firebase options still contain placeholders.")
           PY
 
-      - name: Resolve locked Flutter dependencies
-        run: flutter pub get --enforce-lockfile
+      - name: Resolve Flutter dependencies and refresh the committed lockfile
+        run: flutter pub get
 
       - name: Apply Android API 36 to every app and plugin module
         run: |
@@ -91,7 +91,7 @@ jobs:
         run: flutter build apk --debug
 
       - name: Package generated native projects
-        run: tar -czf native-platforms.tar.gz android ios lib/firebase_options.dart
+        run: tar -czf native-platforms.tar.gz android ios lib/firebase_options.dart pubspec.lock
 
       - uses: actions/upload-artifact@v5
         with:
@@ -157,7 +157,7 @@ jobs:
       - name: Add generated platform directories
         run: |
           tar -xzf native-artifact/native-platforms.tar.gz -C .
-          git add android ios lib/firebase_options.dart
+          git add android ios lib/firebase_options.dart pubspec.lock
           if git diff --cached --quiet; then
             echo "Native platform scaffolding is already current."
             exit 0
