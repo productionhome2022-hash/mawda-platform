@@ -7266,6 +7266,9 @@ export const setTimedAdCampaignStatus = onCall(async (request) => {
     if (data.status === "archived" && status !== "archived") {
       throw new HttpsError("failed-precondition", "لا يمكن إعادة تنشيط حملة مؤرشفة.");
     }
+    if (status === "published" && data.creativeType === "video") {
+      throw new HttpsError("failed-precondition", "نشر إعلانات الفيديو متوقف حتى اكتمال مشغل الفيديو واختبارات الأجهزة؛ لا نعرض إعلاناً لا يمكن تشغيله داخل التجربة المقفلة.");
+    }
     if (status === "published" &&
         (data.endsAtMs <= Date.now() || data.rewardCoins < 0 ||
          data.rewardBudgetCoins < data.rewardCoins ||
