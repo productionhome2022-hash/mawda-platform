@@ -5,7 +5,7 @@ const path = require("node:path");
 function validateFirebaseConfiguration({ alias, optionsSource, expectedProjectId, expectedWebAppId }) {
   const errors = [];
   if (!expectedProjectId || typeof expectedProjectId !== "string") errors.push("EXPECTED_FIREBASE_PROJECT_ID_MISSING");
-  if (!alias || alias.projects?.default !== expectedProjectId) errors.push("FIREBASE_CLI_PROJECT_MISMATCH");
+  if (!alias || alias.projects?.production !== expectedProjectId) errors.push("FIREBASE_CLI_PRODUCTION_ALIAS_MISMATCH");
   if (typeof optionsSource !== "string") errors.push("FIREBASE_OPTIONS_MISSING");
   else {
     const match = optionsSource.match(/static const FirebaseOptions web = FirebaseOptions\(([\s\S]*?)\n  \);/);
