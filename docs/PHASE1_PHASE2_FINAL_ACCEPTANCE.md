@@ -181,3 +181,38 @@ This addendum supersedes older snapshot statements above wherever they conflict 
 - Legal/privacy/DPIA review, accessibility, penetration, performance/load and incident-recovery exercises.
 
 **Release decision remains OPEN.** PR #2 and follow-up PRs remain Draft/open/unmerged. No production deployment, live Firebase mutation, destructive retention activation, or Phase 3 work is authorized by this addendum.
+
+
+## J. Latest exact-head verification and closeout boundary — 14 November 2026
+
+This section supersedes earlier "latest" references above when they identify an older development head. It does not change the release decision.
+
+### Current development head and automated evidence
+- Development branch: `codex/mawda-full-platform-implementation`.
+- Exact head reviewed: `f4e69e166f6ad7651f63fdf5391f1844ee124c9e`.
+- [Validate Mawda run 43611868764](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43611868764) completed successfully; all three jobs passed:
+  1. Flutter dependency installation from the committed lockfile, Dart analysis, Flutter tests, and Web release build; Web build artifact uploaded.
+  2. Isolated ClamAV scanner source/security checks, container build, GIF/audio/video/PDF sanitization tests, and harmless EICAR detection.
+  3. Cloud Functions dependency installation, TypeScript compile/unit tests, configured Firestore/Storage emulator integration suites, guest and seeded-persona interactions, wallet/store, media, retention/legal hold, FCM, audit, backup/restore emulator checks, and rules tests.
+- CI artifacts from this exact run include the Web build, compiled Cloud Functions, and dependency lockfile. These are build artifacts, not deployed Firebase services.
+- The Android debug APK and unsigned iOS build were previously reported successful in native workflow run `43606228297` on an earlier source head. They are not evidence of a signed release or physical-device acceptance, and must be rerun/confirmed against the final release candidate before mobile release.
+
+### Current acceptance status
+- Automated repository validation on the exact head above: **PASS**.
+- Phase 1 overall acceptance: **OPEN**.
+- Phase 2 overall acceptance: **OPEN**.
+- PR #2 remains Draft/open/unmerged; no production deploy, production Firebase mutation, destructive retention activation, or production data migration was performed.
+- Do not mark the phases complete based only on emulator/CI success.
+
+### Owner-side Firebase evidence still required
+The next owner-side read-only verification is to reconcile the Storage bucket identity. The repository's historical owner-supplied configuration record lists `mawda-app-2026.appspot.com`, while the current FlutterFire-generated Android/iOS/Web options and Android services file name `mawda-app-2026.firebasestorage.app`. Neither value should be silently substituted for the other. Confirm the actual bucket(s) in Firebase Console / Google Cloud Storage, then validate Functions runtime default bucket, `MAWDA_MEDIA_BUCKET_NAME`, bucket IAM, CORS and a disposable non-production upload/finalize/read/delete journey. No production bucket mutation is authorized by this checklist.
+
+### Work still required before Phase 1/2 closure
+- Live non-production GCS signed URL, object generation, CORS, expiry/replay and deletion tests.
+- Deploy and validate the scanner in non-production Cloud Run, including workload identity, least-privilege IAM, secrets, retry/dead-letter behavior and monitoring.
+- Validate backup/PITR and restore against real cloud resources, retention and legal holds.
+- Confirm Firebase Auth providers/domains/email delivery, FCM real delivery, Storage bucket identity and owner MFA/bootstrap in a disposable non-production environment.
+- Android/iOS physical-device acceptance, including auth, notifications, media picker, microphone capture/playback, uploads, interruptions, accessibility and RTL/LTR; sign/release packaging remains separate.
+- Close the remaining product, legal, privacy, security, accessibility, performance, observability and incident-recovery gates recorded in `docs/RELEASE_READINESS_CHECKLIST.md`.
+- Keep payment gateway/refunds/settlement, high-assurance identity verification and the biometric reward disabled until their respective trusted integrations and acceptance tests exist. The 1,500-coin biometric reward remains fail-closed.
+
