@@ -11,6 +11,7 @@ import 'owner_room_live_stream_screen.dart';
 import 'safety_review_screen.dart';
 import 'room_rental_pricing_screen.dart';
 import 'economy_pricing_screen.dart';
+import 'owner_advertising_rewards_screen.dart';
 
 class SuperAdminScreen extends StatefulWidget {
   const SuperAdminScreen({super.key});
@@ -1416,6 +1417,17 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     )),
                     icon: const Icon(Icons.account_balance_outlined),
                     label: const Text('إدارة أسعار الكوينز والإعلانات'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const OwnerAdvertisingRewardsScreen(),
+                    )),
+                    icon: const Icon(Icons.campaign_outlined),
+                    label: const Text('إدارة الإعلانات ومكافآت الحضور'),
                   ),
                 ),
                 const SizedBox(height: 8),
