@@ -60,7 +60,7 @@ jobs:
           source = Path("lib/firebase_options.dart").read_text()
           for platform in ("web", "android", "ios"):
               match = re.search(
-                  rf"static const FirebaseOptions {platform} = FirebaseOptions\\((.*?)\\n  \\);",
+                  rf"static const FirebaseOptions {platform} = FirebaseOptions\((.*?)\n  \);",
                   source,
                   re.S,
               )
