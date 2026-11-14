@@ -26,8 +26,8 @@ class AndroidPluginCompileSdkTests(unittest.TestCase):
             lifecycle = root / "flutter_plugin_android_lifecycle-2.0.28" / "android" / "build.gradle"
             picker.parent.mkdir(parents=True)
             lifecycle.parent.mkdir(parents=True)
-            picker.write_text("android { compileSdkVersion 34 }\n")
-            lifecycle.write_text("android { compileSdk = 34 }\n")
+            picker.write_text("android {\n    compileSdkVersion 34\n}\n")
+            lifecycle.write_text("android {\n    compileSdk = 34\n}\n")
 
             patched = patch_android_plugin_compile_sdk(Path(temp))
             self.assertEqual(len(patched), 2)
@@ -38,7 +38,7 @@ class AndroidPluginCompileSdkTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / "hosted" / "pub.dev" / "some_plugin-1.0.0" / "android"
             root.mkdir(parents=True)
-            (root / "build.gradle").write_text("android { compileSdkVersion 34 }\n")
+            (root / "build.gradle").write_text("android {\n    compileSdkVersion 34\n}\n")
             with self.assertRaises(SystemExit):
                 patch_android_plugin_compile_sdk(Path(temp))
 
