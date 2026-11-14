@@ -104,6 +104,16 @@ test("premium profile features enforce entitlements, count unique views, and ran
       () => setMemberCustomTitle.run(call(targetUid, { title: "x".repeat(41) })),
       (error) => error && error.code === "invalid-argument",
     );
+    // Ordinary Latin letters, digits and spaces are valid title characters.
+    await setMemberCustomTitle.run(call(targetUid, { title: "Mawdda 2026" }));
+    const asciiTitleView = await getMemberProfile.run(call(targetUid, { userId: targetUid }));
+    assert.equal(asciiTitleView.activeTitle, "Mawdda 2026");
+    // Actual control characters are rejected; the validator must not reject
+    // ordinary letters such as "u" or digits as if they were escape syntax.
+    await assert.rejects(
+      () => setMemberCustomTitle.run(call(targetUid, { title: "bad\\nline" })),
+      (error) => error && error.code === "invalid-argument",
+    );
     await targetRef.collection("entitlements").doc("title_custom").update({
       expiresAt: Timestamp.fromMillis(Date.now() - 1000),
     });
