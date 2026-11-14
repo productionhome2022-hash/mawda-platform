@@ -159,3 +159,22 @@ PR #2 ما زال Draft ومفتوحاً وغير مدمج. لا دمج إلى `
 - استعادة الجلسة النشطة بعد العودة إلى مركز المكافآت، ومصالحة رقم النبضة إذا ضاع رد الشبكة.
 
 التحقق على الرأس الذي يتضمن هذه التغييرات ما زال قيد الانتظار في GitHub Actions؛ لا تعتبر هذه الإضافات معتمدة حتى ينجح تشغيل الرأس النهائي.
+
+
+## نتيجة التحقق الكامل على رأس الكود — 14 نوفمبر 2026
+
+<badge>نجاح CI كامل</badge>
+
+- **الـcommit الذي اجتاز التحقق:** `0ff7211559c30e3d7d009cbcdee42a533c21b149`.
+- **GitHub Actions run:** [43632310117](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43632310117) — `completed / success`.
+- Flutter Analyze: نجاح.
+- Flutter tests: نجاح.
+- Flutter Web Release build: نجاح.
+- Cloud Functions TypeScript compile + unit tests: نجاح.
+- ClamAV scanner gateway tests + image build: نجاح.
+- Emulator integration/rules suites: نجاح، وتشمل media authorization/audit، chat retention/deletion، wallet/store، room rental/events، backup/restore، FCM، biometric cycle، attendance/timed ads، email renewal، safety/appeals، privacy, guest sessions, persona interaction، owner audit export، media legal hold، avatar/cover، premium profile، message legal hold، Firestore/Storage rules.
+- مختبر الشخصيات: نجاح تفاعل الشخصيات واختبار 200 و300 و500 شخصية داخل Firebase Emulators المعزولة.
+
+هذه النتيجة تثبت نجاح الـCI على رأس الكود المذكور، لكنها لا تثبت تشغيل GCS/Cloud Run في مشروع سحابي غير إنتاجي، ولا اختبار أجهزة حقيقية، ولا جاهزية النشر العام. أي تحديث توثيقي لاحق لهذا السجل لا يغير حقيقة أن الكود الذي اختُبر هو commit `0ff7211`.
+
+**حالة الإغلاق:** لا تزال المرحلتان الأولى والثانية مفتوحتين بسبب بوابات البيئة السحابية الحية، تسجيل تطبيقات Firebase الأصلية، مشغل الفيديو، موضع الرئيسية، الأجهزة الحقيقية، النسخ الاحتياطي/PITR الإنتاجي، مراجعة الأمن والخصوصية والقانون والتشغيل. PR #2 ما زال Draft وغير مدمج؛ لا نشر ولا انتقال للمرحلة الثالثة.
