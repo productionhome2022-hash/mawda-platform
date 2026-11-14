@@ -65,13 +65,16 @@ class _ShopScreenState extends State<ShopScreen> {
         'expectedPriceCoins': price,
       });
       final result = Map<String, dynamic>.from(response.data as Map);
-      if (!mounted) return;
+      final purchaseId = result['purchaseId'] as String?;
+      final confirmedItemId = result['itemId'] as String?;
       final balance = (result['newBalance'] as num?)?.toInt();
+      if (purchaseId == null || confirmedItemId != itemId || balance == null) {
+        throw StateError('STORE_PURCHASE_RECEIPT_INCOMPLETE');
+      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(
-          balance == null
-              ? 'تمت معالجة الشراء.'
-              : 'تم الشراء بنجاح. رصيدك الجديد: $balance كوين.',
+          'تم تأكيد شراء "$name" ومنح استحقاقه. رصيدك الجديد: $balance كوين. رقم الإيصال: $purchaseId',
         )),
       );
       _refresh();
