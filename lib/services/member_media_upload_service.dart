@@ -5,6 +5,8 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
+import 'media_status_polling.dart';
+
 /// Client for the trusted media-intake pipeline. The original upload URL is
 /// short-lived and create-only; the app never reads or displays quarantine data.
 class MemberMediaUploadService {
@@ -92,6 +94,7 @@ class MemberMediaUploadService {
     Duration timeout = const Duration(seconds: 90),
   }) async {
     final deadline = DateTime.now().add(timeout);
+    var pollCount = 0;
     while (DateTime.now().isBefore(deadline)) {
       final response = await _functions
           .httpsCallable('getMyMediaUploadStatus')
@@ -106,7 +109,10 @@ class MemberMediaUploadService {
           status['status'] == 'manually_deleted') {
         throw StateError('انتهت صلاحية الصورة قبل اكتمال الفحص.');
       }
-      await Future<void>.delayed(const Duration(seconds: 2));
+      final delay = mediaStatusPollDelay(pollCount);
+      pollCount++;
+      final remaining = deadline.difference(DateTime.now());
+      await Future<void>.delayed(delay < remaining ? delay : remaining);
     }
     throw TimeoutException('لم يكتمل فحص الصورة خلال المهلة المحددة؛ بقيت الصورة غير متاحة.', timeout);
   }
@@ -187,7 +193,10 @@ class MemberMediaUploadService {
       if (['self_destructed', 'expired', 'manually_deleted'].contains(status['status'])) {
         throw StateError('انتهت صلاحية المرفق قبل اكتمال المعالجة.');
       }
-      await Future<void>.delayed(const Duration(seconds: 2));
+      final delay = mediaStatusPollDelay(pollCount);
+      pollCount++;
+      final remaining = deadline.difference(DateTime.now());
+      await Future<void>.delayed(delay < remaining ? delay : remaining);
     }
     throw TimeoutException('لم تكتمل معالجة المرفق الآمنة؛ بقي غير قابل للإرسال.', timeout);
   }
