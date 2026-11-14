@@ -302,7 +302,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
           crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('إنشاء إعلان من المالك', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
-            const Text('يمكن للمالك رفع الصور وGIF والفيديو إلى مسار الحجر والفحص الأمني، ولا تُقبل المادة للحملة قبل اعتماد النسخة الآمنة. الحملات النصية تبقى مستقلة عن أي مزود خارجي مستقبلي.'),
+            const Text('يمكن للمالك رفع الصور وGIF والفيديو إلى مسار الحجر والفحص الأمني، ولا تُقبل المادة للحملة قبل اعتماد النسخة الآمنة. ملاحظة: حملات الفيديو تبقى مسودات ولا يمكن نشرها حتى يكتمل مشغل الفيديو داخل التطبيق واختبار الأجهزة. الحملات النصية مستقلة عن أي مزود خارجي مستقبلي.'),
             const SizedBox(height: 12),
             TextField(controller: _title, enabled: !_saving, decoration: const InputDecoration(labelText: 'عنوان الحملة')),
             TextField(controller: _sponsor, enabled: !_saving, decoration: const InputDecoration(labelText: 'اسم المعلن / الراعي')),
