@@ -261,6 +261,19 @@ function readSafeInteger(value: unknown, field: string): number {
  */
 export const transferCoins = onCall(async (request) => {
   const senderUid = requireAuthenticatedUid(request.auth?.uid);
+  // Anonymous preview guests must never reach wallet/coin operations. Reject
+  // from the verified Firebase Auth provider claim before any Firestore reads,
+  // so a guest receives an explicit authorization denial rather than a
+  // misleading missing-user error (guest profiles are intentionally separate
+  // from member wallet documents).
+  const firebaseIdentity = request.auth?.token.firebase;
+  const signInProvider = firebaseIdentity && typeof firebaseIdentity === "object" &&
+      !Array.isArray(firebaseIdentity)
+    ? (firebaseIdentity as Record<string, unknown>).sign_in_provider
+    : undefined;
+  if (signInProvider === "anonymous") {
+    throw new HttpsError("permission-denied", "التحويلات المالية متاحة للأعضاء فقط.");
+  }
   const data = (request.data ?? {}) as TransferRequest;
   const recipientUid = typeof data.recipientUid === "string" ? data.recipientUid.trim() : "";
   const amount = readSafeInteger(data.amount, "amount");
