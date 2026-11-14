@@ -220,6 +220,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
       ));
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'لم يثبت الخادم اكتمال المشاهدة بعد.');
+      await _reconcileActiveSession();
     }
   }
 
