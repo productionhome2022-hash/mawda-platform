@@ -111,7 +111,7 @@ async function ensureUser(persona) {
       accountState: "active-test-only",
       badgesAndTitles: [],
       shopEntitlements: [],
-      walletFixture: { coins: 0, mode: "sandbox" },
+      walletFixture: { coins: 100000, mode: "sandbox" },
       roomPermissions: [],
       notificationPreferences: { inApp: true, push: false, email: false },
       testLabels: ["MAWDDA_TEST_ONLY", persona.id],
