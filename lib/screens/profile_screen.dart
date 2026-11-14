@@ -97,10 +97,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? 'android'
           : 'ios';
       final response = await FirebaseFunctions.instance
-          .httpsCallable('completeBiometricVerification')
+          .httpsCallable('completeBiometricVerificationCycle')
           .call(<String, dynamic>{
-        'localAuthSucceeded': true,
+        'localAuthenticationSucceeded': true,
         'platform': platform,
+        'attemptId': const Uuid().v4(),
       });
       if (!mounted) return;
       final data = Map<String, dynamic>.from(response.data as Map);
