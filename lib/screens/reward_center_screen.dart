@@ -141,25 +141,37 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
       final remaining = (data['remainingMs'] as num?)?.toInt() ?? 1;
       if (remaining <= 0) await _completeCampaign();
     } on FirebaseFunctionsException catch (error) {
-      if (error.code == 'deadline-exceeded' || error.code == 'failed-precondition') {
+      if (error.code == 'deadline-exceeded') {
         _heartbeatTimer?.cancel();
         if (!mounted) return;
         setState(() { _activeSession = null; _eligibleMs = 0; _requiredMs = 0; });
         await _load();
+      } else {
+        await _reconcileActiveSession();
       }
     } catch (_) {
-      // Reconcile sequence state if a response was lost after the server committed it.
-      try {
-        final status = await _functions.httpsCallable('getActiveTimedAdSession').call();
-        final data = Map<String, dynamic>.from(status.data as Map);
-        if (data['active'] == true && mounted) {
-          _heartbeatSequence = (data['heartbeatSequence'] as num?)?.toInt() ?? _heartbeatSequence;
-          _eligibleMs = (data['eligibleMs'] as num?)?.toInt() ?? _eligibleMs;
-          setState(() {});
-        }
-      } catch (_) { /* Fail closed: no local progress is credited. */ }
+      await _reconcileActiveSession();
     } finally {
       _heartbeatBusy = false;
+    }
+  }
+
+  Future<void> _reconcileActiveSession() async {
+    try {
+      final status = await _functions.httpsCallable('getActiveTimedAdSession').call();
+      final data = Map<String, dynamic>.from(status.data as Map);
+      if (!mounted) return;
+      if (data['active'] == true) {
+        _heartbeatSequence = (data['heartbeatSequence'] as num?)?.toInt() ?? _heartbeatSequence;
+        _eligibleMs = (data['eligibleMs'] as num?)?.toInt() ?? _eligibleMs;
+        setState(() {});
+      } else {
+        _heartbeatTimer?.cancel();
+        setState(() { _activeSession = null; _eligibleMs = 0; _requiredMs = 0; });
+        await _load();
+      }
+    } catch (_) {
+      // Fail closed: server-side time, not a local timer, controls eligibility.
     }
   }
 
