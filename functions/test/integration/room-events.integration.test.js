@@ -22,7 +22,7 @@ test("room event lifecycle is owner-controlled, age-scoped and RSVP-idempotent",
   const ownerRef = db.collection("users").doc(ownerUid);
   const memberRef = db.collection("users").doc(memberUid);
   const minorRef = db.collection("users").doc(minorUid);
-  const startsAtMs = Date.now() + 6 * 60 * 1000;
+  const startsAtMs = Date.now() + 12 * 60 * 1000;
 
   await Promise.all([
     ownerRef.set({ profileCompleted: true, accountStatus: "active", age: 30 }),
