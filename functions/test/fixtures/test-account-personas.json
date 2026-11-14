@@ -24,19 +24,26 @@
       "capabilities": [
         "browse.publicMemberDiscovery",
         "browse.publicShopCatalog",
-        "browse.publicAds"
+        "browse.publicAds",
+        "rooms.public.join",
+        "chat.publicRooms.text",
+        "chat.publicRooms.audio"
       ],
       "deniedCapabilities": [
         "rewards.claim",
         "wallet.read",
         "wallet.write",
-        "chat.send",
-        "chat.readPrivate",
-        "media.upload",
-        "media.downloadPrivate",
+        "chat.direct.send",
+        "chat.direct.read",
+        "chat.privateRooms.read",
+        "chat.privateRooms.join",
+        "media.image",
+        "media.gif",
+        "media.video",
+        "media.documents",
         "gifts.send",
         "gifts.receive",
-        "rooms.join",
+        "rooms.private.join",
         "rooms.rent",
         "store.purchase",
         "coins.topUp",
@@ -209,7 +216,9 @@
       "interests": [
         "اكتشاف الأعضاء",
         "المتاجر",
-        "الإعلانات"
+        "الإعلانات",
+        "الغرف العامة",
+        "المحادثات النصية والصوتية"
       ],
       "goals": [
         "اختبار حدود نافذة الزائر"
@@ -295,5 +304,39 @@
         "اختبار لوحة المالك بعد MFA"
       ]
     }
+  },
+  "guestPolicy": {
+    "durationSeconds": 3600,
+    "rollingWindowSeconds": 86400,
+    "allowedRoomTypes": [
+      "public"
+    ],
+    "allowedRoomActions": [
+      "join",
+      "sendTextMessage",
+      "sendAudioMessage",
+      "receiveTextMessage",
+      "receiveAudioMessage"
+    ],
+    "deniedRoomActions": [
+      "joinPrivateRoom",
+      "rentRoom",
+      "moderateRoom",
+      "sendGift"
+    ],
+    "allowedMessageTypes": [
+      "text",
+      "audio"
+    ],
+    "deniedMessageTypes": [
+      "image",
+      "gif",
+      "video",
+      "pdf",
+      "document",
+      "file"
+    ],
+    "directMessagesAllowed": false,
+    "emulatorClockOverrideOnly": true
   }
 }
