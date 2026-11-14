@@ -23,3 +23,8 @@ functions/.env*
 
 # Firebase Emulator debug logs
 firestore-debug.log
+
+# Local Mawdda emulator test credentials and data (never commit)
+functions/.mawdda-test-credentials.local.json
+.mawdda-test-credentials.local.json
+functions/.emulator-data/
