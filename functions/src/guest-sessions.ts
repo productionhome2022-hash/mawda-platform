@@ -25,6 +25,14 @@ export function isGuestSessionActive(session: Record<string, unknown> | undefine
   return Number.isFinite(expiresAtMs) && expiresAtMs > nowMs;
 }
 
+export function isGuestCooldownActive(session: Record<string, unknown> | undefined, nowMs = Date.now()): boolean {
+  if (!session) return false;
+  const nextEligibleAt = session.nextEligibleAt;
+  const nextEligibleAtMs = nextEligibleAt instanceof Timestamp ? nextEligibleAt.toMillis()
+    : typeof nextEligibleAt === "number" ? nextEligibleAt : 0;
+  return Number.isFinite(nextEligibleAtMs) && nextEligibleAtMs > nowMs;
+}
+
 function validateGuestProfile(data: Record<string, unknown>) {
   const username = typeof data.username === "string" ? data.username.trim() : "";
   const country = typeof data.country === "string" ? data.country.trim().toUpperCase() : "";
@@ -76,7 +84,7 @@ export const startGuestSession = onCall(async (request) => {
     const previousNext = existing.nextEligibleAt;
     const previousNextMs = previousNext instanceof Timestamp ? previousNext.toMillis()
       : typeof previousNext === "number" ? previousNext : 0;
-    if (previousNextMs > nowMs) {
+    if (isGuestCooldownActive(existing, nowMs)) {
       throw new HttpsError("resource-exhausted", "انتهت جلسة الزائر أو أُغلقت. يمكنك العودة بعد انتهاء نافذة الـ24 ساعة.", {
         retryAt: previousNextMs,
       });
