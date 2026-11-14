@@ -1079,7 +1079,7 @@ export const sendChatImageAttachment = onCall(async (request) => {
     const isGuest = uploaderType === "guest";
     if (!room.exists || room.data()?.status !== "active" || (!member.exists && !ownerSession) ||
         (isGuest && (!guestProfile.exists || !isGuestSessionActive(guestSession.data()) ||
-          room.data()?.kind !== "public" || room.data()?.audience !== "all_ages" || room.data()?.guestAudienceApproved !== true || room.data()?.guestAudienceApproved !== true ||
+          room.data()?.kind !== "public" || room.data()?.audience !== "all_ages" || room.data()?.guestAudienceApproved !== true ||
           member.data()?.accountType !== "guest")) ||
         (!isGuest && !user.exists && !ownerSession) ||
         (!isGuest && user.data()?.status === "suspended")) {
