@@ -56,6 +56,8 @@ function randomPassword() {
 async function ensureUser(persona) {
   const email = `${persona.id}@${testEmailDomain}`;
   const password = randomPassword();
+  const profileFixture = catalogue.profileFixtures?.[persona.id] || {};
+  const username = `${persona.id.replace(/[^a-z0-9]/g, "_")}_mawdda_test`;
   let user;
   try {
     user = await auth.getUserByEmail(email);
@@ -81,15 +83,35 @@ async function ensureUser(persona) {
   await db.collection("users").doc(user.uid).set({
     uid: user.uid,
     email,
+    memberId: user.uid,
     displayName: persona.displayName,
+    fullName: persona.displayName,
+    username,
+    emailVerified: persona.emailVerified === true,
     coins: 100000,
     profileCompleted: true,
     accountStatus: "active",
-    age: 25,
+    age: Number.isSafeInteger(profileFixture.age) ? profileFixture.age : 25,
+    profession: profileFixture.profession || "عضو تجريبي",
+    country: profileFixture.country || "Switzerland",
+    region: profileFixture.region || "Zurich",
+    gender: profileFixture.gender || "unspecified",
+    maritalStatus: profileFixture.maritalStatus || "unspecified",
+    bio: profileFixture.biography || "",
+    interests: Array.isArray(profileFixture.interests) ? profileFixture.interests : [],
+    goals: Array.isArray(profileFixture.goals) ? profileFixture.goals : [],
+    profileVisibility: profileFixture.profileVisibility || "public",
     isTestAccount: true,
     testPersonaId: persona.id,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  await db.collection("usernameRegistry").doc(username).set({
+    uid: user.uid,
+    username,
+    isTestAccount: true,
+    createdAt: FieldValue.serverTimestamp(),
   }, { merge: true });
 
   await db.collection("testAccountProfiles").doc(persona.id).set({
@@ -105,7 +127,7 @@ async function ensureUser(persona) {
     deniedCapabilities: persona.deniedCapabilities,
     profile: {
       ...profileFixture,
-      uniqueHandle: `${persona.id.replace(/[^a-z0-9]/g, "_")}_mawdda_test`,
+      uniqueHandle: username,
       avatarFixture: `fixture://avatars/${persona.id}`,
       coverFixture: `fixture://covers/${persona.id}`,
       accountState: "active-test-only",
