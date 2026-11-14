@@ -191,6 +191,40 @@ class _RoomsScreenState extends State<RoomsScreen> {
     }
   }
 
+  Future<void> _enableGuestAudience(Map<String, dynamic> room) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('إتاحة الغرفة للزوار'),
+        content: const Text(
+          'سيتم تصنيف هذه الغرفة كغرفة عامة مناسبة لجميع الأعمار، وسيتمكن الزوار مجهولو العمر من دخولها. '
+          'تأكد من أن محتوى الغرفة وإشرافها وقواعدها مناسبة للجمهور العام باستمرار.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('تأكيد التصنيف')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await FirebaseFunctions.instance.httpsCallable('setRoomAudience').call({
+        'roomId': room['roomId'],
+        'audience': 'all_ages',
+        'confirmGeneralAudienceModeration': true,
+      });
+      if (!mounted) return;
+      _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم اعتماد الغرفة للجمهور العام والزوار.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر تغيير تصنيف الغرفة.')),
+      );
+    }
+  }
+
   Future<void> _transferRoom(Map<String, dynamic> room) async {
     final controller = TextEditingController();
     final uid = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
@@ -270,11 +304,14 @@ class _RoomsScreenState extends State<RoomsScreen> {
                   if (room['isRoomOwner'] == true)
                     PopupMenuButton<String>(
                       onSelected: (value) {
+                        if (value == 'guest-audience') _enableGuestAudience(room);
                         if (value == 'renew') _renewRoom(room);
                         if (value == 'transfer') _transferRoom(room);
                         if (value == 'close') _closeRoom(room);
                       },
                       itemBuilder: (_) => [
+                        if (room['kind'] == 'public' && room['audience'] != 'all_ages')
+                          const PopupMenuItem(value: 'guest-audience', child: Text('إتاحة للزوار (جميع الأعمار)')),
                         if (room['isRented'] == true)
                           const PopupMenuItem(value: 'renew', child: Text('تجديد الاستئجار')),
                         const PopupMenuItem(value: 'transfer', child: Text('نقل الملكية')),
