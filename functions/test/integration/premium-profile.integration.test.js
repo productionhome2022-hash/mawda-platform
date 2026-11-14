@@ -59,15 +59,15 @@ test("premium profile features enforce entitlements, count unique views, and ran
   await Promise.all([
     targetRef.collection("entitlements").doc("profile_analytics_30d").set({
       itemId: "profile_analytics_30d", itemName: "تحليلات الملف",
-      category: "analytics", status: "active", expiresAt: future,
+      category: "analytics", status: "active", purchasedAt: Timestamp.fromMillis(now), expiresAt: future,
     }),
     targetRef.collection("entitlements").doc("visitor_greeting_30d").set({
       itemId: "visitor_greeting_30d", itemName: "ترحيب الزوار",
-      category: "greeting", status: "active", expiresAt: future,
+      category: "greeting", status: "active", purchasedAt: Timestamp.fromMillis(now), expiresAt: future,
     }),
     targetRef.collection("entitlements").doc("profile_pin_30d").set({
       itemId: "profile_pin_30d", itemName: "قسم مثبت",
-      category: "profile_layout", status: "active", expiresAt: future,
+      category: "profile_layout", status: "active", purchasedAt: Timestamp.fromMillis(now), expiresAt: future,
     }),
   ]);
 
