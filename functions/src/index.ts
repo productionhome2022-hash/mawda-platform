@@ -1747,6 +1747,8 @@ export const completeBiometricVerificationCycle = onCall(async (request) => {
     transaction.create(ledgerRef, {
       ledgerId,
       type: "biometric_verification_reward",
+      direction: "credit",
+      description: "مكافأة التوثيق البيومتري",
       amount: rewardCoins,
       balanceAfter: balance + rewardCoins,
       cycleSequence: sequence,
