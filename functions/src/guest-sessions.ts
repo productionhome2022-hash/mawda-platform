@@ -160,15 +160,17 @@ export const listGuestPublicRooms = onCall(async (request) => {
   if (!profile.exists || !isGuestSessionActive(session.data())) {
     throw new HttpsError("permission-denied", "أكمل بيانات الزائر وابدأ جلسة صالحة قبل تصفح الغرف.");
   }
-  const rooms = await db().collection("rooms")
+  const roomSnapshot = await db().collection("rooms")
     .where("status", "==", "active")
-    .where("kind", "==", "public")
-    .where("audience", "==", "all_ages")
-    .where("guestAudienceApproved", "==", true)
-    .limit(100)
+    .limit(200)
     .get();
+  const rooms = roomSnapshot.docs.filter((room) =>
+    room.data().kind === "public" &&
+    room.data().audience === "all_ages" &&
+    room.data().guestAudienceApproved === true,
+  ).slice(0, 100);
   return {
-    rooms: rooms.docs.map((room) => ({
+    rooms: rooms.map((room) => ({
       roomId: room.id,
       name: room.data().name ?? "غرفة عامة",
       memberCount: room.data().memberCount ?? 0,
