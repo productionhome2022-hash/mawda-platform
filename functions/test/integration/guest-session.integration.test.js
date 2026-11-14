@@ -313,3 +313,42 @@ test("guest onboarding stores no age and grants only active all-ages public-room
     ]);
   }
 });
+
+
+test("ending a guest session removes memberships across multiple query pages", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const uid = `guest_cleanup_${suffix()}`;
+  const sessionRef = db.collection("guestSessions").doc(uid);
+  const roomRefs = Array.from({ length: 205 }, (_, index) =>
+    db.collection("rooms").doc(`${uid}_room_${index.toString().padStart(3, "0")}`));
+
+  try {
+    const batch = db.batch();
+    roomRefs.forEach((roomRef) => {
+      batch.set(roomRef, { name: "Guest cleanup fixture", status: "active", kind: "public",
+        audience: "all_ages", guestAudienceApproved: true, memberCount: 1, testCleanupUid: uid });
+      batch.set(roomRef.collection("members").doc(uid), { uid, role: "guest" });
+    });
+    await batch.commit();
+    await sessionRef.set({ uid, status: "active" });
+
+    const before = await db.collectionGroup("members").where("uid", "==", uid).get();
+    assert.equal(before.size, 205);
+
+    await endGuestSession.run(guestRequest(uid));
+
+    const after = await db.collectionGroup("members").where("uid", "==", uid).get();
+    assert.equal(after.size, 0, "all guest memberships must be removed, not only the first 200");
+    const rooms = await db.collection("rooms").where("testCleanupUid", "==", uid).get();
+    assert.equal(rooms.size, 205);
+    assert.ok(rooms.docs.every((room) => room.data().memberCount === 0));
+  } finally {
+    await sessionRef.delete().catch(() => undefined);
+    const batch = db.batch();
+    roomRefs.forEach((roomRef) => {
+      batch.delete(roomRef.collection("members").doc(uid));
+      batch.delete(roomRef);
+    });
+    await batch.commit();
+  }
+});
