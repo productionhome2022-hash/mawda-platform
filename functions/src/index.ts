@@ -5597,6 +5597,55 @@ export const joinRoom = onCall(async (request) => {
   return { roomId, joined: true, guest: isGuest };
 });
 
+/** Room owner or MFA-backed platform owner explicitly classifies a public room for all-age guest access. */
+export const setRoomAudience = onCall(async (request) => {
+  const actorUid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = typeof request.data?.roomId === "string" ? request.data.roomId.trim() : "";
+  const audience = request.data?.audience;
+  const confirmGeneralAudienceModeration = request.data?.confirmGeneralAudienceModeration === true;
+  if (!roomId || roomId.length > 128 ||
+      !["adult", "minor", "all_ages"].includes(String(audience))) {
+    throw new HttpsError("invalid-argument", "معرف الغرفة أو تصنيف الجمهور غير صالح.");
+  }
+  if (audience === "all_ages" && !confirmGeneralAudienceModeration) {
+    throw new HttpsError("failed-precondition", "يجب تأكيد الالتزام بإدارة الغرفة بما يناسب الجمهور العام قبل إتاحتها للزوار.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId);
+  await db.runTransaction(async (transaction) => {
+    const roomSnapshot = await transaction.get(roomRef);
+    if (!roomSnapshot.exists || roomSnapshot.data()?.status !== "active") {
+      throw new HttpsError("not-found", "الغرفة غير موجودة أو غير نشطة.");
+    }
+    const room = roomSnapshot.data()!;
+    const ownerSession = hasPlatformOwnerSession(
+      (request.auth?.token ?? {}) as Record<string, unknown>, undefined, actorUid,
+    );
+    if (room.ownerUid !== actorUid && !ownerSession) {
+      throw new HttpsError("permission-denied", "تغيير تصنيف جمهور الغرفة متاح لمالكها أو مالك المنصة بعد MFA.");
+    }
+    if (audience === "all_ages" && room.kind !== "public") {
+      throw new HttpsError("failed-precondition", "لا يمكن إتاحة غرفة خاصة للزوار.");
+    }
+    const now = FieldValue.serverTimestamp();
+    transaction.update(roomRef, {
+      audience,
+      guestAudienceApproved: audience === "all_ages",
+      guestAudiencePolicyVersion: audience === "all_ages" ? "2026-11-14" : FieldValue.delete(),
+      guestAudienceApprovedBy: audience === "all_ages" ? actorUid : FieldValue.delete(),
+      guestAudienceApprovedAt: audience === "all_ages" ? now : FieldValue.delete(),
+      updatedAt: now,
+    });
+    const auditRef = db.collection("roomAuditLogs").doc();
+    transaction.create(auditRef, {
+      roomId, actorUid, action: "room_audience_updated",
+      previousAudience: room.audience ?? null, audience,
+      guestAudienceApproved: audience === "all_ages",
+      createdAt: now,
+    });
+  });
+  return { roomId, audience, guestAudienceApproved: audience === "all_ages" };
+});
+
 /** Assigns room-only moderation capabilities; moderators cannot manage the platform. */
 export const setRoomModerator = onCall(async (request) => {
   const actorUid = requireAuthenticatedUid(request.auth?.uid);
