@@ -48,6 +48,7 @@ Run an individual suite from `functions/`:
 - `npm run test:rules` — Firestore and Storage rules.
 - `npm run test:guest-privacy-integration` — guest/member privacy boundaries.
 - `npm run test:wallet-store-integration` — coin transfer and store purchase behavior.
+- `npm run test:seeded-persona-interaction` — provisions the named emulator personas, then performs a real member-to-member transfer using their seeded Auth UIDs and verifies both ledgers, platform commission and idempotent replay.
 - `npm run test:room-rental-integration` and `npm run test:room-events-integration` — room lifecycle and events.
 - `npm run test:biometric-integration` — server-side biometric verification lifecycle.
 - `npm run test:email-renewal-integration` — email verification renewal.
