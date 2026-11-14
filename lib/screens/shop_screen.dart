@@ -13,6 +13,7 @@ class ShopScreen extends StatefulWidget {
 class _ShopScreenState extends State<ShopScreen> {
   late Future<List<Map<String, dynamic>>> _catalogFuture;
   String? _purchasingItemId;
+  String _selectedStore = 'all';
 
   @override
   void initState() {
@@ -90,13 +91,39 @@ class _ShopScreenState extends State<ShopScreen> {
   }
 
   String _categoryLabel(String category) => switch (category) {
-    'avatar' => 'إطارات وصور رمزية',
-    'theme' => 'سمات وخلفيات',
-    'title' => 'ألقاب وأوسمة',
+    'avatar' || 'frame' => 'إطارات الصور',
+    'username_style' => 'أنماط الأسماء',
+    'theme' => 'الثيمات والخلفيات',
+    'title' => 'متجر الألقاب',
+    'badge' => 'متجر الأوسمة',
     'vip' => 'عضوية VIP',
     'analytics' => 'تحليلات الملف',
-    'discovery' => 'تعزيز الظهور',
+    'profile_layout' => 'تطوير الملف الشخصي',
+    'boost' => 'تعزيز الظهور',
+    'greeting' => 'ترحيب الزوار',
+    'privacy' => 'الخصوصية - قيد التجهيز',
     _ => 'ميزات خاصة',
+  };
+
+  String _storeGroup(Map<String, dynamic> item) {
+    final category = item['category'] as String? ?? 'feature';
+    return switch (category) {
+      'vip' => 'vip',
+      'title' => 'titles',
+      'badge' => 'badges',
+      'privacy' => 'privacy',
+      _ => 'features',
+    };
+  }
+
+  String _storeGroupLabel(String group) => switch (group) {
+    'all' => 'كل المتاجر',
+    'features' => 'المميزات الخاصة',
+    'badges' => 'الأوسمة',
+    'titles' => 'الألقاب',
+    'vip' => 'VIP',
+    'privacy' => 'الخصوصية',
+    _ => 'المتجر',
   };
 
   @override
@@ -163,20 +190,53 @@ class _ShopScreenState extends State<ShopScreen> {
             );
           }
 
+          final visibleItems = _selectedStore == 'all'
+              ? items
+              : items.where((item) => _storeGroup(item) == _selectedStore).toList(growable: false);
+
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: const [
+                  'all',
+                  'features',
+                  'badges',
+                  'titles',
+                  'vip',
+                  'privacy',
+                ].map((group) => group).toList(growable: false).map((group) {
+                  return ChoiceChip(
+                    label: Text(_storeGroupLabel(group)),
+                    selected: _selectedStore == group,
+                    onSelected: (selected) {
+                      if (selected) setState(() => _selectedStore = group);
+                    },
+                  );
+                }).toList(growable: false),
+              ),
+              const SizedBox(height: 12),
               const Card(
                 child: Padding(
                   padding: EdgeInsets.all(14),
                   child: Text(
-                    'الأسعار المعروضة مصدرها كتالوج الخادم. الشراء والشحن غير مفعّلين حتى اكتمال التحقق المالي ومنح الاستحقاقات بأمان.',
+                    'العناصر وأسعارها مصدرها كتالوج الخادم. عند إتاحة الشراء، ينفّذ الخادم خصم الكوينز وتسجيل الإيصال وقيد المحفظة ومنح الاستحقاق في معاملة واحدة. العناصر غير الجاهزة تبقى غير قابلة للشراء.',
                     textAlign: TextAlign.center,
                   ),
                 ),
               ),
               const SizedBox(height: 12),
-              ...items.map((item) {
+              if (visibleItems.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'لا توجد عناصر منشورة في ${_storeGroupLabel(_selectedStore)} حالياً.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ...visibleItems.map((item) {
                 final name = item['name'] as String? ?? 'عنصر من مودة';
                 final description = item['description'] as String? ?? '';
                 final category = item['category'] as String? ?? 'feature';
