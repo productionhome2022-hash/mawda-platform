@@ -61,9 +61,15 @@ Run an individual suite from `functions/`:
 
 Some suites need external credentials or cloud resources and are deliberately not part of the default emulator suite: live media scanner E2E and GCS retention. Run them only in a separately approved non-production environment.
 
-## Guest clock testing
+## Guest clock and public-room testing
 
-The guest's one-hour/24-hour policy is a product rule. During the active hour, the guest may join public rooms and send/receive text and audio messages only. Direct messages, private rooms, room rental, gifts, images, GIFs, video and documents are denied. Clock manipulation is permitted only in an isolated emulator test harness; do not add a client-facing clock control to production. Tests should exercise: first entry, public-room text/audio exchange, denial of every prohibited action, continued use before 60 minutes, expiry at 60 minutes, denial before the rolling 24-hour window ends, and re-entry when the window expires. The test clock must not change server time, production timestamps, or real user eligibility.
+**Product requirement:** one hour of guest access per rolling 24-hour window. During that hour, the guest may join public rooms and send/receive text and audio messages only. Private/direct messages, private rooms, room rental, gifts, rewards, wallet actions, purchases, images, GIFs, video and documents remain denied. A guest is not an ordinary member and must not acquire member or owner claims.
+
+**Current implementation status: partial / release-blocking.** The current `test:guest-privacy-integration` command verifies anonymous-versus-member privacy acknowledgement only. It does **not** prove public-room joining, text/audio exchange, the 60-minute expiry, or the rolling 24-hour cooldown. The full application branch currently routes anonymous users to a guest upgrade screen, while the room join/send callables require a completed member record; there is no authoritative guest session lifecycle or guest room-message exception yet. Do not mark these journeys complete or expose the guest experience as ready.
+
+Before this feature can pass, implement and test a server-authoritative guest session bound to the anonymous Firebase UID, public-room-only membership, text/audio-only message authorization and reads, and expiry/cooldown checks on every protected operation. Preserve age/audience separation: a guest must not bypass the platform's age-segmented room policy. No client-supplied timestamps or client clock may extend access.
+
+The emulator test harness may seed/advance/reset guest-session timestamps directly in isolated emulator data to exercise first entry, activity before 60 minutes, expiry, denial during the remaining cooldown, and re-entry after 24 hours. Never expose clock controls to production clients or change production time/timestamps.
 
 ## Media and financial invariants
 
