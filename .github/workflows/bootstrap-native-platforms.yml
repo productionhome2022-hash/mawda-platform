@@ -122,6 +122,12 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Install Firebase CLI and FlutterFire CLI
+        run: |
+          npm install --global firebase-tools@14.0.0
+          dart pub global activate flutterfire_cli
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+
       - uses: actions/download-artifact@v5
         with:
           name: mawdda-native-platforms-${{ github.sha }}
