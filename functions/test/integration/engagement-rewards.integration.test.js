@@ -106,7 +106,14 @@ test("timed advertisements require foreground heartbeat duration and pay once", 
       rewardBudgetCoins: 100,
     }));
     campaignId = created.campaignId;
-    await db.collection("timedAdCampaigns").doc(campaignId).update({ creativeType: "video" });
+    await db.collection("timedAdCampaigns").doc(campaignId).update({ placement: "home" });
+    await assert.rejects(
+      () => setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "published" })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await db.collection("timedAdCampaigns").doc(campaignId).update({
+      placement: "reward_center", creativeType: "video",
+    });
     await assert.rejects(
       () => setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "published" })),
       (error) => error && error.code === "failed-precondition",
