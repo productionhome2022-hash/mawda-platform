@@ -111,7 +111,7 @@ test("premium profile features enforce entitlements, count unique views, and ran
     // Actual control characters are rejected; the validator must not reject
     // ordinary letters such as "u" or digits as if they were escape syntax.
     await assert.rejects(
-      () => setMemberCustomTitle.run(call(targetUid, { title: "bad\\nline" })),
+      () => setMemberCustomTitle.run(call(targetUid, { title: "bad\nline" })),
       (error) => error && error.code === "invalid-argument",
     );
     await targetRef.collection("entitlements").doc("title_custom").update({
