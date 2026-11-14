@@ -23,6 +23,11 @@ import { validateSafetyReportInput, validateSafetyAppealInput } from "./safety-c
 import { createDirectChatId } from "./direct-chat-id";
 import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
 import { hasActiveBiometricVerification } from "./biometric-verification";
+import {
+  createBiometricVerificationCycle,
+  biometricVerificationRewardLedgerId,
+  BIOMETRIC_VERIFICATION_REWARD_COINS,
+} from "./biometric-verification-cycle";
 import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS } from "./email-verification-cycle";
 import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
 import { isMemberAccountInGoodStanding } from "./member-access";
@@ -598,6 +603,130 @@ export const getPrivacyAcknowledgementStatus = onCall(async (request) => {
   };
 });
 
+
+/**
+ * Credits the approved 1,500-coin reward after the member completes the
+ * native Android BiometricPrompt / Apple LocalAuthentication prompt.
+ *
+ * Important assurance boundary: the operating system performs the local
+ * biometric match. The callable receives a client-reported success signal;
+ * it does not receive a biometric template, camera frame, microphone sample,
+ * hardware attestation, or cryptographic proof of civil identity.
+ * The server owns cycle timing, eligibility, balance mutation and idempotency.
+ */
+export const completeBiometricVerification = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  if (request.data?.localAuthSucceeded !== true) {
+    throw new HttpsError("failed-precondition", "يجب إكمال نافذة المصادقة المحلية بنجاح أولاً.");
+  }
+  const platform = request.data?.platform;
+  if (platform !== "android" && platform !== "ios") {
+    throw new HttpsError("invalid-argument", "منصة المصادقة المحلية غير مدعومة.");
+  }
+
+  const userRef = db.collection("users").doc(uid);
+  const serverNowMs = Date.now();
+  return db.runTransaction(async (transaction) => {
+    const userSnapshot = await transaction.get(userRef);
+    if (!userSnapshot.exists) {
+      throw new HttpsError("failed-precondition", "يجب إكمال الملف الشخصي قبل طلب مكافأة التوثيق.");
+    }
+    const userData = userSnapshot.data()!;
+    if (userData.profileCompleted !== true || !isMemberAccountInGoodStanding(userData)) {
+      throw new HttpsError("permission-denied", "المكافأة متاحة للأعضاء المكتملين والفعالين فقط.");
+    }
+
+    const currentVerification = userData.biometricVerification;
+    if (hasActiveBiometricVerification(currentVerification, serverNowMs)) {
+      const expiry = currentVerification.expiresAt;
+      const expiresAtMs = expiry instanceof Timestamp
+        ? expiry.toMillis()
+        : typeof expiry?.toMillis === "function" ? expiry.toMillis() : null;
+      return {
+        verified: true,
+        rewardGranted: false,
+        alreadyVerified: true,
+        expiresAtMs,
+        rewardAmount: BIOMETRIC_VERIFICATION_REWARD_COINS,
+      };
+    }
+
+    const priorSequence = Number.isSafeInteger(userData.biometricVerificationSequence)
+      ? userData.biometricVerificationSequence as number
+      : 0;
+    const cycle = createBiometricVerificationCycle({
+      uid,
+      sequence: priorSequence + 1,
+      serverNowMs,
+    });
+    const cycleRef = db.collection("biometricVerificationCycles")
+      .doc(uid + "_" + cycle.cycleId);
+    const ledgerRef = userRef.collection("walletLedger")
+      .doc(biometricVerificationRewardLedgerId(cycle.cycleId));
+    const [cycleSnapshot, ledgerSnapshot] = await Promise.all([
+      transaction.get(cycleRef),
+      transaction.get(ledgerRef),
+    ]);
+    if (cycleSnapshot.exists || ledgerSnapshot.exists) {
+      throw new HttpsError("already-exists", "دورة مكافأة التوثيق هذه مسجلة مسبقاً؛ لم يُكرر الصرف.");
+    }
+
+    const balance = Number.isSafeInteger(userData.coins) ? userData.coins as number : 0;
+    const newBalance = balance + BIOMETRIC_VERIFICATION_REWARD_COINS;
+    if (!Number.isSafeInteger(newBalance)) {
+      throw new HttpsError("out-of-range", "الرصيد الناتج يتجاوز الحد الرقمي الآمن.");
+    }
+    const startedAt = Timestamp.fromMillis(cycle.startedAtMs);
+    const expiresAt = Timestamp.fromMillis(cycle.expiresAtMs);
+    transaction.update(userRef, {
+      coins: newBalance,
+      biometricVerificationSequence: cycle.sequence,
+      biometricVerificationCycleId: cycle.cycleId,
+      biometricVerification: {
+        status: "verified",
+        verifiedAt: startedAt,
+        expiresAt,
+        revokedAt: null,
+        method: "client_reported_os_local_auth",
+        platform,
+        assuranceLevel: "local_device_prompt_only",
+      },
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.create(cycleRef, {
+      ...cycle,
+      status: "rewarded",
+      startedAt,
+      expiresAt,
+      rewardedAt: startedAt,
+      method: "client_reported_os_local_auth",
+      platform,
+      assuranceLevel: "local_device_prompt_only",
+      createdAt: startedAt,
+    });
+    transaction.create(ledgerRef, {
+      type: "biometric_verification_reward",
+      direction: "credit",
+      amount: BIOMETRIC_VERIFICATION_REWARD_COINS,
+      reason: "completed_local_biometric_prompt",
+      cycleId: cycle.cycleId,
+      cycleSequence: cycle.sequence,
+      idempotencyKey: cycle.cycleId,
+      method: "client_reported_os_local_auth",
+      platform,
+      createdAt: startedAt,
+    });
+    return {
+      verified: true,
+      rewardGranted: true,
+      alreadyVerified: false,
+      rewardAmount: BIOMETRIC_VERIFICATION_REWARD_COINS,
+      newBalance,
+      cycleId: cycle.cycleId,
+      expiresAtMs: cycle.expiresAtMs,
+    };
+  });
+});
 
 /**
  * Completes a verified member's Mawda profile.
