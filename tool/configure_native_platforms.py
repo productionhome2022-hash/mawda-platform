@@ -135,15 +135,18 @@ gradle.addProjectEvaluationListener(object : org.gradle.api.ProjectEvaluationLis
             val androidExtension = project.extensions.findByName("android")
             if (androidExtension != null) {
                 val setter = androidExtension.javaClass.methods.firstOrNull {
-                    it.name == "setCompileSdkVersion" && it.parameterCount == 1
-                } ?: throw GradleException("Could not find Android compileSdkVersion setter for ${project.path}.")
+                    it.name == "setCompileSdkVersion" && it.parameterCount == 1 &&
+                        (it.parameterTypes[0] == java.lang.Integer.TYPE ||
+                         it.parameterTypes[0] == java.lang.Integer::class.java)
+                } ?: throw GradleException(
+                    "Could not find integer compileSdkVersion setter for ${project.path}; candidates: " +
+                        androidExtension.javaClass.methods.filter { it.name.contains("CompileSdk", true) }
+                            .joinToString { method -> method.name + method.parameterTypes.contentToString() },
+                )
                 setter.invoke(androidExtension, 36)
             }
         }
         project.pluginManager.withPlugin("com.android.library") {
-            applyMawddaCompileSdkOverride()
-        }
-        project.pluginManager.withPlugin("com.android.application") {
             applyMawddaCompileSdkOverride()
         }
     }
@@ -162,7 +165,6 @@ gradle.addProjectEvaluationListener(new org.gradle.api.ProjectEvaluationListener
             }
         }
         project.plugins.withId('com.android.library') { applyMawddaCompileSdkOverride() }
-        project.plugins.withId('com.android.application') { applyMawddaCompileSdkOverride() }
     }
     void afterEvaluate(org.gradle.api.Project project, org.gradle.api.ProjectState state) {}
 })
