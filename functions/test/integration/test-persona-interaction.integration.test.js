@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getFirestore } = require("firebase-admin/firestore");
 const { getAuth } = require("firebase-admin/auth");
-const { transferCoins } = require("../../lib/index");
+const { transferCoins, sendDirectMessage, getDirectMessages, setMemberBlock } = require("../../lib/index");
 
 const db = getFirestore();
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
@@ -89,6 +89,41 @@ test("seeded Mawdda member personas can transact with each other inside the isol
     assert.equal(replay.idempotentReplay, true);
     assert.equal((await senderRef.get()).data().coins, senderBalance - 1000);
     assert.equal((await recipientRef.get()).data().coins, recipientBalance + 900);
+
+    const directRequest = {
+      data: {
+        recipientUid,
+        text: "اختبار محادثة مباشرة بين شخصيتي البريد والعضو المقابل",
+        clientMessageId: `persona_dm_${tag}`,
+      },
+      auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+    };
+    const direct = await sendDirectMessage.run(directRequest);
+    assert.equal(direct.replayed, false);
+    const directReplay = await sendDirectMessage.run(directRequest);
+    assert.equal(directReplay.replayed, true);
+    const inbox = await getDirectMessages.run({
+      data: { chatId: direct.chatId },
+      auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+    });
+    assert.ok(inbox.messages.some((message) => message.messageId === direct.messageId &&
+      message.text === "اختبار محادثة مباشرة بين شخصيتي البريد والعضو المقابل"));
+
+    await setMemberBlock.run({
+      data: { targetUid: recipientUid, blocked: true },
+      auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+    });
+    await assert.rejects(
+      () => sendDirectMessage.run({
+        data: { recipientUid, text: "رسالة بعد الحظر", clientMessageId: `blocked_dm_${tag}` },
+        auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+      }),
+      (error) => error && error.code === "permission-denied",
+    );
+    await setMemberBlock.run({
+      data: { targetUid: recipientUid, blocked: false },
+      auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+    });
   } finally {
     await Promise.all([
       senderRef.update({ coins: senderBalance }),
@@ -97,6 +132,18 @@ test("seeded Mawdda member personas can transact with each other inside the isol
       recipientLedgerRef.delete().catch(() => undefined),
       platformLedgerRef.delete().catch(() => undefined),
       transferRef.delete().catch(() => undefined),
+      (async () => {
+        const chatId = createDirectChatId(senderUid, recipientUid);
+        const chatRef = db.collection("directChats").doc(chatId);
+        const messages = await chatRef.collection("messages").get();
+        const batch = db.batch();
+        messages.docs.forEach((doc) => batch.delete(doc.ref));
+        batch.delete(chatRef);
+        await batch.commit();
+        await recipientRef.collection("notifications").doc(
+          require("node:crypto").createHash("sha256").update(senderUid + ":persona_dm_" + tag).digest("hex"),
+        ).delete().catch(() => undefined);
+      })(),
     ]);
     if (previousSettingsData) await settingsRef.set(previousSettingsData);
     else await settingsRef.delete().catch(() => undefined);
