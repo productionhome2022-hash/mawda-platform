@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'push_notification_service.dart';
 
 class AuthService {
@@ -46,10 +47,9 @@ class AuthService {
         message: 'لا توجد جلسة ضيف نشطة لإنهائها.',
       );
     }
-    // Anonymous guest sessions have no member push token. Delete the anonymous
-    // Auth identity so it cannot accumulate as an abandoned account.
-    await user.delete();
-    await _auth.signOut();
+    // Preserve the anonymous UID so ending and reopening the app cannot reset
+    // the server-side 24-hour guest cooldown by creating a fresh anonymous UID.
+    await FirebaseFunctions.instance.httpsCallable('endGuestSession').call();
   }
 
   Future<void> signOut() async {
