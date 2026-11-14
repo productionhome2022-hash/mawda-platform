@@ -19,6 +19,8 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
   Map<String, dynamic>? _activeSession;
   int _heartbeatSequence = 0, _eligibleMs = 0, _requiredMs = 0;
   String? _error;
+  String? _creativeUrl;
+  String? _creativeType;
 
   @override
   void initState() {
@@ -62,6 +64,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
         }
       });
       if (restoredSession != null) {
+        unawaited(_loadCreative(restoredSession));
         _heartbeatTimer?.cancel();
         _heartbeatTimer = Timer.periodic(const Duration(seconds: 5), (_) {
           if (_foreground) unawaited(_sendHeartbeat(foreground: true));
@@ -73,6 +76,25 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
       if (mounted) setState(() => _error = 'تعذر تحميل مركز المكافآت. تحقق من الاتصال.');
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadCreative(Map<String, dynamic> session) async {
+    if (session['mediaId'] == null || session['creativeType'] == null ||
+        session['creativeType'] == 'text') return;
+    try {
+      final response = await _functions.httpsCallable('getTimedAdCreativeUrl').call({
+        'campaignId': session['campaignId'],
+        'sessionId': session['sessionId'],
+      });
+      final data = Map<String, dynamic>.from(response.data as Map);
+      if (!mounted) return;
+      setState(() {
+        _creativeUrl = data['url'] as String?;
+        _creativeType = data['creativeType'] as String?;
+      });
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل المادة الإعلانية الآمنة.');
     }
   }
 
@@ -111,6 +133,9 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
         _eligibleMs = 0;
         _requiredMs = ((session['durationSeconds'] as num?)?.toInt() ?? 0) * 1000;
       });
+      _creativeUrl = null;
+      _creativeType = null;
+      unawaited(_loadCreative(session));
       _heartbeatTimer?.cancel();
       _heartbeatTimer = Timer.periodic(const Duration(seconds: 5), (_) {
         if (_foreground) unawaited(_sendHeartbeat(foreground: true));
@@ -144,7 +169,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
       if (error.code == 'deadline-exceeded') {
         _heartbeatTimer?.cancel();
         if (!mounted) return;
-        setState(() { _activeSession = null; _eligibleMs = 0; _requiredMs = 0; });
+        setState(() { _activeSession = null; _eligibleMs = 0; _requiredMs = 0; _creativeUrl = null; _creativeType = null; });
         await _load();
       } else {
         await _reconcileActiveSession();
@@ -167,7 +192,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
         setState(() {});
       } else {
         _heartbeatTimer?.cancel();
-        setState(() { _activeSession = null; _eligibleMs = 0; _requiredMs = 0; });
+        setState(() { _activeSession = null; _eligibleMs = 0; _requiredMs = 0; _creativeUrl = null; _creativeType = null; });
         await _load();
       }
     } catch (_) {
@@ -239,6 +264,19 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
               Text(session['sponsorLabel'] as String? ?? '', textAlign: TextAlign.center),
               const SizedBox(height: 12),
               Text(session['body'] as String? ?? '', textAlign: TextAlign.center),
+              if (_creativeUrl != null && (_creativeType == 'image' || _creativeType == 'gif')) ...[
+                const SizedBox(height: 16),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    _creativeUrl!, fit: BoxFit.contain,
+                    loadingBuilder: (context, child, progress) => progress == null
+                        ? child
+                        : const SizedBox(height: 180, child: Center(child: CircularProgressIndicator())),
+                    errorBuilder: (_, __, ___) => const Text('تعذر عرض النسخة الآمنة للإعلان.'),
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               const Text('المشاهدة قيد التحقق', textAlign: TextAlign.center,
                 style: TextStyle(fontWeight: FontWeight.bold)),
