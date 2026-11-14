@@ -143,7 +143,7 @@ No production deployment, paid-service activation, irreversible retention settin
 ## 2026-11-15 — 5,000-persona lifecycle expansion (pending CI)
 
 - Extended `functions/test/integration/persona-load.integration.test.js` beyond wallet and direct-message load.
-- The same 5,000 emulator-provisioned Auth identities now proceed through a connected scenario: sandbox premium entitlement fixtures; per-persona premium greeting, pinned-section and custom-title updates; peer profile reads after all profile writes have committed; per-persona discovery callable execution; membership in one isolated public all-ages test room; scheduled event listing; RSVP; and owner-controlled event completion.
+- The same 5,000 emulator-provisioned Auth identities now proceed through a connected scenario: sandbox premium entitlement fixtures; per-persona premium greeting, pinned-section and custom-title updates; peer profile reads after all profile writes have committed; per-persona discovery callable execution; membership across 100 isolated public all-ages test rooms (50 personas per room); scheduled event listing; RSVP; and owner-controlled event completion. This avoids creating a single artificial hot room/event document for all 5,000 writes.
 - The scenario creates an individual coverage row for every persona and asserts all 5,000 complete each listed stage. The machine-readable load report now carries this lifecycle coverage alongside the wallet/chat coverage.
 - The scenario runs within the existing `npm run test:persona-load` command already present in `.github/workflows/validate.yml`; no separate production or live Firebase workflow is involved.
 - Premium entitlements in this test are explicitly seeded sandbox fixtures, **not** proof of the purchase/receipt flow. Actual store purchase-to-entitlement remains validated by the separate wallet/store and premium-profile integration suites.
@@ -155,6 +155,6 @@ No production deployment, paid-service activation, irreversible retention settin
 ### Follow-up extension — per-persona store fulfillment
 
 - Extended the 5,000-persona lifecycle to publish one fulfillment-ready VIP SKU only in the emulator project, then have every synthetic member call the real `purchaseStoreItem` callable.
-- Each persona performs a first purchase and an idempotent replay; the test checks the single wallet debit, completed purchase receipt, linked wallet ledger and active entitlement.
+- Each persona performs a first purchase and an idempotent replay; the test checks the single wallet debit, completed purchase receipt, linked wallet ledger and active entitlement. The profile stage also verifies each member's VIP projection, one unique peer view in analytics, active custom title, and discovery-boosted visibility.
 - The catalog fixture is created through the MFA-gated owner callable using a synthetic emulator-only owner claim. This does not enable or modify any live catalog.
 - CI remains unverified for these new stages until a successful workflow run and a report with 5,000/5,000 coverage are available.
