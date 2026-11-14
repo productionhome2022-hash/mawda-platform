@@ -401,7 +401,11 @@
         "sender-and-recipient-ledgers",
         "platform-commission",
         "idempotent-replay",
-        "restore-fixture-balances"
+        "restore-fixture-balances",
+        "member-direct-message-send-receive",
+        "direct-message-idempotency",
+        "block-denies-message",
+        "unblock-restores-messaging"
       ]
     }
   ],
