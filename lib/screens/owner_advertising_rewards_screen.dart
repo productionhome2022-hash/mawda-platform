@@ -422,7 +422,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
           final status = campaign['status'];
           return Card(child: ListTile(
             title: Text(campaign['title'] as String? ?? id),
-            subtitle: Text('${_statusLabel(status)} • ${campaign['rewardCoins'] ?? 0} كوين • صرف ${campaign['spentRewardCoins'] ?? 0}/${campaign['rewardBudgetCoins'] ?? 0}'),
+            subtitle: Text('${_statusLabel(status)} • ${campaign['rewardCoins'] ?? 0} كوين • مستخدم ${campaign['spentRewardCoins'] ?? 0} • محجوز ${campaign['reservedRewardCoins'] ?? 0} • الميزانية ${campaign['rewardBudgetCoins'] ?? 0}'),
             isThreeLine: true,
             trailing: PopupMenuButton<String>(
               enabled: !_saving && status != 'archived',
