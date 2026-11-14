@@ -169,6 +169,8 @@ This checklist is a release gate, not a statement that the listed work is comple
 
 ## High-assurance biometric verification and 1,500-coin reward release gates
 
+**Security status — 14 November 2026:** the previous callable credited 1,500 coins from a client-supplied `localAuthenticationSucceeded` boolean and client attempt ID. This was not server-verifiable proof and could be forged by a modified client. The callable now fails closed with `failed-precondition` and does not write wallet balance, biometric verification status, or reward ledger entries. Regression tests enforce this behavior. The 1,500-coin reward is intentionally unavailable until a device-bound cryptographic challenge/attestation is verified server-side (fresh nonce, UID/platform/key binding, replay protection, revocation/expiry, and atomic idempotent credit). This is a security containment fix, not completion of biometric verification.
+
 - [ ] Select and assess a qualified identity-verification provider/stack; document supported jurisdictions, assurance level, provider security evidence, data locations, subprocessors, retention, and incident procedures.
 - [ ] Complete a DPIA and applicable legal review before collection, including GDPR special-category biometric-data requirements where applicable; implement explicit consent where required, purpose limitation, member rights, retention/deletion, and withdrawal handling.
 - [ ] The product's “real identity verified” claim is backed by appropriate identity proofing (for example, accepted identity-document validation and live-face match). A selfie video, voice challenge, device biometric unlock, or profile photo alone is not identity proof.
