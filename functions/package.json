@@ -2,12 +2,14 @@
   "name": "mawda-platform-functions",
   "private": true,
   "main": "lib/index.js",
-  "engines": { "node": "20" },
+  "engines": {
+    "node": "20"
+  },
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
     "test": "npm run build && node --check scripts/bootstrap-owner.cjs && node --check scripts/test-signed-urls-http.cjs && node --check scripts/test-retention-storage.cjs && node --check scripts/seed-test-accounts.cjs && node --test test/*.test.js",
-    "test:all": "npm test && npm run test:rules && npm run test:guest-privacy-integration && npm run test:wallet-store-integration && npm run test:room-rental-integration && npm run test:room-events-integration && npm run test:biometric-integration && npm run test:email-renewal-integration && npm run test:premium-profile-integration && npm run test:safety-integration && npm run test:push-token-integration && npm run test:media-integration && npm run test:profile-media-integration && npm run test:media-legal-hold-integration && npm run test:message-legal-hold-integration && npm run test:retention-integration && npm run test:message-deletion-integration && npm run test:owner-audit-export-integration",
+    "test:all": "npm test && npm run test:seed-accounts && npm run test:rules && npm run test:guest-privacy-integration && npm run test:wallet-store-integration && npm run test:room-rental-integration && npm run test:room-events-integration && npm run test:biometric-integration && npm run test:email-renewal-integration && npm run test:premium-profile-integration && npm run test:safety-integration && npm run test:push-token-integration && npm run test:media-integration && npm run test:profile-media-integration && npm run test:media-legal-hold-integration && npm run test:message-legal-hold-integration && npm run test:retention-integration && npm run test:message-deletion-integration && npm run test:owner-audit-export-integration",
     "bootstrap:owner": "node scripts/bootstrap-owner.cjs",
     "test:seed-accounts": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-test-accounts \"MAWDDA_ALLOW_TEST_SEED=1 node scripts/seed-test-accounts.cjs\"",
     "test:rules": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-rules \"node --test test/rules/*.test.js\"",
