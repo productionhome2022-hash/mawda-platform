@@ -110,16 +110,20 @@
       "biometricFixture": false,
       "ownerAccess": false,
       "capabilities": [
-        "profile.readWrite",
+        "badges.titles",
         "chat.direct",
         "chat.rooms",
-        "media.memberAllowedTypes",
-        "wallet.readWrite",
-        "wallet.transfer",
+        "coins.sandboxTopUp",
+        "discovery.browse",
         "gifts.sendReceive",
-        "store.purchaseAll",
+        "media.memberAllowedTypes",
+        "premiumFeatures",
+        "profile.readWrite",
+        "rooms.privateRent",
         "rooms.publicRent",
-        "rooms.privateRent"
+        "store.purchaseAll",
+        "wallet.readWrite",
+        "wallet.transfer"
       ],
       "deniedCapabilities": [
         "owner.console",
