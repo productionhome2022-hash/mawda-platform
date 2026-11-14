@@ -12,6 +12,29 @@ PACKAGE = "com.mawdda.platform.app"
 APP_NAME = "Mawdda Platform 2026"
 
 
+def configure_android_gradle(source: str, *, kotlin_dsl: bool) -> str:
+    """Set the app identity and SDK levels; safe to run repeatedly on generated files."""
+    if kotlin_dsl:
+        replacements = [
+            (r'namespace\\s*=\\s*"[^"]+"', f'namespace = "{PACKAGE}"'),
+            (r'applicationId\\s*=\\s*"[^"]+"', f'applicationId = "{PACKAGE}"'),
+            (r'minSdk\\s*=\\s*(?:flutter\\.minSdkVersion|\\d+)', "minSdk = 23"),
+            (r'compileSdk\\s*=\\s*(?:flutter\\.compileSdkVersion|\\d+)', "compileSdk = 36"),
+        ]
+    else:
+        replacements = [
+            (r'namespace\\s+["\\'][^"\\']+["\\']', f'namespace "{PACKAGE}"'),
+            (r'applicationId\\s+["\\'][^"\\']+["\\']', f'applicationId "{PACKAGE}"'),
+            (r'minSdkVersion\\s+(?:flutter\\.minSdkVersion|\\d+)', "minSdkVersion 23"),
+            (r'compileSdkVersion\\s+(?:flutter\\.compileSdkVersion|\\d+)', "compileSdkVersion 36"),
+        ]
+    for pattern, replacement in replacements:
+        source, count = re.subn(pattern, replacement, source, count=1)
+        if count != 1:
+            raise SystemExit("Could not safely set Android namespace, applicationId, minSdk=23 and compileSdk=36.")
+    return source
+
+
 def configure_android() -> None:
     android = ROOT / "android"
     if not android.is_dir():
@@ -64,58 +87,7 @@ def configure_android() -> None:
     if gradle is None:
         raise SystemExit("Android app Gradle build file was not generated.")
     source = gradle.read_text(encoding="utf-8")
-    if gradle.suffix == ".kts":
-        source, namespace_count = re.subn(
-            r'namespace\s*=\s*"[^"]+"',
-            f'namespace = "{PACKAGE}"',
-            source,
-            count=1,
-        )
-        source, app_id_count = re.subn(
-            r'applicationId\s*=\s*"[^"]+"',
-            f'applicationId = "{PACKAGE}"',
-            source,
-            count=1,
-        )
-        source, min_count = re.subn(
-            r'minSdk\s*=\s*flutter\.minSdkVersion',
-            "minSdk = 23",
-            source,
-            count=1,
-        )
-        source, compile_count = re.subn(
-            r'compileSdk\s*=\s*flutter\.compileSdkVersion',
-            "compileSdk = 36",
-            source,
-            count=1,
-        )
-    else:
-        source, namespace_count = re.subn(
-            r'namespace\s+["\'][^"\']+["\']',
-            f'namespace "{PACKAGE}"',
-            source,
-            count=1,
-        )
-        source, app_id_count = re.subn(
-            r'applicationId\s+["\'][^"\']+["\']',
-            f'applicationId "{PACKAGE}"',
-            source,
-            count=1,
-        )
-        source, min_count = re.subn(
-            r'minSdkVersion\s+flutter\.minSdkVersion',
-            "minSdkVersion 23",
-            source,
-            count=1,
-        )
-        source, compile_count = re.subn(
-            r'compileSdkVersion\s+flutter\.compileSdkVersion',
-            "compileSdkVersion 36",
-            source,
-            count=1,
-        )
-    if not namespace_count or not app_id_count or not min_count or not compile_count:
-        raise SystemExit("Could not safely set Android namespace, applicationId, minSdk=23 and compileSdk=36.")
+    source = configure_android_gradle(source, kotlin_dsl=gradle.suffix == ".kts")
     gradle.write_text(source, encoding="utf-8")
 
 def configure_ios() -> None:
