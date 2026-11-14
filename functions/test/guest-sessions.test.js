@@ -15,3 +15,13 @@ test("guest session rejects missing, ended and malformed expiry records", () => 
   assert.equal(isGuestSessionActive({ status: "ended", expiresAt: Timestamp.fromMillis(200) }, 100), false);
   assert.equal(isGuestSessionActive({ status: "active", expiresAt: "tomorrow" }, 100), false);
 });
+
+
+test("guest cooldown remains active until the exact rolling 24-hour boundary", () => {
+  const now = 1_800_000_000_000;
+  const session = { nextEligibleAt: Timestamp.fromMillis(now + 86_400_000) };
+  const { isGuestCooldownActive } = require("../lib/guest-sessions");
+  assert.equal(isGuestCooldownActive(session, now), true);
+  assert.equal(isGuestCooldownActive(session, now + 86_399_999), true);
+  assert.equal(isGuestCooldownActive(session, now + 86_400_000), false);
+});
