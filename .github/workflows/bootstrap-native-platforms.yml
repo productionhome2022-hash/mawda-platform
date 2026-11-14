@@ -84,7 +84,8 @@ jobs:
       - name: Apply Android API 36 to every app and plugin module
         run: |
           test -f tool/mawdda-android-sdk.gradle
-          echo "GRADLE_OPTS=-I $GITHUB_WORKSPACE/tool/mawdda-android-sdk.gradle" >> "$GITHUB_ENV"
+          mkdir -p "$HOME/.gradle/init.d"
+          cp tool/mawdda-android-sdk.gradle "$HOME/.gradle/init.d/mawdda-android-sdk.gradle"
 
       - name: Build Android debug APK
         run: flutter build apk --debug
