@@ -1098,7 +1098,9 @@ export const sendChatImageAttachment = onCall(async (request) => {
     }
     if (message.exists) throw new HttpsError("already-exists", "معرف الرسالة مستخدم.");
     tx.create(messageRef, {
-      messageId, senderUid, senderAccountType: uploaderType, content: caption, type: "attachment",
+      messageId, senderUid, senderAccountType: uploaderType,
+      senderDisplayName: isGuest ? (guestProfile.data()?.username ?? "زائر") : (user.data()?.displayName ?? ""),
+      content: caption, type: "attachment",
       mediaId, mediaCategory: artifact.category, contentType: artifact.contentType,
       attachmentStatus: "ready", isDeleted: false, createdAt: now,
     });
