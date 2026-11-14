@@ -1,8 +1,8 @@
 # Mawdda Platform — Deep Audit of Phase 1 and Phase 2
 **Audit date:** 2026-11-14  
-**Audited development baseline:** `5d4bc4c9bf531d5106f9c91a47c1224729391e93`  
-**Follow-up branch:** `codex/mawdda-deep-audit-profile-store`  
-**Latest pre-follow-up green CI:** [run 43578704801](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43578704801), 3/3 jobs successful on the exact baseline SHA above.  
+**Audited development head:** `4ed7394235ea531e4b4abbb24431731da15eaf47`  
+**Follow-up work:** fast-forwarded into `codex/mawda-full-platform-implementation`; no merge to `main`.  
+**Exact-head CI:** [run 43580251762](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43580251762), 3/3 jobs successful on the audited head.  
 **Release decision:** Phase 1 and Phase 2 remain OPEN. This audit is not production approval.
 
 ## 1. Executive result
@@ -14,7 +14,7 @@ The current development baseline has substantial working foundations and a green
 - emulator evidence,
 - and real cloud/device acceptance.
 
-The store is not a single undifferentiated feature. Twelve premium SKUs are server-allowlisted and covered by transactional emulator tests; two privacy SKUs are deliberately fail-closed. Most of the twelve have concrete profile consumers. The custom-title SKU previously exposed the catalog title but had no member editor. A follow-up now adds an entitlement-gated custom-title callable, profile editor, audit entry, and expiry tests; that change is pending exact-head CI.
+The store is not a single undifferentiated feature. Twelve premium SKUs are server-allowlisted and covered by transactional emulator tests; two privacy SKUs are deliberately fail-closed. Most of the twelve have concrete profile consumers. The custom-title SKU previously exposed the catalog title but had no member editor. The follow-up adds an entitlement-gated custom-title callable, profile editor, audit entry, and expiry tests; the exact-head CI run passed.
 
 The native Android and iOS project directories are absent from the development tree. Therefore the web release build does not validate Android BiometricPrompt, iOS LocalAuthentication/Face ID, native permissions, or mobile app packaging. No Android APK/AAB or iOS build is claimed here.
 
@@ -151,14 +151,14 @@ Baseline run [43578704801](https://github.com/productionhome2022-hash/mawda-plat
 2. Cloud Functions TypeScript build/unit suite plus configured Firestore/Auth/Storage emulator integration and rules tests.
 3. Isolated ClamAV scanner source/security tests, container build, processing tests and EICAR detection.
 
-The follow-up branch adds custom-title fulfillment tests, biometric UI duplicate-action protection, this audit, and a CI trigger for pushes/PRs targeting the development branch. Those follow-up changes must receive a new exact-head green CI run before being marked validated.
+The follow-up branch adds custom-title fulfillment tests, biometric UI duplicate-action protection, this audit, and a CI trigger for pushes/PRs targeting the development branch. Those follow-up changes passed the exact-head CI run 43580251762. The three jobs (Flutter, Cloud Functions/emulator suite, and ClamAV scanner) all completed successfully.
 
 The current Flutter test inventory contains only the coin-transfer model test and local-biometric service test. Flutter CI does not yet exercise the login, profile, shop, owner console, room or media screens as widget tests.
 
 ## 8. Required closure plan
 
 ### Must be completed in code/emulator CI
-- [ ] Complete and validate PR #10 custom-title flow on a single exact development SHA.
+- [x] Complete and validate the custom-title flow on exact development SHA `4ed7394235ea531e4b4abbb24431731da15eaf47` (CI run 43580251762).
 - [ ] Add Flutter widget/integration tests for email sign-up/login/verification gate, guest upgrade/end, shop filters/purchase-disabled state, profile premium effects/expiry, and owner console navigation/error states.
 - [ ] Expand owner-console controls and observability only against approved product requirements; do not invent active controls for unimplemented backend operations.
 - [ ] Reconcile all constitution requirements with actual code, including social-provider verification, privacy policy version migration, guest scope and owner review scope.
