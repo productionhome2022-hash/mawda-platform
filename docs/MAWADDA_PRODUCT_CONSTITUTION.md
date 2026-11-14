@@ -380,3 +380,14 @@ Biometric verification is a high-assurance identity and liveness process, not a 
 - Approved owner participation labels “إدارة منصة مودة”, “السوبر أدمن”, and “مجهول”; anonymous display never hides the true owner identity from the backend audit and never permits impersonation.
 - Required versioned privacy-policy acknowledgement before member registration or guest session/content access.
 - This amendment is a specification, not evidence of completed implementation or blanket legal authorization. Jurisdiction-specific privacy review and release gates remain mandatory.
+
+
+### 14 November 2026 — Guest entry profile without age collection
+
+- The guest-entry form collects only a guest-chosen username, country, and gender selection (male/female), subject to normal input validation and privacy notice. It must not display, request, infer, default, or store a guest age, date of birth, or age band. Guest age is unknown; never fabricate an age such as 18.
+- Guest entry does not require email, phone, biometric verification, identity verification, or member-profile completion. The guest may enter public rooms and participate using text and audio/voice only, within the server-authoritative guest session allowance.
+- Guest access does not grant member status or member capabilities. Direct/private messages, private rooms, wallet, transfers, top-ups, rewards, gifts, purchases, store, room rental, member profile features, and all non-text/non-audio media remain unavailable to guests.
+- A guest who chooses to become a member enters the normal member registration/profile-completion flow. Only then are the member fields and applicable age/date-of-birth or age-band selection, email verification, optional biometric verification, privacy notices, and other member onboarding steps presented as required by the member policy. The member's age is collected only in that member flow and is never backfilled onto the earlier guest record without an explicit, validated member submission.
+- Guest public-room access must be restricted to rooms explicitly classified and moderated as suitable for a general audience. Because guest age is unknown, guests must not be routed into age-restricted/adult-only rooms or use guest access to bypass room-audience controls. This is a room eligibility rule, not an age field or age question in guest onboarding.
+- Server authorization remains authoritative for guest identity, guest session expiry/cooldown, room eligibility, membership, and text/audio-only message types. Username, country, and gender supplied by the client are profile inputs, not proof of identity, age, or elevated permissions.
+- This amendment supersedes any earlier guest-flow requirement to ask for a minimum age band before entry. It does not remove age/audience controls for registered members or the general-audience requirement for rooms available to guests.
