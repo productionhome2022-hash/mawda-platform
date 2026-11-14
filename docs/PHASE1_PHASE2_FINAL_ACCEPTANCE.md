@@ -246,3 +246,18 @@ This is a verified baseline only. It predates later Flutter owner/member ad UI, 
 
 ### Acceptance decision
 **Phase 1 + Phase 2 remain OPEN.** Outstanding gates include exact-head CI success; in-app video playback; home ad placement; live non-production GCS/Cloud Run scanner E2E; real device tests; backup/PITR/restore and retention evidence; Firebase native app registration/configuration; full security/privacy/legal review; owner MFA/bootstrap and operational monitoring. No production deploy, PR merge, retention-worker activation or phase-3 transition is authorized by this update.
+
+
+## J. 14 November 2026 — reservation, cancellation and final-head queue update
+
+Additional hardening since section I:
+- Reward budgets are reserved at session start and atomically settled on completion. A scheduled 15-minute sweep (up to 250 expired sessions per pass), heartbeat expiry, or replacement of an expired member session releases unused reservations.
+- Concurrent starts cannot reserve the same final reward budget; integration coverage races two members against a single-reward budget.
+- Editing a campaign is blocked while reward reservations are active. In-flight sessions may finish after pause/archive; new starts are blocked.
+- If a creative loses its approved state or the account/campaign becomes ineligible, the session is cancelled and its reservation released; no reward is credited and the member is not left locked indefinitely.
+- Creative delivery checks owner, purpose, scan status, exact derivative generation, MIME, size, source metadata and processing pipeline. Delivery is bound to the active session with a short-lived signed URL.
+- The owner console now exposes campaign editing, placement status and per-member frequency caps; unsupported home placement and video publication remain fail-closed.
+
+The latest branch head for this ledger update is `3ff3b67b097430320191bd4e897a4334b66f0710`. Its exact-head validation run is `43632010743`, currently queued. Previous success `43629814484` remains valid only for its earlier commit `3c4422e59d6bf9298d21a47465ca209e50b79b58`.
+
+**Acceptance remains OPEN.** No production deployment, merge, billing enablement, or phase-3 transition is authorized. Exact-head CI, video playback/device tests, home placement, real non-production cloud validation, Firebase native registrations, backup/restore, and operational/security/legal gates remain outstanding.
