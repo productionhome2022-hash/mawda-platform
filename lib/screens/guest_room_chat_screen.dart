@@ -118,7 +118,7 @@ class _GuestRoomChatScreenState extends State<GuestRoomChatScreen> {
       });
       if (mounted) {
         setState(() { _recording = true; _error = null; });
-        _recordingLimit = Timer(const Duration(seconds: 120), () {
+        _recordingLimit = Timer(const Duration(seconds: 60), () {
           unawaited(_stopMicrophoneRecording());
         });
       }

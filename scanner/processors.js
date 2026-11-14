@@ -7,10 +7,16 @@ const { createHash } = require("node:crypto");
 const execFileAsync = promisify(execFile);
 const LIMITS = Object.freeze({
   gif: { maxFrames: 100, maxPixels: 40_000_000, maxDurationSeconds: 30, maxBytes: 5 * 1024 * 1024 },
-  audio: { maxDurationSeconds: 600, maxBytes: 25 * 1024 * 1024 },
+  audio: { maxDurationSeconds: 600, roomMaxDurationSeconds: 60, maxBytes: 25 * 1024 * 1024 },
   video: { maxDurationSeconds: 90, maxBytes: 50 * 1024 * 1024 },
   pdf: { maxPages: 30, maxBytes: 20 * 1024 * 1024 },
 });
+
+function audioMaxDurationSecondsForPurpose(purpose) {
+  if (purpose === "room") return LIMITS.audio.roomMaxDurationSeconds;
+  if (purpose === "chat") return LIMITS.audio.maxDurationSeconds;
+  throw new Error("AUDIO_PURPOSE_INVALID");
+}
 
 function safeOutputPath(ownerUid, mediaId, filename) {
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(ownerUid) ||
@@ -142,20 +148,21 @@ async function processGif({ sourcePath, tempDir, request, sourceSha256, storage,
 
 async function processAudio({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
   const probe = await probeMedia(sourcePath);
-  if (!probe.hasAudio || probe.hasVideo || probe.duration > LIMITS.audio.maxDurationSeconds) {
+  const maxDurationSeconds = audioMaxDurationSecondsForPurpose(request.purpose);
+  if (!probe.hasAudio || probe.hasVideo || probe.duration > maxDurationSeconds) {
     throw new Error("AUDIO_STREAM_OR_DURATION_INVALID");
   }
   const output = path.join(tempDir, "safe-audio.mp3");
   await execFileAsync("ffmpeg", [
     "-nostdin", "-v", "error", "-y", "-i", sourcePath,
     "-map", "0:a:0", "-vn", "-map_metadata", "-1", "-map_chapters", "-1",
-    "-t", String(LIMITS.audio.maxDurationSeconds), "-ac", "1", "-ar", "44100",
+    "-t", String(maxDurationSeconds), "-ac", "1", "-ar", "44100",
     "-c:a", "libmp3lame", "-b:a", "96k", "-f", "mp3", output,
   ], { timeout: 120_000, maxBuffer: 64 * 1024 });
   const artifact = await uploadDerivative({
     storage, bucketName, outputPath: output, request, sourceSha256, provider,
     filename: "audio.mp3", contentType: "audio/mpeg",
-    pipelineVersion: "ffmpeg-audio-transcode-v1", maxBytes: LIMITS.audio.maxBytes,
+    pipelineVersion: "ffmpeg-audio-transcode-v2-purpose-duration-v1", maxBytes: LIMITS.audio.maxBytes,
   });
   return { safeDerivative: { category: "audio", ...artifact }, processingStatus: "safe_audio_derivative_ready" };
 }
@@ -228,4 +235,4 @@ async function processSafeDerivative(context) {
   }
 }
 
-module.exports = { LIMITS, safeOutputPath, probeMedia, probeGif, processSafeDerivative };
+module.exports = { LIMITS, audioMaxDurationSecondsForPurpose, safeOutputPath, probeMedia, probeGif, processSafeDerivative };

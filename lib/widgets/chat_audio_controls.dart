@@ -23,7 +23,8 @@ class ChatAudioComposerButton extends StatefulWidget {
     this.maxDurationSeconds = 120,
     this.recipientUid,
     this.roomId,
-  }) : assert(scope == 'direct' || scope == 'room');
+  }) : assert(scope == 'direct' || scope == 'room'),
+       assert(maxDurationSeconds > 0 && maxDurationSeconds <= 120);
 
   final String scope;
   final String? recipientUid;
