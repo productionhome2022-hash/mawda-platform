@@ -1545,22 +1545,26 @@ export const getTimedAdCreativeUrl = onCall(async (request) => {
     : isGif ? asset.safeAnimationGeneration : asset.safePreviewGeneration;
   const filename = isVideo ? "video.mp4" : isGif ? "animation.gif" : "preview.webp";
   const expectedPath = `processed/${asset.ownerUid}/${mediaId}/${filename}`;
-  if (derivativePath !== expectedPath || typeof derivativeGeneration !== "string") {
+  const generation = Number(derivativeGeneration);
+  const expectedContentType = isVideo ? "video/mp4" : isGif ? "image/gif" : "image/webp";
+  if (derivativePath !== expectedPath || typeof derivativeGeneration !== "string" ||
+      !Number.isSafeInteger(generation) || generation <= 0) {
     throw new HttpsError("failed-precondition", "النسخة الآمنة للإعلان غير مكتملة.");
   }
-  const file = mediaBucket().file(expectedPath, { generation: Number(derivativeGeneration) });
+  const file = mediaBucket().file(expectedPath, { generation });
   let metadata;
   try { [metadata] = await file.getMetadata(); } catch {
     throw new HttpsError("failed-precondition", "تعذر التحقق من نسخة الإعلان الآمنة.");
   }
   if (String(metadata.generation) !== derivativeGeneration ||
+      metadata.contentType !== expectedContentType ||
       !Number.isSafeInteger(Number(metadata.size)) || Number(metadata.size) <= 0) {
     throw new HttpsError("failed-precondition", "تغيرت نسخة الإعلان الآمنة.");
   }
   const expiresAt = Date.now() + 2 * 60 * 1000;
   const [url] = await file.getSignedUrl({
     version: "v4", action: "read", expires: expiresAt,
-    responseType: isVideo ? "video/mp4" : isGif ? "image/gif" : "image/webp",
+    responseType: expectedContentType,
     responseDisposition: "inline",
   });
   await auditMediaAccess({
