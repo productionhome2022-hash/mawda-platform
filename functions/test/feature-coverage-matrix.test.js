@@ -42,25 +42,33 @@ test("guest journey status does not overstate unimplemented room/session behavio
   assert.match(guest.releaseBlocker, /not implemented/i);
 });
 
-test("full member personas have the same baseline member capability set", () => {
-  const ids = matrix.personas.fullMembers;
-  const capabilities = ids.map((id) => {
+test("full member personas share the ordinary baseline while biometric adds only its dedicated capability", () => {
+  const [emailId, biometricId, counterpartyId] = matrix.personas.fullMembers;
+  const personaFor = (id) => {
     const persona = catalogue.personas.find((entry) => entry.id === id);
     assert.ok(persona, `missing persona ${id}`);
     assert.equal(persona.ownerAccess, false);
     assert.ok(persona.deniedCapabilities.includes("owner.console"));
     return new Set(persona.capabilities);
-  });
-  for (const capability of capabilities[0]) {
-    for (const other of capabilities.slice(1)) {
-      assert.ok(other.has(capability), `full member missing shared capability ${capability}`);
-    }
+  };
+  const baseline = personaFor(emailId);
+  const biometric = personaFor(biometricId);
+  const counterparty = personaFor(counterpartyId);
+
+  for (const capability of baseline) {
+    assert.ok(biometric.has(capability), `biometric member missing baseline capability ${capability}`);
+    assert.ok(counterparty.has(capability), `counterparty member missing baseline capability ${capability}`);
   }
-  for (const capabilitySet of capabilities.slice(1)) {
-    for (const capability of capabilitySet) {
-      assert.ok(capabilities[0].has(capability), `full member baseline differs at ${capability}`);
-    }
-  }
+  assert.deepEqual(
+    [...counterparty].filter((capability) => !baseline.has(capability)),
+    [],
+    "counterparty must have the ordinary member baseline without extra privileges",
+  );
+  assert.deepEqual(
+    [...biometric].filter((capability) => !baseline.has(capability)),
+    ["biometric.challengeFlow"],
+    "biometric persona may add only its dedicated verification test capability",
+  );
 });
 
 test("test environment preserves hard security and financial invariants", () => {
