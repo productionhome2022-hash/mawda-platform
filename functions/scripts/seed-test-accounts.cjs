@@ -78,6 +78,20 @@ async function ensureUser(persona) {
 
   // Intentionally do not set platformOwner, biometricVerified, wallet, or reward claims.
   // Privileged and verified states must be produced by their real server-side flows.
+  await db.collection("users").doc(user.uid).set({
+    uid: user.uid,
+    email,
+    displayName: persona.displayName,
+    coins: 100000,
+    profileCompleted: true,
+    accountStatus: "active",
+    age: 25,
+    isTestAccount: true,
+    testPersonaId: persona.id,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
   await db.collection("testAccountProfiles").doc(persona.id).set({
     schemaVersion: 1,
     personaId: persona.id,
