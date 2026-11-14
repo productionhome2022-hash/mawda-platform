@@ -145,3 +145,78 @@ export function serializeOwnerAuditArchive(
   const sha256 = createHash("sha256").update(payload, "utf8").digest("hex");
   return { payload, sha256 };
 }
+
+export const ADDITIONAL_AUDIT_COLLECTIONS = [
+  "adminAuditLogs",
+  "verificationAuditLogs",
+  "profileFeatureAuditLogs",
+  "mediaAccessAudit",
+  "memberPrivacyAudit",
+  "memberProfileAudit",
+  "directMessageDeletionAudit",
+  "roomAuditLogs",
+  "privacyAcknowledgements",
+] as const;
+
+export type AuditCollectionArchiveEntry = {
+  docId: string;
+  createdAtMs: number;
+  data: unknown;
+};
+
+export function auditCollectionArchiveObjectName(
+  collectionName: string,
+  firstDocId: string,
+  lastDocId: string,
+  createdAtMs: number,
+): string {
+  if (!(ADDITIONAL_AUDIT_COLLECTIONS as readonly string[]).includes(collectionName) ||
+      !firstDocId || firstDocId.includes("/") || !lastDocId || lastDocId.includes("/") ||
+      !Number.isSafeInteger(createdAtMs) || createdAtMs < 0) {
+    throw new Error("INVALID_AUDIT_COLLECTION_ARCHIVE_RANGE");
+  }
+  const date = new Date(createdAtMs);
+  if (!Number.isFinite(date.getTime())) throw new Error("INVALID_AUDIT_ARCHIVE_DATE");
+  const yyyy = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(date.getUTCDate()).padStart(2, "0");
+  const batchId = createHash("sha256")
+    .update(collectionName + "|" + firstDocId + "|" + lastDocId)
+    .digest("hex")
+    .slice(0, 20);
+  return `collections/${collectionName}/${yyyy}/${mm}/${dd}/batch-${batchId}.jsonl`;
+}
+
+export function serializeAuditCollectionArchive(
+  collectionName: string,
+  entries: AuditCollectionArchiveEntry[],
+  metadata: {
+    firstDocId: string;
+    lastDocId: string;
+    firstCreatedAtMs: number;
+    lastCreatedAtMs: number;
+    archivedAtMs: number;
+  },
+): { payload: string; sha256: string } {
+  if (!(ADDITIONAL_AUDIT_COLLECTIONS as readonly string[]).includes(collectionName) ||
+      entries.length < 1 || entries.length > OWNER_AUDIT_ARCHIVE_BATCH_SIZE ||
+      entries[0].docId !== metadata.firstDocId ||
+      entries[entries.length - 1].docId !== metadata.lastDocId) {
+    throw new Error("INVALID_AUDIT_COLLECTION_ARCHIVE_PAYLOAD");
+  }
+  const header = {
+    recordType: "mawdda-audit-collection-archive",
+    archiveVersion: 1,
+    collectionName,
+    ...metadata,
+    entryCount: entries.length,
+    retentionSeconds: OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS,
+  };
+  const payload = [
+    JSON.stringify(header),
+    ...entries.map((entry) => JSON.stringify(entry)),
+    "",
+  ].join("\n");
+  const sha256 = createHash("sha256").update(payload, "utf8").digest("hex");
+  return { payload, sha256 };
+}
