@@ -6,8 +6,25 @@
     window.matchMedia("(display-mode: standalone)").matches ||
     window.navigator.standalone === true;
 
+  function getDismissedUntil() {
+    try {
+      return Number(window.localStorage.getItem(key) || 0);
+    } catch (_) {
+      // Storage may be unavailable in private browsing or restricted contexts.
+      return 0;
+    }
+  }
+
+  function setDismissedUntil(timestamp) {
+    try {
+      window.localStorage.setItem(key, String(timestamp));
+    } catch (_) {
+      // Installation guidance must remain usable even when storage is blocked.
+    }
+  }
+
   function showPanel() {
-    if (panel || isStandalone() || Date.now() < Number(localStorage.getItem(key) || 0)) return;
+    if (panel || isStandalone() || Date.now() < getDismissedUntil()) return;
     panel = document.createElement("section");
     panel.className = "mawdda-install-panel";
     panel.setAttribute("role", "dialog");
@@ -24,7 +41,7 @@
     `;
     document.body.appendChild(panel);
     panel.querySelector(".mawdda-install-close").addEventListener("click", () => {
-      localStorage.setItem(key, String(Date.now() + 7 * 24 * 60 * 60 * 1000));
+      setDismissedUntil(Date.now() + 7 * 24 * 60 * 60 * 1000);
       panel.remove(); panel = null;
     });
     panel.querySelector(".mawdda-install-action").addEventListener("click", async () => {
