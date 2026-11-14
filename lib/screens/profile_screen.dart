@@ -261,6 +261,93 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
 
+  Future<void> _editVisitorGreeting(String currentGreeting) async {
+    final controller = TextEditingController(text: currentGreeting);
+    final greeting = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('رسالة ترحيب الزوار'),
+        content: TextField(
+          controller: controller,
+          minLines: 2,
+          maxLines: 4,
+          maxLength: 160,
+          decoration: const InputDecoration(
+            labelText: 'رسالة قصيرة تظهر لزوار ملفك',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+          FilledButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.length >= 3) Navigator.pop(dialogContext, value);
+            },
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (greeting == null || !mounted) return;
+    try {
+      await FirebaseFunctions.instance.httpsCallable('setMemberProfileVisitorGreeting').call({
+        'greeting': greeting,
+      });
+      if (!mounted) return;
+      setState(() => _profileFuture = _loadProfile());
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم تحديث رسالة ترحيب الزوار.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر حفظ رسالة الترحيب.')),
+      );
+    }
+  }
+
+  Future<void> _choosePinnedSection(String currentSection) async {
+    final section = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: const Text('اختر القسم المثبت'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(dialogContext, 'bio'),
+            child: const Text('نبذة عني'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(dialogContext, 'interests'),
+            child: const Text('اهتماماتي'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(dialogContext, 'gallery'),
+            child: const Text('معرض الصور'),
+          ),
+        ],
+      ),
+    );
+    if (section == null || section == currentSection || !mounted) return;
+    try {
+      await FirebaseFunctions.instance.httpsCallable('setMemberPinnedProfileSection').call({
+        'section': section,
+      });
+      if (!mounted) return;
+      setState(() => _profileFuture = _loadProfile());
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم تحديث القسم المثبت في ملفك.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر تثبيت القسم.')),
+      );
+    }
+  }
+
+
   Future<void> _changeProfileVisibility(String visibility) async {
     try {
       final callable = FirebaseFunctions.instance.httpsCallable('setMemberProfileVisibility');
@@ -846,6 +933,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               .whereType<Map>()
               .map((item) => Map<String, dynamic>.from(item))
               .toList(growable: false);
+          final activeItemIds = activeFeatures
+              .map((feature) => feature['itemId'] as String? ?? '')
+              .toSet();
+          final hasAvatarFrame = activeItemIds.contains('avatar_frame_30d');
+          final hasColoredUsername = activeItemIds.contains('username_color_30d');
+          final hasAnimatedUsername = activeItemIds.contains('username_animated_30d');
+          final hasProfileTheme = activeItemIds.contains('profile_theme_30d');
+          final hasProfileLayout = activeItemIds.contains('profile_layout_30d');
+          final hasProfilePin = activeItemIds.contains('profile_pin_30d');
+          final hasVisitorGreeting = activeItemIds.contains('visitor_greeting_30d');
+          final hasProfileAnalytics = activeItemIds.contains('profile_analytics_30d');
+          final pinnedSection = (data['pinnedProfileSection'] as String?) ?? 'interests';
+          final visitorGreeting = (data['visitorGreeting'] as String?) ?? '';
+          final analytics = Map<String, dynamic>.from(
+            data['profileAnalytics'] as Map? ?? const <String, dynamic>{},
+          );
+          final discoveryBoostActive = data['discoveryBoostActive'] == true;
           final username = (data['username'] as String?) ?? '';
           final bio = (data['bio'] as String?) ?? '';
           final profession = (data['profession'] as String?) ?? '';
@@ -861,7 +965,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               .whereType<String>()
               .toSet();
 
-          return ListView(
+          return Container(
+            color: hasProfileTheme ? const Color(0xFFF3EAF8) : null,
+            child: ListView(
             padding: const EdgeInsets.only(bottom: 32),
             children: [
               Stack(
@@ -896,19 +1002,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               Transform.translate(
                 offset: const Offset(0, -42),
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.deepPurple,
-                  backgroundImage: data['avatarUrl'] is String
-                      ? NetworkImage(data['avatarUrl'] as String)
+                child: Container(
+                  padding: EdgeInsets.all(hasAvatarFrame ? 5 : 0),
+                  decoration: hasAvatarFrame
+                      ? BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: const Color(0xFFFFC857), width: 4),
+                          boxShadow: const [
+                            BoxShadow(color: Color(0x55D49A28), blurRadius: 16, spreadRadius: 2),
+                          ],
+                        )
                       : null,
-                  child: data['avatarUrl'] is String
-                      ? null
-                      : const Icon(
-                          Icons.favorite_rounded,
-                          size: 42,
-                          color: Colors.white,
-                        ),
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.deepPurple,
+                    backgroundImage: data['avatarUrl'] is String
+                        ? NetworkImage(data['avatarUrl'] as String)
+                        : null,
+                    child: data['avatarUrl'] is String
+                        ? null
+                        : const Icon(
+                            Icons.favorite_rounded,
+                            size: 42,
+                            color: Colors.white,
+                          ),
+                  ),
                 ),
               ),
               if (isMyProfile)
@@ -940,7 +1058,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 offset: const Offset(0, -30),
                 child: Column(
                   children: [
-                    Text(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    TweenAnimationBuilder<double>(
+                      tween: Tween<double>(begin: hasAnimatedUsername ? 0.88 : 1, end: 1),
+                      duration: const Duration(milliseconds: 850),
+                      curve: Curves.easeOutBack,
+                      builder: (context, scale, child) => Transform.scale(
+                        scale: scale,
+                        child: child,
+                      ),
+                      child: Text(
+                        name,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: hasColoredUsername ? const Color(0xFF8B4AC8) : null,
+                        ),
+                      ),
+                    ),
+                    if (discoveryBoostActive)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Chip(
+                          avatar: Icon(Icons.trending_up, size: 16),
+                          label: Text('ظهور معزز'),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
                     if (vipActive)
                       const Padding(
                         padding: EdgeInsets.only(top: 6),
@@ -992,14 +1135,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                     if (username.isNotEmpty) Text('@$username'),
-                    if (bio.isNotEmpty)
+                    if (pinnedSection == 'bio' && bio.isNotEmpty)
+                      Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            children: [
+                              const Text('نبذة مثبتة', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 6),
+                              Text(bio, textAlign: TextAlign.center),
+                            ],
+                          ),
+                        ),
+                      ),
+                    if (pinnedSection != 'bio' && bio.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                         child: Text(bio, textAlign: TextAlign.center),
                       ),
                     if (profession.isNotEmpty || region.isNotEmpty || country.isNotEmpty)
                       Text([profession, region, country].where((value) => value.isNotEmpty).join(' • ')),
-                    if (interests.isNotEmpty)
+                    if (pinnedSection == 'interests' && interests.isNotEmpty)
+                      Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            children: [
+                              const Text('اهتمامات مثبتة', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                alignment: WrapAlignment.center,
+                                children: interests.map((item) => Chip(label: Text('$item'))).toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    if (pinnedSection != 'interests' && interests.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: Wrap(
@@ -1012,6 +1188,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
+              if (!isMyProfile && visitorGreeting.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.waving_hand_outlined),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(visitorGreeting)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              if (isMyProfile && hasVisitorGreeting)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.waving_hand_outlined),
+                    label: const Text('تعديل رسالة ترحيب الزوار'),
+                    onPressed: () => _editVisitorGreeting(visitorGreeting),
+                  ),
+                ),
+              if (isMyProfile && hasProfilePin)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.push_pin_outlined),
+                    label: const Text('اختيار القسم المثبت'),
+                    onPressed: () => _choosePinnedSection(pinnedSection),
+                  ),
+                ),
+              if (isMyProfile && hasProfileAnalytics)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.analytics_outlined),
+                      title: const Text('زيارات ملفك خلال آخر 7 أيام'),
+                      trailing: Text(
+                        '${(analytics['last7DaysViews'] as num?)?.toInt() ?? 0}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
+                    ),
+                  ),
+                ),
               if (isMyProfile)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -1216,6 +1440,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ],
+          ),
           );
         },
       ),
