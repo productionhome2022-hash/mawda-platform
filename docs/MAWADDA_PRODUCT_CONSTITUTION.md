@@ -260,9 +260,9 @@ Never fake functionality, balances, purchases, verification, availability, analy
 
 ## 16. Current known implementation blockers (living section)
 
-At the time this constitution was added, the repository's `.firebaserc` selects `mawda-app-2026`, while `lib/firebase_options.dart` still contains placeholder-looking app identifiers/API key values and the different project ID `mawda-platform`. Regenerate from the verified Firebase app registrations; never fabricate values.
+The current `.firebaserc` and Web entry in `lib/firebase_options.dart` both target `mawda-app-2026`. The Android/iOS (and desktop) entries in `lib/firebase_options.dart` still contain placeholder IDs/API-key values and the wrong project ID `mawda-platform`; native app startup is not valid until FlutterFire regenerates these from the registered Firebase apps. Never fabricate values.
 
-The root `pubspec.lock` and `functions/package-lock.json` were absent at the last repository inspection. Add reviewed lockfiles and enforce deterministic installation in CI.
+The root `pubspec.lock` and `functions/package-lock.json` are now committed, and CI installs dependencies with lockfile enforcement. Keep both lockfiles reviewed and synchronized with their manifests.
 
 The real `platformOwner` claim has not been provisioned and the production MFA flow has not been verified. The owner bootstrap script is prepared but has not been run against Firebase.
 
