@@ -36,6 +36,7 @@ test("successful local OS prompt claim rewards exactly once per 30-day server cy
       .where("type", "==", "biometric_verification_reward").get();
     assert.equal(ledger.size, 1);
     assert.equal(ledger.docs[0].data().amount, 1500);
+    assert.equal(ledger.docs[0].data().direction, "credit");
 
     const previousCycleTime = Date.now() - 31 * 24 * 60 * 60 * 1000;
     await userRef.update({
