@@ -48,6 +48,7 @@ def configure_android() -> None:
         '    <uses-permission android:name="android.permission.USE_BIOMETRIC" />',
         '    <uses-permission android:name="android.permission.USE_FINGERPRINT" />',
         '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />',
+        '    <uses-permission android:name="android.permission.RECORD_AUDIO" />',
     ]
     for permission in permissions:
         if permission not in xml:
@@ -181,6 +182,10 @@ def configure_ios() -> None:
     with info.open("rb") as handle:
         values = plistlib.load(handle)
     values["CFBundleDisplayName"] = APP_NAME
+    values["NSMicrophoneUsageDescription"] = (
+        "Mawdda uses the microphone only when you choose to record and send an audio message. "
+        "Recording is not started in the background."
+    )
     values["NSFaceIDUsageDescription"] = (
         "Mawdda uses Face ID only when you explicitly choose local device authentication. "
         "Biometric data remains on your Apple device and is never collected by Mawdda."
