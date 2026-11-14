@@ -78,8 +78,8 @@ jobs:
                   raise SystemExit(f"{platform} Firebase options still contain placeholders.")
           PY
 
-      - name: Resolve Flutter dependencies and refresh the committed lockfile
-        run: flutter pub get
+      - name: Resolve locked Flutter dependencies
+        run: flutter pub get --enforce-lockfile
 
       - name: Apply Android API 36 to every app and plugin module
         run: |
