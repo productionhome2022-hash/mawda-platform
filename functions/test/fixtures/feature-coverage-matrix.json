@@ -79,7 +79,12 @@
         "guest-preview"
       ],
       "command": "npm run test:guest-privacy-integration",
+      "status": "partial",
       "cases": [
+        "anonymous-guest-privacy-acknowledgement",
+        "member-acknowledgement-rejects-anonymous-session"
+      ],
+      "plannedCases": [
         "public-discovery",
         "public-shop-catalog",
         "public-ads",
@@ -99,7 +104,8 @@
         "no-image-gif-video-or-document-messages",
         "no-private-data",
         "emulator-clock-forward-and-reset"
-      ]
+      ],
+      "releaseBlocker": "Guest room access and the one-hour/24-hour server session are not implemented in the app/backend branch; the current command tests privacy acknowledgement only."
     },
     {
       "id": "PROFILE-001",
