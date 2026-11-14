@@ -57,7 +57,7 @@ test("owner catalog input requires safe identifiers, prices, category and public
     sortOrder: 3,
     active: true,
   }), {
-    itemId: "vip-month",
+    itemId: "vip_monthly",
     name: "VIP لمدة شهر",
     description: "عضوية شهرية.",
     category: "vip",
@@ -77,7 +77,7 @@ test("owner catalog input requires safe identifiers, prices, category and public
     priceCoins: 0, active: true,
   }));
   assert.throws(() => validateStoreCatalogItemInput({
-    itemId: "vip-month", name: "عنصر", description: "", category: "vip",
+    itemId: "vip_monthly", name: "عنصر", description: "", category: "vip",
     priceCoins: 100, active: true, purchaseEnabled: "yes",
   }), /INVALID_STORE_PURCHASE_ENABLED/);
 });
@@ -95,7 +95,13 @@ test("store charging stays disabled until fulfillment is explicitly ready", () =
     active: true, itemId: "vip_monthly", category: "vip", purchaseEnabled: true, fulfillmentReady: true,
   }), true);
   assert.equal(isStoreItemPurchasable({
+    active: true, itemId: "profile_theme_30d", category: "theme", purchaseEnabled: true, fulfillmentReady: false,
+  }), false);
+  assert.equal(isStoreItemPurchasable({
     active: true, itemId: "profile_theme_30d", category: "theme", purchaseEnabled: true, fulfillmentReady: true,
+  }), true);
+  assert.equal(isStoreItemPurchasable({
+    active: true, itemId: "avatar_frame_30d", category: "vip", purchaseEnabled: true, fulfillmentReady: true,
   }), false);
   assert.equal(isStoreItemPurchasable({
     active: false, purchaseEnabled: true, fulfillmentReady: true,
