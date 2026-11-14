@@ -387,7 +387,7 @@ test("abandoned expired ad sessions release their reserved campaign budget", asy
     await db.collection("timedAdSessions").doc(secondSessionId).update({
       expiresAtMs: Date.now() - 1,
     });
-    await cleanupExpiredTimedAdSessions.run();
+    await runExpiredTimedAdSessionSweep();
     storedCampaign = await db.collection("timedAdCampaigns").doc(campaignId).get();
     assert.equal(storedCampaign.data().reservedRewardCoins, 0);
   } finally {
