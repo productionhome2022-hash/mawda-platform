@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
+
 class OwnerMfaEnrollmentScreen extends StatefulWidget {
   const OwnerMfaEnrollmentScreen({super.key});
 
@@ -103,7 +105,7 @@ class _OwnerMfaEnrollmentScreenState extends State<OwnerMfaEnrollmentScreen> {
           ],
         ),
       );
-      await FirebaseAuth.instance.signOut();
+      await AuthService().signOut();
     } on FirebaseAuthException catch (error) {
       if (mounted) setState(() => _message = error.message ?? 'تعذر اعتماد رمز TOTP.');
     } catch (_) {
@@ -123,7 +125,7 @@ class _OwnerMfaEnrollmentScreenState extends State<OwnerMfaEnrollmentScreen> {
         actions: [
           IconButton(
             tooltip: 'تسجيل الخروج',
-            onPressed: _busy ? null : () => FirebaseAuth.instance.signOut(),
+            onPressed: _busy ? null : () => AuthService().signOut(),
             icon: const Icon(Icons.logout),
           ),
         ],
