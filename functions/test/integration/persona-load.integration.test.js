@@ -301,6 +301,10 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
     });
   }
   const roomGroupByPersona = new Map();
+  const peerByUid = new Map();
+  personas.forEach((persona, index) => {
+    peerByUid.set(persona.uid, personas[index % 2 === 0 ? index + 1 : index - 1]);
+  });
   roomGroups.forEach((group) => group.members.forEach((persona) => roomGroupByPersona.set(persona.uid, group)));
   const coverage = new Map(personas.map((persona) => [persona.personaId, {
     personaId: persona.personaId, uid: persona.uid,
@@ -397,8 +401,8 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
 
     // Run peer views only after every profile update has committed; this avoids
     // nondeterministic reads of a partner profile still being provisioned.
-    await inBatches(personas, 25, async (persona, index) => {
-      const peer = personas[index % 2 === 0 ? index + 1 : index - 1];
+    await inBatches(personas, 25, async (persona) => {
+      const peer = peerByUid.get(persona.uid);
       const viewed = await getMemberProfile.run({
         data: { userId: peer.uid }, auth: callableAuth(persona.uid),
       });
