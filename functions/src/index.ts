@@ -23,7 +23,7 @@ import { validateSafetyReportInput, validateSafetyAppealInput } from "./safety-c
 import { createDirectChatId } from "./direct-chat-id";
 import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
 import { hasActiveBiometricVerification } from "./biometric-verification";
-import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS } from "./email-verification-cycle";
+import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, isEmailVerificationCycleDue, canRewardEmailVerificationCycle } from "./email-verification-cycle";
 import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
 import { isMemberAccountInGoodStanding } from "./member-access";
 import {
@@ -1776,6 +1776,254 @@ export const completeBiometricVerificationCycle = onCall(async (request) => {
       cycleSequence: sequence,
       expiresAtMs: nowMs + cycleMs,
       nextEligibleAtMs: nowMs + cycleMs,
+    };
+  });
+});
+
+/**
+ * Starts a fresh 90-day email ownership challenge when the current cycle is due.
+ * Firebase Auth is temporarily marked unverified so the member must redeem a
+ * fresh provider-issued email action link before the renewal reward is credited.
+ */
+export const startEmailVerificationRenewal = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const authUser = await getAuth().getUser(uid);
+  if (!authUser.email) {
+    throw new HttpsError("failed-precondition", "لا يوجد بريد إلكتروني مرتبط بالحساب.");
+  }
+  const email = authUser.email.trim().toLowerCase();
+  const userRef = db.collection("users").doc(uid);
+  const nowMs = Date.now();
+
+  const cycleResult = await db.runTransaction(async (transaction) => {
+    let expiredPendingId: string | null = null;
+    const userSnapshot = await transaction.get(userRef);
+    if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true) {
+      throw new HttpsError("failed-precondition", "يجب إكمال الملف الشخصي أولاً.");
+    }
+    const userData = userSnapshot.data()!;
+    const pendingId = userData.emailVerificationRenewalPendingCycleId;
+    if (typeof pendingId === "string" && pendingId.length > 0) {
+      const pendingRef = db.collection("emailVerificationCycles").doc(uid + "_" + pendingId);
+      const pendingSnapshot = await transaction.get(pendingRef);
+      const pending = pendingSnapshot.data();
+      const expiry = pending?.expiresAt;
+      const expiryMs = expiry instanceof Timestamp
+        ? expiry.toMillis()
+        : typeof expiry?.toMillis === "function" ? expiry.toMillis() : 0;
+      if (pendingSnapshot.exists && pending?.status === "pending" &&
+          pending.email === email && expiryMs > nowMs) {
+        return {
+          cycleId: pendingId,
+          email,
+          alreadyPending: true,
+          authResetAt: pending.authResetAt ?? null,
+        };
+      }
+      if (pendingSnapshot.exists && pending?.status === "pending") {
+        expiredPendingId = pendingId;
+      }
+    }
+
+    const priorExpiry = userData.emailVerificationCycleExpiresAt;
+    const priorExpiryMs = priorExpiry instanceof Timestamp
+      ? priorExpiry.toMillis()
+      : typeof priorExpiry?.toMillis === "function" ? priorExpiry.toMillis() : null;
+    if (expiredPendingId === null) {
+      if (!authUser.emailVerified || priorExpiryMs === null ||
+          !isEmailVerificationCycleDue(priorExpiryMs - 90 * 24 * 60 * 60 * 1000, nowMs)) {
+        throw new HttpsError("failed-precondition", "لم يحن موعد دورة التحقق التالية بعد.");
+      }
+    }
+
+    const sequence = (Number.isSafeInteger(userData.emailVerificationSequence)
+      ? userData.emailVerificationSequence as number
+      : 1) + 1;
+    const cycle = createEmailVerificationCycle({
+      uid,
+      email,
+      sequence,
+      serverNowMs: nowMs,
+    });
+    const cycleRef = db.collection("emailVerificationCycles").doc(uid + "_" + cycle.cycleId);
+    const existingCycle = await transaction.get(cycleRef);
+    if (existingCycle.exists) {
+      throw new HttpsError("already-exists", "دورة التحقق هذه موجودة مسبقاً.");
+    }
+    if (expiredPendingId !== null) {
+      transaction.update(
+        db.collection("emailVerificationCycles").doc(uid + "_" + expiredPendingId),
+        { status: "expired", expiredAt: FieldValue.serverTimestamp() },
+      );
+    }
+    const startedAt = Timestamp.fromMillis(cycle.startedAtMs);
+    const expiresAt = Timestamp.fromMillis(cycle.expiresAtMs);
+    transaction.create(cycleRef, {
+      ...cycle,
+      status: "pending",
+      startedAt,
+      expiresAt,
+      authResetAt: null,
+      createdAt: startedAt,
+      updatedAt: startedAt,
+    });
+    transaction.update(userRef, {
+      emailVerified: false,
+      emailVerificationSequence: sequence,
+      emailVerificationRenewalPendingCycleId: cycle.cycleId,
+      emailVerificationRenewalPendingEmail: email,
+      emailVerificationRenewalStartedAt: startedAt,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return {
+      cycleId: cycle.cycleId,
+      email,
+      alreadyPending: false,
+      authResetAt: null,
+    };
+  });
+
+  // Retry-safe: if Auth was reset but recording authResetAt failed, the next
+  // call observes Auth=false and records the marker without invalidating a
+  // subsequently redeemed link.
+  if (cycleResult.authResetAt == null) {
+    if (authUser.emailVerified) {
+      await getAuth().updateUser(uid, { emailVerified: false });
+    }
+    const cycleRef = db.collection("emailVerificationCycles").doc(uid + "_" + cycleResult.cycleId);
+    await db.runTransaction(async (transaction) => {
+      const cycleSnapshot = await transaction.get(cycleRef);
+      if (!cycleSnapshot.exists || cycleSnapshot.data()?.status !== "pending") {
+        throw new HttpsError("failed-precondition", "انتهت دورة التحقق قبل تهيئة البريد.");
+      }
+      if (cycleSnapshot.data()?.authResetAt == null) {
+        transaction.update(cycleRef, { authResetAt: FieldValue.serverTimestamp() });
+      }
+    });
+  }
+
+  return {
+    cycleId: cycleResult.cycleId,
+    email: cycleResult.email,
+    alreadyPending: cycleResult.alreadyPending,
+    sendVerificationEmail: true,
+  };
+});
+
+/**
+ * Finalizes a renewal only after Firebase Auth confirms that the member
+ * redeemed the fresh email action link for the same address.
+ */
+export const completeEmailVerificationRenewal = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const authUser = await getAuth().getUser(uid);
+  if (!authUser.email || !authUser.emailVerified) {
+    throw new HttpsError("failed-precondition", "افتح رابط التحقق المرسل إلى بريدك أولاً.");
+  }
+  const email = authUser.email.trim().toLowerCase();
+  const userRef = db.collection("users").doc(uid);
+  const nowMs = Date.now();
+
+  return db.runTransaction(async (transaction) => {
+    const userSnapshot = await transaction.get(userRef);
+    if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true) {
+      throw new HttpsError("failed-precondition", "ملف العضوية غير مكتمل.");
+    }
+    const userData = userSnapshot.data()!;
+    const cycleId = userData.emailVerificationRenewalPendingCycleId;
+    if (typeof cycleId !== "string" || cycleId.length !== 64) {
+      throw new HttpsError("failed-precondition", "لا توجد دورة تحقق بريد معلقة.");
+    }
+    const cycleRef = db.collection("emailVerificationCycles").doc(uid + "_" + cycleId);
+    const ledgerRef = userRef.collection("walletLedger").doc(emailVerificationRewardLedgerId(cycleId));
+    const [cycleSnapshot, ledgerSnapshot] = await Promise.all([
+      transaction.get(cycleRef),
+      transaction.get(ledgerRef),
+    ]);
+    if (!cycleSnapshot.exists) {
+      throw new HttpsError("not-found", "دورة التحقق غير موجودة.");
+    }
+    const cycleData = cycleSnapshot.data()!;
+    const startedAtMs = cycleData.startedAt instanceof Timestamp
+      ? cycleData.startedAt.toMillis()
+      : Number(cycleData.startedAtMs);
+    const expiresAtMs = cycleData.expiresAt instanceof Timestamp
+      ? cycleData.expiresAt.toMillis()
+      : Number(cycleData.expiresAtMs);
+    const cycle = {
+      cycleId,
+      uid,
+      email: cycleData.email,
+      sequence: cycleData.sequence,
+      status: cycleData.status,
+      startedAtMs,
+      expiresAtMs,
+    };
+    if (!canRewardEmailVerificationCycle({
+      cycle,
+      currentEmail: email,
+      authEmailVerified: authUser.emailVerified,
+      serverNowMs: nowMs,
+    })) {
+      throw new HttpsError("failed-precondition", "تعذر اعتماد دورة البريد؛ تحقق من الرابط والبريد ومدة الصلاحية.");
+    }
+    if (cycleData.authResetAt == null) {
+      throw new HttpsError("failed-precondition", "لم يتم إصدار تحدي تحقق جديد لهذه الدورة.");
+    }
+    if (ledgerSnapshot.exists) {
+      throw new HttpsError("already-exists", "مكافأة دورة البريد مسجلة مسبقاً.");
+    }
+
+    const balance = Number.isSafeInteger(userData.coins) ? userData.coins as number : 0;
+    const newBalance = balance + EMAIL_VERIFICATION_REWARD_COINS;
+    if (!Number.isSafeInteger(newBalance)) {
+      throw new HttpsError("out-of-range", "الرصيد الناتج يتجاوز الحد الرقمي الآمن.");
+    }
+    const verifiedAt = Timestamp.fromMillis(nowMs);
+    transaction.update(cycleRef, {
+      status: "rewarded",
+      verifiedAt,
+      rewardedAt: verifiedAt,
+      updatedAt: verifiedAt,
+    });
+    transaction.update(userRef, {
+      coins: newBalance,
+      emailVerified: true,
+      emailVerifiedAt: verifiedAt,
+      emailVerificationCycleId: cycleId,
+      emailVerificationCycleStartedAt: Timestamp.fromMillis(startedAtMs),
+      emailVerificationCycleExpiresAt: Timestamp.fromMillis(expiresAtMs),
+      emailVerificationRenewalPendingCycleId: FieldValue.delete(),
+      emailVerificationRenewalPendingEmail: FieldValue.delete(),
+      emailVerificationRenewalStartedAt: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.create(ledgerRef, {
+      type: "email_verification_reward",
+      direction: "credit",
+      amount: EMAIL_VERIFICATION_REWARD_COINS,
+      reason: "verified_email_renewal_cycle",
+      cycleId,
+      cycleSequence: cycle.sequence,
+      idempotencyKey: cycleId,
+      createdAt: verifiedAt,
+    });
+    transaction.create(db.collection("verificationAuditLogs").doc(ledgerRef.id), {
+      actorUid: uid,
+      action: "email_verification_cycle_rewarded",
+      cycleId,
+      cycleSequence: cycle.sequence,
+      rewardCoins: EMAIL_VERIFICATION_REWARD_COINS,
+      verifiedEmailHash: createHash("sha256").update(email).digest("hex"),
+      createdAt: verifiedAt,
+    });
+    return {
+      verified: true,
+      rewardGranted: true,
+      rewardAmount: EMAIL_VERIFICATION_REWARD_COINS,
+      newBalance,
+      cycleId,
+      expiresAtMs,
     };
   });
 });
