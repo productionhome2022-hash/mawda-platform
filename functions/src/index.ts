@@ -7688,6 +7688,8 @@ export const cleanupExpiredTimedAdSessions = onSchedule("every 15 minutes", asyn
   const nowMs = Date.now();
   const candidates = await db.collection("timedAdSessions")
     .where("status", "in", ["active", "paused"])
+    .where("expiresAtMs", "<=", nowMs)
+    .orderBy("expiresAtMs", "asc")
     .limit(250)
     .get();
   let cleaned = 0;
