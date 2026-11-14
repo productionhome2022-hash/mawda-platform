@@ -100,6 +100,8 @@ jobs:
         run: npm run test:wallet-store-integration
       - name: Run room rental pricing and lifecycle integration tests
         run: npm run test:room-rental-integration
+      - name: Run room event scheduling and RSVP integration tests
+        run: npm run test:room-events-integration
       - name: Run FCM token registration and deactivation integration tests
         run: npm run test:push-token-integration
       - name: Run 30-day biometric reward cycle integration tests
