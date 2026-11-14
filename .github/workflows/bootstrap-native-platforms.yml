@@ -6,7 +6,6 @@ on:
       - codex/mawda-full-platform-implementation
     paths:
       - "tool/configure_native_platforms.py"
-      - "tool/mawdda-android-sdk.gradle"
       - ".github/workflows/bootstrap-native-platforms.yml"
       - "pubspec.yaml"
       - "pubspec.lock"
@@ -81,11 +80,8 @@ jobs:
       - name: Resolve locked Flutter dependencies
         run: flutter pub get --enforce-lockfile
 
-      - name: Apply Android API 36 to every app and plugin module
-        run: |
-          test -f tool/mawdda-android-sdk.gradle
-          mkdir -p "$HOME/.gradle/init.d"
-          cp tool/mawdda-android-sdk.gradle "$HOME/.gradle/init.d/mawdda-android-sdk.gradle"
+      - name: Apply Android API 36 to every resolved Flutter plugin module
+        run: python3 tool/patch_android_plugin_compile_sdk.py
 
       - name: Build Android debug APK
         run: flutter build apk --debug
