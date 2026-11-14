@@ -19,7 +19,7 @@ The catalogue in `functions/test/fixtures/test-account-personas.json` is the sou
 
 | Persona | Provisioning | Intended scenarios |
 |---|---|---|
-| `guest-preview` | Anonymous sign-in from the client; profile fixture only | Public discovery, public catalog and ads; 60 minutes in a rolling 24-hour window |
+| `guest-preview` | Anonymous sign-in from the client; profile fixture only | Public discovery/catalog/ads; join public rooms; send/receive text and audio only; 60 minutes per rolling 24 hours |
 | `email-member` | Emulator email/password identity | Member profile, chat, allowed media, wallet, transfers, gifts, stores and rooms |
 | `biometric-member` | Emulator email/password identity | Member scenarios plus the biometric challenge lifecycle; fixture is not hardware proof |
 | `counterparty-member` | Emulator email/password identity | Two-party chat, transfer, gift and room interaction |
@@ -63,7 +63,7 @@ Some suites need external credentials or cloud resources and are deliberately no
 
 ## Guest clock testing
 
-The guest's one-hour/24-hour policy is a product rule. Clock manipulation is permitted only in an isolated emulator test harness; do not add a client-facing clock control to production. Tests should exercise: first entry, continued use before 60 minutes, expiry at 60 minutes, denial before the rolling 24-hour window ends, and re-entry when the window expires. The test clock must not change server time, production timestamps, or real user eligibility.
+The guest's one-hour/24-hour policy is a product rule. During the active hour, the guest may join public rooms and send/receive text and audio messages only. Direct messages, private rooms, room rental, gifts, images, GIFs, video and documents are denied. Clock manipulation is permitted only in an isolated emulator test harness; do not add a client-facing clock control to production. Tests should exercise: first entry, public-room text/audio exchange, denial of every prohibited action, continued use before 60 minutes, expiry at 60 minutes, denial before the rolling 24-hour window ends, and re-entry when the window expires. The test clock must not change server time, production timestamps, or real user eligibility.
 
 ## Media and financial invariants
 
