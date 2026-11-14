@@ -32,12 +32,12 @@ function callableAuth(uid) {
   return { uid, token: { firebase: { sign_in_provider: "password" }, email_verified: true } };
 }
 
-test("load-test fixture is emulator-only and contains 500 unique synthetic personas", async () => {
+test("load-test fixture is emulator-only and contains 5000 unique synthetic personas", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   assert.ok(process.env.FIREBASE_AUTH_EMULATOR_HOST, "Auth emulator is required");
   assert.equal(fixture.environment, "firebase-emulator-only");
   assert.equal(fixture.count, personas.length);
-  assert.ok(personas.length >= 500, "the full 500-persona run is required");
+  assert.ok(personas.length >= 5000, "the full 5000-persona run is required");
   assert.equal(new Set(personas.map((p) => p.personaId)).size, personas.length);
   assert.ok(personas.every((p) => p.testOnly === true && p.email.endsWith("@test.mawdda.invalid")));
 });
@@ -108,7 +108,7 @@ test("provision 500 emulator-only identities and synthetic member profiles", asy
   console.log(`[persona-load] provisioned=${metrics.createdUsers}`);
 });
 
-for (const count of [200, 300, 500]) {
+for (const count of [500, 1000, 2500, 5000]) {
   test(`${count} synthetic personas concurrently transfer coins and exchange direct messages`, async () => {
     const cohort = personas.slice(0, count);
     // Each tier starts from a clean sandbox wallet state so results are comparable.
