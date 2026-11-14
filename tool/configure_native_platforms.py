@@ -82,6 +82,12 @@ def configure_android() -> None:
             source,
             count=1,
         )
+        source, compile_count = re.subn(
+            r'compileSdk\s*=\s*flutter\.compileSdkVersion',
+            "compileSdk = 36",
+            source,
+            count=1,
+        )
     else:
         source, namespace_count = re.subn(
             r'namespace\s+["\'][^"\']+["\']',
@@ -101,8 +107,14 @@ def configure_android() -> None:
             source,
             count=1,
         )
-    if not namespace_count or not app_id_count or not min_count:
-        raise SystemExit("Could not safely set Android namespace, applicationId and minSdk=23.")
+        source, compile_count = re.subn(
+            r'compileSdkVersion\s+flutter\.compileSdkVersion',
+            "compileSdkVersion 36",
+            source,
+            count=1,
+        )
+    if not namespace_count or not app_id_count or not min_count or not compile_count:
+        raise SystemExit("Could not safely set Android namespace, applicationId, minSdk=23 and compileSdk=36.")
     gradle.write_text(source, encoding="utf-8")
 
 
