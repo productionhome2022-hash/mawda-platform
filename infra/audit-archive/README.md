@@ -8,7 +8,7 @@ there is no guessed region.
 ## Apply and irreversibly lock retention
 
 1. Review the data-residency location, legal basis, access roles, and bucket name.
-2. Apply this module with `retention_seconds = 63115200` or a longer period.
+2. Apply this module with `retention_seconds = 64281600` or a longer period.
 3. Verify the bucket metadata and retention period.
 4. **Only after approval**, irreversibly lock the retention policy:
 
