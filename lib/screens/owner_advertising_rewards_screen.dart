@@ -18,6 +18,9 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
   final _duration = TextEditingController(text: '30');
   final _reward = TextEditingController(text: '10');
   final _budget = TextEditingController(text: '1000');
+  final _maxClaims = TextEditingController(text: '1');
+  String _placement = 'reward_center';
+  String? _editingCampaignId;
   List<Map<String, dynamic>> _campaigns = [];
   List<Map<String, dynamic>> _approvedCreatives = [];
   String? _selectedMediaId;
@@ -41,7 +44,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
   @override
   void dispose() {
     _title.dispose(); _sponsor.dispose(); _body.dispose();
-    _duration.dispose(); _reward.dispose(); _budget.dispose();
+    _duration.dispose(); _reward.dispose(); _budget.dispose(); _maxClaims.dispose();
     _hourlyCoins.dispose(); _dailyCoins.dispose(); _weeklyCoins.dispose();
     super.dispose();
   }
@@ -180,10 +183,12 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
     final duration = int.tryParse(_duration.text.trim());
     final reward = int.tryParse(_reward.text.trim());
     final budget = int.tryParse(_budget.text.trim());
+    final maxClaims = int.tryParse(_maxClaims.text.trim());
     if (_title.text.trim().length < 3 || _sponsor.text.trim().length < 2 ||
         _body.text.trim().length < 10 || duration == null || reward == null ||
         budget == null || duration < 15 || duration > 900 || reward < 0 ||
-        budget < reward || budget > 100000000 || !_endsAt.isAfter(_startsAt)) {
+        budget < reward || budget > 100000000 || maxClaims == null || maxClaims < 1 || maxClaims > 100 ||
+        !_endsAt.isAfter(_startsAt)) {
       setState(() => _error = 'راجع عنوان الحملة والمعلن والنص والمدة والمكافأة والميزانية والتواريخ.');
       return;
     }
@@ -193,28 +198,53 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
         'title': _title.text.trim(),
         'sponsorLabel': _sponsor.text.trim(),
         'body': _body.text.trim(),
-        'placement': 'reward_center',
+        'placement': _placement,
+        if (_editingCampaignId != null) 'campaignId': _editingCampaignId,
         'durationSeconds': duration,
         'rewardCoins': reward,
         'startsAtMs': _startsAt.millisecondsSinceEpoch,
         'endsAtMs': _endsAt.millisecondsSinceEpoch,
-        'maxClaimsPerMember': 1,
+        'maxClaimsPerMember': maxClaims,
         'rewardBudgetCoins': budget,
         if (_selectedMediaId != null) 'mediaId': _selectedMediaId,
       });
       final data = Map<String, dynamic>.from(response.data as Map);
       _title.clear(); _sponsor.clear(); _body.clear();
       _selectedMediaId = null;
+      _editingCampaignId = null;
+      _maxClaims.text = '1';
+      _placement = 'reward_center';
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم إنشاء الحملة ${data['campaignId']} كمسودة. انشرها بعد مراجعتها.')),
+        SnackBar(content: Text('تم حفظ الحملة ${data['campaignId']} كمسودة. انشرها بعد مراجعتها.')),
       );
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذر إنشاء الحملة.');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  void _editCampaign(Map<String, dynamic> campaign) {
+    if (!['draft', 'paused'].contains(campaign['status'])) return;
+    setState(() {
+      _editingCampaignId = campaign['campaignId'] as String?;
+      _title.text = campaign['title'] as String? ?? '';
+      _sponsor.text = campaign['sponsorLabel'] as String? ?? '';
+      _body.text = campaign['body'] as String? ?? '';
+      _duration.text = (campaign['durationSeconds'] ?? 30).toString();
+      _reward.text = (campaign['rewardCoins'] ?? 0).toString();
+      _budget.text = (campaign['rewardBudgetCoins'] ?? 0).toString();
+      _maxClaims.text = (campaign['maxClaimsPerMember'] ?? 1).toString();
+      _placement = campaign['placement'] == 'home' ? 'home' : 'reward_center';
+      _selectedMediaId = campaign['mediaId'] as String?;
+      final starts = campaign['startsAtMs'];
+      final ends = campaign['endsAtMs'];
+      if (starts is num) _startsAt = DateTime.fromMillisecondsSinceEpoch(starts.toInt());
+      if (ends is num) _endsAt = DateTime.fromMillisecondsSinceEpoch(ends.toInt());
+      _error = null;
+    });
   }
 
   Future<void> _changeStatus(String campaignId, String status) async {
@@ -300,7 +330,8 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
         ))),
         Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
           crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('إنشاء إعلان من المالك', style: Theme.of(context).textTheme.titleLarge),
+            Text(_editingCampaignId == null ? 'إنشاء إعلان من المالك' : 'تعديل الحملة ${_editingCampaignId}',
+              style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             const Text('يمكن للمالك رفع الصور وGIF والفيديو إلى مسار الحجر والفحص الأمني، ولا تُقبل المادة للحملة قبل اعتماد النسخة الآمنة. ملاحظة: حملات الفيديو تبقى مسودات ولا يمكن نشرها حتى يكتمل مشغل الفيديو داخل التطبيق واختبار الأجهزة. الحملات النصية مستقلة عن أي مزود خارجي مستقبلي.'),
             const SizedBox(height: 12),
@@ -329,8 +360,20 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
               onChanged: _saving ? null : (value) => setState(() => _selectedMediaId = value),
             ),
             const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _placement,
+              decoration: const InputDecoration(labelText: 'موضع العرض', border: OutlineInputBorder()),
+              items: const [
+                DropdownMenuItem(value: 'reward_center', child: Text('مركز المكافآت')),
+                DropdownMenuItem(value: 'home', child: Text('الرئيسية')),
+              ],
+              onChanged: _saving ? null : (value) => setState(() => _placement = value ?? 'reward_center'),
+            ),
             const SizedBox(height: 8),
             Wrap(spacing: 12, runSpacing: 8, children: [
+              SizedBox(width: 120, child: TextField(controller: _maxClaims, enabled: !_saving,
+                keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مرات/عضو'))),
+
               SizedBox(width: 110, child: TextField(controller: _duration, enabled: !_saving,
                 keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'المدة (ثانية)'))),
               _coinField('المكافأة', _reward),
@@ -376,6 +419,8 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
               enabled: !_saving && status != 'archived',
               onSelected: (value) => _changeStatus(id, value),
               itemBuilder: (_) => [
+                if (status == 'draft' || status == 'paused')
+                  PopupMenuItem(value: 'edit', child: const Text('تعديل'), onTap: () => _editCampaign(campaign)),
                 if (status != 'published') const PopupMenuItem(value: 'published', child: Text('نشر')),
                 if (status == 'published') const PopupMenuItem(value: 'paused', child: Text('إيقاف مؤقت')),
                 if (status != 'archived') const PopupMenuItem(value: 'archived', child: Text('أرشفة')),
