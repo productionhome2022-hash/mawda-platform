@@ -212,7 +212,7 @@
     "guest-preview": {
       "biography": "تصفح عام تجريبي لاختبار تجربة الزائر وحدود الوصول",
       "locale": "ar",
-      "country": "Switzerland",
+      "country": "CH",
       "region": "Zurich",
       "profileVisibility": "public-preview",
       "interests": [
@@ -224,7 +224,8 @@
       ],
       "goals": [
         "اختبار حدود نافذة الزائر"
-      ]
+      ],
+      "gender": "female"
     },
     "email-member": {
       "biography": "عضو تجريبي لاختبار المحادثات والمحفظة والمتاجر والغرف والميزات المميزة",
