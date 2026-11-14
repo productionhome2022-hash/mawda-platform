@@ -847,6 +847,24 @@ export const getMemberProfile = onCall(async (request) => {
   if (!canViewMemberProfile(viewerUid, targetUid, memberData.profileVisibility)) {
     throw new HttpsError("permission-denied", "هذا الملف خاص ولا يمكن عرضه.");
   }
+  if (viewerUid !== targetUid && !hasPlatformOwnerSession(
+    (request.auth?.token ?? {}) as Record<string, unknown>,
+    undefined,
+    viewerUid,
+  )) {
+    const viewerSnapshot = await db.collection("users").doc(viewerUid).get();
+    const viewerData = viewerSnapshot.data();
+    if (!viewerSnapshot.exists || !isMemberAccountInGoodStanding(viewerData) ||
+        !Number.isSafeInteger(viewerData?.age) || !Number.isSafeInteger(memberData.age) ||
+        ((viewerData!.age as number) < 18) !== ((memberData.age as number) < 18)) {
+      throw new HttpsError("permission-denied", "عرض الملفات بين الفئات العمرية المختلفة غير متاح.");
+    }
+    const viewerBlocks = Array.isArray(viewerData?.blockedUids) ? viewerData!.blockedUids : [];
+    const memberBlocks = Array.isArray(memberData.blockedUids) ? memberData.blockedUids : [];
+    if (viewerBlocks.includes(targetUid) || memberBlocks.includes(viewerUid)) {
+      throw new HttpsError("permission-denied", "لا يمكن عرض هذا الملف بسبب إعدادات الحظر.");
+    }
+  }
 
   const [entitlementSnapshot] = await Promise.all([
     db.collection("users").doc(targetUid).collection("entitlements")
@@ -5298,10 +5316,35 @@ export const purchaseStoreItem = onCall(async (request) => {
     }
 
     const createdAt = FieldValue.serverTimestamp();
+    const nowMs = Date.now();
+    const previousExpiry = priorEntitlement.data()?.expiresAt;
+    const previousExpiryMs = previousExpiry instanceof Timestamp
+      ? previousExpiry.toMillis()
+      : typeof previousExpiry?.toMillis === "function" ? previousExpiry.toMillis() : 0;
+    const boostExpiry = memberData.discoveryBoostExpiresAt;
+    const boostExpiryMs = boostExpiry instanceof Timestamp
+      ? boostExpiry.toMillis()
+      : typeof boostExpiry?.toMillis === "function" ? boostExpiry.toMillis() : 0;
+    const expiryBaseMs = Math.max(
+      nowMs,
+      previousExpiryMs,
+      item.category === "boost" ? boostExpiryMs : 0,
+    );
     const expiresAt = item.durationDays
-      ? Timestamp.fromMillis(Date.now() + item.durationDays * 24 * 60 * 60 * 1000)
+      ? Timestamp.fromMillis(expiryBaseMs + item.durationDays * 24 * 60 * 60 * 1000)
       : null;
-    transaction.update(userRef, { coins: newBalance, updatedAt: createdAt });
+    const memberUpdate: Record<string, unknown> = {
+      coins: newBalance,
+      updatedAt: createdAt,
+    };
+    if (item.category === "boost" && expiresAt) {
+      memberUpdate.discoveryBoostExpiresAt = expiresAt;
+      memberUpdate.discoveryBoostPurchaseId = purchaseId;
+    }
+    if (item.itemId === "profile_pin_30d" && typeof memberData.pinnedProfileSection !== "string") {
+      memberUpdate.pinnedProfileSection = "interests";
+    }
+    transaction.update(userRef, memberUpdate);
     transaction.create(purchaseRef, {
       purchaseId,
       memberUid: uid,
