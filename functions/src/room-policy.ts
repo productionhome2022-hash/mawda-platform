@@ -55,8 +55,10 @@ export function canJoinGuestRoom(args: {
   roomAudience: unknown;
   roomKind: unknown;
   roomStatus: unknown;
+  guestAudienceApproved: unknown;
 }): boolean {
   return args.roomStatus === "active" &&
     args.roomKind === "public" &&
-    args.roomAudience === "all_ages";
+    args.roomAudience === "all_ages" &&
+    args.guestAudienceApproved === true;
 }
