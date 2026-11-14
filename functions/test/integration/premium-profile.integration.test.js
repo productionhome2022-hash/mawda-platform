@@ -104,6 +104,15 @@ test("premium profile features enforce entitlements, count unique views, and ran
       () => setMemberCustomTitle.run(call(targetUid, { title: "x".repeat(41) })),
       (error) => error && error.code === "invalid-argument",
     );
+    await targetRef.collection("entitlements").doc("title_custom").update({
+      expiresAt: Timestamp.fromMillis(Date.now() - 1000),
+    });
+    const expiredTitleView = await getMemberProfile.run(call(targetUid, { userId: targetUid }));
+    assert.equal(expiredTitleView.activeTitle, null);
+    await assert.rejects(
+      () => setMemberCustomTitle.run(call(targetUid, { title: "لقب منتهي" })),
+      (error) => error && error.code === "failed-precondition",
+    );
     assert.deepEqual(
       new Set(ownerView.activeFeatures.map((feature) => feature.itemId)),
       new Set(profileEntitlements.map(([itemId]) => itemId)),
