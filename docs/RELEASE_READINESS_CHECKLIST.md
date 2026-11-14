@@ -231,3 +231,16 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Test all non-owner denials, MFA freshness, session revocation, guest bypasses, policy version changes, cross-account isolation, silent-mode side effects, audit tamper resistance, and legal-hold/retention behavior.
 - [ ] The capability remains disabled for production until privacy/legal approval, full backend and UI implementation, and all release evidence are complete.
 
+## Guest Preview public-room participation release gates — approved 14 November 2026
+
+- [ ] Guest receives exactly 60 minutes of protected access per rolling 24-hour window, enforced with trusted server time and bound to the anonymous Firebase Auth identity; logout, restart, reinstall, new device and client-clock changes do not reset it.
+- [ ] After guest privacy acknowledgement, the Flutter guest experience supports public discovery and joining public rooms; it is not limited to the current upgrade-only screen.
+- [ ] Guest may send and receive text and audio/voice messages in public rooms only.
+- [ ] Guest is denied direct/private messages, private rooms, room rental, moderation, gifts, wallet reads/writes, transfers, top-ups, rewards, purchases, and member-only content.
+- [ ] Guest cannot send or receive images, GIFs, video, PDFs, documents, stickers, arbitrary files or any other unsupported media; audio upload/finalization is separately validated and bound to an active guest session and public room.
+- [ ] Every server callable that joins a room, sends/reads messages, or finalizes audio media checks anonymous Auth provider, guest session, expiry/cooldown, public-room type, membership and allowed message/media type. Client-side hiding is not authorization.
+- [ ] Guest access preserves the minimum-age policy and adult/minor room-audience separation. The guest flow obtains the minimum age-band information required by room policy; unknown age never defaults to adult access or bypasses audience checks.
+- [ ] Emulator integration tests cover session start, use before expiry, exact 60-minute expiry, denial throughout the remaining rolling 24-hour window, re-entry at the eligible boundary, text/audio send and receive, and every prohibited operation.
+- [ ] Emulator clock advancement/reset is confined to test fixture setup; no production client or callable accepts client-supplied timestamps or clock overrides.
+- [ ] Session expiry blocks protected room access immediately without deleting privacy acknowledgement, audit records or unrelated account data. Guest upgrade/conversion preserves only records that are explicitly safe and policy-compatible.
+
