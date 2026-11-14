@@ -266,7 +266,7 @@ The root `pubspec.lock` and `functions/package-lock.json` were absent at the las
 
 The real `platformOwner` claim has not been provisioned and the production MFA flow has not been verified. The owner bootstrap script is prepared but has not been run against Firebase.
 
-Several product areas remain partial or unimplemented: complete DM and notification UX, media workflows, full room lifecycle and voice/video/rental billing, premium store consumers beyond VIP/title, real-money purchase verification/top-ups/refunds, full owner console, identity/background management UI, real-device and cross-platform verification, monitoring and recovery drills.
+Several product areas remain partial or unimplemented: complete DM and notification UX, some media workflows and device acceptance, full room lifecycle and voice/video/rental billing, automated real-money payment verification/top-ups/refunds, full owner console and service-health observability, identity/background management UI, real-device and cross-platform verification, monitoring and recovery drills. The twelve current premium store SKUs have server purchase/entitlement and emulator coverage with profile consumers; privacy add-ons remain fail-closed. Custom-title editing is now implemented and its exact-head emulator test passed. Native Android/iOS runner scaffolding and Firebase native configuration are being validated separately; the current `lib/firebase_options.dart` still contains placeholder Android/iOS project IDs/API-key values and must be regenerated from the registered Firebase apps before native app use.
 
 The launch fallback background is an approved requirement but the final launch artwork has not yet been selected/bundled and verified.
 
