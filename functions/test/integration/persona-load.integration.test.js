@@ -9,7 +9,7 @@ const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestor
 const {
   getMemberProfile, setMemberProfileVisitorGreeting, setMemberPinnedProfileSection,
   setMemberCustomTitle, discoverMembers, joinRoom, createRoomEvent,
-  listRoomEvents, rsvpRoomEvent, setRoomEventStatus,
+  listRoomEvents, rsvpRoomEvent, setRoomEventStatus, purchaseStoreItem, setStoreCatalogItem,
 } = require("../../lib/index");
 const { getAuth } = require("firebase-admin/auth");
 
@@ -295,6 +295,8 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
   const coverage = new Map(personas.map((persona) => [persona.personaId, {
     personaId: persona.personaId, uid: persona.uid,
     premiumEntitlementsProvisioned: false,
+    storePurchaseCompleted: false,
+    storeReceiptAndLedgerVerified: false,
     greetingAndPinnedSectionUpdated: false,
     peerProfileViewed: false,
     profileAnalyticsVerified: false,
@@ -307,11 +309,30 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
   let eventId = null;
 
   try {
-    // Sandbox entitlement fixtures only: never real purchases or payment grants.
+    // Publish one fulfillment-ready SKU only inside this emulator project.
+    const storeOwnerUid = "persona-lifecycle-emulator-owner";
+    await setStoreCatalogItem.run({
+      data: {
+        itemId: "vip_monthly", active: true, name: "VIP Test Membership",
+        description: "Emulator-only VIP purchase used by the 5000-persona lifecycle test.",
+        category: "vip", priceCoins: 100, durationDays: 30, sortOrder: 1,
+        purchaseEnabled: true, fulfillmentReady: true,
+      },
+      auth: {
+        uid: storeOwnerUid,
+        token: {
+          platformOwner: true, platformOwnerUid: storeOwnerUid,
+          auth_time: Math.floor(Date.now() / 1000),
+          firebase: { sign_in_provider: "custom", sign_in_second_factor: "phone" },
+        },
+      },
+    });
+
+    // Sandbox entitlement fixtures for profile capabilities not purchased here.
     await inBatches(personas, 25, async (persona) => {
       const userRef = db.collection("users").doc(persona.uid);
       const entitlementIds = [
-        ["vip_monthly", "vip"], ["title_custom", "title"],
+        ["title_custom", "title"],
         ["profile_analytics_30d", "analytics"], ["profile_pin_30d", "profile_layout"],
         ["visitor_greeting_30d", "greeting"], ["discovery_boost_7d", "boost"],
       ];
@@ -326,6 +347,34 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       batch.update(userRef, { profileVisibility: "public", profileCompleted: true, accountStatus: "active", discoveryBoostExpiresAt: expiresAt });
       await batch.commit();
       coverage.get(persona.personaId).premiumEntitlementsProvisioned = true;
+    });
+
+    // Every persona makes a real callable purchase in the emulator, replays
+    // the same request, and reconciles the immutable receipt and wallet ledger.
+    await inBatches(personas, 25, async (persona) => {
+      const userRef = db.collection("users").doc(persona.uid);
+      const before = (await userRef.get()).data().coins;
+      const requestId = "persona_vip_" + persona.personaId;
+      const request = { data: { itemId: "vip_monthly", requestId, expectedPriceCoins: 100 }, auth: callableAuth(persona.uid) };
+      const purchase = await purchaseStoreItem.run(request);
+      assert.equal(purchase.idempotentReplay, false);
+      assert.equal(purchase.priceCoins, 100);
+      const replay = await purchaseStoreItem.run(request);
+      assert.equal(replay.idempotentReplay, true);
+      const [after, receipt, ledger, entitlement] = await Promise.all([
+        userRef.get(),
+        db.collection("storePurchases").doc(purchase.purchaseId).get(),
+        userRef.collection("walletLedger").doc("store_" + purchase.purchaseId).get(),
+        userRef.collection("entitlements").doc("vip_monthly").get(),
+      ]);
+      assert.equal(after.data().coins, before - 100);
+      assert.equal(receipt.data().status, "completed");
+      assert.equal(receipt.data().priceCoins, 100);
+      assert.equal(ledger.data().amount, -100);
+      assert.equal(ledger.data().purchaseId, purchase.purchaseId);
+      assert.equal(entitlement.data().status, "active");
+      coverage.get(persona.personaId).storePurchaseCompleted = true;
+      coverage.get(persona.personaId).storeReceiptAndLedgerVerified = true;
     });
 
     await inBatches(personas, 25, async (persona) => {
@@ -413,7 +462,7 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
 
     const rows = [...coverage.values()];
     const required = [
-      "premiumEntitlementsProvisioned", "greetingAndPinnedSectionUpdated",
+      "premiumEntitlementsProvisioned", "storePurchaseCompleted", "storeReceiptAndLedgerVerified", "greetingAndPinnedSectionUpdated",
       "peerProfileViewed", "profileAnalyticsVerified", "discoveryExecuted", "boostedDiscoveryVerified", "roomJoined", "eventListed", "eventRsvpConfirmed",
     ];
     for (const field of required) {
