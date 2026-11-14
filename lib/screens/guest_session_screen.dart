@@ -49,6 +49,14 @@ class _GuestSessionScreenState extends State<GuestSessionScreen> {
         rooms = (data['rooms'] as List<dynamic>? ?? const [])
             .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
       }
+      final profile = status['profile'];
+      if (profile is Map) {
+        if (_username.text.isEmpty) _username.text = profile['username'] as String? ?? '';
+        final country = profile['country'];
+        if (country is String && _countries.containsKey(country)) _country = country;
+        final gender = profile['gender'];
+        if (gender == 'male' || gender == 'female') _gender = gender;
+      }
       if (mounted) setState(() { _status = status; _rooms = rooms; _loading = false; });
     } on FirebaseFunctionsException catch (e) {
       if (mounted) setState(() { _message = e.message ?? 'تعذر تحميل حالة جلسة الزائر.'; _loading = false; });
