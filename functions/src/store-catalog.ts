@@ -1,3 +1,23 @@
+const FULFILLMENT_READY_ITEM_IDS = new Set([
+  "vip_monthly",
+  "title_custom",
+  "badge_special",
+  "avatar_frame_30d",
+  "username_color_30d",
+  "username_animated_30d",
+  "profile_analytics_30d",
+  "profile_layout_30d",
+  "profile_pin_30d",
+  "discovery_boost_7d",
+  "profile_theme_30d",
+  "visitor_greeting_30d",
+]);
+
+function isStoreFulfillmentReady(itemId: string, category: string): boolean {
+  if (!FULFILLMENT_READY_ITEM_IDS.has(itemId)) return false;
+  return category !== "privacy";
+}
+
 export type StoreCatalogItem = {
   itemId: string;
   active: boolean;
@@ -39,7 +59,7 @@ export function projectStoreCatalogItem(
   const sortOrder = typeof data.sortOrder === "number" &&
       Number.isSafeInteger(data.sortOrder) ? data.sortOrder : 1000;
   const fulfillmentReady =
-    (data.category === "title" || data.category === "vip") &&
+    isStoreFulfillmentReady(itemId, data.category) &&
     data.fulfillmentReady === true;
   return {
     itemId,
@@ -82,9 +102,9 @@ export function validateStoreCatalogItemInput(input: unknown): ValidatedStoreCat
       sortOrder < -100000 || sortOrder > 100000) {
     throw new Error("INVALID_STORE_SORT_ORDER");
   }
-  // Only implemented, tested profile consumers may be explicitly enabled.
-  // Current supported categories are VIP badge and active profile title.
-  const fulfillmentReady = projected.category === "vip" || projected.category === "title";
+  // Only item IDs with a shipped, server-authorized profile consumer may be enabled.
+  // Privacy add-ons remain fail-closed until their visibility semantics are implemented.
+  const fulfillmentReady = isStoreFulfillmentReady(projected.itemId, projected.category);
   const purchaseEnabled = value.purchaseEnabled === true;
   if (purchaseEnabled && !fulfillmentReady) {
     throw new Error("STORE_FULFILLMENT_NOT_READY");
@@ -103,7 +123,8 @@ export function validateStoreCatalogItemInput(input: unknown): ValidatedStoreCat
 export function isStoreItemPurchasable(value: unknown): boolean {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
   const item = value as Record<string, unknown>;
-  return (item.category === "title" || item.category === "vip") &&
+  return typeof item.itemId === "string" &&
+    isStoreFulfillmentReady(item.itemId, String(item.category)) &&
     item.active === true &&
     item.purchaseEnabled === true &&
     item.fulfillmentReady === true;
