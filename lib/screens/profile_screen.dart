@@ -109,7 +109,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final balance = (data['newBalance'] as num?)?.toInt();
       final message = rewardGranted
           ? 'تم اعتماد إكمال المصادقة المحلية وإضافة 1,500 كوين إلى محفظتك${balance == null ? '' : '؛ رصيدك الجديد $balance'}.'
-          : 'توثيقك المحلي ما زال سارياً؛ لن تتكرر مكافأة الدورة الحالية.';
+          : 'سبق منح مكافأة دورة التوثيق الحالية؛ لن يتكرر الصرف قبل موعد الدورة التالية.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
       );
