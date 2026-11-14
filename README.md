@@ -4,7 +4,7 @@
 
 ## Project status
 
-The repository is being prepared for a staged, production-oriented implementation. The current Flutter application is an early prototype; a successful build alone does not mean the product is ready for real members or real coin balances.
+The repository contains the staged Mawdda Platform 2026 implementation and trusted Firebase backend on a development branch. Automated Web, backend/emulator, scanner, Android debug APK, and unsigned iOS build validations have passed on recorded commits. These results do not yet authorize production use, real-money transactions, or public launch.
 
 - Flutter client: `lib/`
 - Firebase configuration: `firebase.json`, `.firebaserc`, `lib/firebase_options.dart`
@@ -30,7 +30,7 @@ npm test
 
 ## Firebase project note
 
-`.firebaserc` selects `mawda-app-2026`. The Web FlutterFire options match that project and the registered Web app ID; the Android, iOS, macOS, Windows and Linux entries still contain placeholder-looking identifiers/API keys and use the different project ID `mawda-platform`. Confirm each native app registration in Firebase Console and regenerate those platform options before building or releasing native binaries. Do not infer that native Firebase setup is complete from the Web configuration.
+`.firebaserc` selects `mawda-app-2026`. On 14 November 2026, the native bootstrap workflow used FlutterFire CLI to register/find the Android app `com.mawdda.platform.app`, the iOS app `com.mawdda.platform.app`, and the Web app in that project, then regenerated the non-placeholder Android/iOS/Web entries in `lib/firebase_options.dart`. CI produced an Android debug APK and completed an unsigned iOS build. macOS, Windows and Linux entries remain placeholders and are not release targets. Physical-device authentication, microphone, push-notification and app-integrity tests, Android/iOS release signing, and independent Firebase Console review remain required before real-user rollout.
 
 ## Product specification
 
@@ -47,11 +47,11 @@ Storage rules currently deny all client reads and writes until authenticated upl
 
 ## Verification renewal reward implementation status
 
-The approved product policy is recurring: 500 coins after each successfully completed eligible 90-day email-verification cycle, and 1,500 coins after each successfully completed eligible 30-day biometric-verification cycle, exactly once per cycle. **This policy is not yet fully implemented.** The current `completeMemberProfile` callable grants the initial 500-coin email reward only during first profile creation; its fixed ledger ID does not implement later renewal cycles. There is not yet a trusted email-lease renewal/finalization flow. The initial device-local biometric prompt has now been added through Flutter `local_auth`, which uses Android BiometricPrompt and Apple LocalAuthentication; no external provider is used and no raw biometric material is uploaded. However, a client-side local-auth result is not independently verifiable by the backend. The 30-day server entitlement and 1,500-coin reward remain disabled until a secure anti-forgery and replay-resistant server proof flow and native device validation are completed. Do not describe recurring rewards as live until cycle IDs, server-authoritative expiry, fresh proof, atomic per-cycle ledger credits, and replay/expiry tests are implemented.
+The approved reward policy is recurring: 500 coins after each successful eligible 90-day email-verification renewal and 1,500 coins after each successful eligible 30-day biometric-verification cycle, each exactly once. The current email-renewal flow and its emulator integration tests are implemented in the development branch; real Firebase Auth/device acceptance and operational scheduling remain open. The biometric reward is deliberately fail-closed and disabled: a local Android/iOS OS prompt is not server-verifiable proof, and the backend rejects client-only success claims without crediting coins or granting biometric entitlements. Re-enable the 1,500-coin cycle only after challenge-bound cryptographic device proof, signature/replay/revocation/expiry controls, atomic idempotent ledger credit, and real-device acceptance.
 
 ## Firebase configuration blocker
 
-The Web entry in `lib/firebase_options.dart` matches `.firebaserc` (`mawda-app-2026`) and the registered Web app ID. Native Android/iOS/macOS/Windows/Linux entries still use placeholder-looking app identifiers/API keys and `mawda-platform`; those native configurations are not production-ready. Do not release native binaries or claim mobile sign-in readiness until the actual native app registrations are confirmed, FlutterFire options are regenerated for the approved project, and Android/iOS builds and device smoke tests pass. No service-account keys or private credentials belong in Git.
+The Web, Android and iOS entries in `lib/firebase_options.dart` now match `.firebaserc` (`mawda-app-2026`) and app IDs generated/found by FlutterFire CLI in the native bootstrap workflow. macOS/Windows/Linux entries remain placeholders. Android debug APK and unsigned iOS CI builds pass, but mobile sign-in readiness is not accepted until physical-device Auth, microphone, push, deep-link, app-integrity and release-signing smoke tests pass. No service-account keys or private credentials belong in Git.
 
 
 ## Member profile completion
