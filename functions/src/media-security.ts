@@ -1,6 +1,6 @@
 export type MediaCategory = "image" | "video" | "audio" | "document";
-export type MediaPurpose = "chat" | "room" | "profile_album" | "avatar_cover" | "story";
-const MEDIA_PURPOSES: ReadonlySet<string> = new Set(["chat", "room", "profile_album", "avatar_cover", "story"]);
+export type MediaPurpose = "chat" | "room" | "profile_album" | "avatar_cover" | "story" | "advertisement";
+const MEDIA_PURPOSES: ReadonlySet<string> = new Set(["chat", "room", "profile_album", "avatar_cover", "story", "advertisement"]);
 
 // Purpose is recorded for future policy enforcement. No automatic retention
 // expiry is computed until the sole owner approves exact durations and legal holds.
@@ -55,6 +55,9 @@ export function mediaUploadAllowedForRole(
 ): boolean {
   const policy = mediaPolicyFor(input.contentType);
   if (!policy) return false;
+  if (input.purpose === "advertisement") {
+    return isPlatformOwner && (policy.category === "image" || policy.category === "video");
+  }
   if (input.purpose === "chat" || input.purpose === "room") {
     return policy.category !== "document" || isPlatformOwner;
   }
@@ -93,6 +96,9 @@ export function normalizeMediaRequest(input: Record<string, unknown>): {
     throw new Error("حجم الملف المعلن غير صالح.");
   }
   const category = mediaPolicyFor(contentType)!.category;
+  if (purpose === "advertisement" && category !== "image" && category !== "video") {
+    throw new Error("الإعلان يقبل الصور وGIF والفيديو فقط.");
+  }
   if ((purpose === "profile_album" || purpose === "avatar_cover") && category !== "image") {
     throw new Error("هذا الغرض مخصص للصور فقط.");
   }
