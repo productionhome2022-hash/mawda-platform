@@ -374,6 +374,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 icon: const Icon(Icons.person_outline),
                 label: const Text('المتابعة كضيف'),
               ),
+              const SizedBox(height: 20),
+              const MawddaAppDownloads(),
               const SizedBox(height: 8),
               const Text('إنشاء حساب الدخول لا يعني اكتمال الملف الشخصي؛ ستأتي خطوة استكمال بيانات العضوية لاحقاً.',
                 textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 12)),
