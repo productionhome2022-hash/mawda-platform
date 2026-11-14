@@ -194,5 +194,102 @@
   "biometricPolicy": {
     "emulatorFixtureIsNotHardwareProof": true,
     "grantRewardsOnlyAfterAuthoritativeServerVerification": true
+  },
+  "profileFixtures": {
+    "guest-preview": {
+      "biography": "تصفح عام تجريبي لاختبار تجربة الزائر وحدود الوصول",
+      "locale": "ar",
+      "country": "Switzerland",
+      "region": "Zurich",
+      "profileVisibility": "public-preview",
+      "interests": [
+        "اكتشاف الأعضاء",
+        "المتاجر",
+        "الإعلانات"
+      ],
+      "goals": [
+        "اختبار حدود نافذة الزائر"
+      ]
+    },
+    "email-member": {
+      "biography": "عضو تجريبي لاختبار المحادثات والمحفظة والمتاجر والغرف والميزات المميزة",
+      "locale": "ar",
+      "country": "Switzerland",
+      "region": "Zurich",
+      "age": 29,
+      "gender": "unspecified",
+      "profession": "مصمم منتجات",
+      "maritalStatus": "single",
+      "profileVisibility": "public",
+      "interests": [
+        "التقنية",
+        "التصميم",
+        "القراءة",
+        "السفر"
+      ],
+      "goals": [
+        "اختبار الملف الشخصي",
+        "اختبار المتجر",
+        "اختبار التحويلات"
+      ]
+    },
+    "biometric-member": {
+      "biography": "ملف تجريبي مخصص لاختبار دورة التوثيق البيومتري ومكافآتها بعد التحقق الخادمي",
+      "locale": "ar",
+      "country": "Switzerland",
+      "region": "Zurich",
+      "age": 32,
+      "gender": "unspecified",
+      "profession": "مهندس برمجيات",
+      "maritalStatus": "single",
+      "profileVisibility": "public",
+      "interests": [
+        "الأمن الرقمي",
+        "التقنية",
+        "الرياضة"
+      ],
+      "goals": [
+        "اختبار تحدي التوثيق",
+        "اختبار حالة الاستحقاق"
+      ]
+    },
+    "counterparty-member": {
+      "biography": "الحساب المقابل لاختبار التفاعل بين عضوين والتحويلات والهدايا والدردشة",
+      "locale": "ar",
+      "country": "Switzerland",
+      "region": "Geneva",
+      "age": 30,
+      "gender": "unspecified",
+      "profession": "محلل أعمال",
+      "maritalStatus": "single",
+      "profileVisibility": "public",
+      "interests": [
+        "الأعمال",
+        "الموسيقى",
+        "السفر"
+      ],
+      "goals": [
+        "استقبال التحويلات",
+        "اختبار المحادثة الثنائية"
+      ]
+    },
+    "owner-operator": {
+      "biography": "هوية اختبار إدارية محصورة بالمحاكي ولا تتجاوز المصادقة متعددة العوامل",
+      "locale": "ar",
+      "country": "Switzerland",
+      "region": "Zurich",
+      "age": 38,
+      "gender": "unspecified",
+      "profession": "مشغل المنصة التجريبي",
+      "maritalStatus": "unspecified",
+      "profileVisibility": "private",
+      "interests": [
+        "حوكمة المنصة",
+        "المراجعة الأمنية"
+      ],
+      "goals": [
+        "اختبار لوحة المالك بعد MFA"
+      ]
+    }
   }
 }
