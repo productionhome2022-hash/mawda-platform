@@ -32,8 +32,8 @@
     "test:premium-profile-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-premium-profile \"node --test test/integration/premium-profile.integration.test.js\"",
     "test:room-events-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-room-events \"node --test test/integration/room-events.integration.test.js\"",
     "test:emulator-backup-restore": "node scripts/test-emulator-backup-restore.cjs",
-    "test:guest-session-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-guest-session 'node --test test/integration/guest-session.integration.test.js'",
-    "test:seeded-persona-interaction": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-personas 'MAWDDA_ALLOW_TEST_SEED=1 node scripts/seed-test-accounts.cjs && node --test test/integration/test-persona-interaction.integration.test.js'"
+    "test:guest-session-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-guest-session \"node --test test/integration/guest-session.integration.test.js\"",
+    "test:seeded-persona-interaction": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-personas \"MAWDDA_ALLOW_TEST_SEED=1 node scripts/seed-test-accounts.cjs && node --test test/integration/test-persona-interaction.integration.test.js\""
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",
