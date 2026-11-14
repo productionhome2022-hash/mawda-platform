@@ -357,6 +357,24 @@
         "storage-write",
         "test-data-production-isolation"
       ]
+    },
+    {
+      "id": "PERSONA-001",
+      "area": "seeded-persona-interaction",
+      "actors": [
+        "email-member",
+        "counterparty-member"
+      ],
+      "command": "npm run test:seeded-persona-interaction",
+      "cases": [
+        "seed-auth-identities",
+        "seed-canonical-user-documents",
+        "member-to-member-coin-transfer",
+        "sender-and-recipient-ledgers",
+        "platform-commission",
+        "idempotent-replay",
+        "restore-fixture-balances"
+      ]
     }
   ],
   "releaseGates": [
