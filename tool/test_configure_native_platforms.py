@@ -12,6 +12,11 @@ class NativeGradleConfigurationTests(unittest.TestCase):
         self.assertIn('pluginManager.withPlugin("com.android.library")', source)
         self.assertIn("plugins.withId('com.android.library')", source)
 
+    def test_generated_runners_declare_microphone_permissions(self):
+        source = Path(__file__).with_name("configure_native_platforms.py").read_text()
+        self.assertIn("android.permission.RECORD_AUDIO", source)
+        self.assertIn("NSMicrophoneUsageDescription", source)
+
 
 if __name__ == "__main__":
     unittest.main()
