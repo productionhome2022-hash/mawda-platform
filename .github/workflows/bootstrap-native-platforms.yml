@@ -142,7 +142,7 @@ jobs:
         run: |
           test -n "$FIREBASE_TOKEN"
           firebase apps:list --project mawda-app-2026 --token "$FIREBASE_TOKEN"
-          flutterfire configure --project=mawda-app-2026 --platforms=ios --ios-bundle-id=com.mawdda.platform.app --ios-out=ios/Runner/GoogleService-Info.plist --out=/tmp/mawdda-ios-firebase-options.dart --yes
+          firebase apps:sdkconfig IOS 1:697303475139:ios:7be58cfe1ac9c4c23ed376 --project mawda-app-2026 --out ios/Runner/GoogleService-Info.plist --token "$FIREBASE_TOKEN"
           python3 - <<'PY'
           import plistlib
           from pathlib import Path
