@@ -7275,6 +7275,17 @@ export const setTimedAdCampaignStatus = onCall(async (request) => {
          data.spentRewardCoins + data.rewardCoins > data.rewardBudgetCoins)) {
       throw new HttpsError("failed-precondition", "لا يمكن نشر حملة منتهية أو تجاوزت ميزانيتها.");
     }
+    if (status === "published" && typeof data.mediaId === "string") {
+      const media = await transaction.get(db.collection("mediaAssets").doc(data.mediaId));
+      const mediaData = media.data();
+      if (!media.exists || mediaData?.ownerUid !== data.mediaOwnerUid ||
+          mediaData?.uploaderRole !== "platform_owner" ||
+          mediaData?.mediaPurpose !== "advertisement" ||
+          mediaData?.status !== "security_approved" ||
+          !["image", "video"].includes(String(mediaData?.mediaCategory))) {
+        throw new HttpsError("failed-precondition", "لا يمكن نشر الحملة قبل اعتماد مادة الإعلان أمنياً.");
+      }
+    }
     transaction.update(campaignRef, {
       status, updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
       version: (Number.isSafeInteger(data.version) ? data.version : 0) + 1,
@@ -7353,6 +7364,17 @@ export const startTimedAdvertisement = onCall(async (request) => {
     if (data.status !== "published" || data.startsAtMs > nowMs || data.endsAtMs <= nowMs ||
         data.spentRewardCoins + data.rewardCoins > data.rewardBudgetCoins) {
       throw new HttpsError("failed-precondition", "الحملة غير متاحة حالياً.");
+    }
+    if (typeof data.mediaId === "string") {
+      const media = await transaction.get(db.collection("mediaAssets").doc(data.mediaId));
+      const mediaData = media.data();
+      if (!media.exists || mediaData?.ownerUid !== data.mediaOwnerUid ||
+          mediaData?.uploaderRole !== "platform_owner" ||
+          mediaData?.mediaPurpose !== "advertisement" ||
+          mediaData?.status !== "security_approved" ||
+          !["image", "video"].includes(String(mediaData?.mediaCategory))) {
+        throw new HttpsError("failed-precondition", "مادة الإعلان لم تعد مؤهلة للعرض.");
+      }
     }
     const claims = counter.data()?.claimCount ?? 0;
     if (!Number.isSafeInteger(claims) || claims >= data.maxClaimsPerMember) {
