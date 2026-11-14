@@ -4,9 +4,9 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const { performance } = require("node:perf_hooks");
+const { transferCoins, sendDirectMessage, getDirectMessages } = require("../../lib/index");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { getAuth } = require("firebase-admin/auth");
-const { transferCoins, sendDirectMessage, getDirectMessages } = require("../../lib/index");
 
 const db = getFirestore();
 const auth = getAuth();
