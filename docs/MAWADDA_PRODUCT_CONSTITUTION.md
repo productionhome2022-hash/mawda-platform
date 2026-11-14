@@ -155,6 +155,17 @@ Never fake functionality, balances, purchases, verification, availability, analy
 
 ## 8. Rooms, events, and communities
 
+### Guest Preview participation policy (approved amendment — 14 November 2026)
+
+- A guest receives **60 minutes of access in each rolling 24-hour window**, measured and enforced by trusted server time and bound to the anonymous Firebase Auth identity. Sign-out, app restart, reinstall, a second device, or changing the client clock must not extend or reset the allowance.
+- During the active guest window, the guest may browse public discovery/catalog/ads and join **public rooms only**. In those public rooms the guest may **send and receive text messages and audio/voice messages**.
+- Guest room participation is limited to text and audio. Images, GIFs, video, PDFs, documents, arbitrary files, stickers and other media are not available to guests.
+- Guests may not open or send direct/private messages, join private rooms, rent rooms, moderate rooms, send/receive gifts, read or write a wallet, transfer/top up coins, claim rewards, purchase items, or use member-only features.
+- The server must check guest-session validity and room/message permissions on every join, send, read, and media-finalization operation. UI-only restrictions are insufficient. Session expiry must immediately deny protected guest content/actions; it must not delete the guest's privacy acknowledgement or unrelated audit evidence.
+- Guest access must preserve the existing minimum-age and adult/minor room-audience separation. A guest with no age/audience information must not bypass those controls; the guest flow must obtain the minimum age-band information required by the approved room policy before joining an age-segmented room.
+- Emulator tests may advance/reset the guest-session clock by changing emulator fixture data or using an isolated test clock. No production client, callable, or administrative UI may accept a client-supplied time override.
+- **Implementation status:** approved product requirement, not yet implemented end-to-end. The current anonymous-user screen is an upgrade screen, and current room callables require a completed member record. Server session lifecycle, public-room guest membership, text/audio guest messaging, Flutter guest-room UI, and the 60-minute/24-hour emulator integration suite remain release blockers.
+
 - Owner-created public rooms and rented private rooms with capacities 5, 10, 25, 100, and up to 1,000 where infrastructure and moderation capacity justify it.
 - Configurable rental price/duration, scoped moderators, invitations, member controls, room-specific backgrounds, and room-specific finance.
 - Public-room media permissions: members may use text, voice messages, stickers, and sounds; moderators may use approved static/animated images; owners have broader approved media permissions.
