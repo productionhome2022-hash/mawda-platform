@@ -3,11 +3,13 @@ const assert = require("node:assert/strict");
 const { getFirestore } = require("firebase-admin/firestore");
 const {
   setAttendanceRewardPolicy,
+  getOwnerAttendanceRewardPolicy,
   claimAttendanceReward,
   setTimedAdCampaign,
   setTimedAdCampaignStatus,
   getActiveTimedAdCampaigns,
   startTimedAdvertisement,
+  getActiveTimedAdSession,
   heartbeatTimedAdvertisement,
   completeTimedAdvertisement,
 } = require("../../lib/index");
@@ -42,6 +44,8 @@ test("attendance rewards are server-policy gated, UTC-period idempotent and ledg
       daily: { enabled: true, amountCoins: 12 },
       weekly: { enabled: true, amountCoins: 40 },
     } }));
+    const ownerPolicy = await getOwnerAttendanceRewardPolicy.run(ownerRequest(ownerUid));
+    assert.equal(ownerPolicy.policy.daily.amountCoins, 12);
     const results = await Promise.all([
       claimAttendanceReward.run(memberRequest(uid, { type: "daily" })),
       claimAttendanceReward.run(memberRequest(uid, { type: "daily" })),
@@ -110,6 +114,10 @@ test("timed advertisements require foreground heartbeat duration and pay once", 
 
     const started = await startTimedAdvertisement.run(memberRequest(uid, { campaignId }));
     sessionId = started.sessionId;
+    const restored = await getActiveTimedAdSession.run(memberRequest(uid));
+    assert.equal(restored.active, true);
+    assert.equal(restored.sessionId, sessionId);
+    assert.equal(restored.title, "Test campaign");
     await assert.rejects(
       () => completeTimedAdvertisement.run(memberRequest(uid, { sessionId })),
       (error) => error && error.code === "failed-precondition",
@@ -147,6 +155,7 @@ test("timed advertisements require foreground heartbeat duration and pay once", 
     assert.equal(ledger.data().amount, 10);
     assert.equal(campaign.data().spentRewardCoins, 10);
     assert.equal(claim.exists, true);
+    assert.equal((await getActiveTimedAdSession.run(memberRequest(uid))).active, false);
   } finally {
     if (sessionId) {
       await Promise.all([
