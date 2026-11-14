@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { calculateOwnerAuditHash, OwnerAuditEvent } from "./owner-audit-chain";
 
 export const OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS = 63_072_000;
-export const OWNER_AUDIT_ARCHIVE_MIN_AGE_MS = 24 * 60 * 60 * 1000;
+export const OWNER_AUDIT_ARCHIVE_MIN_AGE_MS = 5 * 60 * 1000;
 export const OWNER_AUDIT_ARCHIVE_BATCH_SIZE = 500;
 
 export type OwnerAuditArchiveEntry = {
@@ -30,9 +30,17 @@ export function validateLockedAuditArchiveBucket(metadata: unknown): {
   if (metadata === null || typeof metadata !== "object" || Array.isArray(metadata)) {
     throw new Error("AUDIT_ARCHIVE_BUCKET_METADATA_INVALID");
   }
-  const value = metadata as Record<string, any>;
+  const value = metadata as {
+    retentionPolicy?: { isLocked?: unknown; retentionPeriod?: unknown };
+    iamConfiguration?: {
+      uniformBucketLevelAccess?: { enabled?: unknown };
+      publicAccessPrevention?: unknown;
+    };
+  };
   const retention = value.retentionPolicy;
-  const retentionPeriodSeconds = retention?.retentionPeriod;
+  const retentionPeriodSeconds = typeof retention?.retentionPeriod === "number"
+    ? retention.retentionPeriod
+    : Number(retention?.retentionPeriod);
   if (retention?.isLocked !== true ||
       !Number.isSafeInteger(retentionPeriodSeconds) ||
       retentionPeriodSeconds < OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS) {
