@@ -1056,7 +1056,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               Transform.translate(
                 offset: const Offset(0, -30),
-                child: Column(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: hasProfileLayout ? const EdgeInsets.all(14) : EdgeInsets.zero,
+                  decoration: hasProfileLayout
+                      ? BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(color: const Color(0xFFD7B8E8)),
+                          boxShadow: const [
+                            BoxShadow(color: Color(0x18000000), blurRadius: 14, offset: Offset(0, 4)),
+                          ],
+                        )
+                      : null,
+                  child: Column(
                   children: [
                     TweenAnimationBuilder<double>(
                       tween: Tween<double>(begin: hasAnimatedUsername ? 0.88 : 1, end: 1),
@@ -1186,8 +1199,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                   ],
+                  ),
                 ),
               ),
+              if (pinnedSection == 'gallery')
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.push_pin_outlined),
+                      title: const Text('معرض الصور المثبت'),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ProfileGalleryScreen(
+                            profileUserId: widget.profileUserId,
+                            currentUserId: widget.currentUserId,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               if (!isMyProfile && visitorGreeting.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
