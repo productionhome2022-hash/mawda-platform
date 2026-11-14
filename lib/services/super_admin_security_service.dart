@@ -1,101 +1,343 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
+
+import 'package:cloud_functions/cloud_functions.dart';
 
 class SuperAdminSecurityService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
-  Future<Map<String, dynamic>?> getMemberCredentials(String identifier) async {
-    try {
-      final query = await _firestore
-          .collection('members')
-          .where('identifier', isEqualTo: identifier)
-          .limit(1)
-          .get();
-      if (query.docs.isNotEmpty) {
-        return query.docs.first.data();
-      }
-      return null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> streamSpyChatMessages(String chatId) {
-    return _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .orderBy('timestamp', descending: true)
-        .snapshots();
-  }
-
-  Future<void> executeAdvancedBan({
-    required String uid,
-    required String reason,
-    String deviceFingerprint = '',
-    String banDurationType = '24h',
+  Future<Map<String, dynamic>> listOwnerMediaAssets({
+    String status = 'pending_security_scan',
+    String uploaderType = 'all',
+    int limit = 25,
+    String? pageToken,
   }) async {
-    await _firestore.collection('banned_users').doc(uid).set({
-      'reason': reason,
-      'deviceFingerprint': deviceFingerprint,
-      'banDurationType': banDurationType,
-      'timestamp': FieldValue.serverTimestamp(),
+    final result = await _functions.httpsCallable('listOwnerMediaAssets').call({
+      'status': status,
+      'uploaderType': uploaderType,
+      'limit': limit,
+      if (pageToken != null) 'pageToken': pageToken,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<List<int>> getOwnerMediaSafePreview(String mediaId) async {
+    final result = await _functions.httpsCallable('getOwnerMediaSafePreview').call({
+      'mediaId': mediaId,
+    });
+    final data = Map<String, dynamic>.from(result.data as Map);
+    if (data['contentType'] != 'image/webp' || data['imageBase64'] is! String) {
+      throw StateError('استجابة المعاينة الآمنة غير صالحة.');
+    }
+    return base64Decode(data['imageBase64'] as String);
+  }
+
+  Future<Map<String, dynamic>> getOperationsOverview() async {
+    final result = await _functions.httpsCallable('getOwnerOperationsOverview').call();
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> setTransferCommission({
+    required int commissionBps,
+    required bool enabled,
+  }) async {
+    final result = await _functions.httpsCallable('setTransferCommission').call({
+      'commissionBps': commissionBps,
+      'enabled': enabled,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> getOwnerStoreCatalog() async {
+    final result = await _functions.httpsCallable('getOwnerStoreCatalog').call();
+    final data = Map<String, dynamic>.from(result.data as Map);
+    return (data['items'] as List<dynamic>? ?? const [])
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
+  }
+
+  Future<void> setStoreCatalogItem({
+    required String itemId,
+    required String name,
+    required String description,
+    required String category,
+    required int priceCoins,
+    required int? durationDays,
+    required int sortOrder,
+    required bool active,
+    required bool purchaseEnabled,
+  }) async {
+    await _functions.httpsCallable('setStoreCatalogItem').call({
+      'itemId': itemId,
+      'name': name,
+      'description': description,
+      'category': category,
+      'priceCoins': priceCoins,
+      if (durationDays != null) 'durationDays': durationDays,
+      'sortOrder': sortOrder,
+      'active': active,
+      'purchaseEnabled': purchaseEnabled,
     });
   }
 
-  Future<void> adminUpdateMemberPassword({
-    required String uid,
-    required String newPassword,
-  }) async {
-    // Passwords must be changed through Firebase Authentication/Admin SDK,
-    // never stored as readable Firestore fields.
-    throw UnsupportedError(
-      'Password changes must be performed by a trusted server using Firebase Auth.',
-    );
+  Future<Map<String, dynamic>> getRoomRentalPlans() async {
+    final result = await _functions.httpsCallable('getRoomRentalPlans').call();
+    return Map<String, dynamic>.from(result.data as Map);
   }
 
-  Future<void> sendAdminInterventionMessage({
+  Future<Map<String, dynamic>> setRoomRentalPlans(
+    List<Map<String, dynamic>> plans,
+  ) async {
+    final result = await _functions.httpsCallable('setRoomRentalPlans').call({
+      'plans': plans,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> createRentedRoom({
+    required String name,
+    required int capacity,
+    required String planId,
+    required int expectedPriceCoins,
+    required String requestId,
+  }) async {
+    final result = await _functions.httpsCallable('createRentedRoom').call({
+      'name': name,
+      'capacity': capacity,
+      'planId': planId,
+      'expectedPriceCoins': expectedPriceCoins,
+      'requestId': requestId,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> renewRoomRental({
+    required String roomId,
+    required String planId,
+    required int expectedPriceCoins,
+    required String requestId,
+  }) async {
+    final result = await _functions.httpsCallable('renewRoomRental').call({
+      'roomId': roomId,
+      'planId': planId,
+      'expectedPriceCoins': expectedPriceCoins,
+      'requestId': requestId,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> transferRoomOwnership({
+    required String roomId,
+    required String newOwnerUid,
+  }) async {
+    final result = await _functions.httpsCallable('transferRoomOwnership').call({
+      'roomId': roomId,
+      'newOwnerUid': newOwnerUid,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> closeOwnedRoom(String roomId) async {
+    final result = await _functions.httpsCallable('closeOwnedRoom').call({
+      'roomId': roomId,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> createRoom({
+    required String name,
+    required String kind,
+    required int capacity,
+  }) async {
+    final result = await _functions.httpsCallable('createRoom').call({
+      'name': name.trim(),
+      'kind': kind,
+      'capacity': capacity,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> setRegistrationPolicy({
+    required bool enabled,
+    required int minimumAge,
+  }) async {
+    final result = await _functions.httpsCallable('setRegistrationPolicy').call({
+      'enabled': enabled,
+      'minimumAge': minimumAge,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> getRoomMessages(String roomId) async {
+    final result = await _functions.httpsCallable('getRoomMessages').call({
+      'roomId': roomId,
+    });
+    final data = Map<String, dynamic>.from(result.data as Map);
+    final messages = data['messages'] as List<dynamic>? ?? const [];
+    return messages
+        .map((message) => Map<String, dynamic>.from(message as Map))
+        .toList(growable: false);
+  }
+
+  Future<void> sendRoomMessage({
+    required String roomId,
+    required String content,
+    required String clientMessageId,
+  }) async {
+    await _functions.httpsCallable('sendRoomMessage').call({
+      'roomId': roomId,
+      'content': content,
+      'clientMessageId': clientMessageId,
+    });
+  }
+
+  Future<void> deleteDirectMessageForMe({
     required String chatId,
-    required String message,
+    required String messageId,
   }) async {
-    await _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .add({
-      'senderId': 'SUPER_ADMIN_SYSTEM',
-      'text': message,
-      'timestamp': FieldValue.serverTimestamp(),
+    await _functions.httpsCallable('deleteDirectMessageForMe').call({
+      'chatId': chatId,
+      'messageId': messageId,
     });
   }
 
-  // This records a platform-level cleanup request; a trusted scheduled
-  // backend must perform actual media deletion.
-  Future<void> triggerAutoDestructMedia({String? chatId}) async {
-    final request = {
-      'enabled': true,
-      'requestedAt': FieldValue.serverTimestamp(),
-      'status': 'pending_backend_cleanup',
-    };
-
-    if (chatId == null || chatId.isEmpty) {
-      await _firestore
-          .collection('platform_settings')
-          .doc('media_auto_destruct')
-          .set(request, SetOptions(merge: true));
-      return;
-    }
-
-    await _firestore.collection('chats').doc(chatId).set({
-      'autoDestruct': request,
-    }, SetOptions(merge: true));
+  Future<void> deleteRoomMessageForMe({
+    required String roomId,
+    required String messageId,
+  }) async {
+    await _functions.httpsCallable('deleteRoomMessageForMe').call({
+      'roomId': roomId,
+      'messageId': messageId,
+    });
   }
 
-  Future<void> deleteMessageForEveryone(String chatId, String messageId) async {
-    await _firestore
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .doc(messageId)
-        .delete();
+  Future<void> deleteRoomMessage({
+    required String roomId,
+    required String messageId,
+  }) async {
+    await _functions.httpsCallable('deleteRoomMessage').call({
+      'roomId': roomId,
+      'messageId': messageId,
+    });
+  }
+
+  Future<Map<String, dynamic>> getOwnerMemberDirectChats(
+    String memberUid, {
+    String? pageToken,
+  }) async {
+    final result = await _functions.httpsCallable('getOwnerMemberDirectChats').call({
+      'memberUid': memberUid.trim(),
+      if (pageToken != null) 'pageToken': pageToken,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> getOwnerDirectChatMessages(
+    String chatId, {
+    String? pageToken,
+    String reviewMode = 'silent',
+    String? announcementMessageId,
+  }) async {
+    final result = await _functions.httpsCallable('getOwnerDirectChatMessages').call({
+      'chatId': chatId,
+      'mode': reviewMode,
+      if (announcementMessageId != null) 'announcementMessageId': announcementMessageId,
+      if (pageToken != null) 'pageToken': pageToken,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> announceOwnerDirectChatReview({
+    required String chatId,
+    required String noticeText,
+    required String requestId,
+  }) async {
+    final result = await _functions.httpsCallable('announceOwnerDirectChatReview').call({
+      'chatId': chatId,
+      'noticeText': noticeText.trim(),
+      'requestId': requestId,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> placeMediaLegalHold({
+    required String mediaId,
+    required String authority,
+    required String legalBasis,
+    required String reference,
+    required int startsAtMs,
+    required int reviewAtMs,
+    required int endsAtMs,
+  }) async {
+    final result = await _functions.httpsCallable('placeMediaLegalHold').call({
+      'mediaId': mediaId,
+      'authority': authority,
+      'legalBasis': legalBasis,
+      'reference': reference,
+      'startsAtMs': startsAtMs,
+      'reviewAtMs': reviewAtMs,
+      'endsAtMs': endsAtMs,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> listActiveMediaLegalHolds() async {
+    final result = await _functions.httpsCallable('listActiveMediaLegalHolds').call();
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> reviewMediaLegalHold({
+    required String holdId,
+    required String reviewNote,
+    required int nextReviewAtMs,
+  }) async {
+    final result = await _functions.httpsCallable('reviewMediaLegalHold').call({
+      'holdId': holdId,
+      'reviewNote': reviewNote,
+      'nextReviewAtMs': nextReviewAtMs,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> releaseMediaLegalHold(String holdId) async {
+    final result = await _functions.httpsCallable('releaseMediaLegalHold').call({
+      'holdId': holdId,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> exportOwnerReviewAuditPage({
+    int afterSequence = 0,
+    int pageSize = 50,
+  }) async {
+    final result = await _functions.httpsCallable('exportOwnerReviewAuditPage').call({
+      'afterSequence': afterSequence,
+      'pageSize': pageSize,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> verifyOwnerReviewAuditChain() async {
+    final result = await _functions.httpsCallable('verifyOwnerReviewAuditChain').call();
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> getMemberSummary(String memberUid) async {
+    final result = await _functions.httpsCallable('getOwnerMemberSummary').call({
+      'memberUid': memberUid.trim(),
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<void> setMemberAccessStatus({
+    required String memberUid,
+    required String status,
+    required String reason,
+  }) async {
+    await _functions.httpsCallable('setMemberAccessStatus').call({
+      'memberUid': memberUid.trim(),
+      'status': status,
+      'reason': reason.trim(),
+    });
   }
 }

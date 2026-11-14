@@ -1,209 +1,297 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
-import '../services/coin_system_service.dart';
+import 'package:uuid/uuid.dart';
 
 class ShopScreen extends StatefulWidget {
+  const ShopScreen({super.key, required this.userId});
   final String userId;
-  const ShopScreen({Key? key, required this.userId}) : super(key: key);
 
   @override
   State<ShopScreen> createState() => _ShopScreenState();
 }
 
-class _ShopScreenState extends State<ShopScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  final CoinSystemService _coinService = CoinSystemService();
-  final TextEditingController _customCoinController = TextEditingController();
+class _ShopScreenState extends State<ShopScreen> {
+  late Future<List<Map<String, dynamic>>> _catalogFuture;
+  String? _purchasingItemId;
+  String _selectedStore = 'all';
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _catalogFuture = _loadCatalog();
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    _customCoinController.dispose();
-    super.dispose();
+  Future<List<Map<String, dynamic>>> _loadCatalog() async {
+    final response = await FirebaseFunctions.instance
+        .httpsCallable('getStoreCatalog')
+        .call();
+    final data = Map<String, dynamic>.from(response.data as Map);
+    return (data['items'] as List<dynamic>? ?? const [])
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
   }
+
+  void _refresh() => setState(() => _catalogFuture = _loadCatalog());
+
+  Future<void> _purchase(Map<String, dynamic> item) async {
+    final itemId = item['itemId'] as String?;
+    final name = item['name'] as String? ?? 'عنصر مودة';
+    final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
+    if (itemId == null || itemId.isEmpty || price <= 0 || _purchasingItemId != null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تأكيد شراء العنصر'),
+        content: Text('سيتم خصم $price كوين من محفظتك مقابل "$name"، ومنح الاستحقاق عبر الخادم.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('تأكيد الشراء'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _purchasingItemId = itemId);
+    try {
+      final response = await FirebaseFunctions.instance.httpsCallable('purchaseStoreItem').call({
+        'itemId': itemId,
+        'requestId': const Uuid().v4(),
+        'expectedPriceCoins': price,
+      });
+      final result = Map<String, dynamic>.from(response.data as Map);
+      if (!mounted) return;
+      final balance = (result['newBalance'] as num?)?.toInt();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          balance == null
+              ? 'تمت معالجة الشراء.'
+              : 'تم الشراء بنجاح. رصيدك الجديد: $balance كوين.',
+        )),
+      );
+      _refresh();
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر إتمام الشراء.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر إتمام الشراء؛ لم يتم تأكيد الخصم أو الاستحقاق.')),
+      );
+    } finally {
+      if (mounted) setState(() => _purchasingItemId = null);
+    }
+  }
+
+  String _categoryLabel(String category) => switch (category) {
+    'avatar' || 'frame' => 'إطارات الصور',
+    'username_style' => 'أنماط الأسماء',
+    'theme' => 'الثيمات والخلفيات',
+    'title' => 'متجر الألقاب',
+    'badge' => 'متجر الأوسمة',
+    'vip' => 'عضوية VIP',
+    'analytics' => 'تحليلات الملف',
+    'profile_layout' => 'تطوير الملف الشخصي',
+    'boost' => 'تعزيز الظهور',
+    'greeting' => 'ترحيب الزوار',
+    'privacy' => 'الخصوصية - قيد التجهيز',
+    _ => 'ميزات خاصة',
+  };
+
+  String _storeGroup(Map<String, dynamic> item) {
+    final category = item['category'] as String? ?? 'feature';
+    return switch (category) {
+      'vip' => 'vip',
+      'title' => 'titles',
+      'badge' => 'badges',
+      'privacy' => 'privacy',
+      _ => 'features',
+    };
+  }
+
+  String _storeGroupLabel(String group) => switch (group) {
+    'all' => 'كل المتاجر',
+    'features' => 'المميزات الخاصة',
+    'badges' => 'الأوسمة',
+    'titles' => 'الألقاب',
+    'vip' => 'VIP',
+    'privacy' => 'الخصوصية',
+    _ => 'المتجر',
+  };
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mawda Master Store 🛍️'),
-        backgroundColor: Colors.deepPurple,
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Features', icon: Icon(Icons.star)),
-            Tab(text: 'Badges & Titles', icon: Icon(Icons.military_tech)),
-            Tab(text: 'Coin Top-Up', icon: Icon(Icons.monetization_on)),
-          ],
-        ),
+        title: const Text('متجر مودة'),
+        actions: [
+          IconButton(
+            tooltip: 'تحديث الكتالوج',
+            onPressed: _refresh,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // 1. متجر المميزات الخاصة
-          ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _buildShopItemCard(
-                title: 'Story & Media Boost',
-                description: 'Unlock 24h stories and priority media sharing.',
-                price: '500 Coins',
-                onBuy: () => _purchaseFeature('story_feature', 500),
-              ),
-              _buildShopItemCard(
-                title: 'Profile Background Theme',
-                description: 'Custom cinematic themes and audio player.',
-                price: '1000 Coins',
-                onBuy: () => _purchaseFeature('theme_feature', 1000),
-              ),
-              _buildShopItemCard(
-                title: 'Ghost Spy Mode',
-                description: 'Browse profiles and chats completely invisibly.',
-                price: '2000 Coins',
-                onBuy: () => _purchaseFeature('ghost_mode', 2000),
-              ),
-            ],
-          ),
-
-          // 2. متجر الأوسمة والألقاب
-          GridView.count(
-            crossAxisCount: 2,
-            padding: const EdgeInsets.all(16),
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            children: [
-              _buildBadgeCard('Crystal Crown 👑', '1500 Coins', 1500, 'crown_badge'),
-              _buildBadgeCard('Royal Diamond 💎', '3000 Coins', 3000, 'diamond_badge'),
-              _buildBadgeCard('Sovereign Star ⭐', '1000 Coins', 1000, 'star_badge'),
-              _buildBadgeCard('Golden Phoenix 🔥', '2500 Coins', 2500, 'phoenix_badge'),
-            ],
-          ),
-
-          // 3. متجر الكوينز وزر الشحن المرن المفتوح
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Flexible Coin Top-Up Station 🪙',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 15),
-                TextField(
-                  controller: _customCoinController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Enter Custom Coin Amount',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.add_circle, color: Colors.amber),
-                  ),
-                ),
-                const SizedBox(height: 15),
-                ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber[700],
-                ).wrap(
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.amber[700]),
-                    onPressed: () {
-                      int? amount = int.tryParse(_customCoinController.text.trim());
-                      if (amount != null && amount > 0) {
-                        _topUpCoins(amount);
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please enter a valid coin amount')),
-                        );
-                      }
-                    },
-                    child: const Text('Top-Up Custom Amount Now', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-                const Divider(height: 40),
-                const Text('Quick Packages:', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _catalogFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildQuickPackageBtn('1,000 Coins', 1000),
-                    _buildQuickPackageBtn('5,000 Coins', 5000),
-                    _buildQuickPackageBtn('10,000 Coins', 10000),
+                    const Icon(Icons.storefront_outlined, size: 48),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'تعذر تحميل كتالوج المتجر. لم يتم تنفيذ أي عملية شراء أو خصم.',
+                      textAlign: TextAlign.center,
+                    ),
+                    TextButton(onPressed: _refresh, child: const Text('إعادة المحاولة')),
                   ],
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            );
+          }
+
+          final items = snapshot.data ?? const [];
+          if (items.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.shopping_bag_outlined, size: 56),
+                    SizedBox(height: 16),
+                    Text(
+                      'يجري تجهيز متجر مودة.',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'ستظهر هنا العناصر التي يعتمدها مالك المنصة بعد نشر كتالوجها من الخادم.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          final visibleItems = _selectedStore == 'all'
+              ? items
+              : items.where((item) => _storeGroup(item) == _selectedStore).toList(growable: false);
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  'all',
+                  'features',
+                  'badges',
+                  'titles',
+                  'vip',
+                  'privacy',
+                ].map((group) {
+                  return ChoiceChip(
+                    label: Text(_storeGroupLabel(group)),
+                    selected: _selectedStore == group,
+                    onSelected: (selected) {
+                      if (selected) setState(() => _selectedStore = group);
+                    },
+                  );
+                }).toList(growable: false),
+              ),
+              const SizedBox(height: 12),
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(14),
+                  child: Text(
+                    'العناصر وأسعارها مصدرها كتالوج الخادم. عند إتاحة الشراء، ينفّذ الخادم خصم الكوينز وتسجيل الإيصال وقيد المحفظة ومنح الاستحقاق في معاملة واحدة. العناصر غير الجاهزة تبقى غير قابلة للشراء.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (visibleItems.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'لا توجد عناصر منشورة في ${_storeGroupLabel(_selectedStore)} حالياً.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ...visibleItems.map((item) {
+                final name = item['name'] as String? ?? 'عنصر من مودة';
+                final description = item['description'] as String? ?? '';
+                final category = item['category'] as String? ?? 'feature';
+                final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
+                final duration = (item['durationDays'] as num?)?.toInt();
+                final canPurchase = item['purchaseEnabled'] == true &&
+                    item['fulfillmentReady'] == true;
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(name, style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 5),
+                        Text(_categoryLabel(category),
+                          style: Theme.of(context).textTheme.labelMedium),
+                        if (description.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(description),
+                        ],
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            const Icon(Icons.monetization_on_outlined),
+                            const SizedBox(width: 6),
+                            Text('$price كوين'),
+                            if (duration != null) ...[
+                              const SizedBox(width: 12),
+                              Text('المدة: $duration يوماً'),
+                            ],
+                            const Spacer(),
+                            FilledButton(
+                              onPressed: canPurchase && _purchasingItemId == null
+                                  ? () => _purchase(item)
+                                  : null,
+                              child: _purchasingItemId == item['itemId']
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : Text(canPurchase ? 'شراء' : 'غير متاح بعد'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+          );
+        },
       ),
     );
   }
-
-  Widget _buildShopItemCard({required String title, required String description, required String price, required VoidCallback onBuy}) {
-    return Card(
-      elevation: 3,
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(description),
-        trailing: ElevatedButton(
-          onPressed: onBuy,
-          child: Text(price),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBadgeCard(String title, String priceText, int cost, String badgeId) {
-    return Card(
-      elevation: 4,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-          const SizedBox(height: 10),
-          Text(priceText, style: const TextStyle(color: Colors.grey)),
-          const SizedBox(height: 15),
-          ElevatedButton(
-            onPressed: () => _purchaseFeature(badgeId, cost),
-            child: const Text('Buy Badge'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickPackageBtn(String label, int amount) {
-    return OutlinedButton(
-      onPressed: () => _topUpCoins(amount),
-      child: Text(label),
-    );
-  }
-
-  void _purchaseFeature(String featureId, int cost) async {
-    bool success = await _coinService.deductUserCoins(widget.userId, cost);
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Successfully purchased $featureId! 🎉')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Insufficient balance in your coin wallet! ❌')),
-      );
-    }
-  }
-
-  void _topUpCoins(int amount) async {
-    await _coinService.addUserCoins(widget.userId, amount);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Successfully added $amount coins to your wallet! 🪙')),
-    );
-  }
-}
-
-extension on ButtonStyle {
-  Widget wrap(Widget child) => child;
 }

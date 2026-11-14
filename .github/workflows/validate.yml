@@ -1,0 +1,183 @@
+name: Validate Mawda
+
+on:
+  # The development branch is validated by its PR event below; avoid running
+  # the same full matrix twice for every push to an already-open PR.
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+      - codex/mawda-full-platform-implementation
+  workflow_dispatch:
+
+concurrency:
+  # Deduplicate retries for the same commit without letting a stalled older
+  # PR-head job block validation of a newer commit indefinitely.
+  group: mawda-validation-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  flutter:
+    name: Flutter analysis, tests and web build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+      - name: Install Flutter dependencies from the committed lockfile
+        run: flutter pub get --enforce-lockfile
+      - name: Upload resolved dependency lockfile for review
+        uses: actions/upload-artifact@v5
+        with:
+          name: mawda-pubspec-lock-${{ github.sha }}
+          path: pubspec.lock
+          if-no-files-found: error
+          retention-days: 7
+      - name: Analyze Dart code
+        run: flutter analyze
+      - name: Run Flutter tests
+        run: flutter test
+      - name: Validate desktop install experience assets
+        run: |
+          node --check web/install-prompt.js
+          node -e 'const fs=require("node:fs"); const m=JSON.parse(fs.readFileSync("web/manifest.json","utf8")); if(m.name!=="Mawdda Platform 2026" || m.display!=="standalone" || !m.icons?.length) process.exit(1); for (const p of ["web/mawdda-app-icon.svg","web/install-prompt.js"]) if(!fs.existsSync(p)) process.exit(1); console.log("PWA manifest, icon and install prompt validated")'
+      - name: Build web release
+        env:
+          MAWDA_FCM_VAPID_KEY: ${{ vars.MAWDA_FCM_VAPID_KEY }}
+        run: flutter build web --release --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY"
+      - name: Upload validated web build artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: mawda-web-build-${{ github.sha }}
+          path: build/web/
+          if-no-files-found: error
+          retention-days: 7
+
+  functions:
+    name: Cloud Functions compile and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20.20.2"
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+      - name: Install Cloud Functions dependencies from committed lockfile
+        run: npm ci --no-audit --no-fund
+      - name: Compile and test backend
+        run: npm test
+      - name: Syntax-check live non-production scanner E2E script
+        run: node --check scripts/test-live-media-scanner-e2e.cjs
+      - name: Validate GitHub Actions workflow YAML syntax
+        run: |
+          ruby -e 'require "yaml"; ARGV.each { |file| YAML.parse_file(file); puts file }' ../.github/workflows/*.yml
+      - name: Upload compiled Cloud Functions artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: mawda-cloud-functions-${{ github.sha }}
+          path: functions/lib/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Set up Java for Firebase emulators
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Run media callable authorization and audit integration tests
+        run: npm run test:media-integration
+      - name: Run seven-day chat retention integration tests
+        run: npm run test:retention-integration
+      - name: Run direct-message deletion authorization and erasure integration tests
+        run: npm run test:message-deletion-integration
+      - name: Run coin transfer and store purchase transactional integration tests
+        run: npm run test:wallet-store-integration
+      - name: Run room rental pricing and lifecycle integration tests
+        run: npm run test:room-rental-integration
+      - name: Run room event scheduling and RSVP integration tests
+        run: npm run test:room-events-integration
+      - name: Verify Firestore and Storage emulator backup/restore
+        run: npm run test:emulator-backup-restore
+      - name: Run FCM token registration and deactivation integration tests
+        run: npm run test:push-token-integration
+      - name: Run 30-day biometric reward cycle integration tests
+        run: npm run test:biometric-integration
+      - name: Run attendance and timed-ad reward integration tests
+        run: npm run test:engagement-rewards-integration
+      - name: Run 90-day email verification renewal and reward integration tests
+        run: npm run test:email-renewal-integration
+      - name: Run safety report and appeal lifecycle integration tests
+        run: npm run test:safety-integration
+      - name: Run guest and member privacy acknowledgement integration tests
+        run: npm run test:guest-privacy-integration
+      - name: Run guest session and public-room interaction integration tests
+        run: npm run test:guest-session-integration
+      - name: Provision emulator-only test personas and exercise cross-persona wallet interaction
+        run: npm run test:seeded-persona-interaction
+      - name: Stress test 500, 1000, 2500 and 5000 synthetic personas in isolated Firebase emulators
+        run: npm run test:persona-load
+      - name: Upload synthetic persona profiles and load-test metrics
+        uses: actions/upload-artifact@v5
+        with:
+          name: mawdda-persona-load-report-${{ github.sha }}
+          path: functions/mawdda-load-artifacts/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Run owner audit export pagination and redaction integration tests
+        run: npm run test:owner-audit-export-integration
+      - name: Run media legal hold and release integration tests
+        run: npm run test:media-legal-hold-integration
+      - name: Run avatar and cover lifecycle integration tests
+        run: npm run test:profile-media-integration
+      - name: Run premium profile, analytics, greeting, pin and discovery integration tests
+        run: npm run test:premium-profile-integration
+      - name: Run message legal hold and resumed retention integration tests
+        run: npm run test:message-legal-hold-integration
+      - name: Run Firestore and Storage rules emulator tests
+        run: npm run test:rules
+
+  scanner:
+    name: Isolated ClamAV scanner gateway tests and image build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20.20.2"
+      - name: Validate scanner source and security contracts
+        run: |
+          node --check scanner/server.js
+          node --check scanner/security.js
+          node --check scanner/processors.js
+          sh -n scanner/start.sh
+          node --test scanner/test/security.test.js scanner/test/processors.test.js
+      - name: Build isolated ClamAV scanner container
+        run: docker build --tag mawda-clamav-scanner:ci scanner
+      - name: Run real GIF, audio, video and PDF sanitization tests inside the scanner image
+        run: docker run --rm --entrypoint npm mawda-clamav-scanner:ci test
+      - name: Verify ClamAV detects the harmless EICAR test signature
+        run: |
+          docker run --rm --entrypoint sh mawda-clamav-scanner:ci -c '
+            set -eu
+            freshclam --stdout --log=/tmp/freshclam.log
+            printf '%s' 'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=' | base64 -d > /tmp/eicar.com
+            set +e
+            clamscan --infected --no-summary /tmp/eicar.com
+            result=$?
+            set -e
+            test "$result" -eq 1
+          '

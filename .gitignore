@@ -1,0 +1,30 @@
+# Flutter / Dart generated output
+.dart_tool/
+.packages
+.pub/
+build/
+
+# Firebase CLI local state
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+
+# Node / Cloud Functions generated output
+functions/node_modules/
+functions/lib/
+functions/.env*
+.env
+.env.*
+
+# IDE and operating-system files
+.idea/
+.vscode/
+.DS_Store
+
+functions/mawdda-load-artifacts/
+
+# Firebase Emulator debug logs
+firestore-debug.log
+
+# IDE project metadata
+*.iml

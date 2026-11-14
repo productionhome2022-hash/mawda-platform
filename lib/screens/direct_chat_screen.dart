@@ -1,0 +1,742 @@
+import 'dart:async';
+
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../services/member_media_upload_service.dart';
+import '../widgets/chat_audio_controls.dart';
+import 'safety_center_screen.dart';
+
+class DirectChatScreen extends StatefulWidget {
+  const DirectChatScreen({
+    super.key,
+    this.peerUid = '',
+    this.peerName = 'إدارة منصة مودة',
+    this.chatId,
+    required this.currentUserId,
+  });
+
+  final String peerUid;
+  final String peerName;
+  final String? chatId;
+  final String currentUserId;
+
+  @override
+  State<DirectChatScreen> createState() => _DirectChatScreenState();
+}
+
+class _DirectChatScreenState extends State<DirectChatScreen> {
+  final TextEditingController _messageController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
+  final MemberMediaUploadService _mediaService = MemberMediaUploadService();
+  final Map<String, ({Future<String?> future, DateTime expiresAt})> _attachmentUrlFutures = {};
+  late Future<Map<String, dynamic>> _messagesFuture;
+  bool _sending = false;
+  bool _refreshing = false;
+  bool _peerBlocked = false;
+  bool _loadingBlockStatus = true;
+  String _resolvedPeerUid = '';
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _messagesFuture = _loadMessages();
+    _loadBlockStatus();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+      if (mounted && !_sending) _refresh();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    _messageController.dispose();
+    _mediaService.close();
+    super.dispose();
+  }
+
+  Future<void> _loadBlockStatus() async {
+    try {
+      await _messagesFuture;
+      final result = await FirebaseFunctions.instance
+          .httpsCallable('getMyBlockedUsers')
+          .call();
+      final data = Map<String, dynamic>.from(result.data as Map);
+      final blocked = (data['blockedUids'] as List<dynamic>? ?? const [])
+          .whereType<String>()
+          .contains(_resolvedPeerUid);
+      if (mounted) setState(() {
+        _peerBlocked = blocked;
+        _loadingBlockStatus = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingBlockStatus = false);
+    }
+  }
+
+  Future<void> _togglePeerBlock() async {
+    if (_sending || _loadingBlockStatus) return;
+    final nextBlocked = !_peerBlocked;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(nextBlocked ? 'حظر العضو' : 'إلغاء حظر العضو'),
+        content: Text(nextBlocked
+            ? 'لن تتمكن أنت أو هذا العضو من إرسال رسائل خاصة لبعضكما ما دام الحظر قائماً.'
+            : 'سيُسمح بإرسال الرسائل الخاصة مجدداً إذا لم يوجد حظر من الطرف الآخر.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(nextBlocked ? 'تأكيد الحظر' : 'إلغاء الحظر')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _loadingBlockStatus = true);
+    try {
+      await FirebaseFunctions.instance.httpsCallable('setMemberBlock').call({
+        'targetUid': _resolvedPeerUid,
+        'blocked': nextBlocked,
+      });
+      if (!mounted) return;
+      setState(() {
+        _peerBlocked = nextBlocked;
+        _loadingBlockStatus = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(nextBlocked ? 'تم حظر العضو.' : 'تم إلغاء الحظر.'),
+      ));
+      await _refresh();
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) {
+        setState(() => _loadingBlockStatus = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message ?? 'تعذر تحديث قائمة الحظر.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadingBlockStatus = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر تحديث قائمة الحظر؛ لم يتم تأكيد نجاح العملية.')),
+        );
+      }
+    }
+  }
+
+  Future<Map<String, dynamic>> _loadMessages() async {
+    final response = await FirebaseFunctions.instance
+        .httpsCallable('getDirectMessages')
+        .call(<String, dynamic>{
+          if (widget.chatId != null) 'chatId': widget.chatId,
+          if (widget.chatId == null) 'peerUid': widget.peerUid,
+        });
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final messages = (data['messages'] as List<dynamic>? ?? const [])
+        .whereType<Map>()
+        .map((message) => Map<String, dynamic>.from(message))
+        .toList(growable: false);
+    _resolvedPeerUid = data['peerUid'] as String? ?? widget.peerUid;
+    final chatId = data['chatId'] as String?;
+    if (chatId != null && messages.isNotEmpty) {
+      // Only the active participant UI marks its own conversation read.
+      // The separate owner-review callable never invokes this path.
+      try {
+        await FirebaseFunctions.instance
+            .httpsCallable('markDirectChatRead')
+            .call(<String, dynamic>{'chatId': chatId});
+      } on FirebaseFunctionsException {
+        // Message reading remains available if receipt persistence is temporarily unavailable.
+      }
+    }
+    return {
+      ...data,
+      'messages': messages,
+    };
+  }
+
+  Future<void> _refresh() async {
+    if (!mounted || _refreshing) return;
+    setState(() => _refreshing = true);
+    try {
+      final next = _loadMessages();
+      setState(() => _messagesFuture = next);
+      await next;
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  Future<void> _sendMessage() async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty || _sending) return;
+    setState(() => _sending = true);
+    try {
+      await FirebaseFunctions.instance.httpsCallable('sendDirectMessage').call({
+        'recipientUid': _resolvedPeerUid,
+        'text': text,
+        'clientMessageId': const Uuid().v4(),
+      });
+      if (!mounted) return;
+      _messageController.clear();
+      _refresh();
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر إرسال الرسالة.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('حدث خطأ أثناء إرسال الرسالة.')),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _pickAndSendImage() async {
+    if (_sending) return;
+    final file = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 90,
+      maxWidth: 2048,
+      maxHeight: 2048,
+    );
+    if (file == null || !mounted) return;
+    setState(() => _sending = true);
+    try {
+      final mediaId = await _mediaService.uploadImage(file: file, purpose: 'chat');
+      await _mediaService.sendChatImageAttachment(
+        scope: 'direct',
+        recipientUid: _resolvedPeerUid,
+        mediaId: mediaId,
+        clientMessageId: const Uuid().v4(),
+      );
+      if (!mounted) return;
+      await _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('أُرسلت الصورة بعد اجتياز فحص الأمان.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر إرسال الصورة.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تعذر إرسال الصورة: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _pickAndSendAttachment() async {
+    if (_sending) return;
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const [
+        'jpg', 'jpeg', 'png', 'webp', 'gif',
+        'mp3', 'm4a', 'ogg', 'wav', 'mp4',
+      ],
+      allowMultiple: false,
+      withData: kIsWeb,
+    );
+    if (picked == null || picked.files.isEmpty || !mounted) return;
+    final selected = picked.files.single;
+    final path = selected.path;
+    final XFile? selectedFile = path != null && path.isNotEmpty
+        ? XFile(path, name: selected.name)
+        : selected.bytes != null
+            ? XFile.fromData(selected.bytes!, name: selected.name)
+            : null;
+    if (selectedFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر الوصول إلى الملف المحدد على هذا الجهاز.')),
+      );
+      return;
+    }
+    setState(() => _sending = true);
+    try {
+      final mediaId = await _mediaService.uploadChatAttachment(
+        file: selectedFile,
+        scope: 'direct',
+      );
+      await _mediaService.sendChatMediaAttachment(
+        scope: 'direct',
+        recipientUid: _resolvedPeerUid,
+        mediaId: mediaId,
+        clientMessageId: const Uuid().v4(),
+      );
+      if (!mounted) return;
+      await _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم إرسال المرفق بعد الفحص والمعالجة الآمنة.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تعذر إرسال المرفق: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _openAttachment(String url) async {
+    final opened = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر فتح المرفق على هذا الجهاز.')),
+      );
+    }
+  }
+
+  Future<String?> _attachmentUrl(Map<String, dynamic> message) {
+    final mediaId = message['mediaId'] as String? ?? '';
+    final messageId = message['messageId'] as String? ?? '';
+    final key = '$messageId:$mediaId';
+    final cached = _attachmentUrlFutures[key];
+    if (cached != null && cached.expiresAt.isAfter(DateTime.now())) {
+      return cached.future;
+    }
+    final future = () async {
+      if (mediaId.isEmpty || messageId.isEmpty) return null;
+      try {
+        final conversation = await _messagesFuture;
+        final chatId = conversation['chatId'] as String? ?? '';
+        if (chatId.isEmpty) return null;
+        return await _mediaService.getChatMediaAttachmentUrl(
+          scope: 'direct', chatId: chatId,
+          messageId: messageId, mediaId: mediaId,
+        );
+      } catch (_) {
+        return null;
+      }
+    }();
+    _attachmentUrlFutures[key] = (
+      future: future,
+      expiresAt: DateTime.now().add(const Duration(seconds: 100)),
+    );
+    return future;
+  }
+
+  Future<void> _deleteMessage(Map<String, dynamic> message) async {
+    final messageId = message['messageId'] as String? ?? '';
+    if (messageId.isEmpty) return;
+    final mine = message['senderUid'] == widget.currentUserId;
+    final action = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('خيارات حذف الرسالة'),
+        content: const Text('اختر طريقة الحذف.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'me'),
+            child: const Text('الحذف لدي'),
+          ),
+          if (mine)
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, 'everyone'),
+              child: const Text('الحذف لدى الجميع'),
+            ),
+        ],
+      ),
+    );
+    if (action == null || !mounted) return;
+    try {
+      final data = await _messagesFuture;
+      final currentChatId = data['chatId'] as String? ?? '';
+      if (currentChatId.isEmpty) {
+        throw StateError('المحادثة غير متاحة');
+      }
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        action == 'me' ? 'deleteDirectMessageForMe' : 'deleteDirectMessageForEveryone',
+      );
+      await callable.call(<String, dynamic>{
+        'chatId': currentChatId,
+        'messageId': messageId,
+      });
+      if (mounted) _refresh();
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر حذف الرسالة.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر حذف الرسالة. حاول تحديث المحادثة ثم أعد المحاولة.')),
+      );
+    }
+  }
+
+  String _timeLabel(dynamic value) {
+    if (value is! num) return '';
+    final date = DateTime.fromMillisecondsSinceEpoch(value.toInt()).toLocal();
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  Future<void> _openLiveStream(String rawUrl) async {
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null || uri.scheme != 'https') return;
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر فتح رابط البث في التطبيق أو المتصفح الخارجي.')),
+      );
+    }
+  }
+
+  Widget _liveStreamCard(Map<String, dynamic> message) {
+    final stream = Map<String, dynamic>.from(message['liveStream'] as Map);
+    final url = stream['url'] as String? ?? '';
+    final title = stream['title'] as String? ?? 'بث مباشر من مالك مودة';
+    final description = stream['description'] as String? ?? '';
+    final host = stream['hostname'] as String? ?? '';
+    return Card(
+      margin: const EdgeInsets.only(top: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Row(children: [
+            Icon(Icons.live_tv_outlined), SizedBox(width: 8),
+            Text('بث مباشر من إدارة مودة', style: TextStyle(fontWeight: FontWeight.bold)),
+          ]),
+          const SizedBox(height: 8),
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          if (description.isNotEmpty) Text(description),
+          if (host.isNotEmpty) Text(host, style: Theme.of(context).textTheme.labelSmall),
+          const SizedBox(height: 8),
+          const Text('يُفتح البث من المصدر الأصلي؛ قد لا تسمح بعض المنصات بالتشغيل المضمّن داخل مودة.'),
+          const SizedBox(height: 8),
+          FilledButton.icon(
+            onPressed: url.isEmpty ? null : () => _openLiveStream(url),
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('فتح البث من المصدر الرسمي'),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _messageBubble(Map<String, dynamic> message) {
+    final mine = message['senderUid'] == widget.currentUserId;
+    final text = message['text'] as String? ?? '';
+    return Align(
+      alignment: mine ? AlignmentDirectional.centerEnd : AlignmentDirectional.centerStart,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 340),
+        child: Card(
+          color: mine
+              ? Theme.of(context).colorScheme.primaryContainer
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (!mine && message['isPlatformOwnerMessage'] == true)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        message['senderLabel'] as String? ?? 'إدارة منصة مودة',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                if (message['isOwnerReviewNotice'] == true)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.campaign_outlined,
+                            size: 14,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'إشعار مراجعة معلنة',
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (message['type'] == 'attachment' && message['mediaId'] is String)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: FutureBuilder<String?>(
+                      future: _attachmentUrl(message),
+                      builder: (context, imageSnapshot) {
+                        if (imageSnapshot.connectionState == ConnectionState.waiting) {
+                          return const SizedBox(
+                            height: 120,
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        final url = imageSnapshot.data;
+                        if (url == null) {
+                          return const Text('الصورة غير متاحة أو انتهت مدة الاحتفاظ بها.');
+                        }
+                        final mediaType = message['mediaContentType'] as String? ?? '';
+                        final category = message['mediaCategory'] as String? ??
+                            (mediaType == 'image/gif' ? 'gif' :
+                              mediaType.startsWith('audio/') ? 'audio' :
+                              mediaType.startsWith('video/') ? 'video' :
+                              mediaType == 'application/pdf' ? 'document' : 'image');
+                        if (category == 'audio') {
+                          return ChatAudioMessagePlayer(
+                            url: url,
+                            messageId: message['messageId'] as String? ?? '',
+                          );
+                        }
+                        if (category == 'image' || category == 'gif') {
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              url, width: 260, height: 220, fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const SizedBox(
+                                height: 100,
+                                child: Center(child: Text('تعذر تحميل الصورة الآمنة.')),
+                              ),
+                            ),
+                          );
+                        }
+                        final isDocument = category == 'document';
+                        final label = category == 'audio' ? 'ملف صوتي آمن' :
+                            category == 'video' ? 'مقطع فيديو آمن' : 'مستند PDF من إدارة مودة';
+                        final icon = category == 'audio' ? Icons.audio_file_outlined :
+                            category == 'video' ? Icons.video_file_outlined : Icons.picture_as_pdf_outlined;
+                        return SizedBox(
+                          width: 260,
+                          child: Card(
+                            child: ListTile(
+                              leading: Icon(icon),
+                              title: Text(label),
+                              subtitle: Text(isDocument ? 'تنزيل المستند' : 'فتح المرفق'),
+                              trailing: IconButton(
+                                tooltip: 'فتح المرفق',
+                                onPressed: () => _openAttachment(url),
+                                icon: const Icon(Icons.open_in_new),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                if (message['type'] == 'live_stream' && message['liveStream'] is Map)
+                  _liveStreamCard(message),
+                if (text.isNotEmpty) SelectableText(text),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _timeLabel(message['createdAt']),
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                    if (mine) ...[
+                      const SizedBox(width: 6),
+                      Icon(
+                        message['isReadByPeer'] == true ? Icons.done_all : Icons.check,
+                        size: 14,
+                        color: message['isReadByPeer'] == true
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        message['isReadByPeer'] == true ? 'مقروءة' : 'مرسلة',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ],
+                    const SizedBox(width: 4),
+                    IconButton(
+                      tooltip: 'حذف الرسالة',
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      onPressed: () => _deleteMessage(message),
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.peerName.isEmpty ? 'محادثة خاصة' : widget.peerName),
+        actions: [
+          IconButton(
+            tooltip: 'الإبلاغ عن العضو',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => SafetyCenterScreen(initialTargetUid: _resolvedPeerUid),
+            )),
+            icon: const Icon(Icons.flag_outlined),
+          ),
+          IconButton(
+            tooltip: _peerBlocked ? 'إلغاء حظر العضو' : 'حظر العضو',
+            onPressed: _loadingBlockStatus ? null : _togglePeerBlock,
+            icon: Icon(_peerBlocked ? Icons.person_remove_outlined : Icons.block_outlined),
+          ),
+          IconButton(
+            tooltip: 'تحديث الرسائل',
+            onPressed: _refresh,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: FutureBuilder<Map<String, dynamic>>(
+              future: _messagesFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'تعذر تحميل المحادثة. قد لا تسمح إعدادات العضوية أو الخصوصية بفتحها.',
+                            textAlign: TextAlign.center,
+                          ),
+                          TextButton(
+                            onPressed: _refresh,
+                            child: const Text('إعادة المحاولة'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                final data = snapshot.data ?? const <String, dynamic>{};
+                final messages = (data['messages'] as List<dynamic>? ?? const [])
+                    .whereType<Map>()
+                    .map((message) => Map<String, dynamic>.from(message))
+                    .toList(growable: false);
+                if (messages.isEmpty) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'هذه بداية المحادثة. أرسل رسالة محترمة لبدء التواصل.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) => _messageBubble(messages[index]),
+                );
+              },
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: 'إرفاق صورة',
+                    onPressed: _sending ? null : _pickAndSendImage,
+                    icon: const Icon(Icons.image_outlined),
+                  ),
+                  IconButton(
+                    tooltip: 'إرفاق GIF أو صوت أو فيديو',
+                    onPressed: _sending ? null : _pickAndSendAttachment,
+                    icon: const Icon(Icons.attach_file),
+                  ),
+                  ChatAudioComposerButton(
+                    scope: 'direct',
+                    recipientUid: _resolvedPeerUid,
+                    enabled: !_sending,
+                    onBusyChanged: (busy) {
+                      if (mounted && _sending != busy) setState(() => _sending = busy);
+                    },
+                    onSent: _refresh,
+                    onError: (message) {
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(message)),
+                      );
+                    },
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: _messageController,
+                      minLines: 1,
+                      maxLines: 5,
+                      maxLength: 4000,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => _sendMessage(),
+                      decoration: const InputDecoration(
+                        hintText: 'اكتب رسالتك...',
+                        border: OutlineInputBorder(),
+                        counterText: '',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    tooltip: 'إرسال',
+                    onPressed: _sending ? null : _sendMessage,
+                    icon: _sending
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

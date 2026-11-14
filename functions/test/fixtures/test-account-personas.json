@@ -1,0 +1,342 @@
+{
+  "schemaVersion": 1,
+  "environmentPolicy": {
+    "allowedProjectIdPrefix": "demo-mawda-",
+    "requiredEmulators": [
+      "FIREBASE_AUTH_EMULATOR_HOST",
+      "FIRESTORE_EMULATOR_HOST"
+    ],
+    "neverSeedProduction": true
+  },
+  "personas": [
+    {
+      "id": "guest-preview",
+      "displayName": "زائر مودة التجريبي",
+      "accountKind": "anonymous",
+      "emailVerified": false,
+      "biometricFixture": false,
+      "ownerAccess": false,
+      "guestWindow": {
+        "durationSeconds": 3600,
+        "rollingWindowSeconds": 86400,
+        "emulatorClockOverrideOnly": true
+      },
+      "capabilities": [
+        "rooms.public.join",
+        "chat.publicRooms.text.send",
+        "chat.publicRooms.text.receive",
+        "chat.publicRooms.audio.send",
+        "chat.publicRooms.audio.receive"
+      ],
+      "deniedCapabilities": [
+        "rewards.claim",
+        "wallet.read",
+        "wallet.write",
+        "chat.direct.send",
+        "chat.direct.read",
+        "chat.privateRooms.read",
+        "chat.privateRooms.join",
+        "media.image",
+        "media.gif",
+        "media.video",
+        "media.documents",
+        "gifts.send",
+        "gifts.receive",
+        "rooms.private.join",
+        "rooms.rent",
+        "store.purchase",
+        "coins.topUp",
+        "memberOnly.read"
+      ]
+    },
+    {
+      "id": "email-member",
+      "displayName": "عضو البريد التجريبي",
+      "accountKind": "emailPassword",
+      "emailVerified": true,
+      "biometricFixture": false,
+      "ownerAccess": false,
+      "capabilities": [
+        "profile.readWrite",
+        "discovery.browse",
+        "chat.direct",
+        "chat.rooms",
+        "media.memberAllowedTypes",
+        "wallet.readWrite",
+        "wallet.transfer",
+        "gifts.sendReceive",
+        "coins.sandboxTopUp",
+        "store.purchaseAll",
+        "rooms.publicRent",
+        "rooms.privateRent",
+        "badges.titles",
+        "premiumFeatures"
+      ],
+      "deniedCapabilities": [
+        "owner.console",
+        "owner.sovereignMutations",
+        "memberOnly.documentExchange"
+      ]
+    },
+    {
+      "id": "biometric-member",
+      "displayName": "عضو التوثيق البيومتري التجريبي",
+      "accountKind": "emailPassword",
+      "emailVerified": true,
+      "biometricFixture": "emulator-server-record-only",
+      "ownerAccess": false,
+      "capabilities": [
+        "profile.readWrite",
+        "discovery.browse",
+        "chat.direct",
+        "chat.rooms",
+        "media.memberAllowedTypes",
+        "wallet.readWrite",
+        "wallet.transfer",
+        "gifts.sendReceive",
+        "coins.sandboxTopUp",
+        "store.purchaseAll",
+        "rooms.publicRent",
+        "rooms.privateRent",
+        "badges.titles",
+        "premiumFeatures",
+        "biometric.challengeFlow"
+      ],
+      "deniedCapabilities": [
+        "owner.console",
+        "owner.sovereignMutations",
+        "memberOnly.documentExchange"
+      ]
+    },
+    {
+      "id": "counterparty-member",
+      "displayName": "عضو مودة المقابل التجريبي",
+      "accountKind": "emailPassword",
+      "emailVerified": true,
+      "biometricFixture": false,
+      "ownerAccess": false,
+      "capabilities": [
+        "badges.titles",
+        "chat.direct",
+        "chat.rooms",
+        "coins.sandboxTopUp",
+        "discovery.browse",
+        "gifts.sendReceive",
+        "media.memberAllowedTypes",
+        "premiumFeatures",
+        "profile.readWrite",
+        "rooms.privateRent",
+        "rooms.publicRent",
+        "store.purchaseAll",
+        "wallet.readWrite",
+        "wallet.transfer"
+      ],
+      "deniedCapabilities": [
+        "owner.console",
+        "owner.sovereignMutations",
+        "memberOnly.documentExchange"
+      ]
+    },
+    {
+      "id": "owner-operator",
+      "displayName": "مالك مودة التجريبي",
+      "accountKind": "emailPassword",
+      "emailVerified": true,
+      "biometricFixture": false,
+      "ownerAccess": "mfa-required-no-bypass",
+      "capabilities": [
+        "owner.console.afterMfa",
+        "owner.memberManagement.afterMfa",
+        "owner.moderation.afterMfa",
+        "owner.audit.afterMfa",
+        "owner.storeEconomyControls.afterMfa",
+        "owner.roomControls.afterMfa",
+        "owner.settings.afterMfa"
+      ],
+      "deniedCapabilities": [
+        "owner.actionWithoutMfa",
+        "owner.actionWithStaleAuth",
+        "productionOwnerMutation"
+      ]
+    }
+  ],
+  "profileFixtureRequirements": [
+    "displayName",
+    "uniqueHandle",
+    "avatarFixture",
+    "coverFixture",
+    "biography",
+    "locale",
+    "profileVisibility",
+    "accountState",
+    "badgesAndTitles",
+    "shopEntitlements",
+    "walletFixture",
+    "roomPermissions",
+    "notificationPreferences",
+    "testLabels"
+  ],
+  "mediaPolicy": {
+    "memberAllowed": [
+      "image",
+      "gif",
+      "audio",
+      "video"
+    ],
+    "memberDenied": [
+      "pdf",
+      "documents"
+    ],
+    "ownerAllowed": [
+      "image",
+      "gif",
+      "audio",
+      "video",
+      "pdf",
+      "documents",
+      "otherMedia"
+    ]
+  },
+  "paymentPolicy": {
+    "mode": "sandbox-only",
+    "liveChargesAllowed": false
+  },
+  "biometricPolicy": {
+    "emulatorFixtureIsNotHardwareProof": true,
+    "grantRewardsOnlyAfterAuthoritativeServerVerification": true
+  },
+  "profileFixtures": {
+    "guest-preview": {
+      "biography": "تصفح عام تجريبي لاختبار تجربة الزائر وحدود الوصول",
+      "locale": "ar",
+      "country": "CH",
+      "region": "Zurich",
+      "profileVisibility": "public-preview",
+      "interests": [
+        "اكتشاف الأعضاء",
+        "المتاجر",
+        "الإعلانات",
+        "الغرف العامة",
+        "المحادثات النصية والصوتية"
+      ],
+      "goals": [
+        "اختبار حدود نافذة الزائر"
+      ],
+      "gender": "female"
+    },
+    "email-member": {
+      "biography": "عضو تجريبي لاختبار المحادثات والمحفظة والمتاجر والغرف والميزات المميزة",
+      "locale": "ar",
+      "country": "Switzerland",
+      "region": "Zurich",
+      "age": 29,
+      "gender": "unspecified",
+      "profession": "مصمم منتجات",
+      "maritalStatus": "single",
+      "profileVisibility": "public",
+      "interests": [
+        "التقنية",
+        "التصميم",
+        "القراءة",
+        "السفر"
+      ],
+      "goals": [
+        "اختبار الملف الشخصي",
+        "اختبار المتجر",
+        "اختبار التحويلات"
+      ]
+    },
+    "biometric-member": {
+      "biography": "ملف تجريبي مخصص لاختبار دورة التوثيق البيومتري ومكافآتها بعد التحقق الخادمي",
+      "locale": "ar",
+      "country": "Switzerland",
+      "region": "Zurich",
+      "age": 32,
+      "gender": "unspecified",
+      "profession": "مهندس برمجيات",
+      "maritalStatus": "single",
+      "profileVisibility": "public",
+      "interests": [
+        "الأمن الرقمي",
+        "التقنية",
+        "الرياضة"
+      ],
+      "goals": [
+        "اختبار تحدي التوثيق",
+        "اختبار حالة الاستحقاق"
+      ]
+    },
+    "counterparty-member": {
+      "biography": "الحساب المقابل لاختبار التفاعل بين عضوين والتحويلات والهدايا والدردشة",
+      "locale": "ar",
+      "country": "Switzerland",
+      "region": "Geneva",
+      "age": 30,
+      "gender": "unspecified",
+      "profession": "محلل أعمال",
+      "maritalStatus": "single",
+      "profileVisibility": "public",
+      "interests": [
+        "الأعمال",
+        "الموسيقى",
+        "السفر"
+      ],
+      "goals": [
+        "استقبال التحويلات",
+        "اختبار المحادثة الثنائية"
+      ]
+    },
+    "owner-operator": {
+      "biography": "هوية اختبار إدارية محصورة بالمحاكي ولا تتجاوز المصادقة متعددة العوامل",
+      "locale": "ar",
+      "country": "Switzerland",
+      "region": "Zurich",
+      "age": 38,
+      "gender": "unspecified",
+      "profession": "مشغل المنصة التجريبي",
+      "maritalStatus": "unspecified",
+      "profileVisibility": "private",
+      "interests": [
+        "حوكمة المنصة",
+        "المراجعة الأمنية"
+      ],
+      "goals": [
+        "اختبار لوحة المالك بعد MFA"
+      ]
+    }
+  },
+  "guestPolicy": {
+    "durationSeconds": 3600,
+    "rollingWindowSeconds": 86400,
+    "allowedRoomTypes": [
+      "public"
+    ],
+    "allowedRoomActions": [
+      "join",
+      "sendTextMessage",
+      "sendAudioMessage",
+      "receiveTextMessage",
+      "receiveAudioMessage"
+    ],
+    "deniedRoomActions": [
+      "joinPrivateRoom",
+      "rentRoom",
+      "moderateRoom",
+      "sendGift"
+    ],
+    "allowedMessageTypes": [
+      "text",
+      "audio"
+    ],
+    "deniedMessageTypes": [
+      "image",
+      "gif",
+      "video",
+      "pdf",
+      "document",
+      "file"
+    ],
+    "directMessagesAllowed": false,
+    "emulatorClockOverrideOnly": true
+  }
+}

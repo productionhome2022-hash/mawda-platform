@@ -1,0 +1,251 @@
+name: Bootstrap and validate Mawdda native platforms
+
+on:
+  push:
+    branches:
+      - codex/mawda-full-platform-implementation
+    paths:
+      - "tool/configure_native_platforms.py"
+      - "tool/patch_android_plugin_compile_sdk.py"
+      - "tool/test_patch_android_plugin_compile_sdk.py"
+      - "tool/test_configure_native_platforms.py"
+      - "tool/test_native_workflow_contract.py"
+      - ".github/workflows/bootstrap-native-platforms.yml"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "lib/**"
+      - "web/**"
+  pull_request:
+    branches:
+      - main
+      - codex/mawda-full-platform-implementation
+    paths:
+      - "tool/configure_native_platforms.py"
+      - "tool/patch_android_plugin_compile_sdk.py"
+      - "tool/test_*.py"
+      - ".github/workflows/bootstrap-native-platforms.yml"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "lib/**"
+      - "web/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mawdda-native-platform-bootstrap
+  cancel-in-progress: true
+
+jobs:
+  generate-and-build-android:
+    name: Generate native runners and build Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: codex/mawda-full-platform-implementation
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+
+      - name: Test native Gradle configuration generator
+        run: python3 -m unittest discover -s tool -p "test_*.py"
+
+      - name: Install Firebase CLI and FlutterFire CLI
+        run: |
+          npm install --global firebase-tools@14.0.0
+          dart pub global activate flutterfire_cli
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+
+      - name: Generate missing Android and iOS runners
+        run: |
+          if [ ! -d android ] || [ ! -d ios ]; then
+            flutter create --platforms=android,ios --org com.mawdda.platform --project-name app .
+          fi
+          python3 tool/configure_native_platforms.py
+
+      - name: Generate verified Firebase native configuration
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          test -n "$FIREBASE_TOKEN"
+          firebase apps:list --project mawda-app-2026 --token "$FIREBASE_TOKEN"
+          flutterfire configure --project=mawda-app-2026 --platforms=android,ios,web --android-package-name=com.mawdda.platform.app --ios-bundle-id=com.mawdda.platform.app --out=lib/firebase_options.dart --yes
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          source = Path("lib/firebase_options.dart").read_text()
+          for platform in ("web", "android", "ios"):
+              match = re.search(
+                  rf"static const FirebaseOptions {platform} = FirebaseOptions\((.*?)\n  \);",
+                  source,
+                  re.S,
+              )
+              if match is None:
+                  raise SystemExit(f"Missing Firebase options for {platform}.")
+              block = match.group(1)
+              if "projectId: 'mawda-app-2026'" not in block:
+                  raise SystemExit(f"{platform} Firebase options target the wrong project.")
+              if any(value in block for value in ("AIzaSyActualApiKey", "1234567890", "abcdef123456789")):
+                  raise SystemExit(f"{platform} Firebase options still contain placeholders.")
+          PY
+
+      - name: Resolve locked Flutter dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Apply Android API 36 to every resolved Flutter plugin module
+        run: python3 tool/patch_android_plugin_compile_sdk.py
+
+      - name: Build Android debug APK
+        run: |
+          flutter build apk --debug
+          sha256sum build/app/outputs/flutter-apk/app-debug.apk > build/app/outputs/flutter-apk/app-debug.apk.sha256
+
+      - name: Package generated native projects
+        run: tar -czf native-platforms.tar.gz android ios lib/firebase_options.dart pubspec.lock
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: mawdda-native-platforms-${{ github.sha }}
+          path: native-platforms.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: mawdda-android-debug-${{ github.sha }}
+          path: |
+            build/app/outputs/flutter-apk/app-debug.apk
+            build/app/outputs/flutter-apk/app-debug.apk.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  build-ios:
+    name: Build iOS without code signing
+    needs: generate-and-build-android
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: codex/mawda-full-platform-implementation
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+
+      - name: Install Firebase CLI and FlutterFire CLI
+        run: |
+          npm install --global firebase-tools@14.0.0
+          dart pub global activate flutterfire_cli
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: mawdda-native-platforms-${{ github.sha }}
+          path: native-artifact
+
+      - name: Restore generated iOS project
+        run: tar -xzf native-artifact/native-platforms.tar.gz -C .
+
+      - name: Generate iOS Firebase service configuration on macOS
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          test -n "$FIREBASE_TOKEN"
+          firebase apps:list --project mawda-app-2026 --token "$FIREBASE_TOKEN"
+          rm -f ios/Runner/GoogleService-Info.plist
+          firebase apps:sdkconfig IOS 1:697303475139:ios:7be58cfe1ac9c4c23ed376 --project mawda-app-2026 --out ios/Runner/GoogleService-Info.plist --token "$FIREBASE_TOKEN"
+          python3 - <<'PY'
+          import plistlib
+          from pathlib import Path
+
+          path = Path("ios/Runner/GoogleService-Info.plist")
+          if not path.is_file():
+              raise SystemExit("Firebase CLI did not generate ios/Runner/GoogleService-Info.plist on macOS.")
+          with path.open("rb") as handle:
+              config = plistlib.load(handle)
+          expected = {
+              "BUNDLE_ID": "com.mawdda.platform.app",
+              "PROJECT_ID": "mawda-app-2026",
+              "GOOGLE_APP_ID": "1:697303475139:ios:7be58cfe1ac9c4c23ed376",
+              "GCM_SENDER_ID": "697303475139",
+          }
+          for key, value in expected.items():
+              if config.get(key) != value:
+                  raise SystemExit(f"iOS Firebase plist mismatch for {key}.")
+          if not isinstance(config.get("API_KEY"), str) or not config["API_KEY"].strip():
+              raise SystemExit("iOS Firebase plist is missing API_KEY.")
+          print("Verified iOS Firebase plist on macOS: project, app, bundle, sender and API key.")
+          PY
+
+      - name: Resolve locked Flutter dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build iOS without signing
+        run: |
+          flutter build ios --no-codesign
+          ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app mawdda-ios-unsigned-device.zip
+          shasum -a 256 mawdda-ios-unsigned-device.zip > mawdda-ios-unsigned-device.zip.sha256
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: mawdda-ios-unsigned-device-${{ github.sha }}
+          path: |
+            mawdda-ios-unsigned-device.zip
+            mawdda-ios-unsigned-device.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Package verified iOS Firebase service file
+        run: tar -czf ios-firebase-config.tar.gz ios/Runner/GoogleService-Info.plist
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: mawdda-ios-firebase-config-${{ github.sha }}
+          path: ios-firebase-config.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+  commit-native-projects:
+    name: Commit validated native project scaffolding
+    needs:
+      - generate-and-build-android
+      - build-ios
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: codex/mawda-full-platform-implementation
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: mawdda-native-platforms-${{ github.sha }}
+          path: native-artifact
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: mawdda-ios-firebase-config-${{ github.sha }}
+          path: ios-firebase-config
+
+      - name: Add generated platform directories
+        run: |
+          tar -xzf native-artifact/native-platforms.tar.gz -C .
+          tar -xzf ios-firebase-config/ios-firebase-config.tar.gz -C .
+          git add android ios lib/firebase_options.dart pubspec.lock
+          if git diff --cached --quiet; then
+            echo "Native platform scaffolding is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build: add validated Android and iOS native runners"
+          git push origin HEAD:codex/mawda-full-platform-implementation

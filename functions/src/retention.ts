@@ -1,0 +1,550 @@
+import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onObjectFinalized } from "firebase-functions/v2/storage";
+import { defineString } from "firebase-functions/params";
+import { isExplicitNonProductionTarget } from "./nonproduction-target";
+import { logger } from "firebase-functions";
+
+export const CHAT_MEDIA_RETENTION_MS = 4 * 60 * 60 * 1000;
+export const CHAT_TEXT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const RETENTION_BATCH_SIZE = 150;
+const RETENTION_PAGES_PER_RUN = 10;
+const retentionJobsEnabled = defineString("MAWDA_RETENTION_JOBS_ENABLED", { default: "false" });
+
+/** Fail closed when a specific media asset is under a documented active hold. */
+export function shouldSuspendMediaDeletion(asset: Record<string, unknown>): boolean {
+  return asset.legalHoldStatus === "active";
+}
+
+export function retentionDeadline(createdAtMs: number, lifetimeMs: number): number {
+  if (!Number.isSafeInteger(createdAtMs) || createdAtMs < 0 ||
+      !Number.isSafeInteger(lifetimeMs) || lifetimeMs <= 0) {
+    throw new Error("INVALID_RETENTION_CLOCK");
+  }
+  return createdAtMs + lifetimeMs;
+}
+
+export function isRetentionDue(createdAtMs: number, lifetimeMs: number, nowMs: number): boolean {
+  if (!Number.isSafeInteger(nowMs) || nowMs < 0) throw new Error("INVALID_RETENTION_CLOCK");
+  return retentionDeadline(createdAtMs, lifetimeMs) <= nowMs;
+}
+
+export function isSupportedChatMessagePath(path: string): boolean {
+  const parts = path.split("/");
+  return parts.length === 4 &&
+    (parts[0] === "directChats" || parts[0] === "rooms") &&
+    parts[1].length > 0 && parts[2] === "messages" && parts[3].length > 0;
+}
+
+function nonProductionProject(): boolean {
+  const projectId = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? "";
+  return projectId !== "mawda-app-2026" &&
+    isExplicitNonProductionTarget(projectId, ["test", "staging", "dev", "demo", "nonprod", "sandbox"]);
+}
+
+function jobsMayRun(): boolean {
+  if (retentionJobsEnabled.value() !== "true") return false;
+  if (!nonProductionProject()) {
+    logger.error("Retention sweep refused: only an explicitly named non-production project is allowed.", {
+      projectId: process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? "unknown",
+    });
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Deletes every live and noncurrent generation for one exact object name.
+ * It deliberately never performs a prefix-wide deletion. Bucket soft-delete,
+ * retention locks and backup policies are infrastructure controls and must be
+ * disabled/validated separately before this job can be enabled.
+ */
+async function deleteAllObjectGenerations(objectPath: string): Promise<number> {
+  if (!objectPath || objectPath.startsWith("/") || objectPath.split("/").includes("..")) {
+    throw new Error("UNSAFE_MEDIA_OBJECT_PATH");
+  }
+  const configuredBucket = configuredMediaBucketName();
+  const bucket = configuredBucket ? getStorage().bucket(configuredBucket) : getStorage().bucket();
+  const [listed] = await bucket.getFiles({ prefix: objectPath, versions: true, autoPaginate: true });
+  const exactVersions = listed.filter((file) => file.name === objectPath);
+  let deleted = 0;
+  for (const file of exactVersions) {
+    const [metadata] = await file.getMetadata();
+    const generation = Number(metadata.generation);
+    if (!Number.isSafeInteger(generation) || generation <= 0) {
+      throw new Error("INVALID_STORAGE_GENERATION");
+    }
+    await file.delete({ ignoreNotFound: true, ifGenerationMatch: generation });
+    deleted += 1;
+  }
+  return deleted;
+}
+
+const ACTIVE_MEDIA_STATES = [
+  "upload_authorized", "pending_security_scan", "scanner_clean_pending_processing",
+  "security_approved", "rejected", "expired_cleanup_in_progress", "expired", "manual_deletion_pending",
+];
+const MEDIA_DERIVATIVE_RECHECK_MS = 5 * 60 * 1000;
+
+export async function runChatMediaRetentionSweep(): Promise<{ assets: number; objects: number; failures: number }> {
+  const db = getFirestore();
+  const now = Timestamp.fromMillis(Date.now());
+  let assets = 0;
+  let objects = 0;
+  let failures = 0;
+
+  for (const purpose of ["chat", "room", "profile_album", "story", "avatar_cover"] as const) {
+    const lifetimeMs = purpose === "profile_album" ? 7 * 24 * 60 * 60 * 1000
+      : purpose === "story" || purpose === "avatar_cover" ? null : CHAT_MEDIA_RETENTION_MS;
+    const cutoff = lifetimeMs === null ? null : Timestamp.fromMillis(Date.now() - lifetimeMs);
+    const deletedPolicyStatus = purpose === "profile_album" ? "seven_day_profile_album_deleted"
+      : purpose === "story" ? "story_expired_deleted"
+        : purpose === "avatar_cover" ? "thirty_day_avatar_cover_expired" : "four_hour_self_destructed";
+    const deletionAuditAction = purpose === "profile_album" ? "profile_album_media_deleted"
+      : purpose === "story" ? "story_media_expired"
+        : purpose === "avatar_cover" ? "avatar_cover_media_expired" : "chat_media_self_destructed";
+    // Revisit content-free tombstones on a separate clock. This catches a
+    // derivative written by a scanner that was already running at expiry,
+    // without allowing tombstones to occupy the active-expiry query forever.
+    const tombstones = await db.collection("mediaAssets")
+      .where("mediaPurpose", "==", purpose)
+      .where("status", "in", ["self_destructed", "manually_deleted"])
+      .where("retentionReconcileAt", "<=", now)
+      .orderBy("retentionReconcileAt", "asc")
+      .limit(RETENTION_BATCH_SIZE)
+      .get();
+    for (const tombstoneDoc of tombstones.docs) {
+      const ownerUid = tombstoneDoc.data().ownerUid;
+      const mediaId = tombstoneDoc.id;
+      if (typeof ownerUid !== "string" || !/^[0-9a-f-]{36}$/i.test(mediaId)) continue;
+      try {
+        const originalPath = `quarantine/${ownerUid}/${mediaId}`;
+        objects += await deleteAllObjectGenerations(originalPath);
+        for (const filename of [
+          "preview.webp", "animation.gif", "audio.mp3", "video.mp4", "document.pdf",
+        ]) {
+          objects += await deleteAllObjectGenerations(`processed/${ownerUid}/${mediaId}/${filename}`);
+        }
+        await tombstoneDoc.ref.update({
+          retentionReconcileAt: Timestamp.fromMillis(Date.now() + MEDIA_DERIVATIVE_RECHECK_MS),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      } catch (error) {
+        failures += 1;
+        logger.error("Late media derivative reconciliation failed; retry remains scheduled.", {
+          mediaId, purpose, errorName: error instanceof Error ? error.name : "unknown",
+        });
+      }
+    }
+
+    for (let page = 0; page < RETENTION_PAGES_PER_RUN; page += 1) {
+      const dueAt = Timestamp.fromMillis(Date.now());
+      const due = await db.collection("mediaAssets")
+        .where("mediaPurpose", "==", purpose)
+        .where("status", "in", ACTIVE_MEDIA_STATES)
+        .where("retentionExpiresAt", "<=", dueAt)
+        .orderBy("retentionExpiresAt", "asc")
+        .limit(RETENTION_BATCH_SIZE)
+        .get();
+      const legacyDocs = lifetimeMs === null || cutoff === null
+        ? []
+        : (await db.collection("mediaAssets")
+          .where("mediaPurpose", "==", purpose)
+          .where("status", "in", ACTIVE_MEDIA_STATES)
+          .where("retentionExpiresAt", "==", null)
+          .where("createdAt", "<=", cutoff)
+          .orderBy("createdAt", "asc")
+          .limit(RETENTION_BATCH_SIZE)
+          .get()).docs;
+      const candidates = new Map<string, (typeof due.docs)[number]>();
+      for (const doc of [...due.docs, ...legacyDocs]) candidates.set(doc.id, doc);
+      if (candidates.size === 0) break;
+
+      let succeededThisPage = 0;
+      for (const assetDoc of candidates.values()) {
+        const asset = assetDoc.data();
+        // A documented owner legal hold suspends deletion only for this exact asset.
+        // The original retention deadline is preserved and resumes on release/expiry.
+        const ownerUid = typeof asset.ownerUid === "string" ? asset.ownerUid : "";
+        const mediaId = assetDoc.id;
+        if (shouldSuspendMediaDeletion(asset)) {
+          // Legal preservation does not extend the member-facing custom-image
+          // lifetime: switch the profile to the Mawda default at expiry, but
+          // retain the held object until the hold is released.
+          if (purpose === "avatar_cover" && !asset.defaultFallbackAppliedAt) {
+            const userRef = ownerUid ? db.collection("users").doc(ownerUid) : null;
+            await db.runTransaction(async (transaction) => {
+              const [freshAsset, userSnapshot] = await Promise.all([
+                transaction.get(assetDoc.ref),
+                userRef ? transaction.get(userRef) : Promise.resolve(null),
+              ]);
+              if (!freshAsset.exists || freshAsset.data()?.legalHoldStatus !== "active" ||
+                  freshAsset.data()?.defaultFallbackAppliedAt) return;
+              const fresh = freshAsset.data() ?? {};
+              const expiry = fresh.retentionExpiresAt;
+              if (!(expiry instanceof Timestamp) || expiry.toMillis() > Date.now()) return;
+              const slot = fresh.profileMediaSlot;
+              if (userRef && userSnapshot?.exists && (slot === "avatar" || slot === "cover")) {
+                const user = userSnapshot.data() ?? {};
+                const mediaField = slot === "avatar" ? "avatarMediaId" : "coverMediaId";
+                const defaultField = slot === "avatar" ? "avatarUsesDefault" : "coverUsesDefault";
+                if (user[mediaField] === mediaId) {
+                  transaction.update(userRef, {
+                    [mediaField]: FieldValue.delete(),
+                    [defaultField]: true,
+                    [`${slot}DefaultAppliedAt`]: FieldValue.serverTimestamp(),
+                    updatedAt: FieldValue.serverTimestamp(),
+                  });
+                }
+              }
+              transaction.update(assetDoc.ref, {
+                defaultFallbackAppliedAt: FieldValue.serverTimestamp(),
+                updatedAt: FieldValue.serverTimestamp(),
+              });
+            });
+          }
+          continue;
+        }
+        if (purpose === "avatar_cover") {
+          const userRef = ownerUid ? db.collection("users").doc(ownerUid) : null;
+          const prepared = await db.runTransaction(async (transaction) => {
+            const [freshAsset, userSnapshot] = await Promise.all([
+              transaction.get(assetDoc.ref),
+              userRef ? transaction.get(userRef) : Promise.resolve(null),
+            ]);
+            if (!freshAsset.exists || shouldSuspendMediaDeletion(freshAsset.data() ?? {})) return false;
+            const fresh = freshAsset.data() ?? {};
+            const expiry = fresh.retentionExpiresAt;
+            if (!(expiry instanceof Timestamp) || expiry.toMillis() > Date.now()) return false;
+            const slot = fresh.profileMediaSlot;
+            if (userRef && userSnapshot?.exists && (slot === "avatar" || slot === "cover")) {
+              const user = userSnapshot.data() ?? {};
+              const mediaField = slot === "avatar" ? "avatarMediaId" : "coverMediaId";
+              const defaultField = slot === "avatar" ? "avatarUsesDefault" : "coverUsesDefault";
+              if (user[mediaField] === mediaId) {
+                transaction.update(userRef, {
+                  [mediaField]: FieldValue.delete(),
+                  [defaultField]: true,
+                  [`${slot}DefaultAppliedAt`]: FieldValue.serverTimestamp(),
+                  updatedAt: FieldValue.serverTimestamp(),
+                });
+              }
+            }
+            transaction.update(assetDoc.ref, {
+              status: "expired_cleanup_in_progress",
+              defaultFallbackAppliedAt: FieldValue.serverTimestamp(),
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+            return true;
+          });
+          if (!prepared) continue;
+        }
+        const paths = new Set<string>();
+        if (typeof asset.objectPath === "string") paths.add(asset.objectPath);
+        if (!ownerUid || !/^[0-9a-f-]{36}$/i.test(mediaId)) {
+          throw new Error("INVALID_MEDIA_OWNER_OR_ID_FOR_RETENTION");
+        }
+        const derivativeFields: Record<string, string> = {
+          safePreviewPath: `processed/${ownerUid}/${mediaId}/preview.webp`,
+          safeAnimationPath: `processed/${ownerUid}/${mediaId}/animation.gif`,
+          safeAudioPath: `processed/${ownerUid}/${mediaId}/audio.mp3`,
+          safeVideoPath: `processed/${ownerUid}/${mediaId}/video.mp4`,
+          safeDocumentPath: `processed/${ownerUid}/${mediaId}/document.pdf`,
+        };
+        for (const [field, expectedPath] of Object.entries(derivativeFields)) {
+          const candidate = asset[field];
+          if (typeof candidate === "string" && candidate !== expectedPath) {
+            throw new Error("UNSAFE_MEDIA_DERIVATIVE_PATH");
+          }
+          if (typeof candidate === "string") paths.add(candidate);
+          paths.add(expectedPath);
+        }
+
+        try {
+          for (const path of paths) objects += await deleteAllObjectGenerations(path);
+          if (purpose === "story" && typeof asset.storyDocumentId === "string") {
+            await db.collection("stories").doc(asset.storyDocumentId).delete().catch((error) => {
+              logger.warn("Expired story document cleanup will retry with its media tombstone.", {
+                mediaId, storyId: asset.storyDocumentId,
+                errorName: error instanceof Error ? error.name : "unknown",
+              });
+              throw error;
+            });
+          }
+          const tombstone: Record<string, unknown> = {};
+          for (const key of Object.keys(asset)) {
+            if (!["ownerUid", "uploaderType", "mediaPurpose", "createdAt", "retentionExpiresAt"].includes(key)) {
+              tombstone[key] = FieldValue.delete();
+            }
+          }
+          const createdAt = asset.createdAt instanceof Timestamp ? asset.createdAt : null;
+          const manualDeleteRetry = asset.status === "manual_deletion_pending";
+          tombstone.status = manualDeleteRetry ? "manually_deleted" : "self_destructed";
+          tombstone.retentionPolicyStatus = manualDeleteRetry
+            ? "manual_delete_for_everyone_completed" : deletedPolicyStatus;
+          tombstone.retentionExpiresAt = asset.retentionExpiresAt ??
+            (createdAt && lifetimeMs !== null ? Timestamp.fromMillis(createdAt.toMillis() + lifetimeMs) : Timestamp.fromMillis(Date.now()));
+          tombstone.retentionDeletedAt = FieldValue.serverTimestamp();
+          tombstone.retentionReconcileAt = Timestamp.fromMillis(Date.now() + MEDIA_DERIVATIVE_RECHECK_MS);
+          tombstone.updatedAt = FieldValue.serverTimestamp();
+          await assetDoc.ref.set(tombstone, { merge: true });
+          await db.collection("mediaScanJobs").doc(mediaId).delete().catch(() => undefined);
+          await db.collection("mediaAccessAudit").add({
+            actorUid: "system-retention", mediaId,
+            action: manualDeleteRetry ? "chat_media_manual_delete_for_everyone_completed" : deletionAuditAction,
+            outcome: "success", purpose, objectCount: paths.size,
+            createdAt: FieldValue.serverTimestamp(),
+            expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
+          });
+          assets += 1;
+          succeededThisPage += 1;
+        } catch (error) {
+          failures += 1;
+          await db.collection("mediaAccessAudit").add({
+            actorUid: "system-retention", mediaId, action: asset.status === "manual_deletion_pending" ? "chat_media_manual_delete_retry" : purpose === "profile_album" ? "profile_album_media_delete" : purpose === "story" ? "story_media_expiry_delete_retry" : purpose === "avatar_cover" ? "avatar_cover_media_expiry_delete_retry" : "chat_media_self_destruct",
+            outcome: "retry_required", purpose,
+            failureCode: error instanceof Error ? error.name : "unknown",
+            createdAt: FieldValue.serverTimestamp(),
+            expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
+          });
+          logger.error("Chat media deletion failed; asset remains for retry.", {
+            mediaId, purpose, errorName: error instanceof Error ? error.name : "unknown",
+          });
+        }
+      }
+      if (succeededThisPage === 0) break;
+    }
+  }
+  // Expired story documents are removed immediately; media deletion remains
+  // independently generation-safe and retryable through the media asset sweep.
+  const expiredStories = await db.collection("stories")
+    .where("status", "==", "active")
+    .where("expiresAt", "<=", Timestamp.fromMillis(Date.now()))
+    .limit(RETENTION_BATCH_SIZE)
+    .get();
+  if (!expiredStories.empty) {
+    const batch = db.batch();
+    for (const story of expiredStories.docs) batch.delete(story.ref);
+    await batch.commit();
+  }
+
+  return { assets, objects, failures };
+}
+
+export async function runChatTextRetentionSweep(): Promise<{ messages: number; failures: number }> {
+  const db = getFirestore();
+  const cutoff = Timestamp.fromMillis(Date.now() - CHAT_TEXT_RETENTION_MS);
+  let messages = 0;
+  let failures = 0;
+  let cursor: any = null;
+
+  for (let page = 0; page < RETENTION_PAGES_PER_RUN; page += 1) {
+    let query = db.collectionGroup("messages")
+      .where("createdAt", "<=", cutoff)
+      .orderBy("createdAt", "asc")
+      .limit(RETENTION_BATCH_SIZE);
+    if (cursor) query = query.startAfter(cursor);
+    const snapshot = await query.get();
+    if (snapshot.empty) break;
+    cursor = snapshot.docs[snapshot.docs.length - 1];
+
+    const batch = db.batch();
+    const directChatIds = new Set<string>();
+    let batchMessages = 0;
+    for (const messageDoc of snapshot.docs) {
+      if (!isSupportedChatMessagePath(messageDoc.ref.path)) continue;
+      const data = messageDoc.data();
+      // A documented active message hold suspends the seven-day text purge.
+      // Cursor pagination ensures a page containing only held messages cannot
+      // starve later expired messages in other conversations.
+      if (data.legalHoldStatus === "active") continue;
+      const parts = messageDoc.ref.path.split("/");
+      if (parts[0] === "directChats") {
+        const recipientUid = typeof data.recipientUid === "string" ? data.recipientUid : "";
+        if (recipientUid) {
+          batch.delete(db.collection("users").doc(recipientUid)
+            .collection("notifications").doc(messageDoc.id));
+        }
+        directChatIds.add(parts[1]);
+      }
+      batch.delete(messageDoc.ref);
+      batchMessages += 1;
+    }
+
+    if (batchMessages > 0) {
+      // Clear text previews in the same atomic batch as their expired messages.
+      // Keep at most 150 messages per batch so message, notification and chat
+      // metadata writes stay below Firestore's 500-write batch limit.
+      for (const chatId of directChatIds) {
+        const chatRef = db.collection("directChats").doc(chatId);
+        const chat = await chatRef.get();
+        const lastMessageAt = chat.data()?.lastMessageAt;
+        if (chat.exists && (!(lastMessageAt instanceof Timestamp) ||
+            lastMessageAt.toMillis() <= cutoff.toMillis())) {
+          batch.update(chatRef, {
+            lastMessagePreview: FieldValue.delete(),
+            lastMessageAt: FieldValue.delete(),
+            lastMessageSenderUid: FieldValue.delete(),
+            textRetentionPurgedAt: FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
+      try {
+        await batch.commit();
+        messages += batchMessages;
+      } catch (error) {
+        logger.error("Chat text deletion batch failed; scheduled sweep will retry.", {
+          errorName: error instanceof Error ? error.name : "unknown",
+        });
+        failures += batchMessages;
+        break;
+      }
+    }
+    if (snapshot.size < RETENTION_BATCH_SIZE) break;
+  }
+  return { messages, failures };
+}
+
+async function deleteExpiredMediaOperationalAudit(): Promise<number> {
+  const db = getFirestore();
+  const cutoff = Timestamp.fromMillis(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  let deleted = 0;
+  for (let page = 0; page < RETENTION_PAGES_PER_RUN; page += 1) {
+    const snapshot = await db.collection("mediaAccessAudit")
+      .where("createdAt", "<=", cutoff)
+      .orderBy("createdAt", "asc")
+      .limit(RETENTION_BATCH_SIZE)
+      .get();
+    if (snapshot.empty) break;
+    const batch = db.batch();
+    for (const entry of snapshot.docs) batch.delete(entry.ref);
+    await batch.commit();
+    deleted += snapshot.size;
+    if (snapshot.size < RETENTION_BATCH_SIZE) break;
+  }
+  return deleted;
+}
+
+function configuredMediaBucketName(): string | null {
+  if (typeof process.env.MAWDA_MEDIA_BUCKET_NAME === "string" && process.env.MAWDA_MEDIA_BUCKET_NAME.trim()) {
+    return process.env.MAWDA_MEDIA_BUCKET_NAME.trim();
+  }
+  try {
+    const config = JSON.parse(process.env.FIREBASE_CONFIG ?? "{}") as Record<string, unknown>;
+    return typeof config.storageBucket === "string" && config.storageBucket.trim()
+      ? config.storageBucket.trim()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function isKnownDeletedMediaObjectPath(
+  asset: Record<string, unknown>,
+  objectPath: string,
+  ownerUid: string,
+  mediaId: string,
+): boolean {
+  const deterministicOriginal = `quarantine/${ownerUid}/${mediaId}`;
+  const deterministicDerivatives = [
+    "preview.webp", "animation.gif", "audio.mp3", "video.mp4", "document.pdf",
+  ].map((filename) => `processed/${ownerUid}/${mediaId}/${filename}`);
+  const candidates = [
+    asset.objectPath,
+    deterministicOriginal,
+    ...deterministicDerivatives,
+    ...(Array.isArray(asset.derivedObjectPaths) ? asset.derivedObjectPaths : []),
+    ...(Array.isArray(asset.deletedObjectPaths) ? asset.deletedObjectPaths : []),
+  ];
+  return candidates.some((candidate) => candidate === objectPath);
+}
+
+async function handleLateExpiredChatMediaDerivative(event: Parameters<typeof onObjectFinalized>[1] extends (event: infer T) => unknown ? T : never): Promise<void> {
+  const object = event.data;
+  const objectPath = typeof object.name === "string" ? object.name : "";
+  const parts = objectPath.split("/");
+  const isOriginal = parts.length === 3 && parts[0] === "quarantine";
+  const isDerived = parts.length === 4 && parts[0] === "processed" &&
+    ["preview.webp", "animation.gif", "audio.mp3", "video.mp4", "document.pdf"].includes(parts[3]);
+  if (!isOriginal && !isDerived) return;
+  const ownerUid = parts[1];
+  const mediaId = parts[2];
+  const generation = Number(object.generation);
+  if (!/^[0-9a-f-]{36}$/i.test(mediaId) || !Number.isSafeInteger(generation) || generation <= 0) return;
+
+  const db = getFirestore();
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const assetSnapshot = await assetRef.get();
+  if (!assetSnapshot.exists) return;
+  const asset = assetSnapshot.data() ?? {};
+  if (asset.ownerUid !== ownerUid ||
+      !["chat", "room", "profile_album", "story", "avatar_cover"].includes(String(asset.mediaPurpose)) ||
+      asset.legalHoldStatus === "active" ||
+      !isKnownDeletedMediaObjectPath(asset, objectPath, ownerUid, mediaId)) return;
+
+  const manualDeletionState = ["manual_deletion_pending", "manually_deleted", "rejected"].includes(String(asset.status));
+  const expiry = asset.retentionExpiresAt instanceof Timestamp
+    ? asset.retentionExpiresAt
+    : asset.createdAt instanceof Timestamp
+      ? Timestamp.fromMillis(asset.createdAt.toMillis() + CHAT_MEDIA_RETENTION_MS)
+      : null;
+  if (!manualDeletionState && asset.status !== "self_destructed" &&
+      (!expiry || expiry.toMillis() > Date.now())) return;
+
+  await getStorage().bucket(object.bucket).file(objectPath, { generation }).delete({
+    ignoreNotFound: true,
+    ifGenerationMatch: generation,
+  });
+  await db.collection("mediaAccessAudit").add({
+    actorUid: "system-retention",
+    mediaId,
+    action: isOriginal
+      ? "late_chat_media_original_deleted"
+      : "late_chat_media_derivative_deleted",
+    objectGeneration: String(generation),
+    outcome: "success",
+    purpose: asset.mediaPurpose,
+    createdAt: FieldValue.serverTimestamp(),
+    expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
+  });
+}
+
+// Storage trigger registration needs a real bucket name. Unit tests intentionally
+// import this module without Firebase deployment config, so do not register an
+// unusable trigger in that environment.
+const configuredBucket = configuredMediaBucketName();
+export const removeLateExpiredChatMediaDerivative = configuredBucket
+  ? onObjectFinalized({ bucket: configuredBucket }, handleLateExpiredChatMediaDerivative)
+  : undefined;
+
+/** Reconciles expired chat, gallery and story media every minute; disabled by default and non-production gated. */
+export const enforceChatMediaRetention = onSchedule(
+  { schedule: "every 1 minutes", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
+  async () => {
+    if (!jobsMayRun()) return;
+    const result = await runChatMediaRetentionSweep();
+    logger.info("Chat media retention sweep completed.", result);
+  },
+);
+
+/** Permanently removes chat text and text-bearing previews after seven days. */
+export const enforceChatTextRetention = onSchedule(
+  { schedule: "every 1 minutes", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
+  async () => {
+    if (!jobsMayRun()) return;
+    const result = await runChatTextRetentionSweep();
+    logger.info("Chat text retention sweep completed.", result);
+  },
+);
+
+/** Removes operational media access logs after the approved 90-day period. */
+export const enforceMediaOperationalAuditRetention = onSchedule(
+  { schedule: "every 24 hours", timeZone: "UTC", timeoutSeconds: 300, memory: "256MiB" },
+  async () => {
+    if (!jobsMayRun()) return;
+    const deleted = await deleteExpiredMediaOperationalAudit();
+    logger.info("Media operational audit retention sweep completed.", { deleted });
+  },
+);

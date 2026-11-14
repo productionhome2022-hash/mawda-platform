@@ -1,11 +1,29 @@
 <!DOCTYPE html>
-<html>
+<html lang="ar" dir="rtl">
 <head>
   <base href="/">
   <meta charset="UTF-8">
-  <title>Mawda Platform</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#8B234B">
+  <meta name="description" content="منصة مودة للتعارف والصداقة والزواج">
+  <meta name="application-name" content="Mawdda Platform 2026">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/mawdda-app-icon.svg" type="image/svg+xml">
+  <title>مودة | Mawdda Platform 2026</title>
+  <style>
+    .mawdda-install-panel{position:fixed;z-index:10000;inset-block-start:16px;inset-inline-end:16px;width:min(360px,calc(100vw - 32px));box-sizing:border-box;padding:18px;border:1px solid #70405b;border-radius:18px;background:#211321;color:#fff;box-shadow:0 14px 48px #0008;font:14px/1.7 system-ui,sans-serif}
+    .mawdda-install-copy{display:grid;gap:6px;padding-inline-end:24px}
+    .mawdda-install-copy strong{font-size:17px}
+    .mawdda-install-copy span,.mawdda-install-help{color:#e6d8e2}
+    .mawdda-install-action{width:100%;margin-top:14px;padding:11px 16px;border:0;border-radius:12px;background:#a83e70;color:#fff;font:600 15px system-ui;cursor:pointer}
+    .mawdda-install-close{position:absolute;inset-block-start:8px;inset-inline-start:10px;border:0;background:transparent;color:#fff;font-size:25px;cursor:pointer}
+    .mawdda-install-help{display:block;margin-top:8px;font-size:12px}
+    @media(max-width:480px){.mawdda-install-panel{inset-inline:12px;inset-block-start:12px;width:auto}}
+    @media(prefers-reduced-motion:no-preference){.mawdda-install-panel{animation:mawdda-install-in .22s ease-out}@keyframes mawdda-install-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}}
+  </style>
 </head>
 <body>
+  <script src="/install-prompt.js" defer></script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

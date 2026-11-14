@@ -1,0 +1,86 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { equalSecret, validateScanRequest, isSafeDerivativeMetadata, isSignatureDatabaseFresh, parseClamAvVersion, sanitizeScannerError } = require("../security");
+
+const bucket = "mawda-media-test.appspot.com";
+const mediaId = "123e4567-e89b-42d3-a456-426614174000";
+const generation = "1740000000000000";
+const url = `https://storage.googleapis.com/${bucket}/quarantine/user/${mediaId}?generation=${generation}&X-Goog-Signature=opaque`;
+
+test("scanner API secret comparison is constant-time and rejects weak/missing values", () => {
+  const secret = "s".repeat(48);
+  assert.equal(equalSecret(secret, secret), true);
+  assert.equal(equalSecret(secret, "x".repeat(48)), false);
+  assert.equal(equalSecret(secret, "weak"), false);
+  assert.equal(equalSecret(secret, undefined), false);
+});
+
+test("scan request accepts only exact quarantine path, UUID, generation and Google Storage HTTPS URL", () => {
+  const valid = {
+    mediaId, objectPath: `quarantine/user/${mediaId}`,
+    objectGeneration: generation, downloadUrl: url,
+    callbackUrl: "https://europe-west1-mawda-media-test.cloudfunctions.net/receiveMediaScanVerdict",
+    provider: "clamav-mawadda-gateway", contentType: "image/png",
+  };
+  assert.deepEqual(validateScanRequest(valid, "clamav-mawadda-gateway", bucket, valid.callbackUrl), valid);
+  assert.deepEqual(validateScanRequest({ ...valid, contentType: "image/gif" }, "clamav-mawadda-gateway", bucket, valid.callbackUrl).contentType, "image/gif");
+  assert.equal(validateScanRequest({ ...valid, objectPath: `processed/user/${mediaId}` }, valid.provider, bucket, valid.callbackUrl), null);
+  assert.equal(validateScanRequest({ ...valid, callbackUrl: "https://attacker.example/callback" }, valid.provider, bucket, valid.callbackUrl), null);
+  assert.equal(validateScanRequest({ ...valid, objectGeneration: "latest" }, valid.provider, bucket, valid.callbackUrl), null);
+  assert.equal(validateScanRequest({ ...valid, provider: "untrusted" }, valid.provider, bucket), null);
+  assert.equal(validateScanRequest({ ...valid, downloadUrl: "http://127.0.0.1/admin" }, valid.provider, bucket), null);
+  assert.equal(validateScanRequest({ ...valid, downloadUrl: "https://evil.example/file" }, valid.provider, bucket), null);
+  assert.equal(validateScanRequest({ ...valid, downloadUrl: url.replace(generation, "1") }, valid.provider, bucket), null);
+});
+
+test("safe derivative reuse is bound to source hash, generation, provider and processing version", () => {
+  const expected = {
+    mediaId, objectGeneration: generation, sourceSha256: "a".repeat(64),
+    provider: "clamav-mawadda-gateway",
+  };
+  const metadata = {
+    contentType: "image/webp", size: 4096,
+    metadata: {
+      mediaId,
+      sourceGeneration: generation,
+      sourceSha256: "a".repeat(64),
+      scannerProvider: expected.provider,
+      processing: "sharp-decode-reencode-v1",
+    },
+  };
+  assert.equal(isSafeDerivativeMetadata(metadata, expected), true);
+  assert.equal(isSafeDerivativeMetadata({ ...metadata, size: 2 * 1024 * 1024 }, expected), true);
+  assert.equal(isSafeDerivativeMetadata({ ...metadata, size: 2 * 1024 * 1024 + 1 }, expected), false);
+  assert.equal(isSafeDerivativeMetadata({ ...metadata, metadata: { ...metadata.metadata, sourceSha256: "b".repeat(64) } }, expected), false);
+  assert.equal(isSafeDerivativeMetadata({ ...metadata, metadata: { ...metadata.metadata, sourceGeneration: "1" } }, expected), false);
+  assert.equal(isSafeDerivativeMetadata({ ...metadata, size: 21 * 1024 * 1024 }, expected), false);
+  assert.equal(isSafeDerivativeMetadata({ ...metadata, contentType: "image/png" }, expected), false);
+});
+
+test("scanner telemetry never emits signed URLs, tokens or temporary file paths", () => {
+  assert.equal(sanitizeScannerError(new Error("CLAMAV_SCAN_INCOMPLETE")), "CLAMAV_SCAN_INCOMPLETE");
+  assert.equal(sanitizeScannerError(new Error("SOURCE_DOWNLOAD_HTTP_403")), "SOURCE_DOWNLOAD_HTTP_403");
+  assert.equal(sanitizeScannerError(new Error("https://storage.googleapis.com/bucket/object?X-Goog-Signature=secret /tmp/scan/source.bin")), "SCAN_FAILED");
+  assert.equal(sanitizeScannerError(new Error("Bearer " + "x".repeat(48))), "SCAN_FAILED");
+});
+
+
+test("ClamAV signature freshness fails closed for missing, stale and future timestamps", () => {
+  const now = 1_800_000_000_000;
+  const maxAge = 36 * 60 * 60 * 1000;
+  assert.equal(isSignatureDatabaseFresh(now - 60 * 60 * 1000, now, maxAge), true);
+  assert.equal(isSignatureDatabaseFresh(now - 40 * 60 * 60 * 1000, now, maxAge), false);
+  assert.equal(isSignatureDatabaseFresh(Number.NaN, now, maxAge), false);
+  assert.equal(isSignatureDatabaseFresh(now + 10 * 60 * 1000, now, maxAge), false);
+});
+
+
+test("ClamAV engine and signature database versions are parsed from the active scanner", () => {
+  assert.deepEqual(parseClamAvVersion("ClamAV 1.4.6/28202/Thu Nov 13 06:00:00 2026"), {
+    scanEngine: "ClamAV",
+    engineVersion: "1.4.6",
+    signatureDatabaseVersion: "28202",
+  });
+  assert.equal(parseClamAvVersion("clamav unavailable"), null);
+  assert.equal(parseClamAvVersion("ClamAV 1.4.6/0/"), null);
+});

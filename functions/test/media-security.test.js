@@ -1,0 +1,143 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const {
+  detectMediaSignature,
+  mediaPolicyFor,
+  mediaUploadAllowedForRole,
+  normalizeMediaRequest,
+  mediaUploaderTypeFromToken,
+  MEDIA_SIGNED_URL_TTL_MS,
+  mediaSignedUrlExpiresAt,
+} = require("../lib/media-security");
+
+test("media policy allowlists supported types and applies per-category size caps", () => {
+  assert.equal(mediaPolicyFor("image/png").category, "image");
+  assert.equal(mediaPolicyFor("image/png").maxBytes, 5 * 1024 * 1024);
+  assert.equal(mediaPolicyFor("image/gif").maxBytes, 5 * 1024 * 1024);
+  assert.equal(mediaPolicyFor("video/mp4").maxBytes, 100 * 1024 * 1024);
+  assert.equal(mediaPolicyFor("application/x-msdownload"), null);
+});
+
+test("upload request rejects unsafe names, unsupported types and invalid sizes", () => {
+  assert.throws(() => normalizeMediaRequest({ originalName: "../secret.pdf", contentType: "application/pdf", sizeBytes: 20 }));
+  assert.throws(() => normalizeMediaRequest({ originalName: "file.exe", contentType: "application/x-msdownload", sizeBytes: 20 }));
+  assert.throws(() => normalizeMediaRequest({ originalName: "file.png", contentType: "image/png", sizeBytes: -1 }));
+  assert.throws(() => normalizeMediaRequest({ originalName: "photo.png", contentType: "image/png", sizeBytes: 1024 }));
+  assert.deepEqual(normalizeMediaRequest({ originalName: "photo.png", contentType: "image/png", sizeBytes: 1024, purpose: "profile_album" }), {
+    originalName: "photo.png", contentType: "image/png", declaredSizeBytes: 1024, purpose: "profile_album",
+  });
+  assert.throws(() => normalizeMediaRequest({ originalName: "audio.mp3", contentType: "audio/mpeg", sizeBytes: 1024, purpose: "avatar_cover" }));
+});
+
+test("story media requires an explicit future expiry and rejects expiry metadata for other purposes", () => {
+  const now = Date.now();
+  const base = {
+    originalName: "story.png", contentType: "image/png", sizeBytes: 1024, purpose: "story",
+  };
+  assert.throws(() => normalizeMediaRequest(base));
+  assert.throws(() => normalizeMediaRequest({ ...base, storyExpiresAtMs: now - 1 }));
+  const normalized = normalizeMediaRequest({ ...base, storyExpiresAtMs: now + 60_000 });
+  assert.equal(normalized.storyExpiresAtMs, now + 60_000);
+  assert.throws(() => normalizeMediaRequest({
+    originalName: "gallery.png", contentType: "image/png", sizeBytes: 1024,
+    purpose: "profile_album", storyExpiresAtMs: now + 60_000,
+  }));
+});
+
+test("file signature detection identifies GIF, PNG, JPEG, WebP, PDF, MP4, OGG and WAV", () => {
+  assert.equal(detectMediaSignature(new TextEncoder().encode("GIF89a")), "image/gif");
+  assert.equal(detectMediaSignature(Uint8Array.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a])), "image/png");
+  assert.equal(detectMediaSignature(Uint8Array.from([0xff,0xd8,0xff,0x00])), "image/jpeg");
+  assert.equal(detectMediaSignature(new TextEncoder().encode("RIFF0000WEBP")), "image/webp");
+  assert.equal(detectMediaSignature(new TextEncoder().encode("%PDF-1.7")), "application/pdf");
+  assert.equal(detectMediaSignature(new TextEncoder().encode("0000ftypisom")), "video/mp4");
+  assert.equal(detectMediaSignature(new TextEncoder().encode("0000ftypM4A ")), "audio/mp4");
+  assert.equal(detectMediaSignature(new TextEncoder().encode("OggS0000")), "audio/ogg");
+  assert.equal(detectMediaSignature(new TextEncoder().encode("RIFF0000WAVE")), "audio/wav");
+  assert.equal(detectMediaSignature(new TextEncoder().encode("unknown")), null);
+});
+
+test("signature mismatch cannot be mistaken for an allowed media format", () => {
+  assert.notEqual(detectMediaSignature(new TextEncoder().encode("MZ executable")), "application/pdf");
+});
+
+
+test("uploader classification trusts Firebase Auth provider claims, not client fields", () => {
+  assert.equal(mediaUploaderTypeFromToken({ firebase: { sign_in_provider: "anonymous" } }), "guest");
+  assert.equal(mediaUploaderTypeFromToken({ firebase: { sign_in_provider: "password" } }), "member");
+  assert.equal(mediaUploaderTypeFromToken({ uploaderType: "guest" }), "member");
+  assert.equal(mediaUploaderTypeFromToken({ firebase: "anonymous" }), "member");
+});
+
+
+test("signed media URLs receive bounded purpose-specific expirations", () => {
+  const now = 1_800_000_000_000;
+  assert.equal(MEDIA_SIGNED_URL_TTL_MS.upload, 5 * 60 * 1000);
+  assert.equal(MEDIA_SIGNED_URL_TTL_MS["owner-inspection"], 60 * 1000);
+  assert.equal(mediaSignedUrlExpiresAt("upload", now), now + 300_000);
+  assert.equal(mediaSignedUrlExpiresAt("owner-inspection", now), now + 60_000);
+  assert.throws(() => mediaSignedUrlExpiresAt("upload", -1));
+  assert.throws(() => mediaSignedUrlExpiresAt("upload", Number.NaN));
+});
+
+
+
+
+test("role-aware attachment policy reserves documents for the verified platform owner", () => {
+  const member = (contentType, purpose = "chat") =>
+    mediaUploadAllowedForRole({ contentType, purpose }, false);
+  const owner = (contentType, purpose = "chat") =>
+    mediaUploadAllowedForRole({ contentType, purpose }, true);
+
+  for (const type of ["image/jpeg", "image/png", "image/webp", "image/gif",
+    "video/mp4", "audio/mpeg", "audio/mp4", "audio/ogg", "audio/wav"]) {
+    assert.equal(member(type, "chat"), true, `member chat: ${type}`);
+    assert.equal(member(type, "room"), true, `member room: ${type}`);
+  }
+  assert.equal(member("application/pdf", "chat"), false);
+  assert.equal(member("application/pdf", "room"), false);
+  assert.equal(owner("application/pdf", "chat"), true);
+  assert.equal(owner("application/pdf", "room"), true);
+  assert.equal(owner("application/pdf", "profile_album"), false);
+  assert.equal(owner("application/pdf", "story"), false);
+  assert.equal(member("audio/mpeg", "story"), false);
+  assert.equal(owner("application/x-msdownload", "chat"), false);
+
+  // Other office/document formats are intentionally fail-closed until their
+  // signature validation and safe-processing pipeline is implemented.
+  for (const type of [
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "text/plain",
+    "application/rtf",
+  ]) {
+    assert.equal(mediaPolicyFor(type), null, `unsupported document type: ${type}`);
+    assert.equal(member(type, "chat"), false);
+    assert.equal(owner(type, "chat"), false);
+    assert.equal(owner(type, "room"), false);
+  }
+});
+
+
+test("advertisement creatives are limited to owner-uploaded images, GIFs and video", () => {
+  const request = (contentType) => ({
+    originalName: "campaign-media",
+    contentType,
+    sizeBytes: 1024,
+    purpose: "advertisement",
+  });
+  assert.equal(normalizeMediaRequest(request("image/png")).purpose, "advertisement");
+  assert.equal(normalizeMediaRequest(request("image/gif")).purpose, "advertisement");
+  assert.equal(normalizeMediaRequest(request("video/mp4")).purpose, "advertisement");
+  assert.throws(() => normalizeMediaRequest(request("audio/mpeg")));
+  assert.throws(() => normalizeMediaRequest(request("application/pdf")));
+  assert.equal(mediaUploadAllowedForRole({ contentType: "image/gif", purpose: "advertisement" }, false), false);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "video/mp4", purpose: "advertisement" }, false), false);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "image/gif", purpose: "advertisement" }, true), true);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "video/mp4", purpose: "advertisement" }, true), true);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "audio/mpeg", purpose: "advertisement" }, true), false);
+});

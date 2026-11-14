@@ -1,0 +1,87 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { canViewMemberProfile, projectPublicMemberProfile } = require("../lib/member-profile-view");
+
+test("profile visibility is private unless explicitly public", () => {
+  assert.equal(projectPublicMemberProfile("member-1", { fullName: "A" }), null);
+  assert.equal(projectPublicMemberProfile("member-1", { profileVisibility: "private" }), null);
+});
+
+test("public projection returns only the approved profile allowlist", () => {
+  const result = projectPublicMemberProfile("member-1", {
+    profileVisibility: "public",
+    fullName: "Member One",
+    username: "member_one",
+    bio: "Hello",
+    age: 29,
+    email: "private@example.test",
+    coins: 9000,
+    phone: "+000000",
+    interests: ["reading"],
+    goals: ["friendship"],
+  });
+  assert.deepEqual(result, {
+    uid: "member-1",
+    displayName: "Member One",
+    username: "member_one",
+    bio: "Hello",
+    profession: "",
+    country: "",
+    region: "",
+    gender: "",
+    maritalStatus: "",
+    interests: ["reading"],
+    goals: ["friendship"],
+    socialLinks: {},
+  });
+  assert.equal(Object.hasOwn(result, "age"), false);
+  assert.equal(Object.hasOwn(result, "email"), false);
+  assert.equal(Object.hasOwn(result, "coins"), false);
+});
+
+test("display name falls back safely and text is bounded", () => {
+  const result = projectPublicMemberProfile("member-2", {
+    profileVisibility: "public",
+    fullName: " ",
+    bio: "x".repeat(600),
+  });
+  assert.equal(result.displayName, "Mawda Member");
+  assert.equal(result.bio.length, 500);
+});
+
+test("only the owner or an explicitly public member profile can be viewed", () => {
+  assert.equal(canViewMemberProfile("member-1", "member-1", "private"), true);
+  assert.equal(canViewMemberProfile("member-2", "member-1", "public"), true);
+  assert.equal(canViewMemberProfile("member-2", "member-1", "private"), false);
+  assert.equal(canViewMemberProfile("member-2", "member-1", undefined), false);
+  assert.equal(canViewMemberProfile("member-2", "member-1", "unexpected"), false);
+});
+
+
+test("public projection revalidates social links and drops unapproved stored values", () => {
+  const result = projectPublicMemberProfile("member-social", {
+    profileVisibility: "public",
+    approvedSocialLinks: {
+      instagram: "https://www.instagram.com/member/",
+      x: "https://x.com/member",
+      facebook: "https://facebook.com/member",
+      whatsapp: "https://wa.me/49123456789",
+      evil: "https://instagram.com.attacker.example/member",
+      unsafe: "http://www.instagram.com/member",
+    },
+  });
+  assert.deepEqual(result.socialLinks, {
+    instagram: "https://www.instagram.com/member/",
+    x: "https://x.com/member",
+    facebook: "https://facebook.com/member",
+    whatsapp: "https://wa.me/49123456789",
+  });
+});
+
+test("public projection omits malformed social-link containers", () => {
+  const result = projectPublicMemberProfile("member-social", {
+    profileVisibility: "public",
+    approvedSocialLinks: ["https://instagram.com/member"],
+  });
+  assert.deepEqual(result.socialLinks, {});
+});
