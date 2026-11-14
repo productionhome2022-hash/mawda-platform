@@ -5,6 +5,7 @@ const { getFirestore } = require("firebase-admin/firestore");
 const {
   startGuestSession, getGuestSessionStatus, endGuestSession, listGuestPublicRooms,
   joinRoom, sendRoomMessage, getRoomMessages, setRoomAudience, sendChatMediaAttachment,
+  sendDirectMessage, purchaseStoreItem, setMemberBlock,
 } = require("../../lib/index");
 
 const db = getFirestore();
@@ -59,7 +60,29 @@ test("guest onboarding stores no age and grants only active all-ages public-room
     assert.equal(Object.hasOwn(profile, "age"), false);
     assert.equal(Object.hasOwn(profile, "dateOfBirth"), false);
     assert.equal((await userRef.get()).exists, false);
+    await assert.rejects(
+      () => sendDirectMessage.run(guestRequest(uid, {
+        recipientUid: "member_target_fixture",
+        text: "رسالة خاصة ممنوعة للزائر",
+        clientMessageId: "guest_dm_0001",
+      })),
+      (error) => error && (error.code === "not-found" || error.code === "permission-denied"),
+    );
+    await assert.rejects(
+      () => purchaseStoreItem.run(guestRequest(uid, {
+        itemId: "vip_badge_test", requestId: "guest_purchase_0001", expectedPriceCoins: 10,
+      })),
+      (error) => error && error.code === "permission-denied",
+    );
+    await assert.rejects(
+      () => setMemberBlock.run(guestRequest(uid, { targetUid: "member_target_fixture", blocked: true })),
+      (error) => error && (error.code === "failed-precondition" || error.code === "permission-denied"),
+    );
 
+    const replayedStart = await startGuestSession.run(guestRequest(uid, {
+      username: "guest-test-user", country: "CH", gender: "female",
+    }));
+    assert.equal(replayedStart.idempotentReplay, true);
     const status = await getGuestSessionStatus.run(guestRequest(uid));
     assert.equal(status.active, true);
     assert.equal(status.hasProfile, true);
@@ -144,6 +167,8 @@ test("guest onboarding stores no age and grants only active all-ages public-room
       userRef.delete().catch(() => undefined),
       db.collection("mediaAssets").doc(audioMediaId).delete().catch(() => undefined),
       db.collection("mediaAssets").doc(imageMediaId).delete().catch(() => undefined),
+      db.collection("roomAuditLogs").where("roomId", "in", roomIds).get().then((snapshot) =>
+        Promise.all(snapshot.docs.map((doc) => doc.ref.delete()))),
       ...roomIds.map(async (id) => {
         const members = await roomRef(id).collection("members").get();
         const messages = await roomRef(id).collection("messages").get();
