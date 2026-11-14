@@ -21,7 +21,7 @@ test("guest onboarding stores no age and grants only active all-ages public-room
   const roomId = `guest_public_${suffix()}`;
   const adultRoomId = `guest_adult_${suffix()}`;
   const privateRoomId = `guest_private_${suffix()}`;
-  const ownerUid = `room_owner_${suffix()}`;
+  const ownerUid = emailUid;
   const audioMediaId = randomUUID();
   const imageMediaId = randomUUID();
   const memberAudioMediaId = randomUUID();
