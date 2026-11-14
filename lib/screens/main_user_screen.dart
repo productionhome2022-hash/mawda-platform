@@ -17,6 +17,7 @@ import 'safety_center_screen.dart';
 import 'notification_center_screen.dart';
 import 'conversations_screen.dart';
 import 'stories_screen.dart';
+import 'reward_center_screen.dart';
 
 class MainUserScreen extends StatefulWidget {
   final String userId;
@@ -462,6 +463,13 @@ class _CompletedProfilePanel extends StatelessWidget {
                         MaterialPageRoute(
                           builder: (_) => DiscoveryScreen(currentUserId: user.uid),
                         ),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.card_giftcard_outlined),
+                      label: const Text('مركز المكافآت'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const RewardCenterScreen()),
                       ),
                     ),
                     OutlinedButton.icon(
