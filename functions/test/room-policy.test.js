@@ -43,9 +43,14 @@ test("all-ages public rooms accept members from either member audience", () => {
 
 test("guest audience is unknown and can join only active all-ages public rooms", () => {
   const { canJoinGuestRoom } = require("../lib/room-policy");
-  assert.equal(canJoinGuestRoom({ roomAudience: "all_ages", roomKind: "public", roomStatus: "active" }), true);
-  assert.equal(canJoinGuestRoom({ roomAudience: "adult", roomKind: "public", roomStatus: "active" }), false);
-  assert.equal(canJoinGuestRoom({ roomAudience: "minor", roomKind: "public", roomStatus: "active" }), false);
-  assert.equal(canJoinGuestRoom({ roomAudience: "all_ages", roomKind: "private", roomStatus: "active" }), false);
-  assert.equal(canJoinGuestRoom({ roomAudience: "all_ages", roomKind: "public", roomStatus: "closed" }), false);
+  assert.equal(canJoinGuestRoom({ roomAudience: "all_ages", roomKind: "public", roomStatus: "active", guestAudienceApproved: true }), true);
+  assert.equal(canJoinGuestRoom({ roomAudience: "adult", roomKind: "public", roomStatus: "active", guestAudienceApproved: true }), false);
+  assert.equal(canJoinGuestRoom({ roomAudience: "minor", roomKind: "public", roomStatus: "active", guestAudienceApproved: true }), false);
+  assert.equal(canJoinGuestRoom({ roomAudience: "all_ages", roomKind: "private", roomStatus: "active", guestAudienceApproved: true }), false);
+  assert.equal(canJoinGuestRoom({ roomAudience: "all_ages", roomKind: "public", roomStatus: "closed", guestAudienceApproved: true }), false);
+});
+
+test("all-ages label alone is insufficient without explicit guest-safety approval", () => {
+  const { canJoinGuestRoom } = require("../lib/room-policy");
+  assert.equal(canJoinGuestRoom({ roomAudience: "all_ages", roomKind: "public", roomStatus: "active", guestAudienceApproved: false }), false);
 });
