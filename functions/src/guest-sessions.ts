@@ -164,6 +164,7 @@ export const listGuestPublicRooms = onCall(async (request) => {
     .where("status", "==", "active")
     .where("kind", "==", "public")
     .where("audience", "==", "all_ages")
+    .where("guestAudienceApproved", "==", true)
     .limit(100)
     .get();
   return {
