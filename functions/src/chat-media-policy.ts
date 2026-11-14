@@ -84,7 +84,8 @@ export function resolveChatMediaDeliveryArtifact(
   const route = PROCESSORS[asset.detectedContentType];
   if (!route) return null;
   if (route.category === "document" && (!isVerifiedPlatformOwner || asset.uploaderRole !== "platform_owner")) return null;
-  if (route.category !== "document" && asset.uploaderRole !== "member" && asset.uploaderRole !== "platform_owner") return null;
+  if (route.category !== "document" && asset.uploaderRole !== "member" && asset.uploaderRole !== "platform_owner" &&
+      !(route.category === "audio" && asset.mediaPurpose === "room" && asset.uploaderRole === "guest")) return null;
   const expectedProcessingStatus = route.category === "image" ? "safe_raster_derivative_ready" :
     route.category === "gif" ? "safe_animation_derivative_ready" :
       route.category === "audio" ? "safe_audio_derivative_ready" :
@@ -115,5 +116,7 @@ export function chatMediaUploaderAllowed(
   if (typeof asset.detectedContentType !== "string" || !PROCESSORS[asset.detectedContentType]) return false;
   const isDocument = PROCESSORS[asset.detectedContentType].category === "document";
   if (isDocument) return isVerifiedPlatformOwner && asset.uploaderRole === "platform_owner";
-  return asset.uploaderRole === "member" || (isVerifiedPlatformOwner && asset.uploaderRole === "platform_owner");
+  return asset.uploaderRole === "member" ||
+    (PROCESSORS[asset.detectedContentType].category === "audio" && asset.uploaderRole === "guest") ||
+    (isVerifiedPlatformOwner && asset.uploaderRole === "platform_owner");
 }
