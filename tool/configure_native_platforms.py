@@ -128,38 +128,44 @@ def configure_android() -> None:
     settings_source = settings.read_text(encoding="utf-8")
     if settings.suffix == ".kts":
         override = """
-// Mawdda: register Android API 36 overrides before subproject evaluation.
-gradle.beforeProject(org.gradle.api.Action<org.gradle.api.Project> { project ->
-    fun applyMawddaCompileSdkOverride() {
-        val androidExtension = project.extensions.findByName("android")
-        if (androidExtension != null) {
-            val setter = androidExtension.javaClass.methods.firstOrNull {
-                it.name == "setCompileSdkVersion" && it.parameterCount == 1
-            } ?: throw GradleException("Could not find Android compileSdkVersion setter for ${project.path}.")
-            setter.invoke(androidExtension, 36)
+// Mawdda: register Android API 36 overrides before project build scripts execute.
+gradle.addProjectEvaluationListener(object : org.gradle.api.ProjectEvaluationListener {
+    override fun beforeEvaluate(project: org.gradle.api.Project) {
+        fun applyMawddaCompileSdkOverride() {
+            val androidExtension = project.extensions.findByName("android")
+            if (androidExtension != null) {
+                val setter = androidExtension.javaClass.methods.firstOrNull {
+                    it.name == "setCompileSdkVersion" && it.parameterCount == 1
+                } ?: throw GradleException("Could not find Android compileSdkVersion setter for ${project.path}.")
+                setter.invoke(androidExtension, 36)
+            }
+        }
+        project.pluginManager.withPlugin("com.android.library") {
+            applyMawddaCompileSdkOverride()
+        }
+        project.pluginManager.withPlugin("com.android.application") {
+            applyMawddaCompileSdkOverride()
         }
     }
-    project.pluginManager.withPlugin("com.android.library") {
-        applyMawddaCompileSdkOverride()
-    }
-    project.pluginManager.withPlugin("com.android.application") {
-        applyMawddaCompileSdkOverride()
-    }
+    override fun afterEvaluate(project: org.gradle.api.Project, state: org.gradle.api.ProjectState) {}
 })
 """
     else:
         override = """
-// Mawdda: register Android API 36 overrides before subproject evaluation.
-gradle.beforeProject { project ->
-    def applyMawddaCompileSdkOverride = {
-        def androidExtension = project.extensions.findByName('android')
-        if (androidExtension != null) {
-            androidExtension.compileSdkVersion 36
+// Mawdda: register Android API 36 overrides before project build scripts execute.
+gradle.addProjectEvaluationListener(new org.gradle.api.ProjectEvaluationListener() {
+    void beforeEvaluate(org.gradle.api.Project project) {
+        def applyMawddaCompileSdkOverride = {
+            def androidExtension = project.extensions.findByName('android')
+            if (androidExtension != null) {
+                androidExtension.compileSdkVersion 36
+            }
         }
+        project.plugins.withId('com.android.library') { applyMawddaCompileSdkOverride() }
+        project.plugins.withId('com.android.application') { applyMawddaCompileSdkOverride() }
     }
-    project.plugins.withId('com.android.library') { applyMawddaCompileSdkOverride() }
-    project.plugins.withId('com.android.application') { applyMawddaCompileSdkOverride() }
-}
+    void afterEvaluate(org.gradle.api.Project project, org.gradle.api.ProjectState state) {}
+})
 """
     if "register Android API 36 overrides before subproject evaluation" not in settings_source:
         settings_source = settings_source.rstrip() + "\n" + override
