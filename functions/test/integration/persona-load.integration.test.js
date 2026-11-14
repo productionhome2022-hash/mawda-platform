@@ -297,7 +297,9 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
     premiumEntitlementsProvisioned: false,
     greetingAndPinnedSectionUpdated: false,
     peerProfileViewed: false,
+    profileAnalyticsVerified: false,
     discoveryExecuted: false,
+    boostedDiscoveryVerified: false,
     roomJoined: false,
     eventListed: false,
     eventRsvpConfirmed: false,
@@ -321,7 +323,7 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
           testOnly: true, loadTestRun: fixture.generatedAt,
         });
       }
-      batch.update(userRef, { profileVisibility: "public", profileCompleted: true, accountStatus: "active" });
+      batch.update(userRef, { profileVisibility: "public", profileCompleted: true, accountStatus: "active", discoveryBoostExpiresAt: expiresAt });
       await batch.commit();
       coverage.get(persona.personaId).premiumEntitlementsProvisioned = true;
     });
@@ -348,9 +350,23 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
     });
 
     await inBatches(personas, 25, async (persona) => {
+      const ownProfile = await getMemberProfile.run({
+        data: { userId: persona.uid }, auth: callableAuth(persona.uid),
+      });
+      assert.equal(ownProfile.vipActive, true);
+      assert.equal(ownProfile.activeTitle, "سفير " + persona.personaId);
+      assert.equal(ownProfile.profileAnalytics.last7DaysViews, 1);
+      coverage.get(persona.personaId).profileAnalyticsVerified = true;
+    });
+
+    await inBatches(personas, 25, async (persona) => {
       const result = await discoverMembers.run({ data: {}, auth: callableAuth(persona.uid) });
       assert.ok(Array.isArray(result.members), "discovery must return a members array");
+      assert.ok(result.members.length > 0, "discovery must return eligible peers");
+      assert.ok(result.members.every((member) => member.isBoosted),
+        "active discovery-boosted profiles must be marked as boosted");
       coverage.get(persona.personaId).discoveryExecuted = true;
+      coverage.get(persona.personaId).boostedDiscoveryVerified = true;
     });
 
     await roomRef.set({
@@ -398,7 +414,7 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
     const rows = [...coverage.values()];
     const required = [
       "premiumEntitlementsProvisioned", "greetingAndPinnedSectionUpdated",
-      "peerProfileViewed", "discoveryExecuted", "roomJoined", "eventListed", "eventRsvpConfirmed",
+      "peerProfileViewed", "profileAnalyticsVerified", "discoveryExecuted", "boostedDiscoveryVerified", "roomJoined", "eventListed", "eventRsvpConfirmed",
     ];
     for (const field of required) {
       assert.equal(rows.filter((row) => row[field]).length, 5000,
