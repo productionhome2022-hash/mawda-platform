@@ -20,6 +20,10 @@ test("coverage matrix references only provisioned personas", () => {
 
 test("every journey maps to an executable npm script", () => {
   for (const journey of matrix.journeys) {
+    if (journey.command === "npm test") {
+      assert.ok(packageJson.scripts.test, `${journey.id}: missing npm test script`);
+      continue;
+    }
     const match = journey.command.match(/^npm run ([a-z0-9:_-]+)$/);
     assert.ok(match, `${journey.id}: invalid command declaration`);
     assert.ok(packageJson.scripts[match[1]], `${journey.id}: missing npm script ${match[1]}`);
@@ -40,9 +44,9 @@ test("full member personas have the same baseline member capability set", () => 
       assert.ok(other.has(capability), `full member missing shared capability ${capability}`);
     }
   }
-  for (const capability of capabilities.slice(1)) {
-    for (const other of capabilities.slice(0, 1)) {
-      assert.ok(other.has(capability), `full member baseline differs at ${capability}`);
+  for (const capabilitySet of capabilities.slice(1)) {
+    for (const capability of capabilitySet) {
+      assert.ok(capabilities[0].has(capability), `full member baseline differs at ${capability}`);
     }
   }
 });
