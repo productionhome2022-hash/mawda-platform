@@ -56,7 +56,7 @@ Not yet proven: live signed GCS upload/download, production generation-specific 
 - A scheduled owner-review hash-chain exporter verifies contiguous sequence numbers and event hashes, writes redacted JSONL with SHA-256 manifest, uses create-only GCS writes, and reconciles its cursor against the last immutable object metadata.
 - Terraform provisions a private bucket with a 744-day retention floor, versioning, uniform bucket-level access, public access prevention and least-privilege runtime IAM.
 - The worker is disabled by default. It refuses to run until the bucket reports a locked retention policy. Locking is irreversible and requires a separately approved operator action.
-- Current archive scope is the `owner-review-v1` chain only. Verification and profile-feature audit collections are not yet covered by this exporter.
+- The owner-review chain has a dedicated chain-verifying exporter. A second worker archives `adminAuditLogs`, `verificationAuditLogs`, `profileFeatureAuditLogs`, `mediaAccessAudit`, `memberPrivacyAudit`, `memberProfileAudit`, `directMessageDeletionAudit`, `roomAuditLogs`, and `privacyAcknowledgements`, each with a separate cursor and GCS-backed checkpoint.
 
 ## Release gates still open
 
