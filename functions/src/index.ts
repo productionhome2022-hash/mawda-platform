@@ -7517,7 +7517,7 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     }
     if (!user.exists || user.data()?.profileCompleted !== true ||
         !isMemberAccountInGoodStanding(user.data()) ||
-        !campaign.exists || campaign.data()?.status === "archived") {
+        !campaign.exists) {
       throw new HttpsError("permission-denied", "الحساب أو الحملة لم تعد مؤهلة للمكافأة.");
     }
     const campaignData = campaign.data()!;
