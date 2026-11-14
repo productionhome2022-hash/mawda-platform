@@ -593,13 +593,33 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     final sortController = TextEditingController(
       text: existing?['sortOrder']?.toString() ?? '1000',
     );
-    const categories = ['feature', 'avatar', 'theme', 'title', 'vip', 'analytics', 'discovery'];
+    const categories = [
+      'feature', 'avatar', 'theme', 'title', 'vip', 'analytics', 'discovery',
+      'badge', 'frame', 'username_style', 'profile_layout', 'boost', 'greeting', 'privacy',
+    ];
     var category = categories.contains(existing?['category'])
         ? existing!['category'] as String
         : 'feature';
     var active = existing?['active'] != false;
     var purchaseEnabled = existing?['purchaseEnabled'] == true &&
         existing?['fulfillmentReady'] == true;
+    bool canEnableStorePurchase() {
+      const readyItems = <String, String>{
+        'vip_monthly': 'vip',
+        'title_custom': 'title',
+        'badge_special': 'badge',
+        'avatar_frame_30d': 'frame',
+        'username_color_30d': 'username_style',
+        'username_animated_30d': 'username_style',
+        'profile_analytics_30d': 'analytics',
+        'profile_layout_30d': 'profile_layout',
+        'profile_pin_30d': 'profile_layout',
+        'discovery_boost_7d': 'boost',
+        'profile_theme_30d': 'theme',
+        'visitor_greeting_30d': 'greeting',
+      };
+      return readyItems[itemIdController.text.trim()] == category;
+    }
     final values = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -617,9 +637,12 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     maxLength: 64,
                     decoration: const InputDecoration(
                       labelText: 'معرف العنصر (بالإنجليزية)',
-                      hintText: 'vip-month',
+                      hintText: 'vip_monthly',
                       border: OutlineInputBorder(),
                     ),
+                    onChanged: (_) => setDialogState(() {
+                      if (!canEnableStorePurchase()) purchaseEnabled = false;
+                    }),
                   ),
                   TextField(
                     controller: nameController,
@@ -648,21 +671,26 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'feature', child: Text('ميزة')),
-                      DropdownMenuItem(value: 'avatar', child: Text('إطار وصورة رمزية')),
+                      DropdownMenuItem(value: 'feature', child: Text('ميزة عامة')),
+                      DropdownMenuItem(value: 'avatar', child: Text('صورة رمزية')),
+                      DropdownMenuItem(value: 'frame', child: Text('إطار صورة')),
+                      DropdownMenuItem(value: 'username_style', child: Text('نمط الاسم')),
                       DropdownMenuItem(value: 'theme', child: Text('سمة وخلفية')),
-                      DropdownMenuItem(value: 'title', child: Text('لقب ووسام')),
-                      DropdownMenuItem(value: 'vip', child: Text('عضوية VIP')),
+                      DropdownMenuItem(value: 'profile_layout', child: Text('تخطيط الملف')),
                       DropdownMenuItem(value: 'analytics', child: Text('تحليلات الملف')),
-                      DropdownMenuItem(value: 'discovery', child: Text('تعزيز الظهور')),
+                      DropdownMenuItem(value: 'boost', child: Text('تعزيز الظهور')),
+                      DropdownMenuItem(value: 'greeting', child: Text('ترحيب الزوار')),
+                      DropdownMenuItem(value: 'badge', child: Text('وسام')),
+                      DropdownMenuItem(value: 'title', child: Text('لقب')),
+                      DropdownMenuItem(value: 'vip', child: Text('عضوية VIP')),
+                      DropdownMenuItem(value: 'discovery', child: Text('اكتشاف')),
+                      DropdownMenuItem(value: 'privacy', child: Text('خصوصية')),
                     ],
                     onChanged: (value) {
                       if (value != null) {
                         setDialogState(() {
                           category = value;
-                          if (category != 'title' && category != 'vip') {
-                            purchaseEnabled = false;
-                          }
+                          if (!canEnableStorePurchase()) purchaseEnabled = false;
                         });
                       }
                     },
@@ -704,17 +732,17 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     contentPadding: EdgeInsets.zero,
                     title: const Text('تفعيل الشراء بالكويـنز'),
                     subtitle: Text(
-                      category == 'title' || category == 'vip'
-                          ? 'متاح لهذه الفئة بعد اكتمال مستهلك الاستحقاق.'
-                          : 'الشراء معطل لهذه الفئة حتى تنفيذ ميزتها الفعلية.',
+                      canEnableStorePurchase()
+                          ? 'هذا العنصر مرتبط بمستهلك استحقاق خادمي معتمد؛ سيعيد الخادم التحقق قبل أي خصم.'
+                          : 'يبقى الشراء مغلقاً ما لم يطابق معرف العنصر وتصنيفه قائمة الميزات المنفذة.',
                     ),
-                    value: purchaseEnabled,
-                    onChanged: category == 'title' || category == 'vip'
+                    value: purchaseEnabled && canEnableStorePurchase(),
+                    onChanged: canEnableStorePurchase()
                         ? (value) => setDialogState(() => purchaseEnabled = value)
                         : null,
                   ),
                   const Text(
-                    'حالياً لا يدعم الشراء إلا الألقاب وعضوية VIP. تعديل السعر يؤثر على المشتريات الجديدة فقط. إلغاء النشر يمنع الشراء الجديد ولا يسحب الاستحقاقات القائمة.',
+                    'يمكن تفعيل الشراء فقط للعناصر التي لها مستهلك استحقاق منفذ. الخادم هو المرجع النهائي ويرفض أي معرف أو تصنيف غير معتمد. تعديل السعر يؤثر على المشتريات الجديدة فقط، وإلغاء النشر لا يسحب الاستحقاقات القائمة.',
                     style: TextStyle(fontSize: 12),
                   ),
                 ],
