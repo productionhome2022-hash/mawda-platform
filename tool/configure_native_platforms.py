@@ -129,7 +129,7 @@ def configure_android() -> None:
     if settings.suffix == ".kts":
         override = """
 // Mawdda: register Android API 36 overrides before subproject evaluation.
-gradle.beforeProject { project ->
+gradle.beforeProject(org.gradle.api.Action<org.gradle.api.Project> { project ->
     fun applyMawddaCompileSdkOverride() {
         val androidExtension = project.extensions.findByName("android")
         if (androidExtension != null) {
@@ -145,7 +145,7 @@ gradle.beforeProject { project ->
     project.pluginManager.withPlugin("com.android.application") {
         applyMawddaCompileSdkOverride()
     }
-}
+})
 """
     else:
         override = """
