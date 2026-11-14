@@ -12,6 +12,7 @@ const {
   getActiveTimedAdSession,
   heartbeatTimedAdvertisement,
   completeTimedAdvertisement,
+  cleanupExpiredTimedAdSessions,
 } = require("../../lib/index");
 
 const db = getFirestore();
@@ -316,6 +317,82 @@ test("timed-ad reward is withheld if its approved creative is revoked before com
         db.collection("timedAdSessions").doc(sessionId).delete().catch(() => undefined),
         db.collection("activeTimedAdSessions").doc(uid).delete().catch(() => undefined),
         db.collection("timedAdMemberCounters").doc(`${uid}_${campaignId}`).delete().catch(() => undefined),
+      ] : []),
+    ]);
+  }
+});
+
+
+test("abandoned expired ad sessions release their reserved campaign budget", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const ownerUid = `ad_budget_owner_${tag}`;
+  const firstUid = `ad_budget_first_${tag}`;
+  const secondUid = `ad_budget_second_${tag}`;
+  const firstUser = db.collection("users").doc(firstUid);
+  const secondUser = db.collection("users").doc(secondUid);
+  let campaignId;
+  let firstSessionId;
+  let secondSessionId;
+  await Promise.all([
+    firstUser.set({ coins: 0, profileCompleted: true, accountStatus: "active" }),
+    secondUser.set({ coins: 0, profileCompleted: true, accountStatus: "active" }),
+  ]);
+  try {
+    const campaign = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      title: "Reserved budget campaign",
+      sponsorLabel: "Mawdda test sponsor",
+      body: "Only one reward can be reserved for this synthetic campaign.",
+      placement: "reward_center",
+      durationSeconds: 15,
+      rewardCoins: 10,
+      startsAtMs: Date.now() - 1000,
+      endsAtMs: Date.now() + 3600000,
+      maxClaimsPerMember: 1,
+      rewardBudgetCoins: 10,
+    }));
+    campaignId = campaign.campaignId;
+    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "published" }));
+    const first = await startTimedAdvertisement.run(memberRequest(firstUid, { campaignId }));
+    firstSessionId = first.sessionId;
+    let storedCampaign = await db.collection("timedAdCampaigns").doc(campaignId).get();
+    assert.equal(storedCampaign.data().reservedRewardCoins, 10);
+    await assert.rejects(
+      () => startTimedAdvertisement.run(memberRequest(secondUid, { campaignId })),
+      (error) => error && error.code === "failed-precondition",
+    );
+
+    await db.collection("timedAdSessions").doc(firstSessionId).update({
+      expiresAtMs: Date.now() - 1,
+    });
+    await cleanupExpiredTimedAdSessions.run();
+    storedCampaign = await db.collection("timedAdCampaigns").doc(campaignId).get();
+    assert.equal(storedCampaign.data().reservedRewardCoins, 0);
+    assert.equal((await db.collection("timedAdSessions").doc(firstSessionId).get()).data().status, "expired");
+    assert.equal((await db.collection("activeTimedAdSessions").doc(firstUid).get()).exists, false);
+
+    const second = await startTimedAdvertisement.run(memberRequest(secondUid, { campaignId }));
+    secondSessionId = second.sessionId;
+    storedCampaign = await db.collection("timedAdCampaigns").doc(campaignId).get();
+    assert.equal(storedCampaign.data().reservedRewardCoins, 10);
+    await db.collection("timedAdSessions").doc(secondSessionId).update({
+      expiresAtMs: Date.now() - 1,
+    });
+    await cleanupExpiredTimedAdSessions.run();
+    storedCampaign = await db.collection("timedAdCampaigns").doc(campaignId).get();
+    assert.equal(storedCampaign.data().reservedRewardCoins, 0);
+  } finally {
+    await Promise.all([
+      firstUser.delete().catch(() => undefined),
+      secondUser.delete().catch(() => undefined),
+      ...(campaignId ? [db.collection("timedAdCampaigns").doc(campaignId).delete().catch(() => undefined)] : []),
+      ...(firstSessionId ? [
+        db.collection("timedAdSessions").doc(firstSessionId).delete().catch(() => undefined),
+        db.collection("activeTimedAdSessions").doc(firstUid).delete().catch(() => undefined),
+      ] : []),
+      ...(secondSessionId ? [
+        db.collection("timedAdSessions").doc(secondSessionId).delete().catch(() => undefined),
+        db.collection("activeTimedAdSessions").doc(secondUid).delete().catch(() => undefined),
       ] : []),
     ]);
   }
