@@ -5460,7 +5460,11 @@ export const getOwnerStoreCatalog = onCall(async (request) => {
         ...item,
         active: false,
         purchaseEnabled: false,
-        fulfillmentReady: false,
+        fulfillmentReady: projectStoreCatalogItem(item.itemId, {
+          ...item,
+          active: true,
+          fulfillmentReady: true,
+        })?.fulfillmentReady ?? false,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: actorUid,
