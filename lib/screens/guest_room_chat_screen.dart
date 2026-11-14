@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:record/record.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../services/member_media_upload_service.dart';
 
 class GuestRoomChatScreen extends StatefulWidget {
@@ -28,6 +27,7 @@ class _GuestRoomChatScreenState extends State<GuestRoomChatScreen> {
   final BytesBuilder _recordedPcm = BytesBuilder(copy: false);
   Timer? _recordingLimit;
   bool _recording = false;
+  bool _stoppingRecording = false;
   String? _playingMessageId;
   static const int _maxRecordingBytes = 8 * 1024 * 1024;
   List<Map<String, dynamic>> _messages = [];
@@ -155,7 +155,8 @@ class _GuestRoomChatScreenState extends State<GuestRoomChatScreen> {
   }
 
   Future<void> _stopMicrophoneRecording() async {
-    if (!_recording) return;
+    if (!_recording || _stoppingRecording) return;
+    _stoppingRecording = true;
     _recordingLimit?.cancel();
     _recordingLimit = null;
     try {
@@ -188,6 +189,7 @@ class _GuestRoomChatScreenState extends State<GuestRoomChatScreen> {
       if (mounted) setState(() => _error = 'تعذر إرسال التسجيل الصوتي: $e');
     } finally {
       _recordedPcm.clear();
+      _stoppingRecording = false;
       if (mounted) setState(() { _recording = false; _busy = false; });
     }
   }
