@@ -261,3 +261,32 @@ Additional hardening since section I:
 The latest branch head for this ledger update is `3ff3b67b097430320191bd4e897a4334b66f0710`. Its exact-head validation run is `43632010743`, currently queued. Previous success `43629814484` remains valid only for its earlier commit `3c4422e59d6bf9298d21a47465ca209e50b79b58`.
 
 **Acceptance remains OPEN.** No production deployment, merge, billing enablement, or phase-3 transition is authorized. Exact-head CI, video playback/device tests, home placement, real non-production cloud validation, Firebase native registrations, backup/restore, and operational/security/legal gates remain outstanding.
+
+
+## K. Full exact-code-head validation completed — 14 November 2026
+
+<badge>PASS — CI run 43632310117</badge>
+
+The exact code head `0ff7211559c30e3d7d009cbcdee42a533c21b149` completed [GitHub Actions run 43632310117](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43632310117) with `completed / success`.
+
+Passed jobs:
+- Flutter analysis, Flutter tests and Web Release build.
+- Cloud Functions compile and unit tests.
+- Isolated ClamAV scanner gateway tests and container image build.
+
+Passed configured emulator integration and rules suites:
+- media callable authorization/audit; seven-day chat retention; direct-message deletion/erasure.
+- coin transfer and store purchases; room rental; room events and RSVP.
+- Firestore + Storage emulator export/import backup-restore.
+- FCM token registration/deactivation; 30-day biometric reward cycle.
+- hourly/daily/weekly attendance and timed-ad rewards, including active session restoration, budget reservation, concurrent budget protection, expired reservation cleanup, revoked-creative cancellation and wallet ledger reconciliation.
+- 90-day email verification renewal; safety reports and appeals; guest/member privacy acknowledgements; guest session/public-room interactions.
+- cross-persona wallet interaction; synthetic persona load at 200/300/500.
+- owner audit export pagination/redaction; media legal hold/release; avatar/cover lifecycle; premium profile/analytics/greeting/pinning/discovery; message legal hold/resumed retention; Firestore and Storage rules.
+
+The Flutter lint issue discovered in the previous run (deprecated dropdown `value`) was corrected to `initialValue` before this successful run.
+
+### What this pass does not certify
+It is a CI/emulator result, not live-cloud or physical-device evidence. The following remain release blockers: real non-production GCS/Cloud Run scanner E2E and IAM/WIF/Secret Manager; Firebase Android/iOS app registration and verified runtime configuration; signed iOS release and Android/iOS device testing; video player and home ad placement (both deliberately fail-closed); production backup/PITR and restore drills; retention-worker operational verification; fraud/abuse monitoring; penetration, privacy and legal review; owner MFA bootstrap and production operational readiness.
+
+PR #2 remains Draft/open/unmerged. No production deployment, billing enablement, merge or phase-3 transition is authorized. The phase-1/phase-2 acceptance decision remains **OPEN** pending the above release gates and explicit owner approval.
