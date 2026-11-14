@@ -12,9 +12,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  # Push and PR events for the same development branch share one validation lane.
-  # This prevents duplicate queued builds and stale commits from cancelling the latest result.
-  group: mawda-validation-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  # Push and PR events for the same branch share one validation lane.
+  # This avoids duplicate builds while always validating the newest branch head.
+  group: mawda-validation-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
