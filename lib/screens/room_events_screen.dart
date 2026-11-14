@@ -6,12 +6,10 @@ class RoomEventsScreen extends StatefulWidget {
   const RoomEventsScreen({
     super.key,
     required this.roomId,
-    required this.currentUserId,
     required this.canManageEvents,
   });
 
   final String roomId;
-  final String currentUserId;
   final bool canManageEvents;
 
   @override
