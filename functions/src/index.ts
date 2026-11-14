@@ -7388,7 +7388,7 @@ export const startTimedAdvertisement = onCall(async (request) => {
     transaction.create(sessionRef, {
       sessionId, uid, campaignId, campaignVersion: data.version,
       durationSeconds: data.durationSeconds, rewardCoins: data.rewardCoins,
-      eligibleMs: 0, heartbeatSequence: 0, lastHeartbeatAtMs: nowMs,
+      eligibleMs: 0, heartbeatSequence: 0, lastHeartbeatAtMs: null,
       status: "active", startedAt: FieldValue.serverTimestamp(),
       startedAtMs: nowMs, expiresAtMs,
     });
