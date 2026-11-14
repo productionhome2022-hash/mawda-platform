@@ -455,15 +455,17 @@ export const transferCoins = onCall(async (request) => {
     };
   });
 
-  logger.info("Coin transfer processed", {
-    transferId,
-    senderUid,
-    recipientUid,
+  const transferLog = {
     amount,
     commissionAmount: result.commissionAmount,
     netAmount: result.netAmount,
     idempotentReplay: result.idempotentReplay,
-  });
+  };
+  if (result.idempotentReplay) {
+    logger.debug("Coin transfer idempotent replay", transferLog);
+  } else {
+    logger.info("Coin transfer processed", transferLog);
+  }
 
   return result;
 });
