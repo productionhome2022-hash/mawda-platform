@@ -21,6 +21,8 @@ functions/.env*
 .vscode/
 .DS_Store
 
+functions/mawdda-load-artifacts/
+
 # Firebase Emulator debug logs
 firestore-debug.log
 
