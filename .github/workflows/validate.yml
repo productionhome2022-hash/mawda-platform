@@ -102,6 +102,8 @@ jobs:
         run: npm run test:room-rental-integration
       - name: Run room event scheduling and RSVP integration tests
         run: npm run test:room-events-integration
+      - name: Verify Firestore and Storage emulator backup/restore
+        run: npm run test:emulator-backup-restore
       - name: Run FCM token registration and deactivation integration tests
         run: npm run test:push-token-integration
       - name: Run 30-day biometric reward cycle integration tests
