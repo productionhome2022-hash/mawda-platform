@@ -13,7 +13,8 @@ on:
       - ".github/workflows/bootstrap-native-platforms.yml"
       - "pubspec.yaml"
       - "pubspec.lock"
-      - "lib/**"\n      - "web/**"
+      - "lib/**"
+      - "web/**"
   pull_request:
     branches:
       - main
