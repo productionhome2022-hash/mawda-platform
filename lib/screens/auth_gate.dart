@@ -105,6 +105,15 @@ class _PrivacyAcknowledgementGateState
             );
           }
           if (snapshot.hasError) {
+            final error = snapshot.error;
+            final diagnostic = error is FirebaseFunctionsException
+                ? 'رمز التشخيص: ${error.code}'
+                : error is FirebaseException
+                    ? 'رمز التشخيص: ${error.code}'
+                    : 'رمز التشخيص: PRIVACY_STATUS_UNAVAILABLE';
+            final explanation = error is FirebaseFunctionsException
+                ? (error.message ?? 'تعذر الوصول إلى خدمة الخصوصية.')
+                : 'تعذر الوصول إلى خدمة الخصوصية.';
             return Scaffold(
               body: Center(
                 child: Padding(
@@ -112,11 +121,24 @@ class _PrivacyAcknowledgementGateState
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text('تعذر التحقق من إقرار الخصوصية. لن يُفتح المحتوى المحمي حتى نجاح التحقق.'),
+                      const Icon(Icons.privacy_tip_outlined, size: 48),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'لم نتمكن من التحقق من إقرار الخصوصية. لن نفتح المحتوى المحمي قبل نجاح التحقق.',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(explanation, textAlign: TextAlign.center),
+                      const SizedBox(height: 8),
+                      SelectableText(diagnostic),
                       const SizedBox(height: 12),
                       FilledButton(
                         onPressed: () => setState(() => _status = _loadStatus()),
                         child: const Text('إعادة المحاولة'),
+                      ),
+                      TextButton(
+                        onPressed: () => _auth.signOut(),
+                        child: const Text('العودة إلى شاشة الدخول'),
                       ),
                     ],
                   ),
