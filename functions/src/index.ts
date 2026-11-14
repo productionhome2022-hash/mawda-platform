@@ -1962,127 +1962,22 @@ export const reviewSafetyCase = onCall(async (request) => {
  * therefore explicitly recorded as such and must not be represented as civil
  * identity verification or hardware attestation.
  */
+/**
+ * Fail-closed until a server-verifiable, device-bound biometric attestation
+ * challenge is implemented. A client boolean and attempt ID are not proof:
+ * a modified client can invoke this callable directly and mint the reward.
+ *
+ * Do not restore wallet credits here until Android Play Integrity / iOS
+ * App Attest (or an equivalent cryptographic key attestation) is verified
+ * server-side with a fresh challenge, nonce binding, replay protection and
+ * one-time ledger idempotency.
+ */
 export const completeBiometricVerificationCycle = onCall(async (request) => {
-  const uid = requireAuthenticatedUid(request.auth?.uid);
-  const localAuthenticationSucceeded = request.data?.localAuthenticationSucceeded;
-  const platform = request.data?.platform;
-  const attemptId = typeof request.data?.attemptId === "string"
-    ? request.data.attemptId.trim() : "";
-  if (localAuthenticationSucceeded !== true ||
-      (platform !== "android" && platform !== "ios") ||
-      !/^[A-Za-z0-9_-]{8,80}$/.test(attemptId)) {
-    throw new HttpsError(
-      "failed-precondition",
-      "لا تُمنح المكافأة إلا بعد نجاح نافذة المصادقة المحلية على Android أو iOS.",
-    );
-  }
-  const provider = request.auth?.token.firebase &&
-    typeof request.auth.token.firebase === "object"
-    ? (request.auth.token.firebase as Record<string, unknown>).sign_in_provider
-    : null;
-  if (provider === "anonymous") {
-    throw new HttpsError("permission-denied", "مكافأة التوثيق البيومتري مخصصة للعضوية المكتملة.");
-  }
-
-  const userRef = db.collection("users").doc(uid);
-  const nowMs = Date.now();
-  const cycleMs = 30 * 24 * 60 * 60 * 1000;
-  const rewardCoins = 1500;
-
-  return db.runTransaction(async (transaction) => {
-    const userSnapshot = await transaction.get(userRef);
-    const user = userSnapshot.data() ?? {};
-    if (!userSnapshot.exists || user.profileCompleted !== true ||
-        !isMemberAccountInGoodStanding(user)) {
-      throw new HttpsError("permission-denied", "يجب أن يكون الحساب عضوية مكتملة وفعالة.");
-    }
-
-    const previousRewardAt = user.biometricVerificationRewardedAt;
-    const previousRewardAtMs = previousRewardAt instanceof Timestamp
-      ? previousRewardAt.toMillis()
-      : previousRewardAt && typeof previousRewardAt === "object" &&
-          typeof (previousRewardAt as { toMillis?: unknown }).toMillis === "function"
-        ? (previousRewardAt as { toMillis: () => number }).toMillis()
-        : null;
-    if (previousRewardAtMs !== null && Number.isFinite(previousRewardAtMs) &&
-        nowMs < previousRewardAtMs + cycleMs) {
-      return {
-        rewardGranted: false,
-        alreadyRewarded: true,
-        nextEligibleAtMs: previousRewardAtMs + cycleMs,
-        cycleSequence: Number.isSafeInteger(user.biometricVerificationSequence)
-          ? user.biometricVerificationSequence : 1,
-      };
-    }
-
-    const sequence = (Number.isSafeInteger(user.biometricVerificationSequence) &&
-      user.biometricVerificationSequence >= 0
-      ? user.biometricVerificationSequence : 0) + 1;
-    const ledgerId = "biometric_verification_" + createHash("sha256")
-      .update("mawdda-biometric-cycle-v1|" + uid + "|" + sequence)
-      .digest("hex");
-    const ledgerRef = userRef.collection("walletLedger").doc(ledgerId);
-    const ledgerSnapshot = await transaction.get(ledgerRef);
-    if (ledgerSnapshot.exists) {
-      return { rewardGranted: false, alreadyRewarded: true, cycleSequence: sequence };
-    }
-
-    const balance = user.coins;
-    if (!Number.isSafeInteger(balance) || balance < 0 ||
-        !Number.isSafeInteger(balance + rewardCoins)) {
-      throw new HttpsError("failed-precondition", "رصيد المحفظة غير صالح؛ لم تُمنح المكافأة.");
-    }
-    const verifiedAt = Timestamp.fromMillis(nowMs);
-    const expiresAt = Timestamp.fromMillis(nowMs + cycleMs);
-    transaction.update(userRef, {
-      coins: balance + rewardCoins,
-      biometricVerificationRewardedAt: verifiedAt,
-      biometricVerificationSequence: sequence,
-      biometricVerification: {
-        status: "verified",
-        verificationMethod: "local_os_biometric_prompt",
-        platform,
-        cycleSequence: sequence,
-        verifiedAt,
-        expiresAt,
-        revokedAt: null,
-      },
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-    transaction.create(ledgerRef, {
-      ledgerId,
-      type: "biometric_verification_reward",
-      direction: "credit",
-      description: "مكافأة التوثيق البيومتري",
-      amount: rewardCoins,
-      balanceAfter: balance + rewardCoins,
-      cycleSequence: sequence,
-      platform,
-      source: "local_os_biometric_prompt",
-      localAuthenticationSucceededClaim: true,
-      clientAttemptId: attemptId,
-      createdAt: FieldValue.serverTimestamp(),
-    });
-    const auditRef = db.collection("verificationAuditLogs").doc(ledgerId);
-    transaction.create(auditRef, {
-      actorUid: uid,
-      action: "biometric_verification_cycle_rewarded",
-      cycleSequence: sequence,
-      rewardCoins,
-      platform,
-      trustModel: "client_claim_after_local_os_prompt",
-      createdAt: FieldValue.serverTimestamp(),
-    });
-    return {
-      rewardGranted: true,
-      alreadyRewarded: false,
-      rewardCoins,
-      newBalance: balance + rewardCoins,
-      cycleSequence: sequence,
-      expiresAtMs: nowMs + cycleMs,
-      nextEligibleAtMs: nowMs + cycleMs,
-    };
-  });
+  requireAuthenticatedUid(request.auth?.uid);
+  throw new HttpsError(
+    "failed-precondition",
+    "مكافأة التوثيق البيومتري معلّقة مؤقتاً حتى اكتمال التحقق التشفيري المرتبط بالجهاز. نجاح نافذة النظام وحده لا يكفي لمنح الكوينز.",
+  );
 });
 
 /**
