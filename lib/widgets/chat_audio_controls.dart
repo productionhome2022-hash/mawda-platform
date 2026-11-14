@@ -19,6 +19,7 @@ class ChatAudioComposerButton extends StatefulWidget {
     required this.onSent,
     required this.onBusyChanged,
     required this.onError,
+    this.enabled = true,
     this.recipientUid,
     this.roomId,
   }) : assert(scope == 'direct' || scope == 'room');
@@ -29,6 +30,7 @@ class ChatAudioComposerButton extends StatefulWidget {
   final Future<void> Function() onSent;
   final ValueChanged<bool> onBusyChanged;
   final ValueChanged<String> onError;
+  final bool enabled;
 
   @override
   State<ChatAudioComposerButton> createState() => _ChatAudioComposerButtonState();
@@ -149,7 +151,7 @@ class _ChatAudioComposerButtonState extends State<ChatAudioComposerButton> {
   @override
   Widget build(BuildContext context) => IconButton(
         tooltip: _recording ? 'إيقاف التسجيل وإرسال الرسالة' : 'تسجيل رسالة صوتية',
-        onPressed: _uploading ? null : (_recording ? _stop : _start),
+        onPressed: _uploading ? null : (_recording ? _stop : (widget.enabled ? _start : null)),
         icon: _uploading
             ? const SizedBox(
                 width: 20,
