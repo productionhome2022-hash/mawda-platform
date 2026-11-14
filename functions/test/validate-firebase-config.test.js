@@ -13,9 +13,9 @@ const validOptions = [
   "  storageBucket: 'mawda-app-2026.firebasestorage.app',",
   "  );",
 ].join("\n");
-function validate(optionsSource = validOptions, productionAlias = projectId) {
+function validate(optionsSource = validOptions, productionAlias = projectId, defaultAlias = "mawda-platform-nonprod-2026") {
   return validateFirebaseConfiguration({
-    alias: { projects: { default: "mawda-platform-nonprod-2026", production: productionAlias } },
+    alias: { projects: { default: defaultAlias, production: productionAlias } },
     optionsSource,
     expectedProjectId: projectId,
     expectedWebAppId: webAppId,
@@ -26,6 +26,9 @@ test("accepts matching Firebase CLI and registered Web app configuration", () =>
 });
 test("rejects a mismatched explicit production alias while the default remains non-production", () => {
   assert.ok(validate(validOptions, "another-project").errors.includes("FIREBASE_CLI_PRODUCTION_ALIAS_MISMATCH"));
+});
+test("rejects a production default alias even when the production alias is correct", () => {
+  assert.ok(validate(validOptions, projectId, projectId).errors.includes("FIREBASE_CLI_DEFAULT_NOT_NONPRODUCTION"));
 });
 test("rejects a FlutterFire project mismatch", () => {
   assert.ok(validate(validOptions.replace(projectId, "mawda-platform")).errors.includes("FIREBASE_WEB_PROJECT_MISMATCH"));
