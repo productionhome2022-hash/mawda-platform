@@ -162,7 +162,7 @@ gradle.beforeProject { project ->
 }
 """
     if "register Android API 36 overrides before subproject evaluation" not in settings_source:
-        settings_source = settings_source.rstrip() + "\\n" + override
+        settings_source = settings_source.rstrip() + "\n" + override
     settings.write_text(settings_source, encoding="utf-8")
 
 def configure_ios() -> None:
