@@ -855,6 +855,74 @@ export const getMemberProfile = onCall(async (request) => {
   const premiumFeatures = projectStoreEntitlementFeatures(
     entitlementSnapshot.docs.map((document) => document.data()),
   );
+  const activeItemIds = new Set(premiumFeatures.activeFeatures.map((feature) => feature.itemId));
+  const analyticsActive = activeItemIds.has("profile_analytics_30d");
+  let profileAnalytics: { last7DaysViews: number } | null = null;
+
+  if (analyticsActive && viewerUid !== targetUid) {
+    const now = Date.now();
+    const day = new Date(now).toISOString().slice(0, 10);
+    const dailyRef = db.collection("users").doc(targetUid).collection("profileAnalytics").doc(day);
+    const visitorHash = createHash("sha256").update(viewerUid).digest("hex");
+    const visitorRef = dailyRef.collection("visitors").doc(visitorHash);
+    await db.runTransaction(async (transaction) => {
+      const [dailySnapshot, visitorSnapshot] = await Promise.all([
+        transaction.get(dailyRef),
+        transaction.get(visitorRef),
+      ]);
+      if (!visitorSnapshot.exists) {
+        transaction.create(visitorRef, {
+          viewerUidHash: visitorHash,
+          firstViewedAt: FieldValue.serverTimestamp(),
+        });
+        transaction.set(dailyRef, {
+          day,
+          viewCount: FieldValue.increment(1),
+          createdAt: dailySnapshot.exists
+            ? dailySnapshot.data()?.createdAt ?? FieldValue.serverTimestamp()
+            : FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      } else {
+        transaction.update(visitorRef, { lastViewedAt: FieldValue.serverTimestamp() });
+      }
+    });
+  } else if (analyticsActive && viewerUid === targetUid) {
+    const sinceDay = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const analyticsSnapshot = await db.collection("users").doc(targetUid)
+      .collection("profileAnalytics")
+      .where("day", ">=", sinceDay)
+      .orderBy("day", "asc")
+      .limit(7)
+      .get();
+    profileAnalytics = {
+      last7DaysViews: analyticsSnapshot.docs.reduce((total, document) => {
+        const count = document.data().viewCount;
+        return total + (Number.isSafeInteger(count) && count > 0 ? count : 0);
+      }, 0),
+    };
+  }
+
+  const greeting = activeItemIds.has("visitor_greeting_30d") &&
+      typeof memberData.profileVisitorGreeting === "string"
+    ? memberData.profileVisitorGreeting.trim().slice(0, 160)
+    : "";
+  const pinnedProfileSection = activeItemIds.has("profile_pin_30d") &&
+      ["bio", "interests", "gallery"].includes(memberData.pinnedProfileSection)
+    ? memberData.pinnedProfileSection as string
+    : null;
+  const boostExpiry = memberData.discoveryBoostExpiresAt;
+  const boostExpiryMs = boostExpiry instanceof Timestamp
+    ? boostExpiry.toMillis()
+    : typeof boostExpiry?.toMillis === "function" ? boostExpiry.toMillis() : 0;
+  const discoveryBoostActive = boostExpiryMs > Date.now();
+  const premiumProfileData = {
+    ...premiumFeatures,
+    ...(greeting ? { visitorGreeting: greeting } : {}),
+    ...(pinnedProfileSection ? { pinnedProfileSection } : {}),
+    discoveryBoostActive,
+    ...(profileAnalytics ? { profileAnalytics } : {}),
+  };
   const biometricLinksActive = canExposeMemberSocialLinks(
     memberData.profileCompleted === true,
     memberData.biometricVerification,
@@ -882,12 +950,12 @@ export const getMemberProfile = onCall(async (request) => {
   return viewerUid === targetUid
     ? {
         ...profile,
-        ...premiumFeatures,
+        ...premiumProfileData,
         profileVisibility: memberData.profileVisibility === "public" ? "public" : "private",
         canManageSocialLinks: biometricLinksActive,
         hiddenSocialLinks: hiddenProviders,
       }
-    : { ...profile, ...premiumFeatures };
+    : { ...profile, ...premiumProfileData };
 });
 
 /** A member may change only their own profile visibility. */
