@@ -83,7 +83,10 @@ export function resolveChatMediaDeliveryArtifact(
   if (typeof asset.detectedContentType !== "string") return null;
   const route = PROCESSORS[asset.detectedContentType];
   if (!route) return null;
-  if (route.category === "document" && (!isVerifiedPlatformOwner || asset.uploaderRole !== "platform_owner")) return null;
+  // A stored owner role is not proof of an owner session. Require the
+  // server-verified owner/MFA context for every owner-uploaded media type.
+  if (asset.uploaderRole === "platform_owner" && !isVerifiedPlatformOwner) return null;
+  if (route.category === "document" && asset.uploaderRole !== "platform_owner") return null;
   if (route.category !== "document" && asset.uploaderRole !== "member" && asset.uploaderRole !== "platform_owner" &&
       !(route.category === "audio" && asset.mediaPurpose === "room" && asset.uploaderRole === "guest")) return null;
   const expectedProcessingStatus = route.category === "image" ? "safe_raster_derivative_ready" :

@@ -58,6 +58,17 @@ test("documents are owner-only even if a member forges uploaderRole", () => {
   assert.equal(resolveChatMediaDeliveryArtifact({ ...pdf, uploaderRole: "platform_owner" }, true)?.category, "document");
 });
 
+test("all owner-uploaded chat media requires a verified owner session, not just a stored role", () => {
+  const ownerImage = {
+    ...base,
+    uploaderRole: "platform_owner",
+  };
+  assert.equal(resolveChatMediaDeliveryArtifact(ownerImage, false), null);
+  assert.equal(resolveChatMediaDeliveryArtifact(ownerImage, true)?.category, "image");
+  assert.equal(chatMediaUploaderAllowed(ownerImage, false), false);
+  assert.equal(chatMediaUploaderAllowed(ownerImage, true), true);
+});
+
 test("rejects path traversal, generation and hash substitution", () => {
   assert.equal(resolveChatMediaDeliveryArtifact({ ...base, safePreviewPath: `processed/x/${id}/../../secret` }, false), null);
   assert.equal(resolveChatMediaDeliveryArtifact({ ...base, safePreviewGeneration: "0" }, false), null);
