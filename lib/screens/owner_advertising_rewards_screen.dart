@@ -1,4 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 
 class OwnerAdvertisingRewardsScreen extends StatefulWidget {
@@ -17,6 +19,9 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
   final _reward = TextEditingController(text: '10');
   final _budget = TextEditingController(text: '1000');
   List<Map<String, dynamic>> _campaigns = [];
+  List<Map<String, dynamic>> _approvedCreatives = [];
+  String? _selectedMediaId;
+  bool _uploadingCreative = false;
   bool _loading = true, _saving = false;
   bool _hourlyEnabled = false, _dailyEnabled = false, _weeklyEnabled = false;
   final _hourlyCoins = TextEditingController(text: '0');
@@ -47,12 +52,19 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
       final results = await Future.wait([
         _functions.httpsCallable('getOwnerAttendanceRewardPolicy').call(),
         _functions.httpsCallable('getOwnerTimedAdCampaigns').call(),
+        _functions.httpsCallable('listOwnerMediaAssets').call({'status': 'security_approved', 'uploaderType': 'all', 'limit': 50}),
       ]);
       final policyData = Map<String, dynamic>.from(results[0].data as Map);
       final policy = Map<String, dynamic>.from(policyData['policy'] as Map);
       final campaignsData = Map<String, dynamic>.from(results[1].data as Map);
+      final mediaData = Map<String, dynamic>.from(results[2].data as Map);
       final campaigns = (campaignsData['campaigns'] as List<dynamic>? ?? const [])
           .whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList();
+      final approvedCreatives = (mediaData['assets'] as List<dynamic>? ?? const [])
+          .whereType<Map>().map((item) => Map<String, dynamic>.from(item))
+          .where((item) => item['mediaPurpose'] == 'advertisement' &&
+              (item['mediaCategory'] == 'image' || item['mediaCategory'] == 'video'))
+          .toList(growable: false);
       if (!mounted) return;
       setState(() {
         _policyVersion = (policyData['version'] as num?)?.toInt() ?? 0;
@@ -63,6 +75,10 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
         _dailyCoins.text = ((policy['daily'] as Map?)?['amountCoins'] ?? 0).toString();
         _weeklyCoins.text = ((policy['weekly'] as Map?)?['amountCoins'] ?? 0).toString();
         _campaigns = campaigns;
+        _approvedCreatives = approvedCreatives;
+        if (_selectedMediaId != null && !approvedCreatives.any((item) => item['mediaId'] == _selectedMediaId)) {
+          _selectedMediaId = null;
+        }
       });
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل إعدادات الإعلانات والمكافآت.');
@@ -108,6 +124,58 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
     }
   }
 
+  Future<void> _uploadCreative() async {
+    if (_uploadingCreative || _saving) return;
+    setState(() { _uploadingCreative = true; _error = null; });
+    try {
+      final picked = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4'],
+        withData: true,
+      );
+      if (picked == null || picked.files.isEmpty) return;
+      final file = picked.files.single;
+      final bytes = file.bytes;
+      if (bytes == null || bytes.isEmpty) throw StateError('تعذر قراءة محتوى الملف المحدد.');
+      final extension = (file.extension ?? '').toLowerCase();
+      final contentType = switch (extension) {
+        'jpg' || 'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        'gif' => 'image/gif',
+        'mp4' => 'video/mp4',
+        _ => '',
+      };
+      if (contentType.isEmpty) throw StateError('صيغة الملف غير مدعومة.');
+      final intentResponse = await _functions.httpsCallable('createMediaUploadIntent').call({
+        'originalName': file.name,
+        'contentType': contentType,
+        'sizeBytes': bytes.length,
+        'purpose': 'advertisement',
+      });
+      final intent = Map<String, dynamic>.from(intentResponse.data as Map);
+      final headers = Map<String, dynamic>.from(intent['requiredHeaders'] as Map)
+          .map((key, value) => MapEntry(key, value.toString()));
+      final upload = await http.put(Uri.parse(intent['uploadUrl'] as String),
+        headers: headers, body: bytes);
+      if (upload.statusCode < 200 || upload.statusCode >= 300) {
+        throw StateError('تعذر رفع الملف إلى منطقة الفحص الآمن (HTTP ${upload.statusCode}).');
+      }
+      await _functions.httpsCallable('finalizeMediaUpload').call({'mediaId': intent['mediaId']});
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('تم رفع المادة إلى الحجر الأمني. ستظهر للاختيار بعد اجتياز الفحص والمعالجة.'),
+      ));
+      await _load();
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر رفع مادة الإعلان.');
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString().replaceFirst('Bad state: ', ''));
+    } finally {
+      if (mounted) setState(() => _uploadingCreative = false);
+    }
+  }
+
   Future<void> _createCampaign() async {
     final duration = int.tryParse(_duration.text.trim());
     final reward = int.tryParse(_reward.text.trim());
@@ -132,9 +200,11 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
         'endsAtMs': _endsAt.millisecondsSinceEpoch,
         'maxClaimsPerMember': 1,
         'rewardBudgetCoins': budget,
+        if (_selectedMediaId != null) 'mediaId': _selectedMediaId,
       });
       final data = Map<String, dynamic>.from(response.data as Map);
       _title.clear(); _sponsor.clear(); _body.clear();
+      _selectedMediaId = null;
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -232,12 +302,33 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
           crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('إنشاء إعلان من المالك', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
-            const Text('الوضع الحالي: حملات نصية تُدار داخل مودة دون مزود خارجي. رفع الصور وGIF والفيديو وربط مزود إعلانات مستقبلي ما زالا ضمن العمل اللاحق؛ لا تظهر هنا حالة اتصال وهمية.'),
+            const Text('يمكن للمالك رفع الصور وGIF والفيديو إلى مسار الحجر والفحص الأمني، ولا تُقبل المادة للحملة قبل اعتماد النسخة الآمنة. الحملات النصية تبقى مستقلة عن أي مزود خارجي مستقبلي.'),
             const SizedBox(height: 12),
             TextField(controller: _title, enabled: !_saving, decoration: const InputDecoration(labelText: 'عنوان الحملة')),
             TextField(controller: _sponsor, enabled: !_saving, decoration: const InputDecoration(labelText: 'اسم المعلن / الراعي')),
             TextField(controller: _body, enabled: !_saving, minLines: 3, maxLines: 5,
               decoration: const InputDecoration(labelText: 'نص الإعلان')),
+            OutlinedButton.icon(
+              onPressed: _saving || _uploadingCreative ? null : _uploadCreative,
+              icon: _uploadingCreative
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.perm_media_outlined),
+              label: const Text('رفع صورة أو GIF أو فيديو وفحصه أمنياً'),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _selectedMediaId,
+              decoration: const InputDecoration(labelText: 'المادة المعتمدة للحملة (اختياري)', border: OutlineInputBorder()),
+              items: [
+                const DropdownMenuItem<String>(value: null, child: Text('إعلان نصي فقط')),
+                ..._approvedCreatives.map((item) => DropdownMenuItem<String>(
+                  value: item['mediaId'] as String,
+                  child: Text('${item['originalName'] ?? item['mediaId']} • ${item['mediaCategory']}'),
+                )),
+              ],
+              onChanged: _saving ? null : (value) => setState(() => _selectedMediaId = value),
+            ),
+            const SizedBox(height: 8),
             const SizedBox(height: 8),
             Wrap(spacing: 12, runSpacing: 8, children: [
               SizedBox(width: 110, child: TextField(controller: _duration, enabled: !_saving,
