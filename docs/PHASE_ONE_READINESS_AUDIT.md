@@ -150,3 +150,11 @@ No production deployment, paid-service activation, irreversible retention settin
 - This expansion does **not yet** mean that every one of the 5,000 personas has completed every platform capability. Media upload/scanning/playback, notification delivery, safety report/appeal, guest session lifecycle, room rental billing/renewal/transfer/expiry, message deletion/retention/legal hold, and session termination still require either per-persona orchestration or explicit cross-suite coverage. Device/live cloud acceptance remains separate.
 - Changes committed on `codex/mawda-full-platform-implementation`: `a6d378b662e45c945d98e0b5e1d78e1262e3e2ea` (initial lifecycle expansion) and `142ea77d1236f3b44b778c30b469245ce8e2f91c` (deterministic two-pass profile update/read ordering).
 - **Validation is pending.** Do not treat this new 5,000-persona lifecycle scenario as passed until the full `Validate Mawda` workflow completes successfully and the uploaded JSON report confirms 5,000/5,000 coverage for every required stage.
+
+
+### Follow-up extension — per-persona store fulfillment
+
+- Extended the 5,000-persona lifecycle to publish one fulfillment-ready VIP SKU only in the emulator project, then have every synthetic member call the real `purchaseStoreItem` callable.
+- Each persona performs a first purchase and an idempotent replay; the test checks the single wallet debit, completed purchase receipt, linked wallet ledger and active entitlement.
+- The catalog fixture is created through the MFA-gated owner callable using a synthetic emulator-only owner claim. This does not enable or modify any live catalog.
+- CI remains unverified for these new stages until a successful workflow run and a report with 5,000/5,000 coverage are available.
