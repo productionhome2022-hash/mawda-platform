@@ -13,6 +13,25 @@ class NativeWorkflowFirebaseConfigurationTests(unittest.TestCase):
         self.assertNotIn("1:697303475139:ios:7be58cfe1ac9c4c23ed376", workflow)
         self.assertNotIn("--ios-out=ios/Runner/GoogleService-Info.plist", workflow)
 
+    def test_nonproduction_options_are_generated_separately_from_production(self):
+        workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "bootstrap-native-platforms.yml").read_text()
+        self.assertIn("--out=lib/firebase_options_nonprod.dart", workflow)
+        self.assertIn('Path("lib/firebase_options_nonprod.dart").read_text()', workflow)
+        self.assertIn("lib/firebase_options_nonprod.dart pubspec.lock", workflow)
+        self.assertNotIn("--out=lib/firebase_options.dart", workflow)
+
+    def test_runtime_defaults_to_nonproduction_and_production_is_explicit(self):
+        root = Path(__file__).parents[1]
+        main = (root / "lib" / "main.dart").read_text()
+        production_workflow = (root / ".github" / "workflows" / "firebase-hosting-merge.yml").read_text()
+        self.assertIn("defaultValue: 'nonprod'", main)
+        self.assertIn("case 'production':", main)
+        self.assertIn("--dart-define=MAWDDA_FIREBASE_ENV=production", production_workflow)
+        import json
+        aliases = json.loads((root / ".firebaserc").read_text())["projects"]
+        self.assertEqual(aliases["default"], "mawda-platform-nonprod-2026")
+        self.assertEqual(aliases["production"], "mawda-app-2026")
+
     def test_ios_configuration_is_verified_before_unsigned_build(self):
         workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "bootstrap-native-platforms.yml").read_text()
         verification = workflow.index("Verified non-production iOS Firebase plist against generated FlutterFire options.")
