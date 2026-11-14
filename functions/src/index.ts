@@ -951,8 +951,13 @@ export const getMemberProfile = onCall(async (request) => {
     ? boostExpiry.toMillis()
     : typeof boostExpiry?.toMillis === "function" ? boostExpiry.toMillis() : 0;
   const discoveryBoostActive = boostExpiryMs > Date.now();
+  const customTitle = activeItemIds.has("title_custom") &&
+      typeof memberData.customTitle === "string"
+    ? memberData.customTitle.trim().slice(0, 40)
+    : "";
   const premiumProfileData = {
     ...premiumFeatures,
+    ...(customTitle ? { activeTitle: customTitle } : {}),
     ...(greeting ? { visitorGreeting: greeting } : {}),
     ...(pinnedProfileSection ? { pinnedProfileSection } : {}),
     discoveryBoostActive,
@@ -992,6 +997,50 @@ export const getMemberProfile = onCall(async (request) => {
       }
     : { ...profile, ...premiumProfileData };
 });
+
+/**
+ * Lets a member personalize the title only while their title entitlement is active.
+ * The public profile projection re-checks that entitlement before exposing this value.
+ */
+export const setMemberCustomTitle = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const title = typeof request.data?.title === "string" ? request.data.title.trim() : "";
+  if (title.length < 2 || title.length > 40 || /[\\u0000-\\u001F\\u007F]/.test(title)) {
+    throw new HttpsError("invalid-argument", "يجب أن يتراوح اللقب بين حرفين و40 حرفاً دون محارف تحكم.");
+  }
+
+  const userRef = db.collection("users").doc(uid);
+  const entitlementRef = userRef.collection("entitlements").doc("title_custom");
+  await db.runTransaction(async (transaction) => {
+    const [userSnapshot, entitlementSnapshot] = await Promise.all([
+      transaction.get(userRef),
+      transaction.get(entitlementRef),
+    ]);
+    const user = userSnapshot.data() ?? {};
+    const entitlement = entitlementSnapshot.data() ?? {};
+    if (!userSnapshot.exists || user.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(user)) {
+      throw new HttpsError("failed-precondition", "يجب أن تكون العضوية مكتملة وفعالة.");
+    }
+    if (!entitlementSnapshot.exists || entitlement.itemId !== "title_custom" ||
+        entitlement.category !== "title" || !isStoreEntitlementActive(entitlement)) {
+      throw new HttpsError("failed-precondition", "شراء لقب مميز فعال مطلوب لتخصيص لقبك.");
+    }
+    transaction.update(userRef, {
+      customTitle: title,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    const auditRef = db.collection("memberProfileAudit").doc();
+    transaction.create(auditRef, {
+      memberUid: uid,
+      action: "member_custom_title_updated",
+      changedFields: ["customTitle"],
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { title };
+});
+
 
 /**
  * Updates the member's visitor greeting while the matching paid entitlement is active.
