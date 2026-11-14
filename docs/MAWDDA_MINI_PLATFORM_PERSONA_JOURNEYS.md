@@ -1,7 +1,7 @@
-# Mawdda 500-persona mini-platform lifecycle and load matrix
+# Mawdda 5,000-persona mini-platform lifecycle and load matrix
 
 ## Objective
-Extend the existing seeded persona lab into a miniature end-to-end Mawdda population. The target population is 500 synthetic personas, with staged concurrency cohorts of 200, 300 and 500. This is a behavioral and capacity test, not a claim that emulator results equal production capacity.
+Extend the existing seeded persona lab into a miniature end-to-end Mawdda population. The target population is 5,000 synthetic personas, with staged load cohorts of 500, 1,000, 2,500 and 5,000. This is a behavioral and capacity test, not a claim that emulator results equal production capacity.
 
 ## Persona composition
 The generated population must deliberately mix:
@@ -59,7 +59,13 @@ Each synthetic persona is assigned a deterministic journey and role. The journey
 - Keep fixture files and machine-readable reports as short-retention CI artifacts; never persist credentials or real personal data.
 
 ## Current implementation boundary
-The initial automated load tier added to CI currently provisions 500 emulator-only email identities and exercises paired coin transfers, idempotent replay, direct-message send/recipient inbox read, and wallet ledger reconciliation at 200/300/500 cohorts. It is not yet the complete lifecycle above. Existing dedicated integration suites cover parts of store purchase, coin purchase requests, premium entitlements, biometric fail-closed behavior, guest sessions, and room rentals. The next engineering increment is to connect these journeys into persona-driven scenario orchestration and extend concurrent room/store/discovery workloads before describing the full mini-platform test as complete.
+The automated CI load test provisions 5,000 emulator-only email identities and runs 500/1,000/2,500/5,000 cohorts. The current 5,000-persona scenario verifies a transfer and linked ledger entries for every persona, idempotent replay, and bidirectional direct messaging (each persona sends one message, receives one, and reads the reply). The final report includes one coverage row per persona. This is still not the complete lifecycle above: guest, room, store, media, premium, safety and notification journeys run in separate dedicated emulator suites, not as a single end-to-end path for every load persona. Existing dedicated integration suites cover parts of store purchase, coin purchase requests, premium entitlements, biometric fail-closed behavior, guest sessions, and room rentals. The next engineering increment is to connect these journeys into persona-driven scenario orchestration and extend concurrent room/store/discovery workloads before describing the full mini-platform test as complete.
+
+## Implemented coverage versus remaining lifecycle
+
+Implemented in the 5,000-persona load scenario: emulator-only identity provisioning; wallet transfer and idempotency; sender/recipient/platform ledger invariants; two-way direct chat; per-persona completion rows and latency/throughput metrics.
+
+Still separate or incomplete for a per-persona full lifecycle: profile/discovery actions, store purchase and premium entitlement, public/private room participation and rental lifecycle, events/RSVP, media upload/scan/derivative/playback, notification delivery, reporting/appeals, guest session expiry/cooldown, and logout/session revocation. Dedicated emulator suites cover portions of these features, but they must not be described as having been completed by all 5,000 load personas.
 
 ## Isolation and limitations
 - Require Firebase Auth + Firestore Emulator and a `demo-mawda-*` project ID.

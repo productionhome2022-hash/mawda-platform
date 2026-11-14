@@ -1,6 +1,6 @@
 # Mawdda Platform 2026 — Phase 1 Readiness Audit
 
-Audit snapshot: 2026-11-14  
+Audit snapshot: 2026-11-15  
 Scope: current development branch, CI workflows, Flutter entry/auth screens, Firebase rules, Cloud Functions, media pipeline, and emulator test inventory.
 
 This is a source-and-CI readiness audit, not a production penetration test or proof of device acceptance. Findings below distinguish implemented safeguards from deployment and end-to-end evidence still missing.
@@ -119,3 +119,12 @@ Required closure:
 7. Approved security, privacy, backup/restore, monitoring, and release checklist.
 
 No production deployment, paid-service activation, irreversible retention setting, or merge to `main` is authorized by this audit.
+
+
+## 2026-11-15 engineering addendum — persona evidence and PWA resilience
+
+- The PWA install prompt now handles browser contexts where `localStorage` is unavailable. Dismissal persistence is best-effort; the install prompt itself remains usable if storage access throws. Change committed as `84f8dcd2ac1e4bc19a5f9c46d375d53baa43516f`.
+- The 5,000-persona integration test has been extended so each persona must send and receive a direct message, complete its assigned wallet transfer, and have its linked wallet-ledger role reconciled. The final JSON report now includes a per-persona coverage row for all 5,000 identities. Change committed as `37e3b44c824057c8fa791ed82b0505eb7f7b87ba`.
+- The enhanced persona test has not yet been evidenced by a completed CI run at the time this addendum was authored. Its success must be confirmed from the run logs and uploaded report before treating the new coverage as passed.
+- This extension narrows the load-test evidence gap but does not close the complete 5,000-persona lifecycle requirement. Profile/discovery, store/premium, room/rental/event, media, notifications, safety, guest lifecycle, and session termination remain separate suites or device/live non-production acceptance items.
+- Previous CI at commit `84f8dcd2ac1e4bc19a5f9c46d375d53baa43516f` completed successfully for Validate Mawda, PR #2 checks, and native build. The newer persona coverage change is pending its own validation.
