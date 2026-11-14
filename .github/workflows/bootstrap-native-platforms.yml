@@ -79,29 +79,6 @@ jobs:
               if any(value in block for value in ("AIzaSyActualApiKey", "1234567890", "abcdef123456789")):
                   raise SystemExit(f"{platform} Firebase options still contain placeholders.")
           PY
-          python3 - <<'PY'
-          import plistlib
-          from pathlib import Path
-
-          path = Path("ios/Runner/GoogleService-Info.plist")
-          if not path.is_file():
-              raise SystemExit("FlutterFire did not generate ios/Runner/GoogleService-Info.plist.")
-          with path.open("rb") as handle:
-              config = plistlib.load(handle)
-          expected = {
-              "BUNDLE_ID": "com.mawdda.platform.app",
-              "PROJECT_ID": "mawda-app-2026",
-              "GOOGLE_APP_ID": "1:697303475139:ios:7be58cfe1ac9c4c23ed376",
-          }
-          for key, value in expected.items():
-              if config.get(key) != value:
-                  raise SystemExit(f"iOS Firebase plist mismatch for {key}.")
-          if not isinstance(config.get("API_KEY"), str) or not config["API_KEY"].strip():
-              raise SystemExit("iOS Firebase plist is missing API_KEY.")
-          if config.get("GCM_SENDER_ID") != "697303475139":
-              raise SystemExit("iOS Firebase plist has the wrong GCM_SENDER_ID.")
-          print("Verified generated iOS Firebase plist: project, app, bundle, sender and API key.")
-          PY
 
       - name: Resolve locked Flutter dependencies
         run: flutter pub get --enforce-lockfile
@@ -152,6 +129,36 @@ jobs:
 
       - name: Restore generated iOS project
         run: tar -xzf native-artifact/native-platforms.tar.gz -C .
+
+      - name: Generate iOS Firebase service configuration on macOS
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          test -n "$FIREBASE_TOKEN"
+          firebase apps:list --project mawda-app-2026 --token "$FIREBASE_TOKEN"
+          flutterfire configure --project=mawda-app-2026 --platforms=ios --ios-bundle-id=com.mawdda.platform.app --ios-out=ios/Runner/GoogleService-Info.plist --out=/tmp/mawdda-ios-firebase-options.dart --yes
+          python3 - <<'PY'
+          import plistlib
+          from pathlib import Path
+
+          path = Path("ios/Runner/GoogleService-Info.plist")
+          if not path.is_file():
+              raise SystemExit("FlutterFire did not generate ios/Runner/GoogleService-Info.plist on macOS.")
+          with path.open("rb") as handle:
+              config = plistlib.load(handle)
+          expected = {
+              "BUNDLE_ID": "com.mawdda.platform.app",
+              "PROJECT_ID": "mawda-app-2026",
+              "GOOGLE_APP_ID": "1:697303475139:ios:7be58cfe1ac9c4c23ed376",
+              "GCM_SENDER_ID": "697303475139",
+          }
+          for key, value in expected.items():
+              if config.get(key) != value:
+                  raise SystemExit(f"iOS Firebase plist mismatch for {key}.")
+          if not isinstance(config.get("API_KEY"), str) or not config["API_KEY"].strip():
+              raise SystemExit("iOS Firebase plist is missing API_KEY.")
+          print("Verified iOS Firebase plist on macOS: project, app, bundle, sender and API key.")
+          PY
 
       - name: Resolve locked Flutter dependencies
         run: flutter pub get --enforce-lockfile
