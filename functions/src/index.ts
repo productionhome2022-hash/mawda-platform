@@ -7205,6 +7205,9 @@ export const setTimedAdCampaign = onCall(async (request) => {
     if (previous.exists && !["draft", "paused"].includes(String(previous.data()?.status))) {
       throw new HttpsError("failed-precondition", "أوقف الحملة قبل تعديل إعداداتها.");
     }
+    if (previous.exists && Number(previous.data()?.reservedRewardCoins ?? 0) > 0) {
+      throw new HttpsError("failed-precondition", "انتظر انتهاء جلسات المشاهدة النشطة قبل تعديل ميزانية أو مكافأة الحملة.");
+    }
     let creativeType = "text";
     let creativeContentType: string | null = null;
     if (mediaRef && mediaSnapshot?.exists) {
@@ -7230,6 +7233,7 @@ export const setTimedAdCampaign = onCall(async (request) => {
       creativeContentType,
       status: previous.exists ? previous.data()?.status : "draft",
       version, spentRewardCoins: previous.data()?.spentRewardCoins ?? 0,
+      reservedRewardCoins: previous.data()?.reservedRewardCoins ?? 0,
       createdAt: previous.data()?.createdAt ?? now,
       createdBy: previous.data()?.createdBy ?? actorUid,
       updatedAt: now, updatedBy: actorUid,
@@ -7275,7 +7279,7 @@ export const setTimedAdCampaignStatus = onCall(async (request) => {
     if (status === "published" &&
         (data.endsAtMs <= Date.now() || data.rewardCoins < 0 ||
          data.rewardBudgetCoins < data.rewardCoins ||
-         data.spentRewardCoins + data.rewardCoins > data.rewardBudgetCoins)) {
+         data.spentRewardCoins + (data.reservedRewardCoins ?? 0) + data.rewardCoins > data.rewardBudgetCoins)) {
       throw new HttpsError("failed-precondition", "لا يمكن نشر حملة منتهية أو تجاوزت ميزانيتها.");
     }
     if (status === "published" && typeof data.mediaId === "string") {
@@ -7315,7 +7319,7 @@ export const getActiveTimedAdCampaigns = onCall(async (request) => {
     campaigns: snapshot.docs
       .filter((doc) => doc.data().placement === "reward_center" &&
         doc.data().startsAtMs <= now && doc.data().endsAtMs > now &&
-        doc.data().spentRewardCoins + doc.data().rewardCoins <= doc.data().rewardBudgetCoins)
+        doc.data().spentRewardCoins + (doc.data().reservedRewardCoins ?? 0) + doc.data().rewardCoins <= doc.data().rewardBudgetCoins)
       .map((doc) => {
         const data = doc.data();
         return {
@@ -7366,7 +7370,7 @@ export const startTimedAdvertisement = onCall(async (request) => {
     if (!campaign.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
     const data = campaign.data()!;
     if (data.status !== "published" || data.startsAtMs > nowMs || data.endsAtMs <= nowMs ||
-        data.spentRewardCoins + data.rewardCoins > data.rewardBudgetCoins) {
+        data.spentRewardCoins + (data.reservedRewardCoins ?? 0) + data.rewardCoins > data.rewardBudgetCoins) {
       throw new HttpsError("failed-precondition", "الحملة غير متاحة حالياً.");
     }
     if (typeof data.mediaId === "string") {
@@ -7391,6 +7395,10 @@ export const startTimedAdvertisement = onCall(async (request) => {
       eligibleMs: 0, heartbeatSequence: 0, lastHeartbeatAtMs: null,
       status: "active", startedAt: FieldValue.serverTimestamp(),
       startedAtMs: nowMs, expiresAtMs,
+    });
+    transaction.update(campaignRef, {
+      reservedRewardCoins: (data.reservedRewardCoins ?? 0) + data.rewardCoins,
+      updatedAt: FieldValue.serverTimestamp(),
     });
     transaction.set(activeRef, { sessionId, campaignId, expiresAtMs, updatedAt: FieldValue.serverTimestamp() });
     return {
@@ -7541,9 +7549,10 @@ export const completeTimedAdvertisement = onCall(async (request) => {
       }
     }
     const spent = readSafeInteger(campaignData.spentRewardCoins ?? 0, "spentRewardCoins");
+    const reserved = readSafeInteger(campaignData.reservedRewardCoins ?? 0, "reservedRewardCoins");
     const budget = readSafeInteger(campaignData.rewardBudgetCoins, "rewardBudgetCoins");
     const claims = readSafeInteger(counter.data()?.claimCount ?? 0, "claimCount");
-    if (spent + data.rewardCoins > budget ||
+    if (reserved < data.rewardCoins || spent + data.rewardCoins > budget ||
         claims >= campaignData.maxClaimsPerMember) {
       throw new HttpsError("resource-exhausted", "انتهت ميزانية الحملة أو الحد المسموح للمكافآت.");
     }
@@ -7563,7 +7572,11 @@ export const completeTimedAdvertisement = onCall(async (request) => {
       balanceBefore: balance, balanceAfter: balance + data.rewardCoins,
       campaignId: data.campaignId, sessionId, createdAt: now,
     });
-    transaction.update(campaignRef, { spentRewardCoins: spent + data.rewardCoins, updatedAt: now });
+    transaction.update(campaignRef, {
+      spentRewardCoins: spent + data.rewardCoins,
+      reservedRewardCoins: reserved - data.rewardCoins,
+      updatedAt: now,
+    });
     transaction.set(counterRef, {
       claimCount: claims + 1, updatedAt: now,
     }, { merge: true });
