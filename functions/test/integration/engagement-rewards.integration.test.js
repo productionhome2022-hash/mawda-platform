@@ -10,6 +10,7 @@ const {
   getActiveTimedAdCampaigns,
   startTimedAdvertisement,
   getActiveTimedAdSession,
+  getTimedAdCreativeUrl,
   heartbeatTimedAdvertisement,
   completeTimedAdvertisement,
   cleanupExpiredTimedAdSessions,
@@ -134,6 +135,13 @@ test("timed advertisements require foreground heartbeat duration and pay once", 
     assert.equal(restored.active, true);
     assert.equal(restored.sessionId, sessionId);
     assert.equal(restored.title, "Test campaign");
+    const creative = await getTimedAdCreativeUrl.run(memberRequest(uid, { campaignId, sessionId }));
+    assert.equal(creative.creativeType, "text");
+    assert.equal(creative.url, null);
+    await assert.rejects(
+      () => getTimedAdCreativeUrl.run(memberRequest(`other_${uid}`, { campaignId, sessionId })),
+      (error) => error && error.code === "permission-denied",
+    );
     await assert.rejects(
       () => completeTimedAdvertisement.run(memberRequest(uid, { sessionId })),
       (error) => error && error.code === "failed-precondition",
