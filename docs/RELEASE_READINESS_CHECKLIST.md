@@ -20,9 +20,9 @@ This checklist is a release gate, not a statement that the listed work is comple
 ## 2. Firebase project configuration
 
 - [ ] Independently confirm the production Firebase project is `mawda-app-2026`.
-- [ ] Register and verify the required Firebase apps for each supported platform.
-- [ ] Complete FlutterFire registration/options for every supported platform; do not hand-invent app IDs or API keys. The Web configuration now matches the owner-supplied project and Web App ID and passes the automated guard, but native platform options remain placeholders.
-- [ ] Verify every generated platform option points to the intended Firebase project and registered app.
+- [x] FlutterFire CLI found/registered Android (`com.mawdda.platform.app`), iOS (`com.mawdda.platform.app`), and Web apps in `mawda-app-2026` during native bootstrap run `43603789539`; independent Firebase Console review remains a production gate.
+- [x] Generate Android/iOS/Web FlutterFire options from the registered apps in `mawda-app-2026`; the native bootstrap workflow rejected placeholders and verified the expected package/bundle IDs and project IDs. Desktop platforms are not supported release targets and remain placeholders.
+- [x] CI verified the Android/iOS/Web Firebase options against `mawda-app-2026` and generated app IDs; independent Firebase Console review remains open.
 - [ ] Verify Firebase Authentication providers, authorized domains, Firestore, Storage, and Cloud Functions are configured.
 - [ ] Keep service-account keys, private keys, tokens, and local credential files out of Git.
 - [ ] Verify Hosting configuration and deployment target before any production deployment.
@@ -64,8 +64,10 @@ This checklist is a release gate, not a statement that the listed work is comple
 
 ## 6. Cross-platform release verification
 
-- [ ] Android phones and tablets: install, sign-in, core workflows, portrait and landscape.
-- [ ] iPhone and iPad: build, install, sign-in, core workflows, portrait and landscape.
+- [x] CI generated and built an Android debug APK on run `43603789539`.
+- [ ] Android phones and tablets: install the APK on physical devices, sign-in, core workflows, microphone, push, portrait and landscape.
+- [x] CI completed an unsigned iOS build on run `43603789539`.
+- [ ] iPhone and iPad: signed install on physical devices, sign-in, core workflows, microphone, push, portrait and landscape.
 - [ ] Windows, macOS, and Linux: build and smoke-test supported desktop workflows.
 - [ ] Web: test supported browsers, responsive breakpoints, refresh/deep links, and authentication redirects.
 - [ ] Test touch, mouse, keyboard navigation, accessibility, screen readers, and reduced-motion settings.
@@ -80,13 +82,14 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Owner separately approves production deployment.
 - [ ] Verify post-deployment health, authentication, Firestore access, Cloud Functions, and rollback readiness.
 
-**Current known blockers:** the Web Firebase options now match the owner-supplied project/Web app identifiers and passed the configuration guard in run 43412736573, but Android/iOS/macOS/Windows/Linux options remain placeholders and live Firebase settings have not been independently verified. The real `platformOwner` claim and MFA lifecycle have not been provisioned/verified. Coin-transfer and store-purchase transactional emulator tests passed on run 43449287825 (4/4 wallet/store integration cases); recurring 90-day email and 30-day biometric verification/reward cycles are not implemented. Live GCS/Cloud Run scanner validation, complete media-retention integration proof, backup/PITR/legal-hold governance, and multiple member-facing workflows remain open. Both dependency lockfiles are committed and strict-install CI passed on run 43412736573. CI success does not clear these blockers.
+**Current known blockers (14 November 2026):** Android/iOS/Web app registration and FlutterFire configuration are generated and validated; Android debug APK and unsigned iOS build passed run `43603789539`, but physical-device acceptance and independent Firebase Console review remain open. macOS/Windows/Linux are not supported release targets. The real `platformOwner` claim, MFA enrollment/recovery and privileged-account operations have not been provisioned/verified. The 90-day email renewal flow has backend implementation and emulator integration coverage, but real Firebase Auth/device acceptance remains open. The 1,500-coin biometric reward is disabled fail-closed until cryptographic device proof and real-device acceptance exist. Member-to-member in-app audio recording/playback is still missing; guest audio UI exists. Live GCS/Cloud Run scanner validation, full media-retention proof, backup/PITR/legal-hold governance, App Check/device-attestation, abuse resistance across recreated anonymous identities, real-money payment/refund/reconciliation, legal review, observability and recovery drills remain open. The latest full validation was green on head `5041c6a8`; validation after native scaffolding and subsequent cleanup/documentation commits must pass on the exact current head. CI success does not clear these blockers.
 
 ## Direct messaging implementation status
 
 - [x] Flutter one-to-one conversation screen includes message history, composer, refresh, and safe empty-conversation state; it calls trusted `getDirectMessages` and `sendDirectMessage` functions.
 - [x] Server-side deterministic conversation ID helper is symmetric and covered by unit tests; reading a not-yet-created conversation returns an empty history without creating chat data.
 - [ ] Complete callable/emulator integration coverage for cross-account reads, blocked/banned members, age policy, message replay, and notification privacy; complete device and accessibility tests.
+- [ ] Add in-app microphone recording and playback controls for member-to-member direct chats and member public-room chats; current member attachment flow selects audio files and opens received audio externally. Guest-room audio has in-app recording/playback.
 
 ## MAWADDA AI release gates (not yet implemented)
 
