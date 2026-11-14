@@ -7620,8 +7620,9 @@ export const getRewardCenter = onCall(async (request) => {
     serverTimeMs: now, attendancePolicy: policy, attendancePeriods: periods,
     attendanceClaimed: claims,
     activeCampaigns: ads.docs.filter((doc) =>
+      doc.data().placement === "reward_center" &&
       doc.data().startsAtMs <= now && doc.data().endsAtMs > now &&
-      doc.data().spentRewardCoins + doc.data().rewardCoins <= doc.data().rewardBudgetCoins)
+      doc.data().spentRewardCoins + (doc.data().reservedRewardCoins ?? 0) + doc.data().rewardCoins <= doc.data().rewardBudgetCoins)
       .map((doc) => ({
         campaignId: doc.id, title: doc.data().title,
         sponsorLabel: doc.data().sponsorLabel, body: doc.data().body,
