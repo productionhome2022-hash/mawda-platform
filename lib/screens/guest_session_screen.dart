@@ -16,13 +16,7 @@ class _GuestSessionScreenState extends State<GuestSessionScreen> {
   final _username = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
-  static const _countries = <String, String>{
-    'CH': 'سويسرا', 'DE': 'ألمانيا', 'FR': 'فرنسا', 'GB': 'المملكة المتحدة',
-    'US': 'الولايات المتحدة', 'CA': 'كندا', 'EG': 'مصر', 'SA': 'السعودية',
-    'AE': 'الإمارات', 'TR': 'تركيا', 'MA': 'المغرب', 'JO': 'الأردن',
-    'IQ': 'العراق', 'LB': 'لبنان', 'TN': 'تونس', 'DZ': 'الجزائر',
-  };
-  String _country = 'CH';
+  final _country = TextEditingController(text: 'سويسرا');
   String _gender = 'male';
   bool _busy = false, _loading = true;
   Map<String, dynamic> _status = {};
@@ -34,7 +28,7 @@ class _GuestSessionScreenState extends State<GuestSessionScreen> {
 
   @override
   void dispose() {
-    _username.dispose(); _email.dispose(); _password.dispose(); super.dispose();
+    _username.dispose(); _country.dispose(); _email.dispose(); _password.dispose(); super.dispose();
   }
 
   Future<void> _loadStatus() async {
@@ -53,7 +47,7 @@ class _GuestSessionScreenState extends State<GuestSessionScreen> {
       if (profile is Map) {
         if (_username.text.isEmpty) _username.text = profile['username'] as String? ?? '';
         final country = profile['country'];
-        if (country is String && _countries.containsKey(country)) _country = country;
+        if (country is String && country.isNotEmpty) _country.text = country;
         final gender = profile['gender'];
         if (gender == 'male' || gender == 'female') _gender = gender;
       }
@@ -70,7 +64,7 @@ class _GuestSessionScreenState extends State<GuestSessionScreen> {
     setState(() { _busy = true; _message = null; });
     try {
       final response = await _functions.httpsCallable('startGuestSession').call({
-        'username': _username.text.trim(), 'country': _country, 'gender': _gender,
+        'username': _username.text.trim(), 'country': _country.text.trim(), 'gender': _gender,
       });
       if ((response.data as Map)['active'] != true) throw StateError('Guest session not active');
       await _loadStatus();
@@ -132,12 +126,13 @@ class _GuestSessionScreenState extends State<GuestSessionScreen> {
       TextField(controller: _username, maxLength: 24,
         decoration: const InputDecoration(labelText: 'اسم المستخدم', border: OutlineInputBorder())),
       const SizedBox(height: 8),
-      DropdownButtonFormField<String>(
-        initialValue: _country,
-        decoration: const InputDecoration(labelText: 'الدولة', border: OutlineInputBorder()),
-        items: _countries.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
-        onChanged: _busy ? null : (v) { if (v != null) setState(() => _country = v); },
-      ),
+      TextField(controller: _country, maxLength: 60,
+        textCapitalization: TextCapitalization.words,
+        decoration: const InputDecoration(
+          labelText: 'الدولة',
+          hintText: 'مثال: سويسرا أو Switzerland',
+          border: OutlineInputBorder(),
+        )),
       const SizedBox(height: 8),
       InputDecorator(
         decoration: const InputDecoration(labelText: 'الجنس', border: OutlineInputBorder()),
