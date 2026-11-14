@@ -10,7 +10,7 @@ const { getAuth } = require("firebase-admin/auth");
 
 const db = getFirestore();
 const auth = getAuth();
-const fixturePath = process.env.MAWDDA_LOAD_FIXTURE || ".mawdda-load/personas.json";
+const fixturePath = process.env.MAWDDA_LOAD_FIXTURE || "mawdda-load-artifacts/personas.json";
 const fixture = JSON.parse(fs.readFileSync(fixturePath, "utf8"));
 const personas = fixture.personas;
 const BATCH_SIZE = 125;
@@ -226,7 +226,7 @@ for (const count of [200, 300, 500]) {
 }
 
 test("emit machine-readable load-test report", () => {
-  const reportPath = process.env.MAWDDA_LOAD_REPORT || ".mawdda-load/report.json";
+  const reportPath = process.env.MAWDDA_LOAD_REPORT || "mawdda-load-artifacts/report.json";
   fs.mkdirSync(require("node:path").dirname(reportPath), { recursive: true });
   fs.writeFileSync(reportPath, JSON.stringify({
     schemaVersion: 1,
