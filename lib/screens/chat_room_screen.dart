@@ -504,6 +504,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   ChatAudioComposerButton(
                     scope: 'room',
                     roomId: widget.chatId,
+                    maxDurationSeconds: widget.isPublicRoom ? 120 : 60,
                     enabled: !_sending,
                     onBusyChanged: (busy) {
                       if (mounted && _sending != busy) setState(() => _sending = busy);
