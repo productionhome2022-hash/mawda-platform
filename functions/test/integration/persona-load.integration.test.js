@@ -326,11 +326,17 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       coverage.get(persona.personaId).premiumEntitlementsProvisioned = true;
     });
 
-    await inBatches(personas, 25, async (persona, index) => {
+    await inBatches(personas, 25, async (persona) => {
       const greeting = "مرحباً من " + persona.personaId;
       await setMemberProfileVisitorGreeting.run({ data: { greeting }, auth: callableAuth(persona.uid) });
       await setMemberPinnedProfileSection.run({ data: { section: "interests" }, auth: callableAuth(persona.uid) });
       await setMemberCustomTitle.run({ data: { title: "سفير " + persona.personaId }, auth: callableAuth(persona.uid) });
+      coverage.get(persona.personaId).greetingAndPinnedSectionUpdated = true;
+    });
+
+    // Run peer views only after every profile update has committed; this avoids
+    // nondeterministic reads of a partner profile still being provisioned.
+    await inBatches(personas, 25, async (persona, index) => {
       const peer = personas[index % 2 === 0 ? index + 1 : index - 1];
       const viewed = await getMemberProfile.run({
         data: { userId: peer.uid }, auth: callableAuth(persona.uid),
@@ -338,7 +344,6 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       assert.equal(viewed.uid, peer.uid);
       assert.equal(viewed.visitorGreeting, "مرحباً من " + peer.personaId);
       assert.equal(viewed.pinnedProfileSection, "interests");
-      coverage.get(persona.personaId).greetingAndPinnedSectionUpdated = true;
       coverage.get(persona.personaId).peerProfileViewed = true;
     });
 
