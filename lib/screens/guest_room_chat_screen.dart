@@ -94,7 +94,7 @@ class _GuestRoomChatScreenState extends State<GuestRoomChatScreen> {
 
   Future<void> _openAudio(Map<String, dynamic> item) async {
     try {
-      final url = await _media.getChatImageAttachmentUrl(
+      final url = await _media.getChatMediaAttachmentUrl(
         scope: 'room', roomId: widget.roomId,
         mediaId: item['mediaId'] as String, messageId: item['messageId'] as String,
       );
