@@ -20,7 +20,7 @@ test("guest persona has one hour per rolling 24 hours and limited public-room pa
   assert.deepEqual(guest.guestWindow, { durationSeconds: 3600, rollingWindowSeconds: 86400, emulatorClockOverrideOnly: true });
   assert.deepEqual(guest.capabilities, [
     "browse.publicMemberDiscovery", "browse.publicShopCatalog", "browse.publicAds",
-    "rooms.public.join", "chat.publicRooms.text", "chat.publicRooms.audio"
+    "rooms.public.join", "chat.publicRooms.text.send", "chat.publicRooms.text.receive", "chat.publicRooms.audio.send", "chat.publicRooms.audio.receive"
   ]);
   assert.deepEqual(personas.guestPolicy, {
     durationSeconds: 3600,
