@@ -5611,8 +5611,11 @@ export const setRoomAudience = onCall(async (request) => {
     throw new HttpsError("failed-precondition", "يجب تأكيد الالتزام بإدارة الغرفة بما يناسب الجمهور العام قبل إتاحتها للزوار.");
   }
   const roomRef = db.collection("rooms").doc(roomId);
+  const actorRef = db.collection("users").doc(actorUid);
   await db.runTransaction(async (transaction) => {
-    const roomSnapshot = await transaction.get(roomRef);
+    const [roomSnapshot, actorSnapshot] = await Promise.all([
+      transaction.get(roomRef), transaction.get(actorRef),
+    ]);
     if (!roomSnapshot.exists || roomSnapshot.data()?.status !== "active") {
       throw new HttpsError("not-found", "الغرفة غير موجودة أو غير نشطة.");
     }
@@ -5622,6 +5625,11 @@ export const setRoomAudience = onCall(async (request) => {
     );
     if (room.ownerUid !== actorUid && !ownerSession) {
       throw new HttpsError("permission-denied", "تغيير تصنيف جمهور الغرفة متاح لمالكها أو مالك المنصة بعد MFA.");
+    }
+    if (!ownerSession && (!actorSnapshot.exists ||
+        !isMemberAccountInGoodStanding(actorSnapshot.data()) ||
+        !Number.isSafeInteger(actorSnapshot.data()?.age) || actorSnapshot.data()!.age < 18)) {
+      throw new HttpsError("permission-denied", "اعتماد غرفة للجمهور العام يتطلب مالك غرفة بالغاً وعضوية فعالة.");
     }
     if (audience === "all_ages" && room.kind !== "public") {
       throw new HttpsError("failed-precondition", "لا يمكن إتاحة غرفة خاصة للزوار.");
