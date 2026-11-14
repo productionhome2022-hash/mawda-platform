@@ -83,6 +83,13 @@ import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
 import { DEFAULT_COIN_PACKAGES, DEFAULT_AD_PRICES, validateCoinPackages, validateAdPrices } from "./economy-pricing";
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
+import {
+  defaultAttendanceRewardPolicy,
+  validateAttendanceRewardPolicy,
+  utcRewardPeriod,
+  validateTimedAdCampaignInput,
+  eligibleHeartbeatDelta,
+} from "./engagement-rewards";
 
 initializeApp();
 
@@ -7069,3 +7076,440 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
 
 
 export { startGuestSession, getGuestSessionStatus, endGuestSession, listGuestPublicRooms, cleanupExpiredGuestSessions } from "./guest-sessions";
+
+
+
+// Owner-configurable attendance rewards and platform-managed timed advertisements.
+// All balances and reward claims are server-owned; client timestamps are ignored.
+import {
+  defaultAttendanceRewardPolicy,
+  validateAttendanceRewardPolicy,
+  utcRewardPeriod,
+  validateTimedAdCampaignInput,
+  eligibleHeartbeatDelta,
+} from "./engagement-rewards";
+
+const ATTENDANCE_REWARD_POLICY = db.doc("platformSettings/attendanceRewards");
+
+export const setAttendanceRewardPolicy = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let policy;
+  try {
+    policy = validateAttendanceRewardPolicy(request.data?.policy);
+  } catch {
+    throw new HttpsError("invalid-argument", "سياسة مكافآت الحضور غير صالحة.");
+  }
+  const version = await db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(ATTENDANCE_REWARD_POLICY);
+    const nextVersion = (Number.isSafeInteger(previous.data()?.version)
+      ? previous.data()!.version : 0) + 1;
+    const now = FieldValue.serverTimestamp();
+    transaction.set(ATTENDANCE_REWARD_POLICY, {
+      policy, version: nextVersion, updatedAt: now, updatedBy: actorUid,
+      createdAt: previous.data()?.createdAt ?? now,
+    });
+    return nextVersion;
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid, action: "attendance_reward_policy_updated", version,
+    policy, outcome: "success",
+  });
+  return { saved: true, version, policy };
+});
+
+export const claimAttendanceReward = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const type = request.data?.type;
+  if (type !== "hourly" && type !== "daily" && type !== "weekly") {
+    throw new HttpsError("invalid-argument", "نوع مكافأة الحضور غير صالح.");
+  }
+  const firebaseIdentity = request.auth?.token.firebase;
+  if (firebaseIdentity && typeof firebaseIdentity === "object" &&
+      (firebaseIdentity as Record<string, unknown>).sign_in_provider === "anonymous") {
+    throw new HttpsError("permission-denied", "مكافآت الحضور مخصصة للأعضاء المسجلين.");
+  }
+  const nowMs = Date.now();
+  const period = utcRewardPeriod(type, nowMs);
+  const userRef = db.collection("users").doc(uid);
+  const claimId = `${uid}_${type}_${period}`;
+  const claimRef = db.collection("attendanceRewardClaims").doc(claimId);
+  const ledgerRef = userRef.collection("walletLedger").doc(`attendance_${type}_${period}`);
+  return db.runTransaction(async (transaction) => {
+    const [userSnapshot, policySnapshot, priorClaim, priorLedger] = await Promise.all([
+      transaction.get(userRef), transaction.get(ATTENDANCE_REWARD_POLICY),
+      transaction.get(claimRef), transaction.get(ledgerRef),
+    ]);
+    if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(userSnapshot.data())) {
+      throw new HttpsError("permission-denied", "الحساب غير مؤهل لمكافآت الحضور.");
+    }
+    if (priorClaim.exists || priorLedger.exists) {
+      return { claimed: true, idempotentReplay: true, amountCoins: priorClaim.data()?.amountCoins ?? 0, period };
+    }
+    const storedPolicy = policySnapshot.data()?.policy;
+    let policy;
+    try {
+      policy = storedPolicy ? validateAttendanceRewardPolicy(storedPolicy) : defaultAttendanceRewardPolicy();
+    } catch {
+      throw new HttpsError("failed-precondition", "سياسة مكافآت الحضور غير صالحة؛ تم إيقاف المطالبة.");
+    }
+    const rule = policy[type];
+    if (!rule.enabled || rule.amountCoins < 1) {
+      throw new HttpsError("failed-precondition", "مكافأة هذا النوع غير مفعّلة حالياً.");
+    }
+    const balance = readSafeInteger(userSnapshot.data()?.coins ?? 0, "coins");
+    if (balance < 0 || balance + rule.amountCoins > Number.MAX_SAFE_INTEGER) {
+      throw new HttpsError("failed-precondition", "رصيد المحفظة غير صالح لإضافة المكافأة.");
+    }
+    const now = FieldValue.serverTimestamp();
+    transaction.update(userRef, { coins: balance + rule.amountCoins, walletUpdatedAt: now });
+    transaction.create(claimRef, {
+      uid, type, period, amountCoins: rule.amountCoins,
+      policyVersion: policySnapshot.data()?.version ?? 0,
+      createdAt: now,
+    });
+    transaction.create(ledgerRef, {
+      type: "attendance_reward", rewardType: type, period,
+      direction: "credit", amount: rule.amountCoins,
+      balanceBefore: balance, balanceAfter: balance + rule.amountCoins,
+      claimId, createdAt: now,
+    });
+    return { claimed: true, idempotentReplay: false, amountCoins: rule.amountCoins, period };
+  });
+});
+
+export const setTimedAdCampaign = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let input;
+  try {
+    input = validateTimedAdCampaignInput(request.data);
+  } catch {
+    throw new HttpsError("invalid-argument", "بيانات الحملة الإعلانية غير صالحة.");
+  }
+  const requestedId = request.data?.campaignId;
+  if (requestedId !== undefined &&
+      (typeof requestedId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestedId))) {
+    throw new HttpsError("invalid-argument", "معرف الحملة غير صالح.");
+  }
+  const campaignRef = requestedId
+    ? db.collection("timedAdCampaigns").doc(requestedId)
+    : db.collection("timedAdCampaigns").doc(randomUUID());
+  const result = await db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(campaignRef);
+    if (previous.exists && !["draft", "paused"].includes(String(previous.data()?.status))) {
+      throw new HttpsError("failed-precondition", "أوقف الحملة قبل تعديل إعداداتها.");
+    }
+    const version = (Number.isSafeInteger(previous.data()?.version)
+      ? previous.data()!.version : 0) + 1;
+    const now = FieldValue.serverTimestamp();
+    transaction.set(campaignRef, {
+      ...input, campaignId: campaignRef.id, creativeType: "text",
+      status: previous.exists ? previous.data()?.status : "draft",
+      version, spentRewardCoins: previous.data()?.spentRewardCoins ?? 0,
+      createdAt: previous.data()?.createdAt ?? now,
+      createdBy: previous.data()?.createdBy ?? actorUid,
+      updatedAt: now, updatedBy: actorUid,
+    });
+    return { campaignId: campaignRef.id, version, status: previous.exists ? previous.data()?.status : "draft" };
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid, action: "timed_ad_campaign_saved", ...result, outcome: "success",
+  });
+  return result;
+});
+
+export const getOwnerTimedAdCampaigns = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await db.collection("timedAdCampaigns").limit(100).get();
+  return {
+    campaigns: snapshot.docs.map((doc) => ({ ...doc.data(), campaignId: doc.id })),
+  };
+});
+
+export const setTimedAdCampaignStatus = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const campaignId = request.data?.campaignId;
+  const status = request.data?.status;
+  if (typeof campaignId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(campaignId) ||
+      !["published", "paused", "archived"].includes(status)) {
+    throw new HttpsError("invalid-argument", "طلب تغيير حالة الحملة غير صالح.");
+  }
+  const campaignRef = db.collection("timedAdCampaigns").doc(campaignId);
+  const result = await db.runTransaction(async (transaction) => {
+    const campaign = await transaction.get(campaignRef);
+    if (!campaign.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
+    const data = campaign.data()!;
+    if (data.status === "archived" && status !== "archived") {
+      throw new HttpsError("failed-precondition", "لا يمكن إعادة تنشيط حملة مؤرشفة.");
+    }
+    if (status === "published" &&
+        (data.endsAtMs <= Date.now() || data.rewardCoins < 0 ||
+         data.rewardBudgetCoins < data.rewardCoins ||
+         data.spentRewardCoins + data.rewardCoins > data.rewardBudgetCoins)) {
+      throw new HttpsError("failed-precondition", "لا يمكن نشر حملة منتهية أو تجاوزت ميزانيتها.");
+    }
+    transaction.update(campaignRef, {
+      status, updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
+      version: (Number.isSafeInteger(data.version) ? data.version : 0) + 1,
+    });
+    return { campaignId, status };
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid, action: "timed_ad_campaign_status_changed", ...result, outcome: "success",
+  });
+  return result;
+});
+
+export const getActiveTimedAdCampaigns = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const user = await db.collection("users").doc(uid).get();
+  if (!user.exists || user.data()?.profileCompleted !== true ||
+      !isMemberAccountInGoodStanding(user.data())) {
+    throw new HttpsError("permission-denied", "هذا القسم متاح للأعضاء النشطين فقط.");
+  }
+  const now = Date.now();
+  const snapshot = await db.collection("timedAdCampaigns")
+    .where("status", "==", "published").limit(100).get();
+  return {
+    campaigns: snapshot.docs
+      .filter((doc) => doc.data().startsAtMs <= now && doc.data().endsAtMs > now &&
+        doc.data().spentRewardCoins + doc.data().rewardCoins <= doc.data().rewardBudgetCoins)
+      .map((doc) => {
+        const data = doc.data();
+        return {
+          campaignId: doc.id, title: data.title, sponsorLabel: data.sponsorLabel,
+          body: data.body, placement: data.placement,
+          durationSeconds: data.durationSeconds, rewardCoins: data.rewardCoins,
+          version: data.version,
+        };
+      }),
+  };
+});
+
+export const startTimedAdvertisement = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const campaignId = request.data?.campaignId;
+  if (typeof campaignId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(campaignId)) {
+    throw new HttpsError("invalid-argument", "معرف الحملة غير صالح.");
+  }
+  const firebaseIdentity = request.auth?.token.firebase;
+  if (firebaseIdentity && typeof firebaseIdentity === "object" &&
+      (firebaseIdentity as Record<string, unknown>).sign_in_provider === "anonymous") {
+    throw new HttpsError("permission-denied", "مشاهدة الإعلانات المكافأة مخصصة للأعضاء.");
+  }
+  const sessionId = randomUUID();
+  const nowMs = Date.now();
+  const userRef = db.collection("users").doc(uid);
+  const campaignRef = db.collection("timedAdCampaigns").doc(campaignId);
+  const activeRef = db.collection("activeTimedAdSessions").doc(uid);
+  const sessionRef = db.collection("timedAdSessions").doc(sessionId);
+  const counterRef = db.collection("timedAdMemberCounters").doc(`${uid}_${campaignId}`);
+  const result = await db.runTransaction(async (transaction) => {
+    const [user, campaign, active, counter] = await Promise.all([
+      transaction.get(userRef), transaction.get(campaignRef),
+      transaction.get(activeRef), transaction.get(counterRef),
+    ]);
+    if (!user.exists || user.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(user.data())) {
+      throw new HttpsError("permission-denied", "الحساب غير مؤهل لمشاهدة الإعلانات.");
+    }
+    if (active.exists) {
+      const activeSession = await transaction.get(db.collection("timedAdSessions").doc(String(active.data()?.sessionId ?? "")));
+      if (activeSession.exists && activeSession.data()?.expiresAtMs > nowMs &&
+          ["active", "paused"].includes(String(activeSession.data()?.status))) {
+        throw new HttpsError("already-exists", "لديك جلسة إعلان مفتوحة بالفعل.");
+      }
+      transaction.delete(activeRef);
+    }
+    if (!campaign.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
+    const data = campaign.data()!;
+    if (data.status !== "published" || data.startsAtMs > nowMs || data.endsAtMs <= nowMs ||
+        data.spentRewardCoins + data.rewardCoins > data.rewardBudgetCoins) {
+      throw new HttpsError("failed-precondition", "الحملة غير متاحة حالياً.");
+    }
+    const claims = counter.data()?.claimCount ?? 0;
+    if (!Number.isSafeInteger(claims) || claims >= data.maxClaimsPerMember) {
+      throw new HttpsError("failed-precondition", "تم بلوغ الحد المسموح لمشاهدة هذه الحملة.");
+    }
+    const expiresAtMs = Math.min(data.endsAtMs, nowMs + data.durationSeconds * 4000 + 60000);
+    transaction.create(sessionRef, {
+      sessionId, uid, campaignId, campaignVersion: data.version,
+      durationSeconds: data.durationSeconds, rewardCoins: data.rewardCoins,
+      eligibleMs: 0, heartbeatSequence: 0, lastHeartbeatAtMs: nowMs,
+      status: "active", startedAt: FieldValue.serverTimestamp(),
+      startedAtMs: nowMs, expiresAtMs,
+    });
+    transaction.set(activeRef, { sessionId, campaignId, expiresAtMs, updatedAt: FieldValue.serverTimestamp() });
+    return {
+      sessionId, campaignId, durationSeconds: data.durationSeconds,
+      rewardCoins: data.rewardCoins, expiresAtMs, heartbeatIntervalMs: 5000,
+    };
+  });
+  return result;
+});
+
+export const heartbeatTimedAdvertisement = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const sessionId = request.data?.sessionId;
+  const sequence = request.data?.sequence;
+  const foreground = request.data?.foreground;
+  const visible = request.data?.visible;
+  if (typeof sessionId !== "string" || !/^[0-9a-f-]{36}$/i.test(sessionId) ||
+      typeof sequence !== "number" || !Number.isSafeInteger(sequence) ||
+      typeof foreground !== "boolean" || typeof visible !== "boolean") {
+    throw new HttpsError("invalid-argument", "نبضة مشاهدة الإعلان غير صالحة.");
+  }
+  const sessionRef = db.collection("timedAdSessions").doc(sessionId);
+  const activeRef = db.collection("activeTimedAdSessions").doc(uid);
+  return db.runTransaction(async (transaction) => {
+    const [session, active] = await Promise.all([
+      transaction.get(sessionRef), transaction.get(activeRef),
+    ]);
+    if (!session.exists || session.data()?.uid !== uid ||
+        active.data()?.sessionId !== sessionId ||
+        !["active", "paused"].includes(String(session.data()?.status))) {
+      throw new HttpsError("failed-precondition", "جلسة مشاهدة الإعلان غير نشطة.");
+    }
+    const data = session.data()!;
+    const nowMs = Date.now();
+    if (data.expiresAtMs <= nowMs) {
+      transaction.update(sessionRef, { status: "expired", lastHeartbeatAtMs: null });
+      transaction.delete(activeRef);
+      throw new HttpsError("deadline-exceeded", "انتهت جلسة مشاهدة الإعلان.");
+    }
+    let delta;
+    try {
+      delta = eligibleHeartbeatDelta(
+        data.status === "paused" ? null : data.lastHeartbeatAtMs,
+        nowMs, sequence, data.heartbeatSequence + 1, foreground, visible,
+      );
+    } catch {
+      throw new HttpsError("failed-precondition", "تسلسل نبضات مشاهدة الإعلان غير صالح.");
+    }
+    const paused = !foreground || !visible || delta.paused;
+    transaction.update(sessionRef, {
+      eligibleMs: data.eligibleMs + delta.deltaMs,
+      heartbeatSequence: delta.nextSequence - 1,
+      lastHeartbeatAtMs: paused ? null : delta.nextHeartbeatAtMs,
+      status: paused ? "paused" : "active",
+      lastHeartbeatAt: FieldValue.serverTimestamp(),
+    });
+    return {
+      eligibleMs: data.eligibleMs + delta.deltaMs,
+      requiredMs: data.durationSeconds * 1000,
+      remainingMs: Math.max(0, data.durationSeconds * 1000 - data.eligibleMs - delta.deltaMs),
+      paused,
+    };
+  });
+});
+
+export const completeTimedAdvertisement = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const sessionId = request.data?.sessionId;
+  if (typeof sessionId !== "string" || !/^[0-9a-f-]{36}$/i.test(sessionId)) {
+    throw new HttpsError("invalid-argument", "معرف جلسة الإعلان غير صالح.");
+  }
+  const sessionRef = db.collection("timedAdSessions").doc(sessionId);
+  const result = await db.runTransaction(async (transaction) => {
+    const session = await transaction.get(sessionRef);
+    if (!session.exists || session.data()?.uid !== uid) {
+      throw new HttpsError("not-found", "جلسة الإعلان غير موجودة.");
+    }
+    const data = session.data()!;
+    const claimRef = db.collection("timedAdRewardClaims").doc(sessionId);
+    const userRef = db.collection("users").doc(uid);
+    const campaignRef = db.collection("timedAdCampaigns").doc(data.campaignId);
+    const activeRef = db.collection("activeTimedAdSessions").doc(uid);
+    const counterRef = db.collection("timedAdMemberCounters").doc(`${uid}_${data.campaignId}`);
+    const [claim, user, campaign, active, counter] = await Promise.all([
+      transaction.get(claimRef), transaction.get(userRef), transaction.get(campaignRef),
+      transaction.get(activeRef), transaction.get(counterRef),
+    ]);
+    if (claim.exists) {
+      return { completed: true, idempotentReplay: true, amountCoins: claim.data()?.amountCoins ?? 0 };
+    }
+    if (!["active", "paused"].includes(String(data.status)) ||
+        data.eligibleMs < data.durationSeconds * 1000 ||
+        data.expiresAtMs <= Date.now() ||
+        active.data()?.sessionId !== sessionId) {
+      throw new HttpsError("failed-precondition", "لم تكتمل مدة المشاهدة الفعلية المطلوبة.");
+    }
+    if (!user.exists || !isMemberAccountInGoodStanding(user.data()) ||
+        !campaign.exists || campaign.data()?.status === "archived") {
+      throw new HttpsError("permission-denied", "الحساب أو الحملة لم تعد مؤهلة للمكافأة.");
+    }
+    const campaignData = campaign.data()!;
+    const spent = readSafeInteger(campaignData.spentRewardCoins ?? 0, "spentRewardCoins");
+    const budget = readSafeInteger(campaignData.rewardBudgetCoins, "rewardBudgetCoins");
+    const claims = readSafeInteger(counter.data()?.claimCount ?? 0, "claimCount");
+    if (spent + data.rewardCoins > budget ||
+        claims >= campaignData.maxClaimsPerMember) {
+      throw new HttpsError("resource-exhausted", "انتهت ميزانية الحملة أو الحد المسموح للمكافآت.");
+    }
+    const balance = readSafeInteger(user.data()?.coins ?? 0, "coins");
+    const now = FieldValue.serverTimestamp();
+    transaction.update(userRef, { coins: balance + data.rewardCoins, walletUpdatedAt: now });
+    transaction.create(claimRef, {
+      uid, sessionId, campaignId: data.campaignId,
+      campaignVersion: data.campaignVersion, amountCoins: data.rewardCoins,
+      eligibleMs: data.eligibleMs, createdAt: now,
+    });
+    transaction.create(userRef.collection("walletLedger").doc(`timed_ad_${sessionId}`), {
+      type: "timed_ad_reward", direction: "credit", amount: data.rewardCoins,
+      balanceBefore: balance, balanceAfter: balance + data.rewardCoins,
+      campaignId: data.campaignId, sessionId, createdAt: now,
+    });
+    transaction.update(campaignRef, { spentRewardCoins: spent + data.rewardCoins, updatedAt: now });
+    transaction.set(counterRef, {
+      claimCount: claims + 1, updatedAt: now,
+    }, { merge: true });
+    transaction.update(sessionRef, { status: "completed", completedAt: now });
+    if (active.exists) transaction.delete(activeRef);
+    return { completed: true, idempotentReplay: false, amountCoins: data.rewardCoins };
+  });
+  return result;
+});
+
+export const getRewardCenter = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const user = await db.collection("users").doc(uid).get();
+  if (!user.exists || user.data()?.profileCompleted !== true ||
+      !isMemberAccountInGoodStanding(user.data())) {
+    throw new HttpsError("permission-denied", "مركز المكافآت متاح للأعضاء النشطين فقط.");
+  }
+  const now = Date.now();
+  const policySnapshot = await ATTENDANCE_REWARD_POLICY.get();
+  let policy;
+  try {
+    policy = policySnapshot.exists
+      ? validateAttendanceRewardPolicy(policySnapshot.data()?.policy)
+      : defaultAttendanceRewardPolicy();
+  } catch {
+    throw new HttpsError("failed-precondition", "تعذر قراءة سياسة المكافآت بأمان.");
+  }
+  const periods = {
+    hourly: utcRewardPeriod("hourly", now),
+    daily: utcRewardPeriod("daily", now),
+    weekly: utcRewardPeriod("weekly", now),
+  };
+  const claimRefs = Object.entries(periods).map(([type, period]) =>
+    db.collection("attendanceRewardClaims").doc(`${uid}_${type}_${period}`).get());
+  const [hourly, daily, weekly, ads] = await Promise.all([
+    ...claimRefs,
+    db.collection("timedAdCampaigns").where("status", "==", "published").limit(100).get(),
+  ]);
+  const claims = { hourly: hourly.exists, daily: daily.exists, weekly: weekly.exists };
+  return {
+    serverTimeMs: now, attendancePolicy: policy, attendancePeriods: periods,
+    attendanceClaimed: claims,
+    activeCampaigns: ads.docs.filter((doc) =>
+      doc.data().startsAtMs <= now && doc.data().endsAtMs > now &&
+      doc.data().spentRewardCoins + doc.data().rewardCoins <= doc.data().rewardBudgetCoins)
+      .map((doc) => ({
+        campaignId: doc.id, title: doc.data().title,
+        sponsorLabel: doc.data().sponsorLabel, body: doc.data().body,
+        durationSeconds: doc.data().durationSeconds,
+        rewardCoins: doc.data().rewardCoins,
+      })),
+  };
+});
