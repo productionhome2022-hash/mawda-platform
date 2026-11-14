@@ -958,6 +958,131 @@ export const getMemberProfile = onCall(async (request) => {
     : { ...profile, ...premiumProfileData };
 });
 
+/**
+ * Updates the member's visitor greeting while the matching paid entitlement is active.
+ */
+export const setMemberProfileVisitorGreeting = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const greeting = typeof request.data?.greeting === "string" ? request.data.greeting.trim() : "";
+  if (greeting.length < 3 || greeting.length > 160 ||
+      /(?:https?:\/\/|www\.|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i.test(greeting)) {
+    throw new HttpsError("invalid-argument", "رسالة الترحيب يجب أن تكون نصاً عادياً من 3 إلى 160 حرفاً دون روابط أو بريد.");
+  }
+  const userRef = db.collection("users").doc(uid);
+  const entitlementRef = userRef.collection("entitlements").doc("visitor_greeting_30d");
+  const auditRef = db.collection("profileFeatureAuditLogs").doc();
+  await db.runTransaction(async (transaction) => {
+    const [userSnapshot, entitlementSnapshot] = await Promise.all([
+      transaction.get(userRef),
+      transaction.get(entitlementRef),
+    ]);
+    if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(userSnapshot.data())) {
+      throw new HttpsError("permission-denied", "العضوية غير مؤهلة لتعديل رسالة الترحيب.");
+    }
+    if (!entitlementSnapshot.exists || !isStoreEntitlementActive(entitlementSnapshot.data())) {
+      throw new HttpsError("failed-precondition", "ميزة ترحيب الزوار غير نشطة في حسابك.");
+    }
+    transaction.update(userRef, {
+      profileVisitorGreeting: greeting,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.create(auditRef, {
+      actorUid: uid,
+      action: "profile_visitor_greeting_updated",
+      greetingHash: createHash("sha256").update(greeting).digest("hex"),
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { updated: true };
+});
+
+/**
+ * Selects the section displayed first on a premium profile.
+ */
+export const setMemberPinnedProfileSection = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const section = request.data?.section;
+  if (!["bio", "interests", "gallery"].includes(section)) {
+    throw new HttpsError("invalid-argument", "القسم المطلوب تثبيته غير صالح.");
+  }
+  const userRef = db.collection("users").doc(uid);
+  const entitlementRef = userRef.collection("entitlements").doc("profile_pin_30d");
+  await db.runTransaction(async (transaction) => {
+    const [userSnapshot, entitlementSnapshot] = await Promise.all([
+      transaction.get(userRef),
+      transaction.get(entitlementRef),
+    ]);
+    if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(userSnapshot.data())) {
+      throw new HttpsError("permission-denied", "العضوية غير مؤهلة لتثبيت أقسام الملف.");
+    }
+    if (!entitlementSnapshot.exists || !isStoreEntitlementActive(entitlementSnapshot.data())) {
+      throw new HttpsError("failed-precondition", "ميزة تثبيت الأقسام غير نشطة في حسابك.");
+    }
+    transaction.update(userRef, {
+      pinnedProfileSection: section,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { section };
+});
+
+/**
+ * Age-segmented public discovery. Active discovery boosts sort ahead of
+ * unboosted profiles; blocked pairs and private profiles are never returned.
+ */
+export const discoverMembers = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const viewerSnapshot = await db.collection("users").doc(uid).get();
+  const viewer = viewerSnapshot.data();
+  if (!viewerSnapshot.exists || viewer?.profileCompleted !== true ||
+      !isMemberAccountInGoodStanding(viewer)) {
+    throw new HttpsError("permission-denied", "أكمل العضوية قبل استكشاف الأعضاء.");
+  }
+  const viewerAge = viewer.age;
+  if (!Number.isSafeInteger(viewerAge) || viewerAge < 16 || viewerAge > 120) {
+    throw new HttpsError("failed-precondition", "العمر المسجل غير صالح لعرض الاكتشاف.");
+  }
+  const viewerBlocked = new Set(
+    Array.isArray(viewer.blockedUids) ? viewer.blockedUids.filter((value: unknown) => typeof value === "string") : [],
+  );
+  const snapshot = await db.collection("users")
+    .where("profileCompleted", "==", true)
+    .limit(150)
+    .get();
+  const nowMs = Date.now();
+  const members = snapshot.docs.flatMap((document) => {
+    if (document.id === uid) return [];
+    const data = document.data();
+    if (data.profileVisibility !== "public" || !isMemberAccountInGoodStanding(data) ||
+        !Number.isSafeInteger(data.age) || ((data.age as number) < 18) !== (viewerAge < 18) ||
+        viewerBlocked.has(document.id)) return [];
+    const blockedByCandidate = Array.isArray(data.blockedUids) && data.blockedUids.includes(uid);
+    if (blockedByCandidate) return [];
+    const profile = projectPublicMemberProfile(document.id, {
+      ...data,
+      profileVisibility: "public",
+    });
+    if (!profile) return [];
+    const expiry = data.discoveryBoostExpiresAt;
+    const boostExpiryMs = expiry instanceof Timestamp
+      ? expiry.toMillis()
+      : typeof expiry?.toMillis === "function" ? expiry.toMillis() : 0;
+    const isBoosted = boostExpiryMs > nowMs;
+    const createdAtMs = data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : 0;
+    return [{ ...profile, isBoosted, _boostExpiryMs: boostExpiryMs, _createdAtMs: createdAtMs }];
+  });
+  members.sort((left, right) =>
+    Number(right.isBoosted) - Number(left.isBoosted) ||
+    right._boostExpiryMs - left._boostExpiryMs ||
+    right._createdAtMs - left._createdAtMs,
+  );
+  return {
+    members: members.slice(0, 50).map(({ _boostExpiryMs: _ignoredBoost, _createdAtMs: _ignoredCreated, ...member }) => member),
+  };
+});
+
 /** A member may change only their own profile visibility. */
 /**
  * Selects one validated custom avatar or cover and starts its 30-day lifetime.
