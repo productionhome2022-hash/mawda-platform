@@ -117,41 +117,40 @@ def configure_android() -> None:
         raise SystemExit("Could not safely set Android namespace, applicationId, minSdk=23 and compileSdk=36.")
     gradle.write_text(source, encoding="utf-8")
 
-    # Flutter plugins build as independent Android subprojects. Some currently
-    # declare API 34 internally even when the app uses API 36. Override every
-    # Android library/application extension before its AAR metadata check.
-    root_kts = android / "build.gradle.kts"
-    root_groovy = android / "build.gradle"
-    root_build = root_kts if root_kts.is_file() else root_groovy
-    if not root_build.is_file():
-        raise SystemExit("Android root Gradle build file was not generated.")
-    root_source = root_build.read_text(encoding="utf-8")
-    if root_kts.is_file():
+    # Register the override in settings, before any Android plugin subproject is evaluated.
+    settings_files = [
+        android / "settings.gradle.kts",
+        android / "settings.gradle",
+    ]
+    settings = next((candidate for candidate in settings_files if candidate.is_file()), None)
+    if settings is None:
+        raise SystemExit("Android settings Gradle file was not generated.")
+    settings_source = settings.read_text(encoding="utf-8")
+    if settings.suffix == ".kts":
         override = """
-// Mawdda: align plugin Android extensions before their project evaluation completes.
-subprojects {
-    val targetProject = this
+// Mawdda: register Android API 36 overrides before subproject evaluation.
+gradle.beforeProject { project ->
     fun applyMawddaCompileSdkOverride() {
-        val androidExtension = targetProject.extensions.findByName("android")
+        val androidExtension = project.extensions.findByName("android")
         if (androidExtension != null) {
             val setter = androidExtension.javaClass.methods.firstOrNull {
                 it.name == "setCompileSdkVersion" && it.parameterCount == 1
-            } ?: throw GradleException("Could not find Android compileSdkVersion setter for ${targetProject.path}.")
+            } ?: throw GradleException("Could not find Android compileSdkVersion setter for ${project.path}.")
             setter.invoke(androidExtension, 36)
         }
     }
-    targetProject.pluginManager.withPlugin("com.android.library") {
+    project.pluginManager.withPlugin("com.android.library") {
         applyMawddaCompileSdkOverride()
     }
-    targetProject.pluginManager.withPlugin("com.android.application") {
+    project.pluginManager.withPlugin("com.android.application") {
         applyMawddaCompileSdkOverride()
     }
 }
 """
     else:
         override = """
-// Mawdda: align plugin Android extensions before their project evaluation completes.
-subprojects { project ->
+// Mawdda: register Android API 36 overrides before subproject evaluation.
+gradle.beforeProject { project ->
     def applyMawddaCompileSdkOverride = {
         def androidExtension = project.extensions.findByName('android')
         if (androidExtension != null) {
@@ -162,10 +161,9 @@ subprojects { project ->
     project.plugins.withId('com.android.application') { applyMawddaCompileSdkOverride() }
 }
 """
-    if "align every plugin subproject with Android API 36" not in root_source:
-        root_source = root_source.rstrip() + "\n" + override
-    root_build.write_text(root_source, encoding="utf-8")
-
+    if "register Android API 36 overrides before subproject evaluation" not in settings_source:
+        settings_source = settings_source.rstrip() + "\\n" + override
+    settings.write_text(settings_source, encoding="utf-8")
 
 def configure_ios() -> None:
     ios = ROOT / "ios"
