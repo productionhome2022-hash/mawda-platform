@@ -282,7 +282,10 @@ class _OwnerMfaGateState extends State<_OwnerMfaGate> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
     final token = await user.getIdTokenResult(true);
-    if (token.claims?['platformOwner'] != true) return false;
+    if (token.claims?['platformOwner'] != true ||
+        token.claims?['platformOwnerUid'] != user.uid) {
+      return false;
+    }
     final factors = await user.multiFactor.getEnrolledFactors();
     return factors.isEmpty;
   }
