@@ -35,11 +35,11 @@ test("guest journey status does not overstate unimplemented room/session behavio
   const guest = matrix.journeys.find((journey) => journey.id === "GUEST-001");
   assert.ok(guest);
   assert.equal(guest.status, "partial");
-  assert.ok(guest.cases.includes("anonymous-guest-privacy-acknowledgement"));
-  assert.ok(guest.plannedCases.includes("public-room-text-send-receive"));
-  assert.ok(guest.plannedCases.includes("public-room-audio-send-receive"));
-  assert.ok(guest.plannedCases.includes("60-minute-expiry"));
-  assert.match(guest.releaseBlocker, /not implemented/i);
+  assert.ok(guest.cases.includes("guest-minimal-profile-no-age"));
+  assert.ok(guest.cases.includes("public-room-text-send-receive"));
+  assert.ok(guest.plannedCases.includes("real-device-audio-recording-and-playback"));
+  assert.ok(guest.plannedCases.includes("60-minute-live-expiry-clock-integration"));
+  assert.match(guest.releaseBlocker, /release blockers/i);
 });
 
 test("full member personas share the ordinary baseline while biometric adds only its dedicated capability", () => {
