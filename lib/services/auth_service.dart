@@ -38,6 +38,20 @@ class AuthService {
   }
   Future<void> sendPasswordResetEmail(String email) =>
       _auth.sendPasswordResetEmail(email: email.trim());
+  Future<void> endGuestSession() async {
+    final user = _auth.currentUser;
+    if (user == null || !user.isAnonymous) {
+      throw FirebaseAuthException(
+        code: 'not-a-guest',
+        message: 'لا توجد جلسة ضيف نشطة لإنهائها.',
+      );
+    }
+    // Anonymous guest sessions have no member push token. Delete the anonymous
+    // Auth identity so it cannot accumulate as an abandoned account.
+    await user.delete();
+    await _auth.signOut();
+  }
+
   Future<void> signOut() async {
     // Deactivate this device's server-side FCM token before invalidating auth.
     await PushNotificationService().unregister();
