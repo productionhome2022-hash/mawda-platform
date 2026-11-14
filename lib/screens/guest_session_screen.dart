@@ -46,6 +46,40 @@ class _GuestSessionScreenState extends State<GuestSessionScreen> {
     }
   }
 
+  Future<void> _endGuestSession() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('إنهاء جلسة الضيف؟'),
+        content: const Text(
+          'سيُحذف حساب Firebase المجهول لهذه الجلسة ويُسجّل خروجك. '
+          'لن يؤثر ذلك على إقرار الخصوصية المحفوظ كسجل تدقيق.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('متابعة كضيف'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('إنهاء الجلسة'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() { _busy = true; _message = null; });
+    try {
+      await _auth.endGuestSession();
+    } on FirebaseAuthException catch (error) {
+      if (mounted) setState(() => _message = error.message ?? 'تعذر إنهاء جلسة الضيف.');
+    } catch (_) {
+      if (mounted) setState(() => _message = 'تعذر إنهاء الجلسة. حاول مجدداً.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
@@ -53,7 +87,7 @@ class _GuestSessionScreenState extends State<GuestSessionScreen> {
           actions: [
             IconButton(
               tooltip: 'إنهاء جلسة الضيف',
-              onPressed: _busy ? null : _auth.signOut,
+              onPressed: _busy ? null : _endGuestSession,
               icon: const Icon(Icons.logout),
             ),
           ],
@@ -93,6 +127,12 @@ class _GuestSessionScreenState extends State<GuestSessionScreen> {
               const SizedBox(height: 12),
               Text(_message!),
             ],
+            const SizedBox(height: 18),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _endGuestSession,
+              icon: const Icon(Icons.logout),
+              label: const Text('إنهاء جلسة الضيف وحذف الحساب المجهول'),
+            ),
           ],
         ),
       );
