@@ -182,6 +182,7 @@ class MemberMediaUploadService {
     Duration timeout = const Duration(minutes: 3),
   }) async {
     final deadline = DateTime.now().add(timeout);
+    var pollCount = 0;
     while (DateTime.now().isBefore(deadline)) {
       final response = await _functions.httpsCallable('getMyMediaUploadStatus')
           .call({'mediaId': mediaId});
