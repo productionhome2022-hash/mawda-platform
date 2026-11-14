@@ -141,7 +141,8 @@ class _LoginScreenState extends State<LoginScreen> {
     final resolver = exception.resolver;
     try {
       // Prefer TOTP over SMS when both are enrolled.
-      final totpHint = resolver.hints.whereType<TotpMultiFactorInfo>().firstOrNull;
+      final totpHints = resolver.hints.whereType<TotpMultiFactorInfo>();
+      final totpHint = totpHints.isEmpty ? null : totpHints.first;
       if (totpHint != null) {
         final code = await _requestSecondFactorCode(
           title: 'التحقق بخطوتين',
@@ -159,7 +160,8 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      final phoneHint = resolver.hints.whereType<PhoneMultiFactorInfo>().firstOrNull;
+      final phoneHints = resolver.hints.whereType<PhoneMultiFactorInfo>();
+      final phoneHint = phoneHints.isEmpty ? null : phoneHints.first;
       if (phoneHint != null) {
         final verificationId = Completer<String>();
         await FirebaseAuth.instance.verifyPhoneNumber(
