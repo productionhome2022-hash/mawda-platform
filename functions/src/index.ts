@@ -5587,12 +5587,14 @@ export const joinRoom = onCall(async (request) => {
       accountType: isGuest ? "guest" : "member",
       joinedAt: now,
     });
-    transaction.update(roomRef, {
+    const roomUpdate: Record<string, unknown> = {
       memberCount: data.memberCount + 1,
-      invitedUids: !isGuest && Array.isArray(data.invitedUids) && data.invitedUids.includes(uid)
-        ? FieldValue.arrayRemove(uid) : data.invitedUids,
       updatedAt: now,
-    });
+    };
+    if (!isGuest && Array.isArray(data.invitedUids) && data.invitedUids.includes(uid)) {
+      roomUpdate.invitedUids = FieldValue.arrayRemove(uid);
+    }
+    transaction.update(roomRef, roomUpdate);
   });
   return { roomId, joined: true, guest: isGuest };
 });
