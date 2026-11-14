@@ -8,7 +8,7 @@ Environment: Firebase Auth / Firestore Emulator only
 
 The guest entry form collects exactly:
 - Username (3–24 characters)
-- Country (ISO 3166-1 alpha-2 code)
+- Country (country name or country code)
 - Gender (`male` or `female`)
 
 It does not request, infer, default, or persist age or date of birth. Extra age fields supplied by a modified client are ignored by the server. A guest profile is stored separately from member documents in `guestProfiles/{anonymousUid}`.
