@@ -111,6 +111,15 @@ test("provision 500 emulator-only identities and synthetic member profiles", asy
 for (const count of [200, 300, 500]) {
   test(`${count} synthetic personas concurrently transfer coins and exchange direct messages`, async () => {
     const cohort = personas.slice(0, count);
+    // Each tier starts from a clean sandbox wallet state so results are comparable.
+    await inBatches(cohort, BATCH_SIZE, async (persona) => {
+      const userRef = db.collection("users").doc(persona.uid);
+      const ledger = await userRef.collection("walletLedger").get();
+      const batch = db.batch();
+      ledger.docs.forEach((doc) => batch.delete(doc.ref));
+      batch.update(userRef, { coins: 10000 });
+      await batch.commit();
+    });
     const settingsRef = db.doc("platformSettings/coinTransfers");
     const previous = await settingsRef.get();
     const previousData = previous.exists ? previous.data() : null;
