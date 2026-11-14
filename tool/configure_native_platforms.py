@@ -118,62 +118,6 @@ def configure_android() -> None:
         raise SystemExit("Could not safely set Android namespace, applicationId, minSdk=23 and compileSdk=36.")
     gradle.write_text(source, encoding="utf-8")
 
-    # Register the override in settings, before any Android plugin subproject is evaluated.
-    settings_files = [
-        android / "settings.gradle.kts",
-        android / "settings.gradle",
-    ]
-    settings = next((candidate for candidate in settings_files if candidate.is_file()), None)
-    if settings is None:
-        raise SystemExit("Android settings Gradle file was not generated.")
-    settings_source = settings.read_text(encoding="utf-8")
-    if settings.suffix == ".kts":
-        override = """
-// Mawdda: register Android API 36 overrides before project build scripts execute.
-gradle.addProjectEvaluationListener(object : org.gradle.api.ProjectEvaluationListener {
-    override fun beforeEvaluate(project: org.gradle.api.Project) {
-        fun applyMawddaCompileSdkOverride() {
-            val androidExtension = project.extensions.findByName("android")
-            if (androidExtension != null) {
-                val setter = androidExtension.javaClass.methods.firstOrNull {
-                    it.name == "setCompileSdkVersion" && it.parameterCount == 1 &&
-                        (it.parameterTypes[0] == java.lang.Integer.TYPE ||
-                         it.parameterTypes[0] == java.lang.Integer::class.java)
-                } ?: throw GradleException(
-                    "Could not find integer compileSdkVersion setter for ${project.path}; candidates: " +
-                        androidExtension.javaClass.methods.filter { it.name.contains("CompileSdk", true) }
-                            .joinToString { method -> method.name + method.parameterTypes.contentToString() },
-                )
-                setter.invoke(androidExtension, 36)
-            }
-        }
-        project.pluginManager.withPlugin("com.android.library") {
-            applyMawddaCompileSdkOverride()
-        }
-    }
-    override fun afterEvaluate(project: org.gradle.api.Project, state: org.gradle.api.ProjectState) {}
-})
-"""
-    else:
-        override = """
-// Mawdda: register Android API 36 overrides before project build scripts execute.
-gradle.addProjectEvaluationListener(new org.gradle.api.ProjectEvaluationListener() {
-    void beforeEvaluate(org.gradle.api.Project project) {
-        def applyMawddaCompileSdkOverride = {
-            def androidExtension = project.extensions.findByName('android')
-            if (androidExtension != null) {
-                androidExtension.compileSdkVersion 36
-            }
-        }
-        project.plugins.withId('com.android.library') { applyMawddaCompileSdkOverride() }
-    }
-    void afterEvaluate(org.gradle.api.Project project, org.gradle.api.ProjectState state) {}
-})
-"""
-    if "register Android API 36 overrides before subproject evaluation" not in settings_source:
-        settings_source = settings_source.rstrip() + "\n" + override
-    settings.write_text(settings_source, encoding="utf-8")
-
 def configure_ios() -> None:
     ios = ROOT / "ios"
     info = ios / "Runner" / "Info.plist"
