@@ -121,6 +121,15 @@ jobs:
         run: npm run test:guest-session-integration
       - name: Provision emulator-only test personas and exercise cross-persona wallet interaction
         run: npm run test:seeded-persona-interaction
+      - name: Stress test 200, 300 and 500 synthetic personas in isolated Firebase emulators
+        run: npm run test:persona-load
+      - name: Upload synthetic persona profiles and load-test metrics
+        uses: actions/upload-artifact@v5
+        with:
+          name: mawdda-persona-load-report-${{ github.sha }}
+          path: functions/.mawdda-load/
+          if-no-files-found: error
+          retention-days: 7
       - name: Run owner audit export pagination and redaction integration tests
         run: npm run test:owner-audit-export-integration
       - name: Run media legal hold and release integration tests
