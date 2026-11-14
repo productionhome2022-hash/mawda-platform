@@ -78,7 +78,7 @@
       "actors": [
         "guest-preview"
       ],
-      "command": "npm run test:guest-privacy-integration",
+      "command": "npm run test:guest-session-integration",
       "status": "partial",
       "cases": [
         "guest-minimal-profile-no-age",
@@ -88,7 +88,9 @@
         "public-room-text-send-receive",
         "text-message-idempotency",
         "adult-and-private-room-denial",
-        "session-end-and-cooldown-denial"
+        "session-end-and-cooldown-denial",
+        "owner-explicit-general-audience-approval",
+        "public-room-audio-attachment-send-receive"
       ],
       "plannedCases": [
         "real-device-audio-recording-and-playback",
