@@ -113,7 +113,7 @@ test("guest onboarding stores no age and grants only active all-ages public-room
       () => transferCoins.run(guestRequest(uid, {
         recipientUid: emailUid, amount: 10, requestId: "guest_transfer_0001", expectedCommissionBps: 1000,
       })),
-      (error) => error && (error.code === "permission-denied" || error.code === "failed-precondition"),
+      (error) => error && error.code === "permission-denied",
     );
     await assert.rejects(
       () => listRoomEvents.run(guestRequest(uid, { roomId })),
