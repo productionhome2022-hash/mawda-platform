@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/push_notification_service.dart';
 import 'login_screen.dart';
 import 'main_user_screen.dart';
 import 'guest_session_screen.dart';
@@ -122,7 +125,9 @@ class _PrivacyAcknowledgementGateState
           if (snapshot.data == true) {
             return widget.actorType == 'guest'
                 ? const GuestSessionScreen()
-                : MainUserScreen(userId: widget.userId);
+                : _MemberPushBootstrap(
+                    child: MainUserScreen(userId: widget.userId),
+                  );
           }
           return PrivacyAcknowledgementScreen(
             busy: _saving,
@@ -186,4 +191,43 @@ class _EmailVerificationScreenState extends State<_EmailVerificationScreen> {
       ]),
     )),
   );
+}
+
+
+/// Starts FCM registration only after the member has passed authentication
+/// and the current privacy acknowledgement gate. Guest sessions never register
+/// member push tokens. Token refresh and deactivation are delegated to the
+/// server-owned token registry.
+class _MemberPushBootstrap extends StatefulWidget {
+  const _MemberPushBootstrap({required this.child});
+  final Widget child;
+
+  @override
+  State<_MemberPushBootstrap> createState() => _MemberPushBootstrapState();
+}
+
+class _MemberPushBootstrapState extends State<_MemberPushBootstrap> {
+  final PushNotificationService _push = PushNotificationService();
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_push.initialize(
+      onForegroundMessage: (message) {
+        // The notification center remains the durable in-app inbox. This
+        // callback is intentionally non-invasive while a screen is in use.
+        debugPrint('Mawda foreground push received: ${message.messageId ?? 'no-id'}');
+      },
+    ));
+  }
+
+  @override
+  void dispose() {
+    unawaited(_push.unregister());
+    unawaited(_push.dispose());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
