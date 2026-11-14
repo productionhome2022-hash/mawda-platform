@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "697303475139",
-    "project_id": "mawda-app-2026",
-    "storage_bucket": "mawda-app-2026.firebasestorage.app"
+    "project_number": "12102454568",
+    "project_id": "mawda-platform-nonprod-2026",
+    "storage_bucket": "mawda-platform-nonprod-2026.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:697303475139:android:0aad1a52d2276f273ed376",
+        "mobilesdk_app_id": "1:12102454568:android:5f8907b71af845cfa2141d",
         "android_client_info": {
           "package_name": "com.mawdda.platform.app"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCuWy9zZs6a_4_zatGiFMNAi6r0c8UcIVs"
+          "current_key": "AIzaSyBcQcOH2XnoFxl7T1CS8Ec4jFDQJniy2uQ"
         }
       ],
       "services": {
