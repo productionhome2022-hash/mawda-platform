@@ -1,0 +1,23 @@
+{
+  "id": "/",
+  "name": "Mawdda Platform 2026",
+  "short_name": "Mawdda",
+  "description": "منصة مودة",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#160D1B",
+  "theme_color": "#8B234B",
+  "categories": ["social", "lifestyle"],
+  "icons": [
+    {
+      "src": "/mawdda-app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
