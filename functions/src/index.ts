@@ -1097,7 +1097,21 @@ export const discoverMembers = onCall(async (request) => {
     right._createdAtMs - left._createdAtMs,
   );
   return {
-    members: members.slice(0, 50).map(({ _boostExpiryMs: _ignoredBoost, _createdAtMs: _ignoredCreated, ...member }) => member),
+    members: members.slice(0, 50).map((member) => ({
+      uid: member.uid,
+      displayName: member.displayName,
+      username: member.username,
+      bio: member.bio,
+      profession: member.profession,
+      country: member.country,
+      region: member.region,
+      gender: member.gender,
+      maritalStatus: member.maritalStatus,
+      interests: member.interests,
+      goals: member.goals,
+      socialLinks: member.socialLinks,
+      isBoosted: member.isBoosted,
+    })),
   };
 });
 
