@@ -7,7 +7,7 @@ Exercise the trusted wallet and direct-message callables with 200, 300 and 500 s
 - The fixture generator creates synthetic identities only, using the reserved `test.mawdda.invalid` email domain.
 - The integration test requires both Firebase Auth and Firestore Emulator hosts and is invoked with a `demo-mawda-*` project ID by Firebase Emulator Suite.
 - It does not use Firebase production credentials, production projects, live payment providers, real member data, or real push delivery.
-- The generated fixture and machine-readable report are CI artifacts with a seven-day retention window. They are not production data and should not be imported into a live Firebase project.
+- The generated fixture and machine-readable report are written to `functions/mawdda-load-artifacts/` and uploaded as CI artifacts with a seven-day retention window. The generated directory is ignored by Git. They are not production data and should not be imported into a live Firebase project.
 
 ## Scenarios
 A single isolated emulator session provisions 500 synthetic identities, then runs three independently reset cohorts:
