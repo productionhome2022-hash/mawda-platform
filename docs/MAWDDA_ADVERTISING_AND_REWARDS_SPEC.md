@@ -99,3 +99,11 @@ Remaining release gates:
 - Real cloud Storage/ClamAV deployment, quotas, retention/deletion, backups, provider economics/legal review and production monitoring are not validated by emulator tests.
 - No third-party advertising provider is connected; no provider connection is simulated.
 - All new code is development-branch only. CI must pass on the exact latest commit before any phase exit review; no production deployment or merge is authorized by this document.
+
+
+Budget integrity addendum:
+- Campaign rewards are reserved atomically when a member starts a session. Completion moves the reservation into spent budget and the wallet ledger in one transaction.
+- Expired/abandoned sessions release reservations from the heartbeat expiry path, a scheduled cleanup (every 15 minutes, 250 expired sessions per pass), or when the same member starts a replacement session.
+- Campaign edits are blocked while reward reservations are outstanding. Published campaign feeds and start checks account for spent plus reserved budget, preventing concurrent sessions from overcommitting the configured reward budget.
+- Existing active sessions may finish after a campaign is paused or archived; new sessions cannot start. Media approval is rechecked at publish, start, creative delivery and reward completion.
+- The only currently publishable placement is the reward center. Home placement and video publication are fail-closed until their in-app presentation paths are implemented and tested.
