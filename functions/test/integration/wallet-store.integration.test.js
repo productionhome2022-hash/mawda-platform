@@ -557,3 +557,139 @@ test("owner live streams are scoped to owner direct chats or active rooms and ar
     ]);
   }
 });
+
+
+test("every shipped premium store category charges once and grants its matching entitlement", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const { projectStoreEntitlementFeatures } = require("../../lib/store-purchase");
+  const tag = suffix();
+  const uid = `premium_store_member_${tag}`;
+  const memberRef = db.collection("users").doc(uid);
+  const items = [
+    ["vip_monthly", "vip", 30],
+    ["title_custom", "title", 30],
+    ["badge_special", "badge", 30],
+    ["avatar_frame_30d", "frame", 30],
+    ["username_color_30d", "username_style", 30],
+    ["username_animated_30d", "username_style", 30],
+    ["profile_analytics_30d", "analytics", 30],
+    ["profile_layout_30d", "profile_layout", 30],
+    ["profile_pin_30d", "profile_layout", 30],
+    ["discovery_boost_7d", "boost", 7],
+    ["profile_theme_30d", "theme", 30],
+    ["visitor_greeting_30d", "greeting", 30],
+  ];
+  const priceCoins = 100;
+  const purchaseRefs = [];
+  const ledgerRefs = [];
+  const entitlementRefs = [];
+  const catalogRefs = items.map(([itemId]) => db.collection("storeCatalog").doc(itemId));
+
+  await memberRef.set({
+    coins: 10000,
+    profileCompleted: true,
+    accountStatus: "active",
+  });
+
+  try {
+    await Promise.all(catalogRefs.map((ref, index) => {
+      const [itemId, category, durationDays] = items[index];
+      return ref.set({
+        itemId,
+        name: `ميزة ${itemId}`,
+        description: "اختبار تكامل لاستحقاق متجر مميز.",
+        category,
+        priceCoins,
+        durationDays,
+        sortOrder: index + 1,
+        active: true,
+        purchaseEnabled: true,
+        fulfillmentReady: true,
+      });
+    }));
+
+    for (const [index, [itemId]] of items.entries()) {
+      const requestId = `premium_${tag}_${index}`;
+      const purchaseId = `${uid}_${requestId}`;
+      const purchaseRef = db.collection("storePurchases").doc(purchaseId);
+      const ledgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
+      const entitlementRef = memberRef.collection("entitlements").doc(itemId);
+      purchaseRefs.push(purchaseRef);
+      ledgerRefs.push(ledgerRef);
+      entitlementRefs.push(entitlementRef);
+
+      const result = await purchaseStoreItem.run(memberRequest(uid, {
+        itemId,
+        requestId,
+        expectedPriceCoins: priceCoins,
+      }));
+      assert.equal(result.idempotentReplay, false, itemId);
+      assert.equal(result.newBalance, 10000 - ((index + 1) * priceCoins), itemId);
+
+      const [purchase, ledger, entitlement] = await Promise.all([
+        purchaseRef.get(),
+        ledgerRef.get(),
+        entitlementRef.get(),
+      ]);
+      assert.equal(purchase.data().status, "completed", itemId);
+      assert.equal(ledger.data().amount, -priceCoins, itemId);
+      assert.equal(entitlement.data().status, "active", itemId);
+      assert.equal(entitlement.data().itemId, itemId, itemId);
+
+      const replay = await purchaseStoreItem.run(memberRequest(uid, {
+        itemId,
+        requestId,
+        expectedPriceCoins: priceCoins,
+      }));
+      assert.equal(replay.idempotentReplay, true, itemId);
+      assert.equal((await memberRef.get()).data().coins, 10000 - ((index + 1) * priceCoins), itemId);
+    }
+
+    const entitlementSnapshots = await Promise.all(entitlementRefs.map((ref) => ref.get()));
+    const projected = projectStoreEntitlementFeatures(
+      entitlementSnapshots.map((snapshot) => snapshot.data()),
+    );
+    assert.equal(projected.vipActive, true);
+    assert.equal(projected.activeTitle, `ميزة title_custom`);
+    assert.deepEqual(
+      new Set(projected.activeFeatures.map((feature) => feature.itemId)),
+      new Set(items.map(([itemId]) => itemId)),
+    );
+
+    const member = (await memberRef.get()).data();
+    assert.equal(member.pinnedProfileSection, "interests");
+    assert.ok(member.discoveryBoostExpiresAt.toMillis() > Date.now());
+
+    const disabledPrivacyItem = db.collection("storeCatalog").doc("hide_coins_30d");
+    await disabledPrivacyItem.set({
+      itemId: "hide_coins_30d",
+      name: "إخفاء الرصيد",
+      description: "ميزة خصوصية غير مفعلة.",
+      category: "privacy",
+      priceCoins,
+      durationDays: 30,
+      active: true,
+      purchaseEnabled: false,
+      fulfillmentReady: false,
+    });
+    await assert.rejects(
+      () => purchaseStoreItem.run(memberRequest(uid, {
+        itemId: "hide_coins_30d",
+        requestId: `privacy_${tag}`,
+        expectedPriceCoins: priceCoins,
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await memberRef.get()).data().coins, 10000 - (items.length * priceCoins));
+    await disabledPrivacyItem.delete();
+  } finally {
+    await Promise.all([
+      ...purchaseRefs.map((ref) => ref.delete().catch(() => undefined)),
+      ...ledgerRefs.map((ref) => ref.delete().catch(() => undefined)),
+      ...entitlementRefs.map((ref) => ref.delete().catch(() => undefined)),
+      ...catalogRefs.map((ref) => ref.delete().catch(() => undefined)),
+      db.collection("storeCatalog").doc("hide_coins_30d").delete().catch(() => undefined),
+      db.recursiveDelete(memberRef).catch(() => undefined),
+    ]);
+  }
+});
