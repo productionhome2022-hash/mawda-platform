@@ -122,7 +122,101 @@ class _LoginScreenState extends State<LoginScreen> {
           FilledButton(
             onPressed: () {
               final value = controller.text.trim();
-              if (RegExp(r'^\d{6}    if (!_formKey.currentState!.validate() || _busy) return;
+              if (value.length == 6 && int.tryParse(value) != null) {
+                Navigator.pop(dialogContext, value);
+              }
+            },
+            child: const Text('تأكيد الدخول'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return code;
+  }
+
+  Future<void> _resolveMultiFactorSignIn(
+    FirebaseAuthMultiFactorException exception,
+  ) async {
+    final resolver = exception.resolver;
+    try {
+      // Prefer TOTP over SMS when both are enrolled.
+      final totpHint = resolver.hints.whereType<TotpMultiFactorInfo>().firstOrNull;
+      if (totpHint != null) {
+        final code = await _requestSecondFactorCode(
+          title: 'التحقق بخطوتين',
+          instruction: 'افتح تطبيق المصادقة الذي ربطته بحسابك وأدخل الرمز الحالي.',
+        );
+        if (code == null || !mounted) {
+          if (mounted) setState(() => _message = 'أُلغيت خطوة التحقق؛ لم يكتمل تسجيل الدخول.');
+          return;
+        }
+        final assertion = await TotpMultiFactorGenerator.getAssertionForSignIn(
+          totpHint.uid,
+          code,
+        );
+        await resolver.resolveSignIn(assertion);
+        return;
+      }
+
+      final phoneHint = resolver.hints.whereType<PhoneMultiFactorInfo>().firstOrNull;
+      if (phoneHint != null) {
+        final verificationId = Completer<String>();
+        await FirebaseAuth.instance.verifyPhoneNumber(
+          multiFactorSession: resolver.session,
+          multiFactorInfo: phoneHint,
+          verificationCompleted: (_) {
+            // Keep explicit code confirmation in the UI.
+          },
+          verificationFailed: (error) {
+            if (!verificationId.isCompleted) verificationId.completeError(error);
+          },
+          codeSent: (id, _) {
+            if (!verificationId.isCompleted) verificationId.complete(id);
+          },
+          codeAutoRetrievalTimeout: (id) {
+            if (!verificationId.isCompleted) verificationId.complete(id);
+          },
+        );
+        final id = await verificationId.future.timeout(const Duration(minutes: 2));
+        if (!mounted) return;
+        final phone = phoneHint.phoneNumber;
+        final maskedPhone = phone.length > 4
+            ? '••••${phone.substring(phone.length - 4)}'
+            : 'رقم الهاتف المسجل';
+        final code = await _requestSecondFactorCode(
+          title: 'تأكيد رقم الهاتف',
+          instruction: 'أدخل رمز الرسالة المرسلة إلى $maskedPhone.',
+        );
+        if (code == null || !mounted) {
+          if (mounted) setState(() => _message = 'أُلغيت خطوة التحقق؛ لم يكتمل تسجيل الدخول.');
+          return;
+        }
+        final credential = PhoneAuthProvider.credential(
+          verificationId: id,
+          smsCode: code,
+        );
+        await resolver.resolveSignIn(
+          PhoneMultiFactorGenerator.getAssertion(credential),
+        );
+        return;
+      }
+
+      if (mounted) {
+        setState(() => _message =
+            'حسابك يتطلب عاملاً ثانياً غير مدعوم في هذه النسخة. لا يمكن تجاوز التحقق؛ تواصل مع مالك المنصة لاستعادة وسيلة MFA المعتمدة.');
+      }
+    } on FirebaseAuthException catch (error) {
+      if (mounted) setState(() => _message = _friendlyError(error));
+    } on TimeoutException {
+      if (mounted) setState(() => _message = 'انتهت مهلة إرسال رمز الهاتف. حاول مجدداً.');
+    } catch (_) {
+      if (mounted) setState(() => _message = 'تعذر إكمال التحقق بخطوتين. لم يتم تجاوز حماية الحساب.');
+    }
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate() || _busy) return;
     if (_register) {
       final accepted = await _confirmPrivacyBeforeRegistration();
       if (accepted != true || !mounted) return;
