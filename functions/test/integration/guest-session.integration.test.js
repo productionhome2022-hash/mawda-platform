@@ -26,9 +26,9 @@ test("guest onboarding stores no age and grants only active all-ages public-room
   const userRef = db.collection("users").doc(uid);
   try {
     await Promise.all([
-      roomRef(roomId).set({ name: "Guest-safe public", status: "active", kind: "public", audience: "all_ages", capacity: 20, memberCount: 0 }),
+      roomRef(roomId).set({ name: "Guest-safe public", status: "active", kind: "public", audience: "all_ages", guestAudienceApproved: true, capacity: 20, memberCount: 0 }),
       roomRef(adultRoomId).set({ name: "Adult only", status: "active", kind: "public", audience: "adult", capacity: 20, memberCount: 0 }),
-      roomRef(privateRoomId).set({ name: "Private", status: "active", kind: "private", audience: "all_ages", capacity: 20, memberCount: 0 }),
+      roomRef(privateRoomId).set({ name: "Private", status: "active", kind: "private", audience: "all_ages", guestAudienceApproved: true, capacity: 20, memberCount: 0 }),
     ]);
     const started = await startGuestSession.run(guestRequest(uid, {
       username: "guest-test-user", country: "CH", gender: "female", age: 18, dateOfBirth: "2008-01-01",
