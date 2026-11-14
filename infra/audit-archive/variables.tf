@@ -21,10 +21,10 @@ variable "runtime_service_account" {
 variable "retention_seconds" {
   description = "Minimum locked retention; 63,115,200 seconds is approximately 24 months."
   type        = number
-  default     = 63115200
+  default     = 64281600
 
   validation {
-    condition     = var.retention_seconds >= 63115200
+    condition     = var.retention_seconds >= 64281600
     error_message = "Audit retention must be at least 24 months (63,115,200 seconds)."
   }
 }
