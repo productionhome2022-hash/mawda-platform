@@ -223,7 +223,6 @@ class _MemberPushBootstrapState extends State<_MemberPushBootstrap> {
 
   @override
   void dispose() {
-    unawaited(_push.unregister());
     unawaited(_push.dispose());
     super.dispose();
   }
