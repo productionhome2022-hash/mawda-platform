@@ -216,3 +216,33 @@ The next owner-side read-only verification is to reconcile the Storage bucket id
 - Close the remaining product, legal, privacy, security, accessibility, performance, observability and incident-recovery gates recorded in `docs/RELEASE_READINESS_CHECKLIST.md`.
 - Keep payment gateway/refunds/settlement, high-assurance identity verification and the biometric reward disabled until their respective trusted integrations and acceptance tests exist. The 1,500-coin biometric reward remains fail-closed.
 
+
+
+## I. 14 November 2026 — execution update and new acceptance evidence
+
+Development head at this update: `efe01147cfdf4b5ee6fcd70a00b6e3d6d46894ee`. PR #2 remains Draft/open/unmerged.
+
+### Verified baseline
+Run [43629814484](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43629814484) completed successfully on exact commit `3c4422e59d6bf9298d21a47465ca209e50b79b58`:
+- Flutter analysis, tests and Web release build: success.
+- Cloud Functions compile/unit tests and all configured emulator integration/rules suites: success, including the newly added attendance/timed-ad integration suite.
+- Isolated ClamAV scanner tests and image build: success.
+- The same run exercised the existing 200/300/500 synthetic persona load matrix.
+
+This is a verified baseline only. It predates later Flutter owner/member ad UI, owner-uploaded creative binding, and safe creative delivery changes.
+
+### New code added after that baseline
+- Server-owned UTC hourly/daily/weekly attendance reward policy and atomic exactly-once wallet credit.
+- Owner-managed timed-ad campaign lifecycle, member eligibility, one active session, sequential foreground heartbeats, server-accumulated eligible duration, campaign budget/member caps and idempotent reward ledger credit.
+- Owner dashboard for reward policy and campaign creation/editing, upload through the private media quarantine and scanning pipeline, and campaign binding restricted to owner-owned, security-approved creative assets.
+- Member reward center and locked viewer; session restoration and short-lived signed delivery for approved image/GIF derivatives.
+- Video campaign publishing is intentionally blocked until the in-app player and device lifecycle acceptance exist. Home placement is intentionally blocked until its member UI exists.
+- No external ad provider is connected. Platform-managed campaigns remain provider-independent.
+- Exact code/test details and limits are recorded in `docs/MAWDDA_ADVERTISING_AND_REWARDS_SPEC.md`.
+
+### Latest validation state
+- The full validation run for the new owner/member screens, media-purpose policy, creative binding and updated heartbeat rules was queued as run `43630952416` on commit `eac5801d59c68f0b02312b0ed8c780cf210d2495`.
+- This ledger update itself advances the branch to `efe01147cfdf4b5ee6fcd70a00b6e3d6d46894ee`; its exact-head CI result must be checked separately. Do not treat a queued or earlier successful run as proof for this new head.
+
+### Acceptance decision
+**Phase 1 + Phase 2 remain OPEN.** Outstanding gates include exact-head CI success; in-app video playback; home ad placement; live non-production GCS/Cloud Run scanner E2E; real device tests; backup/PITR/restore and retention evidence; Firebase native app registration/configuration; full security/privacy/legal review; owner MFA/bootstrap and operational monitoring. No production deploy, PR merge, retention-worker activation or phase-3 transition is authorized by this update.
