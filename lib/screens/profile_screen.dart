@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:uuid/uuid.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/coin_system_service.dart';
@@ -48,9 +49,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('موافقة مستقلة على المصادقة البيومترية'),
         content: const Text(
-          'هذا اختبار اختياري لمصادقة الجهاز عبر Android BiometricPrompt أو Apple LocalAuthentication. '
-          'يتولى نظام التشغيل المطابقة محلياً؛ لا ترسل مودة بصمتك أو صورة وجهك أو قالبك البيومتري إلى خوادمها. '
-          'النتيجة لا تثبت هويتك المدنية ولا تمنح كوينز أو صلاحية خادمية. يمكنك الإلغاء دون أثر على الميزات الأساسية.',
+          'تستخدم مودة نافذة المصادقة المحلية في Android أو Apple. يتولى نظام التشغيل التحقق على الجهاز؛ '
+          'لا نلتقط البصمة أو الوجه ولا نرسل بيانات بيومترية إلى الخادم. عند نجاح النافذة، يطلب التطبيق من الخادم '
+          'اعتماد دورة مدتها 30 يوماً ومنح 1500 كوينز مرة واحدة في الدورة. هذه مكافأة على نجاح المصادقة المحلية '
+          'وليست إثباتاً للهوية المدنية.',
         ),
         actions: [
           TextButton(
@@ -70,20 +72,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
     setState(() => _checkingLocalBiometrics = false);
 
-    final message = switch (result.status) {
-      LocalBiometricStatus.authenticated =>
-        'نجحت المصادقة المحلية على هذا الجهاز. لم تُرسل بيانات بيومترية إلى خوادم مودة، ولم تُمنح مكافأة أو صلاحية خادمية بهذه الخطوة.',
-      LocalBiometricStatus.unavailable =>
-        'هذا الجهاز أو النظام لا يتيح المصادقة البيومترية حالياً.',
-      LocalBiometricStatus.notEnrolled =>
-        'لم تُسجل بصمة أو وسيلة بيومترية على هذا الجهاز.',
-      LocalBiometricStatus.cancelled =>
-        'ألغيت المصادقة؛ لم يتم اعتماد أي تحقق.',
-      LocalBiometricStatus.failed =>
-        'تعذر إكمال المصادقة البيومترية. حاول لاحقاً أو تحقق من إعدادات الجهاز.',
-    };
+    String message;
+    if (result.status == LocalBiometricStatus.authenticated) {
+      try {
+        final platform = switch (defaultTargetPlatform) {
+          TargetPlatform.android => 'android',
+          TargetPlatform.iOS => 'ios',
+          _ => 'unsupported',
+        };
+        if (platform == 'unsupported') {
+          message = 'نجحت المصادقة المحلية، لكن مكافأة هذه الدورة متاحة عبر تطبيق Android أو iOS فقط.';
+        } else {
+          final response = await FirebaseFunctions.instance
+              .httpsCallable('completeBiometricVerificationCycle')
+              .call(<String, dynamic>{
+            'localAuthenticationSucceeded': true,
+            'platform': platform,
+            'attemptId': const Uuid().v4(),
+          });
+          final data = Map<String, dynamic>.from(response.data as Map);
+          if (data['rewardGranted'] == true) {
+            message = 'تم اعتماد المصادقة المحلية بنجاح، وأضيفت 1500 كوينز إلى محفظتك. تتجدد أهليتك بعد 30 يوماً.';
+            if (mounted) setState(() => _profileFuture = _loadProfile());
+          } else {
+            message = 'تم التحقق محلياً. سبق منح مكافأة هذه الدورة؛ يمكنك الحصول على المكافأة التالية بعد اكتمال 30 يوماً.';
+          }
+        }
+      } on FirebaseFunctionsException catch (error) {
+        message = error.message ?? 'نجحت المصادقة المحلية، لكن تعذر اعتماد المكافأة من الخادم حالياً.';
+      } catch (_) {
+        message = 'نجحت المصادقة المحلية، لكن تعذر إكمال طلب المكافأة من الخادم.';
+      }
+    } else {
+      message = switch (result.status) {
+        LocalBiometricStatus.unavailable =>
+          'هذا الجهاز أو النظام لا يتيح المصادقة البيومترية حالياً.',
+        LocalBiometricStatus.notEnrolled =>
+          'لم تُسجل بصمة أو وسيلة بيومترية على هذا الجهاز.',
+        LocalBiometricStatus.cancelled =>
+          'ألغيت المصادقة؛ لم يتم اعتماد أي تحقق أو منح مكافأة.',
+        LocalBiometricStatus.failed =>
+          'تعذر إكمال المصادقة البيومترية. حاول لاحقاً أو تحقق من إعدادات الجهاز.',
+        LocalBiometricStatus.authenticated => 'اكتملت المصادقة المحلية.',
+      };
+    }
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 5)),
+      SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
     );
   }
 
