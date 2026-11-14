@@ -11,6 +11,7 @@ import '../services/local_biometric_service.dart';
 import 'direct_chat_screen.dart';
 import 'stories_screen.dart';
 import 'profile_gallery_screen.dart';
+import 'safety_center_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String profileUserId;
@@ -32,6 +33,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final MemberMediaUploadService _memberMedia = MemberMediaUploadService();
   bool _changingProfileMedia = false;
   bool _checkingLocalBiometrics = false;
+  bool _targetBlockedByMe = false;
+  bool _loadingTargetBlock = false;
   bool _checkingEmailRenewal = false;
   bool _isTransferringCoins = false;
   String? _pendingTransferKey;
@@ -42,6 +45,80 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _profileFuture = _loadProfile();
+    if (widget.profileUserId != widget.currentUserId) {
+      _loadTargetBlockState();
+    }
+  }
+
+  Future<void> _loadTargetBlockState() async {
+    if (_loadingTargetBlock) return;
+    setState(() => _loadingTargetBlock = true);
+    try {
+      final response = await FirebaseFunctions.instance
+          .httpsCallable('getMyBlockedUsers')
+          .call();
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final blocked = (data['blockedUids'] as List<dynamic>? ?? const [])
+          .whereType<String>()
+          .toSet();
+      if (mounted) setState(() => _targetBlockedByMe = blocked.contains(widget.profileUserId));
+    } catch (_) {
+      // The server still enforces block state for every message operation.
+    } finally {
+      if (mounted) setState(() => _loadingTargetBlock = false);
+    }
+  }
+
+  Future<void> _toggleTargetBlock() async {
+    if (_loadingTargetBlock) return;
+    final nextBlocked = !_targetBlockedByMe;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(nextBlocked ? 'حظر هذا العضو؟' : 'إلغاء حظر هذا العضو؟'),
+        content: Text(nextBlocked
+            ? 'لن تتمكن أنت وهذا العضو من تبادل الرسائل الخاصة. لا يتلقى العضو إشعاراً بالحظر.'
+            : 'سيُسمح بتبادل الرسائل مجدداً إذا لم يوجد حظر متبادل أو قيد آخر.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(nextBlocked ? 'تأكيد الحظر' : 'إلغاء الحظر'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _loadingTargetBlock = true);
+    try {
+      await FirebaseFunctions.instance.httpsCallable('setMemberBlock').call({
+        'targetUid': widget.profileUserId,
+        'blocked': nextBlocked,
+      });
+      if (!mounted) return;
+      setState(() => _targetBlockedByMe = nextBlocked);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(nextBlocked ? 'تم حظر العضو.' : 'تم إلغاء الحظر.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر تحديث قائمة الحظر.')),
+      );
+    } finally {
+      if (mounted) setState(() => _loadingTargetBlock = false);
+    }
+  }
+
+  Future<void> _openSafetyCenter({String? targetUid}) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SafetyCenterScreen(initialTargetUid: targetUid),
+      ),
+    );
   }
 
   Future<void> _checkLocalBiometrics() async {
@@ -1009,6 +1086,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                   child: OutlinedButton.icon(
+                    icon: const Icon(Icons.shield_outlined),
+                    label: const Text('مركز السلامة والبلاغات'),
+                    onPressed: () => _openSafetyCenter(),
+                  ),
+                ),
+              if (isMyProfile)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  child: OutlinedButton.icon(
                     icon: const Icon(Icons.link),
                     label: const Text('إدارة روابط التواصل'),
                     onPressed: () => _manageSocialLinks(data),
@@ -1085,6 +1171,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               if (!isMyProfile)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.flag_outlined),
+                    label: const Text('الإبلاغ عن هذا العضو'),
+                    onPressed: () => _openSafetyCenter(targetUid: widget.profileUserId),
+                  ),
+                ),
+              if (!isMyProfile)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                  child: OutlinedButton.icon(
+                    onPressed: _loadingTargetBlock ? null : _toggleTargetBlock,
+                    icon: _loadingTargetBlock
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : Icon(_targetBlockedByMe ? Icons.check_circle_outline : Icons.block_outlined),
+                    label: Text(_targetBlockedByMe ? 'إلغاء حظر العضو' : 'حظر العضو'),
+                  ),
+                ),
+              if (!isMyProfile && !_targetBlockedByMe)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
                   child: OutlinedButton.icon(
