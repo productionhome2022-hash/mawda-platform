@@ -7684,8 +7684,7 @@ export const getOwnerAttendanceRewardPolicy = onCall(async (request) => {
 
 
 /** Releases reward-budget reservations for abandoned sessions after their server expiry. */
-export const cleanupExpiredTimedAdSessions = onSchedule("every 15 minutes", async () => {
-  const nowMs = Date.now();
+export const runExpiredTimedAdSessionSweep = async (nowMs = Date.now()) => {
   const candidates = await db.collection("timedAdSessions")
     .where("status", "in", ["active", "paused"])
     .where("expiresAtMs", "<=", nowMs)
@@ -7726,4 +7725,9 @@ export const cleanupExpiredTimedAdSessions = onSchedule("every 15 minutes", asyn
     if (wasCleaned) cleaned += 1;
   }
   logger.info("Expired timed-ad sessions cleaned", { inspected: candidates.size, cleaned });
+  return { inspected: candidates.size, cleaned };
+};
+
+export const cleanupExpiredTimedAdSessions = onSchedule("every 15 minutes", async () => {
+  await runExpiredTimedAdSessionSweep();
 });
