@@ -13,7 +13,7 @@ const {
   getTimedAdCreativeUrl,
   heartbeatTimedAdvertisement,
   completeTimedAdvertisement,
-  cleanupExpiredTimedAdSessions,
+  runExpiredTimedAdSessionSweep,
 } = require("../../lib/index");
 
 const db = getFirestore();
@@ -374,7 +374,7 @@ test("abandoned expired ad sessions release their reserved campaign budget", asy
     await db.collection("timedAdSessions").doc(firstSessionId).update({
       expiresAtMs: Date.now() - 1,
     });
-    await cleanupExpiredTimedAdSessions.run();
+    await runExpiredTimedAdSessionSweep();
     storedCampaign = await db.collection("timedAdCampaigns").doc(campaignId).get();
     assert.equal(storedCampaign.data().reservedRewardCoins, 0);
     assert.equal((await db.collection("timedAdSessions").doc(firstSessionId).get()).data().status, "expired");
