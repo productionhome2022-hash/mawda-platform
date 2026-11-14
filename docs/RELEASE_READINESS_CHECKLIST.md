@@ -233,14 +233,15 @@ This checklist is a release gate, not a statement that the listed work is comple
 
 ## Guest Preview public-room participation release gates — approved 14 November 2026
 
+- [ ] Guest entry collects username, country, and gender only; no age, date of birth, or age-band question/default/storage is present in the guest flow.
 - [ ] Guest receives exactly 60 minutes of protected access per rolling 24-hour window, enforced with trusted server time and bound to the anonymous Firebase Auth identity; logout, restart, reinstall, new device and client-clock changes do not reset it.
-- [ ] After guest privacy acknowledgement, the Flutter guest experience supports public discovery and joining public rooms; it is not limited to the current upgrade-only screen.
-- [ ] Guest may send and receive text and audio/voice messages in public rooms only.
-- [ ] Guest is denied direct/private messages, private rooms, room rental, moderation, gifts, wallet reads/writes, transfers, top-ups, rewards, purchases, and member-only content.
-- [ ] Guest cannot send or receive images, GIFs, video, PDFs, documents, stickers, arbitrary files or any other unsupported media; audio upload/finalization is separately validated and bound to an active guest session and public room.
-- [ ] Every server callable that joins a room, sends/reads messages, or finalizes audio media checks anonymous Auth provider, guest session, expiry/cooldown, public-room type, membership and allowed message/media type. Client-side hiding is not authorization.
-- [ ] Guest access preserves the minimum-age policy and adult/minor room-audience separation. The guest flow obtains the minimum age-band information required by room policy; unknown age never defaults to adult access or bypasses audience checks.
-- [ ] Emulator integration tests cover session start, use before expiry, exact 60-minute expiry, denial throughout the remaining rolling 24-hour window, re-entry at the eligible boundary, text/audio send and receive, and every prohibited operation.
+- [ ] After guest privacy acknowledgement and minimal guest profile entry, the Flutter guest experience supports public discovery and joining eligible general-audience public rooms; it is not limited to the current upgrade-only screen.
+- [ ] Guest may send and receive text and audio/voice messages in eligible public rooms only.
+- [ ] Guest is denied direct/private messages, private rooms, room rental, moderation, gifts, wallet reads/writes, transfers, top-ups, rewards, purchases, store access, member-profile features, and all non-text/non-audio media.
+- [ ] Every server callable that joins a room, sends/reads messages, or finalizes audio media checks anonymous Auth provider, guest session, expiry/cooldown, general-audience room eligibility, membership and allowed message/media type. Client-side hiding is not authorization.
+- [ ] Unknown-age guests are never assigned a fabricated age or age band and are never admitted to age-restricted/adult-only rooms. Guest-accessible rooms must be explicitly classified and moderated for a general audience.
+- [ ] Member upgrade opens the normal member onboarding flow, where member-specific age/date-of-birth or age-band data, email verification, optional biometric verification and other required fields are collected; guest data is not silently treated as completed member verification.
+- [ ] Emulator integration tests cover guest profile validation, session start, use before expiry, exact 60-minute expiry, denial throughout the remaining rolling 24-hour window, re-entry at the eligible boundary, general-audience room access, text/audio send and receive, member-upgrade transition, and every prohibited operation.
 - [ ] Emulator clock advancement/reset is confined to test fixture setup; no production client or callable accepts client-supplied timestamps or clock overrides.
 - [ ] Session expiry blocks protected room access immediately without deleting privacy acknowledgement, audit records or unrelated account data. Guest upgrade/conversion preserves only records that are explicitly safe and policy-compatible.
 
