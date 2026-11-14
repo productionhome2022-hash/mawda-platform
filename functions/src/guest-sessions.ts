@@ -1,4 +1,4 @@
-import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
+import { FieldPath, FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 
@@ -35,30 +35,43 @@ export function isGuestCooldownActive(session: Record<string, unknown> | undefin
 }
 
 async function cleanupGuestRoomMemberships(uid: string): Promise<void> {
-  const memberships = await db().collectionGroup("members")
+  // Page through every matching membership. A single limited query leaves
+  // stale room access behind when a guest has joined more than one page.
+  const baseQuery = db().collectionGroup("members")
     .where("uid", "==", uid)
-    .limit(200)
-    .get();
-  await Promise.all(memberships.docs.map(async (membership) => {
-    const roomRef = membership.ref.parent.parent;
-    if (!roomRef) return;
-    await db().runTransaction(async (transaction) => {
-      const [latestMembership, room] = await Promise.all([
-        transaction.get(membership.ref), transaction.get(roomRef),
-      ]);
-      if (!latestMembership.exists) return;
-      transaction.delete(membership.ref);
-      if (room.exists) {
-        const currentCount = room.data()?.memberCount;
-        const nextCount = Number.isSafeInteger(currentCount)
-          ? Math.max(0, Number(currentCount) - 1) : 0;
-        transaction.update(roomRef, {
-          memberCount: nextCount,
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-      }
-    });
-  }));
+    .orderBy(FieldPath.documentId())
+    .limit(200);
+  let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+
+  while (true) {
+    const query = cursor ? baseQuery.startAfter(cursor) : baseQuery;
+    const memberships = await query.get();
+    if (memberships.empty) break;
+    cursor = memberships.docs[memberships.docs.length - 1];
+
+    await Promise.all(memberships.docs.map(async (membership) => {
+      const roomRef = membership.ref.parent.parent;
+      if (!roomRef) return;
+      await db().runTransaction(async (transaction) => {
+        const [latestMembership, room] = await Promise.all([
+          transaction.get(membership.ref), transaction.get(roomRef),
+        ]);
+        if (!latestMembership.exists) return;
+        transaction.delete(membership.ref);
+        if (room.exists) {
+          const currentCount = room.data()?.memberCount;
+          const nextCount = Number.isSafeInteger(currentCount)
+            ? Math.max(0, Number(currentCount) - 1) : 0;
+          transaction.update(roomRef, {
+            memberCount: nextCount,
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+      });
+    }));
+
+    if (memberships.size < 200) break;
+  }
 }
 
 function validateGuestProfile(data: Record<string, unknown>) {
