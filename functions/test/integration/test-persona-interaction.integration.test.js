@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getFirestore } = require("firebase-admin/firestore");
+const { getAuth } = require("firebase-admin/auth");
 const { transferCoins } = require("../../lib/index");
 
 const db = getFirestore();
@@ -26,10 +27,17 @@ test("seeded Mawdda member personas can transact with each other inside the isol
   const previousSettingsData = previousSettings.exists ? previousSettings.data() : null;
   const senderBefore = (await senderRef.get()).data();
   const recipientBefore = (await recipientRef.get()).data();
+  const [senderAuth, recipientAuth] = await Promise.all([
+    getAuth().getUser(senderUid), getAuth().getUser(recipientUid),
+  ]);
   assert.equal(senderBefore.isTestAccount, true);
   assert.equal(recipientBefore.isTestAccount, true);
   assert.equal(senderBefore.testPersonaId, "email-member");
   assert.equal(recipientBefore.testPersonaId, "counterparty-member");
+  assert.equal(senderAuth.emailVerified, true);
+  assert.equal(recipientAuth.emailVerified, true);
+  assert.equal((senderProfile.data().profile.walletFixture).coins, senderBefore.coins);
+  assert.equal((recipientProfile.data().profile.walletFixture).coins, recipientBefore.coins);
 
   const tag = suffix();
   const requestId = `persona_transfer_${tag}`;
