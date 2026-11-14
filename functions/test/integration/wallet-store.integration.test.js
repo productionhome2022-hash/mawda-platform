@@ -189,7 +189,7 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = suffix();
   const uid = `store_member_${tag}`;
-  const itemId = `vip_${tag.replace(/[^a-z0-9]/gi, "").slice(0, 20)}`;
+  const itemId = "vip_monthly";
   const requestId = `purchase_${tag}`;
   const purchaseId = `${uid}_${requestId}`;
   const memberRef = db.collection("users").doc(uid);
@@ -247,7 +247,7 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
 });
 
 
-test("owner catalog seeds editable starter prices without enabling unimplemented purchases", async () => {
+test("owner catalog seeds approved features as ready while keeping purchases disabled", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const result = await getOwnerStoreCatalog.run(ownerRequest());
   const items = result.items;
@@ -265,7 +265,8 @@ test("owner catalog seeds editable starter prices without enabling unimplemented
     assert.equal(item.priceCoins, price);
     assert.equal(item.active, false);
     assert.equal(item.purchaseEnabled, false);
-    assert.equal(item.fulfillmentReady, false);
+    const implemented = !["hide_coins_30d", "ghost_mode_7d"].includes(itemId);
+    assert.equal(item.fulfillmentReady, implemented);
   }
 });
 
