@@ -43,15 +43,30 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
   Future<void> _load() async {
     if (mounted) setState(() { _loading = true; _error = null; });
     try {
+      final activeResponse = await _functions.httpsCallable('getActiveTimedAdSession').call();
+      final activeData = Map<String, dynamic>.from(activeResponse.data as Map);
       final response = await _functions.httpsCallable('getRewardCenter').call();
       final data = Map<String, dynamic>.from(response.data as Map);
       if (!mounted) return;
+      final restoredSession = activeData['active'] == true ? activeData : null;
       setState(() {
         _policy = Map<String, dynamic>.from(data['attendancePolicy'] as Map? ?? const {});
         _claimed = Map<String, dynamic>.from(data['attendanceClaimed'] as Map? ?? const {});
         _campaigns = (data['activeCampaigns'] as List<dynamic>? ?? const [])
             .whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList(growable: false);
+        _activeSession = restoredSession;
+        if (restoredSession != null) {
+          _heartbeatSequence = (restoredSession['heartbeatSequence'] as num?)?.toInt() ?? 0;
+          _eligibleMs = (restoredSession['eligibleMs'] as num?)?.toInt() ?? 0;
+          _requiredMs = ((restoredSession['durationSeconds'] as num?)?.toInt() ?? 0) * 1000;
+        }
       });
+      if (restoredSession != null) {
+        _heartbeatTimer?.cancel();
+        _heartbeatTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+          if (_foreground) unawaited(_sendHeartbeat(foreground: true));
+        });
+      }
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل مركز المكافآت.');
     } catch (_) {
@@ -133,7 +148,16 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
         await _load();
       }
     } catch (_) {
-      // Missing or delayed heartbeats earn no time on the server.
+      // Reconcile sequence state if a response was lost after the server committed it.
+      try {
+        final status = await _functions.httpsCallable('getActiveTimedAdSession').call();
+        final data = Map<String, dynamic>.from(status.data as Map);
+        if (data['active'] == true && mounted) {
+          _heartbeatSequence = (data['heartbeatSequence'] as num?)?.toInt() ?? _heartbeatSequence;
+          _eligibleMs = (data['eligibleMs'] as num?)?.toInt() ?? _eligibleMs;
+          setState(() {});
+        }
+      } catch (_) { /* Fail closed: no local progress is credited. */ }
     } finally {
       _heartbeatBusy = false;
     }
@@ -179,7 +203,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
   }
 
   Widget _lockedAdView() {
-    final progress = _requiredMs <= 0 ? 0.0 : (_eligibleMs / _requiredMs).clamp(0.0, 1.0);
+    final progress = _requiredMs <= 0 ? 0.0 : (_eligibleMs / _requiredMs).clamp(0.0, 1.0).toDouble();
     final session = _activeSession!;
     return PopScope(
       canPop: false,
@@ -197,9 +221,16 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
             children: [
               const Icon(Icons.campaign_outlined, size: 56),
               const SizedBox(height: 16),
-              const Text('المشاهدة قيد التحقق', textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              Text(session['title'] as String? ?? 'إعلان مودة',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              Text(session['sponsorLabel'] as String? ?? '', textAlign: TextAlign.center),
               const SizedBox(height: 12),
+              Text(session['body'] as String? ?? '', textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              const Text('المشاهدة قيد التحقق', textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
               const Text('ابقَ في هذه الشاشة والتطبيق في المقدمة. يتوقف احتساب الوقت عند إخفاء الإعلان أو مغادرة التطبيق أو انقطاع نبضات التحقق.',
                 textAlign: TextAlign.center),
               const SizedBox(height: 20),
