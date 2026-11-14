@@ -23,7 +23,6 @@ test("guest onboarding stores no age and grants only active all-ages public-room
   const adultRoomId = `guest_adult_${suffix()}`;
   const privateRoomId = `guest_private_${suffix()}`;
   const unapprovedRoomId = `guest_unapproved_${suffix()}`;
-  const ownerUid = emailUid;
   const audioMediaId = randomUUID();
   const imageMediaId = randomUUID();
   const memberAudioMediaId = randomUUID();
@@ -34,6 +33,7 @@ test("guest onboarding stores no age and grants only active all-ages public-room
   assert.ok(emailPersona.exists, "email-member persona must be seeded");
   assert.ok(counterPersona.exists, "counterparty-member persona must be seeded");
   const emailUid = emailPersona.data().uid;
+  const ownerUid = emailUid;
   const counterUid = counterPersona.data().uid;
   const roomIds = [roomId, adultRoomId, privateRoomId, unapprovedRoomId];
   const roomRef = (id) => db.collection("rooms").doc(id);
