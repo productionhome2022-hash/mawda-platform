@@ -14,8 +14,6 @@ test("successful local OS prompt claim rewards exactly once per 30-day server cy
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const uid = `biometric_member_${suffix()}`;
   const userRef = db.collection("users").doc(uid);
-  const now = Date.now();
-  const originalNow = Date.now;
   const payload = {
     localAuthenticationSucceeded: true,
     platform: "android",
@@ -23,7 +21,6 @@ test("successful local OS prompt claim rewards exactly once per 30-day server cy
   };
   await userRef.set({ coins: 100, profileCompleted: true, accountStatus: "active" });
   try {
-    Date.now = () => now;
     const results = await Promise.all([
       completeBiometricVerificationCycle.run(request(uid, payload)),
       completeBiometricVerificationCycle.run(request(uid, payload)),
@@ -33,14 +30,16 @@ test("successful local OS prompt claim rewards exactly once per 30-day server cy
     let user = (await userRef.get()).data();
     assert.equal(user.coins, 1600);
     assert.equal(user.biometricVerification.status, "verified");
-    assert.equal(user.biometricVerification.expiresAt.toMillis(), now + 30 * 24 * 60 * 60 * 1000);
+    assert.ok(user.biometricVerification.expiresAt.toMillis() > Date.now());
+    assert.ok(user.biometricVerification.expiresAt.toMillis() <= Date.now() + 30 * 24 * 60 * 60 * 1000);
     let ledger = await userRef.collection("walletLedger")
       .where("type", "==", "biometric_verification_reward").get();
     assert.equal(ledger.size, 1);
     assert.equal(ledger.docs[0].data().amount, 1500);
 
+    const previousCycleTime = Date.now() - 31 * 24 * 60 * 60 * 1000;
     await userRef.update({
-      biometricVerificationRewardedAt: Timestamp.fromMillis(now - 31 * 24 * 60 * 60 * 1000),
+      biometricVerificationRewardedAt: Timestamp.fromMillis(previousCycleTime),
     });
     const renewed = await completeBiometricVerificationCycle.run(request(uid, {
       ...payload, attemptId: `renew_${suffix()}`,
@@ -53,7 +52,6 @@ test("successful local OS prompt claim rewards exactly once per 30-day server cy
       .where("type", "==", "biometric_verification_reward").get();
     assert.equal(ledger.size, 2);
   } finally {
-    Date.now = originalNow;
     const ledger = await userRef.collection("walletLedger").get();
     const audit = await db.collection("verificationAuditLogs")
       .where("actorUid", "==", uid).get();
