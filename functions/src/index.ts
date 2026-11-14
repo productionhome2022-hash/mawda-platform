@@ -4272,6 +4272,8 @@ export const archiveOwnerReviewAuditLogs = onSchedule(
     const nowMs = Date.now();
     let previousSequence = 0;
     let previousHash = "GENESIS";
+    let previousObjectName: string | null = null;
+    let previousArchiveSha256: string | null = null;
     const acquired = await db.runTransaction(async (transaction) => {
       const stateSnapshot = await transaction.get(stateRef);
       const state = stateSnapshot.data() ?? {};
@@ -4285,6 +4287,10 @@ export const archiveOwnerReviewAuditLogs = onSchedule(
       previousHash = typeof state.lastArchivedHash === "string"
         ? state.lastArchivedHash
         : "GENESIS";
+      previousObjectName = typeof state.lastObject === "string" ? state.lastObject : null;
+      previousArchiveSha256 = typeof state.lastArchiveSha256 === "string"
+        ? state.lastArchiveSha256
+        : null;
       transaction.set(stateRef, {
         leaseId,
         leaseUntil: Timestamp.fromMillis(nowMs + 10 * 60 * 1000),
@@ -4295,6 +4301,39 @@ export const archiveOwnerReviewAuditLogs = onSchedule(
     if (!acquired) {
       logger.info("Owner audit archive skipped because another worker holds the lease.");
       return;
+    }
+
+    // Firestore is not the immutable checkpoint authority. Reconcile its cursor
+    // against the last create-only object in the retention-locked bucket.
+    try {
+      if (previousSequence === 0) {
+        if (previousHash !== "GENESIS" || previousObjectName !== null ||
+            previousArchiveSha256 !== null) {
+          throw new Error("OWNER_AUDIT_ARCHIVE_GENESIS_CHECKPOINT_INVALID");
+        }
+      } else {
+        if (!previousObjectName || !previousArchiveSha256) {
+          throw new Error("OWNER_AUDIT_ARCHIVE_EXTERNAL_CHECKPOINT_MISSING");
+        }
+        const [previousObjectMetadata] = await bucket.file(previousObjectName).getMetadata();
+        if (previousObjectMetadata.metadata?.archiveSha256 !== previousArchiveSha256 ||
+            Number(previousObjectMetadata.metadata?.lastSequence) !== previousSequence ||
+            previousObjectMetadata.metadata?.finalHash !== previousHash) {
+          throw new Error("OWNER_AUDIT_ARCHIVE_EXTERNAL_CHECKPOINT_MISMATCH");
+        }
+      }
+    } catch (error) {
+      await db.runTransaction(async (transaction) => {
+        const stateSnapshot = await transaction.get(stateRef);
+        if (stateSnapshot.data()?.leaseId === leaseId) {
+          transaction.set(stateRef, {
+            leaseId: FieldValue.delete(),
+            leaseUntil: FieldValue.delete(),
+            updatedAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+        }
+      });
+      throw error;
     }
 
     const releaseLease = async () => {
