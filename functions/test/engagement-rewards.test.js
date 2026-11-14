@@ -6,7 +6,7 @@ const {
   utcRewardPeriod,
   validateTimedAdCampaignInput,
   eligibleHeartbeatDelta,
-} = require("../../lib/engagement-rewards");
+} = require("../lib/engagement-rewards");
 
 test("attendance policy defaults closed and rejects malformed or unsafe reward amounts", () => {
   assert.deepEqual(defaultAttendanceRewardPolicy(), {
