@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
+import { getStorage } from "firebase-admin/storage";
 import { validateMemberProfile } from "./member-profile";
 import { FieldPath, FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
@@ -31,10 +32,19 @@ import {
   BIOMETRIC_APPROVED_HOSTS,
   canSendApprovedPlatformLinks,
 } from "./link-policy";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
+import {
+  OWNER_AUDIT_ARCHIVE_BATCH_SIZE,
+  OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS,
+  isOwnerAuditArchiveEligible,
+  validateLockedAuditArchiveBucket,
+  verifyOwnerAuditArchiveChunk,
+  ownerAuditArchiveObjectName,
+  serializeOwnerAuditArchive,
+} from "./audit-archive";
 import { validateOwnerAuditExportRequest, projectOwnerAuditExportValue } from "./owner-audit-export";
 import {
   validateOwnerChatReviewRequest,
@@ -74,6 +84,8 @@ const db = getFirestore();
 const TRANSFER_SETTINGS = db.doc("platformSettings/coinTransfers");
 const OWNER_REVIEW_AUDIT_HEAD = db.collection("adminAuditChainHeads").doc("ownerReview");
 const legalHoldExpiryEnabled = defineString("MAWDA_LEGAL_HOLD_EXPIRY_ENABLED", { default: "false" });
+const ownerAuditArchiveEnabled = defineString("MAWDA_AUDIT_ARCHIVE_ENABLED", { default: "false" });
+const ownerAuditArchiveBucketName = defineString("MAWDA_AUDIT_ARCHIVE_BUCKET", { default: "" });
 
 /**
  * Append a hash-linked owner-review audit event. A Firestore transaction
@@ -4228,6 +4240,249 @@ export const verifyOwnerReviewAuditChain = onCall(async (request) => {
     verificationAuditLogId,
   };
 });
+
+/**
+ * Copies verified owner-review audit-chain chunks to a locked Cloud Storage
+ * bucket. The worker refuses to run unless the bucket retention policy is
+ * already locked for at least 24 months and public access is prevented.
+ * Firestore source records are intentionally retained; this is an archive,
+ * not a destructive export.
+ */
+export const archiveOwnerReviewAuditLogs = onSchedule(
+  { schedule: "every 15 minutes", timeZone: "UTC", timeoutSeconds: 540 },
+  async () => {
+    if (ownerAuditArchiveEnabled.value().trim().toLowerCase() !== "true") {
+      logger.info("Owner audit archive is disabled; no archive writes performed.");
+      return;
+    }
+    const bucketName = ownerAuditArchiveBucketName.value().trim();
+    if (!bucketName) {
+      throw new Error("MAWDA_AUDIT_ARCHIVE_BUCKET_REQUIRED");
+    }
+
+    const bucket = getStorage().bucket(bucketName);
+    const [bucketMetadata] = await bucket.getMetadata();
+    const bucketPolicy = validateLockedAuditArchiveBucket(bucketMetadata);
+    if (bucketPolicy.retentionPeriodSeconds < OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS) {
+      throw new Error("AUDIT_ARCHIVE_RETENTION_BELOW_REQUIRED_MINIMUM");
+    }
+
+    const stateRef = db.collection("auditArchiveState").doc("ownerReview");
+    const leaseId = randomUUID();
+    const nowMs = Date.now();
+    let previousSequence = 0;
+    let previousHash = "GENESIS";
+    let previousObjectName: string | null = null;
+    let previousArchiveSha256: string | null = null;
+    const acquired = await db.runTransaction(async (transaction) => {
+      const stateSnapshot = await transaction.get(stateRef);
+      const state = stateSnapshot.data() ?? {};
+      const leaseUntil = state.leaseUntil instanceof Timestamp
+        ? state.leaseUntil.toMillis()
+        : 0;
+      if (leaseUntil > nowMs) return false;
+      previousSequence = Number.isSafeInteger(state.lastArchivedSequence)
+        ? state.lastArchivedSequence as number
+        : 0;
+      previousHash = typeof state.lastArchivedHash === "string"
+        ? state.lastArchivedHash
+        : "GENESIS";
+      previousObjectName = typeof state.lastObject === "string" ? state.lastObject : null;
+      previousArchiveSha256 = typeof state.lastArchiveSha256 === "string"
+        ? state.lastArchiveSha256
+        : null;
+      transaction.set(stateRef, {
+        leaseId,
+        leaseUntil: Timestamp.fromMillis(nowMs + 10 * 60 * 1000),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      return true;
+    });
+    if (!acquired) {
+      logger.info("Owner audit archive skipped because another worker holds the lease.");
+      return;
+    }
+
+    // Firestore is not the immutable checkpoint authority. Reconcile its cursor
+    // against the last create-only object in the retention-locked bucket.
+    try {
+      if (previousSequence === 0) {
+        if (previousHash !== "GENESIS" || previousObjectName !== null ||
+            previousArchiveSha256 !== null) {
+          throw new Error("OWNER_AUDIT_ARCHIVE_GENESIS_CHECKPOINT_INVALID");
+        }
+      } else {
+        if (!previousObjectName || !previousArchiveSha256) {
+          throw new Error("OWNER_AUDIT_ARCHIVE_EXTERNAL_CHECKPOINT_MISSING");
+        }
+        const [previousObjectMetadata] = await bucket.file(previousObjectName).getMetadata();
+        if (previousObjectMetadata.metadata?.archiveSha256 !== previousArchiveSha256 ||
+            Number(previousObjectMetadata.metadata?.lastSequence) !== previousSequence ||
+            previousObjectMetadata.metadata?.finalHash !== previousHash) {
+          throw new Error("OWNER_AUDIT_ARCHIVE_EXTERNAL_CHECKPOINT_MISMATCH");
+        }
+      }
+    } catch (error) {
+      await db.runTransaction(async (transaction) => {
+        const stateSnapshot = await transaction.get(stateRef);
+        if (stateSnapshot.data()?.leaseId === leaseId) {
+          transaction.set(stateRef, {
+            leaseId: FieldValue.delete(),
+            leaseUntil: FieldValue.delete(),
+            updatedAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+        }
+      });
+      throw error;
+    }
+
+    const releaseLease = async () => {
+      await db.runTransaction(async (transaction) => {
+        const stateSnapshot = await transaction.get(stateRef);
+        if (stateSnapshot.data()?.leaseId === leaseId) {
+          transaction.set(stateRef, {
+            leaseId: FieldValue.delete(),
+            leaseUntil: FieldValue.delete(),
+            updatedAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+        }
+      });
+    };
+
+    try {
+      const snapshot = await db.collection("adminAuditLogs")
+        .where("auditChainId", "==", "owner-review-v1")
+        .where("auditSequence", ">", previousSequence)
+        .orderBy("auditSequence", "asc")
+        .limit(OWNER_AUDIT_ARCHIVE_BATCH_SIZE + 1)
+        .get();
+      const eligible = [];
+      for (const document of snapshot.docs) {
+        const data = document.data();
+        const createdAtMs = data.createdAt instanceof Timestamp
+          ? data.createdAt.toMillis()
+          : 0;
+        if (!isOwnerAuditArchiveEligible(createdAtMs, nowMs)) break;
+        if (!data.auditEvent || !Number.isSafeInteger(data.auditSequence) ||
+            typeof data.previousAuditHash !== "string" ||
+            typeof data.auditHash !== "string") {
+          throw new Error("OWNER_AUDIT_ARCHIVE_SOURCE_RECORD_INVALID");
+        }
+        eligible.push({
+          sequence: data.auditSequence as number,
+          previousHash: data.previousAuditHash,
+          eventHash: data.auditHash,
+          event: data.auditEvent as Record<string, unknown>,
+          createdAtMs,
+        });
+        if (eligible.length >= OWNER_AUDIT_ARCHIVE_BATCH_SIZE) break;
+      }
+
+      if (eligible.length === 0) {
+        await releaseLease();
+        return;
+      }
+
+      const verification = verifyOwnerAuditArchiveChunk(
+        eligible,
+        previousSequence,
+        previousHash,
+      );
+      if (!verification.valid) {
+        throw new Error("OWNER_AUDIT_ARCHIVE_CHAIN_INVALID:" + verification.reason);
+      }
+
+      const redactedEntries = eligible.map((entry) => ({
+        ...entry,
+        event: projectOwnerAuditExportValue(entry.event),
+      }));
+      const firstSequence = eligible[0].sequence;
+      const lastSequence = eligible[eligible.length - 1].sequence;
+      const archive = serializeOwnerAuditArchive(redactedEntries, {
+        firstSequence,
+        lastSequence,
+        previousHash,
+        finalHash: verification.lastHash,
+        archivedAtMs: nowMs,
+      });
+      const objectName = ownerAuditArchiveObjectName(
+        firstSequence,
+        lastSequence,
+        eligible[eligible.length - 1].createdAtMs,
+      );
+      const file = bucket.file(objectName);
+      let objectGeneration: string | undefined;
+      try {
+        await file.save(archive.payload, {
+          resumable: false,
+          contentType: "application/x-ndjson",
+          preconditionOpts: { ifGenerationMatch: 0 },
+          metadata: {
+            metadata: {
+              archiveSha256: archive.sha256,
+              chainId: "owner-review-v1",
+              firstSequence: String(firstSequence),
+              lastSequence: String(lastSequence),
+              finalHash: verification.lastHash,
+              retentionSeconds: String(OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS),
+            },
+          },
+        });
+        const [createdMetadata] = await file.getMetadata();
+        objectGeneration = createdMetadata.generation;
+      } catch (error) {
+        const statusCode = (error as { code?: number }).code;
+        if (statusCode !== 412) throw error;
+        const [existingMetadata] = await file.getMetadata();
+        if (existingMetadata.metadata?.archiveSha256 !== archive.sha256) {
+          throw new Error("AUDIT_ARCHIVE_OBJECT_COLLISION_OR_TAMPERING");
+        }
+        objectGeneration = existingMetadata.generation;
+      }
+
+      await db.runTransaction(async (transaction) => {
+        const stateSnapshot = await transaction.get(stateRef);
+        if (stateSnapshot.data()?.leaseId !== leaseId) {
+          throw new Error("OWNER_AUDIT_ARCHIVE_LEASE_LOST");
+        }
+        transaction.set(stateRef, {
+          lastArchivedSequence: verification.lastSequence,
+          lastArchivedHash: verification.lastHash,
+          lastObject: objectName,
+          lastObjectGeneration: objectGeneration ?? null,
+          lastArchiveSha256: archive.sha256,
+          lastArchivedAt: Timestamp.fromMillis(nowMs),
+          leaseId: FieldValue.delete(),
+          leaseUntil: FieldValue.delete(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      });
+
+      await appendOwnerReviewAuditEvent({
+        actorUid: "system-audit-archive",
+        action: "owner_review_audit_archive_created",
+        outcome: "success",
+        firstSequence,
+        lastSequence,
+        finalHash: verification.lastHash,
+        archiveSha256: archive.sha256,
+        objectName,
+        objectGeneration: objectGeneration ?? null,
+        retentionPeriodSeconds: bucketPolicy.retentionPeriodSeconds,
+      });
+      logger.info("Owner audit archive created", {
+        firstSequence,
+        lastSequence,
+        objectName,
+        archiveSha256: archive.sha256,
+      });
+    } catch (error) {
+      await releaseLease().catch(() => undefined);
+      logger.error("Owner audit archive failed closed", { error });
+      throw error;
+    }
+  },
+);
 
 /** Lists only the authenticated member's own notifications. */
 export const getMyNotifications = onCall(async (request) => {
