@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:record/record.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/member_media_upload_service.dart';
+import '../services/audio_wav_encoder.dart';
 
 class GuestRoomChatScreen extends StatefulWidget {
   const GuestRoomChatScreen({super.key, required this.roomId, required this.roomName});
@@ -126,34 +127,6 @@ class _GuestRoomChatScreenState extends State<GuestRoomChatScreen> {
     }
   }
 
-  Uint8List _encodePcmAsWav(Uint8List pcm) {
-    const sampleRate = 24000;
-    const channels = 1;
-    const bitsPerSample = 16;
-    final wav = Uint8List(44 + pcm.length);
-    final header = ByteData.sublistView(wav);
-    void writeTag(int offset, String tag) {
-      for (var i = 0; i < tag.length; i++) {
-        wav[offset + i] = tag.codeUnitAt(i);
-      }
-    }
-    writeTag(0, 'RIFF');
-    header.setUint32(4, 36 + pcm.length, Endian.little);
-    writeTag(8, 'WAVE');
-    writeTag(12, 'fmt ');
-    header.setUint32(16, 16, Endian.little);
-    header.setUint16(20, 1, Endian.little);
-    header.setUint16(22, channels, Endian.little);
-    header.setUint32(24, sampleRate, Endian.little);
-    header.setUint32(28, sampleRate * channels * bitsPerSample ~/ 8, Endian.little);
-    header.setUint16(32, channels * bitsPerSample ~/ 8, Endian.little);
-    header.setUint16(34, bitsPerSample, Endian.little);
-    writeTag(36, 'data');
-    header.setUint32(40, pcm.length, Endian.little);
-    wav.setRange(44, 44 + pcm.length, pcm);
-    return wav;
-  }
-
   Future<void> _stopMicrophoneRecording() async {
     if (!_recording || _stoppingRecording) return;
     _stoppingRecording = true;
@@ -173,7 +146,7 @@ class _GuestRoomChatScreenState extends State<GuestRoomChatScreen> {
         return;
       }
       if (mounted) setState(() { _recording = false; _busy = true; _error = null; });
-      final wav = _encodePcmAsWav(pcm);
+      final wav = encodePcm16MonoToWav(pcm);
       final file = XFile.fromData(
         wav,
         name: 'voice_${DateTime.now().millisecondsSinceEpoch}.wav',
