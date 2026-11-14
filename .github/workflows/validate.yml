@@ -1,10 +1,11 @@
 name: Validate Mawda
 
 on:
+  # The development branch is validated by its PR event below; avoid running
+  # the same full matrix twice for every push to an already-open PR.
   push:
     branches:
       - main
-      - codex/mawda-full-platform-implementation
   pull_request:
     branches:
       - main
