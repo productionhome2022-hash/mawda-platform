@@ -92,6 +92,6 @@ test("archives every approved audit collection using deterministic immutable bat
     archivedAtMs: NOW,
   });
   assert.equal(archive.sha256.length, 64);
-  assert.equal(archive.payload.split("\\n").length, 4);
+  assert.equal(archive.payload.split("\n").length, 4);
   assert.throws(() => auditCollectionArchiveObjectName("users", "a", "b", NOW));
 });
