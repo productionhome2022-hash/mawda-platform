@@ -158,3 +158,11 @@ No production deployment, paid-service activation, irreversible retention settin
 - Each persona performs a first purchase and an idempotent replay; the test checks the single wallet debit, completed purchase receipt, linked wallet ledger and active entitlement. The profile stage also verifies each member's VIP projection, one unique peer view in analytics, active custom title, and discovery-boosted visibility.
 - The catalog fixture is created through the MFA-gated owner callable using a synthetic emulator-only owner claim. This does not enable or modify any live catalog.
 - CI remains unverified for these new stages until a successful workflow run and a report with 5,000/5,000 coverage are available.
+
+
+### Follow-up extension — member privacy and notification registration
+
+- The 5,000-persona scenario now also executes block/unblock against each persona's deterministic peer and verifies the final block list.
+- Each persona registers a synthetic Android FCM token, deactivates it through the member callable, and verifies the stored token is inactive. This validates token lifecycle only; it does not claim real FCM delivery.
+- Room/event load is distributed across 100 independent rooms with 50 members each, rather than forcing all 5,000 users to contend on one room/event counter.
+- These additional per-persona stages remain pending a successful Actions run and a complete uploaded coverage report.
