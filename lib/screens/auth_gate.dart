@@ -8,6 +8,7 @@ import '../services/push_notification_service.dart';
 import 'login_screen.dart';
 import 'main_user_screen.dart';
 import 'guest_session_screen.dart';
+import 'notification_center_screen.dart';
 import 'privacy_acknowledgement_screen.dart';
 import '../privacy_policy.dart';
 
@@ -214,11 +215,30 @@ class _MemberPushBootstrapState extends State<_MemberPushBootstrap> {
     super.initState();
     unawaited(_push.initialize(
       onForegroundMessage: (message) {
-        // The notification center remains the durable in-app inbox. This
-        // callback is intentionally non-invasive while a screen is in use.
-        debugPrint('Mawda foreground push received: ${message.messageId ?? 'no-id'}');
+        final title = message.notification?.title ?? 'إشعار من مودة';
+        final body = message.notification?.body ?? 'لديك تحديث جديد.';
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$title — $body'),
+            action: SnackBarAction(
+              label: 'عرض',
+              onPressed: _openNotifications,
+            ),
+          ),
+        );
       },
+      onOpenedMessage: (_) => _openNotifications(),
     ));
+  }
+
+  void _openNotifications() {
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const NotificationCenterScreen(),
+      ),
+    );
   }
 
   @override
