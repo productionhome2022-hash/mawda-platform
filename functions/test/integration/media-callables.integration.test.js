@@ -802,6 +802,15 @@ test("safe image can be linked to a direct message and delivered only to its par
     auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
   });
   assert.match(delivered.url, /^https?:\/\//);
+  await db.collection("users").doc(recipientUid).update({ blockedUids: [senderUid] });
+  await assert.rejects(
+    () => getChatImageAttachmentUrl.run({
+      data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+      auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+    }),
+    (error) => error && error.code === "permission-denied",
+  );
+  await db.collection("users").doc(recipientUid).update({ blockedUids: [] });
   const messageRef = db.collection("directChats").doc(sent.chatId).collection("messages").doc(messageId);
   await messageRef.update({ deletedForUids: [recipientUid] });
   await assert.rejects(
