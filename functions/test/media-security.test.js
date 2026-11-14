@@ -121,3 +121,23 @@ test("role-aware attachment policy reserves documents for the verified platform 
     assert.equal(owner(type, "room"), false);
   }
 });
+
+
+test("advertisement creatives are limited to owner-uploaded images, GIFs and video", () => {
+  const request = (contentType) => ({
+    originalName: "campaign-media",
+    contentType,
+    sizeBytes: 1024,
+    purpose: "advertisement",
+  });
+  assert.equal(normalizeMediaRequest(request("image/png")).purpose, "advertisement");
+  assert.equal(normalizeMediaRequest(request("image/gif")).purpose, "advertisement");
+  assert.equal(normalizeMediaRequest(request("video/mp4")).purpose, "advertisement");
+  assert.throws(() => normalizeMediaRequest(request("audio/mpeg")));
+  assert.throws(() => normalizeMediaRequest(request("application/pdf")));
+  assert.equal(mediaUploadAllowedForRole({ contentType: "image/gif", purpose: "advertisement" }, false), false);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "video/mp4", purpose: "advertisement" }, false), false);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "image/gif", purpose: "advertisement" }, true), true);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "video/mp4", purpose: "advertisement" }, true), true);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "audio/mpeg", purpose: "advertisement" }, true), false);
+});
