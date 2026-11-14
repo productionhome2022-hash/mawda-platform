@@ -50,6 +50,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     setState(() { _loading = true; _error = null; });
     try {
       final results = await Future.wait([
@@ -209,6 +210,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
         if (_selectedMediaId != null) 'mediaId': _selectedMediaId,
       });
       final data = Map<String, dynamic>.from(response.data as Map);
+      if (!mounted) return;
       _title.clear(); _sponsor.clear(); _body.clear();
       _selectedMediaId = null;
       _editingCampaignId = null;
@@ -253,6 +255,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
       await _functions.httpsCallable('setTimedAdCampaignStatus').call({
         'campaignId': campaignId, 'status': status,
       });
+      if (!mounted) return;
       await _load();
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذر تحديث حالة الحملة.');
