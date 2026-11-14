@@ -9,6 +9,8 @@ const {
   verifyOwnerAuditArchiveChunk,
   ownerAuditArchiveObjectName,
   serializeOwnerAuditArchive,
+  auditCollectionArchiveObjectName,
+  serializeAuditCollectionArchive,
 } = require("../lib/audit-archive");
 
 const NOW = 1_800_000_000_000;
@@ -71,4 +73,25 @@ test("creates deterministic dated archive paths and hash-addressed redacted payl
   });
   assert.equal(archive.sha256.length, 64);
   assert.equal(archive.payload.split("\n").length, 4);
+});
+
+test("archives every approved audit collection using deterministic immutable batch names", () => {
+  const entries = [
+    { docId: "audit-a", createdAtMs: NOW - 1000, data: { action: "block" } },
+    { docId: "audit-b", createdAtMs: NOW, data: { action: "appeal" } },
+  ];
+  const objectName = auditCollectionArchiveObjectName(
+    "verificationAuditLogs", "audit-a", "audit-b", NOW,
+  );
+  assert.match(objectName, /^collections\/verificationAuditLogs\/\d{4}\/\d{2}\/\d{2}\/batch-[a-f0-9]{20}\.jsonl$/);
+  const archive = serializeAuditCollectionArchive("verificationAuditLogs", entries, {
+    firstDocId: "audit-a",
+    lastDocId: "audit-b",
+    firstCreatedAtMs: NOW - 1000,
+    lastCreatedAtMs: NOW,
+    archivedAtMs: NOW,
+  });
+  assert.equal(archive.sha256.length, 64);
+  assert.equal(archive.payload.split("\\n").length, 4);
+  assert.throws(() => auditCollectionArchiveObjectName("users", "a", "b", NOW));
 });
