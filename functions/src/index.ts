@@ -5456,15 +5456,18 @@ export const getOwnerStoreCatalog = onCall(async (request) => {
     refs.forEach((ref, index) => {
       if (snapshots[index].exists) return;
       const item = DEFAULT_STORE_CATALOG[index];
+      const fulfillmentReady = projectStoreCatalogItem(item.itemId, {
+        ...item,
+        active: true,
+        fulfillmentReady: true,
+      })?.fulfillmentReady ?? false;
       transaction.create(ref, {
         ...item,
-        active: false,
+        // Publish approved, implemented profile features for discovery in the
+        // shop, but leave charging disabled until the owner confirms prices.
+        active: fulfillmentReady,
         purchaseEnabled: false,
-        fulfillmentReady: projectStoreCatalogItem(item.itemId, {
-          ...item,
-          active: true,
-          fulfillmentReady: true,
-        })?.fulfillmentReady ?? false,
+        fulfillmentReady,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: actorUid,
