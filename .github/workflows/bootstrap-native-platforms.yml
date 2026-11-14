@@ -6,6 +6,9 @@ on:
       - codex/mawda-full-platform-implementation
     paths:
       - "tool/configure_native_platforms.py"
+      - "tool/patch_android_plugin_compile_sdk.py"
+      - "tool/test_patch_android_plugin_compile_sdk.py"
+      - "tool/test_configure_native_platforms.py"
       - ".github/workflows/bootstrap-native-platforms.yml"
       - "pubspec.yaml"
       - "pubspec.lock"
