@@ -117,6 +117,46 @@ def configure_android() -> None:
         raise SystemExit("Could not safely set Android namespace, applicationId, minSdk=23 and compileSdk=36.")
     gradle.write_text(source, encoding="utf-8")
 
+    # Flutter plugins build as independent Android subprojects. Some currently
+    # declare API 34 internally even when the app uses API 36. Override every
+    # Android library/application extension before its AAR metadata check.
+    root_kts = android / "build.gradle.kts"
+    root_groovy = android / "build.gradle"
+    root_build = root_kts if root_kts.is_file() else root_groovy
+    if not root_build.is_file():
+        raise SystemExit("Android root Gradle build file was not generated.")
+    root_source = root_build.read_text(encoding="utf-8")
+    if root_kts.is_file():
+        override = """
+// Mawdda: align every plugin subproject with Android API 36 metadata requirements.
+subprojects {
+    afterEvaluate {
+        val androidExtension = extensions.findByName("android")
+        if (androidExtension != null) {
+            val setter = androidExtension.javaClass.methods.firstOrNull {
+                it.name == "setCompileSdkVersion" && it.parameterCount == 1
+            }
+            setter?.invoke(androidExtension, 36)
+        }
+    }
+}
+"""
+    else:
+        override = """
+// Mawdda: align every plugin subproject with Android API 36 metadata requirements.
+subprojects {
+    afterEvaluate { project ->
+        def androidExtension = project.extensions.findByName('android')
+        if (androidExtension != null) {
+            androidExtension.compileSdkVersion 36
+        }
+    }
+}
+"""
+    if "align every plugin subproject with Android API 36" not in root_source:
+        root_source = root_source.rstrip() + "\n" + override
+    root_build.write_text(root_source, encoding="utf-8")
+
 
 def configure_ios() -> None:
     ios = ROOT / "ios"
