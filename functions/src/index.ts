@@ -7440,7 +7440,7 @@ export const heartbeatTimedAdvertisement = onCall(async (request) => {
   }
   const sessionRef = db.collection("timedAdSessions").doc(sessionId);
   const activeRef = db.collection("activeTimedAdSessions").doc(uid);
-  return db.runTransaction(async (transaction) => {
+  const result = await db.runTransaction(async (transaction) => {
     const [session, active] = await Promise.all([
       transaction.get(sessionRef), transaction.get(activeRef),
     ]);
@@ -7452,7 +7452,12 @@ export const heartbeatTimedAdvertisement = onCall(async (request) => {
     const data = session.data()!;
     const nowMs = Date.now();
     if (data.expiresAtMs <= nowMs) {
-      throw new HttpsError("deadline-exceeded", "انتهت جلسة مشاهدة الإعلان.");
+      transaction.update(sessionRef, {
+        status: "expired", lastHeartbeatAtMs: null,
+        expiredAt: FieldValue.serverTimestamp(),
+      });
+      transaction.delete(activeRef);
+      return { expired: true, eligibleMs: data.eligibleMs, requiredMs: data.durationSeconds * 1000, remainingMs: 0, paused: true };
     }
     let delta;
     try {
@@ -7472,12 +7477,17 @@ export const heartbeatTimedAdvertisement = onCall(async (request) => {
       lastHeartbeatAt: FieldValue.serverTimestamp(),
     });
     return {
+      expired: false,
       eligibleMs: data.eligibleMs + delta.deltaMs,
       requiredMs: data.durationSeconds * 1000,
       remainingMs: Math.max(0, data.durationSeconds * 1000 - data.eligibleMs - delta.deltaMs),
       paused,
     };
   });
+  if (result.expired) {
+    throw new HttpsError("deadline-exceeded", "انتهت جلسة مشاهدة الإعلان.");
+  }
+  return result;
 });
 
 export const completeTimedAdvertisement = onCall(async (request) => {
