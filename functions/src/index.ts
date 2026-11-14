@@ -743,7 +743,7 @@ export const startEmailVerificationRenewal = onCall(async (request) => {
   const nowMs = Date.now();
 
   const cycleResult = await db.runTransaction(async (transaction) => {
-    let expiredPendingRef: FirebaseFirestore.DocumentReference | null = null;
+    let expiredPendingId: string | null = null;
     const userSnapshot = await transaction.get(userRef);
     if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true) {
       throw new HttpsError("failed-precondition", "يجب إكمال الملف الشخصي أولاً.");
@@ -768,7 +768,7 @@ export const startEmailVerificationRenewal = onCall(async (request) => {
         };
       }
       if (pendingSnapshot.exists && pending?.status === "pending") {
-        expiredPendingRef = pendingRef;
+        expiredPendingId = pendingId;
       }
     }
 
@@ -798,8 +798,11 @@ export const startEmailVerificationRenewal = onCall(async (request) => {
     if (existingCycle.exists) {
       throw new HttpsError("already-exists", "دورة التحقق هذه موجودة مسبقاً.");
     }
-    if (expiredPendingRef) {
-      transaction.update(expiredPendingRef, { status: "expired", expiredAt: FieldValue.serverTimestamp() });
+    if (expiredPendingId) {
+      transaction.update(
+        db.collection("emailVerificationCycles").doc(uid + "_" + expiredPendingId),
+        { status: "expired", expiredAt: FieldValue.serverTimestamp() },
+      );
     }
     const startedAt = Timestamp.fromMillis(cycle.startedAtMs);
     const expiresAt = Timestamp.fromMillis(cycle.expiresAtMs);
