@@ -26,8 +26,10 @@
         "browse.publicShopCatalog",
         "browse.publicAds",
         "rooms.public.join",
-        "chat.publicRooms.text",
-        "chat.publicRooms.audio"
+        "chat.publicRooms.text.send",
+        "chat.publicRooms.text.receive",
+        "chat.publicRooms.audio.send",
+        "chat.publicRooms.audio.receive"
       ],
       "deniedCapabilities": [
         "rewards.claim",
