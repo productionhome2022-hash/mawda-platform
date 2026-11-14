@@ -24,7 +24,7 @@ function entries() {
   ];
 }
 
-test("archives only events older than the 24-hour safety buffer", () => {
+test("archives only events older than the five-minute safety buffer", () => {
   assert.equal(isOwnerAuditArchiveEligible(NOW - OWNER_AUDIT_ARCHIVE_MIN_AGE_MS, NOW), true);
   assert.equal(isOwnerAuditArchiveEligible(NOW - OWNER_AUDIT_ARCHIVE_MIN_AGE_MS + 1, NOW), false);
   assert.throws(() => isOwnerAuditArchiveEligible(Number.NaN, NOW));
