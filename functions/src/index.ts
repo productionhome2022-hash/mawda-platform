@@ -7511,7 +7511,8 @@ export const completeTimedAdvertisement = onCall(async (request) => {
         active.data()?.sessionId !== sessionId) {
       throw new HttpsError("failed-precondition", "لم تكتمل مدة المشاهدة الفعلية المطلوبة.");
     }
-    if (!user.exists || !isMemberAccountInGoodStanding(user.data()) ||
+    if (!user.exists || user.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(user.data()) ||
         !campaign.exists || campaign.data()?.status === "archived") {
       throw new HttpsError("permission-denied", "الحساب أو الحملة لم تعد مؤهلة للمكافأة.");
     }
@@ -7533,6 +7534,9 @@ export const completeTimedAdvertisement = onCall(async (request) => {
       throw new HttpsError("resource-exhausted", "انتهت ميزانية الحملة أو الحد المسموح للمكافآت.");
     }
     const balance = readSafeInteger(user.data()?.coins ?? 0, "coins");
+    if (balance < 0 || balance + data.rewardCoins > Number.MAX_SAFE_INTEGER) {
+      throw new HttpsError("failed-precondition", "رصيد المحفظة لا يسمح بإضافة المكافأة بأمان.");
+    }
     const now = FieldValue.serverTimestamp();
     transaction.update(userRef, { coins: balance + data.rewardCoins, walletUpdatedAt: now });
     transaction.create(claimRef, {
