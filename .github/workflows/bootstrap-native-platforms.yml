@@ -75,11 +75,11 @@ jobs:
         run: |
           test -n "$FIREBASE_TOKEN"
           firebase apps:list --project mawda-platform-nonprod-2026 --token "$FIREBASE_TOKEN"
-          flutterfire configure --project=mawda-platform-nonprod-2026 --platforms=android,ios,web --android-package-name=com.mawdda.platform.app --ios-bundle-id=com.mawdda.platform.app --out=lib/firebase_options.dart --yes
+          flutterfire configure --project=mawda-platform-nonprod-2026 --platforms=android,ios,web --android-package-name=com.mawdda.platform.app --ios-bundle-id=com.mawdda.platform.app --out=lib/firebase_options_nonprod.dart --yes
           python3 - <<'PY'
           import re
           from pathlib import Path
-          source = Path("lib/firebase_options.dart").read_text()
+          source = Path("lib/firebase_options_nonprod.dart").read_text()
           for platform in ("web", "android", "ios"):
               match = re.search(
                   rf"static const FirebaseOptions {platform} = FirebaseOptions\((.*?)\n  \);",
@@ -107,7 +107,7 @@ jobs:
           sha256sum build/app/outputs/flutter-apk/app-debug.apk > build/app/outputs/flutter-apk/app-debug.apk.sha256
 
       - name: Package generated native projects
-        run: tar -czf native-platforms.tar.gz android ios lib/firebase_options.dart pubspec.lock
+        run: tar -czf native-platforms.tar.gz android ios lib/firebase_options_nonprod.dart pubspec.lock
 
       - uses: actions/upload-artifact@v5
         with:
@@ -165,7 +165,7 @@ jobs:
           IOS_APP_ID=$(python3 - <<'PY'
           import re
           from pathlib import Path
-          source = Path("lib/firebase_options.dart").read_text()
+          source = Path("lib/firebase_options_nonprod.dart").read_text()
           match = re.search(r"static const FirebaseOptions ios = FirebaseOptions\((.*?)\n  \);", source, re.S)
           if match is None:
               raise SystemExit("Missing generated iOS Firebase options.")
@@ -182,7 +182,7 @@ jobs:
           import re
           from pathlib import Path
 
-          source = Path("lib/firebase_options.dart").read_text()
+          source = Path("lib/firebase_options_nonprod.dart").read_text()
           match = re.search(r"static const FirebaseOptions ios = FirebaseOptions\((.*?)\n  \);", source, re.S)
           if match is None:
               raise SystemExit("Missing generated iOS Firebase options.")
@@ -265,7 +265,7 @@ jobs:
         run: |
           tar -xzf native-artifact/native-platforms.tar.gz -C .
           tar -xzf ios-firebase-config/ios-firebase-config.tar.gz -C .
-          git add android ios lib/firebase_options.dart pubspec.lock
+          git add android ios lib/firebase_options_nonprod.dart pubspec.lock
           if git diff --cached --quiet; then
             echo "Native platform scaffolding is already current."
             exit 0
