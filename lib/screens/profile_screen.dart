@@ -12,6 +12,7 @@ import 'direct_chat_screen.dart';
 import 'stories_screen.dart';
 import 'profile_gallery_screen.dart';
 import 'safety_center_screen.dart';
+import '../widgets/premium_profile_effects.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String profileUserId;
@@ -1002,31 +1003,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               Transform.translate(
                 offset: const Offset(0, -42),
-                child: Container(
-                  padding: EdgeInsets.all(hasAvatarFrame ? 5 : 0),
-                  decoration: hasAvatarFrame
-                      ? BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFFFFC857), width: 4),
-                          boxShadow: const [
-                            BoxShadow(color: Color(0x55D49A28), blurRadius: 16, spreadRadius: 2),
-                          ],
-                        )
+                child: hasAvatarFrame
+                    ? AnimatedPremiumAvatarFrame(child: CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Colors.deepPurple,
+                  backgroundImage: data['avatarUrl'] is String
+                      ? NetworkImage(data['avatarUrl'] as String)
                       : null,
-                  child: CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.deepPurple,
-                    backgroundImage: data['avatarUrl'] is String
-                        ? NetworkImage(data['avatarUrl'] as String)
-                        : null,
-                    child: data['avatarUrl'] is String
-                        ? null
-                        : const Icon(
-                            Icons.favorite_rounded,
-                            size: 42,
-                            color: Colors.white,
-                          ),
-                  ),
+                  child: data['avatarUrl'] is String
+                      ? null
+                      : const Icon(
+                          Icons.favorite_rounded,
+                          size: 42,
+                          color: Colors.white,
+                        ),
+                ))
+                    : CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Colors.deepPurple,
+                  backgroundImage: data['avatarUrl'] is String
+                      ? NetworkImage(data['avatarUrl'] as String)
+                      : null,
+                  child: data['avatarUrl'] is String
+                      ? null
+                      : const Icon(
+                          Icons.favorite_rounded,
+                          size: 42,
+                          color: Colors.white,
+                        ),
                 ),
               ),
               if (isMyProfile)
@@ -1071,22 +1075,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       : null,
                   child: Column(
                   children: [
-                    TweenAnimationBuilder<double>(
-                      tween: Tween<double>(begin: hasAnimatedUsername ? 0.88 : 1, end: 1),
-                      duration: const Duration(milliseconds: 850),
-                      curve: Curves.easeOutBack,
-                      builder: (context, scale, child) => Transform.scale(
-                        scale: scale,
-                        child: child,
-                      ),
-                      child: Text(
-                        name,
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: hasColoredUsername ? const Color(0xFF8B4AC8) : null,
-                        ),
-                      ),
+                    AnimatedPremiumUsername(
+                      text: name,
+                      colored: hasColoredUsername,
+                      animated: hasAnimatedUsername,
                     ),
                     if (discoveryBoostActive)
                       const Padding(
