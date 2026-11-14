@@ -46,6 +46,10 @@ jobs:
         run: flutter analyze
       - name: Run Flutter tests
         run: flutter test
+      - name: Validate desktop install experience assets
+        run: |
+          node --check web/install-prompt.js
+          node -e 'const fs=require("node:fs"); const m=JSON.parse(fs.readFileSync("web/manifest.json","utf8")); if(m.name!=="Mawdda Platform 2026" || m.display!=="standalone" || !m.icons?.length) process.exit(1); for (const p of ["web/mawdda-app-icon.svg","web/install-prompt.js"]) if(!fs.existsSync(p)) process.exit(1); console.log("PWA manifest, icon and install prompt validated")'
       - name: Build web release
         env:
           MAWDA_FCM_VAPID_KEY: ${{ vars.MAWDA_FCM_VAPID_KEY }}
