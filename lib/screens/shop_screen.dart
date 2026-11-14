@@ -200,14 +200,14 @@ class _ShopScreenState extends State<ShopScreen> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: const [
+                children: [
                   'all',
                   'features',
                   'badges',
                   'titles',
                   'vip',
                   'privacy',
-                ].map((group) => group).toList(growable: false).map((group) {
+                ].map((group) {
                   return ChoiceChip(
                     label: Text(_storeGroupLabel(group)),
                     selected: _selectedStore == group,
