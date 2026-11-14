@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../privacy_policy.dart';
@@ -374,8 +375,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 icon: const Icon(Icons.person_outline),
                 label: const Text('المتابعة كضيف'),
               ),
-              const SizedBox(height: 20),
-              const MawddaAppDownloads(),
+              if (kIsWeb) ...[
+                const SizedBox(height: 20),
+                const MawddaAppDownloads(),
+              ],
               const SizedBox(height: 8),
               const Text('إنشاء حساب الدخول لا يعني اكتمال الملف الشخصي؛ ستأتي خطوة استكمال بيانات العضوية لاحقاً.',
                 textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 12)),
