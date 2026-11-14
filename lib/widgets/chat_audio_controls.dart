@@ -229,7 +229,9 @@ class _ChatAudioMessagePlayerState extends State<ChatAudioMessagePlayer> {
         } else if (_player.processingState == ProcessingState.completed) {
           await _player.seek(Duration.zero);
         }
-        unawaited(_player.play());
+        unawaited(_player.play().catchError((Object error) {
+          if (mounted) setState(() => _error = 'تعذر مواصلة تشغيل الرسالة الصوتية: $error');
+        }));
       }
     } catch (error) {
       _error = 'تعذر تشغيل الرسالة الصوتية داخل التطبيق: $error';
