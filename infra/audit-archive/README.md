@@ -49,9 +49,12 @@ policy mutation permissions.
   matches exactly.
 - Keeps Firestore source events intact; no source deletion or retention cleanup
   is performed by this worker.
-- The archive currently covers the `owner-review-v1` hash chain. Other audit
-  collections (for example verification and profile-feature audit logs) need a
-  separately reviewed export scope before they can be described as covered.
+- The owner-review hash chain has a dedicated chain-verifying exporter. A second
+  worker archives `adminAuditLogs`, `verificationAuditLogs`,
+  `profileFeatureAuditLogs`, `mediaAccessAudit`, `memberPrivacyAudit`,
+  `memberProfileAudit`, `directMessageDeletionAudit`, `roomAuditLogs`, and
+  `privacyAcknowledgements`. Each collection uses a separate cursor, lease,
+  SHA-256 manifest and GCS-backed checkpoint.
 - Terraform creates the retention policy but does not lock it automatically.
   Locking is irreversible and requires the explicit operator step above.
 
