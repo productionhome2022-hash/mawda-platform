@@ -9,6 +9,7 @@ import 'login_screen.dart';
 import 'main_user_screen.dart';
 import 'guest_session_screen.dart';
 import 'notification_center_screen.dart';
+import 'owner_mfa_enrollment_screen.dart';
 import 'privacy_acknowledgement_screen.dart';
 import '../privacy_policy.dart';
 
@@ -126,8 +127,10 @@ class _PrivacyAcknowledgementGateState
           if (snapshot.data == true) {
             return widget.actorType == 'guest'
                 ? const GuestSessionScreen()
-                : _MemberPushBootstrap(
-                    child: MainUserScreen(userId: widget.userId),
+                : _OwnerMfaGate(
+                    child: _MemberPushBootstrap(
+                      child: MainUserScreen(userId: widget.userId),
+                    ),
                   );
           }
           return PrivacyAcknowledgementScreen(
@@ -252,4 +255,80 @@ class _MemberPushBootstrapState extends State<_MemberPushBootstrap> {
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+
+/// The owner cannot enter the member/owner app until at least one MFA factor
+/// is enrolled. Enrollment ends the current first-factor session; the next
+/// sign-in must resolve the second factor before server owner callables work.
+class _OwnerMfaGate extends StatefulWidget {
+  const _OwnerMfaGate({required this.child});
+  final Widget child;
+
+  @override
+  State<_OwnerMfaGate> createState() => _OwnerMfaGateState();
+}
+
+class _OwnerMfaGateState extends State<_OwnerMfaGate> {
+  late Future<bool> _requireEnrollment;
+
+  @override
+  void initState() {
+    super.initState();
+    _requireEnrollment = _needsOwnerMfaEnrollment();
+  }
+
+  Future<bool> _needsOwnerMfaEnrollment() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    final token = await user.getIdTokenResult(true);
+    if (token.claims?['platformOwner'] != true) return false;
+    final factors = await user.multiFactor.getEnrolledFactors();
+    return factors.isEmpty;
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<bool>(
+        future: _requireEnrollment,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (snapshot.hasError) {
+            return Scaffold(
+              body: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'تعذر التحقق من إعداد MFA لحساب المالك. لن نفتح لوحة Super Admin قبل نجاح الفحص.',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: () => setState(
+                          () => _requireEnrollment = _needsOwnerMfaEnrollment(),
+                        ),
+                        child: const Text('إعادة المحاولة'),
+                      ),
+                      TextButton(
+                        onPressed: () => FirebaseAuth.instance.signOut(),
+                        child: const Text('تسجيل الخروج'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+          if (snapshot.data == true) {
+            return const OwnerMfaEnrollmentScreen();
+          }
+          return widget.child;
+        },
+      );
 }
