@@ -16,17 +16,17 @@ def configure_android_gradle(source: str, *, kotlin_dsl: bool) -> str:
     """Set the app identity and SDK levels; safe to run repeatedly on generated files."""
     if kotlin_dsl:
         replacements = [
-            (r'namespace\\s*=\\s*"[^"]+"', f'namespace = "{PACKAGE}"'),
-            (r'applicationId\\s*=\\s*"[^"]+"', f'applicationId = "{PACKAGE}"'),
-            (r'minSdk\\s*=\\s*(?:flutter\\.minSdkVersion|\\d+)', "minSdk = 23"),
-            (r'compileSdk\\s*=\\s*(?:flutter\\.compileSdkVersion|\\d+)', "compileSdk = 36"),
+            (r'namespace\s*=\s*"[^"]+"', f'namespace = "{PACKAGE}"'),
+            (r'applicationId\s*=\s*"[^"]+"', f'applicationId = "{PACKAGE}"'),
+            (r'minSdk\s*=\s*(?:flutter\.minSdkVersion|\d+)', "minSdk = 23"),
+            (r'compileSdk\s*=\s*(?:flutter\.compileSdkVersion|\d+)', "compileSdk = 36"),
         ]
     else:
         replacements = [
-            (r'namespace\\s+["\\'][^"\\']+["\\']', f'namespace "{PACKAGE}"'),
-            (r'applicationId\\s+["\\'][^"\\']+["\\']', f'applicationId "{PACKAGE}"'),
-            (r'minSdkVersion\\s+(?:flutter\\.minSdkVersion|\\d+)', "minSdkVersion 23"),
-            (r'compileSdkVersion\\s+(?:flutter\\.compileSdkVersion|\\d+)', "compileSdkVersion 36"),
+            (r'namespace\s+["\'][^"\']+["\']', f'namespace "{PACKAGE}"'),
+            (r'applicationId\s+["\'][^"\']+["\']', f'applicationId "{PACKAGE}"'),
+            (r'minSdkVersion\s+(?:flutter\.minSdkVersion|\d+)', "minSdkVersion 23"),
+            (r'compileSdkVersion\s+(?:flutter\.compileSdkVersion|\d+)', "compileSdkVersion 36"),
         ]
     for pattern, replacement in replacements:
         source, count = re.subn(pattern, replacement, source, count=1)
