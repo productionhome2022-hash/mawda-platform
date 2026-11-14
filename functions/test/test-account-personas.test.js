@@ -14,13 +14,33 @@ test("test persona catalogue has unique stable IDs and complete profile requirem
   }
 });
 
-test("guest persona is browse-only and carries exact one-hour per rolling-24-hour policy", () => {
+test("guest persona has one hour per rolling 24 hours and limited public-room participation", () => {
   const guest = personas.personas.find((persona) => persona.id === "guest-preview");
   assert.ok(guest);
   assert.deepEqual(guest.guestWindow, { durationSeconds: 3600, rollingWindowSeconds: 86400, emulatorClockOverrideOnly: true });
-  assert.deepEqual(guest.capabilities, ["browse.publicMemberDiscovery", "browse.publicShopCatalog", "browse.publicAds"]);
+  assert.deepEqual(guest.capabilities, [
+    "browse.publicMemberDiscovery", "browse.publicShopCatalog", "browse.publicAds",
+    "rooms.public.join", "chat.publicRooms.text", "chat.publicRooms.audio"
+  ]);
+  assert.deepEqual(personas.guestPolicy, {
+    durationSeconds: 3600,
+    rollingWindowSeconds: 86400,
+    allowedRoomTypes: ["public"],
+    allowedRoomActions: ["join", "sendTextMessage", "sendAudioMessage", "receiveTextMessage", "receiveAudioMessage"],
+    deniedRoomActions: ["joinPrivateRoom", "rentRoom", "moderateRoom", "sendGift"],
+    allowedMessageTypes: ["text", "audio"],
+    deniedMessageTypes: ["image", "gif", "video", "pdf", "document", "file"],
+    directMessagesAllowed: false,
+    emulatorClockOverrideOnly: true
+  });
   assert.ok(guest.deniedCapabilities.includes("wallet.write"));
   assert.ok(guest.deniedCapabilities.includes("store.purchase"));
+  assert.ok(guest.deniedCapabilities.includes("chat.direct.send"));
+  assert.ok(guest.deniedCapabilities.includes("chat.privateRooms.join"));
+  assert.ok(guest.deniedCapabilities.includes("media.image"));
+  assert.ok(guest.deniedCapabilities.includes("media.gif"));
+  assert.ok(guest.deniedCapabilities.includes("media.video"));
+  assert.ok(guest.deniedCapabilities.includes("media.documents"));
 });
 
 test("email and biometric member personas cannot inherit owner authority", () => {
