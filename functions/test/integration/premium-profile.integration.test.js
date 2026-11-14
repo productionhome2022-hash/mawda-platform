@@ -190,7 +190,7 @@ test("real store purchases flow into the member profile and disappear when their
       }),
     ));
 
-    for (const [index, [itemId]] of items.entries()) {
+    for (const [index, [itemId, category]] of items.entries()) {
       const requestId = `profile_purchase_${memberUid}_${index}`;
       const purchaseId = `${memberUid}_${requestId}`;
       const purchaseRef = db.collection("storePurchases").doc(purchaseId);
