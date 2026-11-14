@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/push_notification_service.dart';
 import 'profile_screen.dart';
+import 'discovery_screen.dart';
 import 'shop_screen.dart';
 import 'wallet_screen.dart';
 import 'rooms_screen.dart';
@@ -431,6 +432,15 @@ class _CompletedProfilePanel extends StatelessWidget {
                             profileUserId: user.uid,
                             currentUserId: user.uid,
                           ),
+                        ),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.explore_outlined),
+                      label: const Text('اكتشف الأعضاء'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => DiscoveryScreen(currentUserId: user.uid),
                         ),
                       ),
                     ),
