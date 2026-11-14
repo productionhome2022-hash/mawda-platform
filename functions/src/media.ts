@@ -11,6 +11,7 @@ import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { hasPlatformOwnerSession } from "./owner-access";
+import { isGuestSessionActive } from "./guest-sessions";
 import { createDirectChatId } from "./direct-chat-id";
 import { resolveChatMediaDeliveryArtifact } from "./chat-media-policy";
 import { reserveMediaQuota, releaseMediaQuota } from "./media-quota";
@@ -980,6 +981,10 @@ export const sendChatImageAttachment = onCall(async (request) => {
   const ownerSession = request.auth?.token.platformOwner === true &&
     hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, senderUid);
   const artifact = resolveChatMediaDeliveryArtifact(asset as never, ownerSession);
+  const uploaderType = mediaUploaderTypeFromToken((request.auth?.token ?? {}) as Record<string, unknown>);
+  if (uploaderType === "guest" && (scope !== "room" || artifact?.category !== "audio")) {
+    throw new HttpsError("permission-denied", "الزائر يستطيع إرسال ملفات صوتية فقط داخل الغرف العامة.");
+  }
   if (asset.ownerUid !== senderUid || asset.mediaPurpose !== expectedPurpose || !artifact ||
       (artifact.category === "document" && !ownerSession)) {
     await auditMediaAccess({
@@ -1065,13 +1070,20 @@ export const sendChatImageAttachment = onCall(async (request) => {
   const memberRef = roomRef.collection("members").doc(senderUid);
   const messageRef = roomRef.collection("messages").doc(messageId);
   return mediaDb().runTransaction(async (tx) => {
-    const [room, member, user, message, freshAsset] = await Promise.all([
+    const guestProfileRef = mediaDb().collection("guestProfiles").doc(senderUid);
+    const guestSessionRef = mediaDb().collection("guestSessions").doc(senderUid);
+    const [room, member, user, message, freshAsset, guestProfile, guestSession] = await Promise.all([
       tx.get(roomRef), tx.get(memberRef), tx.get(mediaDb().collection("users").doc(senderUid)),
-      tx.get(messageRef), tx.get(assetRef),
+      tx.get(messageRef), tx.get(assetRef), tx.get(guestProfileRef), tx.get(guestSessionRef),
     ]);
+    const isGuest = uploaderType === "guest";
     if (!room.exists || room.data()?.status !== "active" || (!member.exists && !ownerSession) ||
-        (!user.exists && !ownerSession) || user.data()?.status === "suspended") {
-      throw new HttpsError("permission-denied", "يجب أن تكون عضواً نشطاً في الغرفة لإرسال المرفق.");
+        (isGuest && (!guestProfile.exists || !isGuestSessionActive(guestSession.data()) ||
+          room.data()?.kind !== "public" || room.data()?.audience !== "all_ages" ||
+          member.data()?.accountType !== "guest")) ||
+        (!isGuest && !user.exists && !ownerSession) ||
+        (!isGuest && user.data()?.status === "suspended")) {
+      throw new HttpsError("permission-denied", "يجب أن تكون عضواً أو زائراً نشطاً ومصرحاً له في هذه الغرفة لإرسال المرفق.");
     }
     const mutedUntil = member.data()?.mutedUntil;
     if (!ownerSession && mutedUntil instanceof Timestamp && mutedUntil.toMillis() > Date.now()) {
@@ -1086,7 +1098,7 @@ export const sendChatImageAttachment = onCall(async (request) => {
     }
     if (message.exists) throw new HttpsError("already-exists", "معرف الرسالة مستخدم.");
     tx.create(messageRef, {
-      messageId, senderUid, content: caption, type: "attachment",
+      messageId, senderUid, senderAccountType: uploaderType, content: caption, type: "attachment",
       mediaId, mediaCategory: artifact.category, contentType: artifact.contentType,
       attachmentStatus: "ready", isDeleted: false, createdAt: now,
     });
@@ -1143,8 +1155,20 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
     ]);
     const ownerSession = request.auth?.token.platformOwner === true &&
       hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, viewerUid);
+    const viewerType = mediaUploaderTypeFromToken((request.auth?.token ?? {}) as Record<string, unknown>);
     if (!room.exists || (!member.exists && !ownerSession) || !msg.exists) {
       throw new HttpsError("permission-denied", "ليس لديك حق الوصول إلى مرفقات هذه الغرفة.");
+    }
+    if (viewerType === "guest") {
+      const [guestProfile, guestSession] = await Promise.all([
+        mediaDb().collection("guestProfiles").doc(viewerUid).get(),
+        mediaDb().collection("guestSessions").doc(viewerUid).get(),
+      ]);
+      if (!guestProfile.exists || !isGuestSessionActive(guestSession.data()) ||
+          room.data()?.kind !== "public" || room.data()?.audience !== "all_ages" ||
+          member.data()?.accountType !== "guest") {
+        throw new HttpsError("permission-denied", "انتهت جلسة الزائر أو لا تسمح سياسة الغرفة بالوصول.");
+      }
     }
     message = msg.data();
   }
@@ -1188,6 +1212,10 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
   const artifact = resolveChatMediaDeliveryArtifact(
     asset as never, asset.uploaderRole === "platform_owner",
   );
+  if (mediaUploaderTypeFromToken((request.auth?.token ?? {}) as Record<string, unknown>) === "guest" &&
+      (scope !== "room" || artifact?.category !== "audio" || asset.uploaderType !== "guest")) {
+    throw new HttpsError("permission-denied", "لا يستطيع الزائر قراءة إلا الرسائل الصوتية في الغرف العامة.");
+  }
   const maxBytes = artifact?.category === "video" ? 50 * 1024 * 1024 :
     artifact?.category === "audio" ? 25 * 1024 * 1024 :
       artifact?.category === "document" ? 20 * 1024 * 1024 : 5 * 1024 * 1024;
@@ -1246,8 +1274,15 @@ export const createMediaUploadIntent = onCall(async (request) => {
     );
   }
   const uploaderType = mediaUploaderTypeFromToken(token);
-  if (uploaderType === "guest" && !["chat", "room"].includes(input.purpose)) {
-    throw new HttpsError("permission-denied", "حساب الضيف يقتصر رفعه على وسائط المحادثات والغرف.");
+  if (uploaderType === "guest") {
+    const [guestProfile, guestSession] = await Promise.all([
+      mediaDb().collection("guestProfiles").doc(uid).get(),
+      mediaDb().collection("guestSessions").doc(uid).get(),
+    ]);
+    if (!guestProfile.exists || !isGuestSessionActive(guestSession.data()) ||
+        input.purpose !== "room" || policy.category !== "audio") {
+      throw new HttpsError("permission-denied", "يسمح للزائر برفع رسائل صوتية فقط داخل غرفة عامة مؤهلة وخلال الجلسة النشطة.");
+    }
   }
   if (input.declaredSizeBytes > policy.maxBytes) {
     throw new HttpsError("invalid-argument", "حجم الملف يتجاوز الحد المسموح لهذا النوع.");
@@ -1293,7 +1328,7 @@ export const createMediaUploadIntent = onCall(async (request) => {
       mediaId,
       ownerUid: uid,
       uploaderType,
-      uploaderRole: isPlatformOwner ? "platform_owner" : "member",
+      uploaderRole: isPlatformOwner ? "platform_owner" : uploaderType === "guest" ? "guest" : "member",
       mediaPurpose: input.purpose,
       objectPath,
       originalName: input.originalName,
@@ -1353,6 +1388,16 @@ export const finalizeMediaUpload = onCall(async (request) => {
   const asset = snapshot.data()!;
   if (asset.ownerUid !== uid || asset.status !== "upload_authorized") {
     throw new HttpsError("permission-denied", "لا تملك صلاحية إكمال رفع هذا الملف.");
+  }
+  if (asset.uploaderType === "guest") {
+    const [guestProfile, guestSession] = await Promise.all([
+      mediaDb().collection("guestProfiles").doc(uid).get(),
+      mediaDb().collection("guestSessions").doc(uid).get(),
+    ]);
+    if (!guestProfile.exists || !isGuestSessionActive(guestSession.data()) ||
+        asset.mediaPurpose !== "room" || asset.mediaCategory !== "audio") {
+      throw new HttpsError("permission-denied", "انتهت جلسة الزائر أو أن نوع الوسيط غير مسموح.");
+    }
   }
 
   const file = mediaBucket().file(String(asset.objectPath));
