@@ -166,7 +166,7 @@ jobs:
           import re
           from pathlib import Path
           source = Path("lib/firebase_options.dart").read_text()
-          match = re.search(r"static const FirebaseOptions ios = FirebaseOptions\\((.*?)\\n  \\);", source, re.S)
+          match = re.search(r"static const FirebaseOptions ios = FirebaseOptions\((.*?)\n  \);", source, re.S)
           if match is None:
               raise SystemExit("Missing generated iOS Firebase options.")
           app = re.search(r"appId: '([^']+)'", match.group(1))
@@ -183,7 +183,7 @@ jobs:
           from pathlib import Path
 
           source = Path("lib/firebase_options.dart").read_text()
-          match = re.search(r"static const FirebaseOptions ios = FirebaseOptions\\((.*?)\\n  \\);", source, re.S)
+          match = re.search(r"static const FirebaseOptions ios = FirebaseOptions\((.*?)\n  \);", source, re.S)
           if match is None:
               raise SystemExit("Missing generated iOS Firebase options.")
           block = match.group(1)
