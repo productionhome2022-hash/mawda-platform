@@ -5,6 +5,8 @@ Branch: codex/mawda-full-platform-implementation
 
 This document records the owner's approved brand and experience direction. It is a product specification, not a claim that every visual asset or feature is already implemented, tested, or production-ready.
 
+Read this alongside the [Comprehensive Product Vision](MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md), the binding [Product Constitution](MAWADDA_PRODUCT_CONSTITUTION.md), and the [Approved Decisions and Traceability Register](MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md). The visual experience must not contradict safety, privacy, accessibility, entitlement or operational rules in the constitution.
+
 ## 1. Brand name and messaging
 
 - Arabic brand: مودة
