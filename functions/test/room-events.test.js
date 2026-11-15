@@ -14,8 +14,10 @@ test("normalizes scheduled announcements and stream events", () => {
     eventType: "announcement",
     startsAtMs: now + 60 * 60 * 1000,
     durationMinutes: 45,
+    capacity: 12,
   }, now);
   assert.equal(announcement.streamUrl, null);
+  assert.equal(announcement.capacity, 12);
   const stream = normalizeRoomEventInput({
     title: "بث مباشر",
     description: "",
@@ -24,6 +26,7 @@ test("normalizes scheduled announcements and stream events", () => {
     streamUrl: "https://youtu.be/abc123",
   }, now);
   assert.equal(stream.streamUrl, "https://youtu.be/abc123");
+  assert.equal(stream.capacity, null, "unspecified event capacity inherits the room capacity at creation");
 });
 
 test("rejects unsafe stream URLs, hosts and invalid scheduling windows", () => {
@@ -38,6 +41,8 @@ test("rejects unsafe stream URLs, hosts and invalid scheduling windows", () => {
   assert.throws(() => normalizeRoomEventInput({ ...base, streamUrl: "http://youtube.com" }, now), /INVALID_ROOM_EVENT_STREAM_URL/);
   assert.throws(() => normalizeRoomEventInput({ ...base, startsAtMs: now + 1000 }, now), /INVALID_ROOM_EVENT_START/);
   assert.throws(() => normalizeRoomEventInput({ ...base, eventType: "audio_stream", streamUrl: "" }, now), /STREAM_URL_REQUIRED/);
+  assert.throws(() => normalizeRoomEventInput({ ...base, capacity: 0 }, now), /INVALID_ROOM_EVENT_CAPACITY/);
+  assert.throws(() => normalizeRoomEventInput({ ...base, capacity: 1001 }, now), /INVALID_ROOM_EVENT_CAPACITY/);
 });
 
 test("allows only scheduled to live/cancelled and live to completed transitions", () => {
