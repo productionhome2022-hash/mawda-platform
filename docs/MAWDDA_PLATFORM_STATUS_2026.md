@@ -72,3 +72,33 @@ Not yet proven: live signed GCS upload/download, production generation-specific 
 ## Deployment boundary
 
 PR #2 remains Draft and unmerged. No production deployment, production Firebase mutation, public media access, retention lock, or destructive cleanup is authorized by this development work.
+
+## Engineering hardening update — 15 November 2026
+
+### Exact-head automated evidence
+
+- Application-code head: `d341ff04374f678cc4d06ea1b1459a27b0319619`.
+- GitHub Actions: [run 43713242606](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43713242606) — `completed / success`.
+- All three jobs passed: Flutter analysis/tests/Web release build; Cloud Functions compile/unit/integration and Firestore/Storage emulator rules suites; isolated ClamAV scanner source, container and sanitization/EICAR tests.
+- The guest lifecycle integration suite passed after adding regression coverage for discovery beyond 200 ineligible rooms and cleanup across more than 200 memberships. The test verifies that a session is finalized only after membership cleanup completes.
+- Scanner-purpose binding passed the scanner and backend CI suites: the signed scan request and verdict carry the media purpose, the callback checks it against the stored asset, and the scanner rejects media types incompatible with the declared purpose.
+
+### Changes after that tested code head
+
+The following later commits are workflow, test-matrix, ignore-file and documentation changes; they do not alter the application code tested at `d341ff0`:
+
+- Added a manual emulator-only Mawdda Test Center workflow and `npm run test:all` aggregator.
+- Added explicit ignore rules for local emulator test credentials and emulator data.
+- Added Test Center operator documentation and updated guest regression-coverage metadata.
+- Added branch-scoped validation concurrency to avoid duplicate push/PR workloads, and transient Maven Central retry handling for Android CI.
+
+The latest repository head must still pass its own exact-head CI before its status is called green. The manual Test Center workflow has been created but has not yet been dispatched.
+
+### Remaining release blockers
+
+- The separate 5,000-persona lab has not yet been accepted against this exact platform revision.
+- Live non-production GCS signed URLs, Cloud Run scanner dispatch/callback, IAM/WIF/Secret Manager, retention and real restore behavior remain unproven.
+- Android/iOS physical-device acceptance, real camera/microphone/push behavior, App Check and cross-installation guest abuse resistance remain open.
+- Owner MFA provisioning/recovery, independent security/penetration review, accessibility/performance, privacy/legal review and operational incident drills remain open.
+- PR #2 remains Draft/open/unmerged. No production Firebase mutation, deployment, paid-resource activation or irreversible operation has been performed.
+
