@@ -32,7 +32,7 @@ test("retention clock rejects invalid timestamps and durations", () => {
   assert.throws(() => isRetentionDue(1, CHAT_TEXT_RETENTION_MS, -1), /INVALID_RETENTION_CLOCK/);
 });
 
-test("only direct and room message documents are eligible for seven-day deletion", () => {
+test("only direct and room message documents are eligible for mode-aware text deletion", () => {
   assert.equal(isSupportedChatMessagePath("directChats/abc/messages/msg1"), true);
   assert.equal(isSupportedChatMessagePath("rooms/room-1/messages/msg1"), true);
   assert.equal(isSupportedChatMessagePath("users/u1/messages/msg1"), false);
