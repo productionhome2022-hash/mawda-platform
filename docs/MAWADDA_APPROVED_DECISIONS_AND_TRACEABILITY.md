@@ -79,3 +79,11 @@ The following decisions are binding and are also specified in [the Master Develo
 - Existing price changes do not rewrite historic receipts or entitlements.
 - The 1,500-coin biometric reward remains disabled until cryptographic server proof and all existing security gates are satisfied.
 - These decisions do not authorize merge to main, production deployment, paid infrastructure or real-money payment activation.
+
+
+
+## GOV-003 — Technical collaborators and owner authorization (approved 15 November 2026)
+
+| Decision | Binding rule | Status / evidence required |
+|---|---|---|
+| GOV-003 | ChatGPT and Gemini are the designated technical/software-development collaborators; the human owner remains the sole product and operational authority. No secret/credential access or use, deployment, protected-branch merge, production/live-system change, paid action, destructive operation, external publication/message, or third-party authorization without prior explicit personal approval for that exact action and scope. Routine isolated-branch coding and local/emulator tests may proceed under the standing development mandate only when no secrets, charges, live external effects, or real-user data are involved. | Approved governance rule. Apply to all future work; each approval-gated action must have an explicit approval record and evidence of execution or non-execution. |
