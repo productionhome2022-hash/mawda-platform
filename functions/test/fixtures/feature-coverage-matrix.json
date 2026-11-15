@@ -108,7 +108,8 @@
         "owner-operator-denied-owner-appeals-access",
         "eligible-room-discovery-not-starved-by-ineligible-rooms",
         "cleanup-paginated-across-200-memberships",
-        "session-finalization-after-cleanup-completes"
+        "session-finalization-after-cleanup-completes",
+        "scheduled-retry-completes-cleanup-pending-session"
       ],
       "plannedCases": [
         "real-device-audio-recording-and-playback",
