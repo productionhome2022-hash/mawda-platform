@@ -251,3 +251,14 @@ Commits:
 The current development branch implements the guest public-room path in `guest-sessions.ts`, `index.ts`, `room-policy.ts`, `media.ts`, and `guest_room_chat_screen.dart`; the guest-session integration test covers public-room discovery, joining, text exchange, guest restrictions, and guest audio attachment authorization. The older PR #16 description that says the branch does not implement guest room runtime is stale relative to this development head; do not use that old description as the current implementation status. Its remaining Test Center changes still require a separate diff/rebase review.
 
 No merge, deployment, live Firebase mutation, paid-resource activation, or production change was performed. Phase 2 remains open pending fresh CI, native build completion, live non-production GCS/Cloud Run validation, device acceptance, and the remaining product/legal gates.
+
+### CI concurrency correction — 15 November 2026
+
+The previous `.github/workflows/validate.yml` listened to both `push` and `pull_request` for the same development head while assigning both events the same concurrency group with `cancel-in-progress: true`. That configuration does **not** deduplicate runs; it can cancel one event's jobs when the other starts. This is consistent with the observed cancelled Flutter/Functions jobs on run 43715453222, although the cancellation event itself is not proven from logs.
+
+Corrected in commit `22788ce82c707a6cb58b8ca3c4a0ec456be6b520`:
+- Automatic validation now uses the open PR's `pull_request` event as the single per-commit trigger.
+- The duplicate `push` trigger was removed; manual `workflow_dispatch` remains.
+- Concurrency still cancels superseded commits for the same PR head, not duplicate event types.
+
+The PR #2 head is now expected to advance to this workflow correction plus the documented media callback fix. A fresh Validate run and native run must be checked against the exact new PR head before reporting green. No local test execution is claimed; the workflow YAML validation is part of the CI job itself.
