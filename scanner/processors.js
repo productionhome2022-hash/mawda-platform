@@ -154,7 +154,7 @@ async function processAudio({ sourcePath, tempDir, request, sourceSha256, storag
   await execFileAsync("ffmpeg", [
     "-nostdin", "-v", "error", "-y", "-i", sourcePath,
     "-map", "0:a:0", "-vn", "-map_metadata", "-1", "-map_chapters", "-1",
-    "-t", String(LIMITS.audio.maxDurationSeconds), "-ac", "1", "-ar", "44100",
+    "-t", String(maxDurationSeconds), "-ac", "1", "-ar", "44100",
     "-c:a", "libmp3lame", "-b:a", "96k", "-f", "mp3", output,
   ], { timeout: 120_000, maxBuffer: 64 * 1024 });
   const artifact = await uploadDerivative({
@@ -233,4 +233,4 @@ async function processSafeDerivative(context) {
   }
 }
 
-module.exports = { LIMITS, safeOutputPath, probeMedia, probeGif, processSafeDerivative };
+module.exports = { LIMITS, audioDurationLimitForPurpose, safeOutputPath, probeMedia, probeGif, processSafeDerivative };
