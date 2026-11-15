@@ -14,9 +14,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  # Deduplicate retries for the same commit without letting a stalled older
-  # PR-head job block validation of a newer commit indefinitely.
-  group: mawda-validation-${{ github.event.pull_request.head.sha || github.sha }}
+  # Keep only the newest validation for this branch. Push and PR events for the
+  # same head share a group, preventing duplicate emulator/build workloads.
+  group: mawda-validation-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
