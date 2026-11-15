@@ -224,10 +224,12 @@ test("direct delete-for-everyone removes text and notifications, redacts preview
     assert.equal((await messageRef.get()).exists, false);
     assert.equal((await notifications[1].get()).exists, false);
     assert.equal((await chatRef.get()).data().lastMessagePreview, "تم حذف الرسالة");
+    assert.equal((await chatRef.get()).data().messageDeletionRevision, 1);
 
     const replay = await deleteDirectMessageForEveryone.run(request);
     assert.equal(replay.deleted, true);
     assert.equal(replay.idempotentReplay, true);
+    assert.equal((await chatRef.get()).data().messageDeletionRevision, 1);
   } finally {
     await Promise.all([
       chatRef.delete().catch(() => undefined),

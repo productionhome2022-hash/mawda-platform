@@ -2342,7 +2342,7 @@ export const sendOwnerLiveStream = onCall(async (request) => {
         senderLabel: "إدارة منصة مودة", createdAt: now,
       });
       transaction.set(chatRef, {
-        lastMessageAt: now, lastMessageSenderUid: actorUid,
+        lastMessageAt: now, lastMessageId: messageId, lastMessageSenderUid: actorUid,
         lastMessagePreview: input.title || "أرسل مالك المنصة بثاً مباشراً.",
       }, { merge: true });
       const notificationRef = db.collection("users").doc(peer).collection("notifications").doc("live_" + messageId);
@@ -3156,6 +3156,7 @@ export const sendOwnerDirectChatMessage = onCall(async (request) => {
     const createdAt = FieldValue.serverTimestamp();
     transaction.set(chatRef, {
       lastMessageAt: createdAt,
+      lastMessageId: messageId,
       lastMessageSenderUid: actorUid,
       lastMessagePreview: input.text.substring(0, 120),
     }, { merge: true });
@@ -3337,6 +3338,7 @@ export const announceOwnerDirectChatReview = onCall(async (request) => {
     const createdAt = FieldValue.serverTimestamp();
     transaction.set(chatRef, {
       lastMessageAt: createdAt,
+      lastMessageId: messageId,
       lastMessageSenderUid: actorUid,
       lastMessagePreview: input.noticeText.substring(0, 120),
     }, { merge: true });
@@ -7213,7 +7215,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     transaction.set(chatRef, {
       participantUids: [actorUid, requesterUid].sort(),
       createdAt: chatSnapshot.exists ? chatSnapshot.data()?.createdAt ?? now : now,
-      lastMessageAt: now, lastMessageSenderUid: actorUid,
+      lastMessageAt: now, lastMessageId: messageId, lastMessageSenderUid: actorUid,
       lastMessagePreview: "أرسل مالك المنصة تعليمات دفع طلب الكوينز.",
     }, { merge: true });
     if (!existingMessage.exists) {

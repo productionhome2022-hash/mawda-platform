@@ -158,7 +158,7 @@ The development branch now has a first measured-scope optimization for direct ch
 - The direct-chat client now loads the recent 50-message page once, polls for only messages after its latest cursor, merges by immutable message ID, and sorts by timestamp plus ID.
 - Older direct-message history is fetched through the server cursor when the member requests it; pages are deduplicated before display.
 - The client refreshes outgoing read indicators from the peer read cursor without writing a new receipt when no new incoming message arrived.
-- A monotonic `messageDeletionRevision` is incremented for delete-for-me and delete-for-everyone requests. An incremental client detects a revision change and performs a bounded full recent-page reconciliation so deletions are not left visible in a stale cache. Repeated delete-for-me requests do not increment the revision again.
+- A monotonic `messageDeletionRevision` is incremented for delete-for-me and delete-for-everyone requests and for each bounded direct-chat text-retention batch that removes messages. An incremental client detects a revision change and performs a bounded full recent-page reconciliation so manual and scheduled deletions are not left visible in a stale cache. Repeated delete-for-me requests do not increment the revision again.
 - Emulator regression covers equal-timestamp ordering, a new message arriving after the cursor, deletion revision changes, and idempotent delete replay.
 
 ### Remaining read-optimization gaps

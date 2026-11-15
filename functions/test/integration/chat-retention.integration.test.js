@@ -92,6 +92,8 @@ test("mode-aware sweep deletes normal text at seven days, important text at thir
     assert.equal(chat.data().lastMessagePreview, undefined);
     assert.equal(chat.data().lastMessageAt, undefined);
     assert.equal(chat.data().lastMessageSenderUid, undefined);
+    assert.equal(chat.data().messageDeletionRevision, 1);
+    assert.equal((await importantChatRef.get()).data().messageDeletionRevision, 1);
   } finally {
     await Promise.all([
       chatRef.delete().catch(() => undefined),

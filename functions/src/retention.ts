@@ -443,14 +443,21 @@ export async function runChatTextRetentionSweep(): Promise<{ messages: number; f
         if (lifetimeMs === null) continue;
         const previewCutoff = Timestamp.fromMillis(Date.now() - lifetimeMs);
         const lastMessageAt = chat.data()?.lastMessageAt;
-        if (chat.exists && (!(lastMessageAt instanceof Timestamp) ||
-            lastMessageAt.toMillis() <= previewCutoff.toMillis())) {
-          batch.update(chatRef, {
-            lastMessagePreview: FieldValue.delete(),
-            lastMessageAt: FieldValue.delete(),
-            lastMessageSenderUid: FieldValue.delete(),
-            textRetentionPurgedAt: FieldValue.serverTimestamp(),
-          });
+        if (chat.exists) {
+          const chatUpdate: Record<string, unknown> = {
+            messageDeletionRevision: FieldValue.increment(1),
+            updatedAt: FieldValue.serverTimestamp(),
+          };
+          if (!(lastMessageAt instanceof Timestamp) ||
+              lastMessageAt.toMillis() <= previewCutoff.toMillis()) {
+            Object.assign(chatUpdate, {
+              lastMessagePreview: FieldValue.delete(),
+              lastMessageAt: FieldValue.delete(),
+              lastMessageSenderUid: FieldValue.delete(),
+              textRetentionPurgedAt: FieldValue.serverTimestamp(),
+            });
+          }
+          batch.update(chatRef, chatUpdate);
         }
       }
 
