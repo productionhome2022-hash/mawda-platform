@@ -336,6 +336,9 @@ test("ending a guest session removes memberships across multiple query pages", a
     assert.equal(before.size, 205);
 
     await endGuestSession.run(guestRequest(uid));
+    const endedSession = (await sessionRef.get()).data();
+    assert.equal(endedSession.status, "ended");
+    assert.ok(endedSession.cleanupCompletedAt, "session must be finalized only after membership cleanup");
 
     const after = await db.collectionGroup("members").where("uid", "==", uid).get();
     assert.equal(after.size, 0, "all guest memberships must be removed, not only the first 200");
