@@ -39,6 +39,8 @@ jobs:
         run: npm run test:retention-integration
       - name: Run room event seat reservation and cancellation integration tests
         run: npm run test:room-events-integration
+      - name: Run owner entitlement grant and bulk replay integration tests
+        run: npm run test:owner-entitlement-grants-integration
 
   flutter-domain-regression:
     name: Flutter UI analysis and widget tests
