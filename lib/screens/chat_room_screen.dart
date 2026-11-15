@@ -140,7 +140,6 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       allowedExtensions: [
         'jpg', 'jpeg', 'png', 'webp', 'gif',
         'mp3', 'm4a', 'ogg', 'wav', 'mp4',
-        if (widget.isSuperAdmin) 'pdf',
       ],
       allowMultiple: false,
       withData: kIsWeb,
