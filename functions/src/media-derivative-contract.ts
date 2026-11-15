@@ -40,3 +40,20 @@ export function expectedSafeDerivativeContract(
   if (!Object.prototype.hasOwnProperty.call(SAFE_DERIVATIVE_CONTRACTS, category)) return null;
   return SAFE_DERIVATIVE_CONTRACTS[category as SafeDerivativeCategory];
 }
+
+export function safeDerivativePurposeAllowed(
+  category: SafeDerivativeCategory,
+  purpose: string,
+  uploaderRole: string,
+): boolean {
+  if (category === "audio") return purpose === "chat" || purpose === "room";
+  if (category === "video") {
+    return purpose === "chat" || purpose === "room" ||
+      (purpose === "advertisement" && uploaderRole === "platform_owner");
+  }
+  if (category === "document") {
+    return (purpose === "chat" || purpose === "room") && uploaderRole === "platform_owner";
+  }
+  if (purpose === "advertisement") return uploaderRole === "platform_owner";
+  return ["chat", "room", "profile_album", "avatar_cover", "story"].includes(purpose);
+}
