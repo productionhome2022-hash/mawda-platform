@@ -6377,6 +6377,190 @@ export const purchaseStoreItem = onCall(async (request) => {
 });
 
 
+/**
+ * Grants a free store entitlement to one member. Each target/request pair is
+ * idempotent; a new request deliberately extends an existing timed entitlement.
+ */
+async function executeOwnerEntitlementGrant(
+  actorUid: string,
+  targetUid: string,
+  itemId: string,
+  durationHours: 24 | 168 | 720,
+  requestId: string,
+  reason: string,
+): Promise<Record<string, unknown>> {
+  const grantId = createHash("sha256").update(`mawdda-owner-grant-v1:${requestId}:${targetUid}`).digest("hex");
+  const memberRef = db.collection("users").doc(targetUid);
+  const itemRef = db.collection("storeCatalog").doc(itemId);
+  const entitlementRef = memberRef.collection("entitlements").doc(itemId);
+  const grantRef = db.collection("ownerEntitlementGrants").doc(grantId);
+  const ledgerRef = memberRef.collection("entitlementGrantLedger").doc(grantId);
+  const auditRef = db.collection("adminAuditLogs").doc(`owner_entitlement_grant_${grantId}`);
+
+  return db.runTransaction(async (transaction) => {
+    const [member, itemSnapshot, priorGrant, priorEntitlement] = await Promise.all([
+      transaction.get(memberRef),
+      transaction.get(itemRef),
+      transaction.get(grantRef),
+      transaction.get(entitlementRef),
+    ]);
+    if (priorGrant.exists) {
+      const prior = priorGrant.data() ?? {};
+      if (prior.actorUid !== actorUid || prior.targetUid !== targetUid ||
+          prior.itemId !== itemId || prior.durationHours !== durationHours ||
+          prior.requestId !== requestId) {
+        throw new HttpsError("already-exists", "مفتاح طلب المنح مستخدم لعملية مختلفة.");
+      }
+      return {
+        grantId, targetUid, itemId, status: "granted",
+        expiresAt: prior.expiresAt instanceof Timestamp ? prior.expiresAt.toMillis() : null,
+        idempotentReplay: true,
+      };
+    }
+    if (!member.exists) throw new HttpsError("not-found", "حساب العضو غير موجود.");
+    if (!itemSnapshot.exists) throw new HttpsError("not-found", "عنصر الاستحقاق غير موجود في الكتالوج.");
+    const item = projectStoreCatalogItem(itemId, itemSnapshot.data() ?? {});
+    if (!item || item.active !== true || item.fulfillmentReady !== true) {
+      throw new HttpsError("failed-precondition", "لا يمكن منح عنصر غير نشط أو لم يكتمل تنفيذ استحقاقه.");
+    }
+
+    const nowMs = Date.now();
+    const now = Timestamp.fromMillis(nowMs);
+    const prior = priorEntitlement.data() ?? {};
+    const priorExpiry = prior.expiresAt;
+    const priorExpiryMs = priorExpiry instanceof Timestamp
+      ? priorExpiry.toMillis()
+      : typeof priorExpiry?.toMillis === "function" ? priorExpiry.toMillis() : 0;
+    const permanentExisting = priorEntitlement.exists &&
+      prior.status === "active" && (prior.expiresAt === null || prior.expiresAt === undefined);
+    const nextExpiry = permanentExisting
+      ? null
+      : Timestamp.fromMillis(Math.max(nowMs, priorExpiryMs) + durationHours * 60 * 60 * 1000);
+    const createdAt = FieldValue.serverTimestamp();
+
+    transaction.set(entitlementRef, {
+      itemId,
+      itemName: item.name,
+      category: item.category,
+      status: "active",
+      grantSource: "platform_owner",
+      grantId,
+      grantedBy: actorUid,
+      grantedAt: createdAt,
+      grantReason: reason,
+      expiresAt: nextExpiry,
+      updatedAt: createdAt,
+    });
+    transaction.create(grantRef, {
+      grantId, requestId, actorUid, targetUid, itemId,
+      itemName: item.name, category: item.category, durationHours, reason,
+      previousExpiresAt: priorExpiry instanceof Timestamp ? priorExpiry : null,
+      expiresAt: nextExpiry,
+      status: "granted",
+      createdAt,
+    });
+    transaction.create(ledgerRef, {
+      type: "owner_entitlement_grant",
+      grantId, requestId, actorUid, targetUid, itemId,
+      itemName: item.name, category: item.category, durationHours, reason,
+      expiresAt: nextExpiry,
+      createdAt,
+    });
+    transaction.create(auditRef, {
+      actorUid, targetUid, action: "owner_entitlement_granted",
+      grantId, requestId, itemId, category: item.category,
+      durationHours, reason, createdAt,
+    });
+    return {
+      grantId, targetUid, itemId, status: "granted",
+      expiresAt: nextExpiry?.toMillis() ?? null,
+      idempotentReplay: false,
+    };
+  });
+}
+
+function validateOwnerEntitlementGrantRequest(data: Record<string, unknown>): {
+  itemId: string; durationHours: 24 | 168 | 720; requestId: string; reason: string;
+} {
+  const itemId = data.itemId;
+  const durationHours = data.durationHours;
+  const reason = typeof data.reason === "string" ? data.reason.trim() : "";
+  if (typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
+      ![24, 168, 720].includes(durationHours as number) ||
+      reason.length < 5 || reason.length > 500) {
+    throw new HttpsError("invalid-argument", "العنصر أو المدة أو سبب المنح غير صالح.");
+  }
+  let requestId: string;
+  try { requestId = requireRequestId(data.requestId); }
+  catch { throw new HttpsError("invalid-argument", "معرف طلب المنح غير صالح."); }
+  return { itemId, durationHours: durationHours as 24 | 168 | 720, requestId, reason };
+}
+
+/** Owner/MFA-only single-member free grant; never debits coins or creates a purchase. */
+export const grantStoreEntitlement = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "owner_entitlement_grant");
+  const targetUid = request.data?.memberUid;
+  if (typeof targetUid !== "string" || targetUid.length < 1 || targetUid.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+  }
+  const input = validateOwnerEntitlementGrantRequest(request.data ?? {});
+  return executeOwnerEntitlementGrant(
+    actorUid, targetUid, input.itemId, input.durationHours, input.requestId, input.reason,
+  );
+});
+
+/**
+ * Owner/MFA-only bulk free grant. 500 targets is a per-call transport/work
+ * unit, not an account/lifetime entitlement cap; callers may send further
+ * chunks with the same requestId. Successful targets remain idempotent if a
+ * later target fails, and the result reports each target independently.
+ */
+export const bulkGrantStoreEntitlements = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "owner_bulk_entitlement_grant");
+  const input = validateOwnerEntitlementGrantRequest(request.data ?? {});
+  const targetUids = request.data?.targetUids;
+  if (!Array.isArray(targetUids) || targetUids.length < 1 || targetUids.length > 500 ||
+      targetUids.some((uid: unknown) => typeof uid !== "string" || uid.length < 1 || uid.length > 128) ||
+      new Set(targetUids).size !== targetUids.length) {
+    throw new HttpsError("invalid-argument", "قائمة الأعضاء غير صالحة؛ أرسل حتى 500 معرف فريد في كل دفعة.");
+  }
+  const itemSnapshot = await db.collection("storeCatalog").doc(input.itemId).get();
+  const item = itemSnapshot.exists ? projectStoreCatalogItem(input.itemId, itemSnapshot.data() ?? {}) : null;
+  if (!item || item.active !== true || item.fulfillmentReady !== true) {
+    throw new HttpsError("failed-precondition", "لا يمكن منح عنصر غير نشط أو لم يكتمل تنفيذ استحقاقه.");
+  }
+
+  const results: Record<string, unknown>[] = [];
+  for (let offset = 0; offset < targetUids.length; offset += 10) {
+    const chunk = targetUids.slice(offset, offset + 10) as string[];
+    const settled = await Promise.all(chunk.map(async (targetUid) => {
+      try {
+        return await executeOwnerEntitlementGrant(
+          actorUid, targetUid, input.itemId, input.durationHours, input.requestId, input.reason,
+        );
+      } catch (error) {
+        return {
+          targetUid,
+          itemId: input.itemId,
+          status: "failed",
+          errorCode: error instanceof HttpsError ? error.code : "internal",
+          idempotentReplay: false,
+        };
+      }
+    }));
+    results.push(...settled);
+  }
+  return {
+    requestId: input.requestId,
+    itemId: input.itemId,
+    total: results.length,
+    granted: results.filter((result) => result.status === "granted").length,
+    failed: results.filter((result) => result.status === "failed").length,
+    replayed: results.filter((result) => result.idempotentReplay === true).length,
+    results,
+  };
+});
+
 /** Owner/MFA-only catalog publishing; client writes to storeCatalog remain denied. */
 export const setStoreCatalogItem = onCall(async (request) => {
   const actorUid = requireOwner(request);
