@@ -6560,6 +6560,32 @@ export const bulkGrantStoreEntitlements = onCall(async (request) => {
   };
 });
 
+/** Members can read a privacy-projected history of their own free entitlement grants. */
+export const getMyEntitlementGrantHistory = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const memberRef = db.collection("users").doc(uid);
+  const member = await memberRef.get();
+  if (!member.exists) throw new HttpsError("not-found", "ملف العضوية غير موجود.");
+  const snapshot = await memberRef.collection("entitlementGrantLedger")
+    .orderBy("createdAt", "desc")
+    .limit(50)
+    .get();
+  return {
+    entries: snapshot.docs.map((document) => {
+      const data = document.data();
+      return {
+        grantId: data.grantId,
+        itemId: data.itemId,
+        itemName: data.itemName,
+        category: data.category,
+        durationHours: data.durationHours,
+        expiresAtMs: data.expiresAt instanceof Timestamp ? data.expiresAt.toMillis() : null,
+        createdAtMs: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : null,
+      };
+    }),
+  };
+});
+
 /** Owner/MFA-only catalog publishing; client writes to storeCatalog remain denied. */
 export const setStoreCatalogItem = onCall(async (request) => {
   const actorUid = requireOwner(request);
