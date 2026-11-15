@@ -41,7 +41,9 @@ test("guest onboarding stores no age and grants only active all-ages public-room
   const counterUid = counterPersona.data().uid;
   const biometricUid = biometricPersona.data().uid;
   const ownerOperatorUid = ownerOperatorPersona.data().uid;
-  const roomIds = [roomId, adultRoomId, privateRoomId, unapprovedRoomId];
+  const discoveryNoiseRoomIds = Array.from({ length: 205 }, (_, index) =>
+    `aaa_guest_noise_${index.toString().padStart(3, "0")}_${suffix()}`);
+  const roomIds = [roomId, adultRoomId, privateRoomId, unapprovedRoomId, ...discoveryNoiseRoomIds];
   const roomRef = (id) => db.collection("rooms").doc(id);
   const guestProfileRef = db.collection("guestProfiles").doc(uid);
   const guestSessionRef = db.collection("guestSessions").doc(uid);
@@ -53,6 +55,19 @@ test("guest onboarding stores no age and grants only active all-ages public-room
       roomRef(privateRoomId).set({ name: "Private", status: "active", kind: "private", audience: "all_ages", guestAudienceApproved: true, capacity: 20, memberCount: 0 }),
       roomRef(unapprovedRoomId).set({ name: "Unapproved", status: "active", kind: "public", audience: "all_ages", guestAudienceApproved: false, capacity: 20, memberCount: 0 }),
     ]);
+    // More than 200 earlier active but ineligible rooms must not starve
+    // guest-safe rooms from the discovery result.
+    for (let offset = 0; offset < discoveryNoiseRoomIds.length; offset += 400) {
+      const batch = db.batch();
+      discoveryNoiseRoomIds.slice(offset, offset + 400).forEach((id) => {
+        batch.set(roomRef(id), {
+          name: "Non-eligible discovery fixture", status: "active",
+          kind: "private", audience: "all_ages", guestAudienceApproved: false,
+          capacity: 20, memberCount: 0,
+        });
+      });
+      await batch.commit();
+    }
     await assert.rejects(
       () => setRoomAudience.run({
         data: { roomId, audience: "all_ages", confirmGeneralAudienceModeration: true },
