@@ -545,3 +545,8 @@ This amendment is part of the binding constitution and supersedes inconsistent o
 
 ## Governance reference — owner-control master agreement
 The project adopts `docs/OWNER_CONTROL_MASTER_AGREEMENT.md` (OCA-001) as the cross-project governance baseline, subject to applicable law and third-party platform terms. It supplements GOV-003 and does not itself claim that every clause is a signed third-party contract.
+
+## GOV-005 — Financial and employment status of AI assistants
+
+The project adopts GOV-005 as recorded in `docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md` and OCA-001 section 26. Use of ChatGPT or Gemini through a free or paid subscription does not, by itself, make either assistant an employee or contractor of the owner or create a salary, wage, commission, profit-share, equity, or employment-benefit obligation owed by the owner. Subscription fees are payable to the relevant provider. Human workers require separate agreements. This internal project rule does not bind or release OpenAI, Google, or any other third party from its own legal or contractual obligations.
+
