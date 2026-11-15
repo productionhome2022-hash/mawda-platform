@@ -27,6 +27,8 @@ test("mode-aware sweep deletes normal text at seven days, important text at thir
   const importantExpiredMessageRef = importantChatRef.collection("messages").doc("important-expired-message-test");
   const temporaryChatRef = db.collection("directChats").doc("retention-temporary-chat-test");
   const temporaryMessageRef = temporaryChatRef.collection("messages").doc("temporary-message-test");
+  const corruptChatRef = db.collection("directChats").doc("retention-corrupt-chat-test");
+  const corruptMessageRef = corruptChatRef.collection("messages").doc("corrupt-mode-message-test");
   const notificationRef = db.collection("users").doc("retention-recipient-test")
     .collection("notifications").doc("direct-message-test");
   const unrelatedRef = db.collection("users").doc("retention-recipient-test")
@@ -42,6 +44,7 @@ test("mode-aware sweep deletes normal text at seven days, important text at thir
   }),
     importantChatRef.set({ retentionMode: "important", lastMessageAt: old, lastMessagePreview: "important preview" }),
     temporaryChatRef.set({ retentionMode: "temporary", lastMessageAt: veryOld, lastMessagePreview: "temporary preview" }),
+    corruptChatRef.set({ retentionMode: "unknown" }),
   ]);
   await directMessageRef.set({
     messageId: directMessageRef.id,
@@ -55,6 +58,7 @@ test("mode-aware sweep deletes normal text at seven days, important text at thir
     importantRecentMessageRef.set({ messageId: importantRecentMessageRef.id, text: "keep until thirty days", type: "text", createdAt: old }),
     importantExpiredMessageRef.set({ messageId: importantExpiredMessageRef.id, text: "delete after thirty days", type: "text", createdAt: veryOld }),
     temporaryMessageRef.set({ messageId: temporaryMessageRef.id, text: "retain until full temporary chat expiry", type: "text", createdAt: veryOld }),
+    corruptMessageRef.set({ messageId: corruptMessageRef.id, text: "fail closed on corrupt mode", type: "text", createdAt: veryOld }),
   ]);
   await roomMessageRef.set({
     messageId: roomMessageRef.id,
@@ -73,13 +77,14 @@ test("mode-aware sweep deletes normal text at seven days, important text at thir
 
   try {
     const result = await runChatTextRetentionSweep();
-    assert.equal(result.failures, 0);
+    assert.equal(result.failures, 1);
     assert.equal(result.messages, 3);
     assert.equal((await directMessageRef.get()).exists, false);
     assert.equal((await roomMessageRef.get()).exists, false);
     assert.equal((await importantRecentMessageRef.get()).exists, true);
     assert.equal((await importantExpiredMessageRef.get()).exists, false);
     assert.equal((await temporaryMessageRef.get()).exists, true);
+    assert.equal((await corruptMessageRef.get()).exists, true);
     assert.equal((await notificationRef.get()).exists, false);
     assert.equal((await unrelatedRef.get()).exists, true);
 
@@ -92,6 +97,7 @@ test("mode-aware sweep deletes normal text at seven days, important text at thir
       chatRef.delete().catch(() => undefined),
       importantChatRef.delete().catch(() => undefined),
       temporaryChatRef.delete().catch(() => undefined),
+      corruptChatRef.delete().catch(() => undefined),
       notificationRef.delete().catch(() => undefined),
       unrelatedRef.delete().catch(() => undefined),
       db.collection("rooms").doc("retention-room-test").delete().catch(() => undefined),
