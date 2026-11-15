@@ -74,6 +74,23 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Test touch, mouse, keyboard navigation, accessibility, screen readers, and reduced-motion settings.
 - [ ] Run performance, crash, network-failure, monitoring, backup, and recovery-drill checks.
 
+## 6.1. Audio/video calling and quota-billing acceptance — not implemented
+
+The approved CALL-001/CALL-002 decisions are product requirements, not evidence that the calling service exists. The current development tree has no WebRTC call-session/signaling implementation, no TURN/STUN service integration, and no server-authoritative call quota or metering engine. Do not present audio/video calls as available or enable call packages yet.
+
+- [ ] Implement separate audio and video call products with owner-controlled 24-hour, 7-day and 30-day entitlement validity and editable prices.
+- [ ] Enforce five ordinary audio-call attempts and three ordinary video-call attempts per member in each rolling 24-hour window.
+- [ ] Count an attempt only when the server creates an accepted call session; rejected pre-session requests do not count. The receiver does not consume quota merely by receiving a call.
+- [ ] Enforce a five-minute maximum call duration from server-confirmed connection time. Reconnects, network changes, client clocks and app restarts must not reset the timer.
+- [ ] Implement paid continuation after the initiator exhausts their included attempts: 120 coins/minute audio or 400 coins/minute video total; if both participants have exhausted their quotas, split 60/200 coins per minute per participant; if only the initiator is exhausted, charge the initiator the full 120/400 and do not consume the receiver's quota.
+- [ ] Before paid continuation, disclose the total price and each participant's share and obtain the required consent. Do not create debt or negative balances; end the call when the next billing unit cannot be funded.
+- [ ] Resolve and document the approved rounding/billing unit before enabling paid continuation. This decision is intentionally still open; do not assume per-second, per-minute ceiling, or grace-period behavior.
+- [ ] Implement server-authoritative signaling, participant authorization, call state transitions, TURN/STUN credentials, expiry, abuse limits, disconnect/reconnect handling and audit events.
+- [ ] Make all quota reservations, billing ticks and ledger entries atomic and idempotent; prove no double charge under duplicate callbacks, reconnects, concurrent requests or delayed webhooks.
+- [ ] Add emulator/unit tests for quota boundaries, 24-hour rolling windows, receiver non-consumption, accepted/rejected attempt counting, call timeout, both paid-allocation cases, consent denial, insufficient funds, retries and concurrent billing.
+- [ ] Complete real Android/iOS microphone/camera permission, network transition, incoming-call, background/foreground, playback and TURN relay tests.
+- [ ] Keep call catalog items and billing disabled until the above gates pass and the owner explicitly approves activation.
+
 ## 7. Release authorization
 
 - [ ] All blocking checks are green on the exact release candidate commit.
