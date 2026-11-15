@@ -6,8 +6,8 @@ import unittest
 class NativeWorkflowFirebaseConfigurationTests(unittest.TestCase):
     def test_ios_service_file_uses_app_id_from_generated_flutterfire_options(self):
         workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "bootstrap-native-platforms.yml").read_text()
-        self.assertIn('IOS_APP_ID=$(python3 - <<\\'PY\\'', workflow)
-        self.assertIn('app = re.search(r"appId: \'([^\']+)\'", match.group(1))', workflow)
+        self.assertIn("IOS_APP_ID=$(python3 - <<'PY'", workflow)
+        self.assertIn("app = re.search(r\"appId: '([^']+)'\", match.group(1))", workflow)
         self.assertIn('firebase apps:sdkconfig IOS "$IOS_APP_ID" --project mawda-platform-nonprod-2026 --out ios/Runner/GoogleService-Info.plist', workflow)
         self.assertIn("--out ios/Runner/GoogleService-Info.plist", workflow)
         self.assertIn("rm -f ios/Runner/GoogleService-Info.plist", workflow)
