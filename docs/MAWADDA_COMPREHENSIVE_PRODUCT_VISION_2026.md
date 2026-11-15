@@ -216,3 +216,28 @@
 - [حدود التطوير ومحاكاة 5000 شخصية](DEVELOPMENT_AND_SIMULATION_BOUNDARY.md) و[مواصفات اختبار الشخصيات الاصطناعية](SYNTHETIC_PERSONA_LOAD_TESTING.md) — فصل المختبر عن كود المنصة والاختبارات اليومية.
 
 أي مرفق قديم أو تقرير تدقيق يُقرأ بوصفه دليلاً تاريخياً لحالته وتاريخه، ولا يُعامل كقرار أحدث من هذا الدستور أو آخر موافقة صريحة للمالك.
+
+
+## 18. Unified commercial, rewards and owner-grant experience — approved 15 November 2026
+
+The complete product experience uses one owner-controlled commercial and rewards system across all current and future stores, products and features.
+
+### 18.1 Shared durations and pricing
+All purchasable features, store products, memberships, titles, badges, medals, avatar frames, animated/colored names, themes, profile enhancements, room rentals and future SKUs connect to one central catalog/entitlement engine. It supports 24 hours, one week and one month, with a separate owner-defined price for each duration. The owner can change prices, enable/disable durations and products, set quantities and purchase limits, configure renewal where applicable, and review sales and entitlements. Permanent items remain possible. Commercial values are not hardcoded in client code.
+
+### 18.2 Mawdda Media Saver
+A single paid entitlement allows saving received normal images, GIFs, videos and audio recordings to the device in direct chats, public rooms and rented private rooms. The backend checks entitlement on every save. Local saving never pauses or extends the four-hour server media-retention timer. The owner sets each duration price; one week/200 coins is a provisional test value only.
+
+### 18.3 Chat retention choices
+- Temporary direct chat: all text and media deleted after four hours of server-recorded inactivity; new activity resets the deadline; app closure or network disconnection alone does not count as inactivity; both participants are informed.
+- Normal chat: media deleted four hours after sending; text deleted after seven days.
+- Important chat: media deleted four hours after sending; text deleted after thirty days.
+
+### 18.4 Attendance and advertising rewards
+The owner configures daily, hourly and weekly attendance rewards, including schedules, eligibility, values, quantities, limits and activation. Ad rewards require completion of the owner-defined viewing duration and server-side evidence of actual foreground viewing/heartbeats; merely opening an ad or running a client timer is not sufficient. The owner can upload ads directly and may integrate third-party providers in the future. Campaigns, views and grants are audited and idempotent.
+
+### 18.5 Owner grants and group rewards
+The Super Admin console includes a dedicated grant center. The owner can grant coins, store products, paid features, memberships, titles, badges, medals, VIP and other eligible items free of charge to one UID, a selected group, all users connected to a selected public room at execution time, or a room/group as a collective recipient. Collective rewards include coin contribution/support chests. Each grant has owner-selected value/quantity, duration where applicable, reason/message, recipient preview, confirmation, server authorization, idempotency, audit history and recipient-level records. Free grants do not debit recipients and are not purchase transactions.
+
+### 18.6 One owner control plane
+The same Super Admin control plane governs all store and feature prices, durations, quantities, purchase limits, rewards, ad campaigns, coin grants, room rewards and enable/disable controls. New features introduced in later updates must integrate with these shared systems rather than introducing isolated hardcoded commercial logic.
