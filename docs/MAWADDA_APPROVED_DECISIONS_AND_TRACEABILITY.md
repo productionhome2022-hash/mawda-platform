@@ -87,3 +87,12 @@ The following decisions are binding and are also specified in [the Master Develo
 | Decision | Binding rule | Status / evidence required |
 |---|---|---|
 | GOV-003 | ChatGPT and Gemini are the designated technical/software-development collaborators; the human owner remains the sole product and operational authority. No secret/credential access or use, deployment, protected-branch merge, production/live-system change, paid action, destructive operation, external publication/message, or third-party authorization without prior explicit personal approval for that exact action and scope. Routine isolated-branch coding and local/emulator tests may proceed under the standing development mandate only when no secrets, charges, live external effects, or real-user data are involved. | Approved governance rule. Apply to all future work; each approval-gated action must have an explicit approval record and evidence of execution or non-execution. |
+
+
+## GOV-004 — Cross-project owner-control agreement
+**Owner direction — 15 November 2026**
+- Establish `docs/OWNER_CONTROL_MASTER_AGREEMENT.md` (OCA-001) as the reusable governance baseline for Mawdda and future owner-controlled projects.
+- Extend owner protections beyond coding and credentials to ownership/IP, account and asset control, data/privacy, finance, third parties, vendor lock-in, security, auditability, handover, and revocation of permissions.
+- New projects must copy and tailor OCA-001 before substantive development; each repository must record project-specific acceptance and implementation evidence.
+- This repository change is a governance document, not proof that external parties have signed it or that legal enforceability is guaranteed. Obtain appropriate signed IP/confidentiality/data-processing agreements and local legal review where needed.
+- No broad blanket authorization is created: approval remains specific to each consequential action.
