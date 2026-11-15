@@ -5,6 +5,7 @@ import { onObjectFinalized } from "firebase-functions/v2/storage";
 import { defineString } from "firebase-functions/params";
 import { isExplicitNonProductionTarget } from "./nonproduction-target";
 import { logger } from "firebase-functions";
+import { resolveChatRetentionMode, isChatTextDeletionDue, chatTextRetentionMs, type ChatRetentionMode } from "./chat-retention-policy";
 
 export const CHAT_MEDIA_RETENTION_MS = 4 * 60 * 60 * 1000;
 export const CHAT_TEXT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -349,14 +350,17 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
 
 export async function runChatTextRetentionSweep(): Promise<{ messages: number; failures: number }> {
   const db = getFirestore();
-  const cutoff = Timestamp.fromMillis(Date.now() - CHAT_TEXT_RETENTION_MS);
+  // Scan the longest approved text lifetime, then apply the exact per-chat
+  // policy. This prevents the former global seven-day query from deleting
+  // important conversations early.
+  const scanCutoff = Timestamp.fromMillis(Date.now() - 30 * 24 * 60 * 60 * 1000);
   let messages = 0;
   let failures = 0;
   let cursor: any = null;
 
   for (let page = 0; page < RETENTION_PAGES_PER_RUN; page += 1) {
     let query = db.collectionGroup("messages")
-      .where("createdAt", "<=", cutoff)
+      .where("createdAt", "<=", scanCutoff)
       .orderBy("createdAt", "asc")
       .limit(RETENTION_BATCH_SIZE);
     if (cursor) query = query.startAfter(cursor);
@@ -366,37 +370,81 @@ export async function runChatTextRetentionSweep(): Promise<{ messages: number; f
 
     const batch = db.batch();
     const directChatIds = new Set<string>();
+    const directChatModes = new Map<string, ChatRetentionMode>();
     let batchMessages = 0;
     for (const messageDoc of snapshot.docs) {
       if (!isSupportedChatMessagePath(messageDoc.ref.path)) continue;
       const data = messageDoc.data();
-      // A documented active message hold suspends the seven-day text purge.
-      // Cursor pagination ensures a page containing only held messages cannot
-      // starve later expired messages in other conversations.
       if (data.legalHoldStatus === "active") continue;
+      if (!(data.createdAt instanceof Timestamp)) continue;
+
       const parts = messageDoc.ref.path.split("/");
+      const conversationId = parts[1];
+      let mode: ChatRetentionMode = "normal";
+      if (parts[0] === "directChats") {
+        const cachedMode = directChatModes.get(conversationId);
+        if (cachedMode) {
+          mode = cachedMode;
+        } else {
+          const conversationRef = messageDoc.ref.parent.parent;
+          if (!conversationRef) {
+            failures += 1;
+            continue;
+          }
+          try {
+            const conversation = await conversationRef.get();
+            if (!conversation.exists) {
+              failures += 1;
+              continue;
+            }
+            mode = resolveChatRetentionMode(conversation.data()?.retentionMode);
+            directChatModes.set(conversationId, mode);
+          } catch (error) {
+            failures += 1;
+            logger.error("Chat retention mode is invalid; message deletion failed closed.", {
+              conversationId,
+              errorName: error instanceof Error ? error.name : "unknown",
+            });
+            continue;
+          }
+        }
+      }
+
+      // Temporary private conversations require a separate full-conversation
+      // inactivity sweep and a confirmed participant-consent rule. Never
+      // delete individual messages under that mode in this seven/thirty-day job.
+      if (mode === "temporary") continue;
+      const lifetimeMs = chatTextRetentionMs(mode);
+      if (lifetimeMs === null ||
+          !isChatTextDeletionDue(data.createdAt.toMillis(), mode, Date.now())) continue;
+
       if (parts[0] === "directChats") {
         const recipientUid = typeof data.recipientUid === "string" ? data.recipientUid : "";
         if (recipientUid) {
           batch.delete(db.collection("users").doc(recipientUid)
             .collection("notifications").doc(messageDoc.id));
         }
-        directChatIds.add(parts[1]);
+        directChatIds.add(conversationId);
       }
       batch.delete(messageDoc.ref);
       batchMessages += 1;
     }
 
     if (batchMessages > 0) {
-      // Clear text previews in the same atomic batch as their expired messages.
-      // Keep at most 150 messages per batch so message, notification and chat
-      // metadata writes stay below Firestore's 500-write batch limit.
+      // A bounded page of 150 messages can create at most 150 notification
+      // deletes and 150 chat-preview updates, remaining below Firestore's
+      // 500-write batch ceiling.
       for (const chatId of directChatIds) {
         const chatRef = db.collection("directChats").doc(chatId);
         const chat = await chatRef.get();
+        const mode = directChatModes.get(chatId) ?? "normal";
+        if (mode === "temporary") continue;
+        const lifetimeMs = chatTextRetentionMs(mode);
+        if (lifetimeMs === null) continue;
+        const previewCutoff = Timestamp.fromMillis(Date.now() - lifetimeMs);
         const lastMessageAt = chat.data()?.lastMessageAt;
         if (chat.exists && (!(lastMessageAt instanceof Timestamp) ||
-            lastMessageAt.toMillis() <= cutoff.toMillis())) {
+            lastMessageAt.toMillis() <= previewCutoff.toMillis())) {
           batch.update(chatRef, {
             lastMessagePreview: FieldValue.delete(),
             lastMessageAt: FieldValue.delete(),
@@ -544,7 +592,7 @@ export const enforceChatMediaRetention = onSchedule(
   },
 );
 
-/** Permanently removes chat text and text-bearing previews after seven days, using a daily bounded sweep. */
+/** Applies normal seven-day and important thirty-day text retention; temporary chats are excluded pending the separate consent-gated full-conversation sweep. */
 export const enforceChatTextRetention = onSchedule(
   { schedule: "every 24 hours", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
   async () => {
