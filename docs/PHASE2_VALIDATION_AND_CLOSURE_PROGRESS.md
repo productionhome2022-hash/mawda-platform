@@ -370,3 +370,21 @@ The separate Draft PRs #13, #15, #16 and #17 remain open and are not merged. The
 - Native runner workflow [run 43728230648](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43728230648) is running on `e23603dbdf5f53a3412cba6bdc3b1cd84bff2c60`. The only difference between that native-build SHA and the exact CI head is the backend test import correction in `functions/test/platform-economic-policy.test.js`; no Flutter application source changed between them. Do not treat the native run as complete until it reports success.
 - The corrected 5,000-persona harness PR #2 remains Draft/open/unmerged; no full 5,000-persona rerun has yet been recorded against this exact platform head.
 - No merge to `main`, deployment, live Firebase mutation, billing upgrade, paid-resource activation, or irreversible retention/legal-hold operation was performed.
+
+## Runtime lifecycle and CI action modernization — 15 November 2026
+
+- The repository and scanner had been pinned to Node.js 20. Google Cloud's runtime schedule lists Node.js 20 as decommissioned on 30 October 2026; Node.js 22 remains supported. The development branch now targets Node.js 22:
+  - `functions/package.json` and the root metadata in `functions/package-lock.json`: Functions engine `22`.
+  - `scanner/package.json`: scanner engine `22`.
+  - `scanner/Dockerfile`: `node:22-bookworm-slim`.
+  - `validate.yml` and `mawdda-test-center.yml`: pinned Node.js `22.23.4`.
+  - The 5,000-persona lab's validation and simulation workflows were also aligned to Node.js `22.23.4` on its isolated Draft PR branch.
+- GitHub artifact upload actions were upgraded from `actions/upload-artifact@v5` to `@v7.0.2` in the platform workflows and the simulation lab workflow, removing the observed Node.js 20 action-runtime deprecation warning.
+- Exact-head GitHub Actions [run 43728964878](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43728964878) completed **success** on `6e79f360f13c20ebec1f3214f78f822f554a290c` with all three jobs green:
+  - Flutter analysis reported no issues, all 15 Flutter tests passed, and the Web release build succeeded.
+  - Cloud Functions compile/unit tests and all configured Firebase Emulator integration journeys and Firestore/Storage rules tests passed (all reported test groups had zero failures).
+  - Scanner source/security tests passed and the Node.js 22 ClamAV container built; the in-container media sanitization tests and EICAR detection passed.
+- Simulation-lab validation [run 43728976974](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/actions/runs/43728976974) passed on lab PR branch head `2ce169e06733fc535b05699a9c757537965756da`, including four bounded Firestore retry unit tests and workflow safety checks. This is not the 5,000-persona run.
+- Native build [run 43728956968](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43728956968) is still in progress; Android debug APK generation is running. The earlier native run was cancelled before iOS completion, so do not mark Android/iOS native builds complete until this current run finishes both platform jobs.
+- The 5,000-persona full simulation remains unrun against the exact platform head. Lab PR #2 remains Draft/open/unmerged; no merge was performed.
+- Node 22 migration is CI-verified for Functions, scanner and the emulator integration suite. This does not authorize or perform a Functions deployment; the production project remains untouched.
