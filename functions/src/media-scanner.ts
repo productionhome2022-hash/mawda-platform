@@ -66,7 +66,7 @@ export function validateScannerVerdict(
     const d = v.safeDerivative as Record<string, unknown>;
     const route = {
       gif: { filename: "animation.gif", contentType: "image/gif", version: "gif-sanitize-preserve-animation-v1" },
-      audio: { filename: "audio.mp3", contentType: "audio/mpeg", version: "ffmpeg-audio-transcode-v1" },
+      audio: { filename: "audio.mp3", contentType: "audio/mpeg", version: "ffmpeg-audio-purpose-limit-v2" },
       video: { filename: "video.mp4", contentType: "video/mp4", version: "ffmpeg-video-transcode-v1" },
       document: { filename: "document.pdf", contentType: "application/pdf", version: "pdf-raster-flatten-v1" },
     } as const;
