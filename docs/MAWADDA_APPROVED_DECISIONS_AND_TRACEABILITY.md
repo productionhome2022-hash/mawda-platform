@@ -166,3 +166,25 @@ The owner reaffirmed that desktop PWA installation and usable experiences across
 - Android signing: `.github/workflows/android-signed-release.yml` provides a manual, development-branch-only signed Release build that expects the owner's existing JKS and passwords as GitHub Actions secrets and checks the APK signer fingerprint. It has not been run and no signed APK is currently evidenced. The keystore remains local to the owner's Termux environment; only verification output was shared. The owner-required encrypted backups and explicit secret-provisioning approval remain prerequisites. No keystore or password is committed or modified.
 
 These tasks do not authorize merge, publication, deployment, production Firebase changes, paid infrastructure, or mutation of GitHub secrets.
+
+
+## IOS-FB-001 — Preserve the existing Firebase iOS app registration and configuration (owner clarification, 15 November 2026)
+
+**Owner decision — mandatory preservation rule:** deferring the native iOS application from the current launch does not authorize deleting, disabling, recreating, renaming, or casually changing its Firebase registration or configuration. The already-created Firebase iOS app is a retained platform asset and must remain intact for the future iOS release.
+
+Known identity to preserve:
+- Firebase project: `mawda-app-2026` (project number `697303475139`).
+- iOS Firebase App ID: `1:697303475139:ios:7be58cfe1ac9c4c23ed376`.
+- iOS Bundle ID: `com.mawdda.platform.app`.
+- The iOS `GoogleService-Info.plist` was downloaded by the owner to the local Termux workspace at `~/mawdda-firebase-check/GoogleService-Info.plist` during the registration/configuration work.
+- The current committed `lib/firebase_options.dart` contains the matching iOS App ID, project ID and bundle ID. Preserve these values; do not replace them with placeholders or values from another Firebase project.
+
+Safeguards:
+1. Do not delete or recreate the Firebase iOS app registration.
+2. Do not change its App ID, Bundle ID, project association, API key, or associated Firebase settings merely because native iOS signing/build is deferred.
+3. Keep the downloaded `GoogleService-Info.plist` as a protected configuration artifact under the owner's custody. Do not commit it or expose its contents in chat/logs. Maintain an owner-controlled encrypted backup before any future migration or credential-handling operation.
+4. Do not overwrite the iOS section of `lib/firebase_options.dart` with experimental/placeholders. Any necessary future change requires an explicit owner-approved change plan and independent verification against Firebase Console.
+5. Native iOS build, signing and store distribution remain deferred. This is a release-scope deferral only; it is not permission to remove the Firebase registration or its configuration.
+6. No Firebase Console mutation, app deletion, settings change, or credential rotation was performed as part of this decision.
+
+Current evidence boundary: repository source confirms the iOS FirebaseOptions identity values listed above. The owner previously confirmed the app registration already existed (Firebase returned `409 ALREADY_EXISTS`) and downloaded the plist. The repository does not prove the present availability or integrity of the owner's local plist/backup, nor does this documentation perform a live Firebase Console audit. Verify those custody facts before any future iOS release work.
