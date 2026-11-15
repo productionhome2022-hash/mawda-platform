@@ -8,6 +8,7 @@ import 'package:record/record.dart';
 import 'package:uuid/uuid.dart';
 
 import '../services/audio_wav_encoder.dart';
+import '../policies/chat_audio_policy.dart';
 import '../services/member_media_upload_service.dart';
 
 /// Shared in-app microphone capture for authenticated member chats.
