@@ -512,3 +512,32 @@ This amendment is part of the binding constitution and supersedes inconsistent o
 ### G. Global owner control
 - The owner controls all stores, products, features, titles, badges, coins, rewards, advertising campaigns, room products, quantities, durations, prices, limits and enable/disable settings from Super Admin, subject to server-enforced security and audit.
 - These are binding product requirements. Their addition here does not claim that implementation, tests or release acceptance are complete; status must be tracked with code and evidence.
+
+
+
+## Governance amendment GOV-003 — Technical development responsibility and owner authorization
+
+**Owner-approved amendment — 15 November 2026**
+
+### Technical development responsibility
+- The designated technical and software-development collaborators for Mawdda are **ChatGPT (OpenAI) and Gemini (Google)**. They are jointly responsible, within their respective available tools, permissions, and capabilities, for technical analysis, architecture, programming, design implementation, defect diagnosis and correction, security-gap identification, testing, documentation, and development follow-through.
+- The human owner remains the sole product authority and final decision-maker. ChatGPT and Gemini are technical collaborators, not owners, legal representatives, or independent approvers. Neither may invent owner consent, commercial decisions, credentials, product requirements, or acceptance evidence.
+- Work must be recorded in the relevant project's approved source repository, with traceable changes, test evidence, and an honest status. A plan, suggestion, generated patch, or passing isolated test is not proof that a feature is complete.
+- When both assistants are involved, they must coordinate through shared project documentation and Git history, avoid conflicting edits, review each other's assumptions where possible, and preserve a single source of truth. Neither may claim that the other performed or verified work without evidence.
+
+### Owner-only authorization for secrets and credentials
+- No assistant, developer, agent, script, workflow, or collaborator may create, request, reveal, retrieve, read, copy, transmit, store, configure, rotate, revoke, or use any password, API key, access token, PAT, private key, signing key, certificate, recovery code, webhook secret, cloud credential, or other secret unless the owner has given **prior, explicit, personal approval** for that specific action and scope.
+- Approval must identify the intended credential/action, project, environment, purpose, and permitted scope. Approval for one credential or task does not authorize another. Least privilege, shortest practical lifetime, secure secret-management facilities, and auditability are mandatory.
+- Secrets must never be pasted into chat, committed to Git, placed in source code, client applications, ordinary documents, logs, or Firestore. Assistants must not ask the owner to disclose a secret value in conversation. Where possible, guide the owner to enter it directly into the official provider's secure settings page.
+- Existing credentials are not blanket authorization. A credential being present in an account, repository, environment, or prior conversation does not grant permission to use it.
+
+### Owner-only approval for consequential and external operations
+- No deployment, release, merge to a protected/default branch, production change, live Firebase or cloud mutation, billing/plan upgrade, paid-resource activation, payment or purchase, data migration affecting live data, destructive deletion, irreversible retention/legal-hold change, external message or publication, third-party account authorization, or other consequential action may be initiated without the owner's prior, explicit, personal approval for that specific operation.
+- Approval must be obtained immediately before the operation and must state its target, environment, scope, and expected effect. Silence, general enthusiasm, earlier approval, a draft plan, or approval of code development is not approval for a consequential operation.
+- Routine code editing, commits to an isolated development branch, static analysis, and tests confined to local/emulator/sandbox environments may proceed under the owner's standing development mandate only when they do not require secrets, incur charges, contact or mutate live external systems, publish content, or affect real users/data. If any such boundary is uncertain, stop and ask the owner first.
+- CI workflows must be build/test/validation-only by default. Workflows must not silently deploy, publish, spend money, access production credentials, or mutate live services.
+
+### Mandatory pre-action and reporting rules
+- Before an approval-gated action, present a concise explanation of what will be done, why it is needed, the exact target/environment, risks, cost (if any), and whether it is reversible; wait for the owner's explicit approval.
+- After an approved action, report exactly what was performed, the resulting commit/run/transaction identifier where applicable, verification evidence, and any remaining risk. If the action was not performed or could not be verified, say so plainly.
+- The owner may revoke or narrow any standing development permission at any time. When approval is absent or ambiguous, the default is **do not proceed**.
