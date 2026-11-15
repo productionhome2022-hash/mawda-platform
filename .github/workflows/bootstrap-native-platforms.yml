@@ -1,11 +1,10 @@
 name: Bootstrap and validate Mawdda native platforms
 
 on:
-  # The open development PR is the single automatic trigger. Avoid duplicate
-  # push + pull_request native builds for the same commit.
-  pull_request:
+  # This workflow currently exists only on the development branch. Use its
+  # push event until the workflow is available on the repository default branch.
+  push:
     branches:
-      - main
       - codex/mawda-full-platform-implementation
     paths:
       - "tool/configure_native_platforms.py"
