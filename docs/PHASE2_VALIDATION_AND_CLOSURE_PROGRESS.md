@@ -314,3 +314,43 @@ Commits:
 - `6bcec4517a21f9859959b78ff51eb8c67cf69306` — add positive and negative authorization-matrix tests.
 
 **Verification status:** source and tests are present on the development branch, but these commits have not yet been verified by a completed exact-head CI run. Phase 2 remains open.
+
+## Engineering verification update — 15 November 2026
+
+### Exact-head validation
+
+- Development code/test head: `c18c4eb2d19c896ce322627fd50a2ce8db5af40e`.
+- GitHub Actions [run 43719444337](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43719444337): `completed / success` on that exact head.
+- All three jobs passed:
+  - Flutter analysis, Flutter tests and Web release build.
+  - Cloud Functions compilation, unit tests, Firebase Emulator integration journeys, and Firestore/Storage rules tests.
+  - Isolated ClamAV scanner tests and container image build.
+- The guest-session integration suite now additionally tests a previously pending cleanup record being picked up by the scheduled cleanup sweep, all guest memberships being removed, and only then finalizing the session. The 205-membership pagination and eligible-room discovery regression tests also pass.
+- The exact-head run is CI evidence for the tested source and emulator scenarios only; it does not constitute live cloud or device acceptance.
+
+### Native runner evidence
+
+- [Run 43715811490](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43715811490) passed Android debug APK generation and unsigned iOS build on `227312fa1c5a99e338e1b8cdcd45cd72455d5961`.
+- The changes between that native-build revision and the later guest-retry test head contain no Flutter application source changes under `lib/`; later differences are backend, tests and documentation.
+- These are CI build artifacts, not signed store-ready releases or physical-device acceptance.
+
+### 5,000-persona lab — failure analysis and corrective PR
+
+- The last full simulation [run 43691324361](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/actions/runs/43691324361) failed during room membership after 2,679 of 5,000 personas, with Firestore Emulator `ABORTED: Transaction lock timeout`. Wallet, direct messaging, profile/store, discovery, block/unblock and push-token lifecycle stages had completed.
+- Corrective draft PR [#2 in the simulation lab](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/pull/2) limits room-group concurrency to two, adds bounded exponential retry for transient transaction/transport contention only, emits room-join progress, and tests that permanent authorization/validation failures are not retried.
+- Lab validation [run 43719679728](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/actions/runs/43719679728) passed, including the new retry unit tests and workflow safety checks.
+- The full 5,000-persona simulation has **not yet been rerun** against the corrected harness and current platform head. PR #2 in the lab remains Draft/open/unmerged. Do not report a 5,000-persona pass until a new manual run completes with 5,000/5,000 lifecycle rows.
+
+### Related implementation PR reconciliation
+
+The separate Draft PRs #13, #15, #16 and #17 remain open and are not merged. Their relevant implementation areas are present on this consolidated development branch: member inbox/two-way block-read protection; premium purchase receipt/ledger/entitlement integration; emulator test personas/Test Center; and purpose-aware scanner audio duration enforcement. They must not be merged as stale duplicate branches without a fresh rebase/diff review.
+
+### Remaining release gates
+
+- Run the corrected 5,000-persona lab against the exact current platform SHA and inspect its complete JSON report.
+- Validate live non-production GCS signed URLs, Cloud Run scanner dispatch/callback, IAM/WIF/Secret Manager, retention and restore behavior. These require owner-controlled environment setup and specific approval; no production project is to be used.
+- Complete Android/iOS physical-device checks for install, microphone/camera permissions, recording, playback, notifications and biometric behavior.
+- Keep biometric rewards disabled until cryptographic device-bound verification is implemented and independently validated. A local OS prompt or client assertion is not accepted as proof.
+- Complete App Check/anonymous-account abuse controls, owner MFA recovery drills, independent penetration/security review, privacy/legal review, observability and incident-response exercises.
+- PR #2 in the primary platform remains Draft/open/unmerged. No production deployment, production Firebase mutation, paid-resource activation or irreversible operation was performed.
+
