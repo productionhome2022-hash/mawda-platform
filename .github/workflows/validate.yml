@@ -1,18 +1,17 @@
 name: Validate Mawda
 
 on:
-  # The open development PR is the single automatic per-commit validation
-  # trigger. Do not also trigger on push: concurrency would cancel one of the
-  # duplicate runs rather than deduplicate the work.
-  pull_request:
+  # This workflow is new on the development branch and is not yet present on
+  # main, so pull_request events cannot reliably load it for PR #2. Validate
+  # every development-branch push directly; keep manual dispatch available.
+  push:
     branches:
-      - main
       - codex/mawda-full-platform-implementation
   workflow_dispatch:
 
 concurrency:
-  # Keep only the newest validation for the PR head; later commits supersede it.
-  group: mawda-validation-${{ github.event.pull_request.head.ref || github.ref_name }}
+  # Keep only the newest validation for the development branch.
+  group: mawda-validation-${{ github.ref_name }}
   cancel-in-progress: true
 
 permissions:
