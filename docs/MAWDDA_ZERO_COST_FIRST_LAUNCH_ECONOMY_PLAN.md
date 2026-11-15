@@ -163,7 +163,7 @@ The development branch now has a first measured-scope optimization for direct ch
 
 ### Remaining read-optimization gaps
 
-- Room chat still refreshes its latest 50 messages every eight seconds; `getRoomMessages` and its Flutter caller do not yet use incremental or older-page cursors.
+- Room chat still refreshes its latest 50 messages every eight seconds. The server already validates `beforePageToken` and `afterPageToken` with timestamp + document-ID ordering, but it does not return a dedicated latest-tail cursor and `DatabaseService.getRoomMessages` sends only `roomId` and discards `hasMore`/`nextPageToken`; the Flutter room screen therefore still reloads the latest page rather than consuming cursors.
 - `getMyDirectChats` still returns at most 50 inbox conversations without a member-facing page token.
 - Story listing remains fixed at 50; room listing and discovery continuation still need a complete cursor and permission review.
 - No before/after Firestore read counts per active session have been captured. The implementation is intended to reduce repeated message-document reads, but no numeric savings are asserted.
@@ -184,4 +184,4 @@ The development branch now has a first measured-scope optimization for direct ch
 - The full owner-facing operational-counter dashboard, append-only period snapshots, and reset-measurement-period action remain incomplete.
 - Any future Watch/Efficiency/Incident mode may lower optional background work only. Authentication, direct/room messaging, calls, wallet/store correctness, safety, privacy, backups/recovery, and mandatory retention remain protected and must never be disabled by an economy switch.
 
-This commit changes only the direct-message read path and its tests. Room, inbox, story, discovery, operational-counter, live-storage, and cost-measurement work remain open acceptance items.
+The direct-message read path is the only member-facing incremental flow completed in this slice. Room cursor plumbing, inbox, story, discovery, operational-counter, live-storage, and cost-measurement work remain open acceptance items.

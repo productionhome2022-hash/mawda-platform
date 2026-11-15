@@ -791,6 +791,11 @@ test("direct-message incremental cursors handle timestamp ties and deletion reco
     assert.equal(initial.messageDeletionRevision, 0);
     assert.equal(typeof initial.latestMessagePageToken, "string");
 
+    const olderPage = await getDirectMessages.run(memberRequest(alice, {
+      chatId, limit: 1, beforePageToken: initial.nextPageToken,
+    }));
+    assert.deepEqual(olderPage.messages.map((message) => message.messageId), [firstMessageId]);
+
     await messageRefs[2].set({
       messageId: thirdMessageId, chatId, senderUid: bob, recipientUid: alice,
       text: "third", type: "text", createdAt,

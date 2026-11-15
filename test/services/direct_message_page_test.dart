@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mawda_platform/services/direct_message_page.dart';
+import 'package:mawda_app/services/direct_message_page.dart';
 
 void main() {
   test('merges message pages without duplicates and orders timestamp ties by ID', () {
