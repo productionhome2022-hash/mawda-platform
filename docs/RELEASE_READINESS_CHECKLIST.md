@@ -324,3 +324,15 @@ Current implementation changes on the development branch:
 - The iOS native build/signing job is not a current experimental-launch deliverable. Keep the existing non-production unsigned build evidence historical only; do not advertise an iOS app download.
 
 No merge to `main`, public APK release, production deployment, Firebase mutation, paid infrastructure activation, or signing-secret mutation was performed by these changes.
+
+
+## Firebase iOS registration preservation — mandatory non-destructive rule
+
+- [x] Owner decision recorded: the existing Firebase iOS app registration is retained even though native iOS build/signing/distribution is deferred.
+- [x] Record the identity to preserve: project `mawda-app-2026`, Firebase iOS App ID `1:697303475139:ios:7be58cfe1ac9c4c23ed376`, Bundle ID `com.mawdda.platform.app`.
+- [x] Current `lib/firebase_options.dart` contains matching iOS App ID, project ID and Bundle ID; do not replace with placeholders or another project's settings.
+- [ ] Owner to confirm the downloaded `GoogleService-Info.plist` remains present in the protected Termux workspace and that an encrypted owner-controlled backup exists before any future credential migration.
+- [ ] Before native iOS release work, compare the plist and FlutterFire options against Firebase Console without deleting/recreating the app registration.
+- [ ] Any future change to the iOS Firebase app, identifiers, settings, plist, or options requires an explicit owner-approved change plan.
+
+**Prohibited:** deleting, disabling, recreating, renaming, re-registering, or changing the existing Firebase iOS app/settings simply because the native iOS application is deferred. No Firebase mutation was performed by recording this rule.
