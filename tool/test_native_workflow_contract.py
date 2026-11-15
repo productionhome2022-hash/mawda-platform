@@ -1,25 +1,43 @@
 from pathlib import Path
 import json
+import re
 import unittest
 
 
 class NativeWorkflowFirebaseConfigurationTests(unittest.TestCase):
-    def test_ios_service_file_uses_app_id_from_generated_flutterfire_options(self):
-        workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "bootstrap-native-platforms.yml").read_text()
-        self.assertIn("IOS_APP_ID=$(python3 - <<'PY'", workflow)
-        self.assertIn("app = re.search(r\"appId: '([^']+)'\", match.group(1))", workflow)
-        self.assertIn('firebase apps:sdkconfig IOS "$IOS_APP_ID" --project mawda-platform-nonprod-2026 --out ios/Runner/GoogleService-Info.plist', workflow)
-        self.assertIn("--out ios/Runner/GoogleService-Info.plist", workflow)
-        self.assertIn("rm -f ios/Runner/GoogleService-Info.plist", workflow)
-        self.assertNotIn("1:697303475139:ios:7be58cfe1ac9c4c23ed376", workflow)
-        self.assertNotIn("--ios-out=ios/Runner/GoogleService-Info.plist", workflow)
+    def test_committed_firebase_options_and_android_service_config_are_nonproduction(self):
+        root = Path(__file__).parents[1]
+        options = (root / "lib" / "firebase_options_nonprod.dart").read_text()
+        android = json.loads((root / "android" / "app" / "google-services.json").read_text())
+        for platform in ("web", "android", "ios"):
+            match = re.search(
+                rf"static const FirebaseOptions {platform} = FirebaseOptions\((.*?)\n  \);",
+                options,
+                re.S,
+            )
+            self.assertIsNotNone(match, f"Missing {platform} Firebase options.")
+            self.assertIn("projectId: 'mawda-platform-nonprod-2026'", match.group(1))
+        self.assertEqual(android["project_info"]["project_id"], "mawda-platform-nonprod-2026")
+        self.assertEqual(
+            android["client"][0]["client_info"]["android_client_info"]["package_name"],
+            "com.mawdda.platform.app",
+        )
 
-    def test_nonproduction_options_are_generated_separately_from_production(self):
-        workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "bootstrap-native-platforms.yml").read_text()
-        self.assertIn("--out=lib/firebase_options_nonprod.dart", workflow)
-        self.assertIn('Path("lib/firebase_options_nonprod.dart").read_text()', workflow)
-        self.assertIn("lib/firebase_options_nonprod.dart pubspec.lock", workflow)
-        self.assertNotIn("--out=lib/firebase_options.dart", workflow)
+    def test_native_validation_does_not_mutate_firebase_projects_or_deploy(self):
+        root = Path(__file__).parents[1]
+        workflow = (root / ".github" / "workflows" / "bootstrap-native-platforms.yml").read_text()
+        for forbidden in (
+            "FIREBASE_TOKEN",
+            "flutterfire configure",
+            "firebase apps:list",
+            "firebase apps:sdkconfig",
+            "GoogleService-Info.plist",
+            "firebase deploy",
+            "gcloud run deploy",
+        ):
+            self.assertNotIn(forbidden, workflow)
+        self.assertIn("Verified committed non-production Firebase configuration without contacting Firebase.", workflow)
+        self.assertIn("Verified committed non-production iOS Firebase options without contacting Firebase.", workflow)
 
     def test_runtime_defaults_to_nonproduction_and_production_is_not_deployable_by_ci(self):
         root = Path(__file__).parents[1]
@@ -36,13 +54,13 @@ class NativeWorkflowFirebaseConfigurationTests(unittest.TestCase):
             self.assertNotIn("firebase deploy", source)
             self.assertNotIn("gcloud run deploy", source)
 
-    def test_ios_configuration_is_verified_before_unsigned_build(self):
+    def test_ios_nonproduction_options_are_verified_before_unsigned_build(self):
         workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "bootstrap-native-platforms.yml").read_text()
-        verification = workflow.index("Verified non-production iOS Firebase plist against generated FlutterFire options.")
+        verification = workflow.index("Verified committed non-production iOS Firebase options without contacting Firebase.")
         build = workflow.index("flutter build ios --no-codesign")
         self.assertLess(verification, build)
-        for key in ("BUNDLE_ID", "PROJECT_ID", "GOOGLE_APP_ID", "GCM_SENDER_ID", "API_KEY"):
-            self.assertIn(key, workflow)
+        self.assertIn("projectId: 'mawda-platform-nonprod-2026'", workflow)
+        self.assertIn("iosBundleId: 'com.mawdda.platform.app'", workflow)
 
 
 if __name__ == "__main__":
