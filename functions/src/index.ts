@@ -22,6 +22,7 @@ import {
 import { validateDirectMessageInput } from "./direct-message";
 import { validateSafetyReportInput, validateSafetyAppealInput } from "./safety-cases";
 import { createDirectChatId } from "./direct-chat-id";
+import { encodeMemberMessagePageToken, validateMemberMessagePageRequest } from "./member-message-pagination";
 import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
 import { hasActiveBiometricVerification } from "./biometric-verification";
 import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, isEmailVerificationCycleDue, canRewardEmailVerificationCycle } from "./email-verification-cycle";
@@ -2551,6 +2552,12 @@ export const sendDirectMessage = onCall(async (request) => {
  */
 export const getDirectMessages = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
+  let pageRequest;
+  try {
+    pageRequest = validateMemberMessagePageRequest(request.data ?? {});
+  } catch {
+    throw new HttpsError("invalid-argument", "مؤشر صفحة الرسائل غير صالح.");
+  }
   const user = await db.collection("users").doc(uid).get();
   if (!user.exists || user.data()?.profileCompleted !== true ||
       !isMemberAccountInGoodStanding(user.data())) {
@@ -2599,10 +2606,25 @@ export const getDirectMessages = onCall(async (request) => {
       currentBlocks.includes(peer) || peerBlocks.includes(uid)) {
     throw new HttpsError("permission-denied", "لم تعد هذه المحادثة متاحة بسبب حالة العضوية أو إعدادات الحظر.");
   }
-  const messages = await chatRef.collection("messages")
-    .orderBy("createdAt", "desc")
-    .limit(50)
-    .get();
+  let messagesQuery = chatRef.collection("messages")
+    .orderBy("createdAt", pageRequest.direction === "after" ? "asc" : "desc")
+    .orderBy(FieldPath.documentId(), pageRequest.direction === "after" ? "asc" : "desc");
+  if (pageRequest.cursor) {
+    messagesQuery = messagesQuery.startAfter(
+      Timestamp.fromMillis(pageRequest.cursor.createdAtMillis),
+      pageRequest.cursor.messageId,
+    );
+  }
+  const messages = await messagesQuery.limit(pageRequest.limit + 1).get();
+  const hasMore = messages.docs.length > pageRequest.limit;
+  const pageDocs = messages.docs.slice(0, pageRequest.limit);
+  const boundaryDoc = pageDocs.length > 0 ? pageDocs[pageDocs.length - 1] : null;
+  const nextPageToken = hasMore && boundaryDoc
+    ? encodeMemberMessagePageToken(boundaryDoc.data().createdAt.toMillis(), boundaryDoc.id)
+    : null;
+  const orderedMessageDocs = pageRequest.direction === "after"
+    ? pageDocs
+    : [...pageDocs].reverse();
   const receiptRefs = participants.map((participant) =>
     chatRef.collection("readReceipts").doc(participant),
   );
@@ -2613,7 +2635,10 @@ export const getDirectMessages = onCall(async (request) => {
     chatId,
     peerUid: peer,
     peerLastReadAt,
-    messages: messages.docs.reverse().map((doc) => {
+    pageDirection: pageRequest.direction,
+    hasMore,
+    nextPageToken,
+    messages: orderedMessageDocs.map((doc) => {
       const data = doc.data();
       const createdAt = data.createdAt?.toMillis?.() ?? null;
       return {
@@ -5134,6 +5159,12 @@ export const sendRoomMessage = onCall(async (request) => {
 
 export const getRoomMessages = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
+  let pageRequest;
+  try {
+    pageRequest = validateMemberMessagePageRequest(request.data ?? {});
+  } catch {
+    throw new HttpsError("invalid-argument", "مؤشر صفحة رسائل الغرفة غير صالح.");
+  }
   const provider = request.auth?.token?.firebase &&
     typeof request.auth.token.firebase === "object"
     ? (request.auth.token.firebase as Record<string, unknown>).sign_in_provider : null;
@@ -5160,10 +5191,30 @@ export const getRoomMessages = onCall(async (request) => {
       throw new HttpsError("permission-denied", "انتهت صلاحية جلسة الزائر أو لا تسمح سياسة الغرفة بالوصول.");
     }
   }
-  const messages = await roomRef.collection("messages")
-    .orderBy("createdAt", "desc").limit(50).get();
+  let messagesQuery = roomRef.collection("messages")
+    .orderBy("createdAt", pageRequest.direction === "after" ? "asc" : "desc")
+    .orderBy(FieldPath.documentId(), pageRequest.direction === "after" ? "asc" : "desc");
+  if (pageRequest.cursor) {
+    messagesQuery = messagesQuery.startAfter(
+      Timestamp.fromMillis(pageRequest.cursor.createdAtMillis),
+      pageRequest.cursor.messageId,
+    );
+  }
+  const messages = await messagesQuery.limit(pageRequest.limit + 1).get();
+  const hasMore = messages.docs.length > pageRequest.limit;
+  const pageDocs = messages.docs.slice(0, pageRequest.limit);
+  const boundaryDoc = pageDocs.length > 0 ? pageDocs[pageDocs.length - 1] : null;
+  const nextPageToken = hasMore && boundaryDoc
+    ? encodeMemberMessagePageToken(boundaryDoc.data().createdAt.toMillis(), boundaryDoc.id)
+    : null;
+  const orderedMessageDocs = pageRequest.direction === "after"
+    ? pageDocs
+    : [...pageDocs].reverse();
   return {
-    messages: messages.docs.reverse().map((doc) => {
+    pageDirection: pageRequest.direction,
+    hasMore,
+    nextPageToken,
+    messages: orderedMessageDocs.map((doc) => {
       const data = doc.data();
       return {
         messageId: doc.id,
