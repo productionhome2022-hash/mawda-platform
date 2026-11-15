@@ -269,7 +269,7 @@ class _OwnerEntitlementGrantsScreenState
                     const SizedBox(height: 12),
                     TextField(
                       controller: _reasonController,
-                      onChanged: (_) => _pendingRequestId = null,
+                      onChanged: (_) { if (_pendingRequestId != null) setState(() => _pendingRequestId = null); },
                       minLines: 2,
                       maxLines: 4,
                       enabled: !_submitting,
@@ -279,7 +279,7 @@ class _OwnerEntitlementGrantsScreenState
                       ),
                     ),
                     const SizedBox(height: 12),
-                    if (selected != null)
+                    if (selected.isNotEmpty)
                       Text('سيتم منح ${selected['name']} مجاناً دون خصم أي كوينز.'),
                     const SizedBox(height: 12),
                     FilledButton.icon(
