@@ -8,7 +8,7 @@ import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { defineSecret, defineString } from "firebase-functions/params";
 import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
-import { expectedSafeDerivativeContract } from "./media-derivative-contract";
+import { expectedSafeDerivativeContract, safeDerivativePurposeAllowed } from "./media-derivative-contract";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { hasPlatformOwnerSession } from "./owner-access";
@@ -431,10 +431,9 @@ export const receiveMediaScanVerdict = onRequest(
       return;
     }
     const expectedPath = `processed/${String(asset.ownerUid)}/${verdict.mediaId}/${expected.filename}`;
-    if ((asset.mediaPurpose !== "chat" && asset.mediaPurpose !== "room") ||
+    if (!safeDerivativePurposeAllowed(derivative.category, String(asset.mediaPurpose ?? ""), String(asset.uploaderRole ?? "")) ||
         derivative.path !== expectedPath || derivative.contentType !== expected.contentType ||
-        derivative.pipelineVersion !== expected.pipeline ||
-        (derivative.category === "document" && asset.uploaderRole !== "platform_owner")) {
+        derivative.pipelineVersion !== expected.pipeline) {
       response.status(409).send("Safe derivative path, role or processing contract mismatch");
       return;
     }
