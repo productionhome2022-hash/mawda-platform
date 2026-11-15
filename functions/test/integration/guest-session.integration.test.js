@@ -315,9 +315,14 @@ test("guest onboarding stores no age and grants only active all-ages public-room
       db.collection("mediaAssets").doc(memberAudioMediaId).delete().catch(() => undefined),
       previousGuestPersona.exists ? guestPersonaRef.set(previousGuestPersona.data()) : guestPersonaRef.delete().catch(() => undefined),
       (async () => {
-        for (let offset = 0; offset < roomIds.length; offset += 30) {
+        // Keep the IN operand below Firestore's 30-value ceiling with headroom.
+        // Smaller chunks also make cleanup robust against future query predicates.
+        const auditRoomIdChunkSize = 20;
+        for (let offset = 0; offset < roomIds.length; offset += auditRoomIdChunkSize) {
+          const roomIdChunk = roomIds.slice(offset, offset + auditRoomIdChunkSize);
+          if (roomIdChunk.length > 20) throw new Error("Guest test cleanup IN chunk exceeded its safe bound.");
           const page = await db.collection("roomAuditLogs")
-            .where("roomId", "in", roomIds.slice(offset, offset + 30)).get();
+            .where("roomId", "in", roomIdChunk).get();
           await Promise.all(page.docs.map((doc) => doc.ref.delete()));
         }
       })(),
