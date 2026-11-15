@@ -7,7 +7,7 @@ test("trusted media callback expects the purpose-aware audio pipeline contract",
     filename: "audio.mp3",
     contentType: "audio/mpeg",
     pipeline: "ffmpeg-audio-purpose-limit-v2",
-    maxBytes: 25 * 1024 * 1024,
+    maxBytes: 5 * 1024 * 1024,
   });
 });
 
