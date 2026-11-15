@@ -101,6 +101,8 @@ class _ShopScreenState extends State<ShopScreen> {
     'profile_layout' => 'تطوير الملف الشخصي',
     'boost' => 'تعزيز الظهور',
     'greeting' => 'ترحيب الزوار',
+    'voice_call' => 'المكالمات الصوتية',
+    'video_call' => 'المكالمات المرئية',
     'privacy' => 'الخصوصية - قيد التجهيز',
     _ => 'ميزات خاصة',
   };
@@ -108,6 +110,7 @@ class _ShopScreenState extends State<ShopScreen> {
   String _storeGroup(Map<String, dynamic> item) {
     final category = item['category'] as String? ?? 'feature';
     return switch (category) {
+      'voice_call' || 'video_call' => 'features',
       'vip' => 'vip',
       'title' => 'titles',
       'badge' => 'badges',
