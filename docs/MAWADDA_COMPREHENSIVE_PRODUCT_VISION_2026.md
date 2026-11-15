@@ -247,7 +247,7 @@
 The complete product experience uses one owner-controlled commercial and rewards system across all current and future stores, products and features.
 
 ### 18.1 Shared durations and pricing
-All purchasable features, store products, memberships, titles, badges, medals, avatar frames, animated/colored names, themes, profile enhancements, room rentals and future SKUs connect to one central catalog/entitlement engine. It supports 24 hours, one week and one month, with a separate owner-defined price for each duration. The owner can change prices, enable/disable durations and products, set quantities and purchase limits, configure renewal where applicable, and review sales and entitlements. Permanent items remain possible. Commercial values are not hardcoded in client code.
+All purchasable features, store products, memberships, titles, badges, medals, avatar frames, animated/colored names, themes, profile enhancements, room rentals and future SKUs connect to one central catalog/entitlement engine. It supports 24 hours, 7 days and one fixed 30-day month, with a separate owner-defined price for each duration. “One month” is not a calendar month. The owner can change prices, enable/disable durations and products, set quantities and purchase limits, configure renewal where applicable, and review sales and entitlements. Permanent items remain possible. Commercial values are not hardcoded in client code.
 
 ### 18.2 Mawdda Media Saver
 A single paid entitlement allows saving received normal images, GIFs, videos and audio recordings to the device in direct chats, public rooms and rented private rooms. The backend checks entitlement on every save. Local saving never pauses or extends the four-hour server media-retention timer. The owner sets each duration price; one week/200 coins is a provisional test value only.
@@ -265,3 +265,11 @@ The Super Admin console includes a dedicated grant center. The owner can grant c
 
 ### 18.6 One owner control plane
 The same Super Admin control plane governs all store and feature prices, durations, quantities, purchase limits, rewards, ad campaigns, coin grants, room rewards and enable/disable controls. New features introduced in later updates must integrate with these shared systems rather than introducing isolated hardcoded commercial logic.
+
+
+## 18.7 Owner-approved policy clarifications (15 November 2026)
+
+- Canonical media size unit is MiB (1 MiB = 1,048,576 bytes), enforced as exact byte ceilings: images 3,145,728; GIF 3,145,728; uploaded audio 5,242,880; original video 26,214,400; safe video derivative 15,728,640; owner-verified PDF 20,971,520. Existing duration, frame-count and owner-only restrictions remain unchanged.
+- “One month” in the shared commercial/entitlement system means exactly 30 days, not a calendar month. Existing 24-hour and 7-day durations remain unchanged.
+- Direct-chat retention-mode selection authority and whether both participants must consent remain unresolved by explicit owner deferral. Destructive production deletion dependent on that policy remains disabled pending a further explicit decision.
+- These are approved policy clarifications, not evidence of implementation or release acceptance. See [the constitution](MAWADDA_PRODUCT_CONSTITUTION.md) and [decision traceability register](MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md).
