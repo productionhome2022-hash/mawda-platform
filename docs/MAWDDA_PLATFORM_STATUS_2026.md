@@ -22,7 +22,7 @@ Implemented in the development line:
 - FCM device-token registration, refresh/deactivation and notification initialization.
 - 90-day Firebase email re-verification cycle with one 500-coin reward per eligible cycle. The 30-day biometric verification/reward is disabled fail-closed until challenge-bound cryptographic proof is verified by the server; local OS prompt success alone is not sufficient.
 
-Biometric assurance boundary: Android BiometricPrompt / Apple LocalAuthentication perform the local user-presence match. The server receives a client-reported success result. This implementation does not claim hardware attestation, civil identity verification, or independent liveness proof.
+Biometric assurance boundary: Android BiometricPrompt / Apple LocalAuthentication perform only a local user-presence match. A client-reported result is not accepted as server proof; the backend fails closed and does not issue the 1,500-coin reward or biometric-gated entitlements. This implementation does not claim hardware attestation, civil identity verification, or independent liveness proof.
 
 ## Approved premium store features
 
