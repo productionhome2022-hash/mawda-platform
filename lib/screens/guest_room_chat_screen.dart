@@ -31,7 +31,7 @@ class _GuestRoomChatScreenState extends State<GuestRoomChatScreen> {
   bool _recording = false;
   bool _stoppingRecording = false;
   String? _playingMessageId;
-  static const int _maxRecordingBytes = 8 * 1024 * 1024;
+  static const int _maxRecordingBytes = 4 * 1024 * 1024;
   List<Map<String, dynamic>> _messages = [];
   bool _loading = true, _busy = false;
   String? _error;
