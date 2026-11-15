@@ -28,3 +28,8 @@ firestore-debug.log
 
 # IDE project metadata
 *.iml
+
+# Local emulator-only test credentials and data (never commit)
+functions/.mawdda-test-credentials.local.json
+.mawdda-test-credentials.local.json
+functions/.emulator-data/
