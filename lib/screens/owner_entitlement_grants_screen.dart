@@ -75,7 +75,7 @@ class _OwnerEntitlementGrantsScreenState
 
   List<String> _parseMemberUids() {
     final values = _memberUidsController.text
-        .split(RegExp(r'[\\s,;]+'))
+        .split(RegExp(r'[\s,;]+'))
         .map((value) => value.trim())
         .where((value) => value.isNotEmpty);
     return values.toSet().toList(growable: false);
@@ -163,7 +163,8 @@ class _OwnerEntitlementGrantsScreenState
         final result = Map<String, dynamic>.from(response.data as Map);
         final successful = (result['granted'] as num?)?.toInt() ?? 0;
         final replayedInChunk = (result['replayed'] as num?)?.toInt() ?? 0;
-        newlyGranted += (successful - replayedInChunk).clamp(0, successful);
+        final newCount = successful - replayedInChunk;
+        newlyGranted += newCount < 0 ? 0 : newCount;
         failed += (result['failed'] as num?)?.toInt() ?? 0;
         replayed += replayedInChunk;
       }
@@ -190,9 +191,10 @@ class _OwnerEntitlementGrantsScreenState
 
   @override
   Widget build(BuildContext context) {
-    final selected = _catalogItems
-        .where((item) => item['itemId'] == _selectedItemId)
-        .firstOrNull;
+    final selected = _catalogItems.firstWhere(
+      (item) => item['itemId'] == _selectedItemId,
+      orElse: () => <String, dynamic>{},
+    );
     return Scaffold(
       appBar: AppBar(title: const Text('مركز منح الاستحقاقات')),
       body: SafeArea(
@@ -253,7 +255,7 @@ class _OwnerEntitlementGrantsScreenState
                     const SizedBox(height: 12),
                     TextField(
                       controller: _memberUidsController,
-                      onChanged: (_) => _pendingRequestId = null,
+                      onChanged: (_) { if (_pendingRequestId != null) setState(() => _pendingRequestId = null); },
                       minLines: 3,
                       maxLines: 8,
                       enabled: !_submitting,
