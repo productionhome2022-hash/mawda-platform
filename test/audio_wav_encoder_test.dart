@@ -26,6 +26,17 @@ void main() {
       expect(wav.sublist(44), pcm);
     });
 
+
+    test('supports the 16 kHz capture profile used for ten-minute direct voice notes', () {
+      final pcm = Uint8List.fromList([0x01, 0x02, 0x03, 0x04]);
+      final wav = encodePcm16MonoToWav(pcm, sampleRate: 16000);
+      final header = ByteData.sublistView(wav);
+
+      expect(header.getUint32(24, Endian.little), 16000);
+      expect(header.getUint32(28, Endian.little), 32000);
+      expect(header.getUint32(40, Endian.little), 4);
+    });
+
     test('rejects empty or partial PCM16 samples', () {
       expect(() => encodePcm16MonoToWav(Uint8List(0)), throwsArgumentError);
       expect(() => encodePcm16MonoToWav(Uint8List.fromList([1])), throwsArgumentError);
