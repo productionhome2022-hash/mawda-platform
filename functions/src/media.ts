@@ -315,6 +315,10 @@ export const receiveMediaScanVerdict = onRequest(
     return;
   }
   const asset = snapshot.data()!;
+  if (asset.mediaPurpose !== verdict.purpose) {
+    response.status(409).send("Scanner media purpose mismatch");
+    return;
+  }
   if (asset.status !== "pending_security_scan") {
     const sameVerdict = ["scanner_clean_pending_processing", "security_approved", "rejected"].includes(String(asset.status)) &&
       asset.scannerProvider === verdict.provider &&
@@ -679,6 +683,7 @@ export const dispatchMediaSecurityScan = onDocumentCreated(
         mediaId: job.mediaId, objectPath: job.objectPath,
         objectGeneration: job.objectGeneration, downloadUrl,
         contentType: detectedContentType,
+        purpose: String(assetSnapshot.data()?.mediaPurpose ?? ""),
         callbackUrl: callback.toString(),
         provider: mediaScannerProvider.value(),
       }),
