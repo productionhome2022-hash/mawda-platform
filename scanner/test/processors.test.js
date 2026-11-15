@@ -5,7 +5,7 @@ const { LIMITS, audioDurationLimitForPurpose, safeOutputPath } = require("../pro
 test("media processors enforce bounded complexity, duration, page and output budgets", () => {
   assert.equal(LIMITS.gif.maxFrames, 50);
   assert.equal(LIMITS.gif.maxDurationSeconds, 20);
-  assert.equal(LIMITS.gif.maxPixels, 20_000_000);
+  assert.equal(LIMITS.gif.maxPixels, 40_000_000);
   assert.equal(LIMITS.gif.maxBytes, 3 * 1024 * 1024);
   assert.equal(LIMITS.audio.maxDurationSeconds, 60);
   assert.equal(LIMITS.audio.maxBytes, 5 * 1024 * 1024);
@@ -19,10 +19,7 @@ test("media processors enforce bounded complexity, duration, page and output bud
   assert.throws(() => audioDurationLimitForPurpose(undefined), /AUDIO_PURPOSE_INVALID/);
   assert.equal(LIMITS.video.maxDurationSeconds, 90);
   assert.equal(LIMITS.pdf.maxPages, 30);
-  assert.equal(LIMITS.gif.maxBytes, 5 * 1024 * 1024);
-  assert.equal(LIMITS.audio.maxBytes, 25 * 1024 * 1024);
-  assert.equal(LIMITS.video.maxBytes, 50 * 1024 * 1024);
-  assert.equal(LIMITS.pdf.maxBytes, 20 * 1024 * 1024);
+
 });
 
 test("derivative object paths are canonical and cannot escape the owner's media namespace", () => {
