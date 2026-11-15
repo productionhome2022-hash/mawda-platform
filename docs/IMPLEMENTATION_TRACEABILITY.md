@@ -378,3 +378,29 @@ These additions are Phase 1/2 scope only. Phase 3 remains paused pending the own
 - The actual production Storage bucket remains unresolved because the historical owner-supplied config and current production Flutter options use different bucket suffixes. Do not enable media until the owner independently verifies the real bucket and non-production signed URL/CORS/IAM/deletion tests pass.
 - Android/iOS native build validation is separate from physical-device acceptance and release signing.
 - The latest evidence and current open gates are tracked in the canonical [Approved Decisions and Traceability Register](MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md) and [Release Readiness Checklist](RELEASE_READINESS_CHECKLIST.md). Historical run IDs above remain historical evidence only.
+
+
+## Unified owner-approved commercial, retention and rewards workstream — 15 November 2026
+
+Source of truth: [Master Development Charter](MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md), [Product Constitution](MAWADDA_PRODUCT_CONSTITUTION.md), [Product Vision](MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md), and [Approved Decisions Register](MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md).
+
+| Requirement ID | Required engineering surfaces | Required tests/evidence | Status rule |
+|---|---|---|---|
+| STORE-003 | Catalog schema, owner pricing UI/callables, purchase callable, entitlement model, all store consumers | 24h/7d/30d price matrix, changed-price historical receipt test, quantity/limit, disable, permanent entitlement and future-SKU contract tests | Do not claim complete until every purchasable SKU has a working consumer |
+| MEDIA-003 | Media Saver store item, entitlement validation callable, authorized local download/save flow | no entitlement denied; expired entitlement denied; all supported media types; direct/public/private-room access; save does not alter deletion deadline | Paid product remains unavailable until end-to-end tests pass |
+| RET-003 | Chat mode model, server activity record, message/media expiry scheduler, deletion/derivative cleanup | temporary inactivity reset and boundary; app close/network disconnect not treated as inactivity; normal 4h/7d; important 4h/30d; retry/idempotency and legal-hold exclusions | Existing 4h/7d implementation is only a baseline, not proof of all three modes |
+| REWARD-003 | Reward schedule/config model, attendance eligibility service, owner console, wallet grant integration | daily/hourly/weekly boundaries, timezone policy, duplicate prevention, concurrent claims, disable/config change, ledger consistency | Values and schedules are owner-configurable; no client-authoritative grant |
+| REWARD-004 | Ad campaign management, media playback evidence protocol, server completion verifier, reward ledger | incomplete/abandoned view, foreground heartbeat, spoofed client timer, replay, duplicate callback, provider signature and campaign pause | No reward before trusted completion evidence |
+| OWNER-002 | Grant center UI, owner-only callable, audience snapshot, batch/idempotent grant worker, recipient history, wallet/entitlement integration | single UID, selected group, live public-room snapshot, room collective prize, partial retry, duplicate request, unauthorized moderator/member, audit and ledger | No free grant from client or untrusted moderator |
+| GOV-002 | Shared commercial configuration and new-product integration interface | CI contract test for SKU registration, no client hardcoded price/duration, owner enable/disable, expiry | Every future product must integrate before release |
+
+### Implementation invariants
+- Money and entitlement changes are server-side transactions; use idempotency keys and immutable receipts/audit records.
+- A batch grant records intended recipients and final per-recipient result; retries must not duplicate successful grants.
+- Presence-targeted room grants use a server-generated membership snapshot at a defined execution timestamp, not a client-provided UID list.
+- Changing current prices does not mutate completed purchases.
+- Deletion jobs respect legal holds and protected financial/security evidence.
+- The owner-only console must show a clear preview before a bulk grant, including room ID, snapshot time and recipient count.
+
+### Current baseline warning
+Existing implementation records include a four-hour media / seven-day text retention path and store purchase/entitlement coverage. Those do not establish implementation of important-chat 30-day retention, temporary inactivity deletion, Media Saver, the generalized pricing engine, attendance schedules, ad completion verification or bulk grant workflows. Each remains separately tracked until the tests above pass on an identified commit.
