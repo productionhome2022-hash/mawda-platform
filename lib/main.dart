@@ -32,7 +32,7 @@ class MawdaPlatformApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'مودة | MAWDA',
+        title: 'مودة | MAWADDA',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
