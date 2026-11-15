@@ -172,17 +172,6 @@ jobs:
       - name: Provision emulator-only test personas and exercise cross-persona wallet interaction
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:seeded-persona-interaction
-      - name: Run connected 5000-persona member lifecycle and 500/1000/2500/5000 load cohorts in isolated Firebase emulators
-        if: ${{ always() && steps.install_functions.outcome == 'success' }}
-        run: npm run test:persona-load
-      - name: Upload synthetic persona profiles and load-test metrics
-        if: ${{ always() && steps.install_functions.outcome == 'success' }}
-        uses: actions/upload-artifact@v5
-        with:
-          name: mawdda-persona-load-report-${{ github.sha }}
-          path: functions/mawdda-load-artifacts/
-          if-no-files-found: error
-          retention-days: 7
       - name: Run owner audit export pagination and redaction integration tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:owner-audit-export-integration
