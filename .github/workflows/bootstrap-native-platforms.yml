@@ -238,39 +238,3 @@ jobs:
           path: ios-firebase-config.tar.gz
           if-no-files-found: error
           retention-days: 14
-
-  commit-native-projects:
-    name: Commit validated native project scaffolding
-    needs:
-      - generate-and-build-android
-      - build-ios
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: codex/mawda-full-platform-implementation
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: actions/download-artifact@v5
-        with:
-          name: mawdda-native-platforms-${{ github.sha }}
-          path: native-artifact
-
-      - uses: actions/download-artifact@v5
-        with:
-          name: mawdda-ios-firebase-config-${{ github.sha }}
-          path: ios-firebase-config
-
-      - name: Add generated platform directories
-        run: |
-          tar -xzf native-artifact/native-platforms.tar.gz -C .
-          tar -xzf ios-firebase-config/ios-firebase-config.tar.gz -C .
-          git add android ios lib/firebase_options_nonprod.dart pubspec.lock
-          if git diff --cached --quiet; then
-            echo "Native platform scaffolding is already current."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "build: add validated Android and iOS native runners"
-          git push origin HEAD:codex/mawda-full-platform-implementation
