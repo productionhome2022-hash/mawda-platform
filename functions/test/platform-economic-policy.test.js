@@ -1,6 +1,6 @@
-import test from "node:test";
-import assert from "node:assert/strict";
-import { PLATFORM_ECONOMIC_POLICY as policy } from "../src/platform-economic-policy";
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { PLATFORM_ECONOMIC_POLICY: policy } = require("../lib/platform-economic-policy.js");
 
 test("Mawdda initial planning profile targets 1,000 MAU and a $10 monthly billable ceiling", () => {
   assert.equal(policy.baselineMonthlyActiveUsers, 1_000);
