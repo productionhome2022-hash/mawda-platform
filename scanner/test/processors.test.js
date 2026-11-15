@@ -3,13 +3,18 @@ const assert = require("node:assert/strict");
 const { LIMITS, audioDurationLimitForPurpose, safeOutputPath } = require("../processors");
 
 test("media processors enforce bounded complexity, duration, page and output budgets", () => {
-  assert.equal(LIMITS.gif.maxFrames, 100);
-  assert.equal(LIMITS.gif.maxDurationSeconds, 30);
-  assert.equal(LIMITS.gif.maxPixels, 40_000_000);
+  assert.equal(LIMITS.gif.maxFrames, 50);
+  assert.equal(LIMITS.gif.maxDurationSeconds, 20);
+  assert.equal(LIMITS.gif.maxPixels, 20_000_000);
+  assert.equal(LIMITS.gif.maxBytes, 3 * 1024 * 1024);
   assert.equal(LIMITS.audio.maxDurationSeconds, 60);
+  assert.equal(LIMITS.audio.maxBytes, 5 * 1024 * 1024);
   assert.equal(LIMITS.audio.roomMaxDurationSeconds, 60);
   assert.equal(audioDurationLimitForPurpose("chat"), 60);
   assert.equal(audioDurationLimitForPurpose("room"), 60);
+  assert.equal(LIMITS.video.maxBytes, 15 * 1024 * 1024);
+  assert.equal(LIMITS.video.maxDurationSeconds, 90);
+  assert.equal(LIMITS.pdf.maxBytes, 20 * 1024 * 1024);
   assert.throws(() => audioDurationLimitForPurpose("profile_album"), /AUDIO_PURPOSE_INVALID/);
   assert.throws(() => audioDurationLimitForPurpose(undefined), /AUDIO_PURPOSE_INVALID/);
   assert.equal(LIMITS.video.maxDurationSeconds, 90);
