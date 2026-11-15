@@ -295,3 +295,22 @@ Corrected by recording the shared member composer at 16 kHz mono PCM16 and raisi
 - `227312fa1c5a99e338e1b8cdcd45cd72455d5961` — 16 kHz capture and 20 MiB bounded buffer.
 - `9e83d7a755491d815403252536cc400c36cdce82` — unit test for 16 kHz WAV header/sample-rate consistency.
 - The test and Flutter analysis remain pending on the latest exact branch head.
+
+### Purpose-aware safe derivative authorization — 15 November 2026
+
+A follow-up policy review found that the trusted callback's generic `chat`/`room` purpose check would reject legitimate GIF derivatives for profile albums, avatar covers, stories and owner advertisements, as well as owner-uploaded advertisement video. This contradicted the upload policy already enforced by `mediaUploadAllowedForRole`.
+
+The callback now uses `safeDerivativePurposeAllowed` from `functions/src/media-derivative-contract.ts`, with an explicit category/purpose/role matrix:
+- GIF: chat, room, profile album, avatar cover and story; advertisement only for `platform_owner`.
+- Audio: chat and room only.
+- Video: chat and room; advertisement only for `platform_owner`.
+- PDF/document: chat and room only for `platform_owner`.
+
+Unknown derivative categories still fail closed before any contract property is read. Unit tests cover allowed and denied category/purpose/role combinations.
+
+Commits:
+- `2173460a252883ed728f999c13fe318fd3dcdd4d` — encode purpose-aware derivative authorization rules.
+- `ad3cc7f2bd90858cd721af2f801b3ca50e25f70c` — apply the purpose/role matrix in the trusted callback.
+- `6bcec4517a21f9859959b78ff51eb8c67cf69306` — add positive and negative authorization-matrix tests.
+
+**Verification status:** source and tests are present on the development branch, but these commits have not yet been verified by a completed exact-head CI run. Phase 2 remains open.
