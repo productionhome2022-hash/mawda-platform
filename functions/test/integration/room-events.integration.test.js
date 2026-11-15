@@ -5,6 +5,7 @@ const {
   createRoomEvent,
   listRoomEvents,
   rsvpRoomEvent,
+  cancelRoomEventRsvp,
   setRoomEventStatus,
 } = require("../../lib/index");
 
@@ -77,6 +78,14 @@ test("room event lifecycle is owner-controlled, age-scoped and RSVP-idempotent",
       (error) => error && error.code === "resource-exhausted",
       "a second member cannot reserve the final occupied seat",
     );
+    const cancelled = await cancelRoomEventRsvp.run(call(memberUid, { eventId: createdEventId }));
+    assert.equal(cancelled.attending, false);
+    assert.equal(cancelled.idempotentReplay, false);
+    const cancelReplay = await cancelRoomEventRsvp.run(call(memberUid, { eventId: createdEventId }));
+    assert.equal(cancelReplay.idempotentReplay, true);
+    assert.equal((await eventRef.get()).data().attendeeCount, 0);
+    await rsvpRoomEvent.run(call(ownerUid, { eventId: createdEventId }));
+    assert.equal((await eventRef.get()).data().attendeeCount, 1);
 
     await assert.rejects(
       () => listRoomEvents.run(call(minorUid, { roomId })),
