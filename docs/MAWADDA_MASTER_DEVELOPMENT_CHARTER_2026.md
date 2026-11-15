@@ -459,3 +459,10 @@ The project adopts `docs/OWNER_CONTROL_MASTER_AGREEMENT.md` (OCA-001). Every new
 
 Apply GOV-005 as recorded in the decision register and OCA-001 section 26: AI assistants are provider-operated services, not employees engaged by the owner merely through free or paid subscriptions; subscription fees are payable to providers; no salary, wage, bonus, commission, profit-share, equity, or employment benefit is owed by the owner solely for use of these services. Human contractors require separate agreements. This governance statement does not bind or release external providers from their own obligations.
 
+
+## 27. MEDIA-005 — Universal 60-second live audio cap and economic media controls
+
+- All live microphone recordings and chat/room audio messages are limited to 60 seconds per recording across direct conversations, public rooms, and rented private rooms. This applies to members and guests subject to their access rights; no 10-minute direct-chat allowance or room exception exists.
+- The backend and trusted scanner enforce the same 60-second cap; client timers are not security controls. The current scanner path applies this ceiling to all chat/room audio files until uploaded audio is separated into its own explicitly approved media purpose.
+- Media costs are controlled through atomic quota reservations, active/concurrent/daily byte budgets, MIME/signature and size/duration/dimension checks, safe derivative transcoding, retention and cleanup with quota release. Current technical caps are recorded in the comprehensive product vision and must remain aligned across client, backend, scanner and tests.
+- Any increase or new paid media allowance requires a documented cost assessment covering storage, egress, processing, retention, abuse exposure, and member quotas before owner approval. No automatic expansion is implied.
