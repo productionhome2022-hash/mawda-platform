@@ -6425,7 +6425,6 @@ async function executeOwnerEntitlementGrant(
     }
 
     const nowMs = Date.now();
-    const now = Timestamp.fromMillis(nowMs);
     const prior = priorEntitlement.data() ?? {};
     const priorExpiry = prior.expiresAt;
     const priorExpiryMs = priorExpiry instanceof Timestamp
