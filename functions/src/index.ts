@@ -4848,11 +4848,6 @@ export const createRoomEvent = onCall(async (request) => {
       throw new HttpsError("not-found", "الغرفة غير موجودة أو غير نشطة.");
     }
     const room = roomSnapshot.data()!;
-    const eventCapacity = input.capacity ?? room.capacity;
-    if (!Number.isSafeInteger(eventCapacity) || eventCapacity < 1 ||
-        !Number.isSafeInteger(room.capacity) || eventCapacity > room.capacity) {
-      throw new HttpsError("invalid-argument", "سعة الحدث يجب أن تكون بين مقعد واحد وسعة الغرفة.");
-    }
     if (room.ownerUid !== uid && !ownerSession) {
       throw new HttpsError("permission-denied", "إنشاء أحداث الغرفة متاح لمالكها فقط.");
     }
@@ -4867,6 +4862,11 @@ export const createRoomEvent = onCall(async (request) => {
       invited: true,
     })) {
       throw new HttpsError("permission-denied", "فئة العمر لا تطابق جمهور الغرفة.");
+    }
+    const eventCapacity = input.capacity ?? room.capacity;
+    if (!Number.isSafeInteger(eventCapacity) || eventCapacity < 1 ||
+        !Number.isSafeInteger(room.capacity) || eventCapacity > room.capacity) {
+      throw new HttpsError("invalid-argument", "سعة الحدث يجب أن تكون بين مقعد واحد وسعة الغرفة.");
     }
     const startsAt = Timestamp.fromMillis(input.startsAtMs);
     const endsAt = Timestamp.fromMillis(input.startsAtMs + input.durationMinutes * 60 * 1000);
