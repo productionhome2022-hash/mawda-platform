@@ -12,19 +12,19 @@ const SAFE_DERIVATIVE_CONTRACTS: Readonly<Record<SafeDerivativeCategory, SafeDer
     filename: "animation.gif",
     contentType: "image/gif",
     pipeline: "gif-sanitize-preserve-animation-v1",
-    maxBytes: 5 * 1024 * 1024,
+    maxBytes: 3 * 1024 * 1024,
   },
   audio: {
     filename: "audio.mp3",
     contentType: "audio/mpeg",
     pipeline: "ffmpeg-audio-purpose-limit-v2",
-    maxBytes: 25 * 1024 * 1024,
+    maxBytes: 5 * 1024 * 1024,
   },
   video: {
     filename: "video.mp4",
     contentType: "video/mp4",
     pipeline: "ffmpeg-video-transcode-v1",
-    maxBytes: 50 * 1024 * 1024,
+    maxBytes: 15 * 1024 * 1024,
   },
   document: {
     filename: "document.pdf",
