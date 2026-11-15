@@ -2,40 +2,73 @@
 
 ## Primary repository: Mawdda Platform 2026
 
-The primary repository is the single source of truth for the product. It contains the Flutter application, backend and Cloud Functions, Firebase rules and configuration, owner controls, economy, store, wallet, rooms, messaging, media, calls, security, documentation, and all ordinary engineering tests.
+Repository: productionhome2022-hash/mawda-platform
 
-The primary CI pipeline is limited to build-and-test work:
-- Flutter analysis, unit/widget tests, and web build.
+The primary repository is the sole source of truth for the product. It contains the Flutter application, backend and Cloud Functions, Firebase rules and configuration, owner controls, economy, store, wallet, rooms, messaging, media, calls, security, product documentation, and all ordinary engineering tests.
+
+The primary CI pipeline is build-and-test only:
+- Flutter analysis, unit/widget tests and Web build.
 - Cloud Functions compilation and unit tests.
 - Firebase Emulator integration and rules tests.
 - Local scanner tests and container image verification.
 - Android/iOS native build validation.
 
-No workflow in the primary repository may deploy to Firebase Hosting, deploy Cloud Functions, deploy a scanner, or perform live non-production infrastructure changes unless that policy is explicitly revised and approved later.
+No workflow in the primary repository may deploy Firebase Hosting, Cloud Functions, a scanner, or modify live infrastructure. Production deployment is not authorized. Any future change to this boundary requires a separate explicit owner decision.
 
-## Separate project: Mawdda 5000 Simulation Lab
+## Separate repository: Mawdda 5000 Simulation Lab
 
-The only component that belongs outside the primary repository is the large-scale synthetic-persona simulation environment. Its separate repository is intended to contain:
-- The 5,000 synthetic persona generator and profiles.
-- Cohort and concurrency orchestration.
-- Long-running lifecycle and behavioral scenarios.
-- Large-scale load and stress tests.
-- Simulation reports, metrics, and reproducible run manifests.
+Repository: productionhome2022-hash/mawdda-5000-simulation-lab (private)
 
-The simulator must test a specific, immutable primary-repository commit through documented test interfaces and isolated Firebase Emulator projects. It must not maintain a second implementation of product rules or duplicate backend business logic.
+The separate repository contains only the large-scale synthetic-persona harness:
+- 5,000 synthetic persona fixture generator.
+- Cohort/concurrency orchestration.
+- Large-scale lifecycle and load scenarios.
+- Machine-readable simulation reports and run workflow.
+
+The lab checks out a specific branch, tag or immutable commit of the primary repository, installs its locked dependencies, compiles its real Cloud Functions and imports those compiled functions. It does not duplicate product business logic. Every run must record the exact platform revision and lab revision.
+
+## What remains in the primary repository
+
+All ordinary engineering and product verification remains in the primary repository:
+- Flutter unit/widget tests and static analysis.
+- Backend unit tests.
+- Deterministic Firebase Emulator integration and security-rules tests.
+- Media scanner/security tests.
+- Small synthetic persona interaction tests.
+- Normal build validation and native Android/iOS build checks.
+
+Only the dedicated 5,000-persona simulation is external. Do not move source code, business rules, shared contracts, wallet logic, room logic, profile logic, or ordinary test suites into the lab.
 
 ## Isolation and safety requirements
 
-- Use synthetic identities and data only.
-- Use Firebase Emulator or a separately isolated non-production test environment.
-- Never store production credentials, production user data, or real payment secrets in the lab.
-- No real coin purchases, wallet transfers, or paid transactions may occur in a simulation.
-- Every run records the primary repository commit SHA, simulator commit SHA, configuration, cohort sizes, and result artifacts.
-- The lab cannot deploy or mutate production.
-- Small, deterministic integration tests that validate ordinary product behavior remain in the primary repository. Only the dedicated 5,000-persona load/lifecycle simulation is external.
+- Synthetic identities and synthetic data only; reserved test email domain.
+- Firebase Auth and Firestore Emulator only for the current load harness.
+- Fixed demo project ID; no production project, production credentials, real payment provider, live push delivery or production Storage bucket.
+- No production deployment or live Firebase mutation.
+- No real member data, production secrets, service-account keys or payment secrets in the lab.
+- Generated fixtures and reports are ignored by Git and retained only as short-lived workflow artifacts.
+- No test may issue real money, charge a payment instrument, or send a real member notification.
+- Each run must record the primary repository commit SHA, simulator commit SHA, configuration, cohort sizes and result artifact.
+- A successful emulator simulation is not proof of production capacity, physical-device acceptance, live GCS/Cloud Run readiness, or release authorization.
 
 ## Extraction status
 
-The core CI workflow no longer invokes the 5,000-persona load job. The generator and large-scale simulation test sources are being preserved temporarily in the development branch until a separate GitHub repository is available and the files can be transferred and verified. They must not be deleted before that transfer is confirmed.
+The private lab repository has been created and contains:
+- README and isolation/run documentation.
+- A manual workflow that checks out the exact primary repository revision.
+- The 5,000-persona fixture generator.
+- The large-scale integration harness.
+- A syntax/safety validation workflow.
 
-The primary repository is not ready for final consolidation into `main` until the external lab repository has been created, the simulation assets have been transferred, and the primary CI checks for the resulting commit have completed successfully.
+The lab validation workflow passed on commit d75a04b326e5156ea6547b35200239a78ff70397. This verifies JavaScript/shell syntax, workflow YAML parsing and the deployment-command safety scan only. It does **not** mean the 5,000-persona simulation itself has been executed. The manual load workflow still requires a controlled run against a selected immutable platform commit.
+
+The primary repository's old copy of the 5,000-persona generator/test and its package script must remain until the lab harness has completed a real successful run and a follow-up comparison proves that no required primary CI coverage was lost. Then remove only the large-scale harness files and package script from the primary development branch; keep ordinary persona integration tests in the primary repository.
+
+## Consolidation gate
+
+Do not merge the primary development branch into main until:
+1. The lab's 5,000-persona workflow has run successfully against an exact platform commit.
+2. The lab report confirms required persona coverage and no cross-environment leakage.
+3. The old primary load harness is removed only after successful transfer and comparison.
+4. Primary CI remains green on the exact resulting PR head.
+5. The comprehensive vision, constitution, decision register and implementation traceability agree.
