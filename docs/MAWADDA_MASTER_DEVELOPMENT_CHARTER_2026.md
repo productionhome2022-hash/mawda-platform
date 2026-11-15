@@ -436,3 +436,7 @@
 - Routine source edits, commits on isolated development branches, static analysis, and local/emulator/sandbox tests may proceed under the standing development mandate only if they use no secrets, incur no charges, do not contact or mutate live systems, and do not affect real users/data. If uncertain, stop and ask.
 - Every approval-gated action requires a pre-action explanation of target, purpose, scope, risks, reversibility, and cost, followed by a wait for explicit approval. Every completed action requires evidence-based reporting. No approval means no action.
 - All project decisions and implementation evidence must be recorded in the relevant repository's constitution/charter, decision register, traceability matrix, code, tests, and CI evidence as applicable. Chat discussion alone does not constitute implementation.
+
+
+## 25. Owner-control master agreement and future-project baseline
+The project adopts `docs/OWNER_CONTROL_MASTER_AGREEMENT.md` (OCA-001). Every new project under the owner's control must receive a project-specific copy before substantive implementation, then maintain its own constitution, development charter, decision register, traceability matrix, asset register, security/privacy policies, and approval gates. OCA-001 supplements GOV-003; legal enforceability against employees, contractors, suppliers, and other third parties requires appropriate signed agreements and local legal review.
