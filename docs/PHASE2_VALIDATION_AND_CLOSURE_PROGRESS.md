@@ -195,7 +195,7 @@ The exact-head run verifies the current code snapshot across the scanner, backen
 
 ### Operational safety and decision
 
-The automated CI gate is green on the exact current head; phase 1/2 as a whole is **not yet accepted/closed** while the above non-production and product gates remain open. The GCS manual workflow requires owner-provisioned non-production WIF configuration and a disposable bucket. No production deployment, merge, live Firebase mutation, retention-worker activation or destructive purge has been performed. Keep PR #2 draft/open and development isolated until those gates have evidence and the owner approves the next release action.
+The automated CI gate was green on the exact previously validated snapshot recorded above; phase 1/2 as a whole is **not yet accepted/closed** while the above non-production and product gates remain open. The GCS manual workflow requires owner-provisioned non-production WIF configuration and a disposable bucket. No production deployment, merge, live Firebase mutation, retention-worker activation or destructive purge has been performed. Keep PR #2 draft/open and development isolated until those gates have evidence and the owner approves the next release action.
 
 ## Exact validation and room-audio hardening — 15 November 2026
 
@@ -231,3 +231,23 @@ Commits for this slice:
 - `4ccad6c8ad9f29b7b22d3943312a9f1e583911eb` — guest room UI timer.
 
 **Verification status:** these room-audio commits were made after the green `b0554aaa` run. No CI result is yet attached to the resulting branch head; do not describe this new slice as tested or validated until scanner, Functions, Flutter and native workflows finish on the exact final commit. No change was made to `main`, production Firebase, Cloud Run, paid infrastructure or deployment settings. Phase 2 remains open.
+
+### Additional callback-contract correction — 15 November 2026
+
+A second review of the purpose-aware room-audio change found that the scanner and its first callback validator had been updated to `ffmpeg-audio-purpose-limit-v2`, but the trusted Storage derivative callback in `functions/src/media.ts` still expected `ffmpeg-audio-transcode-v1`. This mismatch would reject the new safe audio derivative after the scanner completed processing.
+
+Corrected on the development branch:
+- `functions/src/media.ts` now uses a shared, pure derivative-contract resolver instead of a duplicated inline contract table.
+- Added `functions/src/media-derivative-contract.ts` with the single canonical GIF/audio/video/PDF contract map. Audio now expects `ffmpeg-audio-purpose-limit-v2`.
+- Added `functions/test/media-derivative-contract.test.js` to verify the audio v2 contract, unchanged GIF/video/PDF contracts, and fail-closed handling of unknown categories.
+
+Commits:
+- `24f92c35a0b19df6d99c9984222c427ed3454b9a` — align the trusted media callback with the new audio pipeline version.
+- `b91ab9723425a10aaf1f090e7d699ad0e77c354b` — centralize derivative contracts.
+- `6e43c79e69f59f1150078479c176b3edabe37941` — add callback contract unit tests.
+
+**Exact-head CI status at the time of this note:** PR #2 head `6e43c79e69f59f1150078479c176b3edabe37941` started Validate Mawda run [43715453222](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43715453222) and native validation run [43715453402](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43715453402). The Validate run's Flutter and Cloud Functions jobs were cancelled before substantive tests; the scanner job was still building its image when last inspected. The native Android job was cancelled before Flutter setup and iOS was cancelled. These are **not passes**. A fresh exact-head run is required after this documentation update.
+
+The current development branch implements the guest public-room path in `guest-sessions.ts`, `index.ts`, `room-policy.ts`, `media.ts`, and `guest_room_chat_screen.dart`; the guest-session integration test covers public-room discovery, joining, text exchange, guest restrictions, and guest audio attachment authorization. The older PR #16 description that says the branch does not implement guest room runtime is stale relative to this development head; do not use that old description as the current implementation status. Its remaining Test Center changes still require a separate diff/rebase review.
+
+No merge, deployment, live Firebase mutation, paid-resource activation, or production change was performed. Phase 2 remains open pending fresh CI, native build completion, live non-production GCS/Cloud Run validation, device acceptance, and the remaining product/legal gates.
