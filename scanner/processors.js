@@ -7,7 +7,7 @@ const { createHash } = require("node:crypto");
 const execFileAsync = promisify(execFile);
 const LIMITS = Object.freeze({
   gif: { maxFrames: 100, maxPixels: 40_000_000, maxDurationSeconds: 30, maxBytes: 5 * 1024 * 1024 },
-  audio: { maxDurationSeconds: 600, maxBytes: 25 * 1024 * 1024 },
+  audio: { maxDurationSeconds: 600, roomMaxDurationSeconds: 60, maxBytes: 25 * 1024 * 1024 },
   video: { maxDurationSeconds: 90, maxBytes: 50 * 1024 * 1024 },
   pdf: { maxPages: 30, maxBytes: 20 * 1024 * 1024 },
 });
@@ -140,9 +140,14 @@ async function processGif({ sourcePath, tempDir, request, sourceSha256, storage,
   return { safeDerivative: { category: "gif", ...artifact }, processingStatus: "safe_animation_derivative_ready" };
 }
 
+function audioDurationLimitForPurpose(purpose) {
+  return purpose === "room" ? LIMITS.audio.roomMaxDurationSeconds : LIMITS.audio.maxDurationSeconds;
+}
+
 async function processAudio({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
   const probe = await probeMedia(sourcePath);
-  if (!probe.hasAudio || probe.hasVideo || probe.duration > LIMITS.audio.maxDurationSeconds) {
+  const maxDurationSeconds = audioDurationLimitForPurpose(request.purpose);
+  if (!probe.hasAudio || probe.hasVideo || probe.duration > maxDurationSeconds) {
     throw new Error("AUDIO_STREAM_OR_DURATION_INVALID");
   }
   const output = path.join(tempDir, "safe-audio.mp3");
@@ -155,7 +160,7 @@ async function processAudio({ sourcePath, tempDir, request, sourceSha256, storag
   const artifact = await uploadDerivative({
     storage, bucketName, outputPath: output, request, sourceSha256, provider,
     filename: "audio.mp3", contentType: "audio/mpeg",
-    pipelineVersion: "ffmpeg-audio-transcode-v1", maxBytes: LIMITS.audio.maxBytes,
+    pipelineVersion: "ffmpeg-audio-purpose-limit-v2", maxBytes: LIMITS.audio.maxBytes,
   });
   return { safeDerivative: { category: "audio", ...artifact }, processingStatus: "safe_audio_derivative_ready" };
 }
