@@ -14,24 +14,35 @@ const app = initializeApp({
 const db = getFirestore();
 const { runChatTextRetentionSweep, runChatMediaRetentionSweep } = require("../../lib/retention");
 
-test("seven-day sweep deletes direct and room text, notifications and expired previews only", async () => {
+test("mode-aware sweep deletes normal text at seven days, important text at thirty days, and preserves temporary messages pending full-chat expiry", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const old = Timestamp.fromMillis(Date.now() - 8 * 24 * 60 * 60 * 1000);
+  const veryOld = Timestamp.fromMillis(Date.now() - 31 * 24 * 60 * 60 * 1000);
   const chatRef = db.collection("directChats").doc("retention-chat-test");
   const directMessageRef = chatRef.collection("messages").doc("direct-message-test");
   const roomMessageRef = db.collection("rooms").doc("retention-room-test")
     .collection("messages").doc("room-message-test");
+  const importantChatRef = db.collection("directChats").doc("retention-important-chat-test");
+  const importantRecentMessageRef = importantChatRef.collection("messages").doc("important-recent-message-test");
+  const importantExpiredMessageRef = importantChatRef.collection("messages").doc("important-expired-message-test");
+  const temporaryChatRef = db.collection("directChats").doc("retention-temporary-chat-test");
+  const temporaryMessageRef = temporaryChatRef.collection("messages").doc("temporary-message-test");
   const notificationRef = db.collection("users").doc("retention-recipient-test")
     .collection("notifications").doc("direct-message-test");
   const unrelatedRef = db.collection("users").doc("retention-recipient-test")
     .collection("messages").doc("unrelated-message-test");
 
-  await chatRef.set({
+  await Promise.all([
+    chatRef.set({
     participantUids: ["retention-sender-test", "retention-recipient-test"],
     lastMessageAt: old,
     lastMessagePreview: "expired private text preview",
     lastMessageSenderUid: "retention-sender-test",
-  });
+    retentionMode: "normal",
+  }),
+    importantChatRef.set({ retentionMode: "important", lastMessageAt: old, lastMessagePreview: "important preview" }),
+    temporaryChatRef.set({ retentionMode: "temporary", lastMessageAt: veryOld, lastMessagePreview: "temporary preview" }),
+  ]);
   await directMessageRef.set({
     messageId: directMessageRef.id,
     senderUid: "retention-sender-test",
@@ -40,6 +51,11 @@ test("seven-day sweep deletes direct and room text, notifications and expired pr
     type: "text",
     createdAt: old,
   });
+  await Promise.all([
+    importantRecentMessageRef.set({ messageId: importantRecentMessageRef.id, text: "keep until thirty days", type: "text", createdAt: old }),
+    importantExpiredMessageRef.set({ messageId: importantExpiredMessageRef.id, text: "delete after thirty days", type: "text", createdAt: veryOld }),
+    temporaryMessageRef.set({ messageId: temporaryMessageRef.id, text: "retain until full temporary chat expiry", type: "text", createdAt: veryOld }),
+  ]);
   await roomMessageRef.set({
     messageId: roomMessageRef.id,
     senderUid: "retention-sender-test",
@@ -58,9 +74,12 @@ test("seven-day sweep deletes direct and room text, notifications and expired pr
   try {
     const result = await runChatTextRetentionSweep();
     assert.equal(result.failures, 0);
-    assert.equal(result.messages, 2);
+    assert.equal(result.messages, 3);
     assert.equal((await directMessageRef.get()).exists, false);
     assert.equal((await roomMessageRef.get()).exists, false);
+    assert.equal((await importantRecentMessageRef.get()).exists, true);
+    assert.equal((await importantExpiredMessageRef.get()).exists, false);
+    assert.equal((await temporaryMessageRef.get()).exists, true);
     assert.equal((await notificationRef.get()).exists, false);
     assert.equal((await unrelatedRef.get()).exists, true);
 
@@ -71,6 +90,8 @@ test("seven-day sweep deletes direct and room text, notifications and expired pr
   } finally {
     await Promise.all([
       chatRef.delete().catch(() => undefined),
+      importantChatRef.delete().catch(() => undefined),
+      temporaryChatRef.delete().catch(() => undefined),
       notificationRef.delete().catch(() => undefined),
       unrelatedRef.delete().catch(() => undefined),
       db.collection("rooms").doc("retention-room-test").delete().catch(() => undefined),
