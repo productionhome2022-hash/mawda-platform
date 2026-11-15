@@ -85,7 +85,7 @@ test("scanner callback validates exact GIF, audio, video and flattened-PDF deriv
   };
   const derivatives = [
     { category: "gif", path: "animation.gif", contentType: "image/gif", pipelineVersion: "gif-sanitize-preserve-animation-v1", processingStatus: "safe_animation_derivative_ready" },
-    { category: "audio", path: "audio.mp3", contentType: "audio/mpeg", pipelineVersion: "ffmpeg-audio-transcode-v1", processingStatus: "safe_audio_derivative_ready" },
+    { category: "audio", path: "audio.mp3", contentType: "audio/mpeg", pipelineVersion: "ffmpeg-audio-purpose-limit-v2", processingStatus: "safe_audio_derivative_ready" },
     { category: "video", path: "video.mp4", contentType: "video/mp4", pipelineVersion: "ffmpeg-video-transcode-v1", processingStatus: "safe_video_derivative_ready" },
     { category: "document", path: "document.pdf", contentType: "application/pdf", pipelineVersion: "pdf-raster-flatten-v1", processingStatus: "safe_document_derivative_ready" },
   ];
