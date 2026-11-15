@@ -47,7 +47,7 @@ class _ChatAudioComposerButtonState extends State<ChatAudioComposerButton> {
   bool _uploading = false;
   bool _stopping = false;
 
-  static const int _maxPcmBytes = 8 * 1024 * 1024;
+  static const int _maxPcmBytes = 20 * 1024 * 1024;
 
   @override
   void dispose() {
@@ -72,7 +72,7 @@ class _ChatAudioComposerButtonState extends State<ChatAudioComposerButton> {
       _pcm.clear();
       final stream = await _recorder.startStream(const RecordConfig(
         encoder: AudioEncoder.pcm16bits,
-        sampleRate: 24000,
+        sampleRate: 16000,
         numChannels: 1,
         autoGain: true,
         echoCancel: true,
@@ -119,7 +119,7 @@ class _ChatAudioComposerButtonState extends State<ChatAudioComposerButton> {
         throw const FormatException('تجاوز التسجيل الحد الأقصى المسموح به.');
       }
       _setBusy(true);
-      final wav = encodePcm16MonoToWav(pcmBytes);
+      final wav = encodePcm16MonoToWav(pcmBytes, sampleRate: 16000);
       final file = XFile.fromData(
         wav,
         name: 'voice_${DateTime.now().millisecondsSinceEpoch}.wav',
