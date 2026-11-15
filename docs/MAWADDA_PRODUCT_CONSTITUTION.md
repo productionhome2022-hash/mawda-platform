@@ -112,6 +112,9 @@ Never fake functionality, balances, purchases, verification, availability, analy
 - Boosted discovery must be clearly labeled as paid promotion.
 - Add icebreakers, daily prompts, interest-based discovery, events, and creator tools without manipulative engagement patterns.
 - Media access, visibility, moderation, reporting, retention, and deletion are enforced server-side.
+- The member inbox is a bounded, recent-first projection of eligible one-to-one chats. It includes peer identity, safe last-message preview, timestamp and unread state; the server enforces participant membership, account standing, two-sided block restrictions and read-receipt authorization on every request.
+- If either participant blocks the other, neither party can retrieve the conversation through the inbox, read messages, or update read receipts. Unblocking restores access only after all other account and membership checks pass.
+
 
 ## 7. Messaging, notifications, and safety
 
@@ -162,6 +165,7 @@ Never fake functionality, balances, purchases, verification, availability, analy
 - A guest receives **60 minutes of access in each rolling 24-hour window**, measured and enforced by trusted server time and bound to the anonymous Firebase Auth identity. Sign-out, app restart, reinstall, a second device, or changing the client clock must not extend or reset the allowance.
 - During the active guest window, the guest may browse public discovery/catalog/ads and join **public rooms only**. In those public rooms the guest may **send and receive text messages and audio/voice messages**.
 - Guest room participation is limited to text and audio. Images, GIFs, video, PDFs, documents, arbitrary files, stickers and other media are not available to guests.
+- Guest in-app microphone capture and uploaded room audio are capped at 60 seconds and must match the room-purpose scanner limit; guest audio never inherits the longer direct-chat voice-note allowance.
 - Guests may not open or send direct/private messages, join private rooms, rent rooms, moderate rooms, send/receive gifts, read or write a wallet, transfer/top up coins, claim rewards, purchase items, or use member-only features.
 - The server must check guest-session validity and room/message permissions on every join, send, read, and media-finalization operation. UI-only restrictions are insufficient. Session expiry must immediately deny protected guest content/actions; it must not delete the guest's privacy acknowledgement or unrelated audit evidence.
 - Guest age is unknown and must remain unknown: guest onboarding collects no age, date of birth, or age band. Guests may join only public rooms explicitly approved and actively moderated as `all_ages` / `general-audience`; they must never enter adult-only or age-restricted rooms. This supersedes any earlier proposal to ask guests for a minimum age band.
@@ -172,7 +176,7 @@ Never fake functionality, balances, purchases, verification, availability, analy
 - Configurable rental price/duration, scoped moderators, invitations, member controls, room-specific backgrounds, and room-specific finance.
 - Public-room media permissions: members may use text, voice messages, stickers, and sounds; moderators may use approved static/animated images; owners have broader approved media permissions.
 - Private-room media may include voice/audio/image/GIF/video subject to validation and safety controls.
-- Audio maximum 1 minute; video maximum 5 minutes; image maximum 5 MB; GIF maximum 5 MB, subject to server-side enforcement and later security review.
+- Purpose-specific audio-message limits: direct member-to-member chat voice notes up to 10 minutes (600 seconds); member room voice notes and guest public-room voice notes up to 1 minute (60 seconds). The trusted scanner enforces the same limit from the server-owned media purpose; the client timer is only a usability control. Video maximum 5 minutes; image maximum 5 MB; GIF maximum 5 MB.
 - Events, polls, contributions, statistics, supporter rankings, and room leaderboards.
 - Room rank derives from authentic activity and coin contribution, not undisclosed paid ranking manipulation.
 - Rental billing, moderator assignment/revocation, mute/remove, event controls, and financial records require trusted backend authorization and audit.
@@ -549,4 +553,21 @@ The project adopts `docs/OWNER_CONTROL_MASTER_AGREEMENT.md` (OCA-001) as the cro
 ## GOV-005 — Financial and employment status of AI assistants
 
 The project adopts GOV-005 as recorded in `docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md` and OCA-001 section 26. Use of ChatGPT or Gemini through a free or paid subscription does not, by itself, make either assistant an employee or contractor of the owner or create a salary, wage, commission, profit-share, equity, or employment-benefit obligation owed by the owner. Subscription fees are payable to the relevant provider. Human workers require separate agreements. This internal project rule does not bind or release OpenAI, Google, or any other third party from its own legal or contractual obligations.
+
+## Implementation-aligned product amendments — 15 November 2026
+
+### CHAT-002 — Member inbox and blocked-conversation privacy
+The member-facing inbox lists recent eligible direct conversations with unread state and a safe last-message preview. The server, not the client, decides whether a conversation is visible/readable. A block by either participant hides the conversation for both sides and denies message reads and receipt updates. Unblocking removes only the block restriction; membership standing and all other authorization checks remain in force.
+
+### STORE-004 — Purchase receipt and profile fulfillment
+A client must not announce a successful store purchase until it receives and validates the server receipt fields (purchase ID, confirmed item/SKU, and resulting wallet balance). Purchase acceptance covers the atomic debit, immutable purchase receipt, wallet ledger, entitlement grant, idempotent replay, expiry, and the profile consumer for the purchased feature. A receipt is evidence of the purchase transaction, not proof that every unrelated SKU consumer is complete.
+
+### MEDIA-004 — Purpose-bound voice-message duration
+The server-owned media purpose controls the accepted duration: direct member chat audio up to 600 seconds; member and guest room audio up to 60 seconds. The scanner request and signed verdict bind the same purpose, and the backend rejects a purpose mismatch. Voice/video calls are a separate product and retain their separate five-minute call-session cap; do not confuse voice notes with calls.
+
+### TEST-001 — Emulator Test Center and synthetic personas
+The Test Center is an emulator-only workflow with seeded synthetic personas and a feature coverage matrix. It must refuse production targets and must not seed real user identities or real balances. The separate 5,000-persona load lab remains isolated and must test a pinned platform SHA; it does not replace the platform's unit, integration, rules, scanner, or native-device acceptance suites.
+
+Implementation evidence: the above source/test coverage is present on development head 5f35606bdda7f173622f628619d282ef97d82bfd and passed exact-head GitHub Actions run 43720025420. This is automated development evidence only, not live-cloud, physical-device, independent security, or production-release acceptance.
+
 
