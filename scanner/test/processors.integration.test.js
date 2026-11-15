@@ -136,3 +136,28 @@ for (const item of cases) {
     }
   });
 }
+
+for (const purpose of ["chat", "room"]) {
+  test(`real audio processor rejects recordings longer than 60 seconds for ${purpose}`, async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "mawdda-audio-limit-test-"));
+    try {
+      const sourcePath = path.join(tempDir, "over-limit.wav");
+      await execFileAsync("ffmpeg", [
+        "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i",
+        "sine=frequency=440:duration=61", "-c:a", "pcm_s16le", sourcePath,
+      ]);
+      const sourceSha256 = createHash("sha256").update(await fs.readFile(sourcePath)).digest("hex");
+      await assert.rejects(() => processSafeDerivative({
+        sourcePath, tempDir,
+        request: {
+          mediaId, objectPath: `quarantine/member_1/${mediaId}`,
+          objectGeneration: "123456", contentType: "audio/wav", purpose,
+        },
+        sourceSha256, storage: fakeStorage(), bucketName: "mawdda-test", provider,
+      }), /AUDIO_STREAM_OR_DURATION_INVALID/);
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+}
+
