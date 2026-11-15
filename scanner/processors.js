@@ -6,9 +6,9 @@ const { createHash } = require("node:crypto");
 
 const execFileAsync = promisify(execFile);
 const LIMITS = Object.freeze({
-  gif: { maxFrames: 100, maxPixels: 40_000_000, maxDurationSeconds: 30, maxBytes: 5 * 1024 * 1024 },
-  audio: { maxDurationSeconds: 60, roomMaxDurationSeconds: 60, maxBytes: 25 * 1024 * 1024 },
-  video: { maxDurationSeconds: 90, maxBytes: 50 * 1024 * 1024 },
+  gif: { maxFrames: 50, maxPixels: 20_000_000, maxDurationSeconds: 20, maxBytes: 3 * 1024 * 1024 },
+  audio: { maxDurationSeconds: 60, roomMaxDurationSeconds: 60, maxBytes: 5 * 1024 * 1024 },
+  video: { maxDurationSeconds: 90, maxBytes: 15 * 1024 * 1024 },
   pdf: { maxPages: 30, maxBytes: 20 * 1024 * 1024 },
 });
 
