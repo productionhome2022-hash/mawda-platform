@@ -426,8 +426,12 @@ export const receiveMediaScanVerdict = onRequest(
   if (verdict.safeDerivative) {
     const derivative = verdict.safeDerivative;
     const expected = expectedSafeDerivativeContract(derivative.category);
+    if (!expected) {
+      response.status(409).send("Unsupported safe media derivative category");
+      return;
+    }
     const expectedPath = `processed/${String(asset.ownerUid)}/${verdict.mediaId}/${expected.filename}`;
-    if (!expected || asset.mediaPurpose !== "chat" && asset.mediaPurpose !== "room" ||
+    if ((asset.mediaPurpose !== "chat" && asset.mediaPurpose !== "room") ||
         derivative.path !== expectedPath || derivative.contentType !== expected.contentType ||
         derivative.pipelineVersion !== expected.pipeline ||
         (derivative.category === "document" && asset.uploaderRole !== "platform_owner")) {
