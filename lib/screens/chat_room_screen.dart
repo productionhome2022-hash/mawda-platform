@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 import '../services/member_media_upload_service.dart';
+import '../policies/chat_audio_policy.dart';
 import '../widgets/chat_audio_controls.dart';
 import '../services/super_admin_security_service.dart';
 import 'room_events_screen.dart';
@@ -504,7 +505,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   ChatAudioComposerButton(
                     scope: 'room',
                     roomId: widget.chatId,
-                    maxDurationSeconds: 60,
+                    maxDurationSeconds: maxLiveChatAudioRecordingSeconds,
                     enabled: !_sending,
                     onBusyChanged: (busy) {
                       if (mounted && _sending != busy) setState(() => _sending = busy);
