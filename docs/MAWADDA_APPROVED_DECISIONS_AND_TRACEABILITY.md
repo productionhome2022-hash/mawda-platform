@@ -57,3 +57,25 @@
 ## قاعدة تحديث هذا السجل
 
 يُحدّث هذا الملف مع كل قرار جديد أو تغيير حالة. أي تعديل دستوري يجب أن يحدّث الرؤية وهذا السجل والاختبارات/المتطلبات المتأثرة في commit واحد أو سلسلة commits مترابطة. عند عدم وجود دليل كافٍ تبقى الحالة «جزئي» أو «غير مقبول»، ولا ترفع إلى «مكتمل».
+
+
+## Approved owner amendments — 15 November 2026
+
+The following decisions are binding and are also specified in [the Master Development Charter](MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md). They must be linked to code, tests and evidence before their implementation status can be raised.
+
+| ID | Approved decision | Required implementation / acceptance gate | Status |
+|---|---|---|---|
+| STORE-003 | One central commercial engine for every current/future store, feature, title, badge, medal, membership and product; durations 24 hours, one week, one month; separate owner-set price for each; configurable quantities, limits, renewal and enable/disable; permanent items supported | Shared catalog schema, owner settings UI/API, price snapshots, entitlement fulfillment and expiry, future-SKU contract tests | Approved — implementation to be reconciled and extended |
+| MEDIA-003 | Mawdda Media Saver is one paid product across direct chats, public rooms and rented private rooms; saves images/GIF/video/audio locally; does not extend server retention | Backend entitlement check on every save; local save flow; expiry and retention tests; no server timer reset | Approved — implementation not yet evidenced as complete |
+| RET-003 | Temporary direct chat deletes all text/media after 4h server inactivity; normal chat media 4h/text 7d; important chat media 4h/text 30d | Server activity timestamps, mode selection and participant notice, scheduled deletion and integration tests for boundaries/retries/derivatives | Approved — reconcile existing 4h/7d baseline with new modes |
+| REWARD-003 | Owner-configurable daily, hourly and weekly attendance rewards | Server eligibility/cycle calculation, exactly-once grant, owner configuration, ledger and abuse tests | Approved — implementation to be verified |
+| REWARD-004 | Ad-view rewards only after owner-defined duration and trusted server evidence of actual foreground viewing; owner-uploaded ads and future provider adapters | Campaign console, signed/validated provider events or trusted heartbeat protocol, fraud/idempotency tests and audit | Approved — implementation to be verified |
+| OWNER-002 | Owner grant center for free coins, features, products, memberships, titles, badges and group/room rewards; target one UID, selected group, all connected users in a selected public room, or collective room/group | Owner-only server operations, attendance snapshot, recipient preview/confirmation, idempotency, recipient histories, wallet ledger and partial retry tests | Approved — implementation not yet evidenced as complete |
+| GOV-002 | All future commercial items must integrate with central owner controls; no hardcoded prices/durations/limits in client code | Catalog/entitlement extension contract and CI checks for new SKU integration | Approved — ongoing invariant |
+
+### Clarifications
+- The one-week / 200-coin Media Saver value is a provisional test baseline only, not a production price.
+- A free administrative grant is not a purchase and must not debit the recipient.
+- Existing price changes do not rewrite historic receipts or entitlements.
+- The 1,500-coin biometric reward remains disabled until cryptographic server proof and all existing security gates are satisfied.
+- These decisions do not authorize merge to main, production deployment, paid infrastructure or real-money payment activation.
