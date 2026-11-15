@@ -35,6 +35,22 @@ class MemberMediaUploadService {
     throw const FormatException('صيغة الصورة غير مدعومة.');
   }
 
+  int _maxBytesForContentType(String contentType) {
+    if (contentType.startsWith('image/')) return 3 * 1024 * 1024;
+    if (contentType.startsWith('audio/')) return 5 * 1024 * 1024;
+    if (contentType == 'video/mp4') return 25 * 1024 * 1024;
+    if (contentType == 'application/pdf') return 20 * 1024 * 1024;
+    throw const FormatException('نوع الملف غير مدعوم.');
+  }
+
+  Future<void> _validateFileLength(XFile file, String contentType) async {
+    final length = await file.length();
+    if (length <= 0) throw const FormatException('ملف المرفق فارغ.');
+    if (length > _maxBytesForContentType(contentType)) {
+      throw const FormatException('حجم الملف يتجاوز الحد المسموح لهذا النوع.');
+    }
+  }
+
   Future<String> uploadImage({
     required XFile file,
     required String purpose,
@@ -48,9 +64,9 @@ class MemberMediaUploadService {
             storyExpiresAtMs <= DateTime.now().millisecondsSinceEpoch)) {
       throw ArgumentError('يجب تحديد موعد انتهاء مستقبلي للقصة.');
     }
-    final Uint8List bytes = await file.readAsBytes();
-    if (bytes.isEmpty) throw const FormatException('ملف الصورة فارغ.');
     final contentType = _imageContentType(file);
+    await _validateFileLength(file, contentType);
+    final Uint8List bytes = await file.readAsBytes();
     if ((purpose == 'chat' || purpose == 'room') && contentType == 'image/gif') {
       throw const FormatException(
         'إرسال الصور المتحركة GIF سيفتح بعد تفعيل معالج GIF الآمن؛ أرسل صورة ثابتة حالياً.',
@@ -146,9 +162,9 @@ class MemberMediaUploadService {
     if (scope != 'direct' && scope != 'room') {
       throw ArgumentError.value(scope, 'scope');
     }
-    final bytes = await file.readAsBytes();
-    if (bytes.isEmpty) throw const FormatException('ملف المرفق فارغ.');
     final contentType = _chatAttachmentContentType(file);
+    await _validateFileLength(file, contentType);
+    final bytes = await file.readAsBytes();
     final intentResponse = await _functions.httpsCallable('createMediaUploadIntent').call({
       'originalName': file.name,
       'contentType': contentType,
