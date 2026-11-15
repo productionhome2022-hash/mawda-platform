@@ -247,6 +247,9 @@ class _RoomEventsScreenState extends State<RoomEventsScreen> {
     final startsAtMs = (event['startsAtMs'] as num?)?.toInt() ?? 0;
     final stream = event['streamUrl'] as String?;
     final isAttending = event['isAttending'] == true;
+    final attendeeCount = (event['attendeeCount'] as num?)?.toInt() ?? 0;
+    final capacity = (event['capacity'] as num?)?.toInt() ?? 0;
+    final isFull = event['isFull'] == true || (capacity > 0 && attendeeCount >= capacity);
     final canManage = widget.canManageEvents && event['canManage'] == true;
     final startsAt = startsAtMs > 0
         ? DateTime.fromMillisecondsSinceEpoch(startsAtMs).toLocal().toString().split('.').first
@@ -275,7 +278,9 @@ class _RoomEventsScreenState extends State<RoomEventsScreen> {
               ),
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Text('الحضور المسجل: ${event['attendeeCount'] ?? 0}'),
+              child: Text(capacity > 0
+                  ? 'الحضور المسجل: $attendeeCount / $capacity'
+                  : 'الحضور المسجل: $attendeeCount'),
             ),
             if (stream != null && stream.isNotEmpty)
               TextButton.icon(
@@ -289,8 +294,8 @@ class _RoomEventsScreenState extends State<RoomEventsScreen> {
               children: [
                 if (!isAttending && (status == 'scheduled' || status == 'live'))
                   FilledButton.tonal(
-                    onPressed: _busy || eventId.isEmpty ? null : () => _rsvp(eventId),
-                    child: const Text('تسجيل الحضور'),
+                    onPressed: _busy || eventId.isEmpty || isFull ? null : () => _rsvp(eventId),
+                    child: Text(isFull ? 'اكتمل العدد' : 'تسجيل الحضور'),
                   ),
                 if (canManage && status == 'scheduled')
                   OutlinedButton(
