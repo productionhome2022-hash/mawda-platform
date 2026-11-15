@@ -46,6 +46,7 @@ test("room event lifecycle is owner-controlled, age-scoped and RSVP-idempotent",
   ]);
 
   let createdEventId;
+  let finalAttendeeUid = "";
   try {
     const created = await createRoomEvent.run(call(ownerUid, {
       roomId,
@@ -84,7 +85,18 @@ test("room event lifecycle is owner-controlled, age-scoped and RSVP-idempotent",
     const cancelReplay = await cancelRoomEventRsvp.run(call(memberUid, { eventId: createdEventId }));
     assert.equal(cancelReplay.idempotentReplay, true);
     assert.equal((await eventRef.get()).data().attendeeCount, 0);
-    await rsvpRoomEvent.run(call(ownerUid, { eventId: createdEventId }));
+    const concurrentReservations = await Promise.allSettled([
+      rsvpRoomEvent.run(call(memberUid, { eventId: createdEventId })),
+      rsvpRoomEvent.run(call(ownerUid, { eventId: createdEventId })),
+    ]);
+    const accepted = concurrentReservations
+      .map((result, index) => ({ result, uid: index === 0 ? memberUid : ownerUid }))
+      .filter((entry) => entry.result.status === "fulfilled");
+    const rejected = concurrentReservations.filter((result) => result.status === "rejected");
+    assert.equal(accepted.length, 1, "only one concurrent request can claim the final seat");
+    assert.equal(rejected.length, 1);
+    assert.equal(rejected[0].reason.code, "resource-exhausted");
+    finalAttendeeUid = accepted[0].uid;
     assert.equal((await eventRef.get()).data().attendeeCount, 1);
 
     await assert.rejects(
@@ -109,7 +121,7 @@ test("room event lifecycle is owner-controlled, age-scoped and RSVP-idempotent",
       eventId: createdEventId,
       status: "completed",
     }));
-    const completed = await eventRef.collection("attendees").doc(ownerUid).get();
+    const completed = await eventRef.collection("attendees").doc(finalAttendeeUid).get();
     assert.equal(completed.exists, true);
     assert.equal((await eventRef.get()).data().status, "completed");
   } finally {
