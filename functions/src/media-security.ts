@@ -28,11 +28,11 @@ export interface MediaPolicy {
 }
 
 const POLICIES: Record<string, MediaPolicy> = {
-  "image/jpeg": { category: "image", maxBytes: 5 * 1024 * 1024 },
+  "image/jpeg": { category: "image", maxBytes: 3 * 1024 * 1024 },
   "image/png": { category: "image", maxBytes: 5 * 1024 * 1024 },
   "image/webp": { category: "image", maxBytes: 5 * 1024 * 1024 },
   "image/gif": { category: "image", maxBytes: 5 * 1024 * 1024 },
-  "video/mp4": { category: "video", maxBytes: 100 * 1024 * 1024 },
+  "video/mp4": { category: "video", maxBytes: 5 * 1024 * 1024 },
   "audio/mpeg": { category: "audio", maxBytes: 25 * 1024 * 1024 },
   "audio/mp4": { category: "audio", maxBytes: 25 * 1024 * 1024 },
   "audio/ogg": { category: "audio", maxBytes: 25 * 1024 * 1024 },
