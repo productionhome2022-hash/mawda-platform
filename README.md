@@ -40,6 +40,7 @@ npm test
 - [Brand and product experience specification](docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md)
 - [Seven-phase execution plan](docs/SEVEN_PHASE_EXECUTION_PLAN.md)
 - [Development and 5,000-persona lab boundary](docs/DEVELOPMENT_AND_SIMULATION_BOUNDARY.md)
+- [Firebase project configuration record](docs/FIREBASE_PROJECT_CONFIGURATION.md)
 - [Release readiness checklist](docs/RELEASE_READINESS_CHECKLIST.md)
 
 ## Product specification

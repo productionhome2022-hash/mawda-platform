@@ -1,110 +1,90 @@
-# Firebase Project Configuration Record — Mawda
+# Firebase Project Configuration Record — Mawdda
 
-**Document type:** Technical configuration inventory only  
-**Project:** `mawda-app-2026`  
-**Purpose:** Preserve Firebase facts supplied from Firebase Console, separately from the Mawadda Product Constitution and operating policies.  
-**Evidence date:** User supplied the complete Web app configuration on 12 November 2026. Recheck console values before production changes.  
-**Important:** The Web API key is a client configuration identifier, not a service-account private key. Never store service-account private keys, access tokens, or other server credentials here.
+**Last reconciled:** 15 November 2026  
+**Purpose:** Separate historical owner-supplied Firebase Console facts from the current development/non-production configuration. This is an inventory, not authorization to change or deploy Firebase.
 
-## 1. Confirmed project and Web app identity
+## 1. Production project — historical owner-supplied record
 
-| Field | Confirmed value |
+| Field | Recorded value |
 |---|---|
-| Project name / ID | `mawda-app-2026` |
-| Project number | `697303475139` |
-| Web app nickname | `Mawda Platform` |
-| Web App ID | `1:697303475139:web:8869603bda6f1a3c3ed376` |
-| Hosting site | `mawda-app-2026` |
-| Auth domain | `mawda-app-2026.firebaseapp.com` |
-| Messaging sender ID | `697303475139` |
-| Storage bucket | `mawda-app-2026.appspot.com` |
-| Analytics measurement ID | `G-G9PJ9DFEBJ` |
-| Web API key | Supplied by owner and installed in the Web FirebaseOptions; do not repeat it in this inventory |
+| Project ID | mawda-app-2026 |
+| Project number | 697303475139 |
+| Web App ID | 1:697303475139:web:8869603bda6f1a3c3ed376 |
+| Hosting site | mawda-app-2026 |
+| Auth domain | mawda-app-2026.firebaseapp.com |
+| Messaging sender ID | 697303475139 |
+| Owner-supplied historical Storage bucket | mawda-app-2026.appspot.com |
 
-The owner-supplied Firebase SDK configuration identified version `2`. The exact Web app identifiers and configuration values above were transcribed from that supplied configuration; this is not an independent live-console API verification.
+The owner supplied the Web SDK configuration and Console screenshots on 12 November 2026. The Web API key is client configuration, not a service-account private key; it is intentionally not repeated here. The app IDs in the current production Flutter options match the previously recorded Web, Android and iOS IDs, but this document is not an independent live Console verification.
 
-## 2. Hosting, usage and release history (reported snapshot)
+**Unresolved bucket discrepancy:** the owner-supplied historical Web configuration records mawda-app-2026.appspot.com, while the current production Flutter options record mawda-app-2026.firebasestorage.app. Do not silently assume these are interchangeable. Confirm the actual default bucket, legacy/custom buckets and region in Firebase Console and Google Cloud Storage before enabling production media.
 
-- Default domains: `mawda-app-2026.web.app` and `mawda-app-2026.firebaseapp.com`.
-- Current release shown: 11 November 2026, 5:16 PM; release code `13f63f`.
-- Previous releases shown: 11 November 2026, 3:30 AM (`22a445`) and 3:25 AM (`b2b4dd`).
-- Reported Hosting downloads (7 days): 19.2 MB.
-- Reported total storage current: 681.22 MB.
-- Reported total downloads: 21.95 MB.
-- Reported billing period: 1 November–1 December (PST).
-- These are screenshot observations, not live telemetry verified by this repository.
+## 2. Non-production project — current development target
 
-## 3. Cloud Messaging and service identities (reported snapshot)
+| Field | Current repository value |
+|---|---|
+| Project ID | mawda-platform-nonprod-2026 |
+| Project number | 12102454568 |
+| Android app ID | 1:12102454568:android:5f8907b71af845cfa2141d |
+| iOS app ID | 1:12102454568:ios:c03ae42bbcfca114a2141d |
+| Web app ID | 1:12102454568:web:e5b292ae20b9a55ca2141d |
+| Android package / iOS bundle ID | com.mawdda.platform.app |
+| Non-production Storage bucket in current client options | mawda-platform-nonprod-2026.firebasestorage.app |
 
-- Firebase Cloud Messaging API (V1): enabled; sender ID `697303475139`.
-- Legacy Cloud Messaging API: disabled.
-- Web Push key pair: console offered generation; the report does not confirm that a VAPID key pair was generated or configured in the web app.
-- Reported Admin SDK service account: `firebase-adminsdk-fbsvc@mawda-app-2026.iam.gserviceaccount.com`.
-- Four service accounts were visible in project permissions.
-- Never create/download a new service-account private key for chat-based troubleshooting. Prefer least-privilege workload identity / managed credentials and rotate/revoke exposed credentials through Google Cloud IAM if exposure is suspected.
-- Review IAM principals and roles directly in Google Cloud before any privilege change.
+The committed android/app/google-services.json and ios/Runner/GoogleService-Info.plist point to the non-production project and branded application identifier. lib/firebase_options_nonprod.dart contains the corresponding Web, Android and iOS options.
 
-## 4. Authentication and notification settings (reported snapshot)
+## 3. Current environment selection
 
-- Email/Password provider: enabled.
-- Google sign-in: reported as a recommendation, not confirmed enabled.
-- Email verification sender display name: `منصة مودة`.
-- From address: `noreply@mawda-app-2026.firebaseapp.com`.
-- The report describes an Arabic verification template using the Firebase action handler under `/__/auth/action`. Do not hardcode or manually construct action codes; use Firebase Auth's supported action-link generation and validated app-link handling.
-- Dynamic Links warning appeared in the supplied console material. Confirm the current Firebase Auth mobile email-action-link migration path before implementing deep links; do not base new work on deprecated Dynamic Links.
-- Authentication alerts included phone-verification quota warnings; actual usage and limits must be checked in the console.
-- Other reported alerts: Firestore insecure-rules/expiring-rules alerts, App Distribution device alerts, extension review alerts, and general email/in-console alerts.
-- Crashlytics was reported as configured for the web app; validate actual platform support and event receipt rather than assuming browser crash reports are being collected.
+- .firebaserc selects mawda-platform-nonprod-2026 as the default Firebase CLI project and retains mawda-app-2026 as the separate production alias.
+- lib/main.dart defaults MAWDDA_FIREBASE_ENV to nonprod. Production selection requires an explicit build-time define; ordinary builds and CI do not select production.
+- lib/firebase_options_nonprod.dart is the non-production Dart configuration.
+- lib/firebase_options.dart contains the production Web/Android/iOS options. macOS, Windows and Linux entries remain placeholders and are not accepted release targets.
+- The current Android google-services.json and iOS GoogleService-Info.plist are non-production files. A production mobile release must use separately reviewed production-native configuration; the current native CI job deliberately builds only the non-production target.
 
-## 5. Firestore (reported snapshot versus repository state)
+## 4. App registration history and current workflow behavior
 
-- Reported database: `(default)`.
-- The supplied screenshot transcription showed rules granting broad authenticated access to user documents and broad access to an account matched by email.
+On 14 November 2026, an earlier native-bootstrap workflow used FlutterFire CLI to find/register the Android, iOS and Web apps in the non-production project and generate the committed non-production options. That is a historical non-production setup action; it was not a production deployment.
 
-**Security interpretation:** Firestore allow expressions are additive (logical OR) across matching rules. Any authenticated user could read every matched `users/{userId}` document under the reported rule, while the email-matched account received broad read/write access across the database. A client-side email equality check is not a safe Super Admin authorization boundary. Do not deploy that screenshot ruleset as production rules.
+The current native workflow has been hardened: it does not invoke Firebase CLI or FlutterFire CLI, does not use FIREBASE_TOKEN, does not register apps or modify Firebase settings, and only validates the committed non-production files locally before building. No live Firebase mutation is performed by the current CI workflows.
 
-### Repository comparison (development branch inspected 12 November 2026)
+## 5. Current GitHub build/deployment boundary
 
-- `.firebaserc` sets the default Firebase CLI project to `mawda-app-2026`.
-- `firestore.rules` in the inspected development branch is materially stricter: member document reads are UID-scoped; wallet-ledger reads are scoped to the owning UID; transfer gets are scoped to sender/recipient; client writes and otherwise-unimplemented collections are denied.
-- This repository rules file is not evidence that the stricter rules are currently deployed to the live Firebase project. Compare the live Rules tab and deployed release before any change.
-- CI tests rules in emulators. The production Hosting workflow deploys Hosting only (`firebase deploy --only hosting`), not Firestore or Storage rules.
-- Never copy broad screenshot rules into the repository or weaken default-deny rules to make a screen work. Implement missing access through reviewed server callables and narrowly scoped rules.
+The development branch currently contains three workflows:
+- validate.yml — Flutter, Functions, emulator, rules and scanner validation.
+- bootstrap-native-platforms.yml — local configuration checks and Android/iOS build validation only.
+- flutter-ci.yml — manual build/validation only.
 
-## 6. Repository configuration status
+The Firebase Hosting deployment workflow firebase-hosting-merge.yml has been removed. There is no current workflow that runs firebase deploy or gcloud run deploy. firebase.json still contains Hosting/Functions/rules configuration for future reviewed operations; configuration presence is not a deployment. No production deployment, production rules change or production data migration is authorized by this record.
 
-On development branch `codex/mawda-full-platform-implementation`:
+## 6. Firestore and Storage security state
 
-- `.firebaserc` default project is `mawda-app-2026`.
-- `lib/firebase_options.dart` Web configuration has now been updated with the owner-supplied Web app values: project ID, app ID, auth domain, API key, messaging sender ID, storage bucket and Analytics measurement ID.
-- On 14 November 2026, `.github/workflows/bootstrap-native-platforms.yml` ran FlutterFire CLI against `mawda-app-2026`. Its log confirms the Android app `com.mawdda.platform.app`, iOS app `com.mawdda.platform.app`, and Web app were found/registered in that project, and `lib/firebase_options.dart` was regenerated. The resulting Android and iOS entries use real non-placeholder app IDs and the same project ID. macOS, Windows and Linux entries remain placeholders and are not supported release targets.
-- The Firebase configuration guard checks the CLI project, Web project ID, registered Web app ID, and non-placeholder required Web fields. The native bootstrap workflow additionally verifies Android/iOS app IDs and project IDs before packaging the native projects.
-- The Web API key is necessarily present in client configuration. Restrict it in Google Cloud API Credentials to the required APIs and authorized HTTP referrers for the production domains; Firebase Security Rules and server authorization remain the actual data-access controls.
-- **Storage bucket reconciliation remains open:** the owner-supplied Web configuration inventory above records `mawda-app-2026.appspot.com`, while FlutterFire CLI-generated Web/Android/iOS options and `android/app/google-services.json` now name `mawda-app-2026.firebasestorage.app`. Do not assume these are interchangeable. Confirm the actual default bucket and any legacy/custom bucket in Firebase Console/Google Cloud Storage, verify the Cloud Functions runtime's default bucket and `MAWDA_MEDIA_BUCKET_NAME`, and run a non-production upload/finalize/read/delete smoke test before enabling live media. Native compilation does not prove that the bucket exists or that runtime IAM can access it.
+- The development branch's Firestore and Storage rules are intended to be default-deny, with narrowly scoped member reads and trusted server writes.
+- CI exercises Firestore and Storage rules against Firebase emulators. Emulator success is not proof that the same rules are deployed to the live project.
+- Historical Console screenshots from 12 November showed broad authenticated access and an email-matched administrative exception. Those rules are not an acceptable security boundary and must not be copied into the repository or deployed.
+- Verify the actual live ruleset and deployment timestamp independently before any future production operation.
 
-## 7. Storage, App Hosting and billing notes
+## 7. Authentication, notifications and service identities
 
-- `firebase.json` configures classic Firebase Hosting, Cloud Functions, Firestore rules, Storage rules, and local emulators.
-- Firebase App Hosting is separate from the classic Hosting target configured in `firebase.json`; do not treat an App Hosting notice as proof that the existing classic Hosting site requires migration.
-- Before enabling Blaze or additional services, review expected usage, budgets, alerts, region, retention and potential egress/storage costs. No billing-plan change is authorized by this record.
+The owner-supplied 12 November Console snapshot reported Email/Password authentication enabled, Google sign-in as a recommendation rather than a confirmed enabled provider, and Firebase Cloud Messaging API (V1) enabled. It did not confirm a generated/configured Web Push VAPID key pair. These are historical observations, not current live-state verification.
 
-## 8. Safe next actions (no live changes made)
+Never commit service-account JSON, private keys, access tokens or owner credentials. Prefer managed identities and least-privilege runtime service accounts. The current repository does not contain a service-account private key.
 
-1. Verify the live Firestore Rules tab against the repository's default-deny `firestore.rules`; inspect the deployed ruleset and release timestamp.
-2. Verify Firebase Auth authorized domains, email action URL settings, and supported mobile action-link handling; test verification and password reset end-to-end with non-production accounts.
-3. Android/iOS/Web app registration and FlutterFire configuration were generated by the native bootstrap workflow on 14 November 2026; independently inspect the Firebase Console app records and confirm package/bundle IDs before production signing or release.
-4. Verify FCM Web Push VAPID setup, service worker, permission UX and token lifecycle before claiming browser push is ready.
-5. Restrict the Web API key by API and HTTP referrer; review IAM service accounts and roles, and avoid downloadable private keys.
-6. Validate Analytics, Crashlytics and phone-auth alert behavior with real test events and current console documentation.
-7. Confirm current billing plan, quotas, budget alerts, storage/egress usage and retention policy.
-8. Plan a separately reviewed deployment of Firestore/Storage rules only after emulator tests, production diff review, rollback preparation and explicit owner approval.
+## 8. Cost, retention and release constraints
 
-## 9. Change-control boundary
+- Keep development Emulator-first and within the Firebase Spark/no-cost approach currently approved.
+- Do not enable Blaze, create billable Firebase/GCP resources, deploy Cloud Run, create paid buckets, change billing, or activate WORM/retention locking without separate explicit owner approval.
+- The 24-month immutable audit archive Terraform module is source code only; it has not been applied and no bucket has been created or locked by this work.
+- No real-money purchase, payment provider, production wallet mutation or live media delivery is enabled by this configuration record.
 
-This inventory does not authorize:
-- changing Firebase project settings, Authentication providers, IAM roles, billing plan, App Hosting, Analytics, Crashlytics or Messaging;
-- generating, exporting or rotating private keys;
-- deploying Hosting, Cloud Functions, Firestore rules or Storage rules;
-- deleting, migrating or cloning production data.
+## 9. Release gates still open
 
-Any such operation requires a separately reviewed implementation plan and explicit owner approval.
+Before any production or live-media approval, independently verify:
+1. The actual production Storage bucket, region, runtime bucket selection, IAM, CORS and generation-specific deletion.
+2. Firebase Auth providers, authorized domains, email action links and real email delivery.
+3. Owner UID bootstrap, real MFA enrollment/challenge/recovery/revocation and recent-auth enforcement in an isolated non-production project.
+4. App Check/device attestation and anonymous-account recreation abuse controls.
+5. FCM Web Push VAPID/service-worker configuration and real delivery.
+6. Android/iOS physical-device authentication, permissions, microphone, notifications, media upload/playback and interruption handling.
+7. Release signing, privacy/legal review, accessibility, observability, backup/restore and incident recovery.
+
+No deployment or live production mutation is authorized by this inventory.
