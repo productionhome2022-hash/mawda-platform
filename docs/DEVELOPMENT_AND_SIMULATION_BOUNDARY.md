@@ -62,6 +62,8 @@ The private lab repository has been created and contains:
 
 The lab validation workflow passed on commit d75a04b326e5156ea6547b35200239a78ff70397. This verifies JavaScript/shell syntax, workflow YAML parsing and the deployment-command safety scan only. It does **not** mean the 5,000-persona simulation itself has been executed. The manual load workflow still requires a controlled run against a selected immutable platform commit.
 
+Because both repositories are private, the lab workflow also requires a fine-grained token stored only as the lab repository Actions secret MAWDA_PLATFORM_READ_TOKEN, with Contents: read access to the primary repository. This secret has not been provisioned by this workflow and must never be committed or pasted into chat.
+
 The primary repository's old copy of the 5,000-persona generator/test and its package script must remain until the lab harness has completed a real successful run and a follow-up comparison proves that no required primary CI coverage was lost. Then remove only the large-scale harness files and package script from the primary development branch; keep ordinary persona integration tests in the primary repository.
 
 ## Consolidation gate
