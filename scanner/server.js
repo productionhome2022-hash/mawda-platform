@@ -20,7 +20,7 @@ const API_TOKEN = process.env.SCANNER_API_TOKEN || "";
 const HMAC_SECRET = process.env.SCANNER_HMAC_SECRET || "";
 const CALLBACK_URL = process.env.SCANNER_CALLBACK_URL || "";
 const BUCKET_NAME = process.env.GCS_BUCKET || "";
-const MAX_DOWNLOAD_BYTES = Number(process.env.MAX_DOWNLOAD_BYTES || 100 * 1024 * 1024);
+const MAX_DOWNLOAD_BYTES = Number(process.env.MAX_DOWNLOAD_BYTES || 25 * 1024 * 1024);
 const SCAN_TIMEOUT_MS = Number(process.env.SCAN_TIMEOUT_MS || 150_000);
 const CLAMAV_DB_DIR = process.env.CLAMAV_DB_DIR || "/var/lib/clamav";
 const MAX_SIGNATURE_AGE_MS = Number(process.env.MAX_SIGNATURE_AGE_MS || 36 * 60 * 60 * 1000);
@@ -102,7 +102,7 @@ async function scanWithClamAv(filePath) {
   try {
     await execFileAsync("clamscan", [
       "--infected", "--no-summary", "--alert-exceeds-max=yes",
-      "--max-filesize=105M", "--max-scansize=210M",
+      "--max-filesize=25M", "--max-scansize=50M",
       "--max-recursion=16", "--max-files=1000",
       "--scan-archive=yes", "--scan-pdf=yes", "--scan-html=yes",
       "--scan-pe=yes", "--scan-ole2=yes", "--scan-mail=yes",
@@ -319,7 +319,7 @@ if (API_TOKEN.length < 32 || HMAC_SECRET.length < 32 || !BUCKET_NAME ||
     callbackEndpoint.pathname !== "/receiveMediaScanVerdict" ||
     callbackEndpoint.search || callbackEndpoint.hash ||
     !Number.isSafeInteger(MAX_DOWNLOAD_BYTES) || MAX_DOWNLOAD_BYTES <= 0 ||
-    MAX_DOWNLOAD_BYTES > 100 * 1024 * 1024 ||
+    MAX_DOWNLOAD_BYTES > 25 * 1024 * 1024 ||
     !Number.isSafeInteger(SCAN_TIMEOUT_MS) || SCAN_TIMEOUT_MS <= 0 ||
     !Number.isSafeInteger(MAX_SIGNATURE_AGE_MS) || MAX_SIGNATURE_AGE_MS <= 0) {
   throw new Error("Scanner runtime configuration is incomplete or outside approved safety bounds.");
