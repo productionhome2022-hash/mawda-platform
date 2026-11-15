@@ -36,7 +36,7 @@ jobs:
       - name: Build release web artifact
         run: flutter build web --release
       - name: Upload validated Web build
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: mawdda-test-center-web-${{ github.sha }}
           path: build/web/
@@ -70,7 +70,7 @@ jobs:
         run: npm run test:all
       - name: Upload synthetic persona catalogue (no credentials)
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: mawdda-test-center-personas-${{ github.sha }}
           path: functions/test/fixtures/test-account-personas.json
