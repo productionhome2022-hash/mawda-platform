@@ -61,6 +61,7 @@ class _RoomEventsScreenState extends State<RoomEventsScreen> {
     final description = TextEditingController();
     final streamUrl = TextEditingController();
     final duration = TextEditingController(text: '60');
+    final capacity = TextEditingController();
     var eventType = 'announcement';
     var startsAt = DateTime.now().add(const Duration(hours: 1));
 
@@ -122,6 +123,11 @@ class _RoomEventsScreenState extends State<RoomEventsScreen> {
                     },
                   ),
                   TextField(
+                    controller: capacity,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'الحد الأقصى للحضور (اختياري)'),
+                  ),
+                  TextField(
                     controller: duration,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(labelText: 'المدة بالدقائق (10–240)'),
@@ -157,11 +163,14 @@ class _RoomEventsScreenState extends State<RoomEventsScreen> {
       description.dispose();
       streamUrl.dispose();
       duration.dispose();
+      capacity.dispose();
       return;
     }
     final minutes = int.tryParse(duration.text.trim());
+    final maxAttendees = capacity.text.trim().isEmpty ? null : int.tryParse(capacity.text.trim());
     try {
-      if (title.text.trim().length < 3 || minutes == null) {
+      if (title.text.trim().length < 3 || minutes == null ||
+          (capacity.text.trim().isNotEmpty && maxAttendees == null)) {
         throw const FormatException('أدخل عنواناً صحيحاً ومدة صالحة.');
       }
       setState(() => _busy = true);
@@ -172,6 +181,7 @@ class _RoomEventsScreenState extends State<RoomEventsScreen> {
         'eventType': eventType,
         'startsAtMs': startsAt.millisecondsSinceEpoch,
         'durationMinutes': minutes,
+        'capacity': maxAttendees,
         'streamUrl': streamUrl.text.trim(),
       });
       if (!mounted) return;
@@ -192,6 +202,7 @@ class _RoomEventsScreenState extends State<RoomEventsScreen> {
       description.dispose();
       streamUrl.dispose();
       duration.dispose();
+      capacity.dispose();
       if (mounted) setState(() => _busy = false);
     }
   }
@@ -209,6 +220,25 @@ class _RoomEventsScreenState extends State<RoomEventsScreen> {
     } on FirebaseFunctionsException catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error.message ?? 'تعذر تسجيل الحضور.')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _cancelRsvp(String eventId) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await FirebaseFunctions.instance.httpsCallable('cancelRoomEventRsvp').call({'eventId': eventId});
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم إلغاء تسجيلك وإتاحة المقعد لعضو آخر.')),
+      );
+      _refresh();
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر إلغاء التسجيل.')),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -296,6 +326,11 @@ class _RoomEventsScreenState extends State<RoomEventsScreen> {
                   FilledButton.tonal(
                     onPressed: _busy || eventId.isEmpty || isFull ? null : () => _rsvp(eventId),
                     child: Text(isFull ? 'اكتمل العدد' : 'تسجيل الحضور'),
+                  ),
+                if (isAttending && status == 'scheduled')
+                  OutlinedButton(
+                    onPressed: _busy || eventId.isEmpty ? null : () => _cancelRsvp(eventId),
+                    child: const Text('إلغاء التسجيل'),
                   ),
                 if (canManage && status == 'scheduled')
                   OutlinedButton(
