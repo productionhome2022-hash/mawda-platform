@@ -188,3 +188,41 @@ Safeguards:
 6. No Firebase Console mutation, app deletion, settings change, or credential rotation was performed as part of this decision.
 
 Current evidence boundary: repository source confirms the iOS FirebaseOptions identity values listed above. The owner previously confirmed the app registration already existed (Firebase returned `409 ALREADY_EXISTS`) and downloaded the plist. The repository does not prove the present availability or integrity of the owner's local plist/backup, nor does this documentation perform a live Firebase Console audit. Verify those custody facts before any future iOS release work.
+
+
+## GOV-006 / MEDIA-006 / COM-001 / RET-004 — Owner-approved policy clarifications (15 November 2026)
+
+**Authority:** Explicit owner approval in the project governance conversation on 15 November 2026. These entries are binding product-policy clarifications. They do not claim implementation or test completion.
+
+### MEDIA-006 — Canonical binary media ceilings
+
+- Canonical unit: MiB, where 1 MiB = 1,048,576 bytes.
+- Images: 3,145,728 bytes.
+- GIF: 3,145,728 bytes.
+- Uploaded audio: 5,242,880 bytes.
+- Original video ingress: 26,214,400 bytes.
+- Safe video derivative: 15,728,640 bytes.
+- Owner-verified PDF: 20,971,520 bytes.
+- Existing independent duration/frame/owner restrictions remain in force: GIF 20 seconds and 50 frames (plus existing complexity ceiling); audio 60 seconds; safe video derivative up to 90 seconds; PDF owner-only.
+- These values are technical maximums, not member quotas or purchasable entitlements. Enforce exact byte counts in the client, backend/scanner, storage checks and tests.
+- **Supersedes:** ambiguous decimal “MB” labels for these ceilings in earlier wording. Do not silently treat MB and MiB as equivalent.
+- **Status:** Owner-approved policy; implementation reconciliation and exact-head test evidence remain pending.
+
+### COM-001 — Fixed 30-day commercial month
+
+- All owner-controlled commercial products, memberships, features and entitlements that offer “one month” use exactly 30 days (720 hours), not a calendar month.
+- Existing 24-hour and 7-day durations remain unchanged.
+- Historical purchases and entitlements are not recalculated or rewritten.
+- **Status:** Owner-approved policy; catalog/backend/client/test reconciliation remains pending.
+
+### RET-004 — Retention selection and consent intentionally unresolved
+
+- The owner deferred deciding who selects a direct-chat retention mode and whether both participants must consent.
+- Until a later explicit owner decision defines selection authority, participant consent and notices, server-recorded activity, and complete deletion semantics, this policy remains unresolved.
+- Destructive production deletion dependent on this unresolved policy must remain disabled. Isolated development/emulator testing may continue only where no real-user data can be deleted.
+- Do not infer consent from silence, app presence, network state or client-only flags.
+- **Status:** Explicitly deferred by owner; no production deletion authorization.
+
+### Governance boundary
+
+This amendment records policy approval only. It does not establish that code, tests, scanners, catalog entries or production services already enforce these rules. No merge to `main`, deployment, production Firebase mutation, paid infrastructure activation, or destructive live operation is authorized by this entry.
