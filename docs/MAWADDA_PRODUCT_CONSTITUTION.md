@@ -541,3 +541,7 @@ This amendment is part of the binding constitution and supersedes inconsistent o
 - Before an approval-gated action, present a concise explanation of what will be done, why it is needed, the exact target/environment, risks, cost (if any), and whether it is reversible; wait for the owner's explicit approval.
 - After an approved action, report exactly what was performed, the resulting commit/run/transaction identifier where applicable, verification evidence, and any remaining risk. If the action was not performed or could not be verified, say so plainly.
 - The owner may revoke or narrow any standing development permission at any time. When approval is absent or ambiguous, the default is **do not proceed**.
+
+
+## Governance reference — owner-control master agreement
+The project adopts `docs/OWNER_CONTROL_MASTER_AGREEMENT.md` (OCA-001) as the cross-project governance baseline, subject to applicable law and third-party platform terms. It supplements GOV-003 and does not itself claim that every clause is a signed third-party contract.
