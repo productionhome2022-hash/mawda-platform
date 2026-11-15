@@ -178,6 +178,9 @@ The approved CALL-001/CALL-002 decisions are product requirements, not evidence 
 - [ ] Every freeze, deduction, or zero-balance action requires fresh MFA, explicit target/action/amount, impact preview, separate confirmation, idempotency, and immutable audit.
 - [ ] Coin forfeiture is an atomic double-entry ledger transaction to the platform treasury/forfeiture account; historical entries are never edited/deleted, balances never go negative, and real-money refunds remain separate provider workflows.
 - [ ] Member notice, appeal/review, compensating reversal, bulk-action alerts, unauthorized-access tests, and audit completeness are verified.
+- [ ] Owner can grant supported free entitlements to one UID or a UID list with 24h/7d/30d duration; active time extends rather than being overwritten.
+- [ ] Bulk grants use owner MFA, a reason, preview/confirmation, stable request idempotency, bounded technical chunks, per-recipient partial results, immutable grant ledger and audit.
+- [ ] Free administrative grants never debit coins or create a paid purchase receipt; coin grants, group/room snapshots and collective rewards remain separate release gates until implemented.
 
 
 ## Email ownership and external account verification release gates
