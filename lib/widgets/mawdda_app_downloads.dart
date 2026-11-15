@@ -1,42 +1,88 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Download links are injected only after a signed, installable release is
-/// published. Empty values deliberately keep the controls visible but disabled.
+/// Public pre-authentication distribution options.
+///
+/// Android stays disabled until a verified signed release URL is supplied.
+/// iOS is intentionally a notice only for the experimental launch.
+/// Desktop and mobile web installation is handled by the PWA browser prompt;
+/// this widget provides a clear, accessible route to browser-specific guidance.
 class MawddaAppDownloads extends StatelessWidget {
   const MawddaAppDownloads({super.key});
 
   static const androidUrl = String.fromEnvironment('MAWDDA_ANDROID_DOWNLOAD_URL');
-  static const iosUrl = String.fromEnvironment('MAWDDA_IOS_DOWNLOAD_URL');
 
-  Future<void> _open(BuildContext context, String value) async {
-    final uri = Uri.tryParse(value);
-    if (uri == null || !uri.hasScheme || !['https'].contains(uri.scheme)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('رابط التنزيل غير متاح حالياً.')),
-      );
+  Future<void> _openAndroid(BuildContext context) async {
+    final uri = Uri.tryParse(androidUrl);
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
+      _message(context, 'رابط تنزيل Android غير متاح حالياً؛ لن نعرض نسخة تجريبية أو غير موقّعة للتنزيل العام.');
       return;
     }
     try {
       final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!opened && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تعذر فتح رابط التنزيل. حاول من المتصفح.')),
-        );
+        _message(context, 'تعذر فتح رابط التنزيل. حاول من المتصفح.');
       }
     } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تعذر فتح رابط التنزيل. تحقق من اتصالك.')),
-        );
-      }
+      if (context.mounted) _message(context, 'تعذر فتح رابط التنزيل. تحقق من اتصالك.');
     }
+  }
+
+  void _message(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _showIosNotice(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.phone_iphone, size: 34),
+        title: const Text('تطبيق مودة لنظام iOS'),
+        content: const Text(
+          'تطبيق iOS الأصلي قيد التجهيز والتجربة حالياً، ولا يتوفر تنزيله بعد. '
+          'يمكنك استخدام مودة الآن من نسخة الويب، وإضافتها إلى الشاشة الرئيسية من Safari '
+          'عبر زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          FilledButton.icon(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            icon: const Icon(Icons.open_in_browser),
+            label: const Text('متابعة إلى نسخة الويب'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showWebInstallHelp(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.install_desktop, size: 34),
+        title: const Text('ثبّت مودة كتطبيق مستقل'),
+        content: const Text(
+          'إذا ظهر شريط التثبيت أعلى الصفحة، اضغط «تثبيت تطبيق مودة» ثم وافق في نافذة المتصفح. '
+          'وإذا لم يظهر، افتح قائمة المتصفح (⋮ أو …) وابحث عن «Install app» أو «تثبيت مودة». '
+          'في Safari على macOS استخدم File ثم Add to Dock. '
+          'على iPhone وiPad افتح قائمة المشاركة في Safari ثم «إضافة إلى الشاشة الرئيسية». '
+          'قد تختلف الخيارات حسب المتصفح وإصدار نظام التشغيل. بعض المتصفحات تضيف اختصاراً فقط '
+          'ولا توفر تطبيق PWA مستقلاً.',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('حسناً'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final androidReady = androidUrl.trim().isNotEmpty;
-    final iosReady = iosUrl.trim().isNotEmpty;
     return Card(
       color: const Color(0xFF211629),
       child: Padding(
@@ -47,11 +93,11 @@ class MawddaAppDownloads extends StatelessWidget {
             const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.download_for_offline_outlined, color: Color(0xFFE8A0B5)),
+                Icon(Icons.devices, color: Color(0xFFE8A0B5)),
                 SizedBox(width: 8),
                 Flexible(
                   child: Text(
-                    'حمّل تطبيق مودة على جهازك',
+                    'استخدم مودة على جميع أجهزتك',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                   ),
@@ -60,19 +106,29 @@ class MawddaAppDownloads extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              onPressed: androidReady ? () => _open(context, androidUrl) : null,
+              onPressed: androidReady ? () => _openAndroid(context) : null,
               icon: const Icon(Icons.android),
-              label: Text(androidReady ? 'تنزيل تطبيق Android (APK)' : 'Android APK — قيد التجهيز'),
+              label: Text(androidReady
+                  ? 'تنزيل تطبيق Android (APK)'
+                  : 'Android APK — بانتظار اعتماد النسخة الموقّعة'),
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: () => _showWebInstallHelp(context),
+              icon: const Icon(Icons.install_desktop),
+              label: const Text('تثبيت مودة كتطبيق مستقل على الجهاز'),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
-              onPressed: iosReady ? () => _open(context, iosUrl) : null,
+              onPressed: () => _showIosNotice(context),
               icon: const Icon(Icons.phone_iphone),
-              label: Text(iosReady ? 'تثبيت تطبيق iPhone / iPad' : 'iOS — بانتظار التوقيع والتوزيع'),
+              label: const Text('iPhone / iPad — معلومات التوفر'),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             const Text(
-              'ستُفعّل روابط التنزيل بعد اعتماد الحزم والتأكد من سلامة التثبيت. لا تستخدم ملفات تجريبية غير موقّعة كتطبيق إصدار عام.',
+              'تظهر نافذة تثبيت المتصفح تلقائياً عندما يسمح المتصفح بذلك. '
+              'إذا لم تكن مدعومة، ستجد إرشادات التثبيت المناسبة أعلاه. '
+              'لن نعرض رابط APK قبل التحقق من توقيعه بمفتاح مودة الأصلي.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white60, fontSize: 11, height: 1.5),
             ),
