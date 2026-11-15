@@ -62,7 +62,6 @@ class DefaultFirebaseOptions {
     projectId: 'mawda-platform-nonprod-2026',
     storageBucket: 'mawda-platform-nonprod-2026.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDxuxLWTFJCFKgAmCtPbKj6MZQJgcq3sZs',
     appId: '1:12102454568:ios:c03ae42bbcfca114a2141d',
