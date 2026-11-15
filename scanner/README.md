@@ -6,7 +6,7 @@ This service is the isolated scanning worker called by the Firebase Functions di
 
 - Cloud Run must be deployed with IAM authentication enabled (no unauthenticated invoker). Firebase Functions obtains a Google-signed identity token for the Cloud Run service audience; Cloud Run IAM validates it before the request reaches this container. The container also requires a separate high-entropy `x-mawadda-scanner-token` (minimum 32 bytes).
 - Request validation binds a UUID media ID, exact quarantine object path, generation, provider and a Google Cloud Storage HTTPS signed-read URL. Redirects and non-GCS hosts are rejected.
-- Downloads are bounded to 100 MiB and streamed to a private temporary file. The signed URL, token and file contents are never written to logs.
+- Downloads are bounded to 25 MiB and streamed to a private temporary file. The signed URL, token and file contents are never written to logs.
 - ClamAV runs with explicit archive recursion, file-count, scan-size and file-size limits. Any timeout, parser limit, incomplete scan or scanner error is a failure, never a clean verdict.
 - A clean raster image is decoded and re-encoded by Sharp into a bounded WebP derivative under `processed/{uid}/{mediaId}/preview.webp`. Original media remains quarantined.
 - The service returns a signed HMAC-SHA256 callback bound to the original SHA-256 and exact Storage generation. Firebase Functions independently rereads and hashes the original and verifies the derivative before marking the raster preview eligible.
