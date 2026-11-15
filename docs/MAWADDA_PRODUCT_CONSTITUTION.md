@@ -396,6 +396,17 @@ Biometric verification is a high-assurance identity and liveness process, not a 
 
 Voice calling and video calling are two separate paid premium entitlements. Neither entitlement is included automatically in the other, in VIP, or in any unrelated store purchase. Each is sold independently in the Premium Features Store with three owner-configurable validity periods: 24 hours, 7 days, and 30 days. The six initial experimental coin prices are defined in `functions/src/default-store-catalog.ts`; they are test defaults only, not final commercial pricing. The single platform owner may change each item price, publication state, and purchase availability through the authenticated owner catalog workflow. Existing owner-edited catalog values must never be overwritten by default seeding.
 
+### Per-member call quotas (approved 2026-11-15)
+
+- A member with an active voice-call entitlement may initiate at most 5 voice-call sessions in each rolling 24-hour period.
+- A member with an active video-call entitlement may initiate at most 3 video-call sessions in each rolling 24-hour period.
+- These quotas are independent: voice usage does not consume video quota, and video usage does not consume voice quota.
+- Each initiated session counts toward the initiating member's quota when the server accepts and creates the call session. Rejected attempts that never create a session do not consume quota. A created session counts even if the recipient does not answer or the call ends early, to prevent repeated ringing/session creation from bypassing the limit.
+- The quota is attached to the member's own entitlement and is enforced by the server over a rolling 24-hour window; changing subscription duration, renewing, reconnecting, reinstalling the app, or changing device clock must not reset or multiply the quota. The subscription period determines how long the member remains eligible, while the call quota independently limits use during each 24-hour window.
+- Both participants must still hold the matching active entitlement for the call type. The initiating member's quota is charged to the initiator; the recipient's quota is not consumed merely by receiving a call. A recipient who later initiates a call is subject to their own quota.
+- Quota reservation and call-session creation must be atomic/idempotent so concurrent requests cannot exceed the limit. Server audit records must capture the quota decision and call-session ID without storing call media content.
+- The member interface must display the relevant remaining call allowance and the next quota reset time, based on server-authoritative data.
+
 ### Per-call duration cap (approved 2026-11-15)
 
 - Every individual voice call is limited to a maximum of 5 minutes (300 seconds).
