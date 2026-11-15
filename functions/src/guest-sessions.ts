@@ -248,15 +248,17 @@ export const listGuestPublicRooms = onCall(async (request) => {
   if (!profile.exists || !isGuestSessionActive(session.data())) {
     throw new HttpsError("permission-denied", "أكمل بيانات الزائر وابدأ جلسة صالحة قبل تصفح الغرف.");
   }
+  // Apply all eligibility predicates in Firestore before limiting. Filtering
+  // only the first 200 active rooms can hide eligible public rooms behind
+  // unrelated/private/adult rooms as the platform grows.
   const roomSnapshot = await db().collection("rooms")
     .where("status", "==", "active")
-    .limit(200)
+    .where("kind", "==", "public")
+    .where("audience", "==", "all_ages")
+    .where("guestAudienceApproved", "==", true)
+    .limit(100)
     .get();
-  const rooms = roomSnapshot.docs.filter((room) =>
-    room.data().kind === "public" &&
-    room.data().audience === "all_ages" &&
-    room.data().guestAudienceApproved === true,
-  ).slice(0, 100);
+  const rooms = roomSnapshot.docs;
   return {
     rooms: rooms.map((room) => ({
       roomId: room.id,
