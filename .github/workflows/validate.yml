@@ -125,7 +125,7 @@ jobs:
       - name: Run media callable authorization and audit integration tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:media-integration
-      - name: Run seven-day chat retention integration tests
+      - name: Run mode-aware chat retention integration tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:retention-integration
       - name: Run direct-message deletion authorization and erasure integration tests
