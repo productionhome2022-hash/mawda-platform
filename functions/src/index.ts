@@ -5018,6 +5018,58 @@ export const rsvpRoomEvent = onCall(async (request) => {
   return { eventId, attending: true };
 });
 
+/** Allows a member to release their event seat before the event starts. */
+export const cancelRoomEventRsvp = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const eventId = request.data?.eventId;
+  if (typeof eventId !== "string" || eventId.length < 1 || eventId.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف الحدث غير صالح.");
+  }
+  const eventRef = db.collection("roomEvents").doc(eventId);
+  return db.runTransaction(async (transaction) => {
+    const eventSnapshot = await transaction.get(eventRef);
+    if (!eventSnapshot.exists) throw new HttpsError("not-found", "الحدث غير موجود.");
+    const event = eventSnapshot.data()!;
+    if (event.status !== "scheduled") {
+      throw new HttpsError("failed-precondition", "يمكن إلغاء التسجيل قبل بدء الحدث فقط.");
+    }
+    const roomRef = db.collection("rooms").doc(event.roomId);
+    const userRef = db.collection("users").doc(uid);
+    const attendeeRef = eventRef.collection("attendees").doc(uid);
+    const [roomSnapshot, userSnapshot, membershipSnapshot, attendeeSnapshot] = await Promise.all([
+      transaction.get(roomRef),
+      transaction.get(userRef),
+      transaction.get(roomRef.collection("members").doc(uid)),
+      transaction.get(attendeeRef),
+    ]);
+    if (!roomSnapshot.exists || roomSnapshot.data()?.status !== "active" ||
+        !userSnapshot.exists || !isMemberAccountInGoodStanding(userSnapshot.data()) ||
+        !membershipSnapshot.exists) {
+      throw new HttpsError("permission-denied", "يجب أن تكون عضواً نشطاً في الغرفة.");
+    }
+    const room = roomSnapshot.data()!;
+    if (!canJoinRoom({
+      memberAge: userSnapshot.data()?.age,
+      roomAudience: room.audience,
+      roomKind: room.kind,
+      invited: true,
+    })) {
+      throw new HttpsError("permission-denied", "فئة العمر لا تطابق جمهور الغرفة.");
+    }
+    if (!attendeeSnapshot.exists) return { eventId, attending: false, idempotentReplay: true };
+    const attendeeCount = event.attendeeCount ?? 0;
+    if (!Number.isSafeInteger(attendeeCount) || attendeeCount < 1) {
+      throw new HttpsError("failed-precondition", "عداد المقاعد غير متسق؛ تم إيقاف الإلغاء احترازياً.");
+    }
+    transaction.delete(attendeeRef);
+    transaction.update(eventRef, {
+      attendeeCount: attendeeCount - 1,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return { eventId, attending: false, idempotentReplay: false };
+  });
+});
+
 /** Owner-controlled event transitions: scheduled -> live/cancelled -> completed. */
 export const setRoomEventStatus = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
