@@ -7,6 +7,8 @@
 
 This document is the highest-level product and engineering reference for Mawadda. Every feature, UI flow, backend service, data model, security rule, test, operational procedure, and release decision must align with this constitution and the approved amendments recorded in the project. If an implementation conflicts with it, stop and reconcile the conflict before shipping. A documented requirement is not proof of implementation.
 
+The companion [Comprehensive Product Vision](MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md) describes the complete product experience and system scope. The [Approved Decisions and Traceability Register](MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md) records the source decision, current implementation state, and acceptance gate for each major requirement. The [Brand and Product Experience Specification](MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md) governs visual identity and experience. These documents are complementary and must be reconciled together whenever an approved decision changes. The constitution prevails for binding policy; the latest explicit owner-approved amendment prevails over superseded draft wording.
+
 ## 1. Mission and product principles
 
 ## Owner identity and authority model
