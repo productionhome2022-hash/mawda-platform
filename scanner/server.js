@@ -277,6 +277,7 @@ async function handleScan(request, response) {
 
     await sendVerdict({
       mediaId: scanRequest.mediaId,
+      purpose: scanRequest.purpose,
       provider: PROVIDER,
       verdict,
       ...scannerIdentity,
