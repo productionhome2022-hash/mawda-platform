@@ -17,3 +17,21 @@ test("trusted media callback keeps the established non-audio derivative contract
   assert.equal(expectedSafeDerivativeContract("document").pipeline, "pdf-raster-flatten-v1");
   assert.equal(expectedSafeDerivativeContract("unknown"), null);
 });
+
+test("safe derivative categories accept only purposes allowed by the media upload policy", () => {
+  const { safeDerivativePurposeAllowed } = require("../lib/media-derivative-contract");
+  for (const purpose of ["chat", "room", "profile_album", "avatar_cover", "story"]) {
+    assert.equal(safeDerivativePurposeAllowed("gif", purpose, "member"), true, purpose);
+  }
+  assert.equal(safeDerivativePurposeAllowed("gif", "advertisement", "platform_owner"), true);
+  assert.equal(safeDerivativePurposeAllowed("gif", "advertisement", "member"), false);
+  assert.equal(safeDerivativePurposeAllowed("audio", "chat", "member"), true);
+  assert.equal(safeDerivativePurposeAllowed("audio", "room", "member"), true);
+  assert.equal(safeDerivativePurposeAllowed("audio", "profile_album", "member"), false);
+  assert.equal(safeDerivativePurposeAllowed("video", "advertisement", "platform_owner"), true);
+  assert.equal(safeDerivativePurposeAllowed("video", "advertisement", "member"), false);
+  assert.equal(safeDerivativePurposeAllowed("video", "story", "member"), false);
+  assert.equal(safeDerivativePurposeAllowed("document", "chat", "platform_owner"), true);
+  assert.equal(safeDerivativePurposeAllowed("document", "room", "member"), false);
+  assert.equal(safeDerivativePurposeAllowed("document", "profile_album", "platform_owner"), false);
+});
