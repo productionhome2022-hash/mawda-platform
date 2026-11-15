@@ -424,3 +424,15 @@
 ## ملحق B — الحالة التنفيذية
 
 هذا الميثاق يوثق قرارات ونطاقاً هندسياً. لا يعلن أن جميع البنود نُفذت. تُحدّث الحالة الفعلية حصراً في سجل القرارات والتتبع، مع ربط كل ادعاء بملف وcommit واختبار وWorkflow Run ودليل قبول. 
+
+
+
+## 24. Technical collaborators, credentials, and owner approval (GOV-003)
+
+- Designated technical/software-development collaborators: **ChatGPT (OpenAI) and Gemini (Google)**. Within their actual available tools and permissions, they are responsible for architecture, programming, implementation, defect correction, security-gap analysis, testing, and technical documentation. They are not product owners and cannot approve on the human owner's behalf.
+- The human owner remains the sole authority for product decisions, commercial terms, credentials, external accounts, releases, and consequential operations.
+- No password, API key, PAT, access token, private/signing key, certificate, recovery code, webhook secret, or cloud credential may be created, requested, read, copied, used, transmitted, stored, configured, rotated, or revoked without the owner's prior explicit personal approval for that exact credential/action, project, environment, purpose, and scope. Never ask the owner to paste secret values into chat or commit secrets to Git.
+- No deployment, protected/default-branch merge, production or live Firebase/cloud change, billing upgrade, paid-resource activation, payment/purchase, live-data migration, destructive or irreversible deletion, retention/legal-hold change, external communication/publication, or third-party account authorization may occur without the owner's prior explicit personal approval for that exact operation. General project approval is not blanket approval.
+- Routine source edits, commits on isolated development branches, static analysis, and local/emulator/sandbox tests may proceed under the standing development mandate only if they use no secrets, incur no charges, do not contact or mutate live systems, and do not affect real users/data. If uncertain, stop and ask.
+- Every approval-gated action requires a pre-action explanation of target, purpose, scope, risks, reversibility, and cost, followed by a wait for explicit approval. Every completed action requires evidence-based reporting. No approval means no action.
+- All project decisions and implementation evidence must be recorded in the relevant repository's constitution/charter, decision register, traceability matrix, code, tests, and CI evidence as applicable. Chat discussion alone does not constitute implementation.
