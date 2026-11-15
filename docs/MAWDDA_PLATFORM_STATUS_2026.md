@@ -200,3 +200,31 @@ This section records the live GitHub state checked on 16 November 2026. Earlier 
 ### Tool and access boundary
 - The connected GitHub capability in this session supports repository/file/PR/run reads and selected issue/PR writes, but does not expose a workflow-dispatch action. No new manual workflow was dispatched by this audit.
 - No Firebase Console/GCP Billing live-state connection was available. No billing, card, resource, production Firebase or deployment operation was performed.
+
+
+## Follow-up execution evidence — simulation and retention correction (16 November 2026)
+
+This section supersedes the earlier statement that lab run `43769264292` was still in progress.
+
+### 5,000-persona run result and root cause
+- Lab run [43769264292](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/actions/runs/43769264292) completed with `failure`; it ran the lab default-branch workflow at lab SHA `c9a3a330c914e84a8e0a3bbb524028d79264cf30`.
+- Platform backend checkout and compile succeeded. The isolated emulator lifecycle then failed with Firestore `10 ABORTED: Transaction lock timeout` during event RSVP processing.
+- Artifact `14184542178` (`mawdda-5000-simulation-43769264292`) was downloaded and inspected. It records 5,000 provisioned personas, 5,000 lifecycle rows, all pre-event stages including room joins at 5,000/5,000, 950 events listed, 949 RSVP confirmations, and `lifecycleCompletedPersonaCount=949`. This is a failed partial simulation, not a 5,000/5,000 acceptance.
+- Root cause in the harness: up to 25 persona flows ran concurrently, while each RSVP transaction increments the same `roomEvents/{eventId}.attendeeCount` document for members of that room. This created a hot-document contention point. Server-side capacity/authorization logic was not weakened.
+
+### Targeted lab fix
+- Updated existing Draft lab PR #2 branch `fix/room-join-retry-5000` with commit `f024ebda492add4028f0ffb2a6901953e9ece48b`.
+- RSVP processing now groups by room, serializes members within each event, limits independent event groups to two concurrent workers, and applies the existing bounded transient retry helper to RSVP only. Progress is emitted every 250 confirmed RSVPs.
+- Lab harness validation [43772590541](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/actions/runs/43772590541) passed on that exact commit, including JavaScript/shell syntax, bounded retry unit tests, workflow YAML and no-production-command guard.
+- This is harness validation only. No full 5,000-persona rerun has yet been completed against the retry/RSVP fix and a pinned current platform SHA. PR #2 remains Draft/open/unmerged; PR #3 remains Draft/open/unmerged. No lab `main` merge was performed.
+
+### Retention policy documentation correction
+- The binding constitution sections 19.1–19.3 control: temporary direct chat = full conversation after four hours of server-recorded inactivity; normal = media 4h/text 7d; important = media 4h/text 30d.
+- The owner has not decided who selects the direct-chat mode or whether both participants must consent. This remains unresolved and blocks activation of destructive production deletion.
+- Corrected `docs/PHASE2_RETENTION_OPERATIONS.md` to remove its earlier universal seven-day text statement and align operational guidance with the approved three-mode policy and the unresolved selection/consent gate.
+- Added an explanatory update to existing issue #4. No retention code or live schedule was activated.
+
+### Current development revision after audit corrections
+- The documentation commits for the 16 November status and retention alignment advanced the development branch to `9715485b637998c53bdf0e592e24842255f20fb2`.
+- On this exact SHA at the time of this update: Validate Mawda run `43772655185` was pending; domain regression run `43772655227` was in progress; PR check run `43772656212` was queued. The domain regression for the preceding documentation-only SHA `7807cc257dfbaece7373a3a3e54d289c47b91400` was still running. Do not label `9715485` green until its own runs finish.
+- The lab retry/RSVP correction and retention documentation correction are recorded in existing GitHub PR/issue threads. No duplicate organizational documents were created.
