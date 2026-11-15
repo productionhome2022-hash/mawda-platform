@@ -11,11 +11,14 @@ const {
 } = require("../lib/media-security");
 
 test("media policy allowlists supported types and applies per-category size caps", () => {
-  assert.equal(mediaPolicyFor("image/png").category, "image");
-  assert.equal(mediaPolicyFor("image/png").maxBytes, 3 * 1024 * 1024);
-  assert.equal(mediaPolicyFor("image/gif").maxBytes, 3 * 1024 * 1024);
+  for (const type of ["image/jpeg", "image/png", "image/webp", "image/gif"]) {
+    assert.equal(mediaPolicyFor(type).category, "image");
+    assert.equal(mediaPolicyFor(type).maxBytes, 3 * 1024 * 1024, type);
+  }
   assert.equal(mediaPolicyFor("video/mp4").maxBytes, 25 * 1024 * 1024);
-  assert.equal(mediaPolicyFor("audio/mpeg").maxBytes, 5 * 1024 * 1024);
+  for (const type of ["audio/mpeg", "audio/mp4", "audio/ogg", "audio/wav"]) {
+    assert.equal(mediaPolicyFor(type).maxBytes, 5 * 1024 * 1024, type);
+  }
   assert.equal(mediaPolicyFor("application/pdf").maxBytes, 20 * 1024 * 1024);
   assert.equal(mediaPolicyFor("application/x-msdownload"), null);
 });
