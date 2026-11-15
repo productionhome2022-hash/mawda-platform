@@ -8,6 +8,7 @@ import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { defineSecret, defineString } from "firebase-functions/params";
 import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
+import { expectedSafeDerivativeContract } from "./media-derivative-contract";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { hasPlatformOwnerSession } from "./owner-access";
@@ -424,12 +425,7 @@ export const receiveMediaScanVerdict = onRequest(
   } | null = null;
   if (verdict.safeDerivative) {
     const derivative = verdict.safeDerivative;
-    const expected = {
-      gif: { filename: "animation.gif", contentType: "image/gif", pipeline: "gif-sanitize-preserve-animation-v1", maxBytes: 5 * 1024 * 1024 },
-      audio: { filename: "audio.mp3", contentType: "audio/mpeg", pipeline: "ffmpeg-audio-transcode-v1", maxBytes: 25 * 1024 * 1024 },
-      video: { filename: "video.mp4", contentType: "video/mp4", pipeline: "ffmpeg-video-transcode-v1", maxBytes: 50 * 1024 * 1024 },
-      document: { filename: "document.pdf", contentType: "application/pdf", pipeline: "pdf-raster-flatten-v1", maxBytes: 20 * 1024 * 1024 },
-    }[derivative.category];
+    const expected = expectedSafeDerivativeContract(derivative.category);
     const expectedPath = `processed/${String(asset.ownerUid)}/${verdict.mediaId}/${expected.filename}`;
     if (!expected || asset.mediaPurpose !== "chat" && asset.mediaPurpose !== "room" ||
         derivative.path !== expectedPath || derivative.contentType !== expected.contentType ||
