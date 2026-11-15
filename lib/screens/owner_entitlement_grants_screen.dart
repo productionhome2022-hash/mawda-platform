@@ -221,7 +221,7 @@ class _OwnerEntitlementGrantsScreenState
                       const Text('لا توجد استحقاقات منشورة ومكتملة التنفيذ للمنح حالياً.')
                     else
                       DropdownButtonFormField<String>(
-                        value: _selectedItemId,
+                        initialValue: _selectedItemId,
                         decoration: const InputDecoration(labelText: 'الاستحقاق'),
                         items: _catalogItems.map((item) {
                           return DropdownMenuItem<String>(
@@ -238,7 +238,7 @@ class _OwnerEntitlementGrantsScreenState
                       ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<int>(
-                      value: _durationHours,
+                      initialValue: _durationHours,
                       decoration: const InputDecoration(labelText: 'مدة المنح'),
                       items: const [
                         DropdownMenuItem(value: 24, child: Text('24 ساعة')),
