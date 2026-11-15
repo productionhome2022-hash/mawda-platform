@@ -98,6 +98,7 @@ for (const item of cases) {
         request: {
           mediaId, objectPath: `quarantine/member_1/${mediaId}`,
           objectGeneration: "123456", contentType: item.contentType,
+          purpose: item.category === "audio" ? "room" : "chat",
         },
         sourceSha256, storage, bucketName: "mawadda-test", provider,
       });
