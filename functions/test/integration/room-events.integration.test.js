@@ -109,7 +109,7 @@ test("room event lifecycle is owner-controlled, age-scoped and RSVP-idempotent",
       eventId: createdEventId,
       status: "completed",
     }));
-    const completed = await eventRef.collection("attendees").doc(memberUid).get();
+    const completed = await eventRef.collection("attendees").doc(ownerUid).get();
     assert.equal(completed.exists, true);
     assert.equal((await eventRef.get()).data().status, "completed");
   } finally {
