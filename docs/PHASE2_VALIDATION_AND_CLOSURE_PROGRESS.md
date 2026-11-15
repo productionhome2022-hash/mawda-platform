@@ -285,3 +285,13 @@ The shared Flutter microphone composer still defaulted to 120 seconds when used 
 - `7ec79ca21d7879c7565a7fb8257c2c3e9b25058e` — set direct-chat voice recording to 600 seconds.
 - The scanner enforces the corresponding trusted limits: 600 seconds for direct chat, 60 seconds for rooms.
 - Verification remains pending on the exact new PR head; Flutter analysis/tests and scanner/Functions tests must all pass.
+
+### Ten-minute voice-note transport capacity
+
+A deeper review found that the direct-chat 600-second timer alone was insufficient: the shared PCM capture buffer was capped at 8 MiB while recording 24 kHz mono PCM16, so it would stop after roughly 175 seconds, well before the approved 10-minute limit. A full 10-minute 24 kHz WAV would also exceed the 25 MiB server audio upload limit.
+
+Corrected by recording the shared member composer at 16 kHz mono PCM16 and raising its bounded in-memory capture limit to 20 MiB. Ten minutes at 16 kHz mono PCM16 is 19,200,000 bytes plus a 44-byte WAV header, below the existing 25 MiB audio upload ceiling. The WAV encoder is explicitly told the same 16 kHz rate. The 60-second room composer also uses this speech-appropriate format; the separate guest recorder remains at 24 kHz for its one-minute cap.
+
+- `227312fa1c5a99e338e1b8cdcd45cd72455d5961` — 16 kHz capture and 20 MiB bounded buffer.
+- `9e83d7a755491d815403252536cc400c36cdce82` — unit test for 16 kHz WAV header/sample-rate consistency.
+- The test and Flutter analysis remain pending on the latest exact branch head.
