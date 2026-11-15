@@ -37,11 +37,18 @@ function validateScanRequest(value, provider, bucketName, expectedCallbackUrl) {
     "image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4",
     "audio/mpeg", "audio/mp4", "audio/ogg", "audio/wav", "application/pdf",
   ]);
+  const isImage = ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(v.contentType);
+  const isVideo = v.contentType === "video/mp4";
+  const purposeAllowsContentType = v.purpose === "advertisement"
+    ? isImage || isVideo
+    : v.purpose === "chat" || v.purpose === "room"
+      ? allowedTypes.has(v.contentType)
+      : isImage;
   if (url.protocol !== "https:" || !allowedHosts.has(url.hostname) ||
       url.username || url.password || url.hash ||
       decodedPath !== expectedPath ||
       url.searchParams.get("generation") !== v.objectGeneration ||
-      !allowedTypes.has(v.contentType)) {
+      !allowedTypes.has(v.contentType) || !purposeAllowsContentType) {
     return null;
   }
   let callback;
