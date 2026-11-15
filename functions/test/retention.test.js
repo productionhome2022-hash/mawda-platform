@@ -64,3 +64,18 @@ test("late finalized media is deleted only when its exact object path is recorde
   assert.equal(isKnownDeletedMediaObjectPath({}, original, ownerUid, mediaId), true);
   assert.equal(isKnownDeletedMediaObjectPath(tombstone, `quarantine/${ownerUid}/other`, ownerUid, mediaId), false);
 });
+
+test("production retention requires explicit enablement and an exact project allowlist", () => {
+  const { canRunRetentionJobs } = require("../lib/retention");
+  assert.equal(canRunRetentionJobs("mawdda-production", false, "mawdda-production"), false);
+  assert.equal(canRunRetentionJobs("mawdda-production", true, ""), false);
+  assert.equal(canRunRetentionJobs("mawdda-production", true, "another-project"), false);
+  assert.equal(canRunRetentionJobs("mawdda-production", true, "mawdda-production"), true);
+});
+
+test("non-production retention still requires explicit enablement", () => {
+  const { canRunRetentionJobs } = require("../lib/retention");
+  assert.equal(canRunRetentionJobs("demo-mawda-retention", false, ""), false);
+  assert.equal(canRunRetentionJobs("demo-mawda-retention", true, ""), true);
+  assert.equal(canRunRetentionJobs("mawda-app-2026", true, ""), false);
+});
