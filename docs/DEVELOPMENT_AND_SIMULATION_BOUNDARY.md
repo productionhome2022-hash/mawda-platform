@@ -60,7 +60,7 @@ The private lab repository has been created and contains:
 - The large-scale integration harness.
 - A syntax/safety validation workflow.
 
-The lab validation workflow passed on commit d75a04b326e5156ea6547b35200239a78ff70397. This verifies JavaScript/shell syntax, workflow YAML parsing and the deployment-command safety scan only. It does **not** mean the 5,000-persona simulation itself has been executed. The manual load workflow still requires a controlled run against a selected immutable platform commit.
+The latest lab validation workflow passed on commit 9d0753ef0f73543ab1878c199a47ffb780207814 (run 43666523899). This verifies JavaScript/shell syntax, workflow YAML parsing and the deployment-command safety scan only. It does **not** mean the 5,000-persona simulation itself has been executed. The manual load workflow still requires a controlled run against a selected immutable platform commit.
 
 Because both repositories are private, the lab workflow also requires a fine-grained token stored only as the lab repository Actions secret MAWDA_PLATFORM_READ_TOKEN, with Contents: read access to the primary repository. This secret has not been provisioned by this workflow and must never be committed or pasted into chat.
 
