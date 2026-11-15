@@ -4848,6 +4848,11 @@ export const createRoomEvent = onCall(async (request) => {
       throw new HttpsError("not-found", "الغرفة غير موجودة أو غير نشطة.");
     }
     const room = roomSnapshot.data()!;
+    const eventCapacity = input.capacity ?? room.capacity;
+    if (!Number.isSafeInteger(eventCapacity) || eventCapacity < 1 ||
+        !Number.isSafeInteger(room.capacity) || eventCapacity > room.capacity) {
+      throw new HttpsError("invalid-argument", "سعة الحدث يجب أن تكون بين مقعد واحد وسعة الغرفة.");
+    }
     if (room.ownerUid !== uid && !ownerSession) {
       throw new HttpsError("permission-denied", "إنشاء أحداث الغرفة متاح لمالكها فقط.");
     }
@@ -4876,6 +4881,7 @@ export const createRoomEvent = onCall(async (request) => {
       endsAt,
       durationMinutes: input.durationMinutes,
       status: "scheduled",
+      capacity: eventCapacity,
       attendeeCount: 0,
       createdByUid: uid,
       createdAt: FieldValue.serverTimestamp(),
@@ -4941,6 +4947,8 @@ export const listRoomEvents = onCall(async (request) => {
       durationMinutes: event.durationMinutes,
       status: event.status,
       attendeeCount: event.attendeeCount ?? 0,
+      capacity: event.capacity ?? room.capacity,
+      isFull: (event.attendeeCount ?? 0) >= (event.capacity ?? room.capacity),
       isAttending: attendee.exists,
       canManage: room.ownerUid === uid || ownerSession,
     };
@@ -4987,13 +4995,23 @@ export const rsvpRoomEvent = onCall(async (request) => {
     })) {
       throw new HttpsError("permission-denied", "فئة العمر لا تطابق جمهور الغرفة.");
     }
+    // Replayed RSVPs remain idempotent even when the event has since filled.
     if (attendeeSnapshot.exists) return;
+    const eventCapacity = event.capacity ?? room.capacity;
+    const attendeeCount = event.attendeeCount ?? 0;
+    if (!Number.isSafeInteger(eventCapacity) || eventCapacity < 1 ||
+        !Number.isSafeInteger(attendeeCount) || attendeeCount < 0) {
+      throw new HttpsError("failed-precondition", "بيانات سعة الحدث غير صالحة؛ تم إيقاف التسجيل احترازياً.");
+    }
+    if (attendeeCount >= eventCapacity) {
+      throw new HttpsError("resource-exhausted", "اكتمل عدد المقاعد المتاحة لهذا الحدث.");
+    }
     transaction.create(attendeeRef, {
       uid,
       rsvpedAt: FieldValue.serverTimestamp(),
     });
     transaction.update(eventRef, {
-      attendeeCount: FieldValue.increment(1),
+      attendeeCount: attendeeCount + 1,
       updatedAt: FieldValue.serverTimestamp(),
     });
   });
