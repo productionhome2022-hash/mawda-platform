@@ -27,6 +27,12 @@ export const DEFAULT_STORE_CATALOG: DefaultStoreCatalogEntry[] = [
   { itemId: "discovery_boost_7d", name: "تعزيز الظهور", description: "تعزيز الظهور لمدة 7 أيام", category: "boost", priceCoins: 1500, durationDays: 7, sortOrder: 100 },
   { itemId: "profile_theme_30d", name: "ثيم وخلفية", description: "ثيم مميز للملف لمدة 30 يوماً", category: "theme", priceCoins: 2000, durationDays: 30, sortOrder: 110 },
   { itemId: "visitor_greeting_30d", name: "رسالة ترحيب للزوار", description: "رسالة ترحيب تظهر للزوار لمدة 30 يوماً", category: "greeting", priceCoins: 1000, durationDays: 30, sortOrder: 120 },
+  { itemId: "voice_call_24h", name: "المكالمات الصوتية — 24 ساعة", description: "استحقاق المكالمات الصوتية لمدة 24 ساعة؛ يتطلب اشتراك الطرفين", category: "voice_call", priceCoins: 100, durationDays: 1, sortOrder: 150 },
+  { itemId: "voice_call_7d", name: "المكالمات الصوتية — أسبوع", description: "استحقاق المكالمات الصوتية لمدة 7 أيام؛ يتطلب اشتراك الطرفين", category: "voice_call", priceCoins: 500, durationDays: 7, sortOrder: 151 },
+  { itemId: "voice_call_30d", name: "المكالمات الصوتية — شهر", description: "استحقاق المكالمات الصوتية لمدة 30 يوماً؛ يتطلب اشتراك الطرفين", category: "voice_call", priceCoins: 1500, durationDays: 30, sortOrder: 152 },
+  { itemId: "video_call_24h", name: "المكالمات المرئية — 24 ساعة", description: "استحقاق المكالمات المرئية لمدة 24 ساعة؛ يتطلب اشتراك الطرفين", category: "video_call", priceCoins: 250, durationDays: 1, sortOrder: 160 },
+  { itemId: "video_call_7d", name: "المكالمات المرئية — أسبوع", description: "استحقاق المكالمات المرئية لمدة 7 أيام؛ يتطلب اشتراك الطرفين", category: "video_call", priceCoins: 1250, durationDays: 7, sortOrder: 161 },
+  { itemId: "video_call_30d", name: "المكالمات المرئية — شهر", description: "استحقاق المكالمات المرئية لمدة 30 يوماً؛ يتطلب اشتراك الطرفين", category: "video_call", priceCoins: 3750, durationDays: 30, sortOrder: 162 },
   { itemId: "hide_coins_30d", name: "إخفاء رصيد الكوينز", description: "إخفاء رصيد الكوينز في الملف لمدة 30 يوماً", category: "privacy", priceCoins: 1000, durationDays: 30, sortOrder: 130 },
   { itemId: "ghost_mode_7d", name: "وضع التخفي", description: "إعداد خصوصية التخفي لمدة 7 أيام", category: "privacy", priceCoins: 1800, durationDays: 7, sortOrder: 140 },
 ];
