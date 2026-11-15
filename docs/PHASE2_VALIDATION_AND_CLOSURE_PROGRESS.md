@@ -262,3 +262,11 @@ Corrected in commit `22788ce82c707a6cb58b8ca3c4a0ec456be6b520`:
 - Concurrency still cancels superseded commits for the same PR head, not duplicate event types.
 
 The PR #2 head is now expected to advance to this workflow correction plus the documented media callback fix. A fresh Validate run and native run must be checked against the exact new PR head before reporting green. No local test execution is claimed; the workflow YAML validation is part of the CI job itself.
+
+### Fail-closed guard for unknown derivative categories
+
+A follow-up static review caught a null-safety ordering defect in the new resolver integration: the callback initially built the expected object path before checking whether the resolver returned a supported contract. The callback now rejects an unsupported category before reading any contract fields, then validates purpose, exact path, MIME type, pipeline version and owner-only PDF role.
+
+- Commit `e575d0f6bb18d1fa3a5cb14cee6c2bee36cd6a72` — fail closed on unknown derivative categories.
+- The unit test already asserts that an unknown category returns `null`; the callback now handles that result explicitly.
+- This is source-reviewed but still awaits the next successful Cloud Functions CI run.
