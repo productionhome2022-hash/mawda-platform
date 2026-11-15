@@ -391,3 +391,25 @@ Biometric verification is a high-assurance identity and liveness process, not a 
 - Guest public-room access must be restricted to rooms explicitly classified and moderated as suitable for a general audience. Because guest age is unknown, guests must not be routed into age-restricted/adult-only rooms or use guest access to bypass room-audience controls. This is a room eligibility rule, not an age field or age question in guest onboarding.
 - Server authorization remains authoritative for guest identity, guest session expiry/cooldown, room eligibility, membership, and text/audio-only message types. Username, country, and gender supplied by the client are profile inputs, not proof of identity, age, or elevated permissions.
 - This amendment supersedes any earlier guest-flow requirement to ask for a minimum age band before entry. It does not remove age/audience controls for registered members or the general-audience requirement for rooms available to guests.
+
+## Approved amendment — paid voice and video calling (2026-11-15)
+
+Voice calling and video calling are two separate paid premium entitlements. Neither entitlement is included automatically in the other, in VIP, or in any unrelated store purchase. Each is sold independently in the Premium Features Store with three owner-configurable validity periods: 24 hours, 7 days, and 30 days. The six initial experimental coin prices are defined in `functions/src/default-store-catalog.ts`; they are test defaults only, not final commercial pricing. The single platform owner may change each item price, publication state, and purchase availability through the authenticated owner catalog workflow. Existing owner-edited catalog values must never be overwritten by default seeding.
+
+### Product and entitlement rules
+
+- Voice products: `voice_call_24h`, `voice_call_7d`, `voice_call_30d`; category `voice_call`.
+- Video products: `video_call_24h`, `video_call_7d`, `video_call_30d`; category `video_call`.
+- Experimental prices, in coins: voice 24h = 100, 7d = 500, 30d = 1,500; video 24h = 250, 7d = 1,250, 30d = 3,750. These values are seeded suggestions for testing and must remain editable, not hard-coded transaction prices.
+- The caller AND recipient must each hold a currently active entitlement for the exact call type being requested. A voice entitlement does not authorize video; a video entitlement does not authorize voice. VIP alone does not grant either entitlement unless the owner explicitly configures a separate, transparent bundle in a future approved amendment.
+- An entitlement is personal and non-transferable. It becomes active only after the trusted purchase transaction commits, and expires from server time at the exact purchased validity boundary. Renewals, overlapping purchases, and expiry extension must be deterministic, idempotent, and auditable.
+- Call controls may remain visible in the member interface. If the initiating member lacks the matching entitlement, show a locked state and a direct route to the matching store item/periods. If the recipient lacks it, do not start/ring the call; explain that both participants must own the same call feature without disclosing private wallet data.
+- The backend must independently authorize both participants immediately before call-session creation and before accepting/joining the session. Client-side button state, local cache, caller-supplied flags, and a previous entitlement snapshot are never authorization.
+- If either entitlement expires or is revoked during an active call, enforce a defined server-authoritative grace/termination policy and close the session safely. Do not leave a billable/paid session open indefinitely. The policy and user-facing warning must be explicit before release.
+- Record purchases, entitlement issuance/renewal/expiry/revocation, call-session start/end, participant UIDs, call type, authorization outcomes, and termination reason in privacy-minimized server audit records. Do not record call audio/video content.
+- Implement abuse controls: block/report enforcement, consent and incoming-call preferences, rate limits, invitation expiry, participant-state checks, and prevention of unauthorized room/guest/minor access. Do not let guests bypass the paid entitlement model.
+- Pricing and entitlement durations are owner-controlled catalog data; no prices or authorization decisions may be trusted from the client.
+
+### Release gate and implementation truth
+
+The current repository has a coin-funded store catalog and purchase/entitlement transaction path, but this amendment does not imply that a production WebRTC/voice/video call engine or two-party entitlement gate already exists. The six products must remain non-purchasable and not be advertised as operational until call-session creation/join, both-participant server authorization, expiry enforcement, and integration tests are implemented and verified. No UI must claim that calls are available before that gate passes. A separate technical implementation and acceptance test is required for real-time audio/video, permissions, signaling, TURN/STUN, network changes, call lifecycle, and platform/device support.
