@@ -225,7 +225,7 @@ This is intentionally **not** a general attachment implementation yet:
 The current development candidate now contains separate processor implementations and delivery contracts for:
 
 - **Animated GIF:** Sharp decodes and re-encodes the animation, preserves the frame count, caps frames at 100 and total decoded pixels at 40 million, and writes a bounded GIF derivative.
-- **Audio / voice:** FFmpeg probes the streams and duration, rejects video-containing audio inputs and audio longer than 10 minutes, strips source metadata, and transcodes to mono MP3.
+- **Audio attachments:** FFmpeg probes the streams and duration, rejects video-containing audio inputs, strips source metadata, and transcodes to mono MP3. The current chat/room upload pipeline enforces a 60-second maximum for both `chat` and `room` purposes. This is a temporary shared technical ceiling, not the final economic policy for prerecorded audio files; any distinct uploaded-audio duration/bitrate/output-size policy must be separately specified, cost-tested and owner-approved. It must never relax the 60-second live-microphone recording cap.
 - **Video:** FFmpeg rejects files without a video stream or longer than 90 seconds, strips metadata/chapters, transcodes to bounded 1280×720 H.264/AAC MP4, and limits the output size.
 - **Owner PDF:** only a verified platform-owner upload is eligible. Poppler rasterizes each page with bounded dimensions and the image-only pages are rebuilt as a new PDF, removing the original text layer, active PDF objects, embedded files, forms, annotations and links. The limit is 30 pages and 20 MiB. Office formats and all other document MIME types remain unsupported and denied.
 - Every derivative is uploaded create-only beneath the owner's media namespace and carries source generation, source SHA-256, scanner provider and exact processor version. Firebase independently checks derivative generation, content type, size, provenance and SHA-256 before it marks the asset eligible.
@@ -247,8 +247,8 @@ Latest fully green CI evidence is run 43445820387 on commit 2754b74560d5a49996c3
 A further legal-hold integration test has been added on the current head to exercise all five derivative object paths during an active hold, release, expiry deletion and late PDF replay. Its exact-head CI is pending; do not count this additional test as passed until that run completes.
 
 Remaining acceptance gaps:
-- Voice-note capture from the microphone is not yet implemented in Flutter. Current audio UI uploads existing MP3/M4A/OGG/WAV files.
-- Audio/video/PDF are opened via short-lived signed URLs in the external handler; in-app audio/video players are not yet implemented.
+- Live microphone voice-note capture is implemented in the member direct-chat, member room and guest-room flows. Direct chat and room UI timers must all stop at 60 seconds; the trusted scanner independently rejects chat/room audio longer than 60 seconds. Existing MP3/M4A/OGG/WAV attachments use the same current 60-second server ceiling pending a separately approved economic policy.
+- Audio playback is available in-app through the authorized short-lived media URL. Video and owner-only PDF still use the current external-handler flow; full in-app video/PDF experience remains separate work.
 - Only PDF is supported for owner-originated documents. DOC/DOCX/XLS/XLSX/PPT/PPTX and other document formats remain denied.
 - No real-device Android/iOS verification has been completed.
 - Live Cloud Run scanner deployment, real GCS generation-pinned signed URL expiry, object versioning/soft-delete, backup/PITR, CDN/cache/replica behavior and operational restore evidence remain non-production infrastructure gates.
