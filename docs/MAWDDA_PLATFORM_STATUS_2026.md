@@ -20,7 +20,7 @@ Implemented in the development line:
 - Member blocking, confidential reporting, moderation decisions and appeals.
 - Cross-age restrictions for direct messaging, room audiences, profile viewing and member discovery.
 - FCM device-token registration, refresh/deactivation and notification initialization.
-- 30-day local biometric prompt cycle with a server-owned 1,500-coin reward ledger; 90-day Firebase email re-verification cycle with one 500-coin reward per cycle.
+- 90-day Firebase email re-verification cycle with one 500-coin reward per eligible cycle. The 30-day biometric verification/reward is disabled fail-closed until challenge-bound cryptographic proof is verified by the server; local OS prompt success alone is not sufficient.
 
 Biometric assurance boundary: Android BiometricPrompt / Apple LocalAuthentication perform the local user-presence match. The server receives a client-reported success result. This implementation does not claim hardware attestation, civil identity verification, or independent liveness proof.
 
