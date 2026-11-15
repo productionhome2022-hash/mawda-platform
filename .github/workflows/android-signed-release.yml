@@ -1,0 +1,104 @@
+name: Build and verify owner-key-signed Android release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mawdda-android-signed-release
+  cancel-in-progress: false
+
+jobs:
+  signed-release:
+    if: github.ref == 'refs/heads/codex/mawda-full-platform-implementation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: codex/mawda-full-platform-implementation
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+
+      - name: Require owner-provisioned signing secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.MAWDDA_ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.MAWDDA_ANDROID_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.MAWDDA_ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.MAWDDA_ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_BASE64" || { echo "::error::Missing MAWDDA_ANDROID_KEYSTORE_BASE64"; exit 1; }
+          test -n "$STORE_PASSWORD" || { echo "::error::Missing MAWDDA_ANDROID_STORE_PASSWORD"; exit 1; }
+          test -n "$KEY_ALIAS" || { echo "::error::Missing MAWDDA_ANDROID_KEY_ALIAS"; exit 1; }
+          test -n "$KEY_PASSWORD" || { echo "::error::Missing MAWDDA_ANDROID_KEY_PASSWORD"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/mawdda-signing"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/mawdda-signing/mawdda-identity-key.jks"
+          test -s "$RUNNER_TEMP/mawdda-signing/mawdda-identity-key.jks"
+          install -m 600 "$RUNNER_TEMP/mawdda-signing/mawdda-identity-key.jks" android/app/mawdda-identity-key.jks
+          {
+            printf 'storeFile=app/mawdda-identity-key.jks\n'
+            printf 'storePassword=%s\n' "$STORE_PASSWORD"
+            printf 'keyAlias=%s\n' "$KEY_ALIAS"
+            printf 'keyPassword=%s\n' "$KEY_PASSWORD"
+          } > android/key.properties
+          chmod 600 android/key.properties
+          keytool -list -keystore android/app/mawdda-identity-key.jks -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
+          rm -f "$RUNNER_TEMP/mawdda-signing/mawdda-identity-key.jks"
+
+      - name: Resolve locked Flutter dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build optimized ABI-specific signed release APKs
+        run: flutter build apk --release --split-per-abi
+
+      - name: Verify every APK is signed by the existing Mawdda identity
+        env:
+          EXPECTED_CERT_SHA256: '21:F9:E6:01:80:E2:03:8D:DD:57:4E:DC:F1:2A:63:4B:C6:25:D9:BA:3F:65:53:B2:9D:61:70:62:C6:36:84:56'
+        run: |
+          set -euo pipefail
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          shopt -s nullglob
+          apks=(build/app/outputs/flutter-apk/*-release.apk)
+          test "${#apks[@]}" -gt 0
+          mkdir -p release-evidence
+          expected="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr '[:lower:]' '[:upper:]' | tr -d ':')"
+          for apk in "${apks[@]}"; do
+            "$APKSIGNER" verify --verbose "$apk"
+            actual="$("$APKSIGNER" verify --print-certs "$apk" | sed -n 's/.*certificate SHA-256 digest: //p' | head -n 1 | tr '[:lower:]' '[:upper:]' | tr -d ':')"
+            test -n "$actual"
+            if [ "$actual" != "$expected" ]; then
+              echo "::error::APK signer certificate does not match the owner's existing Mawdda key."
+              exit 1
+            fi
+            sha256sum "$apk" >> release-evidence/apk-sha256.txt
+            printf '%s %s\n' "$apk" "$actual" >> release-evidence/signer-sha256.txt
+          done
+          cat release-evidence/apk-sha256.txt
+          cat release-evidence/signer-sha256.txt
+
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: mawdda-android-signed-release-${{ github.sha }}
+          path: |
+            build/app/outputs/flutter-apk/*-release.apk
+            release-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove transient signing files
+        if: always()
+        run: |
+          rm -f android/key.properties android/app/mawdda-identity-key.jks
