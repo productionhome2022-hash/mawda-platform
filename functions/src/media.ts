@@ -1222,9 +1222,9 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
       (scope !== "room" || artifact?.category !== "audio")) {
     throw new HttpsError("permission-denied", "لا يستطيع الزائر قراءة إلا الرسائل الصوتية في الغرف العامة.");
   }
-  const maxBytes = artifact?.category === "video" ? 50 * 1024 * 1024 :
-    artifact?.category === "audio" ? 25 * 1024 * 1024 :
-      artifact?.category === "document" ? 20 * 1024 * 1024 : 5 * 1024 * 1024;
+  const maxBytes = artifact?.category === "video" ? 15 * 1024 * 1024 :
+    artifact?.category === "audio" ? 5 * 1024 * 1024 :
+      artifact?.category === "document" ? 20 * 1024 * 1024 : 3 * 1024 * 1024;
   if (!artifact || asset.status !== "security_approved" ||
       asset.deliveryState !== "ready" || asset.linkedMessageId !== messageId ||
       asset.linkedScope !== scope || asset.linkedConversationId !== conversationId ||
@@ -1565,8 +1565,8 @@ export const getTimedAdCreativeUrl = onCall(async (request) => {
     : isGif ? asset.safeAnimationSha256 : asset.safePreviewSha256;
   const processingPipeline = isVideo ? "ffmpeg-video-transcode-v1"
     : isGif ? "gif-sanitize-preserve-animation-v1" : "sharp-decode-reencode-v1";
-  const maximumBytes = isVideo ? 50 * 1024 * 1024
-    : isGif ? 5 * 1024 * 1024 : 2 * 1024 * 1024;
+  const maximumBytes = isVideo ? 15 * 1024 * 1024
+    : isGif ? 3 * 1024 * 1024 : 2 * 1024 * 1024;
   if (String(metadata.generation) !== derivativeGeneration ||
       metadata.contentType !== expectedContentType ||
       !Number.isSafeInteger(Number(metadata.size)) || Number(metadata.size) <= 0 ||
