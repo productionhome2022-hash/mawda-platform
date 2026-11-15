@@ -6,9 +6,9 @@ test("media processors enforce bounded complexity, duration, page and output bud
   assert.equal(LIMITS.gif.maxFrames, 100);
   assert.equal(LIMITS.gif.maxDurationSeconds, 30);
   assert.equal(LIMITS.gif.maxPixels, 40_000_000);
-  assert.equal(LIMITS.audio.maxDurationSeconds, 600);
+  assert.equal(LIMITS.audio.maxDurationSeconds, 60);
   assert.equal(LIMITS.audio.roomMaxDurationSeconds, 60);
-  assert.equal(audioDurationLimitForPurpose("chat"), 600);
+  assert.equal(audioDurationLimitForPurpose("chat"), 60);
   assert.equal(audioDurationLimitForPurpose("room"), 60);
   assert.throws(() => audioDurationLimitForPurpose("profile_album"), /AUDIO_PURPOSE_INVALID/);
   assert.throws(() => audioDurationLimitForPurpose(undefined), /AUDIO_PURPOSE_INVALID/);
