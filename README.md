@@ -10,7 +10,7 @@ The repository contains the staged Mawdda Platform 2026 implementation and trust
 - Firebase configuration: `firebase.json`, `.firebaserc`, `lib/firebase_options.dart`
 - Trusted backend: `functions/` (Firebase Cloud Functions, TypeScript)
 - Flutter/Firebase validation: `.github/workflows/validate.yml`
-- Hosting deployment workflow: `.github/workflows/firebase-hosting-merge.yml`
+- Native build validation: `.github/workflows/bootstrap-native-platforms.yml` (build-only; no deployment)
 
 ## Development principles
 
@@ -30,7 +30,17 @@ npm test
 
 ## Firebase project note
 
-`.firebaserc` selects `mawda-app-2026`. On 14 November 2026, the native bootstrap workflow used FlutterFire CLI to register/find the Android app `com.mawdda.platform.app`, the iOS app `com.mawdda.platform.app`, and the Web app in that project, then regenerated the non-placeholder Android/iOS/Web entries in `lib/firebase_options.dart`. CI produced an Android debug APK and completed an unsigned iOS build. macOS, Windows and Linux entries remain placeholders and are not release targets. Physical-device authentication, microphone, push-notification and app-integrity tests, Android/iOS release signing, and independent Firebase Console review remain required before real-user rollout.
+`.firebaserc` defaults to the isolated non-production project `mawda-platform-nonprod-2026` and has a separate `production` alias for `mawda-app-2026`. The Flutter app defaults to non-production; selecting production requires an explicit build define and is not part of ordinary CI. `lib/firebase_options_nonprod.dart` contains the non-production Web/Android/iOS options; `lib/firebase_options.dart` contains production options. The native bootstrap workflow validates non-production app configuration and produces an Android debug APK and unsigned iOS build; it does not deploy services. macOS, Windows and Linux are not accepted release targets. Physical-device authentication, microphone, push-notification and app-integrity tests, Android/iOS release signing, and independent Firebase Console review remain required before real-user rollout.
+
+## Canonical product documents
+
+- [Comprehensive Mawdda Platform 2026 vision](docs/MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md)
+- [Mawdda Product Constitution — highest-level approved rules](docs/MAWADDA_PRODUCT_CONSTITUTION.md)
+- [Approved decisions and implementation traceability register](docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md)
+- [Brand and product experience specification](docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md)
+- [Seven-phase execution plan](docs/SEVEN_PHASE_EXECUTION_PLAN.md)
+- [Development and 5,000-persona lab boundary](docs/DEVELOPMENT_AND_SIMULATION_BOUNDARY.md)
+- [Release readiness checklist](docs/RELEASE_READINESS_CHECKLIST.md)
 
 ## Product specification
 
