@@ -350,10 +350,10 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
 
 export async function runChatTextRetentionSweep(): Promise<{ messages: number; failures: number }> {
   const db = getFirestore();
-  // Scan the longest approved text lifetime, then apply the exact per-chat
-  // policy. This prevents the former global seven-day query from deleting
-  // important conversations early.
-  const scanCutoff = Timestamp.fromMillis(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  // Scan from the shortest text lifetime (normal = seven days), then apply
+  // the exact per-chat policy. This includes every message that could be due
+  // while preserving important conversations until their thirty-day deadline.
+  const scanCutoff = Timestamp.fromMillis(Date.now() - CHAT_TEXT_RETENTION_MS);
   let messages = 0;
   let failures = 0;
   let cursor: any = null;
