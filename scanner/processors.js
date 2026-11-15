@@ -141,7 +141,9 @@ async function processGif({ sourcePath, tempDir, request, sourceSha256, storage,
 }
 
 function audioDurationLimitForPurpose(purpose) {
-  return purpose === "room" ? LIMITS.audio.roomMaxDurationSeconds : LIMITS.audio.maxDurationSeconds;
+  if (purpose === "room") return LIMITS.audio.roomMaxDurationSeconds;
+  if (purpose === "chat") return LIMITS.audio.maxDurationSeconds;
+  throw new Error("AUDIO_PURPOSE_INVALID");
 }
 
 async function processAudio({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
