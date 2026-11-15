@@ -571,3 +571,38 @@ The Test Center is an emulator-only workflow with seeded synthetic personas and 
 Implementation evidence: the above source/test coverage is present on development head 5f35606bdda7f173622f628619d282ef97d82bfd and passed exact-head GitHub Actions run 43720025420. This is automated development evidence only, not live-cloud, physical-device, independent security, or production-release acceptance.
 
 
+
+
+## 19. Owner-approved amendments — media units, commercial month and retention decision boundary (15 November 2026)
+
+This section records explicit owner approvals and supersedes any conflicting earlier draft wording in companion documents. It changes product policy documentation only; implementation and release acceptance remain separate.
+
+### 19.1 Canonical media size limits
+
+Use MiB (1 MiB = 1,048,576 bytes) as the canonical unit and enforce exact inclusive byte ceilings consistently in clients, trusted backend/scanners, storage validation and tests:
+
+| Media type | Maximum bytes | Human-readable limit |
+|---|---:|---:|
+| Images | 3,145,728 | 3 MiB |
+| GIF files | 3,145,728 | 3 MiB |
+| Uploaded audio | 5,242,880 | 5 MiB |
+| Original video ingress | 26,214,400 | 25 MiB |
+| Safe video derivative | 15,728,640 | 15 MiB |
+| Owner-verified PDF | 20,971,520 | 20 MiB |
+
+Existing independent GIF limits (20 seconds, 50 frames and the documented complexity ceiling), audio duration limit (60 seconds), video derivative duration limit (90 seconds), and PDF owner-only restriction remain unchanged. These are technical ceilings, not member quotas or commercial entitlements. This amendment supersedes earlier ambiguous MB wording and must not be interpreted as decimal MB limits.
+
+### 19.2 Canonical commercial month
+
+For all owner-controlled commercial products, entitlements and duration choices, “one month” means exactly 30 days (720 hours), not a calendar month. Existing 24-hour and 7-day durations remain unchanged. Historical purchases and entitlements are not rewritten by this clarification.
+
+### 19.3 Retention choice remains unresolved
+
+The owner has expressly deferred the decision on who selects a direct-chat retention mode and whether both participants must consent. Until a later explicit owner decision defines selection authority, participant consent/notices, server-recorded activity and complete deletion semantics:
+- treat the selection/consent policy as unresolved;
+- keep destructive production deletion that depends on this unresolved policy disabled;
+- do not infer consent from silence, app presence, connection state or client-only flags;
+- continue only isolated development/emulator work that cannot delete real-user data;
+- record any future decision as a new traceable amendment.
+
+These approvals do not authorize merge to `main`, deployment, production Firebase changes, paid infrastructure, or destructive live data operations.
