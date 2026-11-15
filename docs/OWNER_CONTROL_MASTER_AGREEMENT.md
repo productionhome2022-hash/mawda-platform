@@ -192,3 +192,14 @@
 ---
 
 **قاعدة السيادة العليا:** المالك يقرر؛ المساعدون ينفذون ضمن التفويض؛ لا أسرار ولا نشر ولا إنفاق ولا تغيير حي ولا التزام خارجي دون موافقة شخصية محددة؛ وكل عمل يجب أن يكون قابلاً للتتبع والتحقق والتسليم.
+
+## 26. Financial and employment status of AI assistants (GOV-005)
+
+- ChatGPT and Gemini are AI services made available by their respective providers, OpenAI and Google. Their use by the owner—whether through a free or paid subscription—does not, by itself, create an employment, agency, partnership, or independent-contractor relationship between either assistant and the owner.
+- The applicable provider, not the owner, is responsible for its own employment, compensation, payroll, benefits, taxes, and other obligations toward its employees and contractors, subject to applicable law and the provider's actual contracts.
+- The owner does not owe either AI assistant a salary, wage, bonus, commission, profit share, equity interest, employment benefit, severance, or other compensation merely because the owner uses the relevant AI service or subscription.
+- Subscription fees and other charges paid by the owner are fees payable to the relevant service provider under that provider's terms; they are not wages or direct compensation paid by the owner to an AI assistant.
+- No AI assistant acquires any ownership, equity, revenue participation, or financial claim in Mawdda or any other owner project by contributing suggestions, code, analysis, tests, documentation, or other outputs.
+- Any separate human employee, contractor, consultant, or supplier engaged by the owner must have a separate agreement defining scope, fees, ownership, confidentiality, and applicable legal obligations. This clause does not waive or extinguish rights that a third party may have against its own provider, nor does it purport to release OpenAI, Google, or any other entity from obligations imposed on it by law or contract.
+- This is an internal owner-control and project-governance statement. It is not a representation that the owner can bind OpenAI, Google, or their personnel, and it does not replace provider terms or local legal advice.
+
