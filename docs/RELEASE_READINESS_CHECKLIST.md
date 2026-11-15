@@ -66,9 +66,14 @@ This checklist is a release gate, not a statement that the listed work is comple
 ## 6. Cross-platform release verification
 
 - [x] CI generated and built an Android debug APK on run `43603789539`.
-- [ ] Android phones and tablets: install the APK on physical devices, sign-in, core workflows, microphone, push, portrait and landscape.
+- [ ] Android release: build optimized ABI-specific APKs with the owner's existing keystore; verify every signer certificate SHA-256 against the recorded identity; verify APK hashes; install/update on physical Android phones and tablets; test sign-in, core workflows, microphone, push, portrait and landscape. The Debug APK is not a public release.
+- [ ] Android APK download link remains disabled until the signed Release artifact is verified and explicitly approved for experimental distribution.
+- [ ] Public pre-authentication portal: show Android APK, desktop PWA install, and iOS coming-soon option before sign-in/registration; no iOS native download URL.
+- [ ] Desktop PWA: verify install prompt/event, browser-menu fallback, standalone launch, app icon, update flow, offline shell, and responsive layouts on current Chrome/Edge/Firefox/Safari across Windows/macOS/Linux where supported. Distinguish installable PWA from a browser bookmark/shortcut.
+- [ ] Mobile web/PWA: verify Android browser installation and iPhone/iPad Safari Add to Home Screen guidance; verify touch, safe areas, portrait/landscape, responsive breakpoints and keyboard/screen-reader behavior.
+- [ ] PWA privacy: confirm service-worker caching never stores private chat content, wallet data, credentials, or authenticated API responses; test logout/account switching and stale-cache invalidation.
 - [x] CI completed an unsigned iOS build on run `43603789539`.
-- [ ] iPhone and iPad: signed install on physical devices, sign-in, core workflows, microphone, push, portrait and landscape.
+- [ ] Native iOS application: deferred by owner for the experimental launch. Do not build/sign/distribute it now. Keep only the iOS coming-soon notice in the public portal and provide the web/PWA route. Revisit native iOS only after a separate owner decision and funding approval.
 - [ ] Windows, macOS, and Linux: build and smoke-test supported desktop workflows.
 - [ ] Web: test supported browsers, responsive breakpoints, refresh/deep links, and authentication redirects.
 - [ ] Test touch, mouse, keyboard navigation, accessibility, screen readers, and reduced-motion settings.
@@ -298,3 +303,24 @@ Latest exact-head automated validation: [run 43607804675](https://github.com/pro
 ### Firebase owner-side evidence request — read-only
 
 Before enabling live media, independently confirm the actual Storage bucket name(s) in Firebase Console / Google Cloud Storage for project `mawda-app-2026`. The historical owner-supplied configuration record lists `mawda-app-2026.appspot.com`; current FlutterFire-generated client configuration lists `mawda-app-2026.firebasestorage.app`. Record which bucket is the default Firebase Storage bucket, whether the other bucket exists and what purpose it serves, and the region. Then verify the non-production Functions runtime bucket, `MAWDA_MEDIA_TEST_BUCKET`, IAM and CORS. Do not test uploads or deletions against production data. Never paste access tokens, private keys, service-account JSON, or full credential files into chat.
+
+
+## Cross-platform installation and Android signing — owner-approved release gate (15 November 2026)
+
+The public portal is a required product surface, not a marketing extra. It must be available before authentication and expose three truthful choices:
+
+1. **Android:** APK download remains disabled until the existing owner keystore is securely provisioned to the release workflow, the Release APK signature is verified against the recorded certificate fingerprint, and physical-device install/update acceptance passes.
+2. **Desktop:** install Mawdda as a standalone PWA when the browser supports it. Capture `beforeinstallprompt` where available, invoke the native prompt only after an explicit user click, and retain a browser-menu fallback. Do not describe a bookmark/ordinary shortcut as a standalone PWA.
+3. **iOS:** no native iOS app distribution during the current experimental launch. The iOS portal option opens a localized coming-soon notice and directs the user to the web version; Safari users receive Add to Home Screen guidance.
+
+Current implementation changes on the development branch:
+- Added public portal distribution controls to `lib/widgets/mawdda_app_downloads.dart`; Android remains disabled without a configured HTTPS release URL; iOS opens a coming-soon/web-fallback dialog; desktop/mobile web users receive installation guidance.
+- Added widget tests for the disabled Android release gate, iOS notice and desktop/mobile browser installation guidance.
+- Updated `web/install-prompt.js` to capture the browser's install event, request installation only from a user action, detect standalone mode, and tailor fallback instructions for desktop, Android and iOS.
+- Updated the web manifest with explicit 192/512 SVG icon declarations and standalone display preferences; updated browser metadata for PWA and iOS home-screen behavior.
+- Added `.github/workflows/android-signed-release.yml`. It is manual-only, branch-scoped, expects four owner-provisioned GitHub Actions secrets, builds ABI-split Release APKs, verifies every APK with apksigner against the existing owner certificate fingerprint, and uploads a short-lived private workflow artifact. It does not publish or deploy.
+- The workflow has **not** been run: the repository connection cannot read the owner keystore bytes or secret values, and no evidence establishes that the key was provisioned into the named Actions secrets. Do not claim a signed APK exists.
+- The SVG icon assets and manifest changes still require actual browser installability checks. Verify generated Flutter service-worker output and privacy-safe cache behavior in the built Web artifact; no offline/private-data acceptance is implied by source changes alone.
+- The iOS native build/signing job is not a current experimental-launch deliverable. Keep the existing non-production unsigned build evidence historical only; do not advertise an iOS app download.
+
+No merge to `main`, public APK release, production deployment, Firebase mutation, paid infrastructure activation, or signing-secret mutation was performed by these changes.
