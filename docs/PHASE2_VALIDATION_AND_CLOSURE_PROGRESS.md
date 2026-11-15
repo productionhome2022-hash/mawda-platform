@@ -354,3 +354,19 @@ The separate Draft PRs #13, #15, #16 and #17 remain open and are not merged. The
 - Complete App Check/anonymous-account abuse controls, owner MFA recovery drills, independent penetration/security review, privacy/legal review, observability and incident-response exercises.
 - PR #2 in the primary platform remains Draft/open/unmerged. No production deployment, production Firebase mutation, paid-resource activation or irreversible operation was performed.
 
+## Exact-head CI repair and validation — 15 November 2026
+
+- Starting from development head `60f03ba97ac9caa87ab439907a1a1e1919bf4581`, CI exposed two deterministic blockers:
+  - Flutter analysis rejected an unused import in `lib/widgets/chat_audio_controls.dart`.
+  - `functions/test/platform-economic-policy.test.js` imported the TypeScript source path although the Node test runner executes the compiled CommonJS output.
+- Corrective commits:
+  - `e23603dbdf5f53a3412cba6bdc3b1cd84bff2c60` — remove the unused Dart import.
+  - `d66367d360749d5654032ed7c153cc6538a55d14` — make the economic-policy test import the compiled `lib/platform-economic-policy.js` module.
+- Exact-head GitHub Actions [run 43728234563](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43728234563) completed **success** on `d66367d360749d5654032ed7c153cc6538a55d14`. All three jobs passed:
+  - Flutter analysis, Flutter tests and Web release build.
+  - Cloud Functions compilation, unit tests, Firebase Emulator integration journeys and Firestore/Storage rules tests.
+  - Isolated ClamAV scanner gateway tests and container image build.
+- This is a verified CI repair on the exact development head. It does not clear live non-production cloud validation, physical-device acceptance, security/legal review, or release authorization.
+- Native runner workflow [run 43728230648](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43728230648) is running on `e23603dbdf5f53a3412cba6bdc3b1cd84bff2c60`. The only difference between that native-build SHA and the exact CI head is the backend test import correction in `functions/test/platform-economic-policy.test.js`; no Flutter application source changed between them. Do not treat the native run as complete until it reports success.
+- The corrected 5,000-persona harness PR #2 remains Draft/open/unmerged; no full 5,000-persona rerun has yet been recorded against this exact platform head.
+- No merge to `main`, deployment, live Firebase mutation, billing upgrade, paid-resource activation, or irreversible retention/legal-hold operation was performed.
