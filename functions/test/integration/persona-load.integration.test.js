@@ -40,6 +40,22 @@ async function inBatches(items, size, worker) {
   }
   return results;
 }
+async function withTransientRetry(operation, maxAttempts = 4) {
+  let lastError;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      const code = error && (error.code ?? error.status);
+      const transient = [4, 10, 14, "4", "10", "14", "deadline-exceeded", "aborted", "unavailable",
+        "DEADLINE_EXCEEDED", "ABORTED", "UNAVAILABLE"].includes(code);
+      if (!transient || attempt === maxAttempts - 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 150 * (2 ** attempt)));
+    }
+  }
+  throw lastError;
+}
 function callableAuth(uid) {
   return { uid, token: { firebase: { sign_in_provider: "password" }, email_verified: true } };
 }
@@ -510,13 +526,15 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
       coverage.get(group.owner.personaId).roomJoined = true;
     });
 
-    const nonOwnerAssignments = roomGroups.flatMap((group) =>
-      group.members.slice(1).map((persona) => ({ group, persona })));
-    await inBatches(nonOwnerAssignments, 25, async ({ group, persona }) => {
-      await joinRoom.run({
-        data: { roomId: group.roomId }, auth: callableAuth(persona.uid),
+    // Keep contention bounded per room document: joinRoom atomically updates
+    // memberCount, so a flat 25-way batch can lock 25 transactions on one room.
+    await inBatches(roomGroups, 10, async (group) => {
+      await inBatches(group.members.slice(1), 5, async (persona) => {
+        await withTransientRetry(() => joinRoom.run({
+          data: { roomId: group.roomId }, auth: callableAuth(persona.uid),
+        }));
+        coverage.get(persona.personaId).roomJoined = true;
       });
-      coverage.get(persona.personaId).roomJoined = true;
     });
     recordLifecycleProgress("all-personas-joined-rooms");
 
@@ -535,23 +553,26 @@ test("all 5000 personas complete a connected member, premium-profile, discovery,
     });
     recordLifecycleProgress("room-events-created");
 
-    await inBatches(personas, 25, async (persona) => {
-      const group = roomGroupByPersona.get(persona.uid);
-      const listed = await listRoomEvents.run({
-        data: { roomId: group.roomId }, auth: callableAuth(persona.uid),
+    await inBatches(roomGroups, 10, async (group) => {
+      // RSVP writes serialize on one event counter; cap concurrent requests
+      // per event while still exercising ten independent rooms in parallel.
+      await inBatches(group.members, 5, async (persona) => {
+        const listed = await withTransientRetry(() => listRoomEvents.run({
+          data: { roomId: group.roomId }, auth: callableAuth(persona.uid),
+        }));
+        assert.ok(listed.events.some((event) => event.eventId === group.eventId));
+        coverage.get(persona.personaId).eventListed = true;
+        await withTransientRetry(() => rsvpRoomEvent.run({
+          data: { eventId: group.eventId }, auth: callableAuth(persona.uid),
+        }));
+        const verified = await withTransientRetry(() => listRoomEvents.run({
+          data: { roomId: group.roomId }, auth: callableAuth(persona.uid),
+        }));
+        const ownEvent = verified.events.find((event) => event.eventId === group.eventId);
+        assert.ok(ownEvent);
+        assert.equal(ownEvent.isAttending, true);
+        coverage.get(persona.personaId).eventRsvpConfirmed = true;
       });
-      assert.ok(listed.events.some((event) => event.eventId === group.eventId));
-      coverage.get(persona.personaId).eventListed = true;
-      await rsvpRoomEvent.run({
-        data: { eventId: group.eventId }, auth: callableAuth(persona.uid),
-      });
-      const verified = await listRoomEvents.run({
-        data: { roomId: group.roomId }, auth: callableAuth(persona.uid),
-      });
-      const ownEvent = verified.events.find((event) => event.eventId === group.eventId);
-      assert.ok(ownEvent);
-      assert.equal(ownEvent.isAttending, true);
-      coverage.get(persona.personaId).eventRsvpConfirmed = true;
     });
     recordLifecycleProgress("all-event-rsvps-confirmed");
 
