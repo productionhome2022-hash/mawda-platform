@@ -105,7 +105,10 @@
         "biometric-member-basic-chat-without-proof",
         "biometric-gated-link-denial-without-proof",
         "owner-operator-no-claims-room-chat",
-        "owner-operator-denied-owner-appeals-access"
+        "owner-operator-denied-owner-appeals-access",
+        "eligible-room-discovery-not-starved-by-ineligible-rooms",
+        "cleanup-paginated-across-200-memberships",
+        "session-finalization-after-cleanup-completes"
       ],
       "plannedCases": [
         "real-device-audio-recording-and-playback",
