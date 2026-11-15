@@ -33,7 +33,7 @@ jobs:
         id: install_flutter_dependencies
         run: flutter pub get --enforce-lockfile
       - name: Upload resolved dependency lockfile for review
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: mawda-pubspec-lock-${{ github.sha }}
           path: pubspec.lock
@@ -79,7 +79,7 @@ jobs:
         run: flutter build web --release --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY"
       - name: Upload validated web build artifact
         if: ${{ always() && steps.build_web.outcome == 'success' }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: mawda-web-build-${{ github.sha }}
           path: build/web/
@@ -111,7 +111,7 @@ jobs:
         run: |
           ruby -e 'require "yaml"; ARGV.each { |file| YAML.parse_file(file); puts file }' ../.github/workflows/*.yml
       - name: Upload compiled Cloud Functions artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: mawda-cloud-functions-${{ github.sha }}
           path: functions/lib/
