@@ -12,9 +12,11 @@ const {
 
 test("media policy allowlists supported types and applies per-category size caps", () => {
   assert.equal(mediaPolicyFor("image/png").category, "image");
-  assert.equal(mediaPolicyFor("image/png").maxBytes, 5 * 1024 * 1024);
-  assert.equal(mediaPolicyFor("image/gif").maxBytes, 5 * 1024 * 1024);
-  assert.equal(mediaPolicyFor("video/mp4").maxBytes, 100 * 1024 * 1024);
+  assert.equal(mediaPolicyFor("image/png").maxBytes, 3 * 1024 * 1024);
+  assert.equal(mediaPolicyFor("image/gif").maxBytes, 3 * 1024 * 1024);
+  assert.equal(mediaPolicyFor("video/mp4").maxBytes, 25 * 1024 * 1024);
+  assert.equal(mediaPolicyFor("audio/mpeg").maxBytes, 5 * 1024 * 1024);
+  assert.equal(mediaPolicyFor("application/pdf").maxBytes, 20 * 1024 * 1024);
   assert.equal(mediaPolicyFor("application/x-msdownload"), null);
 });
 
