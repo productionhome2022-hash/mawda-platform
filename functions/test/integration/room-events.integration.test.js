@@ -53,10 +53,12 @@ test("room event lifecycle is owner-controlled, age-scoped and RSVP-idempotent",
       eventType: "announcement",
       startsAtMs,
       durationMinutes: 30,
+      capacity: 1,
     }));
     createdEventId = created.eventId;
     const eventRef = db.collection("roomEvents").doc(createdEventId);
     assert.equal(created.status, "scheduled");
+    assert.equal((await eventRef.get()).data().capacity, 1);
 
     const listed = await listRoomEvents.run(call(memberUid, { roomId }));
     assert.equal(listed.events.length, 1);
@@ -68,6 +70,13 @@ test("room event lifecycle is owner-controlled, age-scoped and RSVP-idempotent",
     const afterRsvp = await listRoomEvents.run(call(memberUid, { roomId }));
     assert.equal(afterRsvp.events[0].isAttending, true);
     assert.equal(afterRsvp.events[0].attendeeCount, 1);
+    assert.equal(afterRsvp.events[0].capacity, 1);
+    assert.equal(afterRsvp.events[0].isFull, true);
+    await assert.rejects(
+      () => rsvpRoomEvent.run(call(ownerUid, { eventId: createdEventId })),
+      (error) => error && error.code === "resource-exhausted",
+      "a second member cannot reserve the final occupied seat",
+    );
 
     await assert.rejects(
       () => listRoomEvents.run(call(minorUid, { roomId })),
