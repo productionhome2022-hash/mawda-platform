@@ -5,10 +5,12 @@ const { getFirestore } = require("firebase-admin/firestore");
 const {
   grantStoreEntitlement,
   bulkGrantStoreEntitlements,
+  getMyEntitlementGrantHistory,
 } = require("../../lib/index");
 
 const db = getFirestore();
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+const memberRequest = (uid) => ({ data: {}, auth: { uid, token: { firebase: { sign_in_provider: "password" } } } });
 const ownerRequest = (uid, data) => ({
   data,
   auth: { uid, token: {
@@ -85,6 +87,11 @@ test("owner free grant is MFA-gated, audited, coin-neutral, idempotent and repea
     assert.equal(second.idempotentReplay, false);
     assert.ok(second.expiresAt >= first.expiresAt + 24 * 60 * 60 * 1000 - 1000);
     assert.equal((await memberRef.get()).data().coins, 4321);
+
+    const history = await getMyEntitlementGrantHistory.run(memberRequest(memberUid));
+    assert.equal(history.entries.length, 2);
+    assert.ok(history.entries.every((entry) => entry.itemId === itemId));
+    assert.ok(history.entries.every((entry) => !("reason" in entry) && !("actorUid" in entry)));
   } finally {
     await Promise.all([
       db.recursiveDelete(memberRef).catch(() => undefined),
