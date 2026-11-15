@@ -196,3 +196,38 @@ The exact-head run verifies the current code snapshot across the scanner, backen
 ### Operational safety and decision
 
 The automated CI gate is green on the exact current head; phase 1/2 as a whole is **not yet accepted/closed** while the above non-production and product gates remain open. The GCS manual workflow requires owner-provisioned non-production WIF configuration and a disposable bucket. No production deployment, merge, live Firebase mutation, retention-worker activation or destructive purge has been performed. Keep PR #2 draft/open and development isolated until those gates have evidence and the owner approves the next release action.
+
+## Exact validation and room-audio hardening — 15 November 2026
+
+### Verified exact-head CI before the latest room-audio change
+
+- Development commit: `b0554aaaab89b796176e5e1270fa3de299263673`.
+- Full validation run [43714367272](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43714367272) completed **success**. All three jobs passed:
+  - Flutter analysis, tests and Web release build.
+  - Isolated ClamAV scanner source/security checks, container build, GIF/audio/video/PDF processor integration tests and EICAR detection.
+  - Cloud Functions compile/unit tests and all configured emulator integration/rules suites.
+- Cloud Functions job log reports 216 unit tests passed / 0 failed in its main test invocation. The guest-session integration invocation then passed 2 / 0, including `ending a guest session removes memberships across multiple query pages`. The other logged integration invocations also reported zero failures.
+- The preceding native-platform run [43714367271](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43714367271) was cancelled while the Android debug APK build was running; iOS was also cancelled. This is **not** an Android or iOS pass, and no native artifact is claimed.
+- The guest cleanup chunk-size change on `b0554aaa` is a defensive test-cleanup bound (20 values); the green run proves the test passes on that commit, not that this specific bound was the historical root cause of the earlier failure.
+
+### Room voice duration hardening — implementation committed, exact-head CI pending
+
+A source review of the trusted scanner path found a concrete policy gap: the scanner request already carried the server-recorded `purpose`, but audio transcoding applied the same 600-second ceiling to room media and direct-chat media. The room microphone UI also allowed 120 seconds in one path and 120 seconds for guest room recording. The stale PR #17 proposal was not merged; its earlier patch also risked reducing direct-chat audio to 120 seconds.
+
+The development branch now contains the following narrowly scoped corrections:
+
+- `scanner/processors.js`: direct-chat audio remains capped at 600 seconds (10 minutes); `purpose === "room"` is capped at 60 seconds. The FFmpeg output duration uses the same purpose-specific cap after the input-duration check.
+- The audio derivative contract is versioned as `ffmpeg-audio-purpose-limit-v2`; `functions/src/media-scanner.ts` and its contract tests validate that exact version.
+- Scanner unit tests assert 600 seconds for direct chat, 60 seconds for rooms, and retain the general 600-second ceiling for non-room media.
+- Member room microphone UI and guest room recording timers now both stop at 60 seconds.
+
+Commits for this slice:
+- `1dc66ccc5887d7896c0ea1ea5fa57a1b99d641f8` — purpose-aware scanner limit.
+- `f0b0813056b5b26290b3cec4de6d647b756a8da7` — scanner duration-limit tests.
+- `0c0031f9217cfdcbdaa40ef9639cb51f4998ff37` — callback derivative contract version.
+- `e54af62980c17a6546c0e267e6636c8c2fa1650a` — callback contract tests.
+- `e314141c9df8139d6d7000114fa8ff9cbf011648` — FFmpeg output bound and exported policy helper.
+- `4f580aded4dc9cf7a8270127eb46972fafd4e4c7` — member room UI timer.
+- `4ccad6c8ad9f29b7b22d3943312a9f1e583911eb` — guest room UI timer.
+
+**Verification status:** these room-audio commits were made after the green `b0554aaa` run. No CI result is yet attached to the resulting branch head; do not describe this new slice as tested or validated until scanner, Functions, Flutter and native workflows finish on the exact final commit. No change was made to `main`, production Firebase, Cloud Run, paid infrastructure or deployment settings. Phase 2 remains open.
