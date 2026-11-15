@@ -117,3 +117,36 @@ This section supersedes any conflicting statement above about the latest tested 
 - The separate 5,000-persona simulation remains unaccepted. Lab PR #2 proposes bounded transient retries and lower room-worker concurrency after the prior run stopped at 2,679/5,000; the fix must be reviewed and the full simulation rerun against an immutable current platform SHA.
 
 This correction is documentation-only. It does not claim new tests passed, does not change application behavior, and does not authorize merge, deployment, Firebase mutation, paid resources or destructive operations.
+
+
+## Audit follow-up — exact-head CI result and 5,000-persona lab review (15 November 2026)
+
+### Primary development branch validation
+
+The application-code baseline `040c8c383e58b7a41b3a3d88d9cfb88231881aae` was verified as the development branch head immediately after the audit-correction commit. GitHub Actions then completed the following runs on that exact SHA:
+
+- `43753092460` — **Validate Mawda**, conclusion `success`. All three jobs succeeded:
+  - Flutter analysis, Flutter tests, PWA asset validation and Web release build.
+  - Cloud Functions compilation/unit tests and the configured emulator integration suites, including retention, wallet/store, room rental/events, backup/restore, push-token, safety/privacy, seeded persona interaction, legal hold, premium profile, and Firestore/Storage rules.
+  - Isolated ClamAV scanner source/security tests, Docker image build, media sanitization tests and EICAR detection.
+- `43753092482` — **Mawdda domain regression**, conclusion `success`.
+- `43753093715` — CodeQL run associated with this SHA, conclusion `success`.
+
+These results establish successful CI for the exact SHA above. They do not establish physical-device acceptance, live Firebase readiness, release approval, or a successful 5,000-persona simulation.
+
+### Separate 5,000-persona lab
+
+Lab PR #2 remains open and Draft, with head `2ce169e06733fc535b05699a9c757537965756da`. Its lab validation run `43728976974` completed successfully. The successful checks include JavaScript/shell syntax, the bounded Firestore retry unit tests, workflow YAML parsing, and a guard against production deployment commands.
+
+Code review of the proposed room-join mitigation confirms:
+
+- Room cohorts contain 50 personas; joins within each room are sequential.
+- At most two room-group workers run concurrently, reducing contention on the emulator's shared Firestore process.
+- Only transient transaction/transport failures are retried, with a maximum of eight attempts and exponential delay capped at 5 seconds.
+- Permanent permission and validation errors are not retried.
+- `joinRoom` is idempotent for an already-created membership: its transaction checks the membership document and returns before incrementing `memberCount`. This makes retry after an ambiguous transient failure safe against duplicate membership/count increments.
+- Progress is logged every 250 room joins.
+
+No further code change was justified by this review. The mitigation is **reviewed and unit-tested**, not yet proven by a full end-to-end 5,000-persona run. The lab's `Run 5,000-persona simulation` workflow is manual-dispatch only and requires the private read-only `MAWDDA_PLATFORM_READ_TOKEN` secret. The available GitHub connection can read workflow runs but does not expose a workflow-dispatch action, so this audit did not start the full simulation.
+
+The next acceptance evidence must be a successful manual lab run pinned to the immutable primary-platform SHA `040c8c383e58b7a41b3a3d88d9cfb88231881aae`, with its run ID, elapsed time, complete 5,000/5,000 lifecycle coverage and uploaded report recorded. Keep lab PR #2 Draft/unmerged until the owner-authorized review/merge process is completed. No merge, deployment, live Firebase mutation, billing activation or production operation is authorized by this audit.
