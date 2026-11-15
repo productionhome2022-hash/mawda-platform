@@ -7,6 +7,7 @@ import '../services/super_admin_security_service.dart';
 import '../services/push_notification_service.dart';
 import 'owner_chat_participation_screen.dart';
 import 'owner_coin_purchase_screen.dart';
+import 'owner_entitlement_grants_screen.dart';
 import 'owner_room_live_stream_screen.dart';
 import 'safety_review_screen.dart';
 import 'room_rental_pricing_screen.dart';
@@ -1439,6 +1440,17 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     )),
                     icon: const Icon(Icons.payments_outlined),
                     label: const Text('طلبات شراء الكوينز والتحقق اليدوي'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const OwnerEntitlementGrantsScreen(),
+                    )),
+                    icon: const Icon(Icons.card_giftcard_outlined),
+                    label: const Text('منح استحقاقات مجانية فردية أو جماعية'),
                   ),
                 ),
                 const SizedBox(height: 8),
