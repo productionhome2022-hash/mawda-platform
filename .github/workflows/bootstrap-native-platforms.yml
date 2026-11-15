@@ -89,9 +89,23 @@ jobs:
       - name: Apply Android API 36 to every resolved Flutter plugin module
         run: python3 tool/patch_android_plugin_compile_sdk.py
 
-      - name: Build Android debug APK
+      - name: Build Android debug APK (retry transient Maven throttling)
         run: |
-          flutter build apk --debug
+          set -o pipefail
+          for attempt in 1 2 3; do
+            if flutter build apk --debug 2>&1 | tee /tmp/mawdda-android-build.log; then
+              break
+            else
+              build_status=${PIPESTATUS[0]}
+            fi
+            if ! grep -Eqi 'status code 429|Too Many Requests|timed out|Temporary failure|Connection reset' /tmp/mawdda-android-build.log; then
+              exit "$build_status"
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit "$build_status"
+            fi
+            sleep $((attempt * 30))
+          done
           sha256sum build/app/outputs/flutter-apk/app-debug.apk > build/app/outputs/flutter-apk/app-debug.apk.sha256
 
       - name: Package generated native projects
