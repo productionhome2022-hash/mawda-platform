@@ -6499,7 +6499,8 @@ function validateOwnerEntitlementGrantRequest(data: Record<string, unknown>): {
 export const grantStoreEntitlement = onCall(async (request) => {
   const actorUid = await requireOwnerForReview(request, "owner_entitlement_grant");
   const targetUid = request.data?.memberUid;
-  if (typeof targetUid !== "string" || targetUid.length < 1 || targetUid.length > 128) {
+  if (typeof targetUid !== "string" || targetUid.length < 1 || targetUid.length > 128 ||
+      targetUid.trim() !== targetUid || targetUid.includes("/")) {
     throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
   }
   const input = validateOwnerEntitlementGrantRequest(request.data ?? {});
@@ -6519,7 +6520,8 @@ export const bulkGrantStoreEntitlements = onCall(async (request) => {
   const input = validateOwnerEntitlementGrantRequest(request.data ?? {});
   const targetUids = request.data?.targetUids;
   if (!Array.isArray(targetUids) || targetUids.length < 1 || targetUids.length > 500 ||
-      targetUids.some((uid: unknown) => typeof uid !== "string" || uid.length < 1 || uid.length > 128) ||
+      targetUids.some((uid: unknown) => typeof uid !== "string" || uid.length < 1 ||
+        uid.length > 128 || uid.trim() !== uid || uid.includes("/")) ||
       new Set(targetUids).size !== targetUids.length) {
     throw new HttpsError("invalid-argument", "قائمة الأعضاء غير صالحة؛ أرسل حتى 500 معرف فريد في كل دفعة.");
   }
