@@ -270,3 +270,12 @@ A follow-up static review caught a null-safety ordering defect in the new resolv
 - Commit `e575d0f6bb18d1fa3a5cb14cee6c2bee36cd6a72` — fail closed on unknown derivative categories.
 - The unit test already asserts that an unknown category returns `null`; the callback now handles that result explicitly.
 - This is source-reviewed but still awaits the next successful Cloud Functions CI run.
+
+### Direct-chat microphone duration alignment
+
+The shared Flutter microphone composer still defaulted to 120 seconds when used by direct chat, even though the server policy allows 600 seconds and the approved direct-chat rule is 10 minutes. Room chat already passed 60 seconds explicitly. The shared widget now requires every caller to specify its duration, and the direct-chat screen explicitly supplies 600 seconds while room chat supplies 60 seconds.
+
+- `f3082c9865c97d719bf594143279868e3c9c7383` — remove the ambiguous shared 120-second default; require explicit duration.
+- `7ec79ca21d7879c7565a7fb8257c2c3e9b25058e` — set direct-chat voice recording to 600 seconds.
+- The scanner enforces the corresponding trusted limits: 600 seconds for direct chat, 60 seconds for rooms.
+- Verification remains pending on the exact new PR head; Flutter analysis/tests and scanner/Functions tests must all pass.
