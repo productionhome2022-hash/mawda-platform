@@ -66,7 +66,7 @@ jobs:
           android = json.loads(Path("android/app/google-services.json").read_text())
           for platform in ("web", "android", "ios"):
               match = re.search(
-                  rf"static const FirebaseOptions {platform} = FirebaseOptions\\((.*?)\\n  \\);",
+                  rf"static const FirebaseOptions {platform} = FirebaseOptions\((.*?)\n  \);",
                   options,
                   re.S,
               )
@@ -132,7 +132,7 @@ jobs:
           from pathlib import Path
           source = Path("lib/firebase_options_nonprod.dart").read_text()
           match = re.search(
-              r"static const FirebaseOptions ios = FirebaseOptions\\((.*?)\\n  \\);",
+              r"static const FirebaseOptions ios = FirebaseOptions\((.*?)\n  \);",
               source,
               re.S,
           )
@@ -163,12 +163,3 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Package verified iOS Firebase service file
-        run: tar -czf ios-firebase-config.tar.gz ios/Runner/GoogleService-Info.plist
-
-      - uses: actions/upload-artifact@v5
-        with:
-          name: mawdda-ios-firebase-config-${{ github.sha }}
-          path: ios-firebase-config.tar.gz
-          if-no-files-found: error
-          retention-days: 14
