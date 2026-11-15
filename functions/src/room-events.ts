@@ -18,6 +18,7 @@ export type NormalizedRoomEventInput = {
   eventType: RoomEventType;
   startsAtMs: number;
   durationMinutes: number;
+  capacity: number | null;
   streamUrl: string | null;
 };
 
@@ -30,6 +31,7 @@ export function normalizeRoomEventInput(
   const eventType = input.eventType;
   const startsAtMs = input.startsAtMs;
   const durationMinutes = input.durationMinutes ?? 60;
+  const capacity = input.capacity === undefined || input.capacity === null ? null : input.capacity;
   const streamUrlRaw = typeof input.streamUrl === "string" ? input.streamUrl.trim() : "";
 
   if (title.length < 3 || title.length > 80 || description.length > 500) {
@@ -46,6 +48,10 @@ export function normalizeRoomEventInput(
   if (!Number.isSafeInteger(durationMinutes) || (durationMinutes as number) < 10 ||
       (durationMinutes as number) > 240) {
     throw new Error("INVALID_ROOM_EVENT_DURATION");
+  }
+  if (capacity !== null && (!Number.isSafeInteger(capacity) ||
+      (capacity as number) < 1 || (capacity as number) > 1000)) {
+    throw new Error("INVALID_ROOM_EVENT_CAPACITY");
   }
 
   let streamUrl: string | null = null;
@@ -77,6 +83,7 @@ export function normalizeRoomEventInput(
     eventType: eventType as RoomEventType,
     startsAtMs: startsAtMs as number,
     durationMinutes: durationMinutes as number,
+    capacity: capacity as number | null,
     streamUrl,
   };
 }
