@@ -693,6 +693,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                   ChatAudioComposerButton(
                     scope: 'direct',
                     recipientUid: _resolvedPeerUid,
+                    maxDurationSeconds: 600,
                     enabled: !_sending,
                     onBusyChanged: (busy) {
                       if (mounted && _sending != busy) setState(() => _sending = busy);
