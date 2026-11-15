@@ -177,9 +177,9 @@ This section records the live GitHub state checked on 16 November 2026. Earlier 
 
 ### 5,000-persona simulation
 - Lab repository: `productionhome2022-hash/mawdda-5000-simulation-lab`.
-- Lab branches include `fix/room-join-retry-5000` at `2ce169e06733fc535b05699a9c757537965756da` and `fix/room-join-contention-5000` at `3a61799757c493c5884da41e33f71bb3f5398d96`.
+- Lab branches include `fix/room-join-retry-5000` (updated after the follow-up RSVP fix; see commit `f024ebda492add4028f0ffb2a6901953e9ece48b`) and `fix/room-join-contention-5000` at `3a61799757c493c5884da41e33f71bb3f5398d96`.
 - Lab PR #2 (bounded Firestore transient retry) and PR #3 (Node 22 / artifact action alignment) are both open, Draft, unmerged, and target lab `main`. Their harness validation runs passed; this does not prove the full simulation.
-- Workflow run `43769264292` was still `in_progress` at the latest poll. It was dispatched from lab `main` at SHA `c9a3a330c914e84a8e0a3bbb524028d79264cf30`; its checked-in workflow is the older Node 20 / upload-artifact v5 workflow, not the retry-fix PR workflow. The run's exact checked-out platform SHA and final 5,000-persona report were not available from the exposed run metadata at audit time.
+- Workflow run `43769264292` was still `in_progress` at the latest poll. It was dispatched from lab `main` at SHA `c9a3a330c914e84a8e0a3bbb524028d79264cf30`; its checked-in workflow is the older Node 20 / upload-artifact v5 workflow, not the retry-fix PR workflow. Workflow logs later confirmed the exact checked-out platform SHA was `46f1021c98701a42fb85a02757f35166edf7c866`; the run used the older lab `main` harness (Node `20.20.2`, `actions/upload-artifact@v5`), not the Draft retry-fix PR branch.
 - Previous full run `43691324361` failed at room joins after 2,679/5,000 with Firestore Emulator transaction lock timeout.
 - The retry PR's unit tests and harness checks passed, but the 5,000/5,000 lifecycle remains unaccepted. Do not merge either lab PR to `main` without separate owner approval.
 
@@ -228,3 +228,11 @@ This section supersedes the earlier statement that lab run `43769264292` was sti
 - The documentation commits for the 16 November status and retention alignment advanced the development branch to `9715485b637998c53bdf0e592e24842255f20fb2`.
 - On this exact SHA at the time of this update: Validate Mawda run `43772655185` was pending; domain regression run `43772655227` was in progress; PR check run `43772656212` was queued. The domain regression for the preceding documentation-only SHA `7807cc257dfbaece7373a3a3e54d289c47b91400` was still running. Do not label `9715485` green until its own runs finish.
 - The lab retry/RSVP correction and retention documentation correction are recorded in existing GitHub PR/issue threads. No duplicate organizational documents were created.
+
+
+## Final audit pointer — current development HEAD (16 November 2026)
+
+- The latest documentation-only follow-up commit is `01d7ecd6fdb541457aa4c7d5f26d7e0ffb051373`; it records the failed 5,000-persona run, its exact platform checkout SHA and the retention-policy correction.
+- Exact-head validation on `01d7ecd`: Validate Mawda run `43772695602` queued; domain regression run `43772695619` queued at the latest poll. The earlier exact-head checks on `46f1021` remain successful, but must not be substituted for the new SHA.
+- Lab PR #2's updated harness commit `f024ebd` passed lab validation run `43772590541`. Full simulation after this change remains unrun; no dispatch action is exposed in the current GitHub connection.
+- The artifact from failed run `43769264292` proves the full 5,000-member room-join stage, not full lifecycle acceptance: 949/5,000 completed all event/RSVP stages.
