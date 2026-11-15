@@ -8,6 +8,7 @@ import 'package:record/record.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/member_media_upload_service.dart';
 import '../services/audio_wav_encoder.dart';
+import '../policies/chat_audio_policy.dart';
 
 class GuestRoomChatScreen extends StatefulWidget {
   const GuestRoomChatScreen({super.key, required this.roomId, required this.roomName});
@@ -118,7 +119,7 @@ class _GuestRoomChatScreenState extends State<GuestRoomChatScreen> {
       });
       if (mounted) {
         setState(() { _recording = true; _error = null; });
-        _recordingLimit = Timer(const Duration(seconds: 60), () {
+        _recordingLimit = Timer(const Duration(seconds: maxLiveChatAudioRecordingSeconds), () {
           unawaited(_stopMicrophoneRecording());
         });
       }
