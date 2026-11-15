@@ -131,6 +131,9 @@ jobs:
       - name: Run direct-message deletion authorization and erasure integration tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:message-deletion-integration
+      - name: Run owner entitlement grant and bulk replay integration tests
+        if: ${{ always() && steps.install_functions.outcome == 'success' }}
+        run: npm run test:owner-entitlement-grants-integration
       - name: Run coin transfer and store purchase transactional integration tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:wallet-store-integration
