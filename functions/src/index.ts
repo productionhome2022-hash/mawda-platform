@@ -2552,7 +2552,7 @@ export const sendDirectMessage = onCall(async (request) => {
  */
 export const getDirectMessages = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
-  let pageRequest;
+  let pageRequest: ReturnType<typeof validateMemberMessagePageRequest>;
   try {
     pageRequest = validateMemberMessagePageRequest(request.data ?? {});
   } catch {
@@ -5159,7 +5159,7 @@ export const sendRoomMessage = onCall(async (request) => {
 
 export const getRoomMessages = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
-  let pageRequest;
+  let pageRequest: ReturnType<typeof validateMemberMessagePageRequest>;
   try {
     pageRequest = validateMemberMessagePageRequest(request.data ?? {});
   } catch {
