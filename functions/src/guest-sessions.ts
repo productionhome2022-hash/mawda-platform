@@ -74,6 +74,53 @@ async function cleanupGuestRoomMemberships(uid: string): Promise<void> {
   }
 }
 
+
+
+/** Persist a retryable cleanup state before removing guest room memberships. */
+async function markGuestCleanupPending(
+  uid: string,
+  terminalStatus: "ended" | "expired",
+  nowMs = Date.now(),
+): Promise<void> {
+  const ref = db().collection("guestSessions").doc(uid);
+  await db().runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return;
+    const current = snapshot.data() ?? {};
+    if (current.status === "ended" || current.status === "expired") return;
+    if (current.status === "cleanup_pending") return;
+    if (current.status !== "active") return;
+    if (terminalStatus === "expired" && isGuestSessionActive(current, nowMs)) return;
+    transaction.update(ref, {
+      status: "cleanup_pending",
+      terminalStatus,
+      expiresAt: Timestamp.fromMillis(nowMs),
+      cleanupRequestedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+}
+
+/** Idempotently finish cleanup; failures leave a scheduled retry marker. */
+async function completeGuestSessionCleanup(uid: string): Promise<void> {
+  const ref = db().collection("guestSessions").doc(uid);
+  const snapshot = await ref.get();
+  if (!snapshot.exists || snapshot.data()?.status !== "cleanup_pending") return;
+  await cleanupGuestRoomMemberships(uid);
+  await db().runTransaction(async (transaction) => {
+    const latest = await transaction.get(ref);
+    if (!latest.exists || latest.data()?.status !== "cleanup_pending") return;
+    const terminalStatus = latest.data()?.terminalStatus === "ended" ? "ended" : "expired";
+    transaction.update(ref, {
+      status: terminalStatus,
+      expiredAt: terminalStatus === "expired" ? FieldValue.serverTimestamp() : null,
+      endedAt: terminalStatus === "ended" ? FieldValue.serverTimestamp() : null,
+      cleanupCompletedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+}
+
 function validateGuestProfile(data: Record<string, unknown>) {
   const username = typeof data.username === "string" ? data.username.trim() : "";
   const country = typeof data.country === "string" ? data.country.trim() : "";
@@ -160,16 +207,13 @@ export const getGuestSessionStatus = onCall(async (request) => {
     db().collection("guestSessions").doc(uid).get(),
   ]);
   let data = session.data() ?? {};
-  const active = isGuestSessionActive(data);
-  if (!active && data.status === "active") {
-    await db().collection("guestSessions").doc(uid).update({
-      status: "expired",
-      expiredAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-    await cleanupGuestRoomMemberships(uid);
-    data = { ...data, status: "expired" };
+  if (data.status === "cleanup_pending" ||
+      (data.status === "active" && !isGuestSessionActive(data))) {
+    await markGuestCleanupPending(uid, "expired");
+    await completeGuestSessionCleanup(uid);
+    data = (await db().collection("guestSessions").doc(uid).get()).data() ?? {};
   }
+  const active = isGuestSessionActive(data);
   const asMillis = (value: unknown) => value instanceof Timestamp ? value.toMillis()
     : typeof value === "number" ? value : null;
   return {
@@ -189,16 +233,8 @@ export const getGuestSessionStatus = onCall(async (request) => {
 export const endGuestSession = onCall(async (request) => {
   const uid = requireAnonymousGuest(request as GuestRequest);
   const ref = db().collection("guestSessions").doc(uid);
-  await db().runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(ref);
-    if (!snapshot.exists) return;
-    transaction.update(ref, {
-      status: "ended",
-      endedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-  });
-  await cleanupGuestRoomMemberships(uid);
+  await markGuestCleanupPending(uid, "ended");
+  await completeGuestSessionCleanup(uid);
   return { ended: true };
 });
 
@@ -235,23 +271,21 @@ export const listGuestPublicRooms = onCall(async (request) => {
 /** Scheduled cleanup prevents expired guest memberships from inflating room counts. */
 export const cleanupExpiredGuestSessions = onSchedule("every 5 minutes", async () => {
   const nowMs = Date.now();
+  // Only active or pending sessions are eligible. Finalized records leave this
+  // query, so the first page cannot become permanently blocked by old records.
   const snapshot = await db().collection("guestSessions")
+    .where("status", "in", ["active", "cleanup_pending"])
     .where("expiresAt", "<=", Timestamp.fromMillis(nowMs))
+    .orderBy("expiresAt", "asc")
     .limit(200)
     .get();
   for (const document of snapshot.docs) {
     const data = document.data();
-    if (data.status !== "active" || isGuestSessionActive(data, nowMs)) continue;
-    await db().runTransaction(async (transaction) => {
-      const latest = await transaction.get(document.ref);
-      if (!latest.exists || latest.data()?.status !== "active" ||
-          isGuestSessionActive(latest.data(), nowMs)) return;
-      transaction.update(document.ref, {
-        status: "expired",
-        expiredAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-    });
-    await cleanupGuestRoomMemberships(document.id);
+    if (data.status === "active" && isGuestSessionActive(data, nowMs)) continue;
+    if (data.status === "active") {
+      await markGuestCleanupPending(document.id, "expired", nowMs);
+    }
+    // A failure leaves cleanup_pending in place; the next scheduled run retries it.
+    await completeGuestSessionCleanup(document.id);
   }
 });
