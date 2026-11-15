@@ -52,6 +52,9 @@ jobs:
         working-directory: functions
     steps:
       - uses: actions/checkout@v5
+      - name: Verify this run targets the isolated development branch
+        run: |
+          test "${GITHUB_REF_NAME}" = "codex/mawda-full-platform-implementation"
       - uses: actions/setup-node@v5
         with:
           node-version: "20.20.2"
