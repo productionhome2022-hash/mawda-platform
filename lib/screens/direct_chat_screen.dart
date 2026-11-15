@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/member_media_upload_service.dart';
+import '../policies/chat_audio_policy.dart';
 import '../widgets/chat_audio_controls.dart';
 import 'safety_center_screen.dart';
 
@@ -693,7 +694,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                   ChatAudioComposerButton(
                     scope: 'direct',
                     recipientUid: _resolvedPeerUid,
-                    maxDurationSeconds: 60,
+                    maxDurationSeconds: maxLiveChatAudioRecordingSeconds,
                     enabled: !_sending,
                     onBusyChanged: (busy) {
                       if (mounted && _sending != busy) setState(() => _sending = busy);
