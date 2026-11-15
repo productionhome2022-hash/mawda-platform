@@ -48,7 +48,7 @@ class _ChatAudioComposerButtonState extends State<ChatAudioComposerButton> {
   bool _uploading = false;
   bool _stopping = false;
 
-  static const int _maxPcmBytes = 20 * 1024 * 1024;
+  static const int _maxPcmBytes = 4 * 1024 * 1024;
 
   @override
   void dispose() {
