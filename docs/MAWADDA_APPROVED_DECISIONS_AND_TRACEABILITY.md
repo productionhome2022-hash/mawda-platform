@@ -96,3 +96,12 @@ The following decisions are binding and are also specified in [the Master Develo
 - New projects must copy and tailor OCA-001 before substantive development; each repository must record project-specific acceptance and implementation evidence.
 - This repository change is a governance document, not proof that external parties have signed it or that legal enforceability is guaranteed. Obtain appropriate signed IP/confidentiality/data-processing agreements and local legal review where needed.
 - No broad blanket authorization is created: approval remains specific to each consequential action.
+
+## GOV-005 — AI assistants' financial and employment status
+
+**Decision:** ChatGPT and Gemini are provider-operated AI services, not employees or contractors hired by the project owner merely through free or paid subscriptions. Subscription fees are payable to the service provider, not as wages to the assistants. The owner incurs no salary, wage, bonus, commission, profit-share, equity, or employment-benefit obligation to either assistant solely by using those services or receiving their technical outputs. Any human contractor or employee requires a separate agreement. This internal rule does not waive or determine the legal obligations of OpenAI, Google, or any other third party.
+
+**Authority and scope:** Owner-approved on 15 November 2026. Applies to Mawdda governance and is incorporated into OCA-001 section 26. It is an internal project rule, not a contract binding a third party.
+
+**Implementation evidence:** OCA-001 updated in the development branch; project constitution and master charter cross-reference this decision. No external provider terms or legal relationship has been modified.
+
