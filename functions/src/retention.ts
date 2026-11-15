@@ -11,6 +11,7 @@ export const CHAT_TEXT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const RETENTION_BATCH_SIZE = 150;
 const RETENTION_PAGES_PER_RUN = 10;
 const retentionJobsEnabled = defineString("MAWDA_RETENTION_JOBS_ENABLED", { default: "false" });
+const retentionProductionProjectId = defineString("MAWDA_RETENTION_PRODUCTION_PROJECT_ID", { default: "" });
 
 /** Fail closed when a specific media asset is under a documented active hold. */
 export function shouldSuspendMediaDeletion(asset: Record<string, unknown>): boolean {
@@ -37,17 +38,31 @@ export function isSupportedChatMessagePath(path: string): boolean {
     parts[1].length > 0 && parts[2] === "messages" && parts[3].length > 0;
 }
 
-function nonProductionProject(): boolean {
-  const projectId = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? "";
+function nonProductionProject(projectId: string): boolean {
   return projectId !== "mawda-app-2026" &&
     isExplicitNonProductionTarget(projectId, ["test", "staging", "dev", "demo", "nonprod", "sandbox"]);
 }
 
+/** Production retention requires both the explicit enable switch and an exact project-ID allowlist match. */
+export function canRunRetentionJobs(
+  projectId: string,
+  enabled: boolean,
+  productionProjectId: string,
+): boolean {
+  if (!enabled || !projectId) return false;
+  if (productionProjectId.trim().length > 0 && projectId === productionProjectId.trim()) return true;
+  return nonProductionProject(projectId);
+}
+
 function jobsMayRun(): boolean {
-  if (retentionJobsEnabled.value() !== "true") return false;
-  if (!nonProductionProject()) {
-    logger.error("Retention sweep refused: only an explicitly named non-production project is allowed.", {
-      projectId: process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? "unknown",
+  const projectId = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT ?? "";
+  const enabled = retentionJobsEnabled.value() === "true";
+  const productionProjectId = retentionProductionProjectId.value();
+  if (!canRunRetentionJobs(projectId, enabled, productionProjectId)) {
+    logger.error("Retention sweep refused: enablement and exact production project allowlisting are required.", {
+      projectId: projectId || "unknown",
+      enabled,
+      productionProjectAllowlisted: productionProjectId.trim().length > 0 && projectId === productionProjectId.trim(),
     });
     return false;
   }
@@ -519,9 +534,9 @@ export const removeLateExpiredChatMediaDerivative = configuredBucket
   ? onObjectFinalized({ bucket: configuredBucket }, handleLateExpiredChatMediaDerivative)
   : undefined;
 
-/** Reconciles expired chat, gallery and story media every minute; disabled by default and non-production gated. */
+/** Reconciles expired chat, gallery and story media every five minutes; disabled by default and requires an exact production project allowlist. */
 export const enforceChatMediaRetention = onSchedule(
-  { schedule: "every 1 minutes", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
+  { schedule: "every 5 minutes", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
   async () => {
     if (!jobsMayRun()) return;
     const result = await runChatMediaRetentionSweep();
@@ -529,9 +544,9 @@ export const enforceChatMediaRetention = onSchedule(
   },
 );
 
-/** Permanently removes chat text and text-bearing previews after seven days. */
+/** Permanently removes chat text and text-bearing previews after seven days, using a daily bounded sweep. */
 export const enforceChatTextRetention = onSchedule(
-  { schedule: "every 1 minutes", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
+  { schedule: "every 24 hours", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
   async () => {
     if (!jobsMayRun()) return;
     const result = await runChatTextRetentionSweep();
