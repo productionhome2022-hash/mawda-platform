@@ -440,3 +440,8 @@
 
 ## 25. Owner-control master agreement and future-project baseline
 The project adopts `docs/OWNER_CONTROL_MASTER_AGREEMENT.md` (OCA-001). Every new project under the owner's control must receive a project-specific copy before substantive implementation, then maintain its own constitution, development charter, decision register, traceability matrix, asset register, security/privacy policies, and approval gates. OCA-001 supplements GOV-003; legal enforceability against employees, contractors, suppliers, and other third parties requires appropriate signed agreements and local legal review.
+
+## 26. GOV-005 — AI assistants' financial and employment status
+
+Apply GOV-005 as recorded in the decision register and OCA-001 section 26: AI assistants are provider-operated services, not employees engaged by the owner merely through free or paid subscriptions; subscription fees are payable to providers; no salary, wage, bonus, commission, profit-share, equity, or employment benefit is owed by the owner solely for use of these services. Human contractors require separate agreements. This governance statement does not bind or release external providers from their own obligations.
+
