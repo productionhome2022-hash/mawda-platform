@@ -396,6 +396,17 @@ Biometric verification is a high-assurance identity and liveness process, not a 
 
 Voice calling and video calling are two separate paid premium entitlements. Neither entitlement is included automatically in the other, in VIP, or in any unrelated store purchase. Each is sold independently in the Premium Features Store with three owner-configurable validity periods: 24 hours, 7 days, and 30 days. The six initial experimental coin prices are defined in `functions/src/default-store-catalog.ts`; they are test defaults only, not final commercial pricing. The single platform owner may change each item price, publication state, and purchase availability through the authenticated owner catalog workflow. Existing owner-edited catalog values must never be overwritten by default seeding.
 
+### Per-call duration cap (approved 2026-11-15)
+
+- Every individual voice call is limited to a maximum of 5 minutes (300 seconds).
+- Every individual video call is limited to a maximum of 5 minutes (300 seconds).
+- Subscription validity (24 hours, 7 days, or 30 days) grants eligibility to initiate or receive calls during that entitlement window; it never extends the duration of an individual call.
+- The 300-second duration is measured from the server-authoritative call connection/start timestamp, not from the device clock or a client-controlled timer. The signaling/session backend must enforce automatic termination at the limit for all participants.
+- The client should display a visible countdown and a clear end-of-call notice, but these are informational only; the server remains authoritative.
+- Reconnection, network handoff, app backgrounding, participant rejoining, or repeated session signaling must not reset or bypass the original call's elapsed-time budget. A genuinely new call requires a new session and a fresh authorization of both participants.
+- Audit the call start/end timestamps and termination reason with privacy minimization. Do not record call audio/video content.
+- Integration tests must verify both call types terminate at or before 300 seconds, including reconnect/rejoin attempts and manipulated client clocks.
+ 
 ### Product and entitlement rules
 
 - Voice products: `voice_call_24h`, `voice_call_7d`, `voice_call_30d`; category `voice_call`.
