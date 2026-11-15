@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'member_entitlement_history_screen.dart';
 
 class ShopScreen extends StatefulWidget {
   const ShopScreen({super.key, required this.userId});
@@ -156,6 +157,13 @@ class _ShopScreenState extends State<ShopScreen> {
       appBar: AppBar(
         title: const Text('متجر مودة'),
         actions: [
+          IconButton(
+            tooltip: 'سجل الاستحقاقات المجانية',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const MemberEntitlementHistoryScreen(),
+            )),
+            icon: const Icon(Icons.card_giftcard_outlined),
+          ),
           IconButton(
             tooltip: 'تحديث الكتالوج',
             onPressed: _refresh,
