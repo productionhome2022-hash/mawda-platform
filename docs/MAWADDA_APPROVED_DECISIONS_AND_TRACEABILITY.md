@@ -151,3 +151,18 @@ The following decisions are binding and are also specified in [the Master Develo
 - Future signing gate: provision the existing keystore and its passwords through an approved encrypted secret channel (for example, repository Actions Secrets), build Release without exposing credentials, verify the resulting APK with `apksigner`, and compare its signer certificate SHA-256 with the fingerprint above. Then verify install/update compatibility on a physical Android device. Do not publish the APK until every check passes.
 - iOS native app work is deferred by owner direction. Do not build, sign, distribute, or link an iOS native app for the current experimental launch. On the public pre-authentication landing/portal, the iOS option opens a small localized notice explaining that the native iOS app is currently being prepared/tested; users may use the web version meanwhile. This is a UI notice, not an iOS download link or a claim of App Store availability.
 - This decision does not authorize GitHub secret mutation, key transfer, signing, merge to `main`, production deployment, or paid infrastructure. The Android signing workflow and the iOS portal notice remain implementation/acceptance tasks.
+
+
+## PLAT-002 — Cross-platform install portal implementation status (15 November 2026)
+
+The owner reaffirmed that desktop PWA installation and usable experiences across conventional operating systems, screen sizes and input methods are foundational launch requirements, equivalent in priority to Android APK availability.
+
+- Public pre-authentication login portal: `lib/widgets/mawdda_app_downloads.dart` now exposes Android release status, desktop/mobile web install guidance, and an iOS coming-soon dialog with a web fallback. Android remains disabled unless a release URL is explicitly configured.
+- Browser install experience: `web/install-prompt.js` captures `beforeinstallprompt`, defers the native prompt until a user click, detects standalone mode, hides after `appinstalled`, and supplies platform-specific fallback guidance for desktop browsers, Android and iOS Safari.
+- PWA shell: `web/manifest.json` declares standalone display, 192/512 SVG icons and display fallbacks; `web/index.html` carries PWA metadata and iOS home-screen metadata. These source declarations are not yet proof of installability on every target browser.
+- iOS native app: explicitly deferred for the current experimental launch. The portal must not expose an iOS download URL; pressing iOS opens the coming-soon/web-fallback notice.
+- Tests added: `test/widgets/mawdda_app_downloads_test.dart` covers the Android disabled state, iOS notice and web-install guidance. These tests have not yet been executed on the current head.
+- Remaining acceptance: exact-head Flutter CI; built Web artifact inspection; Chrome/Edge/Firefox/Safari installability matrix; Windows/macOS/Linux PWA install smoke tests; Android Chrome install smoke test; iPhone/iPad Safari Add to Home Screen smoke test; icon validation; service-worker/offline/update checks; private-data cache isolation; responsive, touch, keyboard, accessibility and localization acceptance.
+- Android signing: `.github/workflows/android-signed-release.yml` provides a manual, development-branch-only signed Release build that expects the owner's existing JKS and passwords as GitHub Actions secrets and checks the APK signer fingerprint. It has not been run and no signed APK is currently evidenced. No keystore or password is committed or modified.
+
+These tasks do not authorize merge, publication, deployment, production Firebase changes, paid infrastructure, or mutation of GitHub secrets.
