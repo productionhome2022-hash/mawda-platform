@@ -1,24 +1,8 @@
 name: Bootstrap and validate Mawdda native platforms
 
 on:
-  push:
-    branches:
-      - codex/mawda-full-platform-implementation
-    paths:
-      - "tool/configure_native_platforms.py"
-      - "tool/patch_android_plugin_compile_sdk.py"
-      - "tool/test_patch_android_plugin_compile_sdk.py"
-      - "tool/test_configure_native_platforms.py"
-      - "tool/test_native_workflow_contract.py"
-      - ".github/workflows/bootstrap-native-platforms.yml"
-      - "pubspec.yaml"
-      - "pubspec.lock"
-      - "lib/**"
-      - "web/**"
-      - "docs/**"
-      - "README.md"
-      - "docs/**"
-      - "README.md"
+  # The open development PR is the single automatic trigger. Avoid duplicate
+  # push + pull_request native builds for the same commit.
   pull_request:
     branches:
       - main
