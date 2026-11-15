@@ -465,3 +465,50 @@ Immediately before an open call, replace the generic disclosure with the exact p
 - Keep development Emulator-first and within the current Firebase Spark/no-cost plan. Do not upgrade to Blaze, enable billing, create billable Firebase/GCP resources, deploy Cloud Run, create paid storage/egress services, or change live project settings without a separate explicit owner approval.
 - CI is restricted to build, analysis, unit/integration/security tests and native build validation. It must not deploy Firebase Hosting, Cloud Functions, scanner services, rules or infrastructure, and must not register or mutate Firebase apps/settings.
 - The 24-month immutable audit archive/WORM module is deferred. Source code may remain documented, but no bucket creation, retention policy activation, retention lock or Terraform apply is authorized until a separate cost/legal review and explicit owner approval.
+
+
+## Approved amendment — unified commercial controls, retention modes, Media Saver, rewards and owner grants (2026-11-15)
+
+This amendment is part of the binding constitution and supersedes inconsistent older draft wording. It is also consolidated in [Master Development Charter](MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md).
+
+### A. Global duration and pricing engine
+- Every current and future store, product, paid feature, membership, title, badge, medal, avatar frame, animated/colored name, theme, profile enhancement, room rental and other purchasable entitlement must use one central owner-configurable commercial/catalog engine.
+- The engine must support 24 hours, one week and one month as duration options. Each duration has its own price set by the owner in Super Admin. The owner can enable/disable each duration, edit prices, set quantities and purchase limits, enable/disable products, configure renewal where applicable, and inspect sales, buyers and entitlements.
+- Do not hardcode commercial prices or validity periods in client code. Test seed values are not production prices. Existing receipts and entitlements retain the price and duration snapshot with which they were purchased; later price changes do not rewrite historical purchases.
+- Permanent entitlements are supported where the owner defines an item as permanent. A time limit must not be imposed on a permanent item.
+- Every future SKU must connect to this shared engine and a real entitlement consumer before it can be offered for sale.
+
+### B. Mawdda Media Saver
+- Media Saver is one paid product, usable in direct chats, public rooms and rented private rooms. It supports normal images, GIFs, videos and audio recordings.
+- An active entitlement is required and must be checked by the trusted backend on every save request. Hiding the UI button alone is not authorization.
+- Local saving does not pause, reset or extend server-side media deletion. The local copy is outside Mawdda's control.
+- It uses the shared 24-hour / one-week / one-month duration and owner-set per-duration prices. The initial one-week / 200-coin value is a test-only baseline, not a binding commercial price.
+
+### C. Three chat-retention modes
+- Temporary direct chat: delete the entire conversation, including text and media, after four hours of server-recorded inactivity. Each new activity resets the inactivity deadline. App closure or network disconnection alone is not inactivity evidence. Both participants must be told the mode and retention rule.
+- Normal chat: media expires four hours after each media item is sent; text expires seven days after each text message is sent.
+- Important chat: media expires four hours after each media item is sent; text expires thirty days after each text message is sent.
+- This three-mode policy is the latest approved owner direction. Seven-day text retention is the normal-chat rule, not a universal rule for every chat mode. Deletion must cover originals and deletable derivatives/references and be enforced by trusted server jobs. External copies and screenshots cannot be promised deleted.
+
+### D. Central rewards system
+- Super Admin controls daily attendance, hourly attendance and weekly attendance rewards, including eligibility, schedule/window, value, quantity, limits, enable/disable and audit.
+- Rewards are calculated and granted server-side, once per eligible cycle, with idempotency and wallet ledger records for coin awards.
+- The existing 500-coin eligible 90-day email-verification reward remains governed by its existing trusted-verification rule.
+- The 1,500-coin biometric reward remains fail-closed until challenge-bound cryptographic server proof, device/account binding, signature validation, replay protection, revocation/expiry and physical-device acceptance exist. A client-reported local OS prompt success is insufficient.
+
+### E. Ad-view rewards
+- The owner may upload and manage first-party ads; future third-party ad providers may be integrated through approved adapters.
+- The owner configures required ad duration, campaign schedule/placement, reward amount, eligibility and repetition limits.
+- A reward is granted only after the required viewing duration is completed and server-side evidence/heartbeats establish actual foreground viewing and valid completion. A client timer or merely opening the ad is insufficient.
+- Incomplete, interrupted or unverifiable views receive no reward. Campaign views and grants are audited and idempotent; the owner can pause or disable a campaign.
+
+### F. Owner grant and room-reward center
+- Super Admin must have a dedicated free-grant center to award coins, paid features, store products, memberships, titles, badges, medals, VIP, avatar frames, themes and other grant-capable current/future items without requiring recipient purchase or deducting recipient coins.
+- Recipients may be one user selected by UID, a selected group/list, all users currently connected to a selected public room using a server-side attendance snapshot at execution time, or a room/group as a collective reward recipient.
+- Room rewards include coin contribution/support chests and other owner-defined group rewards.
+- Each grant requires reward type, quantity/value, duration if temporary, reason and optional message; show recipient count and impact preview and require confirmation.
+- Grants are server-authorized to the canonical owner with recent MFA, idempotent, auditable, and recorded in each recipient's grant history. Coin grants create correct wallet ledger entries and are not purchases. Partial failures must be resumable without duplicate awards. Moderators cannot self-grant owner powers.
+
+### G. Global owner control
+- The owner controls all stores, products, features, titles, badges, coins, rewards, advertising campaigns, room products, quantities, durations, prices, limits and enable/disable settings from Super Admin, subject to server-enforced security and audit.
+- These are binding product requirements. Their addition here does not claim that implementation, tests or release acceptance are complete; status must be tracked with code and evidence.
