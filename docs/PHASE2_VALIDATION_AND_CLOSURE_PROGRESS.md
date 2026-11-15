@@ -252,16 +252,22 @@ The current development branch implements the guest public-room path in `guest-s
 
 No merge, deployment, live Firebase mutation, paid-resource activation, or production change was performed. Phase 2 remains open pending fresh CI, native build completion, live non-production GCS/Cloud Run validation, device acceptance, and the remaining product/legal gates.
 
-### CI concurrency correction — 15 November 2026
+### CI trigger and concurrency correction — 15 November 2026
 
-The previous `.github/workflows/validate.yml` listened to both `push` and `pull_request` for the same development head while assigning both events the same concurrency group with `cancel-in-progress: true`. That configuration does **not** deduplicate runs; it can cancel one event's jobs when the other starts. This is consistent with the observed cancelled Flutter/Functions jobs on run 43715453222, although the cancellation event itself is not proven from logs.
+The workflow files `.github/workflows/validate.yml` and `.github/workflows/bootstrap-native-platforms.yml` are newly introduced on the development branch and are not yet present on repository `main`. A `pull_request` event for PR #2 cannot reliably load these new workflow definitions from the base branch. Therefore the correct automatic trigger before merge is a push to the isolated development branch, not pull_request.
 
-Corrected in commit `22788ce82c707a6cb58b8ca3c4a0ec456be6b520`:
-- Automatic validation now uses the open PR's `pull_request` event as the single per-commit trigger.
-- The duplicate `push` trigger was removed; manual `workflow_dispatch` remains.
-- Concurrency still cancels superseded commits for the same PR head, not duplicate event types.
+An earlier attempt to use only `pull_request` resulted in no fresh workflow run on the new PR head. The final configuration now:
+- Triggers Validate Mawda on each push to `codex/mawda-full-platform-implementation`.
+- Triggers native Android/iOS validation on development-branch pushes only when native-related paths change.
+- Retains `workflow_dispatch` for manual use when available.
+- Uses one concurrency group per development branch so a later commit supersedes an earlier in-progress run without creating duplicate push/PR event races.
 
-The PR #2 head is now expected to advance to this workflow correction plus the documented media callback fix. A fresh Validate run and native run must be checked against the exact new PR head before reporting green. No local test execution is claimed; the workflow YAML validation is part of the CI job itself.
+Commits:
+- `22788ce82c707a6cb58b8ca3c4a0ec456be6b520` — initial removal of duplicate push/PR trigger (superseded by the correct trigger below).
+- `8d691880c1570b76da0a5432f85811aeaa906df5` — restore push-based automatic validation for the development branch.
+- `f52863646c5ef22db01e0026e8248dd1be5c14b5` — enable native builds on relevant development-branch pushes.
+
+**Verification:** the latest workflow trigger changes themselves still require the next GitHub Actions run to validate YAML and complete Flutter, Functions, scanner, Android and iOS jobs. No test pass is claimed for the newest head.
 
 ### Fail-closed guard for unknown derivative categories
 
