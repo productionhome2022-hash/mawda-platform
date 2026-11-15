@@ -113,3 +113,18 @@
 
 ## قاعدة التحديث
 تُحدّث حالة كل مخرج في `docs/IMPLEMENTATION_TRACEABILITY.md` و`docs/PHASES_1_2_CLOSEOUT_STATUS.md` مع ربطه بـ commit وworkflow run واختبار محدد. لا تُكتب «مكتمل» دون دليل.
+
+
+## Owner-approved consolidated amendments — 15 November 2026
+
+The [Master Development Charter](MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md) is mandatory for all seven phases. Add the following work to the existing phase scopes without dropping any earlier approved scope:
+
+- **Phase 1 — foundation/security:** establish the central configurable catalog/reward/grant data contracts and server authorization boundaries before building dependent UI. Keep all financial and privilege-changing operations server-side and idempotent.
+- **Phase 2 — identity/profile/guest:** preserve the existing verified email, privacy acknowledgement, profile and guest restrictions. Do not let the new rewards system bypass age, privacy, identity or guest capability rules.
+- **Phase 3 — messaging/rooms/media:** implement the three chat-retention modes (temporary 4h inactivity, normal media 4h/text 7d, important media 4h/text 30d), participant notices, server activity timestamps and complete deletion. Implement the paid Media Saver entitlement check and local-save UX without extending server retention. Preserve the member/guest/owner media allowlists.
+- **Phase 4 — wallet/store/rewards:** extend the shared commercial engine to 24h/7d/30d owner-priced durations, separate prices, quantities, limits and permanent items; implement daily/hourly/weekly attendance rewards and ad completion verification; connect grants and room prizes to the wallet ledger and entitlement service. Do not activate any SKU before fulfillment and tests pass.
+- **Phase 5 — owner operations:** add Super Admin controls for duration prices, quantities, limits, reward schedules, campaigns, free grants, selected UID/group/public-room recipients, room collective rewards, preview/confirmation, audit and reports.
+- **Phase 6 — advanced verification/AI:** retain fail-closed biometric reward rules and AI safety/age/privacy/budget boundaries. New rewards cannot use client-reported verification as trusted evidence.
+- **Phase 7 — release:** add exact-head end-to-end tests for purchase, grant, expiry, deletion, attendance, ad completion, room presence snapshots, concurrency, retry and reconciliation; complete security/legal/device/non-production acceptance before release approval.
+
+The phase status remains evidence-based. This amendment does not mark any new feature implemented or release-ready.
