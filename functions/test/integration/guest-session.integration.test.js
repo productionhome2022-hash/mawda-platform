@@ -1,9 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { randomUUID } = require("node:crypto");
-const { getFirestore } = require("firebase-admin/firestore");
+const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const {
-  startGuestSession, getGuestSessionStatus, endGuestSession, listGuestPublicRooms,
+  startGuestSession, getGuestSessionStatus, endGuestSession, listGuestPublicRooms, cleanupExpiredGuestSessions,
   joinRoom, sendRoomMessage, getRoomMessages, setRoomAudience, sendChatMediaAttachment,
   sendDirectMessage, purchaseStoreItem, setMemberBlock, createMediaUploadIntent,
   transferCoins, listRoomEvents, createRoomEvent, listSafetyAppeals,
@@ -380,3 +380,47 @@ test("ending a guest session removes memberships across multiple query pages", a
     await batch.commit();
   }
 });
+
+test("scheduled cleanup retries a pending guest session and finalizes it only after removing memberships", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const uid = `guest_retry_${suffix()}`;
+  const sessionRef = db.collection("guestSessions").doc(uid);
+  const roomRefs = Array.from({ length: 3 }, (_, index) =>
+    db.collection("rooms").doc(`${uid}_room_${index}`));
+
+  try {
+    const batch = db.batch();
+    roomRefs.forEach((roomRef) => {
+      batch.set(roomRef, {
+        name: "Guest cleanup retry fixture", status: "active", kind: "public",
+        audience: "all_ages", guestAudienceApproved: true, memberCount: 1,
+      });
+      batch.set(roomRef.collection("members").doc(uid), { uid, role: "guest" });
+    });
+    batch.set(sessionRef, {
+      uid, status: "cleanup_pending", terminalStatus: "ended",
+      expiresAt: Timestamp.fromMillis(Date.now() - 1000),
+      cleanupRequestedAt: Timestamp.now(),
+    });
+    await batch.commit();
+
+    await cleanupExpiredGuestSessions.run();
+
+    const finalized = (await sessionRef.get()).data();
+    assert.equal(finalized.status, "ended");
+    assert.ok(finalized.cleanupCompletedAt);
+    const remaining = await db.collectionGroup("members").where("uid", "==", uid).get();
+    assert.equal(remaining.size, 0);
+    const rooms = await Promise.all(roomRefs.map((roomRef) => roomRef.get()));
+    assert.ok(rooms.every((room) => room.data()?.memberCount === 0));
+  } finally {
+    const batch = db.batch();
+    roomRefs.forEach((roomRef) => {
+      batch.delete(roomRef.collection("members").doc(uid));
+      batch.delete(roomRef);
+    });
+    batch.delete(sessionRef);
+    await batch.commit();
+  }
+});
+
