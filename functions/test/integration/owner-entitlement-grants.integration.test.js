@@ -175,4 +175,8 @@ test("bulk owner grant rejects duplicate target IDs and unsupported duration val
     () => grantStoreEntitlement.run(ownerRequest(ownerUid, { ...base, memberUid: "member", durationHours: 48 })),
     (error) => error && error.code === "invalid-argument",
   );
+  await assert.rejects(
+    () => grantStoreEntitlement.run(ownerRequest(ownerUid, { ...base, memberUid: "bad/member" })),
+    (error) => error && error.code === "invalid-argument",
+  );
 });
