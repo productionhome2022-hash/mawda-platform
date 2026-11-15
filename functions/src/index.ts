@@ -2507,6 +2507,7 @@ export const sendDirectMessage = onCall(async (request) => {
           ? existingChat.data()?.createdAt ?? createdAt
           : createdAt,
         lastMessageAt: createdAt,
+        lastMessageId: messageId,
         lastMessageSenderUid: senderUid,
         lastMessagePreview: messageText.substring(0, 120),
       }, { merge: true });
@@ -2625,6 +2626,23 @@ export const getDirectMessages = onCall(async (request) => {
   const orderedMessageDocs = pageRequest.direction === "after"
     ? pageDocs
     : [...pageDocs].reverse();
+  const latestMessageDoc = pageRequest.direction === "after"
+    ? pageDocs[pageDocs.length - 1] ?? null
+    : pageDocs[0] ?? null;
+  const chatData = chat.data() ?? {};
+  const fallbackLastMessageAt = chatData.lastMessageAt;
+  const latestMessagePageToken = latestMessageDoc
+    ? encodeMemberMessagePageToken(
+      latestMessageDoc.data().createdAt.toMillis(),
+      latestMessageDoc.id,
+    )
+    : fallbackLastMessageAt instanceof Timestamp && typeof chatData.lastMessageId === "string"
+      ? encodeMemberMessagePageToken(fallbackLastMessageAt.toMillis(), chatData.lastMessageId)
+      : null;
+  const rawDeletionRevision = chatData.messageDeletionRevision;
+  const messageDeletionRevision = Number.isSafeInteger(rawDeletionRevision) && rawDeletionRevision >= 0
+    ? rawDeletionRevision
+    : 0;
   const receiptRefs = participants.map((participant) =>
     chatRef.collection("readReceipts").doc(participant),
   );
@@ -2635,6 +2653,8 @@ export const getDirectMessages = onCall(async (request) => {
     chatId,
     peerUid: peer,
     peerLastReadAt,
+    messageDeletionRevision,
+    latestMessagePageToken,
     pageDirection: pageRequest.direction,
     hasMore,
     nextPageToken,
@@ -2782,10 +2802,19 @@ export const deleteDirectMessageForMe = onCall(async (request) => {
         participants.length !== 2 || !participants.includes(uid)) {
       throw new HttpsError("permission-denied", "لا تملك صلاحية إخفاء هذه الرسالة.");
     }
-    transaction.update(messageRef, {
-      deletedForUids: FieldValue.arrayUnion(uid),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    const messageData = message.data() ?? {};
+    const alreadyHidden = Array.isArray(messageData.deletedForUids) &&
+      messageData.deletedForUids.includes(uid);
+    if (!alreadyHidden) {
+      transaction.update(messageRef, {
+        deletedForUids: FieldValue.arrayUnion(uid),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.update(chatRef, {
+        messageDeletionRevision: FieldValue.increment(1),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
     if (notification.exists) transaction.delete(notificationRef);
     if (!audit.exists) {
       transaction.create(auditRef, {
@@ -2872,6 +2901,10 @@ export const deleteDirectMessageForEveryone = onCall(async (request) => {
           deletionRequestedAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         });
+        transaction.update(chatRef, {
+          messageDeletionRevision: FieldValue.increment(1),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
         notifications.forEach((snapshot, index) => {
           if (snapshot.exists) transaction.delete(notificationRefs[index]);
         });
@@ -2888,6 +2921,10 @@ export const deleteDirectMessageForEveryone = onCall(async (request) => {
     );
     const notifications = await Promise.all(notificationRefs.map((ref) => transaction.get(ref)));
     transaction.delete(messageRef);
+    transaction.update(chatRef, {
+      messageDeletionRevision: FieldValue.increment(1),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
     notifications.forEach((snapshot, index) => {
       if (snapshot.exists) transaction.delete(notificationRefs[index]);
     });

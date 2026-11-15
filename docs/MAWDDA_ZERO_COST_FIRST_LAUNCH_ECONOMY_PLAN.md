@@ -150,23 +150,38 @@ This plan does not authorize merging the development PR, deploying production, c
 
 ## 11. Verified implementation baseline — 2026-11-15
 
-The following source inspection was performed on the development branch after the economy plan was committed. These are confirmed gaps, not claims that the optimizations are already implemented:
+The development branch now has a first measured-scope optimization for direct chat reads. This is a source-level implementation and emulator-test contract; no production read/cost reduction is claimed until provider telemetry is collected.
 
-- `lib/screens/direct_chat_screen.dart` starts an eight-second periodic refresh and each refresh calls `getDirectMessages` again.
-- `functions/src/index.ts:getDirectMessages` returns the latest 50 direct messages on every call; it does not yet accept an incremental cursor or an older-page cursor.
-- `lib/screens/chat_room_screen.dart` starts an eight-second periodic refresh and reloads the room message future.
-- `functions/src/index.ts:getRoomMessages` returns the latest 50 room messages on every call; it does not yet accept incremental or older-page cursors.
-- `functions/src/index.ts:getMyDirectChats` returns at most 50 conversations and currently has no member-facing page token.
-- `functions/src/index.ts` story listing currently uses a fixed 50-item limit; member room listing and discovery also require a cursor/continuation review.
-- Some owner-review endpoints already demonstrate stable cursor pagination. Reuse their tested patterns only after adapting authorization, ordering, and member-specific privacy rules; do not expose owner-review APIs to members.
+### Implemented in the direct-message path
 
-### Required implementation order
+- The backend supports bounded `beforePageToken` and `afterPageToken` requests, ordered by `createdAt` and Firestore document ID. Cursor tokens encode both values, so equal timestamps remain deterministic.
+- The direct-chat client now loads the recent 50-message page once, polls for only messages after its latest cursor, merges by immutable message ID, and sorts by timestamp plus ID.
+- Older direct-message history is fetched through the server cursor when the member requests it; pages are deduplicated before display.
+- The client refreshes outgoing read indicators from the peer read cursor without writing a new receipt when no new incoming message arrived.
+- A monotonic `messageDeletionRevision` is incremented for delete-for-me and delete-for-everyone requests. An incremental client detects a revision change and performs a bounded full recent-page reconciliation so deletions are not left visible in a stale cache. Repeated delete-for-me requests do not increment the revision again.
+- Emulator regression covers equal-timestamp ordering, a new message arriving after the cursor, deletion revision changes, and idempotent delete replay.
 
-1. Add tested, validated cursor contracts for direct messages and room messages. Order by `createdAt` plus Firestore document ID to avoid timestamp ties.
-2. Add incremental "after latest message" retrieval and older-history retrieval. Preserve the initial recent-page experience.
-3. Update both chat clients to merge and deduplicate by message ID rather than replacing the entire list. Do not mark receipts repeatedly when no new messages arrived.
-4. Add inbox pagination and then review room, discovery, and story lists for equivalent cursor support.
-5. Add tests for equal timestamps, deleted/hidden messages, blocked users, guest room permissions, retry, page boundaries, duplicate suppression, and authorization.
-6. Measure reads per active chat session and compare the same scripted interaction before/after.
+### Remaining read-optimization gaps
 
-**Current guardrail:** do not merely lengthen the eight-second timer. The intended fix is incremental retrieval and client-side reconciliation, preserving prompt delivery and a smooth conversation.
+- Room chat still refreshes its latest 50 messages every eight seconds; `getRoomMessages` and its Flutter caller do not yet use incremental or older-page cursors.
+- `getMyDirectChats` still returns at most 50 inbox conversations without a member-facing page token.
+- Story listing remains fixed at 50; room listing and discovery continuation still need a complete cursor and permission review.
+- No before/after Firestore read counts per active session have been captured. The implementation is intended to reduce repeated message-document reads, but no numeric savings are asserted.
+- The eight-second direct-chat refresh interval remains unchanged; the optimization is incremental data retrieval, not merely a longer timer.
+
+### Retention and deletion reliability
+
+- The current server sweep uses bounded pages, exact object-name matching, generation-preconditioned deletion, known original and sanitized derivative paths, content-free tombstones, retryable failure audit, and a five-minute late-derivative reconciliation clock.
+- A Storage finalize trigger deletes a late original/derivative generation only when the asset identity, owner, purpose, expiry/deletion state, and known path all match.
+- Text retention is paged with a document-snapshot cursor and respects legal holds and the configured chat mode.
+- The sweep currently returns aggregate assets/objects/failures, but does not yet provide the complete owner-facing due/deleted/retried/failed/overdue counters or maximum deletion-lag telemetry required by this plan.
+- Emulator tests do not prove real GCS object-version behavior, soft-delete/retention-lock compatibility, or backup expiry. The dedicated non-production GCS acceptance script remains a separate gate. Mandatory cleanup must not be disabled to save money.
+
+### Economy telemetry and protected modes
+
+- `PLATFORM_ECONOMIC_POLICY.enforcementStatus` is explicitly `planning_only`; its thresholds and quota envelopes are planning values, not live billing measurements or provider spend caps.
+- No verified production billing export or live Firestore/storage/egress measurements were available in this review. Therefore no cost-per-member estimate and no “100% free” claim is made.
+- The full owner-facing operational-counter dashboard, append-only period snapshots, and reset-measurement-period action remain incomplete.
+- Any future Watch/Efficiency/Incident mode may lower optional background work only. Authentication, direct/room messaging, calls, wallet/store correctness, safety, privacy, backups/recovery, and mandatory retention remain protected and must never be disabled by an economy switch.
+
+This commit changes only the direct-message read path and its tests. Room, inbox, story, discovery, operational-counter, live-storage, and cost-measurement work remain open acceptance items.

@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/member_media_upload_service.dart';
+import '../services/direct_message_page.dart';
 import '../policies/chat_audio_policy.dart';
 import '../widgets/chat_audio_controls.dart';
 import 'safety_center_screen.dart';
@@ -43,6 +44,13 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   bool _loadingBlockStatus = true;
   String _resolvedPeerUid = '';
   Timer? _refreshTimer;
+  Map<String, dynamic>? _currentMessageData;
+  String? _latestMessagePageToken;
+  String? _olderPageToken;
+  bool _hasOlderMessages = false;
+  bool _loadingOlderMessages = false;
+  bool _initialLoadInProgress = false;
+  int _messageDeletionRevision = 0;
 
   @override
   void initState() {
@@ -131,46 +139,202 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     }
   }
 
-  Future<Map<String, dynamic>> _loadMessages() async {
-    final response = await FirebaseFunctions.instance
-        .httpsCallable('getDirectMessages')
-        .call(<String, dynamic>{
-          if (widget.chatId != null) 'chatId': widget.chatId,
-          if (widget.chatId == null) 'peerUid': widget.peerUid,
-        });
-    final data = Map<String, dynamic>.from(response.data as Map);
-    final messages = (data['messages'] as List<dynamic>? ?? const [])
-        .whereType<Map>()
-        .map((message) => Map<String, dynamic>.from(message))
-        .toList(growable: false);
-    _resolvedPeerUid = data['peerUid'] as String? ?? widget.peerUid;
-    final chatId = data['chatId'] as String?;
-    if (chatId != null && messages.isNotEmpty) {
-      // Only the active participant UI marks its own conversation read.
-      // The separate owner-review callable never invokes this path.
-      try {
-        await FirebaseFunctions.instance
-            .httpsCallable('markDirectChatRead')
-            .call(<String, dynamic>{'chatId': chatId});
-      } on FirebaseFunctionsException {
-        // Message reading remains available if receipt persistence is temporarily unavailable.
-      }
+  Future<void> _markConversationReadIfNeeded(
+    String? chatId,
+    List<Map<String, dynamic>> newMessages,
+  ) async {
+    if (chatId == null ||
+        !newMessages.any((message) => message['senderUid'] != widget.currentUserId)) {
+      return;
     }
-    return {
-      ...data,
-      'messages': messages,
-    };
+    try {
+      await FirebaseFunctions.instance
+          .httpsCallable('markDirectChatRead')
+          .call(<String, dynamic>{'chatId': chatId});
+    } on FirebaseFunctionsException {
+      // Message reading remains available if receipt persistence is temporarily unavailable.
+    }
+  }
+
+  Future<Map<String, dynamic>> _loadMessages({
+    Set<String>? previouslyKnownMessageIds,
+  }) async {
+    _initialLoadInProgress = true;
+    try {
+      final response = await FirebaseFunctions.instance
+          .httpsCallable('getDirectMessages')
+          .call(<String, dynamic>{
+            if (widget.chatId != null) 'chatId': widget.chatId,
+            if (widget.chatId == null) 'peerUid': widget.peerUid,
+            'limit': 50,
+          });
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final messages = (data['messages'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((message) => Map<String, dynamic>.from(message))
+          .toList(growable: false);
+      _resolvedPeerUid = data['peerUid'] as String? ?? widget.peerUid;
+      _latestMessagePageToken = data['latestMessagePageToken'] as String?;
+      _olderPageToken = data['nextPageToken'] as String?;
+      _hasOlderMessages = data['hasMore'] == true;
+      final revision = data['messageDeletionRevision'];
+      _messageDeletionRevision = revision is num ? revision.toInt() : 0;
+
+      final newlyReceived = messages.where((message) {
+        if (message['senderUid'] == widget.currentUserId) return false;
+        final id = message['messageId'];
+        return previouslyKnownMessageIds == null ||
+            id is! String ||
+            !previouslyKnownMessageIds.contains(id);
+      }).toList(growable: false);
+      await _markConversationReadIfNeeded(data['chatId'] as String?, newlyReceived);
+
+      final normalized = applyPeerReadCursor(
+        messages: messages,
+        currentUserId: widget.currentUserId,
+        peerLastReadAt: data['peerLastReadAt'],
+      );
+      _currentMessageData = {...data, 'messages': normalized};
+      return _currentMessageData!;
+    } finally {
+      _initialLoadInProgress = false;
+    }
   }
 
   Future<void> _refresh() async {
-    if (!mounted || _refreshing) return;
+    if (!mounted || _refreshing || _initialLoadInProgress) return;
     setState(() => _refreshing = true);
     try {
-      final next = _loadMessages();
-      setState(() => _messagesFuture = next);
-      await next;
+      final current = _currentMessageData;
+      if (current == null) {
+        final next = _loadMessages();
+        setState(() => _messagesFuture = next);
+        await next;
+        return;
+      }
+
+      final chatId = current['chatId'] as String? ?? widget.chatId;
+      final request = <String, dynamic>{'limit': 50};
+      if (chatId != null) {
+        request['chatId'] = chatId;
+      } else {
+        request['peerUid'] = _resolvedPeerUid.isNotEmpty ? _resolvedPeerUid : widget.peerUid;
+      }
+      if (_latestMessagePageToken != null) {
+        request['afterPageToken'] = _latestMessagePageToken;
+      }
+
+      final response = await FirebaseFunctions.instance
+          .httpsCallable('getDirectMessages')
+          .call(request);
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final revisionValue = data['messageDeletionRevision'];
+      final revision = revisionValue is num ? revisionValue.toInt() : 0;
+      if (revision != _messageDeletionRevision) {
+        final previousIds = (current['messages'] as List<dynamic>? ?? const [])
+            .whereType<Map>()
+            .map((message) => message['messageId'])
+            .whereType<String>()
+            .toSet();
+        final fullRefresh = _loadMessages(previouslyKnownMessageIds: previousIds);
+        setState(() => _messagesFuture = fullRefresh);
+        await fullRefresh;
+        return;
+      }
+
+      final newMessages = (data['messages'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((message) => Map<String, dynamic>.from(message))
+          .toList(growable: false);
+      await _markConversationReadIfNeeded(chatId, newMessages);
+
+      final existingMessages = (current['messages'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((message) => Map<String, dynamic>.from(message))
+          .toList(growable: false);
+      final merged = mergeDirectMessagePages(
+        existing: existingMessages,
+        incoming: newMessages,
+      );
+      final updatedMessages = applyPeerReadCursor(
+        messages: merged,
+        currentUserId: widget.currentUserId,
+        peerLastReadAt: data['peerLastReadAt'],
+      );
+      final latestToken = data['latestMessagePageToken'];
+      if (latestToken is String && latestToken.isNotEmpty) {
+        _latestMessagePageToken = latestToken;
+      }
+      _currentMessageData = {
+        ...current,
+        ...data,
+        'messages': updatedMessages,
+      };
+      if (mounted) {
+        setState(() => _messagesFuture = Future.value(_currentMessageData!));
+      }
+    } catch (error) {
+      if (mounted) setState(() => _messagesFuture = Future.error(error));
     } finally {
       if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  Future<void> _loadOlderMessages() async {
+    if (!mounted || _loadingOlderMessages || !_hasOlderMessages ||
+        _olderPageToken == null) {
+      return;
+    }
+    final current = _currentMessageData;
+    final chatId = current?['chatId'] as String? ?? widget.chatId;
+    if (current == null || chatId == null) return;
+
+    setState(() => _loadingOlderMessages = true);
+    try {
+      final response = await FirebaseFunctions.instance
+          .httpsCallable('getDirectMessages')
+          .call(<String, dynamic>{
+            'chatId': chatId,
+            'beforePageToken': _olderPageToken,
+            'limit': 50,
+          });
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final olderMessages = (data['messages'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((message) => Map<String, dynamic>.from(message))
+          .toList(growable: false);
+      final existingMessages = (current['messages'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((message) => Map<String, dynamic>.from(message))
+          .toList(growable: false);
+      final merged = mergeDirectMessagePages(
+        existing: existingMessages,
+        incoming: olderMessages,
+      );
+      final peerReadAt = data['peerLastReadAt'] ?? current['peerLastReadAt'];
+      final updatedMessages = applyPeerReadCursor(
+        messages: merged,
+        currentUserId: widget.currentUserId,
+        peerLastReadAt: peerReadAt,
+      );
+      _olderPageToken = data['nextPageToken'] as String?;
+      _hasOlderMessages = data['hasMore'] == true;
+      _currentMessageData = {
+        ...current,
+        'peerLastReadAt': peerReadAt,
+        'messages': updatedMessages,
+      };
+      if (mounted) {
+        setState(() => _messagesFuture = Future.value(_currentMessageData!));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر تحميل الرسائل الأقدم؛ يمكنك المحاولة مجدداً.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loadingOlderMessages = false);
     }
   }
 
@@ -667,10 +831,34 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                     ),
                   );
                 }
+                final showOlderButton = _hasOlderMessages;
                 return ListView.builder(
                   padding: const EdgeInsets.all(12),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) => _messageBubble(messages[index]),
+                  itemCount: messages.length + (showOlderButton ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (showOlderButton && index == 0) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: TextButton.icon(
+                            onPressed: _loadingOlderMessages ? null : _loadOlderMessages,
+                            icon: _loadingOlderMessages
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.history),
+                            label: Text(_loadingOlderMessages
+                                ? 'جارٍ تحميل الرسائل الأقدم...'
+                                : 'تحميل الرسائل الأقدم'),
+                          ),
+                        ),
+                      );
+                    }
+                    final messageIndex = index - (showOlderButton ? 1 : 0);
+                    return _messageBubble(messages[messageIndex]);
+                  },
                 );
               },
             ),

@@ -745,3 +745,96 @@ test("manual deletion re-sweeps canonical Storage paths after a retention tombst
     ]);
   }
 });
+
+
+test("direct-message incremental cursors handle timestamp ties and deletion reconciliation", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const suffix = Date.now().toString();
+  const [alice, bob] = [`cursor-alice-${suffix}`, `cursor-bob-${suffix}`];
+  const chatId = id(`cursor-chat-${suffix}`);
+  const chatRef = db.collection("directChats").doc(chatId);
+  const firstMessageId = "1".repeat(64);
+  const secondMessageId = "2".repeat(64);
+  const thirdMessageId = "3".repeat(64);
+  const createdAt = Timestamp.fromMillis(Date.now());
+
+  await Promise.all([
+    db.collection("users").doc(alice).set({
+      uid: alice, profileCompleted: true, accountStatus: "active", age: 30, blockedUids: [],
+    }),
+    db.collection("users").doc(bob).set({
+      uid: bob, profileCompleted: true, accountStatus: "active", age: 31, blockedUids: [],
+    }),
+    chatRef.set({ participantUids: [alice, bob] }),
+  ]);
+  const messageRefs = [firstMessageId, secondMessageId, thirdMessageId]
+    .map((messageId) => chatRef.collection("messages").doc(messageId));
+
+  try {
+    await Promise.all([
+      messageRefs[0].set({
+        messageId: firstMessageId, chatId, senderUid: bob, recipientUid: alice,
+        text: "first", type: "text", createdAt,
+      }),
+      messageRefs[1].set({
+        messageId: secondMessageId, chatId, senderUid: bob, recipientUid: alice,
+        text: "second", type: "text", createdAt,
+      }),
+    ]);
+
+    const initial = await getDirectMessages.run(memberRequest(alice, { chatId, limit: 1 }));
+    assert.equal(initial.messages.length, 1);
+    assert.equal(initial.messages[0].messageId, secondMessageId);
+    assert.equal(initial.hasMore, true);
+    assert.equal(initial.messageDeletionRevision, 0);
+    assert.equal(typeof initial.latestMessagePageToken, "string");
+
+    await messageRefs[2].set({
+      messageId: thirdMessageId, chatId, senderUid: bob, recipientUid: alice,
+      text: "third", type: "text", createdAt,
+    });
+    const incremental = await getDirectMessages.run(memberRequest(alice, {
+      chatId, limit: 50, afterPageToken: initial.latestMessagePageToken,
+    }));
+    assert.deepEqual(incremental.messages.map((message) => message.messageId), [thirdMessageId]);
+    assert.equal(typeof incremental.latestMessagePageToken, "string");
+
+    const hidden = await deleteDirectMessageForMe.run(memberRequest(alice, {
+      chatId, messageId: thirdMessageId,
+    }));
+    assert.equal(hidden.hiddenForRequester, true);
+    assert.equal((await chatRef.get()).data().messageDeletionRevision, 1);
+
+    const replay = await deleteDirectMessageForMe.run(memberRequest(alice, {
+      chatId, messageId: thirdMessageId,
+    }));
+    assert.equal(replay.hiddenForRequester, true);
+    assert.equal((await chatRef.get()).data().messageDeletionRevision, 1);
+
+    const changes = await getDirectMessages.run(memberRequest(alice, {
+      chatId, limit: 50, afterPageToken: incremental.latestMessagePageToken,
+    }));
+    assert.equal(changes.messages.length, 0);
+    assert.equal(changes.messageDeletionRevision, 1);
+
+    const reconciled = await getDirectMessages.run(memberRequest(alice, { chatId }));
+    assert.deepEqual(
+      reconciled.messages.map((message) => message.messageId).sort(),
+      [firstMessageId, secondMessageId],
+    );
+  } finally {
+    const [messageSnapshot, receiptSnapshot, auditSnapshot] = await Promise.all([
+      chatRef.collection("messages").get(),
+      chatRef.collection("readReceipts").get(),
+      db.collection("directMessageDeletionAudit").where("chatId", "==", chatId).get(),
+    ]);
+    await Promise.all([
+      ...messageSnapshot.docs.map((document) => document.ref.delete()),
+      ...receiptSnapshot.docs.map((document) => document.ref.delete()),
+      ...auditSnapshot.docs.map((document) => document.ref.delete()),
+      chatRef.delete().catch(() => undefined),
+      db.collection("users").doc(alice).delete().catch(() => undefined),
+      db.collection("users").doc(bob).delete().catch(() => undefined),
+    ]);
+  }
+});
