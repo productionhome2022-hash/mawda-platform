@@ -105,3 +105,13 @@ The following decisions are binding and are also specified in [the Master Develo
 
 **Implementation evidence:** OCA-001 updated in the development branch; project constitution and master charter cross-reference this decision. No external provider terms or legal relationship has been modified.
 
+
+## MEDIA-005 — Universal 60-second live audio recording cap and economic media enforcement
+
+**Owner clarification — 15 November 2026 (supersedes any earlier 10-minute direct-chat voice-note wording):**
+- Every live microphone recording/chat-room audio message is limited to 60 seconds per recording in direct conversations, public rooms and rented private rooms. The limit applies to members and guests according to their permissions. No direct-chat exception and no 10-minute allowance.
+- Backend and trusted scanner enforce the same maximum; the client timer is only a usability layer. Current chat/room scanner enforcement also caps uploaded audio files at 60 seconds until a distinct uploaded-audio purpose is explicitly designed and approved.
+- Media cost controls include atomic upload quota reservations, per-user concurrent/active/daily byte budgets, actual content/type/size/duration/dimension validation, safe transcoded derivatives, retention enforcement, and quota release on rejected/abandoned/deleted media.
+- Current technical ceilings are documented in the comprehensive product vision: image 5MB; GIF 5MB, 30 seconds, 100 frames and 40MP; audio 25MB and 60 seconds; video ingress 100MB and safe derivative 50MB with current processing duration 90 seconds; owner-only PDF 20MB. These are technical safeguards, not commercial entitlements or permission to exceed quotas. Changes require a documented storage/egress/processing/retention cost assessment and owner approval.
+
+**Implementation evidence required:** scanner unit tests for both chat and room purposes; emulator integration tests for member direct chat, public room, rented private room and guest room; client recording timers set to 60 seconds; exact-head Flutter, Functions, scanner and rules CI. Physical-device and live non-production media tests remain separate release gates.
