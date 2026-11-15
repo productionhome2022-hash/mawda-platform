@@ -146,3 +146,27 @@ Required validation:
 ## 10. Explicit non-authorizations
 
 This plan does not authorize merging the development PR, deploying production, changing Firebase plans, enabling billing, attaching payment methods, migrating production data, deleting user data, or disabling any member-facing feature. Each such action requires its own verification and, where applicable, explicit owner approval.
+
+
+## 11. Verified implementation baseline — 2026-11-15
+
+The following source inspection was performed on the development branch after the economy plan was committed. These are confirmed gaps, not claims that the optimizations are already implemented:
+
+- `lib/screens/direct_chat_screen.dart` starts an eight-second periodic refresh and each refresh calls `getDirectMessages` again.
+- `functions/src/index.ts:getDirectMessages` returns the latest 50 direct messages on every call; it does not yet accept an incremental cursor or an older-page cursor.
+- `lib/screens/chat_room_screen.dart` starts an eight-second periodic refresh and reloads the room message future.
+- `functions/src/index.ts:getRoomMessages` returns the latest 50 room messages on every call; it does not yet accept incremental or older-page cursors.
+- `functions/src/index.ts:getMyDirectChats` returns at most 50 conversations and currently has no member-facing page token.
+- `functions/src/index.ts` story listing currently uses a fixed 50-item limit; member room listing and discovery also require a cursor/continuation review.
+- Some owner-review endpoints already demonstrate stable cursor pagination. Reuse their tested patterns only after adapting authorization, ordering, and member-specific privacy rules; do not expose owner-review APIs to members.
+
+### Required implementation order
+
+1. Add tested, validated cursor contracts for direct messages and room messages. Order by `createdAt` plus Firestore document ID to avoid timestamp ties.
+2. Add incremental "after latest message" retrieval and older-history retrieval. Preserve the initial recent-page experience.
+3. Update both chat clients to merge and deduplicate by message ID rather than replacing the entire list. Do not mark receipts repeatedly when no new messages arrived.
+4. Add inbox pagination and then review room, discovery, and story lists for equivalent cursor support.
+5. Add tests for equal timestamps, deleted/hidden messages, blocked users, guest room permissions, retry, page boundaries, duplicate suppression, and authorization.
+6. Measure reads per active chat session and compare the same scripted interaction before/after.
+
+**Current guardrail:** do not merely lengthen the eight-second timer. The intended fix is incremental retrieval and client-side reconciliation, preserving prompt delivery and a smooth conversation.
