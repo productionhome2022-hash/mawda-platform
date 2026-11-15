@@ -98,10 +98,11 @@ class _OwnerEntitlementGrantsScreenState
     if (_submitting) return;
     final targets = _parseMemberUids();
     final reason = _reasonController.text.trim();
-    final selected = _catalogItems
-        .where((item) => item['itemId'] == _selectedItemId)
-        .firstOrNull;
-    if (targets.isEmpty || selected == null || reason.length < 5) {
+    final selected = _catalogItems.firstWhere(
+      (item) => item['itemId'] == _selectedItemId,
+      orElse: () => <String, dynamic>{},
+    );
+    if (targets.isEmpty || selected.isEmpty || reason.length < 5) {
       setState(() => _error = 'أدخل معرف عضو واحداً على الأقل، واختر استحقاقاً، واكتب سبباً واضحاً.');
       return;
     }
@@ -144,7 +145,7 @@ class _OwnerEntitlementGrantsScreenState
       _resultSummary = null;
     });
 
-    var granted = 0;
+    var newlyGranted = 0;
     var failed = 0;
     var replayed = 0;
     try {
@@ -160,14 +161,16 @@ class _OwnerEntitlementGrantsScreenState
           'reason': reason,
         });
         final result = Map<String, dynamic>.from(response.data as Map);
-        granted += (result['granted'] as num?)?.toInt() ?? 0;
+        final successful = (result['granted'] as num?)?.toInt() ?? 0;
+        final replayedInChunk = (result['replayed'] as num?)?.toInt() ?? 0;
+        newlyGranted += (successful - replayedInChunk).clamp(0, successful);
         failed += (result['failed'] as num?)?.toInt() ?? 0;
-        replayed += (result['replayed'] as num?)?.toInt() ?? 0;
+        replayed += replayedInChunk;
       }
       if (!mounted) return;
       setState(() {
         _resultSummary =
-            'اكتملت المعالجة: $granted منح ناجح، $replayed إعادة آمنة لطلبات سابقة، $failed تعذر يحتاج مراجعة.';
+            'اكتملت المعالجة: $newlyGranted منح جديد، $replayed إعادة آمنة لطلبات سابقة، $failed تعذر يحتاج مراجعة.';
         if (failed == 0) _pendingRequestId = null;
       });
     } on FirebaseFunctionsException catch (error) {
@@ -250,6 +253,7 @@ class _OwnerEntitlementGrantsScreenState
                     const SizedBox(height: 12),
                     TextField(
                       controller: _memberUidsController,
+                      onChanged: (_) => _pendingRequestId = null,
                       minLines: 3,
                       maxLines: 8,
                       enabled: !_submitting,
@@ -263,6 +267,7 @@ class _OwnerEntitlementGrantsScreenState
                     const SizedBox(height: 12),
                     TextField(
                       controller: _reasonController,
+                      onChanged: (_) => _pendingRequestId = null,
                       minLines: 2,
                       maxLines: 4,
                       enabled: !_submitting,
