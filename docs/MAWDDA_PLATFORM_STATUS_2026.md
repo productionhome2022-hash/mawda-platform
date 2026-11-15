@@ -102,3 +102,18 @@ The latest repository head must still pass its own exact-head CI before its stat
 - Owner MFA provisioning/recovery, independent security/penetration review, accessibility/performance, privacy/legal review and operational incident drills remain open.
 - PR #2 remains Draft/open/unmerged. No production Firebase mutation, deployment, paid-resource activation or irreversible operation has been performed.
 
+
+
+## Audit correction — exact development-head and validation evidence (15 November 2026)
+
+This section supersedes any conflicting statement above about the latest tested application-code head or the scope of changes after it.
+
+- Current development branch head verified during the audit: `8891b45215e0c94cc622dcd823caf2363fe549db`.
+- The previous statement that changes after `d341ff04374f678cc4d06ea1b1459a27b0319619` were only workflow/documentation changes is incorrect. GitHub commit comparison shows the current branch is 192 commits ahead of `d341ff0`, and the intervening diff includes application code, Cloud Functions, Flutter UI, media/scanner logic, retention, economy, room flows and tests.
+- PR #2's description cites `f85888c549e77cdf904c14028f17c07e0b2b8e33` as a validated head. The current development branch is 219 commits ahead of that SHA. The successful runs `43705157128` (Validate Mawda) and `43705157163` (native Debug/unsigned iOS validation) therefore do not establish validation of the current branch head.
+- The older run `43713242606` validated `d341ff0`, not the current head. No PR-triggered workflow runs or combined commit statuses were returned for current head `8891b45` at the time of this audit.
+- Accordingly, the current development head is **not yet demonstrated green**. Run the complete validation workflow on the exact current SHA and record all job conclusions before changing this status.
+- The development branch remains 2,205 commits ahead of `main` and 7 commits behind it. Do not merge or rebase as part of this correction.
+- The separate 5,000-persona simulation remains unaccepted. Lab PR #2 proposes bounded transient retries and lower room-worker concurrency after the prior run stopped at 2,679/5,000; the fix must be reviewed and the full simulation rerun against an immutable current platform SHA.
+
+This correction is documentation-only. It does not claim new tests passed, does not change application behavior, and does not authorize merge, deployment, Firebase mutation, paid resources or destructive operations.
