@@ -314,8 +314,13 @@ test("guest onboarding stores no age and grants only active all-ages public-room
       db.collection("mediaAssets").doc(imageMediaId).delete().catch(() => undefined),
       db.collection("mediaAssets").doc(memberAudioMediaId).delete().catch(() => undefined),
       previousGuestPersona.exists ? guestPersonaRef.set(previousGuestPersona.data()) : guestPersonaRef.delete().catch(() => undefined),
-      db.collection("roomAuditLogs").where("roomId", "in", roomIds).get().then((snapshot) =>
-        Promise.all(snapshot.docs.map((doc) => doc.ref.delete()))),
+      (async () => {
+        for (let offset = 0; offset < roomIds.length; offset += 30) {
+          const page = await db.collection("roomAuditLogs")
+            .where("roomId", "in", roomIds.slice(offset, offset + 30)).get();
+          await Promise.all(page.docs.map((doc) => doc.ref.delete()));
+        }
+      })(),
       ...roomIds.map(async (id) => {
         const members = await roomRef(id).collection("members").get();
         const messages = await roomRef(id).collection("messages").get();
