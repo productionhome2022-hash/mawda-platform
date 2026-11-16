@@ -107,6 +107,7 @@ import {
   utcRewardPeriod,
   validateTimedAdCampaignInput,
   eligibleHeartbeatDelta,
+  timedAdMemberCounterId,
   AttendanceRewardType,
 } from "./engagement-rewards";
 
@@ -7774,12 +7775,14 @@ export const startTimedAdvertisement = onCall(async (request) => {
   const campaignRef = db.collection("timedAdCampaigns").doc(campaignId);
   const activeRef = db.collection("activeTimedAdSessions").doc(uid);
   const sessionRef = db.collection("timedAdSessions").doc(sessionId);
-  const counterRef = db.collection("timedAdMemberCounters").doc(`${uid}_${campaignId}`);
+  const counterRef = db.collection("timedAdMemberCounters").doc(timedAdMemberCounterId(uid, campaignId));
+  const legacyCounterRef = db.collection("timedAdMemberCounters").doc(`${uid}_${campaignId}`);
   const result = await db.runTransaction(async (transaction) => {
     let releasedFromCurrentCampaign = 0;
-    const [user, campaign, active, counter] = await Promise.all([
+    const [user, campaign, active, counter, legacyCounter] = await Promise.all([
       transaction.get(userRef), transaction.get(campaignRef),
       transaction.get(activeRef), transaction.get(counterRef),
+      transaction.get(legacyCounterRef),
     ]);
     if (!user.exists || user.data()?.profileCompleted !== true ||
         !isMemberAccountInGoodStanding(user.data())) {
@@ -7831,8 +7834,17 @@ export const startTimedAdvertisement = onCall(async (request) => {
         throw new HttpsError("failed-precondition", "مادة الإعلان لم تعد مؤهلة للعرض.");
       }
     }
-    const claims = counter.data()?.claimCount ?? 0;
-    if (!Number.isSafeInteger(claims) || claims >= data.maxClaimsPerMember) {
+    const counterData = counter.data() ?? {};
+    if (counter.exists && (counterData.uid !== uid || counterData.campaignId !== campaignId)) {
+      throw new HttpsError("data-loss", "عداد مكافآت الحملة مرتبط بهوية غير متطابقة.");
+    }
+    const currentClaims = counter.exists ? readSafeInteger(counterData.claimCount, "claimCount") : 0;
+    // Legacy concatenated IDs are retained as a conservative migration floor.
+    // Their ambiguous historical ownership may deny an extra claim, never grant one.
+    const legacyClaims = legacyCounter.exists
+      ? readSafeInteger(legacyCounter.data()?.claimCount, "legacyClaimCount") : 0;
+    const claims = Math.max(currentClaims, legacyClaims);
+    if (claims >= data.maxClaimsPerMember) {
       throw new HttpsError("failed-precondition", "تم بلوغ الحد المسموح لمشاهدة هذه الحملة.");
     }
     const expiresAtMs = Math.min(data.endsAtMs, nowMs + data.durationSeconds * 4000 + 60000);
@@ -7972,10 +7984,11 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     const userRef = db.collection("users").doc(uid);
     const campaignRef = db.collection("timedAdCampaigns").doc(data.campaignId);
     const activeRef = db.collection("activeTimedAdSessions").doc(uid);
-    const counterRef = db.collection("timedAdMemberCounters").doc(`${uid}_${data.campaignId}`);
-    const [claim, user, campaign, active, counter] = await Promise.all([
+    const counterRef = db.collection("timedAdMemberCounters").doc(timedAdMemberCounterId(uid, data.campaignId));
+    const legacyCounterRef = db.collection("timedAdMemberCounters").doc(`${uid}_${data.campaignId}`);
+    const [claim, user, campaign, active, counter, legacyCounter] = await Promise.all([
       transaction.get(claimRef), transaction.get(userRef), transaction.get(campaignRef),
-      transaction.get(activeRef), transaction.get(counterRef),
+      transaction.get(activeRef), transaction.get(counterRef), transaction.get(legacyCounterRef),
     ]);
     const campaignMediaId = campaign.data()?.mediaId;
     const campaignMedia = typeof campaignMediaId === "string"
@@ -8025,7 +8038,14 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     const spent = readSafeInteger(campaignData.spentRewardCoins ?? 0, "spentRewardCoins");
     const reserved = readSafeInteger(campaignData.reservedRewardCoins ?? 0, "reservedRewardCoins");
     const budget = readSafeInteger(campaignData.rewardBudgetCoins, "rewardBudgetCoins");
-    const claims = readSafeInteger(counter.data()?.claimCount ?? 0, "claimCount");
+    const counterData = counter.data() ?? {};
+    if (counter.exists && (counterData.uid !== uid || counterData.campaignId !== data.campaignId)) {
+      throw new HttpsError("data-loss", "عداد مكافآت الحملة مرتبط بهوية غير متطابقة.");
+    }
+    const currentClaims = counter.exists ? readSafeInteger(counterData.claimCount, "claimCount") : 0;
+    const legacyClaims = legacyCounter.exists
+      ? readSafeInteger(legacyCounter.data()?.claimCount, "legacyClaimCount") : 0;
+    const claims = Math.max(currentClaims, legacyClaims);
     if (reserved < data.rewardCoins || spent + data.rewardCoins > budget ||
         claims >= campaignData.maxClaimsPerMember) {
       throw new HttpsError("resource-exhausted", "انتهت ميزانية الحملة أو الحد المسموح للمكافآت.");
@@ -8052,6 +8072,7 @@ export const completeTimedAdvertisement = onCall(async (request) => {
       updatedAt: now,
     });
     transaction.set(counterRef, {
+      uid, campaignId: data.campaignId,
       claimCount: claims + 1, updatedAt: now,
     }, { merge: true });
     transaction.update(sessionRef, { status: "completed", completedAt: now });
