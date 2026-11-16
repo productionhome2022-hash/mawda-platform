@@ -9461,10 +9461,6 @@ export const sendCallSignal = onCall(async (request) => {
         (!(call.expiresAt instanceof Timestamp) || call.expiresAt.toMillis() <= Date.now())) {
       throw new HttpsError("deadline-exceeded", "انتهت مهلة رنين المكالمة.");
     }
-    if (call.createdAt instanceof Timestamp &&
-        call.createdAt.toMillis() + CALL_SIGNAL_MAX_AGE_MS < Date.now()) {
-      throw new HttpsError("deadline-exceeded", "انتهت صلاحية إشارات المكالمة.");
-    }
     if (existing.exists) {
       const prior = existing.data() ?? {};
       if (prior.kind !== signal.kind || prior.payload !== signal.payload) {
