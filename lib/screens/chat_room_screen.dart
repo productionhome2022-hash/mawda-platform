@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -47,11 +48,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   bool _sending = false;
   bool _refreshing = false;
   Timer? _refreshTimer;
+  Timer? _callCheckTimer;
+  String? _promptedIncomingCallId;
+  bool _showingIncomingCall = false;
 
   @override
   void initState() {
     super.initState();
     _messagesFuture = _service.getRoomMessages(widget.chatId);
+    _callCheckTimer = Timer.periodic(const Duration(seconds: 2), (_) => _checkIncomingRoomCall());
     _refreshTimer = Timer.periodic(const Duration(seconds: 8), (_) {
       if (mounted && !_sending) _reloadMessages();
     });
@@ -60,11 +65,71 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _callCheckTimer?.cancel();
     _messageController.dispose();
     _mediaService.close();
     super.dispose();
   }
 
+
+
+  Future<void> _checkIncomingRoomCall() async {
+    if (!mounted || _showingIncomingCall) return;
+    try {
+      final response = await FirebaseFunctions.instance
+          .httpsCallable('getActiveCall').call();
+      final call = Map<String, dynamic>.from(response.data as Map);
+      if (call['active'] != true || call['status'] != 'ringing' ||
+          call['callerUid'] == widget.currentUserId ||
+          call['scope'] != 'room' || call['targetId'] != widget.chatId) return;
+      final callId = call['callId'] as String?;
+      if (callId == null || callId.isEmpty || _promptedIncomingCallId == callId) return;
+      _promptedIncomingCallId = callId;
+      _showingIncomingCall = true;
+      final mode = call['mode'] == 'video' ? 'video' : 'audio';
+      final accepted = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(mode == 'video' ? 'مكالمة مرئية جماعية واردة' : 'مكالمة صوتية جماعية واردة'),
+          content: const Text('بدأ أحد أعضاء الغرفة مكالمة جماعية. هل تريد الانضمام؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('رفض'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.call),
+              label: const Text('انضمام'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      await FirebaseFunctions.instance.httpsCallable('respondToCall').call({
+        'callId': callId,
+        'response': accepted == true ? 'accept' : 'reject',
+      });
+      if (accepted == true && mounted) {
+        await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => MawddaCallScreen(
+            callId: callId,
+            scope: 'room',
+            targetId: widget.chatId,
+            mode: mode,
+            currentUserId: widget.currentUserId,
+            outgoing: false,
+          ),
+        ));
+      }
+    } catch (_) {
+      // Expired or already-answered invitations are ignored and polled again.
+    } finally {
+      _showingIncomingCall = false;
+      _promptedIncomingCallId = null;
+    }
+  }
 
   Future<void> _openRoomCall(String mode) async {
     await Navigator.of(context).push(MaterialPageRoute(
