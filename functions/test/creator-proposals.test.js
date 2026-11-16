@@ -67,6 +67,13 @@ test("requires an explicit rights declaration", () => {
   );
 });
 
+test("requires an explicit quote-or-budget choice", () => {
+  assert.throws(
+    () => validateCreatorProposalInput({ ...base, quoteRequested: undefined }),
+    /invalid_quote_choice/,
+  );
+});
+
 test("requires exactly one of quote request or proposed budget", () => {
   assert.throws(
     () => validateCreatorProposalInput({
