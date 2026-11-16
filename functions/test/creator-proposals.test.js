@@ -94,6 +94,13 @@ test("rejects empty, duplicate or oversized geographic targets", () => {
   }
 });
 
+test("accepts only the approved geographic proposal scopes", () => {
+  assert.throws(
+    () => validateCreatorProposalInput({ ...base, targetGeographies: ["unknown_region"] }),
+    /unsupported_target_geography/,
+  );
+});
+
 test("requires a unique request idempotency key with a safe format", () => {
   assert.throws(
     () => validateCreatorProposalInput({ ...base, idempotencyKey: "bad/key" }),
