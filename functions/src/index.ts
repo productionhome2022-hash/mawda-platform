@@ -114,7 +114,7 @@ const db = getFirestore();
 const TRANSFER_SETTINGS = db.doc("platformSettings/coinTransfers");
 const OWNER_REVIEW_AUDIT_HEAD = db.collection("adminAuditChainHeads").doc("ownerReview");
 const legalHoldExpiryEnabled = defineString("MAWDA_LEGAL_HOLD_EXPIRY_ENABLED", { default: "false" });
-const mawddaWebPortalAppId = defineString("MAWDDA_WEB_PORTAL_APP_ID", { default: "" });
+const mawddaLegalPortalAppIds = defineString("MAWDDA_LEGAL_PORTAL_APP_IDS", { default: "" });
 const ownerAuditArchiveEnabled = defineString("MAWDA_AUDIT_ARCHIVE_ENABLED", { default: "false" });
 const ownerAuditArchiveBucketName = defineString("MAWDA_AUDIT_ARCHIVE_BUCKET", { default: "" });
 
@@ -200,9 +200,9 @@ async function sendPushToMember(
   }
 }
 function requireWebPortalAccess(request: { app?: { appId?: string } | null }): void {
-  const expectedAppId = mawddaWebPortalAppId.value().trim();
+  const allowedAppIds = mawddaLegalPortalAppIds.value().split(",").map((value) => value.trim()).filter(Boolean);
   const actualAppId = request.app?.appId ?? "";
-  if (!expectedAppId || !actualAppId || actualAppId !== expectedAppId) {
+  if (allowedAppIds.length === 0 || !actualAppId || !allowedAppIds.includes(actualAppId)) {
     throw new HttpsError(
       "failed-precondition",
       "هذه الخدمة متاحة حصراً عبر بوابة Mawdda على الويب.",
