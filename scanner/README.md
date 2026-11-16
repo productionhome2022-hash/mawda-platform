@@ -10,7 +10,7 @@ This service is the isolated scanning worker called by the Firebase Functions di
 - ClamAV runs with explicit archive recursion, file-count, scan-size and file-size limits. Any timeout, parser limit, incomplete scan or scanner error is a failure, never a clean verdict.
 - A clean raster image is decoded and re-encoded by Sharp into a bounded WebP derivative under `processed/{uid}/{mediaId}/preview.webp`. Original media remains quarantined.
 - The service returns a signed HMAC-SHA256 callback bound to the original SHA-256 and exact Storage generation. Firebase Functions independently rereads and hashes the original and verifies the derivative before marking the raster preview eligible.
-- Clean non-image media remains `scanner_clean_pending_processing`; it is not member-accessible and does not become previewable. A separate type-aware processing pipeline is required for video, audio and PDF.
+- Clean non-image media is routed through the implemented type-aware FFmpeg/PDF processing pipeline. Audio is probed before transcoding and chat/room audio longer than 60 seconds is rejected; GIF duration/frame/complexity, video duration/size, and PDF page/size limits are enforced before a provenance-bound derivative is made available. Until the exact safe derivative is verified and approved by the Firebase callback, the original remains quarantined and is not member-accessible.
 
 ## Required runtime configuration
 
@@ -37,6 +37,6 @@ The Cloud Run runtime service account needs object-create permission for the `pr
 4. Configure Firebase Functions scanner URL and secrets to match the deployed service.
 5. Test clean EICAR-free sample images, the standard EICAR test string in a supported container (must be rejected), malformed images, oversized objects, expired signed URLs, generation mismatch, bad HMAC, stale callback, duplicate callback, scanner timeout and Cloud Run restart/retry in non-production.
 6. Run `functions/scripts/test-retention-storage.cjs` with `MAWDA_RETENTION_GCS_TEST=1` against the dedicated non-production bucket. It refuses buckets with soft-delete retention or a retention policy and verifies deletion of every visible generation. This test is separate from `functions/scripts/test-signed-urls-http.cjs`.
-7. Do not enable member delivery for non-image media until its separate safe processing pipeline is implemented and validated.
+7. Keep non-image delivery fail-closed unless the exact derivative pipeline version, object generation, SHA-256 and callback approval all match. Run the scanner processor integration suite in the approved non-production runtime before any environment rollout.
 
 The service has not been deployed or connected in any Firebase environment merely by adding these source files. A green scanner image build/EICAR CI job is not proof of a live Cloud Run service or a configured bucket. Firestore PITR and scheduled backups/exports must also be disabled or proven to expire chat text within the seven-day limit. A successful CI build is not evidence that the malware signatures are current or that a live scanner is running.
