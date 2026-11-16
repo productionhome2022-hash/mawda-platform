@@ -8344,11 +8344,19 @@ const CONTRACT_RECORDS = db.collection("contracts");
 const CONTRACT_AUDIT_LOGS = db.collection("contractAuditLogs");
 const CONTRACT_AUDIT_HEAD = db.collection("contractAuditChainHeads").doc("global");
 
-/** Append a tamper-evident contract event inside the same Firestore transaction as the mutation. */
-async function appendContractAuditEvent(
+type PreparedContractAuditEvent = {
+  sequence: number;
+  previousHash: string;
+  eventHash: string;
+  eventRef: FirebaseFirestore.DocumentReference;
+  event: Record<string, unknown>;
+};
+
+/** Read the chain head before any transaction writes, then stage the immutable event atomically. */
+async function prepareContractAuditEvent(
   transaction: Transaction,
   event: Record<string, unknown>,
-): Promise<void> {
+): Promise<PreparedContractAuditEvent> {
   const headSnapshot = await transaction.get(CONTRACT_AUDIT_HEAD);
   const head = headSnapshot.data() ?? {};
   const sequence = headSnapshot.exists ? Number(head.sequence) + 1 : 1;
@@ -8357,18 +8365,29 @@ async function appendContractAuditEvent(
       !/^(GENESIS|[a-f0-9]{64})$/.test(previousHash)) {
     throw new HttpsError("data-loss", "سلسلة تدقيق العقود غير سليمة؛ أوقفت العملية لحماية السجل.");
   }
-  const eventHash = calculateOwnerAuditHash(event, sequence, previousHash);
-  const eventRef = CONTRACT_AUDIT_LOGS.doc(String(sequence).padStart(12, "0"));
-  transaction.create(eventRef, {
+  return {
     sequence,
     previousHash,
-    eventHash,
+    eventHash: calculateOwnerAuditHash(event, sequence, previousHash),
+    eventRef: CONTRACT_AUDIT_LOGS.doc(String(sequence).padStart(12, "0")),
     event,
+  };
+}
+
+function commitContractAuditEvent(
+  transaction: Transaction,
+  prepared: PreparedContractAuditEvent,
+): void {
+  transaction.create(prepared.eventRef, {
+    sequence: prepared.sequence,
+    previousHash: prepared.previousHash,
+    eventHash: prepared.eventHash,
+    event: prepared.event,
     createdAt: FieldValue.serverTimestamp(),
   });
   transaction.set(CONTRACT_AUDIT_HEAD, {
-    sequence,
-    eventHash,
+    sequence: prepared.sequence,
+    eventHash: prepared.eventHash,
     updatedAt: FieldValue.serverTimestamp(),
   });
 }
@@ -8454,14 +8473,7 @@ export const createOwnerContractDraft = onCall(async (request) => {
       }
       return { contractId: priorData.contractId as string, duplicate: true };
     }
-    transaction.create(contractRef, record);
-    transaction.create(idempotencyRef, {
-      contractId,
-      actorUid,
-      contentHash,
-      createdAt: FieldValue.serverTimestamp(),
-    });
-    await appendContractAuditEvent(transaction, {
+    const auditEvent = await prepareContractAuditEvent(transaction, {
       contractId,
       actorUid,
       action: "contract_draft_created",
@@ -8469,6 +8481,14 @@ export const createOwnerContractDraft = onCall(async (request) => {
       version: record.version,
       contentHash,
     });
+    transaction.create(contractRef, record);
+    transaction.create(idempotencyRef, {
+      contractId,
+      actorUid,
+      contentHash,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    commitContractAuditEvent(transaction, auditEvent);
     return { contractId, duplicate: false };
   });
   return {
@@ -8524,6 +8544,16 @@ export const transitionOwnerContract = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "لا يمكن تفعيل العقد قبل اكتمال توقيع الطرفين على النسخة نفسها.");
     }
     const recordVersion = expectedRecordVersion + 1;
+    const auditEvent = await prepareContractAuditEvent(transaction, {
+      contractId,
+      actorUid,
+      action: "contract_status_transition",
+      from,
+      to,
+      reason: reason || null,
+      recordVersion,
+      contentHash: data.contentHash,
+    });
     transaction.update(contractRef, {
       status: to,
       recordVersion,
@@ -8540,16 +8570,7 @@ export const transitionOwnerContract = onCall(async (request) => {
       ...(to === "cancelled"
         ? { cancelledAt: FieldValue.serverTimestamp() } : {}),
     });
-    await appendContractAuditEvent(transaction, {
-      contractId,
-      actorUid,
-      action: "contract_status_transition",
-      from,
-      to,
-      reason: reason || null,
-      recordVersion,
-      contentHash: data.contentHash,
-    });
+    commitContractAuditEvent(transaction, auditEvent);
     return { contractId, status: to, recordVersion };
   });
   return result;
@@ -8597,13 +8618,7 @@ export const signContractAsCounterparty = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "حالة العقد أو أدلة التوقيع لا تسمح بهذا التوقيع.");
     }
     const recordVersion = (data.recordVersion as number) + 1;
-    transaction.update(contractRef, {
-      status: next.status,
-      counterpartySignature: evidence,
-      recordVersion,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-    await appendContractAuditEvent(transaction, {
+    const auditEvent = await prepareContractAuditEvent(transaction, {
       contractId,
       actorUid: uid,
       action: "contract_counterparty_signed",
@@ -8611,6 +8626,13 @@ export const signContractAsCounterparty = onCall(async (request) => {
       contentHash: expectedHash,
       recordVersion,
     });
+    transaction.update(contractRef, {
+      status: next.status,
+      counterpartySignature: evidence,
+      recordVersion,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    commitContractAuditEvent(transaction, auditEvent);
     return { contractId, status: next.status, recordVersion, contentHash: expectedHash };
   });
 });
@@ -8657,13 +8679,7 @@ export const signContractForCompany = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "حالة العقد أو أدلة التوقيع لا تسمح بتوقيع الشركة.");
     }
     const recordVersion = (data.recordVersion as number) + 1;
-    transaction.update(contractRef, {
-      status: next.status,
-      companySignature: evidence,
-      recordVersion,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-    await appendContractAuditEvent(transaction, {
+    const auditEvent = await prepareContractAuditEvent(transaction, {
       contractId,
       actorUid,
       action: "contract_company_signed",
@@ -8671,6 +8687,13 @@ export const signContractForCompany = onCall(async (request) => {
       contentHash: expectedHash,
       recordVersion,
     });
+    transaction.update(contractRef, {
+      status: next.status,
+      companySignature: evidence,
+      recordVersion,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    commitContractAuditEvent(transaction, auditEvent);
     return { contractId, status: next.status, recordVersion, contentHash: expectedHash };
   });
 });
