@@ -467,9 +467,10 @@ test("concurrent members cannot reserve the same final ad reward budget", async 
 
 test("distinct member/campaign pairs with colliding legacy IDs keep independent reward limits", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
-  const uidA = "member_a";
+  const tag = suffix();
+  const uidA = "member_" + tag + "_a";
   const campaignA = "campaign_123456";
-  const uidB = "member";
+  const uidB = "member_" + tag;
   const campaignB = "a_campaign_123456";
   assert.equal(uidA + "_" + campaignA, uidB + "_" + campaignB);
   const users = [db.collection("users").doc(uidA), db.collection("users").doc(uidB)];
