@@ -154,7 +154,7 @@ class _CreatorProposalScreenState extends State<CreatorProposalScreen> {
       return;
     }
     final budgetAmount = _quoteRequested ? null : _budget.text.trim();
-    if (!_quoteRequested && (budgetAmount == null || !RegExp(r'^(?:0|[1-9]\\d{0,11})(?:\\.\\d{1,4})?
+    if (!_quoteRequested && (budgetAmount == null || !RegExp(r'^(?:0|[1-9]\d{0,11})(?:\.\d{1,4})?
       setState(() => _error = 'أدخل ميزانية صحيحة ورمز عملة من ثلاثة أحرف كبيرة.');
       return;
     }
