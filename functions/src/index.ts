@@ -9248,7 +9248,8 @@ export const startCall = onCall(async (request) => {
     }
     const participants = chat.data()?.participantUids;
     if (!chat.exists || !Array.isArray(participants) || !participants.includes(callerUid) ||
-        participants.length !== 2) {
+        participants.length !== 2 || new Set(participants).size !== 2 ||
+        participants.some((memberUid) => typeof memberUid !== "string" || memberUid.length < 1)) {
       throw new HttpsError("permission-denied", "لا تملك صلاحية الاتصال بهذه المحادثة.");
     }
     participantUids = [...participants].sort();
