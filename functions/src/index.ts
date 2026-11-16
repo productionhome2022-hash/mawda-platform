@@ -9660,25 +9660,41 @@ export const getCallIceConfiguration = onCall(
 
 export const getActiveCall = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
-  const snapshot = await CALL_SESSIONS.where("participantUids", "array-contains", uid)
-    .limit(20).get();
-  const active = snapshot.docs.find((doc) => {
-    const data = doc.data();
-    return !(Array.isArray(data.leftUids) && data.leftUids.includes(uid)) &&
-      !(Array.isArray(data.rejectedUids) && data.rejectedUids.includes(uid)) &&
-      (data.status === "accepted" ||
-       (data.expiresAt instanceof Timestamp && data.expiresAt.toMillis() > Date.now()));
+  const lockRef = ACTIVE_CALL_MEMBER_LOCKS.doc(uid);
+  return db.runTransaction(async (transaction) => {
+    const lockSnapshot = await transaction.get(lockRef);
+    const callId = lockSnapshot.data()?.callId;
+    if (!lockSnapshot.exists || typeof callId !== "string") return { active: false };
+    const callRef = CALL_SESSIONS.doc(callId);
+    const callSnapshot = await transaction.get(callRef);
+    if (!callSnapshot.exists) {
+      transaction.delete(lockRef);
+      return { active: false };
+    }
+    const data = callSnapshot.data()!;
+    const isParticipant = Array.isArray(data.participantUids) && data.participantUids.includes(uid);
+    const isRejected = Array.isArray(data.rejectedUids) && data.rejectedUids.includes(uid);
+    const hasLeft = Array.isArray(data.leftUids) && data.leftUids.includes(uid);
+    const expiredRinging = data.status === "ringing" &&
+      (!(data.expiresAt instanceof Timestamp) || data.expiresAt.toMillis() <= Date.now());
+    if (!isParticipant || isRejected || hasLeft ||
+        !["ringing", "accepted"].includes(String(data.status)) || expiredRinging) {
+      if (expiredRinging) transaction.update(callRef, {
+        status: "missed", endedAt: FieldValue.serverTimestamp(),
+        lastActivityAt: FieldValue.serverTimestamp(),
+      });
+      transaction.delete(lockRef);
+      return { active: false };
+    }
+    return {
+      active: true, callId, scope: data.scope, targetId: data.targetId,
+      mode: data.mode, status: data.status, callerUid: data.callerUid,
+      participantUids: data.participantUids,
+      acceptedUids: data.acceptedUids ?? [],
+      rejectedUids: data.rejectedUids ?? [],
+      expiresAtMs: data.expiresAt instanceof Timestamp ? data.expiresAt.toMillis() : null,
+    };
   });
-  if (!active) return { active: false };
-  const data = active.data();
-  return {
-    active: true, callId: active.id, scope: data.scope, targetId: data.targetId,
-    mode: data.mode, status: data.status, callerUid: data.callerUid,
-    participantUids: data.participantUids,
-    acceptedUids: data.acceptedUids ?? [],
-    rejectedUids: data.rejectedUids ?? [],
-    expiresAtMs: data.expiresAt instanceof Timestamp ? data.expiresAt.toMillis() : null,
-  };
 });
 
 
