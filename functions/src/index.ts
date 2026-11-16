@@ -9515,6 +9515,9 @@ export const getCallSignals = onCall(async (request) => {
       (Array.isArray(call.data()?.rejectedUids) && call.data()!.rejectedUids.includes(uid))) {
     throw new HttpsError("permission-denied", "لا تملك صلاحية قراءة إشارات هذه المكالمة.");
   }
+  if (!["ringing", "accepted"].includes(String(call.data()?.status))) {
+    return { status: call.data()?.status, signals: [], nextCursor: afterSignalId ?? null, hasMore: false };
+  }
   const signalCollection = ref.collection("signals");
   let signalsQuery = signalCollection
     .where("recipientUid", "==", uid)
