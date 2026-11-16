@@ -104,6 +104,25 @@ Engineering requirements:
 
 This contract is a cross-cutting acceptance requirement for all monetized modules and all future additions. The catalogue examples above are not an exhaustive list of monetized features.
 
+
+## Advertising, ad viewing, and time controls
+
+Advertising is explicitly included in the owner-controlled economic and scheduling contract. The Super Admin is the primary control authority, with the Owner retaining the platform's sovereign authority. No advertiser, member, client app, or ordinary administrator may override these settings.
+
+The Super Admin / Owner control plane must be able to configure, as applicable to each advertising format and campaign:
+
+- Pricing and billing model (including CPM, CPC, fixed-period or other supported models).
+- Ad/campaign start and end dates, active time windows, timezone, days of week, and total campaign duration.
+- Creative duration / playback length for video or animated placements, plus any supported minimum/maximum viewing or display interval.
+- Placement availability, eligible surfaces/audiences, priority/rotation, and pause/resume/expiry.
+- Per-member frequency caps, repeat intervals, daily limits, and other display throttles.
+- Any rewarded-view rules, including required watch duration, completion criteria, reward amount/type, eligibility, and per-member limits, if rewarded advertising is implemented.
+- Campaign budget or delivery limits where supported, and the controls to stop delivery when a configured limit or schedule is reached.
+
+All time, schedule, playback, viewing, repetition, reward and pricing rules must be server-authoritative and editable by the Super Admin / Owner without a client application release. Client-side timers or self-reported view completion must not independently authorize rewards, charge advertisers, or establish billable impressions. Record verifiable delivery/view events and apply idempotency and anti-fraud checks server-side.
+
+Do not invent a universal ad playback length, viewing threshold, reward, or frequency cap as a final policy. Use clearly marked experimental defaults only where needed for development and tests, and make every such value owner-editable. Keep actual ad delivery, advertiser billing, and rewarded-view issuance disabled until their complete server-side verification, accounting, fraud controls, and acceptance tests are ready.
+
 ## Validation status
 
 - Room rental plans: owner/MFA-only update, validation, version increment, audit record.
