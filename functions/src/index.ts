@@ -9356,7 +9356,9 @@ export const respondToCall = onCall(async (request) => {
     if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
     const call = snapshot.data()!;
     if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
-        uid === call.callerUid || (Array.isArray(call.leftUids) && call.leftUids.includes(uid))) {
+        uid === call.callerUid ||
+        (Array.isArray(call.leftUids) && call.leftUids.includes(uid)) ||
+        (Array.isArray(call.rejectedUids) && call.rejectedUids.includes(uid))) {
       throw new HttpsError("permission-denied", "لا تملك صلاحية الرد على هذه المكالمة.");
     }
     if (!["ringing", "accepted"].includes(String(call.status)) ||
@@ -9419,6 +9421,8 @@ export const sendCallSignal = onCall(async (request) => {
         !call.participantUids.includes(toUid) ||
         (Array.isArray(call.leftUids) && call.leftUids.includes(uid)) ||
         (Array.isArray(call.leftUids) && call.leftUids.includes(toUid)) ||
+        (Array.isArray(call.rejectedUids) && call.rejectedUids.includes(uid)) ||
+        (Array.isArray(call.rejectedUids) && call.rejectedUids.includes(toUid)) ||
         !["ringing", "accepted"].includes(String(call.status))) {
       throw new HttpsError("permission-denied", "لا تملك صلاحية إرسال إشارات إلى هذا العضو في المكالمة.");
     }
@@ -9470,7 +9474,8 @@ export const getCallSignals = onCall(async (request) => {
   const call = await ref.get();
   if (!call.exists || !Array.isArray(call.data()?.participantUids) ||
       !call.data()!.participantUids.includes(uid) ||
-      (Array.isArray(call.data()?.leftUids) && call.data()!.leftUids.includes(uid))) {
+      (Array.isArray(call.data()?.leftUids) && call.data()!.leftUids.includes(uid)) ||
+      (Array.isArray(call.data()?.rejectedUids) && call.data()!.rejectedUids.includes(uid))) {
     throw new HttpsError("permission-denied", "لا تملك صلاحية قراءة إشارات هذه المكالمة.");
   }
   const snapshot = await ref.collection("signals").where("recipientUid", "==", uid).limit(256).get();
@@ -9571,6 +9576,7 @@ export const getCallIceConfiguration = onCall(
     if (!call.exists || !Array.isArray(call.data()?.participantUids) ||
         !call.data()!.participantUids.includes(uid) ||
         (Array.isArray(call.data()?.leftUids) && call.data()!.leftUids.includes(uid)) ||
+        (Array.isArray(call.data()?.rejectedUids) && call.data()!.rejectedUids.includes(uid)) ||
         !["ringing", "accepted"].includes(String(call.data()?.status))) {
       throw new HttpsError("permission-denied", "لا تملك صلاحية إعداد الاتصال لهذه المكالمة.");
     }
