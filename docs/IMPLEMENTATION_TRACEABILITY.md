@@ -463,3 +463,11 @@ The Creator Content & Influencer Proposals route is an approved fifth Media Work
 - The existing submission audit retry behavior remains unchanged. This change does not grant production roles or room-creation permission.
 - Implementation commit: `44d2b37bc546aa1245ca5309edba8cc16da40e03`.
 - Validation status: source updated on the development branch; TypeScript build, unit tests, emulator tests, and CI have **not yet been run on this commit**. Do not treat this as verified until exact-head checks pass.
+
+
+## 2026-11-16 — Voluntary creative-trial consent
+
+- Corrected the production membership application form so consent to a possible non-commercial creative assessment remains optional and independent. Applicants must confirm the accuracy/rights declaration, but declining the creative-trial invitation no longer blocks submitting the membership application.
+- The server validator already accepts either boolean value for `creativeTrialConsent`; no server-side consent weakening was introduced.
+- Implementation commit: `ed2f5330260f5dd25e95e70ed069918766fde388`.
+- Flutter analysis/widget tests have not yet run on this commit.
