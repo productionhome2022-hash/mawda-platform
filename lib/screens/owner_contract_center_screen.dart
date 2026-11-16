@@ -103,12 +103,45 @@ class _OwnerContractCenterScreenState extends State<OwnerContractCenterScreen> {
 
   Future<void> _transition(Map<String, dynamic> contract, String nextStatus) async {
     if (_busy) return;
+    String? reason;
+    if (['cancelled', 'suspended', 'terminated'].contains(nextStatus)) {
+      final controller = TextEditingController();
+      reason = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('سبب الإجراء'),
+          content: TextField(
+            controller: controller,
+            minLines: 3,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              labelText: 'سبب الإلغاء أو التعليق أو الإنهاء',
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, controller.text.trim()),
+              child: const Text('متابعة'),
+            ),
+          ],
+        ),
+      );
+      controller.dispose();
+      if (reason == null || reason.trim().length < 10) {
+        if (mounted && reason != null) {
+          setState(() => _error = 'يجب كتابة سبب واضح لا يقل عن 10 أحرف.');
+        }
+        return;
+      }
+    }
     setState(() { _busy = true; _error = null; });
     try {
       await _functions.httpsCallable('transitionOwnerContract').call({
         'contractId': contract['contractId'],
         'nextStatus': nextStatus,
         'expectedRecordVersion': contract['recordVersion'],
+        'reason': reason,
       });
       await _load();
     } on FirebaseFunctionsException catch (error) {
