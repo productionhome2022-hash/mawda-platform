@@ -114,3 +114,10 @@ export function validateAdvertisingIntake(value: unknown): AdvertisingIntakePayl
     rightsConfirmed: true, idempotencyKey,
   };
 }
+/** Stable audit document ID lets a retry repair a post-commit audit failure. */
+export function advertisingIntakeAuditEventId(requestId: string): string {
+  if (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{1,150}$/.test(requestId)) {
+    throw new Error("INVALID_ADVERTISING_INTAKE_REQUEST_ID");
+  }
+  return "advertising_intake_submitted_" + requestId;
+}
