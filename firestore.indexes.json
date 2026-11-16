@@ -439,6 +439,20 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "signals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "recipientUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
