@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 class OwnerContractCenterScreen extends StatefulWidget {
   const OwnerContractCenterScreen({super.key});
@@ -85,7 +86,10 @@ class _OwnerContractCenterScreenState extends State<OwnerContractCenterScreen> {
     if (input == null || !mounted) return;
     setState(() { _busy = true; _error = null; });
     try {
-      final response = await _functions.httpsCallable('createOwnerContractDraft').call(input);
+      final response = await _functions.httpsCallable('createOwnerContractDraft').call({
+        ...input,
+        'idempotencyKey': const Uuid().v4().replaceAll('-', ''),
+      });
       final data = Map<String, dynamic>.from(response.data as Map);
       await _load();
       if (!mounted) return;
