@@ -138,13 +138,39 @@ for (const item of cases) {
 }
 
 for (const purpose of ["chat", "room"]) {
-  test(`real audio processor rejects recordings longer than 60 seconds for ${purpose}`, async () => {
+  test(`real audio processor accepts a recording at the exact 60-second ceiling for ${purpose}`, async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "mawdda-audio-boundary-test-"));
+    try {
+      const sourcePath = path.join(tempDir, "exact-limit.wav");
+      await execFileAsync("ffmpeg", [
+        "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i",
+        "sine=frequency=440:duration=60", "-c:a", "pcm_s16le", sourcePath,
+      ]);
+      const sourceSha256 = createHash("sha256").update(await fs.readFile(sourcePath)).digest("hex");
+      const storage = fakeStorage();
+      const result = await processSafeDerivative({
+        sourcePath, tempDir,
+        request: {
+          mediaId, objectPath: `quarantine/member_1/${mediaId}`,
+          objectGeneration: "123456", contentType: "audio/wav", purpose,
+        },
+        sourceSha256, storage, bucketName: "mawdda-test", provider,
+      });
+      assert.equal(result.safeDerivative.category, "audio");
+      assert.equal(result.safeDerivative.path, `processed/member_1/${mediaId}/audio.mp3`);
+      assert.ok(storage.objects.has(result.safeDerivative.path));
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test(`real audio processor rejects recordings beyond 60 seconds for ${purpose}`, async () => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "mawdda-audio-limit-test-"));
     try {
       const sourcePath = path.join(tempDir, "over-limit.wav");
       await execFileAsync("ffmpeg", [
         "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i",
-        "sine=frequency=440:duration=61", "-c:a", "pcm_s16le", sourcePath,
+        "sine=frequency=440:duration=60.1", "-c:a", "pcm_s16le", sourcePath,
       ]);
       const sourceSha256 = createHash("sha256").update(await fs.readFile(sourcePath)).digest("hex");
       await assert.rejects(() => processSafeDerivative({
