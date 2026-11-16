@@ -68,6 +68,15 @@ test("member room rental debits atomically, renews idempotently, transfers and c
     assert.equal(created.newBalance, 4000);
     assert.equal((await userRef.get()).data().coins, 4000);
     assert.equal((await db.collection("rooms").doc(roomId).get()).data().status, "active");
+    await assert.rejects(
+      () => createRentedRoom.run(memberRequest(ownerUid, {
+        ...request.data, capacity: 51,
+      })),
+      (error) => error && error.code === "already-exists",
+      "reusing a creation request ID with different room details must be rejected",
+    );
+    assert.equal((await userRef.get()).data().coins, 4000,
+      "a conflicting idempotency replay must not debit coins again");
 
     const ledgerRef = userRef.collection("walletLedger").doc(`room_${ownerUid}_${requestId}`);
     assert.equal((await ledgerRef.get()).data().amount, -1000);
@@ -79,7 +88,15 @@ test("member room rental debits atomically, renews idempotently, transfers and c
     assert.equal(renewed.renewed, true);
     const replay = await renewRoomRental.run(renewRequest);
     assert.equal(replay.idempotentReplay, true);
-    assert.equal((await userRef.get()).data().coins, 3000);
+    await assert.rejects(
+      () => renewRoomRental.run(memberRequest(ownerUid, {
+        ...renewRequest.data, planId: "room_90d",
+      })),
+      (error) => error && error.code === "already-exists",
+      "reusing a renewal request ID with a different plan must be rejected",
+    );
+    assert.equal((await userRef.get()).data().coins, 3000,
+      "a conflicting renewal replay must not debit coins again");
 
     await db.collection("rooms").doc(roomId).collection("members").doc(newOwnerUid).set({
       uid: newOwnerUid, role: "member",
