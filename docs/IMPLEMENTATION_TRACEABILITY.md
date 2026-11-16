@@ -404,3 +404,14 @@ Source of truth: [Master Development Charter](MAWADDA_MASTER_DEVELOPMENT_CHARTER
 
 ### Current baseline warning
 Existing implementation records include mode-aware seven/thirty-day text retention (temporary full-chat deletion remains open), store purchase/entitlement coverage, and partial owner free-entitlement grants. Those do not establish temporary inactivity deletion, Media Saver, the generalized pricing engine, attendance schedules, ad completion verification, free coin grants or group/room collective grant workflows. Each remains separately tracked until the tests above pass on an identified commit.
+
+
+## Owner-directed three-stage execution order — 2026-11-16
+
+The detailed delivery rows above remain the complete requirement inventory; they are not replaced or deleted. For execution sequencing, the owner's latest direction establishes three top-level stages:
+
+1. **Stage 1 — complete platform build and engineering readiness (48-hour target):** execute all applicable requirements in this matrix across identity, member lifecycle, social, messaging, rooms/events/reservations, media/retention, wallet/economy/store/rewards, owner/Super Admin, safety, UI/UX, platform targets, and cloud-sync code/contracts. Complete debugging, security remediation, unit/integration/emulator tests, and prepare a coherent candidate SHA. The 48-hour target is for this engineering stage only; do not claim completion where evidence is missing.
+2. **Stage 2 — 5,000-persona simulation:** begin only after Stage 1 exit review and candidate SHA freeze. Use the separate simulation repository and record both repository SHAs, scenario, duration, full lifecycle counts, artifacts, and failures. Simulation is intentionally deferred and is not a Stage 1 prerequisite.
+3. **Stage 3 — cloud synchronization, registration, deployment and launch:** after Stage 2 acceptance and separate owner authorization, complete live Firebase/Google Cloud synchronization, app/service registration as applicable, production rollout, store submission, and real-user launch. Production changes, billing, main merge, deployment, and identity changes remain separately gated by explicit owner approval.
+
+This sequence supersedes older schedule text in this matrix or linked plans wherever those texts place the 5,000-persona run, live cloud synchronization, or deployment inside Stage 1's 48-hour window. It does not remove any product requirement, approve a new price or policy, or waive a test/security gate.
