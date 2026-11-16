@@ -9707,7 +9707,7 @@ export const cleanupExpiredCallSignals = onSchedule("every 5 minutes", async () 
       .where("expiresAt", "<=", now).limit(500).get();
     const batch = db.batch();
     signals.docs.forEach((signal) => batch.delete(signal.ref));
-    batch.update(doc.ref, { signalsCleanedAt: true, signalsCleanedAtAt: FieldValue.serverTimestamp() });
+    batch.update(doc.ref, { signalsCleanedAt: true, signalsCleanedAtTimestamp: FieldValue.serverTimestamp() });
     await batch.commit();
   }
 });
