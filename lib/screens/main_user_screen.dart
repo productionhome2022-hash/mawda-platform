@@ -20,6 +20,8 @@ import 'stories_screen.dart';
 import 'reward_center_screen.dart';
 import 'media_workspace_screen.dart';
 import 'featured_ads_screen.dart';
+import 'direct_chat_screen.dart';
+import 'chat_room_screen.dart';
 
 class MainUserScreen extends StatefulWidget {
   final String userId;
@@ -42,12 +44,46 @@ class _MainUserScreenState extends State<MainUserScreen> {
   }
 
   Future<void> _initializePushNotifications() async {
-    await _pushNotifications.initialize(onForegroundMessage: (message) {
-      if (!mounted) return;
-      final title = message.notification?.title ?? 'إشعار جديد من مودة';
-      final body = message.notification?.body ?? 'لديك تحديث جديد.';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$title — $body')));
-    });
+    await _pushNotifications.initialize(
+      onForegroundMessage: (message) {
+        if (!mounted) return;
+        if (message.data['type'] == 'incoming_call') {
+          _openIncomingCallTarget(message.data);
+          return;
+        }
+        final title = message.notification?.title ?? 'إشعار جديد من مودة';
+        final body = message.notification?.body ?? 'لديك تحديث جديد.';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$title — $body')));
+      },
+      onOpenedMessage: (message) {
+        if (mounted && message.data['type'] == 'incoming_call') {
+          _openIncomingCallTarget(message.data);
+        }
+      },
+    );
+  }
+
+
+  void _openIncomingCallTarget(Map<String, dynamic> data) {
+    final targetId = data['targetId'];
+    final scope = data['scope'];
+    if (targetId is! String || targetId.isEmpty) return;
+    if (scope == 'direct') {
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => DirectChatScreen(
+          chatId: targetId,
+          peerName: 'مكالمة واردة',
+          currentUserId: widget.userId,
+        ),
+      ));
+    } else if (scope == 'room') {
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => ChatRoomScreen(
+          chatId: targetId,
+          currentUserId: widget.userId,
+        ),
+      ));
+    }
   }
 
   Future<void> _signOut() async {
