@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
@@ -24,30 +25,30 @@ class MediaWorkspaceScreen extends StatelessWidget {
               icon: Icons.assignment_outlined,
               title: 'عقودي واتفاقياتي',
               subtitle: 'مراجعة العقود الموجهة إليك والتوقيع على النسخة المعتمدة',
-              enabled: true,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const MyContractsScreen(),
-                ),
-              ),
+              enabled: kIsWeb,
+              subtitle: kIsWeb
+                  ? 'بوابة الويب: مراجعة العقود والاتفاقيات والتوقيع الإلكتروني حصراً'
+                  : 'متاح عبر موقع Mawdda فقط — لا تعرض العقود أو توقعها من التطبيق',
+              onTap: kIsWeb ? () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const MyContractsScreen()),
+              ) : null,
             ),
             _WorkspaceEntry(
               icon: Icons.campaign_outlined,
               title: 'انضم كمندوب إعلاني معتمد',
               subtitle: 'تقديم الخبرة وملف الأعمال إلى الإدارة؛ الاعتماد لا يتم إلا بعد توقيع الاتفاقية',
-              enabled: true,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const AdvertisingIntakeScreen(
-                    kind: 'representative_application',
-                  ),
-                ),
-              ),
+              enabled: kIsWeb,
+              subtitle: 'التقديم ومراجعة الاتفاقية والتوقيع عبر موقع الويب حصراً',
+              onTap: kIsWeb ? () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const AdvertisingIntakeScreen(
+                  kind: 'representative_application',
+                )),
+              ) : null,
             ),
             _WorkspaceEntry(
               icon: Icons.movie_creation_outlined,
               title: 'انضم إلى صُنّاع مودة',
-              subtitle: 'طلب العضوية الإنتاجية أو الترشيح للإشراف — قيد الاستكمال الخادمي',
+              subtitle: 'تسجيل أعضاء صُنّاع مودة والترشيح للإشراف عبر موقع الويب حصراً',
             ),
             _WorkspaceEntry(
               icon: Icons.business_center_outlined,
@@ -65,13 +66,11 @@ class MediaWorkspaceScreen extends StatelessWidget {
             _WorkspaceEntry(
               icon: Icons.video_library_outlined,
               title: 'عروض المؤثرين وصنّاع المحتوى',
-              subtitle: 'تقديم قناة أو محتوى أو مقترح تعاون إلى الإدارة العامة',
-              enabled: true,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const CreatorProposalScreen(),
-                ),
-              ),
+              subtitle: 'تقديم عروض المؤثرين ومتابعة الاتفاقيات والمراسلات عبر موقع الويب حصراً',
+              enabled: kIsWeb,
+              onTap: kIsWeb ? () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const CreatorProposalScreen()),
+              ) : null,
             ),
             _WorkspaceEntry(
               icon: Icons.support_agent_outlined,
