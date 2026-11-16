@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../services/super_admin_security_service.dart';
 import '../services/push_notification_service.dart';
@@ -1434,7 +1435,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                SizedBox(
+                if (kIsWeb) SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: () => Navigator.of(context).push(MaterialPageRoute(
@@ -1445,7 +1446,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                SizedBox(
+                if (kIsWeb) SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: () => Navigator.of(context).push(MaterialPageRoute(
