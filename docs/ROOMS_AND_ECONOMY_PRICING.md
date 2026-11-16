@@ -126,29 +126,69 @@ Do not invent a universal ad playback length, viewing threshold, reward, or freq
 
 ## Advertising geographic sections and member-facing interfaces
 
-The member-facing Advertising area must be divided into distinct browse interfaces. It must not be a single undifferentiated ad feed. Provide these sections in this order:
+The member-facing Advertising area must expose the following initial browse interfaces in this order:
 
-1. **All ads** — a unified feed of all currently eligible and deliverable advertisements across every supported country and region.
-2. **Levant** — advertisements targeted to the Levant countries.
-3. **Iraq** — a dedicated Iraq feed.
-4. **Gulf Cooperation Council (GCC)** — a dedicated feed for the GCC member countries.
-5. **Egypt** — a dedicated Egypt feed.
-6. **Tunisia, Libya and Sudan** — one regional feed for these three countries.
-7. **Algeria and Morocco** — one regional feed for these two countries.
-8. **Europe and Turkey** — one regional feed covering European countries and Turkey.
-9. **Asia and the Middle East** — a broad regional feed covering Asia and the Middle East.
+1. **All Arabic ads** — all eligible advertisements whose geographic targeting includes one or more Arab countries. This is not a worldwide/all-countries feed.
+2. **Syria** — Syria only.
+3. **Lebanon and Palestine** — one shared interface for Lebanon and Palestine.
+4. **Iraq and Jordan** — one shared interface for Iraq and Jordan.
+5. **Gulf Cooperation Council (GCC)** — the GCC member countries.
+6. **Egypt** — Egypt only.
+7. **Tunisia, Libya and Sudan** — one shared interface.
+8. **Algeria and Morocco** — one shared interface.
+9. **Europe and Turkey** — one shared interface.
+10. **Asia and the Middle East** — one broad regional interface.
 
-The country-to-region mapping must be maintained as structured, versioned platform configuration, not inferred from a member's language or client device. The owner/Super Admin must be able to manage the supported country list, regional membership, campaign targeting and availability from the control plane. Keep country targeting distinct from language targeting.
+There is no interface or targeting category named "Levant". Syria is its own interface; Lebanon and Palestine are grouped together; Iraq and Jordan are grouped together. The remaining groupings above stay as listed.
 
-Feed behavior and safety:
-- The **All ads** feed aggregates eligible advertisements from all supported regions; regional feeds show campaigns eligible for that region and country.
-- A campaign may be eligible for more than one feed when its targeting permits it. Showing the same campaign in multiple browsing sections must not create duplicate billable impressions, duplicate view events, or duplicate rewards for one actual display/view.
-- Apply campaign dates, time windows, frequency caps, member eligibility, placement rules, and campaign delivery limits consistently across every feed.
+### Required geographic targeting when an ad is submitted
+
+Every ad submission must include a required **Target geographic area** field, whether the ad creative is uploaded from the moderator's device or supplied through an external ad URL. The submitter chooses a supported country or region, for example:
+
+- Egypt → Egypt interface and All Arabic ads.
+- Syria → Syria interface and All Arabic ads.
+- Lebanon or Palestine → Lebanon and Palestine interface and All Arabic ads.
+- Iraq or Jordan → Iraq and Jordan interface and All Arabic ads.
+- All Arab countries → All Arabic ads and all applicable Arab country/region interfaces.
+
+The targeting selector must support both a specific country and the explicit **All Arab countries** target. For grouped interfaces, selecting either member country routes the ad to the corresponding shared interface. A non-Arab target such as Europe/Turkey or Asia/Middle East is routed to its corresponding regional interface and is not included in All Arabic ads unless the campaign also explicitly targets Arab countries.
+
+The selected target is stored as structured server-side campaign data. Country-to-region membership is maintained as versioned configuration controlled by the Super Admin / Owner, not inferred from language, IP address, or device locale. Country targeting remains distinct from language targeting. Validate the selected target against the current supported-country/region configuration on the server.
+
+### Advertising feed behavior
+
+- All Arabic ads aggregates only currently eligible campaigns targeting Arab countries; it does not include every country worldwide.
+- Regional feeds show campaigns eligible for their configured countries/regions.
+- A campaign can appear in All Arabic ads and its matching regional feed(s), but one actual impression/view must not be counted or rewarded more than once because it was discoverable through multiple interfaces.
+- Apply campaign dates, time windows, frequency caps, member eligibility, placement rules and delivery limits consistently across all feeds.
 - Respect campaign targeting and member privacy. Do not expose advertiser targeting criteria or another member's personal/location data.
-- If the member has not granted or supplied a country/region, do not silently infer a precise location. Use the global feed and allow an explicit country/region selection where appropriate.
-- Each interface must have clear empty, loading, error, paused-campaign, and no-eligible-ads states. Never fabricate ads to fill a feed.
-- The owner/Super Admin can reorder, enable, disable, rename, or revise regional sections through controlled configuration, with versioning and audit history. The above list is the approved initial navigation structure; later changes require owner authorization.
-- These are browse/discovery interfaces and do not themselves activate ad delivery, billing, or rewarded viewing. Those remain gated by the advertising readiness requirements above.
+- If a member has not supplied or selected a country/region, do not silently infer a precise location. All Arabic ads may still be browsed as a broad feed; regional personalization requires an explicit supported country/region selection or another owner-approved privacy-safe basis.
+- Each interface needs loading, empty, error and no-eligible-ad states. Never fabricate ads to fill a feed.
+- The Super Admin / Owner can manage regional definitions, supported countries, section availability and ordering through versioned, audited controls.
+- These browse interfaces do not themselves activate advertiser billing or rewarded viewing. Those remain gated by the advertising readiness requirements above.
+
+### Advertising upload moderators — maximum 36
+
+The Super Admin / Owner may appoint and manage up to **36 advertising upload moderators**. This is a maximum staffing capacity, not a requirement to appoint all 36. The Owner/Super Admin assigns each moderator a geographic scope (country, grouped region, or approved broader scope) so coverage can be distributed across the Arab geographic areas. The Owner controls assignments and can change or revoke them.
+
+Moderator permissions are strictly limited to ad submission/upload:
+
+- Upload an ad creative from the moderator's device, where the relevant media format and size pass validation.
+- Submit an external ad/creative URL through the dedicated URL field, with server-side URL and content safety validation.
+- Select a geographic target from the supported target list, but only within the geographic scope granted to that moderator.
+- Submit the ad for the platform's configured publication flow so that, once eligible and published, it appears in the correct geographic interface(s) and All Arabic ads when its target includes Arab countries.
+
+Moderators do **not** receive permission to change prices, campaign budgets, billing, revenue reports, payout details, campaign duration or scheduling policy, platform-wide geographic mappings, other moderators' access, owner settings, or unrelated admin functions. They cannot grant themselves broader geographic scope or permissions. Upload access is separately revocable and every submission/action is attributed to its moderator in an audit log.
+
+The Owner/Super Admin controls whether device upload and external URL submission are enabled for each moderator. URL submissions must be safely fetched/validated server-side; do not trust client-provided URL metadata, allow unsafe schemes, private-network destinations, redirects to prohibited destinations, or arbitrary executable content. Uploaded media must pass type/size/content checks and the platform's applicable malware/content-safety pipeline.
+
+**Publication workflow decision still required:** the owner has specified upload-only moderator permissions and that accepted ads should appear in their target interface, but has not yet explicitly decided whether a moderator submission is published automatically after server validation or first requires Owner/Super Admin approval. Keep this publication gate configurable and fail-closed until the Owner chooses the policy. Do not grant moderators a separate publish/approve permission by implication.
+
+### Advertising revenue and earnings management
+
+Provide a dedicated advertising revenue management view for the Super Admin / Owner, separate from the upload-moderator interface. It should support auditable reporting, as applicable once billing is implemented, for campaign sales, billable impressions/clicks, gross revenue, refunds/credits, fees/costs, net revenue, outstanding amounts and settlement status. Reports should be filterable by campaign, advertiser, geography, placement and time period, with exportable audit/report records where supported.
+
+Only the Super Admin / Owner may view financial totals or configure commercial terms, advertiser billing, revenue recognition, refunds, settlements or payout settings. Upload moderators must not see financial reports or sensitive advertiser/accounting information. Do not invent moderator commissions, revenue shares, payout rates, or settlement schedules; none have been approved. Keep real-money billing, collection, revenue settlement and payouts disabled until their provider integration, accounting/reconciliation, fraud controls, refund handling, tax/legal review and owner authorization are complete.
 
 ## Validation status
 
