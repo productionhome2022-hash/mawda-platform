@@ -97,6 +97,9 @@ test("member room rental debits atomically, renews idempotently, transfers and c
     );
     assert.equal((await userRef.get()).data().coins, 3000,
       "a conflicting renewal replay must not debit coins again");
+    const supersededRental = await db.collection("roomRentals").doc(`${ownerUid}_${requestId}`).get();
+    assert.equal(supersededRental.data().status, "renewed");
+    assert.equal(supersededRental.data().supersededByRentalId, `${ownerUid}_renew_${tag}`);
 
     await db.collection("rooms").doc(roomId).collection("members").doc(newOwnerUid).set({
       uid: newOwnerUid, role: "member",
