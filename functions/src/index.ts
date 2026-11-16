@@ -8609,10 +8609,29 @@ export const reviewOwnerAdvertisingIntake = onCall(
     throw new HttpsError("invalid-argument", "بيانات مراجعة الطلب أو ملاحظاتها غير مكتملة.");
   }
   const ref = ADVERTISING_INTAKE.doc(requestId);
+  const auditRef = db.collection("adminAuditLogs")
+    .doc("advertising_intake_review_" + requestId + "_" + String(expectedVersion));
   const result = await db.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(ref);
+    const [snapshot, existingAudit, headSnapshot] = await Promise.all([
+      transaction.get(ref),
+      transaction.get(auditRef),
+      transaction.get(OWNER_REVIEW_AUDIT_HEAD),
+    ]);
     if (!snapshot.exists) throw new HttpsError("not-found", "الطلب غير موجود.");
     const data = snapshot.data()!;
+    if (existingAudit.exists) {
+      const priorAudit = existingAudit.data() ?? {};
+      if (data.requestVersion === (expectedVersion as number) + 1 &&
+          data.status === nextStatus && data.reviewedBy === actorUid &&
+          data.reviewNote === note && priorAudit.action === "advertising_intake_reviewed" &&
+          priorAudit.actorUid === actorUid && priorAudit.requestId === requestId) {
+        return {
+          requestId, status: nextStatus, requestVersion: data.requestVersion,
+          contractRequired: true, auditLogId: auditRef.id, idempotentReplay: true,
+        };
+      }
+      throw new HttpsError("already-exists", "معرف مراجعة الطلب مستخدم لعملية مختلفة.");
+    }
     if (data.requestVersion !== expectedVersion) {
       throw new HttpsError("aborted", "تغير الطلب؛ أعد تحميله قبل المراجعة.");
     }
@@ -8625,7 +8644,27 @@ export const reviewOwnerAdvertisingIntake = onCall(
     if (!(allowedTransitions[data.status] ?? []).includes(nextStatus)) {
       throw new HttpsError("failed-precondition", "انتقال حالة الطلب غير مسموح من حالته الحالية.");
     }
+    const head = headSnapshot.data() ?? {};
+    const previousSequence = headSnapshot.exists ? head.sequence : 0;
+    const previousHash = headSnapshot.exists ? head.eventHash : "GENESIS";
+    if (!Number.isSafeInteger(previousSequence) || previousSequence < 0 ||
+        typeof previousHash !== "string" ||
+        !(previousHash === "GENESIS" || /^[a-f0-9]{64}$/.test(previousHash))) {
+      throw new HttpsError("data-loss", "سلسلة تدقيق المالك غير سليمة؛ أوقفت المراجعة لحماية السجل.");
+    }
     const version = (data.requestVersion as number) + 1;
+    const auditEvent = {
+      actorUid,
+      action: "advertising_intake_reviewed",
+      requestId,
+      status: nextStatus,
+      requestVersion: version,
+      contractRequired: true,
+      note,
+      outcome: "success",
+    };
+    const sequence = previousSequence + 1;
+    const eventHash = calculateOwnerAuditHash(auditEvent, sequence, previousHash);
     transaction.update(ref, {
       status: nextStatus,
       reviewNote: note,
@@ -8633,10 +8672,24 @@ export const reviewOwnerAdvertisingIntake = onCall(
       requestVersion: version,
       updatedAt: FieldValue.serverTimestamp(),
     });
-    return { requestId, status: nextStatus, requestVersion: version, contractRequired: true };
-  });
-  await appendOwnerReviewAuditEvent({
-    actorUid, action: "advertising_intake_reviewed", ...result, note, outcome: "success",
+    transaction.create(auditRef, {
+      ...auditEvent,
+      auditEvent,
+      auditChainId: "owner-review-v1",
+      auditSequence: sequence,
+      previousAuditHash: previousHash,
+      auditHash: eventHash,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    transaction.set(OWNER_REVIEW_AUDIT_HEAD, {
+      sequence,
+      eventHash,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return {
+      requestId, status: nextStatus, requestVersion: version,
+      contractRequired: true, auditLogId: auditRef.id, idempotentReplay: false,
+    };
   });
   return result;
 });
