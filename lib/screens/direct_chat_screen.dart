@@ -45,6 +45,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   bool _loadingBlockStatus = true;
   String _resolvedPeerUid = '';
   Timer? _refreshTimer;
+  Timer? _callCheckTimer;
+  String? _promptedIncomingCallId;
+  bool _showingIncomingCall = false;
   Map<String, dynamic>? _currentMessageData;
   String? _latestMessagePageToken;
   String? _olderPageToken;
@@ -58,6 +61,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     super.initState();
     _messagesFuture = _loadMessages();
     _loadBlockStatus();
+    _callCheckTimer = Timer.periodic(const Duration(seconds: 2), (_) => _checkIncomingCall());
     _refreshTimer = Timer.periodic(const Duration(seconds: 8), (_) {
       if (mounted && !_sending) _refresh();
     });
@@ -66,6 +70,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _callCheckTimer?.cancel();
     _messageController.dispose();
     _mediaService.close();
     super.dispose();
@@ -90,6 +95,67 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     }
   }
 
+
+
+  Future<void> _checkIncomingCall() async {
+    if (!mounted || _showingIncomingCall || _peerBlocked) return;
+    final chatId = (_currentMessageData?['chatId'] as String?) ?? widget.chatId ?? '';
+    if (chatId.isEmpty) return;
+    try {
+      final response = await FirebaseFunctions.instance
+          .httpsCallable('getActiveCall').call();
+      final call = Map<String, dynamic>.from(response.data as Map);
+      if (call['active'] != true || call['status'] != 'ringing' ||
+          call['callerUid'] == widget.currentUserId ||
+          call['scope'] != 'direct' || call['targetId'] != chatId) return;
+      final callId = call['callId'] as String?;
+      if (callId == null || callId.isEmpty || _promptedIncomingCallId == callId) return;
+      _promptedIncomingCallId = callId;
+      _showingIncomingCall = true;
+      final mode = call['mode'] == 'video' ? 'video' : 'audio';
+      final accepted = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(mode == 'video' ? 'مكالمة مرئية واردة' : 'مكالمة صوتية واردة'),
+          content: const Text('يرغب عضو المحادثة في الاتصال بك. هل تريد قبول المكالمة؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('رفض'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.call),
+              label: const Text('قبول'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      await FirebaseFunctions.instance.httpsCallable('respondToCall').call({
+        'callId': callId,
+        'response': accepted == true ? 'accept' : 'reject',
+      });
+      if (accepted == true && mounted) {
+        await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => MawddaCallScreen(
+            callId: callId,
+            scope: 'direct',
+            targetId: chatId,
+            mode: mode,
+            currentUserId: widget.currentUserId,
+            outgoing: false,
+          ),
+        ));
+      }
+    } catch (_) {
+      // A stale or already-answered incoming call is safely ignored and rechecked.
+    } finally {
+      _showingIncomingCall = false;
+      _promptedIncomingCallId = null;
+    }
+  }
 
   Future<void> _openCall(String mode) async {
     final chatId = (_currentMessageData?['chatId'] as String?) ?? widget.chatId ?? '';
