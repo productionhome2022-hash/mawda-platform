@@ -62,7 +62,7 @@ export function validateSpecializedRoleGrant(value: unknown): SpecializedRoleGra
     throw new Error("SPECIALIZED_GRANT_INVALID");
   }
   const input = value as Record<string, unknown>;
-  if (typeof input.uid !== "string" || !/^[A-Za-z0-9:_-]{8,128}$/.test(input.uid) ||
+  if (typeof input.uid !== "string" || !/^[A-Za-z0-9._:@-]{8,128}$/.test(input.uid) ||
       !ADVERTISING_SPECIALIZED_ROLES.includes(input.role as AdvertisingSpecializedRole) ||
       !Array.isArray(input.permissions) || !Array.isArray(input.resourceScopes) ||
       !["active", "suspended", "revoked"].includes(String(input.status)) ||
