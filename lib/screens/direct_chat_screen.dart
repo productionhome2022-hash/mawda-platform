@@ -13,6 +13,7 @@ import '../services/direct_message_page.dart';
 import '../policies/chat_audio_policy.dart';
 import '../widgets/chat_audio_controls.dart';
 import 'safety_center_screen.dart';
+import 'mawdda_call_screen.dart';
 
 class DirectChatScreen extends StatefulWidget {
   const DirectChatScreen({
@@ -87,6 +88,22 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     } catch (_) {
       if (mounted) setState(() => _loadingBlockStatus = false);
     }
+  }
+
+
+  Future<void> _openCall(String mode) async {
+    final chatId = (_currentMessageData?['chatId'] as String?) ?? widget.chatId ?? '';
+    if (chatId.isEmpty || _peerBlocked || _loadingBlockStatus) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => MawddaCallScreen(
+        callId: const Uuid().v4(),
+        scope: 'direct',
+        targetId: chatId,
+        mode: mode,
+        currentUserId: widget.currentUserId,
+        outgoing: true,
+      ),
+    ));
   }
 
   Future<void> _togglePeerBlock() async {
@@ -767,6 +784,22 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       appBar: AppBar(
         title: Text(widget.peerName.isEmpty ? 'محادثة خاصة' : widget.peerName),
         actions: [
+          IconButton(
+            tooltip: 'مكالمة صوتية',
+            onPressed: _peerBlocked || _loadingBlockStatus ||
+                ((_currentMessageData?['chatId'] as String?) ?? widget.chatId ?? '').isEmpty
+                ? null
+                : () => _openCall('audio'),
+            icon: const Icon(Icons.call_outlined),
+          ),
+          IconButton(
+            tooltip: 'مكالمة مرئية',
+            onPressed: _peerBlocked || _loadingBlockStatus ||
+                ((_currentMessageData?['chatId'] as String?) ?? widget.chatId ?? '').isEmpty
+                ? null
+                : () => _openCall('video'),
+            icon: const Icon(Icons.videocam_outlined),
+          ),
           IconButton(
             tooltip: 'الإبلاغ عن العضو',
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(
