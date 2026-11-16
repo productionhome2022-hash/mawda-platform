@@ -8146,6 +8146,9 @@ export const submitCreatorProposal = onCall(
   { enforceAppCheck: true },
   async (request) => {
     const actorUid = requireAuthenticatedUid(request.auth?.uid);
+    if (request.auth?.token.email_verified !== true) {
+      throw new HttpsError("permission-denied", "يجب توثيق البريد الإلكتروني قبل تقديم المقترح.");
+    }
     let payload;
     try {
       payload = validateCreatorProposalInput(request.data);
