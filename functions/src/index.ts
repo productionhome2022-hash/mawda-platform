@@ -85,6 +85,7 @@ import { DEFAULT_COIN_PACKAGES, DEFAULT_AD_PRICES, validateCoinPackages, validat
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
+import { validateAdvertisingIntake, AdvertisingIntakeValidationError } from "./advertising-intake";
 import {
   applyContractSignature,
   assertContractStatusTransition,
@@ -8256,6 +8257,152 @@ export const submitCreatorProposal = onCall(
   },
 );
 
+
+// Secure intake for advertising representatives and direct advertisers.
+// Submission never grants a role, creates a campaign, accepts payment or publishes content.
+const ADVERTISING_INTAKE = db.collection("advertisingIntakeRequests");
+
+export const submitAdvertisingIntake = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    const actorUid = requireAuthenticatedUid(request.auth?.uid);
+    if (request.auth?.token.email_verified !== true) {
+      throw new HttpsError("permission-denied", "يجب توثيق البريد الإلكتروني قبل إرسال الطلب.");
+    }
+    let payload;
+    try {
+      payload = validateAdvertisingIntake(request.data);
+    } catch (error) {
+      if (error instanceof AdvertisingIntakeValidationError) {
+        throw new HttpsError("invalid-argument", error.code);
+      }
+      throw error;
+    }
+    const payloadHash = createHash("sha256")
+      .update(JSON.stringify({ ...payload, idempotencyKey: undefined }))
+      .digest("hex");
+    const keyHash = createHash("sha256")
+      .update(actorUid + "|" + payload.idempotencyKey)
+      .digest("hex");
+    const idempotencyRef = db.collection("advertisingIntakeIdempotency").doc(keyHash);
+    const requestRef = ADVERTISING_INTAKE.doc();
+    const result = await db.runTransaction(async (transaction) => {
+      const prior = await transaction.get(idempotencyRef);
+      if (prior.exists) {
+        const data = prior.data() ?? {};
+        if (data.payloadHash !== payloadHash || typeof data.requestId !== "string") {
+          throw new HttpsError("already-exists", "مفتاح الطلب مستخدم مع بيانات مختلفة.");
+        }
+        return { requestId: data.requestId as string, duplicate: true };
+      }
+      transaction.create(requestRef, {
+        ...payload,
+        idempotencyKey: undefined,
+        applicantUid: actorUid,
+        status: "submitted_pending_review",
+        requestVersion: 1,
+        contractRequired: true,
+        roleActivated: false,
+        campaignCreated: false,
+        paymentAccepted: false,
+        published: false,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.create(idempotencyRef, {
+        applicantUid: actorUid,
+        payloadHash,
+        requestId: requestRef.id,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return { requestId: requestRef.id, duplicate: false };
+    });
+    if (!result.duplicate) {
+      await appendOwnerReviewAuditEvent({
+        actorUid,
+        action: "advertising_intake_submitted",
+        requestId: result.requestId,
+        intakeKind: payload.kind,
+        targetGeographies: payload.targetGeographies,
+        outcome: "success",
+      });
+    }
+    return {
+      requestId: result.requestId,
+      status: "submitted_pending_review",
+      duplicate: result.duplicate,
+      contractRequired: true,
+    };
+  },
+);
+
+export const listOwnerAdvertisingIntake = onCall(async (request) => {
+  requireOwner(request);
+  const limit = Number.isSafeInteger(request.data?.limit)
+    ? Math.max(1, Math.min(100, request.data.limit as number)) : 50;
+  const status = request.data?.status;
+  const kind = request.data?.kind;
+  if (status !== undefined && typeof status !== "string") {
+    throw new HttpsError("invalid-argument", "مرشح الحالة غير صالح.");
+  }
+  if (kind !== undefined && kind !== "representative_application" && kind !== "direct_advertiser") {
+    throw new HttpsError("invalid-argument", "نوع الطلب غير صالح.");
+  }
+  let query: FirebaseFirestore.Query = ADVERTISING_INTAKE.orderBy("createdAt", "desc");
+  if (status) query = ADVERTISING_INTAKE.where("status", "==", status).orderBy("createdAt", "desc");
+  if (kind) query = query.where("kind", "==", kind);
+  const snapshot = await query.limit(limit).get();
+  return {
+    requests: snapshot.docs.map((doc) => ({ requestId: doc.id, ...doc.data() })),
+  };
+});
+
+export const reviewOwnerAdvertisingIntake = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const requestId = typeof request.data?.requestId === "string" ? request.data.requestId.trim() : "";
+  const expectedVersion = request.data?.expectedVersion;
+  const nextStatus = request.data?.nextStatus;
+  const note = typeof request.data?.note === "string" ? request.data.note.trim() : "";
+  const allowed = [
+    "under_review", "correction_requested", "rejected",
+    "accepted_pending_contract", "closed",
+  ];
+  if (!/^[A-Za-z0-9_-]{16,100}$/.test(requestId) ||
+      !Number.isSafeInteger(expectedVersion) || (expectedVersion as number) < 1 ||
+      typeof nextStatus !== "string" || !allowed.includes(nextStatus) ||
+      note.length < 5 || note.length > 1500) {
+    throw new HttpsError("invalid-argument", "بيانات مراجعة الطلب أو ملاحظاتها غير مكتملة.");
+  }
+  const ref = ADVERTISING_INTAKE.doc(requestId);
+  const result = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) throw new HttpsError("not-found", "الطلب غير موجود.");
+    const data = snapshot.data()!;
+    if (data.requestVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغير الطلب؛ أعد تحميله قبل المراجعة.");
+    }
+    if (["rejected", "closed"].includes(data.status)) {
+      throw new HttpsError("failed-precondition", "الطلب مغلق ولا يقبل انتقالاً جديداً.");
+    }
+    if (nextStatus === "accepted_pending_contract" &&
+        data.status !== "under_review" && data.status !== "correction_requested") {
+      throw new HttpsError("failed-precondition", "يجب أن يكون الطلب قيد المراجعة قبل القبول المبدئي.");
+    }
+    const version = (data.requestVersion as number) + 1;
+    transaction.update(ref, {
+      status: nextStatus,
+      reviewNote: note,
+      reviewedBy: actorUid,
+      requestVersion: version,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return { requestId, status: nextStatus, requestVersion: version, contractRequired: true };
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid, action: "advertising_intake_reviewed", ...result, note, outcome: "success",
+  });
+  return result;
+});
 
 // Owner-controlled specialized advertising/production/legal role grants.
 // These grants are separate from general platform administration.
