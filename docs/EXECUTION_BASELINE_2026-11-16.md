@@ -176,3 +176,64 @@
 3. معالجة دورة temporary-chat expiry في فرع تطوير مستقل مع اختبارات Emulator شاملة، دون تفعيل الجدولة الحية.
 4. مواصلة تدقيق فروع الميزات المغلقة ومحتواها الفعلي قبل cherry-pick أو إعادة التنفيذ.
 5. إبقاء PR #2 وmain دون دمج أو تغيير حماية حتى موافقة المالك.
+
+
+## 14. تدقيق GitHub Actions وخطة حماية الفروع — 2026-11-16
+
+### الحالة المثبتة وقت التدقيق
+- رأس `main`: `460a79a7dc2e16f4ad146af22aab58e152ad1e8c`، وGitHub يعرض `protected=false`.
+- رأس فرع التطوير: `d3d3b5e5843644f64c6d48c44bbcc696539616bd`، وGitHub يعرض `protected=false`.
+- PR #2 مفتوح من فرع التطوير إلى `main`، والرأس الحالي مطابق لـ `d3d3b5e...`؛ لم يُدمج.
+- فحص check-runs على SHA التطوير `d3d3b5e...` أظهر نجاح 8 فحوصات:
+  1. `Flutter analysis, tests and web build`
+  2. `Cloud Functions compile and unit tests`
+  3. `Isolated ClamAV scanner gateway tests and image build`
+  4. `CodeQL`
+  5. `Analyze (javascript-typescript)`
+  6. `Analyze (actions)`
+  7. `Flutter UI analysis and widget tests`
+  8. `Retention and room reservation emulator regression`
+- واجهة GitHub تعرض أيضاً `commit status state=pending` بلا legacy statuses؛ لا نخلط ذلك بنتائج check-runs الثمانية الناجحة. يجب عند إعداد required checks اختيار أسماء check-runs أعلاه من GitHub نفسها، لا إنشاء أسماء تخمينية.
+
+### مراجعة ملفات .github/workflows
+تمت قراءة الملفات الستة الموجودة في فرع التطوير:
+- `validate.yml`: push إلى فرع التطوير وworkflow_dispatch؛ تحليل Flutter واختباراته وبناء Web وفحوص Firebase non-production وCloud Functions/Emulator وقواعد Firestore/Storage والماسح.
+- `mawdda-domain-regression.yml`: push إلى فرع التطوير؛ اختبارات retention/room events/entitlement وFlutter.
+- `bootstrap-native-platforms.yml`: push مقيّد بمسارات على فرع التطوير وworkflow_dispatch؛ يتحقق من Firebase non-production، ويبني Android Debug وiOS دون توقيع ويرفع artifacts.
+- `mawdda-test-center.yml`: workflow_dispatch فقط؛ يتحقق من أن التشغيل على فرع التطوير، ويشغل Emulator/Test Center ومحاكاة 5000 ويرفع التقارير.
+- `android-signed-release.yml`: workflow_dispatch فقط ومقيّد داخلياً بفرع التطوير؛ يحتاج أسرار توقيع المالك، ويبني APK موقّعاً ويتحقق من بصمة الشهادة المعتمدة. لا يرفع إلى متجر.
+- `flutter-ci.yml`: workflow_dispatch فقط؛ تحليل واختبارات Flutter وبناء Web.
+
+### نتيجة تدقيق النشر والصلاحيات
+- لم يظهر في ملفات Actions الستة أي أمر `firebase deploy` أو `gcloud run deploy` أو نشر Cloud Functions/Hosting/App Hosting أو خطوة نشر تلقائي.
+- لا توجد في هذه الملفات عملية نشر إنتاجي تلقائية مرتبطة بـ push إلى `main`.
+- الصلاحية المعلنة في جميع هذه الملفات هي `contents: read`؛ لا تظهر صلاحيات نشر أو تعديل موارد سحابية. ملف Android signed release يقرأ أسرار التوقيع فقط لأجل إنشاء artifact محلي داخل Runner.
+- هذه النتيجة محصورة في ملفات workflow الستة على فرع التطوير؛ لا تثبت عدم وجود نشر خارج GitHub Actions أو في مستودع/إعداد آخر. كما أن وجود `.firebase` أو إعدادات Firebase في المستودع لا يعني أن workflow ينشرها.
+
+### سياسة الحماية الموصى بها
+**أولاً — main (حماية قوية، دون تعطيل CI):**
+- Require a pull request before merging.
+- Required approvals: صفر حالياً لتجنب تعطيل المالك إذا كان المراجع الوحيد؛ يمكن رفعها لاحقاً عند وجود مراجع موثوق إضافي.
+- Require status checks to pass، مع اختيار الفحوصات الثمانية أعلاه بعد التأكد من ظهورها على PR حديث، وعدم إدخال أسماء أخرى.
+- لا تفرض `Require branches to be up to date` في المرحلة الحالية؛ لتجنب تعطيل الدمج بسبب تعارضات/تحديثات متكررة، ويمكن إعادة تقييمه بعد استقرار CI.
+- فعّل منع force-push ومنع حذف الفرع.
+- لا تسمح بتجاوز الحماية إلا للمالك/مسؤول موثوق وبأضيق نطاق؛ لا تمنح GitHub Actions bypass.
+- لا تفعّل merge queue أو قيود توقيع commits أو CODEOWNERS المطلوبة الآن؛ ليست مثبتة كمتطلبات تشغيلية وقد تعرقل العمل.
+
+**ثانياً — فرع التطوير (حماية خفيفة تحافظ على سرعة التنفيذ):**
+- لا تشترط Pull Request لكل تحديث؛ أبقِ push المباشر المصرح به وworkflow_dispatch متاحين.
+- لا تفرض required status checks على فرع التطوير في هذه المرحلة.
+- فعّل فقط منع force-push ومنع حذف الفرع.
+- لا تمنع GitHub Actions من تشغيل workflows أو رفع artifacts.
+
+### الأثر على التطوير والدمج والإطلاق
+- هذه الحماية تخص Git branches فقط؛ لا تغيّر Firebase project أو IAM أو Google Cloud billing أو إعدادات التطبيق أو قواعد البيانات.
+- حماية `main` تجعل الانتقال إليه يمر عبر PR والفحوصات، لكنها لا تنشر التطبيق بحد ذاتها.
+- إبقاء فرع التطوير قابلاً للدفع المباشر يحافظ على دورة البناء والاختبار والمحاكاة الحالية.
+- بما أن workflows الحالية لا تنشر تلقائياً، فلا يوجد مسار نشر حالي ينبغي أن يتأثر بهذه السياسة. وعند إضافة نشر مستقبلاً، يجب فصله في workflow مستقل ببيئة GitHub Environment وموافقة مالك، وأسرار أقل صلاحية، وقيد فرع/وسم واضح؛ ولا يُضاف كأثر جانبي لتغيير حماية الفروع.
+- لا تغيّر الحماية أي شيء في تجربة المستخدمين أو تشغيل المنصة مباشرة؛ فائدتها منع انتقال تغيير غير مختبر إلى `main`، وبالتالي تقليل مخاطر الإطلاق والصيانة المستقبلية.
+
+### حدود التنفيذ في هذا التدقيق
+- لم يتم تعديل Branch Protection أو Rulesets؛ واجهة GitHub المتاحة لهذا الاتصال أعادت 403 عند قراءة تفاصيل حماية الفرع، والأدوات المتاحة هنا لا توفر إجراء كتابة إداري لتفعيلها. لذلك لا أدّعي أنها فُعّلت.
+- لا دمج PR #2، ولا نشر، ولا تغيير Firebase/Google Cloud.
+- الإجراء الإداري المتبقي: تطبيق السياسة أعلاه من إعدادات GitHub بعد التحقق من required checks على PR حديث. يجب ألا يُفعّل شرط checks قبل التأكد أن الفحوصات الثمانية تصل إلى PR head؛ إذا لم تظهر، نصلح trigger أولاً بدلاً من وضع حماية قد تمنع الدمج.
