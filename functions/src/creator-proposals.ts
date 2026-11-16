@@ -107,7 +107,7 @@ export function validateCreatorProposalInput(input: unknown): CreatorProposalPay
     }
   } else {
     if (typeof data.proposedBudgetAmount !== "string" ||
-        !/^(?:0|[1-9]\\d{0,11})(?:\\.\\d{1,4})?$/.test(data.proposedBudgetAmount) ||
+        !/^(?:0|[1-9]\d{0,11})(?:\.\d{1,4})?$/.test(data.proposedBudgetAmount) ||
         Number(data.proposedBudgetAmount) <= 0 ||
         typeof data.currency !== "string" ||
         !/^[A-Z]{3}$/.test(data.currency)) {
