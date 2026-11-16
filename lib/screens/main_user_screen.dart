@@ -18,6 +18,7 @@ import 'notification_center_screen.dart';
 import 'conversations_screen.dart';
 import 'stories_screen.dart';
 import 'reward_center_screen.dart';
+import 'media_workspace_screen.dart';
 
 class MainUserScreen extends StatefulWidget {
   final String userId;
@@ -504,6 +505,15 @@ class _CompletedProfilePanel extends StatelessWidget {
                           ),
                         );
                       },
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.video_library_outlined),
+                      label: const Text('Media Workspace'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MediaWorkspaceScreen(),
+                        ),
+                      ),
                     ),
                     OutlinedButton.icon(
                       icon: const Icon(Icons.storefront_outlined),
