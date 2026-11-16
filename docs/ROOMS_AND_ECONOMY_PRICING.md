@@ -123,6 +123,33 @@ All time, schedule, playback, viewing, repetition, reward and pricing rules must
 
 Do not invent a universal ad playback length, viewing threshold, reward, or frequency cap as a final policy. Use clearly marked experimental defaults only where needed for development and tests, and make every such value owner-editable. Keep actual ad delivery, advertiser billing, and rewarded-view issuance disabled until their complete server-side verification, accounting, fraud controls, and acceptance tests are ready.
 
+
+## Advertising geographic sections and member-facing interfaces
+
+The member-facing Advertising area must be divided into distinct browse interfaces. It must not be a single undifferentiated ad feed. Provide these sections in this order:
+
+1. **All ads** — a unified feed of all currently eligible and deliverable advertisements across every supported country and region.
+2. **Levant** — advertisements targeted to the Levant countries.
+3. **Iraq** — a dedicated Iraq feed.
+4. **Gulf Cooperation Council (GCC)** — a dedicated feed for the GCC member countries.
+5. **Egypt** — a dedicated Egypt feed.
+6. **Tunisia, Libya and Sudan** — one regional feed for these three countries.
+7. **Algeria and Morocco** — one regional feed for these two countries.
+8. **Europe and Turkey** — one regional feed covering European countries and Turkey.
+9. **Asia and the Middle East** — a broad regional feed covering Asia and the Middle East.
+
+The country-to-region mapping must be maintained as structured, versioned platform configuration, not inferred from a member's language or client device. The owner/Super Admin must be able to manage the supported country list, regional membership, campaign targeting and availability from the control plane. Keep country targeting distinct from language targeting.
+
+Feed behavior and safety:
+- The **All ads** feed aggregates eligible advertisements from all supported regions; regional feeds show campaigns eligible for that region and country.
+- A campaign may be eligible for more than one feed when its targeting permits it. Showing the same campaign in multiple browsing sections must not create duplicate billable impressions, duplicate view events, or duplicate rewards for one actual display/view.
+- Apply campaign dates, time windows, frequency caps, member eligibility, placement rules, and campaign delivery limits consistently across every feed.
+- Respect campaign targeting and member privacy. Do not expose advertiser targeting criteria or another member's personal/location data.
+- If the member has not granted or supplied a country/region, do not silently infer a precise location. Use the global feed and allow an explicit country/region selection where appropriate.
+- Each interface must have clear empty, loading, error, paused-campaign, and no-eligible-ads states. Never fabricate ads to fill a feed.
+- The owner/Super Admin can reorder, enable, disable, rename, or revise regional sections through controlled configuration, with versioning and audit history. The above list is the approved initial navigation structure; later changes require owner authorization.
+- These are browse/discovery interfaces and do not themselves activate ad delivery, billing, or rewarded viewing. Those remain gated by the advertising readiness requirements above.
+
 ## Validation status
 
 - Room rental plans: owner/MFA-only update, validation, version increment, audit record.
