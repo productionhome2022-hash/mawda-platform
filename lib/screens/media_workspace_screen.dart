@@ -24,7 +24,6 @@ class MediaWorkspaceScreen extends StatelessWidget {
             _WorkspaceEntry(
               icon: Icons.assignment_outlined,
               title: 'عقودي واتفاقياتي',
-              subtitle: 'مراجعة العقود الموجهة إليك والتوقيع على النسخة المعتمدة',
               enabled: kIsWeb,
               subtitle: kIsWeb
                   ? 'بوابة الويب: مراجعة العقود والاتفاقيات والتوقيع الإلكتروني حصراً'
@@ -36,7 +35,6 @@ class MediaWorkspaceScreen extends StatelessWidget {
             _WorkspaceEntry(
               icon: Icons.campaign_outlined,
               title: 'انضم كمندوب إعلاني معتمد',
-              subtitle: 'تقديم الخبرة وملف الأعمال إلى الإدارة؛ الاعتماد لا يتم إلا بعد توقيع الاتفاقية',
               enabled: kIsWeb,
               subtitle: 'التقديم ومراجعة الاتفاقية والتوقيع عبر موقع الويب حصراً',
               onTap: kIsWeb ? () => Navigator.of(context).push(
