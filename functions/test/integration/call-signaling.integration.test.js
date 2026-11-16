@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getFirestore } = require("firebase-admin/firestore");
 const {
-  startCall, respondToCall, sendCallSignal, getCallSignals, endCall, getActiveCall,
+  startCall, respondToCall, sendCallSignal, getCallSignals, endCall, getActiveCall, getCallIceConfiguration,
 } = require("../../lib/index");
 
 const db = getFirestore();
@@ -34,6 +34,13 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
     }));
     assert.equal(started.status, "ringing");
     assert.equal((await getActiveCall.run(call(calleeUid))).active, true);
+    const ice = await getCallIceConfiguration.run(call(callerUid, { callId }));
+    assert.equal(ice.turnConfigured, false);
+    assert.ok(ice.iceServers.some((server) => server.urls.includes("stun:stun.l.google.com:19302")));
+    await assert.rejects(
+      () => getCallIceConfiguration.run(call(outsiderUid, { callId })),
+      (error) => error && error.code === "permission-denied",
+    );
     await assert.rejects(
       () => startCall.run(call(callerUid, {
         callId: uid("call_overlap"), scope: "direct", targetId: chatId, mode: "audio",
