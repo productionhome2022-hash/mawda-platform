@@ -52,7 +52,7 @@ export function validateCallSignal(value: unknown): {
   const input = value as Record<string, unknown>;
   if (!["offer", "answer", "ice"].includes(String(input.kind)) ||
       typeof input.payload !== "string" || input.payload.length < 1 ||
-      input.payload.length > 12000 ||
+      input.payload.length > 65536 ||
       !Number.isSafeInteger(input.sequence) || (input.sequence as number) < 0) {
     throw new Error("INVALID_CALL_SIGNAL");
   }
@@ -65,10 +65,10 @@ export function validateCallSignal(value: unknown): {
   if (input.kind === "offer" || input.kind === "answer") {
     const expectedType = input.kind;
     if (body.type !== expectedType || typeof body.sdp !== "string" ||
-        body.sdp.length < 1 || body.sdp.length > 10000) {
+        body.sdp.length < 1 || body.sdp.length > 60000) {
       throw new Error("INVALID_CALL_SIGNAL");
     }
-  } else if (typeof body.candidate !== "string" || body.candidate.length > 4096 ||
+  } else if (typeof body.candidate !== "string" || body.candidate.length > 8192 ||
       (body.sdpMid !== undefined && body.sdpMid !== null && typeof body.sdpMid !== "string") ||
       (body.sdpMLineIndex !== undefined && body.sdpMLineIndex !== null &&
         (!Number.isSafeInteger(body.sdpMLineIndex) || (body.sdpMLineIndex as number) < 0))) {
