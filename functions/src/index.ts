@@ -9314,9 +9314,14 @@ export const startCall = onCall(async (request) => {
     }
     const active = await CALL_SESSIONS.where("participantUids", "array-contains", callerUid)
       .limit(20).get();
-    if (active.docs.some((doc) => ["ringing", "accepted"].includes(String(doc.data().status)) &&
-        (doc.data().status === "accepted" ||
-         (doc.data().expiresAt instanceof Timestamp && doc.data().expiresAt.toMillis() > now)))) {
+    if (active.docs.some((doc) => {
+      const data = doc.data();
+      return !(Array.isArray(data.leftUids) && data.leftUids.includes(callerUid)) &&
+        !(Array.isArray(data.rejectedUids) && data.rejectedUids.includes(callerUid)) &&
+        ["ringing", "accepted"].includes(String(data.status)) &&
+        (data.status === "accepted" ||
+         (data.expiresAt instanceof Timestamp && data.expiresAt.toMillis() > now));
+    })) {
       throw new HttpsError("resource-exhausted", "لديك مكالمة نشطة بالفعل.");
     }
     transaction.create(callRef, {
@@ -9351,7 +9356,9 @@ export const respondToCall = onCall(async (request) => {
     if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
     const call = snapshot.data()!;
     if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
-        uid === call.callerUid) throw new HttpsError("permission-denied", "لا تملك صلاحية الرد على هذه المكالمة.");
+        uid === call.callerUid || (Array.isArray(call.leftUids) && call.leftUids.includes(uid))) {
+      throw new HttpsError("permission-denied", "لا تملك صلاحية الرد على هذه المكالمة.");
+    }
     if (!["ringing", "accepted"].includes(String(call.status)) ||
         (call.status === "ringing" &&
           (!(call.expiresAt instanceof Timestamp) || call.expiresAt.toMillis() <= Date.now()))) {
@@ -9474,8 +9481,25 @@ export const getCallSignals = onCall(async (request) => {
       doc.data().sequence > afterSequence)
     .sort((left, right) => left.data().createdAt.toMillis() - right.data().createdAt.toMillis())
     .map((doc) => ({ ...doc.data(), signalId: doc.id }));
+  let callStatus = call.data()?.status;
+  const expiresAt = call.data()?.expiresAt;
+  if (callStatus === "ringing" && expiresAt instanceof Timestamp &&
+      expiresAt.toMillis() <= Date.now()) {
+    callStatus = "missed";
+    await db.runTransaction(async (transaction) => {
+      const current = await transaction.get(ref);
+      if (current.exists && current.data()?.status === "ringing" &&
+          current.data()?.expiresAt instanceof Timestamp &&
+          current.data()!.expiresAt.toMillis() <= Date.now()) {
+        transaction.update(ref, {
+          status: "missed", endedAt: FieldValue.serverTimestamp(),
+          lastActivityAt: FieldValue.serverTimestamp(),
+        });
+      }
+    });
+  }
   return {
-    status: call.data()?.status,
+    status: callStatus,
     signals,
     lastSequence: signals.length ? signals[signals.length - 1].sequence : afterSequence,
   };
@@ -9546,6 +9570,7 @@ export const getCallIceConfiguration = onCall(
     const call = await CALL_SESSIONS.doc(callId).get();
     if (!call.exists || !Array.isArray(call.data()?.participantUids) ||
         !call.data()!.participantUids.includes(uid) ||
+        (Array.isArray(call.data()?.leftUids) && call.data()!.leftUids.includes(uid)) ||
         !["ringing", "accepted"].includes(String(call.data()?.status))) {
       throw new HttpsError("permission-denied", "لا تملك صلاحية إعداد الاتصال لهذه المكالمة.");
     }
