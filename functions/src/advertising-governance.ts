@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export const ADVERTISING_SPECIALIZED_ROLES = [
   "ad_representative",
   "ad_general_supervisor",
@@ -46,6 +48,15 @@ const FORBIDDEN_SPECIALIZED_PERMISSIONS = new Set([
   "contracts.delegation.create",
 ]);
 
+/** Stable document identity: changing permissions or resource scopes updates the same grant. */
+export function specializedRoleGrantId(uid: string, role: AdvertisingSpecializedRole): string {
+  if (typeof uid !== "string" || !/^[A-Za-z0-9._:@-]{8,128}$/.test(uid) ||
+      !ADVERTISING_SPECIALIZED_ROLES.includes(role)) {
+    throw new Error("SPECIALIZED_GRANT_ID_INVALID");
+  }
+  return createHash("sha256").update("specialized-role-v1|" + uid + "|" + role).digest("hex");
+}
+
 export interface SpecializedRoleGrant {
   uid: string;
   role: AdvertisingSpecializedRole;
@@ -64,7 +75,7 @@ export function validateSpecializedRoleGrant(value: unknown): SpecializedRoleGra
   const input = value as Record<string, unknown>;
   if (typeof input.uid !== "string" || !/^[A-Za-z0-9._:@-]{8,128}$/.test(input.uid) ||
       !ADVERTISING_SPECIALIZED_ROLES.includes(input.role as AdvertisingSpecializedRole) ||
-      !Array.isArray(input.permissions) || !Array.isArray(input.resourceScopes) ||
+      !Array.isArray(input.permissions) || input.permissions.length < 1 || !Array.isArray(input.resourceScopes) ||
       !["active", "suspended", "revoked"].includes(String(input.status)) ||
       !Number.isSafeInteger(input.startsAtMs) || (input.startsAtMs as number) < 0 ||
       !(input.endsAtMs === null || (Number.isSafeInteger(input.endsAtMs) && (input.endsAtMs as number) > (input.startsAtMs as number))) ||
