@@ -8428,10 +8428,15 @@ export const transitionOwnerContract = onCall(async (request) => {
   const actorUid = requireOwner(request);
   const contractId = typeof request.data?.contractId === "string" ? request.data.contractId.trim() : "";
   const nextStatus = request.data?.nextStatus;
+  const reason = typeof request.data?.reason === "string" ? request.data.reason.trim() : "";
   const expectedRecordVersion = contractExpectedRecordVersion(request.data?.expectedRecordVersion);
   if (!/^[0-9a-f-]{36}$/i.test(contractId) ||
       typeof nextStatus !== "string") {
     throw new HttpsError("invalid-argument", "معرف العقد أو الحالة المطلوبة غير صالحين.");
+  }
+  if (["cancelled", "suspended", "terminated"].includes(nextStatus) &&
+      (reason.length < 10 || reason.length > 1000)) {
+    throw new HttpsError("invalid-argument", "يجب توثيق سبب الإلغاء أو التعليق أو الإنهاء.");
   }
   const contractRef = CONTRACT_RECORDS.doc(contractId);
   const auditRef = CONTRACT_AUDIT_LOGS.doc();
@@ -8483,6 +8488,7 @@ export const transitionOwnerContract = onCall(async (request) => {
       action: "contract_status_transition",
       from,
       to,
+      reason: reason || null,
       recordVersion,
       contentHash: data.contentHash,
       createdAt: FieldValue.serverTimestamp(),
