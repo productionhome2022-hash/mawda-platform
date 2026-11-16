@@ -11,6 +11,7 @@ import '../policies/chat_audio_policy.dart';
 import '../widgets/chat_audio_controls.dart';
 import '../services/super_admin_security_service.dart';
 import 'room_events_screen.dart';
+import 'mawdda_call_screen.dart';
 
 class ChatRoomScreen extends StatefulWidget {
   final String chatId;
@@ -62,6 +63,20 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     _messageController.dispose();
     _mediaService.close();
     super.dispose();
+  }
+
+
+  Future<void> _openRoomCall(String mode) async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => MawddaCallScreen(
+        callId: const Uuid().v4(),
+        scope: 'room',
+        targetId: widget.chatId,
+        mode: mode,
+        currentUserId: widget.currentUserId,
+        outgoing: true,
+      ),
+    ));
   }
 
   Future<void> _reloadMessages() async {
@@ -317,6 +332,16 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       appBar: AppBar(
         title: Text(roomTitle),
         actions: [
+          IconButton(
+            tooltip: 'مكالمة صوتية جماعية',
+            onPressed: () => _openRoomCall('audio'),
+            icon: const Icon(Icons.call_outlined),
+          ),
+          IconButton(
+            tooltip: 'مكالمة مرئية جماعية',
+            onPressed: () => _openRoomCall('video'),
+            icon: const Icon(Icons.videocam_outlined),
+          ),
           IconButton(
             tooltip: 'أحداث الغرفة',
             onPressed: () => Navigator.of(context).push(
