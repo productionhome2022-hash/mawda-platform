@@ -46,6 +46,8 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   bool _muted = false;
   bool _cameraEnabled = true;
   bool _turnConfigured = false;
+  String? _lastSignalCursor;
+  bool _polling = false;
   String _status = 'جارٍ تجهيز الاتصال...';
   String? _failure;
 
@@ -212,11 +214,13 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   }
 
   Future<void> _pollSignals() async {
-    if (_ending || _peers.isEmpty) return;
+    if (_ending || _peers.isEmpty || _polling) return;
+    _polling = true;
     try {
       final response = await _functions.httpsCallable('getCallSignals').call({
         'callId': widget.callId,
         'afterSequence': -1,
+        if (_lastSignalCursor != null) 'afterSignalId': _lastSignalCursor,
       });
       final data = Map<String, dynamic>.from(response.data as Map);
       final signals = (data['signals'] as List<dynamic>? ?? const []).whereType<Map>();
@@ -262,12 +266,16 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
           }
         }
       }
+      final nextCursor = data['nextCursor'];
+      if (nextCursor is String && nextCursor.isNotEmpty) _lastSignalCursor = nextCursor;
       if (data['status'] == 'ended' || data['status'] == 'cancelled' ||
           data['status'] == 'missed' || data['status'] == 'rejected') {
         await _finish(notifyServer: false);
       }
     } catch (error) {
       if (mounted && !_ending) setState(() => _failure = 'تعذر مزامنة إشارات الاتصال: $error');
+    } finally {
+      _polling = false;
     }
   }
 
