@@ -184,27 +184,38 @@ class _OwnerContractCenterScreenState extends State<OwnerContractCenterScreen> {
     switch (status) {
       case 'draft':
         add('legal_review', 'إرسال للمراجعة القانونية');
+        break;
       case 'legal_review':
         add('pending_owner_approval', 'اعتماد المراجعة');
+        break;
       case 'pending_owner_approval':
         add('ready_to_send', 'اعتماد النسخة للإرسال');
+        break;
       case 'ready_to_send':
         add('awaiting_counterparty_signature', 'إرسال للطرف للتوقيع');
+        break;
       case 'awaiting_company_signature':
         actions.add(FilledButton(
           onPressed: _busy ? null : () => _signForCompany(contract),
           child: const Text('توقيع الشركة'),
         ));
+        break;
       case 'signed':
         add('effective', 'اعتماد النفاذ');
+        break;
       case 'effective':
         add('suspended', 'تعليق العقد');
         add('terminated', 'إنهاء العقد');
+        break;
       case 'suspended':
         add('effective', 'إعادة النفاذ');
         add('terminated', 'إنهاء العقد');
+        break;
       case 'expired':
         add('renewal_or_amendment', 'بدء التجديد أو التعديل');
+        break;
+      default:
+        break;
     }
     if (!['cancelled', 'terminated', 'expired', 'renewal_or_amendment'].contains(status) &&
         status != 'effective' && status != 'suspended') {
