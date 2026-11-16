@@ -226,3 +226,18 @@ Current evidence boundary: repository source confirms the iOS FirebaseOptions id
 ### Governance boundary
 
 This amendment records policy approval only. It does not establish that code, tests, scanners, catalog entries or production services already enforce these rules. No merge to `main`, deployment, production Firebase mutation, paid infrastructure activation, or destructive live operation is authorized by this entry.
+
+
+## CREATOR-001 — Fifth Media Workspace route: Creator Content & Influencer Proposals (16 November 2026)
+
+**Authority:** Explicit owner approval in the Mawdda HQ conversation on 16 November 2026. This is a binding product-scope decision, not evidence of implementation or legal clearance.
+
+- Add a fifth peer-level Media Workspace destination named **Creator Content & Influencer Proposals** for influencers, YouTubers, public-page owners, video creators, photographers and advertising-content producers.
+- Creators may submit a public channel/account/post/portfolio URL, supported media uploaded through the secure media pipeline, or a written proposal with optional attachments. The platform/source name and a substantive proposal description are required.
+- Capture creator identity/category, audience/content focus, target geography from the existing Owner-controlled taxonomy, proposed duration, proposed price/budget or request for an administration quote, and a rights/permission declaration.
+- Create a unique request and private request-bound conversation. Access is limited to the submitter, Owner and explicitly authorized assignees. Review, assignment, discussion and commercial offers are versioned and audited.
+- The Owner may handle the proposal or assign an authorized reviewer. Offers preserve price, duration, geography, placement and terms; amended terms require renewed explicit acceptance.
+- This route is distinct from **Advertise Directly**. It does not automatically create a campaign, reserve inventory, publish content, grant featured priority, create representative commission rights or qualify the creator for Watch Ads rewards.
+- Any accepted proposal that becomes an advertising campaign must pass the existing campaign lifecycle, Owner commercial approval, rights/media safety checks, actual-payment confirmation and publication gates. Preserve the creator request ID and audit linkage through handoff.
+- Do not invent creator rates, guaranteed reach, legal classification, payment terms or usage rights. No real-money checkout, payout, or production activation is authorized.
+- **Implementation status:** Requirements documented and traceability row added. UI, data model, server authorization, media/link integration, negotiation workflow and tests remain open until implemented and verified on an identified commit.
