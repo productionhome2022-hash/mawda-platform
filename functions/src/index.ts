@@ -9370,15 +9370,21 @@ export const respondToCall = onCall(async (request) => {
     }
     const field = response === "accept" ? "acceptedUids" : "rejectedUids";
     const prior = Array.isArray(call[field]) ? call[field] as string[] : [];
+    const rejected = response === "reject"
+      ? [...(Array.isArray(call.rejectedUids) ? call.rejectedUids as string[] : []), uid]
+      : (Array.isArray(call.rejectedUids) ? call.rejectedUids as string[] : []);
+    const calleeUids = call.participantUids.filter((memberUid: string) => memberUid !== call.callerUid);
+    const allRejected = calleeUids.every((memberUid: string) => rejected.includes(memberUid));
     if (!prior.includes(uid)) transaction.update(ref, {
       [field]: FieldValue.arrayUnion(uid),
       ...(response === "accept" ? { status: "accepted" } :
-        call.status === "ringing" && !(Array.isArray(call.acceptedUids) && call.acceptedUids.length > 0)
-          ? { status: "rejected" } : {}),
+        call.scope === "room" ? (allRejected ? { status: "rejected" } : {}) :
+        { status: "rejected" }),
       respondedAt: FieldValue.serverTimestamp(),
       lastActivityAt: FieldValue.serverTimestamp(),
     });
-    return { callId, status: next, idempotentReplay: prior.includes(uid) };
+    return { callId, status: response === "accept" ? "accepted" : (allRejected ? "rejected" : call.status),
+      idempotentReplay: prior.includes(uid) };
   });
 });
 
@@ -9404,6 +9410,8 @@ export const sendCallSignal = onCall(async (request) => {
     const call = snapshot.data()!;
     if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
         !call.participantUids.includes(toUid) ||
+        (Array.isArray(call.leftUids) && call.leftUids.includes(uid)) ||
+        (Array.isArray(call.leftUids) && call.leftUids.includes(toUid)) ||
         !["ringing", "accepted"].includes(String(call.status))) {
       throw new HttpsError("permission-denied", "لا تملك صلاحية إرسال إشارات إلى هذا العضو في المكالمة.");
     }
@@ -9454,7 +9462,8 @@ export const getCallSignals = onCall(async (request) => {
   const ref = CALL_SESSIONS.doc(callId);
   const call = await ref.get();
   if (!call.exists || !Array.isArray(call.data()?.participantUids) ||
-      !call.data()!.participantUids.includes(uid)) {
+      !call.data()!.participantUids.includes(uid) ||
+      (Array.isArray(call.data()?.leftUids) && call.data()!.leftUids.includes(uid))) {
     throw new HttpsError("permission-denied", "لا تملك صلاحية قراءة إشارات هذه المكالمة.");
   }
   const snapshot = await ref.collection("signals").where("recipientUid", "==", uid).limit(256).get();
@@ -9486,8 +9495,31 @@ export const endCall = onCall(async (request) => {
     if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid)) {
       throw new HttpsError("permission-denied", "لا تملك صلاحية إنهاء هذه المكالمة.");
     }
-    const next = call.status === "ringing" && uid === call.callerUid ? "cancelled" :
-      call.status === "ringing" ? "rejected" : "ended";
+    const leftUids = Array.isArray(call.leftUids) ? call.leftUids as string[] : [];
+    if (leftUids.includes(uid)) return { callId, status: call.status, idempotentReplay: true };
+    if (call.scope === "room" && uid !== call.callerUid) {
+      if (call.status === "ringing") {
+        const rejected = Array.isArray(call.rejectedUids) ? call.rejectedUids as string[] : [];
+        const nextRejected = [...rejected, uid];
+        const calleeUids = call.participantUids.filter((memberUid: string) => memberUid !== call.callerUid);
+        const allRejected = calleeUids.every((memberUid: string) => nextRejected.includes(memberUid));
+        transaction.update(ref, {
+          rejectedUids: FieldValue.arrayUnion(uid),
+          ...(allRejected ? { status: "rejected" } : {}),
+          lastActivityAt: FieldValue.serverTimestamp(),
+        });
+        return { callId, status: allRejected ? "rejected" : "ringing", idempotentReplay: false };
+      }
+      if (call.status === "accepted") {
+        transaction.update(ref, {
+          leftUids: FieldValue.arrayUnion(uid),
+          acceptedUids: FieldValue.arrayRemove(uid),
+          lastActivityAt: FieldValue.serverTimestamp(),
+        });
+        return { callId, status: "accepted", idempotentReplay: false };
+      }
+    }
+    const next = call.status === "ringing" && uid === call.callerUid ? "cancelled" : "ended";
     if (!canTransitionCall(call.status, next, uid, call.callerUid, call.participantUids)) {
       if (["ended", "cancelled", "rejected", "missed"].includes(String(call.status))) {
         return { callId, status: call.status, idempotentReplay: true };
@@ -9542,8 +9574,10 @@ export const getActiveCall = onCall(async (request) => {
     .limit(20).get();
   const active = snapshot.docs.find((doc) => {
     const data = doc.data();
-    return data.status === "accepted" ||
-      (data.expiresAt instanceof Timestamp && data.expiresAt.toMillis() > Date.now());
+    return !(Array.isArray(data.leftUids) && data.leftUids.includes(uid)) &&
+      !(Array.isArray(data.rejectedUids) && data.rejectedUids.includes(uid)) &&
+      (data.status === "accepted" ||
+       (data.expiresAt instanceof Timestamp && data.expiresAt.toMillis() > Date.now()));
   });
   if (!active) return { active: false };
   const data = active.data();
