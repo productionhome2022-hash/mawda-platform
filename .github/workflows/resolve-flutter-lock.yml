@@ -6,6 +6,7 @@ on:
       - codex/mawda-full-platform-implementation
     paths:
       - pubspec.yaml
+      - .github/workflows/resolve-flutter-lock.yml
   workflow_dispatch:
 
 permissions:
