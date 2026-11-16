@@ -84,3 +84,76 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
       .map((ref) => db.recursiveDelete(ref).catch(() => undefined)));
   }
 });
+
+
+test("room call signaling is peer-targeted and one member leaving does not end the room call", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const callerUid = uid("room_call_caller");
+  const firstUid = uid("room_call_first");
+  const secondUid = uid("room_call_second");
+  const roomId = uid("room_call");
+  const callId = uid("room_call_session");
+  const roomRef = db.collection("rooms").doc(roomId);
+  const memberRefs = [callerUid, firstUid, secondUid].map((memberUid) =>
+    db.collection("users").doc(memberUid));
+  const callRef = db.collection("callSessions").doc(callId);
+  await Promise.all([
+    ...memberRefs.map((ref) => ref.set({
+      profileCompleted: true, accountStatus: "active", age: 30,
+    })),
+    roomRef.set({
+      roomId, name: "غرفة اختبار المكالمات", ownerUid: callerUid,
+      kind: "public", audience: "adult", status: "active", capacity: 5,
+      memberCount: 3,
+    }),
+    ...[callerUid, firstUid, secondUid].map((memberUid) =>
+      roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" })),
+  ]);
+  try {
+    const started = await startCall.run(call(callerUid, {
+      callId, scope: "room", targetId: roomId, mode: "video",
+    }));
+    assert.equal(started.participantUids.length, 3);
+    await sendCallSignal.run(call(callerUid, {
+      callId, toUid: firstUid,
+      signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
+    }));
+    await sendCallSignal.run(call(callerUid, {
+      callId, toUid: secondUid,
+      signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
+    }));
+    await respondToCall.run(call(firstUid, { callId, response: "accept" }));
+    await respondToCall.run(call(secondUid, { callId, response: "accept" }));
+    const firstSignals = await getCallSignals.run(call(firstUid, { callId, afterSequence: -1 }));
+    const secondSignals = await getCallSignals.run(call(secondUid, { callId, afterSequence: -1 }));
+    assert.equal(firstSignals.signals.length, 1);
+    assert.equal(firstSignals.signals[0].recipientUid, firstUid);
+    assert.equal(secondSignals.signals.length, 1);
+    assert.equal(secondSignals.signals[0].recipientUid, secondUid);
+
+    await sendCallSignal.run(call(firstUid, {
+      callId, toUid: callerUid,
+      signal: { kind: "answer", payload: JSON.stringify({ type: "answer", sdp: "v=0" }), sequence: 0 },
+    }));
+    await sendCallSignal.run(call(secondUid, {
+      callId, toUid: callerUid,
+      signal: { kind: "answer", payload: JSON.stringify({ type: "answer", sdp: "v=0" }), sequence: 0 },
+    }));
+    const callerSignals = await getCallSignals.run(call(callerUid, { callId, afterSequence: -1 }));
+    assert.equal(callerSignals.signals.length, 2);
+    assert.deepEqual(new Set(callerSignals.signals.map((item) => item.senderUid)),
+      new Set([firstUid, secondUid]));
+
+    const left = await endCall.run(call(firstUid, { callId }));
+    assert.equal(left.status, "accepted");
+    assert.equal((await getActiveCall.run(call(firstUid))).active, false);
+    assert.equal((await getActiveCall.run(call(secondUid))).active, true);
+    assert.equal((await getActiveCall.run(call(callerUid))).active, true);
+    await endCall.run(call(callerUid, { callId }));
+    assert.equal((await getActiveCall.run(call(secondUid))).active, false);
+  } finally {
+    await db.recursiveDelete(callRef).catch(() => undefined);
+    await db.recursiveDelete(roomRef).catch(() => undefined);
+    await Promise.all(memberRefs.map((ref) => db.recursiveDelete(ref).catch(() => undefined)));
+  }
+});
