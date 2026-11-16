@@ -9456,14 +9456,14 @@ export const sendCallSignal = onCall(async (request) => {
         !["ringing", "accepted"].includes(String(call.status))) {
       throw new HttpsError("permission-denied", "لا تملك صلاحية إرسال إشارات إلى هذا العضو في المكالمة.");
     }
+    if (call.status === "ringing" && signal.kind === "answer") {
+      throw new HttpsError("failed-precondition", "لا يمكن إرسال إجابة قبل قبول المكالمة.");
+    }
     if (signal.kind === "offer" && uid !== call.callerUid) {
       throw new HttpsError("permission-denied", "إنشاء عرض الاتصال مخصص لمنشئ المكالمة.");
     }
     if (signal.kind === "answer" && uid === call.callerUid) {
       throw new HttpsError("permission-denied", "لا يمكن لمنشئ المكالمة إرسال إجابة الطرف الآخر.");
-    }
-    if (call.status === "ringing" && signal.kind === "answer") {
-      throw new HttpsError("failed-precondition", "لا يمكن إرسال إجابة قبل قبول المكالمة.");
     }
     if (call.status === "ringing" &&
         (!(call.expiresAt instanceof Timestamp) || call.expiresAt.toMillis() <= Date.now())) {
