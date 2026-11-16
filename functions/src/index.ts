@@ -6838,8 +6838,12 @@ export const createRentedRoom = onCall(async (request) => {
     ]);
     if (prior.exists) {
       const data = prior.data()!;
-      if (data.ownerUid !== uid || data.planId !== planId) {
-        throw new HttpsError("already-exists", "معرف طلب الاستئجار مستخدم لعملية أخرى.");
+      if (data.ownerUid !== uid || data.planId !== planId ||
+          data.requestedName !== name || data.requestedCapacity !== capacity ||
+          data.requestedPriceCoins !== expectedPriceCoins ||
+          typeof data.roomId !== "string" || !data.roomId ||
+          !(data.expiresAt instanceof Timestamp)) {
+        throw new HttpsError("already-exists", "معرف طلب الاستئجار مستخدم لعملية أخرى أو ببيانات مختلفة.");
       }
       return { roomId: data.roomId, rentalId: rentalRef.id, priceCoins: data.priceCoins,
         expiresAt: data.expiresAt.toMillis(), idempotentReplay: true };
@@ -6874,6 +6878,7 @@ export const createRentedRoom = onCall(async (request) => {
     transaction.create(rentalRef, {
       rentalId: rentalRef.id, roomId: roomRef.id, ownerUid: uid, planId: plan.planId,
       priceCoins: plan.priceCoins, durationDays: plan.durationDays, status: "active",
+      requestedName: name, requestedCapacity: capacity, requestedPriceCoins: expectedPriceCoins,
       startsAt: Timestamp.fromMillis(nowMs), expiresAt, createdAt: now,
     });
     transaction.create(ledgerRef, {
@@ -6909,8 +6914,10 @@ export const renewRoomRental = onCall(async (request) => {
     ]);
     if (prior.exists) {
       const data = prior.data()!;
-      if (data.roomId !== roomId || data.ownerUid !== uid) {
-        throw new HttpsError("already-exists", "معرف طلب التجديد مستخدم لعملية أخرى.");
+      if (data.roomId !== roomId || data.ownerUid !== uid ||
+          data.planId !== planId || data.requestedPriceCoins !== expectedPriceCoins ||
+          !(data.expiresAt instanceof Timestamp)) {
+        throw new HttpsError("already-exists", "معرف طلب التجديد مستخدم لعملية أخرى أو ببيانات مختلفة.");
       }
       return { renewed: true, expiresAt: data.expiresAt.toMillis(), idempotentReplay: true };
     }
@@ -6942,6 +6949,7 @@ export const renewRoomRental = onCall(async (request) => {
     transaction.create(rentalRef, {
       rentalId: rentalRef.id, roomId, ownerUid: uid, planId: plan.planId,
       priceCoins: plan.priceCoins, durationDays: plan.durationDays, status: "active",
+      requestedPriceCoins: expectedPriceCoins,
       startsAt: Timestamp.fromMillis(startMs), expiresAt, createdAt: now,
     });
     transaction.create(ledgerRef, {
