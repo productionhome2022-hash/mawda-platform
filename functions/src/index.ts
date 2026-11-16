@@ -8325,16 +8325,14 @@ export const submitProductionApplication = onCall(
       });
       return { applicationId: applicationRef.id, duplicate: false };
     });
-    if (!result.duplicate) {
-      await appendOwnerReviewAuditEvent({
-        actorUid,
-        action: "production_application_submitted",
-        applicationId: result.applicationId,
-        requestedTrack: payload.requestedTrack,
-        specialties: payload.specialties,
-        outcome: "success",
-      });
-    }
+    await appendOwnerReviewAuditEvent({
+      actorUid,
+      action: "production_application_submitted",
+      applicationId: result.applicationId,
+      requestedTrack: payload.requestedTrack,
+      specialties: payload.specialties,
+      outcome: "success",
+    }, "production_application_submitted_" + result.applicationId);
     return {
       applicationId: result.applicationId,
       status: "submitted_pending_review",
