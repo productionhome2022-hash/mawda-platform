@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const {
   validateSpecializedRoleGrant, hasAdvertisingPermission,
   canSignUnderDelegation, validateProductionRoomRoster,
-  canPublishProductionAchievement,
+  canPublishProductionAchievement, specializedRoleGrantId,
 } = require("../lib/advertising-governance");
 
 const activeGrant = () => validateSpecializedRoleGrant({
@@ -79,4 +79,22 @@ test("public achievement requires independent owner approval and rights/disclosu
   assert.equal(canPublishProductionAchievement(valid), true);
   assert.equal(canPublishProductionAchievement({ ...valid, ownerApprovalRecorded: false }), false);
   assert.equal(canPublishProductionAchievement({ ...valid, rightsCleared: false }), false);
+});
+
+
+test("specialized grant identity is stable across scope updates and distinct by role", () => {
+  const original = specializedRoleGrantId("member_uid_0001", "ad_general_supervisor");
+  const sameRole = specializedRoleGrantId("member_uid_0001", "ad_general_supervisor");
+  const anotherRole = specializedRoleGrantId("member_uid_0001", "production_supervisor");
+  assert.equal(original, sameRole);
+  assert.notEqual(original, anotherRole);
+  assert.throws(() => specializedRoleGrantId("short", "ad_general_supervisor"), /SPECIALIZED_GRANT_ID_INVALID/);
+});
+
+test("specialized role grants cannot be saved with an empty permission list", () => {
+  assert.throws(() => validateSpecializedRoleGrant({
+    uid: "member_uid_0001", role: "ad_general_supervisor", permissions: [],
+    resourceScopes: ["campaign:campaign_123"], status: "active",
+    startsAtMs: 100, endsAtMs: 1000, version: 1,
+  }), /SPECIALIZED_GRANT_INVALID/);
 });
