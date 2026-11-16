@@ -8278,8 +8278,9 @@ export const submitAdvertisingIntake = onCall(
       }
       throw error;
     }
+    const { idempotencyKey: _idempotencyKey, ...storedPayload } = payload;
     const payloadHash = createHash("sha256")
-      .update(JSON.stringify({ ...payload, idempotencyKey: undefined }))
+      .update(JSON.stringify(storedPayload))
       .digest("hex");
     const keyHash = createHash("sha256")
       .update(actorUid + "|" + payload.idempotencyKey)
@@ -8296,8 +8297,7 @@ export const submitAdvertisingIntake = onCall(
         return { requestId: data.requestId as string, duplicate: true };
       }
       transaction.create(requestRef, {
-        ...payload,
-        idempotencyKey: undefined,
+        ...storedPayload,
         applicantUid: actorUid,
         status: "submitted_pending_review",
         requestVersion: 1,
@@ -8348,7 +8348,7 @@ export const listOwnerAdvertisingIntake = onCall(async (request) => {
   if (kind !== undefined && kind !== "representative_application" && kind !== "direct_advertiser") {
     throw new HttpsError("invalid-argument", "نوع الطلب غير صالح.");
   }
-  let query: FirebaseFirestore.Query = ADVERTISING_INTAKE.orderBy("createdAt", "desc");
+  let query = ADVERTISING_INTAKE.orderBy("createdAt", "desc");
   if (status) query = ADVERTISING_INTAKE.where("status", "==", status).orderBy("createdAt", "desc");
   if (kind) query = query.where("kind", "==", kind);
   const snapshot = await query.limit(limit).get();
