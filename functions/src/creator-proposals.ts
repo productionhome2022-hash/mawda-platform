@@ -115,7 +115,10 @@ export function validateCreatorProposalInput(input: unknown): CreatorProposalPay
     throw new CreatorProposalValidationError("duplicate_target_geography");
   }
 
-  const quoteRequested = data.quoteRequested === true;
+  if (typeof data.quoteRequested !== "boolean") {
+    throw new CreatorProposalValidationError("invalid_quote_choice");
+  }
+  const quoteRequested = data.quoteRequested;
   let proposedBudgetAmount: string | null = null;
   let currency: string | null = null;
   if (quoteRequested) {
