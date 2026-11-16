@@ -9553,7 +9553,7 @@ export const endCall = onCall(async (request) => {
       throw new HttpsError("permission-denied", "لا تملك صلاحية إنهاء هذه المكالمة.");
     }
     const lockRefs = call.participantUids.map((memberUid: string) => ACTIVE_CALL_MEMBER_LOCKS.doc(memberUid));
-    const lockSnapshots = await Promise.all(lockRefs.map((lockRef: FirebaseFirestore.DocumentReference) =>
+    const lockSnapshots = await Promise.all(lockRefs.map((lockRef) =>
       transaction.get(lockRef)));
     const leftUids = Array.isArray(call.leftUids) ? call.leftUids as string[] : [];
     if (leftUids.includes(uid)) return { callId, status: call.status, idempotentReplay: true };
@@ -9596,7 +9596,7 @@ export const endCall = onCall(async (request) => {
       status: next, endedBy: uid, endedAt: FieldValue.serverTimestamp(),
       lastActivityAt: FieldValue.serverTimestamp(),
     });
-    lockRefs.forEach((lockRef: FirebaseFirestore.DocumentReference, index: number) => {
+    lockRefs.forEach((lockRef, index) => {
       if (lockSnapshots[index]?.data()?.callId === callId) transaction.delete(lockRef);
     });
     return { callId, status: next, idempotentReplay: false };
