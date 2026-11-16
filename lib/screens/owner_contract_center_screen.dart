@@ -423,7 +423,7 @@ class _CreateContractDialogState extends State<_CreateContractDialog> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: _type,
+                    initialValue: _type,
                     decoration: const InputDecoration(labelText: 'نوع العقد'),
                     items: _OwnerContractCenterScreenState._types.entries
                         .map((entry) => DropdownMenuItem(value: entry.key, child: Text(entry.value)))
