@@ -477,3 +477,8 @@ Apply GOV-005 as recorded in the decision register and OCA-001 section 26: AI as
 - The backend and trusted scanner enforce the same 60-second cap; client timers are not security controls. The current scanner path applies this ceiling to all chat/room audio files until uploaded audio is separated into its own explicitly approved media purpose.
 - Media costs are controlled through atomic quota reservations, active/concurrent/daily byte budgets, MIME/signature and size/duration/dimension checks, safe derivative transcoding, retention and cleanup with quota release. Current technical caps are recorded in the comprehensive product vision and must remain aligned across client, backend, scanner and tests.
 - Any increase or new paid media allowance requires a documented cost assessment covering storage, egress, processing, retention, abuse exposure, and member quotas before owner approval. No automatic expansion is implied.
+
+
+## 2.1 الإعلان وصناعة المحتوى — ملحق تنفيذي 16 نوفمبر 2026
+
+تُقرأ الوثيقتان [النظام التنفيذي والسياسة الإعلانية وصُنّاع مودة](MAWDDA_ADVERTISING_PRODUCTION_GOVERNANCE_2026.md) و[نماذج العقود والاتفاقيات](MAWDDA_ADVERTISING_CONTRACT_TEMPLATES_2026.md) بوصفهما ملاحق إلزامية لهذا الميثاق. تفصلان أدوار إدارة المنصة العامة عن الأدوار المتخصصة للإعلانات والإنتاج والقانون، وتحددان الاستهداف الجغرافي وغرف الإنتاج ومركز العقود وحق الإنهاء التعاقدي وضوابط النشر والمكافآت. وجود المواصفات لا يعني اكتمال التنفيذ.
