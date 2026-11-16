@@ -9227,6 +9227,7 @@ export const listMyContracts = onCall(
 /* -------------------------------------------------------------------------- */
 
 const CALL_SESSIONS = db.collection("callSessions");
+const ACTIVE_CALL_MEMBER_LOCKS = db.collection("activeCallMemberLocks");
 
 export const startCall = onCall(async (request) => {
   const callerUid = requireAuthenticatedUid(request.auth?.uid);
@@ -9312,24 +9313,39 @@ export const startCall = onCall(async (request) => {
         !isMemberAccountInGoodStanding(caller.data())) {
       throw new HttpsError("permission-denied", "حالة الحساب لا تسمح ببدء المكالمة.");
     }
-    const active = await CALL_SESSIONS.where("participantUids", "array-contains", callerUid)
-      .limit(20).get();
-    if (active.docs.some((doc) => {
-      const data = doc.data();
-      return !(Array.isArray(data.leftUids) && data.leftUids.includes(callerUid)) &&
-        !(Array.isArray(data.rejectedUids) && data.rejectedUids.includes(callerUid)) &&
-        ["ringing", "accepted"].includes(String(data.status)) &&
-        (data.status === "accepted" ||
-         (data.expiresAt instanceof Timestamp && data.expiresAt.toMillis() > now));
-    })) {
-      throw new HttpsError("resource-exhausted", "لديك مكالمة نشطة بالفعل.");
+    const memberLockRefs = participantUids.map((memberUid) => ACTIVE_CALL_MEMBER_LOCKS.doc(memberUid));
+    const memberLocks = await Promise.all(memberLockRefs.map((lockRef) => transaction.get(lockRef)));
+    const lockCallRefs = memberLocks.map((lock) => {
+      const lockCallId = lock.data()?.callId;
+      return lock.exists && typeof lockCallId === "string" && lockCallId !== input.callId
+        ? CALL_SESSIONS.doc(lockCallId) : null;
+    });
+    const lockedCalls = await Promise.all(lockCallRefs.map((lockCallRef) =>
+      lockCallRef ? transaction.get(lockCallRef) : Promise.resolve(null)));
+    for (let index = 0; index < memberLocks.length; index += 1) {
+      const lock = memberLocks[index];
+      const lockedCall = lockedCalls[index];
+      if (!lock.exists || !lockedCall?.exists) continue;
+      const lockedData = lockedCall.data() ?? {};
+      const memberUid = participantUids[index];
+      const memberHasLeft = Array.isArray(lockedData.leftUids) && lockedData.leftUids.includes(memberUid);
+      const memberDeclined = Array.isArray(lockedData.rejectedUids) && lockedData.rejectedUids.includes(memberUid);
+      const isStillRinging = lockedData.status === "ringing" &&
+        lockedData.expiresAt instanceof Timestamp && lockedData.expiresAt.toMillis() > now;
+      if (!memberHasLeft && !memberDeclined &&
+          (lockedData.status === "accepted" || isStillRinging)) {
+        throw new HttpsError("resource-exhausted", "أحد المشاركين لديه مكالمة نشطة بالفعل.");
+      }
     }
     transaction.create(callRef, {
       callId: input.callId, scope: input.scope, targetId: input.targetId, mode: input.mode,
-      callerUid, participantUids, acceptedUids: [], rejectedUids: [],
+      callerUid, participantUids, acceptedUids: [], rejectedUids: [], leftUids: [],
       status: "ringing", signalCounts: {}, createdAt: FieldValue.serverTimestamp(),
       expiresAt, lastActivityAt: FieldValue.serverTimestamp(),
     });
+    memberLockRefs.forEach((lockRef) => transaction.set(lockRef, {
+      callId: input.callId, status: "active", updatedAt: FieldValue.serverTimestamp(),
+    }));
     return { callId: input.callId, status: "ringing", participantUids, idempotentReplay: false };
   });
   if (!result.idempotentReplay) {
@@ -9352,7 +9368,10 @@ export const respondToCall = onCall(async (request) => {
   }
   const ref = CALL_SESSIONS.doc(callId);
   return db.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(ref);
+    const lockRef = ACTIVE_CALL_MEMBER_LOCKS.doc(uid);
+    const [snapshot, lockSnapshot] = await Promise.all([
+      transaction.get(ref), transaction.get(lockRef),
+    ]);
     if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
     const call = snapshot.data()!;
     if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
@@ -9392,6 +9411,9 @@ export const respondToCall = onCall(async (request) => {
       respondedAt: FieldValue.serverTimestamp(),
       lastActivityAt: FieldValue.serverTimestamp(),
     });
+    if (response === "reject" && lockSnapshot.exists && lockSnapshot.data()?.callId === callId) {
+      transaction.delete(lockRef);
+    }
     return { callId, status: response === "accept" ? "accepted" : (allRejected ? "rejected" : call.status),
       idempotentReplay: prior.includes(uid) };
   });
@@ -9530,6 +9552,9 @@ export const endCall = onCall(async (request) => {
     if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid)) {
       throw new HttpsError("permission-denied", "لا تملك صلاحية إنهاء هذه المكالمة.");
     }
+    const lockRefs = call.participantUids.map((memberUid: string) => ACTIVE_CALL_MEMBER_LOCKS.doc(memberUid));
+    const lockSnapshots = await Promise.all(lockRefs.map((lockRef: FirebaseFirestore.DocumentReference) =>
+      transaction.get(lockRef)));
     const leftUids = Array.isArray(call.leftUids) ? call.leftUids as string[] : [];
     if (leftUids.includes(uid)) return { callId, status: call.status, idempotentReplay: true };
     if (call.scope === "room" && uid !== call.callerUid) {
@@ -9543,6 +9568,9 @@ export const endCall = onCall(async (request) => {
           ...(allRejected ? { status: "rejected" } : {}),
           lastActivityAt: FieldValue.serverTimestamp(),
         });
+        if (lockSnapshots[call.participantUids.indexOf(uid)]?.data()?.callId === callId) {
+          transaction.delete(ACTIVE_CALL_MEMBER_LOCKS.doc(uid));
+        }
         return { callId, status: allRejected ? "rejected" : "ringing", idempotentReplay: false };
       }
       if (call.status === "accepted") {
@@ -9551,6 +9579,9 @@ export const endCall = onCall(async (request) => {
           acceptedUids: FieldValue.arrayRemove(uid),
           lastActivityAt: FieldValue.serverTimestamp(),
         });
+        if (lockSnapshots[call.participantUids.indexOf(uid)]?.data()?.callId === callId) {
+          transaction.delete(ACTIVE_CALL_MEMBER_LOCKS.doc(uid));
+        }
         return { callId, status: "accepted", idempotentReplay: false };
       }
     }
@@ -9564,6 +9595,9 @@ export const endCall = onCall(async (request) => {
     transaction.update(ref, {
       status: next, endedBy: uid, endedAt: FieldValue.serverTimestamp(),
       lastActivityAt: FieldValue.serverTimestamp(),
+    });
+    lockRefs.forEach((lockRef: FirebaseFirestore.DocumentReference, index: number) => {
+      if (lockSnapshots[index]?.data()?.callId === callId) transaction.delete(lockRef);
     });
     return { callId, status: next, idempotentReplay: false };
   });
