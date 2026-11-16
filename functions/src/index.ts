@@ -8623,9 +8623,8 @@ export const listOwnerContracts = onCall(async (request) => {
   if (status !== undefined && typeof status !== "string") {
     throw new HttpsError("invalid-argument", "مرشح حالة العقد غير صالح.");
   }
-  let query = CONTRACT_RECORDS.orderBy("updatedAt", "desc").limit(limit);
-  if (typeof status === "string") query = CONTRACT_RECORDS.where("status", "==", status)
-    .orderBy("updatedAt", "desc").limit(limit);
+  let query = CONTRACT_RECORDS.limit(limit);
+  if (typeof status === "string") query = CONTRACT_RECORDS.where("status", "==", status).limit(limit);
   const snapshot = await query.get();
   return {
     contracts: snapshot.docs.map((doc) => ({ contractId: doc.id, ...doc.data() })),
