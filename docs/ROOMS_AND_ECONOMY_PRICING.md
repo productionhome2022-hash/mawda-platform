@@ -167,49 +167,52 @@ The selected target is stored as structured server-side campaign data. Country-t
 - The Super Admin / Owner can manage regional definitions, supported countries, section availability and ordering through versioned, audited controls.
 - These browse interfaces do not themselves activate advertiser billing or rewarded viewing. Those remain gated by the advertising readiness requirements above.
 
-### Advertising upload moderators — unlimited count, two geographic scopes each
+### Advertising upload moderators — unlimited count and up to two additional geographic scopes
 
-The number of advertising upload moderators is **unlimited**. The previous proposed cap of 36 is withdrawn and must not be enforced as a product or database limit. The Super Admin / Owner may appoint, suspend, reactivate, and revoke any number of moderators, subject to ordinary platform security and operational safeguards.
+The number of advertising upload moderators is **unlimited**. No fixed cap such as 36 may be enforced as a product or database limit. The Super Admin / Owner may appoint, suspend, reactivate, and revoke any number of moderators, subject to ordinary platform security and operational safeguards.
 
-Each moderator has one owner-assigned **primary/home geographic scope** associated with the country or region in which that moderator is registered. This primary scope is fixed for the moderator's active assignment and can be changed only by the Super Admin / Owner. Each moderator may additionally choose **one (1) secondary geographic target** from the currently supported geographic targets. Therefore, each moderator may submit ads to no more than two scopes in total:
+Each moderator has one assigned **primary/home geographic scope** associated with the country or region in which the moderator is registered. In addition to that home scope, the moderator may select **up to two (2) additional geographic targets** from the currently supported targets. Therefore, a moderator may submit advertising requests for up to three scopes in total: the assigned home scope plus two additional scopes. The additional targets may be any supported country or region made available by the Owner, including All Arabic countries, another Arab country/group, Europe and Turkey, or Asia and the Middle East. The moderator cannot change or bypass the assigned home scope, select more than two additional targets, or expand their own permissions. The server must enforce these limits and validate every selected scope against the current versioned geographic configuration.
 
-1. Their assigned primary/home scope.
-2. One additional scope selected by the moderator from the targets the Owner has made available.
+#### Moderator submission permissions and proposed commercial terms
 
-The secondary scope may be any supported target (for example, All Arab countries, another Arab country/group, Europe and Turkey, or Asia and the Middle East), subject to the Owner's platform-wide availability settings. The moderator cannot replace or bypass the primary scope, add a third scope, or expand their own permissions. The server must enforce the two-scope limit and validate both scopes against the current versioned geographic configuration.
+Moderators may prepare and submit advertising requests with the following capabilities:
 
-#### Moderator submission permissions
-
-Moderator permissions are strictly limited to preparing and submitting advertising requests:
-
-- Upload image and video advertising creatives from the moderator's device, subject to the platform's media type, size, duration, safety and malware checks.
-- Submit an external advertising link or an external video playback/streaming URL hosted by another platform, subject to server-side URL, destination, redirect, content and safety validation.
-- Select the primary/home scope or their one permitted secondary target.
-- Enter the advertiser-provided campaign request details needed for Owner review, such as advertiser/client identity or reference, requested campaign duration, creative details and contact/reference information.
+- Upload image and video advertising creatives from their devices, subject to platform media type, size, duration, safety and malware checks.
+- Submit external advertising links or external video playback/streaming URLs hosted by other platforms, subject to server-side URL, destination, redirect, content and safety validation.
+- Select their assigned home scope and up to two permitted additional geographic targets.
+- Enter the advertiser/client details and the campaign request information.
+- Propose the **initial/requested price** agreed with the advertiser and submit it for Owner review. This is a proposal only and is not the authoritative final price.
+- Propose/request the advertising duration. Duration is an editable request field available to the moderator and is also editable/confirmable by the Owner. The moderator's requested duration is not approved until the Owner confirms it.
 - Submit the request into the Owner approval queue and view the status of their own submissions.
 
-Moderators cannot set or approve the final advertising price, final campaign duration, campaign schedule, budget, billing terms, publication status, revenue treatment, refunds, settlements or payouts. Requested duration and advertiser-provided details are request information only; they are not approved campaign terms. Moderators cannot publish ads themselves, approve their own submissions, view platform revenue reports, alter geographic mappings, manage other moderators, or access unrelated administrative functions.
+Moderators cannot set the final approved price, confirm payment receipt, approve or publish campaigns, manage other moderators, change platform-wide geographic mappings, access the advertising financial ledger/revenue reports, or access unrelated administrative functions. They cannot grant themselves broader geographic scope or permissions.
 
-The Owner/Super Admin controls each moderator's account status, primary/home scope, availability of the secondary-scope selector, and upload methods (device upload and/or external URL submission). All submissions and moderator actions must be attributed to the moderator and recorded in an auditable history.
+#### Owner review, final price, payment confirmation and publication
 
-#### Owner approval, payment confirmation and publication workflow
+Every moderator submission must enter a **Pending Owner Approval** queue in the Super Admin / Owner advertising dashboard. No campaign is automatically published after upload or technical validation.
 
-Every moderator submission must enter a **Pending Owner Approval** queue in the Super Admin / Owner advertising dashboard. There is no automatic publication after upload or technical validation.
+Each queue item must show, at minimum:
 
-Each queue item must present enough information for an informed decision, including:
-
-- Moderator's name and unique moderator/account identifier.
+- Moderator name and unique moderator/account identifier.
 - Submission/request ID and advertisement/creative ID.
-- Advertiser/client name or supplied reference and contact details.
-- Requested geographic target (primary or secondary scope).
-- Advertiser-requested duration and campaign details.
+- Advertiser/client identity or supplied reference and contact details.
+- Selected target scope(s), clearly distinguishing the moderator's home scope from the additional target(s).
+- Moderator-proposed initial price and currency, and advertiser-requested duration.
 - Creative preview or validated external playback link.
-- Proposed commercial terms as prepared/controlled by the Owner, including the final price and approved duration.
-- Payment verification status and review/audit history.
+- Owner's final price field, Owner-confirmed duration and campaign schedule fields.
+- Payment verification state and complete review/audit history.
 
-The Owner contacts the responsible moderator/advertiser as needed, independently confirms receipt of the agreed advertising payment through the approved out-of-platform/manual process, reviews the creative and targeting, and then explicitly approves or rejects the request. The Owner alone sets or confirms the final price, approved duration and publication schedule. Only after the Owner records approval and payment verification may the server publish/activate the campaign in its approved geographic interface(s), including All Arabic ads when the target includes Arab countries.
+The moderator's proposed initial price is the starting commercial offer. The Owner may accept it or negotiate with the moderator/advertiser and increase or decrease it. **Only the Owner/Super Admin records the final approved price and confirms the final campaign terms.** The Owner may also approve or adjust the requested duration and scheduling details. The system must preserve the original moderator proposal and every subsequent Owner revision in the audit history; it must not silently overwrite the proposal.
 
-A moderator's requested duration, a payment claim, an uploaded file, a URL, or a client-side action is never proof of payment or authorization to publish. Approval and payment verification must be server-authorized, audited, versioned where commercial terms are involved, and protected against duplicate processing. Rejection, return-for-correction, cancellation and expiry states must be recorded. Until the Owner approves and confirms payment, the campaign remains unpublished and non-billable. This manual approval workflow does not enable live payment processing or advertiser billing.
+The Owner independently confirms actual receipt of the agreed amount through the approved manual/out-of-platform process and records that confirmation in the system. A moderator's statement, payment claim, uploaded file, URL, or client-side action is never proof of payment. The Owner then explicitly approves or rejects the advertising request. Only after both (a) Owner approval of the creative, targeting and final commercial terms, and (b) Owner-recorded payment confirmation may the server publish/activate the campaign in the approved geographic interface(s), including All Arabic ads when the selected target includes Arab countries.
+
+The Owner alone controls the final price, payment confirmation, publication approval, campaign activation, and access to the advertising financial ledger and revenue reports. Until approval and payment confirmation are both recorded, the campaign remains unpublished and non-billable. Rejection, return-for-correction, cancellation and expiry states must be recorded. This manual workflow does not enable live payment processing or advertiser billing.
+
+#### Moderator commission — proposed 20% (awaiting explicit owner confirmation)
+
+A **20% moderator commission** has been proposed, calculated against the campaign's final advertising price approved by the Owner and actually received/confirmed by the Owner. The moderator's initial proposed price is not the commission basis if the Owner changes the final price.
+
+This 20% rate is recorded as a **proposal requiring explicit Owner confirmation**, not yet an approved payable entitlement. Before implementation or any payout, the Owner must confirm the commission rate and settle the accounting rules, including treatment of refunds, cancellations, taxes/fees, partial payments, chargebacks, and when the commission becomes earned and payable. If approved, commission calculation, attribution to the submitting moderator, ledger entries, adjustments and payout status must be server-authoritative, auditable, idempotent and visible only to authorized Owner/Super Admin roles. Moderators must not be able to edit commission rates or financial records. Do not infer or activate any commission payment from this proposal alone.
 
 #### Security and content validation
 
