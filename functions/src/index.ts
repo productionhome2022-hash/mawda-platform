@@ -9522,10 +9522,9 @@ export const getCallSignals = onCall(async (request) => {
     .limit(100);
   if (typeof afterSignalId === "string") {
     const cursor = await signalCollection.doc(afterSignalId).get();
-    if (!cursor.exists || cursor.data()?.recipientUid !== uid) {
-      throw new HttpsError("invalid-argument", "مؤشر قراءة إشارات المكالمة غير صالح.");
+    if (cursor.exists && cursor.data()?.recipientUid === uid) {
+      signalsQuery = signalsQuery.startAfter(cursor);
     }
-    signalsQuery = signalsQuery.startAfter(cursor);
   }
   const snapshot = await signalsQuery.get();
   const signals = snapshot.docs
