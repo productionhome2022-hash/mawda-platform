@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mawda_app/screens/media_workspace_screen.dart';
 
 void main() {
-  testWidgets('Media Workspace exposes five approved routes and only opens the implemented creator intake', (tester) async {
+  testWidgets('Media Workspace exposes six approved routes and only opens the implemented creator intake', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: MediaWorkspaceScreen()));
 
     expect(find.text('طلبات التعاون والانضمام إلى فريق Mawdda'), findsOneWidget);
