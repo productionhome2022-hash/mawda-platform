@@ -497,3 +497,12 @@ The Creator Content & Influencer Proposals route is an approved fifth Media Work
 - Added an emulator integration assertion that a room owner cannot create a new invitation after closing the room.
 - Implementation commit: `64f2e9c8710dd36d867e08387e5f338e6de3d7a0`; test-source commit: `32d3bffb293b8e5e43de40c58c97c6d112e9a7c5`.
 - Test execution is not claimed: Firestore Emulator integration has not been run on this branch head.
+
+
+## 2026-11-16 — Store purchase idempotency binds confirmed price
+
+- Static review found that `purchaseStoreItem` accepted a replay when member and item matched, without checking that the replay's `expectedPriceCoins` matched the original completed purchase. The replay did not debit twice, but could incorrectly acknowledge a reused request ID carrying a different price confirmation.
+- Added `isStorePurchaseReplayCompatible` and applied it to the transactional replay path. A replay must now match member UID, item ID and the originally recorded price; conflicts fail with `already-exists`.
+- Added unit coverage for matching and conflicting member/item/price combinations.
+- Implementation commits: `3a7b76f41564a6d8c7bc09a5ce50d72356294448`, `282bd777367d976cb7129498c102c896329d8ab9`; test commit: `58cfab19f98c9ebb634547386a2996a1f24e9317`.
+- Tests have not been executed on this branch head; source-level test coverage was added only.
