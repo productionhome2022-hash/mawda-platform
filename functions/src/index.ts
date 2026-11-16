@@ -9498,8 +9498,11 @@ export const getCallSignals = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const callId = request.data?.callId;
   const afterSequence = request.data?.afterSequence ?? -1;
+  const afterSignalId = request.data?.afterSignalId;
   if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId) ||
-      !Number.isSafeInteger(afterSequence) || afterSequence < -1) {
+      !Number.isSafeInteger(afterSequence) || afterSequence < -1 ||
+      (afterSignalId !== undefined && (typeof afterSignalId !== "string" ||
+        !/^[a-f0-9]{64}_\\d+$/.test(afterSignalId)))) {
     throw new HttpsError("invalid-argument", "طلب قراءة إشارات المكالمة غير صالح.");
   }
   const ref = CALL_SESSIONS.doc(callId);
@@ -9510,13 +9513,24 @@ export const getCallSignals = onCall(async (request) => {
       (Array.isArray(call.data()?.rejectedUids) && call.data()!.rejectedUids.includes(uid))) {
     throw new HttpsError("permission-denied", "لا تملك صلاحية قراءة إشارات هذه المكالمة.");
   }
-  const snapshot = await ref.collection("signals").where("recipientUid", "==", uid).limit(256).get();
+  const signalCollection = ref.collection("signals");
+  let signalsQuery = signalCollection
+    .where("recipientUid", "==", uid)
+    .where("createdAt", ">=", Timestamp.fromMillis(Date.now() - CALL_SIGNAL_MAX_AGE_MS))
+    .orderBy("createdAt", "asc")
+    .orderBy(FieldPath.documentId(), "asc")
+    .limit(100);
+  if (typeof afterSignalId === "string") {
+    const cursor = await signalCollection.doc(afterSignalId).get();
+    if (!cursor.exists || cursor.data()?.recipientUid !== uid) {
+      throw new HttpsError("invalid-argument", "مؤشر قراءة إشارات المكالمة غير صالح.");
+    }
+    signalsQuery = signalsQuery.startAfter(cursor);
+  }
+  const snapshot = await signalsQuery.get();
   const signals = snapshot.docs
     .filter((doc) => doc.data().senderUid !== uid &&
-      doc.data().createdAt instanceof Timestamp &&
-      doc.data().createdAt.toMillis() >= Date.now() - CALL_SIGNAL_MAX_AGE_MS &&
       typeof doc.data().sequence === "number" && doc.data().sequence > afterSequence)
-    .sort((left, right) => left.data().createdAt.toMillis() - right.data().createdAt.toMillis())
     .map((doc) => ({ ...doc.data(), signalId: doc.id, sequence: doc.data().sequence as number }));
   let callStatus = call.data()?.status;
   const expiresAt = call.data()?.expiresAt;
@@ -9538,7 +9552,8 @@ export const getCallSignals = onCall(async (request) => {
   return {
     status: callStatus,
     signals,
-    lastSequence: signals.length ? signals[signals.length - 1].sequence : afterSequence,
+    nextCursor: snapshot.docs.length ? snapshot.docs[snapshot.docs.length - 1].id : afterSignalId ?? null,
+    hasMore: snapshot.size === 100,
   };
 });
 
