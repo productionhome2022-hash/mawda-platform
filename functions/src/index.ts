@@ -114,6 +114,7 @@ const db = getFirestore();
 const TRANSFER_SETTINGS = db.doc("platformSettings/coinTransfers");
 const OWNER_REVIEW_AUDIT_HEAD = db.collection("adminAuditChainHeads").doc("ownerReview");
 const legalHoldExpiryEnabled = defineString("MAWDA_LEGAL_HOLD_EXPIRY_ENABLED", { default: "false" });
+const mawddaWebPortalAppId = defineString("MAWDDA_WEB_PORTAL_APP_ID", { default: "" });
 const ownerAuditArchiveEnabled = defineString("MAWDA_AUDIT_ARCHIVE_ENABLED", { default: "false" });
 const ownerAuditArchiveBucketName = defineString("MAWDA_AUDIT_ARCHIVE_BUCKET", { default: "" });
 
@@ -198,6 +199,17 @@ async function sendPushToMember(
     logger.warn("Mawda push notification delivery failed", { recipientUid: uid, error });
   }
 }
+function requireWebPortalAccess(request: { app?: { appId?: string } | null }): void {
+  const expectedAppId = mawddaWebPortalAppId.value().trim();
+  const actualAppId = request.app?.appId ?? "";
+  if (!expectedAppId || !actualAppId || actualAppId !== expectedAppId) {
+    throw new HttpsError(
+      "failed-precondition",
+      "هذه الخدمة متاحة حصراً عبر بوابة Mawdda على الويب.",
+    );
+  }
+}
+
 function requireAuthenticatedUid(uid: string | undefined): string {
   if (!uid) {
     throw new HttpsError("unauthenticated", "يجب تسجيل الدخول أولاً.");
@@ -8158,6 +8170,7 @@ export const cleanupExpiredTimedAdSessions = onSchedule("every 15 minutes", asyn
 export const submitCreatorProposal = onCall(
   { enforceAppCheck: true },
   async (request) => {
+    requireWebPortalAccess(request);
     const actorUid = requireAuthenticatedUid(request.auth?.uid);
     if (request.auth?.token.email_verified !== true) {
       throw new HttpsError("permission-denied", "يجب توثيق البريد الإلكتروني قبل تقديم المقترح.");
@@ -8265,6 +8278,7 @@ const ADVERTISING_INTAKE = db.collection("advertisingIntakeRequests");
 export const submitAdvertisingIntake = onCall(
   { enforceAppCheck: true },
   async (request) => {
+    if (request.data?.kind === "representative_application") requireWebPortalAccess(request);
     const actorUid = requireAuthenticatedUid(request.auth?.uid);
     if (request.auth?.token.email_verified !== true) {
       throw new HttpsError("permission-denied", "يجب توثيق البريد الإلكتروني قبل إرسال الطلب.");
@@ -8337,6 +8351,7 @@ export const submitAdvertisingIntake = onCall(
 );
 
 export const listOwnerAdvertisingIntake = onCall(async (request) => {
+    requireWebPortalAccess(request);
   requireOwner(request);
   const limit = Number.isSafeInteger(request.data?.limit)
     ? Math.max(1, Math.min(100, request.data.limit as number)) : 50;
@@ -8360,6 +8375,7 @@ export const listOwnerAdvertisingIntake = onCall(async (request) => {
 });
 
 export const reviewOwnerAdvertisingIntake = onCall(async (request) => {
+    requireWebPortalAccess(request);
   const actorUid = requireOwner(request);
   const requestId = typeof request.data?.requestId === "string" ? request.data.requestId.trim() : "";
   const expectedVersion = request.data?.expectedVersion;
@@ -8582,6 +8598,7 @@ function contractActorEmail(request: {
 
 /** Owner/MFA-only draft creation. Drafts are not sent, signed or effective. */
 export const createOwnerContractDraft = onCall(async (request) => {
+    requireWebPortalAccess(request);
   const actorUid = requireOwner(request);
   let draft: ContractDraftInput;
   try {
@@ -8654,6 +8671,7 @@ export const createOwnerContractDraft = onCall(async (request) => {
 
 /** Owner/MFA-only lifecycle transition with optimistic concurrency and legal readiness gate. */
 export const transitionOwnerContract = onCall(async (request) => {
+    requireWebPortalAccess(request);
   const actorUid = requireOwner(request);
   const contractId = typeof request.data?.contractId === "string" ? request.data.contractId.trim() : "";
   const nextStatus = request.data?.nextStatus;
@@ -8729,6 +8747,7 @@ export const transitionOwnerContract = onCall(async (request) => {
 
 /** Counterparty signature is bound to verified UID/email, recent authentication, hash and terms version. */
 export const signContractAsCounterparty = onCall(async (request) => {
+    requireWebPortalAccess(request);
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const email = contractActorEmail(request);
   const contractId = typeof request.data?.contractId === "string" ? request.data.contractId.trim() : "";
@@ -8790,6 +8809,7 @@ export const signContractAsCounterparty = onCall(async (request) => {
 
 /** Company signature is owner/MFA-only and requires recent verified email authentication. */
 export const signContractForCompany = onCall(async (request) => {
+    requireWebPortalAccess(request);
   const actorUid = requireOwner(request);
   const email = contractActorEmail(request);
   const contractId = typeof request.data?.contractId === "string" ? request.data.contractId.trim() : "";
@@ -8851,6 +8871,7 @@ export const signContractForCompany = onCall(async (request) => {
 
 /** Owner/MFA-only contract list; member-facing access is provided by a separate callable. */
 export const listOwnerContracts = onCall(async (request) => {
+    requireWebPortalAccess(request);
   requireOwner(request);
   const limit = Number.isSafeInteger(request.data?.limit)
     ? Math.max(1, Math.min(100, request.data.limit as number)) : 50;
@@ -8868,6 +8889,7 @@ export const listOwnerContracts = onCall(async (request) => {
 
 /** A counterparty can retrieve only contracts addressed to their verified account. */
 export const listMyContracts = onCall(async (request) => {
+    requireWebPortalAccess(request);
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const snapshot = await CONTRACT_RECORDS.where("counterpartyUid", "==", uid).limit(50).get();
   return {
