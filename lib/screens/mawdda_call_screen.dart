@@ -286,9 +286,25 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   void dispose() {
     _pollTimer?.cancel();
     if (!_ending) {
-      unawaited(_finish(notifyServer: true));
+      _ending = true;
+      unawaited(_functions.httpsCallable('endCall').call({'callId': widget.callId})
+          .catchError((Object _) => null));
+      unawaited(_releaseMedia());
     }
     super.dispose();
+  }
+
+  Future<void> _releaseMedia() async {
+    for (final track in _localStream?.getTracks() ?? <MediaStreamTrack>[]) {
+      await track.stop();
+    }
+    await _localStream?.dispose();
+    await _peer?.close();
+    await _peer?.dispose();
+    _localRenderer.srcObject = null;
+    _remoteRenderer.srcObject = null;
+    await _localRenderer.dispose();
+    await _remoteRenderer.dispose();
   }
 
   @override
