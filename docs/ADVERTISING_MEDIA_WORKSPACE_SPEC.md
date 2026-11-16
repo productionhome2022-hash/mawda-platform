@@ -339,3 +339,94 @@ The campaign delivery service may supply eligible campaign metadata to Watch Ads
 - A qualified view and reward are idempotent and server-validated; refreshes, replay and concurrent requests cannot multiply rewards.
 - Owner withdrawal blocks ad delivery in Watch Ads as well as all other campaign placements.
 - No reward amounts, view quotas, payout/redemption terms or financial promises are inferred from this specification.
+
+
+## 17. Owner-approved Watch Ads viewing layout and experience
+
+### 17.1 Watch Ads discovery screen
+
+The separate homepage entry **Watch Ads / مشاهدة الإعلانات** opens a dedicated ad discovery screen. Preserve the following two-zone structure:
+
+**Upper zone — featured/preview advertising strip**
+- The upper half/upper prominent area contains featured ad previews that rotate/pass in a compact, fast-moving carousel/strip.
+- These are previews/promotional highlights only. Merely seeing, scrolling past, or allowing these featured previews to rotate does **not** qualify as a rewarded view and must never issue member rewards.
+- Each preview can open the relevant ad detail/player only when the member explicitly selects it.
+- Owner-controlled campaign eligibility, geography, schedule, frequency and emergency withdrawal apply to this strip too.
+
+**Lower zone — geographic ad directory**
+- The lower area presents selectable geographic categories/regions. Selecting one opens eligible campaigns for that chosen target; do not infer targeting from device language, IP address or current location.
+- Use the already owner-approved geographic advertising taxonomy and mapping, not a new overlapping taxonomy:
+  1. All Arabic-country advertisements.
+  2. Syria.
+  3. Lebanon and Palestine.
+  4. Iraq and Jordan.
+  5. GCC countries.
+  6. Egypt.
+  7. Tunisia, Libya and Sudan.
+  8. Algeria and Morocco.
+  9. Europe and Turkey.
+  10. Asia and the Middle East.
+- Keep the established inclusion rules: campaigns targeting an Arab country appear in the relevant country/group view and the All Arabic ads view; Europe/Turkey or Asia/Middle East campaigns do not appear in All Arabic unless they also target Arab countries. The Owner-controlled mapping is versioned.
+- Present campaign cards in a responsive grid, supporting four or eight cards per visible grid/page according to available space and device size. Never fabricate filler ads; provide honest loading, empty, error and no-eligible-campaign states.
+- A single campaign impression/view must not be double-counted if the same campaign is reachable from multiple geographic views or placements.
+
+### 17.2 Selected-ad viewing surface — 75% player / 25% persistent app area
+
+When a member explicitly selects an ad card, open a focused viewing surface sized to approximately **75% of the usable application viewport** on mobile and desktop. Preserve approximately **25% of the usable application viewport** as an available lower/context area for the member's other Mawdda activity, such as a conversation, public room or other permitted application content.
+
+This ratio refers to the usable Mawdda application viewport, not the physical display including operating-system status/navigation bars, browser chrome, safe areas or the on-screen keyboard. Respect safe areas, orientation, accessibility scaling and responsive constraints. Do not cover OS controls or trap the member in an unescapable player.
+
+- The selected ad player occupies the upper approximately 75% viewing region.
+- The lower approximately 25% remains available for the member's permitted in-app context/activity. It must not be consumed by a full-screen ad overlay.
+- On narrow mobile screens, implement an adaptive vertical split; on desktop/tablet, use a responsive player/context layout while preserving the approximate 75/25 allocation of the usable app viewport.
+- The player must maintain stable playback and view-session state when the member interacts with the permitted lower context area. Do not count time when the ad is not genuinely visible/eligible under the reward policy.
+- Provide clear close/back, pause/resume where supported, accessibility controls, playback/error state, and safe handling of app backgrounding, route changes and connection loss.
+- The player must not silently navigate the member away from an existing conversation/room or destroy its state. The lower context remains usable without turning the ad player into a floating overlay that obscures messages or controls.
+- If the device cannot satisfy the 75/25 split (for example, keyboard or accessibility layout constraints), degrade responsively and safely; never shrink controls below usable accessibility sizes or falsely claim the exact ratio.
+
+### 17.3 Reward eligibility — discovery previews never rewardable
+
+Only an explicitly selected ad played in the dedicated viewing surface can qualify for a reward. The upper rotating featured previews, thumbnail visibility, ad cards, geographic browsing, opening a category, and passive feed impressions are non-rewardable.
+
+The reward decision is server-authoritative. Client playback callbacks are telemetry only and cannot directly credit coins. A qualifying session must be bound to the authenticated member, campaign, creative/version, server-issued session/nonce and a unique idempotency key. The server validates campaign eligibility, schedule/geography, session start, credible playback progress/visibility, foreground/active state, completion threshold, frequency policy and fraud/risk signals before issuing a single ledger credit.
+
+### 17.4 Experimental starter reward values for development and simulation
+
+The Owner authorizes the following **experimental engineering defaults** so implementation, development and tests can proceed without waiting for final reward policy:
+
+| Setting | Experimental starter value |
+|---|---:|
+| Reward for one qualified selected-ad view | 2 coins |
+| Maximum rewarded views per member per UTC day | 10 |
+| Maximum daily reward per member | 20 coins |
+| Video qualification | At least 90% of the approved creative duration, with valid foreground/visibility evidence |
+| Static image qualification | At least 10 continuous eligible seconds visibly presented in the selected-ad player |
+| Duplicate reward for the same member/campaign | At most once per 24-hour rolling period |
+
+These are provisional test values, not launch promises, guaranteed earnings, or a final economic policy. They must be stored in the centralized server-authoritative owner-editable economy/ad-reward configuration, with versioning, validation, audit log and effective-time semantics. Do not hard-code them in Flutter/web clients. The Owner can change reward amount, daily cap, qualifying duration/completion criteria, frequency policy and active state from the Owner control plane without a client release.
+
+A campaign or reward policy with missing/invalid configuration must fail closed (no reward), while still presenting a clear viewing state. The server must atomically enforce the per-day cap, duplicate rules, campaign eligibility and coin-ledger credit. Retries and concurrent sessions must never issue multiple credits. Do not award partial coins for incomplete views. Do not require the member to disable accessibility features or keep audio unmuted as a reward condition.
+
+These experimental values do not authorize paid advertising delivery, real-money payments, cash redemption, withdrawal, or any change to the separately approved coin purchase/payment gates. Rewards are platform coins only in this engineering baseline. Any future cash conversion/redemption requires a separate explicit Owner decision and legal/accounting review.
+
+### 17.5 Watch Ads acceptance tests
+
+- Featured strip rotates previews but creates no rewarded-view event or coin credit.
+- Opening a geographic category or browsing its grid creates no reward.
+- All ten geographic sections use the existing Owner-controlled mapping and inclusion rules.
+- Campaign appears in every applicable region without duplicate impression/reward accounting.
+- Responsive grid renders four/eight cards as layout permits, with no fabricated ads.
+- Selecting a card opens the focused 75/25 player/context surface on supported mobile, tablet and desktop layouts.
+- The lower context remains interactive and existing room/chat state is preserved.
+- Backgrounding, hiding the player, pausing, seeking, reconnecting, replaying and changing routes are handled without false completion.
+- Video under 90%, image under 10 eligible continuous seconds, invalid session or non-visible playback earns zero.
+- Qualified view credits exactly 2 coins under the starter configuration, never more than 10 rewarded views/20 coins per member per UTC day.
+- Duplicate/replayed/concurrent requests and cross-region duplicate entries cannot multiply impressions or rewards.
+- Changing the owner configuration is versioned and applies according to effective-time rules without altering prior ledger entries.
+- Owner emergency withdrawal immediately removes eligibility from the featured strip, geographic cards and active player delivery.
+
+## 18. Economic defaults and pricing continuity
+
+The existing experimental starter prices and durations documented in docs/ROOMS_AND_ECONOMY_PRICING.md, functions/src/economy-pricing.ts and functions/src/default-store-catalog.ts remain the engineering baseline unless the Owner changes them through the approved control plane. Do not replace, reset or duplicate those values merely because Watch Ads is being added.
+
+All present and future commercial prices, durations, variants, purchase availability and rewarded-view settings must remain centralized and Owner-editable, server-validated, versioned and audited. New Watch Ads reward settings must extend the existing economy configuration architecture where appropriate rather than create a conflicting second wallet or coin authority. Keep viewing reward ledger entries distinct by transaction type and source campaign, but integrate them with the canonical wallet/ledger service. Existing purchase gates remain closed until feature fulfillment and acceptance tests pass.
