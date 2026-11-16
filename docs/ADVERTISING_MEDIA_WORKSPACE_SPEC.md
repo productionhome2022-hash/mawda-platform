@@ -293,17 +293,18 @@ The Mawdda main screen on both the mobile application and web platform must pres
 1. **Media Workspace** — the operational hub for advertising requests, collaboration applications and authorized administrative communication.
 2. **Watch Ads / مشاهدة الإعلانات** — the member-facing experience for discovering and watching eligible advertisements, with its own reward-eligibility and reward-accounting flow.
 
-These are separate product areas, not tabs or modes of one shared section. Their navigation entries, route boundaries, access rules, data models and lifecycle responsibilities must remain distinct. A member selecting Media Workspace enters its four-option landing screen; a member selecting Watch Ads enters the ad-viewing experience.
+These are separate product areas, not tabs or modes of one shared section. Their navigation entries, route boundaries, access rules, data models and lifecycle responsibilities must remain distinct. A member selecting Media Workspace enters its six-option landing screen; a member selecting Watch Ads enters the ad-viewing experience directly.
 
 ### 16.2 Media Workspace landing screen
 
-On entry, Media Workspace presents exactly these five primary options:
+On entry, Media Workspace presents exactly these six primary options:
 
 1. **Join / Collaboration Applications** — submit an application to cooperate with Mawdda, including an application to become an Advertising Representative. Do not describe the relationship as employment by default; any legal classification requires jurisdiction-specific review.
 2. **Message General Supervisors** — show the actual currently appointed and active General Advertising Supervisors by their configured display names and permitted contact availability. Never seed fictitious names or expose personal contact details. The maximum is five appointed supervisors, with individually delegated permissions.
 3. **Message General Administration** — a distinct route to the Owner / Super Admin administration inbox. The Owner can answer directly or assign/route the conversation to a specifically authorized General Supervisor. Routing must be auditable and must not grant the assignee broader permissions.
 4. **Advertise Directly** — submit a direct advertising inquiry/request as an individual or business without requiring Advertising Representative status or a signed representative agreement.
 5. **Creator Content & Influencer Proposals** — a separate intake route for influencers, YouTubers, public-page owners, video creators, photographers and advertising-content producers who want to present their channels, published work, creator portfolio or completed campaigns directly to Mawdda administration for review and possible commercial collaboration.
+6. **Featured Ad Viewing Rewards / مكافآت مشاهدة الإعلانات المميزة** — a member-facing information and history route showing the eligibility rules, qualified featured-ad views, earned coin credits and reward history. It is not an advertising-request route and does not grant coins merely when opened; members must enter the separate Watch Ads destination and complete a server-validated eligible view.
 
 These five options must be independently permissioned and route to their respective workflows. Direct advertiser inquiries must not be forced into the representative-only request flow.
 
@@ -346,8 +347,10 @@ The campaign delivery service may supply eligible campaign metadata to Watch Ads
 ### 16.6 Homepage and acceptance criteria
 
 - Both destinations appear as separate peer-level entries on the application and web platform home screens.
-- Media Workspace opens a landing screen with the four options above.
+- Media Workspace opens a landing screen with the six options above, including the separate Featured Ad Viewing Rewards route.
 - Watch Ads opens the member viewing experience, not the Media Workspace request hub.
+- A prominent, clearly labelled **Featured Ads + Rewards** button on the member home screen opens the featured-ad discovery experience directly; it must not open the generic attendance reward center or an advertiser intake form.
+- Media Workspace's Featured Ad Viewing Rewards route shows eligibility guidance and the member's own reward history only; it does not issue a reward on tap or duplicate the Watch Ads reward path.
 - Supervisor names come only from actual active Owner appointments; vacant slots are not represented as people.
 - Direct advertiser inquiry is available to members who are not approved representatives.
 - Creator content/influencer proposal is a distinct fifth Media Workspace route with URL, secure-upload and written-proposal intake; mandatory rights declaration; private review conversation; versioned negotiation; and no automatic publication, booking, featured priority or reward.
@@ -494,3 +497,29 @@ If priority campaigns exist but do not cover the current audience/geographic pla
 - Rotation is not ranked by highest view rate/completion rate.
 - Paused, withdrawn, expired, geographically ineligible or payment-gate-incomplete campaigns are never served.
 - Empty eligible inventory produces an honest empty state, not synthetic content.
+
+
+### 15.5 Dedicated featured-ad entry point and reward-history route
+
+The Owner approves a prominent member-home entry labelled **Featured Ads + Rewards / الإعلانات المميزة والمكافآت**. Selecting it opens the featured-ad discovery experience directly, without first entering Media Workspace, the generic attendance reward center or advertiser administration.
+
+Media Workspace also contains a separate sixth option labelled **Featured Ad Viewing Rewards / مكافآت مشاهدة الإعلانات المميزة**. This route explains the reward conditions and displays only the authenticated member's qualified-view/reward history, current UTC-day progress and ledger credits when the server integration is ready. It is an information/history surface, not a second reward-claim mechanism.
+
+The two entry points serve different intents:
+- Home button: discover and watch featured campaigns.
+- Media Workspace reward route: understand and review earned featured-ad rewards.
+
+**Reward safety invariant:** pressing either button, opening either screen, seeing a preview, allowing the carousel to rotate, opening a geographic region or opening an ad card grants zero coins. A reward is credited only after the member explicitly starts the full selected-ad player and the server verifies the approved completion, foreground/visibility evidence, campaign and creative version, member/campaign frequency, daily UTC cap, budget reservation, and replay/concurrency protections.
+
+Featured-ad reward credits must have a distinct ledger transaction type/source marker (for example, `featured_ad_reward`) while using the canonical wallet and the already-approved experimental baseline: 2 coins per qualified view, no more than 10 eligible views / 20 coins per member per UTC day, and no more than one reward for the same member/campaign in a rolling 24-hour window. These values remain Owner-editable server configuration; this route does not create an additional bonus on top of the existing ad-view reward.
+
+The 75% player / 25% persistent Mawdda activity split applies to the selected full-ad player, not to the discovery screen or the home button. The discovery screen must remain responsive and provide honest empty/error/loading states. The lower context area must preserve any existing chat/room state and remain accessible. Commercial featured placement and member reward funding/accounting are separate: an advertiser's commercial payment does not itself mint member coins, and the reward budget must be explicitly reserved by the platform's approved campaign/reward configuration.
+
+Acceptance:
+- The homepage button routes directly to the featured-ad discovery route.
+- Media Workspace exposes the separate reward guidance/history route as its sixth option.
+- Opening or refreshing either route creates no reward claim or ledger credit.
+- A qualified featured full view uses the same canonical wallet, a distinct featured-ad source marker, and the existing approved daily/frequency limits without double-crediting the same view.
+- The member sees only their own reward history; administrative or other members' ledger records are never exposed.
+- If the server reward policy or campaign budget is unavailable/invalid, the experience fails closed with no reward and a clear message.
+- Owner pause/withdrawal stops new sessions and prevents completion credit for withdrawn/ineligible campaigns.
