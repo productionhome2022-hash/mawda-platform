@@ -30,16 +30,16 @@ class MawddaCallScreen extends StatefulWidget {
 class _MawddaCallScreenState extends State<MawddaCallScreen> {
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
-  final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
-  final Set<String> _seenSignals = <String>{};
-  final List<RTCIceCandidate> _pendingCandidates = <RTCIceCandidate>[];
-  RTCPeerConnection? _peer;
+  final Map<String, RTCVideoRenderer> _remoteRenderers = {};
+  final Map<String, RTCPeerConnection> _peers = {};
+  final Map<String, int> _nextSequences = {};
+  final Map<String, Future<void>> _signalQueues = {};
+  final Map<String, List<RTCIceCandidate>> _pendingCandidates = {};
+  final Set<String> _seenSignals = {};
+  final Set<String> _remoteDescriptionsReady = {};
   MediaStream? _localStream;
   Timer? _pollTimer;
-  Future<void> _signalQueue = Future<void>.value();
-  int _nextSignalSequence = 0;
-  bool _remoteDescriptionReady = false;
-  bool _answerCreated = false;
+  List<String> _remoteUids = [];
   bool _initializing = true;
   bool _ending = false;
   bool _muted = false;
@@ -55,7 +55,37 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
 
   Future<void> _initializeCall() async {
     try {
-      await Future.wait([_localRenderer.initialize(), _remoteRenderer.initialize()]);
+      await _localRenderer.initialize();
+      if (widget.outgoing) {
+        final started = await _functions.httpsCallable('startCall').call({
+          'callId': widget.callId,
+          'scope': widget.scope,
+          'targetId': widget.targetId,
+          'mode': widget.mode,
+        });
+        final data = Map<String, dynamic>.from(started.data as Map);
+        _remoteUids = (data['participantUids'] as List<dynamic>? ?? const [])
+            .whereType<String>()
+            .where((uid) => uid != widget.currentUserId)
+            .toList(growable: false);
+      } else {
+        final active = await _functions.httpsCallable('getActiveCall').call();
+        final data = Map<String, dynamic>.from(active.data as Map);
+        if (data['active'] != true || data['callId'] != widget.callId) {
+          throw StateError('المكالمة لم تعد نشطة.');
+        }
+        final callerUid = data['callerUid'];
+        if (callerUid is! String || callerUid.isEmpty) {
+          throw StateError('تعذر تحديد صاحب المكالمة.');
+        }
+        _remoteUids = [callerUid];
+        await _functions.httpsCallable('respondToCall').call({
+          'callId': widget.callId,
+          'response': 'accept',
+        });
+      }
+      if (_remoteUids.isEmpty) throw StateError('لا يوجد طرف آخر متاح للمكالمة.');
+
       final iceResponse = await _functions.httpsCallable('getCallIceConfiguration')
           .call({'callId': widget.callId});
       final iceData = Map<String, dynamic>.from(iceResponse.data as Map);
@@ -63,12 +93,6 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
           .whereType<Map>()
           .map((server) => Map<String, dynamic>.from(server))
           .toList(growable: false);
-      _peer = await createPeerConnection({
-        'iceServers': iceServers,
-        'sdpSemantics': 'unified-plan',
-        'bundlePolicy': 'max-bundle',
-        'rtcpMuxPolicy': 'require',
-      });
       _localStream = await navigator.mediaDevices.getUserMedia({
         'audio': true,
         'video': widget.mode == 'video'
@@ -76,67 +100,23 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
             : false,
       });
       _localRenderer.srcObject = _localStream;
-      for (final track in _localStream!.getTracks()) {
-        await _peer!.addTrack(track, _localStream!);
-      }
-      _peer!.onTrack = (event) {
-        if (event.streams.isNotEmpty) {
-          _remoteRenderer.srcObject = event.streams.first;
-          if (mounted) setState(() => _status = 'تم إنشاء مسار الوسائط');
-        }
-      };
-      _peer!.onIceCandidate = (candidate) {
-        if (candidate.candidate == null || candidate.candidate!.isEmpty) return;
-        unawaited(_queueSignal('ice', candidate.toMap()));
-      };
-      _peer!.onConnectionState = (state) {
-        if (!mounted) return;
-        setState(() {
-          switch (state) {
-            case RTCPeerConnectionState.RTCPeerConnectionStateConnected:
-              _status = 'المكالمة متصلة';
-              break;
-            case RTCPeerConnectionState.RTCPeerConnectionStateConnecting:
-              _status = 'جارٍ إنشاء الاتصال...';
-              break;
-            case RTCPeerConnectionState.RTCPeerConnectionStateDisconnected:
-              _status = 'انقطع الاتصال مؤقتاً؛ جارٍ محاولة الاستعادة';
-              break;
-            case RTCPeerConnectionState.RTCPeerConnectionStateFailed:
-              _status = 'تعذر إنشاء الاتصال؛ تحقق من الشبكة وإعدادات TURN';
-              break;
-            case RTCPeerConnectionState.RTCPeerConnectionStateClosed:
-              _status = 'انتهت المكالمة';
-              break;
-            default:
-              break;
-          }
-        });
-      };
 
-      if (widget.outgoing) {
-        await _functions.httpsCallable('startCall').call({
-          'callId': widget.callId,
-          'scope': widget.scope,
-          'targetId': widget.targetId,
-          'mode': widget.mode,
-        });
-        final offer = await _peer!.createOffer(<String, dynamic>{
-          'offerToReceiveAudio': true,
-          'offerToReceiveVideo': widget.mode == 'video',
-        });
-        await _peer!.setLocalDescription(offer);
-        await _queueSignal('offer', offer.toMap());
-      } else {
-        await _functions.httpsCallable('respondToCall').call({
-          'callId': widget.callId,
-          'response': 'accept',
-        });
+      for (final remoteUid in _remoteUids) {
+        final peer = await _createPeer(remoteUid, iceServers);
+        if (widget.outgoing) {
+          final offer = await peer.createOffer(<String, dynamic>{
+            'offerToReceiveAudio': true,
+            'offerToReceiveVideo': widget.mode == 'video',
+          });
+          await peer.setLocalDescription(offer);
+          await _queueSignal(remoteUid, 'offer', offer.toMap());
+        }
       }
+
       if (!mounted) return;
       setState(() {
         _initializing = false;
-        _status = widget.outgoing ? 'بانتظار رد الطرف الآخر...' : 'تم قبول المكالمة؛ جارٍ الاتصال...';
+        _status = widget.outgoing ? 'بانتظار انضمام الطرف الآخر...' : 'تم قبول المكالمة؛ جارٍ الاتصال...';
       });
       _pollTimer = Timer.periodic(const Duration(milliseconds: 900), (_) {
         unawaited(_pollSignals());
@@ -152,28 +132,79 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
     }
   }
 
-  Future<void> _queueSignal(String kind, Map<String, dynamic> payload) {
-    final completer = Completer<void>();
-    _signalQueue = _signalQueue.then((_) async {
-      final sequence = _nextSignalSequence;
+  Future<RTCPeerConnection> _createPeer(
+    String remoteUid,
+    List<Map<String, dynamic>> iceServers,
+  ) async {
+    final existing = _peers[remoteUid];
+    if (existing != null) return existing;
+    final peer = await createPeerConnection({
+      'iceServers': iceServers,
+      'sdpSemantics': 'unified-plan',
+      'bundlePolicy': 'max-bundle',
+      'rtcpMuxPolicy': 'require',
+    });
+    _peers[remoteUid] = peer;
+    for (final track in _localStream?.getTracks() ?? <MediaStreamTrack>[]) {
+      await peer.addTrack(track, _localStream!);
+    }
+    peer.onTrack = (event) {
+      if (event.streams.isEmpty) return;
+      unawaited(_attachRemoteStream(remoteUid, event.streams.first));
+    };
+    peer.onIceCandidate = (candidate) {
+      if (candidate.candidate == null || candidate.candidate!.isEmpty) return;
+      unawaited(_queueSignal(remoteUid, 'ice', candidate.toMap()));
+    };
+    peer.onConnectionState = (state) {
+      if (!mounted) return;
+      setState(() {
+        if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
+          _status = 'المكالمة متصلة';
+        } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnecting) {
+          _status = 'جارٍ إنشاء الاتصال...';
+        } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
+          _status = 'انقطع الاتصال مؤقتاً؛ جارٍ محاولة الاستعادة';
+        } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
+          _status = 'تعذر إنشاء الاتصال؛ تحقق من الشبكة وإعدادات TURN';
+        } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
+          _status = 'انتهى الاتصال';
+        }
+      });
+    };
+    return peer;
+  }
+
+  Future<void> _attachRemoteStream(String uid, MediaStream stream) async {
+    final renderer = _remoteRenderers.putIfAbsent(uid, RTCVideoRenderer.new);
+    await renderer.initialize();
+    renderer.srcObject = stream;
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _queueSignal(String toUid, String kind, Map<String, dynamic> payload) {
+    final previous = _signalQueues[toUid] ?? Future<void>.value();
+    final next = previous.then((_) async {
+      final sequence = _nextSequences[toUid] ?? 0;
       await _functions.httpsCallable('sendCallSignal').call({
         'callId': widget.callId,
+        'toUid': toUid,
         'signal': {
           'kind': kind,
           'payload': jsonEncode(payload),
           'sequence': sequence,
         },
       });
-      _nextSignalSequence += 1;
-      completer.complete();
-    }).catchError((Object error) {
-      if (!completer.isCompleted) completer.completeError(error);
+      _nextSequences[toUid] = sequence + 1;
     });
-    return completer.future;
+    _signalQueues[toUid] = next.catchError((Object error) {
+      if (mounted) setState(() => _failure = 'تعذر إرسال إشارة الاتصال: $error');
+    });
+    return _signalQueues[toUid]!;
   }
 
   Future<void> _pollSignals() async {
-    if (_ending || _peer == null) return;
+    if (_ending || _peers.isEmpty) return;
     try {
       final response = await _functions.httpsCallable('getCallSignals').call({
         'callId': widget.callId,
@@ -184,45 +215,53 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       for (final raw in signals) {
         final signal = Map<String, dynamic>.from(raw);
         final signalId = signal['signalId'] as String? ?? '';
-        if (signalId.isEmpty || !_seenSignals.add(signalId)) continue;
+        final senderUid = signal['senderUid'] as String? ?? '';
         final kind = signal['kind'];
         final payloadText = signal['payload'];
-        if (payloadText is! String) continue;
+        if (signalId.isEmpty || senderUid.isEmpty || !_seenSignals.add(signalId) ||
+            payloadText is! String || !_remoteUids.contains(senderUid)) continue;
         final payload = Map<String, dynamic>.from(jsonDecode(payloadText) as Map);
-        if (kind == 'offer' && !widget.outgoing && !_answerCreated) {
-          await _peer!.setRemoteDescription(RTCSessionDescription(
+        final peer = _peers[senderUid] ?? await _createPeer(
+          senderUid,
+          (await _functions.httpsCallable('getCallIceConfiguration')
+              .call({'callId': widget.callId}).then((value) =>
+                  Map<String, dynamic>.from(value.data as Map)))['iceServers']
+              as List<Map<String, dynamic>>,
+        );
+        if (kind == 'offer' && !widget.outgoing && !_remoteDescriptionsReady.contains(senderUid)) {
+          await peer.setRemoteDescription(RTCSessionDescription(
             payload['sdp'] as String?, payload['type'] as String?,
           ));
-          _remoteDescriptionReady = true;
-          await _flushCandidates();
-          final answer = await _peer!.createAnswer(<String, dynamic>{
+          _remoteDescriptionsReady.add(senderUid);
+          await _flushCandidates(senderUid, peer);
+          final answer = await peer.createAnswer(<String, dynamic>{
             'offerToReceiveAudio': true,
             'offerToReceiveVideo': widget.mode == 'video',
           });
-          await _peer!.setLocalDescription(answer);
-          await _queueSignal('answer', answer.toMap());
-          _answerCreated = true;
-        } else if (kind == 'answer' && widget.outgoing && !_remoteDescriptionReady) {
-          await _peer!.setRemoteDescription(RTCSessionDescription(
+          await peer.setLocalDescription(answer);
+          await _queueSignal(senderUid, 'answer', answer.toMap());
+        } else if (kind == 'answer' && widget.outgoing &&
+            !_remoteDescriptionsReady.contains(senderUid)) {
+          await peer.setRemoteDescription(RTCSessionDescription(
             payload['sdp'] as String?, payload['type'] as String?,
           ));
-          _remoteDescriptionReady = true;
-          await _flushCandidates();
+          _remoteDescriptionsReady.add(senderUid);
+          await _flushCandidates(senderUid, peer);
         } else if (kind == 'ice') {
           final candidate = RTCIceCandidate(
             payload['candidate'] as String?,
             payload['sdpMid'] as String?,
             (payload['sdpMLineIndex'] as num?)?.toInt(),
           );
-          if (_remoteDescriptionReady) {
-            await _peer!.addCandidate(candidate);
+          if (_remoteDescriptionsReady.contains(senderUid)) {
+            await peer.addCandidate(candidate);
           } else {
-            _pendingCandidates.add(candidate);
+            (_pendingCandidates[senderUid] ??= []).add(candidate);
           }
         }
       }
-      final status = data['status'];
-      if (status == 'rejected' || status == 'cancelled' || status == 'missed' || status == 'ended') {
+      if (data['status'] == 'ended' || data['status'] == 'cancelled' ||
+          data['status'] == 'missed' || data['status'] == 'rejected') {
         await _finish(notifyServer: false);
       }
     } catch (error) {
@@ -230,11 +269,10 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
     }
   }
 
-  Future<void> _flushCandidates() async {
-    final pending = List<RTCIceCandidate>.from(_pendingCandidates);
-    _pendingCandidates.clear();
+  Future<void> _flushCandidates(String uid, RTCPeerConnection peer) async {
+    final pending = List<RTCIceCandidate>.from(_pendingCandidates.remove(uid) ?? const []);
     for (final candidate in pending) {
-      await _peer?.addCandidate(candidate);
+      await peer.addCandidate(candidate);
     }
   }
 
@@ -258,6 +296,24 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
     if (mounted) setState(() => _cameraEnabled = next);
   }
 
+  Future<void> _releaseMedia() async {
+    for (final track in _localStream?.getTracks() ?? <MediaStreamTrack>[]) {
+      await track.stop();
+    }
+    await _localStream?.dispose();
+    for (final peer in _peers.values) {
+      await peer.close();
+      await peer.dispose();
+    }
+    for (final renderer in _remoteRenderers.values) {
+      renderer.srcObject = null;
+      await renderer.dispose();
+    }
+    _remoteRenderers.clear();
+    _localRenderer.srcObject = null;
+    await _localRenderer.dispose();
+  }
+
   Future<void> _finish({bool notifyServer = true}) async {
     if (_ending) return;
     _ending = true;
@@ -266,19 +322,10 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       try {
         await _functions.httpsCallable('endCall').call({'callId': widget.callId});
       } catch (_) {
-        // Local media is always released even if the server is temporarily unreachable.
+        // Local media must be released even if the signaling service is offline.
       }
     }
-    for (final track in _localStream?.getTracks() ?? <MediaStreamTrack>[]) {
-      await track.stop();
-    }
-    await _localStream?.dispose();
-    await _peer?.close();
-    await _peer?.dispose();
-    _localRenderer.srcObject = null;
-    _remoteRenderer.srcObject = null;
-    await _localRenderer.dispose();
-    await _remoteRenderer.dispose();
+    await _releaseMedia();
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -294,22 +341,10 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
     super.dispose();
   }
 
-  Future<void> _releaseMedia() async {
-    for (final track in _localStream?.getTracks() ?? <MediaStreamTrack>[]) {
-      await track.stop();
-    }
-    await _localStream?.dispose();
-    await _peer?.close();
-    await _peer?.dispose();
-    _localRenderer.srcObject = null;
-    _remoteRenderer.srcObject = null;
-    await _localRenderer.dispose();
-    await _remoteRenderer.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final isVideo = widget.mode == 'video';
+    final renderers = _remoteRenderers.values.toList(growable: false);
     return Scaffold(
       appBar: AppBar(
         title: Text(isVideo ? 'مكالمة مرئية' : 'مكالمة صوتية'),
@@ -331,8 +366,14 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          if (isVideo && _remoteRenderer.srcObject != null)
-            RTCVideoView(_remoteRenderer, objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover)
+          if (isVideo && renderers.isNotEmpty)
+            GridView.count(
+              crossAxisCount: renderers.length == 1 ? 1 : 2,
+              children: renderers.map((renderer) => RTCVideoView(
+                renderer,
+                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+              )).toList(),
+            )
           else
             Container(
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -346,8 +387,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
               top: 16, right: 16, width: 112, height: 160,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: RTCVideoView(_localRenderer,
-                  mirror: true,
+                child: RTCVideoView(_localRenderer, mirror: true,
                   objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover),
               ),
             ),
@@ -377,8 +417,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
               ],
             ),
           ),
-          if (_initializing)
-            const Center(child: CircularProgressIndicator()),
+          if (_initializing) const Center(child: CircularProgressIndicator()),
         ],
       ),
     );
