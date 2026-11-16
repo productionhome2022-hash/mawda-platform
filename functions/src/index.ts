@@ -8350,11 +8350,13 @@ export const listOwnerAdvertisingIntake = onCall(async (request) => {
   }
   let query = ADVERTISING_INTAKE.orderBy("createdAt", "desc");
   if (status) query = ADVERTISING_INTAKE.where("status", "==", status).orderBy("createdAt", "desc");
-  if (kind) query = query.where("kind", "==", kind);
-  const snapshot = await query.limit(limit).get();
-  return {
-    requests: snapshot.docs.map((doc) => ({ requestId: doc.id, ...doc.data() })),
-  };
+  else if (kind) query = ADVERTISING_INTAKE.where("kind", "==", kind).orderBy("createdAt", "desc");
+  const snapshot = await query.limit(Math.min(200, limit * 2)).get();
+  const requests = snapshot.docs
+    .map((doc) => ({ requestId: doc.id, ...doc.data() }))
+    .filter((item) => !kind || item.kind === kind)
+    .slice(0, limit);
+  return { requests };
 });
 
 export const reviewOwnerAdvertisingIntake = onCall(async (request) => {
@@ -8381,12 +8383,14 @@ export const reviewOwnerAdvertisingIntake = onCall(async (request) => {
     if (data.requestVersion !== expectedVersion) {
       throw new HttpsError("aborted", "تغير الطلب؛ أعد تحميله قبل المراجعة.");
     }
-    if (["rejected", "closed"].includes(data.status)) {
-      throw new HttpsError("failed-precondition", "الطلب مغلق ولا يقبل انتقالاً جديداً.");
-    }
-    if (nextStatus === "accepted_pending_contract" &&
-        data.status !== "under_review" && data.status !== "correction_requested") {
-      throw new HttpsError("failed-precondition", "يجب أن يكون الطلب قيد المراجعة قبل القبول المبدئي.");
+    const allowedTransitions: Record<string, readonly string[]> = {
+      submitted_pending_review: ["under_review", "rejected", "closed"],
+      under_review: ["correction_requested", "rejected", "accepted_pending_contract", "closed"],
+      correction_requested: ["under_review", "rejected", "closed"],
+      accepted_pending_contract: ["closed"],
+    };
+    if (!(allowedTransitions[data.status] ?? []).includes(nextStatus)) {
+      throw new HttpsError("failed-precondition", "انتقال حالة الطلب غير مسموح من حالته الحالية.");
     }
     const version = (data.requestVersion as number) + 1;
     transaction.update(ref, {
