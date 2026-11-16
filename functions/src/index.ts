@@ -8348,7 +8348,7 @@ type PreparedContractAuditEvent = {
   sequence: number;
   previousHash: string;
   eventHash: string;
-  eventRef: FirebaseFirestore.DocumentReference;
+  eventRef: ReturnType<typeof CONTRACT_AUDIT_LOGS.doc>;
   event: Record<string, unknown>;
 };
 
