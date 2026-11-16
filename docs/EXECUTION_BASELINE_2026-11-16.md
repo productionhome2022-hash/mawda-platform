@@ -362,3 +362,14 @@
 - المتغير `MAWDDA_LEGAL_PORTAL_APP_IDS` فارغ افتراضياً، وبالتالي تبقى قائمة السماح مغلقة كما ينبغي أمنياً.
 - سُجل المانع في [Issue #19](https://github.com/productionhome2022-hash/mawda-platform/issues/19). لا تُعد مسارات الويب المهنية/القانونية جاهزة للتشغيل حتى تكتمل تهيئة العميل والتسجيل غير الإنتاجي والتحقق.
 - لا تخفف App Check ولا تضف معرفات Android/iOS إلى قائمة السماح. يتطلب التنفيذ مفتاح موقع مسجلاً يقدمه المالك/البيئة، وتحديث lockfile عبر Flutter SDK المثبت، واختبارات على بيئة غير إنتاجية بعد التصريح بها.
+
+
+## 2026-11-16 — Room rental lifecycle hardening
+
+- Bound room creation idempotency keys to the original room name, capacity, plan, and expected price; a replay that changes any of those values now fails with `already-exists` instead of silently returning the original result.
+- Bound renewal idempotency keys to the original room, owner, plan, and expected price; conflicting replays are rejected before any wallet mutation.
+- When a renewal succeeds, the previous active/grace-period rental record is atomically marked `renewed` and linked to its successor, preventing multiple rental records for one room from remaining active.
+- Added integration assertions for conflicting create/renewal replays, no second debit, and superseded rental status.
+- Code commits: `3782b0576a3e494d8027e355e388298925e194ca`, `5de6a9e3309f75cd4ba59bb3df309663ed4f3446`; test commits: `c244e81c90c84fe7609a218ceff8fa9a4e610b41`, `e66b74ad64d67351fa391832ac2c9026e450035b`.
+- Validation not yet run on this exact head: TypeScript build and Firestore Emulator room-rental integration. No live scheduler or production rental configuration was changed.
+- Cancellation/refund policy remains owner-unresolved; no refund path was invented or enabled.
