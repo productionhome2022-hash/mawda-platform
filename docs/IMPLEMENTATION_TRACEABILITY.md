@@ -438,3 +438,19 @@ The Creator Content & Influencer Proposals route is an approved fifth Media Work
 
 
 **Latest advertising implementation note — 16 November 2026:** The homepage featured-ad entry and sixth Media Workspace reward-guidance route are present as UI scaffolding. The dedicated featured campaign serving and wallet-credit path remain intentionally unavailable until their server-side eligibility, daily caps, rolling cooldown, payment/approval gates, audit and member-history integration are complete and tested.
+
+
+## تحديث تنفيذ — بوابة صُنّاع مودة وقرار الويب الحصري (2026-11-16)
+
+أضيفت في فرع التطوير، دون تشغيل اختبارات أو محاكاة في هذه الدفعة:
+- نموذج تقديم طلب عضوية صُنّاع مودة مع مسار عضو إنتاج/مرشح إشراف، التخصصات العشرة، الخبرة والأدوات والمشاريع والشركات والإنجازات وروابط السيرة وملف الأعمال ووصف الدور وإجابات المقابلة وموافقة مستقلة على تجربة إبداعية وتأكيد الحقوق.
+- Callable خادمي باسم submitProductionApplication مع App Check وهوية موثقة وبوابة الويب الحصرية، تحقق مركزي للمدخلات، idempotency، تخزين طلب غير مفعل، وسجل تدقيق.
+- Callable للمالك لعرض الطلبات ومراجعتها مع optimistic version checks وانتقالات حالات محددة وسجل تدقيق.
+- شاشة مراجعة للمالك مرتبطة بلوحة Super Admin وتظهر على الويب فقط.
+- ربط نموذج العضوية في Media Workspace مع الويب فقط. لا ينشأ دور أو صلاحية إنشاء غرف بمجرد التقديم أو القبول المبدئي.
+
+حدود مهمة:
+- لم يتم بعد ربط قبول الطلب بتوقيع اتفاقية العضوية النهائية أو منح الدور والصلاحيات؛ تبقى هذه خطوات مستقلة ومقفلة.
+- التحقق من App Check يعتمد قائمة MAWDDA_LEGAL_PORTAL_APP_IDS الفارغة افتراضياً. لا يمكن تشغيل البوابة القانونية/المهنية قبل إضافة App IDs الموثقة لبوابة الويب وواجهة سطح المكتب المعتمدة في بيئة غير إنتاجية. لا تضف App IDs لتطبيق Android أو iOS.
+- تطبيق Android وiOS يبقيان خارج التسجيل المهني والعقود والمراسلات القانونية والتوقيع. يجب أن تبقى بقية وظائف التطبيقين مستقلة ومتاحة وفق صلاحياتها وسياساتها.
+- لم يُشغّل Flutter Analyze أو TypeScript build أو unit/emulator/integration tests في هذه الدفعة؛ لا يوجد ادعاء نجاح اختبار أو جاهزية إطلاق.
