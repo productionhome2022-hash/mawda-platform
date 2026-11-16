@@ -308,7 +308,7 @@ class _CreatorProposalScreenState extends State<CreatorProposalScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _sourceType,
+              initialValue: _sourceType,
               decoration: const InputDecoration(labelText: 'طريقة تقديم المحتوى'),
               items: const [
                 DropdownMenuItem(
