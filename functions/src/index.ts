@@ -86,7 +86,7 @@ import { DEFAULT_COIN_PACKAGES, DEFAULT_AD_PRICES, validateCoinPackages, validat
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
-import { validateAdvertisingIntake, AdvertisingIntakeValidationError } from "./advertising-intake";
+import { validateAdvertisingIntake, advertisingIntakeAuditEventId, AdvertisingIntakeValidationError } from "./advertising-intake";
 import { validateProductionApplication, ProductionApplicationValidationError } from "./production-applications";
 import {
   applyContractSignature,
@@ -8553,7 +8553,7 @@ export const submitAdvertisingIntake = onCall(
       intakeKind: payload.kind,
       targetGeographies: payload.targetGeographies,
       outcome: "success",
-    }, "advertising_intake_submitted_" + result.requestId);
+    }, advertisingIntakeAuditEventId(result.requestId));
     return {
       requestId: result.requestId,
       status: "submitted_pending_review",
