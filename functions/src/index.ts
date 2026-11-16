@@ -6937,9 +6937,20 @@ export const renewRoomRental = onCall(async (request) => {
     if (balance === null) throw new HttpsError("failed-precondition", "رصيد الكوينز غير كافٍ للتجديد.");
     const previousExpiry = room.data()?.expiresAt instanceof Timestamp
       ? room.data()!.expiresAt.toMillis() : nowMs;
+    const previousRentalId = room.data()?.rentalId;
+    const previousRentalRef = typeof previousRentalId === "string"
+      ? db.collection("roomRentals").doc(previousRentalId) : null;
+    const previousRental = previousRentalRef ? await transaction.get(previousRentalRef) : null;
     const startMs = Math.max(nowMs, previousExpiry);
     const expiresAt = Timestamp.fromMillis(roomRentalExpiry(startMs, plan.durationDays));
     const now = FieldValue.serverTimestamp();
+    if (previousRentalRef && previousRental?.exists &&
+        ["active", "grace_period"].includes(previousRental.data()?.status)) {
+      transaction.update(previousRentalRef, {
+        status: "renewed", supersededByRentalId: rentalRef.id, supersededAt: now,
+        updatedAt: now,
+      });
+    }
     transaction.update(userRef, { coins: balance, updatedAt: now });
     transaction.update(roomRef, {
       status: "active", expiresAt, rentalId: rentalRef.id, rentalPlanId: plan.planId,
