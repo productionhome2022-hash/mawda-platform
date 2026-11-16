@@ -39,3 +39,12 @@ Relevant change commits:
 - The legal/contract portal still requires Web App Check bootstrap and non-production verification before its workflows can be accepted.
 - The four-hour temporary private-chat full-erasure rule must not be activated until the owner resolves who selects the retention mode and whether both parties must consent.
 - The 5,000-persona lab, device E2E, real non-production storage/scanner acceptance, and the remaining requirement-to-code/test reconciliation remain separate release gates.
+
+## Final exact-head verification — 16 November 2026
+
+- The remaining Media Workspace test failure was isolated to assertion timing: the contract notice is rendered in the form's introductory text, before the later fields. The test now asserts that notice immediately after the form's first visible field, then scrolls to and verifies the later geography and rights fields. No production widget behavior or route gate was weakened.
+- Test correction commit: `9f3bc90bc17ecf4d2f381cc8ef4d5e368dc74b02`.
+- Exact-head **Mawdda domain regression** run [43910881245](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43910881245): **success** — Flutter analysis/widget tests and retention/room-reservation emulator regression both passed.
+- Exact-head **Validate Mawda** run [43910881285](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43910881285): **success** — Flutter analysis, all Flutter tests, Web release build and artifact upload; Cloud Functions compile/unit tests and all configured Firestore/Storage emulator integration and rules suites; isolated ClamAV scanner tests, image build, sanitization and EICAR detection all passed.
+- This closes the specific CI regression recorded above on this exact SHA. It does **not** close Phase 1/2 overall: App Check client/provider acceptance, live non-production GCS/Cloud Run scanner E2E, physical-device acceptance, complete requirement-to-code reconciliation and the 5,000-persona lab remain separate gates.
+- No live Firebase mutation, production deployment, billing activation, main merge, destructive retention activation, or 5,000-persona simulation was performed.
