@@ -8,7 +8,7 @@ import { isAllowedLegalPortalAppId } from "./legal-portal-access";
 import { FieldPath, FieldValue, Timestamp, getFirestore, type Transaction } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { defineString } from "firebase-functions/params";
+import { defineString, defineSecret } from "firebase-functions/params";
 import { validateMediaLegalHoldInput } from "./media-legal-hold";
 import { validateMessageLegalHoldInput } from "./message-legal-hold";
 import { logger } from "firebase-functions";
@@ -35,7 +35,7 @@ import {
   BIOMETRIC_APPROVED_HOSTS,
   canSendApprovedPlatformLinks,
 } from "./link-policy";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import { audienceForAge, canJoinRoom, canJoinGuestRoom, normalizeModeratorPermissions } from "./room-policy";
 import { isGuestSessionActive } from "./guest-sessions";
 import { hasPlatformOwnerSession } from "./owner-access";
@@ -122,6 +122,8 @@ const legalHoldExpiryEnabled = defineString("MAWDA_LEGAL_HOLD_EXPIRY_ENABLED", {
 const mawddaLegalPortalAppIds = defineString("MAWDDA_LEGAL_PORTAL_APP_IDS", { default: "" });
 const ownerAuditArchiveEnabled = defineString("MAWDA_AUDIT_ARCHIVE_ENABLED", { default: "false" });
 const ownerAuditArchiveBucketName = defineString("MAWDA_AUDIT_ARCHIVE_BUCKET", { default: "" });
+const mawddaTurnUrls = defineString("MAWDDA_TURN_URLS", { default: "" });
+const mawddaTurnSharedSecret = defineSecret("MAWDDA_TURN_SHARED_SECRET");
 
 /**
  * Append a hash-linked owner-review audit event. A Firestore transaction
@@ -9483,6 +9485,37 @@ export const endCall = onCall(async (request) => {
     return { callId, status: next, idempotentReplay: false };
   });
 });
+
+
+export const getCallIceConfiguration = onCall(
+  { secrets: [mawddaTurnSharedSecret] },
+  async (request) => {
+    const uid = requireAuthenticatedUid(request.auth?.uid);
+    const callId = request.data?.callId;
+    if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId)) {
+      throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
+    }
+    const call = await CALL_SESSIONS.doc(callId).get();
+    if (!call.exists || !Array.isArray(call.data()?.participantUids) ||
+        !call.data()!.participantUids.includes(uid) ||
+        !["ringing", "accepted"].includes(String(call.data()?.status))) {
+      throw new HttpsError("permission-denied", "لا تملك صلاحية إعداد الاتصال لهذه المكالمة.");
+    }
+    const iceServers: Array<Record<string, unknown>> = [
+      { urls: ["stun:stun.l.google.com:19302"] },
+    ];
+    const urls = mawddaTurnUrls.value().split(",").map((value) => value.trim())
+      .filter((value) => /^(turn|turns):[^\\s]+$/.test(value));
+    const sharedSecret = mawddaTurnSharedSecret.value();
+    if (urls.length > 0 && sharedSecret.length >= 32) {
+      const expiresAt = Math.floor(Date.now() / 1000) + 15 * 60;
+      const username = `${expiresAt}:${uid}`;
+      const credential = createHmac("sha1", sharedSecret).update(username).digest("base64");
+      iceServers.push({ urls, username, credential });
+    }
+    return { iceServers, turnConfigured: iceServers.length > 1, credentialTtlSeconds: 900 };
+  },
+);
 
 export const getActiveCall = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
