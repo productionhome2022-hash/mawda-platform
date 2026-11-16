@@ -7,7 +7,7 @@ const {
   CALL_RING_TIMEOUT_MS,
   CALL_SIGNAL_MAX_AGE_MS,
   CALL_SIGNAL_MAX_PER_CALLER,
-} = require("../../lib/call-signaling");
+} = require("../lib/call-signaling");
 
 test("call requests accept only bounded identifiers, supported scopes and media modes", () => {
   assert.deepEqual(validateCallRequest({
