@@ -86,7 +86,7 @@ import { DEFAULT_COIN_PACKAGES, DEFAULT_AD_PRICES, validateCoinPackages, validat
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
-import { validateAdvertisingIntake, advertisingIntakeAuditEventId, AdvertisingIntakeValidationError } from "./advertising-intake";
+import { validateAdvertisingIntake, advertisingIntakeAuditEventId, advertisingIntakeReviewAuditEventId, AdvertisingIntakeValidationError } from "./advertising-intake";
 import { validateProductionApplication, ProductionApplicationValidationError } from "./production-applications";
 import {
   applyContractSignature,
@@ -8610,7 +8610,7 @@ export const reviewOwnerAdvertisingIntake = onCall(
   }
   const ref = ADVERTISING_INTAKE.doc(requestId);
   const auditRef = db.collection("adminAuditLogs")
-    .doc("advertising_intake_review_" + requestId + "_" + String(expectedVersion));
+    .doc(advertisingIntakeReviewAuditEventId(requestId, expectedVersion as number));
   const result = await db.runTransaction(async (transaction) => {
     const [snapshot, existingAudit, headSnapshot] = await Promise.all([
       transaction.get(ref),
