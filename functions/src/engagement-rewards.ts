@@ -156,3 +156,18 @@ export function eligibleHeartbeatDelta(
   }
   return { deltaMs: elapsed, nextHeartbeatAtMs: nowMs, nextSequence: sequence + 1, paused: false };
 }
+import { createHash } from "node:crypto";
+
+/**
+ * Collision-resistant per-member/per-campaign counter identity.
+ * The former concatenated UID/campaign key was ambiguous when both contained underscores.
+ */
+export function timedAdMemberCounterId(uid: string, campaignId: string): string {
+  if (typeof uid !== "string" || uid.length < 1 || uid.length > 128 ||
+      typeof campaignId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(campaignId)) {
+    throw new Error("TIMED_AD_COUNTER_ID_INVALID");
+  }
+  return createHash("sha256")
+    .update("mawdda-timed-ad-member-counter-v1:" + uid + ":" + campaignId)
+    .digest("hex");
+}
