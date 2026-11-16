@@ -236,3 +236,24 @@ This section supersedes the earlier statement that lab run `43769264292` was sti
 - Exact-head validation on `01d7ecd`: Validate Mawda run `43772695602` queued; domain regression run `43772695619` queued at the latest poll. The earlier exact-head checks on `46f1021` remain successful, but must not be substituted for the new SHA.
 - Lab PR #2's updated harness commit `f024ebd` passed lab validation run `43772590541`. Full simulation after this change remains unrun; no dispatch action is exposed in the current GitHub connection.
 - The artifact from failed run `43769264292` proves the full 5,000-member room-join stage, not full lifecycle acceptance: 949/5,000 completed all event/RSVP stages.
+
+## WebRTC call implementation update — 16 November 2026
+
+This update supersedes the earlier statement that in-app WebRTC call code was not implemented. The development branch now contains the first integrated implementation; it is **not yet release-accepted**.
+
+Implemented in source:
+- Authenticated call creation, acceptance/rejection, cancellation/end, active-call lookup, ring expiry and scheduled stale-signal cleanup.
+- Server-side membership checks for direct chats and rooms, account standing, age-band compatibility, mutual block checks, and atomic per-member active-call locks to prevent overlapping calls.
+- Caller-only SDP offers, recipient-only SDP answers, recipient-scoped ICE signaling, per-peer monotonic sequence numbers, bounded payloads, replay protection and participant leave handling.
+- Per-call ICE configuration with public STUN and optional short-lived TURN REST credentials generated from the `MAWDDA_TURN_SHARED_SECRET` secret and `MAWDDA_TURN_URLS` parameter.
+- Flutter WebRTC audio/video UI, local media controls, targeted peer connections for room calls, incoming-call notification routing, and Android/iOS camera/microphone permissions.
+- Unit and Firestore-emulator integration coverage, including direct calls, room peer isolation, active-member locking, and participant departure. The explicit coverage journey is `CALL-001` in `functions/test/fixtures/feature-coverage-matrix.json`.
+
+Still open before this work can be called complete:
+- Exact-head CI for the latest code and emulator call integration suite must finish green.
+- TURN relay infrastructure and its secret/URL parameters have **not** been provisioned. The current default is STUN-only; connectivity can fail behind restrictive NATs or some mobile networks.
+- No physical Android/iOS device-to-device audio/video acceptance has been performed. Camera/microphone permissions, network switching, Bluetooth/audio routing, background/terminated incoming-call behavior, and long-call ICE recovery remain to be verified.
+- Room calls currently use a peer-to-peer star topology with a conservative five-participant engineering ceiling. This is not a product entitlement or owner-approved room capacity; larger group calling requires an SFU/media-server architecture.
+- No production deployment, Firebase production mutation, TURN paid-resource activation, merge to main, or release action has occurred.
+
+The call journey remains partial until the exact-head automated evidence, non-production TURN configuration, real-device tests, security review and owner acceptance are complete.
