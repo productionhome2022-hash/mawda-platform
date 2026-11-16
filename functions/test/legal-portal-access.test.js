@@ -22,11 +22,11 @@ test("legal portal access allows only an exact configured web App ID", () => {
   assert.equal(isAllowedLegalPortalAppId(`${WEB_APP_ID} `, WEB_APP_ID), false);
 });
 
-test("native Android and iOS App IDs remain denied unless explicitly configured", () => {
+test("native Android and iOS App IDs are hard-denied even if misconfigured in the allowlist", () => {
   assert.equal(isAllowedLegalPortalAppId(ANDROID_APP_ID, WEB_APP_ID), false);
   assert.equal(isAllowedLegalPortalAppId(IOS_APP_ID, WEB_APP_ID), false);
-  assert.equal(isAllowedLegalPortalAppId(ANDROID_APP_ID, `${WEB_APP_ID},${IOS_APP_ID}`), false);
-  assert.equal(isAllowedLegalPortalAppId(IOS_APP_ID, `${WEB_APP_ID},${ANDROID_APP_ID}`), false);
+  assert.equal(isAllowedLegalPortalAppId(ANDROID_APP_ID, `${WEB_APP_ID},${ANDROID_APP_ID}`), false);
+  assert.equal(isAllowedLegalPortalAppId(IOS_APP_ID, `${WEB_APP_ID},${IOS_APP_ID}`), false);
 });
 
 test("multiple explicitly configured portal app IDs are matched exactly", () => {
