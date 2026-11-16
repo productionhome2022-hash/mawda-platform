@@ -74,6 +74,7 @@ import {
   calculateStorePurchaseBalance,
   isStoreEntitlementActive,
   isStorePurchasePriceCurrent,
+  isStorePurchaseReplayCompatible,
   projectStoreEntitlementFeatures,
 } from "./store-purchase";
 import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
@@ -6327,8 +6328,8 @@ export const purchaseStoreItem = onCall(async (request) => {
     ]);
     if (priorPurchase.exists) {
       const prior = priorPurchase.data() ?? {};
-      if (prior.memberUid !== uid || prior.itemId !== itemId) {
-        throw new HttpsError("already-exists", "معرف طلب الشراء مستخدم لعملية أخرى.");
+      if (!isStorePurchaseReplayCompatible(prior, uid, itemId, expectedPriceCoins)) {
+        throw new HttpsError("already-exists", "معرف طلب الشراء مستخدم لعملية أخرى أو ببيانات سعر مختلفة.");
       }
       return {
         purchaseId,
