@@ -93,3 +93,18 @@ export function projectStoreEntitlementFeatures(
     activeFeatures,
   };
 }
+
+
+/** Bind an idempotent purchase replay to the original member, item and confirmed price. */
+export function isStorePurchaseReplayCompatible(
+  priorInput: unknown,
+  memberUid: string,
+  itemId: string,
+  expectedPriceCoins: number,
+): boolean {
+  if (priorInput === null || typeof priorInput !== "object" || Array.isArray(priorInput)) return false;
+  const prior = priorInput as Record<string, unknown>;
+  return prior.memberUid === memberUid &&
+    prior.itemId === itemId &&
+    isStorePurchasePriceCurrent(expectedPriceCoins, prior.priceCoins);
+}
