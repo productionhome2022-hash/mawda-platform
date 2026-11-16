@@ -539,3 +539,11 @@ The Creator Content & Influencer Proposals route is an approved fifth Media Work
 - Preserved the legacy counter as a conservative migration floor during reads: the greater of the new scoped counter and old counter is enforced, so rollout does not reset historical claim counts. Legacy ambiguous ownership may conservatively deny an additional claim but cannot increase a member's allowance.
 - Added unit tests for stable hashes, underscore-collision separation, and invalid identifiers. Firestore emulator/integration and TypeScript build remain unexecuted in this session.
 - Commits: `2d3dba74195cd9c2b6bb678ea0646e38b9721a45`, `457e7773157d6ea493ccb11bea81f2742dae6a4d`, `6e25af97333c1c236d4f4a5f21fd453c7147be42`, `10aae3aaf01b92f6b134b52700f26aa0a953d699`.
+
+
+## 2026-11-16 — Timed-ad legacy counter collision integration regression
+
+- Added an emulator integration scenario with two distinct member/campaign pairs whose former concatenated legacy document IDs are identical (`member_a` + `campaign_123456` and `member` + `a_campaign_123456`).
+- The test starts and completes both sessions, then verifies that both members receive only their own one-claim reward and that the new namespaced SHA-256 counter documents preserve the correct UID/campaign pair independently.
+- This extends the earlier pure-helper collision test to exercise both callable transaction paths and wallet ledger writes. The test is source-added only until exact-head validation executes.
+- No production configuration, data, payment, deployment, or merge action was performed.
