@@ -8500,7 +8500,9 @@ export const submitAdvertisingIntake = onCall(
   },
 );
 
-export const listOwnerAdvertisingIntake = onCall(async (request) => {
+export const listOwnerAdvertisingIntake = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     requireWebPortalAccess(request);
   requireOwner(request);
   const limit = Number.isSafeInteger(request.data?.limit)
@@ -8524,7 +8526,9 @@ export const listOwnerAdvertisingIntake = onCall(async (request) => {
   return { requests };
 });
 
-export const reviewOwnerAdvertisingIntake = onCall(async (request) => {
+export const reviewOwnerAdvertisingIntake = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     requireWebPortalAccess(request);
   const actorUid = requireOwner(request);
   const requestId = typeof request.data?.requestId === "string" ? request.data.requestId.trim() : "";
@@ -8747,7 +8751,9 @@ function contractActorEmail(request: {
 }
 
 /** Owner/MFA-only draft creation. Drafts are not sent, signed or effective. */
-export const createOwnerContractDraft = onCall(async (request) => {
+export const createOwnerContractDraft = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     requireWebPortalAccess(request);
   const actorUid = requireOwner(request);
   let draft: ContractDraftInput;
@@ -8820,7 +8826,9 @@ export const createOwnerContractDraft = onCall(async (request) => {
 });
 
 /** Owner/MFA-only lifecycle transition with optimistic concurrency and legal readiness gate. */
-export const transitionOwnerContract = onCall(async (request) => {
+export const transitionOwnerContract = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     requireWebPortalAccess(request);
   const actorUid = requireOwner(request);
   const contractId = typeof request.data?.contractId === "string" ? request.data.contractId.trim() : "";
@@ -8896,7 +8904,9 @@ export const transitionOwnerContract = onCall(async (request) => {
 });
 
 /** Counterparty signature is bound to verified UID/email, recent authentication, hash and terms version. */
-export const signContractAsCounterparty = onCall(async (request) => {
+export const signContractAsCounterparty = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     requireWebPortalAccess(request);
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const email = contractActorEmail(request);
@@ -8958,7 +8968,9 @@ export const signContractAsCounterparty = onCall(async (request) => {
 });
 
 /** Company signature is owner/MFA-only and requires recent verified email authentication. */
-export const signContractForCompany = onCall(async (request) => {
+export const signContractForCompany = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     requireWebPortalAccess(request);
   const actorUid = requireOwner(request);
   const email = contractActorEmail(request);
@@ -9020,7 +9032,9 @@ export const signContractForCompany = onCall(async (request) => {
 });
 
 /** Owner/MFA-only contract list; member-facing access is provided by a separate callable. */
-export const listOwnerContracts = onCall(async (request) => {
+export const listOwnerContracts = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     requireWebPortalAccess(request);
   requireOwner(request);
   const limit = Number.isSafeInteger(request.data?.limit)
@@ -9038,7 +9052,9 @@ export const listOwnerContracts = onCall(async (request) => {
 });
 
 /** A counterparty can retrieve only contracts addressed to their verified account. */
-export const listMyContracts = onCall(async (request) => {
+export const listMyContracts = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
     requireWebPortalAccess(request);
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const snapshot = await CONTRACT_RECORDS.where("counterpartyUid", "==", uid).limit(50).get();
