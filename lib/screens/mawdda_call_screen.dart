@@ -124,6 +124,11 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       });
       await _pollSignals();
     } catch (error) {
+      _pollTimer?.cancel();
+      try {
+        await _functions.httpsCallable('endCall').call({'callId': widget.callId});
+      } catch (_) {}
+      await _releaseMedia();
       if (!mounted) return;
       setState(() {
         _initializing = false;
@@ -329,8 +334,11 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
     _pollTimer?.cancel();
     if (!_ending) {
       _ending = true;
-      unawaited(_functions.httpsCallable('endCall').call({'callId': widget.callId})
-          .catchError((Object _) => null));
+      unawaited(() async {
+        try {
+          await _functions.httpsCallable('endCall').call({'callId': widget.callId});
+        } catch (_) {}
+      }());
       unawaited(_releaseMedia());
     }
     super.dispose();
