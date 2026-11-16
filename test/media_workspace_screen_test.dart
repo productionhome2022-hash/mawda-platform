@@ -16,7 +16,9 @@ void main() {
       expect(find.text('الإعلان المباشر'), findsOneWidget);
       expect(find.text('عروض المؤثرين وصنّاع المحتوى'), findsOneWidget);
       expect(find.text('مراسلة المشرفين العامين'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('مراسلة الإدارة العامة'), 300);
       expect(find.text('مراسلة الإدارة العامة'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('مكافآت مشاهدة الإعلانات'), 300);
       expect(find.text('مكافآت مشاهدة الإعلانات'), findsOneWidget);
 
       await tester.tap(find.text('عروض المؤثرين وصنّاع المحتوى'));
