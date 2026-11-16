@@ -9703,11 +9703,17 @@ export const cleanupExpiredCallSignals = onSchedule("every 5 minutes", async () 
     .where("createdAt", "<=", Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000))
     .limit(100).get();
   for (const doc of oldCalls.docs) {
-    const signals = await doc.ref.collection("signals")
-      .where("expiresAt", "<=", now).limit(500).get();
-    const batch = db.batch();
-    signals.docs.forEach((signal) => batch.delete(signal.ref));
-    batch.update(doc.ref, { signalsCleanedAt: true, signalsCleanedAtTimestamp: FieldValue.serverTimestamp() });
-    await batch.commit();
+    while (true) {
+      const signals = await doc.ref.collection("signals")
+        .where("expiresAt", "<=", now).limit(499).get();
+      if (signals.empty) break;
+      const batch = db.batch();
+      signals.docs.forEach((signal) => batch.delete(signal.ref));
+      await batch.commit();
+    }
+    await doc.ref.update({
+      signalsCleanedAt: true,
+      signalsCleanedAtTimestamp: FieldValue.serverTimestamp(),
+    });
   }
 });
