@@ -39,10 +39,12 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   final Set<String> _remoteDescriptionsReady = {};
   MediaStream? _localStream;
   Timer? _pollTimer;
+  Timer? _iceRefreshTimer;
   List<String> _remoteUids = [];
   List<Map<String, dynamic>> _iceServers = [];
   bool _initializing = true;
   bool _ending = false;
+  bool _mediaReleased = false;
   bool _muted = false;
   bool _cameraEnabled = true;
   bool _turnConfigured = false;
@@ -125,6 +127,9 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       });
       _pollTimer = Timer.periodic(const Duration(milliseconds: 900), (_) {
         unawaited(_pollSignals());
+      });
+      _iceRefreshTimer = Timer.periodic(const Duration(minutes: 10), (_) {
+        unawaited(_refreshIceConfiguration());
       });
       await _pollSignals();
     } catch (error) {
@@ -211,6 +216,33 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       if (mounted) setState(() => _failure = 'تعذر إرسال إشارة الاتصال: $error');
     });
     return _signalQueues[toUid]!;
+  }
+
+
+  Future<void> _refreshIceConfiguration() async {
+    if (_ending || _peers.isEmpty) return;
+    try {
+      final response = await _functions.httpsCallable('getCallIceConfiguration')
+          .call({'callId': widget.callId});
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final servers = (data['iceServers'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((server) => Map<String, dynamic>.from(server))
+          .toList(growable: false);
+      _iceServers = servers;
+      for (final peer in _peers.values) {
+        await peer.setConfiguration({
+          'iceServers': _iceServers,
+          'sdpSemantics': 'unified-plan',
+          'bundlePolicy': 'max-bundle',
+          'rtcpMuxPolicy': 'require',
+        });
+      }
+    } catch (error) {
+      if (mounted && !_ending) {
+        setState(() => _failure = 'تعذر تحديث بيانات خادم الاتصال: $error');
+      }
+    }
   }
 
   Future<void> _pollSignals() async {
@@ -307,27 +339,30 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   }
 
   Future<void> _releaseMedia() async {
+    if (_mediaReleased) return;
+    _mediaReleased = true;
     for (final track in _localStream?.getTracks() ?? <MediaStreamTrack>[]) {
-      await track.stop();
+      try { await track.stop(); } catch (_) {}
     }
-    await _localStream?.dispose();
+    try { await _localStream?.dispose(); } catch (_) {}
     for (final peer in _peers.values) {
-      await peer.close();
-      await peer.dispose();
+      try { await peer.close(); } catch (_) {}
+      try { await peer.dispose(); } catch (_) {}
     }
     for (final renderer in _remoteRenderers.values) {
-      renderer.srcObject = null;
-      await renderer.dispose();
+      try { renderer.srcObject = null; } catch (_) {}
+      try { await renderer.dispose(); } catch (_) {}
     }
     _remoteRenderers.clear();
-    _localRenderer.srcObject = null;
-    await _localRenderer.dispose();
+    try { _localRenderer.srcObject = null; } catch (_) {}
+    try { await _localRenderer.dispose(); } catch (_) {}
   }
 
   Future<void> _finish({bool notifyServer = true}) async {
     if (_ending) return;
     _ending = true;
     _pollTimer?.cancel();
+    _iceRefreshTimer?.cancel();
     if (notifyServer) {
       try {
         await _functions.httpsCallable('endCall').call({'callId': widget.callId});
@@ -342,6 +377,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _iceRefreshTimer?.cancel();
     if (!_ending) {
       _ending = true;
       unawaited(() async {
