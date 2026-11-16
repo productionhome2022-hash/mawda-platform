@@ -320,9 +320,9 @@ Administration responds through the advertiser's Mawdda account-bound private in
 
 Watch Ads is a separate homepage destination and a distinct subsystem from Media Workspace. It serves eligible campaigns to members for viewing and may participate in a member reward program. It must not expose advertiser intake forms, representative commissions, supervisor administration controls or Owner finance operations.
 
-The viewing/reward subsystem requires its own server-authoritative eligibility checks, impression/view session identity, completion and fraud validation, per-member limits or policy controls where approved, idempotent reward issuance, abuse/risk signals, and auditable reward ledger. A view must not be counted more than once across overlapping geographic feeds, placements, refreshes or retries. Client-side playback completion alone is not proof of a qualified view and must never authorize a reward.
+The viewing/reward subsystem requires its own server-authoritative eligibility checks, impression/view session identity, completion and fraud validation, per-member limits or policy controls, idempotent reward issuance, abuse/risk signals, and auditable reward ledger. A view must not be counted more than once across overlapping geographic feeds, placements, refreshes or retries. Client-side playback completion alone is not proof of a qualified view and must never authorize a reward. The provisional engineering reward values and qualification rules subsequently approved by the Owner are specified in section 17.4 below. Cash redemption and final launch policy remain unapproved.
 
-Reward values, earning limits, qualifying view rules, redemption and expiry policies are not specified or approved by this homepage decision. Do not invent them or enable reward issuance until the Owner approves a separate reward policy and the implementation is tested. Keep member rewards financially and technically separate from advertiser payments, Advertising Representative per-ad commissions and Company revenue accounting, while retaining auditable links to the originating campaign and eligible view event.
+Keep member rewards financially and technically separate from advertiser payments, Advertising Representative per-ad commissions and Company revenue accounting, while retaining auditable links to the originating campaign and eligible view event.
 
 The campaign delivery service may supply eligible campaign metadata to Watch Ads, but viewing events and rewards must be recorded by the dedicated viewing/reward domain. Owner campaign pause/withdrawal remains authoritative and must stop eligibility across Watch Ads and every other placement.
 
@@ -338,7 +338,7 @@ The campaign delivery service may supply eligible campaign metadata to Watch Ads
 - Viewing/reward events cannot be created by advertiser or representative request workflows.
 - A qualified view and reward are idempotent and server-validated; refreshes, replay and concurrent requests cannot multiply rewards.
 - Owner withdrawal blocks ad delivery in Watch Ads as well as all other campaign placements.
-- No reward amounts, view quotas, payout/redemption terms or financial promises are inferred from this specification.
+- Reward amount and provisional view cap are defined only by section 17.4; no cash payout/redemption terms or financial promises are authorized.
 
 
 ## 17. Owner-approved Watch Ads viewing layout and experience
@@ -430,3 +430,8 @@ These experimental values do not authorize paid advertising delivery, real-money
 The existing experimental starter prices and durations documented in docs/ROOMS_AND_ECONOMY_PRICING.md, functions/src/economy-pricing.ts and functions/src/default-store-catalog.ts remain the engineering baseline unless the Owner changes them through the approved control plane. Do not replace, reset or duplicate those values merely because Watch Ads is being added.
 
 All present and future commercial prices, durations, variants, purchase availability and rewarded-view settings must remain centralized and Owner-editable, server-validated, versioned and audited. New Watch Ads reward settings must extend the existing economy configuration architecture where appropriate rather than create a conflicting second wallet or coin authority. Keep viewing reward ledger entries distinct by transaction type and source campaign, but integrate them with the canonical wallet/ledger service. Existing purchase gates remain closed until feature fulfillment and acceptance tests pass.
+
+
+### Legacy client-model compatibility note
+
+A legacy Flutter model currently contains a client-side default field named adWatchRewardCoins with value 20. This is not an authoritative reward policy or server-side entitlement. During implementation, do not trust or use that client default to credit coins. Migrate the effective value to the server-authoritative owner-editable configuration specified in section 17.4, and ensure there is one canonical wallet/ledger credit path. Add compatibility tests so old clients cannot self-award or override the server value.
