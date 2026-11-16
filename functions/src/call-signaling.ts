@@ -61,6 +61,19 @@ export function validateCallSignal(value: unknown): {
   if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) {
     throw new Error("INVALID_CALL_SIGNAL");
   }
+  const body = decoded as Record<string, unknown>;
+  if (input.kind === "offer" || input.kind === "answer") {
+    const expectedType = input.kind;
+    if (body.type !== expectedType || typeof body.sdp !== "string" ||
+        body.sdp.length < 1 || body.sdp.length > 10000) {
+      throw new Error("INVALID_CALL_SIGNAL");
+    }
+  } else if (typeof body.candidate !== "string" || body.candidate.length > 4096 ||
+      (body.sdpMid !== undefined && body.sdpMid !== null && typeof body.sdpMid !== "string") ||
+      (body.sdpMLineIndex !== undefined && body.sdpMLineIndex !== null &&
+        (!Number.isSafeInteger(body.sdpMLineIndex) || (body.sdpMLineIndex as number) < 0))) {
+    throw new Error("INVALID_CALL_SIGNAL");
+  }
   return {
     kind: input.kind as "offer" | "answer" | "ice",
     payload: input.payload,
