@@ -86,6 +86,7 @@ import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput,
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
 import { validateAdvertisingIntake, AdvertisingIntakeValidationError } from "./advertising-intake";
+import { validateProductionApplication, ProductionApplicationValidationError } from "./production-applications";
 import {
   applyContractSignature,
   assertContractStatusTransition,
@@ -8270,6 +8271,155 @@ export const submitCreatorProposal = onCall(
   },
 );
 
+
+// Web-only intake for Mawdda Visual & Advertising Production membership.
+// Submission is an application only; it never grants a role or room-creation permission.
+const PRODUCTION_APPLICATIONS = db.collection("productionApplications");
+
+export const submitProductionApplication = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    requireWebPortalAccess(request);
+    const actorUid = requireAuthenticatedUid(request.auth?.uid);
+    if (request.auth?.token.email_verified !== true) {
+      throw new HttpsError("permission-denied", "يجب توثيق البريد الإلكتروني قبل تقديم طلب صُنّاع مودة.");
+    }
+    let payload;
+    try {
+      payload = validateProductionApplication(request.data);
+    } catch (error) {
+      if (error instanceof ProductionApplicationValidationError) {
+        throw new HttpsError("invalid-argument", error.code);
+      }
+      throw error;
+    }
+    const { idempotencyKey, ...storedPayload } = payload;
+    const payloadHash = createHash("sha256").update(JSON.stringify(storedPayload)).digest("hex");
+    const keyHash = createHash("sha256").update(actorUid + "|" + idempotencyKey).digest("hex");
+    const idempotencyRef = db.collection("productionApplicationIdempotency").doc(keyHash);
+    const applicationRef = PRODUCTION_APPLICATIONS.doc();
+    const result = await db.runTransaction(async (transaction) => {
+      const prior = await transaction.get(idempotencyRef);
+      if (prior.exists) {
+        const data = prior.data() ?? {};
+        if (data.payloadHash !== payloadHash || typeof data.applicationId !== "string") {
+          throw new HttpsError("already-exists", "مفتاح الطلب مستخدم مع بيانات مختلفة.");
+        }
+        return { applicationId: data.applicationId as string, duplicate: true };
+      }
+      transaction.create(applicationRef, {
+        ...storedPayload,
+        applicantUid: actorUid,
+        status: "submitted_pending_review",
+        applicationVersion: 1,
+        roleActivated: false,
+        roomCreationPermission: false,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.create(idempotencyRef, {
+        applicantUid: actorUid,
+        payloadHash,
+        applicationId: applicationRef.id,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return { applicationId: applicationRef.id, duplicate: false };
+    });
+    if (!result.duplicate) {
+      await appendOwnerReviewAuditEvent({
+        actorUid,
+        action: "production_application_submitted",
+        applicationId: result.applicationId,
+        requestedTrack: payload.requestedTrack,
+        specialties: payload.specialties,
+        outcome: "success",
+      });
+    }
+    return {
+      applicationId: result.applicationId,
+      status: "submitted_pending_review",
+      duplicate: result.duplicate,
+      roleActivated: false,
+      roomCreationPermission: false,
+    };
+  },
+);
+
+export const listOwnerProductionApplications = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    requireWebPortalAccess(request);
+    requireOwner(request);
+    const limit = Number.isSafeInteger(request.data?.limit)
+      ? Math.max(1, Math.min(100, request.data.limit as number)) : 50;
+    const snapshot = await PRODUCTION_APPLICATIONS.orderBy("createdAt", "desc")
+      .limit(limit).get();
+    return {
+      applications: snapshot.docs.map((doc) => ({
+        applicationId: doc.id,
+        ...doc.data(),
+      })),
+    };
+  },
+);
+
+export const reviewOwnerProductionApplication = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    requireWebPortalAccess(request);
+    const actorUid = requireOwner(request);
+    const applicationId = typeof request.data?.applicationId === "string"
+      ? request.data.applicationId.trim() : "";
+    const expectedVersion = request.data?.expectedVersion;
+    const nextStatus = request.data?.nextStatus;
+    const note = typeof request.data?.note === "string" ? request.data.note.trim() : "";
+    const allowed = ["under_review", "correction_requested", "accepted_pending_contract", "rejected", "closed"];
+    if (!/^[A-Za-z0-9_-]{16,100}$/.test(applicationId) ||
+        !Number.isSafeInteger(expectedVersion) || (expectedVersion as number) < 1 ||
+        typeof nextStatus !== "string" || !allowed.includes(nextStatus) ||
+        note.length < 5 || note.length > 1500) {
+      throw new HttpsError("invalid-argument", "بيانات مراجعة طلب صُنّاع مودة غير مكتملة.");
+    }
+    const ref = PRODUCTION_APPLICATIONS.doc(applicationId);
+    const result = await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (!snapshot.exists) throw new HttpsError("not-found", "الطلب غير موجود.");
+      const data = snapshot.data()!;
+      if (data.applicationVersion !== expectedVersion) {
+        throw new HttpsError("aborted", "تغير الطلب؛ أعد تحميله قبل المراجعة.");
+      }
+      const transitions: Record<string, readonly string[]> = {
+        submitted_pending_review: ["under_review", "rejected", "closed"],
+        under_review: ["correction_requested", "accepted_pending_contract", "rejected", "closed"],
+        correction_requested: ["under_review", "rejected", "closed"],
+        accepted_pending_contract: ["closed"],
+      };
+      if (!(transitions[data.status] ?? []).includes(nextStatus)) {
+        throw new HttpsError("failed-precondition", "انتقال حالة الطلب غير مسموح.");
+      }
+      const version = (data.applicationVersion as number) + 1;
+      transaction.update(ref, {
+        status: nextStatus,
+        reviewNote: note,
+        reviewedBy: actorUid,
+        applicationVersion: version,
+        // Acceptance is preliminary only; contract signature and owner grant remain separate.
+        roleActivated: false,
+        roomCreationPermission: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return { applicationId, status: nextStatus, applicationVersion: version };
+    });
+    await appendOwnerReviewAuditEvent({
+      actorUid,
+      action: "production_application_reviewed",
+      ...result,
+      note,
+      outcome: "success",
+    });
+    return { ...result, roleActivated: false, roomCreationPermission: false };
+  },
+);
 
 // Secure intake for advertising representatives and direct advertisers.
 // Submission never grants a role, creates a campaign, accepts payment or publishes content.
