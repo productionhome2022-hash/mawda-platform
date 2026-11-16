@@ -9287,9 +9287,17 @@ export const startCall = onCall(async (request) => {
     participantUids = members.docs.map((doc) => doc.id).sort();
     recipientUids = participantUids.filter((uid) => uid !== callerUid);
     const profiles = await db.getAll(...recipientUids.map((uid) => db.collection("users").doc(uid)));
-    if (profiles.some((profile) => !profile.exists || profile.data()?.profileCompleted !== true ||
-        !isMemberAccountInGoodStanding(profile.data()))) {
-      throw new HttpsError("failed-precondition", "يوجد عضو غير مؤهل للمكالمة داخل الغرفة.");
+    const callerData = caller.data() ?? {};
+    if (profiles.some((profile) => {
+      const peerData = profile.data() ?? {};
+      return !profile.exists || peerData.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(peerData) ||
+        !Number.isSafeInteger(callerData.age) || !Number.isSafeInteger(peerData.age) ||
+        ((callerData.age < 18) !== (peerData.age < 18)) ||
+        (Array.isArray(callerData.blockedUids) && callerData.blockedUids.includes(profile.id)) ||
+        (Array.isArray(peerData.blockedUids) && peerData.blockedUids.includes(callerUid));
+    })) {
+      throw new HttpsError("permission-denied", "يوجد عضو غير مؤهل أو محظور ضمن المشاركين في المكالمة.");
     }
   }
 
