@@ -169,7 +169,7 @@ class FeaturedAdRewardsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('مكافآت مشاهدة الإعلانات المميزة')),
+      appBar: AppBar(title: const Text('مكافآت مشاهدة الإعلانات')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -208,11 +208,12 @@ class FeaturedAdRewardsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('القيم التجريبية الحالية', style: theme.textTheme.titleLarge),
+                  Text('سياسة مكافآت المشاهدة المعتمدة للتنفيذ', style: theme.textTheme.titleLarge),
                   const SizedBox(height: 8),
                   const Text('2 كوين لكل مشاهدة مؤهلة.'),
                   const Text('حتى 10 مشاهدات مكافأة و20 كويناً في يوم UTC الواحد.'),
-                  const Text('المكافأة للحملة نفسها مرة واحدة خلال 24 ساعة متحركة.'),
+                  const Text('الحد المعتمد للحملة الواحدة: حتى 3 مكافآت خلال نافذة 24 ساعة متحركة.'),
+                  const Text('هذه الحدود لا تُعد مفعّلة حتى يثبت تطبيقها واختبارها خادمياً.'),
                   const SizedBox(height: 8),
                   const Text(
                     'هذه قيم هندسية تجريبية قابلة للتعديل من المالك، وليست وعداً بدخل أو سياسة إطلاق نهائية.',
