@@ -8604,7 +8604,10 @@ export const listOwnerAdvertisingIntake = onCall(
   else if (kind) query = ADVERTISING_INTAKE.where("kind", "==", kind).orderBy("createdAt", "desc");
   const snapshot = await query.limit(Math.min(200, limit * 2)).get();
   const requests = snapshot.docs
-    .map((doc) => ({ requestId: doc.id, ...doc.data() }))
+    .map((doc) => ({
+      requestId: doc.id,
+      ...(doc.data() as Record<string, unknown>),
+    }))
     .filter((item) => !kind || item.kind === kind)
     .slice(0, limit);
   return { requests };
