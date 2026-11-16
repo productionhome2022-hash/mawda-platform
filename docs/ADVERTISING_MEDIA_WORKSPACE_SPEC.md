@@ -435,3 +435,44 @@ All present and future commercial prices, durations, variants, purchase availabi
 ### Legacy client-model compatibility note
 
 A legacy Flutter model currently contains a client-side default field named adWatchRewardCoins with value 20. This is not an authoritative reward policy or server-side entitlement. During implementation, do not trust or use that client default to credit coins. Migrate the effective value to the server-authoritative owner-editable configuration specified in section 17.4, and ensure there is one canonical wallet/ledger credit path. Add compatibility tests so old clients cannot self-award or override the server value.
+
+
+## 15. Owner-approved featured advertising showcase behavior
+
+The Owner approved the following featured-placement behavior as part of Watch Ads. This section supplements the existing geographic taxonomy, campaign lifecycle, reward policy and delivery safeguards; it does not replace them.
+
+### 15.1 Featured strip is promotional preview only
+
+- The upper featured area is a promotional showcase. Merely seeing, passing, scrolling past or repeatedly viewing an item in this area never qualifies for Watch Ads coins.
+- Featured placement impressions, preview engagement, clicks and full eligible rewarded views must be recorded as separate event types and must never be conflated.
+- A featured campaign remains attached to its server-defined geographic target. It may be previewed only to eligible audiences/placements within its approved targeting; its full campaign listing must also remain discoverable in the corresponding geographic feed.
+- Opening a featured preview does not itself grant a reward. Reward eligibility starts only through the dedicated full-ad viewing flow reached from the relevant geographic feed, subject to the already-approved server-side session, visibility, completion, frequency and anti-replay checks.
+
+### 15.2 Dynamic featured-area modes
+
+The featured area has two server-configured presentation modes:
+
+1. **Priority featured campaigns:** When one or more eligible campaigns have an Owner-approved featured commercial placement, show those campaigns in the featured area according to their approved placement terms, targeting, schedule, availability and delivery limits. Higher commercial value may inform Owner prioritization, but does not create automatic eligibility, guaranteed exclusivity or permission to violate campaign terms.
+2. **Automatic rotating previews:** When there is no eligible priority featured campaign, automatically rotate eligible ad previews. Selection must be randomized among the eligible pool rather than sorted by highest view/completion rate. Use a configurable default transition interval of approximately one second, with the exact interval adjustable by the Owner. Apply campaign frequency caps and fair distribution so a single campaign does not monopolize the strip.
+
+If priority campaigns exist but do not cover the current audience/geographic placement or are paused, withdrawn, expired or otherwise ineligible, fall back to the automatic rotating mode for that audience. If no eligible campaigns exist at all, show the designed empty state; never fabricate ads.
+
+### 15.3 Owner controls and measurement
+
+- Owner controls the mode policy, priority designation, eligible campaign set, geographic scope, schedule, rotation interval, frequency limits and ordering/weighting rules through server-authoritative configuration.
+- Priority status, commercial value and placement duration must be explicit campaign terms with versioned audit history; do not infer or fabricate prices, bids or guaranteed impression counts.
+- An Owner emergency pause/withdrawal immediately removes the campaign from priority and rotating placements and invalidates serving eligibility through the existing emergency-stop contract.
+- Random rotation applies only to the fallback preview pool. It must not override targeting, campaign status, safety review, payment-confirmation gates or delivery caps.
+- Featured preview views never enter the rewarded-view counter or wallet ledger. Only a validated full-ad reward session from the geographic feed may issue the already-approved experimental reward (2 coins, maximum 10 eligible views / 20 coins per UTC day, same campaign no more than once per rolling 24 hours), with all reward values read from server configuration.
+
+### 15.4 Acceptance criteria
+
+- Repeated featured-strip visibility yields zero reward ledger entries.
+- A featured campaign appears only for its approved target audience and also exists in its matching geographic feed.
+- Clicking/opening a featured preview does not award coins.
+- A full eligible view initiated from the geographic feed can award at most the currently configured reward once, with concurrency/replay protection.
+- With eligible Owner-prioritized campaigns, the priority mode is selected; without them, automatic randomized rotation is selected.
+- The fallback rotation interval is approximately one second by default and is Owner-configurable.
+- Rotation is not ranked by highest view rate/completion rate.
+- Paused, withdrawn, expired, geographically ineligible or payment-gate-incomplete campaigns are never served.
+- Empty eligible inventory produces an honest empty state, not synthetic content.
