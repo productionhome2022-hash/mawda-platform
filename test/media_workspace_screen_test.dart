@@ -10,6 +10,7 @@ void main() {
         const MaterialApp(home: MediaWorkspaceScreen()),
       );
 
+      expect(find.text('عقودي واتفاقياتي'), findsOneWidget);
       expect(find.text('انضم كمندوب إعلاني معتمد'), findsOneWidget);
       expect(find.text('انضم إلى صُنّاع مودة'), findsOneWidget);
       expect(find.text('الإعلان المباشر'), findsOneWidget);
