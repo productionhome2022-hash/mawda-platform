@@ -531,3 +531,11 @@ The Creator Content & Influencer Proposals route is an approved fifth Media Work
 - Added validation and unit coverage for stable version-scoped review audit IDs. The callable transaction path itself still requires emulator/integration execution.
 - Commits: 345eaf005603294c9eaaa4be2d4461abe774385c, 78738169ea658cf50f19a215e98f1ea620054cde, 29292dda48eb488a2857223ef87b35d620e1de1f, f8ecb025fdcba2a219962fd26100f39f636b77e8.
 - Tests have not been executed in this session. No Firebase production configuration, live data, payments, or deployment changes were made.
+
+## 2026-11-16 — Timed-ad reward counter identity hardening
+
+- Found that per-member/per-campaign reward counters used a raw `${uid}_${campaignId}` Firestore document ID. Because both identifiers may contain underscores, distinct member/campaign pairs could map to the same counter and incorrectly share or bypass per-member claim limits.
+- Added a namespaced SHA-256 counter identity and changed both session-start eligibility checks and reward completion to use it. New counter documents also store and verify their UID/campaign pair before use.
+- Preserved the legacy counter as a conservative migration floor during reads: the greater of the new scoped counter and old counter is enforced, so rollout does not reset historical claim counts. Legacy ambiguous ownership may conservatively deny an additional claim but cannot increase a member's allowance.
+- Added unit tests for stable hashes, underscore-collision separation, and invalid identifiers. Firestore emulator/integration and TypeScript build remain unexecuted in this session.
+- Commits: `2d3dba74195cd9c2b6bb678ea0646e38b9721a45`, `457e7773157d6ea493ccb11bea81f2742dae6a4d`, `6e25af97333c1c236d4f4a5f21fd453c7147be42`, `10aae3aaf01b92f6b134b52700f26aa0a953d699`.
