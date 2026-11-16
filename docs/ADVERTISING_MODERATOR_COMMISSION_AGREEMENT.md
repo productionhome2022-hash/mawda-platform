@@ -1,159 +1,158 @@
-# Advertising Moderator Commission-Only Agreement — Draft for Legal Review
+# اتفاقية التعاون التجاري بنظام العمولة
+## Production Home Company
+### منصة وتطبيق Mawdda
 
-**Company / Platform rights holder:** Production Home Company  
-**Platform:** Mawdda / MAWDDA  
-**Document status:** Product and legal-workflow specification; draft agreement template, not yet legally approved or activated  
-**Version:** 1.0 — 2026-11-16
+**العنوان الرسمي:** اتفاقية التعاون التجاري بنظام العمولة  
+**صفة الطرف الثاني:** مندوب إعلانات معتمد  
+**رقم الاتفاقية والإصدار:** يُنشآن خادمياً عند الإصدار  
+**الحالة:** مسودة تعاقدية للمراجعة القانونية — غير مفعّلة
 
-> **Legal review required:** This draft expresses the platform owner's intended commercial arrangement. It is not a legal opinion and must not be represented as a legally enforceable employment contract in every jurisdiction. Before activation, qualified counsel must review the company's registered legal name and form, authorized signatory, governing law, worker classification, minimum-wage/commission rules, tax/social-insurance obligations, privacy requirements, electronic-signature rules, dispute forum, and any mandatory local terms in the moderator's country and the company's jurisdiction. The product must not onboard or collect sensitive identity documents until the privacy, security and legal basis are approved.
+> **تنبيه قانوني:** هذه صيغة تعاقدية أولية وليست رأياً قانونياً أو ضماناً لنفاذها في كل دولة. يجب على محامٍ مؤهل مراجعة الاسم القانوني المسجل للشركة وشكلها القانوني وصلاحية الموقّع والقانون المختص وتصنيف العلاقة والضرائب والالتزامات الاجتماعية وقواعد العمولة وحماية البيانات والتوقيع الإلكتروني وتسوية النزاعات، مع مراعاة القواعد الإلزامية في بلد الشركة وبلد إقامة المتعاون. لا تُفعّل الاتفاقية أو تجمع بيانات حساسة قبل اكتمال المراجعة.
 
-## 1. Company identity and document presentation
+## أولاً: أطراف الاتفاقية
 
-1. The contracting company name displayed throughout the agreement is **Production Home Company**. The spelling is exactly **Production**, not “Protection”.
-2. The agreement is issued on behalf of Production Home Company, owner/operator of the Mawdda platform and application, by the authorized Owner / Super Admin representative.
-3. The electronic agreement must use the approved company logo/cover artwork supplied and verified by the platform Owner. Do not recreate, approximate, substitute, or invent a logo. The current repository's `assets/` directory contains only `.gitkeep`; therefore the artwork is **not yet present in the repository**. Until the owner-provided source asset is added and verified, render a neutral company-name wordmark placeholder in the draft preview and do not claim it is the official logo.
-4. The agreement must be available in the moderator's selected supported language, with a canonical version and language recorded at signing. Translations must preserve the same legal meaning and be reviewed before use.
+أُبرمت هذه الاتفاقية بين:
 
-## 2. Purpose and relationship
+1. **الطرف الأول — الشركة:** Production Home Company، المالكة لمنصة وتطبيق Mawdda، ويمثلها مالك الشركة أو الممثل المفوض قانونياً عنها، ويشار إليها بـ«الشركة».
+2. **الطرف الثاني — المتعاون:** الشخص الذي استكمل إجراءات القبول والتوقيع بصفة **مندوب إعلانات معتمد**، وفق بيانات التسجيل الآمنة المرتبطة بحسابه في Mawdda، ويشار إليه بـ«المتعاون».
 
-1. The Company may appoint an approved person as an advertising acquisition/submission moderator for the limited purpose of introducing advertisers, preparing advertising requests, and following their own requests through the Mawdda advertising workflow.
-2. The commercial model intended by the Owner is **commission-only**. No fixed salary, hourly wage, guaranteed minimum income, or employee benefits are promised by this product specification. This clause must be adapted by counsel to the legally correct worker classification; calling a relationship “commission-only” does not by itself determine whether the person is legally an employee, agent, or independent contractor.
-3. The moderator receives no authority to bind the Company, sign contracts for the Company, promise publication, collect or confirm advertiser payments on behalf of the Company, set final advertising prices, approve creatives, publish campaigns, appoint moderators, or access Company financial records.
-4. Appointment is not effective until the Company approves the applicant, the required profile information is verified to the approved level, and both parties complete the electronic signing flow.
+يكون رأس الصفحة باسم **Production Home Company**، وتحته مباشرة **منصة وتطبيق Mawdda**، وبجانب الاسم يوضع الشعار الرسمي الذي يقدمه المالك ويعتمده. لا يُدرج سطر مستقل بصيغة «شركة Production Home Company». وإلى حين استلام الشعار والتحقق منه، يستخدم النظام اسماً نصياً محايداً ولا يخترع أو يستبدل الشعار.
 
-## 3. Moderator identity and contact information
+## ثانياً: طبيعة العلاقة وموضوع التعاون
 
-Before signing, the moderator must review and provide accurate, current information in the secure onboarding form. Collect only fields approved by the Company's privacy/legal review and necessary for identity, communication, contract administration, and lawful payment of commissions.
+1. هذه الاتفاقية عقد تعاون تجاري رضائي قائم على العمولة فقط، وفق الحقوق والالتزامات المحددة فيها.
+2. لا تصف هذه الاتفاقية العلاقة بأنها توظيف، ولا تمنح المتعاون راتباً ثابتاً أو أجراً دورياً مضموناً بموجب النموذج التجاري المقترح.
+3. لا يحسم الوصف التعاقدي وحده التصنيف القانوني للعلاقة؛ فالتكييف النهائي يتبع واقع التنفيذ والقانون الواجب التطبيق، ولا يجوز تفسير أي بند على أنه تنازل عن حق إلزامي.
+4. يقتصر دور المتعاون على استقطاب المعلنين وتجهيز طلبات الإعلانات وتقديم بياناتها وموادها ومتابعتها من خلال **Media Workspace** المخصصة لهذا الغرض داخل Mawdda.
+5. لا تمنح الاتفاقية المتعاون ملكية أو حصة في الشركة أو المنصة أو التطبيق أو العلامة التجارية، ولا تجعله ممثلاً قانونياً للشركة أو مفوضاً بإلزامها.
+6. لا يبدأ التعاون ولا تُفعّل صلاحيات الحساب إلا بعد موافقة الشركة، والتحقق من البيانات المطلوبة، وتوقيع المتعاون، واعتماد الشركة المقابل.
 
-Required or conditionally required fields:
-- Full legal name as shown on the identity document, where lawful and necessary.
-- Display name / name used in the platform.
-- Mawdda account UID (system-generated; never ask the moderator to type a password or access token).
-- Country of residence and country/region of assigned primary advertising scope.
-- City and residential/contact address, to the level legally necessary.
-- Primary mobile telephone number, including country code.
-- WhatsApp contact number, with an explicit confirmation whether it is the same as the primary number.
-- Secondary ordinary-call number, if different.
-- Email address for formal notices and contract copy.
-- Preferred language and time zone.
-- Any legally required tax/business registration details, only where counsel confirms they are necessary.
+## ثالثاً: بيانات المتعاون والبريد الرسمي
 
-Identity-document number, copy of an identity document, date of birth, bank/payment details, and other highly sensitive data must **not** be mandatory by default. Request them only where a documented legal requirement or approved payout process requires them, through a restricted secure flow, with retention and access controls. Never place such data in GitHub, source code, analytics, ordinary application logs, or moderator-visible shared request records.
+1. يقدم المتعاون البيانات اللازمة في نموذج تسجيل آمن، ويقتصر الجمع على الحد الأدنى الذي تثبت الحاجة القانونية والتشغيلية إليه.
+2. تشمل البيانات بحسب الحاجة المعتمدة: الاسم القانوني، معرف Mawdda، بلد ومدينة الإقامة والعنوان اللازم للمراسلات، الهاتف، رقم WhatsApp، والبريد الإلكتروني الموثق.
+3. يكون **البريد الإلكتروني الموثق المرتبط بحساب المتعاون في Mawdda** عنوانه الرسمي للمراسلات والإشعارات المتعلقة بهذه الاتفاقية وطلبات الإعلانات، ما لم يحدّثه من خلال إجراء تحقق معتمد.
+4. تستخدم الشركة بريدها الرسمي المعتمد في إعدادات الشركة، ويكون حساب المالك/الممثل المخول في Firebase هو هوية الدخول والتوقيع الإدارية. يجب أن يربط النظام بين هوية الممثل المخول والبريد الرسمي للشركة من خلال إعداد خادمي موثوق، ولا يستنتج عنوان الشركة أو يخترعه.
+5. لا يُعد مجرد إرسال رسالة بريدية أو الرد عليها وحده بديلاً عن التوقيع الإلكتروني الموثق المنصوص عليه في هذه الاتفاقية.
+6. لا تُطلب وثائق الهوية أو البيانات المصرفية أو غيرها من البيانات الحساسة افتراضياً. ولا تُجمع إلا عند وجود أساس قانوني وحاجة موثقة، ومن خلال تدفق آمن محدود الصلاحيات وبعد اعتماد سياسة الخصوصية والاحتفاظ.
 
-The moderator must confirm that the submitted information is accurate and update it when it changes. The Company may suspend new submissions or commission settlement while materially necessary details are inaccurate or cannot be verified, subject to applicable law and notice.
+## رابعاً: مهام المتعاون وحدود صلاحياته
 
-## 4. Scope, geographic assignment and permissions
+يجوز للمتعاون، بعد تفعيل حسابه، القيام بما يلي ضمن صلاحياته:
 
-1. The moderator has one Company-assigned primary/home geographic scope and may select up to two additional scopes from the currently enabled list, for a maximum of three scopes total. The moderator cannot change their own primary scope or expand this limit.
-2. The moderator may introduce advertisers, enter advertiser-provided contact details, upload eligible image/video creatives, submit eligible external links, select authorized geographic targets, enter an initial proposed price, propose an advertising duration, submit the request, respond to correction requests, and view the status of their own requests.
-3. All uploaded media and external links are subject to server-side validation, safety review and platform policy.
-4. The moderator may not access another moderator's private requests, the general financial ledger, revenue reports, Company-wide commission settings, or private member data unrelated to the assigned work.
-5. All role permissions are enforced on the server. Hiding a control in the interface is not an authorization mechanism.
+1. استقطاب المعلنين والتواصل معهم.
+2. إدخال بيانات المعلن ووسائل التواصل التي أذن باستخدامها.
+3. تقديم وصف إلزامي واضح ومحدد للمنتج أو الخدمة أو موضوع الإعلان.
+4. رفع صور أو فيديوهات أو تقديم رابط خارجي لمادة إعلانية منشورة على منصة أخرى.
+5. تحديد مصدر الرابط واسم المنصة أو الموقع المستضيف، وإدخال الرابط الكامل.
+6. تحديد النطاق الجغرافي المستهدف من الخيارات المعتمدة.
+7. إدخال السعر الأولي المقترح والمدة المطلوبة وإرسال الطلب.
+8. الرد على ملاحظات الإدارة ومناقشة الطلب من خلال مساحة الإعلان الخاصة به.
+9. الاطلاع على حالة طلباته وحدها، وعلى الشروط التجارية والعمولة الخاصة بكل إعلان وقبولها أو رفضها صراحة.
 
-## 5. Commission-only compensation
+لا يحق للمتعاون اعتماد السعر النهائي أو العمولة أو تأكيد استلام الأموال أو اعتماد النشر أو إدارة المشرفين أو الاطلاع على السجلات المالية العامة، ولا يجوز له تقديم وعد بالنشر أو بنتائج الحملة قبل الاعتماد الرسمي.
 
-1. The intended commercial arrangement is **commission-only**. There is **no platform-wide or global advertising commission percentage**. No universal percentage is promised, assumed, seeded or applied across campaigns.
-2. For **each individual advertising request/campaign**, the Super Admin / Owner explicitly sets the moderator's commission percentage for that advertisement. The percentage may differ from one advertisement to another. A campaign cannot proceed to final commercial commitment, publication approval or commission calculation until the Owner has explicitly entered that campaign's rate.
-3. The moderator cannot set, alter or approve their own commission rate. The rate for that advertisement, its calculation basis, commission amount and estimated Company net must be shown in the shared request workspace.
-4. The moderator must explicitly accept the campaign-specific commission rate and commercial terms before the campaign is committed for publication processing. If the Owner changes the rate after acceptance, renewed explicit acceptance is required and recorded as a versioned amendment. Silence or continued login is not acceptance.
-5. The request record must preserve the campaign-specific rate, rate/version identifier, moderator acceptance evidence, calculation basis, currency, amount actually received, adjustments, and final commission amount. A rate accepted for one advertisement does not apply to any other advertisement.
-6. Intended calculation, subject to counsel-approved accounting rules: `commission = eligible commission base × the rate explicitly set and accepted for this advertisement`. The intended base is the campaign amount actually received and confirmed by the Owner, excluding separately identified taxes, refunds, chargebacks and pass-through fees where applicable. The Company net amount is the eligible amount received minus the moderator commission and any separately accounted taxes/fees/refunds. The interface must show gross amount, this advertisement's commission rate, commission amount, deductions (if any), and estimated Company net separately; it must never label an estimate as settled cash.
-7. Example only: if the eligible amount actually received is 100 currency units and the Owner sets and the moderator accepts a 10% commission for that advertisement, the commission is 10 and the Company's amount before other separately accounted deductions is 90. This is an arithmetic example, not a default rate or a promised rate.
-8. No commission is earned merely because a request was submitted, a price was proposed, or a campaign was approved. The earning event and payable date must be explicitly configured and disclosed. The intended basis is a valid campaign approved by the Owner and the corresponding advertiser funds actually received and confirmed by the Owner, subject to refunds, cancellations, chargebacks, partial payments, fraud review and applicable law.
-9. No commission payout is authorized by this document alone. Payout channels, identity/tax checks, payment schedule, minimum payout thresholds (if any), currency conversion, fees, withholding, disputes and reconciliation must be separately defined and legally reviewed before payout activation.
-10. The accepted rate for an advertisement is locked to that advertisement. It cannot be changed retroactively without a recorded amendment and renewed moderator acceptance. No global rate exists as a fallback.
+## خامساً: العمولة — تحديد مستقل لكل إعلان
 
-## 6. Advertising request, price and duration workflow
+1. لا توجد نسبة عمولة عامة أو موحدة أو افتراضية للإعلانات.
+2. يحدد المالك/السوبر أدمن وحده نسبة العمولة الخاصة بكل إعلان بصورة مستقلة.
+3. لا يستطيع المتعاون أو أي مشرف عام تحديد نسبة العمولة أو تعديلها أو اعتمادها نيابة عن المالك.
+4. تظهر نسبة العمولة وأساس احتسابها وقيمتها التقديرية وصافي الشركة التقديري في سجل الإعلان قبل قبول الشروط.
+5. يجب على المتعاون قبول النسبة والشروط المالية الخاصة بذلك الإعلان قبولاً إلكترونياً صريحاً.
+6. إذا غيّر المالك النسبة بعد قبولها، يجب إصدار تعديل ذي إصدار مستقل والحصول على قبول جديد صريح من المتعاون. لا يُعد الصمت أو استمرار استخدام الحساب قبولاً.
+7. إذا لم يحدد المالك نسبة ذلك الإعلان، يبقى الطلب غير مكتمل وغير مؤهل للنشر أو لحساب العمولة.
+8. يكون أساس الحساب هو المبلغ المؤهل الذي استلمته الشركة فعلياً وأكد المالك استلامه، مضروباً في النسبة التي حددها المالك وقبلها المتعاون لذلك الإعلان، مع مراعاة القواعد المحاسبية والقانونية المعتمدة.
+9. تُعرض الضرائب والرسوم والاستردادات والدفعات الجزئية والاعتراضات وعمليات رد المبالغ بصورة منفصلة وفق سياسة مالية وقانونية تعتمد قبل تفعيل الصرف.
+10. لا تمنح هذه الاتفاقية وحدها إذناً بتحصيل أموال المعلنين أو تفعيل مدفوعات حقيقية أو صرف عمولات. وتبقى تلك الوظائف معطلة حتى اكتمال الضوابط القانونية والمحاسبية والأمنية وموافقة المالك المستقلة.
 
-1. The moderator enters the initial advertiser-agreed proposed price and requested campaign duration. These are proposals, not final Company commitments.
-2. The Super Admin / Owner may accept or reject the proposed price and may optionally increase or decrease it. Any final price must be explicitly recorded by the Owner.
-3. The moderator may propose a duration. The Owner may enter or revise the duration and is the only role authorized to approve the final duration and schedule.
-4. The shared request workspace must show the actual creative or a safe playable preview, advertiser details, targeting, proposed and final price, proposed and final duration, campaign-specific commission rate, commission calculation, Company net estimate, payment state, approval state and audit history.
-5. The Owner alone confirms actual receipt of advertiser funds, approves or rejects publication, and activates a campaign. A moderator must never collect money on behalf of the Company unless a separate written authority is issued and legally approved.
-6. The campaign remains unpublished until all required Owner approvals and payment confirmation are recorded server-side.
+## سادساً: مراجعة الإعلان والسعر والمدة والنشر
 
-## 7. Company and moderator obligations
+1. يقدم المتعاون السعر الأولي والمدة المطلوبة باعتبارهما مقترحين غير ملزمين للشركة.
+2. يراجع المالك أو المشرف العام المفوض المحتوى والبيانات وفق صلاحياته.
+3. يبقى اعتماد السعر النهائي والمدة النهائية والعمولة من صلاحيات المالك وحده.
+4. يجوز للمالك تفويض مشرف عام بصلاحية نشر إعلانات ضمن نطاق محدد، لكن التفويض لا يقيد حق المالك في إيقاف الإعلان أو سحبه فوراً.
+5. يملك المالك وحده صلاحية سيادية دائمة لإيقاف أو سحب أي إعلان من جميع الواجهات ومصادر العرض فوراً، ولا يجوز لأي مشرف إعادة نشر الإعلان بعد قرار المالك إلا بموافقة جديدة منه.
+6. لا يُنشر الإعلان إلا بعد استيفاء الشروط والموافقات وتأكيد استلام المبلغ فعلياً من المالك، وفق المسار المعتمد.
+7. لا يحق للمتعاون تحصيل الأموال أو تأكيد قبضها نيابة عن الشركة دون تفويض مستقل مكتوب ومراجع قانونياً.
 
-**Company obligations (subject to applicable law):**
-- Provide the moderator with the approved scope and the tools necessary to submit requests.
-- Make the applicable commission rate and calculation basis visible before the moderator accepts each campaign's terms.
-- Maintain an auditable record of requests, rate versions, approvals, payment confirmations, commission calculations, adjustments and settlement status.
-- Provide a secure way to access the moderator's own contract and relevant commission statements.
-- Handle personal information only for disclosed and lawful purposes with appropriate security and retention limits.
+## سابعاً: الالتزامات المهنية وحماية الحقوق
 
-**Moderator obligations:**
-- Provide truthful and current identity/contact information.
-- Obtain permission to share advertiser contact details and creative materials.
-- Not make false claims about Mawdda, the Company, prices, guaranteed reach, publication, campaign performance, or approval.
-- Not promise discounts, durations, publication or services that the Owner has not approved.
-- Not collect advertiser money, payment credentials, passwords or verification codes on the Company's behalf.
-- Not upload unlawful, infringing, deceptive, malicious or prohibited material.
-- Protect confidential Company, advertiser and platform information and use it only for the assigned work.
-- Follow platform safety, advertising, privacy, anti-fraud and communications policies.
-- Disclose conflicts of interest and avoid duplicate or misleading attribution claims.
+يلتزم المتعاون بصحة البيانات، واحترام حقوق المعلنين وأصحاب المواد، والحصول على أذونات الاستخدام اللازمة، وعدم رفع محتوى مخالف أو مضلل أو ضار، وعدم تقديم وعود غير معتمدة، وعدم مشاركة حسابه أو رموز التحقق، وعدم إساءة استخدام بيانات العملاء أو المنصة، والإبلاغ عن تضارب المصالح، والمحافظة على سرية المعلومات التجارية والإدارية.
 
-## 8. Intellectual property, confidentiality and brand use
+تحتفظ الشركة بحقوقها في منصة Mawdda وتطبيقها وأنظمتها وعلاماتها التجارية وشعاراتها وقواعد بياناتها ومحتواها البرمجي، ولا تمنح هذه الاتفاقية المتعاون سوى إذن محدود وقابل للإلغاء لاستخدام المواد الرسمية التي تسمح بها الشركة لأغراض التعاون المحددة.
 
-1. The Company retains all rights it owns or licenses in Mawdda, its application, platform, source code, trademarks, logos, designs, advertising systems, databases, documentation and confidential business information.
-2. The moderator receives a limited, revocable, non-exclusive permission to use approved Company brand materials solely to perform the assigned work. No ownership or trademark license beyond that limited purpose is transferred.
-3. The moderator must not copy, modify, register, resell, sublicense, publish or use Company intellectual property outside the authorized scope.
-4. Advertiser creative rights remain with their lawful owners. The moderator must obtain and confirm the necessary permission for submission and campaign use.
-5. Confidentiality obligations continue after suspension or termination, subject to mandatory legal rights and disclosures.
+## ثامناً: Media Workspace والمراسلات وسجلات الإعلان
 
-## 9. Term, suspension and termination
+1. تُجرى مراسلات التعاون الإعلاني من خلال مساحة مستقلة تسمى **Media Workspace**، منفصلة عن المحادثات الشخصية العادية للمتعاون.
+2. ترتبط كل محادثة وطلب برقم إعلان فريد، وتُقصر صلاحية الاطلاع على المتعاون المعني والمالك والمشرفين المخولين بحسب أدوارهم.
+3. تتضمن مساحة الإعلان نموذجاً إلزامياً لوصف المنتج أو الخدمة أو موضوع الإعلان، سواء كان المحتوى صورة أو فيديو أو رابطاً خارجياً.
+4. لا يؤدي حذف مادة إعلانية إلى حذف وصف الإعلان أو رقم الطلب أو بيانات الاعتماد والسجلات الرسمية.
+5. تُحفظ المحادثة التشغيلية وموادها الإعلانية لمدة تصل إلى ستة أشهر من آخر نشاط مؤهل، وفق سياسة الاحتفاظ المعتمدة. بعد انتهاء المدة، تُحذف المراسلات التشغيلية والمواد الإعلانية والصور والفيديوهات والروابط المرتبطة بها، ما لم يوجد استثناء قانوني أو نزاع أو أمر حفظ.
+6. يبقى وصف الإعلان والحد الأدنى من بيانات الطلب والسجلات الرسمية والإشعارات المتعلقة بالاتفاقية والتوقيع وطلبات الإعلانات واعتماد النشر والإيقاف واستلام المبالغ والمدفوعات والعمولات محفوظاً وفق مدد الاحتفاظ القانونية والمحاسبية المعتمدة.
+7. لا يبدأ حذف مادة لازمة لحملة نشطة أو طلب مالي معلق أو نزاع أو حفظ قانوني قبل تسوية الحالة أو رفع سبب الحفظ من الجهة المخولة.
+8. يمكن للمالك إغلاق مساحة أو أرشفتها وفق الصلاحيات، لكن لا يجوز أن يؤدي ذلك إلى محو وثيقة موقعة أو سجل مالي أو دليل موافقة واجب الاحتفاظ به.
 
-1. The appointment begins only when the Company countersigns/approves the electronic agreement and activates the moderator role.
-2. The Company may suspend access for security concerns, suspected fraud, policy violations, inaccurate material information, or legal requirements. Where appropriate and lawful, the moderator will be notified and given an opportunity to respond.
-3. Either party may request termination through the documented process. The Company may revoke access immediately where necessary to protect members, advertisers, funds, systems or legal compliance.
-4. Termination does not erase valid historical records, accepted campaign terms, or commission amounts already earned under the final approved rules. Pending or disputed commissions must be reconciled under the disclosed policy and applicable law.
-5. Personal data is retained only as long as necessary for contract, legal, accounting, fraud-prevention and dispute obligations, then deleted or anonymized according to the approved retention schedule. Legal holds and mandatory retention periods take precedence where required.
+## تاسعاً: الإشعارات والتبادل الإلكتروني
 
-## 10. Disputes, governing law and mandatory rights
+1. يستخدم البريد الموثق للمتعاون والبريد الرسمي المعتمد للشركة لإشعارات الاتفاقية والنسخ والقرارات المهمة.
+2. تظهر الإشعارات والوثائق أيضاً داخل Mawdda، في مركز إشعارات أو مساحة مخصصة، مع ربطها بالطلب أو الاتفاقية.
+3. يثبت النظام إنشاء الإشعار والمستلم والوقت والحالة ومعرف الوثيقة أو الإعلان.
+4. فشل تسليم البريد لا يمحو السجل الداخلي ولا يحول الإجراء غير المكتمل إلى موافقة.
+5. لا يُعتبر إرسال الاتفاقية أو إرجاعها بالبريد وحده توقيعاً نهائياً ما لم تستوفِ آلية التوقيع الإلكتروني المعتمدة والقانون الواجب التطبيق.
 
-The governing law, competent courts or dispute-resolution method, notice addresses, mandatory employment/contractor protections, tax obligations, and language precedence must be completed by qualified counsel before publication. Do not insert a guessed country, court, arbitration seat, or waiver of mandatory rights. Nothing in this agreement waives rights that cannot lawfully be waived.
+## عاشراً: التوقيع الإلكتروني المتبادل واعتماد الشركة
 
-## 11. Electronic signature and evidence
+### أ. توقيع المتعاون
+1. تعرض Mawdda النص الكامل للاتفاقية وإصدارها ولغتها وإشعار الخصوصية قبل التوقيع.
+2. يستطيع المتعاون تنزيل نسخة للمراجعة.
+3. يؤكد صحة بياناته، ويكتب اسمه القانوني أو يستخدم إجراء التوقيع المعتمد، ويحدد موافقته الصريحة غير المحددة مسبقاً.
+4. يرسل النظام رمز تحقق لمرة واحدة إلى البريد الإلكتروني الموثق للمتعاون أو يستخدم وسيلة تحقق إضافية معتمدة.
+5. بعد نجاح التحقق، يسجل الخادم حدث توقيع المتعاون على النسخة المحددة، مع وقت UTC ومعرف الحدث وبصمة محتوى الوثيقة وطريقة التحقق.
 
-The electronic signing flow must:
-1. Present the complete agreement and privacy notice before acceptance, with an option to download or retain a copy.
-2. Require the moderator to confirm the accuracy of the submitted profile and actively accept the exact agreement version.
-3. Capture an electronic signature action such as typed full legal name plus an explicit unchecked-by-default acceptance control and an approved step-up authentication method. A typed name alone must not be assumed legally sufficient in every jurisdiction.
-4. Capture a tamper-evident evidence record: agreement version and content hash, language, moderator UID, authenticated actor, timestamp in UTC, signature method, acceptance event ID, and the relevant profile snapshot/version. Capture IP/device metadata only if approved by privacy counsel, disclosed, proportionate and lawful.
-5. Require the authorized Company Owner / Super Admin to countersign or approve the agreement, recording the actor, authority, timestamp and agreement hash.
-6. Store the signed agreement and evidence in a restricted server-controlled location. The moderator can retrieve their own copy; only authorized Company roles can access administrative copies.
-7. Prevent edits to a signed version. Any material change requires a new version and renewed acceptance; preserve prior signed versions and audit history.
-8. Keep role activation blocked until both required signatures/approvals are verified server-side.
+### ب. اعتماد الشركة وتوقيعها المقابل
+1. تصل نسخة المتعاون الموقعة إلى لوحة المالك، مع إشعار إلى البريد الرسمي للشركة.
+2. يراجع المالك الاتفاقية والبيانات وإصدارها وبصمتها.
+3. يعتمد المالك الاتفاقية من حسابه المخول في Mawdda، مع تحقق إضافي مناسب ومصادقة MFA/step-up.
+4. يسجل الخادم هوية الممثل المخول وصفته ووقت الاعتماد وبصمة النسخة وطريقة المصادقة.
+5. لا تُفعّل صفة مندوب الإعلانات المعتمد إلا بعد اكتمال توقيع الطرفين والتحقق الخادمي من الصلاحيات وصحة الأدلة.
 
-## 12. Acceptance fields
+### ج. النسخة النهائية
+1. ينشئ النظام نسخة نهائية غير قابلة للتعديل من الاتفاقية الموقعة، مع رقم الإصدار واللغة وبصمة المحتوى وتوقيعي الطرفين وأوقاتهما.
+2. تحفظ النسخة في موقع خادمي مقيد الوصول، ويستطيع المتعاون تنزيل نسخته، ويستطيع المالك الوصول إلى النسخة الإدارية.
+3. يرسل النظام إشعاراً للطرفين بالبريد الإلكتروني وداخل Mawdda.
+4. أي تعديل لاحق يصدر بإصدار جديد ويتطلب قبولاً جديداً بحسب طبيعة التعديل. لا تستبدل النسخة القديمة ولا تعدل بأثر رجعي.
+5. لا يُفترض أن الاسم المكتوب أو رمز البريد وحده كافٍ قانونياً في كل بلد؛ يجب أن تعتمد آلية التوقيع النهائية بعد مراجعة قوانين التوقيع الإلكتروني والإثبات.
 
-**Company**
-- Legal/registered name: Production Home Company (must be verified against current company registration before activation)
-- Authorized signatory: [Company Owner / authorized representative — complete in the secure admin workflow]
-- Company registration/jurisdiction details: [complete after legal verification]
+## الحادي عشر: التعليق والإنهاء وتسوية الحقوق
 
-**Moderator**
-- Full legal name: [secure onboarding field]
-- Mawdda account UID: [server populated]
-- Country / city / address: [secure onboarding fields]
-- Primary phone: [secure onboarding field]
-- WhatsApp: [secure onboarding field]
-- Secondary phone: [optional secure onboarding field]
-- Email: [secure onboarding field]
-- Assigned primary scope and permitted additional scopes: [server/admin populated]
-- Per-advertisement commission rate and request ID(s): [set by Owner and accepted by moderator for each request]
+يجوز للشركة تعليق الصلاحيات أو إنهاء التعاون عند المخالفات أو المخاطر الأمنية أو المالية أو القانونية، مع توثيق السبب والإجراء ومراعاة الحقوق الإلزامية. لا يمحو الإنهاء اتفاقيات أو موافقات أو عمولات ثبت استحقاقها. تسوى الحقوق المالية وفق القواعد المعتمدة والقانون، وتبقى التزامات السرية والملكية الفكرية وحماية البيانات بالقدر الذي يقرره القانون.
 
-**Electronic acceptance**
-- Moderator signature action and timestamp: [server generated]
-- Company countersignature and timestamp: [server generated]
-- Agreement version/hash: [server generated]
-- Status: Draft / Pending Moderator Signature / Pending Company Approval / Active / Suspended / Terminated
+## الثاني عشر: القانون وتسوية النزاعات
+
+تُستكمل الدولة والقانون المختص والجهة القضائية أو آلية تسوية النزاعات بعد مراجعة قانونية لبلد تسجيل الشركة وبلد إقامة المتعاون وطبيعة العلاقة. لا يجوز إدخال دولة أو محكمة أو تنازل عن حق إلزامي بالتخمين.
+
+## بيانات التوقيع والاعتماد
+
+**الطرف الأول — Production Home Company**
+- البريد الرسمي للشركة: يُقرأ من إعدادات الشركة المعتمدة ولا يُخترع.
+- الممثل المخول: المالك أو المفوض قانونياً.
+- حساب الممثل: يربط خادمياً بحساب Firebase المعتمد.
+- التوقيع المقابل: يسجل خادمياً بعد المصادقة الإضافية.
+
+**الطرف الثاني — مندوب إعلانات معتمد**
+- الاسم القانوني: من نموذج التسجيل الآمن.
+- Mawdda UID: يملؤه النظام.
+- البريد الإلكتروني الرسمي للمراسلات: البريد الموثق المرتبط بالحساب.
+- التوقيع: يسجل خادمياً بعد إجراء القبول والتحقق.
+
+**حالات الاتفاقية:** مسودة / بانتظار توقيع المتعاون / بانتظار اعتماد الشركة / معتمدة / معلقة / منتهية.
 
 ---
 
-## Implementation and activation safeguards
+## ضوابط التفعيل والتنفيذ
 
-- This file is a draft legal/product specification, not a live contract and not proof that e-signature or moderator onboarding has been implemented.
-- Do not fabricate the official logo. The Owner must supply/identify the approved cover/logo asset and approve its use.
-- Do not collect identity documents, bank details or other sensitive information until legal basis, data minimization, secure storage, access controls and retention are implemented and tested.
-- Do not activate moderator commission payouts, real-money checkout or payment collection through this document.
-- Before activation, add localized legal review, secure onboarding, server-authoritative role activation, e-signature evidence, owner countersignature, versioned campaign commission acceptance, commission ledger and dispute/refund rules with tests.
+- هذه الوثيقة مسودة للمراجعة القانونية والمواصفات؛ لا تثبت أن التوقيع الإلكتروني أو مساحة Media Workspace أو صلاحيات الإعلان قد نُفذت.
+- لا تستخدم شعاراً غير مقدم ومعتمد من المالك.
+- لا تجمع بيانات حساسة قبل اعتماد أساسها القانوني وضوابطها.
+- لا تفعّل دفعاً حقيقياً أو تحصيل أموال أو صرف عمولات بموجب هذه الوثيقة وحدها.
+- يجب اختبار التفويض الخادمي، التوقيع المتبادل، عدم قابلية تعديل النسخ الموقعة، سجل التدقيق، الإشعارات، وحذف الوسائط مع حفظ السجلات الرسمية قبل أي تفعيل.
