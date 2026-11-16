@@ -59,8 +59,8 @@ class _ProductionApplicationScreenState extends State<ProductionApplicationScree
       setState(() => _error = 'اختر تخصصاً واحداً على الأقل.');
       return;
     }
-    if (!_rightsConfirmed || !_trialConsent) {
-      setState(() => _error = 'يرجى تأكيد الحقوق والموافقة المستقلة على احتمال إجراء تجربة إبداعية.');
+    if (!_rightsConfirmed) {
+      setState(() => _error = 'يرجى تأكيد صحة البيانات وحقوق عرض الأعمال المقدمة.');
       return;
     }
     setState(() { _busy = true; _error = null; });
