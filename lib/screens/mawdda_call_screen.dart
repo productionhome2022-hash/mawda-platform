@@ -40,6 +40,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   MediaStream? _localStream;
   Timer? _pollTimer;
   List<String> _remoteUids = [];
+  List<Map<String, dynamic>> _iceServers = [];
   bool _initializing = true;
   bool _ending = false;
   bool _muted = false;
@@ -89,7 +90,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       final iceResponse = await _functions.httpsCallable('getCallIceConfiguration')
           .call({'callId': widget.callId});
       final iceData = Map<String, dynamic>.from(iceResponse.data as Map);
-      final iceServers = (iceData['iceServers'] as List<dynamic>? ?? const [])
+      _iceServers = (iceData['iceServers'] as List<dynamic>? ?? const [])
           .whereType<Map>()
           .map((server) => Map<String, dynamic>.from(server))
           .toList(growable: false);
@@ -102,7 +103,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       _localRenderer.srcObject = _localStream;
 
       for (final remoteUid in _remoteUids) {
-        final peer = await _createPeer(remoteUid, iceServers);
+        final peer = await _createPeer(remoteUid, _iceServers);
         if (widget.outgoing) {
           final offer = await peer.createOffer(<String, dynamic>{
             'offerToReceiveAudio': true,
@@ -221,13 +222,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
         if (signalId.isEmpty || senderUid.isEmpty || !_seenSignals.add(signalId) ||
             payloadText is! String || !_remoteUids.contains(senderUid)) continue;
         final payload = Map<String, dynamic>.from(jsonDecode(payloadText) as Map);
-        final peer = _peers[senderUid] ?? await _createPeer(
-          senderUid,
-          (await _functions.httpsCallable('getCallIceConfiguration')
-              .call({'callId': widget.callId}).then((value) =>
-                  Map<String, dynamic>.from(value.data as Map)))['iceServers']
-              as List<Map<String, dynamic>>,
-        );
+        final peer = _peers[senderUid] ?? await _createPeer(senderUid, _iceServers);
         if (kind == 'offer' && !widget.outgoing && !_remoteDescriptionsReady.contains(senderUid)) {
           await peer.setRemoteDescription(RTCSessionDescription(
             payload['sdp'] as String?, payload['type'] as String?,
