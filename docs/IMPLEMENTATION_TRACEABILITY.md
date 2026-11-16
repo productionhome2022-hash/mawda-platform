@@ -515,3 +515,11 @@ The Creator Content & Influencer Proposals route is an approved fifth Media Work
 - Corrected the stale comment in `functions/src/media-security.ts` to reflect that media finalization assigns purpose-specific retention deadlines and the retention worker enforces them, with exact-asset legal holds.
 - Commits: audio boundary test `f6c57d2cc90b675b460b06e302da0d8bcb354f7b`; scanner documentation `4f23ba6f489e593449d30cfca79b99bda1958f7e`; media policy comment `176d87051f81909c813bac45d52f813e034c56db`.
 - Tests were added but not executed in this session. No scanner deployment or Firebase configuration change was performed.
+
+## 2026-11-16 — Advertising intake audit retry safety
+
+- Closed a traceability gap in submitAdvertisingIntake: previously, the intake and idempotency records could commit successfully while the subsequent owner-audit write failed. A client retry then returned the prior request as a duplicate and skipped the audit write permanently.
+- The callable now attempts the same deterministic audit event on both first submission and idempotent replay. The audit event ID is derived from the persisted request ID, so retry repairs a missing audit record without creating a duplicate intake.
+- Added advertisingIntakeAuditEventId validation/helper and unit tests for stable IDs and unsafe request-ID rejection.
+- Commits: ed70c8cd09d7294865cff589ec337cefb121a8ca, bc304a375dc6f76f6418ab4b50ea519234ee745e, 00c92e8df5195e898cb2461f6b3faeb8034bfd81, 728717b9cf2977a88935a6ea3bedeab0338cdccf.
+- Tests have been added but were not executed in this session. No Firebase configuration, production resource, payment, or deployment changes were made.
