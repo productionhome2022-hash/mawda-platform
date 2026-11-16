@@ -14,7 +14,7 @@ export type CreatorProposalPayload = {
   proposedDuration: string;
   targetGeographies: string[];
   quoteRequested: boolean;
-  proposedBudgetMinor: number | null;
+  proposedBudgetAmount: string | null;
   currency: string | null;
   rightsConfirmed: true;
   idempotencyKey: string;
@@ -98,21 +98,22 @@ export function validateCreatorProposalInput(input: unknown): CreatorProposalPay
   }
 
   const quoteRequested = data.quoteRequested === true;
-  let proposedBudgetMinor: number | null = null;
+  let proposedBudgetAmount: string | null = null;
   let currency: string | null = null;
   if (quoteRequested) {
-    if (data.proposedBudgetMinor !== undefined && data.proposedBudgetMinor !== null ||
+    if (data.proposedBudgetAmount !== undefined && data.proposedBudgetAmount !== null ||
         data.currency !== undefined && data.currency !== null) {
       throw new CreatorProposalValidationError("quote_and_budget_are_mutually_exclusive");
     }
   } else {
-    if (!Number.isSafeInteger(data.proposedBudgetMinor) ||
-        (data.proposedBudgetMinor as number) <= 0 ||
+    if (typeof data.proposedBudgetAmount !== "string" ||
+        !/^(?:0|[1-9]\\d{0,11})(?:\\.\\d{1,4})?$/.test(data.proposedBudgetAmount) ||
+        Number(data.proposedBudgetAmount) <= 0 ||
         typeof data.currency !== "string" ||
         !/^[A-Z]{3}$/.test(data.currency)) {
       throw new CreatorProposalValidationError("invalid_proposed_budget");
     }
-    proposedBudgetMinor = data.proposedBudgetMinor as number;
+    proposedBudgetAmount = data.proposedBudgetAmount;
     currency = data.currency;
   }
 
@@ -143,7 +144,7 @@ export function validateCreatorProposalInput(input: unknown): CreatorProposalPay
     proposedDuration,
     targetGeographies,
     quoteRequested,
-    proposedBudgetMinor,
+    proposedBudgetAmount,
     currency,
     rightsConfirmed: true,
     idempotencyKey,
