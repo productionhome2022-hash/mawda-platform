@@ -121,3 +121,11 @@ export function advertisingIntakeAuditEventId(requestId: string): string {
   }
   return "advertising_intake_submitted_" + requestId;
 }
+/** Stable per-version audit ID makes owner review replay-safe and auditable. */
+export function advertisingIntakeReviewAuditEventId(requestId: string, expectedVersion: number): string {
+  if (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{16,100}$/.test(requestId) ||
+      !Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+    throw new Error("INVALID_ADVERTISING_INTAKE_REVIEW_ID");
+  }
+  return "advertising_intake_review_" + requestId + "_" + String(expectedVersion);
+}
