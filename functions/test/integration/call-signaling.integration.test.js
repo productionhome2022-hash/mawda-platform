@@ -34,6 +34,13 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
     }));
     assert.equal(started.status, "ringing");
     assert.equal((await getActiveCall.run(call(calleeUid))).active, true);
+    await assert.rejects(
+      () => startCall.run(call(callerUid, {
+        callId: uid("call_overlap"), scope: "direct", targetId: chatId, mode: "audio",
+      })),
+      (error) => error && error.code === "resource-exhausted",
+      "a member cannot be reserved into overlapping active calls",
+    );
 
     await assert.rejects(
       () => sendCallSignal.run(call(outsiderUid, {
@@ -80,8 +87,11 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
     );
   } finally {
     await db.recursiveDelete(callRef).catch(() => undefined);
-    await Promise.all([callerRef, calleeRef, outsiderRef, chatRef]
-      .map((ref) => db.recursiveDelete(ref).catch(() => undefined)));
+    await Promise.all([
+      callerRef, calleeRef, outsiderRef, chatRef,
+      db.collection("activeCallMemberLocks").doc(callerUid),
+      db.collection("activeCallMemberLocks").doc(calleeUid),
+    ].map((ref) => db.recursiveDelete(ref).catch(() => undefined)));
   }
 });
 
@@ -154,6 +164,10 @@ test("room call signaling is peer-targeted and one member leaving does not end t
   } finally {
     await db.recursiveDelete(callRef).catch(() => undefined);
     await db.recursiveDelete(roomRef).catch(() => undefined);
-    await Promise.all(memberRefs.map((ref) => db.recursiveDelete(ref).catch(() => undefined)));
+    await Promise.all([
+      ...memberRefs,
+      ...[callerUid, firstUid, secondUid].map((memberUid) =>
+        db.collection("activeCallMemberLocks").doc(memberUid)),
+    ].map((ref) => db.recursiveDelete(ref).catch(() => undefined)));
   }
 });
