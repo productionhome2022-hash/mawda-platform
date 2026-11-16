@@ -30,7 +30,17 @@ void main() {
         const MaterialApp(home: CreatorProposalScreen()),
       );
       expect(find.text('طريقة تقديم المحتوى'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('النطاق الجغرافي المستهدف'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('النطاق الجغرافي المستهدف'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.textContaining('الحقوق أو الأذونات'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.textContaining('الحقوق أو الأذونات'), findsOneWidget);
       expect(find.textContaining('عقد مستقل'), findsOneWidget);
 
