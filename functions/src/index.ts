@@ -9279,7 +9279,7 @@ export const startCall = onCall(async (request) => {
         !room.exists || room.data()?.status !== "active" || !membership.exists) {
       throw new HttpsError("permission-denied", "يجب أن تكون عضواً في غرفة نشطة لإجراء مكالمة.");
     }
-    const members = await roomRef.collection("members").limit(5).get();
+    const members = await roomRef.collection("members").limit(6).get();
     if (members.size < 2 || members.size > 5) {
       throw new HttpsError("failed-precondition", "مكالمات الغرف تدعم حالياً من عضوين إلى خمسة أعضاء كحد أقصى.");
     }
@@ -9401,7 +9401,12 @@ export const sendCallSignal = onCall(async (request) => {
     if (call.status === "ringing" && signal.kind === "answer") {
       throw new HttpsError("failed-precondition", "لا يمكن إرسال إجابة قبل قبول المكالمة.");
     }
-    if (call.expiresAt instanceof Timestamp && call.expiresAt.toMillis() + CALL_SIGNAL_MAX_AGE_MS < Date.now()) {
+    if (call.status === "ringing" &&
+        (!(call.expiresAt instanceof Timestamp) || call.expiresAt.toMillis() <= Date.now())) {
+      throw new HttpsError("deadline-exceeded", "انتهت مهلة رنين المكالمة.");
+    }
+    if (call.createdAt instanceof Timestamp &&
+        call.createdAt.toMillis() + CALL_SIGNAL_MAX_AGE_MS < Date.now()) {
       throw new HttpsError("deadline-exceeded", "انتهت صلاحية إشارات المكالمة.");
     }
     if (existing.exists) {
@@ -9506,8 +9511,11 @@ export const getCallIceConfiguration = onCall(
     ];
     const urls = mawddaTurnUrls.value().split(",").map((value) => value.trim())
       .filter((value) => /^(turn|turns):[^\\s]+$/.test(value));
-    const sharedSecret = mawddaTurnSharedSecret.value();
-    if (urls.length > 0 && sharedSecret.length >= 32) {
+    if (urls.length > 0) {
+      const sharedSecret = mawddaTurnSharedSecret.value();
+      if (sharedSecret.length < 32) {
+        throw new HttpsError("failed-precondition", "إعدادات خادم TURN غير مكتملة.");
+      }
       const expiresAt = Math.floor(Date.now() / 1000) + 15 * 60;
       const username = `${expiresAt}:${uid}`;
       const credential = createHmac("sha1", sharedSecret).update(username).digest("base64");
@@ -9539,9 +9547,10 @@ export const getActiveCall = onCall(async (request) => {
 
 export const cleanupExpiredCallSignals = onSchedule("every 5 minutes", async () => {
   const now = Timestamp.now();
-  const expiredCalls = await CALL_SESSIONS.where("status", "==", "ringing")
-    .where("expiresAt", "<=", now).limit(100).get();
-  for (const doc of expiredCalls.docs) {
+  const ringingCalls = await CALL_SESSIONS.where("status", "==", "ringing").limit(200).get();
+  const expiredCalls = ringingCalls.docs.filter((doc) =>
+    doc.data().expiresAt instanceof Timestamp && doc.data().expiresAt.toMillis() <= now.toMillis());
+  for (const doc of expiredCalls) {
     await db.runTransaction(async (transaction) => {
       const current = await transaction.get(doc.ref);
       if (!current.exists || current.data()?.status !== "ringing" ||
