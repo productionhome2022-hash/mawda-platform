@@ -52,16 +52,16 @@ The moderator must confirm that the submitted information is accurate and update
 
 ## 5. Commission-only compensation
 
-1. The initial platform-wide advertising commission setting is **20%**. It is an editable starting rate, not a guaranteed immutable rate for every campaign.
-2. The Super Admin / Owner may increase or decrease the global default rate through the authorized administrative control plane. Changes must be versioned, audited, and prospective; they must not silently rewrite a rate already accepted and locked for an existing campaign/request.
-3. The Super Admin / Owner may set a **campaign-specific commission rate** for an individual advertising request. For example, the Owner may set 10% for one campaign even when the global default is 20%. The campaign-specific rate overrides the default only for that request after it is explicitly shown to and accepted by the moderator through the shared request workspace.
-4. The moderator cannot set, negotiate directly in the system, alter, or approve their own commission rate. They may accept or decline the campaign-specific commercial terms before the request becomes committed for publication processing. A changed rate requires a new explicit acceptance; silence or continued login is not acceptance.
-5. The request record must preserve: global default rate and version, campaign-specific rate (if any), moderator acceptance evidence, calculation basis, currency, amount actually received, adjustments, and the final commission amount.
-6. Intended calculation, subject to counsel-approved accounting rules: `commission = eligible commission base × accepted campaign rate`. The default intended base is the campaign amount actually received and confirmed by the Owner, excluding separately identified taxes, refunds, chargebacks and pass-through fees where applicable. The Company net amount is the eligible amount received minus the moderator commission and any separately accounted taxes/fees/refunds. The interface must show the gross amount, commission rate, commission amount, deductions (if any), and estimated Company net separately; it must never label an estimate as settled cash.
-7. Example only: if the eligible amount received is 100 currency units and the moderator's accepted campaign rate is 10%, the commission is 10 and the Company's amount before other separately accounted deductions is 90. The actual settlement calculation must follow the approved accounting rules and currency precision.
+1. The intended commercial arrangement is **commission-only**. There is **no platform-wide or global advertising commission percentage**. No universal percentage is promised, assumed, seeded or applied across campaigns.
+2. For **each individual advertising request/campaign**, the Super Admin / Owner explicitly sets the moderator's commission percentage for that advertisement. The percentage may differ from one advertisement to another. A campaign cannot proceed to final commercial commitment, publication approval or commission calculation until the Owner has explicitly entered that campaign's rate.
+3. The moderator cannot set, alter or approve their own commission rate. The rate for that advertisement, its calculation basis, commission amount and estimated Company net must be shown in the shared request workspace.
+4. The moderator must explicitly accept the campaign-specific commission rate and commercial terms before the campaign is committed for publication processing. If the Owner changes the rate after acceptance, renewed explicit acceptance is required and recorded as a versioned amendment. Silence or continued login is not acceptance.
+5. The request record must preserve the campaign-specific rate, rate/version identifier, moderator acceptance evidence, calculation basis, currency, amount actually received, adjustments, and final commission amount. A rate accepted for one advertisement does not apply to any other advertisement.
+6. Intended calculation, subject to counsel-approved accounting rules: `commission = eligible commission base × the rate explicitly set and accepted for this advertisement`. The intended base is the campaign amount actually received and confirmed by the Owner, excluding separately identified taxes, refunds, chargebacks and pass-through fees where applicable. The Company net amount is the eligible amount received minus the moderator commission and any separately accounted taxes/fees/refunds. The interface must show gross amount, this advertisement's commission rate, commission amount, deductions (if any), and estimated Company net separately; it must never label an estimate as settled cash.
+7. Example only: if the eligible amount actually received is 100 currency units and the Owner sets and the moderator accepts a 10% commission for that advertisement, the commission is 10 and the Company's amount before other separately accounted deductions is 90. This is an arithmetic example, not a default rate or a promised rate.
 8. No commission is earned merely because a request was submitted, a price was proposed, or a campaign was approved. The earning event and payable date must be explicitly configured and disclosed. The intended basis is a valid campaign approved by the Owner and the corresponding advertiser funds actually received and confirmed by the Owner, subject to refunds, cancellations, chargebacks, partial payments, fraud review and applicable law.
 9. No commission payout is authorized by this document alone. Payout channels, identity/tax checks, payment schedule, minimum payout thresholds (if any), currency conversion, fees, withholding, disputes and reconciliation must be separately defined and legally reviewed before payout activation.
-10. Rate changes apply prospectively. The exact accepted campaign rate is immutable for that campaign except by a mutually accepted amendment recorded in the audit trail.
+10. The accepted rate for an advertisement is locked to that advertisement. It cannot be changed retroactively without a recorded amendment and renewed moderator acceptance. No global rate exists as a fallback.
 
 ## 6. Advertising request, price and duration workflow
 
@@ -140,8 +140,7 @@ The electronic signing flow must:
 - Secondary phone: [optional secure onboarding field]
 - Email: [secure onboarding field]
 - Assigned primary scope and permitted additional scopes: [server/admin populated]
-- Accepted global rate/version: [server populated]
-- Campaign-specific rate and request ID(s): [server populated per request]
+- Per-advertisement commission rate and request ID(s): [set by Owner and accepted by moderator for each request]
 
 **Electronic acceptance**
 - Moderator signature action and timestamp: [server generated]
