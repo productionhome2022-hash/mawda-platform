@@ -9240,9 +9240,9 @@ export const startCall = onCall(async (request) => {
 
   if (input.scope === "direct") {
     const chatRef = db.collection("directChats").doc(input.targetId);
-    const [caller, chat] = await Promise.all([callerRef.get(), chatRef.get()]);
-    if (!caller.exists || caller.data()?.profileCompleted !== true ||
-        !isMemberAccountInGoodStanding(caller.data())) {
+    const [callerSnapshot, chat] = await Promise.all([callerRef.get(), chatRef.get()]);
+    if (!callerSnapshot.exists || callerSnapshot.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(callerSnapshot.data())) {
       throw new HttpsError("permission-denied", "حالة حسابك لا تسمح بإجراء المكالمات.");
     }
     const participants = chat.data()?.participantUids;
@@ -9257,14 +9257,14 @@ export const startCall = onCall(async (request) => {
         !isMemberAccountInGoodStanding(peer.data())) {
       throw new HttpsError("failed-precondition", "الطرف الآخر غير متاح للمكالمة.");
     }
-    const caller = caller.data() ?? {};
+    const callerData = callerSnapshot.data() ?? {};
     const peerData = peer.data() ?? {};
-    if ((Array.isArray(caller.blockedUids) && caller.blockedUids.includes(peerUid)) ||
+    if ((Array.isArray(callerData.blockedUids) && callerData.blockedUids.includes(peerUid)) ||
         (Array.isArray(peerData.blockedUids) && peerData.blockedUids.includes(callerUid))) {
       throw new HttpsError("permission-denied", "المكالمة غير متاحة بسبب إعدادات الحظر.");
     }
-    if (!Number.isSafeInteger(caller.age) || !Number.isSafeInteger(peerData.age) ||
-        ((caller.age < 18) !== (peerData.age < 18))) {
+    if (!Number.isSafeInteger(callerData.age) || !Number.isSafeInteger(peerData.age) ||
+        ((callerData.age < 18) !== (peerData.age < 18))) {
       throw new HttpsError("permission-denied", "لا يمكن إجراء المكالمة بين هاتين الفئتين العمريتين.");
     }
     recipientUids = [peerUid];
@@ -9478,9 +9478,9 @@ export const getCallSignals = onCall(async (request) => {
     .filter((doc) => doc.data().senderUid !== uid &&
       doc.data().createdAt instanceof Timestamp &&
       doc.data().createdAt.toMillis() >= Date.now() - CALL_SIGNAL_MAX_AGE_MS &&
-      doc.data().sequence > afterSequence)
+      typeof doc.data().sequence === "number" && doc.data().sequence > afterSequence)
     .sort((left, right) => left.data().createdAt.toMillis() - right.data().createdAt.toMillis())
-    .map((doc) => ({ ...doc.data(), signalId: doc.id }));
+    .map((doc) => ({ ...doc.data(), signalId: doc.id, sequence: doc.data().sequence as number }));
   let callStatus = call.data()?.status;
   const expiresAt = call.data()?.expiresAt;
   if (callStatus === "ringing" && expiresAt instanceof Timestamp &&
