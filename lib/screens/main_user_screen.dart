@@ -19,6 +19,7 @@ import 'conversations_screen.dart';
 import 'stories_screen.dart';
 import 'reward_center_screen.dart';
 import 'media_workspace_screen.dart';
+import 'featured_ads_screen.dart';
 
 class MainUserScreen extends StatefulWidget {
   final String userId;
@@ -463,6 +464,15 @@ class _CompletedProfilePanel extends StatelessWidget {
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => DiscoveryScreen(currentUserId: user.uid),
+                        ),
+                      ),
+                    ),
+                    FilledButton.icon(
+                      icon: const Icon(Icons.stars_rounded),
+                      label: const Text('الإعلانات المميزة والمكافآت'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const FeaturedAdsScreen(),
                         ),
                       ),
                     ),
