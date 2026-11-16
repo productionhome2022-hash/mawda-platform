@@ -85,7 +85,7 @@ import { DEFAULT_COIN_PACKAGES, DEFAULT_AD_PRICES, validateCoinPackages, validat
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
-import { validateSpecializedRoleGrant } from "./advertising-governance";
+import { validateSpecializedRoleGrant, specializedRoleGrantId } from "./advertising-governance";
 import {
   defaultAttendanceRewardPolicy,
   validateAttendanceRewardPolicy,
@@ -8267,9 +8267,7 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
   } catch {
     throw new HttpsError("invalid-argument", "بيانات تكليف المشرف المتخصص أو نطاق صلاحياته غير صالحة.");
   }
-  const grantId = createHash("sha256")
-    .update([grant.uid, grant.role, [...grant.resourceScopes].sort().join("|")].join("|"))
-    .digest("hex");
+  const grantId = specializedRoleGrantId(grant.uid, grant.role);
   const grantRef = SPECIALIZED_ROLE_GRANTS.doc(grantId);
   const result = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(grantRef);
