@@ -187,6 +187,32 @@ Moderators may prepare and submit advertising requests with the following capabi
 
 Moderators cannot set the final approved price, confirm payment receipt, approve or publish campaigns, manage other moderators, change platform-wide geographic mappings, access the advertising financial ledger/revenue reports, or access unrelated administrative functions. They cannot grant themselves broader geographic scope or permissions.
 
+#### Shared advertising request workspace and role-specific decisions
+
+The moderator and Super Admin / Owner use a shared advertising-request workspace backed by the same request record and creative asset. This is a shared view of the request and its review history, not shared authority: each role sees the same core request facts while controls and permitted actions are enforced by server-side role authorization.
+
+The shared request view must include the request and advertisement identifiers; submitting moderator identity; advertiser identity/contact details; the exact image/video creative or a safe playable preview; validated external destination/playback URL where applicable; selected geographic targets; initial proposed price; requested duration; current Owner decision; final approved price and duration when set; payment-confirmation state; publication state; timestamps; review notes and audit history. The Owner must be able to inspect the actual creative (view the image, play the video, or safely open/preview the submitted link) before deciding whether to publish it. A metadata-only request view is insufficient.
+
+Role-specific actions are:
+- **Moderator:** create and submit the request, enter the advertiser-agreed initial proposed price, propose the requested campaign duration, supply the creative/link and targeting, respond to correction requests, and follow the status of their own requests. The moderator may not approve their own price, set the final price, confirm payment, approve publication, or alter the Owner's decisions.
+- **Super Admin / Owner:** accept or reject the initial proposed price; optionally increase or decrease it; set and approve the final price; propose, adjust and exclusively approve the final campaign duration and schedule; inspect the creative and targeting; record actual payment receipt; and approve or reject publication.
+
+The initial price is a moderator-provided proposal. Price increase/decrease is an optional Owner action, not a mandatory step. The Owner must explicitly record the final approved price even when accepting the initial proposal unchanged. The moderator may propose a duration; the Owner may also enter or revise a proposed duration during review, but only the Owner can set and approve the final duration. The approved price and duration must be visible in the shared request view before payment confirmation and publication.
+
+Every state transition and commercial-term change must be validated server-side and recorded with actor, role, timestamp, previous value, new value, reason where applicable, and configuration/version identifiers. The shared UI must not grant permissions by hiding or showing controls alone; backend authorization is mandatory.
+
+#### Advertising decision notifications and financial handoff
+
+When the Owner approves publication after reviewing the creative and final terms and recording actual payment receipt:
+- Notify the submitting moderator in their advertising dashboard.
+- Show the approval event in the Super Admin advertising dashboard.
+- Emit a corresponding financial/economic notification or auditable event in the separate Owner financial/economy area, outside the advertising workspace, identifying the campaign/ad number, advertiser, submitting moderator, approved amount, approved duration, payment-confirmation status and approval time.
+- Publish the campaign only after both Owner publication approval and Owner-recorded payment confirmation are present.
+
+When the Owner rejects a request, notify the submitting moderator only. Record the rejection, reason, actor and timestamp in the Owner-side request history and audit log. The rejected request must remain unpublished. Do not send a rejection notification to unrelated moderators or expose the Owner's financial ledger to upload moderators.
+
+Notifications must be durable, recipient-scoped, idempotent and generated from the server-side state transition; a client-side message or screen action is not proof that approval, payment or publication occurred.
+
 #### Owner review, final price, payment confirmation and publication
 
 Every moderator submission must enter a **Pending Owner Approval** queue in the Super Admin / Owner advertising dashboard. No campaign is automatically published after upload or technical validation.
@@ -208,11 +234,15 @@ The Owner independently confirms actual receipt of the agreed amount through the
 
 The Owner alone controls the final price, payment confirmation, publication approval, campaign activation, and access to the advertising financial ledger and revenue reports. Until approval and payment confirmation are both recorded, the campaign remains unpublished and non-billable. Rejection, return-for-correction, cancellation and expiry states must be recorded. This manual workflow does not enable live payment processing or advertiser billing.
 
-#### Moderator commission — proposed 20% (awaiting explicit owner confirmation)
+#### Moderator commission — owner-approved 20% starting rate, editable by Super Admin / Owner
 
-A **20% moderator commission** has been proposed, calculated against the campaign's final advertising price approved by the Owner and actually received/confirmed by the Owner. The moderator's initial proposed price is not the commission basis if the Owner changes the final price.
+The initial advertising moderator commission rate is **20%**. This rate is approved as the starting configuration and is not an immutable platform constant. The Super Admin / Owner must be able to increase or decrease the advertising commission rate through the administrative control plane, independently of other commission settings such as coin-transfer fees or rates.
 
-This 20% rate is recorded as a **proposal requiring explicit Owner confirmation**, not yet an approved payable entitlement. Before implementation or any payout, the Owner must confirm the commission rate and settle the accounting rules, including treatment of refunds, cancellations, taxes/fees, partial payments, chargebacks, and when the commission becomes earned and payable. If approved, commission calculation, attribution to the submitting moderator, ledger entries, adjustments and payout status must be server-authoritative, auditable, idempotent and visible only to authorized Owner/Super Admin roles. Moderators must not be able to edit commission rates or financial records. Do not infer or activate any commission payment from this proposal alone.
+The commission configuration must be server-authoritative, validated, versioned and audited. Only the Super Admin / Owner may change the rate or inspect the advertising commission ledger. Each campaign/request must retain the exact commission-rate version applicable when its commission basis is finalized; later rate changes must not silently recalculate historical or already-earned commissions.
+
+The commission is attributed to the moderator who submitted the advertiser's request. The commission calculation basis, earning event, and payout eligibility must be explicitly represented in the accounting model. The intended basis is the Owner-approved final campaign price actually received and confirmed by the Owner, not the moderator's initial proposed price when that price was changed. Commission calculation and ledger entries must be server-authoritative, auditable and idempotent.
+
+Before any commission is treated as payable or paid, the implementation must define and test treatment of refunds, cancellations, taxes/fees, partial payments, chargebacks, and the exact point at which commission becomes earned and payable. Rate configurability and the approved 20% starting rate do not by themselves authorize live payments or payouts.
 
 #### Security and content validation
 
