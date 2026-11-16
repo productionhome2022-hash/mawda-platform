@@ -471,3 +471,12 @@ The Creator Content & Influencer Proposals route is an approved fifth Media Work
 - The server validator already accepts either boolean value for `creativeTrialConsent`; no server-side consent weakening was introduced.
 - Implementation commit: `ed2f5330260f5dd25e95e70ed069918766fde388`.
 - Flutter analysis/widget tests have not yet run on this commit.
+
+
+## 2026-11-16 — App Check client integration blocker (Issue #19)
+
+- Static review confirmed that 13 web-only callable paths enforce Firebase App Check and the server-side approved-app allowlist.
+- The current client does not initialize App Check: no `firebase_app_check` entry exists in `pubspec.yaml` or `pubspec.lock`; `lib/main.dart` initializes Firebase Core only; `web/index.html` contains no App Check bootstrap.
+- `MAWDDA_LEGAL_PORTAL_APP_IDS` defaults to an empty string. This is correctly fail-closed, but it means no web App ID is currently authorized.
+- Tracked as [Issue #19](https://github.com/productionhome2022-hash/mawda-platform/issues/19). The portal callables are not yet proven operational. Do not weaken App Check or add Android/iOS IDs to the allowlist.
+- Next safe work: add a compatible FlutterFire App Check dependency and web initialization using an owner-provided Firebase-registered site key; update the lockfile with the pinned Flutter toolchain; then validate in a dedicated non-production Firebase app after explicit authorization. No production Firebase change is authorized.
