@@ -547,3 +547,22 @@ The Creator Content & Influencer Proposals route is an approved fifth Media Work
 - The test starts and completes both sessions, then verifies that both members receive only their own one-claim reward and that the new namespaced SHA-256 counter documents preserve the correct UID/campaign pair independently.
 - This extends the earlier pure-helper collision test to exercise both callable transaction paths and wallet ledger writes. The test is source-added only until exact-head validation executes.
 - No production configuration, data, payment, deployment, or merge action was performed.
+
+## 2026-11-16 — WebRTC call lifecycle and media implementation
+
+Development-branch additions:
+- `functions/src/call-signaling.ts`: validates bounded call requests, SDP offer/answer payloads, ICE candidates, state transitions and server-side timing/sequence bounds.
+- `functions/src/index.ts`: `startCall`, `respondToCall`, `sendCallSignal`, `getCallSignals`, `endCall`, `getActiveCall`, `getCallIceConfiguration`, and `cleanupExpiredCallSignals`. The backend validates chat/room membership, account standing, age bands, mutual blocks, caller/callee signaling roles, recipient-scoped delivery, replay/sequence bounds and active-call member locks.
+- `functions/test/call-signaling.test.js` and `functions/test/integration/call-signaling.integration.test.js`: unit and emulator cases for direct calls, room peer isolation, busy-member locks, ICE authorization and participant departure.
+- `lib/screens/mawdda_call_screen.dart`: Flutter WebRTC media capture, peer connections, SDP/ICE signaling, audio/video controls and cleanup. Direct/room chat screens expose outgoing and incoming call flows; main user screen routes incoming-call FCM notifications to the corresponding chat.
+- `pubspec.yaml` and `pubspec.lock`: pinned `flutter_webrtc` dependency resolved using Flutter 3.47.9. Android camera/network permissions and iOS camera/microphone usage descriptions were added without changing application identifiers.
+- `functions/test/fixtures/feature-coverage-matrix.json`: added partial journey `CALL-001` and explicit release gates.
+
+Evidence boundary:
+- A backend unit-test run exposed a wrong compiled-module import in the new unit test; the import path was corrected. A previous run also exposed TypeScript type errors in call authorization/projection; those were corrected. These failing runs are not acceptance evidence.
+- The exact-head validation and call emulator integration for the latest branch revision must be read from GitHub Actions before marking automated tests passed.
+- No TURN server or secret was provisioned. The default ICE configuration is STUN-only and does not guarantee connectivity through restrictive NATs.
+- No real Android/iOS device-to-device media test, WebRTC security review, production deployment, or owner release acceptance has been performed.
+- Room mesh is limited to five participants as a technical safety ceiling pending a future SFU design; it is not an owner-approved product capacity.
+
+Status: **implemented in source; automated validation pending; device/network acceptance open; not release-ready**.
