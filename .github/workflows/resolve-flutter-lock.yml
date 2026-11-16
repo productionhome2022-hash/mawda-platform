@@ -29,16 +29,25 @@ jobs:
           flutter-version: "3.47.9"
           channel: stable
           cache: true
-      - name: Resolve dependencies with the pinned Flutter SDK
-        run: flutter pub get
-      - name: Commit the generated lockfile on the development branch
+      - name: Resolve dependencies and retry lockfile commit against latest branch head
+        shell: bash
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if ! git diff --quiet -- pubspec.lock; then
+          set -euo pipefail
+          for attempt in 1 2 3 4; do
+            git fetch origin "${GITHUB_REF_NAME}"
+            git reset --hard "origin/${GITHUB_REF_NAME}"
+            flutter pub get
+            if git diff --quiet -- pubspec.lock; then
+              echo "pubspec.lock already matches pubspec.yaml"
+              exit 0
+            fi
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add pubspec.lock
             git commit -m "build(deps): resolve Flutter WebRTC lockfile"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          else
-            echo "pubspec.lock already matches pubspec.yaml"
-          fi
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              exit 0
+            fi
+            echo "Branch moved during lockfile push; retrying from latest head."
+          done
+          exit 1
