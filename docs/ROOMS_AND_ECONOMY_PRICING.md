@@ -167,22 +167,53 @@ The selected target is stored as structured server-side campaign data. Country-t
 - The Super Admin / Owner can manage regional definitions, supported countries, section availability and ordering through versioned, audited controls.
 - These browse interfaces do not themselves activate advertiser billing or rewarded viewing. Those remain gated by the advertising readiness requirements above.
 
-### Advertising upload moderators — maximum 36
+### Advertising upload moderators — unlimited count, two geographic scopes each
 
-The Super Admin / Owner may appoint and manage up to **36 advertising upload moderators**. This is a maximum staffing capacity, not a requirement to appoint all 36. The Owner/Super Admin assigns each moderator a geographic scope (country, grouped region, or approved broader scope) so coverage can be distributed across the Arab geographic areas. The Owner controls assignments and can change or revoke them.
+The number of advertising upload moderators is **unlimited**. The previous proposed cap of 36 is withdrawn and must not be enforced as a product or database limit. The Super Admin / Owner may appoint, suspend, reactivate, and revoke any number of moderators, subject to ordinary platform security and operational safeguards.
 
-Moderator permissions are strictly limited to ad submission/upload:
+Each moderator has one owner-assigned **primary/home geographic scope** associated with the country or region in which that moderator is registered. This primary scope is fixed for the moderator's active assignment and can be changed only by the Super Admin / Owner. Each moderator may additionally choose **one (1) secondary geographic target** from the currently supported geographic targets. Therefore, each moderator may submit ads to no more than two scopes in total:
 
-- Upload an ad creative from the moderator's device, where the relevant media format and size pass validation.
-- Submit an external ad/creative URL through the dedicated URL field, with server-side URL and content safety validation.
-- Select a geographic target from the supported target list, but only within the geographic scope granted to that moderator.
-- Submit the ad for the platform's configured publication flow so that, once eligible and published, it appears in the correct geographic interface(s) and All Arabic ads when its target includes Arab countries.
+1. Their assigned primary/home scope.
+2. One additional scope selected by the moderator from the targets the Owner has made available.
 
-Moderators do **not** receive permission to change prices, campaign budgets, billing, revenue reports, payout details, campaign duration or scheduling policy, platform-wide geographic mappings, other moderators' access, owner settings, or unrelated admin functions. They cannot grant themselves broader geographic scope or permissions. Upload access is separately revocable and every submission/action is attributed to its moderator in an audit log.
+The secondary scope may be any supported target (for example, All Arab countries, another Arab country/group, Europe and Turkey, or Asia and the Middle East), subject to the Owner's platform-wide availability settings. The moderator cannot replace or bypass the primary scope, add a third scope, or expand their own permissions. The server must enforce the two-scope limit and validate both scopes against the current versioned geographic configuration.
 
-The Owner/Super Admin controls whether device upload and external URL submission are enabled for each moderator. URL submissions must be safely fetched/validated server-side; do not trust client-provided URL metadata, allow unsafe schemes, private-network destinations, redirects to prohibited destinations, or arbitrary executable content. Uploaded media must pass type/size/content checks and the platform's applicable malware/content-safety pipeline.
+#### Moderator submission permissions
 
-**Publication workflow decision still required:** the owner has specified upload-only moderator permissions and that accepted ads should appear in their target interface, but has not yet explicitly decided whether a moderator submission is published automatically after server validation or first requires Owner/Super Admin approval. Keep this publication gate configurable and fail-closed until the Owner chooses the policy. Do not grant moderators a separate publish/approve permission by implication.
+Moderator permissions are strictly limited to preparing and submitting advertising requests:
+
+- Upload image and video advertising creatives from the moderator's device, subject to the platform's media type, size, duration, safety and malware checks.
+- Submit an external advertising link or an external video playback/streaming URL hosted by another platform, subject to server-side URL, destination, redirect, content and safety validation.
+- Select the primary/home scope or their one permitted secondary target.
+- Enter the advertiser-provided campaign request details needed for Owner review, such as advertiser/client identity or reference, requested campaign duration, creative details and contact/reference information.
+- Submit the request into the Owner approval queue and view the status of their own submissions.
+
+Moderators cannot set or approve the final advertising price, final campaign duration, campaign schedule, budget, billing terms, publication status, revenue treatment, refunds, settlements or payouts. Requested duration and advertiser-provided details are request information only; they are not approved campaign terms. Moderators cannot publish ads themselves, approve their own submissions, view platform revenue reports, alter geographic mappings, manage other moderators, or access unrelated administrative functions.
+
+The Owner/Super Admin controls each moderator's account status, primary/home scope, availability of the secondary-scope selector, and upload methods (device upload and/or external URL submission). All submissions and moderator actions must be attributed to the moderator and recorded in an auditable history.
+
+#### Owner approval, payment confirmation and publication workflow
+
+Every moderator submission must enter a **Pending Owner Approval** queue in the Super Admin / Owner advertising dashboard. There is no automatic publication after upload or technical validation.
+
+Each queue item must present enough information for an informed decision, including:
+
+- Moderator's name and unique moderator/account identifier.
+- Submission/request ID and advertisement/creative ID.
+- Advertiser/client name or supplied reference and contact details.
+- Requested geographic target (primary or secondary scope).
+- Advertiser-requested duration and campaign details.
+- Creative preview or validated external playback link.
+- Proposed commercial terms as prepared/controlled by the Owner, including the final price and approved duration.
+- Payment verification status and review/audit history.
+
+The Owner contacts the responsible moderator/advertiser as needed, independently confirms receipt of the agreed advertising payment through the approved out-of-platform/manual process, reviews the creative and targeting, and then explicitly approves or rejects the request. The Owner alone sets or confirms the final price, approved duration and publication schedule. Only after the Owner records approval and payment verification may the server publish/activate the campaign in its approved geographic interface(s), including All Arabic ads when the target includes Arab countries.
+
+A moderator's requested duration, a payment claim, an uploaded file, a URL, or a client-side action is never proof of payment or authorization to publish. Approval and payment verification must be server-authorized, audited, versioned where commercial terms are involved, and protected against duplicate processing. Rejection, return-for-correction, cancellation and expiry states must be recorded. Until the Owner approves and confirms payment, the campaign remains unpublished and non-billable. This manual approval workflow does not enable live payment processing or advertiser billing.
+
+#### Security and content validation
+
+External URLs must be fetched/validated through a controlled server-side process. Do not trust client-provided URL metadata; reject unsafe schemes, private-network destinations, prohibited redirects, and arbitrary executable content. Uploaded media must pass type, size, duration, malware and content-safety checks. Keep all publication and financial actions fail-closed when validation or authorization is unavailable.
 
 ### Advertising revenue and earnings management
 
