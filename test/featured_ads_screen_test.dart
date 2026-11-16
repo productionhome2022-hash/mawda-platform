@@ -14,7 +14,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.textContaining('لا نستخدم لغة الجهاز أو موقعه لتحديد الاستهداف.'),
       300,
-      scrollable: find.byType(ListView).first,
+      scrollable: find.byType(Scrollable).first,
     );
     expect(find.textContaining('لا نستخدم لغة الجهاز أو موقعه لتحديد الاستهداف.'), findsOneWidget);
   });
