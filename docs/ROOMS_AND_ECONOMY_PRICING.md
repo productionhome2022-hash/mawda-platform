@@ -78,6 +78,32 @@ The owner is one person holding both Owner and Super Admin titles under one cano
 
 These are editable pricing schedules only. They do not represent ad delivery, billing, invoices, tax handling or a payment checkout. The server deliberately returns realMoneyCheckoutEnabled=false; do not collect money or mint coins until a payment provider, refunds, fraud controls, reconciliation, taxes and legal review have been integrated and tested.
 
+
+## Owner-controlled pricing and duration contract — all monetized features
+
+This requirement applies platform-wide, not only to the starter catalogues listed above. Every present or future feature involving money, coins, sale, purchase, top-up, booking, rental, calls, paid access, paid promotion, or any other material/economic exchange must expose its configurable commercial terms to the authenticated Super Admin / Owner control plane.
+
+For each applicable product, service, plan, package, booking or entitlement, owner-manageable fields must include as relevant:
+
+- Price and currency or coin denomination.
+- Duration, expiry period, billing interval, rental term, or entitlement validity.
+- Available variants, quantities, tiers, and package options.
+- Publication/availability, activation, suspension, and purchase eligibility.
+- Any configurable limits or terms that affect what the member receives.
+
+Engineering requirements:
+
+1. Keep economic settings in centralized server-authoritative configuration/catalogues. Do not scatter authoritative prices or durations across client code.
+2. The owner must be able to create or edit supported prices and durations from the Super Admin / Owner UI without an application code change or client release.
+3. Validate every update on the server, enforce owner authorization and required MFA, version the configuration, and write an audit record.
+4. A purchase, renewal, booking, rental or call-entitlement transaction must read the current authoritative configuration on the server and atomically apply the applicable price, duration, wallet/ledger changes, receipt and idempotency controls.
+5. A client-submitted price or duration is only an expected-value confirmation; it is never authority. Reject stale price/version confirmations safely and require the member to confirm the current terms.
+6. Preserve the terms already accepted for an existing order or active entitlement where contractually appropriate; changing the catalogue must not silently rewrite historical receipts or unexpectedly shorten/extend an existing paid term.
+7. If a feature's fulfillment, refund/cancellation, or entitlement lifecycle is not implemented and tested, keep its purchase/booking gate disabled even when an experimental price is configured.
+8. Starter values are experimental engineering defaults. The owner may revise them before launch, including after phase-two simulation. This authorization does not enable live payment processing, production changes, billing, or deployment.
+
+This contract is a cross-cutting acceptance requirement for all monetized modules and all future additions. The catalogue examples above are not an exhaustive list of monetized features.
+
 ## Validation status
 
 - Room rental plans: owner/MFA-only update, validation, version increment, audit record.
