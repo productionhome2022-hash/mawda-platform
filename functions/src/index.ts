@@ -8542,16 +8542,18 @@ export const submitAdvertisingIntake = onCall(
       });
       return { requestId: requestRef.id, duplicate: false };
     });
-    if (!result.duplicate) {
-      await appendOwnerReviewAuditEvent({
-        actorUid,
-        action: "advertising_intake_submitted",
-        requestId: result.requestId,
-        intakeKind: payload.kind,
-        targetGeographies: payload.targetGeographies,
-        outcome: "success",
-      });
-    }
+    // Always attempt the deterministic audit event, including on idempotent
+    // replay. If the original request transaction committed but the audit write
+    // failed, a client retry repairs the missing audit record without creating
+    // a second intake request.
+    await appendOwnerReviewAuditEvent({
+      actorUid,
+      action: "advertising_intake_submitted",
+      requestId: result.requestId,
+      intakeKind: payload.kind,
+      targetGeographies: payload.targetGeographies,
+      outcome: "success",
+    }, "advertising_intake_submitted_" + result.requestId);
     return {
       requestId: result.requestId,
       status: "submitted_pending_review",
