@@ -11,6 +11,7 @@ void main() {
     expect(find.text('مراسلة الإدارة العامة'), findsOneWidget);
     expect(find.text('الإعلان المباشر'), findsOneWidget);
     expect(find.text('عرض محتوى المؤثرين وصنّاع المحتوى'), findsOneWidget);
+    expect(find.text('مكافآت مشاهدة الإعلانات المميزة'), findsOneWidget);
 
     await tester.tap(find.text('عرض محتوى المؤثرين وصنّاع المحتوى'));
     await tester.pumpAndSettle();
@@ -18,5 +19,11 @@ void main() {
     expect(find.text('طريقة تقديم المحتوى'), findsOneWidget);
     expect(find.text('النطاق الجغرافي المستهدف'), findsOneWidget);
     expect(find.textContaining('الحقوق أو الأذونات'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('مكافآت مشاهدة الإعلانات المميزة'));
+    await tester.pumpAndSettle();
+    expect(find.text('كيف تحصل على المكافأة؟'), findsOneWidget);
   });
 }
