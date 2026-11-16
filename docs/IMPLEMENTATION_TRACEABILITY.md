@@ -480,3 +480,12 @@ The Creator Content & Influencer Proposals route is an approved fifth Media Work
 - `MAWDDA_LEGAL_PORTAL_APP_IDS` defaults to an empty string. This is correctly fail-closed, but it means no web App ID is currently authorized.
 - Tracked as [Issue #19](https://github.com/productionhome2022-hash/mawda-platform/issues/19). The portal callables are not yet proven operational. Do not weaken App Check or add Android/iOS IDs to the allowlist.
 - Next safe work: add a compatible FlutterFire App Check dependency and web initialization using an owner-provided Firebase-registered site key; update the lockfile with the pinned Flutter toolchain; then validate in a dedicated non-production Firebase app after explicit authorization. No production Firebase change is authorized.
+
+
+## 2026-11-16 — Room rental idempotency and lifecycle integrity
+
+- Room rental creation and renewal request IDs are now bound to the original request details; conflicting retries fail closed and cannot be treated as successful replays.
+- A successful renewal transitions the previous current rental record from `active`/`grace_period` to `renewed` and stores its successor ID within the same Firestore transaction as the wallet debit, room expiry update, and new rental creation.
+- Added integration coverage for conflicting request-ID reuse, unchanged wallet balance on conflict, and prior-rental lifecycle transition.
+- Implementation/test commits: `3782b0576a3e494d8027e355e388298925e194ca`, `c244e81c90c84fe7609a218ceff8fa9a4e610b41`, `5de6a9e3309f75cd4ba59bb3df309663ed4f3446`, `e66b74ad64d67351fa391832ac2c9026e450035b`.
+- Automated tests have not yet run on this exact branch head. Cancellation/refund remains unimplemented pending explicit owner policy; no financial refund behavior was assumed.
