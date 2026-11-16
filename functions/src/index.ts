@@ -8390,10 +8390,18 @@ export const createOwnerContractDraft = onCall(async (request) => {
     const code = error instanceof Error ? error.message : "CONTRACT_DRAFT_INVALID";
     throw new HttpsError("invalid-argument", code);
   }
+  const idempotencyKey = typeof request.data?.idempotencyKey === "string"
+    ? request.data.idempotencyKey.trim() : "";
+  if (!/^[A-Za-z0-9_-]{16,100}$/.test(idempotencyKey)) {
+    throw new HttpsError("invalid-argument", "مفتاح منع تكرار إنشاء العقد غير صالح.");
+  }
+  const contentHash = computeContractContentHash(draft);
+  const idempotencyRef = db.collection("contractDraftIdempotency").doc(
+    createHash("sha256").update(actorUid + "|" + idempotencyKey).digest("hex"),
+  );
   const contractId = randomUUID();
   const contractRef = CONTRACT_RECORDS.doc(contractId);
   const auditRef = CONTRACT_AUDIT_LOGS.doc();
-  const contentHash = computeContractContentHash(draft);
   const record = {
     ...draft,
     contractId,
@@ -8408,8 +8416,22 @@ export const createOwnerContractDraft = onCall(async (request) => {
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   };
-  await db.runTransaction(async (transaction) => {
+  const result = await db.runTransaction(async (transaction) => {
+    const prior = await transaction.get(idempotencyRef);
+    if (prior.exists) {
+      const priorData = prior.data() ?? {};
+      if (priorData.contentHash !== contentHash || typeof priorData.contractId !== "string") {
+        throw new HttpsError("aborted", "استُخدم مفتاح الطلب نفسه مع محتوى عقد مختلف.");
+      }
+      return { contractId: priorData.contractId as string, duplicate: true };
+    }
     transaction.create(contractRef, record);
+    transaction.create(idempotencyRef, {
+      contractId,
+      actorUid,
+      contentHash,
+      createdAt: FieldValue.serverTimestamp(),
+    });
     transaction.create(auditRef, {
       contractId,
       actorUid,
@@ -8419,8 +8441,16 @@ export const createOwnerContractDraft = onCall(async (request) => {
       contentHash,
       createdAt: FieldValue.serverTimestamp(),
     });
+    return { contractId, duplicate: false };
   });
-  return { contractId, status: "draft", version: record.version, recordVersion: 1, contentHash };
+  return {
+    contractId: result.contractId,
+    status: "draft",
+    version: record.version,
+    recordVersion: 1,
+    contentHash,
+    idempotentReplay: result.duplicate,
+  };
 });
 
 /** Owner/MFA-only lifecycle transition with optimistic concurrency and legal readiness gate. */
