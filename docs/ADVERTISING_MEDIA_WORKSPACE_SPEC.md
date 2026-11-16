@@ -273,3 +273,12 @@ Server-side authorization on every read/write/action; no client-authoritative ro
 This specification is approved for engineering design and development on the development branch only. It does not authorize production deployment, real-money billing, commission payouts, live destructive retention, or merge to main.
 
 Before implementation, inspect existing code, models, owner authorization, chat/message infrastructure, media pipeline, retention/legal holds, Firestore/Storage rules and tests. Reuse existing services where safe. Implement in small reviewable steps with tests. Keep the logo placeholder until the Owner supplies the official asset. Complete legal review before activating agreements or collecting sensitive data.
+
+
+## Engineering progress note — 2026-11-16
+
+- Added the initial pure permission-domain helper at `functions/src/advertising-permissions.ts`. It defines the five-supervisor capacity, validates the explicit supervisor permission catalogue, reserves commission/payment/finance/Owner countersignature/emergency withdrawal actions to the Owner, and models the publication gates.
+- Added focused Node test cases at `functions/test/advertising-permissions.test.js`.
+- This is only a first domain-layer building block. It is **not yet wired into callable functions, Firestore/Storage authorization, supervisor management UI, representative onboarding, agreement signing, Media Workspace, request lifecycle, notification outbox, or retention scheduling**.
+- No test command or CI workflow run has been observed for these commits. Therefore the new tests are written but **not yet executed or passed**.
+- The existing Firestore rules remain default-deny for all not-yet-implemented collections. Do not loosen them to make the new feature appear functional; implement server callables and emulator/rules tests first.
