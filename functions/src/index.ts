@@ -5612,6 +5612,9 @@ export const inviteMemberToRoom = onCall(async (request) => {
     if (!room.exists || room.data()?.ownerUid !== actorUid) {
       throw new HttpsError("permission-denied", "الدعوات متاحة لمالك الغرفة فقط.");
     }
+    if (room.data()?.status !== "active") {
+      throw new HttpsError("failed-precondition", "لا يمكن إرسال دعوات إلى غرفة غير نشطة.");
+    }
     if (room.data()?.kind !== "private") {
       throw new HttpsError("failed-precondition", "الدعوات الخاصة مخصصة للغرف الخاصة.");
     }
