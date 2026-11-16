@@ -297,16 +297,33 @@ These are separate product areas, not tabs or modes of one shared section. Their
 
 ### 16.2 Media Workspace landing screen
 
-On entry, Media Workspace presents exactly these four primary options:
+On entry, Media Workspace presents exactly these five primary options:
 
 1. **Join / Collaboration Applications** — submit an application to cooperate with Mawdda, including an application to become an Advertising Representative. Do not describe the relationship as employment by default; any legal classification requires jurisdiction-specific review.
 2. **Message General Supervisors** — show the actual currently appointed and active General Advertising Supervisors by their configured display names and permitted contact availability. Never seed fictitious names or expose personal contact details. The maximum is five appointed supervisors, with individually delegated permissions.
 3. **Message General Administration** — a distinct route to the Owner / Super Admin administration inbox. The Owner can answer directly or assign/route the conversation to a specifically authorized General Supervisor. Routing must be auditable and must not grant the assignee broader permissions.
 4. **Advertise Directly** — submit a direct advertising inquiry/request as an individual or business without requiring Advertising Representative status or a signed representative agreement.
+5. **Creator Content & Influencer Proposals** — a separate intake route for influencers, YouTubers, public-page owners, video creators, photographers and advertising-content producers who want to present their channels, published work, creator portfolio or completed campaigns directly to Mawdda administration for review and possible commercial collaboration.
 
-These four options must be independently permissioned and route to their respective workflows. Direct advertiser inquiries must not be forced into the representative-only request flow.
+These five options must be independently permissioned and route to their respective workflows. Direct advertiser inquiries must not be forced into the representative-only request flow.
 
-### 16.3 Direct advertiser request and administration workflow
+### 16.3 Creator content and influencer proposals
+
+This route is distinct from **Advertise Directly**. Direct advertising is for an individual or business seeking to promote a product, service or activity. Creator proposals are submitted by creators who want Mawdda to review and potentially collaborate around their channel, audience, published content, creator portfolio or advertising work. Similar media may appear in both routes, but each request keeps its own request type, review checklist, terms and audit trail.
+
+The intake must support:
+- Creator identity and professional/display name, linked Mawdda account, preferred verified contact channel and creator category (influencer, YouTuber, public-page owner, video creator, photographer, advertising producer or extensible Owner-controlled category).
+- Platform name and exact public channel/account/post/portfolio URL, with an optional description of the creator's audience and content focus.
+- One or more presentation methods: external public URL with source platform/name; secure upload of supported image/video/design media; or a written proposal with title, description and optional attachments.
+- Mandatory explanation of the proposed content/collaboration and confirmation that the submitter has the rights or permissions needed to submit the material and authorize the proposed use. A submitted URL is not proof of ownership or usage rights.
+- Proposed campaign/collaboration duration, target geography using the existing approved advertising taxonomy, and either a proposed budget/price or an explicit request for an administration quote.
+- A server-generated unique request ID, immutable submitter identity and timestamps, versioned attachments/links metadata and idempotency protection.
+
+On submission, create a private creator-proposal record and a private request-bound conversation visible only to the submitter, Owner and explicitly authorized assignees. The Owner may review directly or assign a named supervisor/authorized reviewer within their server-enforced scope. Review includes content/link safety, rights declaration, suitability, geography and commercial feasibility. The parties may negotiate through the private conversation. Every offer must preserve versioned price, duration, geography, placement scope and terms; an amended offer requires fresh explicit acceptance by the creator.
+
+No proposal automatically creates an advertising campaign, inventory reservation, featured placement, publication or reward eligibility. Any resulting campaign must enter the established campaign approval lifecycle, use Owner-approved commercial terms and targeting, and pass the actual-payment-confirmation and publication gates. Creator status does not confer free advertising, priority placement, guaranteed reach, commission entitlement or Watch Ads rewards. Any later conversion into a campaign must preserve the original creator request ID and audit linkage.
+
+### 16.4 Direct advertiser request and administration workflow
 
 The direct advertising form must support structured categories, including but not limited to: image creative, video creative, product promotion, service promotion, company/brand, retail/store, food and beverages, real estate/land, construction/contracting, digital marketing/technology, education/training, travel/hospitality, vehicles, health/beauty/personal care, events, applications/websites/digital services, and Other with a free-text category. The taxonomy is extensible and Owner-controlled; multiple applicable categories may be selected.
 
@@ -316,7 +333,7 @@ On submission, the server creates a unique inquiry/request ID and a private conv
 
 Administration responds through the advertiser's Mawdda account-bound private inbox/conversation. Offers must state the proposed final price, duration, placement/geographic scope and relevant terms. Preserve versioned offers, advertiser acceptance/rejection, assignment history and audit events. No direct inquiry may publish or reserve inventory automatically. Publication requires the existing Owner-controlled approval and actual-payment-confirmation gates. Any later handoff into the representative campaign workflow must preserve the original inquiry ID and audit linkage.
 
-### 16.4 Watch Ads is a separate member-facing system
+### 16.5 Watch Ads is a separate member-facing system
 
 Watch Ads is a separate homepage destination and a distinct subsystem from Media Workspace. It serves eligible campaigns to members for viewing and may participate in a member reward program. It must not expose advertiser intake forms, representative commissions, supervisor administration controls or Owner finance operations.
 
@@ -326,13 +343,14 @@ Keep member rewards financially and technically separate from advertiser payment
 
 The campaign delivery service may supply eligible campaign metadata to Watch Ads, but viewing events and rewards must be recorded by the dedicated viewing/reward domain. Owner campaign pause/withdrawal remains authoritative and must stop eligibility across Watch Ads and every other placement.
 
-### 16.5 Homepage and acceptance criteria
+### 16.6 Homepage and acceptance criteria
 
 - Both destinations appear as separate peer-level entries on the application and web platform home screens.
 - Media Workspace opens a landing screen with the four options above.
 - Watch Ads opens the member viewing experience, not the Media Workspace request hub.
 - Supervisor names come only from actual active Owner appointments; vacant slots are not represented as people.
 - Direct advertiser inquiry is available to members who are not approved representatives.
+- Creator content/influencer proposal is a distinct fifth Media Workspace route with URL, secure-upload and written-proposal intake; mandatory rights declaration; private review conversation; versioned negotiation; and no automatic publication, booking, featured priority or reward.
 - Direct inquiry assignment, response and handoff are private, auditable and permission-checked server-side.
 - Proposed budget/duration cannot be mistaken for approved commercial terms or inventory reservation.
 - Viewing/reward events cannot be created by advertiser or representative request workflows.
