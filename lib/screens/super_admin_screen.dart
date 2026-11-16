@@ -16,6 +16,7 @@ import 'economy_pricing_screen.dart';
 import 'owner_advertising_rewards_screen.dart';
 import 'owner_contract_center_screen.dart';
 import 'owner_advertising_intake_screen.dart';
+import 'owner_production_applications_screen.dart';
 
 class SuperAdminScreen extends StatefulWidget {
   const SuperAdminScreen({super.key});
@@ -1454,6 +1455,17 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     )),
                     icon: const Icon(Icons.campaign_outlined),
                     label: const Text('طلبات الإعلانات والمندوبين'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (kIsWeb) SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const OwnerProductionApplicationsScreen(),
+                    )),
+                    icon: const Icon(Icons.movie_creation_outlined),
+                    label: const Text('طلبات عضوية صُنّاع مودة'),
                   ),
                 ),
                 const SizedBox(height: 8),
