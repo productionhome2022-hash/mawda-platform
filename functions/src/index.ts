@@ -85,6 +85,7 @@ import { DEFAULT_COIN_PACKAGES, DEFAULT_AD_PRICES, validateCoinPackages, validat
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
+import { validateSpecializedRoleGrant } from "./advertising-governance";
 import {
   defaultAttendanceRewardPolicy,
   validateAttendanceRewardPolicy,
@@ -8242,3 +8243,84 @@ export const submitCreatorProposal = onCall(
     });
   },
 );
+
+
+// Owner-controlled specialized advertising/production/legal role grants.
+// These grants are separate from general platform administration.
+const SPECIALIZED_ROLE_GRANTS = db.collection("specializedRoleGrants");
+
+export const getOwnerAdvertisingRoleGrants = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await SPECIALIZED_ROLE_GRANTS.orderBy("updatedAt", "desc").limit(500).get();
+  return { grants: snapshot.docs.map((doc) => ({ grantId: doc.id, ...doc.data() })) };
+});
+
+export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "إصدار الصلاحية المتوقع غير صالح.");
+  }
+  let grant;
+  try {
+    grant = validateSpecializedRoleGrant({ ...request.data?.grant, version: 1 });
+  } catch {
+    throw new HttpsError("invalid-argument", "بيانات تكليف المشرف المتخصص أو نطاق صلاحياته غير صالحة.");
+  }
+  const grantId = createHash("sha256")
+    .update([grant.uid, grant.role, [...grant.resourceScopes].sort().join("|")].join("|"))
+    .digest("hex");
+  const grantRef = SPECIALIZED_ROLE_GRANTS.doc(grantId);
+  const result = await db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(grantRef);
+    const previousVersion = previous.exists ? Number(previous.data()?.version) : 0;
+    if (!Number.isSafeInteger(previousVersion) || previousVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت الصلاحية منذ آخر قراءة؛ أعد تحميلها قبل الحفظ.");
+    }
+    const version = previousVersion + 1;
+    const now = FieldValue.serverTimestamp();
+    transaction.set(grantRef, {
+      ...grant, version, assignedBy: actorUid, updatedBy: actorUid,
+      createdAt: previous.data()?.createdAt ?? now, updatedAt: now,
+    });
+    return { grantId, version, status: grant.status };
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid, action: "specialized_advertising_role_grant_saved", ...result,
+    targetUid: grant.uid, role: grant.role, permissions: grant.permissions,
+    resourceScopes: grant.resourceScopes, outcome: "success",
+  });
+  return result;
+});
+
+export const revokeOwnerAdvertisingRoleGrant = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const grantId = request.data?.grantId;
+  const expectedVersion = request.data?.expectedVersion;
+  if (typeof grantId !== "string" || !/^[a-f0-9]{64}$/.test(grantId) ||
+      !Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+    throw new HttpsError("invalid-argument", "معرف الصلاحية أو إصدارها غير صالح.");
+  }
+  const grantRef = SPECIALIZED_ROLE_GRANTS.doc(grantId);
+  const result = await db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(grantRef);
+    if (!previous.exists) throw new HttpsError("not-found", "تكليف الصلاحية غير موجود.");
+    const data = previous.data()!;
+    if (data.version !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت الصلاحية؛ أعد تحميلها قبل السحب.");
+    }
+    if (data.status === "revoked") {
+      return { grantId, version: data.version, revoked: true, idempotentReplay: true };
+    }
+    const version = data.version + 1;
+    transaction.update(grantRef, {
+      status: "revoked", version, revokedAt: FieldValue.serverTimestamp(),
+      revokedBy: actorUid, updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
+    });
+    return { grantId, version, revoked: true, idempotentReplay: false };
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid, action: "specialized_advertising_role_grant_revoked", ...result, outcome: "success",
+  });
+  return result;
+});
