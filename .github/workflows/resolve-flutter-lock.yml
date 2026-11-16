@@ -1,0 +1,43 @@
+name: Resolve Flutter dependency lockfile
+
+on:
+  push:
+    branches:
+      - codex/mawda-full-platform-implementation
+    paths:
+      - pubspec.yaml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mawdda-flutter-lock-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  resolve-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+      - name: Resolve dependencies with the pinned Flutter SDK
+        run: flutter pub get
+      - name: Commit the generated lockfile on the development branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet -- pubspec.lock; then
+            git add pubspec.lock
+            git commit -m "build(deps): resolve Flutter WebRTC lockfile"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          else
+            echo "pubspec.lock already matches pubspec.yaml"
+          fi
