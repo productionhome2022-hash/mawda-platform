@@ -2,6 +2,19 @@ import { isIP } from "node:net";
 
 export type CreatorProposalSourceType = "external_url" | "written_proposal";
 
+export const CREATOR_PROPOSAL_GEOGRAPHIES = [
+  "all_arab_countries",
+  "syria",
+  "lebanon_palestine",
+  "iraq_jordan",
+  "gcc",
+  "egypt",
+  "tunisia_libya_sudan",
+  "algeria_morocco",
+  "europe_turkey",
+  "asia_middle_east",
+] as const;
+
 export type CreatorProposalPayload = {
   creatorDisplayName: string;
   creatorCategory: string;
@@ -93,6 +106,11 @@ export function validateCreatorProposalInput(input: unknown): CreatorProposalPay
   const targetGeographies = [...new Set(targetGeographiesRaw.map((item) =>
     requiredText(item, 80, "invalid_target_geographies"),
   ))];
+  if (targetGeographies.some((item) =>
+    !(CREATOR_PROPOSAL_GEOGRAPHIES as readonly string[]).includes(item),
+  )) {
+    throw new CreatorProposalValidationError("unsupported_target_geography");
+  }
   if (targetGeographies.length !== targetGeographiesRaw.length) {
     throw new CreatorProposalValidationError("duplicate_target_geography");
   }
