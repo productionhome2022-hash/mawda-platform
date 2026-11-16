@@ -435,3 +435,6 @@ Source contract: [Advertising Department & Media Workspace Specification](ADVERT
 The featured policy helper is preparatory code only. It must not be presented as an active serving path or as proof of reward separation until callable integration, Firestore schema/rules, Owner controls, Flutter presentation and end-to-end tests are completed. No ad campaign is published by this change, and no payment or production setting is enabled.
 
 The Creator Content & Influencer Proposals route is an approved fifth Media Workspace destination. Its first authenticated intake slice now exists on the development branch, but the route is not end-to-end complete. It must use the existing campaign, media-security, Owner approval, payment-confirmation, audit and geographic-targeting authorities; it must not create a parallel advertising or wallet subsystem.
+
+
+**Latest advertising implementation note — 16 November 2026:** The homepage featured-ad entry and sixth Media Workspace reward-guidance route are present as UI scaffolding. The dedicated featured campaign serving and wallet-credit path remain intentionally unavailable until their server-side eligibility, daily caps, rolling cooldown, payment/approval gates, audit and member-history integration are complete and tested.
