@@ -26,7 +26,7 @@ test("validates an external creator proposal without treating it as campaign app
   assert.equal(result.sourceType, "external_url");
   assert.equal(result.contentUrl, "https://www.example.com/channel/creator");
   assert.equal(result.quoteRequested, true);
-  assert.equal(result.proposedBudgetMinor, null);
+  assert.equal(result.proposedBudgetAmount, null);
 });
 
 test("accepts a written proposal with a proposed budget and currency", () => {
@@ -36,11 +36,11 @@ test("accepts a written proposal with a proposed budget and currency", () => {
     contentUrl: undefined,
     platformName: undefined,
     quoteRequested: false,
-    proposedBudgetMinor: 12500,
+    proposedBudgetAmount: "125.00",
     currency: "EUR",
   });
   assert.equal(result.sourceType, "written_proposal");
-  assert.equal(result.proposedBudgetMinor, 12500);
+  assert.equal(result.proposedBudgetAmount, "125.00");
   assert.equal(result.currency, "EUR");
 });
 
@@ -71,7 +71,7 @@ test("requires exactly one of quote request or proposed budget", () => {
   assert.throws(
     () => validateCreatorProposalInput({
       ...base,
-      proposedBudgetMinor: 1000,
+      proposedBudgetAmount: "10.00",
       currency: "EUR",
     }),
     /quote_and_budget_are_mutually_exclusive/,
