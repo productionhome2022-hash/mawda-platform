@@ -84,6 +84,8 @@ import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
 import { DEFAULT_COIN_PACKAGES, DEFAULT_AD_PRICES, validateCoinPackages, validateAdPrices } from "./economy-pricing";
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
+import { createHash } from "node:crypto";
+import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
 import {
   defaultAttendanceRewardPolicy,
   validateAttendanceRewardPolicy,
@@ -8130,3 +8132,111 @@ export const runExpiredTimedAdSessionSweep = async (nowMs = Date.now()) => {
 export const cleanupExpiredTimedAdSessions = onSchedule("every 15 minutes", async () => {
   await runExpiredTimedAdSessionSweep();
 });
+
+
+/**
+ * Creates a private creator/influencer proposal. This is intake only:
+ * it does not approve content, create a campaign, reserve inventory,
+ * publish an advertisement, or issue any reward/payment.
+ *
+ * Uploaded-media intake is intentionally not exposed until it can be bound
+ * to the existing secure media quarantine/scanning pipeline.
+ */
+export const submitCreatorProposal = onCall(
+  { enforceAppCheck: true },
+  async (request) => {
+    const actorUid = requireAuthenticatedUid(request.auth?.uid);
+    let payload;
+    try {
+      payload = validateCreatorProposalInput(request.data);
+    } catch (error) {
+      if (error instanceof CreatorProposalValidationError) {
+        throw new HttpsError("invalid-argument", error.code);
+      }
+      throw error;
+    }
+
+    const payloadHash = createHash("sha256")
+      .update(JSON.stringify(payload))
+      .digest("hex");
+    const idempotencyRef = db.collection("creatorProposalIdempotency")
+      .doc(`${actorUid}_${payload.idempotencyKey}`);
+    const proposalRef = db.collection("creatorProposals").doc();
+    const auditRef = db.collection("adminAuditLogs").doc();
+
+    return db.runTransaction(async (transaction) => {
+      const existing = await transaction.get(idempotencyRef);
+      if (existing.exists) {
+        const prior = existing.data() ?? {};
+        if (prior.payloadHash !== payloadHash) {
+          throw new HttpsError(
+            "already-exists",
+            "مفتاح الطلب مستخدم مسبقاً مع بيانات مختلفة.",
+          );
+        }
+        return {
+          requestId: String(prior.proposalId),
+          status: "submitted_pending_review",
+          duplicate: true,
+        };
+      }
+
+      const headSnapshot = await transaction.get(OWNER_REVIEW_AUDIT_HEAD);
+      const head = headSnapshot.data() ?? {};
+      const previousSequence = headSnapshot.exists ? head.sequence : 0;
+      const previousHash = headSnapshot.exists ? head.eventHash : "GENESIS";
+      if (!Number.isSafeInteger(previousSequence) || previousSequence < 0 ||
+          typeof previousHash !== "string" ||
+          !(previousHash === "GENESIS" || /^[a-f0-9]{64}$/.test(previousHash))) {
+        throw new HttpsError("internal", "سجل التدقيق غير متاح حالياً.");
+      }
+
+      const event = {
+        actorUid,
+        action: "creator_proposal_submitted",
+        outcome: "success",
+        proposalId: proposalRef.id,
+        sourceType: payload.sourceType,
+        targetGeographies: payload.targetGeographies,
+        requestVersion: 1,
+      };
+      const sequence = previousSequence + 1;
+      const eventHash = calculateOwnerAuditHash(event, sequence, previousHash);
+
+      transaction.create(proposalRef, {
+        ...payload,
+        creatorUid: actorUid,
+        status: "submitted_pending_review",
+        requestVersion: 1,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.create(idempotencyRef, {
+        actorUid,
+        payloadHash,
+        proposalId: proposalRef.id,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      transaction.create(auditRef, {
+        ...event,
+        auditEvent: event,
+        auditChainId: "owner-review-v1",
+        auditSequence: sequence,
+        previousAuditHash: previousHash,
+        auditHash: eventHash,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      transaction.set(OWNER_REVIEW_AUDIT_HEAD, {
+        sequence,
+        eventHash,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      return {
+        requestId: proposalRef.id,
+        status: "submitted_pending_review",
+        duplicate: false,
+      };
+    });
+  },
+);
