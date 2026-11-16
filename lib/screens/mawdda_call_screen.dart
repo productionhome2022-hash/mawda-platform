@@ -45,6 +45,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   bool _ending = false;
   bool _muted = false;
   bool _cameraEnabled = true;
+  bool _turnConfigured = false;
   String _status = 'جارٍ تجهيز الاتصال...';
   String? _failure;
 
@@ -90,6 +91,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       final iceResponse = await _functions.httpsCallable('getCallIceConfiguration')
           .call({'callId': widget.callId});
       final iceData = Map<String, dynamic>.from(iceResponse.data as Map);
+      _turnConfigured = iceData['turnConfigured'] == true;
       _iceServers = (iceData['iceServers'] as List<dynamic>? ?? const [])
           .whereType<Map>()
           .map((server) => Map<String, dynamic>.from(server))
@@ -401,6 +403,15 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
               children: [
                 Text(_status, textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.titleMedium),
+                if (!_turnConfigured)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      'خادم TURN غير مهيأ بعد؛ قد لا ينجح الاتصال عبر بعض الشبكات.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    ),
+                  ),
                 if (_failure != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
