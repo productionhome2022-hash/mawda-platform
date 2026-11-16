@@ -269,3 +269,19 @@ Only the Super Admin / Owner may view financial totals or configure commercial t
 - Premium catalog: missing rows are seeded without overwriting owner edits; first-seed purchases remain disabled; non-ready features remain fail-closed.
 - Economy schedules: owner/MFA-only editable coin and advertising prices, versioned and audited.
 - Real-money checkout and live payment processing: intentionally disabled.
+
+
+## Owner-approved advertising department governance addendum — 2026-11-16
+
+This addendum clarifies the role terminology and governance introduced by [ADVERTISING_MEDIA_WORKSPACE_SPEC.md](ADVERTISING_MEDIA_WORKSPACE_SPEC.md), which is the detailed product/security contract for the advertising department.
+
+- The former term "advertising upload moderator" in the earlier geographic/request requirements refers to the **Advertising Representative (مندوب إعلانات معتمد)**. The representative count remains unlimited and is distinct from the administrative supervisor capacity.
+- The Owner may appoint up to **five (5) General Advertising Supervisors**, each with a separate, individually delegated, versioned permission set. Five is the maximum number of active general-supervisor appointments, not a cap on advertising representatives.
+- The Owner may optionally grant a supervisor campaign publication permission. Publication delegation never grants commission authority, final-price authority, payment-confirmation authority or financial-ledger access.
+- **Per-advertisement commission remains exclusively Owner-controlled.** No supervisor or representative may set, alter or approve a commission rate. No global commission rate or fallback exists.
+- The Owner retains an immediate, server-enforced emergency pause/withdrawal right over every campaign, including campaigns published by a delegated supervisor. A supervisor cannot reverse an Owner withdrawal or republish without Owner reauthorization.
+- Representative agreement signing is two-party and in-app: the representative signs the exact version using their verified Mawdda email and an approved step-up verification; the authorized Owner countersigns using the verified Company identity and MFA/step-up. Email is the formal notice channel, not a substitute for the version-bound signature evidence.
+- The representative's advertising communications take place in a distinct **Media Workspace**, not ordinary personal direct messages.
+- Every request requires a substantive advertising description regardless of whether the creative is an uploaded image, uploaded video or external link. For external links, record the source platform/site.
+- After six months of qualifying inactivity, operational messages, creative images/videos and external creative links are eligible for deletion. Preserve the mandatory description, signed agreements, formal notices, publication/payment/commission notices, financial references and audit/legal-hold evidence under their separately approved retention periods. Active campaign dependencies and legal holds prevent premature creative deletion.
+- These requirements do not activate real-money billing, commission payout, live destructive retention, production changes or deployment. Those remain separate release gates requiring legal/technical validation and any required Owner authorization.
