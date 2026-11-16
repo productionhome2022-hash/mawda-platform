@@ -282,3 +282,60 @@ Before implementation, inspect existing code, models, owner authorization, chat/
 - This is only a first domain-layer building block. It is **not yet wired into callable functions, Firestore/Storage authorization, supervisor management UI, representative onboarding, agreement signing, Media Workspace, request lifecycle, notification outbox, or retention scheduling**.
 - No test command or CI workflow run has been observed for these commits. Therefore the new tests are written but **not yet executed or passed**.
 - The existing Firestore rules remain default-deny for all not-yet-implemented collections. Do not loosen them to make the new feature appear functional; implement server callables and emulator/rules tests first.
+
+
+## 16. Owner-approved homepage placement and independent ad viewing
+
+### 16.1 Two distinct homepage destinations
+
+The Mawdda main screen on both the mobile application and web platform must present two separate, peer-level destinations alongside one another:
+
+1. **Media Workspace** — the operational hub for advertising requests, collaboration applications and authorized administrative communication.
+2. **Watch Ads / مشاهدة الإعلانات** — the member-facing experience for discovering and watching eligible advertisements, with its own reward-eligibility and reward-accounting flow.
+
+These are separate product areas, not tabs or modes of one shared section. Their navigation entries, route boundaries, access rules, data models and lifecycle responsibilities must remain distinct. A member selecting Media Workspace enters its four-option landing screen; a member selecting Watch Ads enters the ad-viewing experience.
+
+### 16.2 Media Workspace landing screen
+
+On entry, Media Workspace presents exactly these four primary options:
+
+1. **Join / Collaboration Applications** — submit an application to cooperate with Mawdda, including an application to become an Advertising Representative. Do not describe the relationship as employment by default; any legal classification requires jurisdiction-specific review.
+2. **Message General Supervisors** — show the actual currently appointed and active General Advertising Supervisors by their configured display names and permitted contact availability. Never seed fictitious names or expose personal contact details. The maximum is five appointed supervisors, with individually delegated permissions.
+3. **Message General Administration** — a distinct route to the Owner / Super Admin administration inbox. The Owner can answer directly or assign/route the conversation to a specifically authorized General Supervisor. Routing must be auditable and must not grant the assignee broader permissions.
+4. **Advertise Directly** — submit a direct advertising inquiry/request as an individual or business without requiring Advertising Representative status or a signed representative agreement.
+
+These four options must be independently permissioned and route to their respective workflows. Direct advertiser inquiries must not be forced into the representative-only request flow.
+
+### 16.3 Direct advertiser request and administration workflow
+
+The direct advertising form must support structured categories, including but not limited to: image creative, video creative, product promotion, service promotion, company/brand, retail/store, food and beverages, real estate/land, construction/contracting, digital marketing/technology, education/training, travel/hospitality, vehicles, health/beauty/personal care, events, applications/websites/digital services, and Other with a free-text category. The taxonomy is extensible and Owner-controlled; multiple applicable categories may be selected.
+
+The form collects advertiser identity/business name, Mawdda account identity, contact preference, mandatory detailed advertisement description, creative format and secure upload or external URL (including source platform/site name), requested target geography, requested display duration, and proposed/expected budget. The proposed budget may be omitted through an explicit “request an administration quote” choice. The requested duration and budget are proposals only, not accepted price, availability, booking or publication commitments.
+
+On submission, the server creates a unique inquiry/request ID and a private conversation bound to that request. The inquiry enters an administrative review queue and is visible only to the advertiser, Owner and explicitly authorized assignees. The Owner may handle it directly, assign a named General Supervisor with suitable permissions, or route it to an Advertising Representative when appropriate. Assignment does not itself authorize the representative to act outside their own role and agreement.
+
+Administration responds through the advertiser's Mawdda account-bound private inbox/conversation. Offers must state the proposed final price, duration, placement/geographic scope and relevant terms. Preserve versioned offers, advertiser acceptance/rejection, assignment history and audit events. No direct inquiry may publish or reserve inventory automatically. Publication requires the existing Owner-controlled approval and actual-payment-confirmation gates. Any later handoff into the representative campaign workflow must preserve the original inquiry ID and audit linkage.
+
+### 16.4 Watch Ads is a separate member-facing system
+
+Watch Ads is a separate homepage destination and a distinct subsystem from Media Workspace. It serves eligible campaigns to members for viewing and may participate in a member reward program. It must not expose advertiser intake forms, representative commissions, supervisor administration controls or Owner finance operations.
+
+The viewing/reward subsystem requires its own server-authoritative eligibility checks, impression/view session identity, completion and fraud validation, per-member limits or policy controls where approved, idempotent reward issuance, abuse/risk signals, and auditable reward ledger. A view must not be counted more than once across overlapping geographic feeds, placements, refreshes or retries. Client-side playback completion alone is not proof of a qualified view and must never authorize a reward.
+
+Reward values, earning limits, qualifying view rules, redemption and expiry policies are not specified or approved by this homepage decision. Do not invent them or enable reward issuance until the Owner approves a separate reward policy and the implementation is tested. Keep member rewards financially and technically separate from advertiser payments, Advertising Representative per-ad commissions and Company revenue accounting, while retaining auditable links to the originating campaign and eligible view event.
+
+The campaign delivery service may supply eligible campaign metadata to Watch Ads, but viewing events and rewards must be recorded by the dedicated viewing/reward domain. Owner campaign pause/withdrawal remains authoritative and must stop eligibility across Watch Ads and every other placement.
+
+### 16.5 Homepage and acceptance criteria
+
+- Both destinations appear as separate peer-level entries on the application and web platform home screens.
+- Media Workspace opens a landing screen with the four options above.
+- Watch Ads opens the member viewing experience, not the Media Workspace request hub.
+- Supervisor names come only from actual active Owner appointments; vacant slots are not represented as people.
+- Direct advertiser inquiry is available to members who are not approved representatives.
+- Direct inquiry assignment, response and handoff are private, auditable and permission-checked server-side.
+- Proposed budget/duration cannot be mistaken for approved commercial terms or inventory reservation.
+- Viewing/reward events cannot be created by advertiser or representative request workflows.
+- A qualified view and reward are idempotent and server-validated; refreshes, replay and concurrent requests cannot multiply rewards.
+- Owner withdrawal blocks ad delivery in Watch Ads as well as all other campaign placements.
+- No reward amounts, view quotas, payout/redemption terms or financial promises are inferred from this specification.
