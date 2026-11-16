@@ -463,3 +463,32 @@ test("concurrent members cannot reserve the same final ad reward budget", async 
     ]);
   }
 });
+
+
+test("distinct member/campaign pairs with colliding legacy IDs keep independent reward limits", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const uidA = "member_a";
+  const campaignA = "campaign_123456";
+  const uidB = "member";
+  const campaignB = "a_campaign_123456";
+  assert.equal(uidA + "_" + campaignA, uidB + "_" + campaignB);
+  const users = [db.collection("users").doc(uidA), db.collection("users").doc(uidB)];
+  const campaigns = [db.collection("timedAdCampaigns").doc(campaignA), db.collection("timedAdCampaigns").doc(campaignB)];
+  const sessions = [];
+  const counterIds = [require("../../lib/engagement-rewards").timedAdMemberCounterId(uidA, campaignA), require("../../lib/engagement-rewards").timedAdMemberCounterId(uidB, campaignB)];
+  try {
+    await Promise.all([...users.map((ref) => ref.set({ coins: 0, profileCompleted: true, accountStatus: "active" })), ...campaigns.map((ref) => ref.set({ title: "Counter collision isolation test", sponsorLabel: "Synthetic CI sponsor", body: "Synthetic campaign used only to verify independent member reward limits.", placement: "reward_center", creativeType: "text", durationSeconds: 15, rewardCoins: 1, startsAtMs: Date.now() - 1000, endsAtMs: Date.now() + 3600000, maxClaimsPerMember: 1, rewardBudgetCoins: 1, spentRewardCoins: 0, reservedRewardCoins: 0, status: "published", version: 1 }))]);
+    const started = await Promise.all([startTimedAdvertisement.run(memberRequest(uidA, { campaignId: campaignA })), startTimedAdvertisement.run(memberRequest(uidB, { campaignId: campaignB }))]);
+    sessions.push(...started.map((item) => item.sessionId));
+    await Promise.all(sessions.map((id) => db.collection("timedAdSessions").doc(id).update({ eligibleMs: 15000, heartbeatSequence: 0, lastHeartbeatAtMs: Date.now() - 5000 })));
+    const completed = await Promise.all([completeTimedAdvertisement.run(memberRequest(uidA, { sessionId: sessions[0] })), completeTimedAdvertisement.run(memberRequest(uidB, { sessionId: sessions[1] }))]);
+    assert.equal(completed.every((item) => item.completed), true);
+    assert.notEqual(counterIds[0], counterIds[1]);
+    const [userA, userB, counterA, counterB] = await Promise.all([users[0].get(), users[1].get(), db.collection("timedAdMemberCounters").doc(counterIds[0]).get(), db.collection("timedAdMemberCounters").doc(counterIds[1]).get()]);
+    assert.equal(userA.data().coins, 1); assert.equal(userB.data().coins, 1);
+    assert.equal(counterA.data().uid, uidA); assert.equal(counterA.data().campaignId, campaignA); assert.equal(counterA.data().claimCount, 1);
+    assert.equal(counterB.data().uid, uidB); assert.equal(counterB.data().campaignId, campaignB); assert.equal(counterB.data().claimCount, 1);
+  } finally {
+    await Promise.all([...users.map((ref) => ref.delete().catch(() => undefined)), ...campaigns.map((ref) => ref.delete().catch(() => undefined)), ...sessions.flatMap((id, index) => [db.collection("timedAdSessions").doc(id).delete().catch(() => undefined), db.collection("timedAdRewardClaims").doc(id).delete().catch(() => undefined), db.collection("activeTimedAdSessions").doc(index === 0 ? uidA : uidB).delete().catch(() => undefined), db.collection("users").doc(index === 0 ? uidA : uidB).collection("walletLedger").doc("timed_ad_" + id).delete().catch(() => undefined)]), ...counterIds.map((id) => db.collection("timedAdMemberCounters").doc(id).delete().catch(() => undefined)), db.collection("timedAdMemberCounters").doc(uidA + "_" + campaignA).delete().catch(() => undefined)]);
+  }
+});
