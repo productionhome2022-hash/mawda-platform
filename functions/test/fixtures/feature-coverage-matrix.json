@@ -358,6 +358,41 @@
       ]
     },
     {
+      "id": "CALL-001",
+      "area": "voice-video-calls-and-signaling",
+      "actors": [
+        "email-member",
+        "counterparty-member"
+      ],
+      "command": "npm run test:call-signaling-integration",
+      "status": "partial",
+      "cases": [
+        "authenticated-call-creation",
+        "direct-chat-membership-authorization",
+        "room-membership-and-age-band-authorization",
+        "mutual-block-denial",
+        "caller-and-recipient-signaling-roles",
+        "recipient-scoped-offer-answer-and-ice",
+        "monotonic-per-peer-signal-sequences",
+        "duplicate-signal-replay-denial",
+        "atomic-active-call-member-locks",
+        "room-participant-accept-reject-and-leave",
+        "participant-specific-ice-configuration",
+        "expired-ringing-call-finalization"
+      ],
+      "plannedCases": [
+        "flutter-webrtc-audio-negotiation-on-android-ios-and-web",
+        "flutter-webrtc-video-negotiation-on-android-ios-and-web",
+        "microphone-camera-denial-and-revocation",
+        "turn-relay-nat-traversal-and-network-switch",
+        "ice-restart-and-long-running-call-renegotiation",
+        "foreground-background-and-terminated-call-notification-e2e",
+        "real-device-audio-video-quality-and-resource-release",
+        "multi-party-room-call-acceptance-on-real-devices"
+      ],
+      "releaseBlocker": "The server call lifecycle and targeted signaling plus Flutter WebRTC UI have been added to the development branch. Exact-head emulator/CI evidence is pending. TURN relay is not configured, so STUN-only connectivity is not reliable across all NAT/network combinations. Real Android/iOS/Web media-device and background-notification acceptance remains open; do not mark this journey release-ready."
+    },
+    {
       "id": "LOAD-001",
       "area": "reliability-and-load",
       "actors": [
@@ -436,6 +471,8 @@
     "security-review",
     "manual-acceptance-review",
     "staging-smoke-tests",
-    "explicit-pilot-approval"
+    "explicit-pilot-approval",
+    "webrtc-call-signaling-emulator-integration",
+    "webrtc-turn-relay-and-real-device-acceptance"
   ]
 }
