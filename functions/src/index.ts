@@ -85,6 +85,18 @@ import { DEFAULT_COIN_PACKAGES, DEFAULT_AD_PRICES, validateCoinPackages, validat
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
+import {
+  applyContractSignature,
+  assertContractStatusTransition,
+  canMakeContractEffective,
+  computeContractContentHash,
+  validateContractDraftInput,
+  validateContractReadyForSignature,
+  type ContractDraftInput,
+  type ContractSignatureEvidence,
+  type ContractSigningState,
+  type ContractStatus,
+} from "./contracts-workflow";
 import { validateSpecializedRoleGrant, specializedRoleGrantId } from "./advertising-governance";
 import {
   defaultAttendanceRewardPolicy,
@@ -8321,4 +8333,329 @@ export const revokeOwnerAdvertisingRoleGrant = onCall(async (request) => {
     actorUid, action: "specialized_advertising_role_grant_revoked", ...result, outcome: "success",
   });
   return result;
+});
+
+
+// ---------------------------------------------------------------------------
+// Owner-controlled contract center. Contract content is immutable after send;
+// all signature evidence is bound to an exact content hash and terms version.
+// ---------------------------------------------------------------------------
+const CONTRACT_RECORDS = db.collection("contracts");
+const CONTRACT_AUDIT_LOGS = db.collection("contractAuditLogs");
+
+function contractSigningState(data: Record<string, unknown>): ContractSigningState {
+  return {
+    status: data.status as ContractStatus,
+    version: data.version as number,
+    contentHash: data.contentHash as string,
+    ownerUid: data.ownerUid as string,
+    counterpartyUid: data.counterpartyUid as string,
+    counterpartyEmail: data.counterpartyEmail as string,
+    counterpartySignature: (data.counterpartySignature ?? null) as ContractSignatureEvidence | null,
+    companySignature: (data.companySignature ?? null) as ContractSignatureEvidence | null,
+  };
+}
+
+function contractExpectedRecordVersion(value: unknown): number {
+  if (!Number.isSafeInteger(value) || (value as number) < 1) {
+    throw new HttpsError("invalid-argument", "إصدار سجل العقد المتوقع غير صالح.");
+  }
+  return value as number;
+}
+
+function contractActorEmail(request: {
+  auth?: { token: Record<string, unknown> } | null;
+}): string {
+  const token = request.auth?.token ?? {};
+  const email = typeof token.email === "string" ? token.email.trim().toLowerCase() : "";
+  if (token.email_verified !== true || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+    throw new HttpsError("failed-precondition", "يجب التحقق من البريد الإلكتروني قبل توقيع العقد.");
+  }
+  const authTime = token.auth_time;
+  if (!Number.isSafeInteger(authTime) ||
+      Date.now() - (authTime as number) * 1000 > 10 * 60 * 1000 ||
+      (authTime as number) * 1000 > Date.now() + 60 * 1000) {
+    throw new HttpsError("failed-precondition", "يتطلب توقيع العقد إعادة تحقق حديثة من الحساب.");
+  }
+  return email;
+}
+
+/** Owner/MFA-only draft creation. Drafts are not sent, signed or effective. */
+export const createOwnerContractDraft = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let draft: ContractDraftInput;
+  try {
+    draft = validateContractDraftInput(request.data);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "CONTRACT_DRAFT_INVALID";
+    throw new HttpsError("invalid-argument", code);
+  }
+  const contractId = randomUUID();
+  const contractRef = CONTRACT_RECORDS.doc(contractId);
+  const auditRef = CONTRACT_AUDIT_LOGS.doc();
+  const contentHash = computeContractContentHash(draft);
+  const record = {
+    ...draft,
+    contractId,
+    ownerUid: actorUid,
+    status: "draft" as ContractStatus,
+    version: draft.termsVersion,
+    recordVersion: 1,
+    contentHash,
+    counterpartySignature: null,
+    companySignature: null,
+    createdBy: actorUid,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+  await db.runTransaction(async (transaction) => {
+    transaction.create(contractRef, record);
+    transaction.create(auditRef, {
+      contractId,
+      actorUid,
+      action: "contract_draft_created",
+      status: "draft",
+      version: record.version,
+      contentHash,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { contractId, status: "draft", version: record.version, recordVersion: 1, contentHash };
+});
+
+/** Owner/MFA-only lifecycle transition with optimistic concurrency and legal readiness gate. */
+export const transitionOwnerContract = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const contractId = typeof request.data?.contractId === "string" ? request.data.contractId.trim() : "";
+  const nextStatus = request.data?.nextStatus;
+  const expectedRecordVersion = contractExpectedRecordVersion(request.data?.expectedRecordVersion);
+  if (!/^[0-9a-f-]{36}$/i.test(contractId) ||
+      typeof nextStatus !== "string") {
+    throw new HttpsError("invalid-argument", "معرف العقد أو الحالة المطلوبة غير صالحين.");
+  }
+  const contractRef = CONTRACT_RECORDS.doc(contractId);
+  const auditRef = CONTRACT_AUDIT_LOGS.doc();
+  const result = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(contractRef);
+    if (!snapshot.exists) throw new HttpsError("not-found", "العقد غير موجود.");
+    const data = snapshot.data()!;
+    if (data.ownerUid !== actorUid) throw new HttpsError("permission-denied", "العقد ليس ضمن نطاق إدارة المالك.");
+    if (data.recordVersion !== expectedRecordVersion) {
+      throw new HttpsError("aborted", "تغير سجل العقد؛ أعد تحميله قبل المتابعة.");
+    }
+    const from = data.status as ContractStatus;
+    const to = nextStatus as ContractStatus;
+    try {
+      assertContractStatusTransition(from, to);
+    } catch {
+      throw new HttpsError("failed-precondition", "انتقال حالة العقد غير مسموح.");
+    }
+    if (to === "ready_to_send" || to === "awaiting_counterparty_signature") {
+      try {
+        validateContractReadyForSignature(data as unknown as ContractDraftInput);
+      } catch {
+        throw new HttpsError("failed-precondition", "بيانات الشركة والاختصاص والقانون والنزاع يجب أن تكتمل قبل الإرسال.");
+      }
+    }
+    if (to === "effective" && !canMakeContractEffective(contractSigningState(data))) {
+      throw new HttpsError("failed-precondition", "لا يمكن تفعيل العقد قبل اكتمال توقيع الطرفين على النسخة نفسها.");
+    }
+    const recordVersion = expectedRecordVersion + 1;
+    transaction.update(contractRef, {
+      status: to,
+      recordVersion,
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: actorUid,
+      ...(to === "awaiting_counterparty_signature"
+        ? { sentAt: FieldValue.serverTimestamp() } : {}),
+      ...(to === "effective"
+        ? { effectiveAt: FieldValue.serverTimestamp() } : {}),
+      ...(to === "suspended"
+        ? { suspendedAt: FieldValue.serverTimestamp() } : {}),
+      ...(to === "terminated"
+        ? { terminatedAt: FieldValue.serverTimestamp() } : {}),
+      ...(to === "cancelled"
+        ? { cancelledAt: FieldValue.serverTimestamp() } : {}),
+    });
+    transaction.create(auditRef, {
+      contractId,
+      actorUid,
+      action: "contract_status_transition",
+      from,
+      to,
+      recordVersion,
+      contentHash: data.contentHash,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { contractId, status: to, recordVersion };
+  });
+  return result;
+});
+
+/** Counterparty signature is bound to verified UID/email, recent authentication, hash and terms version. */
+export const signContractAsCounterparty = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const email = contractActorEmail(request);
+  const contractId = typeof request.data?.contractId === "string" ? request.data.contractId.trim() : "";
+  const expectedVersion = request.data?.expectedVersion;
+  const expectedHash = request.data?.expectedContentHash;
+  if (!/^[0-9a-f-]{36}$/i.test(contractId) ||
+      !Number.isSafeInteger(expectedVersion) || typeof expectedHash !== "string" ||
+      !/^[a-f0-9]{64}$/.test(expectedHash) || request.data?.accept !== true) {
+    throw new HttpsError("invalid-argument", "بيانات توقيع العقد أو تأكيد القبول غير صالحة.");
+  }
+  const contractRef = CONTRACT_RECORDS.doc(contractId);
+  const auditRef = CONTRACT_AUDIT_LOGS.doc();
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(contractRef);
+    if (!snapshot.exists) throw new HttpsError("not-found", "العقد غير موجود.");
+    const data = snapshot.data()!;
+    if (data.counterpartyUid !== uid || data.counterpartyEmail !== email) {
+      throw new HttpsError("permission-denied", "هذا العقد غير موجه إلى الحساب والبريد الحاليين.");
+    }
+    if (data.version !== expectedVersion || data.contentHash !== expectedHash) {
+      throw new HttpsError("aborted", "تغير إصدار العقد أو محتواه؛ راجع النسخة الحالية قبل التوقيع.");
+    }
+    const evidence: ContractSignatureEvidence = {
+      side: "counterparty",
+      uid,
+      email,
+      emailVerified: true,
+      accepted: true,
+      contentHash: expectedHash,
+      contractVersion: expectedVersion,
+      signedAtMs: Date.now(),
+      method: "in_app_electronic",
+    };
+    let next: ContractSigningState;
+    try {
+      next = applyContractSignature(contractSigningState(data), evidence);
+    } catch {
+      throw new HttpsError("failed-precondition", "حالة العقد أو أدلة التوقيع لا تسمح بهذا التوقيع.");
+    }
+    const recordVersion = (data.recordVersion as number) + 1;
+    transaction.update(contractRef, {
+      status: next.status,
+      counterpartySignature: evidence,
+      recordVersion,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.create(auditRef, {
+      contractId,
+      actorUid: uid,
+      action: "contract_counterparty_signed",
+      contractVersion: expectedVersion,
+      contentHash: expectedHash,
+      recordVersion,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { contractId, status: next.status, recordVersion, contentHash: expectedHash };
+  });
+});
+
+/** Company signature is owner/MFA-only and requires recent verified email authentication. */
+export const signContractForCompany = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const email = contractActorEmail(request);
+  const contractId = typeof request.data?.contractId === "string" ? request.data.contractId.trim() : "";
+  const expectedVersion = request.data?.expectedVersion;
+  const expectedHash = request.data?.expectedContentHash;
+  if (!/^[0-9a-f-]{36}$/i.test(contractId) ||
+      !Number.isSafeInteger(expectedVersion) || typeof expectedHash !== "string" ||
+      !/^[a-f0-9]{64}$/.test(expectedHash) || request.data?.accept !== true) {
+    throw new HttpsError("invalid-argument", "بيانات توقيع الشركة أو تأكيد القبول غير صالحة.");
+  }
+  const contractRef = CONTRACT_RECORDS.doc(contractId);
+  const auditRef = CONTRACT_AUDIT_LOGS.doc();
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(contractRef);
+    if (!snapshot.exists) throw new HttpsError("not-found", "العقد غير موجود.");
+    const data = snapshot.data()!;
+    if (data.ownerUid !== actorUid) throw new HttpsError("permission-denied", "توقيع الشركة يتطلب المالك المعتمد لهذا العقد.");
+    if (data.version !== expectedVersion || data.contentHash !== expectedHash) {
+      throw new HttpsError("aborted", "تغير إصدار العقد أو محتواه؛ راجع النسخة الحالية قبل التوقيع.");
+    }
+    const evidence: ContractSignatureEvidence = {
+      side: "company",
+      uid: actorUid,
+      email,
+      emailVerified: true,
+      accepted: true,
+      contentHash: expectedHash,
+      contractVersion: expectedVersion,
+      signedAtMs: Date.now(),
+      method: "in_app_electronic",
+      ownerVerified: true,
+      stepUpVerified: true,
+    };
+    let next: ContractSigningState;
+    try {
+      next = applyContractSignature(contractSigningState(data), evidence);
+    } catch {
+      throw new HttpsError("failed-precondition", "حالة العقد أو أدلة التوقيع لا تسمح بتوقيع الشركة.");
+    }
+    const recordVersion = (data.recordVersion as number) + 1;
+    transaction.update(contractRef, {
+      status: next.status,
+      companySignature: evidence,
+      recordVersion,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.create(auditRef, {
+      contractId,
+      actorUid,
+      action: "contract_company_signed",
+      contractVersion: expectedVersion,
+      contentHash: expectedHash,
+      recordVersion,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { contractId, status: next.status, recordVersion, contentHash: expectedHash };
+  });
+});
+
+/** Owner/MFA-only contract list; member-facing access is provided by a separate callable. */
+export const listOwnerContracts = onCall(async (request) => {
+  requireOwner(request);
+  const limit = Number.isSafeInteger(request.data?.limit)
+    ? Math.max(1, Math.min(100, request.data.limit as number)) : 50;
+  const status = request.data?.status;
+  if (status !== undefined && typeof status !== "string") {
+    throw new HttpsError("invalid-argument", "مرشح حالة العقد غير صالح.");
+  }
+  let query = CONTRACT_RECORDS.orderBy("updatedAt", "desc").limit(limit);
+  if (typeof status === "string") query = CONTRACT_RECORDS.where("status", "==", status)
+    .orderBy("updatedAt", "desc").limit(limit);
+  const snapshot = await query.get();
+  return {
+    contracts: snapshot.docs.map((doc) => ({ contractId: doc.id, ...doc.data() })),
+  };
+});
+
+/** A counterparty can retrieve only contracts addressed to their verified account. */
+export const listMyContracts = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const snapshot = await CONTRACT_RECORDS.where("counterpartyUid", "==", uid).limit(50).get();
+  return {
+    contracts: snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        contractId: doc.id,
+        title: data.title,
+        contractType: data.contractType,
+        status: data.status,
+        version: data.version,
+        contentHash: data.contentHash,
+        body: data.body,
+        currency: data.currency,
+        commitmentMinor: data.commitmentMinor,
+        startsAtMs: data.startsAtMs,
+        endsAtMs: data.endsAtMs,
+        counterpartySignature: data.counterpartySignature,
+        companySignature: data.companySignature,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+      };
+    }),
+  };
 });
