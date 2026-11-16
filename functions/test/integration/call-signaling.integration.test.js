@@ -37,13 +37,13 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
 
     await assert.rejects(
       () => sendCallSignal.run(call(outsiderUid, {
-        callId, signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
+        callId, toUid: calleeUid, signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
       })),
       (error) => error && error.code === "permission-denied",
     );
     await assert.rejects(
       () => sendCallSignal.run(call(callerUid, {
-        callId, signal: { kind: "answer", payload: JSON.stringify({ type: "answer", sdp: "v=0" }), sequence: 0 },
+        callId, toUid: callerUid, signal: { kind: "answer", payload: JSON.stringify({ type: "answer", sdp: "v=0" }), sequence: 0 },
       })),
       (error) => error && error.code === "failed-precondition",
     );
@@ -56,7 +56,7 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
       callId, signal: { kind: "answer", payload: JSON.stringify({ type: "answer", sdp: "v=0" }), sequence: 0 },
     }));
     await sendCallSignal.run(call(calleeUid, {
-      callId, signal: { kind: "ice", payload: JSON.stringify({ candidate: "candidate:1" }), sequence: 1 },
+      callId, toUid: callerUid, signal: { kind: "ice", payload: JSON.stringify({ candidate: "candidate:1" }), sequence: 1 },
     }));
     const received = await getCallSignals.run(call(callerUid, { callId, afterSequence: -1 }));
     assert.equal(received.status, "accepted");
