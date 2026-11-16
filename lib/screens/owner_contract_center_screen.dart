@@ -229,7 +229,7 @@ class _OwnerContractCenterScreenState extends State<OwnerContractCenterScreen> {
         add('ready_to_send', 'اعتماد النسخة للإرسال');
         break;
       case 'ready_to_send':
-        add('awaiting_counterparty_signature', 'إرسال للطرف للتوقيع');
+        add('awaiting_counterparty_signature', 'إتاحة العقد للطرف للتوقيع داخل Mawdda');
         break;
       case 'awaiting_company_signature':
         actions.add(FilledButton(
@@ -438,7 +438,18 @@ class _CreateContractDialogState extends State<_CreateContractDialog> {
                   Row(children: [
                     Expanded(child: TextFormField(controller: _currency, decoration: const InputDecoration(labelText: 'العملة (3 أحرف)'), validator: _required)),
                     const SizedBox(width: 8),
-                    Expanded(child: TextFormField(controller: _amount, decoration: const InputDecoration(labelText: 'القيمة بالوحدة الصغرى'), keyboardType: TextInputType.number, validator: _required)),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _amount,
+                        decoration: const InputDecoration(labelText: 'القيمة بالوحدة الصغرى'),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          final amount = int.tryParse(value?.trim() ?? '');
+                          return amount != null && amount >= 0
+                              ? null : 'أدخل قيمة صحيحة غير سالبة.';
+                        },
+                      ),
+                    ),
                   ]),
                   const Divider(height: 24),
                   const Align(alignment: AlignmentDirectional.centerStart, child: Text('بيانات قانونية — تظل المسودة غير قابلة للإرسال حتى اكتمالها')),
