@@ -506,3 +506,12 @@ The Creator Content & Influencer Proposals route is an approved fifth Media Work
 - Added unit coverage for matching and conflicting member/item/price combinations.
 - Implementation commits: `3a7b76f41564a6d8c7bc09a5ce50d72356294448`, `282bd777367d976cb7129498c102c896329d8ab9`; test commit: `58cfab19f98c9ebb634547386a2996a1f24e9317`.
 - Tests have not been executed on this branch head; source-level test coverage was added only.
+
+
+## 2026-11-16 — Media processor boundary tests and documentation alignment
+
+- Expanded the real FFmpeg audio processor integration suite for both `chat` and `room`: an exactly 60-second WAV must produce the safe audio derivative, while a 60.1-second source must be rejected. This tests the precise approved boundary rather than only a 61-second overrun.
+- Updated `scanner/README.md`: the type-aware GIF/audio/video/PDF derivative processors are already present in source; the previous statement that they were still required was stale. Delivery remains fail-closed until the callback validates the exact derivative provenance.
+- Corrected the stale comment in `functions/src/media-security.ts` to reflect that media finalization assigns purpose-specific retention deadlines and the retention worker enforces them, with exact-asset legal holds.
+- Commits: audio boundary test `f6c57d2cc90b675b460b06e302da0d8bcb354f7b`; scanner documentation `4f23ba6f489e593449d30cfca79b99bda1958f7e`; media policy comment `176d87051f81909c813bac45d52f813e034c56db`.
+- Tests were added but not executed in this session. No scanner deployment or Firebase configuration change was performed.
