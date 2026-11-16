@@ -79,7 +79,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       final response = await FirebaseFunctions.instance
           .httpsCallable('getActiveCall').call();
       final call = Map<String, dynamic>.from(response.data as Map);
-      if (call['active'] != true || call['status'] != 'ringing' ||
+      final acceptedUids = (call['acceptedUids'] as List<dynamic>? ?? const []).whereType<String>();
+      final rejectedUids = (call['rejectedUids'] as List<dynamic>? ?? const []).whereType<String>();
+      if (call['active'] != true || !['ringing', 'accepted'].contains(call['status']) ||
+          acceptedUids.contains(widget.currentUserId) || rejectedUids.contains(widget.currentUserId) ||
           call['callerUid'] == widget.currentUserId ||
           call['scope'] != 'room' || call['targetId'] != widget.chatId) return;
       final callId = call['callId'] as String?;
