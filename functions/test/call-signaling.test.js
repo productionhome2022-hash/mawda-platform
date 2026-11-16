@@ -40,7 +40,7 @@ test("signaling payloads are bounded JSON objects with monotonic sequence inputs
     { kind: "offer", payload: "not-json", sequence: 0 },
     { kind: "ice", payload: JSON.stringify([]), sequence: 0 },
     { kind: "answer", payload: "{}", sequence: -1 },
-    { kind: "ice", payload: "x".repeat(12001), sequence: 1 },
+    { kind: "ice", payload: "x".repeat(65537), sequence: 1 },
   ]) assert.throws(() => validateCallSignal(value), /INVALID_CALL_SIGNAL/);
 });
 
