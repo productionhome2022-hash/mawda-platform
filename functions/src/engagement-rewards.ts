@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export const ATTENDANCE_REWARD_TYPES = ["hourly", "daily", "weekly"] as const;
 export type AttendanceRewardType = typeof ATTENDANCE_REWARD_TYPES[number];
 
@@ -156,8 +158,6 @@ export function eligibleHeartbeatDelta(
   }
   return { deltaMs: elapsed, nextHeartbeatAtMs: nowMs, nextSequence: sequence + 1, paused: false };
 }
-import { createHash } from "node:crypto";
-
 /**
  * Collision-resistant per-member/per-campaign counter identity.
  * The former concatenated UID/campaign key was ambiguous when both contained underscores.
