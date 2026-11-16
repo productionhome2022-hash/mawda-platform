@@ -17,15 +17,26 @@ void main() {
       expect(find.text('عروض المؤثرين وصنّاع المحتوى'), findsOneWidget);
       expect(find.text('مراسلة المشرفين العامين'), findsOneWidget);
 
-      await tester.tap(find.text('عروض المؤثرين وصنّاع المحتوى'));
-      await tester.pumpAndSettle();
+      final creatorEntry = find.ancestor(
+        of: find.text('عروض المؤثرين وصنّاع المحتوى'),
+        matching: find.byType(ListTile),
+      );
+      expect(tester.widget<ListTile>(creatorEntry).enabled, isFalse);
+      expect(tester.widget<ListTile>(creatorEntry).onTap, isNull);
 
+      // The proposal form itself is covered independently of the native-app
+      // route gate; the route remains web-only by design.
+      await tester.pumpWidget(
+        const MaterialApp(home: CreatorProposalScreen()),
+      );
       expect(find.text('طريقة تقديم المحتوى'), findsOneWidget);
       expect(find.text('النطاق الجغرافي المستهدف'), findsOneWidget);
       expect(find.textContaining('الحقوق أو الأذونات'), findsOneWidget);
       expect(find.textContaining('عقد مستقل'), findsOneWidget);
 
-      await tester.pageBack();
+      await tester.pumpWidget(
+        const MaterialApp(home: MediaWorkspaceScreen()),
+      );
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('مراسلة الإدارة العامة'), 300);
       expect(find.text('مراسلة الإدارة العامة'), findsOneWidget);
