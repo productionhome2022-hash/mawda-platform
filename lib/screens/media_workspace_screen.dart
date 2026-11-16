@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 import 'featured_ads_screen.dart';
+import 'my_contracts_screen.dart';
 
 class MediaWorkspaceScreen extends StatelessWidget {
   const MediaWorkspaceScreen({super.key});
@@ -18,6 +19,17 @@ class MediaWorkspaceScreen extends StatelessWidget {
               style: TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 16),
+            _WorkspaceEntry(
+              icon: Icons.assignment_outlined,
+              title: 'عقودي واتفاقياتي',
+              subtitle: 'مراجعة العقود الموجهة إليك والتوقيع على النسخة المعتمدة',
+              enabled: true,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const MyContractsScreen(),
+                ),
+              ),
+            ),
             _WorkspaceEntry(
               icon: Icons.campaign_outlined,
               title: 'انضم كمندوب إعلاني معتمد',
