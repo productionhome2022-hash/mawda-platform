@@ -9348,7 +9348,8 @@ export const startCall = onCall(async (request) => {
     transaction.create(callRef, {
       callId: input.callId, scope: input.scope, targetId: input.targetId, mode: input.mode,
       callerUid, participantUids, acceptedUids: [], rejectedUids: [], leftUids: [],
-      status: "ringing", signalCounts: {}, createdAt: FieldValue.serverTimestamp(),
+      status: "ringing", signalCounts: {}, signalsCleanedAt: false,
+      createdAt: FieldValue.serverTimestamp(),
       expiresAt, lastActivityAt: FieldValue.serverTimestamp(),
     });
     memberLockRefs.forEach((lockRef) => transaction.set(lockRef, {
@@ -9698,15 +9699,15 @@ export const cleanupExpiredCallSignals = onSchedule("every 5 minutes", async () 
       });
     });
   }
-  const oldCalls = await CALL_SESSIONS.where("createdAt", "<=",
-    Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000)).limit(100).get();
+  const oldCalls = await CALL_SESSIONS.where("signalsCleanedAt", "==", false)
+    .where("createdAt", "<=", Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000))
+    .limit(100).get();
   for (const doc of oldCalls.docs) {
     const signals = await doc.ref.collection("signals")
       .where("expiresAt", "<=", now).limit(500).get();
-    if (!signals.empty) {
-      const batch = db.batch();
-      signals.docs.forEach((signal) => batch.delete(signal.ref));
-      await batch.commit();
-    }
+    const batch = db.batch();
+    signals.docs.forEach((signal) => batch.delete(signal.ref));
+    batch.update(doc.ref, { signalsCleanedAt: true, signalsCleanedAtAt: FieldValue.serverTimestamp() });
+    await batch.commit();
   }
 });
