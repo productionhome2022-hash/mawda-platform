@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getFirestore } = require("firebase-admin/firestore");
-const { createRentedRoom, renewRoomRental, transferRoomOwnership, closeOwnedRoom, getRoomRentalPlans, setRoomRentalPlans } = require("../../lib/index");
+const { createRentedRoom, renewRoomRental, transferRoomOwnership, closeOwnedRoom, inviteMemberToRoom, getRoomRentalPlans, setRoomRentalPlans } = require("../../lib/index");
 
 const db = getFirestore();
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -109,6 +109,13 @@ test("member room rental debits atomically, renews idempotently, transfers and c
     assert.equal((await db.collection("rooms").doc(roomId).get()).data().ownerUid, newOwnerUid);
     await closeOwnedRoom.run(memberRequest(newOwnerUid, { roomId }));
     assert.equal((await db.collection("rooms").doc(roomId).get()).data().status, "closed");
+    await assert.rejects(
+      () => inviteMemberToRoom.run(memberRequest(newOwnerUid, {
+        roomId, memberUid: ownerUid,
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "closed rooms must reject new invitations",
+    );
     const closedReceipt = await db.collection("roomRentals").doc(`${ownerUid}_renew_${tag}`).get();
     assert.equal(closedReceipt.data().status, "closed_by_owner");
     const ledger = await db.collection("users").doc(ownerUid).collection("walletLedger").get();
