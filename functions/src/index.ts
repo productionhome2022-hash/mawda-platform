@@ -8396,6 +8396,53 @@ export const reviewOwnerProductionApplication = onCall(
         throw new HttpsError("failed-precondition", "انتقال حالة الطلب غير مسموح.");
       }
       const version = (data.applicationVersion as number) + 1;
+      // Stage the immutable owner audit event in this same transaction. A
+      // deterministic ID makes retries safe, while the shared chain head
+      // serializes concurrent audit writers without leaving an unaudited review.
+      const auditEvent = {
+        actorUid,
+        action: "production_application_reviewed",
+        applicationId,
+        status: nextStatus,
+        applicationVersion: version,
+        note,
+        outcome: "success",
+      };
+      const auditRef = db.collection("adminAuditLogs").doc(
+        `production_application_review_${applicationId}_${expectedVersion}`,
+      );
+      const [existingAudit, auditHeadSnapshot] = await Promise.all([
+        transaction.get(auditRef),
+        transaction.get(OWNER_REVIEW_AUDIT_HEAD),
+      ]);
+      if (existingAudit.exists) {
+        throw new HttpsError("aborted", "يوجد سجل تدقيق سابق لهذا الإصدار؛ أعد تحميل الطلب.");
+      }
+      const previousSequence = auditHeadSnapshot.exists
+        ? auditHeadSnapshot.data()?.sequence : 0;
+      const previousHash = auditHeadSnapshot.exists
+        ? auditHeadSnapshot.data()?.eventHash : "GENESIS";
+      if (!Number.isSafeInteger(previousSequence) || (previousSequence as number) < 0 ||
+          typeof previousHash !== "string" ||
+          !(previousHash === "GENESIS" || /^[a-f0-9]{64}$/.test(previousHash))) {
+        throw new HttpsError("data-loss", "سلسلة تدقيق المالك غير سليمة؛ أوقفت المراجعة لحماية السجل.");
+      }
+      const auditSequence = (previousSequence as number) + 1;
+      const auditHash = calculateOwnerAuditHash(auditEvent, auditSequence, previousHash);
+      transaction.create(auditRef, {
+        ...auditEvent,
+        auditEvent,
+        auditChainId: "owner-review-v1",
+        auditSequence,
+        previousAuditHash: previousHash,
+        auditHash,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      transaction.set(OWNER_REVIEW_AUDIT_HEAD, {
+        sequence: auditSequence,
+        eventHash: auditHash,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
       transaction.update(ref, {
         status: nextStatus,
         reviewNote: note,
@@ -8407,13 +8454,6 @@ export const reviewOwnerProductionApplication = onCall(
         updatedAt: FieldValue.serverTimestamp(),
       });
       return { applicationId, status: nextStatus, applicationVersion: version };
-    });
-    await appendOwnerReviewAuditEvent({
-      actorUid,
-      action: "production_application_reviewed",
-      ...result,
-      note,
-      outcome: "success",
     });
     return { ...result, roleActivated: false, roomCreationPermission: false };
   },
