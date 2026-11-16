@@ -4,6 +4,7 @@ const {
   calculateStorePurchaseBalance,
   isStoreEntitlementActive,
   isStorePurchasePriceCurrent,
+  isStorePurchaseReplayCompatible,
   projectStoreEntitlementFeatures,
 } = require("../lib/store-purchase");
 
@@ -69,4 +70,14 @@ test("profile entitlement projection hides expired, revoked, and malformed entit
     { itemId: "title_old", category: "title", itemName: "قديم", status: "active", expiresAt: { toMillis: () => NOW - 1 } },
     null,
   ], NOW), { vipActive: false, activeTitle: null, activeFeatures: [] });
+});
+
+
+test("purchase idempotency requires the same member, item and confirmed price", () => {
+  const prior = { memberUid: "member-a", itemId: "vip_30d", priceCoins: 2500 };
+  assert.equal(isStorePurchaseReplayCompatible(prior, "member-a", "vip_30d", 2500), true);
+  assert.equal(isStorePurchaseReplayCompatible(prior, "member-a", "vip_30d", 3000), false);
+  assert.equal(isStorePurchaseReplayCompatible(prior, "member-a", "other_item", 2500), false);
+  assert.equal(isStorePurchaseReplayCompatible(prior, "member-b", "vip_30d", 2500), false);
+  assert.equal(isStorePurchaseReplayCompatible(null, "member-a", "vip_30d", 2500), false);
 });
