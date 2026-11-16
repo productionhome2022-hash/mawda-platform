@@ -489,3 +489,11 @@ The Creator Content & Influencer Proposals route is an approved fifth Media Work
 - Added integration coverage for conflicting request-ID reuse, unchanged wallet balance on conflict, and prior-rental lifecycle transition.
 - Implementation/test commits: `3782b0576a3e494d8027e355e388298925e194ca`, `c244e81c90c84fe7609a218ceff8fa9a4e610b41`, `5de6a9e3309f75cd4ba59bb3df309663ed4f3446`, `e66b74ad64d67351fa391832ac2c9026e450035b`.
 - Automated tests have not yet run on this exact branch head. Cancellation/refund remains unimplemented pending explicit owner policy; no financial refund behavior was assumed.
+
+
+## 2026-11-16 — Reject invitations to inactive rooms
+
+- `inviteMemberToRoom` now rejects invitations unless the target room is in `active` status. This aligns invitation creation with `joinRoom`, which already rejects frozen/closed rooms.
+- Added an emulator integration assertion that a room owner cannot create a new invitation after closing the room.
+- Implementation commit: `64f2e9c8710dd36d867e08387e5f338e6de3d7a0`; test-source commit: `32d3bffb293b8e5e43de40c58c97c6d112e9a7c5`.
+- Test execution is not claimed: Firestore Emulator integration has not been run on this branch head.
