@@ -3,6 +3,7 @@ import { getAuth } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
 import { getStorage } from "firebase-admin/storage";
 import { validateMemberProfile } from "./member-profile";
+import { isAllowedLegalPortalAppId } from "./legal-portal-access";
 import { FieldPath, FieldValue, Timestamp, getFirestore, type Transaction } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -203,9 +204,7 @@ async function sendPushToMember(
   }
 }
 function requireWebPortalAccess(request: { app?: { appId?: string } | null }): void {
-  const allowedAppIds = mawddaLegalPortalAppIds.value().split(",").map((value) => value.trim()).filter(Boolean);
-  const actualAppId = request.app?.appId ?? "";
-  if (allowedAppIds.length === 0 || !actualAppId || !allowedAppIds.includes(actualAppId)) {
+  if (!isAllowedLegalPortalAppId(request.app?.appId, mawddaLegalPortalAppIds.value())) {
     throw new HttpsError(
       "failed-precondition",
       "هذه الخدمة متاحة حصراً عبر بوابة Mawdda على الويب.",
