@@ -9311,8 +9311,12 @@ export const startCall = onCall(async (request) => {
       throw new HttpsError("permission-denied", "حالة الحساب لا تسمح ببدء المكالمة.");
     }
     const active = await CALL_SESSIONS.where("participantUids", "array-contains", callerUid)
-      .where("status", "in", ["ringing", "accepted"]).limit(1).get();
-    if (!active.empty) throw new HttpsError("resource-exhausted", "لديك مكالمة نشطة بالفعل.");
+      .limit(20).get();
+    if (active.docs.some((doc) => ["ringing", "accepted"].includes(String(doc.data().status)) &&
+        (doc.data().status === "accepted" ||
+         (doc.data().expiresAt instanceof Timestamp && doc.data().expiresAt.toMillis() > now)))) {
+      throw new HttpsError("resource-exhausted", "لديك مكالمة نشطة بالفعل.");
+    }
     transaction.create(callRef, {
       callId: input.callId, scope: input.scope, targetId: input.targetId, mode: input.mode,
       callerUid, participantUids, acceptedUids: [], rejectedUids: [],
@@ -9346,19 +9350,24 @@ export const respondToCall = onCall(async (request) => {
     const call = snapshot.data()!;
     if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
         uid === call.callerUid) throw new HttpsError("permission-denied", "لا تملك صلاحية الرد على هذه المكالمة.");
-    if (call.status !== "ringing" || !(call.expiresAt instanceof Timestamp) ||
-        call.expiresAt.toMillis() <= Date.now()) {
+    if (!["ringing", "accepted"].includes(String(call.status)) ||
+        (call.status === "ringing" &&
+          (!(call.expiresAt instanceof Timestamp) || call.expiresAt.toMillis() <= Date.now()))) {
       throw new HttpsError("failed-precondition", "انتهت مهلة المكالمة أو لم تعد متاحة.");
     }
+    if (response === "reject" && call.status !== "ringing") {
+      throw new HttpsError("failed-precondition", "لا يمكن رفض مكالمة بعد قبولها.");
+    }
     const next = response === "accept" ? "accepted" : "rejected";
-    if (!canTransitionCall("ringing", next, uid, call.callerUid, call.participantUids)) {
+    if (call.status === "ringing" &&
+        !canTransitionCall("ringing", next, uid, call.callerUid, call.participantUids)) {
       throw new HttpsError("failed-precondition", "انتقال حالة المكالمة غير مسموح.");
     }
     const field = response === "accept" ? "acceptedUids" : "rejectedUids";
     const prior = Array.isArray(call[field]) ? call[field] as string[] : [];
     if (!prior.includes(uid)) transaction.update(ref, {
       [field]: FieldValue.arrayUnion(uid),
-      status: response === "accept" ? "accepted" : "rejected",
+      ...(response === "accept" ? { status: "accepted" } : { status: "rejected" }),
       respondedAt: FieldValue.serverTimestamp(),
       lastActivityAt: FieldValue.serverTimestamp(),
     });
@@ -9411,7 +9420,7 @@ export const sendCallSignal = onCall(async (request) => {
       expiresAt: Timestamp.fromMillis(Date.now() + CALL_SIGNAL_MAX_AGE_MS),
     });
     transaction.update(ref, {
-      [`signalCounts.${uid}`]: expected + 1,
+      signalCounts: { ...counts, [uid]: expected + 1 },
       lastActivityAt: FieldValue.serverTimestamp(),
     });
   });
@@ -9478,7 +9487,7 @@ export const endCall = onCall(async (request) => {
 export const getActiveCall = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const snapshot = await CALL_SESSIONS.where("participantUids", "array-contains", uid)
-    .where("status", "in", ["ringing", "accepted"]).limit(5).get();
+    .limit(20).get();
   const active = snapshot.docs.find((doc) => {
     const data = doc.data();
     return data.status === "accepted" ||
@@ -9492,4 +9501,34 @@ export const getActiveCall = onCall(async (request) => {
     participantUids: data.participantUids,
     expiresAtMs: data.expiresAt instanceof Timestamp ? data.expiresAt.toMillis() : null,
   };
+});
+
+
+export const cleanupExpiredCallSignals = onSchedule("every 5 minutes", async () => {
+  const now = Timestamp.now();
+  const expiredCalls = await CALL_SESSIONS.where("status", "==", "ringing")
+    .where("expiresAt", "<=", now).limit(100).get();
+  for (const doc of expiredCalls.docs) {
+    await db.runTransaction(async (transaction) => {
+      const current = await transaction.get(doc.ref);
+      if (!current.exists || current.data()?.status !== "ringing" ||
+          !(current.data()?.expiresAt instanceof Timestamp) ||
+          current.data()!.expiresAt.toMillis() > Date.now()) return;
+      transaction.update(doc.ref, {
+        status: "missed", endedAt: FieldValue.serverTimestamp(),
+        lastActivityAt: FieldValue.serverTimestamp(),
+      });
+    });
+  }
+  const oldCalls = await CALL_SESSIONS.where("createdAt", "<=",
+    Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000)).limit(100).get();
+  for (const doc of oldCalls.docs) {
+    const signals = await doc.ref.collection("signals")
+      .where("expiresAt", "<=", now).limit(500).get();
+    if (!signals.empty) {
+      const batch = db.batch();
+      signals.docs.forEach((signal) => batch.delete(signal.ref));
+      await batch.commit();
+    }
+  }
 });
