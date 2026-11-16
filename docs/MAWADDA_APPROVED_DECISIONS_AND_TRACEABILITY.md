@@ -254,3 +254,17 @@ This amendment records policy approval only. It does not establish that code, te
 **Commercial separation:** Advertiser placement payments, platform-funded reward budget and member coin ledger are separate accounting domains. Priority placement is subject to geography, schedule, creative safety, Owner approval and emergency withdrawal. No payment or publication gate is bypassed.
 
 **Implementation status:** Approved requirement only. The existing timed-ad reward center is not yet a featured-ad serving system; its current reward-center placement and completion path must not be relabelled as featured ads. Backend serving, campaign geography/featured placement integration, daily and rolling-frequency reward enforcement, dedicated ledger classification, member UI/history, owner controls and exact-head tests remain required. This decision does not authorize real-money payment, production mutation, deployment or merge to main.
+
+
+## قرارات الإعلانات والإنتاج ومركز العقود — 16 نوفمبر 2026
+
+| المعرّف | القرار | الحالة / بوابة القبول |
+|---|---|---|
+| ADS-GOV-001 | فصل صلاحيات المشرفين الإداريين للمنصة العامة عن المشرفين والمتعاقدين المتخصصين في الإعلانات وصناعة المحتوى؛ لا توريث صلاحيات بين المجالين | مواصفة مضافة؛ يلزم ربط كل callable وواجهة وقاعدة بيانات باختبارات deny-by-default |
+| ADS-GEO-001 | واجهات الاستهداف الجغرافي العشر، وحقل استهداف إلزامي، ومطابقة منظمة versioned دون استنتاج IP/لغة | مواصفة مضافة؛ يلزم geo resolver واختبارات التداخل وعدم الازدواج |
+| PROD-ROOM-001 | فريق غرفة الإنتاج خمسة أشخاص كحد أقصى بمن فيهم مشرف الإنتاج؛ المراقبون الإداريون privileged observers خارج roster | أساس validator واختبار وحدة مضاف؛ يلزم تكامل الخادم والواجهات وقواعد الوصول |
+| PROD-PUB-001 | كل إنجاز عام يحتاج موافقة مالك مستقلة مع حقوق العرض وإظهار المشاركين | أساس predicate واختبار وحدة مضاف؛ يلزم workflow خادمي وتكامل الواجهة |
+| CONTRACT-001 | مركز عقود سيادي، أربعة مشرفين قانونيين/إداريين، والتفويض بالتوقيع مستقل ومحدود وقابل للسحب | مواصفة ونماذج مضافة؛ يلزم مخزن العقود والتوقيع والتفويض والأرشفة والتدقيق |
+| CONTRACT-002 | حق الشركة/المنصة في تعليق أو إنهاء أو فسخ أو عدم تجديد العقود وفق الشروط والقانون، مع تسوية الحقوق المكتسبة وعدم ادعاء إسقاط الحقوق الآمرة | صيغ أولية مضافة؛ مراجعة قانونية محلية مطلوبة قبل الاستخدام |
+| ADS-REWARD-001 | 2 كوين/مشاهدة، 10 مشاهدات و20 كوين يومياً UTC، وحد 3 مرات لكل حملة/عضو/نافذة 24 ساعة، صورة 10 ثوان وفيديو 90% | مواصفة مضافة؛ يلزم تحديث backend الحالي الذي يستخدم حدوداً أقدم واختبارات التزامن |
+
