@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import 'featured_ads_screen.dart';
 import 'my_contracts_screen.dart';
+import 'advertising_intake_screen.dart';
 
 class MediaWorkspaceScreen extends StatelessWidget {
   const MediaWorkspaceScreen({super.key});
@@ -33,7 +34,15 @@ class MediaWorkspaceScreen extends StatelessWidget {
             _WorkspaceEntry(
               icon: Icons.campaign_outlined,
               title: 'انضم كمندوب إعلاني معتمد',
-              subtitle: 'طلب اعتماد المندوب واتفاقية العمولة والتوقيع المتبادل — قيد الاستكمال الخادمي',
+              subtitle: 'تقديم الخبرة وملف الأعمال إلى الإدارة؛ الاعتماد لا يتم إلا بعد توقيع الاتفاقية',
+              enabled: true,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const AdvertisingIntakeScreen(
+                    kind: 'representative_application',
+                  ),
+                ),
+              ),
             ),
             _WorkspaceEntry(
               icon: Icons.movie_creation_outlined,
@@ -43,7 +52,15 @@ class MediaWorkspaceScreen extends StatelessWidget {
             _WorkspaceEntry(
               icon: Icons.business_center_outlined,
               title: 'الإعلان المباشر',
-              subtitle: 'طلب إعلان للأفراد والشركات — لن ينشأ حجز أو نشر قبل العقد والاعتماد',
+              subtitle: 'تقديم طلب حملة إعلانية للأفراد والشركات ومتابعته بعد المراجعة',
+              enabled: true,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const AdvertisingIntakeScreen(
+                    kind: 'direct_advertiser',
+                  ),
+                ),
+              ),
             ),
             _WorkspaceEntry(
               icon: Icons.video_library_outlined,
