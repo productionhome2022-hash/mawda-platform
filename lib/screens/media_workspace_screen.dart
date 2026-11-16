@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import 'featured_ads_screen.dart';
 import 'my_contracts_screen.dart';
 import 'advertising_intake_screen.dart';
+import 'production_application_screen.dart';
 
 class MediaWorkspaceScreen extends StatelessWidget {
   const MediaWorkspaceScreen({super.key});
@@ -46,7 +47,13 @@ class MediaWorkspaceScreen extends StatelessWidget {
             _WorkspaceEntry(
               icon: Icons.movie_creation_outlined,
               title: 'انضم إلى صُنّاع مودة',
-              subtitle: 'تسجيل أعضاء صُنّاع مودة والترشيح للإشراف عبر موقع الويب حصراً',
+              subtitle: 'تقديم ملف العضوية أو الترشيح للإشراف عبر موقع الويب حصراً',
+              enabled: kIsWeb,
+              onTap: kIsWeb ? () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ProductionApplicationScreen(),
+                ),
+              ) : null,
             ),
             _WorkspaceEntry(
               icon: Icons.business_center_outlined,
