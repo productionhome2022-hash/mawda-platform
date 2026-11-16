@@ -43,17 +43,17 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
     );
     await assert.rejects(
       () => sendCallSignal.run(call(callerUid, {
-        callId, toUid: callerUid, signal: { kind: "answer", payload: JSON.stringify({ type: "answer", sdp: "v=0" }), sequence: 0 },
+        callId, toUid: calleeUid, signal: { kind: "answer", payload: JSON.stringify({ type: "answer", sdp: "v=0" }), sequence: 0 },
       })),
       (error) => error && error.code === "failed-precondition",
     );
 
     await sendCallSignal.run(call(callerUid, {
-      callId, signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
+      callId, toUid: calleeUid, signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
     }));
     await respondToCall.run(call(calleeUid, { callId, response: "accept" }));
     await sendCallSignal.run(call(calleeUid, {
-      callId, signal: { kind: "answer", payload: JSON.stringify({ type: "answer", sdp: "v=0" }), sequence: 0 },
+      callId, toUid: callerUid, signal: { kind: "answer", payload: JSON.stringify({ type: "answer", sdp: "v=0" }), sequence: 0 },
     }));
     await sendCallSignal.run(call(calleeUid, {
       callId, toUid: callerUid, signal: { kind: "ice", payload: JSON.stringify({ candidate: "candidate:1" }), sequence: 1 },
@@ -65,7 +65,7 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
 
     await assert.rejects(
       () => sendCallSignal.run(call(calleeUid, {
-        callId, signal: { kind: "ice", payload: JSON.stringify({ candidate: "replay" }), sequence: 1 },
+        callId, toUid: callerUid, signal: { kind: "ice", payload: JSON.stringify({ candidate: "replay" }), sequence: 1 },
       })),
       (error) => error && error.code === "already-exists",
     );
@@ -74,7 +74,7 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
     assert.equal((await getActiveCall.run(call(callerUid))).active, false);
     await assert.rejects(
       () => sendCallSignal.run(call(callerUid, {
-        callId, signal: { kind: "ice", payload: JSON.stringify({ candidate: "late" }), sequence: 1 },
+        callId, toUid: calleeUid, signal: { kind: "ice", payload: JSON.stringify({ candidate: "late" }), sequence: 1 },
       })),
       (error) => error && error.code === "permission-denied",
     );
