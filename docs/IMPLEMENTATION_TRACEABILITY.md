@@ -454,3 +454,12 @@ The Creator Content & Influencer Proposals route is an approved fifth Media Work
 - التحقق من App Check يعتمد قائمة MAWDDA_LEGAL_PORTAL_APP_IDS الفارغة افتراضياً. لا يمكن تشغيل البوابة القانونية/المهنية قبل إضافة App IDs الموثقة لبوابة الويب وواجهة سطح المكتب المعتمدة في بيئة غير إنتاجية. لا تضف App IDs لتطبيق Android أو iOS.
 - تطبيق Android وiOS يبقيان خارج التسجيل المهني والعقود والمراسلات القانونية والتوقيع. يجب أن تبقى بقية وظائف التطبيقين مستقلة ومتاحة وفق صلاحياتها وسياساتها.
 - لم يُشغّل Flutter Analyze أو TypeScript build أو unit/emulator/integration tests في هذه الدفعة؛ لا يوجد ادعاء نجاح اختبار أو جاهزية إطلاق.
+
+
+## 2026-11-16 — Production application review audit atomicity
+
+- `reviewOwnerProductionApplication` now stages the application status/version update, immutable owner-review audit event, and shared hash-chain head update in one Firestore transaction.
+- The review audit event ID is deterministic per application and expected application version, preventing a second event for the same transition attempt. A failed transaction cannot leave the review state committed without its audit event.
+- The existing submission audit retry behavior remains unchanged. This change does not grant production roles or room-creation permission.
+- Implementation commit: `44d2b37bc546aa1245ca5309edba8cc16da40e03`.
+- Validation status: source updated on the development branch; TypeScript build, unit tests, emulator tests, and CI have **not yet been run on this commit**. Do not treat this as verified until exact-head checks pass.
