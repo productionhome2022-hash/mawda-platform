@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'featured_ads_screen.dart';
 
 class MediaWorkspaceScreen extends StatelessWidget {
   const MediaWorkspaceScreen({super.key});
@@ -45,6 +46,19 @@ class MediaWorkspaceScreen extends StatelessWidget {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const CreatorProposalScreen(),
+                  ),
+                ),
+              ),
+            ),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.stars_rounded),
+                title: const Text('مكافآت مشاهدة الإعلانات المميزة'),
+                subtitle: const Text('شروط الاستحقاق وسجل مكافآت المشاهدة الخاصة بك'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const FeaturedAdRewardsScreen(),
                   ),
                 ),
               ),
