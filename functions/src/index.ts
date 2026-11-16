@@ -1,4 +1,5 @@
 import { initializeApp } from "firebase-admin/app";
+import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
 import { getAuth } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
 import { getStorage } from "firebase-admin/storage";
@@ -9215,5 +9216,280 @@ export const listMyContracts = onCall(
         updatedAt: data.updatedAt,
       };
     }),
+  };
+});
+
+
+/* -------------------------------------------------------------------------- */
+/* Authenticated WebRTC call lifecycle and server-mediated signaling.        */
+/* -------------------------------------------------------------------------- */
+
+const CALL_SESSIONS = db.collection("callSessions");
+
+export const startCall = onCall(async (request) => {
+  const callerUid = requireAuthenticatedUid(request.auth?.uid);
+  let input;
+  try { input = validateCallRequest(request.data); }
+  catch { throw new HttpsError("invalid-argument", "بيانات المكالمة غير صالحة."); }
+  const callerRef = db.collection("users").doc(callerUid);
+  const callRef = CALL_SESSIONS.doc(input.callId);
+  let participantUids: string[] = [];
+  let recipientUids: string[] = [];
+
+  if (input.scope === "direct") {
+    const chatRef = db.collection("directChats").doc(input.targetId);
+    const [caller, chat] = await Promise.all([callerRef.get(), chatRef.get()]);
+    if (!caller.exists || caller.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(caller.data())) {
+      throw new HttpsError("permission-denied", "حالة حسابك لا تسمح بإجراء المكالمات.");
+    }
+    const participants = chat.data()?.participantUids;
+    if (!chat.exists || !Array.isArray(participants) || !participants.includes(callerUid) ||
+        participants.length !== 2) {
+      throw new HttpsError("permission-denied", "لا تملك صلاحية الاتصال بهذه المحادثة.");
+    }
+    participantUids = [...participants].sort();
+    const peerUid = participantUids.find((uid) => uid !== callerUid)!;
+    const peer = await db.collection("users").doc(peerUid).get();
+    if (!peer.exists || peer.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(peer.data())) {
+      throw new HttpsError("failed-precondition", "الطرف الآخر غير متاح للمكالمة.");
+    }
+    const caller = caller.data() ?? {};
+    const peerData = peer.data() ?? {};
+    if ((Array.isArray(caller.blockedUids) && caller.blockedUids.includes(peerUid)) ||
+        (Array.isArray(peerData.blockedUids) && peerData.blockedUids.includes(callerUid))) {
+      throw new HttpsError("permission-denied", "المكالمة غير متاحة بسبب إعدادات الحظر.");
+    }
+    if (!Number.isSafeInteger(caller.age) || !Number.isSafeInteger(peerData.age) ||
+        ((caller.age < 18) !== (peerData.age < 18))) {
+      throw new HttpsError("permission-denied", "لا يمكن إجراء المكالمة بين هاتين الفئتين العمريتين.");
+    }
+    recipientUids = [peerUid];
+  } else {
+    const roomRef = db.collection("rooms").doc(input.targetId);
+    const [caller, room, membership] = await Promise.all([
+      callerRef.get(), roomRef.get(),
+      roomRef.collection("members").doc(callerUid).get(),
+    ]);
+    if (!caller.exists || caller.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(caller.data()) ||
+        !room.exists || room.data()?.status !== "active" || !membership.exists) {
+      throw new HttpsError("permission-denied", "يجب أن تكون عضواً في غرفة نشطة لإجراء مكالمة.");
+    }
+    const members = await roomRef.collection("members").limit(5).get();
+    if (members.size < 2 || members.size > 5) {
+      throw new HttpsError("failed-precondition", "مكالمات الغرف تدعم حالياً من عضوين إلى خمسة أعضاء كحد أقصى.");
+    }
+    participantUids = members.docs.map((doc) => doc.id).sort();
+    recipientUids = participantUids.filter((uid) => uid !== callerUid);
+    const profiles = await db.getAll(...recipientUids.map((uid) => db.collection("users").doc(uid)));
+    if (profiles.some((profile) => !profile.exists || profile.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(profile.data()))) {
+      throw new HttpsError("failed-precondition", "يوجد عضو غير مؤهل للمكالمة داخل الغرفة.");
+    }
+  }
+
+  const now = Date.now();
+  const expiresAt = Timestamp.fromMillis(now + CALL_RING_TIMEOUT_MS);
+  const result = await db.runTransaction(async (transaction) => {
+    const [existing, caller] = await Promise.all([
+      transaction.get(callRef), transaction.get(callerRef),
+    ]);
+    if (existing.exists) {
+      const prior = existing.data() ?? {};
+      if (prior.callerUid === callerUid && prior.targetId === input.targetId &&
+          prior.scope === input.scope && prior.mode === input.mode &&
+          prior.status === "ringing" && prior.expiresAt instanceof Timestamp &&
+          prior.expiresAt.toMillis() > now) {
+        return { callId: input.callId, status: prior.status, idempotentReplay: true };
+      }
+      throw new HttpsError("already-exists", "معرف المكالمة مستخدم مسبقاً.");
+    }
+    if (!caller.exists || caller.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(caller.data())) {
+      throw new HttpsError("permission-denied", "حالة الحساب لا تسمح ببدء المكالمة.");
+    }
+    const active = await CALL_SESSIONS.where("participantUids", "array-contains", callerUid)
+      .where("status", "in", ["ringing", "accepted"]).limit(1).get();
+    if (!active.empty) throw new HttpsError("resource-exhausted", "لديك مكالمة نشطة بالفعل.");
+    transaction.create(callRef, {
+      callId: input.callId, scope: input.scope, targetId: input.targetId, mode: input.mode,
+      callerUid, participantUids, acceptedUids: [], rejectedUids: [],
+      status: "ringing", signalCounts: {}, createdAt: FieldValue.serverTimestamp(),
+      expiresAt, lastActivityAt: FieldValue.serverTimestamp(),
+    });
+    return { callId: input.callId, status: "ringing", idempotentReplay: false };
+  });
+  if (!result.idempotentReplay) {
+    await Promise.all(recipientUids.map((uid) => sendPushToMember(
+      uid, input.mode === "video" ? "مكالمة مرئية واردة" : "مكالمة صوتية واردة",
+      "لديك مكالمة واردة في مودة.",
+      { type: "incoming_call", callId: input.callId, scope: input.scope, targetId: input.targetId },
+    )));
+  }
+  return result;
+});
+
+export const respondToCall = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  const response = request.data?.response;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId) ||
+      !["accept", "reject"].includes(response)) {
+    throw new HttpsError("invalid-argument", "بيانات الرد على المكالمة غير صالحة.");
+  }
+  const ref = CALL_SESSIONS.doc(callId);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
+    const call = snapshot.data()!;
+    if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
+        uid === call.callerUid) throw new HttpsError("permission-denied", "لا تملك صلاحية الرد على هذه المكالمة.");
+    if (call.status !== "ringing" || !(call.expiresAt instanceof Timestamp) ||
+        call.expiresAt.toMillis() <= Date.now()) {
+      throw new HttpsError("failed-precondition", "انتهت مهلة المكالمة أو لم تعد متاحة.");
+    }
+    const next = response === "accept" ? "accepted" : "rejected";
+    if (!canTransitionCall("ringing", next, uid, call.callerUid, call.participantUids)) {
+      throw new HttpsError("failed-precondition", "انتقال حالة المكالمة غير مسموح.");
+    }
+    const field = response === "accept" ? "acceptedUids" : "rejectedUids";
+    const prior = Array.isArray(call[field]) ? call[field] as string[] : [];
+    if (!prior.includes(uid)) transaction.update(ref, {
+      [field]: FieldValue.arrayUnion(uid),
+      status: response === "accept" ? "accepted" : "rejected",
+      respondedAt: FieldValue.serverTimestamp(),
+      lastActivityAt: FieldValue.serverTimestamp(),
+    });
+    return { callId, status: next, idempotentReplay: prior.includes(uid) };
+  });
+});
+
+export const sendCallSignal = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  let signal;
+  try { signal = validateCallSignal(request.data?.signal); }
+  catch { throw new HttpsError("invalid-argument", "بيانات إشارة الاتصال غير صالحة."); }
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId)) {
+    throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
+  }
+  const ref = CALL_SESSIONS.doc(callId);
+  const signalRef = ref.collection("signals").doc(uid + "_" + signal.sequence);
+  await db.runTransaction(async (transaction) => {
+    const [snapshot, existing] = await Promise.all([
+      transaction.get(ref), transaction.get(signalRef),
+    ]);
+    if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
+    const call = snapshot.data()!;
+    if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
+        !["ringing", "accepted"].includes(String(call.status))) {
+      throw new HttpsError("permission-denied", "لا تملك صلاحية إرسال إشارات لهذه المكالمة.");
+    }
+    if (call.status === "ringing" && signal.kind === "answer") {
+      throw new HttpsError("failed-precondition", "لا يمكن إرسال إجابة قبل قبول المكالمة.");
+    }
+    if (call.expiresAt instanceof Timestamp && call.expiresAt.toMillis() + CALL_SIGNAL_MAX_AGE_MS < Date.now()) {
+      throw new HttpsError("deadline-exceeded", "انتهت صلاحية إشارات المكالمة.");
+    }
+    if (existing.exists) {
+      const prior = existing.data() ?? {};
+      if (prior.kind !== signal.kind || prior.payload !== signal.payload) {
+        throw new HttpsError("already-exists", "رقم تسلسل الإشارة مستخدم بمحتوى مختلف.");
+      }
+      return;
+    }
+    const counts = (call.signalCounts ?? {}) as Record<string, number>;
+    const expected = Number.isSafeInteger(counts[uid]) ? counts[uid] : 0;
+    if (signal.sequence !== expected || expected >= CALL_SIGNAL_MAX_PER_CALLER) {
+      throw new HttpsError("resource-exhausted", "تسلسل الإشارات غير صحيح أو تجاوز الحد المسموح.");
+    }
+    transaction.create(signalRef, {
+      senderUid: uid, kind: signal.kind, payload: signal.payload,
+      sequence: signal.sequence, createdAt: FieldValue.serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + CALL_SIGNAL_MAX_AGE_MS),
+    });
+    transaction.update(ref, {
+      [`signalCounts.${uid}`]: expected + 1,
+      lastActivityAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { accepted: true, sequence: signal.sequence };
+});
+
+export const getCallSignals = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  const afterSequence = request.data?.afterSequence ?? -1;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId) ||
+      !Number.isSafeInteger(afterSequence) || afterSequence < -1) {
+    throw new HttpsError("invalid-argument", "طلب قراءة إشارات المكالمة غير صالح.");
+  }
+  const ref = CALL_SESSIONS.doc(callId);
+  const call = await ref.get();
+  if (!call.exists || !Array.isArray(call.data()?.participantUids) ||
+      !call.data()!.participantUids.includes(uid)) {
+    throw new HttpsError("permission-denied", "لا تملك صلاحية قراءة إشارات هذه المكالمة.");
+  }
+  const snapshot = await ref.collection("signals").where("createdAt", ">=",
+    Timestamp.fromMillis(Date.now() - CALL_SIGNAL_MAX_AGE_MS))
+    .orderBy("createdAt", "asc").limit(256).get();
+  const signals = snapshot.docs
+    .filter((doc) => doc.data().senderUid !== uid && doc.data().sequence > afterSequence)
+    .map((doc) => ({ ...doc.data(), signalId: doc.id }));
+  return {
+    status: call.data()?.status,
+    signals,
+    lastSequence: signals.length ? signals[signals.length - 1].sequence : afterSequence,
+  };
+});
+
+export const endCall = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId)) {
+    throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
+  }
+  const ref = CALL_SESSIONS.doc(callId);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return { callId, status: "ended", idempotentReplay: true };
+    const call = snapshot.data()!;
+    if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid)) {
+      throw new HttpsError("permission-denied", "لا تملك صلاحية إنهاء هذه المكالمة.");
+    }
+    const next = call.status === "ringing" && uid === call.callerUid ? "cancelled" :
+      call.status === "ringing" ? "rejected" : "ended";
+    if (!canTransitionCall(call.status, next, uid, call.callerUid, call.participantUids)) {
+      if (["ended", "cancelled", "rejected", "missed"].includes(String(call.status))) {
+        return { callId, status: call.status, idempotentReplay: true };
+      }
+      throw new HttpsError("failed-precondition", "لا يمكن إنهاء المكالمة في حالتها الحالية.");
+    }
+    transaction.update(ref, {
+      status: next, endedBy: uid, endedAt: FieldValue.serverTimestamp(),
+      lastActivityAt: FieldValue.serverTimestamp(),
+    });
+    return { callId, status: next, idempotentReplay: false };
+  });
+});
+
+export const getActiveCall = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const snapshot = await CALL_SESSIONS.where("participantUids", "array-contains", uid)
+    .where("status", "in", ["ringing", "accepted"]).limit(5).get();
+  const active = snapshot.docs.find((doc) => {
+    const data = doc.data();
+    return data.status === "accepted" ||
+      (data.expiresAt instanceof Timestamp && data.expiresAt.toMillis() > Date.now());
+  });
+  if (!active) return { active: false };
+  const data = active.data();
+  return {
+    active: true, callId: active.id, scope: data.scope, targetId: data.targetId,
+    mode: data.mode, status: data.status, callerUid: data.callerUid,
+    participantUids: data.participantUids,
+    expiresAtMs: data.expiresAt instanceof Timestamp ? data.expiresAt.toMillis() : null,
   };
 });
