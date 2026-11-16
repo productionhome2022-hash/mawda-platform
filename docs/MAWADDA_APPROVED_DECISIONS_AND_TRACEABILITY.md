@@ -241,3 +241,16 @@ This amendment records policy approval only. It does not establish that code, te
 - Any accepted proposal that becomes an advertising campaign must pass the existing campaign lifecycle, Owner commercial approval, rights/media safety checks, actual-payment confirmation and publication gates. Preserve the creator request ID and audit linkage through handoff.
 - Do not invent creator rates, guaranteed reach, legal classification, payment terms or usage rights. No real-money checkout, payout, or production activation is authorized.
 - **Implementation status:** Requirements documented and traceability row added. UI, data model, server authorization, media/link integration, negotiation workflow and tests remain open until implemented and verified on an identified commit.
+
+
+## ADS-FEATURED-ENTRY-001 — Direct featured-ad home entry and dedicated reward-history route (Owner approval, 16 November 2026)
+
+**Decision:** Add a prominent **Featured Ads + Rewards / الإعلانات المميزة والمكافآت** button to the authenticated member home screen. It opens the featured-ad discovery/viewing experience directly. Add a sixth Media Workspace option **Featured Ad Viewing Rewards / مكافآت مشاهدة الإعلانات المميزة** for eligibility guidance and the authenticated member's own qualified-view/reward history.
+
+**Reward rule:** Neither button press nor opening either screen, preview, carousel, category or card earns coins. Coins are credited only after a full selected-ad player session is validated server-side. Featured-ad credits carry a distinct ledger source/type (e.g. `featured_ad_reward`) but use the already approved experimental ad reward limits: 2 coins per eligible view, max 10 views / 20 coins per UTC day, and same campaign once per rolling 24 hours. No second reward or duplicate credit is created for the same qualified view. The Owner may adjust settings through the central versioned server configuration.
+
+**Layout:** The 75% / 25% player/context split applies to the selected full-ad player using usable application viewport and safe responsive constraints. The discovery page and Media Workspace history page are not forced into that split. Preserve existing chat/room state in the lower activity area.
+
+**Commercial separation:** Advertiser placement payments, platform-funded reward budget and member coin ledger are separate accounting domains. Priority placement is subject to geography, schedule, creative safety, Owner approval and emergency withdrawal. No payment or publication gate is bypassed.
+
+**Implementation status:** Approved requirement only. The existing timed-ad reward center is not yet a featured-ad serving system; its current reward-center placement and completion path must not be relabelled as featured ads. Backend serving, campaign geography/featured placement integration, daily and rolling-frequency reward enforcement, dedicated ledger classification, member UI/history, owner controls and exact-head tests remain required. This decision does not authorize real-money payment, production mutation, deployment or merge to main.
