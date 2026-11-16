@@ -73,3 +73,20 @@ test("timed-ad heartbeat credits only sequential, visible foreground intervals",
   assert.throws(() => eligibleHeartbeatDelta(1000, 6000, 2, 1, true, true), /SEQUENCE/);
   assert.throws(() => eligibleHeartbeatDelta(6000, 6000, 1, 1, true, true), /TIME/);
 });
+
+const { timedAdMemberCounterId } = require("../lib/engagement-rewards");
+
+test("timed-ad member counters are collision-resistant across underscore-separated identities", () => {
+  const first = timedAdMemberCounterId("member_a", "campaign_123456");
+  const second = timedAdMemberCounterId("member", "a_campaign_123456");
+  assert.match(first, /^[a-f0-9]{64}$/);
+  assert.match(second, /^[a-f0-9]{64}$/);
+  assert.notEqual(first, second);
+  assert.equal(first, timedAdMemberCounterId("member_a", "campaign_123456"));
+});
+
+test("timed-ad counter identity rejects invalid member and campaign identifiers", () => {
+  assert.throws(() => timedAdMemberCounterId("", "campaign_123456"), /TIMED_AD_COUNTER_ID_INVALID/);
+  assert.throws(() => timedAdMemberCounterId("member", "short"), /TIMED_AD_COUNTER_ID_INVALID/);
+  assert.throws(() => timedAdMemberCounterId("x".repeat(129), "campaign_123456"), /TIMED_AD_COUNTER_ID_INVALID/);
+});
