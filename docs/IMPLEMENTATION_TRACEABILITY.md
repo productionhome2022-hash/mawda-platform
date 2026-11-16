@@ -523,3 +523,11 @@ The Creator Content & Influencer Proposals route is an approved fifth Media Work
 - Added advertisingIntakeAuditEventId validation/helper and unit tests for stable IDs and unsafe request-ID rejection.
 - Commits: ed70c8cd09d7294865cff589ec337cefb121a8ca, bc304a375dc6f76f6418ab4b50ea519234ee745e, 00c92e8df5195e898cb2461f6b3faeb8034bfd81, 728717b9cf2977a88935a6ea3bedeab0338cdccf.
 - Tests have been added but were not executed in this session. No Firebase configuration, production resource, payment, or deployment changes were made.
+
+## 2026-11-16 — Atomic advertising intake review and audit
+
+- Closed a second advertising workflow gap: the owner review previously committed the intake status/version in one transaction and appended the audit event afterward. An audit write failure could leave a changed request with no corresponding review event, while a retry was rejected as a stale version.
+- The review now reads the request, deterministic per-request/per-version audit event, and audit-chain head together, then atomically commits the state transition, immutable audit event, and chain-head advance. A matching retry returns the already-committed result; conflicting reuse is rejected.
+- Added validation and unit coverage for stable version-scoped review audit IDs. The callable transaction path itself still requires emulator/integration execution.
+- Commits: 345eaf005603294c9eaaa4be2d4461abe774385c, 78738169ea658cf50f19a215e98f1ea620054cde, 29292dda48eb488a2857223ef87b35d620e1de1f, f8ecb025fdcba2a219962fd26100f39f636b77e8.
+- Tests have not been executed in this session. No Firebase production configuration, live data, payments, or deployment changes were made.
