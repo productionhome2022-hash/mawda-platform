@@ -2,8 +2,9 @@ export type MediaCategory = "image" | "video" | "audio" | "document";
 export type MediaPurpose = "chat" | "room" | "profile_album" | "avatar_cover" | "story" | "advertisement";
 const MEDIA_PURPOSES: ReadonlySet<string> = new Set(["chat", "room", "profile_album", "avatar_cover", "story", "advertisement"]);
 
-// Purpose is recorded for future policy enforcement. No automatic retention
-// expiry is computed until the sole owner approves exact durations and legal holds.
+// Upload purpose is validated here; server-side media finalization assigns the
+// approved purpose-specific retention deadline and the retention worker enforces it.
+// Legal holds suspend deletion only for the exact held asset.
 export type MediaSignedUrlPurpose = "upload" | "owner-inspection";
 export const MEDIA_SIGNED_URL_TTL_MS: Record<MediaSignedUrlPurpose, number> = {
   upload: 5 * 60 * 1000,
