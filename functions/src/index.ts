@@ -9304,7 +9304,7 @@ export const startCall = onCall(async (request) => {
           prior.scope === input.scope && prior.mode === input.mode &&
           prior.status === "ringing" && prior.expiresAt instanceof Timestamp &&
           prior.expiresAt.toMillis() > now) {
-        return { callId: input.callId, status: prior.status, idempotentReplay: true };
+        return { callId: input.callId, status: prior.status, participantUids: prior.participantUids ?? participantUids, idempotentReplay: true };
       }
       throw new HttpsError("already-exists", "معرف المكالمة مستخدم مسبقاً.");
     }
@@ -9325,7 +9325,7 @@ export const startCall = onCall(async (request) => {
       status: "ringing", signalCounts: {}, createdAt: FieldValue.serverTimestamp(),
       expiresAt, lastActivityAt: FieldValue.serverTimestamp(),
     });
-    return { callId: input.callId, status: "ringing", idempotentReplay: false };
+    return { callId: input.callId, status: "ringing", participantUids, idempotentReplay: false };
   });
   if (!result.idempotentReplay) {
     await Promise.all(recipientUids.map((uid) => sendPushToMember(
@@ -9357,8 +9357,11 @@ export const respondToCall = onCall(async (request) => {
           (!(call.expiresAt instanceof Timestamp) || call.expiresAt.toMillis() <= Date.now()))) {
       throw new HttpsError("failed-precondition", "انتهت مهلة المكالمة أو لم تعد متاحة.");
     }
-    if (response === "reject" && call.status !== "ringing") {
-      throw new HttpsError("failed-precondition", "لا يمكن رفض مكالمة بعد قبولها.");
+    if (response === "reject" && call.status !== "ringing" && call.status !== "accepted") {
+      throw new HttpsError("failed-precondition", "لا يمكن رفض المكالمة في حالتها الحالية.");
+    }
+    if (response === "reject" && Array.isArray(call.acceptedUids) && call.acceptedUids.includes(uid)) {
+      throw new HttpsError("failed-precondition", "لقد انضممت بالفعل إلى المكالمة.");
     }
     const next = response === "accept" ? "accepted" : "rejected";
     if (call.status === "ringing" &&
@@ -9369,7 +9372,9 @@ export const respondToCall = onCall(async (request) => {
     const prior = Array.isArray(call[field]) ? call[field] as string[] : [];
     if (!prior.includes(uid)) transaction.update(ref, {
       [field]: FieldValue.arrayUnion(uid),
-      ...(response === "accept" ? { status: "accepted" } : { status: "rejected" }),
+      ...(response === "accept" ? { status: "accepted" } :
+        call.status === "ringing" && !(Array.isArray(call.acceptedUids) && call.acceptedUids.length > 0)
+          ? { status: "rejected" } : {}),
       respondedAt: FieldValue.serverTimestamp(),
       lastActivityAt: FieldValue.serverTimestamp(),
     });
@@ -9380,14 +9385,17 @@ export const respondToCall = onCall(async (request) => {
 export const sendCallSignal = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const callId = request.data?.callId;
+  const toUid = request.data?.toUid;
   let signal;
   try { signal = validateCallSignal(request.data?.signal); }
   catch { throw new HttpsError("invalid-argument", "بيانات إشارة الاتصال غير صالحة."); }
-  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId)) {
-    throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId) ||
+      typeof toUid !== "string" || toUid.length < 1 || toUid.length > 128 || toUid === uid) {
+    throw new HttpsError("invalid-argument", "معرف المكالمة أو مستلم الإشارة غير صالح.");
   }
   const ref = CALL_SESSIONS.doc(callId);
-  const signalRef = ref.collection("signals").doc(uid + "_" + signal.sequence);
+  const streamId = createHash("sha256").update(uid + ":" + toUid).digest("hex");
+  const signalRef = ref.collection("signals").doc(streamId + "_" + signal.sequence);
   await db.runTransaction(async (transaction) => {
     const [snapshot, existing] = await Promise.all([
       transaction.get(ref), transaction.get(signalRef),
@@ -9395,8 +9403,9 @@ export const sendCallSignal = onCall(async (request) => {
     if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
     const call = snapshot.data()!;
     if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
+        !call.participantUids.includes(toUid) ||
         !["ringing", "accepted"].includes(String(call.status))) {
-      throw new HttpsError("permission-denied", "لا تملك صلاحية إرسال إشارات لهذه المكالمة.");
+      throw new HttpsError("permission-denied", "لا تملك صلاحية إرسال إشارات إلى هذا العضو في المكالمة.");
     }
     if (call.status === "ringing" && signal.kind === "answer") {
       throw new HttpsError("failed-precondition", "لا يمكن إرسال إجابة قبل قبول المكالمة.");
@@ -9417,17 +9426,17 @@ export const sendCallSignal = onCall(async (request) => {
       return;
     }
     const counts = (call.signalCounts ?? {}) as Record<string, number>;
-    const expected = Number.isSafeInteger(counts[uid]) ? counts[uid] : 0;
+    const expected = Number.isSafeInteger(counts[streamId]) ? counts[streamId] : 0;
     if (signal.sequence !== expected || expected >= CALL_SIGNAL_MAX_PER_CALLER) {
       throw new HttpsError("resource-exhausted", "تسلسل الإشارات غير صحيح أو تجاوز الحد المسموح.");
     }
     transaction.create(signalRef, {
-      senderUid: uid, kind: signal.kind, payload: signal.payload,
+      senderUid: uid, recipientUid: toUid, kind: signal.kind, payload: signal.payload,
       sequence: signal.sequence, createdAt: FieldValue.serverTimestamp(),
       expiresAt: Timestamp.fromMillis(Date.now() + CALL_SIGNAL_MAX_AGE_MS),
     });
     transaction.update(ref, {
-      signalCounts: { ...counts, [uid]: expected + 1 },
+      signalCounts: { ...counts, [streamId]: expected + 1 },
       lastActivityAt: FieldValue.serverTimestamp(),
     });
   });
@@ -9448,11 +9457,13 @@ export const getCallSignals = onCall(async (request) => {
       !call.data()!.participantUids.includes(uid)) {
     throw new HttpsError("permission-denied", "لا تملك صلاحية قراءة إشارات هذه المكالمة.");
   }
-  const snapshot = await ref.collection("signals").where("createdAt", ">=",
-    Timestamp.fromMillis(Date.now() - CALL_SIGNAL_MAX_AGE_MS))
-    .orderBy("createdAt", "asc").limit(256).get();
+  const snapshot = await ref.collection("signals").where("recipientUid", "==", uid).limit(256).get();
   const signals = snapshot.docs
-    .filter((doc) => doc.data().senderUid !== uid && doc.data().sequence > afterSequence)
+    .filter((doc) => doc.data().senderUid !== uid &&
+      doc.data().createdAt instanceof Timestamp &&
+      doc.data().createdAt.toMillis() >= Date.now() - CALL_SIGNAL_MAX_AGE_MS &&
+      doc.data().sequence > afterSequence)
+    .sort((left, right) => left.data().createdAt.toMillis() - right.data().createdAt.toMillis())
     .map((doc) => ({ ...doc.data(), signalId: doc.id }));
   return {
     status: call.data()?.status,
@@ -9540,6 +9551,8 @@ export const getActiveCall = onCall(async (request) => {
     active: true, callId: active.id, scope: data.scope, targetId: data.targetId,
     mode: data.mode, status: data.status, callerUid: data.callerUid,
     participantUids: data.participantUids,
+    acceptedUids: data.acceptedUids ?? [],
+    rejectedUids: data.rejectedUids ?? [],
     expiresAtMs: data.expiresAt instanceof Timestamp ? data.expiresAt.toMillis() : null,
   };
 });
