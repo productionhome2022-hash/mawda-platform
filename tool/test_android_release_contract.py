@@ -15,6 +15,10 @@ class AndroidReleaseContractTests(unittest.TestCase):
         self.assertIn('signingConfig = signingConfigs.getByName("release")', GRADLE)
         self.assertIn("MISSING_RELEASE_KEYSTORE_CONFIG", GRADLE)
 
+    def test_release_checkout_is_pinned_to_dispatch_commit(self):
+        self.assertIn("ref: ${{ github.sha }}", WORKFLOW)
+        self.assertNotIn("ref: codex/mawda-full-platform-implementation", WORKFLOW)
+
     def test_release_workflow_builds_apk_and_aab(self):
         self.assertIn("flutter build apk --release", WORKFLOW)
         self.assertIn("flutter build apk --release --split-per-abi", WORKFLOW)
