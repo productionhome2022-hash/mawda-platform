@@ -4,6 +4,8 @@ const { validateFirebaseConfiguration } = require("../scripts/validate-firebase-
 
 const projectId = "mawda-app-2026";
 const webAppId = "1:697303475139:web:8869603bda6f1a3c3ed376";
+const androidAppId = "1:697303475139:android:0aad1a52d2276f273ed376";
+const iosAppId = "1:697303475139:ios:7be58cfe1ac9c4c23ed376";
 const nonprodProjectId = "mawda-platform-nonprod-2026";
 const validOptions = [
   "static const FirebaseOptions web = FirebaseOptions(",
@@ -13,6 +15,21 @@ const validOptions = [
   "  projectId: '" + projectId + "',",
   "  authDomain: 'mawda-app-2026.firebaseapp.com',",
   "  storageBucket: 'mawda-app-2026.firebasestorage.app',",
+  "  );",
+  "static const FirebaseOptions android = FirebaseOptions(",
+  "  apiKey: 'AIzaSyAndroid-real-looking-key',",
+  "  appId: '" + androidAppId + "',",
+  "  messagingSenderId: '697303475139',",
+  "  projectId: '" + projectId + "',",
+  "  storageBucket: 'mawda-app-2026.firebasestorage.app',",
+  "  );",
+  "static const FirebaseOptions ios = FirebaseOptions(",
+  "  apiKey: 'AIzaSyIos-real-looking-key',",
+  "  appId: '" + iosAppId + "',",
+  "  messagingSenderId: '697303475139',",
+  "  projectId: '" + projectId + "',",
+  "  storageBucket: 'mawda-app-2026.firebasestorage.app',",
+  "  iosBundleId: 'com.mawdda.platform.app',",
   "  );",
 ].join("\n");
 
@@ -42,6 +59,10 @@ function validate(optionsSource = validOptions, productionAlias = projectId,
   return validateFirebaseConfiguration({
     alias: { projects: { default: defaultAlias, production: productionAlias } },
     optionsSource, expectedProjectId: projectId, expectedWebAppId: webAppId,
+    expectedNativeApps: {
+      android: { appId: androidAppId, messagingSenderId: "697303475139", storageBucket: projectId + ".firebasestorage.app" },
+      ios: { appId: iosAppId, messagingSenderId: "697303475139", storageBucket: projectId + ".firebasestorage.app", iosBundleId: "com.mawdda.platform.app" },
+    },
     nonprodOptionsSource: nonprodSource, expectedNonprodProjectId: nonprodProject,
     expectedNonprodApps,
   });
@@ -91,4 +112,13 @@ test("rejects a missing native registration and an incorrect iOS bundle identifi
 });
 test("rejects production and non-production aliases that resolve to the same project", () => {
   assert.ok(validate(validOptions, projectId, undefined, makeNonprodOptions(), projectId).errors.includes("FIREBASE_ENVIRONMENTS_MUST_BE_SEPARATE"));
+});
+
+test("rejects mismatched production Android/iOS app identities", () => {
+  assert.ok(validate(validOptions.replace(androidAppId, "1:1234567890:android:abcdef123456789")).errors.includes("FIREBASE_ANDROID_APP_ID_MISMATCH"));
+  assert.ok(validate(validOptions.replace("com.mawdda.platform.app", "com.example.wrong")).errors.includes("FIREBASE_IOS_BUNDLE_ID_MISMATCH"));
+});
+test("rejects missing production native registrations", () => {
+  const missingAndroid = validOptions.replace(/static const FirebaseOptions android = FirebaseOptions\([\s\S]*?\n  \);\n?/, "");
+  assert.ok(validate(missingAndroid).errors.includes("FIREBASE_ANDROID_OPTIONS_MISSING"));
 });

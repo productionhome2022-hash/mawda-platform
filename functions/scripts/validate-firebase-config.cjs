@@ -29,7 +29,7 @@ function hasPlaceholder(value) {
 }
 
 function validateFirebaseConfiguration({
-  alias, optionsSource, expectedProjectId, expectedWebAppId,
+  alias, optionsSource, expectedProjectId, expectedWebAppId, expectedNativeApps,
   nonprodOptionsSource, expectedNonprodProjectId, expectedNonprodApps,
 }) {
   const errors = [];
@@ -47,6 +47,30 @@ function validateFirebaseConfiguration({
       if (hasPlaceholder(productionWeb[key])) {
         errors.push("FIREBASE_WEB_" + key.replace(/[A-Z]/g, (letter) => "_" + letter).toUpperCase() + "_INVALID");
       }
+    }
+  }
+
+  if (!expectedNativeApps || typeof expectedNativeApps !== "object" ||
+      Object.keys(expectedNativeApps).length !== 2) {
+    errors.push("EXPECTED_PRODUCTION_NATIVE_APP_IDENTITIES_MISSING");
+  } else {
+    for (const platform of ["android", "ios"]) {
+      const expected = expectedNativeApps[platform];
+      const actual = readFirebaseOptions(optionsSource, platform);
+      const prefix = "FIREBASE_" + platform.toUpperCase() + "_";
+      if (!actual) {
+        errors.push(prefix + "OPTIONS_MISSING");
+        continue;
+      }
+      if (actual.projectId !== expectedProjectId) errors.push(prefix + "PROJECT_MISMATCH");
+      for (const key of ["apiKey", "appId", "messagingSenderId", "storageBucket"]) {
+        if (hasPlaceholder(actual[key])) errors.push(prefix + key.replace(/[A-Z]/g, (letter) => "_" + letter).toUpperCase() + "_INVALID");
+      }
+      if (actual.appId !== expected.appId) errors.push(prefix + "APP_ID_MISMATCH");
+      if (actual.messagingSenderId !== expected.messagingSenderId) errors.push(prefix + "SENDER_ID_MISMATCH");
+      if (actual.storageBucket !== expected.storageBucket) errors.push(prefix + "STORAGE_BUCKET_MISMATCH");
+      if (platform === "ios" && actual.iosBundleId !== expected.iosBundleId) errors.push(prefix + "BUNDLE_ID_MISMATCH");
+      if (actual.appId === expectedWebAppId) errors.push(prefix + "REUSES_PRODUCTION_WEB_APP_ID");
     }
   }
 
@@ -87,6 +111,19 @@ function main() {
   const expectedProjectId = process.env.FIREBASE_PROJECT_ID || "mawda-app-2026";
   const expectedWebAppId = process.env.FIREBASE_WEB_APP_ID || "1:697303475139:web:8869603bda6f1a3c3ed376";
   const expectedNonprodProjectId = process.env.FIREBASE_NONPROD_PROJECT_ID || "mawda-platform-nonprod-2026";
+  const expectedNativeApps = {
+    android: {
+      appId: "1:697303475139:android:0aad1a52d2276f273ed376",
+      messagingSenderId: "697303475139",
+      storageBucket: "mawda-app-2026.firebasestorage.app",
+    },
+    ios: {
+      appId: "1:697303475139:ios:7be58cfe1ac9c4c23ed376",
+      messagingSenderId: "697303475139",
+      storageBucket: "mawda-app-2026.firebasestorage.app",
+      iosBundleId: "com.mawdda.platform.app",
+    },
+  };
   const expectedNonprodApps = {
     web: {
       appId: "1:12102454568:web:e5b292ae20b9a55ca2141d",
@@ -122,7 +159,7 @@ function main() {
     return;
   }
   const result = validateFirebaseConfiguration({
-    alias, optionsSource, expectedProjectId, expectedWebAppId,
+    alias, optionsSource, expectedProjectId, expectedWebAppId, expectedNativeApps,
     nonprodOptionsSource, expectedNonprodProjectId, expectedNonprodApps,
   });
   if (!result.valid) {
