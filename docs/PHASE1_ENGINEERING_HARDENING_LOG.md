@@ -63,3 +63,24 @@ The call-signal reader queried and returned pending SDP/ICE signaling documents 
 - Android/iOS physical-device acceptance and independent security/privacy/legal review.
 
 No production Firebase resource, production data, billing setting, `main` branch or deployment was changed.
+
+## 2026-11-17 — Android signed-release artifact identity and malware gates
+
+**Finding:** The manual owner-key release workflow verified APK/AAB signatures and APK package ID, but did not independently compare the version metadata of every APK and the AAB against the Flutter source version, nor inspect the AAB's required bundle structure. The release acceptance checklist also required malware-scan evidence for candidate artifacts, while the CI ClamAV job only tested the scanner image and EICAR detection.
+
+**Change:**
+- Added `tool/verify_android_release_metadata.py` to validate every generated APK's package ID, versionName and versionCode using Android `aapt`.
+- The validator checks Gradle's AAB `output-metadata.json` against the same package/version tuple and verifies the AAB ZIP integrity, `BundleConfig.pb`, and base manifest entry.
+- The release evidence now records each APK/AAB file size as well as package/version identity.
+- The manual signed-release workflow now builds the isolated ClamAV image, refreshes its signatures, scans the actual APK/AAB artifacts with explicit archive and scan bounds, fails closed on detection or incomplete/over-limit scanning, and retains the scan output.
+- Added unit/contract tests and wired them into the repository's validation workflow.
+- Updated the Android signing runbook and release checklist.
+
+**Verification status:**
+- Source changes are committed on the development branch.
+- Validate Mawda run: `44097181993` (queued at the time this entry was written).
+- Mawdda domain regression run: `44097182020` (running at the time this entry was written).
+- The owner-key signed-release workflow has **not** been dispatched; no production APK/AAB has been built because the owner-provisioned signing and production Firebase secrets are not available for inspection or use through this workflow session.
+- No physical-device installation/update, website/mirror publication, Google Play submission, production Firebase mutation, billing change, or merge to `main` has occurred.
+
+**Acceptance limitation:** CI passing for the new validator proves the source-level checks and test suite only. The first owner-authorized signed-release run must still prove the actual APK/AAB metadata, signer identity, ClamAV verdict, SHA-256 and artifact sizes on one immutable candidate SHA.
