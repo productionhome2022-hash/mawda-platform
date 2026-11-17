@@ -7,6 +7,7 @@ WORKFLOW = (ROOT / ".github/workflows/android-signed-release.yml").read_text()
 BOOTSTRAP_WORKFLOW = (ROOT / ".github/workflows/bootstrap-native-platforms.yml").read_text()
 GRADLE = (ROOT / "android/app/build.gradle.kts").read_text()
 ANDROID_GITIGNORE = (ROOT / "android/.gitignore").read_text()
+RELEASE_METADATA = (ROOT / "tool/verify_android_release_metadata.py").read_text()
 
 
 class AndroidReleaseContractTests(unittest.TestCase):
@@ -33,6 +34,12 @@ class AndroidReleaseContractTests(unittest.TestCase):
         self.assertIn("--bundle-metadata build/app/outputs/bundle/release/output-metadata.json", WORKFLOW)
         self.assertIn("android-artifact-metadata.txt", WORKFLOW)
         self.assertIn("sizeBytes=", WORKFLOW)
+
+    def test_release_metadata_validator_accounts_for_flutter_abi_version_offsets(self):
+        self.assertIn('"app-armeabi-v7a-release.apk": 1000', RELEASE_METADATA)
+        self.assertIn('"app-arm64-v8a-release.apk": 2000', RELEASE_METADATA)
+        self.assertIn('"app-x86_64-release.apk": 4000', RELEASE_METADATA)
+        self.assertIn("actual_names != expected_names", RELEASE_METADATA)
 
     def test_signed_artifacts_are_scanned_with_fresh_clamav_signatures(self):
         self.assertIn("freshclam --stdout", WORKFLOW)
