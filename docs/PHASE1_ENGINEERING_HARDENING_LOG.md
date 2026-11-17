@@ -88,3 +88,8 @@ No production Firebase resource, production data, billing setting, `main` branch
 **Additional source-integrity correction (same workstream):**
 - The signed-release workflow previously checked out the moving development branch name after dispatch. That left a race where the branch could advance between dispatch and checkout while evidence still reported the dispatch SHA.
 - The workflow now checks out `github.sha` from the dispatch event, and a contract test rejects a moving-branch checkout. This binds release artifacts to the immutable commit captured when the owner starts the workflow.
+
+**ABI version-code compatibility correction:**
+- Reviewing Flutter's official Android release guidance showed that split APKs intentionally use ABI-specific version codes: base +1000 for `armeabi-v7a`, +2000 for `arm64-v8a`, and +4000 for `x86_64` (the x86 offset remains reserved).
+- Updated the validator and tests to require the Universal APK plus all three expected ABI APKs, verify each package/version tuple with the correct offset, and ensure unique split version codes. The AAB and Universal APK remain on the same base version code.
+- Reference: [Flutter — Build and release an Android app](https://docs.flutter.dev/deployment/android).
