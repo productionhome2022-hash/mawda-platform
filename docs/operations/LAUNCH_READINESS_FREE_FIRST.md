@@ -141,4 +141,4 @@ A release candidate is not accepted until all applicable items have evidence:
 
 | Date (UTC) | SHA | Change | Verification | Status |
 |---|---|---|---|---|
-| 2026-11-17 | Pending commit | Establish free-first Mawdda launch readiness gates and service ownership boundaries | Source inspection only | Baseline documented; implementation remains in progress |
+| 2026-11-17 | 23d83ce42f15b6b201a2313011b061eca423c519 | Establish free-first Mawdda launch readiness gates and service ownership boundaries | Source inspection only; no CI status reported for this documentation commit | Baseline documented; implementation remains in progress |
