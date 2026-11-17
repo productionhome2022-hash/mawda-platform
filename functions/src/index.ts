@@ -5,7 +5,7 @@ import { getMessaging } from "firebase-admin/messaging";
 import { getStorage } from "firebase-admin/storage";
 import { validateMemberProfile } from "./member-profile";
 import { isAllowedLegalPortalAppId } from "./legal-portal-access";
-import { FieldPath, FieldValue, Timestamp, getFirestore, type Transaction } from "firebase-admin/firestore";
+import { FieldPath, FieldValue, Timestamp, getFirestore, type DocumentReference, type Transaction } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineString, defineSecret } from "firebase-functions/params";
@@ -9240,7 +9240,7 @@ const CALL_MAX_DURATION_MS = 5 * 60 * 1000;
  * server-recorded client connectivity signal, not cryptographic proof of
  * network delivery; live device acceptance remains a separate release gate.
  */
-async function expireCallIfDurationElapsed(callRef: FirebaseFirestore.DocumentReference): Promise<string | null> {
+async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<string | null> {
   return db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(callRef);
     if (!snapshot.exists) return null;
@@ -9462,6 +9462,7 @@ export const respondToCall = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "بيانات الرد على المكالمة غير صالحة.");
   }
   const ref = CALL_SESSIONS.doc(callId);
+  await expireCallIfDurationElapsed(ref);
   return db.runTransaction(async (transaction) => {
     const lockRef = ACTIVE_CALL_MEMBER_LOCKS.doc(uid);
     const [snapshot, lockSnapshot] = await Promise.all([
