@@ -41,6 +41,8 @@ jobs:
         run: npm run test:room-events-integration
       - name: Run owner entitlement grant and bulk replay integration tests
         run: npm run test:owner-entitlement-grants-integration
+      - name: Run voice and video call lifecycle integration tests
+        run: npm run test:call-signaling-integration
 
   flutter-domain-regression:
     name: Flutter UI analysis and widget tests
