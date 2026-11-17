@@ -9232,6 +9232,44 @@ const CALL_QUOTA_WINDOWS = db.collection("callQuotaWindows");
 const CALL_QUOTA_WINDOW_MS = 24 * 60 * 60 * 1000;
 const CALL_AUDIO_ATTEMPT_LIMIT = 5;
 const CALL_VIDEO_ATTEMPT_LIMIT = 3;
+const CALL_MAX_DURATION_MS = 5 * 60 * 1000;
+
+/**
+ * Enforce the five-minute ceiling from the server timestamp created only
+ * after both sides report an established RTCPeerConnection. This is a
+ * server-recorded client connectivity signal, not cryptographic proof of
+ * network delivery; live device acceptance remains a separate release gate.
+ */
+async function expireCallIfDurationElapsed(callRef: FirebaseFirestore.DocumentReference): Promise<string | null> {
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(callRef);
+    if (!snapshot.exists) return null;
+    const call = snapshot.data() ?? {};
+    if (call.status !== "accepted" ||
+        !(call.maxDurationEndsAt instanceof Timestamp) ||
+        call.maxDurationEndsAt.toMillis() > Date.now()) {
+      return typeof call.status === "string" ? call.status : null;
+    }
+    const participantUids = Array.isArray(call.participantUids)
+      ? call.participantUids.filter((uid): uid is string => typeof uid === "string")
+      : [];
+    const lockRefs = participantUids.map((uid) => ACTIVE_CALL_MEMBER_LOCKS.doc(uid));
+    const locks = await Promise.all(lockRefs.map((lockRef) => transaction.get(lockRef)));
+    transaction.update(callRef, {
+      status: "ended",
+      endedBy: "system",
+      endReason: "maximum_duration_reached",
+      endedAt: FieldValue.serverTimestamp(),
+      lastActivityAt: FieldValue.serverTimestamp(),
+    });
+    lockRefs.forEach((lockRef, index) => {
+      if (locks[index].exists && locks[index].data()?.callId === callRef.id) {
+        transaction.delete(lockRef);
+      }
+    });
+    return "ended";
+  });
+}
 
 export const startCall = onCall(async (request) => {
   const callerUid = requireAuthenticatedUid(request.auth?.uid);
@@ -9476,6 +9514,72 @@ export const respondToCall = onCall(async (request) => {
   });
 });
 
+/**
+ * Each endpoint reports the local WebRTC connected state. The server starts
+ * one immutable five-minute clock only after the caller and at least one
+ * accepted recipient have both reported connected.
+ */
+export const markCallConnected = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId)) {
+    throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
+  }
+  const ref = CALL_SESSIONS.doc(callId);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
+    const call = snapshot.data() ?? {};
+    const participantUids = Array.isArray(call.participantUids) ? call.participantUids as string[] : [];
+    const acceptedUids = Array.isArray(call.acceptedUids) ? call.acceptedUids as string[] : [];
+    const rejectedUids = Array.isArray(call.rejectedUids) ? call.rejectedUids as string[] : [];
+    const leftUids = Array.isArray(call.leftUids) ? call.leftUids as string[] : [];
+    if (!participantUids.includes(uid) || rejectedUids.includes(uid) || leftUids.includes(uid) ||
+        (uid !== call.callerUid && !acceptedUids.includes(uid))) {
+      throw new HttpsError("permission-denied", "لا تملك صلاحية تثبيت اتصال هذه المكالمة.");
+    }
+    if (call.status !== "accepted") {
+      throw new HttpsError("failed-precondition", "لا يمكن تثبيت الاتصال قبل قبول المكالمة.");
+    }
+    if (call.maxDurationEndsAt instanceof Timestamp) {
+      return {
+        callId, connected: true,
+        connectedAtMs: call.connectedAt instanceof Timestamp ? call.connectedAt.toMillis() : null,
+        maxDurationEndsAtMs: call.maxDurationEndsAt.toMillis(),
+        idempotentReplay: true,
+      };
+    }
+    const connectedUids = [...new Set([
+      ...(Array.isArray(call.connectedUids) ? call.connectedUids.filter((value): value is string => typeof value === "string") : []),
+      uid,
+    ])];
+    const hasCaller = connectedUids.includes(String(call.callerUid));
+    const hasAcceptedRecipient = connectedUids.some((memberUid) =>
+      memberUid !== call.callerUid && acceptedUids.includes(memberUid));
+    if (hasCaller && hasAcceptedRecipient) {
+      const nowMs = Date.now();
+      const connectedAt = Timestamp.fromMillis(nowMs);
+      const maxDurationEndsAt = Timestamp.fromMillis(nowMs + CALL_MAX_DURATION_MS);
+      transaction.update(ref, {
+        connectedUids,
+        connectedAt,
+        maxDurationEndsAt,
+        lastActivityAt: FieldValue.serverTimestamp(),
+      });
+      return {
+        callId, connected: true, connectedAtMs: nowMs,
+        maxDurationEndsAtMs: maxDurationEndsAt.toMillis(),
+        idempotentReplay: false,
+      };
+    }
+    transaction.update(ref, {
+      connectedUids,
+      lastActivityAt: FieldValue.serverTimestamp(),
+    });
+    return { callId, connected: false, idempotentReplay: false };
+  });
+});
+
 export const sendCallSignal = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const callId = request.data?.callId;
@@ -9488,6 +9592,8 @@ export const sendCallSignal = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "معرف المكالمة أو مستلم الإشارة غير صالح.");
   }
   const ref = CALL_SESSIONS.doc(callId);
+  const currentStatus = await expireCallIfDurationElapsed(ref);
+  if (currentStatus === "ended") throw new HttpsError("deadline-exceeded", "انتهت مدة المكالمة القصوى.");
   const streamId = createHash("sha256").update(uid + ":" + toUid).digest("hex");
   const signalRef = ref.collection("signals").doc(streamId + "_" + signal.sequence);
   await db.runTransaction(async (transaction) => {
@@ -9555,6 +9661,7 @@ export const getCallSignals = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "طلب قراءة إشارات المكالمة غير صالح.");
   }
   const ref = CALL_SESSIONS.doc(callId);
+  await expireCallIfDurationElapsed(ref);
   const call = await ref.get();
   if (!call.exists || !Array.isArray(call.data()?.participantUids) ||
       !call.data()!.participantUids.includes(uid) ||
@@ -9684,7 +9791,9 @@ export const getCallIceConfiguration = onCall(
     if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId)) {
       throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
     }
-    const call = await CALL_SESSIONS.doc(callId).get();
+    const callRef = CALL_SESSIONS.doc(callId);
+    await expireCallIfDurationElapsed(callRef);
+    const call = await callRef.get();
     if (!call.exists || !Array.isArray(call.data()?.participantUids) ||
         !call.data()!.participantUids.includes(uid) ||
         (Array.isArray(call.data()?.leftUids) && call.data()!.leftUids.includes(uid)) ||
@@ -9738,6 +9847,11 @@ export const getCallIceConfiguration = onCall(
 export const getActiveCall = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const lockRef = ACTIVE_CALL_MEMBER_LOCKS.doc(uid);
+  const initialLock = await lockRef.get();
+  const initialCallId = initialLock.data()?.callId;
+  if (typeof initialCallId === "string") {
+    await expireCallIfDurationElapsed(CALL_SESSIONS.doc(initialCallId));
+  }
   return db.runTransaction(async (transaction) => {
     const lockSnapshot = await transaction.get(lockRef);
     const callId = lockSnapshot.data()?.callId;
@@ -9770,6 +9884,8 @@ export const getActiveCall = onCall(async (request) => {
       acceptedUids: data.acceptedUids ?? [],
       rejectedUids: data.rejectedUids ?? [],
       expiresAtMs: data.expiresAt instanceof Timestamp ? data.expiresAt.toMillis() : null,
+      connectedAtMs: data.connectedAt instanceof Timestamp ? data.connectedAt.toMillis() : null,
+      maxDurationEndsAtMs: data.maxDurationEndsAt instanceof Timestamp ? data.maxDurationEndsAt.toMillis() : null,
     };
   });
 });
@@ -9791,6 +9907,13 @@ export const cleanupExpiredCallSignals = onSchedule("every 5 minutes", async () 
         lastActivityAt: FieldValue.serverTimestamp(),
       });
     });
+  }
+  const acceptedCalls = await CALL_SESSIONS.where("status", "==", "accepted").limit(200).get();
+  for (const doc of acceptedCalls.docs) {
+    const deadline = doc.data().maxDurationEndsAt;
+    if (deadline instanceof Timestamp && deadline.toMillis() <= Date.now()) {
+      await expireCallIfDurationElapsed(doc.ref);
+    }
   }
   const oldCalls = await CALL_SESSIONS.where("signalsCleanedAt", "==", false)
     .where("createdAt", "<=", Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000))
