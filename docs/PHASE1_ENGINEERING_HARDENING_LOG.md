@@ -144,3 +144,5 @@ No production Firebase resource, production data, billing setting, `main` branch
 **Commits:** CI scope change `b14d684e45ea31995ec4f35656b44a93f3478536`; call readiness split `da93beedb9381da9c3faafeb90bf1854af05f950`; 5,000-persona deferral `7ebb9a9e23839c37935aa8dbba9bdf7cce230cab`.
 
 **Safety and truthfulness:** This changes the sequencing of acceptance tests only. It does not claim calls are implemented or operational, does not enable call products/billing, and does not waive ordinary backend/security tests. No deployment, production Firebase mutation, billing activation, merge to `main`, or visual identity/background/color change was performed.
+
+**Test-suite entry point:** Updated `functions/package.json` so `npm run test:all` no longer invokes the call-signaling integration suite during the current Web-first phase. The dedicated `test:call-signaling-integration` script remains available for the post-launch validation phase; it is not deleted. Commit: `ebed7d7a5fa83f6dc99824621a5bd4a37496d55d`.
