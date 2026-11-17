@@ -9527,6 +9527,10 @@ export const markCallConnected = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
   }
   const ref = CALL_SESSIONS.doc(callId);
+  const expiryStatus = await expireCallIfDurationElapsed(ref);
+  if (expiryStatus === "duration_expired") {
+    throw new HttpsError("deadline-exceeded", "انتهت مدة المكالمة القصوى.");
+  }
   return db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
@@ -9541,6 +9545,10 @@ export const markCallConnected = onCall(async (request) => {
     }
     if (call.status !== "accepted") {
       throw new HttpsError("failed-precondition", "لا يمكن تثبيت الاتصال قبل قبول المكالمة.");
+    }
+    if (call.maxDurationEndsAt instanceof Timestamp &&
+        call.maxDurationEndsAt.toMillis() <= Date.now()) {
+      throw new HttpsError("deadline-exceeded", "انتهت مدة المكالمة القصوى.");
     }
     if (call.maxDurationEndsAt instanceof Timestamp) {
       return {
