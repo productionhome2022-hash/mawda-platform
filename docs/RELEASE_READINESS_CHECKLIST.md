@@ -105,6 +105,13 @@ The approved CALL-001/CALL-002 product requirements remain in the implementation
 
 The call feature remains part of the product scope; only its live acceptance testing is deferred to the post-launch phase.
 
+## 6.2. Five-thousand-persona simulation — explicitly deferred
+
+By the owner's current delivery instruction, the 5,000-persona load simulation and its separate simulation-lab workflow are **excluded from the current Web build, development completion and launch gate**. Do not block the Web release candidate on that simulation. Ordinary unit, security, rules, backend and emulator regression tests remain in scope; the existing seeded multi-user wallet regression is not the 5,000-persona load simulation and remains part of ordinary backend regression.
+
+- [ ] Revisit the 5,000-persona simulation only in a separately planned post-launch performance/capacity phase.
+- [ ] Do not describe the platform as having passed a 5,000-persona load test until that separate run is actually completed and its SHA, scenario, duration and results are recorded.
+
 ## 7. Release authorization
 
 - [ ] All blocking checks are green on the exact release candidate commit.
