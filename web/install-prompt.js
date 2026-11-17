@@ -48,7 +48,8 @@
     if (panel || isStandalone() || Date.now() < getDismissedUntil()) return;
     panel = document.createElement("section");
     panel.className = "mawdda-install-panel";
-    panel.setAttribute("role", "dialog");
+    // This is a non-modal install hint; do not announce it as a blocking dialog.
+    panel.setAttribute("role", "region");
     panel.setAttribute("aria-live", "polite");
     panel.setAttribute("aria-label", "تثبيت تطبيق مودة");
     panel.innerHTML = `
@@ -71,17 +72,27 @@
     });
 
     panel.querySelector(".mawdda-install-action").addEventListener("click", async () => {
-      const help = panel?.querySelector(".mawdda-install-help");
+      const currentPanel = panel;
+      const help = currentPanel?.querySelector(".mawdda-install-help");
+      const action = currentPanel?.querySelector(".mawdda-install-action");
       if (deferredPrompt) {
         const promptEvent = deferredPrompt;
         deferredPrompt = null;
-        await promptEvent.prompt();
-        const choice = await promptEvent.userChoice;
-        if (choice?.outcome === "accepted") {
-          panel?.remove();
-          panel = null;
-        } else if (help) {
-          help.textContent = "لم يتم التثبيت الآن. يمكنك المحاولة لاحقاً من قائمة المتصفح.";
+        try {
+          await promptEvent.prompt();
+          const choice = await promptEvent.userChoice;
+          if (choice?.outcome === "accepted") {
+            currentPanel?.remove();
+            if (panel === currentPanel) panel = null;
+          } else if (help) {
+            help.textContent = "لم يتم التثبيت الآن. يمكنك المحاولة لاحقاً من قائمة المتصفح.";
+            if (action) action.textContent = "عرض طريقة التثبيت";
+          }
+        } catch (_) {
+          if (help) {
+            help.textContent = "تعذر فتح نافذة التثبيت. يمكنك التثبيت لاحقاً من قائمة المتصفح.";
+          }
+          if (action) action.textContent = "عرض طريقة التثبيت";
         }
       } else if (help) {
         help.textContent = instructions();
