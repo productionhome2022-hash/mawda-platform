@@ -9909,8 +9909,10 @@ export const cleanupExpiredCallSignals = onSchedule("every 5 minutes", async () 
       });
     });
   }
-  const acceptedCalls = await CALL_SESSIONS.where("status", "==", "accepted").limit(200).get();
-  for (const doc of acceptedCalls.docs) {
+  const durationExpiredCalls = await CALL_SESSIONS
+    .where("maxDurationEndsAt", "<=", now)
+    .limit(200).get();
+  for (const doc of durationExpiredCalls.docs) {
     const deadline = doc.data().maxDurationEndsAt;
     if (deadline instanceof Timestamp && deadline.toMillis() <= Date.now()) {
       await expireCallIfDurationElapsed(doc.ref);
