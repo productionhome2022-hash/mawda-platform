@@ -1,14 +1,10 @@
-import 'dart:async';
-
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import '../services/push_notification_service.dart';
 import 'login_screen.dart';
 import 'main_user_screen.dart';
 import 'guest_session_screen.dart';
-import 'notification_center_screen.dart';
 import 'owner_mfa_enrollment_screen.dart';
 import 'privacy_acknowledgement_screen.dart';
 import '../privacy_policy.dart';
@@ -151,9 +147,7 @@ class _PrivacyAcknowledgementGateState
             return widget.actorType == 'guest'
                 ? const GuestSessionScreen()
                 : _OwnerMfaGate(
-                    child: _MemberPushBootstrap(
-                      child: MainUserScreen(userId: widget.userId),
-                    ),
+                    child: MainUserScreen(userId: widget.userId),
                   );
           }
           return PrivacyAcknowledgementScreen(
@@ -221,63 +215,6 @@ class _EmailVerificationScreenState extends State<_EmailVerificationScreen> {
       ]),
     )),
   );
-}
-
-
-/// Starts FCM registration only after the member has passed authentication
-/// and the current privacy acknowledgement gate. Guest sessions never register
-/// member push tokens. Token refresh and deactivation are delegated to the
-/// server-owned token registry.
-class _MemberPushBootstrap extends StatefulWidget {
-  const _MemberPushBootstrap({required this.child});
-  final Widget child;
-
-  @override
-  State<_MemberPushBootstrap> createState() => _MemberPushBootstrapState();
-}
-
-class _MemberPushBootstrapState extends State<_MemberPushBootstrap> {
-  final PushNotificationService _push = PushNotificationService();
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_push.initialize(
-      onForegroundMessage: (message) {
-        final title = message.notification?.title ?? 'إشعار من مودة';
-        final body = message.notification?.body ?? 'لديك تحديث جديد.';
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$title — $body'),
-            action: SnackBarAction(
-              label: 'عرض',
-              onPressed: _openNotifications,
-            ),
-          ),
-        );
-      },
-      onOpenedMessage: (_) => _openNotifications(),
-    ));
-  }
-
-  void _openNotifications() {
-    if (!mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const NotificationCenterScreen(),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    unawaited(_push.dispose());
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => widget.child;
 }
 
 
