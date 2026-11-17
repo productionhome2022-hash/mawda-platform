@@ -26,3 +26,11 @@ The call-signal reader queried and returned pending SDP/ICE signaling documents 
 - Configure and validate TURN in a dedicated non-production environment.
 - Run real Android/iOS device tests for call lifecycle, backgrounding, Bluetooth/audio routing, network changes and reconnect behavior.
 - Continue security review of call participant authorization, room capacity, signaling expiry and cleanup.
+
+## 2026-11-17 — Featured-ad reward policy copy reconciliation
+
+**Finding:** The member rewards screen said that the same campaign could earn up to three rewards in a rolling 24-hour window, while the owner-approved `ADS-FEATURED-ENTRY-001` decision and the existing featured reward policy module specify one reward per campaign per rolling 24 hours.
+
+**Change:** Updated the member-facing policy text to state one reward per campaign per rolling 24-hour window. No reward amount, budget, campaign status, or live reward behavior was changed.
+
+**Verification:** Source change committed. Flutter widget/analyze CI on the resulting exact head is still required; no UI acceptance is claimed.
