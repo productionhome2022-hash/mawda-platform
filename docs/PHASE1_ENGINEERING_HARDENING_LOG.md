@@ -180,3 +180,31 @@ No production Firebase resource, production data, billing setting, `main` branch
 - Kept live browser/device WebRTC/TURN acceptance deferred until after the web trial; this emulator suite does not establish real network/device readiness.
 
 **Validation:** Source and workflow edits committed separately. Exact-head CI must complete before this change is considered verified. No production Firebase, live call data, billing, deployment, visual styling, or main-branch changes were made.
+
+
+## 2026-11-17 — Call duration guard, featured-ad reward policy alignment, and exact-head Web CI
+
+**Verified development head:** `75dd1c5c4725356916bdf0e28cb184082df09ad0` on `codex/mawda-full-platform-implementation`.
+
+**Call duration enforcement added:**
+- Added `markCallConnected`; caller and at least one accepted recipient must both report an established WebRTC peer connection before the server writes an immutable `connectedAt` and five-minute deadline.
+- The client reports the connected state and retries a transient failed server confirmation while the peer remains connected.
+- Added server expiry handling that marks the call ended, releases matching participant locks, and blocks further signaling/ICE access after the deadline. A periodic cleanup sweep processes deadline-expired sessions.
+- The server timestamp is authoritative for the timer, but the connection-state trigger is reported by both clients; it is not cryptographic proof of packet delivery. Live browser/device/TURN acceptance remains deferred and required after the Web trial.
+- The call quota rules (five audio and three video session attempts per rolling 24 hours) remain server-enforced. An idempotent replay does not consume a second attempt.
+
+**Call integration regression found and fixed:** The first run exposed that a manually ended call was being misclassified as a maximum-duration expiry. The helper now returns a distinct duration-expired result. The final exact-head call signaling emulator suite passed on the verified head.
+
+**Featured-ad reward helper alignment:**
+- Updated the pure reward decision helper and tests to enforce up to three rewards for the same campaign/member in a rolling 24-hour window, matching the approved decision.
+- Updated the member-facing policy explanation to the same limit.
+- This is a helper/policy alignment only. It does **not** mean the featured-ad campaign feed, dedicated player, trusted evidence pipeline, wallet credit endpoint, or member reward-history service is complete or active.
+
+**Exact-head CI evidence on `75dd1c5c4725356916bdf0e28cb184082df09ad0`:**
+- `Validate Mawda` run `44174040074`: completed successfully. Cloud Functions compile/unit tests and the emulator integration suites passed, including call signaling, wallet/store transactions, room rental/events, retention, media authorization, FCM, rewards, safety, guest/privacy and Firestore/Storage rules. Flutter analysis/tests and standard plus production-configured Web release-candidate builds passed. The production-configured artifact was uploaded by CI; it was not deployed.
+- `Mawdda domain regression` run `44174040361`: both Flutter UI analysis/widget tests and retention/room reservation emulator regression jobs passed.
+- The isolated ClamAV scanner workflow passed its container build, GIF/audio/video/PDF sanitization tests and EICAR detection test.
+
+**Still open / not implied by this evidence:** call package entitlement consumption and paid continuation/ledger allocation; live browser/device WebRTC and TURN acceptance; separate featured-ad campaign approval/payment/targeting/player/reward/ledger integration; Media Saver entitlement-checked local-save flow; member/admin correspondence and unconnected routes; broader economy/store/grant audit beyond the suites listed; and live browser/PWA acceptance. The 5,000-persona simulation remains deferred and is not claimed as passed.
+
+**Safety:** No merge to `main`, deployment, production Firebase mutation, billing activation, destructive retention activation, or visual/background/color/theme change was performed.
