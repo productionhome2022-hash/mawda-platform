@@ -575,3 +575,14 @@ Status: **implemented in source; automated validation pending; device/network ac
 - Added `test/widgets/responsive_room_card_test.dart` to exercise 320, 390, 768 and 1440 logical-pixel viewports and assert all room actions remain present without layout exceptions. The reusable layout lives in `lib/widgets/responsive_room_card.dart` and is used by `RoomsScreen`.
 - Validation boundary: test source is committed, but Flutter formatter, analyzer and widget tests have **not** yet completed in this session. The change remains pending exact-head CI and real browser/device viewport verification.
 - No backend behavior, Firebase resources, production data, payment configuration, or release channel was changed.
+
+
+## 2026-11-18 — Call deadline re-entry hardening and CI coverage
+
+- Static review found that `markCallConnected` returned the previously stored connected state before independently checking whether the five-minute server deadline had elapsed. Other call operations and the scheduled cleanup already expired overdue sessions, but a stale/replayed connection-confirmation request could still receive a successful idempotent response until another expiry path ran.
+- The callable now invokes the existing server-side expiry transaction before accepting a connection confirmation and rejects an expired session with `deadline-exceeded`. It also checks the persisted deadline again inside the confirmation transaction to guard the boundary race. The existing expiry helper closes the session and releases only matching participant locks.
+- Extended `call-signaling.integration.test.js` to set an expired server deadline and verify that a connection-confirmation replay is rejected before a separate active-call lookup occurs.
+- Added the call-signaling emulator integration suite to `.github/workflows/mawdda-domain-regression.yml`, so this critical lifecycle test runs on future pushes to the development branch.
+- Commits: backend fix `cc7a7c73db63e87dc29ef31e2ef93711ac809b9e`; integration regression `c67a11c2e94993eb4cf707c1c262c710e97d8acc`; CI workflow `7c8e6985ddf11ef32417e7b61c1bce9fe373cf9a`.
+- Validation status: code and test changes are committed; exact-head CI/emulator results are pending. This is a narrow signaling lifecycle hardening, not completion of paid call entitlements, metered billing, quota display, or real-device WebRTC acceptance.
+- No Firebase production resources, billing, TURN secrets, production data, merge, or deployment were changed.
