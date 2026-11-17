@@ -18,7 +18,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: codex/mawda-full-platform-implementation
+          # Pin the source to the immutable dispatch SHA; never follow a moving branch ref.
+          ref: ${{ github.sha }}
 
       - uses: actions/setup-java@v5
         with:
