@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../policies/android_download_policy.dart';
+
 /// Public pre-authentication distribution options.
 ///
 /// Android stays disabled until a verified signed release URL is supplied.
@@ -11,11 +13,16 @@ class MawddaAppDownloads extends StatelessWidget {
   const MawddaAppDownloads({super.key});
 
   static const androidUrl = String.fromEnvironment('MAWDDA_ANDROID_DOWNLOAD_URL');
+  static const androidAllowedHosts =
+      String.fromEnvironment('MAWDDA_ANDROID_DOWNLOAD_ALLOWED_HOSTS');
+
+  bool get _androidReady =>
+      isApprovedAndroidDownloadUrl(androidUrl, androidAllowedHosts);
 
   Future<void> _openAndroid(BuildContext context) async {
     final uri = Uri.tryParse(androidUrl);
-    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
-      _message(context, 'رابط تنزيل Android غير متاح حالياً؛ لن نعرض نسخة تجريبية أو غير موقّعة للتنزيل العام.');
+    if (!_androidReady || uri == null) {
+      _message(context, 'رابط تنزيل Android غير متاح أو أن نطاقه غير معتمد؛ لن نعرض نسخة تجريبية أو غير موقّعة للتنزيل العام.');
       return;
     }
     try {
@@ -82,7 +89,7 @@ class MawddaAppDownloads extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final androidReady = androidUrl.trim().isNotEmpty;
+    final androidReady = _androidReady;
     return Card(
       color: const Color(0xFF211629),
       child: Padding(
