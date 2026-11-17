@@ -56,9 +56,14 @@ class _MainUserScreenState extends State<MainUserScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$title — $body')));
       },
       onOpenedMessage: (message) {
-        if (mounted && message.data['type'] == 'incoming_call') {
+        if (!mounted) return;
+        if (message.data['type'] == 'incoming_call') {
           _openIncomingCallTarget(message.data);
+          return;
         }
+        Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => const NotificationCenterScreen(),
+        ));
       },
     );
   }
