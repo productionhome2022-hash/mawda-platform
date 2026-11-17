@@ -129,6 +129,6 @@ No production Firebase resource, production data, billing setting, `main` branch
 
 **Change:** Replaced the fragile inline JavaScript command with a quoted Node heredoc in `.github/workflows/validate.yml`. The check still validates the PWA manifest identity/display/icons, all required local assets, service-worker syntax, install-prompt syntax, and the notification icon target. The change does not weaken or skip any validation.
 
-**Verification:** Fix committed to the development branch as `b7cb42cb46a5d2f945d6c30af8c949f792c8c508`. A fresh exact-head CI run is required; no passing result is claimed until GitHub Actions completes on this commit.
+**Verification:** Workflow fix committed as `b7cb42cb46a5d2f945d6c30af8c949f792c8c508`; this evidence entry was then committed as `a43dbb95529ed6b4f38034c72b364e84878ea589`. A fresh exact-head CI run is required for the resulting development head; no passing result is claimed until GitHub Actions completes on that exact SHA.
 
 **Safety:** No application styling, background, brand asset, Firebase resource, production data, billing, deployment, or `main` branch was changed.
