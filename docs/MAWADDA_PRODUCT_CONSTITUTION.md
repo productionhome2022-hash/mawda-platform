@@ -606,3 +606,16 @@ The owner has expressly deferred the decision on who selects a direct-chat reten
 - record any future decision as a new traceable amendment.
 
 These approvals do not authorize merge to `main`, deployment, production Firebase changes, paid infrastructure, or destructive live data operations.
+
+
+## 20. Owner-approved amendment — phased experimental launch, direct payments, and multi-channel app distribution (17 November 2026)
+
+This amendment records the owner's explicit launch decision and is binding over any conflicting draft launch assumptions. The detailed operating and acceptance requirements are in [MAWADDA_PHASED_LAUNCH_AND_DISTRIBUTION_PLAN_2026.md](MAWADDA_PHASED_LAUNCH_AND_DISTRIBUTION_PLAN_2026.md).
+
+- **Phase 1 payments:** no integrated payment gateway, card checkout, or automated collection. A member contacts the single Owner/Super Admin directly; price, quantity and payment method are agreed individually. Coins or entitlements are issued only after the owner verifies the external payment and performs an audited server-side manual approval. No screenshot or member declaration is sufficient.
+- **Android distribution:** the official Mawdda website is the primary and recommended APK download channel, but it is not exclusive. Additional trusted distribution channels are permitted when explicitly approved and allow-listed. Every channel must distribute the same official application identity and compatible owner-controlled signing certificate/key lineage. No debug, unsigned, or differently signed APK may be presented as official.
+- **PWA installation:** Phase 1 includes installable web/PWA experience where supported on Android, iOS Safari (Add to Home Screen), and supported desktop browsers. PWA installation is not represented as a native iOS app or as a native desktop installer. Any platform-specific native installer requires its own build and acceptance evidence.
+- **Deferred stores:** Google Play Console registration/submission and Apple Developer/App Store registration/submission are deferred until the owner approves transition after a successful pilot and the relevant technical, legal, country-eligibility, privacy and store-policy gates pass. No store membership fee is due in Phase 1. For a future Google Play release, prepare the currently required store package (normally AAB for new apps) separately from the sideloadable APK and verify signing/update compatibility.
+- **Cloud and spending:** no Blaze activation, paid cloud service, paid domain, new subscription, production Firebase mutation, or deployment without a separate explicit owner approval after cost/eligibility review. Do not use fictitious offices, addresses, billing countries or proxy identities.
+- **Release status:** this amendment and source-level URL allow-list checks do not constitute a public release. Signed build, owner-key backup, CI, physical-device install/update, PWA browser, security, rollback and explicit publication gates remain mandatory.
+
