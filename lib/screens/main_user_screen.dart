@@ -127,7 +127,6 @@ class _MainUserScreenState extends State<MainUserScreen> {
 
   void _refreshProfile() {
     setState(() => _profileFuture = _hasCompletedProfile());
-    unawaited(_initializePushNotifications());
   }
 
   @override
@@ -447,12 +446,13 @@ class _CompletedProfilePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Column(
+    return SingleChildScrollView(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.favorite, size: 72, color: Color(0xFFE8A0B5)),
@@ -580,7 +580,8 @@ class _CompletedProfilePanel extends StatelessWidget {
               const SizedBox(height: 16),
               const Text('تم إنشاء ملفك من خلال الخادم الموثوق. ستُفتح بقية أقسام المنصة بعد اكتمال مراحلها الأمنية والتشغيلية.',
                 textAlign: TextAlign.center),
-            ],
+              ],
+            ),
           ),
         ),
       ),
