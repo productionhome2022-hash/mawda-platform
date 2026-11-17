@@ -598,3 +598,14 @@ Status: **implemented in source; automated validation pending; device/network ac
 - Commit: `084c79b2a278429873c3b29c68ef9118a7166e04`.
 - Exact-head CI evidence: GitHub Actions run `44179510781` completed successfully on this SHA. Both Flutter UI analysis/widget tests and the retention/room reservation emulator regression job (which also runs call signaling and timed-ad reward integration tests) succeeded. The standalone `Validate Mawda` workflow was still running at the time of this traceability update; its outcome must be checked separately.
 - Scope boundary: this fixes campaign discovery ordering only. It does not complete geographic featured-ad campaign serving, the separate featured showcase UI, advertising intake/review/payment workflows, or release acceptance. No production Firebase resources, billing, deployment, merge to `main`, or production data were changed.
+
+
+## 2026-11-18 — Reward-center campaign discovery parity
+
+- Follow-up UI-to-backend tracing showed that `RewardCenterScreen` loads campaigns through `getRewardCenter`, while the earlier campaign-discovery regression covered `getActiveTimedAdCampaigns`. The reward-center endpoint still queried the first 100 published campaigns and applied placement/date filters afterward, so the same expired-campaign prefix could hide a valid campaign in the actual member screen.
+- Applied the same Firestore-side predicates (`placement == reward_center`, `startsAtMs <= now`, `endsAtMs > now`) before the result limit in `getRewardCenter`.
+- Extended the existing emulator regression to assert that both `getActiveTimedAdCampaigns` and `getRewardCenter` return the eligible campaign when 101 expired campaigns precede it.
+- Commit: `47a193bff2981d7e8dfcc8ad1d5f623ba9ff6646`.
+- Exact-head CI evidence: domain-regression run `44180452013` completed successfully on this SHA. Flutter UI analysis/widget tests and the retention/room-reservation emulator job both succeeded; the latter includes the timed advertising and reward-ledger integration suite.
+- The separate full validation workflow for this exact SHA was queued at the time of this documentation update; do not infer web build or full validation success from domain regression alone.
+- No reward policy values, campaign pricing, production Firebase resources, billing, production data, deployment, or merge to `main` were changed.
