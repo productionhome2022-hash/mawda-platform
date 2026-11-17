@@ -72,7 +72,7 @@ jobs:
         if: ${{ always() && steps.install_flutter_dependencies.outcome == 'success' && steps.build_web.outcome == 'success' }}
         env:
           MAWDA_FCM_VAPID_KEY: ${{ vars.MAWDA_PRODUCTION_FCM_VAPID_KEY }}
-        run: flutter build web --release --dart-define=MAWDA_FIREBASE_ENV=production --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY"
+        run: flutter build web --release --dart-define=MAWDDA_FIREBASE_ENV=production --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY"
       - name: Upload production-configured web release candidate
         if: ${{ always() && steps.build_production_web.outcome == 'success' }}
         uses: actions/upload-artifact@v7.0.2
