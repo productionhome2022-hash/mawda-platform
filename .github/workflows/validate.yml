@@ -75,8 +75,6 @@ jobs:
         working-directory: functions
     steps:
       - uses: actions/checkout@v5
-      - name: Test Android release artifact identity and version validators
-        run: python3 -m unittest discover -s tool -p 'test_android_release*.py' -v
       - uses: actions/setup-node@v5
         with:
           node-version: "22.23.4"
@@ -180,6 +178,8 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
+      - name: Test Android release artifact identity and version validators
+        run: python3 -m unittest discover -s tool -p 'test_android_release*.py' -v
       - uses: actions/setup-node@v5
         with:
           node-version: "22.23.4"
