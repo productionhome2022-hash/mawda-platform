@@ -9228,6 +9228,10 @@ export const listMyContracts = onCall(
 
 const CALL_SESSIONS = db.collection("callSessions");
 const ACTIVE_CALL_MEMBER_LOCKS = db.collection("activeCallMemberLocks");
+const CALL_QUOTA_WINDOWS = db.collection("callQuotaWindows");
+const CALL_QUOTA_WINDOW_MS = 24 * 60 * 60 * 1000;
+const CALL_AUDIO_ATTEMPT_LIMIT = 5;
+const CALL_VIDEO_ATTEMPT_LIMIT = 3;
 
 export const startCall = onCall(async (request) => {
   const callerUid = requireAuthenticatedUid(request.auth?.uid);
@@ -9304,9 +9308,10 @@ export const startCall = onCall(async (request) => {
 
   const now = Date.now();
   const expiresAt = Timestamp.fromMillis(now + CALL_RING_TIMEOUT_MS);
+  const quotaRef = CALL_QUOTA_WINDOWS.doc(callerUid);
   const result = await db.runTransaction(async (transaction) => {
-    const [existing, caller] = await Promise.all([
-      transaction.get(callRef), transaction.get(callerRef),
+    const [existing, caller, quotaSnapshot] = await Promise.all([
+      transaction.get(callRef), transaction.get(callerRef), transaction.get(quotaRef),
     ]);
     if (existing.exists) {
       const prior = existing.data() ?? {};
@@ -9346,6 +9351,35 @@ export const startCall = onCall(async (request) => {
         throw new HttpsError("resource-exhausted", "أحد المشاركين لديه مكالمة نشطة بالفعل.");
       }
     }
+    const quotaData = quotaSnapshot.data() ?? {};
+    const storedAttempts = quotaData.attempts;
+    if (quotaSnapshot.exists && !Array.isArray(storedAttempts)) {
+      throw new HttpsError("failed-precondition", "تعذر التحقق من سجل محاولات المكالمات بأمان.");
+    }
+    const recentAttempts = (Array.isArray(storedAttempts) ? storedAttempts : [])
+      .filter((attempt: unknown) => {
+        if (!attempt || typeof attempt !== "object") return false;
+        const item = attempt as Record<string, unknown>;
+        return Number.isSafeInteger(item.startedAtMs) &&
+          (item.startedAtMs as number) > now - CALL_QUOTA_WINDOW_MS &&
+          (item.startedAtMs as number) <= now &&
+          (item.mode === "audio" || item.mode === "video") &&
+          typeof item.callId === "string";
+      }) as Array<{ callId: string; mode: "audio" | "video"; startedAtMs: number }>;
+    const modeAttempts = recentAttempts.filter((attempt) => attempt.mode === input.mode).length;
+    const modeLimit = input.mode === "audio" ? CALL_AUDIO_ATTEMPT_LIMIT : CALL_VIDEO_ATTEMPT_LIMIT;
+    if (modeAttempts >= modeLimit) {
+      throw new HttpsError(
+        "resource-exhausted",
+        input.mode === "audio"
+          ? "وصلت إلى الحد المسموح لمحاولات المكالمات الصوتية خلال آخر 24 ساعة."
+          : "وصلت إلى الحد المسموح لمحاولات المكالمات المرئية خلال آخر 24 ساعة.",
+      );
+    }
+    transaction.set(quotaRef, {
+      attempts: [...recentAttempts, { callId: input.callId, mode: input.mode, startedAtMs: now }],
+      updatedAt: FieldValue.serverTimestamp(),
+    });
     transaction.create(callRef, {
       callId: input.callId, scope: input.scope, targetId: input.targetId, mode: input.mode,
       callerUid, participantUids, acceptedUids: [], rejectedUids: [], leftUids: [],
