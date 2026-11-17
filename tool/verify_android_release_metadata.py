@@ -12,6 +12,12 @@ from pathlib import Path
 
 
 PACKAGE_ID = "com.mawdda.platform.app"
+APK_VERSION_CODE_OFFSETS = {
+    "mawdda-universal-release.apk": 0,
+    "app-armeabi-v7a-release.apk": 1000,
+    "app-arm64-v8a-release.apk": 2000,
+    "app-x86_64-release.apk": 4000,
+}
 
 
 def parse_pubspec_version(content: str) -> tuple[str, int]:
@@ -25,6 +31,12 @@ def parse_pubspec_version(content: str) -> tuple[str, int]:
     if not version_name or not build_number.isdigit() or int(build_number) < 1:
         raise ValueError("pubspec.yaml versionName/versionCode is invalid")
     return version_name, int(build_number)
+
+
+def expected_apk_version_code(apk_name: str, base_version_code: int) -> int:
+    if apk_name not in APK_VERSION_CODE_OFFSETS:
+        raise ValueError(f"Unexpected APK output name: {apk_name}")
+    return base_version_code + APK_VERSION_CODE_OFFSETS[apk_name]
 
 
 def validate_apk_badging(output: str, expected_package: str, version_name: str, version_code: int) -> None:
@@ -100,31 +112,45 @@ def main() -> int:
 
     version_name, version_code = parse_pubspec_version(args.pubspec.read_text(encoding="utf-8"))
     apks = sorted(args.apk_dir.glob("*.apk"))
-    if not apks:
-        raise ValueError("No APK artifacts were found")
+    actual_names = {apk.name for apk in apks}
+    expected_names = set(APK_VERSION_CODE_OFFSETS)
+    if actual_names != expected_names:
+        raise ValueError(
+            f"APK set mismatch: missing={sorted(expected_names - actual_names)}, "
+            f"unexpected={sorted(actual_names - expected_names)}"
+        )
 
     evidence = [
         f"applicationId={PACKAGE_ID}",
         f"versionName={version_name}",
-        f"versionCode={version_code}",
+        f"baseVersionCode={version_code}",
     ]
+    seen_version_codes = set()
     for apk in apks:
+        expected_code = expected_apk_version_code(apk.name, version_code)
         result = subprocess.run(
             [args.aapt, "dump", "badging", str(apk)],
             check=True,
             capture_output=True,
             text=True,
         )
-        validate_apk_badging(result.stdout, PACKAGE_ID, version_name, version_code)
-        evidence.append(f"apk={apk.name};sizeBytes={apk.stat().st_size};identity=verified")
+        validate_apk_badging(result.stdout, PACKAGE_ID, version_name, expected_code)
+        if expected_code in seen_version_codes:
+            raise ValueError("ABI APK versionCodes are not unique")
+        seen_version_codes.add(expected_code)
+        evidence.append(
+            f"apk={apk.name};versionCode={expected_code};sizeBytes={apk.stat().st_size};identity=verified"
+        )
 
     validate_aab_archive(args.aab)
     metadata = json.loads(args.bundle_metadata.read_text(encoding="utf-8"))
     validate_aab_output_metadata(metadata, "app-release.aab", PACKAGE_ID, version_name, version_code)
-    evidence.append(f"aab={args.aab.name};sizeBytes={args.aab.stat().st_size};identity=verified")
+    evidence.append(
+        f"aab={args.aab.name};versionCode={version_code};sizeBytes={args.aab.stat().st_size};identity=verified"
+    )
     args.evidence.parent.mkdir(parents=True, exist_ok=True)
     args.evidence.write_text("\n".join(evidence) + "\n", encoding="utf-8")
-    print("Verified APK and AAB package identity, version metadata and bundle structure.")
+    print("Verified APK and AAB package identity, ABI-aware version metadata and bundle structure.")
     return 0
 
 
