@@ -24,6 +24,12 @@ class AndroidReleaseContractTests(unittest.TestCase):
         self.assertIn("mawdda-google-play-release.aab", WORKFLOW)
         self.assertIn("mawdda-universal-release.apk", WORKFLOW)
 
+    def test_release_workflow_validates_aab_and_apk_package_versions(self):
+        self.assertIn("tool/verify_android_release_metadata.py", WORKFLOW)
+        self.assertIn("--bundle-metadata build/app/outputs/bundle/release/output-metadata.json", WORKFLOW)
+        self.assertIn("android-artifact-metadata.txt", WORKFLOW)
+        self.assertIn("sizeBytes=", WORKFLOW)
+
     def test_nonproduction_debug_aab_packaging_is_exercised_in_ci(self):
         self.assertIn("flutter build appbundle --debug", BOOTSTRAP_WORKFLOW)
         self.assertIn("app-debug.aab", BOOTSTRAP_WORKFLOW)
