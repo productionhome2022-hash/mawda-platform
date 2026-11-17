@@ -341,6 +341,11 @@ test("server starts a non-resettable five-minute call ceiling only after both en
     await callRef.update({
       maxDurationEndsAt: Timestamp.fromMillis(Date.now() - 1),
     });
+    await assert.rejects(
+      () => markCallConnected.run(call(calleeUid, { callId })),
+      (error) => error && error.code === "deadline-exceeded",
+      "a reconnect confirmation must not revive a call after its server deadline",
+    );
     assert.equal((await getActiveCall.run(call(callerUid))).active, false);
     const ended = (await callRef.get()).data();
     assert.equal(ended.status, "ended");
