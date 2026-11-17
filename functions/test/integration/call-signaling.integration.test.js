@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const {
-  startCall, respondToCall, sendCallSignal, getCallSignals, endCall, getActiveCall, getCallIceConfiguration,
+  startCall, respondToCall, markCallConnected, sendCallSignal, getCallSignals, endCall, getActiveCall, getCallIceConfiguration,
 } = require("../../lib/index");
 
 const db = getFirestore();
@@ -306,6 +306,56 @@ test("server enforces rolling audio and video attempt quotas without charging re
       db.recursiveDelete(quotaRef).catch(() => undefined),
       db.recursiveDelete(db.collection("activeCallMemberLocks").doc(callerUid)).catch(() => undefined),
       db.recursiveDelete(db.collection("activeCallMemberLocks").doc(calleeUid)).catch(() => undefined),
+    ]);
+  }
+});
+
+
+test("server starts a non-resettable five-minute call ceiling only after both endpoints report connected", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const callerUid = uid("call_timer_caller");
+  const calleeUid = uid("call_timer_callee");
+  const callId = uid("call_timer_session");
+  const callRef = db.collection("callSessions").doc(callId);
+  const callerLock = db.collection("activeCallMemberLocks").doc(callerUid);
+  const calleeLock = db.collection("activeCallMemberLocks").doc(calleeUid);
+  await callRef.set({
+    callId, scope: "direct", status: "accepted", callerUid,
+    participantUids: [callerUid, calleeUid], acceptedUids: [calleeUid],
+    rejectedUids: [], leftUids: [], connectedUids: [],
+  });
+  await Promise.all([
+    callerLock.set({ callId, status: "active" }),
+    calleeLock.set({ callId, status: "active" }),
+  ]);
+  try {
+    const callerReport = await markCallConnected.run(call(callerUid, { callId }));
+    assert.equal(callerReport.connected, false);
+    const calleeReport = await markCallConnected.run(call(calleeUid, { callId }));
+    assert.equal(calleeReport.connected, true);
+    assert.ok(calleeReport.maxDurationEndsAtMs - calleeReport.connectedAtMs === 5 * 60 * 1000);
+    const replay = await markCallConnected.run(call(callerUid, { callId }));
+    assert.equal(replay.idempotentReplay, true);
+    assert.equal(replay.maxDurationEndsAtMs, calleeReport.maxDurationEndsAtMs);
+
+    await callRef.update({
+      maxDurationEndsAt: Timestamp.fromMillis(Date.now() - 1),
+    });
+    assert.equal((await getActiveCall.run(call(callerUid))).active, false);
+    const ended = (await callRef.get()).data();
+    assert.equal(ended.status, "ended");
+    assert.equal(ended.endReason, "maximum_duration_reached");
+    assert.equal((await callerLock.get()).exists, false);
+    assert.equal((await calleeLock.get()).exists, false);
+    await assert.rejects(
+      () => markCallConnected.run(call(calleeUid, { callId })),
+      (error) => error && error.code === "failed-precondition",
+    );
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(callRef).catch(() => undefined),
+      db.recursiveDelete(callerLock).catch(() => undefined),
+      db.recursiveDelete(calleeLock).catch(() => undefined),
     ]);
   }
 });
