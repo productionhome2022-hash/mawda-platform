@@ -167,3 +167,16 @@ No production Firebase resource, production data, billing setting, `main` branch
 **Exact-head CI evidence:** At the audited head, GitHub combined commit statuses returned an empty list and the available commit-workflow lookup returned no runs. This is **not** a passing CI result. The validation workflow is configured for pushes to the development branch; a subsequent code/documentation commit should trigger a fresh exact-head run, which must be checked before claiming validation.
 
 **Scope and safety:** This entry records source inspection only; it does not claim these gaps are fixed or tests are passed. No visual styling/background/brand changes, production Firebase mutations, billing changes, deployment, or merge to `main` were performed.
+
+
+## 2026-11-17 — Restore call-signaling emulator coverage to the pre-release gate
+
+**Owner-scope correction:** The call signaling integration suite uses the Firestore Emulator and is not a live device/browser acceptance test. Deferring live call acceptance after the web release does not justify excluding this non-live security/integration suite from pre-release verification.
+
+**Changes:**
+- Restored `npm run test:call-signaling-integration` to `functions` `test:all`, after room event integration coverage.
+- Added an explicit GitHub Actions step to `.github/workflows/validate.yml` so the call signaling Firestore Emulator suite runs on every development-branch validation.
+- Kept the separate 5,000-persona load simulation excluded from the current web release gate.
+- Kept live browser/device WebRTC/TURN acceptance deferred until after the web trial; this emulator suite does not establish real network/device readiness.
+
+**Validation:** Source and workflow edits committed separately. Exact-head CI must complete before this change is considered verified. No production Firebase, live call data, billing, deployment, visual styling, or main-branch changes were made.
