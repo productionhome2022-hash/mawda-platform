@@ -18,7 +18,7 @@ const base = {
   continuousVisibleMs: 0,
   rewardedViewsToday: 0,
   rewardCoinsToday: 0,
-  lastSameCampaignRewardAtMs: null,
+  sameCampaignRewardsInWindow: 0,
 };
 
 test("uses the approved experimental featured-ad reward defaults", () => {
@@ -29,7 +29,7 @@ test("validates and rejects unsafe owner reward policies", () => {
   assert.equal(validateFeaturedAdRewardPolicy(policy).rewardCoinsPerView, 2);
   assert.throws(() => validateFeaturedAdRewardPolicy({ ...policy, maxRewardCoinsPerUtcDay: 1 }));
   assert.throws(() => validateFeaturedAdRewardPolicy({ ...policy, videoCompletionPercent: 101 }));
-  assert.throws(() => validateFeaturedAdRewardPolicy({ ...policy, sameCampaignCooldownMs: -1 }));
+  assert.throws(() => validateFeaturedAdRewardPolicy({ ...policy, maxRewardsPerCampaignRolling24h: 0 }));
 });
 
 test("rewards a qualifying visible video once", () => {
@@ -73,13 +73,13 @@ test("enforces the daily rewarded-view and coin caps", () => {
   assert.equal(decideFeaturedAdReward(policy, { ...base, rewardCoinsToday: 19 }).reason, "daily_coin_cap");
 });
 
-test("enforces the rolling 24-hour same-campaign cooldown", () => {
+test("enforces the approved three rewards per campaign in a rolling 24-hour window", () => {
   assert.equal(decideFeaturedAdReward(policy, {
-    ...base, lastSameCampaignRewardAtMs: base.nowMs - 86_399_999,
-  }).reason, "campaign_cooldown");
-  assert.equal(decideFeaturedAdReward(policy, {
-    ...base, lastSameCampaignRewardAtMs: base.nowMs - 86_400_000,
+    ...base, sameCampaignRewardsInWindow: 2,
   }).eligible, true);
+  assert.equal(decideFeaturedAdReward(policy, {
+    ...base, sameCampaignRewardsInWindow: 3,
+  }).reason, "campaign_rolling_cap");
 });
 
 test("rejects invalid server evidence rather than granting a reward", () => {
