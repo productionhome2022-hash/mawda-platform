@@ -146,3 +146,24 @@ No production Firebase resource, production data, billing setting, `main` branch
 **Safety and truthfulness:** This changes the sequencing of acceptance tests only. It does not claim calls are implemented or operational, does not enable call products/billing, and does not waive ordinary backend/security tests. No deployment, production Firebase mutation, billing activation, merge to `main`, or visual identity/background/color change was performed.
 
 **Test-suite entry point:** Updated `functions/package.json` so `npm run test:all` no longer invokes the call-signaling integration suite during the current Web-first phase. The dedicated `test:call-signaling-integration` script remains available for the post-launch validation phase; it is not deleted. Commit: `ebed7d7a5fa83f6dc99824621a5bd4a37496d55d`.
+
+
+## 2026-11-17 — Web-first implementation audit: calls and featured advertising
+
+**Audited head:** `adc82c3a42f3c5b3a8ce5ab952f355205638024a` on `codex/mawda-full-platform-implementation`.
+
+**Call lifecycle — partial implementation, not release-ready:**
+- Confirmed server callables exist for starting/responding to calls, active-call lookup, ICE configuration, signaling read/write and termination. The current backend performs participant, account-state, block, age and active-call-lock checks.
+- The current call session starts in `ringing` and uses a 45-second ring expiry. The inspected call lifecycle does not persist a server-confirmed connected timestamp, enforce the approved five-minute connected-duration ceiling, or implement the approved rolling 24-hour limits of five audio attempts and three video attempts.
+- The inspected call lifecycle does not consume the approved 24-hour / 7-day / 30-day call entitlements, implement paid continuation, or post the associated economic ledger entries. The paid-continuation rounding/billing unit remains an explicit owner-decision blocker and must not be guessed.
+- TURN is optional in code and depends on `MAWDDA_TURN_URLS` plus the `MAWDDA_TURN_SHARED_SECRET`; the existing call integration test explicitly asserts `turnConfigured === false`. This is not evidence of TURN readiness for real browser networks.
+- The Flutter call screen contains WebRTC media/signaling flows, but the owner-directed live browser/device acceptance tests remain deferred. Do not claim calls are operational or enable their UI as an accepted product until the server policy and non-live tests are complete and the later live acceptance gate passes.
+
+**Featured advertising — UI/backend integration gap confirmed:**
+- `lib/screens/featured_ads_screen.dart` currently renders a hard-coded empty campaign state, local-only geographic chips, and explanatory placeholder text for reward history; it does not load campaign cards or member reward history.
+- `functions/src/featured-advertising.ts` provides a pure campaign-selection helper and `functions/src/featured-ad-rewards.ts` provides a pure reward-decision helper. The inspected `functions/src/index.ts` does not import or expose these modules as callable endpoints, so their existence alone does not provide a functioning serving/player/claim/ledger flow.
+- Required work remains: authenticated campaign feed and geographic matching, owner-approved/payment-confirmed/creative-approved eligibility, a dedicated player session, server-validated visibility/completion evidence, atomic daily and per-campaign limits, idempotent reward ledger credit, and the member's own reward-history endpoint/UI. Do not credit on screen open, preview, carousel or button press.
+
+**Exact-head CI evidence:** At the audited head, GitHub combined commit statuses returned an empty list and the available commit-workflow lookup returned no runs. This is **not** a passing CI result. The validation workflow is configured for pushes to the development branch; a subsequent code/documentation commit should trigger a fresh exact-head run, which must be checked before claiming validation.
+
+**Scope and safety:** This entry records source inspection only; it does not claim these gaps are fixed or tests are passed. No visual styling/background/brand changes, production Firebase mutations, billing changes, deployment, or merge to `main` were performed.
