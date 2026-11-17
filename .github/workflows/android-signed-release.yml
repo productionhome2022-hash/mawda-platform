@@ -37,6 +37,7 @@ jobs:
           STORE_PASSWORD: ${{ secrets.MAWDDA_STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.MAWDDA_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.MAWDDA_KEY_PASSWORD }}
+          PRODUCTION_GOOGLE_SERVICES_BASE64: ${{ secrets.MAWDDA_PRODUCTION_GOOGLE_SERVICES_JSON_B64 }}
           EXPECTED_CERT_SHA256: '21:F9:E6:01:80:E2:03:8D:DD:57:4E:DC:F1:2A:63:4B:C6:25:D9:BA:3F:65:53:B2:9D:61:70:62:C6:36:84:56'
         run: |
           set -euo pipefail
@@ -44,6 +45,55 @@ jobs:
           test -n "$STORE_PASSWORD" || { echo "::error::Missing MAWDDA_STORE_PASSWORD"; exit 1; }
           test -n "$KEY_ALIAS" || { echo "::error::Missing MAWDDA_KEY_ALIAS"; exit 1; }
           test -n "$KEY_PASSWORD" || { echo "::error::Missing MAWDDA_KEY_PASSWORD"; exit 1; }
+          test -n "$PRODUCTION_GOOGLE_SERVICES_BASE64" || { echo "::error::Missing MAWDDA_PRODUCTION_GOOGLE_SERVICES_JSON_B64; refusing to build a production release with non-production Firebase settings."; exit 1; }
+
+          printf '%s' "$PRODUCTION_GOOGLE_SERVICES_BASE64" | base64 --decode > android/app/google-services.json
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          project = json.loads(Path("android/app/google-services.json").read_text(encoding="utf-8"))
+          options = Path("lib/firebase_options.dart").read_text(encoding="utf-8")
+          match = re.search(r"static const FirebaseOptions android = FirebaseOptions\((.*?)\n  \);", options, re.S)
+          if match is None:
+              raise SystemExit("Production Android FirebaseOptions are missing.")
+          block = match.group(1)
+
+          def option(name):
+              field = re.search(rf"{name}\s*:\s*'([^']*)'", block)
+              return field.group(1) if field else ""
+
+          expected = {
+              "projectId": option("projectId"),
+              "appId": option("appId"),
+              "apiKey": option("apiKey"),
+              "messagingSenderId": option("messagingSenderId"),
+              "storageBucket": option("storageBucket"),
+          }
+          if expected["projectId"] != "mawda-app-2026" or expected["messagingSenderId"] != "697303475139":
+              raise SystemExit("Committed production Android FirebaseOptions do not target the approved production project.")
+          if any(not value or re.search(r"placeholder|replace|your_|abcdef|1234567890|actualapikey", value, re.I) for value in expected.values()):
+              raise SystemExit("Production Android FirebaseOptions contain missing or placeholder values.")
+
+          info = project.get("project_info", {})
+          if info.get("project_id") != expected["projectId"] or str(info.get("project_number")) != expected["messagingSenderId"] or info.get("storage_bucket") != expected["storageBucket"]:
+              raise SystemExit("Production google-services.json project identity does not match FlutterFire production options.")
+
+          matching = [
+              client for client in project.get("client", [])
+              if client.get("client_info", {}).get("android_client_info", {}).get("package_name") == "com.mawdda.platform.app"
+          ]
+          if len(matching) != 1:
+              raise SystemExit("Production google-services.json must contain exactly one Mawdda Android client.")
+          client = matching[0]
+          if client.get("client_info", {}).get("mobilesdk_app_id") != expected["appId"]:
+              raise SystemExit("Production Android Firebase App ID does not match google-services.json.")
+          api_keys = [item.get("current_key") for item in client.get("api_key", [])]
+          if expected["apiKey"] not in api_keys:
+              raise SystemExit("Production Android API key does not match google-services.json.")
+          print("Verified production Android Firebase project, app ID, package, API key and storage bucket.")
+          PY
 
           mkdir -p "$RUNNER_TEMP/mawdda-signing"
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/mawdda-signing/mawdda-identity-key.jks"
@@ -96,14 +146,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-output release-evidence
-          flutter build apk --release
+          flutter build apk --release --dart-define=MAWDDA_FIREBASE_ENV=production
           install -m 644 build/app/outputs/flutter-apk/app-release.apk \
             release-output/mawdda-universal-release.apk
 
       - name: Build ABI-specific release APKs
         run: |
           set -euo pipefail
-          flutter build apk --release --split-per-abi
+          flutter build apk --release --split-per-abi --dart-define=MAWDDA_FIREBASE_ENV=production
           shopt -s nullglob
           apks=(build/app/outputs/flutter-apk/app-*-release.apk)
           test "${#apks[@]}" -gt 0
@@ -114,7 +164,7 @@ jobs:
       - name: Build Google Play Android App Bundle
         run: |
           set -euo pipefail
-          flutter build appbundle --release
+          flutter build appbundle --release --dart-define=MAWDDA_FIREBASE_ENV=production
           install -m 644 build/app/outputs/bundle/release/app-release.aab \
             release-output/mawdda-google-play-release.aab
 

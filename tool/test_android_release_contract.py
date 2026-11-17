@@ -17,7 +17,9 @@ class AndroidReleaseContractTests(unittest.TestCase):
     def test_release_workflow_builds_apk_and_aab(self):
         self.assertIn("flutter build apk --release", WORKFLOW)
         self.assertIn("flutter build apk --release --split-per-abi", WORKFLOW)
-        self.assertIn("flutter build appbundle --release", WORKFLOW)
+        self.assertIn("flutter build appbundle --release --dart-define=MAWDDA_FIREBASE_ENV=production", WORKFLOW)
+        self.assertIn("MAWDDA_PRODUCTION_GOOGLE_SERVICES_JSON_B64", WORKFLOW)
+        self.assertEqual(WORKFLOW.count("--dart-define=MAWDDA_FIREBASE_ENV=production"), 3)
         self.assertIn("mawdda-google-play-release.aab", WORKFLOW)
         self.assertIn("mawdda-universal-release.apk", WORKFLOW)
 
@@ -26,6 +28,11 @@ class AndroidReleaseContractTests(unittest.TestCase):
         self.assertIn("jarsigner -verify -verbose -certs", WORKFLOW)
         self.assertIn("keytool -printcert -jarfile", WORKFLOW)
         self.assertIn("21:F9:E6:01:80:E2:03:8D:DD:57:4E:DC:F1:2A:63:4B:C6:25:D9:BA:3F:65:53:B2:9D:61:70:62:C6:36:84:56", WORKFLOW)
+
+    def test_production_build_cannot_fall_back_to_nonproduction_firebase(self):
+        self.assertIn("refusing to build a production release with non-production Firebase settings", WORKFLOW)
+        self.assertIn("mawda-app-2026", WORKFLOW)
+        self.assertIn("Verified production Android Firebase project", WORKFLOW)
 
     def test_signing_material_is_excluded_from_source_control(self):
         self.assertIn("key.properties", ANDROID_GITIGNORE)
