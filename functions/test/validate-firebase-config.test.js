@@ -122,3 +122,16 @@ test("rejects missing production native registrations", () => {
   const missingAndroid = validOptions.replace(/static const FirebaseOptions android = FirebaseOptions\([\s\S]*?\n  \);\n?/, "");
   assert.ok(validate(missingAndroid).errors.includes("FIREBASE_ANDROID_OPTIONS_MISSING"));
 });
+
+test("fails closed when expected production native identities are omitted", () => {
+  const result = validateFirebaseConfiguration({
+    alias: { projects: { default: nonprodProjectId, production: projectId } },
+    optionsSource: validOptions,
+    expectedProjectId: projectId,
+    expectedWebAppId: webAppId,
+    nonprodOptionsSource: makeNonprodOptions(),
+    expectedNonprodProjectId: nonprodProjectId,
+    expectedNonprodApps,
+  });
+  assert.ok(result.errors.includes("EXPECTED_PRODUCTION_NATIVE_APP_IDENTITIES_MISSING"));
+});
