@@ -339,3 +339,26 @@ No merge to `main`, public APK release, production deployment, Firebase mutation
 - [ ] Any future change to the iOS Firebase app, identifiers, settings, plist, or options requires an explicit owner-approved change plan.
 
 **Prohibited:** deleting, disabling, recreating, renaming, re-registering, or changing the existing Firebase iOS app/settings simply because the native iOS application is deferred. No Firebase mutation was performed by recording this rule.
+
+
+## Owner-approved Phase 1 launch and distribution gates — 17 November 2026
+
+Detailed requirements: [MAWADDA_PHASED_LAUNCH_AND_DISTRIBUTION_PLAN_2026.md](MAWADDA_PHASED_LAUNCH_AND_DISTRIBUTION_PLAN_2026.md).
+
+- [x] Owner decision: no integrated payment gateway/automated collection in Phase 1; direct owner contact and individually agreed external payment method only.
+- [x] Owner decision: official Mawdda website is the primary APK download channel, but approved alternative distribution channels are allowed.
+- [x] Owner decision: all official APK channels must distribute the same application identity and compatible Mawdda signing identity/key lineage.
+- [x] Owner decision: Phase 1 includes browser-supported PWA installation on Android, iOS Safari and desktop; this is not a native iOS release or a promise of native installers for every desktop OS.
+- [x] Owner decision: Google Play and Apple App Store enrollment/release and their fees are deferred until the owner approves a later phase.
+- [x] Source guard: APK download URLs must use HTTPS and an exact hostname explicitly included in `MAWDDA_ANDROID_DOWNLOAD_ALLOWED_HOSTS`; wildcard hosts and unapproved hosts are rejected.
+- [ ] Set `MAWDDA_ANDROID_DOWNLOAD_URL` to the official Mawdda website download endpoint and explicitly list the official host in the allow-list.
+- [ ] Add any alternate distribution host only after owner approval, security review and exact-host allow-listing.
+- [ ] Restore/verify the owner-controlled signing keystore from an encrypted backup; provision GitHub secrets only after the owner confirms backup safety.
+- [ ] Run the manual signed-release workflow on a pinned development commit; verify certificate fingerprint, SHA-256 and ABI outputs.
+- [ ] Install and update the APK on physical Android devices; test transition from the website channel and any approved mirror without signature mismatch.
+- [ ] Publish the verified APK to the website download path through a controlled release process; do not commit the APK binary into the source repository.
+- [ ] Verify PWA installation and fallback instructions on supported Android browsers, iOS Safari, macOS Safari and target desktop browsers.
+- [ ] Publish release metadata (version/build, date, size, minimum OS, SHA-256, signer fingerprint, release notes and approved source links).
+- [ ] Obtain explicit owner approval for public deployment. Documentation, a generated artifact, or CI success alone is not publication approval.
+
+**Phase 1 exclusions:** no automated payment provider, no Play Console enrollment, no Apple Developer membership, no native iOS App Store release, and no paid cloud activation without a separate owner decision.
