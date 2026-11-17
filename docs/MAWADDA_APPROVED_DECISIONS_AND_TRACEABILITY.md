@@ -284,3 +284,12 @@ This amendment records policy approval only. It does not establish that code, te
 | LAUNCH-CLOUD-001 | عدم تفعيل Blaze أو خدمات/اشتراكات مدفوعة أو إجراء نشر/تغيير إنتاجي دون موافقة منفصلة وتقدير تكلفة وأهلية | قرار موثق؛ لم يتم تفعيل فوترة أو نشر إنتاجي ضمن هذا التغيير |
 
 **مراجع التنفيذ التفصيلية:** [خطة الإطلاق المرحلي والتوزيع الرسمي](MAWADDA_PHASED_LAUNCH_AND_DISTRIBUTION_PLAN_2026.md)؛ [دليل بناء Android والتوقيع وGoogle Play](ANDROID_RELEASE_AND_GOOGLE_PLAY_SIGNING_2026.md). التوثيق أو نجاح CI لا يثبت وحده جاهزية الإطلاق ولا يمنح إذناً بالنشر.
+
+
+## ANDROID-REL-004 — منع إصدار Android المرتبط ببيئة Firebase غير الإنتاجية (17 نوفمبر 2026)
+
+- إعداد Flutter الافتراضي `MAWDDA_FIREBASE_ENV=nonprod` مقصود لاختبارات التطوير والمحاكيات فقط.
+- يجب أن تمرر جميع أوامر بناء APK/AAB الموقّعة `MAWDDA_FIREBASE_ENV=production` صراحة.
+- يجب أن يحقن workflow ملف `google-services.json` الإنتاجي من سر `MAWDDA_PRODUCTION_GOOGLE_SERVICES_JSON_B64`، ثم يطابق project ID ورقم المشروع وApp ID واسم الحزمة ومفتاح API وStorage bucket مع FlutterFire production options.
+- أُضيف تحقق آلي لهويات Android وiOS الإنتاجية في `functions/scripts/validate-firebase-config.cjs` واختبارات لها. غياب ملف Google Services الإنتاجي أو عدم التطابق يمنع بناء الإصدار.
+- لم يُقدّم المالك بعد سر ملف Google Services الإنتاجي في هذه المراجعة، ولذلك لم يُشغّل workflow الموقّع ولم تُنتج حزم Release.

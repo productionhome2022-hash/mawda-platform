@@ -631,3 +631,11 @@ This amendment records the owner's explicit launch decision and is binding over 
 - تظل أسرار JKS وكلمات المرور تحت سيطرة المالك ولا توضع في Git أو المحادثة أو artifacts عامة. خط البناء اليدوي لا يرفع إلى Google Play أو الموقع ولا ينفذ نشراً إنتاجياً.
 - تجهيز AAB أو نجاح CI لا يعني التسجيل في Play Console أو دفع رسومه أو رفع الحزمة أو إرسالها للمراجعة أو نشرها؛ كل ذلك يحتاج موافقة مستقلة. تظل أهلية الكيان والبلد ومتطلبات Play Console وسياساته بوابة منفصلة.
 - مرجع الإجراءات والقبول: [دليل بناء Android والتوقيع وGoogle Play](ANDROID_RELEASE_AND_GOOGLE_PLAY_SIGNING_2026.md).
+
+
+## 22. بوابة Firebase الإنتاجية لحزم Android (اعتماد تنفيذي، 17 نوفمبر 2026)
+
+- إعداد Firebase الافتراضي `nonprod` مخصص للتطوير والمحاكيات، ولا يجوز استخدامه في APK/AAB العامة.
+- يجب أن يمرر بناء Release `MAWDDA_FIREBASE_ENV=production` صراحة، ويحقن ملف Android `google-services.json` الإنتاجي الذي يقدمه المالك عبر سر GitHub Actions.
+- يجب التحقق آلياً من project ID ورقم المشروع وAndroid App ID وPackage ID وAPI key وStorage bucket مقابل إعدادات FlutterFire الإنتاجية. أي نقص أو اختلاف يوقف البناء.
+- لا يُعدل Firebase production ولا تُفعّل الفوترة ولا تُنشر الموارد نتيجة هذا التحقق؛ إنه شرط قبول للحزمة فقط.

@@ -314,3 +314,10 @@ The phase status remains evidence-based. This amendment does not mark any new fe
 - يُختار مفتاح Mawdda الأصلي كمفتاح توقيع التطبيق في Play App Signing إذا كان المطلوب تحديث النسخ المثبتة خارج المتجر عبر Google Play؛ أي مفتاح مختلف يستلزم خطة ترحيل واختبار وموافقة.
 - يظل workflow يدوياً ولا ينشر إلى الموقع أو المتجر. أسرار التوقيع تحت سيطرة المالك، وتشغيل البناء الموقّع والنشر يتطلبان إغلاق بوابات القبول والموافقات المنفصلة.
 - مرجع التشغيل: [دليل بناء Android والتوقيع وGoogle Play](ANDROID_RELEASE_AND_GOOGLE_PLAY_SIGNING_2026.md).
+
+
+### بوابة Firebase لنسخ Android الإنتاجية
+
+- تظل إعدادات Firebase غير الإنتاجية هي الافتراضية لبناء Debug والمحاكيات.
+- يجب أن تستخدم APK وAAB الإنتاجية `MAWDDA_FIREBASE_ENV=production` وأن تحقن `google-services.json` الإنتاجي من سر المالك وتتحقق من تطابقه مع FlutterFire options ومعرّف الحزمة قبل أي بناء.
+- لا تُعتبر حزمة Android جاهزة للإطلاق إذا كانت تشير إلى مشروع غير الإنتاج أو إذا لم تتوفر أدلة مطابقة هوية Android الإنتاجية.

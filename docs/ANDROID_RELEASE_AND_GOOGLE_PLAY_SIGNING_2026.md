@@ -22,6 +22,9 @@ All APK mirrors must distribute the exact same approved APK bytes, not rebuild t
 
 ## 2. Signing workflow and custody
 
+**Additional production Firebase secret:** `MAWDDA_PRODUCTION_GOOGLE_SERVICES_JSON_B64` — base64 encoding of the actual production Android `google-services.json` downloaded from Firebase Console for project `mawda-app-2026` and package `com.mawdda.platform.app`. The owner provisions it directly in GitHub Actions Secrets; do not paste it into chat or commit it.
+
+
 The manual workflow is `.github/workflows/android-signed-release.yml`. It is restricted to the development branch and requires these GitHub Actions Secrets:
 
 - `MAWDDA_IDENTITY_KEY_B64`: base64 encoding of the existing JKS file.
@@ -30,6 +33,8 @@ The manual workflow is `.github/workflows/android-signed-release.yml`. It is res
 - `MAWDDA_KEY_PASSWORD`: private-key password.
 
 The owner must provision these secrets directly through GitHub's secure secret interface after confirming encrypted backups. Never paste the keystore, passwords, private key or base64 payload into chat, source control, issue comments, build logs or ordinary artifacts.
+
+The production release must never inherit the repository's non-production default. `lib/main.dart` defaults to `nonprod` intentionally; the signed-release workflow explicitly passes `--dart-define=MAWDDA_FIREBASE_ENV=production` to every APK and AAB build. It first injects the production `google-services.json` from the owner-provisioned secret and verifies its project ID, project number, Android App ID, package name, API key and storage bucket against the production FlutterFire Android options. Missing or mismatched production configuration stops the build before any artifact is created. The non-production JSON remains the default for debug/emulator validation.
 
 Before building, the workflow checks the private-key entry, RSA-2048 public key, exact pinned certificate SHA-256 and certificate expiry beyond 22 October 2033. It then creates:
 1. A universal signed Release APK.
@@ -70,7 +75,8 @@ This choice must be verified in the actual Play Console before the first rollout
 The Android release is **not ready for public launch** until all applicable items are evidenced against one immutable commit SHA:
 
 - [ ] Owner confirms encrypted backups of the original JKS and recovery information.
-- [ ] Owner provisions the four signing secrets directly in GitHub Actions.
+- [ ] Owner provisions the four signing secrets and the production Android google-services JSON secret directly in GitHub Actions.
+- [ ] Production Android FirebaseOptions and injected google-services.json match project `mawda-app-2026`, project number `697303475139`, app ID and package `com.mawdda.platform.app`; every build command explicitly selects `MAWDDA_FIREBASE_ENV=production`.
 - [ ] Manual signed-release workflow completes successfully on the exact candidate SHA.
 - [ ] Universal APK, ABI APKs and AAB all pass signature checks and use the expected Mawdda certificate.
 - [ ] AAB signature is valid and its certificate matches the intended Play app-signing identity.
@@ -86,7 +92,7 @@ A green CI run, a generated unsigned/debug APK, or a successful signed artifact 
 ## 6. Current implementation status
 
 - Gradle Release signing fails closed when owner signing configuration is absent.
-- The signed-release workflow is manual and development-branch-only.
+- The signed-release workflow is manual and development-branch-only; it explicitly selects production Firebase and fails closed unless the production Android google-services JSON is securely provisioned and matches the committed production options.
 - This revision extends it to create and verify both APK and AAB artifacts.
 - The workflow has not yet been run with the owner's secure signing secrets; no signed APK/AAB has yet been produced or accepted.
 - Physical-device installation/update, Play Console app-signing configuration, and public distribution remain open gates.

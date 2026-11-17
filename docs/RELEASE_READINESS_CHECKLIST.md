@@ -18,6 +18,8 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Re-run all checks against the final release candidate commit.
 
 ## 2. Firebase project configuration
+- [ ] Verify the production Android `google-services.json` from Firebase Console against production project `mawda-app-2026`, project number `697303475139`, Android App ID and package `com.mawdda.platform.app`; provision it as `MAWDDA_PRODUCTION_GOOGLE_SERVICES_JSON_B64` for signed Release builds.
+- [ ] Confirm every signed APK/AAB build explicitly uses `MAWDDA_FIREBASE_ENV=production`; retain `nonprod` only for debug/emulator builds.
 
 - [ ] Independently confirm the production Firebase project is `mawda-app-2026`.
 - [x] FlutterFire CLI found/registered Android (`com.mawdda.platform.app`), iOS (`com.mawdda.platform.app`), and Web apps in `mawda-app-2026` during native bootstrap run `43603789539`; independent Firebase Console review remains a production gate.
