@@ -586,3 +586,15 @@ Status: **implemented in source; automated validation pending; device/network ac
 - Commits: backend fix `cc7a7c73db63e87dc29ef31e2ef93711ac809b9e`; integration regression `c67a11c2e94993eb4cf707c1c262c710e97d8acc`; CI workflow `7c8e6985ddf11ef32417e7b61c1bce9fe373cf9a`.
 - Validation status: code and test changes are committed; exact-head CI/emulator results are pending. This is a narrow signaling lifecycle hardening, not completion of paid call entitlements, metered billing, quota display, or real-device WebRTC acceptance.
 - No Firebase production resources, billing, TURN secrets, production data, merge, or deployment were changed.
+
+
+## 2026-11-18 — Timed reward-ad discovery and exact-head regression
+
+- Static review found that `getActiveTimedAdCampaigns` queried all published timed campaigns with a 100-document limit, then filtered placement, start/end time, and available reward budget in application code. A large prefix of expired or unrelated campaigns could therefore hide an eligible reward-center campaign beyond the query limit.
+- Moved the reward-center placement and active time-window predicates into the Firestore query before the limit. Retained the server-side reward-budget check, which depends on the reserved/spent budget fields.
+- Added the matching composite index for `status`, `placement`, `startsAtMs`, and `endsAtMs`.
+- Added an emulator integration regression with 101 expired campaigns and one eligible campaign, asserting the eligible campaign remains discoverable despite the expired prefix.
+- Added the engagement-rewards integration suite to the domain-regression workflow.
+- Commit: `084c79b2a278429873c3b29c68ef9118a7166e04`.
+- Exact-head CI evidence: GitHub Actions run `44179510781` completed successfully on this SHA. Both Flutter UI analysis/widget tests and the retention/room reservation emulator regression job (which also runs call signaling and timed-ad reward integration tests) succeeded. The standalone `Validate Mawda` workflow was still running at the time of this traceability update; its outcome must be checked separately.
+- Scope boundary: this fixes campaign discovery ordering only. It does not complete geographic featured-ad campaign serving, the separate featured showcase UI, advertising intake/review/payment workflows, or release acceptance. No production Firebase resources, billing, deployment, merge to `main`, or production data were changed.
