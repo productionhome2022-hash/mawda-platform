@@ -84,3 +84,7 @@ No production Firebase resource, production data, billing setting, `main` branch
 - No physical-device installation/update, website/mirror publication, Google Play submission, production Firebase mutation, billing change, or merge to `main` has occurred.
 
 **Acceptance limitation:** CI passing for the new validator proves the source-level checks and test suite only. The first owner-authorized signed-release run must still prove the actual APK/AAB metadata, signer identity, ClamAV verdict, SHA-256 and artifact sizes on one immutable candidate SHA.
+
+**Additional source-integrity correction (same workstream):**
+- The signed-release workflow previously checked out the moving development branch name after dispatch. That left a race where the branch could advance between dispatch and checkout while evidence still reported the dispatch SHA.
+- The workflow now checks out `github.sha` from the dispatch event, and a contract test rejects a moving-branch checkout. This binds release artifacts to the immutable commit captured when the owner starts the workflow.
