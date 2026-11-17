@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'chat_room_screen.dart';
+import '../widgets/responsive_room_card.dart';
 import 'room_moderation_screen.dart';
 
 class RoomsScreen extends StatefulWidget {
@@ -362,41 +363,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
       ),
     );
 
-    return Card(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 520;
-          final actionRow = Wrap(
-            spacing: 4,
-            runSpacing: 4,
-            alignment: WrapAlignment.end,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: actions,
-          );
-          return Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(12, 4, 8, 4),
-            child: compact
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      summary,
-                      Align(
-                        alignment: AlignmentDirectional.centerEnd,
-                        child: actionRow,
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Expanded(child: summary),
-                      const SizedBox(width: 12),
-                      actionRow,
-                    ],
-                  ),
-          );
-        },
-      ),
-    );
+    return ResponsiveRoomCard(summary: summary, actions: actions);
   }
 
   @override
