@@ -244,20 +244,21 @@ jobs:
               raise SystemExit("Android versionCode must be a positive integer")
           manifest = Path("release-evidence/android-release-manifest.txt")
           artifact_sizes = "".join(
-              f"artifact={artifact.name};sizeBytes={artifact.stat().st_size}\\n"
+              f"artifact={artifact.name};sizeBytes={artifact.stat().st_size}\n"
               for artifact in sorted(Path("release-output").glob("*"))
               if artifact.is_file()
           )
           manifest.write_text(
-              "applicationId=com.mawdda.platform.app\\n"
-              f"versionName={version_name}\\n"
-              f"versionCode={build_number}\\n"
-              f"sourceCommit={__import__('os').environ.get('GITHUB_SHA', 'unknown')}\\n"
-              "artifacts=universal APK, ABI-specific APKs, Google Play AAB\\n"
-              "signingIdentity=owner-controlled Mawdda certificate; verified against pinned SHA-256\\n"
+              "applicationId=com.mawdda.platform.app\n"
+              f"versionName={version_name}\n"
+              f"versionCode={build_number}\n"
+              f"sourceCommit={__import__('os').environ.get('GITHUB_SHA', 'unknown')}\n"
+              "artifacts=universal APK, ABI-specific APKs, Google Play AAB\n"
+              "signingIdentity=owner-controlled Mawdda certificate; verified against pinned SHA-256\n"
               + artifact_sizes,
               encoding="utf-8",
-          )          PY
+          )
+          PY
 
           sha256sum release-output/* > release-evidence/artifact-sha256.txt
           cp "$RUNNER_TEMP/mawdda-signing/mawdda-certificate.pem" release-evidence/mawdda-public-certificate.pem
