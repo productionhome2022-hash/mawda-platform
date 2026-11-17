@@ -572,5 +572,6 @@ Status: **implemented in source; automated validation pending; device/network ac
 - Static review found that room cards placed multiple owner/moderator/member actions in a fixed trailing row beside the title. On narrow phone widths this could compress the room name and crowd the action targets.
 - Refactored the existing room-card presentation without changing callable names, authorization decisions, or action handlers: below 520 logical pixels, room summary and actions stack with wrapping; wider layouts keep the summary and action group side by side.
 - Implementation: `lib/screens/rooms_screen.dart`, commit `563c7466210c084a03b5d16f15ed73122da4f61e`.
-- Validation boundary: source diff reviewed; Flutter formatter, analyzer, widget tests, and browser/device viewport tests have **not** been run in this session. The change must remain pending exact-head CI and narrow/tablet/desktop UI verification.
+- Added `test/widgets/responsive_room_card_test.dart` to exercise 320, 390, 768 and 1440 logical-pixel viewports and assert all room actions remain present without layout exceptions. The reusable layout lives in `lib/widgets/responsive_room_card.dart` and is used by `RoomsScreen`.
+- Validation boundary: test source is committed, but Flutter formatter, analyzer and widget tests have **not** yet completed in this session. The change remains pending exact-head CI and real browser/device viewport verification.
 - No backend behavior, Firebase resources, production data, payment configuration, or release channel was changed.
