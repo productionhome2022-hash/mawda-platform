@@ -9515,8 +9515,27 @@ export const getCallSignals = onCall(async (request) => {
       (Array.isArray(call.data()?.rejectedUids) && call.data()!.rejectedUids.includes(uid))) {
     throw new HttpsError("permission-denied", "لا تملك صلاحية قراءة إشارات هذه المكالمة.");
   }
-  if (!["ringing", "accepted"].includes(String(call.data()?.status))) {
-    return { status: call.data()?.status, signals: [], nextCursor: afterSignalId ?? null, hasMore: false };
+  let callStatus = call.data()?.status;
+  const expiresAt = call.data()?.expiresAt;
+  if (callStatus === "ringing" &&
+      (!(expiresAt instanceof Timestamp) || expiresAt.toMillis() <= Date.now())) {
+    callStatus = await db.runTransaction(async (transaction) => {
+      const current = await transaction.get(ref);
+      if (!current.exists) return "missing";
+      const currentData = current.data() ?? {};
+      if (currentData.status !== "ringing") return String(currentData.status ?? "missing");
+      if (currentData.expiresAt instanceof Timestamp && currentData.expiresAt.toMillis() > Date.now()) {
+        return "ringing";
+      }
+      transaction.update(ref, {
+        status: "missed", endedAt: FieldValue.serverTimestamp(),
+        lastActivityAt: FieldValue.serverTimestamp(),
+      });
+      return "missed";
+    });
+  }
+  if (!["ringing", "accepted"].includes(String(callStatus))) {
+    return { status: callStatus, signals: [], nextCursor: afterSignalId ?? null, hasMore: false };
   }
   const signalCollection = ref.collection("signals");
   let signalsQuery = signalCollection
@@ -9536,23 +9555,6 @@ export const getCallSignals = onCall(async (request) => {
     .filter((doc) => doc.data().senderUid !== uid &&
       typeof doc.data().sequence === "number" && doc.data().sequence > afterSequence)
     .map((doc) => ({ ...doc.data(), signalId: doc.id, sequence: doc.data().sequence as number }));
-  let callStatus = call.data()?.status;
-  const expiresAt = call.data()?.expiresAt;
-  if (callStatus === "ringing" && expiresAt instanceof Timestamp &&
-      expiresAt.toMillis() <= Date.now()) {
-    callStatus = "missed";
-    await db.runTransaction(async (transaction) => {
-      const current = await transaction.get(ref);
-      if (current.exists && current.data()?.status === "ringing" &&
-          current.data()?.expiresAt instanceof Timestamp &&
-          current.data()!.expiresAt.toMillis() <= Date.now()) {
-        transaction.update(ref, {
-          status: "missed", endedAt: FieldValue.serverTimestamp(),
-          lastActivityAt: FieldValue.serverTimestamp(),
-        });
-      }
-    });
-  }
   return {
     status: callStatus,
     signals,
@@ -9642,6 +9644,30 @@ export const getCallIceConfiguration = onCall(
         (Array.isArray(call.data()?.rejectedUids) && call.data()!.rejectedUids.includes(uid)) ||
         !["ringing", "accepted"].includes(String(call.data()?.status))) {
       throw new HttpsError("permission-denied", "لا تملك صلاحية إعداد الاتصال لهذه المكالمة.");
+    }
+    if (call.data()?.status === "ringing" &&
+        (!(call.data()?.expiresAt instanceof Timestamp) ||
+          call.data()!.expiresAt.toMillis() <= Date.now())) {
+      const resolvedStatus = await db.runTransaction(async (transaction) => {
+        const current = await transaction.get(CALL_SESSIONS.doc(callId));
+        if (!current.exists) return "missing";
+        const currentData = current.data() ?? {};
+        if (currentData.status !== "ringing") return String(currentData.status ?? "missing");
+        if (currentData.expiresAt instanceof Timestamp && currentData.expiresAt.toMillis() > Date.now()) {
+          return "ringing";
+        }
+        transaction.update(CALL_SESSIONS.doc(callId), {
+          status: "missed", endedAt: FieldValue.serverTimestamp(),
+          lastActivityAt: FieldValue.serverTimestamp(),
+        });
+        return "missed";
+      });
+      if (resolvedStatus === "missed") {
+        throw new HttpsError("deadline-exceeded", "انتهت مهلة رنين المكالمة.");
+      }
+      if (!["ringing", "accepted"].includes(resolvedStatus)) {
+        throw new HttpsError("permission-denied", "لم تعد المكالمة متاحة لإعداد الاتصال.");
+      }
     }
     const iceServers: Array<Record<string, unknown>> = [
       { urls: ["stun:stun.l.google.com:19302"] },
