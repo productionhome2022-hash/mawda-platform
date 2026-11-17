@@ -50,6 +50,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   bool _turnConfigured = false;
   String? _lastSignalCursor;
   bool _polling = false;
+  bool _connectedReportSent = false;
   String _status = 'جارٍ تجهيز الاتصال...';
   String? _failure;
 
@@ -173,9 +174,14 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
     };
     peer.onConnectionState = (state) {
       if (!mounted) return;
+      if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected &&
+          !_connectedReportSent) {
+        _connectedReportSent = true;
+        unawaited(_confirmServerConnected());
+      }
       setState(() {
         if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
-          _status = 'المكالمة متصلة';
+          _status = 'تم اتصال الشبكة؛ جارٍ تثبيت بدء المدة من الخادم...';
         } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnecting) {
           _status = 'جارٍ إنشاء الاتصال...';
         } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
@@ -188,6 +194,25 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       });
     };
     return peer;
+  }
+
+  Future<void> _confirmServerConnected() async {
+    try {
+      final response = await _functions.httpsCallable('markCallConnected').call({
+        'callId': widget.callId,
+      });
+      final data = Map<String, dynamic>.from(response.data as Map);
+      if (!mounted) return;
+      setState(() {
+        _status = data['connected'] == true
+            ? 'المكالمة متصلة — الحد الأقصى 5 دقائق'
+            : 'تم تأكيد طرف واحد؛ بانتظار تأكيد اتصال الطرف الآخر';
+      });
+    } catch (error) {
+      if (mounted && !_ending) {
+        setState(() => _failure = 'تعذر تثبيت بدء مدة المكالمة من الخادم: $error');
+      }
+    }
   }
 
   Future<void> _attachRemoteStream(String uid, MediaStream stream) async {
