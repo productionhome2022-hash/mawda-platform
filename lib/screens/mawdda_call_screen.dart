@@ -209,6 +209,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
             : 'تم تأكيد طرف واحد؛ بانتظار تأكيد اتصال الطرف الآخر';
       });
     } catch (error) {
+      _connectedReportSent = false;
       if (mounted && !_ending) {
         setState(() => _failure = 'تعذر تثبيت بدء مدة المكالمة من الخادم: $error');
       }
@@ -272,6 +273,11 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
 
   Future<void> _pollSignals() async {
     if (_ending || _peers.isEmpty || _polling) return;
+    if (!_connectedReportSent && _peers.values.any((peer) =>
+        peer.connectionState == RTCPeerConnectionState.RTCPeerConnectionStateConnected)) {
+      _connectedReportSent = true;
+      unawaited(_confirmServerConnected());
+    }
     _polling = true;
     try {
       final response = await _functions.httpsCallable('getCallSignals').call({
