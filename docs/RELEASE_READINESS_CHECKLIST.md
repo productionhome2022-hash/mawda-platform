@@ -62,6 +62,9 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Implement and test server-side retention and deletion policies; clearly disclose that downloaded copies cannot be remotely guaranteed to disappear.
 - [ ] Bundle the approved launch background locally as the stable fallback for remote background load failures.
 - [ ] Test background previews, responsive crops, contrast, reduced motion, rollback, and fallback behavior.
+- [ ] Before the Web/PWA/desktop release candidate is approved, present the owner with the complete visual review set: final backgrounds, palette, typography, logo/icon treatments, navigation, buttons, cards, dialogs, and representative phone/tablet/desktop screens. Record the owner's explicit approval; do not independently finalize or silently change the visual direction.
+- [ ] Inventory every user-facing screen, navigation destination, button and actionable control; verify each has a defined purpose, working route/action, loading/empty/error/success states where applicable, and responsive behavior. No placeholder or inert control may pass release acceptance.
+- [ ] Verify the same approved visual system across Web, installed PWA and supported desktop browsers, including RTL/LTR where offered, keyboard navigation, focus visibility, contrast and reduced-motion behavior.
 - [ ] Complete age assurance, minor-safety, moderation, reporting, blocking, appeals, and privacy workflows.
 - [ ] Complete applicable legal and policy review for each launch market.
 
