@@ -4,6 +4,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = (ROOT / ".github/workflows/android-signed-release.yml").read_text()
+BOOTSTRAP_WORKFLOW = (ROOT / ".github/workflows/bootstrap-native-platforms.yml").read_text()
 GRADLE = (ROOT / "android/app/build.gradle.kts").read_text()
 ANDROID_GITIGNORE = (ROOT / "android/.gitignore").read_text()
 
@@ -22,6 +23,11 @@ class AndroidReleaseContractTests(unittest.TestCase):
         self.assertEqual(WORKFLOW.count("--dart-define=MAWDDA_FIREBASE_ENV=production"), 3)
         self.assertIn("mawdda-google-play-release.aab", WORKFLOW)
         self.assertIn("mawdda-universal-release.apk", WORKFLOW)
+
+    def test_nonproduction_debug_aab_packaging_is_exercised_in_ci(self):
+        self.assertIn("flutter build appbundle --debug", BOOTSTRAP_WORKFLOW)
+        self.assertIn("app-debug.aab", BOOTSTRAP_WORKFLOW)
+        self.assertIn("mawdda-android-debug-aab-nonprod", BOOTSTRAP_WORKFLOW)
 
     def test_both_artifact_types_are_verified_against_the_owner_certificate(self):
         self.assertIn('"$APKSIGNER" verify --verbose', WORKFLOW)

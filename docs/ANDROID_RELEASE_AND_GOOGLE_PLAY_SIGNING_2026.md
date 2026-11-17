@@ -94,5 +94,6 @@ A green CI run, a generated unsigned/debug APK, or a successful signed artifact 
 - Gradle Release signing fails closed when owner signing configuration is absent.
 - The signed-release workflow is manual and development-branch-only; it explicitly selects production Firebase and fails closed unless the production Android google-services JSON is securely provisioned and matches the committed production options.
 - This revision extends it to create and verify both APK and AAB artifacts.
-- The workflow has not yet been run with the owner's secure signing secrets; no signed APK/AAB has yet been produced or accepted.
+- CI additionally builds and verifies a clearly labelled non-production **debug AAB** to exercise the Android App Bundle packaging path; this is not a release artifact and must never be distributed.
+- The workflow has not yet been run with the owner's secure signing and production Firebase secrets; no signed production APK/AAB has yet been produced or accepted.
 - Physical-device installation/update, Play Console app-signing configuration, and public distribution remain open gates.
