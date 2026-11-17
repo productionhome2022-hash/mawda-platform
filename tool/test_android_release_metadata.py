@@ -1,11 +1,12 @@
-import json
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
 
 from verify_android_release_metadata import (
+    APK_VERSION_CODE_OFFSETS,
     PACKAGE_ID,
+    expected_apk_version_code,
     parse_pubspec_version,
     validate_aab_archive,
     validate_aab_output_metadata,
@@ -19,13 +20,27 @@ class AndroidReleaseMetadataTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_pubspec_version("version: 1.2.3\n")
 
+    def test_split_apk_version_codes_use_flutter_abi_offsets(self):
+        self.assertEqual(APK_VERSION_CODE_OFFSETS, {
+            "mawdda-universal-release.apk": 0,
+            "app-armeabi-v7a-release.apk": 1000,
+            "app-arm64-v8a-release.apk": 2000,
+            "app-x86_64-release.apk": 4000,
+        })
+        self.assertEqual(expected_apk_version_code("mawdda-universal-release.apk", 42), 42)
+        self.assertEqual(expected_apk_version_code("app-armeabi-v7a-release.apk", 42), 1042)
+        self.assertEqual(expected_apk_version_code("app-arm64-v8a-release.apk", 42), 2042)
+        self.assertEqual(expected_apk_version_code("app-x86_64-release.apk", 42), 4042)
+        with self.assertRaisesRegex(ValueError, "Unexpected APK"):
+            expected_apk_version_code("app-unknown-release.apk", 42)
+
     def test_apk_badging_must_match_package_and_version(self):
-        valid = "package: name='com.mawdda.platform.app' versionCode='42' versionName='1.2.3' platformBuildVersionName='16'\n"
-        validate_apk_badging(valid, PACKAGE_ID, "1.2.3", 42)
+        valid = "package: name='com.mawdda.platform.app' versionCode='1042' versionName='1.2.3' platformBuildVersionName='16'\n"
+        validate_apk_badging(valid, PACKAGE_ID, "1.2.3", 1042)
         with self.assertRaisesRegex(ValueError, "package ID mismatch"):
-            validate_apk_badging(valid.replace(PACKAGE_ID, "com.other.app"), PACKAGE_ID, "1.2.3", 42)
+            validate_apk_badging(valid.replace(PACKAGE_ID, "com.other.app"), PACKAGE_ID, "1.2.3", 1042)
         with self.assertRaisesRegex(ValueError, "version mismatch"):
-            validate_apk_badging(valid, PACKAGE_ID, "1.2.4", 42)
+            validate_apk_badging(valid, PACKAGE_ID, "1.2.4", 1042)
 
     def metadata(self):
         return {
@@ -42,7 +57,7 @@ class AndroidReleaseMetadataTests(unittest.TestCase):
             }],
         }
 
-    def test_aab_gradle_metadata_must_match_identity_and_version(self):
+    def test_aab_gradle_metadata_must_match_identity_and_base_version(self):
         validate_aab_output_metadata(self.metadata(), "app-release.aab", PACKAGE_ID, "1.2.3", 42)
         wrong = self.metadata()
         wrong["applicationId"] = "com.other.app"
