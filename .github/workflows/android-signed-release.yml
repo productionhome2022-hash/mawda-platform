@@ -168,6 +168,19 @@ jobs:
           install -m 644 build/app/outputs/bundle/release/app-release.aab \
             release-output/mawdda-google-play-release.aab
 
+      - name: Verify APK and AAB package identity and version metadata
+        run: |
+          set -euo pipefail
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$AAPT"
+          python3 tool/verify_android_release_metadata.py \
+            --pubspec pubspec.yaml \
+            --aapt "$AAPT" \
+            --apk-dir release-output \
+            --aab release-output/mawdda-google-play-release.aab \
+            --bundle-metadata build/app/outputs/bundle/release/output-metadata.json \
+            --evidence release-evidence/android-artifact-metadata.txt
+
       - name: Verify APK and AAB signatures, application identity and checksums
         env:
           EXPECTED_CERT_SHA256: '21:F9:E6:01:80:E2:03:8D:DD:57:4E:DC:F1:2A:63:4B:C6:25:D9:BA:3F:65:53:B2:9D:61:70:62:C6:36:84:56'
@@ -230,16 +243,21 @@ jobs:
           if not build_number.isdigit() or int(build_number) < 1:
               raise SystemExit("Android versionCode must be a positive integer")
           manifest = Path("release-evidence/android-release-manifest.txt")
-          manifest.write_text(
-              "applicationId=com.mawdda.platform.app\n"
-              f"versionName={version_name}\n"
-              f"versionCode={build_number}\n"
-              f"sourceCommit={__import__('os').environ.get('GITHUB_SHA', 'unknown')}\n"
-              "artifacts=universal APK, ABI-specific APKs, Google Play AAB\n"
-              "signingIdentity=owner-controlled Mawdda certificate; verified against pinned SHA-256\n",
-              encoding="utf-8",
+          artifact_sizes = "".join(
+              f"artifact={artifact.name};sizeBytes={artifact.stat().st_size}\\n"
+              for artifact in sorted(Path("release-output").glob("*"))
+              if artifact.is_file()
           )
-          PY
+          manifest.write_text(
+              "applicationId=com.mawdda.platform.app\\n"
+              f"versionName={version_name}\\n"
+              f"versionCode={build_number}\\n"
+              f"sourceCommit={__import__('os').environ.get('GITHUB_SHA', 'unknown')}\\n"
+              "artifacts=universal APK, ABI-specific APKs, Google Play AAB\\n"
+              "signingIdentity=owner-controlled Mawdda certificate; verified against pinned SHA-256\\n"
+              + artifact_sizes,
+              encoding="utf-8",
+          )          PY
 
           sha256sum release-output/* > release-evidence/artifact-sha256.txt
           cp "$RUNNER_TEMP/mawdda-signing/mawdda-certificate.pem" release-evidence/mawdda-public-certificate.pem
