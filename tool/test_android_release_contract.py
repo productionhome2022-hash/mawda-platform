@@ -30,6 +30,12 @@ class AndroidReleaseContractTests(unittest.TestCase):
         self.assertIn("android-artifact-metadata.txt", WORKFLOW)
         self.assertIn("sizeBytes=", WORKFLOW)
 
+    def test_signed_artifacts_are_scanned_with_fresh_clamav_signatures(self):
+        self.assertIn("freshclam --stdout", WORKFLOW)
+        self.assertIn("clamscan --infected --no-summary --alert-exceeds-max=yes", WORKFLOW)
+        self.assertIn("clamav-release-scan.log", WORKFLOW)
+        self.assertIn("--scan-archive=yes", WORKFLOW)
+
     def test_nonproduction_debug_aab_packaging_is_exercised_in_ci(self):
         self.assertIn("flutter build appbundle --debug", BOOTSTRAP_WORKFLOW)
         self.assertIn("app-debug.aab", BOOTSTRAP_WORKFLOW)
