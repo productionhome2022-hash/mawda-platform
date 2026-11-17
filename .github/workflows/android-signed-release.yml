@@ -187,15 +187,13 @@ jobs:
           docker build --tag mawda-release-artifact-scanner:ci scanner
           docker run --rm --entrypoint sh \
             -v "$PWD/release-output:/scan:ro" \
-            -v "$PWD/release-evidence:/evidence" \
             mawda-release-artifact-scanner:ci -c '
               set -eu
-              freshclam --stdout --log=/evidence/freshclam-release.log
+              freshclam --stdout --log=/tmp/freshclam-release.log
               clamscan --infected --no-summary --alert-exceeds-max=yes \
                 --max-filesize=250M --max-scansize=1G \
-                --max-recursion=20 --max-files=20000 --scan-archive=yes \
-                --log=/evidence/clamav-release-scan.log /scan
-            '
+                --max-recursion=20 --max-files=20000 --scan-archive=yes /scan
+            ' | tee release-evidence/clamav-release-scan.log
 
       - name: Verify APK and AAB signatures, application identity and checksums
         env:
