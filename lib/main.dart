@@ -6,6 +6,8 @@ import 'firebase_options_nonprod.dart' as nonproduction_firebase;
 import 'screens/auth_gate.dart';
 
 FirebaseOptions _firebaseOptionsForBuild() {
+  // Safe default for development/emulators. Production release workflows must
+  // explicitly pass --dart-define=MAWDDA_FIREBASE_ENV=production.
   const environment = String.fromEnvironment(
     'MAWDDA_FIREBASE_ENV',
     defaultValue: 'nonprod',

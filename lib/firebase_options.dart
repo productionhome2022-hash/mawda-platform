@@ -39,8 +39,9 @@ class DefaultFirebaseOptions {
     storageBucket: 'mawda-app-2026.firebasestorage.app',
     measurementId: 'G-G9PJ9DFEBJ',
   );
-  // The following platform registrations have not yet been supplied/verified.
-  // Do not use these placeholder values for native builds.
+  // Production Android/iOS identities are pinned and validated by the repository
+  // Firebase configuration validator and the signed-release workflow.
+  // Desktop entries below remain placeholders and are not release targets.
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCuWy9zZs6a_4_zatGiFMNAi6r0c8UcIVs',
