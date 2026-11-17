@@ -49,7 +49,7 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Test the 500-coin verified-email reward for exactly-once behavior per successful eligible 90-day verification cycle.
 - [x] Complete Firestore-emulator integration tests for coin transfer quoting/fee calculation, stale quote rejection, concurrent requests, atomic sender/recipient/platform ledgers, idempotency, blocked/suspended accounts, and insufficient-balance rejection (run 43449287825, exact tested SHA `368c6ac0ab9db01c236a4f77a4bf66dadb80ade0`).
 - [ ] Complete and test direct-message UI, pagination, delivery/read state, push notifications, block/report, and media workflows.
-- [ ] Complete and test room invitations, moderator management, rental billing, voice/video, room finance, and device/load behavior. Room discovery/join and owner room creation foundations are implemented.
+- [ ] Complete and test room invitations, moderator management, rental billing, room finance, and ordinary room behavior. Room discovery/join and owner room creation foundations are implemented. Voice/video call implementation remains in the engineering scope, but live call acceptance is tracked separately after Web launch.
 - [x] Add owner-managed store catalog, atomic coin purchase transaction, immutable purchase ledger/receipt, entitlement record, idempotency and stale-price checks.
 - [ ] Implement and test entitlement consumers for each product before setting `purchaseEnabled` and `fulfillmentReady`; purchases remain fail-closed until then.
 - [ ] Implement real-money coin top-ups with verified provider receipts, refunds, chargebacks, and reward anti-abuse controls.
@@ -84,22 +84,26 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Test touch, mouse, keyboard navigation, accessibility, screen readers, and reduced-motion settings.
 - [ ] Run performance, crash, network-failure, monitoring, backup, and recovery-drill checks.
 
-## 6.1. Audio/video calling and quota-billing acceptance — not implemented
+## 6.1. Audio/video calling — implementation now, live acceptance after Web launch
 
-The approved CALL-001/CALL-002 decisions are product requirements, not evidence that the calling service exists. The current development tree has no WebRTC call-session/signaling implementation, no TURN/STUN service integration, and no server-authoritative call quota or metering engine. Do not present audio/video calls as available or enable call packages yet.
+The approved CALL-001/CALL-002 product requirements remain in the implementation scope. Deferring live call tests does **not** authorize omitting the feature's code, server-side authorization, entitlement checks, quota rules, billing safeguards, or fail-closed behavior.
 
+**Pre-launch engineering requirements (continue now):**
 - [ ] Implement separate audio and video call products with owner-controlled 24-hour, 7-day and 30-day entitlement validity and editable prices.
 - [ ] Enforce five ordinary audio-call attempts and three ordinary video-call attempts per member in each rolling 24-hour window.
 - [ ] Count an attempt only when the server creates an accepted call session; rejected pre-session requests do not count. The receiver does not consume quota merely by receiving a call.
 - [ ] Enforce a five-minute maximum call duration from server-confirmed connection time. Reconnects, network changes, client clocks and app restarts must not reset the timer.
-- [ ] Implement paid continuation after the initiator exhausts their included attempts: 120 coins/minute audio or 400 coins/minute video total; if both participants have exhausted their quotas, split 60/200 coins per minute per participant; if only the initiator is exhausted, charge the initiator the full 120/400 and do not consume the receiver's quota.
-- [ ] Before paid continuation, disclose the total price and each participant's share and obtain the required consent. Do not create debt or negative balances; end the call when the next billing unit cannot be funded.
-- [ ] Resolve and document the approved rounding/billing unit before enabling paid continuation. This decision is intentionally still open; do not assume per-second, per-minute ceiling, or grace-period behavior.
-- [ ] Implement server-authoritative signaling, participant authorization, call state transitions, TURN/STUN credentials, expiry, abuse limits, disconnect/reconnect handling and audit events.
-- [ ] Make all quota reservations, billing ticks and ledger entries atomic and idempotent; prove no double charge under duplicate callbacks, reconnects, concurrent requests or delayed webhooks.
-- [ ] Add emulator/unit tests for quota boundaries, 24-hour rolling windows, receiver non-consumption, accepted/rejected attempt counting, call timeout, both paid-allocation cases, consent denial, insufficient funds, retries and concurrent billing.
-- [ ] Complete real Android/iOS microphone/camera permission, network transition, incoming-call, background/foreground, playback and TURN relay tests.
-- [ ] Keep call catalog items and billing disabled until the above gates pass and the owner explicitly approves activation.
+- [ ] Implement paid continuation and the approved asymmetric allocation rules, with explicit consent, no debt/negative balance, and server-authoritative atomic/idempotent ledger operations.
+- [ ] Resolve and document the approved rounding/billing unit before enabling paid continuation; do not assume per-second, per-minute ceiling, or grace-period behavior.
+- [ ] Implement server-authoritative signaling, participant authorization, TURN/STUN integration points, expiry, abuse limits, disconnect/reconnect handling and audit events.
+- [ ] Keep call entitlements, paid continuation and any UI claim of operational availability fail-closed until the implementation is complete and the owner approves activation.
+
+**Post-launch validation (not a pre-launch release gate by owner direction):**
+- [ ] Validate incoming/outgoing audio and video calls on real supported browsers/devices, permissions, background/foreground, network transitions and TURN relay.
+- [ ] Validate quota boundaries, rolling windows, accepted/rejected attempt counting, timeout, paid allocation, consent denial, insufficient funds, retries and concurrent billing against the live test environment.
+- [ ] Record defects from real usage, fix them on the development branch, and rerun the affected acceptance checks before enabling the relevant call capability.
+
+The call feature remains part of the product scope; only its live acceptance testing is deferred to the post-launch phase.
 
 ## 7. Release authorization
 
