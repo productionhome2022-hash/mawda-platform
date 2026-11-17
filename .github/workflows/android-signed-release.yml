@@ -181,6 +181,22 @@ jobs:
             --bundle-metadata build/app/outputs/bundle/release/output-metadata.json \
             --evidence release-evidence/android-artifact-metadata.txt
 
+      - name: Scan signed APK and AAB artifacts with fresh ClamAV signatures
+        run: |
+          set -euo pipefail
+          docker build --tag mawda-release-artifact-scanner:ci scanner
+          docker run --rm --entrypoint sh \
+            -v "$PWD/release-output:/scan:ro" \
+            -v "$PWD/release-evidence:/evidence" \
+            mawda-release-artifact-scanner:ci -c '
+              set -eu
+              freshclam --stdout --log=/evidence/freshclam-release.log
+              clamscan --infected --no-summary --alert-exceeds-max=yes \
+                --max-filesize=250M --max-scansize=1G \
+                --max-recursion=20 --max-files=20000 --scan-archive=yes \
+                --log=/evidence/clamav-release-scan.log /scan
+            '
+
       - name: Verify APK and AAB signatures, application identity and checksums
         env:
           EXPECTED_CERT_SHA256: '21:F9:E6:01:80:E2:03:8D:DD:57:4E:DC:F1:2A:63:4B:C6:25:D9:BA:3F:65:53:B2:9D:61:70:62:C6:36:84:56'
