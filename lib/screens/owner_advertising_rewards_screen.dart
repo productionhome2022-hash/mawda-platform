@@ -18,7 +18,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
   final _duration = TextEditingController(text: '30');
   final _reward = TextEditingController(text: '10');
   final _budget = TextEditingController(text: '1000');
-  final _maxClaims = TextEditingController(text: '1');
+  final _maxClaims = TextEditingController(text: '100');
   String _placement = 'reward_center';
   String? _editingCampaignId;
   List<Map<String, dynamic>> _campaigns = [];
@@ -220,7 +220,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
       _title.clear(); _sponsor.clear(); _body.clear();
       _selectedMediaId = null;
       _editingCampaignId = null;
-      _maxClaims.text = '1';
+      _maxClaims.text = '100';
       _placement = 'reward_center';
       await _load();
       if (!mounted) return;
@@ -381,7 +381,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
             const SizedBox(height: 8),
             Wrap(spacing: 12, runSpacing: 8, children: [
               SizedBox(width: 120, child: TextField(controller: _maxClaims, enabled: !_saving,
-                keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مرات/عضو'))),
+                keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مرات المكافأة لكل عضو'))),
 
               SizedBox(width: 110, child: TextField(controller: _duration, enabled: !_saving,
                 keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'المدة (ثانية)'))),
