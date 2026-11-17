@@ -7741,7 +7741,11 @@ export const getActiveTimedAdCampaigns = onCall(async (request) => {
   }
   const now = Date.now();
   const snapshot = await db.collection("timedAdCampaigns")
-    .where("status", "==", "published").limit(100).get();
+    .where("status", "==", "published")
+    .where("placement", "==", "reward_center")
+    .where("startsAtMs", "<=", now)
+    .where("endsAtMs", ">", now)
+    .limit(100).get();
   return {
     campaigns: snapshot.docs
       .filter((doc) => doc.data().placement === "reward_center" &&

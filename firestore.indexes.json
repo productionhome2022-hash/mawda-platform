@@ -467,6 +467,28 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "timedAdCampaigns",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "placement",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startsAtMs",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "endsAtMs",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

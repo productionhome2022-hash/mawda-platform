@@ -493,3 +493,36 @@ test("distinct member/campaign pairs with colliding legacy IDs keep independent 
     await Promise.all([...users.map((ref) => ref.delete().catch(() => undefined)), ...campaigns.map((ref) => ref.delete().catch(() => undefined)), ...sessions.flatMap((id, index) => [db.collection("timedAdSessions").doc(id).delete().catch(() => undefined), db.collection("timedAdRewardClaims").doc(id).delete().catch(() => undefined), db.collection("activeTimedAdSessions").doc(index === 0 ? uidA : uidB).delete().catch(() => undefined), db.collection("users").doc(index === 0 ? uidA : uidB).collection("walletLedger").doc("timed_ad_" + id).delete().catch(() => undefined)]), ...counterIds.map((id) => db.collection("timedAdMemberCounters").doc(id).delete().catch(() => undefined)), db.collection("timedAdMemberCounters").doc(uidA + "_" + campaignA).delete().catch(() => undefined)]);
   }
 });
+
+
+test("active reward-ad discovery filters expired campaigns before applying its result limit", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const uid = `ad_discovery_member_${tag}`;
+  const userRef = db.collection("users").doc(uid);
+  const now = Date.now();
+  const expiredCampaigns = Array.from({ length: 101 }, (_, index) =>
+    db.collection("timedAdCampaigns").doc(`expired_${tag}_${String(index).padStart(3, "0")}`));
+  const eligibleCampaign = db.collection("timedAdCampaigns").doc(`eligible_${tag}`);
+  const campaignData = {
+    status: "published", placement: "reward_center",
+    startsAtMs: now - 60_000, endsAtMs: now - 1_000,
+    rewardCoins: 1, rewardBudgetCoins: 100,
+    spentRewardCoins: 0, reservedRewardCoins: 0,
+  };
+  try {
+    await userRef.set({ coins: 0, profileCompleted: true, accountStatus: "active" });
+    await Promise.all([
+      ...expiredCampaigns.map((ref) => ref.set(campaignData)),
+      eligibleCampaign.set({ ...campaignData, startsAtMs: now - 1_000, endsAtMs: now + 60_000 }),
+    ]);
+    const result = await getActiveTimedAdCampaigns.run(memberRequest(uid));
+    assert.equal(result.campaigns.some((campaign) => campaign.campaignId === eligibleCampaign.id), true);
+  } finally {
+    await Promise.all([
+      userRef.delete().catch(() => undefined),
+      ...expiredCampaigns.map((ref) => ref.delete().catch(() => undefined)),
+      eligibleCampaign.delete().catch(() => undefined),
+    ]);
+  }
+});
