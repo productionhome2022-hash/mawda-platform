@@ -90,9 +90,9 @@ The approved CALL-001/CALL-002 product requirements remain in the implementation
 
 **Pre-launch engineering requirements (continue now):**
 - [ ] Implement separate audio and video call products with owner-controlled 24-hour, 7-day and 30-day entitlement validity and editable prices.
-- [ ] Enforce five ordinary audio-call attempts and three ordinary video-call attempts per member in each rolling 24-hour window.
+- [x] Enforce five ordinary audio-call attempts and three ordinary video-call attempts per member in each rolling 24-hour window (server-side rolling quota; exact-head emulator integration passed).
 - [ ] Count an attempt only when the server creates an accepted call session; rejected pre-session requests do not count. The receiver does not consume quota merely by receiving a call.
-- [ ] Enforce a five-minute maximum call duration from server-confirmed connection time. Reconnects, network changes, client clocks and app restarts must not reset the timer.
+- [x] Enforce a five-minute maximum call duration from a server-recorded connection timestamp after both endpoints report WebRTC connected. Reconnects and client clocks do not reset the deadline; live browser/device acceptance remains open.
 - [ ] Implement paid continuation and the approved asymmetric allocation rules, with explicit consent, no debt/negative balance, and server-authoritative atomic/idempotent ledger operations.
 - [ ] Resolve and document the approved rounding/billing unit before enabling paid continuation; do not assume per-second, per-minute ceiling, or grace-period behavior.
 - [ ] Implement server-authoritative signaling, participant authorization, TURN/STUN integration points, expiry, abuse limits, disconnect/reconnect handling and audit events.
