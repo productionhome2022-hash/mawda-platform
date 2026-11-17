@@ -20,7 +20,7 @@ class MawddaAppDownloads extends StatelessWidget {
       isApprovedAndroidDownloadUrl(androidUrl, androidAllowedHosts);
 
   Future<void> _openAndroid(BuildContext context) async {
-    final uri = Uri.tryParse(androidUrl);
+    final uri = Uri.tryParse(androidUrl.trim());
     if (!_androidReady || uri == null) {
       _message(context, 'رابط تنزيل Android غير متاح أو أن نطاقه غير معتمد؛ لن نعرض نسخة تجريبية أو غير موقّعة للتنزيل العام.');
       return;
