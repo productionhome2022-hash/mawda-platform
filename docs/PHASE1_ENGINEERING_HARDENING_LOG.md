@@ -34,3 +34,32 @@ The call-signal reader queried and returned pending SDP/ICE signaling documents 
 **Change:** Updated the member-facing policy text to state one reward per campaign per rolling 24-hour window. No reward amount, budget, campaign status, or live reward behavior was changed.
 
 **Verification:** Source change committed. Flutter widget/analyze CI on the resulting exact head is still required; no UI acceptance is claimed.
+
+## 2026-11-17 — Firebase environment identity validation
+
+**Finding:** The existing CI checks covered the non-production FlutterFire app options through an inline workflow script and production Web identity through a separate validator. The checks were split, so project separation and all registered Web/Android/iOS identities were not verified by one reusable, unit-tested validation path.
+
+**Change:**
+- Consolidated production and non-production Firebase identity validation in `functions/scripts/validate-firebase-config.cjs`.
+- Validates the Firebase CLI default alias remains non-production and the production alias remains the owner-recorded production project.
+- Validates the production Web app ID and project identity.
+- Validates the non-production Web, Android and iOS app IDs, project IDs, sender IDs and Storage bucket identifiers, plus the approved iOS Bundle ID.
+- Rejects a non-production configuration that reuses the production Web App ID or resolves both environments to the same Firebase project.
+- Replaced the duplicated inline Python CI check with the reusable Node validator and added unit tests for mismatched projects, wrong app IDs, missing registrations, placeholder values and iOS Bundle ID drift.
+
+**Exact-head automated verification:**
+- Code commit: `734f76cdd928824ef56225ce5b70ecc1d0108d95`.
+- [Validate Mawda run 44084733601](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/44084733601): **success**, all three jobs passed. This includes the Firebase identity validator, Flutter analysis/tests/Web release build, Cloud Functions compilation/unit tests and configured emulator integration suites, Firestore/Storage rules tests, emulator backup/restore smoke test, scanner container processing tests and EICAR detection.
+- [Mawdda domain regression run 44084733644](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/44084733644): **success**, both backend and Flutter jobs passed.
+- [CodeQL run 44084736734](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/44084736734): **success**.
+- These results are automated CI/emulator evidence on the exact code commit; they do not prove live Firebase/GCP behavior or physical-device acceptance.
+
+**Phase 1 remains OPEN.** The following external/owner-controlled gates are not claimed complete:
+- Web App Check SDK/provider integration and a valid non-production App Check registration/token flow. The approved site key/provider configuration has not been supplied; server enforcement and the empty fail-closed allowlist remain unchanged.
+- Non-production WIF/IAM/Secret Manager configuration and live Cloud Run/GCS scanner E2E. No live cloud resource was created or modified by this change.
+- Real owner UID verification and MFA enrollment/challenge/recovery/revocation on an isolated non-production environment.
+- Live Firebase Auth/provider/domain/email-delivery verification and independent review of the production Storage bucket discrepancy, region, IAM and CORS.
+- Live backup/PITR and recovery acceptance. The passing backup/restore evidence above is emulator-only.
+- Android/iOS physical-device acceptance and independent security/privacy/legal review.
+
+No production Firebase resource, production data, billing setting, `main` branch or deployment was changed.
