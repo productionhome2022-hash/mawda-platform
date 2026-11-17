@@ -9356,16 +9356,28 @@ export const startCall = onCall(async (request) => {
     if (quotaSnapshot.exists && !Array.isArray(storedAttempts)) {
       throw new HttpsError("failed-precondition", "تعذر التحقق من سجل محاولات المكالمات بأمان.");
     }
-    const recentAttempts = (Array.isArray(storedAttempts) ? storedAttempts : [])
-      .filter((attempt: unknown) => {
-        if (!attempt || typeof attempt !== "object") return false;
+    const allAttempts = (Array.isArray(storedAttempts) ? storedAttempts : [])
+      .map((attempt: unknown) => {
+        if (!attempt || typeof attempt !== "object") return null;
         const item = attempt as Record<string, unknown>;
-        return Number.isSafeInteger(item.startedAtMs) &&
-          (item.startedAtMs as number) > now - CALL_QUOTA_WINDOW_MS &&
-          (item.startedAtMs as number) <= now &&
-          (item.mode === "audio" || item.mode === "video") &&
-          typeof item.callId === "string";
-      }) as Array<{ callId: string; mode: "audio" | "video"; startedAtMs: number }>;
+        if (typeof item.callId !== "string" || item.callId.length < 16 ||
+            (item.mode !== "audio" && item.mode !== "video") ||
+            !Number.isSafeInteger(item.startedAtMs) ||
+            (item.startedAtMs as number) < 0 || (item.startedAtMs as number) > now) {
+          return null;
+        }
+        return {
+          callId: item.callId,
+          mode: item.mode,
+          startedAtMs: item.startedAtMs as number,
+        } as { callId: string; mode: "audio" | "video"; startedAtMs: number };
+      });
+    if (allAttempts.some((attempt) => attempt === null)) {
+      throw new HttpsError("failed-precondition", "سجل محاولات المكالمات غير صالح؛ تم إيقاف بدء المكالمة لحماية الحصة.");
+    }
+    const recentAttempts = (allAttempts as Array<{
+      callId: string; mode: "audio" | "video"; startedAtMs: number;
+    }>).filter((attempt) => attempt.startedAtMs > now - CALL_QUOTA_WINDOW_MS);
     const modeAttempts = recentAttempts.filter((attempt) => attempt.mode === input.mode).length;
     const modeLimit = input.mode === "audio" ? CALL_AUDIO_ATTEMPT_LIMIT : CALL_VIDEO_ATTEMPT_LIMIT;
     if (modeAttempts >= modeLimit) {
