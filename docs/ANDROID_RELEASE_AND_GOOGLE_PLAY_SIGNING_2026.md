@@ -64,8 +64,8 @@ This choice must be verified in the actual Play Console before the first rollout
 
 ## 4. Versioning and release order
 
-- Flutter `versionName` and Android `versionCode` come from `pubspec.yaml`; the build pipeline records them.
-- APK and AAB for the same release must use the same version name and version code.
+- Flutter `versionName` and the base Android `versionCode` come from `pubspec.yaml`; the build pipeline records them.
+- The Universal APK and AAB for the same release must use the same version name and base version code. Flutter intentionally adds ABI offsets to split APKs: +1000 for `armeabi-v7a`, +2000 for `arm64-v8a`, and +4000 for `x86_64`; the validator checks each expected value and rejects missing/unknown ABI outputs.
 - Increase the build number for every subsequent release. Before the first Play rollout, ensure the Play AAB's version code is strictly greater than the highest version code already distributed in a public/sideload APK, so it is eligible as an update.
 - Never reuse or decrease a version code already uploaded to Play Console.
 - Test a clean installation and an in-place update over the previously distributed APK on a real Android device, using the exact candidate artifacts.
