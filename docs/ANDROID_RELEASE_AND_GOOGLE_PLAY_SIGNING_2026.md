@@ -43,7 +43,7 @@ Before building, the workflow checks the private-key entry, RSA-2048 public key,
 
 It verifies every APK with `apksigner`, verifies the AAB JAR signature, confirms that all signer fingerprints match the existing Mawdda certificate, and checks the Android package ID on each APK. A separate fail-closed validator now compares every APK's `aapt` package/version metadata and the AAB Gradle `output-metadata.json` against `pubspec.yaml`, validates the AAB ZIP structure and required base manifest, and records the size of each artifact. The workflow also records SHA-256 checksums and build metadata. Temporary signing files are removed at the end of the job.
 
-The workflow uploads a short-lived GitHub Actions artifact for review only. It does **not** publish to the website, a mirror, Google Play, Firebase Hosting or any other production service.
+Before uploading the review artifact, the workflow builds the isolated Mawdda ClamAV scanner image, refreshes its malware signatures, scans all generated APK/AAB archives with bounded archive/file limits, fails on detections or incomplete/over-limit scans, and retains the scan output in release evidence. This scan is an additional release gate; it does not replace live media-scanner acceptance or independent security review.\n\nThe workflow uploads a short-lived GitHub Actions artifact for review only. It does **not** publish to the website, a mirror, Google Play, Firebase Hosting or any other production service.
 
 ## 3. Google Play App Signing and cross-channel updates
 
