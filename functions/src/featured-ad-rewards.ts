@@ -3,7 +3,8 @@ export const FEATURED_AD_REWARD_DEFAULTS = {
   rewardCoinsPerView: 2,
   maxRewardedViewsPerUtcDay: 10,
   maxRewardCoinsPerUtcDay: 20,
-  sameCampaignCooldownMs: 24 * 60 * 60 * 1000,
+  maxRewardsPerCampaignRolling24h: 3,
+  sameCampaignWindowMs: 24 * 60 * 60 * 1000,
   videoCompletionPercent: 90,
   imageContinuousVisibleMs: 10_000,
 } as const;
@@ -13,7 +14,8 @@ export interface FeaturedAdRewardPolicy {
   rewardCoinsPerView: number;
   maxRewardedViewsPerUtcDay: number;
   maxRewardCoinsPerUtcDay: number;
-  sameCampaignCooldownMs: number;
+  maxRewardsPerCampaignRolling24h: number;
+  sameCampaignWindowMs: number;
   videoCompletionPercent: number;
   imageContinuousVisibleMs: number;
 }
@@ -31,7 +33,7 @@ export type FeaturedAdRewardDecision =
         | "completion_not_met"
         | "daily_view_cap"
         | "daily_coin_cap"
-        | "campaign_cooldown";
+        | "campaign_rolling_cap";
     };
 
 function integerInRange(value: unknown, min: number, max: number): value is number {
@@ -47,7 +49,8 @@ export function validateFeaturedAdRewardPolicy(value: unknown): FeaturedAdReward
       !integerInRange(input.rewardCoinsPerView, 0, 100_000) ||
       !integerInRange(input.maxRewardedViewsPerUtcDay, 0, 10_000) ||
       !integerInRange(input.maxRewardCoinsPerUtcDay, 0, 1_000_000) ||
-      !integerInRange(input.sameCampaignCooldownMs, 0, 31 * 24 * 60 * 60 * 1000) ||
+      !integerInRange(input.maxRewardsPerCampaignRolling24h, 1, 1000) ||
+      !integerInRange(input.sameCampaignWindowMs, 1, 31 * 24 * 60 * 60 * 1000) ||
       !integerInRange(input.videoCompletionPercent, 1, 100) ||
       !integerInRange(input.imageContinuousVisibleMs, 1_000, 60 * 60 * 1000) ||
       (input.enabled && (input.rewardCoinsPerView < 1 ||
@@ -60,7 +63,8 @@ export function validateFeaturedAdRewardPolicy(value: unknown): FeaturedAdReward
     rewardCoinsPerView: input.rewardCoinsPerView,
     maxRewardedViewsPerUtcDay: input.maxRewardedViewsPerUtcDay,
     maxRewardCoinsPerUtcDay: input.maxRewardCoinsPerUtcDay,
-    sameCampaignCooldownMs: input.sameCampaignCooldownMs,
+    maxRewardsPerCampaignRolling24h: input.maxRewardsPerCampaignRolling24h,
+    sameCampaignWindowMs: input.sameCampaignWindowMs,
     videoCompletionPercent: input.videoCompletionPercent,
     imageContinuousVisibleMs: input.imageContinuousVisibleMs,
   };
@@ -80,7 +84,7 @@ export interface FeaturedAdRewardEvidence {
   continuousVisibleMs: number;
   rewardedViewsToday: number;
   rewardCoinsToday: number;
-  lastSameCampaignRewardAtMs: number | null;
+  sameCampaignRewardsInWindow: number;
 }
 
 export function decideFeaturedAdReward(
@@ -94,9 +98,7 @@ export function decideFeaturedAdReward(
   if (!Number.isSafeInteger(evidence.nowMs) || evidence.nowMs < 0 ||
       !Number.isSafeInteger(evidence.rewardedViewsToday) || evidence.rewardedViewsToday < 0 ||
       !Number.isSafeInteger(evidence.rewardCoinsToday) || evidence.rewardCoinsToday < 0 ||
-      (evidence.lastSameCampaignRewardAtMs !== null &&
-        (!Number.isSafeInteger(evidence.lastSameCampaignRewardAtMs) ||
-          evidence.lastSameCampaignRewardAtMs < 0))) {
+      !Number.isSafeInteger(evidence.sameCampaignRewardsInWindow) || evidence.sameCampaignRewardsInWindow < 0) {
     throw new Error("FEATURED_AD_REWARD_EVIDENCE_INVALID");
   }
   if (!evidence.campaignEligible) {
@@ -127,9 +129,8 @@ export function decideFeaturedAdReward(
   if (evidence.rewardCoinsToday + policy.rewardCoinsPerView > policy.maxRewardCoinsPerUtcDay) {
     return { eligible: false, amountCoins: 0, reason: "daily_coin_cap" };
   }
-  if (evidence.lastSameCampaignRewardAtMs !== null &&
-      evidence.nowMs - evidence.lastSameCampaignRewardAtMs < policy.sameCampaignCooldownMs) {
-    return { eligible: false, amountCoins: 0, reason: "campaign_cooldown" };
+  if (evidence.sameCampaignRewardsInWindow >= policy.maxRewardsPerCampaignRolling24h) {
+    return { eligible: false, amountCoins: 0, reason: "campaign_rolling_cap" };
   }
   return { eligible: true, amountCoins: policy.rewardCoinsPerView, reason: "qualified" };
 }
