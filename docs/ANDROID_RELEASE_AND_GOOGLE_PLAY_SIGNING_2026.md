@@ -25,7 +25,7 @@ All APK mirrors must distribute the exact same approved APK bytes, not rebuild t
 **Additional production Firebase secret:** `MAWDDA_PRODUCTION_GOOGLE_SERVICES_JSON_B64` — base64 encoding of the actual production Android `google-services.json` downloaded from Firebase Console for project `mawda-app-2026` and package `com.mawdda.platform.app`. The owner provisions it directly in GitHub Actions Secrets; do not paste it into chat or commit it.
 
 
-The manual workflow is `.github/workflows/android-signed-release.yml`. It is restricted to the development branch and requires these GitHub Actions Secrets:
+The manual workflow is `.github/workflows/android-signed-release.yml`. It is restricted to the development branch and checks out the immutable `github.sha` captured by the dispatch event (not the moving branch head), so the CI-tested candidate SHA and artifact source SHA cannot silently diverge. It requires these GitHub Actions Secrets:
 
 - `MAWDDA_IDENTITY_KEY_B64`: base64 encoding of the existing JKS file.
 - `MAWDDA_STORE_PASSWORD`: keystore password.
