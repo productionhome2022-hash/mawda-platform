@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { getFirestore } = require("firebase-admin/firestore");
+const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const {
   startCall, respondToCall, sendCallSignal, getCallSignals, endCall, getActiveCall, getCallIceConfiguration,
 } = require("../../lib/index");
@@ -176,5 +176,53 @@ test("room call signaling is peer-targeted and one member leaving does not end t
       ...[callerUid, firstUid, secondUid].map((memberUid) =>
         db.collection("activeCallMemberLocks").doc(memberUid)),
     ].map((ref) => db.recursiveDelete(ref).catch(() => undefined)));
+  }
+});
+
+test("expired ringing calls never expose stored signaling or ICE configuration", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const memberUid = uid("expired_call_member");
+  const signalsCallId = uid("expired_signals_call");
+  const iceCallId = uid("expired_ice_call");
+  const expiredAt = Timestamp.fromMillis(Date.now() - 1000);
+  const signalsCallRef = db.collection("callSessions").doc(signalsCallId);
+  const iceCallRef = db.collection("callSessions").doc(iceCallId);
+
+  await Promise.all([
+    signalsCallRef.set({
+      callId: signalsCallId, status: "ringing", callerUid: uid("expired_caller"),
+      participantUids: [memberUid], acceptedUids: [], rejectedUids: [], leftUids: [],
+      expiresAt: expiredAt,
+    }),
+    iceCallRef.set({
+      callId: iceCallId, status: "ringing", callerUid: uid("expired_ice_caller"),
+      participantUids: [memberUid], acceptedUids: [], rejectedUids: [], leftUids: [],
+      expiresAt: expiredAt,
+    }),
+    signalsCallRef.collection("signals").doc("expired_signal_fixture").set({
+      senderUid: uid("expired_sender"), recipientUid: memberUid, kind: "offer",
+      payload: JSON.stringify({ type: "offer", sdp: "must-not-be-served" }),
+      sequence: 0, createdAt: Timestamp.now(),
+      expiresAt: Timestamp.fromMillis(Date.now() + 60_000),
+    }),
+  ]);
+
+  try {
+    const result = await getCallSignals.run(call(memberUid, { callId: signalsCallId }));
+    assert.equal(result.status, "missed");
+    assert.deepEqual(result.signals, []);
+    assert.equal((await signalsCallRef.get()).data().status, "missed");
+
+    await assert.rejects(
+      () => getCallIceConfiguration.run(call(memberUid, { callId: iceCallId })),
+      (error) => error && error.code === "deadline-exceeded",
+      "expired ringing calls must not receive fresh ICE configuration",
+    );
+    assert.equal((await iceCallRef.get()).data().status, "missed");
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(signalsCallRef).catch(() => undefined),
+      db.recursiveDelete(iceCallRef).catch(() => undefined),
+    ]);
   }
 });
