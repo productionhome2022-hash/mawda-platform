@@ -50,7 +50,8 @@ jobs:
         if: ${{ always() && steps.install_flutter_dependencies.outcome == 'success' }}
         run: |
           node --check web/install-prompt.js
-          node -e 'const fs=require("node:fs"); const m=JSON.parse(fs.readFileSync("web/manifest.json","utf8")); if(m.name!=="Mawdda Platform 2026" || m.display!=="standalone" || !m.icons?.length) process.exit(1); for (const p of ["web/mawdda-app-icon.svg","web/install-prompt.js"]) if(!fs.existsSync(p)) process.exit(1); console.log("PWA manifest, icon and install prompt validated")'
+          node --check web/firebase-messaging-sw.js
+          node -e 'const fs=require("node:fs"); const m=JSON.parse(fs.readFileSync("web/manifest.json","utf8")); if(m.name!=="Mawdda Platform 2026" || m.display!=="standalone" || !m.icons?.length) process.exit(1); for (const p of ["web/mawdda-app-icon.svg","web/icons/mawdda-192.svg","web/icons/mawdda-512.svg","web/install-prompt.js","web/firebase-messaging-sw.js"]) if(!fs.existsSync(p)) process.exit(1); const sw=fs.readFileSync("web/firebase-messaging-sw.js","utf8"); const icon=sw.match(/icon:\s*['"]([^'"]+)['"]/); if(!icon || !fs.existsSync("web/"+icon[1].replace(/^\\//,""))) throw new Error("Push notification icon is missing"); console.log("PWA manifest, icons, service worker and install prompt validated")'
       - name: Build web release
         id: build_web
         if: ${{ always() && steps.install_flutter_dependencies.outcome == 'success' }}
