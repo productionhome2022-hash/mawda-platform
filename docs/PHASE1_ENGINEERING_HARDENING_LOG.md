@@ -132,3 +132,15 @@ No production Firebase resource, production data, billing setting, `main` branch
 **Verification:** Workflow fix committed as `b7cb42cb46a5d2f945d6c30af8c949f792c8c508`; this evidence entry was then committed as `a43dbb95529ed6b4f38034c72b364e84878ea589`. A fresh exact-head CI run is required for the resulting development head; no passing result is claimed until GitHub Actions completes on that exact SHA.
 
 **Safety:** No application styling, background, brand asset, Firebase resource, production data, billing, deployment, or `main` branch was changed.
+
+## 2026-11-17 — Owner-directed Web-first delivery scope
+
+**Decision applied:** The owner explicitly deferred the separate 5,000-persona load simulation and live call acceptance tests until after the Web launch. Neither is to block current Web engineering completion or the current release candidate.
+
+**CI change:** Removed only the dedicated `test:call-signaling-integration` emulator step from the current validation workflow. The Cloud Functions compile/unit tests, Firestore/Storage rules, media, retention, wallet/store, room rental/events, guest/privacy, safety, and other ordinary regression suites remain enabled. The 5,000-persona load script is not invoked by the current validation workflow; the seeded multi-user wallet regression remains ordinary functional regression and is not represented as a 5,000-persona test.
+
+**Readiness documentation:** Split call implementation requirements from post-launch live acceptance. Server-authoritative signaling, authorization, quota, metering, idempotency and fail-closed controls remain engineering scope; live browser/device call acceptance is deferred. Added a separate explicit note that the 5,000-persona simulation is deferred and not a Web launch gate.
+
+**Commits:** CI scope change `b14d684e45ea31995ec4f35656b44a93f3478536`; call readiness split `da93beedb9381da9c3faafeb90bf1854af05f950`; 5,000-persona deferral `7ebb9a9e23839c37935aa8dbba9bdf7cce230cab`.
+
+**Safety and truthfulness:** This changes the sequencing of acceptance tests only. It does not claim calls are implemented or operational, does not enable call products/billing, and does not waive ordinary backend/security tests. No deployment, production Firebase mutation, billing activation, merge to `main`, or visual identity/background/color change was performed.
