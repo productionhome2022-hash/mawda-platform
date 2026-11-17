@@ -41,7 +41,7 @@ Before building, the workflow checks the private-key entry, RSA-2048 public key,
 2. ABI-specific signed Release APKs.
 3. A signed Release AAB.
 
-It verifies every APK with `apksigner`, verifies the AAB JAR signature, confirms that all signer fingerprints match the existing Mawdda certificate, checks the Android package ID on each APK, and records SHA-256 checksums and build metadata. Temporary signing files are removed at the end of the job.
+It verifies every APK with `apksigner`, verifies the AAB JAR signature, confirms that all signer fingerprints match the existing Mawdda certificate, and checks the Android package ID on each APK. A separate fail-closed validator now compares every APK's `aapt` package/version metadata and the AAB Gradle `output-metadata.json` against `pubspec.yaml`, validates the AAB ZIP structure and required base manifest, and records the size of each artifact. The workflow also records SHA-256 checksums and build metadata. Temporary signing files are removed at the end of the job.
 
 The workflow uploads a short-lived GitHub Actions artifact for review only. It does **not** publish to the website, a mirror, Google Play, Firebase Hosting or any other production service.
 
