@@ -281,71 +281,120 @@ class _RoomsScreenState extends State<RoomsScreen> {
     final capacity = room['capacity'] is num
         ? (room['capacity'] as num).toInt()
         : 0;
+
+    final actions = <Widget>[];
+    if (joined) {
+      if (room['isSuperAdmin'] == true || room['isRoomOwner'] == true) {
+        actions.add(
+          IconButton(
+            tooltip: 'إدارة مشرفي الغرفة',
+            onPressed: () => _openModeration(room),
+            icon: const Icon(Icons.admin_panel_settings_outlined),
+          ),
+        );
+      }
+      if (room['isRoomOwner'] == true) {
+        actions.add(
+          PopupMenuButton<String>(
+            tooltip: 'خيارات الغرفة',
+            onSelected: (value) {
+              if (value == 'guest-audience') _enableGuestAudience(room);
+              if (value == 'renew') _renewRoom(room);
+              if (value == 'transfer') _transferRoom(room);
+              if (value == 'close') _closeRoom(room);
+            },
+            itemBuilder: (_) => [
+              if (room['kind'] == 'public' && room['audience'] != 'all_ages')
+                const PopupMenuItem(
+                  value: 'guest-audience',
+                  child: Text('إتاحة للزوار (جميع الأعمار)'),
+                ),
+              if (room['isRented'] == true)
+                const PopupMenuItem(value: 'renew', child: Text('تجديد الاستئجار')),
+              const PopupMenuItem(value: 'transfer', child: Text('نقل الملكية')),
+              const PopupMenuItem(value: 'close', child: Text('إغلاق الغرفة')),
+            ],
+          ),
+        );
+      } else {
+        actions.add(
+          IconButton(
+            tooltip: 'مغادرة الغرفة',
+            onPressed: () => _leaveRoom(room),
+            icon: const Icon(Icons.logout),
+          ),
+        );
+      }
+      actions.add(
+        IconButton(
+          tooltip: 'فتح الغرفة',
+          onPressed: () => _openRoom(room),
+          icon: const Icon(Icons.arrow_forward_ios),
+        ),
+      );
+    } else {
+      if (room['isSuperAdmin'] == true) {
+        actions.add(
+          IconButton(
+            tooltip: 'إدارة مشرفي الغرفة',
+            onPressed: () => _openModeration(room),
+            icon: const Icon(Icons.admin_panel_settings_outlined),
+          ),
+        );
+      }
+      actions.add(
+        FilledButton(
+          onPressed: _joining ? null : () => _join(room),
+          child: const Text('انضمام'),
+        ),
+      );
+    }
+
+    final summary = ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: CircleAvatar(
+        child: Icon(joined ? Icons.forum_outlined : Icons.meeting_room_outlined),
+      ),
+      title: Text(room['name'] as String? ?? 'غرفة مودة'),
+      subtitle: Text(
+        '${room['kind'] == 'private' ? 'خاصة' : 'عامة'}'
+        ' • الأعضاء: $count${capacity > 0 ? ' / $capacity' : ''}',
+      ),
+    );
+
     return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          child: Icon(joined ? Icons.forum_outlined : Icons.meeting_room_outlined),
-        ),
-        title: Text(room['name'] as String? ?? 'غرفة مودة'),
-        subtitle: Text(
-          '${room['kind'] == 'private' ? 'خاصة' : 'عامة'}'
-          ' • الأعضاء: $count${capacity > 0 ? ' / $capacity' : ''}',
-        ),
-        trailing: joined
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (room['isSuperAdmin'] == true || room['isRoomOwner'] == true)
-                    IconButton(
-                      tooltip: 'إدارة مشرفي الغرفة',
-                      onPressed: () => _openModeration(room),
-                      icon: const Icon(Icons.admin_panel_settings_outlined),
-                    ),
-                  if (room['isRoomOwner'] == true)
-                    PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'guest-audience') _enableGuestAudience(room);
-                        if (value == 'renew') _renewRoom(room);
-                        if (value == 'transfer') _transferRoom(room);
-                        if (value == 'close') _closeRoom(room);
-                      },
-                      itemBuilder: (_) => [
-                        if (room['kind'] == 'public' && room['audience'] != 'all_ages')
-                          const PopupMenuItem(value: 'guest-audience', child: Text('إتاحة للزوار (جميع الأعمار)')),
-                        if (room['isRented'] == true)
-                          const PopupMenuItem(value: 'renew', child: Text('تجديد الاستئجار')),
-                        const PopupMenuItem(value: 'transfer', child: Text('نقل الملكية')),
-                        const PopupMenuItem(value: 'close', child: Text('إغلاق الغرفة')),
-                      ],
-                    )
-                  else
-                    IconButton(
-                      tooltip: 'مغادرة الغرفة',
-                      onPressed: () => _leaveRoom(room),
-                      icon: const Icon(Icons.logout),
-                    ),
-                  IconButton(
-                    tooltip: 'فتح الغرفة',
-                    onPressed: () => _openRoom(room),
-                    icon: const Icon(Icons.arrow_forward_ios),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 520;
+          final actionRow = Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            alignment: WrapAlignment.end,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: actions,
+          );
+          return Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(12, 4, 8, 4),
+            child: compact
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      summary,
+                      Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: actionRow,
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(child: summary),
+                      const SizedBox(width: 12),
+                      actionRow,
+                    ],
                   ),
-                ],
-              )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (room['isSuperAdmin'] == true)
-                    IconButton(
-                      tooltip: 'إدارة مشرفي الغرفة',
-                      onPressed: () => _openModeration(room),
-                      icon: const Icon(Icons.admin_panel_settings_outlined),
-                    ),
-                  FilledButton(
-                    onPressed: _joining ? null : () => _join(room),
-                    child: const Text('انضمام'),
-                  ),
-                ],
-              ),
+          );
+        },
       ),
     );
   }
