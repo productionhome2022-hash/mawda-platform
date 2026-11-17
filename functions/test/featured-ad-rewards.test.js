@@ -18,18 +18,21 @@ const base = {
   continuousVisibleMs: 0,
   rewardedViewsToday: 0,
   rewardCoinsToday: 0,
-  sameCampaignRewardsInWindow: 0,
+  maxRewardedViewsForCampaign: 100,
+  rewardedViewsForCampaign: 0,
 };
 
-test("uses the approved experimental featured-ad reward defaults", () => {
+test("uses editable experimental featured-ad reward defaults", () => {
   assert.deepEqual(policy, FEATURED_AD_REWARD_DEFAULTS);
 });
 
-test("validates and rejects unsafe owner reward policies", () => {
+test("validates owner-configurable reward values", () => {
   assert.equal(validateFeaturedAdRewardPolicy(policy).rewardCoinsPerView, 2);
   assert.throws(() => validateFeaturedAdRewardPolicy({ ...policy, maxRewardCoinsPerUtcDay: 1 }));
   assert.throws(() => validateFeaturedAdRewardPolicy({ ...policy, videoCompletionPercent: 101 }));
-  assert.throws(() => validateFeaturedAdRewardPolicy({ ...policy, maxRewardsPerCampaignRolling24h: 0 }));
+  assert.equal(validateFeaturedAdRewardPolicy({
+    ...policy, maxRewardedViewsPerUtcDay: 100, maxRewardCoinsPerUtcDay: 100_000,
+  }).maxRewardedViewsPerUtcDay, 100);
 });
 
 test("rewards a qualifying visible video once", () => {
@@ -68,20 +71,24 @@ test("enforces continuous visible time for static images", () => {
   }).eligible, true);
 });
 
-test("enforces the daily rewarded-view and coin caps", () => {
+test("enforces global daily view and coin controls", () => {
   assert.equal(decideFeaturedAdReward(policy, { ...base, rewardedViewsToday: 10 }).reason, "daily_view_cap");
   assert.equal(decideFeaturedAdReward(policy, { ...base, rewardCoinsToday: 19 }).reason, "daily_coin_cap");
 });
 
-test("enforces the approved three rewards per campaign in a rolling 24-hour window", () => {
+test("honors the per-campaign repeat count configured by the owner", () => {
   assert.equal(decideFeaturedAdReward(policy, {
-    ...base, sameCampaignRewardsInWindow: 2,
+    ...base, maxRewardedViewsForCampaign: 100, rewardedViewsForCampaign: 99,
   }).eligible, true);
   assert.equal(decideFeaturedAdReward(policy, {
-    ...base, sameCampaignRewardsInWindow: 3,
-  }).reason, "campaign_rolling_cap");
+    ...base, maxRewardedViewsForCampaign: 100, rewardedViewsForCampaign: 100,
+  }).reason, "campaign_view_cap");
+  assert.equal(decideFeaturedAdReward(policy, {
+    ...base, maxRewardedViewsForCampaign: 3, rewardedViewsForCampaign: 3,
+  }).reason, "campaign_view_cap");
 });
 
 test("rejects invalid server evidence rather than granting a reward", () => {
   assert.throws(() => decideFeaturedAdReward(policy, { ...base, rewardedViewsToday: -1 }));
+  assert.throws(() => decideFeaturedAdReward(policy, { ...base, maxRewardedViewsForCampaign: 0 }));
 });
