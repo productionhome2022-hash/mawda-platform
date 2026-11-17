@@ -8,6 +8,7 @@ const {
   setTimedAdCampaign,
   setTimedAdCampaignStatus,
   getActiveTimedAdCampaigns,
+  getRewardCenter,
   startTimedAdvertisement,
   getActiveTimedAdSession,
   getTimedAdCreativeUrl,
@@ -495,7 +496,7 @@ test("distinct member/campaign pairs with colliding legacy IDs keep independent 
 });
 
 
-test("active reward-ad discovery filters expired campaigns before applying its result limit", async () => {
+test("active reward-ad discovery endpoints filter expired campaigns before applying their result limits", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = suffix();
   const uid = `ad_discovery_member_${tag}`;
@@ -518,6 +519,8 @@ test("active reward-ad discovery filters expired campaigns before applying its r
     ]);
     const result = await getActiveTimedAdCampaigns.run(memberRequest(uid));
     assert.equal(result.campaigns.some((campaign) => campaign.campaignId === eligibleCampaign.id), true);
+    const rewardCenter = await getRewardCenter.run(memberRequest(uid));
+    assert.equal(rewardCenter.activeCampaigns.some((campaign) => campaign.campaignId === eligibleCampaign.id), true);
   } finally {
     await Promise.all([
       userRef.delete().catch(() => undefined),

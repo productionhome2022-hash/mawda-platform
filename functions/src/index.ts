@@ -8123,7 +8123,12 @@ export const getRewardCenter = onCall(async (request) => {
     db.collection("attendanceRewardClaims").doc(`${uid}_hourly_${periods.hourly}`).get(),
     db.collection("attendanceRewardClaims").doc(`${uid}_daily_${periods.daily}`).get(),
     db.collection("attendanceRewardClaims").doc(`${uid}_weekly_${periods.weekly}`).get(),
-    db.collection("timedAdCampaigns").where("status", "==", "published").limit(100).get(),
+    db.collection("timedAdCampaigns")
+      .where("status", "==", "published")
+      .where("placement", "==", "reward_center")
+      .where("startsAtMs", "<=", now)
+      .where("endsAtMs", ">", now)
+      .limit(100).get(),
   ]);
   const claims = { hourly: hourly.exists, daily: daily.exists, weekly: weekly.exists };
   return {
