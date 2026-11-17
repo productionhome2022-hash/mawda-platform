@@ -212,7 +212,7 @@ class FeaturedAdRewardsScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   const Text('2 كوين لكل مشاهدة مؤهلة.'),
                   const Text('حتى 10 مشاهدات مكافأة و20 كويناً في يوم UTC الواحد.'),
-                  const Text('الحملة نفسها: مكافأة واحدة فقط خلال نافذة 24 ساعة متحركة.'),
+                  const Text('الحملة نفسها: حتى 3 مكافآت لكل عضو خلال نافذة 24 ساعة متحركة.'),
                   const Text('هذه الحدود لا تُعد مفعّلة حتى يثبت تطبيقها واختبارها خادمياً.'),
                   const SizedBox(height: 8),
                   const Text(
