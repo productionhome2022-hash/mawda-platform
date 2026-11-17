@@ -11,7 +11,7 @@ if (firebase.apps.length > 0 && firebase.messaging) {
       const title = payload.notification?.title || 'إشعار جديد من مودة';
       const options = {
         body: payload.notification?.body || 'لديك تحديث جديد. افتح مودة لمتابعته.',
-        icon: '/icons/Icon-192.png',
+        icon: '/icons/mawdda-192.svg',
         data: payload.data || {},
         tag: payload.data?.messageId || payload.data?.roomId || 'mawda-notification',
         renotify: false,
