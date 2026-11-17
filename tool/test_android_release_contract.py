@@ -22,7 +22,7 @@ class AndroidReleaseContractTests(unittest.TestCase):
         self.assertIn("mawdda-universal-release.apk", WORKFLOW)
 
     def test_both_artifact_types_are_verified_against_the_owner_certificate(self):
-        self.assertIn("apksigner verify --verbose", WORKFLOW)
+        self.assertIn('"$APKSIGNER" verify --verbose', WORKFLOW)
         self.assertIn("jarsigner -verify -verbose -certs", WORKFLOW)
         self.assertIn("keytool -printcert -jarfile", WORKFLOW)
         self.assertIn("21:F9:E6:01:80:E2:03:8D:DD:57:4E:DC:F1:2A:63:4B:C6:25:D9:BA:3F:65:53:B2:9D:61:70:62:C6:36:84:56", WORKFLOW)
