@@ -9267,7 +9267,7 @@ async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<
         transaction.delete(lockRef);
       }
     });
-    return "ended";
+    return "duration_expired";
   });
 }
 
@@ -9594,7 +9594,7 @@ export const sendCallSignal = onCall(async (request) => {
   }
   const ref = CALL_SESSIONS.doc(callId);
   const currentStatus = await expireCallIfDurationElapsed(ref);
-  if (currentStatus === "ended") throw new HttpsError("deadline-exceeded", "انتهت مدة المكالمة القصوى.");
+  if (currentStatus === "duration_expired") throw new HttpsError("deadline-exceeded", "انتهت مدة المكالمة القصوى.");
   const streamId = createHash("sha256").update(uid + ":" + toUid).digest("hex");
   const signalRef = ref.collection("signals").doc(streamId + "_" + signal.sequence);
   await db.runTransaction(async (transaction) => {
