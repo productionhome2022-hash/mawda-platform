@@ -226,3 +226,86 @@ test("expired ringing calls never expose stored signaling or ICE configuration",
     ]);
   }
 });
+
+
+test("server enforces rolling audio and video attempt quotas without charging retries", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const callerUid = uid("call_quota_caller");
+  const calleeUid = uid("call_quota_callee");
+  const chatId = uid("call_quota_chat");
+  const firstCallId = uid("call_quota_first");
+  const callerRef = db.collection("users").doc(callerUid);
+  const calleeRef = db.collection("users").doc(calleeUid);
+  const chatRef = db.collection("directChats").doc(chatId);
+  const quotaRef = db.collection("callQuotaWindows").doc(callerUid);
+  const callRef = db.collection("callSessions").doc(firstCallId);
+  const now = Date.now();
+
+  await Promise.all([
+    callerRef.set({ profileCompleted: true, accountStatus: "active", age: 29 }),
+    calleeRef.set({ profileCompleted: true, accountStatus: "active", age: 31 }),
+    chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
+    quotaRef.set({
+      attempts: [
+        ...Array.from({ length: 4 }, (_, index) => ({
+          callId: uid("prior_audio"),
+          mode: "audio",
+          startedAtMs: now - (index + 1) * 60_000,
+        })),
+        ...Array.from({ length: 3 }, (_, index) => ({
+          callId: uid("prior_video"),
+          mode: "video",
+          startedAtMs: now - (index + 1) * 60_000,
+        })),
+        {
+          callId: uid("expired_audio"),
+          mode: "audio",
+          startedAtMs: now - 24 * 60 * 60 * 1000 - 1,
+        },
+      ],
+    }),
+  ]);
+
+  try {
+    const started = await startCall.run(call(callerUid, {
+      callId: firstCallId, scope: "direct", targetId: chatId, mode: "audio",
+    }));
+    assert.equal(started.status, "ringing");
+    const replay = await startCall.run(call(callerUid, {
+      callId: firstCallId, scope: "direct", targetId: chatId, mode: "audio",
+    }));
+    assert.equal(replay.idempotentReplay, true);
+
+    const afterStart = (await quotaRef.get()).data().attempts;
+    assert.equal(afterStart.length, 8, "expired attempts are pruned and the idempotent replay is not charged twice");
+    assert.equal(afterStart.filter((attempt) => attempt.mode === "audio").length, 5);
+    assert.equal(afterStart.filter((attempt) => attempt.mode === "video").length, 3);
+
+    await assert.rejects(
+      () => startCall.run(call(callerUid, {
+        callId: uid("audio_over_limit"), scope: "direct", targetId: chatId, mode: "audio",
+      })),
+      (error) => error && error.code === "resource-exhausted",
+      "a sixth audio attempt inside the rolling 24-hour window must be rejected",
+    );
+
+    await endCall.run(call(callerUid, { callId: firstCallId }));
+    await assert.rejects(
+      () => startCall.run(call(callerUid, {
+        callId: uid("video_over_limit"), scope: "direct", targetId: chatId, mode: "video",
+      })),
+      (error) => error && error.code === "resource-exhausted",
+      "a fourth video attempt inside the rolling 24-hour window must be rejected",
+    );
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(callRef).catch(() => undefined),
+      db.recursiveDelete(callerRef).catch(() => undefined),
+      db.recursiveDelete(calleeRef).catch(() => undefined),
+      db.recursiveDelete(chatRef).catch(() => undefined),
+      db.recursiveDelete(quotaRef).catch(() => undefined),
+      db.recursiveDelete(db.collection("activeCallMemberLocks").doc(callerUid)).catch(() => undefined),
+      db.recursiveDelete(db.collection("activeCallMemberLocks").doc(calleeUid)).catch(() => undefined),
+    ]);
+  }
+});
