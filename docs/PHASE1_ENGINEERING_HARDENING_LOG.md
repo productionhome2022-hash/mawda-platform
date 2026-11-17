@@ -122,3 +122,13 @@ No production Firebase resource, production data, billing setting, `main` branch
 **Still open:** live PWA install/notification smoke tests require an approved reachable deployment and owner-provided web push configuration. Production candidate CI must pass on the exact latest SHA. Real-browser and physical-device acceptance remain outstanding. This log does not authorize deployment, production Firebase changes, billing, merge to `main`, or any visual identity/background/color changes.
 
 **Phase 1 remains OPEN.**
+
+## 2026-11-17 — PWA CI validator shell-quoting correction
+
+**Finding:** On commit `0e3a8898fd93b37f93960b64fff9e907e3086cf6`, the `Validate Mawda` workflow's Flutter job failed only at `Validate desktop install experience assets`. The inline `node -e` program contained shell-sensitive quote/parenthesis sequences and Bash rejected the generated command before Node executed. Flutter analysis, Flutter tests, non-production Web build, production-configured Web candidate build, Cloud Functions/emulator suites and scanner tests completed successfully in their respective jobs; the overall validation was therefore not green.
+
+**Change:** Replaced the fragile inline JavaScript command with a quoted Node heredoc in `.github/workflows/validate.yml`. The check still validates the PWA manifest identity/display/icons, all required local assets, service-worker syntax, install-prompt syntax, and the notification icon target. The change does not weaken or skip any validation.
+
+**Verification:** Fix committed to the development branch as `b7cb42cb46a5d2f945d6c30af8c949f792c8c508`. A fresh exact-head CI run is required; no passing result is claimed until GitHub Actions completes on this commit.
+
+**Safety:** No application styling, background, brand asset, Firebase resource, production data, billing, deployment, or `main` branch was changed.
