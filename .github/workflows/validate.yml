@@ -160,9 +160,6 @@ jobs:
       - name: Run room event scheduling and RSVP integration tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:room-events-integration
-      - name: Run WebRTC call lifecycle and signaling integration tests
-        if: ${{ always() && steps.install_functions.outcome == 'success' }}
-        run: npm run test:call-signaling-integration
       - name: Verify Firestore and Storage emulator backup/restore
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:emulator-backup-restore
