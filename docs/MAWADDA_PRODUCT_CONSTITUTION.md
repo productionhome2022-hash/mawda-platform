@@ -619,3 +619,15 @@ This amendment records the owner's explicit launch decision and is binding over 
 - **Cloud and spending:** no Blaze activation, paid cloud service, paid domain, new subscription, production Firebase mutation, or deployment without a separate explicit owner approval after cost/eligibility review. Do not use fictitious offices, addresses, billing countries or proxy identities.
 - **Release status:** this amendment and source-level URL allow-list checks do not constitute a public release. Signed build, owner-key backup, CI, physical-device install/update, PWA browser, security, rollback and explicit publication gates remain mandatory.
 
+
+
+## 21. ملحق Android — تجهيز APK وAAB وتوافق مفتاح Google Play (اعتماد المالك، 17 نوفمبر 2026)
+
+- يجب تجهيز APK للتوزيع المباشر وAAB لمسار Google Play معاً منذ الآن، وبناء الحزم من الالتزام نفسه وبـ Application ID `com.mawdda.platform.app` وهوية توقيع Mawdda الأصلية.
+- ينتج خط الإصدار Universal APK سهلة التنزيل وملفات ABI اختيارية وAAB موقّعة. AAB مخصصة للرفع إلى Google Play وليست بديلاً عن APK للتثبيت الجانبي.
+- يجب التحقق من توقيع كل APK بـ `apksigner`، وتوقيع AAB وشهادتها، ومطابقة بصمة الشهادة المتوقعة، وتسجيل SHA-256 وبيانات الإصدار قبل اعتماد أي حزمة.
+- لضمان تحديث نسخ APK المثبتة من الموقع/المرايا إلى نسخة Google Play، يجب اختيار مفتاح Mawdda الأصلي نفسه كمفتاح App signing key عند إعداد Play App Signing. لا يكفي استخدامه كمفتاح Upload key إذا كان Play سيوقع APK الموزعة بمفتاح آخر. أي اختيار مختلف يتطلب خطة ترحيل واختبارات توافق وموافقة المالك قبل النشر.
+- لا يجوز توزيع APK غير موقعة أو Debug أو موقعة بمفتاح بديل على أنها إصدار رسمي. يجب أن تنشر المرايا المعتمدة الملف نفسه تماماً وبـ SHA-256 نفسه.
+- تظل أسرار JKS وكلمات المرور تحت سيطرة المالك ولا توضع في Git أو المحادثة أو artifacts عامة. خط البناء اليدوي لا يرفع إلى Google Play أو الموقع ولا ينفذ نشراً إنتاجياً.
+- تجهيز AAB أو نجاح CI لا يعني التسجيل في Play Console أو دفع رسومه أو رفع الحزمة أو إرسالها للمراجعة أو نشرها؛ كل ذلك يحتاج موافقة مستقلة. تظل أهلية الكيان والبلد ومتطلبات Play Console وسياساته بوابة منفصلة.
+- مرجع الإجراءات والقبول: [دليل بناء Android والتوقيع وGoogle Play](ANDROID_RELEASE_AND_GOOGLE_PLAY_SIGNING_2026.md).

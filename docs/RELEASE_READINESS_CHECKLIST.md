@@ -66,8 +66,11 @@ This checklist is a release gate, not a statement that the listed work is comple
 ## 6. Cross-platform release verification
 
 - [x] CI generated and built an Android debug APK on run `43603789539`.
-- [ ] Android release: build optimized ABI-specific APKs with the owner's existing keystore; verify every signer certificate SHA-256 against the recorded identity; verify APK hashes; install/update on physical Android phones and tablets; test sign-in, core workflows, microphone, push, portrait and landscape. The Debug APK is not a public release.
+- [ ] Android release: build a universal APK plus ABI-specific APKs and a signed AAB from the same immutable SHA using the owner's existing keystore; verify every APK with apksigner, the AAB signature, and the matching owner certificate SHA-256; record hashes/version/package identity; install/update on physical Android phones and tablets; test sign-in, core workflows, microphone, push, portrait and landscape. The Debug APK is not a public release.
+- [ ] Google Play App Signing continuity: before Play rollout, explicitly select the existing Mawdda key as the app-signing key if direct-installed APK users must update through Play; verify the Play Console app-signing certificate. Do not treat the upload key as interchangeable with the app-signing key.
+- [ ] Increase Android versionCode for each release; before first Play rollout, use a versionCode greater than the highest APK already distributed outside Play. APK and AAB for the same release must share the same versionCode.
 - [ ] Android APK download link remains disabled until the signed Release artifact is verified and explicitly approved for experimental distribution.
+- [ ] Publish no AAB as a sideload download; retain AAB for the separately approved Google Play submission path only.
 - [ ] Public pre-authentication portal: show Android APK, desktop PWA install, and iOS coming-soon option before sign-in/registration; no iOS native download URL.
 - [ ] Desktop PWA: verify install prompt/event, browser-menu fallback, standalone launch, app icon, update flow, offline shell, and responsive layouts on current Chrome/Edge/Firefox/Safari across Windows/macOS/Linux where supported. Distinguish installable PWA from a browser bookmark/shortcut.
 - [ ] Mobile web/PWA: verify Android browser installation and iPhone/iPad Safari Add to Home Screen guidance; verify touch, safe areas, portrait/landscape, responsive breakpoints and keyboard/screen-reader behavior.
