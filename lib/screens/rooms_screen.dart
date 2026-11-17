@@ -408,8 +408,12 @@ class _RoomsScreenState extends State<RoomsScreen> {
               .whereType<Map>()
               .map((room) => Map<String, dynamic>.from(room))
               .toList();
-          return ListView(
-            padding: const EdgeInsets.all(16),
+          return Align(
+            alignment: AlignmentDirectional.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1120),
+              child: ListView(
+                padding: const EdgeInsets.all(16),
             children: [
               Row(
                 children: [
@@ -439,7 +443,9 @@ class _RoomsScreenState extends State<RoomsScreen> {
                 )
               else
                 ...discoverable.map((room) => _roomCard(room, joined: false)),
-            ],
+                ],
+              ),
+            ),
           );
         },
       ),
