@@ -93,3 +93,32 @@ No production Firebase resource, production data, billing setting, `main` branch
 - Reviewing Flutter's official Android release guidance showed that split APKs intentionally use ABI-specific version codes: base +1000 for `armeabi-v7a`, +2000 for `arm64-v8a`, and +4000 for `x86_64` (the x86 offset remains reserved).
 - Updated the validator and tests to require the Universal APK plus all three expected ABI APKs, verify each package/version tuple with the correct offset, and ensure unique split version codes. The AAB and Universal APK remain on the same base version code.
 - Reference: [Flutter — Build and release an Android app](https://docs.flutter.dev/deployment/android).
+
+## 2026-11-17 — Web/PWA notification, member-home and release-candidate hardening
+
+**Scope:** development branch only: `codex/mawda-full-platform-implementation`.
+
+**Changes:**
+- Corrected the web push notification icon path and expanded CI checks for the PWA manifest, required icon assets, install prompt and Firebase messaging service worker.
+- Removed the duplicate authenticated FCM bootstrap from `AuthGate`; the member home remains the single owner of the push-notification lifecycle. Opened push notifications now route to the notification center, while incoming-call notifications retain their dedicated routing.
+- Removed the second push initialization from member-profile refresh, avoiding concurrent/redundant token registration and listener replacement when profile completion refreshes the home screen.
+- Made the completed-member home panel scrollable so its existing functional shortcuts remain reachable on short mobile and desktop browser viewports. No colors, backgrounds, visual identity assets or theme styling were changed.
+- Added a production-configured Web release-candidate build and artifact to CI. The workflow passes the exact `MAWDDA_FIREBASE_ENV=production` define consumed by `lib/main.dart`; this is build-only and does not deploy or contact production services.
+
+**Commits on development branch:**
+- `4088e97d2cb62d3cf6c9115659294cbe437a7b1b` — web push icon path.
+- `a50d205397b755997bb7a08e88616fa19970c257` — PWA asset validation.
+- `73b95606c09a73989b7f297b56071a336290cb1f` — push-open routing.
+- `6aa25845890cc7c2b18ec95c62ff3df453cbe033` — remove duplicate AuthGate push bootstrap.
+- `08a1bea61ee9060239a441d9a0b75d5795d6eec2` — production Web candidate build.
+- `84c2b2d80831c239a05b57166ea2b96309ee5f9b` — member-home scroll and push lifecycle cleanup.
+- `d69c722d7bf5642e14897fb96e24adbeb941cb32` — correct production Firebase environment define.
+
+**Automated verification:**
+- Mawdda domain regression run `44165195670` on `08a1bea61ee9060239a441d9a0b75d5795d6eec2`: **success** (Flutter analysis/widget tests and retention/room reservation emulator regression).
+- Validation and domain runs for latest commit `d69c722d7bf5642e14897fb96e24adbeb941cb32` were queued when this entry was written; no passing result is claimed for that exact SHA yet.
+- Earlier runs were cancelled by newer branch pushes and are not treated as acceptance evidence.
+
+**Still open:** live PWA install/notification smoke tests require an approved reachable deployment and owner-provided web push configuration. Production candidate CI must pass on the exact latest SHA. Real-browser and physical-device acceptance remain outstanding. This log does not authorize deployment, production Firebase changes, billing, merge to `main`, or any visual identity/background/color changes.
+
+**Phase 1 remains OPEN.**
