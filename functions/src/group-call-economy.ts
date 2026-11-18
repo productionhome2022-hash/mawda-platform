@@ -45,8 +45,9 @@ export function getGroupCallRate(policyInput: unknown, mode: GroupCallMode): num
 }
 
 /**
- * Splits one owner-priced billing slice into integer wallet debits.
- * The initiator absorbs the remainder; the sum is always exact.
+ * Splits one owner-priced call cost as evenly as integer coins permit.
+ * Remainder coins are assigned one each in stable UID order, never based on
+ * join time or initiator status. The sum is always exact and deterministic.
  */
 export function calculateGroupCallCoinShares(
   totalAmount: number,
@@ -62,11 +63,12 @@ export function calculateGroupCallCoinShares(
       !participantUids.includes(initiatorUid) || participantUids.length > totalAmount) {
     throw new Error("INVALID_GROUP_CALL_SETTLEMENT_INPUT");
   }
-  const baseShare = Math.floor(totalAmount / participantUids.length);
-  const initiatorShare = totalAmount - baseShare * (participantUids.length - 1);
-  return participantUids.map((uid) => ({
-    uid, amount: uid === initiatorUid ? initiatorShare : baseShare,
-  })).sort((a, b) => a.uid.localeCompare(b.uid));
+  const orderedUids = [...participantUids].sort((a, b) => a.localeCompare(b));
+  const baseShare = Math.floor(totalAmount / orderedUids.length);
+  const remainder = totalAmount % orderedUids.length;
+  return orderedUids.map((uid, index) => ({
+    uid, amount: baseShare + (index < remainder ? 1 : 0),
+  }));
 }
 
 /** One settlement unit is one owner-configured minute for the actual active set. */
