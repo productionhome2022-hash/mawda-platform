@@ -174,7 +174,7 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
                   status == 'payment_instructions_sent' ||
                   status == 'awaiting_payment_verification')
                 Wrap(spacing: 8, children: [
-                  if (status == 'pending_owner_contact' || status == 'payment_instructions_sent')
+                  if (status == 'pending_owner_contact')
                     OutlinedButton(onPressed: _busy ? null : () => _instructions(item),
                       child: const Text('إرسال/تعديل تعليمات الدفع')),
                   if (status == 'payment_instructions_sent' ||
