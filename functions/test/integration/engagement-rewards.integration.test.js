@@ -635,6 +635,9 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
     await db.collection("mediaAssets").doc(mediaId).set({
       ownerUid: ownerUid, uploaderRole: "platform_owner", mediaPurpose: "advertisement",
       status: "security_approved", mediaCategory: "image",
+      safePreviewPath: `processed/${ownerUid}/fixture-media-${tag}/preview.webp`,
+      safePreviewGeneration: "1", safePreviewSha256: "a".repeat(64),
+      safePreviewContentType: "image/webp", processingStatus: "safe_raster_derivative_ready",
     });
     const created = await setOwnerFeaturedAdCampaign.run(ownerRequest({
       title: "CI Featured Campaign", sponsorLabel: "CI", body: "Synthetic featured campaign fixture",
