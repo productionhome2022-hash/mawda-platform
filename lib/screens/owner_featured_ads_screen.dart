@@ -228,8 +228,8 @@ class _OwnerFeaturedAdsScreenState extends State<OwnerFeaturedAdsScreen> {
               decoration: const InputDecoration(labelText: 'المبلغ بأصغر وحدة للعملة (minor units)')),
             if (!isReview) TextField(controller: currency, textCapitalization: TextCapitalization.characters,
               decoration: const InputDecoration(labelText: 'رمز العملة ISO 4217')),
-            if (!isReview) TextField(controller: external,
-              decoration: const InputDecoration(labelText: 'مرجع العملية الخارجية')),
+            TextField(controller: external,
+              decoration: InputDecoration(labelText: isReview ? 'مرجع المراجعة / القضية' : 'مرجع العملية الخارجية')),
             if (isRefund || action == 'payment_received') TextField(controller: evidence,
               decoration: const InputDecoration(labelText: 'مرجع الإثبات الآمن')),
             if (isReview) DropdownButtonFormField<String>(
@@ -252,7 +252,10 @@ class _OwnerFeaturedAdsScreenState extends State<OwnerFeaturedAdsScreen> {
         ],
       )),
     );
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      amount.dispose(); currency.dispose(); external.dispose(); evidence.dispose(); note.dispose();
+      return;
+    }
     setState(() { _saving = true; _error = null; });
     try {
       await _functions.httpsCallable('recordFeaturedAdFinancialEvent').call({
