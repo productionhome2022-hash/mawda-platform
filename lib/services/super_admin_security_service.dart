@@ -66,6 +66,7 @@ class SuperAdminSecurityService {
     required int sortOrder,
     required bool active,
     required bool purchaseEnabled,
+    required int expectedVersion,
   }) async {
     await _functions.httpsCallable('setStoreCatalogItem').call({
       'itemId': itemId,
@@ -77,6 +78,7 @@ class SuperAdminSecurityService {
       'sortOrder': sortOrder,
       'active': active,
       'purchaseEnabled': purchaseEnabled,
+      'expectedVersion': expectedVersion,
     });
   }
 
