@@ -21,10 +21,10 @@ test("creates deterministic owner-duration cycle bound to normalized email", () 
 
 test("rejects invalid identity, email, sequence and server clock", () => {
   for (const input of [
-    { uid: "", email: "a@b.com", sequence: 1, serverNowMs: NOW },
-    { uid: "u", email: "not-an-email", sequence: 1, serverNowMs: NOW },
-    { uid: "u", email: "a@b.com", sequence: 0, serverNowMs: NOW },
-    { uid: "u", email: "a@b.com", sequence: 1, serverNowMs: -1 },
+    { uid: "", email: "a@b.com", sequence: 1, serverNowMs: NOW, cycleDays: 90 },
+    { uid: "u", email: "not-an-email", sequence: 1, serverNowMs: NOW, cycleDays: 90 },
+    { uid: "u", email: "a@b.com", sequence: 0, serverNowMs: NOW, cycleDays: 90 },
+    { uid: "u", email: "a@b.com", sequence: 1, serverNowMs: -1, cycleDays: 90 },
   ]) assert.throws(() => createEmailVerificationCycle(input));
 });
 
@@ -49,7 +49,7 @@ test("reward requires pending cycle, verified Auth state, unchanged email and un
 
 test("cycle-specific ledger identity prevents reward collisions and validates ids", () => {
   const cycle = createEmailVerificationCycle({
-    uid: "member-1", email: "member@example.com", sequence: 1, serverNowMs: NOW,
+    uid: "member-1", email: "member@example.com", sequence: 1, serverNowMs: NOW, cycleDays: 90,
   });
   assert.equal(emailVerificationRewardLedgerId(cycle.cycleId), "email_verification_" + cycle.cycleId);
   assert.throws(() => emailVerificationRewardLedgerId("bad-id"));
