@@ -98,7 +98,7 @@ class _MemberEntitlementHistoryScreenState
                 children: [
                   const Text(
                     'يعرض هذا السجل الهدايا التي اشتراها الأعضاء لك والمنح الإدارية المجانية. '
-                    'الهدايا مدفوعة من المرسل، أما المنح الإدارية فلا تخصم كوينز من حسابك.',
+                    'الهدايا مدفوعة من المرسل، أما المنح الإدارية فلا تخصم BetaCoins من حسابك.',
                   ),
                   const SizedBox(height: 12),
                   if (_error != null)
