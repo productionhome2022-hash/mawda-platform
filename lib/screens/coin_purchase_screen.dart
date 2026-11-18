@@ -134,7 +134,9 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
               (item['packageSnapshot'] is Map ? item['packageSnapshot']['coins'] : null) ?? 'قيد التحديد';
           return Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(
             crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('الكمية: ' + coins.toString() + ' كوين'),
+              Text('الكمية: ' + coins.toString() + ' Beta Coins'),
+              if (item['giftRecipientUid'] is String)
+                const Text('هذا الطلب لشراء باقة كهدية؛ ستصل الكوينز إلى العضو المستلم بعد اعتماد المالك.'),
               Text(_status(status)),
               if (item['agreedPriceMinor'] is num)
                 Text('السعر المتفق عليه: ' +
