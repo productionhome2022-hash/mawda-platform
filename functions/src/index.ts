@@ -294,7 +294,7 @@ function readSafeInteger(value: unknown, field: string): number {
 }
 
 /**
- * تحويل ذري للكوينز:
+ * تحويل ذري للBetaCoins:
  * - يخصم المبلغ الإجمالي من المرسل.
  * - يضيف صافي المبلغ للمستلم.
  * - يسجل عمولة المنصة في دفتر مستقل.
@@ -330,7 +330,7 @@ export const transferCoins = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "معرف المستلم غير صالح.");
   }
   if (recipientUid === senderUid) {
-    throw new HttpsError("failed-precondition", "لا يمكن تحويل الكوينز إلى حسابك نفسه.");
+    throw new HttpsError("failed-precondition", "لا يمكن تحويل الBetaCoins إلى حسابك نفسه.");
   }
   if (amount <= 0) {
     throw new HttpsError("invalid-argument", "يجب أن يكون مبلغ التحويل أكبر من صفر.");
@@ -402,7 +402,7 @@ export const transferCoins = onCall(async (request) => {
     const recipientData = recipientSnapshot.data()!;
     if (!isMemberAccountInGoodStanding(senderData) ||
         !isMemberAccountInGoodStanding(recipientData)) {
-      throw new HttpsError("permission-denied", "حالة أحد الحسابين لا تسمح بإجراء تحويل الكوينز حالياً.");
+      throw new HttpsError("permission-denied", "حالة أحد الحسابين لا تسمح بإجراء تحويل الBetaCoins حالياً.");
     }
     const senderBalance = readSafeInteger(senderData.coins ?? 0, "sender.coins");
     const recipientBalance = readSafeInteger(recipientData.coins ?? 0, "recipient.coins");
@@ -411,7 +411,7 @@ export const transferCoins = onCall(async (request) => {
     }
 
     if (senderBalance < amount) {
-      throw new HttpsError("failed-precondition", "رصيدك من الكوينز غير كافٍ.");
+      throw new HttpsError("failed-precondition", "رصيدك من الBetaCoins غير كافٍ.");
     }
 
     // Basis points: 2,000 = 20%. Exact integer arithmetic avoids floating-point drift.
@@ -2040,7 +2040,7 @@ export const completeBiometricVerificationCycle = onCall(async (request) => {
   requireAuthenticatedUid(request.auth?.uid);
   throw new HttpsError(
     "failed-precondition",
-    "مكافأة التوثيق البيومتري معلّقة مؤقتاً حتى اكتمال التحقق التشفيري المرتبط بالجهاز. نجاح نافذة النظام وحده لا يكفي لمنح الكوينز.",
+    "مكافأة التوثيق البيومتري معلّقة مؤقتاً حتى اكتمال التحقق التشفيري المرتبط بالجهاز. نجاح نافذة النظام وحده لا يكفي لمنح الBetaCoins.",
   );
 });
 
@@ -6396,7 +6396,7 @@ export const purchaseStoreItem = onCall(async (request) => {
     const currentBalance = memberData.coins ?? 0;
     const newBalance = calculateStorePurchaseBalance(currentBalance, item.priceCoins);
     if (newBalance === null) {
-      throw new HttpsError("failed-precondition", "رصيد الكوينز غير كافٍ أو يحتوي على قيمة غير صالحة.");
+      throw new HttpsError("failed-precondition", "رصيد الBetaCoins غير كافٍ أو يحتوي على قيمة غير صالحة.");
     }
 
     const createdAt = FieldValue.serverTimestamp();
@@ -6596,7 +6596,7 @@ export const giftStoreItem = onCall(async (request) => {
     const senderData = sender.data() ?? {};
     const newBalance = calculateStorePurchaseBalance(senderData.coins ?? 0, item.priceCoins);
     if (newBalance === null) {
-      throw new HttpsError("failed-precondition", "رصيد Beta Coins غير كافٍ أو غير صالح.");
+      throw new HttpsError("failed-precondition", "رصيد BetaCoins غير كافٍ أو غير صالح.");
     }
 
     const nowMs = Date.now();
@@ -7126,7 +7126,7 @@ export const createRentedRoom = onCall(async (request) => {
     }
     const userData = user.data()!;
     const newBalance = calculateRoomRentalBalance(userData.coins ?? 0, plan.priceCoins);
-    if (newBalance === null) throw new HttpsError("failed-precondition", "رصيد الكوينز غير كافٍ للاستئجار.");
+    if (newBalance === null) throw new HttpsError("failed-precondition", "رصيد الBetaCoins غير كافٍ للاستئجار.");
     let audience;
     try { audience = audienceForAge(userData.age); }
     catch { throw new HttpsError("failed-precondition", "أكمل ملفك العمري قبل إنشاء غرفة."); }
@@ -7201,7 +7201,7 @@ export const renewRoomRental = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "تغير سعر التجديد؛ حدّث الأسعار قبل التأكيد.");
     }
     const balance = calculateRoomRentalBalance(user.data()?.coins ?? 0, plan.priceCoins);
-    if (balance === null) throw new HttpsError("failed-precondition", "رصيد الكوينز غير كافٍ للتجديد.");
+    if (balance === null) throw new HttpsError("failed-precondition", "رصيد الBetaCoins غير كافٍ للتجديد.");
     const previousExpiry = room.data()?.expiresAt instanceof Timestamp
       ? room.data()!.expiresAt.toMillis() : nowMs;
     const previousRentalId = room.data()?.rentalId;
@@ -7398,7 +7398,7 @@ export const getAvailableCoinPackages = onCall(async () => {
   if (data.manualCoinPurchasesEnabled === false) return { packages: [], manualPurchasesEnabled: false };
   let packages;
   try { packages = validateCoinPackages(data.coinPackages ?? DEFAULT_COIN_PACKAGES); }
-  catch { throw new HttpsError("failed-precondition", "قائمة باقات الكوينز غير صالحة."); }
+  catch { throw new HttpsError("failed-precondition", "قائمة باقات الBetaCoins غير صالحة."); }
   return {
     packages: packages.filter((item) => item.active),
     manualPurchasesEnabled: true,
@@ -7412,11 +7412,11 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
   const firebaseIdentity = request.auth?.token.firebase;
   if (firebaseIdentity && typeof firebaseIdentity === "object" &&
       (firebaseIdentity as Record<string, unknown>).sign_in_provider === "anonymous") {
-    throw new HttpsError("permission-denied", "شراء باقات Beta Coins وإهداؤها متاح للأعضاء المسجلين فقط.");
+    throw new HttpsError("permission-denied", "شراء باقات BetaCoins وإهداؤها متاح للأعضاء المسجلين فقط.");
   }
   let input;
   try { input = validateCoinPurchaseRequestInput(request.data); }
-  catch { throw new HttpsError("invalid-argument", "بيانات طلب شراء الكوينز غير صالحة."); }
+  catch { throw new HttpsError("invalid-argument", "بيانات طلب شراء الBetaCoins غير صالحة."); }
   const userRef = db.collection("users").doc(uid);
   const giftRecipientUid = input.giftRecipientUid;
   if (giftRecipientUid === uid) throw new HttpsError("failed-precondition", "لا يمكن إهداء باقة إلى حسابك نفسه.");
@@ -7452,7 +7452,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       if (!recipient?.exists || !isMemberAccountInGoodStanding(recipientData) ||
           recipientData?.profileCompleted !== true ||
           guestProfile?.exists || guestSession?.exists) {
-        throw new HttpsError("permission-denied", "المستلم ليس عضواً مؤهلاً لاستلام باقة الكوينز.");
+        throw new HttpsError("permission-denied", "المستلم ليس عضواً مؤهلاً لاستلام باقة الBetaCoins.");
       }
 
     }
@@ -7465,7 +7465,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
     if (input.kind === "package") {
       let packages;
       try { packages = validateCoinPackages(economy.coinPackages ?? DEFAULT_COIN_PACKAGES); }
-      catch { throw new HttpsError("failed-precondition", "قائمة باقات الكوينز غير صالحة."); }
+      catch { throw new HttpsError("failed-precondition", "قائمة باقات الBetaCoins غير صالحة."); }
       const selected = packages.find((item) => item.packageId === input.packageId && item.active);
       if (!selected) throw new HttpsError("not-found", "الباقة غير متاحة حالياً.");
       packageSnapshot = { ...selected };
@@ -7573,12 +7573,12 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       participantUids: [actorUid, requesterUid].sort(),
       createdAt: chatSnapshot.exists ? chatSnapshot.data()?.createdAt ?? now : now,
       lastMessageAt: now, lastMessageId: messageId, lastMessageSenderUid: actorUid,
-      lastMessagePreview: "أرسل مالك المنصة تعليمات دفع طلب الكوينز.",
+      lastMessagePreview: "أرسل مالك المنصة تعليمات دفع طلب الBetaCoins.",
     }, { merge: true });
     if (!existingMessage.exists) {
       transaction.create(messageRef, {
         messageId, chatId, senderUid: actorUid, recipientUid: requesterUid,
-        text: "تعليمات الدفع لطلب شراء الكوينز رقم " + input.requestId +
+        text: "تعليمات الدفع لطلب شراء الBetaCoins رقم " + input.requestId +
           "\nالكمية المتفق عليها: " + input.agreedCoins + " كوين" +
           "\nالسعر: " + (input.agreedPriceMinor / 100).toFixed(2) + " EUR" +
           "\nالتعليمات: " + input.instructions,
@@ -7590,7 +7590,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     transaction.set(notificationRef, {
       notificationId, type: "coin_purchase_payment_instructions", senderUid: actorUid,
       chatId, messageId, title: "تعليمات دفع من مالك مودة",
-      body: "أرسل مالك المنصة تعليمات الدفع لطلب الكوينز. افتح المحادثة للاطلاع عليها.",
+      body: "أرسل مالك المنصة تعليمات الدفع لطلب الBetaCoins. افتح المحادثة للاطلاع عليها.",
       isRead: false, createdAt: now,
     });
     transaction.update(ref, {
@@ -7608,7 +7608,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     });
   });
   await sendPushToMember(requesterUid, "تعليمات دفع من مالك مودة",
-    "أرسل مالك المنصة تعليمات الدفع لطلب الكوينز. افتح المحادثة للاطلاع عليها.",
+    "أرسل مالك المنصة تعليمات الدفع لطلب الBetaCoins. افتح المحادثة للاطلاع عليها.",
     { type: "coin_purchase_payment_instructions", chatId, messageId });
   return { requestId: input.requestId, status: "payment_instructions_sent", chatId, messageId };
 });
@@ -7681,7 +7681,7 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
     if (!user.exists || !isMemberAccountInGoodStanding(user.data()) ||
         user.data()?.profileCompleted !== true ||
         (data.giftRecipientUid && (guestProfile?.exists || guestSession?.exists))) {
-      throw new HttpsError("permission-denied", "حساب مستلم الكوينز غير مؤهل.");
+      throw new HttpsError("permission-denied", "حساب مستلم الBetaCoins غير مؤهل.");
     }
 
     if (ledger.exists) throw new HttpsError("already-exists", "يوجد سجل مالي سابق لهذا الطلب؛ يلزم تدقيقه.");
@@ -7733,14 +7733,14 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
       });
       transaction.create(historyRef, {
         giftId: giftRef.id, senderUid: requesterUid, packageId: data.packageId,
-        packageName: (data.packageSnapshot as Record<string, unknown> | null)?.name ?? "باقة Beta Coins",
+        packageName: (data.packageSnapshot as Record<string, unknown> | null)?.name ?? "باقة BetaCoins",
         coins, priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR",
         purchaseRequestId: input.requestId, createdAt: now,
       });
       transaction.create(notificationRef, {
         notificationId: notificationRef.id, type: "coin_package_gift_received",
-        senderUid: requesterUid, title: "وصلتك هدية Beta Coins",
-        body: `تمت إضافة ${coins} Beta Coins إلى محفظتك كهدية.`,
+        senderUid: requesterUid, title: "وصلتك هدية BetaCoins",
+        body: `تمت إضافة ${coins} BetaCoins إلى محفظتك كهدية.`,
         isRead: false, createdAt: now,
       });
       notifyRecipientUid = targetUid;
@@ -7749,8 +7749,8 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
   });
   if (notifyRecipientUid && !result.idempotentReplay) {
     try {
-      await sendPushToMember(notifyRecipientUid, "وصلتك هدية Beta Coins",
-        "تمت إضافة باقة Beta Coins إلى محفظتك كهدية.", { type: "coin_package_gift_received" });
+      await sendPushToMember(notifyRecipientUid, "وصلتك هدية BetaCoins",
+        "تمت إضافة باقة BetaCoins إلى محفظتك كهدية.", { type: "coin_package_gift_received" });
     } catch (error) {
       logger.warn("Coin package gift push notification failed after committed settlement", {
         recipientUid: notifyRecipientUid, requestId: input.requestId,
@@ -7860,7 +7860,7 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
     coinPackages = validateCoinPackages(request.data?.coinPackages);
     adPrices = validateAdPrices(request.data?.adPrices);
   } catch {
-    throw new HttpsError("invalid-argument", "أسعار باقات الكوينز أو الإعلانات غير صالحة.");
+    throw new HttpsError("invalid-argument", "أسعار باقات الBetaCoins أو الإعلانات غير صالحة.");
   }
   const version = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(ECONOMY_PRICING_SETTINGS);
