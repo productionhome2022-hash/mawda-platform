@@ -29,7 +29,7 @@ const {
   getChatMediaAttachmentUrl,
 } = require("../../lib/media");
 
-const { createMemberStory, listMemberStories } = require("../../lib/index");
+const { createMemberStory, listMemberStories, getOwnerCapacityMediaManagement } = require("../../lib/index");
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
@@ -258,6 +258,14 @@ test("finalize callable accepts a matching quarantined PNG and audits the result
   const meterAfterReplay = await capacityMeterRef.get();
   assert.equal(meterAfterReplay.data().monthlyUploadBytes, uploadBytesBefore + bytes.length);
   assert.equal(meterAfterReplay.data().finalizedUploadCount, uploadCountBefore + 1);
+  const ownerUid = `capacity-owner-${Date.now()}-${Math.random()}`;
+  const capacity = await getOwnerCapacityMediaManagement.run(ownerRequest(ownerUid));
+  assert.equal(capacity.measurement.status, "partial");
+  assert.equal(capacity.measurement.monthUtc, monthUtc);
+  assert.equal(capacity.measurement.monthlyUploadBytes, uploadBytesBefore + bytes.length);
+  assert.equal(capacity.measurement.finalizedUploadCount, uploadCountBefore + 1);
+  assert.equal(capacity.measurement.monthlyDownloadBytes, null);
+  assert.equal(capacity.enforcement.status, "observe_only");
 });
 
 test("story upload requires and preserves its explicit expiry as the retention deadline", async () => {
