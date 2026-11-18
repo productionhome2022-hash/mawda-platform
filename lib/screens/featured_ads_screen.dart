@@ -286,6 +286,7 @@ class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> wi
   int _videoThresholdPercent = 90, _imageThresholdMs = 10000;
   double _serverProgressPercent = 0;
   int _serverContinuousVisibleMs = 0;
+  bool _serverForegroundVisible = false;
   Timer? _heartbeatTimer;
   VideoPlayerController? _videoController;
 
@@ -304,7 +305,7 @@ class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> wi
   }
 
   bool get _canComplete {
-    if (_sessionId == null || _completed || !_rewardEnabled) return false;
+    if (_sessionId == null || _completed || !_rewardEnabled || !_serverForegroundVisible) return false;
     if (_videoController != null) {
       return _serverProgressPercent >= _videoThresholdPercent;
     }
@@ -382,6 +383,7 @@ class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> wi
       if (mounted) setState(() {
         _serverProgressPercent = (data['progressPercent'] as num?)?.toDouble() ?? _serverProgressPercent;
         _serverContinuousVisibleMs = (data['continuousVisibleMs'] as num?)?.toInt() ?? _serverContinuousVisibleMs;
+        _serverForegroundVisible = data['foregroundVisible'] == true;
       });
     } catch (_) {
       // A missed heartbeat cannot produce a reward; the server owns eligibility.
