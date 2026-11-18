@@ -96,9 +96,13 @@ export function validateStoreCatalogItemInput(input: unknown): ValidatedStoreCat
   if (value.purchaseEnabled !== undefined && typeof value.purchaseEnabled !== "boolean") {
     throw new Error("INVALID_STORE_PURCHASE_ENABLED");
   }
+  // Project fields without enabling charging first. Owner input validation below
+  // must return the precise missing-price / fulfillment error instead of collapsing
+  // it into INVALID_STORE_ITEM_FIELDS.
   const projected = projectStoreCatalogItem(itemId, {
     ...value,
     active: true,
+    purchaseEnabled: false,
   });
   if (!projected) throw new Error("INVALID_STORE_ITEM_FIELDS");
   const sortOrder = value.sortOrder === undefined ? 1000 : value.sortOrder;
