@@ -7614,6 +7614,21 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
       requesterUid === actorUid) throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
   const requestRef = db.collection("coinPurchaseRequests").doc(`${requesterUid}_${input.requestId}`);
   const auditRef = db.collection("adminAuditLogs").doc(`coin_purchase_approval_${requesterUid}_${input.requestId}`);
+  const preflightPurchase = await requestRef.get();
+  if (!preflightPurchase.exists || preflightPurchase.data()?.requesterUid !== requesterUid) {
+    throw new HttpsError("not-found", "طلب الشراء غير موجود.");
+  }
+  const preflightTargetUid = typeof preflightPurchase.data()?.giftRecipientUid === "string"
+    ? preflightPurchase.data()!.giftRecipientUid as string : requesterUid;
+  if (preflightTargetUid !== requesterUid) {
+    let recipientAuth: UserRecord;
+    try { recipientAuth = await getAuth().getUser(preflightTargetUid); }
+    catch { throw new HttpsError("permission-denied", "تعذر التحقق من حساب مستلم الباقة."); }
+    if (recipientAuth.disabled || !recipientAuth.providerData.length ||
+        recipientAuth.providerData.every((provider) => provider.providerId === "anonymous")) {
+      throw new HttpsError("permission-denied", "حساب الزائر لا يمكنه استلام باقة مهداة.");
+    }
+  }
   let notifyRecipientUid: string | null = null;
   const result = await db.runTransaction(async (transaction) => {
     const purchase = await transaction.get(requestRef);
@@ -7622,6 +7637,7 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
     }
     const data = purchase.data()!;
     const targetUid = typeof data.giftRecipientUid === "string" ? data.giftRecipientUid : requesterUid;
+    if (targetUid !== preflightTargetUid) throw new HttpsError("aborted", "تغير مستلم طلب الباقة؛ أعد المحاولة.");
     if (targetUid === actorUid || targetUid === requesterUid && data.giftRecipientUid) {
       throw new HttpsError("failed-precondition", "مستلم باقة الهدية غير صالح.");
     }
@@ -7649,15 +7665,7 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
         (data.giftRecipientUid && (guestProfile?.exists || guestSession?.exists))) {
       throw new HttpsError("permission-denied", "حساب مستلم الكوينز غير مؤهل.");
     }
-    if (data.giftRecipientUid) {
-      let recipientAuth: UserRecord;
-      try { recipientAuth = await getAuth().getUser(targetUid); }
-      catch { throw new HttpsError("permission-denied", "تعذر التحقق من حساب مستلم الباقة."); }
-      if (recipientAuth.disabled || !recipientAuth.providerData.length ||
-          recipientAuth.providerData.every((provider) => provider.providerId === "anonymous")) {
-        throw new HttpsError("permission-denied", "حساب الزائر لا يمكنه استلام باقة مهداة.");
-      }
-    }
+
     if (ledger.exists) throw new HttpsError("already-exists", "يوجد سجل مالي سابق لهذا الطلب؛ يلزم تدقيقه.");
     const coins = data.agreedCoins;
     if (!Number.isSafeInteger(coins) || coins < 1 || coins > 1000000000) {
