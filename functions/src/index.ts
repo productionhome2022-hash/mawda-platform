@@ -670,11 +670,20 @@ export const setTransferCommission = onCall(async (request) => {
   if (enabled !== undefined && typeof enabled !== "boolean") {
     throw new HttpsError("invalid-argument", "قيمة تفعيل التحويلات غير صالحة.");
   }
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "إصدار إعدادات التحويل الحالي مطلوب.");
+  }
 
   const result = await db.runTransaction(async (transaction) => {
     const current = await transaction.get(TRANSFER_SETTINGS);
     const previous = current.data() ?? {};
+    const previousVersion = Number.isSafeInteger(previous.version) ? previous.version : 0;
+    if (previousVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت إعدادات التحويل منذ فتح اللوحة؛ حدّث البيانات ثم أعد المحاولة.");
+    }
     const nextEnabled = enabled === undefined ? previous.enabled !== false : enabled;
+    const nextVersion = previousVersion + 1;
 
     transaction.set(TRANSFER_SETTINGS, {
       commissionBps,
@@ -682,7 +691,7 @@ export const setTransferCommission = onCall(async (request) => {
       enabled: nextEnabled,
       updatedAt: FieldValue.serverTimestamp(),
       updatedBy: actorUid,
-      version: (typeof previous.version === "number" ? previous.version : 0) + 1,
+      version: nextVersion,
     }, { merge: true });
 
     const auditRef = db.collection("adminAuditLogs").doc();
@@ -693,10 +702,12 @@ export const setTransferCommission = onCall(async (request) => {
       commissionBps,
       previousEnabled: previous.enabled !== false,
       enabled: nextEnabled,
+      previousVersion,
+      version: nextVersion,
       createdAt: FieldValue.serverTimestamp(),
     });
 
-    return { commissionBps, commissionPercent: commissionBps / 100, enabled: nextEnabled };
+    return { commissionBps, commissionPercent: commissionBps / 100, enabled: nextEnabled, version: nextVersion };
   });
 
   logger.info("Transfer commission settings updated", { actorUid, ...result });
