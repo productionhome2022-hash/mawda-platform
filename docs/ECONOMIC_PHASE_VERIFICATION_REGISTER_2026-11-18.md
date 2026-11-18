@@ -295,7 +295,7 @@ For every economic price that is defined as one combined amount and divided equa
 
 - Cloud Functions build and complete Node unit suite passed on commit `c36b728916188a5cff77439efc882f8dc45a9a35` (GitHub Actions run `44370983353`): TypeScript build succeeded and all 368 unit tests passed.
 - Firebase Emulator integration suites passed in the same run: wallet/store atomicity (including concurrent store gifting and canonical payment-policy precedence), owner entitlement grants/replay, featured-ad reward policy, store catalog, room-rental wallet/replay, email verification reward cycle, engagement/featured-ad reward lifecycle, call entitlement/signaling, and owner audit-chain export.
-- Flutter CI passed on commit `621cbeaf3c3c305b59c9694d3892c12768d2e3cd` (GitHub Actions run `44370728918`): `flutter pub get --enforce-lockfile`, `flutter analyze`, all 32 Flutter tests, and `flutter build web --release`.
+- Flutter CI passed on commit `d3ff34ff7c718755c49e249056c26a74659247fb` (GitHub Actions run `44371751238`): `flutter pub get --enforce-lockfile`, `flutter analyze`, all 32 Flutter tests, and `flutter build web --release`.
 - The Flutter lock resolver refreshed `pubspec.lock` with the pinned Flutter SDK. No deployment or production Firebase operation occurred.
 - Firestore and Storage security-rules regression suite passed in GitHub Actions run `44371349893` on workflow commit `f23adf91fb8e8b49433f2a2ece9cec1506542b40`. A full-head rerun after the subsequent policy-comment correction is tracked separately.
 
