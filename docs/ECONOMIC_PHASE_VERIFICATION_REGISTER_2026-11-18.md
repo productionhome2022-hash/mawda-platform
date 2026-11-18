@@ -121,3 +121,16 @@ No source code was changed during this recheck. No local command, test suite, em
 - Added emulator integration assertions for creation/renewal snapshots, idempotent replay and fail-closed behavior when either debit ledger is missing; test source has been committed but has **not** been executed.
 - Commits: implementation `02dd33bd050ba0bd6fc4295a4d45a80e92477952`; initial regression tests `4dfc39d86bebbf7cdc800f004fc325e9d3c6fc48`; test isolation correction `47712ea84ffcc7fea2d3e6d46d7030c5cac86c72`.
 - Final TypeScript build, Functions unit suite and room-rental emulator integration remain deferred until the internal economic implementation pass is complete. No live Firebase operation, billing, deployment, merge to `main`, or 5,000-persona lab action occurred.
+
+
+## Owner clarification — call-economy prices are experimental, never final — 2026-11-18
+
+- Any example call rates previously discussed (including 120/400 coins per minute and 60/200 coins per minute) are **temporary test placeholders only**. They are not approved, final, contractual, published, or immutable prices. They must never be embedded as production constants, silently seeded as owner-approved values, or treated as a release baseline.
+- The canonical platform owner/Super Admin must be able to raise, lower, replace, disable or leave unset each voice/video tariff from the owner console. Pricing must be read from validated, versioned server-side policy and snapshotted into each billable call/session so a later price edit cannot rewrite an already-started session.
+- This applies separately to voice and video, including ordinary mutual billing and the exceptional caller-only billing case when the caller has exhausted their quota but the recipient still has eligible included quota. The actual rates and any rounding/commission values remain owner decisions; do not infer or finalize them from historical examples.
+- No per-minute collection may run until server-authoritative billable duration, exact participant eligibility, quota reservation/consumption, caller/receiver charge allocation, rounding, wallet sufficiency, atomic ledger posting, idempotent finalization, interruption recovery, refunds/reversals and owner-configurable tariff controls are implemented and tested.
+- Source review found a major implementation gap: current `startCall`/call lifecycle enforces hard-coded attempt-count and five-minute ceiling constants and requires active paid call entitlements for admission; the inspected call lifecycle does not provide the agreed included daily quota path or per-minute wallet settlement. This is recorded as an open economic blocker, not as a completed call-economy implementation. Do not enable or collect call charges in this state.
+
+## Economic-only execution boundary reaffirmed — 2026-11-18
+
+Continue implementation, repair, audit and tests only for the platform-wide economic domain: wallet/coin ledger, coin purchase and transfer, store and timed entitlements, room rental/renewal, voice/video call quotas and settlement, advertising/rewards/financial reconciliation, payment-mode controls, owner pricing controls, economy audit trail, and economic cost/usage metering. Do not expand this pass into unrelated product, UI, infrastructure or release tasks. All runtime validation remains a final gate after internal economic implementation is complete.
