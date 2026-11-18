@@ -7,7 +7,14 @@ const {
   decideFeaturedAdReward,
 } = require("../lib/featured-ad-rewards");
 
-const policy = defaultFeaturedAdRewardPolicy();
+const policy = {
+  enabled: true,
+  rewardCoinsPerView: 2,
+  maxRewardedViewsPerUtcDay: 100,
+  maxRewardCoinsPerUtcDay: 200,
+  videoCompletionPercent: 90,
+  imageContinuousVisibleMs: 10_000,
+};
 const base = {
   nowMs: 1_800_000_000_000,
   campaignEligible: true,
@@ -22,14 +29,21 @@ const base = {
   rewardedViewsForCampaign: 0,
 };
 
-test("uses editable experimental featured-ad reward defaults", () => {
-  assert.deepEqual(policy, FEATURED_AD_REWARD_DEFAULTS);
+test("first-run featured-ad rewards remain disabled until the owner configures approved values", () => {
+  const defaults = defaultFeaturedAdRewardPolicy();
+  assert.deepEqual(defaults, FEATURED_AD_REWARD_DEFAULTS);
+  assert.equal(defaults.enabled, false);
+  assert.equal(defaults.rewardCoinsPerView, 0);
+  assert.equal(defaults.maxRewardedViewsPerUtcDay, 0);
+  assert.equal(defaults.maxRewardCoinsPerUtcDay, 0);
+  assert.equal(decideFeaturedAdReward(defaults, base).reason, "policy_disabled");
 });
 
 test("validates owner-configurable reward values", () => {
   assert.equal(validateFeaturedAdRewardPolicy(policy).rewardCoinsPerView, 2);
   assert.equal(policy.maxRewardedViewsPerUtcDay, 100);
   assert.equal(policy.maxRewardCoinsPerUtcDay, 200);
+  assert.deepEqual(validateFeaturedAdRewardPolicy(FEATURED_AD_REWARD_DEFAULTS), FEATURED_AD_REWARD_DEFAULTS);
   assert.throws(() => validateFeaturedAdRewardPolicy({ ...policy, maxRewardCoinsPerUtcDay: 1 }));
   assert.throws(() => validateFeaturedAdRewardPolicy({ ...policy, videoCompletionPercent: 101 }));
   assert.equal(validateFeaturedAdRewardPolicy({
