@@ -2350,6 +2350,8 @@ export const sendStickerMessage = onCall(async (request) => {
 
   const messageId = createHash("sha256").update(senderUid + ":" + input.clientMessageId).digest("hex");
   const now = FieldValue.serverTimestamp();
+  const packRef = db.collection("stickerPacks").doc(input.packId);
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
   if (input.scope === "direct") {
     const recipientUid = input.targetId;
     const chatId = createDirectChatId(senderUid, recipientUid);
@@ -2359,14 +2361,31 @@ export const sendStickerMessage = onCall(async (request) => {
     const messageRef = chatRef.collection("messages").doc(messageId);
     const notificationRef = recipientRef.collection("notifications").doc(messageId);
     return db.runTransaction(async (tx) => {
-      const [sender, recipient, chat, existing] = await Promise.all([
+      const [sender, recipient, chat, existing, freshPack, freshAsset] = await Promise.all([
         tx.get(senderRef), tx.get(recipientRef), tx.get(chatRef), tx.get(messageRef),
+        tx.get(packRef), tx.get(assetRef),
       ]);
       if (existing.exists) {
         if (existing.data()?.mediaId === mediaId && existing.data()?.senderUid === senderUid) {
           return { chatId, messageId, replayed: true };
         }
         throw new HttpsError("already-exists", "معرف الرسالة مستخدم.");
+      }
+      const freshPackData = freshPack.data();
+      const freshAssetData = freshAsset.data();
+      const freshSticker = Array.isArray(freshPackData?.stickers)
+        ? freshPackData!.stickers.find((item: unknown) =>
+            Boolean(item && typeof item === "object" &&
+              (item as Record<string, unknown>).stickerId === input.stickerId))
+        : null;
+      if (!freshPack.exists || freshPackData?.status !== "published" || freshPackData.approved !== true ||
+          !freshAsset.exists || freshAssetData?.status !== "security_approved" ||
+          freshAssetData?.mediaPurpose !== "sticker" || freshAssetData?.uploaderRole !== "platform_owner" ||
+          freshAssetData?.scannerVerdict !== "clean" ||
+          !freshSticker || typeof freshSticker !== "object" ||
+          (freshSticker as Record<string, unknown>).assetId !== mediaId ||
+          (freshSticker as Record<string, unknown>).scanStatus !== "clean") {
+        throw new HttpsError("failed-precondition", "تم إيقاف الحزمة أو أصل الملصق قبل الإرسال.");
       }
       if (!sender.exists || !recipient.exists ||
           sender.data()?.profileCompleted !== true || recipient.data()?.profileCompleted !== true ||
@@ -2414,14 +2433,31 @@ export const sendStickerMessage = onCall(async (request) => {
   const userRef = db.collection("users").doc(senderUid);
   const messageRef = roomRef.collection("messages").doc(messageId);
   return db.runTransaction(async (tx) => {
-    const [room, member, user, existing] = await Promise.all([
+    const [room, member, user, existing, freshPack, freshAsset] = await Promise.all([
       tx.get(roomRef), tx.get(memberRef), tx.get(userRef), tx.get(messageRef),
+      tx.get(packRef), tx.get(assetRef),
     ]);
     if (existing.exists) {
       if (existing.data()?.mediaId === mediaId && existing.data()?.senderUid === senderUid) {
         return { roomId, messageId, replayed: true };
       }
       throw new HttpsError("already-exists", "معرف الرسالة مستخدم.");
+    }
+    const freshPackData = freshPack.data();
+    const freshAssetData = freshAsset.data();
+    const freshSticker = Array.isArray(freshPackData?.stickers)
+      ? freshPackData!.stickers.find((item: unknown) =>
+          Boolean(item && typeof item === "object" &&
+            (item as Record<string, unknown>).stickerId === input.stickerId))
+      : null;
+    if (!freshPack.exists || freshPackData?.status !== "published" || freshPackData.approved !== true ||
+        !freshAsset.exists || freshAssetData?.status !== "security_approved" ||
+        freshAssetData?.mediaPurpose !== "sticker" || freshAssetData?.uploaderRole !== "platform_owner" ||
+        freshAssetData?.scannerVerdict !== "clean" ||
+        !freshSticker || typeof freshSticker !== "object" ||
+        (freshSticker as Record<string, unknown>).assetId !== mediaId ||
+        (freshSticker as Record<string, unknown>).scanStatus !== "clean") {
+      throw new HttpsError("failed-precondition", "تم إيقاف الحزمة أو أصل الملصق قبل الإرسال.");
     }
     if (!room.exists || room.data()?.status !== "active" || !member.exists ||
         !user.exists || user.data()?.status === "suspended") {
