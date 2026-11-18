@@ -31,9 +31,33 @@ test("owner can disable a call mode or leave its quota unlimited", () => {
   assert.throws(() => callModeQuotaLimit(configured, "other"));
 });
 
-test("duration expiry is derived only from the policy snapshot", () => {
+test("direct-call duration remains owner-configured", () => {
   assert.equal(callMaxDurationEnd(1000, validateCallUsagePolicy(policy)), 301000);
   assert.equal(callMaxDurationEnd(1000, validateCallUsagePolicy({
     ...policy, maxCallDurationMs: null,
   })), null);
+});
+
+test("group audio duration is fixed at five minutes regardless of owner duration policy", () => {
+  assert.equal(callMaxDurationEnd(1000, validateCallUsagePolicy({
+    ...policy, maxCallDurationMs: 60000,
+  }), "room", "audio"), 301000);
+  assert.equal(callMaxDurationEnd(1000, validateCallUsagePolicy({
+    ...policy, maxCallDurationMs: null,
+  }), "room", "audio"), 301000);
+});
+
+test("group video duration is fixed at three minutes regardless of owner duration policy", () => {
+  assert.equal(callMaxDurationEnd(1000, validateCallUsagePolicy({
+    ...policy, maxCallDurationMs: 60000,
+  }), "room", "video"), 181000);
+  assert.equal(callMaxDurationEnd(1000, validateCallUsagePolicy({
+    ...policy, maxCallDurationMs: null,
+  }), "room", "video"), 181000);
+});
+
+test("group-call duration rejects an unknown mode and scope", () => {
+  const configured = validateCallUsagePolicy(policy);
+  assert.throws(() => callMaxDurationEnd(1000, configured, "room", "other"));
+  assert.throws(() => callMaxDurationEnd(1000, configured, "other"));
 });
