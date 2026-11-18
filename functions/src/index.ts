@@ -6939,7 +6939,7 @@ async function executeOwnerEntitlementGrant(
         audit.actorUid === actorUid && audit.targetUid === targetUid && audit.itemId === itemId;
       const entitlement = priorEntitlement.data() ?? {};
       const sameEntitlement = priorEntitlement.exists && entitlement.status === "active" &&
-        entitlement.grantSource === "platform_owner" && entitlement.grantedBy === actorUid;
+        entitlement.grantSource === "platform_owner";
       if (!sameGrant || !sameLedger || !sameAudit || !sameEntitlement) {
         throw new HttpsError("failed-precondition", "سجل المنح أو دفتره أو سجل التدقيق أو الاستحقاق غير متطابق؛ يلزم تدقيق المالك.");
       }
