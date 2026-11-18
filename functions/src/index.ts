@@ -3,6 +3,7 @@ import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_T
 import { validateGroupCallPricingPolicy } from "./group-call-economy";
 import { reconcileWalletLedger } from "./wallet-reconciliation";
 import { isActiveRentedPrivateRoom } from "./room-call-policy";
+import { validateCallUsagePolicy, callModeQuotaLimit, callMaxDurationEnd } from "./call-usage-policy";
 import { getAuth } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
 import { getStorage } from "firebase-admin/storage";
@@ -9532,10 +9533,7 @@ export const listMyContracts = onCall(
 const CALL_SESSIONS = db.collection("callSessions");
 const ACTIVE_CALL_MEMBER_LOCKS = db.collection("activeCallMemberLocks");
 const CALL_QUOTA_WINDOWS = db.collection("callQuotaWindows");
-const CALL_QUOTA_WINDOW_MS = 24 * 60 * 60 * 1000;
-const CALL_AUDIO_ATTEMPT_LIMIT = 5;
-const CALL_VIDEO_ATTEMPT_LIMIT = 3;
-const CALL_MAX_DURATION_MS = 5 * 60 * 1000;
+const CALL_USAGE_POLICY = db.doc("platformSettings/callUsagePolicy");
 
 /**
  * Enforce the five-minute ceiling from the server timestamp created only
@@ -9645,6 +9643,51 @@ export const setGroupCallPricingPolicy = onCall(async (request) => {
   return result;
 });
 
+export const getOwnerCallUsagePolicy = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await CALL_USAGE_POLICY.get();
+  if (!snapshot.exists) return { configured: false, policy: null, version: 0 };
+  const data = snapshot.data() ?? {};
+  if (!Number.isSafeInteger(data.version) || data.version < 1) {
+    throw new HttpsError("failed-precondition", "إصدار سياسة استخدام المكالمات غير صالح.");
+  }
+  let policy;
+  try { policy = validateCallUsagePolicy(data.policy); }
+  catch { throw new HttpsError("failed-precondition", "سياسة استخدام المكالمات غير صالحة."); }
+  return { configured: true, policy, version: data.version };
+});
+
+export const setOwnerCallUsagePolicy = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let policy;
+  try { policy = validateCallUsagePolicy(request.data?.policy); }
+  catch { throw new HttpsError("invalid-argument", "إعدادات حصص المكالمات ومددها غير صالحة."); }
+  const version = await db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(CALL_USAGE_POLICY);
+    const previousData = previous.data() ?? {};
+    if (previous.exists && (!Number.isSafeInteger(previousData.version) || previousData.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار سياسة المكالمات الحالية غير صالح؛ أوقفنا التحديث لحماية السجل.");
+    }
+    const nextVersion = previous.exists ? previousData.version + 1 : 1;
+    if (!Number.isSafeInteger(nextVersion)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة المكالمات.");
+    const now = FieldValue.serverTimestamp();
+    const versionRef = db.collection("platformSettings").doc("callUsagePolicyVersions")
+      .collection("versions").doc(String(nextVersion));
+    transaction.create(versionRef, { policy, version: nextVersion, createdAt: now, createdBy: actorUid });
+    transaction.set(CALL_USAGE_POLICY, {
+      policy, version: nextVersion, updatedAt: now, updatedBy: actorUid,
+      createdAt: previousData.createdAt ?? now, currentVersionPath: versionRef.path,
+    });
+    const auditRef = db.collection("adminAuditLogs").doc();
+    transaction.create(auditRef, {
+      actorUid, action: "call_usage_policy_updated", version: nextVersion,
+      policy, createdAt: now,
+    });
+    return nextVersion;
+  });
+  return { saved: true, version, policy };
+});
+
 export const startCall = onCall(async (request) => {
   const callerUid = requireAuthenticatedUid(request.auth?.uid);
   let input;
@@ -9736,8 +9779,9 @@ export const startCall = onCall(async (request) => {
       ? db.collection("rooms").doc(input.targetId) : null;
     const rentalRefForTransaction = rentalIdForCall
       ? db.collection("roomRentals").doc(rentalIdForCall) : null;
-    const [existing, caller, quotaSnapshot, roomForCall, rentalForCall] = await Promise.all([
+    const [existing, caller, quotaSnapshot, usagePolicySnapshot, roomForCall, rentalForCall] = await Promise.all([
       transaction.get(callRef), transaction.get(callerRef), transaction.get(quotaRef),
+      transaction.get(CALL_USAGE_POLICY),
       roomRefForTransaction ? transaction.get(roomRefForTransaction) : Promise.resolve(null),
       rentalRefForTransaction ? transaction.get(rentalRefForTransaction) : Promise.resolve(null),
     ]);
@@ -9745,6 +9789,20 @@ export const startCall = onCall(async (request) => {
         (!roomForCall?.exists || !rentalForCall?.exists ||
          !isActiveRentedPrivateRoom(roomForCall.data(), rentalForCall.data(), now))) {
       throw new HttpsError("failed-precondition", "انتهى استئجار الغرفة أو تغيرت حالته قبل بدء المكالمة.");
+    }
+    if (!usagePolicySnapshot.exists || !Number.isSafeInteger(usagePolicySnapshot.data()?.version) ||
+        usagePolicySnapshot.data()!.version < 1) {
+      throw new HttpsError("failed-precondition", "لم يحدد المالك سياسة استخدام مكالمات فعالة؛ لا يمكن بدء المكالمة.");
+    }
+    let usagePolicy;
+    try { usagePolicy = validateCallUsagePolicy(usagePolicySnapshot.data()?.policy); }
+    catch { throw new HttpsError("failed-precondition", "سياسة استخدام المكالمات غير صالحة؛ تم إيقاف بدء المكالمة."); }
+    if (!usagePolicy.active) {
+      throw new HttpsError("failed-precondition", "المكالمات متوقفة حالياً بقرار المالك.");
+    }
+    const modeLimit = callModeQuotaLimit(usagePolicy, input.mode);
+    if (modeLimit === 0) {
+      throw new HttpsError("failed-precondition", "هذا النوع من المكالمات متوقف حالياً بقرار المالك.");
     }
     if (existing.exists) {
       const prior = existing.data() ?? {};
@@ -9813,23 +9871,23 @@ export const startCall = onCall(async (request) => {
       callId: string; mode: "audio" | "video"; startedAtMs: number;
     }>).filter((attempt) => attempt.startedAtMs > quotaNow - CALL_QUOTA_WINDOW_MS);
     const modeAttempts = recentAttempts.filter((attempt) => attempt.mode === input.mode).length;
-    const modeLimit = input.mode === "audio" ? CALL_AUDIO_ATTEMPT_LIMIT : CALL_VIDEO_ATTEMPT_LIMIT;
-    if (modeAttempts >= modeLimit) {
-      throw new HttpsError(
-        "resource-exhausted",
-        input.mode === "audio"
-          ? "وصلت إلى الحد المسموح لمحاولات المكالمات الصوتية خلال آخر 24 ساعة."
-          : "وصلت إلى الحد المسموح لمحاولات المكالمات المرئية خلال آخر 24 ساعة.",
-      );
+    if (modeLimit !== null && modeAttempts >= modeLimit) {
+      throw new HttpsError("resource-exhausted", "تم بلوغ الحصة التي حددها المالك لهذا النوع من المكالمات.");
     }
     transaction.set(quotaRef, {
-      attempts: [...recentAttempts, { callId: input.callId, mode: input.mode, startedAtMs: quotaNow }],
+      attempts: [...recentAttempts, {
+        callId: input.callId, mode: input.mode, startedAtMs: quotaNow,
+        policyVersion: usagePolicySnapshot.data()!.version,
+      }],
       updatedAt: FieldValue.serverTimestamp(),
     });
     transaction.create(callRef, {
       callId: input.callId, scope: input.scope, targetId: input.targetId, mode: input.mode,
       callerUid, participantUids, acceptedUids: [], rejectedUids: [], leftUids: [],
       status: "ringing", signalCounts: {}, signalsCleanedAt: false,
+      usagePolicySnapshot: usagePolicy,
+      usagePolicyVersion: usagePolicySnapshot.data()!.version,
+      usagePolicyPath: `platformSettings/callUsagePolicyVersions/versions/${usagePolicySnapshot.data()!.version}`,
       createdAt: FieldValue.serverTimestamp(),
       expiresAt, lastActivityAt: FieldValue.serverTimestamp(),
     });
