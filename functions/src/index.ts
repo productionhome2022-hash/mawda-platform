@@ -10457,14 +10457,20 @@ export const consentToRoomCallBilling = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "يجب تأكيد الموافقة المالية الصريحة للمكالمة.");
   }
   const callRef = CALL_SESSIONS.doc(callId);
+  const joinRequestRef = callRef.collection("joinRequests").doc(uid);
   return db.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(callRef);
+    const [snapshot, joinRequestSnapshot] = await Promise.all([
+      transaction.get(callRef), transaction.get(joinRequestRef),
+    ]);
     if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
     const call = snapshot.data() ?? {};
     const participants = Array.isArray(call.participantUids) ? call.participantUids as string[] : [];
     const accepted = Array.isArray(call.acceptedUids) ? call.acceptedUids as string[] : [];
-    if (call.scope !== "room" || !participants.includes(uid) ||
-        (uid !== call.callerUid && !accepted.includes(uid)) ||
+    const hasPendingJoinRequest = joinRequestSnapshot.exists &&
+      joinRequestSnapshot.data()?.status === "requested";
+    if (call.scope !== "room" ||
+        (uid !== call.callerUid && !accepted.includes(uid) && !hasPendingJoinRequest) ||
+        (uid === call.callerUid && !participants.includes(uid)) ||
         !["ringing", "accepted"].includes(String(call.status))) {
       throw new HttpsError("permission-denied", "الموافقة المالية متاحة لمنشئ المكالمة أو للمشارك المقبول فقط.");
     }
