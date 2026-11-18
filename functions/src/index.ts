@@ -7029,9 +7029,9 @@ export const renewRoomRental = onCall(async (request) => {
   const ledgerRef = userRef.collection("walletLedger").doc(`room_${uid}_${requestId}`);
   const nowMs = Date.now();
   return db.runTransaction(async (transaction) => {
-    const [room, user, settings, prior] = await Promise.all([
+    const [room, user, settings, prior, priorLedger] = await Promise.all([
       transaction.get(roomRef), transaction.get(userRef), transaction.get(ROOM_RENTAL_SETTINGS),
-      transaction.get(rentalRef),
+      transaction.get(rentalRef), transaction.get(ledgerRef),
     ]);
     if (prior.exists) {
       const data = prior.data()!;
@@ -7039,6 +7039,23 @@ export const renewRoomRental = onCall(async (request) => {
           data.planId !== planId || data.requestedPriceCoins !== expectedPriceCoins ||
           !(data.expiresAt instanceof Timestamp)) {
         throw new HttpsError("already-exists", "معرف طلب التجديد مستخدم لعملية أخرى أو ببيانات مختلفة.");
+      }
+      const ledger = priorLedger.data() ?? {};
+      const balanceSnapshotValid =
+        ledger.balanceBefore === undefined && ledger.balanceAfter === undefined ||
+        Number.isSafeInteger(ledger.balanceBefore) &&
+        Number.isSafeInteger(ledger.balanceAfter) &&
+        ledger.balanceBefore >= 0 &&
+        ledger.balanceAfter === ledger.balanceBefore - data.priceCoins &&
+        ledger.balanceAfter === data.newBalance &&
+        (data.balanceBefore === undefined || data.balanceBefore === ledger.balanceBefore);
+      if (!priorLedger.exists || !Number.isSafeInteger(data.priceCoins) || data.priceCoins <= 0 ||
+          !Number.isSafeInteger(data.newBalance) || data.newBalance < 0 ||
+          ledger.type !== "room_rental_renewal" || ledger.direction !== "debit" ||
+          ledger.amount !== -data.priceCoins || ledger.roomId !== roomId ||
+          ledger.rentalId !== rentalRef.id || ledger.planId !== planId ||
+          !balanceSnapshotValid) {
+        throw new HttpsError("failed-precondition", "طلب التجديد لا يطابق قيد الخصم؛ يلزم تدقيق مالي.");
       }
       return { renewed: true, expiresAt: data.expiresAt.toMillis(), idempotentReplay: true };
     }
@@ -7082,10 +7099,12 @@ export const renewRoomRental = onCall(async (request) => {
       rentalId: rentalRef.id, roomId, ownerUid: uid, planId: plan.planId,
       priceCoins: plan.priceCoins, durationDays: plan.durationDays, status: "active",
       requestedPriceCoins: expectedPriceCoins,
+      balanceBefore: user.data()?.coins ?? 0, newBalance: balance,
       startsAt: Timestamp.fromMillis(startMs), expiresAt, createdAt: now,
     });
     transaction.create(ledgerRef, {
       type: "room_rental_renewal", direction: "debit", amount: -plan.priceCoins,
+      balanceBefore: user.data()?.coins ?? 0, balanceAfter: balance,
       roomId, rentalId: rentalRef.id, planId: plan.planId,
       durationDays: plan.durationDays, createdAt: now,
     });
