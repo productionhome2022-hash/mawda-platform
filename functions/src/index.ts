@@ -6680,28 +6680,35 @@ export const getMyStoreGiftHistory = onCall(async (request) => {
       !isMemberAccountInGoodStanding(member.data())) {
     throw new HttpsError("permission-denied", "سجل الهدايا متاح للأعضاء المسجلين فقط.");
   }
-  const snapshot = await db.collection("users").doc(uid)
-    .collection("giftHistory")
-    .orderBy("createdAt", "desc")
-    .limit(50)
-    .get();
-  return {
-    entries: snapshot.docs.map((document) => {
+  const memberRef = db.collection("users").doc(uid);
+  const [storeGifts, coinPackageGifts] = await Promise.all([
+    memberRef.collection("giftHistory").orderBy("createdAt", "desc").limit(50).get(),
+    memberRef.collection("coinPackageGiftHistory").orderBy("createdAt", "desc").limit(50).get(),
+  ]);
+  const entries = [
+    ...storeGifts.docs.map((document) => {
       const data = document.data();
       return {
-        giftId: data.giftId,
-        senderUid: data.senderUid,
-        itemId: data.itemId,
-        itemName: data.itemName,
-        category: data.category,
-        priceCoins: data.priceCoins,
-        durationDays: data.durationDays,
+        giftKind: "store_feature", giftId: data.giftId, senderUid: data.senderUid,
+        itemId: data.itemId, itemName: data.itemName, category: data.category,
+        priceCoins: data.priceCoins, durationDays: data.durationDays,
         expiresAtMs: data.expiresAt instanceof Timestamp ? data.expiresAt.toMillis() : null,
         createdAtMs: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : null,
         status: data.status,
       };
     }),
-  };
+    ...coinPackageGifts.docs.map((document) => {
+      const data = document.data();
+      return {
+        giftKind: "coin_package", giftId: data.giftId, senderUid: data.senderUid,
+        itemName: data.packageName, coins: data.coins, priceMinor: data.priceMinor,
+        currency: data.currency, expiresAtMs: null,
+        createdAtMs: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : null,
+        status: "credited",
+      };
+    }),
+  ].sort((a, b) => (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0)).slice(0, 50);
+  return { entries };
 });
 
 /**
