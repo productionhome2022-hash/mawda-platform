@@ -7664,7 +7664,7 @@ export const saveFeaturedAdCampaign = onCall({ enforceAppCheck: true }, async (r
       geographicTargets, mediaId: mediaId ?? null, mediaOwnerUid: mediaId ? actorUid : null,
       creativeType, creativeApproved,
       status: previous.exists ? previousData.status : "draft",
-      ownerApproved: previousData.ownerApproved === true,
+      ownerApproved: false,
       ownerWithdrawn: previousData.ownerWithdrawn === true,
       paymentConfirmed: previousData.paymentConfirmed === true,
       financialSnapshot: previousData.financialSnapshot ?? defaultFeaturedAdFinancialSnapshot(),
@@ -8044,10 +8044,18 @@ export const completeFeaturedAdSession = onCall({ enforceAppCheck: true }, async
       throw new HttpsError("failed-precondition", "لم تستوف جلسة الإعلان شروط الإكمال.");
     }
     const campaignData = campaign.data()!;
+    const mediaSnapshot = typeof campaignData.mediaId === "string"
+      ? await transaction.get(db.collection("mediaAssets").doc(campaignData.mediaId)) : null;
     if (campaignData.status !== "published" || campaignData.version !== data.campaignVersion ||
         campaignData.paymentConfirmed !== true || campaignData.ownerWithdrawn === true ||
+        campaignData.creativeApproved !== true ||
+        (typeof campaignData.mediaId === "string" &&
+          (!mediaSnapshot?.exists || mediaSnapshot.data()?.ownerUid !== campaignData.mediaOwnerUid ||
+           mediaSnapshot.data()?.uploaderRole !== "platform_owner" ||
+           mediaSnapshot.data()?.mediaPurpose !== "advertisement" ||
+           mediaSnapshot.data()?.status !== "security_approved")) ||
         !policySnapshot.exists || (policySnapshot.data()?.version ?? 1) !== data.policyVersion) {
-      throw new HttpsError("failed-precondition", "تغيرت الحملة أو سياسة المكافآت أثناء المشاهدة.");
+      throw new HttpsError("failed-precondition", "تغيرت الحملة أو المادة أو سياسة المكافآت أثناء المشاهدة.");
     }
     let policy;
     try { policy = validateFeaturedAdRewardPolicy(policySnapshot.data()?.policy); }
