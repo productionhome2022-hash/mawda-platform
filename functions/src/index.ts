@@ -347,6 +347,8 @@ export const transferCoins = onCall(async (request) => {
   const recipientRef = db.collection("users").doc(recipientUid);
   const senderLedgerRef = senderRef.collection("walletLedger").doc(transferId);
   const recipientLedgerRef = recipientRef.collection("walletLedger").doc(transferId);
+  const recipientGiftHistoryRef = recipientRef.collection("coinTransferGiftHistory").doc(transferId);
+  const recipientNotificationRef = recipientRef.collection("notifications").doc("coin_transfer_" + transferId);
   const platformLedgerRef = db.collection("platformWalletLedger").doc(transferId);
   const senderGuestProfileRef = db.collection("guestProfiles").doc(senderUid);
   const senderGuestSessionRef = db.collection("guestSessions").doc(senderUid);
@@ -480,6 +482,25 @@ export const transferCoins = onCall(async (request) => {
       amount: netAmount,
       senderUid,
       transferId,
+      createdAt,
+    });
+    transaction.create(recipientGiftHistoryRef, {
+      giftKind: "coin_transfer",
+      giftId: transferId,
+      senderUid,
+      grossAmount: amount,
+      commissionAmount: fee,
+      coins: netAmount,
+      createdAt,
+    });
+    transaction.create(recipientNotificationRef, {
+      notificationId: recipientNotificationRef.id,
+      type: "coin_transfer_gift_received",
+      senderUid,
+      transferId,
+      title: "وصلتك هدية BetaCoins",
+      body: `أهداك عضو ${senderUid} مبلغ ${netAmount} BetaCoins بعد العمولة المعتمدة.`,
+      isRead: false,
       createdAt,
     });
 
@@ -6805,9 +6826,10 @@ export const getMyStoreGiftHistory = onCall(async (request) => {
     throw new HttpsError("permission-denied", "سجل الهدايا متاح للأعضاء المسجلين فقط.");
   }
   const memberRef = db.collection("users").doc(uid);
-  const [storeGifts, coinPackageGifts] = await Promise.all([
+  const [storeGifts, coinPackageGifts, coinTransferGifts] = await Promise.all([
     memberRef.collection("giftHistory").orderBy("createdAt", "desc").limit(50).get(),
     memberRef.collection("coinPackageGiftHistory").orderBy("createdAt", "desc").limit(50).get(),
+    memberRef.collection("coinTransferGiftHistory").orderBy("createdAt", "desc").limit(50).get(),
   ]);
   const entries = [
     ...storeGifts.docs.map((document) => {
@@ -6827,6 +6849,17 @@ export const getMyStoreGiftHistory = onCall(async (request) => {
         giftKind: "coin_package", giftId: data.giftId, senderUid: data.senderUid,
         itemName: data.packageName, coins: data.coins, priceMinor: data.priceMinor,
         currency: data.currency, expiresAtMs: null,
+        createdAtMs: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : null,
+        status: "credited",
+      };
+    }),
+    ...coinTransferGifts.docs.map((document) => {
+      const data = document.data();
+      return {
+        giftKind: "coin_transfer", giftId: data.giftId, senderUid: data.senderUid,
+        itemName: "إهداء BetaCoins من رصيد عضو",
+        coins: data.coins, grossAmount: data.grossAmount,
+        commissionAmount: data.commissionAmount, expiresAtMs: null,
         createdAtMs: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : null,
         status: "credited",
       };
