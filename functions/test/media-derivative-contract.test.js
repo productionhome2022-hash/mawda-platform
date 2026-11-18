@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { expectedSafeDerivativeContract } = require("../lib/media-derivative-contract");
+const { expectedSafeDerivativeContract, safeDerivativePurposeAllowed } = require("../lib/media-derivative-contract");
 
 test("trusted media callback expects the purpose-aware audio pipeline contract", () => {
   assert.deepEqual(expectedSafeDerivativeContract("audio"), {
@@ -19,7 +19,6 @@ test("trusted media callback keeps the established non-audio derivative contract
 });
 
 test("safe derivative categories accept only purposes allowed by the media upload policy", () => {
-  const { safeDerivativePurposeAllowed } = require("../lib/media-derivative-contract");
   for (const purpose of ["chat", "room", "profile_album", "avatar_cover", "story"]) {
     assert.equal(safeDerivativePurposeAllowed("gif", purpose, "member"), true, purpose);
   }
