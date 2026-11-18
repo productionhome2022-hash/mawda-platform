@@ -1,8 +1,10 @@
+// Production-safe first-run policy: no reward amount or quota is assumed
+// before the owner explicitly configures and approves the campaign economy.
 export const FEATURED_AD_REWARD_DEFAULTS = {
-  enabled: true,
-  rewardCoinsPerView: 2,
-  maxRewardedViewsPerUtcDay: 100,
-  maxRewardCoinsPerUtcDay: 200,
+  enabled: false,
+  rewardCoinsPerView: 0,
+  maxRewardedViewsPerUtcDay: 0,
+  maxRewardCoinsPerUtcDay: 0,
   videoCompletionPercent: 90,
   imageContinuousVisibleMs: 10_000,
 } as const;
