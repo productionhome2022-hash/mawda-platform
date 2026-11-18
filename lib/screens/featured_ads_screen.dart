@@ -570,33 +570,41 @@ class FeaturedAdRewardsScreen extends StatefulWidget {
   State<FeaturedAdRewardsScreen> createState() => _FeaturedAdRewardsScreenState();
 }
 class _FeaturedAdRewardsScreenState extends State<FeaturedAdRewardsScreen> {
-  late Future<List<Map<String, dynamic>>> _future;
+  late Future<Map<String, dynamic>> _future;
   @override
   void initState() { super.initState(); _future = _load(); }
-  Future<List<Map<String, dynamic>>> _load() async {
+  Future<Map<String, dynamic>> _load() async {
     final response = await FirebaseFunctions.instance.httpsCallable('getMyFeaturedAdRewardHistory').call();
-    final data = Map<String, dynamic>.from(response.data as Map);
-    return (data['rewards'] as List<dynamic>? ?? const [])
-      .whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList(growable: false);
+    return Map<String, dynamic>.from(response.data as Map);
   }
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('مكافآت مشاهدة الإعلانات')),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
+      body: FutureBuilder<Map<String, dynamic>>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
           if (snapshot.hasError) return const Center(child: Text('تعذر تحميل سجل المكافآت.'));
-          final rewards = snapshot.data ?? const <Map<String, dynamic>>[];
+          final payload = snapshot.data ?? const <String, dynamic>{};
+          final rewards = (payload['rewards'] as List<dynamic>? ?? const [])
+              .whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList(growable: false);
+          final policy = Map<String, dynamic>.from(payload['policy'] as Map? ?? const {});
+          final enabled = policy['enabled'] == true;
+          final reward = policy['rewardCoinsPerView'] ?? 0;
+          final dailyViews = policy['maxRewardedViewsPerUtcDay'] ?? 0;
+          final dailyCoins = policy['maxRewardCoinsPerUtcDay'] ?? 0;
+          final campaignCap = policy['maxRewardsPerCampaignRolling24h'] ?? 0;
           return ListView(padding: const EdgeInsets.all(16), children: [
             Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('حدود التجربة الحالية', style: theme.textTheme.titleLarge),
               const SizedBox(height: 8),
-              const Text('2 كوين لكل مشاهدة مؤهلة • حتى 10 مشاهدات / 20 كوين يومياً UTC • الحملة نفسها حتى 3 مرات خلال 24 ساعة متحركة.'),
+              Text(enabled
+                ? reward.toString() + ' كوين لكل مشاهدة • حتى ' + dailyViews.toString() + ' مشاهدات / ' + dailyCoins.toString() + ' كوين يومياً UTC • الحملة نفسها حتى ' + campaignCap.toString() + ' مرات خلال نافذة متحركة.'
+                : 'مكافآت الإعلانات المميزة متوقفة حالياً.'),
               const SizedBox(height: 6),
-              const Text('هذه قيم هندسية تجريبية قابلة للتعديل من المالك وليست وعداً بدخل أو سياسة إطلاق نهائية.', style: TextStyle(fontSize: 12)),
+              const Text('هذه قيم تجريبية يضبطها المالك وليست وعداً بدخل أو سياسة إطلاق نهائية.', style: TextStyle(fontSize: 12)),
             ]))),
             const SizedBox(height: 12),
             Text('السجل', style: theme.textTheme.titleLarge),
