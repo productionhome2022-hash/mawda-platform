@@ -53,3 +53,16 @@ No GitHub Actions run was returned for this branch at review time. This is not e
 ## Safety decision
 
 The economic implementation remains on the unified test branch. Missing local execution evidence and the explicit call-settlement/ad-finance integration gates prevent declaring the full economic phase complete. Collection and reward payout remain fail-closed where their prerequisites are not proven.
+
+## Follow-up source recheck — 2026-11-18 15:53 (+03:00)
+
+The unified test branch head was re-read as `71cff419c917455cc2e1dbdec20770fc8f2e7cc6`; this register is present on that branch. The open PR #27 remains a draft from `codex/mawdda-unified-final` and is not part of this branch's head.
+
+The current `functions/src/index.ts` export inventory confirms:
+- Wallet transfer and store entitlement gifting callables exist.
+- Featured-ad campaign, creative review, viewing-session and reward callables exist.
+- The featured-ad finance state machine module is not imported or referenced by the Functions entry point, and no persisted owner financial-event callable is exported there. It remains a pure, unconnected module rather than a live audited payment/refund/reconciliation workflow.
+- Viewing-session creation initializes server-validated visibility and playback evidence to false; client heartbeat remains telemetry. No attestation integration is present in the inspected entry point, so rewards must remain blocked.
+- Call start/connect/end callables exist, but the source review still found no metered wallet-debit or post-call settlement path. Do not infer a tariff or enable collection.
+
+No source code was changed during this recheck. No local command, test suite, emulator, Flutter analysis, scanner runtime or build was executed. The execution limitation and required gates above remain in force.
