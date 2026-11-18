@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase-admin/app";
 import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
 import { validateGroupCallPricingPolicy } from "./group-call-economy";
+import { reconcileWalletLedger } from "./wallet-reconciliation";
 import { isActiveRentedPrivateRoom } from "./room-call-policy";
 import { getAuth } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
@@ -7572,6 +7573,45 @@ export const withdrawCoinPurchaseRequest = onCall(async (request) => {
 const ECONOMY_PRICING_SETTINGS = db.doc("platformSettings/economyPricing");
 
 /** Owner-only view and safe first-run seeding for editable coin and advertising prices. */
+/** Owner-only read-only reconciliation of a member's current balance against walletLedger. */
+export const getOwnerWalletReconciliation = onCall(async (request) => {
+  requireOwner(request);
+  const targetUid = request.data?.targetUid;
+  if (typeof targetUid !== "string" || targetUid.trim() !== targetUid ||
+      targetUid.length < 1 || targetUid.length > 128 || targetUid.includes("/")) {
+    throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+  }
+  const userRef = db.collection("users").doc(targetUid);
+  const userSnapshot = await userRef.get();
+  if (!userSnapshot.exists) throw new HttpsError("not-found", "حساب العضو غير موجود.");
+  const ledgerSnapshot = await userRef.collection("walletLedger")
+    .orderBy("createdAt", "asc").limit(1001).get();
+  const truncated = ledgerSnapshot.size > 1000;
+  const entries = ledgerSnapshot.docs.slice(0, 1000).map((document) => {
+    const data = document.data();
+    return {
+      id: document.id,
+      amount: data.amount,
+      balanceBefore: data.balanceBefore,
+      balanceAfter: data.balanceAfter,
+      createdAtMs: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : null,
+    };
+  });
+  let reconciliation;
+  try {
+    reconciliation = reconcileWalletLedger(userSnapshot.data()?.coins ?? 0, entries);
+  } catch {
+    throw new HttpsError("failed-precondition", "رصيد المحفظة أو دفتر القيود يحتوي بيانات غير صالحة.");
+  }
+  return {
+    targetUid,
+    ...reconciliation,
+    status: truncated ? "incomplete" : reconciliation.status,
+    truncated,
+    inspectedLimit: 1000,
+  };
+});
+
 export const getOwnerEconomyPricing = onCall(async (request) => {
   requireOwner(request);
   const snapshot = await ECONOMY_PRICING_SETTINGS.get();
