@@ -7,6 +7,7 @@ import { validateMemberProfile } from "./member-profile";
 import { isAllowedLegalPortalAppId } from "./legal-portal-access";
 import { FieldPath, FieldValue, Timestamp, getFirestore, type DocumentReference, type Transaction } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { onObjectFinalized } from "firebase-functions/v2/storage";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineString, defineSecret } from "firebase-functions/params";
 import { validateMediaLegalHoldInput } from "./media-legal-hold";
@@ -27,6 +28,14 @@ import { createDirectChatId } from "./direct-chat-id";
 import { encodeMemberMessagePageToken, validateMemberMessagePageRequest } from "./member-message-pagination";
 import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
 import { hasActiveBiometricVerification } from "./biometric-verification";
+import {
+  canSubmitBiometricRequest,
+  nextBiometricAttemptNumber,
+  decideBiometricRequest,
+  BIOMETRIC_REWARD_BETACOINS,
+  BIOMETRIC_LOCKOUT_MS,
+} from "./biometric-review";
+import { readMp4DurationMs, assertBiometricVideoDurationAllowed } from "./biometric-media";
 import { assertPlatformRoleCapacity, type NumberedPlatformRole } from "./platform-role-identities";
 import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, isEmailVerificationCycleDue, canRewardEmailVerificationCycle } from "./email-verification-cycle";
 import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
