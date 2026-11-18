@@ -107,6 +107,52 @@ test("attendance rewards are server-policy gated, UTC-period idempotent and ledg
   }
 });
 
+test("timed ad campaign edits require the current version and reject stale overwrites", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const ownerUid = `ad_version_owner_${suffix()}`;
+  let campaignId;
+  const base = {
+    title: "Versioned test campaign",
+    sponsorLabel: "Mawdda test sponsor",
+    body: "Synthetic campaign for optimistic concurrency validation.",
+    placement: "reward_center",
+    durationSeconds: 15,
+    rewardCoins: 5,
+    startsAtMs: Date.now() - 1000,
+    endsAtMs: Date.now() + 60 * 60 * 1000,
+    maxClaimsPerMember: 1,
+    rewardBudgetCoins: 50,
+  };
+  try {
+    const created = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      ...base, expectedVersion: 0,
+    }));
+    campaignId = created.campaignId;
+    assert.equal(created.version, 1);
+
+    const updated = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      ...base, campaignId, expectedVersion: created.version,
+      title: "Updated versioned campaign",
+    }));
+    assert.equal(updated.version, 2);
+
+    await assert.rejects(
+      () => setTimedAdCampaign.run(ownerRequest(ownerUid, {
+        ...base, campaignId, expectedVersion: created.version,
+        title: "Stale campaign overwrite",
+      })),
+      (error) => error && error.code === "aborted",
+    );
+    const stored = await db.collection("timedAdCampaigns").doc(campaignId).get();
+    assert.equal(stored.data().title, "Updated versioned campaign");
+    assert.equal(stored.data().version, 2);
+  } finally {
+    if (campaignId) {
+      await db.collection("timedAdCampaigns").doc(campaignId).delete().catch(() => undefined);
+    }
+  }
+});
+
 test("timed advertisements require foreground heartbeat duration and pay once", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = suffix();
