@@ -110,6 +110,7 @@ import {
   validateTimedAdCampaignInput,
   eligibleHeartbeatDelta,
   timedAdMemberCounterId,
+  decideTimedAdDailyCap,
   TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER,
   TIMED_AD_DAILY_MAX_REWARD_COINS_PER_MEMBER,
   AttendanceRewardType,
@@ -8079,10 +8080,12 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     const dailyData = dailyCounter.data() ?? {};
     const dailyClaims = dailyCounter.exists ? readSafeInteger(dailyData.claimCount ?? 0, "dailyClaimCount") : 0;
     const dailyRewardCoins = dailyCounter.exists ? readSafeInteger(dailyData.rewardCoins ?? 0, "dailyRewardCoins") : 0;
-    if (dailyClaims >= TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER ||
-        dailyRewardCoins + data.rewardCoins > TIMED_AD_DAILY_MAX_REWARD_COINS_PER_MEMBER) {
-      return cancelSession("ineligible");
-    }
+    const dailyCapDecision = decideTimedAdDailyCap({
+      claimCount: dailyClaims,
+      rewardCoins: dailyRewardCoins,
+      nextRewardCoins: data.rewardCoins,
+    });
+    if (!dailyCapDecision.eligible) return cancelSession("ineligible");
     if (reserved < data.rewardCoins || spent + data.rewardCoins > budget ||
         claims >= campaignData.maxClaimsPerMember) {
       throw new HttpsError("resource-exhausted", "انتهت ميزانية الحملة أو الحد المسموح للمكافآت.");
