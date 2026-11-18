@@ -83,11 +83,12 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
         _campaigns = campaigns;
         _showcaseMode = data['mode']?.toString() ?? 'empty';
         _rotationIntervalMs = ((data['rotationIntervalMs'] as num?)?.toInt() ?? 1000)
-            .clamp(250, 60 * 1000);
+            .clamp(250, 60 * 1000).toInt();
         _showcaseIndex = 0;
         _rewardsEnabled = policy['enabled'] == true;
         _rewardCoins = (policy['rewardCoinsPerView'] as num?)?.toInt() ?? 0;
       });
+      if (_showcaseController.hasClients) _showcaseController.jumpToPage(0);
       _startRotation();
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل الإعلانات المميزة.');
