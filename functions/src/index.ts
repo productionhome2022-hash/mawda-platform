@@ -10321,11 +10321,31 @@ async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<
     const snapshot = await transaction.get(callRef);
     if (!snapshot.exists) return null;
     const call = snapshot.data() ?? {};
-    if (call.status !== "accepted" ||
-        !(call.maxDurationEndsAt instanceof Timestamp) ||
-        call.maxDurationEndsAt.toMillis() > Date.now()) {
-      return typeof call.status === "string" ? call.status : null;
+    const status = typeof call.status === "string" ? call.status : null;
+    if (["ended", "cancelled", "rejected", "missed"].includes(String(status))) return status;
+
+    const nowMs = Date.now();
+    let roomRentalExpired = false;
+    if (call.scope === "room") {
+      if (typeof call.targetId !== "string" || !call.targetId) {
+        roomRentalExpired = true;
+      } else {
+        const roomSnapshot = await transaction.get(db.collection("rooms").doc(call.targetId));
+        const roomData = roomSnapshot.data() ?? {};
+        if (!roomSnapshot.exists || typeof roomData.rentalId !== "string" || !roomData.rentalId) {
+          roomRentalExpired = true;
+        } else {
+          const rentalSnapshot = await transaction.get(db.collection("roomRentals").doc(roomData.rentalId));
+          roomRentalExpired = !rentalSnapshot.exists ||
+            !isActiveRentedPrivateRoom(roomData, rentalSnapshot.data(), nowMs);
+        }
+      }
     }
+    const durationExpired = status === "accepted" &&
+      call.maxDurationEndsAt instanceof Timestamp &&
+      call.maxDurationEndsAt.toMillis() <= nowMs;
+    if (!roomRentalExpired && !durationExpired) return status;
+
     const participantUids = Array.isArray(call.participantUids)
       ? call.participantUids.filter((uid): uid is string => typeof uid === "string")
       : [];
@@ -10334,7 +10354,7 @@ async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<
     transaction.update(callRef, {
       status: "ended",
       endedBy: "system",
-      endReason: "maximum_duration_reached",
+      endReason: roomRentalExpired ? "room_rental_expired" : "maximum_duration_reached",
       endedAt: FieldValue.serverTimestamp(),
       lastActivityAt: FieldValue.serverTimestamp(),
     });
@@ -10343,7 +10363,7 @@ async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<
         transaction.delete(lockRef);
       }
     });
-    return "duration_expired";
+    return roomRentalExpired ? "room_rental_expired" : "duration_expired";
   });
 }
 
