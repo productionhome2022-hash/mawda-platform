@@ -395,12 +395,15 @@ export const transferCoins = onCall(async (request) => {
           senderLedger.commissionAmount !== prior.commissionAmount ||
           senderLedger.commissionBps !== prior.commissionBps ||
           senderLedger.recipientUid !== recipientUid ||
-          senderLedger.recipientNetAmount !== prior.netAmount || !senderBalanceSnapshotValid ||
+          senderLedger.recipientNetAmount !== prior.netAmount ||
+          senderLedger.transferId !== transferId || !senderBalanceSnapshotValid ||
           !recipientLedgerSnapshot.exists || recipientLedger.type !== "coin_transfer_received" ||
           recipientLedger.direction !== "credit" || recipientLedger.amount !== prior.netAmount ||
-          recipientLedger.senderUid !== senderUid || !recipientBalanceSnapshotValid ||
+          recipientLedger.senderUid !== senderUid || recipientLedger.transferId !== transferId ||
+          !recipientBalanceSnapshotValid ||
           !platformLedgerSnapshot.exists || platformLedger.type !== "coin_transfer_commission" ||
           platformLedger.direction !== "credit" || platformLedger.amount !== prior.commissionAmount ||
+          platformLedger.transferId !== transferId || platformLedger.currency !== "coin" ||
           platformLedger.grossAmount !== prior.grossAmount ||
           platformLedger.commissionBps !== prior.commissionBps ||
           platformLedger.senderUid !== senderUid || platformLedger.recipientUid !== recipientUid) {
