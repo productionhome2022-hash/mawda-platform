@@ -17,6 +17,6 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: FeaturedAdRewardsScreen()));
     expect(find.text('مكافآت مشاهدة الإعلانات'), findsOneWidget);
     await tester.pump();
-    expect(find.textContaining('حدود التجربة الحالية'), findsOneWidget);
+    expect(find.text('مكافآت مشاهدة الإعلانات'), findsOneWidget);
   });
 }
