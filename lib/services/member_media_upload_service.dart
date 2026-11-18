@@ -283,6 +283,30 @@ class MemberMediaUploadService {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
+  /// Gets a short-lived Media Saver capability. The server re-checks
+  /// the paid entitlement on every call and never extends media retention.
+  Future<String> getMediaSaverAttachmentUrl({
+    required String mediaId,
+    required String messageId,
+    required String scope,
+    String? chatId,
+    String? roomId,
+  }) async {
+    final response = await _functions.httpsCallable('getMediaSaverAttachmentUrl').call({
+      'mediaId': mediaId,
+      'messageId': messageId,
+      'scope': scope,
+      if (chatId != null) 'chatId': chatId,
+      if (roomId != null) 'roomId': roomId,
+    });
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final url = data['url'] as String?;
+    if (url == null || url.isEmpty) {
+      throw StateError('MEDIA_SAVER_URL_MISSING');
+    }
+    return url;
+  }
+
   Future<String> getChatMediaAttachmentUrl({
     required String scope,
     required String mediaId,
