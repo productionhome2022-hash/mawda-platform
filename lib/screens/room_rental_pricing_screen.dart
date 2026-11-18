@@ -32,9 +32,9 @@ class _RoomRentalPricingScreenState extends State<RoomRentalPricingScreen> {
   Future<void> _edit([Map<String, dynamic>? current]) async {
     final id = TextEditingController(text: current?['planId'] as String? ?? '');
     final name = TextEditingController(text: current?['name'] as String? ?? '');
-    final days = TextEditingController(text: '${current?['durationDays'] ?? 30}');
-    final price = TextEditingController(text: '${current?['priceCoins'] ?? 1000}');
-    bool active = current?['active'] != false;
+    final days = TextEditingController(text: current?['durationDays']?.toString() ?? '');
+    final price = TextEditingController(text: current?['priceCoins']?.toString() ?? '');
+    bool active = current == null ? false : current['active'] == true;
     final value = await showDialog<Map<String, dynamic>>(context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, update) => AlertDialog(
         title: Text(current == null ? 'إضافة باقة' : 'تعديل باقة'),
@@ -65,7 +65,7 @@ class _RoomRentalPricingScreenState extends State<RoomRentalPricingScreen> {
     });
   }
   Future<void> _save() async {
-    if (_saving || _plans.isEmpty) return;
+    if (_saving) return;
     setState(() { _saving = true; _error = null; });
     try {
       final result = await _functions.httpsCallable('setRoomRentalPlans').call({'plans': _plans});
@@ -88,13 +88,18 @@ class _RoomRentalPricingScreenState extends State<RoomRentalPricingScreen> {
           crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('الأسعار قابلة للتعديل من لوحة المالك', style: Theme.of(context).textTheme.titleMedium),
             Text('إصدار السياسة: $_version'),
-            const Text('الأسعار ابتدائية بالكوينز. تثبت الأسعار المتفق عليها داخل عمليات الاستئجار السابقة، ولا يغير تحديث القائمة المعاملات المنفذة.'),
+            const Text('لا توجد أسعار أو مدد افتراضية. يحدد المالك كل مدة وسعر وحالة تفعيل بنفسه؛ وتُحفظ نسخة السياسة المعتمدة داخل كل عملية استئجار.'),
           ]))),
         if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         ..._plans.map((p) => Card(child: ListTile(
           title: Text(p['name'] as String? ?? p['planId'] as String? ?? 'باقة'),
-          subtitle: Text('${p['durationDays']} يوم • ${p['priceCoins']} كوين • ${p['active'] == true ? 'متاحة' : 'متوقفة'}'),
-          trailing: IconButton(onPressed: _saving ? null : () => _edit(p), icon: const Icon(Icons.edit_outlined)),
+          subtitle: Text('${p['durationDays']} يوم • ${p['priceCoins']} BetaCoins • ${p['active'] == true ? 'متاحة' : 'متوقفة'}'),
+          trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
+            IconButton(onPressed: _saving ? null : () => _edit(p), icon: const Icon(Icons.edit_outlined)),
+            IconButton(onPressed: _saving ? null : () => setState(() =>
+              _plans = _plans.where((item) => item['planId'] != p['planId']).toList()),
+              icon: const Icon(Icons.delete_outline)),
+          ]),
         ))),
         OutlinedButton.icon(onPressed: _saving ? null : () => _edit(), icon: const Icon(Icons.add), label: const Text('إضافة باقة')),
         FilledButton.icon(onPressed: _saving ? null : _save, icon: const Icon(Icons.save_outlined), label: const Text('حفظ الأسعار في الخادم')),
