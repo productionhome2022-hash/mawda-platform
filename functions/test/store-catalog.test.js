@@ -92,14 +92,14 @@ test("store charging stays disabled until fulfillment is explicitly ready", () =
     active: true, purchaseEnabled: true, fulfillmentReady: false,
   }), false);
   assert.equal(isStoreItemPurchasable({
-    active: true, itemId: "vip_monthly", category: "vip", priceCoins: 500,
+    active: true, version: 1, itemId: "vip_monthly", category: "vip", priceCoins: 500,
     purchaseEnabled: true, fulfillmentReady: true,
   }), true);
   assert.equal(isStoreItemPurchasable({
     active: true, itemId: "profile_theme_30d", category: "theme", purchaseEnabled: true, fulfillmentReady: false,
   }), false);
   assert.equal(isStoreItemPurchasable({
-    active: true, itemId: "profile_theme_30d", category: "theme", priceCoins: 500,
+    active: true, version: 1, itemId: "profile_theme_30d", category: "theme", priceCoins: 500,
     purchaseEnabled: true, fulfillmentReady: true,
   }), true);
   assert.equal(isStoreItemPurchasable({
