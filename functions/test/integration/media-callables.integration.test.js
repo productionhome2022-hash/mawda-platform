@@ -33,6 +33,7 @@ const { createMemberStory, listMemberStories } = require("../../lib/index");
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
+const { getAuth } = require("firebase-admin/auth");
 const { randomUUID, createHash } = require("node:crypto");
 
 // Signed URL generation needs a signer even when the target is the Storage Emulator.
@@ -895,3 +896,114 @@ test("an image attachment cannot be linked twice or use a forged owner role", as
   );
 });
 
+
+
+test("member-to-verified-owner upload bypasses daily accounting but retains active reservation", async () => {
+  assert.ok(process.env.FIREBASE_AUTH_EMULATOR_HOST, "Auth emulator is required for owner recipient verification");
+  const senderUid = "member-owner-transfer-" + randomUUID();
+  const ownerUid = "verified-owner-recipient-" + randomUUID();
+  const ordinaryUid = "ordinary-recipient-" + randomUUID();
+  const auth = getAuth();
+  const ownerAccount = await auth.createUser({ uid: ownerUid, email: ownerUid + "@example.test" });
+  const ordinaryAccount = await auth.createUser({ uid: ordinaryUid, email: ordinaryUid + "@example.test" });
+  await auth.setCustomUserClaims(ownerAccount.uid, { platformOwner: true });
+  await auth.setCustomUserClaims(ordinaryAccount.uid, { platformOwner: false });
+  const quotaRef = db.collection("mediaUploadQuotas").doc(senderUid);
+  const assetIds = [];
+  try {
+    const dailyWindow = new Date().toISOString().slice(0, 10);
+    await quotaRef.set({
+      activeUploads: 0,
+      activeBytes: 0,
+      dailyBytes: 999999999,
+      dailyUploads: 999999,
+      dailyWindow,
+    });
+    const intent = await createMediaUploadIntent.run({
+      data: {
+        originalName: "owner-transfer.png",
+        contentType: "image/png",
+        sizeBytes: 1024,
+        purpose: "chat",
+        recipientUid: ownerUid,
+      },
+      auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+    });
+    assetIds.push(intent.mediaId);
+    const asset = await db.collection("mediaAssets").doc(intent.mediaId).get();
+    assert.equal(asset.data().intendedRecipientUid, ownerUid);
+    assert.equal(asset.data().intendedRecipientIsPlatformOwner, true);
+    assert.equal(asset.data().quotaExempt, false);
+    const quota = (await quotaRef.get()).data();
+    assert.equal(quota.activeUploads, 1);
+    assert.equal(quota.activeBytes, 1024);
+    assert.equal(quota.dailyBytes, 999999999);
+    assert.equal(quota.dailyUploads, 999999);
+
+    await assert.rejects(
+      () => createMediaUploadIntent.run({
+        data: {
+          originalName: "ordinary-transfer.png",
+          contentType: "image/png",
+          sizeBytes: 1024,
+          purpose: "chat",
+          recipientUid: ordinaryUid,
+        },
+        auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+      }),
+      (error) => error && error.code === "resource-exhausted",
+      "an ordinary recipient must not receive the owner daily-quota exemption",
+    );
+    const afterRejectedAttempt = (await quotaRef.get()).data();
+    assert.equal(afterRejectedAttempt.activeUploads, 1);
+    assert.equal(afterRejectedAttempt.activeBytes, 1024);
+    assert.equal(afterRejectedAttempt.dailyBytes, 999999999);
+    assert.equal(afterRejectedAttempt.dailyUploads, 999999);
+  } finally {
+    await Promise.all([
+      ...assetIds.map((id) => db.collection("mediaAssets").doc(id).delete().catch(() => undefined)),
+      quotaRef.delete().catch(() => undefined),
+      auth.deleteUser(ownerUid).catch(() => undefined),
+      auth.deleteUser(ordinaryUid).catch(() => undefined),
+    ]);
+  }
+});
+
+test("member-to-verified-owner upload still fails when active reservation limits are exhausted", async () => {
+  assert.ok(process.env.FIREBASE_AUTH_EMULATOR_HOST, "Auth emulator is required for owner recipient verification");
+  const senderUid = "member-owner-active-limit-" + randomUUID();
+  const ownerUid = "verified-owner-active-limit-" + randomUUID();
+  const auth = getAuth();
+  const ownerAccount = await auth.createUser({ uid: ownerUid, email: ownerUid + "@example.test" });
+  await auth.setCustomUserClaims(ownerAccount.uid, { platformOwner: true });
+  const quotaRef = db.collection("mediaUploadQuotas").doc(senderUid);
+  try {
+    await quotaRef.set({
+      activeUploads: 5,
+      activeBytes: 1024,
+      dailyBytes: 0,
+      dailyUploads: 0,
+      dailyWindow: new Date().toISOString().slice(0, 10),
+    });
+    await assert.rejects(
+      () => createMediaUploadIntent.run({
+        data: {
+          originalName: "owner-transfer.png",
+          contentType: "image/png",
+          sizeBytes: 1024,
+          purpose: "chat",
+          recipientUid: ownerUid,
+        },
+        auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+      }),
+      (error) => error && error.code === "resource-exhausted",
+      "owner-directed transfers must retain active upload admission limits",
+    );
+    assert.equal((await quotaRef.get()).data().activeUploads, 5);
+  } finally {
+    await Promise.all([
+      quotaRef.delete().catch(() => undefined),
+      auth.deleteUser(ownerUid).catch(() => undefined),
+    ]);
+  }
+});
