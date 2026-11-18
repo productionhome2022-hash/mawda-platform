@@ -295,3 +295,5 @@ This amendment records policy approval only. It does not establish that code, te
 - يجب أن يحقن workflow ملف `google-services.json` الإنتاجي من سر `MAWDDA_PRODUCTION_GOOGLE_SERVICES_JSON_B64`، ثم يطابق project ID ورقم المشروع وApp ID واسم الحزمة ومفتاح API وStorage bucket مع FlutterFire production options.
 - أُضيف تحقق آلي لهويات Android وiOS الإنتاجية في `functions/scripts/validate-firebase-config.cjs` واختبارات لها. غياب ملف Google Services الإنتاجي أو عدم التطابق يمنع بناء الإصدار.
 - لم يُقدّم المالك بعد سر ملف Google Services الإنتاجي في هذه المراجعة، ولذلك لم يُشغّل workflow الموقّع ولم تُنتج حزم Release.
+
+| ECON-NAMING-001 | الاسم التجاري الرسمي للعملة الافتراضية في Mawdda هو **Beta Coins / بيتا كوينز**، ويُستخدم في واجهات المستخدم والمتاجر والمكافآت والإشعارات بدلاً من Coins منفردة. المعرفات التقنية الحالية مثل `coins` وواجهات البيانات لا تُعاد تسميتها لمجرد التغيير التجاري. | واجهات Flutter والنصوص المرئية، مع الحفاظ على schema/API identifiers الحالية حتى تنفيذ migration تقنية مستقلة عند الحاجة. | **معتمد للتنفيذ على فرع التطوير** |
