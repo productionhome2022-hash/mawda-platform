@@ -117,6 +117,7 @@ import {
   validateFeaturedAdRewardPolicy,
 } from "./featured-ad-rewards";
 import { CAPACITY_MEDIA_DEFAULTS, projectCapacityMediaPolicy, validateCapacityMediaQuotaInput, type CapacityMediaPolicy } from "./capacity-media-management";
+import { projectPublishedStickerPack } from "./sticker-catalog";
 
 initializeApp();
 
@@ -5196,6 +5197,21 @@ export const setRoomEventStatus = onCall(async (request) => {
     });
   });
   return { eventId, status: nextStatus };
+});
+
+
+/** Returns only server-approved sticker pack metadata; asset delivery is a separate authorized operation. */
+export const getStickerCatalog = onCall(async (request) => {
+  requireAuthenticatedUid(request.auth?.uid);
+  const snapshot = await db.collection("stickerPacks")
+    .where("status", "==", "published")
+    .limit(100)
+    .get();
+  const packs = snapshot.docs
+    .map((document) => projectPublishedStickerPack(document.id, document.data()))
+    .filter((pack): pack is NonNullable<typeof pack> => pack !== null)
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.packId.localeCompare(right.packId));
+  return { packs };
 });
 
 export const sendRoomMessage = onCall(async (request) => {
