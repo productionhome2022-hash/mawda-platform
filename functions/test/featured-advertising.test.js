@@ -103,3 +103,12 @@ test("owner can configure rotation interval and invalid inputs fail closed", () 
     random: () => 1,
   }), /RANDOM_SOURCE_INVALID/);
 });
+
+test("the broad Arab-region filter includes campaigns with specific regional targeting", () => {
+  const result = selectFeaturedAdShowcase({
+    campaigns: [{ ...base, campaignId: "regional_ad", geographicTargets: ["syria"] }],
+    audienceGeography: "all_arab_countries",
+    nowMs: 500,
+  });
+  assert.deepEqual(result.campaignIds, ["regional_ad"]);
+});
