@@ -51,7 +51,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
   }
 
   Future<void> _save() async {
-    if (_saving || _packages.isEmpty || _ads.isEmpty) return;
+    if (_saving) return;
     setState(() { _saving = true; _error = null; });
     try {
       final result = await _functions.httpsCallable('setOwnerEconomyPricing').call({
