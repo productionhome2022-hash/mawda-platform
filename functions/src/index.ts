@@ -8462,6 +8462,9 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
     const policy: FeaturedAdRewardPolicy = policySnapshot.exists ? validateFeaturedAdRewardPolicy(policySnapshot.data()?.policy) : defaultFeaturedAdRewardPolicy();
     const daily = daySnapshot.data() ?? {};
     const member = campaignMemberSnapshot.data() ?? {};
+    const rewardTimestamps = Array.isArray(member.rewardTimestampsMs)
+      ? member.rewardTimestampsMs.filter((value: unknown) => Number.isSafeInteger(value) && (value as number) >= now - policy.sameCampaignWindowMs)
+      : [];
     const decision = decideFeaturedAdReward(policy, {
       nowMs: now, campaignEligible: campaign.status === "published" && campaign.ownerWithdrawn !== true &&
         campaign.ownerApproved === true && campaign.paymentConfirmed === true && campaign.creativeApproved === true &&
@@ -8474,7 +8477,7 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
       continuousVisibleMs: Number(session.visibleMs) || 0,
       rewardedViewsToday: Number(daily.rewardedViews) || 0,
       rewardCoinsToday: Number(daily.rewardCoins) || 0,
-      sameCampaignRewardsInWindow: Number(member.rewardedViews) || 0,
+      sameCampaignRewardsInWindow: rewardTimestamps.length,
     });
     if (!decision.eligible) {
       transaction.update(sessionRef, { status: "completed_no_reward", rewardReason: decision.reason, completedAtMs: now, updatedAt: FieldValue.serverTimestamp() });
@@ -8496,7 +8499,7 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
       createdAt: FieldValue.serverTimestamp(), balanceAfter: currentCoins + amount,
     });
     transaction.set(dayRef, { rewardedViews: (Number(daily.rewardedViews) || 0) + 1, rewardCoins: (Number(daily.rewardCoins) || 0) + amount, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    transaction.set(campaignMemberRef, { rewardedViews: (Number(member.rewardedViews) || 0) + 1, lastRewardAtMs: now, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    transaction.set(campaignMemberRef, { rewardedViews: (Number(member.rewardedViews) || 0) + 1, rewardTimestampsMs: [...rewardTimestamps, now].slice(-1000), lastRewardAtMs: now, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     transaction.update(campaignRef, { spentRewardCoins: FieldValue.increment(amount), updatedAt: FieldValue.serverTimestamp() });
     transaction.update(sessionRef, { rewardClaimed: true, status: "rewarded", rewardCoins: amount, rewardLedgerId: ledgerId, completedAtMs: now, updatedAt: FieldValue.serverTimestamp() });
     return { rewarded: true, idempotentReplay: false, amountCoins: amount, ledgerId };
