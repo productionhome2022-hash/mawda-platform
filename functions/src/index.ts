@@ -7538,6 +7538,14 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
     }
     const prior = snapshot.data()!;
+    if (prior.giftRecipientUid) {
+      const packageSnapshot = prior.packageSnapshot as Record<string, unknown> | null;
+      if (!packageSnapshot || input.agreedCoins !== packageSnapshot.coins ||
+          input.agreedPriceMinor !== packageSnapshot.priceMinor ||
+          input.currency !== (packageSnapshot.currency ?? "EUR")) {
+        throw new HttpsError("failed-precondition", "لا يمكن تغيير كمية أو سعر الباقة المحددة كهدية؛ يجب اعتماد شروط الباقة التي اختارها المرسل.");
+      }
+    }
     if (["approved", "rejected", "withdrawn"].includes(String(prior.status))) {
       throw new HttpsError("failed-precondition", "لا يمكن تعديل طلب منتهٍ.");
     }
@@ -7668,6 +7676,12 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
 
     if (ledger.exists) throw new HttpsError("already-exists", "يوجد سجل مالي سابق لهذا الطلب؛ يلزم تدقيقه.");
     const coins = data.agreedCoins;
+    if (data.giftRecipientUid && (!data.packageSnapshot ||
+        coins !== data.packageSnapshot.coins ||
+        data.agreedPriceMinor !== data.packageSnapshot.priceMinor ||
+        (data.currency ?? "EUR") !== (data.packageSnapshot.currency ?? "EUR"))) {
+      throw new HttpsError("failed-precondition", "شروط باقة الهدية تغيرت عن الباقة التي اختارها المرسل.");
+    }
     if (!Number.isSafeInteger(coins) || coins < 1 || coins > 1000000000) {
       throw new HttpsError("failed-precondition", "الكمية المتفق عليها غير صالحة.");
     }
