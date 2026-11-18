@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { projectStoreCatalogItem } = require("../lib/store-catalog");
+const { projectStoreCatalogItem, validateStoreCatalogItemInput } = require("../lib/store-catalog");
 
 test("projects only active catalog items with safe display fields", () => {
   assert.deepEqual(projectStoreCatalogItem("vip-30", {
