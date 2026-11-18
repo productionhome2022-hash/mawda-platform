@@ -256,3 +256,8 @@ For every economic price that is defined as one combined amount and divided equa
 - Added owner/MFA-only `reconcileMemberWallet` callable, a Super Admin action for the selected member, and a result panel. It reads up to 10,000 entries, reports truncation/missing timestamps as incomplete, records the reconciliation audit event, and never mutates wallet balance or ledger entries.
 - Added unit and emulator test source for consistent, incomplete, corrupt and read-only outcomes. Tests remain unexecuted. Full historical reconciliation across wallets and any >10,000-entry histories remains a final validation/recovery task; the callable does not claim full platform-wide reconciliation.
 - Commits: ee0b94791a2868a68995c9fe6ad22e19e08f3dba, baf59e9bd1a5146123bb1d85cf1be7fe7f31f24d, 1e6cb3e51650d6497b7b9b5d9547dd2bd7d8af47, 5c45d52a740339b6b382b65cf07abb419e091a2d, 10e993a1bb9e057871744d7a78dfa25082bacae1, 103e3b6f832cc75bb0faf2f86045423da42c892d, 020cd936a5fde108963bc05802c11e104d701cd4.
+
+
+## Reconciliation ordering precision note (2026-11-18)
+- Wallet ledger reconciliation now orders Firestore timestamps using safe millisecond precision plus nanoseconds, avoiding unsafe large integer timestamp arithmetic. Missing timestamps and truncated histories remain explicitly incomplete.
+- Commit: 851076fc032a9e200eeb5512e56c9766fab9bd68. No tests run.
