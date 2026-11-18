@@ -6905,20 +6905,20 @@ export const giftStoreEntitlement = onCall(async (request) => {
       sender, recipient, itemSnapshot, priorGift, priorLedger, priorEntitlement,
       priorHistory, priorNotification,
       senderGuestProfile, senderGuestSession, recipientGuestProfile, recipientGuestSession,
-    ] = await Promise.all([
-      transaction.get(senderRef),
-      transaction.get(recipientRef),
-      transaction.get(itemRef),
-      transaction.get(giftRef),
-      transaction.get(senderLedgerRef),
-      transaction.get(recipientEntitlementRef),
-      transaction.get(recipientHistoryRef),
-      transaction.get(recipientNotificationRef),
-      transaction.get(senderGuestProfileRef),
-      transaction.get(senderGuestSessionRef),
-      transaction.get(recipientGuestProfileRef),
-      transaction.get(recipientGuestSessionRef),
-    ]);
+    ] = await transaction.getAll(
+      senderRef,
+      recipientRef,
+      itemRef,
+      giftRef,
+      senderLedgerRef,
+      recipientEntitlementRef,
+      recipientHistoryRef,
+      recipientNotificationRef,
+      senderGuestProfileRef,
+      senderGuestSessionRef,
+      recipientGuestProfileRef,
+      recipientGuestSessionRef,
+    );
 
     if (priorGift.exists) {
       const prior = priorGift.data() ?? {};
