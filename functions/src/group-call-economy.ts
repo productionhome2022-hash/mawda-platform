@@ -22,7 +22,7 @@ export function validateGroupCallPricingPolicy(value: unknown): GroupCallPricing
       !Number.isSafeInteger(p.audioCoinsPerMinute) || (p.audioCoinsPerMinute as number) < 0 ||
       !Number.isSafeInteger(p.videoCoinsPerMinute) || (p.videoCoinsPerMinute as number) < 0 ||
       !Number.isSafeInteger(p.updatedAtMs) || (p.updatedAtMs as number) < 1 ||
-      (p.active && ((p.audioCoinsPerMinute as number) < 1 || (p.videoCoinsPerMinute as number) < 1))) {
+      (p.active && (p.audioCoinsPerMinute as number) < 1 && (p.videoCoinsPerMinute as number) < 1)) {
     throw new Error("INVALID_GROUP_CALL_PRICING_POLICY");
   }
   return {
@@ -38,7 +38,7 @@ export function validateGroupCallPricingPolicy(value: unknown): GroupCallPricing
 export function getGroupCallRate(policyInput: unknown, mode: GroupCallMode): number {
   const policy = validateGroupCallPricingPolicy(policyInput);
   if (!policy.active) throw new Error("GROUP_CALL_PRICING_DISABLED");
-  return mode === "audio" ? policy.audioCoinsPerMinute : policy.videoCoinsPerMinute;
+  const rate = mode === "audio" ? policy.audioCoinsPerMinute : policy.videoCoinsPerMinute;\n  if (rate < 1) throw new Error("GROUP_CALL_MODE_DISABLED");\n  return rate;
 }
 
 /**
