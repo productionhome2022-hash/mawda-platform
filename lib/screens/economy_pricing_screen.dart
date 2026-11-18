@@ -281,15 +281,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
       maxLength: 3,
       textCapitalization: TextCapitalization.characters,
       decoration: const InputDecoration(labelText: 'العملة'),
-      onChanged: (text) {
-        final code = text.trim().toUpperCase();
-        final exponent = _currencyExponent(code);
-        onChanged(code);
-        if (exponent != null) {
-          // Keep the preview aligned with the ISO minor-unit exponent that
-          // the server derives and persists when the policy is saved.
-        }
-      },
+      onChanged: (text) => onChanged(text.trim().toUpperCase()),
     ),
   );
 
