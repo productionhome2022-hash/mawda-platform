@@ -1,8 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getFirestore } = require("firebase-admin/firestore");
+const { getAuth } = require("firebase-admin/auth");
 const {
-  transferCoins, purchaseStoreItem, giftStoreEntitlement, getOwnerStoreCatalog, setStoreCatalogItem, getOwnerEconomyPricing,
+  transferCoins, purchaseStoreItem, giftStoreEntitlement, getMyStoreGiftHistory, getOwnerStoreCatalog, setStoreCatalogItem, getOwnerEconomyPricing,
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
   setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
@@ -247,21 +248,25 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
 });
 
 
-test("store entitlement gifting atomically debits giver, grants recipient and is idempotent", async () => {
+test("store entitlement gifting atomically debits giver, grants recipient, records history and is idempotent", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  assert.ok(process.env.FIREBASE_AUTH_EMULATOR_HOST, "Auth emulator is required");
   const tag = suffix();
   const giverUid = `gift_giver_${tag}`;
   const recipientUid = `gift_recipient_${tag}`;
   const itemId = "vip_monthly";
   const requestId = `gift_${tag}`;
   const giftId = require("node:crypto").createHash("sha256")
-    .update(`mawdda-store-gift-v1:${giverUid}:${recipientUid}:${requestId}`).digest("hex");
+    .update(`mawdda-store-gift-v1:${giverUid}:${requestId}`).digest("hex");
+  const auth = getAuth();
+  await auth.createUser({ uid: recipientUid, email: `${recipientUid}@example.test`, password: "EmulatorOnly-123456!" });
   const giverRef = db.collection("users").doc(giverUid);
   const recipientRef = db.collection("users").doc(recipientUid);
   const itemRef = db.collection("storeCatalog").doc(itemId);
   const giftRef = db.collection("storeGifts").doc(giftId);
   const giverLedgerRef = giverRef.collection("walletLedger").doc(`gift_${giftId}`);
-  const recipientLedgerRef = recipientRef.collection("entitlementGiftLedger").doc(giftId);
+  const recipientHistoryRef = recipientRef.collection("giftHistory").doc(giftId);
+  const notificationRef = recipientRef.collection("notifications").doc(`gift_${giftId}`);
   const entitlementRef = recipientRef.collection("entitlements").doc(itemId);
   await Promise.all([
     giverRef.set({ coins: 3000, profileCompleted: true, accountStatus: "active" }),
@@ -286,27 +291,119 @@ test("store entitlement gifting atomically debits giver, grants recipient and is
     assert.equal((await recipientRef.get()).data().coins, 10);
     assert.equal((await giftRef.get()).data().status, "completed");
     assert.equal((await giverLedgerRef.get()).data().amount, -1250);
-    assert.equal((await recipientLedgerRef.get()).data().giftId, giftId);
-    assert.equal((await entitlementRef.get()).data().grantSource, "member_gift");
+    assert.equal((await giverLedgerRef.get()).data().type, "store_gift");
+    assert.equal((await recipientHistoryRef.get()).data().status, "received");
+    assert.equal((await notificationRef.get()).data().type, "store_gift_received");
+    assert.equal((await entitlementRef.get()).data().giftedByUid, giverUid);
     assert.ok((await entitlementRef.get()).data().expiresAt.toMillis() > Date.now());
     const replay = await giftStoreEntitlement.run(request);
     assert.equal(replay.idempotentReplay, true);
     assert.equal((await giverRef.get()).data().coins, 1750);
+    const history = await getMyStoreGiftHistory.run(memberRequest(recipientUid, {}));
+    assert.equal(history.entries.some((entry) => entry.giftId === giftId && entry.giftKind === "store_feature"), true);
     await assert.rejects(
       () => giftStoreEntitlement.run(memberRequest(giverUid, {
         itemId, recipientUid: giverUid, requestId: `self_${tag}`, expectedPriceCoins: 1250,
       })),
-      (error) => error && error.code === "invalid-argument",
+      (error) => error && error.code === "failed-precondition",
     );
   } finally {
     await Promise.all([
       giverLedgerRef.delete().catch(() => undefined),
-      recipientLedgerRef.delete().catch(() => undefined),
+      recipientHistoryRef.delete().catch(() => undefined),
+      notificationRef.delete().catch(() => undefined),
       giftRef.delete().catch(() => undefined),
       entitlementRef.delete().catch(() => undefined),
       itemRef.delete().catch(() => undefined),
       giverRef.delete().catch(() => undefined),
       recipientRef.delete().catch(() => undefined),
+      auth.deleteUser(recipientUid).catch(() => undefined),
+    ]);
+  }
+});
+
+test("owner-approved coin package gifts credit only the recipient with an immutable ledger", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  assert.ok(process.env.FIREBASE_AUTH_EMULATOR_HOST, "Auth emulator is required");
+  const tag = suffix();
+  const requesterUid = `coin_gift_sender_${tag}`;
+  const recipientUid = `coin_gift_recipient_${tag}`;
+  const requestId = `coin_gift_${tag}`;
+  const auth = getAuth();
+  await auth.createUser({ uid: recipientUid, email: `${recipientUid}@example.test`, password: "EmulatorOnly-123456!" });
+  const requesterRef = db.collection("users").doc(requesterUid);
+  const recipientRef = db.collection("users").doc(recipientUid);
+  const requestRef = db.collection("coinPurchaseRequests").doc(`${requesterUid}_${requestId}`);
+  const ledgerRef = recipientRef.collection("walletLedger").doc(`coin_purchase_${requestId}`);
+  const giftRef = db.collection("coinPackageGifts").doc(`${requesterUid}_${requestId}`);
+  const historyRef = recipientRef.collection("coinPackageGiftHistory").doc(requestId);
+  const notificationRef = recipientRef.collection("notifications").doc(`coin_package_gift_${requestId}`);
+  const auditRef = db.collection("adminAuditLogs").doc(`coin_purchase_approval_${requesterUid}_${requestId}`);
+  const settingsRef = db.doc("platformSettings/economyPricing");
+  const priorSettings = await settingsRef.get();
+  const chatId = createDirectChatId("store-catalog-owner", requesterUid);
+  const chatRef = db.collection("directChats").doc(chatId);
+  const messageId = require("node:crypto").createHash("sha256")
+    .update(`coin-purchase:${requesterUid}:${requestId}:1`).digest("hex");
+  const messageRef = chatRef.collection("messages").doc(messageId);
+  const packageSnapshot = {
+    packageId: "gift_test_1000", name: "اختبار باقة الهدية",
+    coins: 1000, priceMinor: 299, currency: "EUR", active: true,
+  };
+  await Promise.all([
+    requesterRef.set({ coins: 25, profileCompleted: true, accountStatus: "active" }),
+    recipientRef.set({ coins: 100, profileCompleted: true, accountStatus: "active" }),
+    settingsRef.set({
+      manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false,
+      coinPackages: [packageSnapshot],
+    }, { merge: true }),
+  ]);
+  try {
+    const created = await createCoinPurchaseRequest.run(memberRequest(requesterUid, {
+      requestId, kind: "package", packageId: packageSnapshot.packageId, giftRecipientUid: recipientUid,
+    }));
+    assert.equal(created.status, "pending_owner_contact");
+    await setCoinPurchasePaymentInstructions.run(ownerRequest("store-catalog-owner", {
+      requesterUid, requestId, instructions: "إتمام الدفع للاختبار المحلي",
+      agreedCoins: packageSnapshot.coins, agreedPriceMinor: packageSnapshot.priceMinor, currency: "EUR",
+    }));
+    const approved = await approveCoinPurchaseRequest.run(ownerRequest("store-catalog-owner", {
+      requesterUid, requestId, externalPaymentVerified: true,
+      externalPaymentReference: `emulator-payment-${tag}`,
+      verificationNote: "تم التحقق من عملية الدفع الاختبارية محلياً",
+    }));
+    assert.equal(approved.status, "approved");
+    assert.equal(approved.creditedToUid, recipientUid);
+    assert.equal((await requesterRef.get()).data().coins, 25);
+    assert.equal((await recipientRef.get()).data().coins, 1100);
+    assert.equal((await ledgerRef.get()).data().type, "coin_package_gift_credit");
+    assert.equal((await giftRef.get()).data().status, "credited");
+    assert.equal((await historyRef.get()).data().coins, 1000);
+    assert.equal((await notificationRef.get()).data().type, "coin_package_gift_received");
+    assert.equal((await requestRef.get()).data().creditedToUid, recipientUid);
+    const replay = await approveCoinPurchaseRequest.run(ownerRequest("store-catalog-owner", {
+      requesterUid, requestId, externalPaymentVerified: true,
+      externalPaymentReference: `emulator-payment-${tag}`,
+      verificationNote: "تم التحقق من عملية الدفع الاختبارية محلياً",
+    }));
+    assert.equal(replay.idempotentReplay, true);
+    assert.equal((await recipientRef.get()).data().coins, 1100);
+    const history = await getMyStoreGiftHistory.run(memberRequest(recipientUid, {}));
+    assert.equal(history.entries.some((entry) => entry.giftId === giftRef.id && entry.giftKind === "coin_package"), true);
+  } finally {
+    await Promise.all([
+      requestRef.delete().catch(() => undefined),
+      ledgerRef.delete().catch(() => undefined),
+      giftRef.delete().catch(() => undefined),
+      historyRef.delete().catch(() => undefined),
+      notificationRef.delete().catch(() => undefined),
+      auditRef.delete().catch(() => undefined),
+      messageRef.delete().catch(() => undefined),
+      chatRef.delete().catch(() => undefined),
+      requesterRef.delete().catch(() => undefined),
+      recipientRef.delete().catch(() => undefined),
+      auth.deleteUser(recipientUid).catch(() => undefined),
+      priorSettings.exists ? settingsRef.set(priorSettings.data()) : settingsRef.delete().catch(() => undefined),
     ]);
   }
 });
