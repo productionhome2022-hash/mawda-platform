@@ -103,5 +103,6 @@ The separate port branch `codex/economy-official-port-2026-11-18` is based on `c
 - Member payment reporting is a claim-only transition to `awaiting_payment_verification`; it does not credit coins. Member withdrawal is locked after instructions issue. Owner approval is accepted from either instructions-sent or awaiting-verification state.
 - Owner approval replay now requires the corresponding immutable audit record and checks wallet-ledger balance arithmetic and key owner/payment fields.
 - Store purchase records and ledgers now capture balance-before/after values; replay validates receipt/ledger arithmetic and fails closed if the ledger is missing.
+- Room rental creation and renewal records/ledgers now capture balance-before/after values. Creation replay validates the original room/member and debit ledger; renewal replay validates the immutable renewal receipt and ledger. Missing or inconsistent financial evidence fails closed.
 - Owner entitlement grant replay verifies the grant, grant-ledger and audit evidence, and does not overwrite a newer paid entitlement after the original grant has expired or been superseded.
 - Unit and emulator test source has been updated. No build, test, emulator or Flutter analysis was run; final validation remains deferred until internal implementation is complete.
