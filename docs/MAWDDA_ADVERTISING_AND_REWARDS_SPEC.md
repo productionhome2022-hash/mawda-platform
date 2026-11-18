@@ -73,6 +73,13 @@ Use synthetic personas in Firebase Emulator and short-lived CI artifacts:
 - Isolation proving synthetic campaigns, credits and callbacks cannot reach production.
 - Mixed guest/member/premium/owner load; owner-only operations unavailable to ordinary personas.
 
+## Campaign concurrency and stale-owner protection
+
+- Every persisted campaign edit is versioned. An edit to an existing campaign must include the version observed by the owner console; the backend compares it inside the Firestore transaction and rejects stale writes with an aborted result.
+- Publish, pause and archive transitions must include the currently observed campaign version and increment it atomically. A stale screen cannot overwrite a newer owner decision.
+- The owner console refreshes the campaign list after successful transitions and must surface conflict errors so the owner can reload before retrying.
+- The version is a concurrency token, not an authorization token; owner/MFA authorization and the audit trail remain mandatory.
+
 ## 8. Release gates and truthful status
 
 The first release can ship platform-managed campaigns without a provider only after the server-enforced foreground/heartbeat protocol, secure upload path, owner controls, wallet reconciliation, rules and emulator/UI tests are complete.
