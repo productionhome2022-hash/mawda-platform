@@ -10257,6 +10257,7 @@ export const startCall = onCall(async (request) => {
     });
     transaction.create(callRef, {
       callId: input.callId, scope: input.scope, targetId: input.targetId, mode: input.mode,
+      rentalId: rentalIdForCall,
       callerUid, participantUids, acceptedUids: input.scope === "room" ? [callerUid] : [], rejectedUids: [], leftUids: [],
       status: "ringing", signalCounts: {}, signalsCleanedAt: false,
       usagePolicySnapshot: usagePolicy,
