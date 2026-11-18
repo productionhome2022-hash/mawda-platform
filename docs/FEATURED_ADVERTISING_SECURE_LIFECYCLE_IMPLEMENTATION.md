@@ -86,3 +86,12 @@ The following development-branch changes were made after the gap review:
 Verification status at this note: source files and blob SHAs were re-fetched from the feature branch after writes. No local Node/Flutter test execution occurred in this chat. The GitHub combined commit status endpoint returned no status checks for the latest integration-test commit, so these changes are **not yet test-verified**.
 
 Remaining featured-ad gates are unchanged: implement the independent featured campaign governance and member session/heartbeat/claim service, persist policy/campaign configuration with owner-only versioned audit, integrate the member player and history UI, and run emulator + Flutter regression on the exact branch head. Do not treat the timed-ad fixes above as completion of featured ads.
+
+
+## Owner campaign concurrency hardening — 2026-11-18
+
+- Existing campaign edits now require the exact `expectedVersion` observed by the owner console; the backend compares it inside the Firestore transaction and rejects stale edits.
+- Publish, pause and archive transitions require the observed version and atomically increment it. A stale screen can no longer overwrite a newer owner action.
+- The owner Flutter console carries the version for edits and status transitions and surfaces a refresh-required conflict instead of silently overwriting.
+- The engagement emulator suite now covers a stale edit, a successful edit/version increment, a publish transition, and rejection of a stale pause attempt.
+- This protects the current platform-managed timed-ad campaign workflow. It does not complete the separate featured-showcase delivery/session/reward service described above.
