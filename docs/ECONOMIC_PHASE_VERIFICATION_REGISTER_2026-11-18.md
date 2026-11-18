@@ -293,7 +293,7 @@ For every economic price that is defined as one combined amount and divided equa
 
 ## GitHub verification evidence — economic and Flutter regression pass (2026-11-18)
 
-- Cloud Functions build and complete Node unit suite passed on commit `6dba47eb163b549ee122460a0510b664ed40a0dd` (GitHub Actions run `44371827203`): TypeScript build succeeded and all 368 unit tests passed.
+- Cloud Functions build and complete Node unit suite passed on commit `28b5c4c12037a2c94124f492b2997812bf051d8f` (GitHub Actions run `44372685160`): TypeScript build succeeded and all 371 unit tests passed, including supported-currency and minor-unit precision checks for advertising and creator proposal budgets.
 - Firebase Emulator integration suites passed in the same run: wallet/store atomicity (including concurrent store gifting and canonical payment-policy precedence), owner entitlement grants/replay, featured-ad reward policy, store catalog, room-rental wallet/replay, email verification reward cycle, engagement/featured-ad reward lifecycle, call entitlement/signaling, owner audit-chain export, and Firestore/Storage security rules.
 - Flutter CI passed on commit `d3ff34ff7c718755c49e249056c26a74659247fb` (GitHub Actions run `44371751238`): `flutter pub get --enforce-lockfile`, `flutter analyze`, all 32 Flutter tests, and `flutter build web --release`.
 - The Flutter lock resolver refreshed `pubspec.lock` with the pinned Flutter SDK. No deployment or production Firebase operation occurred.
