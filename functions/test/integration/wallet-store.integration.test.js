@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { getFirestore } = require("firebase-admin/firestore");
+const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const {
   transferCoins, purchaseStoreItem, getOwnerStoreCatalog, setStoreCatalogItem, getOwnerEconomyPricing,
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
