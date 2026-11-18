@@ -204,6 +204,53 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
     });
   }
 
+  Future<String?> _askCreativeReviewNote() async {
+    final controller = TextEditingController();
+    final note = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('سبب رفض المادة الإعلانية'),
+        content: TextField(
+          controller: controller,
+          minLines: 2,
+          maxLines: 4,
+          decoration: const InputDecoration(hintText: 'اكتب ملاحظة واضحة لصاحب الحملة'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, controller.text.trim()), child: const Text('تأكيد الرفض')),
+        ],
+      ),
+    );
+    controller.dispose();
+    return note;
+  }
+
+  Future<void> _reviewCreative(String id, {required bool approved}) async {
+    String? note;
+    if (!approved) {
+      note = await _askCreativeReviewNote();
+      if (note == null) return;
+      if (note.trim().length < 5) {
+        setState(() => _error = 'اكتب سبباً واضحاً للرفض لا يقل عن خمسة أحرف.');
+        return;
+      }
+    }
+    setState(() { _saving = true; _error = null; });
+    try {
+      await _functions.httpsCallable('reviewFeaturedAdCreative').call({
+        'campaignId': id,
+        'approved': approved,
+        if (note != null) 'reviewNote': note,
+      });
+      await _load();
+    } on FirebaseFunctionsException catch (e) {
+      if (mounted) setState(() => _error = e.message ?? 'تعذرت مراجعة المادة الإعلانية.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _status(String id, String status, {bool paymentConfirmed = false}) async {
     setState(() { _saving = true; _error = null; });
     try {
@@ -333,6 +380,8 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
                 enabled: !_saving,
                 onSelected: (value) async {
                   if (value == 'edit') _edit(item);
+                  if (value == 'approveCreative') await _reviewCreative(id, approved: true);
+                  if (value == 'rejectCreative') await _reviewCreative(id, approved: false);
                   if (value == 'approve') await _status(id, 'approved', paymentConfirmed: true);
                   if (value == 'publish') await _status(id, 'published');
                   if (value == 'pause') await _status(id, 'paused');
@@ -340,7 +389,11 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
                 },
                 itemBuilder: (_) => [
                   if (status == 'draft' || status == 'paused') const PopupMenuItem(value: 'edit', child: Text('تعديل')),
-                  if (status == 'draft' || status == 'paused') const PopupMenuItem(value: 'approve', child: Text('اعتماد + تأكيد الدفع')),
+                  if ((status == 'draft' || status == 'paused') && item['mediaId'] != null)
+                    const PopupMenuItem(value: 'approveCreative', child: Text('اعتماد المادة الإعلانية')),
+                  if ((status == 'draft' || status == 'paused') && item['mediaId'] != null)
+                    const PopupMenuItem(value: 'rejectCreative', child: Text('رفض المادة الإعلانية')),
+                  if (status == 'draft' || status == 'paused') const PopupMenuItem(value: 'approve', child: Text('اعتماد الحملة + تأكيد الدفع')),
                   if (status == 'approved' || status == 'paused') const PopupMenuItem(value: 'publish', child: Text('نشر')),
                   if (status == 'published') const PopupMenuItem(value: 'pause', child: Text('إيقاف مؤقت')),
                   if (status != 'withdrawn') const PopupMenuItem(value: 'withdraw', child: Text('سحب فوري')),
