@@ -155,3 +155,13 @@ Current implementation gap: the existing backend exposes owner-only single/bulk 
 - Removed the gift action and username search flow from the store screen. The store remains for browsing and self-purchase. Removed the now-unneeded username lookup callable.
 - Backend eligibility and guest checks remain authoritative. No client-side state is trusted for settlement.
 - Static source review only; Flutter analysis/tests and Functions/Firestore Emulator tests have not been run.
+
+
+## Beta Coins gifting choices on recipient profile — 2026-11-18
+
+- The profile's existing Beta Coins gift button now opens two choices: an owner-configured active package, or a custom amount transferred from the sender's own current balance.
+- The custom amount reuses the existing server quote and atomic transfer callable, showing gross debit, configured commission and recipient net amount before confirmation.
+- Package gifts load only active packages from platformSettings/economyPricing. The user confirms the displayed price and target profile. Because this repository's current coin checkout is manual owner-contact (automated checkout is disabled), the UI explicitly says this creates a purchase request and that no coins are issued until the owner verifies external payment and approves it.
+- Backend package requests bind giftRecipientUid to the open profile, reject self-gifting, verify recipient membership/Auth eligibility and guest exclusion, and include recipient identity in replay compatibility. Owner approval revalidates recipient eligibility and atomically credits the recipient (not the purchaser), writes the recipient wallet ledger, coinPackageGifts receipt, coinPackageGiftHistory and in-app notification, and records owner audit. Push delivery is best-effort after commit.
+- Received coin package gifts are included in the member gift history. Purchaser request history and owner approval queue identify the gift recipient. Regression tests were added for package recipient validation and disallowing custom package gifts through this request path.
+- Tests have NOT been executed. No real payment was processed and no coin package was credited in production.
