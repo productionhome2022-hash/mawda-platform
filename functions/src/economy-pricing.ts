@@ -7,7 +7,7 @@ export type AdPrice = {
   priceMinor: number; currency: "EUR"; active: boolean;
 };
 export function validateCoinPackages(value: unknown): CoinPackage[] {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 30) throw new Error("INVALID_COIN_PACKAGES");
+  if (!Array.isArray(value) || value.length > 30) throw new Error("INVALID_COIN_PACKAGES");
   const ids = new Set<string>();
   return value.map((raw) => {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("INVALID_COIN_PACKAGE");
@@ -23,7 +23,7 @@ export function validateCoinPackages(value: unknown): CoinPackage[] {
   });
 }
 export function validateAdPrices(value: unknown): AdPrice[] {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 30) throw new Error("INVALID_AD_PRICES");
+  if (!Array.isArray(value) || value.length > 30) throw new Error("INVALID_AD_PRICES");
   const ids = new Set<string>();
   return value.map((raw) => {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("INVALID_AD_PRICE");
