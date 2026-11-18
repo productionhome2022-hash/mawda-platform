@@ -40,6 +40,9 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   MediaStream? _localStream;
   Timer? _pollTimer;
   Timer? _iceRefreshTimer;
+  Timer? _durationTimer;
+  DateTime? _maxDurationEndsAt;
+  int? _remainingSeconds;
   List<String> _remoteUids = [];
   List<Map<String, dynamic>> _iceServers = [];
   bool _initializing = true;
@@ -203,17 +206,39 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       });
       final data = Map<String, dynamic>.from(response.data as Map);
       if (!mounted) return;
-      setState(() {
-        _status = data['connected'] == true
-            ? 'المكالمة متصلة — الحد الأقصى 5 دقائق'
-            : 'تم تأكيد طرف واحد؛ بانتظار تأكيد اتصال الطرف الآخر';
-      });
+      if (data['connected'] == true) {
+        _connectedReportSent = true;
+        final deadline = data['maxDurationEndsAtMs'];
+        if (deadline is num) _startDurationCountdown(deadline.toInt());
+        if (mounted) setState(() => _status = 'المكالمة متصلة');
+      } else {
+        // The first endpoint must retry until the second participant reports
+        // connectivity and the server starts the shared duration clock.
+        _connectedReportSent = false;
+        if (mounted) setState(() => _status = 'تم تأكيد طرف واحد؛ بانتظار تأكيد اتصال الطرف الآخر');
+      }
     } catch (error) {
       _connectedReportSent = false;
       if (mounted && !_ending) {
         setState(() => _failure = 'تعذر تثبيت بدء مدة المكالمة من الخادم: $error');
       }
     }
+  }
+
+  void _startDurationCountdown(int deadlineMs) {
+    _durationTimer?.cancel();
+    final deadline = DateTime.fromMillisecondsSinceEpoch(deadlineMs);
+    _maxDurationEndsAt = deadline;
+    void tick() {
+      final remaining = deadline.difference(DateTime.now()).inSeconds;
+      if (mounted) setState(() => _remainingSeconds = remaining.clamp(0, 5 * 60));
+      if (remaining <= 0) {
+        _durationTimer?.cancel();
+        unawaited(_finish());
+      }
+    }
+    tick();
+    _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) => tick());
   }
 
   Future<void> _attachRemoteStream(String uid, MediaStream stream) async {
@@ -394,6 +419,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
     _ending = true;
     _pollTimer?.cancel();
     _iceRefreshTimer?.cancel();
+    _durationTimer?.cancel();
     if (notifyServer) {
       try {
         await _functions.httpsCallable('endCall').call({'callId': widget.callId});
@@ -409,6 +435,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   void dispose() {
     _pollTimer?.cancel();
     _iceRefreshTimer?.cancel();
+    _durationTimer?.cancel();
     if (!_ending) {
       _ending = true;
       unawaited(() async {
@@ -478,6 +505,17 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
               children: [
                 Text(_status, textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.titleMedium),
+                if (_remainingSeconds != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      'الوقت المتبقي: ' +
+                          (_remainingSeconds! ~/ 60).toString().padLeft(2, '0') +
+                          ':' +
+                          (_remainingSeconds! % 60).toString().padLeft(2, '0'),
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
                 if (!_turnConfigured)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
