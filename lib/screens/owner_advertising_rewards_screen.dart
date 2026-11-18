@@ -3,6 +3,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 
+import 'owner_featured_ads_screen.dart';
+
 class OwnerAdvertisingRewardsScreen extends StatefulWidget {
   const OwnerAdvertisingRewardsScreen({super.key});
 
@@ -315,7 +317,16 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: const Text('إعلانات مودة ومكافآت الأعضاء'),
-      actions: [IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh))],
+      actions: [
+        IconButton(
+          tooltip: 'إدارة الإعلانات المميزة والسجل المالي',
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const OwnerFeaturedAdsScreen()),
+          ),
+          icon: const Icon(Icons.stars_outlined),
+        ),
+        IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh)),
+      ],
     ),
     body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
       padding: const EdgeInsets.all(16),
