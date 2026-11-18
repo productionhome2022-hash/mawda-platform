@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/member_media_upload_service.dart';
+import '../widgets/mawdda_sticker_widgets.dart';
 import '../services/direct_message_page.dart';
 import '../policies/chat_audio_policy.dart';
 import '../widgets/chat_audio_controls.dart';
@@ -487,6 +488,28 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     }
   }
 
+  Future<void> _pickAndSendSticker() async {
+    if (_sending || _resolvedPeerUid.isEmpty) return;
+    final selected = await showMawddaStickerPicker(context: context, service: _mediaService);
+    if (selected == null || !mounted) return;
+    setState(() => _sending = true);
+    try {
+      await _mediaService.sendStickerMessage(
+        scope: 'direct', targetId: _resolvedPeerUid,
+        packId: selected['packId'] as String,
+        stickerId: selected['stickerId'] as String,
+        clientMessageId: const Uuid().v4(),
+      );
+      if (mounted) await _refresh();
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تعذر إرسال الملصق: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
   Future<void> _pickAndSendAttachment() async {
     if (_sending) return;
     final picked = await FilePicker.platform.pickFiles(
@@ -768,6 +791,12 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                       ),
                     ),
                   ),
+                if (message['type'] == 'sticker')
+                  MawddaStickerMessage(
+                    service: _mediaService,
+                    packId: message['stickerPackId'] as String? ?? '',
+                    stickerId: message['stickerId'] as String? ?? '',
+                  ),
                 if (message['type'] == 'attachment' && message['mediaId'] is String)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
@@ -1041,6 +1070,11 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                     tooltip: 'إرفاق صورة',
                     onPressed: _sending ? null : _pickAndSendImage,
                     icon: const Icon(Icons.image_outlined),
+                  ),
+                  IconButton(
+                    tooltip: 'الملصقات',
+                    onPressed: _sending || _resolvedPeerUid.isEmpty ? null : _pickAndSendSticker,
+                    icon: const Icon(Icons.emoji_emotions_outlined),
                   ),
                   IconButton(
                     tooltip: 'إرفاق GIF أو صوت أو فيديو',
