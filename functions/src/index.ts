@@ -6347,8 +6347,9 @@ export const reconcileMemberWallet = onCall(async (request) => {
     const data = document.data();
     const createdAt = data.createdAt;
     const createdAtMs = createdAt instanceof Timestamp
-      ? createdAt.toMillis()
-      : typeof createdAt?.toMillis === "function" ? createdAt.toMillis() : null;
+      ? createdAt.seconds * 1_000_000_000 + createdAt.nanoseconds
+      : typeof createdAt?.seconds === "number" && typeof createdAt?.nanoseconds === "number"
+        ? createdAt.seconds * 1_000_000_000 + createdAt.nanoseconds : null;
     return {
       id: document.id,
       amount: data.amount,
@@ -6367,7 +6368,8 @@ export const reconcileMemberWallet = onCall(async (request) => {
     throw new HttpsError("data-loss", "بيانات المحفظة غير صالحة؛ تعذر إجراء المطابقة.");
   }
   const truncated = ledgerSnapshot.size > 10000;
-  const status = truncated && result.status === "consistent" ? "incomplete" : result.status;
+  const missingTimestamps = entries.filter((entry) => entry.createdAtMs === null).length;
+  const status = truncated || missingTimestamps > 0 ? "incomplete" : result.status;
   await db.collection("adminAuditLogs").add({
     actorUid,
     action: "member_wallet_reconciliation",
@@ -6376,6 +6378,7 @@ export const reconcileMemberWallet = onCall(async (request) => {
     ledgerEntryCount: ledgerSnapshot.size,
     inspectedEntryCount: entries.length,
     truncated,
+    missingTimestamps,
     currentBalance: result.currentBalance,
     computedBalance: result.computedBalance,
     anomalyCount: result.anomalies.length,
@@ -6388,9 +6391,10 @@ export const reconcileMemberWallet = onCall(async (request) => {
     status,
     ledgerEntryCount: ledgerSnapshot.size,
     truncated,
+    missingTimestamps,
     outcome: "success",
   });
-  return { memberUid, ...result, status, truncated };
+  return { memberUid, ...result, status, truncated, missingTimestamps };
 });
 
 /** Owner operations overview: aggregate counts only, never member secrets. */
