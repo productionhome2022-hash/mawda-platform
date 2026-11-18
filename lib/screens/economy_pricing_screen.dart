@@ -61,9 +61,9 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
         final publicAds = Map<String, dynamic>.from(paymentPolicy['public_ads'] as Map? ?? const {});
         final influencers = Map<String, dynamic>.from(paymentPolicy['influencer_services'] as Map? ?? const {});
         final store = Map<String, dynamic>.from(paymentPolicy['store_entitlements'] as Map? ?? const {});
-        _manualPublicAdsEnabled = publicAds['manualEnabled'] == true;
-        _manualInfluencerServicesEnabled = influencers['manualEnabled'] == true;
-        _manualStoreEntitlementsEnabled = store['manualEnabled'] == true;
+        _manualPublicAdsEnabled = false;
+        _manualInfluencerServicesEnabled = false;
+        _manualStoreEntitlementsEnabled = false;
         final tariffs = Map<String, dynamic>.from(data['callTariffs'] as Map? ?? const {});
         _audioCallTariff.text = tariffs['audioTotalCoinsPerMinute']?.toString() ?? '';
         _videoCallTariff.text = tariffs['videoTotalCoinsPerMinute']?.toString() ?? '';
@@ -114,9 +114,9 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
         'paymentPolicy': {
           'coin_purchases': {'manualEnabled': _manualPurchasesEnabled, 'automatedEnabled': false},
           'featured_ads': {'manualEnabled': _manualFeaturedAdsEnabled, 'automatedEnabled': false},
-          'public_ads': {'manualEnabled': _manualPublicAdsEnabled, 'automatedEnabled': false},
-          'influencer_services': {'manualEnabled': _manualInfluencerServicesEnabled, 'automatedEnabled': false},
-          'store_entitlements': {'manualEnabled': _manualStoreEntitlementsEnabled, 'automatedEnabled': false},
+          'public_ads': {'manualEnabled': false, 'automatedEnabled': false},
+          'influencer_services': {'manualEnabled': false, 'automatedEnabled': false},
+          'store_entitlements': {'manualEnabled': false, 'automatedEnabled': false},
         },
         'expectedVersion': _version,
       });
@@ -383,25 +383,25 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
               Card(
                 child: SwitchListTile(
                   title: const Text('الدفع اليدوي الخارجي للإعلانات العامة'),
-                  subtitle: const Text('تفعيل استقبال الطلبات اليدوية لهذه الخدمة فقط؛ لا يفعّل النشر أو التحصيل تلقائياً.'),
+                  subtitle: const Text('غير متاح حالياً: يلزم استكمال دورة الطلب والمراجعة والتحصيل والتدقيق قبل التفعيل.'),
                   value: _manualPublicAdsEnabled,
-                  onChanged: _saving ? null : (value) => setState(() => _manualPublicAdsEnabled = value),
+                  onChanged: null,
                 ),
               ),
               Card(
                 child: SwitchListTile(
                   title: const Text('الدفع اليدوي الخارجي لخدمات المؤثرين'),
-                  subtitle: const Text('تفعيل مسار الطلب والتفاوض اليدوي لهذه الخدمة فقط؛ العقود والموافقات تبقى إلزامية.'),
+                  subtitle: const Text('غير متاح حالياً: يلزم ربط الطلبات بالعقود والموافقات والتحقق المالي والتدقيق.'),
                   value: _manualInfluencerServicesEnabled,
-                  onChanged: _saving ? null : (value) => setState(() => _manualInfluencerServicesEnabled = value),
+                  onChanged: null,
                 ),
               ),
               Card(
                 child: SwitchListTile(
                   title: const Text('الدفع اليدوي الخارجي لاستحقاقات المتجر'),
-                  subtitle: const Text('إعداد مستقل للطلبات النقدية؛ مشتريات الكوينز الداخلية لا تتأثر بهذا الخيار.'),
+                  subtitle: const Text('غير متاح حالياً: يلزم استكمال طلب الشراء النقدي وإثبات الدفع ومنح الاستحقاق ذرياً.'),
                   value: _manualStoreEntitlementsEnabled,
-                  onChanged: _saving ? null : (value) => setState(() => _manualStoreEntitlementsEnabled = value),
+                  onChanged: null,
                 ),
               ),
               const Card(
