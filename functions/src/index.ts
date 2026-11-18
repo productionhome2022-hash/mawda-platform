@@ -84,7 +84,7 @@ import {
 } from "./store-purchase";
 import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
 import { deleteMediaAssetForMessage } from "./media";
-import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
+import { validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
 import { validateCoinPackages, validateAdPrices } from "./economy-pricing";
@@ -6781,7 +6781,7 @@ const ROOM_RENTAL_SETTINGS = db.doc("platformSettings/roomRentals");
 async function readRoomRentalPlans(): Promise<ReturnType<typeof validateRoomRentalPlans>> {
   const snapshot = await ROOM_RENTAL_SETTINGS.get();
   const raw = snapshot.data()?.plans;
-  if (raw === undefined) return DEFAULT_ROOM_RENTAL_PLANS;
+  if (raw === undefined) return [];
   try {
     return validateRoomRentalPlans(raw);
   } catch {
@@ -6793,9 +6793,12 @@ async function readRoomRentalPlans(): Promise<ReturnType<typeof validateRoomRent
 export const getRoomRentalPlans = onCall(async (request) => {
   requireAuthenticatedUid(request.auth?.uid);
   const snapshot = await ROOM_RENTAL_SETTINGS.get();
-  const plans = snapshot.exists ? await readRoomRentalPlans() : DEFAULT_ROOM_RENTAL_PLANS;
-  const version = Number.isSafeInteger(snapshot.data()?.version) ? snapshot.data()!.version : 0;
-  return { plans: plans.filter((plan) => plan.active), version };
+  const plans = await readRoomRentalPlans();
+  const version = snapshot.exists ? snapshot.data()?.version : 0;
+  if (snapshot.exists && (!Number.isSafeInteger(version) || version < 1)) {
+    throw new HttpsError("failed-precondition", "إصدار سياسة استئجار الغرف غير صالح.");
+  }
+  return { plans: plans.filter((plan) => plan.active), version: version ?? 0, configured: snapshot.exists };
 });
 
 /** Owner/MFA controls all room rental prices; every edit is versioned and audited. */
@@ -6809,9 +6812,20 @@ export const setRoomRentalPlans = onCall(async (request) => {
   }
   const result = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(ROOM_RENTAL_SETTINGS);
-    const version = (Number.isSafeInteger(previous.data()?.version) ? previous.data()!.version : 0) + 1;
+    const previousData = previous.data() ?? {};
+    if (previous.exists && (!Number.isSafeInteger(previousData.version) || previousData.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار سياسة استئجار الغرف الحالية غير صالح؛ أوقفنا التحديث لحماية السجل.");
+    }
+    const version = previous.exists ? previousData.version + 1 : 1;
+    if (!Number.isSafeInteger(version)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة استئجار الغرف.");
     const now = FieldValue.serverTimestamp();
-    transaction.set(ROOM_RENTAL_SETTINGS, { plans, version, updatedAt: now, updatedBy: actorUid });
+    const versionRef = db.collection("platformSettings").doc("roomRentalPricingVersions")
+      .collection("versions").doc(String(version));
+    transaction.create(versionRef, { plans, version, createdAt: now, createdBy: actorUid });
+    transaction.set(ROOM_RENTAL_SETTINGS, {
+      plans, version, updatedAt: now, updatedBy: actorUid,
+      createdAt: previousData.createdAt ?? now, currentVersionPath: versionRef.path,
+    });
     const auditRef = db.collection("adminAuditLogs").doc();
     transaction.create(auditRef, {
       actorUid, action: "room_rental_pricing_updated", version,
@@ -6862,7 +6876,13 @@ export const createRentedRoom = onCall(async (request) => {
         !isMemberAccountInGoodStanding(user.data())) {
       throw new HttpsError("permission-denied", "حالة العضوية لا تسمح باستئجار غرفة.");
     }
-    const plans = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : DEFAULT_ROOM_RENTAL_PLANS;
+    if (!settings.exists || !Number.isSafeInteger(settings.data()?.version) ||
+        settings.data()!.version < 1) {
+      throw new HttpsError("failed-precondition", "لم يحدد المالك سياسة استئجار غرف فعالة بعد.");
+    }
+    let plans;
+    try { plans = validateRoomRentalPlans(settings.data()?.plans); }
+    catch { throw new HttpsError("failed-precondition", "سياسة استئجار الغرف غير صالحة."); }
     const plan = plans.find((entry) => entry.planId === planId && entry.active);
     if (!plan || plan.priceCoins !== expectedPriceCoins) {
       throw new HttpsError("failed-precondition", "تغير سعر الخطة أو لم تعد متاحة؛ حدّث الأسعار قبل التأكيد.");
@@ -6938,7 +6958,13 @@ export const renewRoomRental = onCall(async (request) => {
     if (!user.exists || !isMemberAccountInGoodStanding(user.data())) {
       throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بالتجديد.");
     }
-    const plans = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : DEFAULT_ROOM_RENTAL_PLANS;
+    if (!settings.exists || !Number.isSafeInteger(settings.data()?.version) ||
+        settings.data()!.version < 1) {
+      throw new HttpsError("failed-precondition", "لم يحدد المالك سياسة تجديد غرف فعالة بعد.");
+    }
+    let plans;
+    try { plans = validateRoomRentalPlans(settings.data()?.plans); }
+    catch { throw new HttpsError("failed-precondition", "سياسة استئجار الغرف غير صالحة."); }
     const plan = plans.find((entry) => entry.planId === planId && entry.active);
     if (!plan || plan.priceCoins !== expectedPriceCoins) {
       throw new HttpsError("failed-precondition", "تغير سعر التجديد؛ حدّث الأسعار قبل التأكيد.");
