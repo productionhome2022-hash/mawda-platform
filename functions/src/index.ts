@@ -5200,7 +5200,7 @@ export const setRoomEventStatus = onCall(async (request) => {
 });
 
 
-export { getStickerAssetUrl, sendStickerMessage } from "./media";
+export { getStickerAssetUrl, saveStickerPack, sendStickerMessage } from "./media";
 
 /** Returns only server-approved sticker pack metadata; asset delivery is a separate authorized operation. */
 export const getStickerCatalog = onCall(async (request) => {
@@ -5219,7 +5219,7 @@ export const getStickerCatalog = onCall(async (request) => {
   }
   const assetSnapshots = await Promise.all(assetBatches.map((ids) =>
     db.collection("mediaAssets").where(FieldPath.documentId(), "in", ids).get()));
-  const assets = new Map<string, FirebaseFirestore.DocumentData>();
+  const assets = new Map<string, Record<string, unknown>>();
   for (const batch of assetSnapshots) {
     for (const document of batch.docs) assets.set(document.id, document.data());
   }
