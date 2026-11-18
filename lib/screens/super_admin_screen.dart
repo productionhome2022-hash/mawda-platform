@@ -18,6 +18,7 @@ import 'owner_advertising_rewards_screen.dart';
 import 'owner_contract_center_screen.dart';
 import 'owner_advertising_intake_screen.dart';
 import 'owner_production_applications_screen.dart';
+import 'capacity_media_management_screen.dart';
 
 class SuperAdminScreen extends StatefulWidget {
   const SuperAdminScreen({super.key});
@@ -1350,6 +1351,13 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
             builder: (_) => const OwnerRoomLiveStreamScreen(),
           )),
           icon: const Icon(Icons.live_tv_outlined),
+        ),
+        IconButton(
+          tooltip: 'إدارة السعة وحصص الوسائط',
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => const CapacityMediaManagementScreen(),
+          )),
+          icon: const Icon(Icons.storage_outlined),
         ),
         IconButton(
           tooltip: 'تحديث المؤشرات',
