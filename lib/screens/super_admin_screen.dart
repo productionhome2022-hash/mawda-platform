@@ -36,6 +36,8 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   Map<String, dynamic>? _member;
   bool _loadingOverview = false;
   bool _searching = false;
+  bool _reconcilingWallet = false;
+  Map<String, dynamic>? _walletReconciliation;
   bool _updatingStatus = false;
   bool _loadingOwnerConversations = false;
   bool _verifyingOwnerAuditChain = false;
@@ -1001,6 +1003,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     setState(() {
       _searching = true;
       _member = null;
+      _walletReconciliation = null;
       _ownerConversations = [];
       _ownerConversationsNextPageToken = null;
       _ownerConversationsHasMore = false;
@@ -1018,6 +1021,29 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       if (mounted) setState(() => _error = 'تعذر البحث عن العضو.');
     } finally {
       if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  Future<void> _reconcileSelectedWallet() async {
+    final uid = _member?['uid'] as String?;
+    if (uid == null || _reconcilingWallet) return;
+    setState(() => _reconcilingWallet = true);
+    try {
+      final result = await _service.reconcileMemberWallet(uid);
+      if (!mounted) return;
+      setState(() => _walletReconciliation = result);
+      final status = result['status'] as String? ?? 'incomplete';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(status == 'consistent'
+          ? 'مطابقة المحفظة سليمة.'
+          : 'نتيجة المطابقة: $status. راجع تفاصيل السجل قبل أي إجراء.'),
+      ));
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذرت مطابقة المحفظة.');
+    } catch (_) {
+      if (mounted) setState(() => _error = 'تعذرت مطابقة المحفظة.');
+    } finally {
+      if (mounted) setState(() => _reconcilingWallet = false);
     }
   }
 
@@ -1932,11 +1958,37 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   Text('حالة الحساب: ${_member!['accountStatus'] ?? 'active'}'),
                   Text('البريد موثق: ${_member!['emailVerified'] == true ? 'نعم' : 'لا'}'),
                   Text('دخول Firebase معطل: ${_member!['authDisabled'] == true ? 'نعم' : 'لا'}'),
+                  if (_walletReconciliation != null) ...[
+                    const SizedBox(height: 10),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('نتيجة مطابقة المحفظة: ${_walletReconciliation!['status']}',
+                            style: Theme.of(context).textTheme.titleSmall),
+                          Text('الرصيد الحالي: ${_walletReconciliation!['currentBalance']}'),
+                          Text('الرصيد المحسوب من آخر لقطة: ${_walletReconciliation!['computedBalance'] ?? 'غير متاح'}'),
+                          Text('قيود الدفتر المفحوصة: ${_walletReconciliation!['ledgerEntryCount']}'),
+                          Text('قيود تاريخية بلا لقطات رصيد: ${_walletReconciliation!['entriesMissingSnapshots']}'),
+                          Text('الحالات الشاذة: ${(_walletReconciliation!['anomalies'] as List<dynamic>? ?? const []).length}'),
+                          if (_walletReconciliation!['truncated'] == true)
+                            const Text('السجل يتجاوز حد الفحص الحالي؛ النتيجة غير مكتملة.'),
+                        ]),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: [
+                      OutlinedButton.icon(
+                        onPressed: _reconcilingWallet ? null : _reconcileSelectedWallet,
+                        icon: _reconcilingWallet
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.account_balance_outlined),
+                        label: const Text('مطابقة دفتر المحفظة'),
+                      ),
                       OutlinedButton(
                         onPressed: _updatingStatus ? null : () => _changeMemberStatus('active'),
                         child: const Text('إعادة التفعيل'),
