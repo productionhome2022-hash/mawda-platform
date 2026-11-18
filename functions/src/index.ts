@@ -8764,10 +8764,14 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
 
     // Capacity is checked against a transactional query so concurrent owner
     // assignments cannot both take the fifth seat.
+    let roleSeatCounterRef: FirebaseFirestore.DocumentReference | null = null;
+    let roleSeatCountAfterWrite: number | null = null;
     if (limitedRole !== null) {
-      const roleSnapshot = await transaction.get(
-        SPECIALIZED_ROLE_GRANTS.where("role", "==", limitedRole),
-      );
+      roleSeatCounterRef = db.collection("specializedRoleSeatCounters").doc(limitedRole);
+      const [roleSnapshot] = await Promise.all([
+        transaction.get(SPECIALIZED_ROLE_GRANTS.where("role", "==", limitedRole)),
+        transaction.get(roleSeatCounterRef),
+      ]);
       const nowMs = Date.now();
       const otherActiveAssignments = roleSnapshot.docs.filter((doc) => {
         if (doc.id === grantId) return false;
@@ -8777,8 +8781,9 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
       }).length;
       const targetConsumesSeat = grant.status === "active" &&
         (grant.endsAtMs === null || grant.endsAtMs > nowMs);
+      roleSeatCountAfterWrite = otherActiveAssignments + (targetConsumesSeat ? 1 : 0);
       try {
-        assertPlatformRoleCapacity(limitedRole, otherActiveAssignments + (targetConsumesSeat ? 1 : 0));
+        assertPlatformRoleCapacity(limitedRole, roleSeatCountAfterWrite);
       } catch {
         throw new HttpsError("resource-exhausted", "اكتمل العدد المسموح لهذه الفئة الإشرافية؛ الحد الأقصى خمسة.");
       }
@@ -8790,6 +8795,16 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
       ...grant, version, assignedBy: actorUid, updatedBy: actorUid,
       createdAt: previous.data()?.createdAt ?? now, updatedAt: now,
     });
+    if (roleSeatCounterRef !== null && roleSeatCountAfterWrite !== null) {
+      // The shared counter document serializes concurrent seat claims. The
+      // authoritative count is rebuilt from grants inside the same transaction.
+      transaction.set(roleSeatCounterRef, {
+        role: limitedRole,
+        activeCount: roleSeatCountAfterWrite,
+        reconciledAt: now,
+        updatedAt: now,
+      });
+    }
     return { grantId, version, status: grant.status };
   });
   await appendOwnerReviewAuditEvent({
