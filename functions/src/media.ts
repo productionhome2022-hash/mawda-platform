@@ -2379,6 +2379,14 @@ export const sendStickerMessage = onCall(async (request) => {
       }
       const freshPackData = freshPack.data();
       const freshAssetData = freshAsset.data();
+      const expectedParticipants = [senderUid, recipientUid].sort();
+      const existingParticipants = chat.data()?.participantUids;
+      if (chat.exists && (!Array.isArray(existingParticipants) ||
+          existingParticipants.length !== 2 ||
+          existingParticipants.some((value: unknown) => typeof value !== "string") ||
+          [...existingParticipants].sort().join("|") !== expectedParticipants.join("|"))) {
+        throw new HttpsError("failed-precondition", "أطراف المحادثة لا تطابق هوية المحادثة الحالية.");
+      }
       const freshSticker = Array.isArray(freshPackData?.stickers)
         ? freshPackData!.stickers.find((item: unknown) =>
             Boolean(item && typeof item === "object" &&
@@ -2424,7 +2432,8 @@ export const sendStickerMessage = onCall(async (request) => {
       tx.set(chatRef, {
         participantUids: [senderUid, recipientUid].sort(),
         createdAt: chat.exists ? chat.data()?.createdAt ?? now : now,
-        lastMessageAt: now, lastMessageSenderUid: senderUid, lastMessagePreview: "ملصق",
+        lastMessageAt: now, lastMessageId: messageId,
+        lastMessageSenderUid: senderUid, lastMessagePreview: "ملصق",
       }, { merge: true });
       tx.create(messageRef, {
         messageId, chatId, senderUid, recipientUid, type: "sticker",
