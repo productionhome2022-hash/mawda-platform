@@ -89,7 +89,7 @@ No source code was changed during this recheck. No local command, test suite, em
 
 ### Wallet ledger integrity
 
-- Coin purchase idempotent replay now requires the matching immutable approval audit record in addition to the wallet ledger. The replay validates purchaser/recipient/reference/amount linkage and checks ledger balance arithmetic; deleting the audit evidence fails closed without changing the balance.
+- Coin purchase idempotent replay now requires the matching immutable approval audit record in addition to the wallet ledger. The replay validates owner attribution, purchaser/recipient/reference, amount, price, currency, credit target, and ledger balance arithmetic; deleting or altering audit evidence fails closed without changing the balance.
 - New coin transfers persist sender/recipient balance-before and balance-after snapshots in both transaction and wallet ledger records. Replay recomputes the commission/net breakdown and validates all ledger legs, identities and any present balance snapshots. Legacy rows without snapshots remain readable; partially populated or inconsistent snapshots fail closed.
 - New store purchases persist balance snapshots in the purchase receipt and immutable debit ledger. Replay validates the arithmetic and receipt/ledger relationship; legacy rows without snapshots remain compatible.
 - Store entitlement gifts now persist balance snapshots and verify the sender debit, recipient identity, gift receipt, history and notification on replay.
