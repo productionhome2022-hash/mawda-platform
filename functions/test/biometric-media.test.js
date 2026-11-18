@@ -44,7 +44,7 @@ test("video duration must be within the agreed three-to-five-second interval", (
     assert.equal(isBiometricVideoDurationAllowed(duration), true);
     assert.doesNotThrow(() => assertBiometricVideoDurationAllowed(duration));
   }
-  for (const duration of [0, 2999, 5001, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+  for (const duration of [0, 2999, 2999.9, 5000.1, 5001, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
     assert.equal(isBiometricVideoDurationAllowed(duration), false);
     assert.throws(() => assertBiometricVideoDurationAllowed(duration), /DURATION_OUT_OF_RANGE/);
   }
