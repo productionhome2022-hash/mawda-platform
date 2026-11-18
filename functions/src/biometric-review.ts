@@ -49,11 +49,13 @@ export function canSubmitBiometricRequest(
   if (!Number.isSafeInteger(nowMs) || nowMs < 0) return false;
   if (state === null) return true;
   if (state.status === "pending_review") return false;
+  if (!Number.isSafeInteger(state.attemptNumber) ||
+      state.attemptNumber < 1 || state.attemptNumber > BIOMETRIC_MAX_ATTEMPTS) return false;
   if (state.status === "accepted") {
-    return state.nextRenewalAtMs != null && state.nextRenewalAtMs <= nowMs;
+    return Number.isSafeInteger(state.nextRenewalAtMs) && state.nextRenewalAtMs! <= nowMs;
   }
   if (state.status === "locked") {
-    return state.lockoutUntilMs !== null && state.lockoutUntilMs <= nowMs;
+    return Number.isSafeInteger(state.lockoutUntilMs) && state.lockoutUntilMs! <= nowMs;
   }
   return state.status === "rejected" &&
     state.attemptNumber < BIOMETRIC_MAX_ATTEMPTS;
@@ -72,6 +74,10 @@ export function nextBiometricAttemptNumber(
     throw new Error("BIOMETRIC_TIMESTAMP_INVALID");
   }
   if (state === null) return 1;
+  if (!Number.isSafeInteger(state.attemptNumber) ||
+      state.attemptNumber < 1 || state.attemptNumber > BIOMETRIC_MAX_ATTEMPTS) {
+    throw new Error("BIOMETRIC_ATTEMPT_STATE_INVALID");
+  }
   if (state.status === "pending_review") {
     throw new Error("BIOMETRIC_REQUEST_ALREADY_PENDING");
   }
