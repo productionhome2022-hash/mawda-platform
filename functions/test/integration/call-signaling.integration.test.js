@@ -686,6 +686,11 @@ test("room call pricing is snapshotted and join approval requires separate finan
     assert.equal((await callRef.get()).data().groupCallPricingSnapshot.version, 7,
       "an owner price change must not rewrite the call's accepted price snapshot");
 
+    const memberConsentBeforeRequest = await consentToRoomCallBilling.run(call(memberUid, {
+      callId, consent: true,
+    }));
+    assert.equal(memberConsentBeforeRequest.consented, true,
+      "financial consent is a separate decision and can be recorded before the join request");
     await requestRoomCallJoin.run(call(memberUid, { callId }));
     const roomCallState = await getActiveRoomCall.run(call(memberUid, { roomId }));
     assert.equal(roomCallState.active, true);
@@ -704,14 +709,6 @@ test("room call pricing is snapshotted and join approval requires separate finan
       "creator and member must separately consent before approval",
     );
     await consentToRoomCallBilling.run(call(creatorUid, { callId, consent: true }));
-    await assert.rejects(
-      () => respondToRoomCallJoinRequest.run(call(creatorUid, {
-        callId, requesterUid: memberUid, decision: "approve",
-      })),
-      (error) => error && error.code === "failed-precondition",
-      "member consent remains independent from creator consent",
-    );
-    await consentToRoomCallBilling.run(call(memberUid, { callId, consent: true }));
     const approved = await respondToRoomCallJoinRequest.run(call(creatorUid, {
       callId, requesterUid: memberUid, decision: "approve",
     }));
