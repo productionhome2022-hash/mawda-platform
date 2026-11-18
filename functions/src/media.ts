@@ -371,7 +371,7 @@ export const receiveMediaScanVerdict = onRequest(
     return;
   }
   const actualHash = await sha256Object(file);
-  if (verdict.purpose === "sticker") {
+  if (verdict.purpose === "sticker" && verdict.verdict === "clean") {
     let stickerMetadata;
     try { stickerMetadata = validateStickerMediaMetadata(verdict.stickerMetadata); } catch {
       response.status(409).send("Sticker metadata is missing or invalid");
