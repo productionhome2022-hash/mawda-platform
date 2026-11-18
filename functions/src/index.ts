@@ -87,7 +87,7 @@ import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, c
 import { isActiveRentedPrivateRoom } from "./room-call-policy";
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
-import { validateCoinPackages, validateAdPrices } from "./economy-pricing";
+import { validateCoinPackages, validateAdPrices, validateBilateralCallTariffs } from "./economy-pricing";
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
@@ -8330,15 +8330,18 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
     };
   }
   const data = snapshot.data() ?? {};
-  let coinPackages, adPrices;
+  let coinPackages, adPrices, callTariffs;
   try {
     coinPackages = validateCoinPackages(data.coinPackages ?? []);
     adPrices = validateAdPrices(data.adPrices ?? []);
+    callTariffs = validateBilateralCallTariffs(data.callTariffs ?? {
+      audioTotalCoinsPerMinute: null, videoTotalCoinsPerMinute: null,
+    });
   } catch {
     throw new HttpsError("failed-precondition", "إعدادات اقتصاد المنصة غير صالحة؛ راجع الدعم التقني.");
   }
   return {
-    coinPackages, adPrices,
+    coinPackages, adPrices, callTariffs,
     version: Number.isSafeInteger(data.version) ? data.version : 0,
     configured: true,
     realMoneyCheckoutEnabled: false,
@@ -8351,10 +8354,13 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
 /** Owner/MFA-only economy price updates. This configures prices, not payment processing. */
 export const setOwnerEconomyPricing = onCall(async (request) => {
   const actorUid = requireOwner(request);
-  let coinPackages, adPrices;
+  let coinPackages, adPrices, requestedCallTariffs;
   try {
     coinPackages = validateCoinPackages(request.data?.coinPackages);
     adPrices = validateAdPrices(request.data?.adPrices);
+    if (request.data?.callTariffs !== undefined) {
+      requestedCallTariffs = validateBilateralCallTariffs(request.data.callTariffs);
+    }
   } catch {
     throw new HttpsError("invalid-argument", "أسعار باقات الكوينز أو الإعلانات غير صالحة.");
   }
@@ -8372,10 +8378,14 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
     if (previousVersion !== expectedVersion) {
       throw new HttpsError("aborted", "تغيرت إعدادات الاقتصاد منذ فتح اللوحة؛ حدّث البيانات ثم أعد المحاولة.");
     }
+    const previousCallTariffs = validateBilateralCallTariffs(previous.data()?.callTariffs ?? {
+      audioTotalCoinsPerMinute: null, videoTotalCoinsPerMinute: null,
+    });
+    const callTariffs = requestedCallTariffs ?? previousCallTariffs;
     const nextVersion = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(ECONOMY_PRICING_SETTINGS, {
-      coinPackages, adPrices, version: nextVersion,
+      coinPackages, adPrices, callTariffs, version: nextVersion,
       manualCoinPurchasesEnabled,
       manualFeaturedAdsEnabled,
       automatedCoinCheckoutEnabled: false,
@@ -8398,6 +8408,7 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
   });
   return {
     saved: true, version, realMoneyCheckoutEnabled: false,
+    callTariffs: requestedCallTariffs ?? undefined,
     manualCoinPurchasesEnabled, manualFeaturedAdsEnabled,
     automatedCheckoutEnabled: false,
   };
