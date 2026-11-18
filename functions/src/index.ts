@@ -343,11 +343,15 @@ export const transferCoins = onCall(async (request) => {
   const platformLedgerRef = db.collection("platformWalletLedger").doc(transferId);
 
   const result = await db.runTransaction(async (transaction) => {
-    const [existing, settings, senderSnapshot, recipientSnapshot] = await Promise.all([
+    const [existing, settings, senderSnapshot, recipientSnapshot,
+      senderLedgerSnapshot, recipientLedgerSnapshot, platformLedgerSnapshot] = await Promise.all([
       transaction.get(transferRef),
       transaction.get(TRANSFER_SETTINGS),
       transaction.get(senderRef),
       transaction.get(recipientRef),
+      transaction.get(senderLedgerRef),
+      transaction.get(recipientLedgerRef),
+      transaction.get(platformLedgerRef),
     ]);
 
     if (existing.exists) {
@@ -361,17 +365,52 @@ export const transferCoins = onCall(async (request) => {
       ) {
         throw new HttpsError("already-exists", "أعيد استخدام معرف طلب التحويل مع بيانات مختلفة.");
       }
+      let expectedBreakdown;
+      try {
+        expectedBreakdown = calculateTransferBreakdown(prior.grossAmount, prior.commissionBps);
+      } catch {
+        throw new HttpsError("failed-precondition", "بيانات التحويل التاريخية غير صالحة؛ يلزم تدقيق مالي.");
+      }
+      const senderLedger = senderLedgerSnapshot.data() ?? {};
+      const recipientLedger = recipientLedgerSnapshot.data() ?? {};
+      const platformLedger = platformLedgerSnapshot.data() ?? {};
+      const senderBalanceSnapshotValid =
+        senderLedger.balanceBefore === undefined && senderLedger.balanceAfter === undefined ||
+        Number.isSafeInteger(senderLedger.balanceBefore) &&
+        Number.isSafeInteger(senderLedger.balanceAfter) &&
+        senderLedger.balanceBefore >= 0 &&
+        senderLedger.balanceAfter === senderLedger.balanceBefore - prior.grossAmount;
+      const recipientBalanceSnapshotValid =
+        recipientLedger.balanceBefore === undefined && recipientLedger.balanceAfter === undefined ||
+        Number.isSafeInteger(recipientLedger.balanceBefore) &&
+        Number.isSafeInteger(recipientLedger.balanceAfter) &&
+        recipientLedger.balanceBefore >= 0 &&
+        recipientLedger.balanceAfter === recipientLedger.balanceBefore + prior.netAmount;
+      if (prior.status !== "completed" ||
+          prior.commissionAmount !== expectedBreakdown.commissionAmount ||
+          prior.netAmount !== expectedBreakdown.netAmount ||
+          !senderLedgerSnapshot.exists || senderLedger.type !== "coin_transfer_sent" ||
+          senderLedger.direction !== "debit" || senderLedger.amount !== -prior.grossAmount ||
+          senderLedger.grossAmount !== prior.grossAmount ||
+          senderLedger.commissionAmount !== prior.commissionAmount ||
+          senderLedger.commissionBps !== prior.commissionBps ||
+          senderLedger.recipientUid !== recipientUid ||
+          senderLedger.recipientNetAmount !== prior.netAmount || !senderBalanceSnapshotValid ||
+          !recipientLedgerSnapshot.exists || recipientLedger.type !== "coin_transfer_received" ||
+          recipientLedger.direction !== "credit" || recipientLedger.amount !== prior.netAmount ||
+          recipientLedger.senderUid !== senderUid || !recipientBalanceSnapshotValid ||
+          !platformLedgerSnapshot.exists || platformLedger.type !== "coin_transfer_commission" ||
+          platformLedger.direction !== "credit" || platformLedger.amount !== prior.commissionAmount ||
+          platformLedger.grossAmount !== prior.grossAmount ||
+          platformLedger.commissionBps !== prior.commissionBps ||
+          platformLedger.senderUid !== senderUid || platformLedger.recipientUid !== recipientUid) {
+        throw new HttpsError("failed-precondition", "سجل التحويل لا يطابق قيود المحافظ ودفتر عمولة المنصة؛ يلزم تدقيق مالي.");
+      }
       return {
-        transferId,
-        senderUid: prior.senderUid,
-        recipientUid: prior.recipientUid,
-        grossAmount: prior.grossAmount,
-        commissionBps: prior.commissionBps,
-        commissionPercent: prior.commissionPercent,
-        commissionAmount: prior.commissionAmount,
-        netAmount: prior.netAmount,
-        status: prior.status,
-        idempotentReplay: true,
+        transferId, senderUid: prior.senderUid, recipientUid: prior.recipientUid,
+        grossAmount: prior.grossAmount, commissionBps: prior.commissionBps,
+        commissionPercent: prior.commissionPercent, commissionAmount: prior.commissionAmount,
+        netAmount: prior.netAmount, status: prior.status, idempotentReplay: true,
       };
     }
 
@@ -431,6 +470,10 @@ export const transferCoins = onCall(async (request) => {
       commissionPercent: commissionBps / 100,
       commissionAmount: fee,
       netAmount,
+      senderBalanceBefore: senderBalance,
+      senderBalanceAfter: senderBalance - amount,
+      recipientBalanceBefore: recipientBalance,
+      recipientBalanceAfter: recipientBalance + netAmount,
       status: "completed",
       createdAt,
     };
@@ -443,6 +486,8 @@ export const transferCoins = onCall(async (request) => {
       type: "coin_transfer_sent",
       direction: "debit",
       amount: -amount,
+      balanceBefore: senderBalance,
+      balanceAfter: senderBalance - amount,
       grossAmount: amount,
       commissionAmount: fee,
       commissionBps,
@@ -456,6 +501,8 @@ export const transferCoins = onCall(async (request) => {
       type: "coin_transfer_received",
       direction: "credit",
       amount: netAmount,
+      balanceBefore: recipientBalance,
+      balanceAfter: recipientBalance + netAmount,
       senderUid,
       transferId,
       createdAt,
