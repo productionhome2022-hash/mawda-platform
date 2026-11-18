@@ -26,7 +26,7 @@ import {
   MEDIA_SIGNED_URL_TTL_MS,
 } from "./media-security";
 import { MEDIA_UPLOAD_CLEANUP_GRACE_MS, uploadIntentIsEligibleForCleanup } from "./media-cleanup";
-import { validateStickerMediaMetadata, validateStickerSendRequest } from "./sticker-policy";
+import { validateStickerMediaMetadata, validateStickerPackManifest, validateStickerSendRequest } from "./sticker-policy";
 
 // Resolve Admin SDK services lazily. This module is re-exported by index.ts,
 // whose static imports execute before initializeApp(); eager resolution here
@@ -2190,6 +2190,109 @@ export const ownerMediaPreview = onRequest(
 );
 
 
+
+
+/**
+ * Owner-only pack authoring. Publication is possible only when every entry
+ * references a real, scanner-approved sticker asset owned by the platform owner.
+ */
+export const saveStickerPack = onCall(async (request) => {
+  const actorUid = await requireSoleOwnerForMediaReview(request, "owner_sticker_pack_save_attempt");
+  const data = request.data ?? {};
+  const allowedRoot = new Set(["packId", "title", "description", "sortOrder", "status", "stickers"]);
+  if (Object.keys(data).some((key) => !allowedRoot.has(key))) {
+    throw new HttpsError("invalid-argument", "حقول حزمة الملصقات غير مدعومة.");
+  }
+  const status = data.status === "draft" ? "draft" : data.status === "published" ? "published" : "";
+  if (!status) throw new HttpsError("invalid-argument", "حالة الحزمة غير صالحة.");
+  if (data.sortOrder !== undefined &&
+      (!Number.isSafeInteger(data.sortOrder) || data.sortOrder < 0 || data.sortOrder > 100000)) {
+    throw new HttpsError("invalid-argument", "ترتيب الحزمة غير صالح.");
+  }
+  if (!Array.isArray(data.stickers)) {
+    throw new HttpsError("invalid-argument", "قائمة الملصقات غير صالحة.");
+  }
+  const allowedStickerFields = new Set([
+    "stickerId", "assetId", "kind", "contentType", "width", "height",
+    "sizeBytes", "durationMs", "frameCount",
+  ]);
+  for (const item of data.stickers) {
+    if (!item || typeof item !== "object" || Array.isArray(item) ||
+        Object.keys(item).some((key) => !allowedStickerFields.has(key))) {
+      throw new HttpsError("invalid-argument", "تحتوي الحزمة على حقول ملصق غير مدعومة.");
+    }
+    if (typeof (item as Record<string, unknown>).assetId !== "string" ||
+        !/^[0-9a-f-]{36}$/i.test((item as Record<string, string>).assetId)) {
+      throw new HttpsError("invalid-argument", "معرف أصل الملصق غير صالح.");
+    }
+  }
+  let manifest;
+  try { manifest = validateStickerPackManifest(data); } catch (error) {
+    throw new HttpsError("invalid-argument", error instanceof Error ? error.message : "بيانات الحزمة غير صالحة.");
+  }
+  const assetIds = data.stickers.map((item: Record<string, unknown>) => String(item.assetId));
+  if (new Set(assetIds).size !== assetIds.length) {
+    throw new HttpsError("invalid-argument", "لا يمكن تكرار أصل الملصق داخل الحزمة.");
+  }
+  const packRef = mediaDb().collection("stickerPacks").doc(manifest.packId);
+  const assetRefs = assetIds.map((id: string) => mediaDb().collection("mediaAssets").doc(id));
+  await mediaDb().runTransaction(async (transaction) => {
+    const [packSnapshot, ...assetSnapshots] = await Promise.all([
+      transaction.get(packRef),
+      ...assetRefs.map((ref: FirebaseFirestore.DocumentReference) => transaction.get(ref)),
+    ]);
+    const persistedStickers = manifest.stickers.map((sticker, index) => {
+      const assetSnapshot = assetSnapshots[index];
+      const asset = assetSnapshot.data();
+      if (!assetSnapshot.exists || !asset ||
+          asset.ownerUid !== actorUid || asset.uploaderRole !== "platform_owner" ||
+          asset.mediaPurpose !== "sticker" || asset.status !== "security_approved" ||
+          asset.scannerVerdict !== "clean") {
+        throw new HttpsError("failed-precondition", "يوجد أصل ملصق لم يجتز الفحص أو لا يخص جلسة المالك.");
+      }
+      let scanned;
+      try { scanned = validateStickerMediaMetadata(asset.stickerMetadata); } catch {
+        throw new HttpsError("failed-precondition", "بيانات أصل الملصق المفحوص غير صالحة.");
+      }
+      if (scanned.kind !== sticker.kind || scanned.contentType !== sticker.contentType ||
+          scanned.width !== sticker.width || scanned.height !== sticker.height ||
+          scanned.sizeBytes !== sticker.sizeBytes ||
+          (scanned.kind === "animated" &&
+            (scanned.durationMs !== sticker.durationMs || scanned.frameCount !== sticker.frameCount))) {
+        throw new HttpsError("failed-precondition", "بيانات الحزمة لا تطابق نتائج فحص أحد الأصول.");
+      }
+      const derivativeReady = scanned.kind === "animated"
+        ? asset.processingStatus === "safe_animation_derivative_ready" &&
+          asset.safeAnimationPath === `processed/${actorUid}/${assetSnapshot.id}/animation.gif`
+        : asset.processingStatus === "safe_raster_derivative_ready" &&
+          asset.safePreviewPath === `processed/${actorUid}/${assetSnapshot.id}/preview.webp`;
+      if (!derivativeReady) {
+        throw new HttpsError("failed-precondition", "النسخة الآمنة لأحد الملصقات لم تجهز.");
+      }
+      return { ...sticker, assetId: assetSnapshot.id, scanStatus: "clean" as const };
+    });
+    transaction.set(packRef, {
+      packId: manifest.packId,
+      title: manifest.title,
+      ...(manifest.description !== undefined ? { description: manifest.description } : {}),
+      sortOrder: data.sortOrder ?? 0,
+      stickers: persistedStickers,
+      status,
+      approved: status === "published",
+      approvedByUid: status === "published" ? actorUid : null,
+      approvedAt: status === "published" ? FieldValue.serverTimestamp() : null,
+      updatedByUid: actorUid,
+      updatedAt: FieldValue.serverTimestamp(),
+      createdAt: packSnapshot.exists ? packSnapshot.data()?.createdAt ?? FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
+    }, { merge: true });
+    transaction.create(mediaDb().collection("mediaAccessAudit").doc(), {
+      actorUid, action: "owner_sticker_pack_saved", outcome: "success",
+      packId: manifest.packId, status, stickerCount: persistedStickers.length,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { packId: manifest.packId, status, stickerCount: manifest.stickers.length };
+});
 
 /**
  * Atomically sends a reference to an approved shared sticker asset.
