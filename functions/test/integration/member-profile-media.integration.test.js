@@ -265,6 +265,69 @@ test("avatar expiry applies Mawda default during a legal hold but delays object 
 });
 
 
+test("Hide Coins hides only the profile projection from ordinary members while owner, self, and platform owner retain balance visibility", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const suffix = Date.now().toString();
+  const memberUid = "hide-coins-member-" + suffix;
+  const viewerUid = "hide-coins-viewer-" + suffix;
+  const ownerUid = "hide-coins-owner-" + suffix;
+  const memberRef = db.collection("users").doc(memberUid);
+  const viewerRef = db.collection("users").doc(viewerUid);
+  const ownerRef = db.collection("users").doc(ownerUid);
+  const entitlementRef = memberRef.collection("entitlements").doc("hide_coins_30d");
+  const base = {
+    profileCompleted: true, accountStatus: "active", age: 29,
+    profileVisibility: "public", displayName: "Coin Member",
+    username: "coin_" + suffix, fullName: "Coin Member",
+    profession: "Creator", country: "syria", region: "damascus",
+    gender: "male", maritalStatus: "single", bio: "", interests: [], goals: [],
+    coins: 4321,
+  };
+  await Promise.all([
+    memberRef.set(base),
+    viewerRef.set({ ...base, username: "viewer_" + suffix, displayName: "Viewer", coins: 50 }),
+    ownerRef.set({ ...base, username: "owner_" + suffix, displayName: "Owner", coins: 999999 }),
+    entitlementRef.set({
+      itemId: "hide_coins_30d", itemName: "إخفاء رصيد الكوينز",
+      category: "privacy", status: "active",
+      expiresAt: Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      purchasedAt: Timestamp.now(),
+    }),
+  ]);
+  const ownerRequest = (data) => ({
+    data,
+    auth: {
+      uid: ownerUid,
+      token: {
+        platformOwner: true,
+        platformOwnerUid: ownerUid,
+        auth_time: Math.floor(Date.now() / 1000),
+        firebase: { sign_in_second_factor: "totp", sign_in_provider: "password" },
+      },
+    },
+  });
+  try {
+    const ordinary = await getMemberProfile.run(memberRequest(viewerUid, { userId: memberUid }));
+    assert.equal(ordinary.coinBalanceLocked, true);
+    assert.equal(Object.prototype.hasOwnProperty.call(ordinary, "coins"), false);
+
+    const self = await getMemberProfile.run(memberRequest(memberUid, { userId: memberUid }));
+    assert.equal(self.coinBalanceLocked, false);
+    assert.equal(self.coins, 4321);
+
+    const owner = await getMemberProfile.run(ownerRequest({ userId: memberUid }));
+    assert.equal(owner.coinBalanceLocked, false);
+    assert.equal(owner.coins, 4321);
+  } finally {
+    await Promise.all([
+      memberRef.delete().catch(() => undefined),
+      viewerRef.delete().catch(() => undefined),
+      ownerRef.delete().catch(() => undefined),
+      entitlementRef.delete().catch(() => undefined),
+    ]);
+  }
+});
+
 test("purchased ghost mode hides a member from discovery and can be disabled without altering public profile visibility", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = Date.now().toString();
