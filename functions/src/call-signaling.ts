@@ -84,3 +84,29 @@ export function validateCallSignal(value: unknown): {
 export const CALL_RING_TIMEOUT_MS = 45_000;
 export const CALL_SIGNAL_MAX_AGE_MS = 2 * 60_000;
 export const CALL_SIGNAL_MAX_PER_CALLER = 256;
+
+
+/**
+ * Pending room invitees are not active-call participants yet. A member is
+ * reserved only when they initiated the ringing call or explicitly accepted
+ * an accepted call. Rejected/left members never retain a reservation.
+ */
+export function isCallMemberBusyInSession(
+  memberUid: string,
+  call: {
+    callerUid?: unknown;
+    status?: unknown;
+    acceptedUids?: unknown;
+    rejectedUids?: unknown;
+    leftUids?: unknown;
+  },
+): boolean {
+  if (typeof memberUid !== "string" || memberUid.length === 0) return false;
+  const rejected = Array.isArray(call.rejectedUids) && call.rejectedUids.includes(memberUid);
+  const left = Array.isArray(call.leftUids) && call.leftUids.includes(memberUid);
+  if (rejected || left) return false;
+  if (call.status !== "ringing" && call.status !== "accepted") return false;
+  if (call.callerUid === memberUid) return true;
+  return call.status === "accepted" &&
+    Array.isArray(call.acceptedUids) && call.acceptedUids.includes(memberUid);
+}
