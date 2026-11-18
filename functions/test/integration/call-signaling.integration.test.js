@@ -403,3 +403,54 @@ test("server starts a non-resettable five-minute call ceiling only after both en
     ]);
   }
 });
+
+
+test("call acceptance revalidates the matching active entitlement and rejects expired access", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const callerUid = uid("call_entitlement_caller");
+  const calleeUid = uid("call_entitlement_callee");
+  const chatId = uid("call_entitlement_chat");
+  const callId = uid("call_entitlement_session");
+  const callerRef = db.collection("users").doc(callerUid);
+  const calleeRef = db.collection("users").doc(calleeUid);
+  const chatRef = db.collection("directChats").doc(chatId);
+  const callRef = db.collection("callSessions").doc(callId);
+  const calleeEntitlement = calleeRef.collection("entitlements").doc("voice_call_24h");
+  await Promise.all([
+    callerRef.set({ profileCompleted: true, accountStatus: "active", age: 30 }),
+    calleeRef.set({ profileCompleted: true, accountStatus: "active", age: 30 }),
+    chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
+    seedCallEntitlements(callerUid, ["audio"]),
+    seedCallEntitlements(calleeUid, ["audio"]),
+  ]);
+  try {
+    await assert.rejects(
+      () => startCall.run(call(callerUid, {
+        callId: uid("video_requires_video_entitlement"),
+        scope: "direct", targetId: chatId, mode: "video",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "voice entitlement must not authorize a video call",
+    );
+    await startCall.run(call(callerUid, { callId, scope: "direct", targetId: chatId, mode: "audio" }));
+    await calleeEntitlement.delete();
+    await assert.rejects(
+      () => respondToCall.run(call(calleeUid, { callId, response: "accept" })),
+      (error) => error && error.code === "failed-precondition",
+      "entitlements must still be active at acceptance time",
+    );
+    const rejected = await respondToCall.run(call(calleeUid, { callId, response: "reject" }));
+    assert.equal(rejected.status, "rejected");
+    assert.equal((await getActiveCall.run(call(callerUid))).active, false);
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(callRef).catch(() => undefined),
+      db.recursiveDelete(callerRef).catch(() => undefined),
+      db.recursiveDelete(calleeRef).catch(() => undefined),
+      db.recursiveDelete(chatRef).catch(() => undefined),
+      db.recursiveDelete(db.collection("activeCallMemberLocks").doc(callerUid)).catch(() => undefined),
+      db.recursiveDelete(db.collection("activeCallMemberLocks").doc(calleeUid)).catch(() => undefined),
+      db.recursiveDelete(db.collection("callQuotaWindows").doc(callerUid)).catch(() => undefined),
+    ]);
+  }
+});
