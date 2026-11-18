@@ -6306,7 +6306,7 @@ export const giftStoreItem = onCall(async (request) => {
   if (typeof recipientUsername === "string") {
     const normalizedUsername = recipientUsername.trim();
     if (normalizedUsername.length < 1 || normalizedUsername.length > 64 ||
-        normalizedUsername.includes("/") || /\\s/.test(normalizedUsername)) {
+        normalizedUsername.includes("/") || /\s/.test(normalizedUsername)) {
       throw new HttpsError("invalid-argument", "اسم المستلم غير صالح.");
     }
     usernameRef = db.collection("usernameRegistry").doc(normalizedUsername);
