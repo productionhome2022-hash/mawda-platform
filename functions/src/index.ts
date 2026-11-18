@@ -87,7 +87,7 @@ import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, c
 import { isActiveRentedPrivateRoom } from "./room-call-policy";
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
-import { DEFAULT_COIN_PACKAGES, DEFAULT_AD_PRICES, validateCoinPackages, validateAdPrices } from "./economy-pricing";
+import { validateCoinPackages, validateAdPrices } from "./economy-pricing";
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
@@ -7985,26 +7985,17 @@ const ECONOMY_PRICING_SETTINGS = db.doc("platformSettings/economyPricing");
 
 /** Owner-only view and safe first-run seeding for editable coin and advertising prices. */
 export const getOwnerEconomyPricing = onCall(async (request) => {
-  const actorUid = requireOwner(request);
+  requireOwner(request);
   const snapshot = await ECONOMY_PRICING_SETTINGS.get();
   if (!snapshot.exists) {
-    await db.runTransaction(async (transaction) => {
-      const current = await transaction.get(ECONOMY_PRICING_SETTINGS);
-      if (current.exists) return;
-      transaction.create(ECONOMY_PRICING_SETTINGS, {
-        coinPackages: DEFAULT_COIN_PACKAGES,
-        adPrices: DEFAULT_AD_PRICES,
-        version: 1,
-        realMoneyCheckoutEnabled: false,
-        manualCoinPurchasesEnabled: true,
-        automatedCoinCheckoutEnabled: false,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-        updatedBy: actorUid,
-      });
-    });
+    // No starter prices or packages are silently proposed as owner-approved policy.
+    return {
+      coinPackages: [], adPrices: [], version: 0, configured: false,
+      realMoneyCheckoutEnabled: false, manualCoinPurchasesEnabled: false,
+      automatedCoinCheckoutEnabled: false,
+    };
   }
-  const data = (await ECONOMY_PRICING_SETTINGS.get()).data() ?? {};
+  const data = snapshot.data() ?? {};
   let coinPackages, adPrices;
   try {
     coinPackages = validateCoinPackages(data.coinPackages);
@@ -8015,8 +8006,9 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
   return {
     coinPackages, adPrices,
     version: Number.isSafeInteger(data.version) ? data.version : 0,
+    configured: true,
     realMoneyCheckoutEnabled: false,
-    manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled !== false,
+    manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled === true,
     automatedCoinCheckoutEnabled: false,
   };
 });
@@ -8031,13 +8023,23 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
   } catch {
     throw new HttpsError("invalid-argument", "أسعار باقات الكوينز أو الإعلانات غير صالحة.");
   }
+  const manualCoinPurchasesEnabled = request.data?.manualCoinPurchasesEnabled;
+  const expectedVersion = request.data?.expectedVersion;
+  if (typeof manualCoinPurchasesEnabled !== "boolean" ||
+      !Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "يجب تحديد حالة طلبات الشراء وإصدار إعدادات الاقتصاد الحالي.");
+  }
   const version = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(ECONOMY_PRICING_SETTINGS);
-    const nextVersion = (Number.isSafeInteger(previous.data()?.version) ? previous.data()!.version : 0) + 1;
+    const previousVersion = Number.isSafeInteger(previous.data()?.version) ? previous.data()!.version : 0;
+    if (previousVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت إعدادات الاقتصاد منذ فتح اللوحة؛ حدّث البيانات ثم أعد المحاولة.");
+    }
+    const nextVersion = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(ECONOMY_PRICING_SETTINGS, {
       coinPackages, adPrices, version: nextVersion,
-      manualCoinPurchasesEnabled: request.data?.manualCoinPurchasesEnabled !== false,
+      manualCoinPurchasesEnabled,
       automatedCoinCheckoutEnabled: false,
       realMoneyCheckoutEnabled: false,
       updatedAt: now, updatedBy: actorUid,
