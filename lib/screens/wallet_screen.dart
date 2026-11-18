@@ -115,9 +115,9 @@ class WalletScreen extends StatelessWidget {
                   ? data['recipientUid'] as String?
                   : data['senderUid'] as String?;
               final title = type == 'coin_transfer_sent'
-                  ? 'تحويل كوينز صادر'
+                  ? 'إهداء BetaCoins صادر'
                   : type == 'coin_transfer_received'
-                      ? 'تحويل كوينز وارد'
+                      ? 'إهداء BetaCoins وارد'
                       : type == 'store_purchase'
                           ? 'شراء من متجر مودة'
                           : type.replaceAll('_', ' ');
