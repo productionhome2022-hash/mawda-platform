@@ -329,16 +329,21 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
               Text('الحملة: $campaignId • الإصدار $expectedVersion'),
               if (!isReview) ...[
                 TextField(controller: amount, keyboardType: TextInputType.number,
+                  onChanged: (_) => setDialogState(() {}),
                   decoration: const InputDecoration(labelText: 'المبلغ بأصغر وحدة نقدية')),
                 TextField(controller: currency, textCapitalization: TextCapitalization.characters,
+                  onChanged: (_) => setDialogState(() {}),
                   decoration: const InputDecoration(labelText: 'رمز العملة ISO 4217')),
               ],
               TextField(controller: externalReference,
+                onChanged: (_) => setDialogState(() {}),
                 decoration: InputDecoration(labelText: isReview ? 'مرجع المراجعة الداخلية' : 'مرجع الحركة في السجل الخارجي')),
               if (needsEvidence)
                 TextField(controller: evidenceReference,
+                  onChanged: (_) => setDialogState(() {}),
                   decoration: const InputDecoration(labelText: 'مرجع مستند/كشف التحقق')),
               TextField(controller: note, minLines: 2, maxLines: 4,
+                onChanged: (_) => setDialogState(() {}),
                 decoration: const InputDecoration(labelText: 'ملاحظة المالك وأساس التحقق')),
               if (isReview)
                 DropdownButtonFormField<String>(
