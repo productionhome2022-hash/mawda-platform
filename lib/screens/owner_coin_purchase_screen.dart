@@ -66,6 +66,7 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
     await _runAction(() => _functions.httpsCallable('setCoinPurchasePaymentInstructions').call({
       'requesterUid': uid, 'requestId': id, 'agreedCoins': coinAmount,
       'agreedPriceMinor': priceMinor, 'currency': 'EUR',
+      'expectedInstructionsVersion': (item['instructionsVersion'] as num?)?.toInt() ?? 0,
       'instructions': instructions.text.trim(),
     }));
     coins.dispose(); price.dispose(); instructions.dispose();
@@ -169,11 +170,14 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
                   icon: const Icon(Icons.chat_outlined),
                   label: const Text('فتح المحادثة الثنائية مع العضو'),
                 )),
-              if (status == 'pending_owner_contact' || status == 'payment_instructions_sent')
+              if (status == 'pending_owner_contact' ||
+                  status == 'payment_instructions_sent' ||
+                  status == 'awaiting_payment_verification')
                 Wrap(spacing: 8, children: [
                   OutlinedButton(onPressed: _busy ? null : () => _instructions(item),
                     child: const Text('إرسال/تعديل تعليمات الدفع')),
-                  if (status == 'payment_instructions_sent')
+                  if (status == 'payment_instructions_sent' ||
+                      status == 'awaiting_payment_verification')
                     FilledButton(onPressed: _busy ? null : () => _approve(item),
                       child: const Text('تحقق واعتمد')),
                   TextButton(onPressed: _busy ? null : () => _reject(item),
