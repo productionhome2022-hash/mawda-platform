@@ -11275,13 +11275,15 @@ export const startCall = onCall(async (request) => {
   const now = Date.now();
   const expiresAt = Timestamp.fromMillis(now + CALL_RING_TIMEOUT_MS);
   const quotaRef = CALL_QUOTA_WINDOWS.doc(callerUid);
+  const economyPricingRef = db.doc("platformSettings/economyPricing");
   const result = await db.runTransaction(async (transaction) => {
-    const [existing, caller, quotaSnapshot, roomSnapshot, rentalSnapshot] = await Promise.all([
+    const [existing, caller, quotaSnapshot, roomSnapshot, rentalSnapshot, economyPricingSnapshot] = await Promise.all([
       transaction.get(callRef),
       transaction.get(callerRef),
       transaction.get(quotaRef),
       roomRefForCall ? transaction.get(roomRefForCall) : Promise.resolve(null),
       roomRentalRef ? transaction.get(roomRentalRef) : Promise.resolve(null),
+      transaction.get(economyPricingRef),
     ]);
     if (existing.exists) {
       const prior = existing.data() ?? {};
@@ -11405,9 +11407,31 @@ export const startCall = onCall(async (request) => {
       attempts: [...recentAttempts, { callId: input.callId, mode: input.mode, startedAtMs: quotaNow }],
       updatedAt: FieldValue.serverTimestamp(),
     });
+    let callTariffs;
+    try {
+      callTariffs = validateBilateralCallTariffs(economyPricingSnapshot.data()?.callTariffs ?? {
+        audioTotalCoinsPerMinute: null, videoTotalCoinsPerMinute: null,
+      });
+    } catch {
+      throw new HttpsError("failed-precondition", "إعدادات تعرفة المكالمات غير صالحة؛ تم إيقاف بدء المكالمة لحماية الرصيد.");
+    }
+    const selectedDirectTariff = input.scope === "direct"
+      ? (input.mode === "audio" ? callTariffs.audioTotalCoinsPerMinute : callTariffs.videoTotalCoinsPerMinute)
+      : null;
+    const economySnapshot = {
+      policyVersion: Number.isSafeInteger(economyPricingSnapshot.data()?.version)
+        ? economyPricingSnapshot.data()!.version : 0,
+      billingMode: input.scope === "direct" && selectedDirectTariff !== null
+        ? "configured_not_yet_collectible" : "not_configured",
+      combinedTotalCoinsPerMinute: selectedDirectTariff,
+      participantAllocation: input.scope === "direct" ? "equal_50_50" : "not_applicable",
+      callerOnlyException: "caller_quota_exhausted_recipient_included_quota_remaining",
+      collectionEnabled: false,
+    };
     transaction.create(callRef, {
       callId: input.callId, scope: input.scope, targetId: input.targetId, mode: input.mode,
       callerUid, participantUids, acceptedUids: [], rejectedUids: [], leftUids: [],
+      economySnapshot,
       status: "ringing", signalCounts: {}, signalsCleanedAt: false,
       createdAt: FieldValue.serverTimestamp(),
       expiresAt, lastActivityAt: FieldValue.serverTimestamp(),
