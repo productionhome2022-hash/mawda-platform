@@ -89,6 +89,7 @@ import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput,
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
 import { validateAdvertisingIntake, advertisingIntakeAuditEventId, advertisingIntakeReviewAuditEventId, AdvertisingIntakeValidationError } from "./advertising-intake";
+import { selectFeaturedAdShowcase, type FeaturedAdCampaignCandidate } from "./featured-advertising";
 import { validateProductionApplication, ProductionApplicationValidationError } from "./production-applications";
 import {
   applyContractSignature,
@@ -8095,6 +8096,85 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     throw new HttpsError("permission-denied", "الحساب أو الحملة لم تعد مؤهلة؛ ألغيت الجلسة دون مكافأة.");
   }
   return result;
+});
+
+/**
+ * Returns only owner-approved, paid, security-approved featured campaigns
+ * for an explicitly selected approved geography. This is a discovery feed;
+ * it does not start a viewing session or grant a reward.
+ */
+export const getFeaturedAdShowcase = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const user = await db.collection("users").doc(uid).get();
+  if (!user.exists || user.data()?.profileCompleted !== true ||
+      !isMemberAccountInGoodStanding(user.data())) {
+    throw new HttpsError("permission-denied", "الإعلانات المميزة متاحة للأعضاء النشطين فقط.");
+  }
+  const geography = request.data?.geography;
+  const allowedGeographies = [
+    "all_arab_countries", "syria", "lebanon_palestine", "iraq_jordan", "gcc",
+    "egypt", "tunisia_libya_sudan", "algeria_morocco", "europe_turkey",
+    "asia_middle_east",
+  ];
+  if (typeof geography !== "string" || !allowedGeographies.includes(geography)) {
+    throw new HttpsError("invalid-argument", "يجب اختيار نطاق جغرافي معتمد.");
+  }
+  const now = Date.now();
+  const snapshot = await db.collection("featuredAdCampaigns")
+    .where("status", "==", "published")
+    .where("startsAtMs", "<=", now)
+    .where("endsAtMs", ">", now)
+    .limit(100).get();
+  const candidates: FeaturedAdCampaignCandidate[] = snapshot.docs.flatMap((doc) => {
+    const data = doc.data();
+    if (typeof data.ownerApproved !== "boolean" ||
+        typeof data.ownerWithdrawn !== "boolean" ||
+        typeof data.paymentConfirmed !== "boolean" ||
+        typeof data.creativeApproved !== "boolean" ||
+        !Array.isArray(data.geographicTargets) ||
+        !data.geographicTargets.every((item: unknown) => typeof item === "string") ||
+        !["rotation", "priority"].includes(data.featuredPlacement)) return [];
+    return [{
+      campaignId: doc.id,
+      status: String(data.status),
+      ownerApproved: data.ownerApproved,
+      ownerWithdrawn: data.ownerWithdrawn,
+      paymentConfirmed: data.paymentConfirmed,
+      creativeApproved: data.creativeApproved,
+      startsAtMs: data.startsAtMs,
+      endsAtMs: data.endsAtMs,
+      geographicTargets: data.geographicTargets,
+      featuredPlacement: data.featuredPlacement,
+      ...(Number.isSafeInteger(data.priorityOrder) ? { priorityOrder: data.priorityOrder } : {}),
+    }];
+  });
+  const selection = selectFeaturedAdShowcase({
+    campaigns: candidates,
+    audienceGeography: geography,
+    nowMs: now,
+  });
+  const byId = new Map(snapshot.docs.map((doc) => [doc.id, doc]));
+  return {
+    serverTimeMs: now,
+    geography,
+    mode: selection.mode,
+    rotationIntervalMs: selection.rotationIntervalMs,
+    rewardEligible: false,
+    campaigns: selection.campaignIds.flatMap((campaignId) => {
+      const doc = byId.get(campaignId);
+      if (!doc) return [];
+      const data = doc.data();
+      if (typeof data.title !== "string" || typeof data.sponsorLabel !== "string" ||
+          typeof data.body !== "string") return [];
+      return [{
+        campaignId,
+        title: data.title,
+        sponsorLabel: data.sponsorLabel,
+        body: data.body,
+        featuredPlacement: data.featuredPlacement,
+      }];
+    }),
+  };
 });
 
 export const getRewardCenter = onCall(async (request) => {
