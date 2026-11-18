@@ -1127,7 +1127,14 @@ export const sendChatImageAttachment = onCall(async (request) => {
 });
 
 /** Issues a two-minute generation-pinned URL only to a linked conversation participant. */
-async function issueChatMediaDeliveryUrl(request: Parameters<Parameters<typeof onCall>[0]>[0], viewerUid: string, mediaSaver: boolean): Promise<Record<string, unknown>> {
+async function issueChatMediaDeliveryUrl(
+  request: {
+    data?: Record<string, unknown>;
+    auth?: { uid?: string; token?: Record<string, unknown> } | null;
+  },
+  viewerUid: string,
+  mediaSaver: boolean,
+): Promise<Record<string, unknown>> {
     const data = request.data ?? {};
   const scope = data.scope;
   if (mediaSaver) {
