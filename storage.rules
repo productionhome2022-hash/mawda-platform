@@ -1,7 +1,13 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    function biometricRequest(uid, requestId) {
+    function biometricRequestExists(requestId) {
+      return firestore.exists(
+        /databases/(default)/documents/biometricVerificationRequests/$(requestId)
+      );
+    }
+
+    function biometricRequest(requestId) {
       return firestore.get(
         /databases/(default)/documents/biometricVerificationRequests/$(requestId)
       ).data;
@@ -18,9 +24,10 @@ service firebase.storage {
     match /biometric-verification/{uid}/{requestId}/{fileName} {
       allow create: if request.auth != null &&
         request.auth.uid == uid &&
-        biometricRequest(uid, requestId).uid == uid &&
-        biometricRequest(uid, requestId).requestId == requestId &&
-        biometricRequest(uid, requestId).status == "uploading" &&
+        biometricRequestExists(requestId) &&
+        biometricRequest(requestId).uid == uid &&
+        biometricRequest(requestId).requestId == requestId &&
+        biometricRequest(requestId).status == "uploading" &&
         biometricRequest(uid, requestId).uploadExpiresAt > request.time &&
         biometricSettings().enabled == true &&
         request.resource.size > 0 &&
