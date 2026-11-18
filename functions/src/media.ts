@@ -990,6 +990,17 @@ export const sendChatImageAttachment = onCall(async (request) => {
   const expectedPurpose = scope === "direct" ? "chat" : "room";
   const ownerSession = request.auth?.token.platformOwner === true &&
     hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, senderUid);
+  const requestedRecipientUid = scope === "direct" && typeof data.recipientUid === "string" ? data.recipientUid.trim() : "";
+  let verifiedOwnerRecipient = false;
+  if (!ownerSession && scope === "direct" && asset.intendedRecipientIsPlatformOwner === true &&
+      asset.intendedRecipientUid === requestedRecipientUid && requestedRecipientUid) {
+    try {
+      const recipientAccount = await getAuth().getUser(requestedRecipientUid);
+      verifiedOwnerRecipient = recipientAccount.customClaims?.platformOwner === true;
+    } catch {
+      verifiedOwnerRecipient = false;
+    }
+  }
   const artifact = resolveChatMediaDeliveryArtifact(asset as never, ownerSession);
   const uploaderType = mediaUploaderTypeFromToken((request.auth?.token ?? {}) as Record<string, unknown>);
   if (uploaderType === "guest" && (scope !== "room" || artifact?.category !== "audio")) {
@@ -1007,8 +1018,10 @@ export const sendChatImageAttachment = onCall(async (request) => {
   const messageId = createHash("sha256").update(senderUid + ":" + clientMessageId).digest("hex");
   const now = FieldValue.serverTimestamp();
   if (scope === "direct") {
-    const recipientUid = typeof data.recipientUid === "string" ? data.recipientUid.trim() : "";
-    if (!recipientUid || recipientUid.length > 128 || recipientUid === senderUid) {
+    const recipientUid = requestedRecipientUid;
+    if (!recipientUid || recipientUid.length > 128 || recipientUid === senderUid ||
+        (asset.intendedRecipientIsPlatformOwner === true && asset.intendedRecipientUid !== recipientUid) ||
+        (asset.intendedRecipientIsPlatformOwner === true && !verifiedOwnerRecipient)) {
       throw new HttpsError("invalid-argument", "معرف المستلم غير صالح.");
     }
     const chatId = createDirectChatId(senderUid, recipientUid);
