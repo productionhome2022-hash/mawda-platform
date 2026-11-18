@@ -55,7 +55,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(
-        'سُجل طلبك. سيتواصل معك مالك المنصة لتأكيد السعر وتعليمات الدفع. لم تُضف كوينز بعد.',
+        'سُجل طلبك. سيتواصل معك مالك المنصة لتأكيد السعر وتعليمات الدفع. لم تُضف BetaCoins بعد.',
       )));
     } on FirebaseFunctionsException catch (e) {
       if (mounted) setState(() => _error = e.message ?? 'تعذر تسجيل الطلب.');
@@ -65,7 +65,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
   Future<void> _requestCustom() async {
     final coins = int.tryParse(_customCoins.text.trim());
     if (coins == null || coins < 1 || coins > 1000000000) {
-      setState(() => _error = 'أدخل كمية كوينز صحيحة بين 1 و1,000,000,000.');
+      setState(() => _error = 'أدخل كمية BetaCoins صحيحة بين 1 و1,000,000,000.');
       return;
     }
     await _submitRequest({'kind': 'custom', 'requestedCoins': coins});
@@ -98,13 +98,13 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
     body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
       padding: const EdgeInsets.all(16), children: [
         const Card(child: Padding(padding: EdgeInsets.all(14), child: Text(
-          'تُنفذ الطلبات بالتواصل المباشر مع مالك مودة. لا يتم إصدار أي كوينز عند تقديم الطلب أو إرسال التعليمات؛ يضيفها الخادم فقط بعد تحقق المالك من وصول الدفعة الخارجية.',
+          'تُنفذ الطلبات بالتواصل المباشر مع مالك مودة. لا يتم إصدار أي BetaCoins عند تقديم الطلب أو إرسال التعليمات؛ يضيفها الخادم فقط بعد تحقق المالك من وصول الدفعة الخارجية.',
         ))),
         if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         Text('الباقات المتاحة', style: Theme.of(context).textTheme.titleLarge),
         if (_packages.isEmpty) const Text('لا توجد باقات متاحة حالياً. يمكنك إرسال طلب كمية مخصصة.'),
         ..._packages.map((item) => Card(child: ListTile(
-          title: Text(item['name'] as String? ?? 'باقة كوينز'),
+          title: Text(item['name'] as String? ?? 'باقة BetaCoins'),
           subtitle: Text((item['coins'] ?? 0).toString() + ' كوين • ' +
               (((item['priceMinor'] as num?) ?? 0).toDouble() / 100).toStringAsFixed(2) + ' EUR'),
           trailing: FilledButton(
