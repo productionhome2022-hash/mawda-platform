@@ -348,6 +348,7 @@ test("manual coin package request issues no coins until owner verifies external 
       adPrices: [{ placementId: "test_ad", name: "Test ad", billingModel: "daily",
         priceMinor: 100, currency: "EUR", active: true }],
       manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, version: 1,
+      customCoinRequestBounds: { minCoins: 100, maxCoins: 50000 },
     }),
   ]);
   try {
@@ -363,6 +364,7 @@ test("manual coin package request issues no coins until owner verifies external 
     const instructionResult = await setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
       requesterUid: uid, requestId, instructions: "يرجى التواصل مع المالك لإتمام التحويل البنكي",
       agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
+      expectedInstructionsVersion: 0,
     }));
     assert.equal((await requestDoc.get()).data().status, "payment_instructions_sent");
     assert.ok(instructionResult.chatId);
@@ -372,6 +374,21 @@ test("manual coin package request issues no coins until owner verifies external 
     assert.equal(chatMessages.docs[0].data().isPlatformOwnerMessage, true);
     assert.match(chatMessages.docs[0].data().text, /تعليمات الدفع/);
     assert.equal((await userRef.get()).data().coins, 40);
+    assert.equal((await requestDoc.get()).data().instructionsVersion, 1);
+
+    const reported = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
+      requestId, expectedInstructionsVersion: 1,
+    }));
+    assert.equal(reported.status, "awaiting_payment_verification");
+    assert.equal(reported.idempotentReplay, false);
+    assert.equal((await requestDoc.get()).data().status, "awaiting_payment_verification");
+    assert.equal((await userRef.get()).data().coins, 40,
+      "member payment report is a claim only and never credits BetaCoins");
+
+    const reportReplay = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
+      requestId, expectedInstructionsVersion: 1,
+    }));
+    assert.equal(reportReplay.idempotentReplay, true);
 
     const approvalInput = {
       requesterUid: uid, requestId, externalPaymentVerified: true,
