@@ -7995,7 +7995,16 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       }
     }
     const economy = settings.data() ?? {};
-    if (!settings.exists || economy.manualCoinPurchasesEnabled !== true ||
+    let paymentPolicy;
+    try {
+      paymentPolicy = projectEconomicPaymentPolicy(economy.paymentPolicy, {
+        manualCoinPurchasesEnabled: economy.manualCoinPurchasesEnabled,
+        manualFeaturedAdsEnabled: economy.manualFeaturedAdsEnabled,
+      });
+    } catch {
+      throw new HttpsError("failed-precondition", "سياسة الدفع الاقتصادي غير صالحة؛ أوقفنا إنشاء الطلب حتى مراجعتها.");
+    }
+    if (!settings.exists || paymentPolicy.coin_purchases.manualEnabled !== true ||
         !Array.isArray(economy.coinPackages)) {
       throw new HttpsError("failed-precondition", "لم يعتمد المالك باقات الشراء اليدوي أو أن الطلبات متوقفة حالياً.");
     }
@@ -8019,7 +8028,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       requestedCoins, status: "pending_owner_contact",
       paymentChannel: "manual_owner_contact",
       paymentPolicySnapshot: {
-        manualEnabled: true, automatedEnabled: false,
+        manualEnabled: paymentPolicy.coin_purchases.manualEnabled, automatedEnabled: false,
         policyVersion: Number.isSafeInteger(economy.version) ? economy.version : 0,
         capturedAt: FieldValue.serverTimestamp(),
       },
@@ -9453,6 +9462,15 @@ export const setOwnerFeaturedAdCampaign = onCall(async (request) => {
       transaction.get(ref), transaction.get(ECONOMY_PRICING_SETTINGS),
     ]);
     const economyPolicy = economySettings.data() ?? {};
+    let paymentPolicy;
+    try {
+      paymentPolicy = projectEconomicPaymentPolicy(economyPolicy.paymentPolicy, {
+        manualCoinPurchasesEnabled: economyPolicy.manualCoinPurchasesEnabled,
+        manualFeaturedAdsEnabled: economyPolicy.manualFeaturedAdsEnabled,
+      });
+    } catch {
+      throw new HttpsError("failed-precondition", "سياسة الدفع الاقتصادي غير صالحة؛ تعذر إنشاء الحملة.");
+    }
     if (current.exists) {
       const existing = current.data() ?? {};
       if (existing.version !== expectedVersion) {
@@ -9476,7 +9494,7 @@ export const setOwnerFeaturedAdCampaign = onCall(async (request) => {
         ...input, creativeType: creative.creativeType, ownerApproved: false, ownerWithdrawn: false,
         paymentConfirmed: false, creativeApproved: false, status: "draft",
         paymentPolicySnapshot: {
-          manualEnabled: economyPolicy.manualFeaturedAdsEnabled === true,
+          manualEnabled: paymentPolicy.featured_ads.manualEnabled,
           automatedEnabled: false,
           policyVersion: Number.isSafeInteger(economyPolicy.version) ? economyPolicy.version : 0,
         },
