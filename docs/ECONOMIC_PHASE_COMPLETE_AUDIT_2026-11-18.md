@@ -184,3 +184,13 @@ Historical gap recorded before the implementation sections below. This gap was p
 - The initiator therefore absorbs the complete rounding remainder. Example for 1,000 BetaCoins audio: with 7 connected members, six non-initiators pay 142 each and the initiator pays 148; with 9 connected members, eight non-initiators pay 111 each and the initiator pays 112. With 4 members, each pays 250. For 2,000 BetaCoins video and 4 members, each pays 500.
 - The split must be calculated server-side from the immutable participant set for that billed interval, validated as positive safe integers, and persisted with the corresponding idempotent wallet debits/ledger entries in one atomic settlement. A participant who is not actually connected in that interval is not included. Direct one-to-one call pricing is unchanged.
 - This is an approved allocation rule, not a claim that group-call entitlement, metering, or settlement has been integrated or accepted.
+
+
+## Room-call security gate implementation update — 2026-11-18
+
+- Added `functions/src/room-call-policy.ts` and unit cases in `functions/test/room-call-policy.test.js`.
+- Updated `startCall` so room-scope requests require `kind=private`, `isRented=true`, and a matching `roomRentals` record whose status and both room/rental expiries are active. The same room/rental state is re-read inside the call-creation Firestore transaction to close the preflight-to-write race.
+- Public rooms, non-rented private rooms, expired rentals, mismatched rental ownership/room IDs, and grace-period rentals now fail closed at call creation.
+- Video room calls now reject more than four current room members in the existing all-members invitation model.
+- This is a narrow security hardening only. It does **not** complete participant selection, audio capacity handling, per-participant entitlement, explicit billing consent, connected-interval metering, wallet settlement, or ledger integration. The current all-members model and fixed room-member query bound remain known limitations; do not treat group calls as economically enabled.
+- The new unit tests and Functions build have **not** been executed. Container access to GitHub was unavailable, so no local checkout or runtime test could be performed. No production resources were accessed.
