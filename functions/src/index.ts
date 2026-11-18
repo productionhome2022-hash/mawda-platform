@@ -9320,8 +9320,9 @@ export const recordOwnerFeaturedAdFinancialEvent = onCall(async (request) => {
     const campaign = campaignSnapshot.data() ?? {};
     if (existingEvent.exists) {
       const prior = existingEvent.data() ?? {};
+      // The stable event identity is derived from campaign/action/externalReference.
+      // Client attempt keys may change after a timeout, so they are not business-payload identity.
       const samePayload = prior.action === event.action &&
-        prior.idempotencyKey === event.idempotencyKey &&
         prior.amountMinor === event.amountMinor && prior.currency === event.currency &&
         prior.externalReference === event.externalReference &&
         prior.evidenceReference === event.evidenceReference && prior.note === event.note &&
