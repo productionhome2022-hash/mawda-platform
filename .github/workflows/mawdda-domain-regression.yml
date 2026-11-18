@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - codex/mawda-full-platform-implementation
+      - codex/structural-governance-biometric-roles-2026-11-19
 
 permissions:
   contents: read
