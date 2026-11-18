@@ -7461,7 +7461,10 @@ export const setRoomRentalPlans = onCall(async (request) => {
     transaction.set(ROOM_RENTAL_SETTINGS, { plans, version, updatedAt: now, updatedBy: actorUid });
     const auditRef = db.collection("adminAuditLogs").doc();
     transaction.create(auditRef, {
-      actorUid, action: "room_rental_pricing_updated", version,
+      actorUid, action: "room_rental_pricing_updated",
+      previousVersion,
+      version,
+      previousPlans: previous.data()?.plans ?? [],
       plans: plans.map((plan) => ({ ...plan })),
       createdAt: now,
     });
@@ -8503,6 +8506,10 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
     const auditRef = db.collection("adminAuditLogs").doc();
     transaction.create(auditRef, {
       actorUid, action: "economy_pricing_updated", version: nextVersion,
+      previousCoinPackages: previous.data()?.coinPackages ?? [],
+      coinPackages,
+      previousAdPrices: previous.data()?.adPrices ?? [],
+      adPrices,
       coinPackageCount: coinPackages.length, adPlacementCount: adPrices.length,
       previousCallTariffs, callTariffs,
       previousEmailVerificationReward, emailVerificationReward,
