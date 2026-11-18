@@ -116,7 +116,7 @@ import {
   defaultFeaturedAdRewardPolicy,
   validateFeaturedAdRewardPolicy,
 } from "./featured-ad-rewards";
-import { CAPACITY_MEDIA_DEFAULTS, projectCapacityMediaPolicy, validateCapacityMediaQuotaInput } from "./capacity-media-management";
+import { CAPACITY_MEDIA_DEFAULTS, projectCapacityMediaPolicy, validateCapacityMediaQuotaInput, type CapacityMediaPolicy } from "./capacity-media-management";
 
 initializeApp();
 
@@ -10049,7 +10049,7 @@ export const getOwnerCapacityMediaManagement = onCall(async (request) => {
   const snapshot = await CAPACITY_MEDIA_SETTINGS.get();
   const data = snapshot.data() ?? {};
   const rawQuotas = data.monthlyMediaQuotas;
-  let monthlyMediaQuotas = CAPACITY_MEDIA_DEFAULTS.monthlyMediaQuotas;
+  let monthlyMediaQuotas: CapacityMediaPolicy["monthlyMediaQuotas"] = { ...CAPACITY_MEDIA_DEFAULTS.monthlyMediaQuotas };
   if (rawQuotas && typeof rawQuotas === "object" && !Array.isArray(rawQuotas)) {
     try {
       monthlyMediaQuotas = validateCapacityMediaQuotaInput(rawQuotas);
