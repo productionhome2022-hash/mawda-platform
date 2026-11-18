@@ -41,12 +41,22 @@ test("unknown runtime call modes are rejected", () => {
   assert.throws(() => getGroupCallRate(policy, "screen"), /INVALID_GROUP_CALL_MODE/);
 });
 
-test("integer allocation assigns all remainder to initiator and is deterministic", () => {
+test("integer allocation is balanced, deterministic and independent of initiator", () => {
   const a = calculateGroupCallCoinShares(101, ["owner", "b", "c"], "owner");
   const b = calculateGroupCallCoinShares(101, ["c", "owner", "b"], "owner");
   assert.deepEqual(a, b);
+  assert.deepEqual(a.map((item) => item.amount), [34, 34, 33]);
   assert.equal(a.reduce((sum, item) => sum + item.amount, 0), 101);
-  assert.equal(a.find((item) => item.uid === "owner").amount, 35);
+  assert.equal(a.find((item) => item.uid === "owner").amount, 33);
+});
+
+test("late and early connected members receive the same share based only on final participant count", () => {
+  const four = calculateGroupCallCoinShares(2000, ["owner", "early", "late", "last-second"], "owner");
+  assert.deepEqual(four.map((item) => item.amount), [500, 500, 500, 500]);
+  const three = calculateGroupCallCoinShares(2000, ["owner", "early", "late"], "owner");
+  assert.deepEqual(three.map((item) => item.amount), [667, 667, 666]);
+  const two = calculateGroupCallCoinShares(2000, ["owner", "late"], "owner");
+  assert.deepEqual(two.map((item) => item.amount), [1000, 1000]);
 });
 
 test("billing slice freezes owner policy version and charges actual active participants", () => {
