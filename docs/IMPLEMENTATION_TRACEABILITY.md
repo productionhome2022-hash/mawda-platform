@@ -609,3 +609,39 @@ Status: **implemented in source; automated validation pending; device/network ac
 - Exact-head CI evidence: domain-regression run `44180452013` completed successfully on this SHA. Flutter UI analysis/widget tests and the retention/room-reservation emulator job both succeeded; the latter includes the timed advertising and reward-ledger integration suite.
 - The separate full validation workflow for this exact SHA was queued at the time of this documentation update; do not infer web build or full validation success from domain regression alone.
 - No reward policy values, campaign pricing, production Firebase resources, billing, production data, deployment, or merge to `main` were changed.
+
+
+## 2026-11-18 — exact-head CI and priority-gap reconciliation
+
+### Exact development-head validation
+- Development branch HEAD verified through Git refs: `c759083e04ffd98616691c2e736207095aaf2dbc`.
+- Validate Mawda run [44183645018](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/44183645018) completed successfully on that exact SHA. All three jobs passed: Flutter analysis/tests/Web build; Cloud Functions compile/unit tests; isolated ClamAV scanner tests/image build.
+- Mawdda domain regression run [44183645008](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/44183645008) completed successfully on the same SHA; both Flutter UI/widget and backend emulator regression jobs passed.
+- CodeQL run [44183648075](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/44183648075) completed successfully, including JavaScript/TypeScript and Actions analysis.
+- This is exact-head automated CI evidence only. It does not prove live Firebase/GCS/Cloud Run behavior, physical-device acceptance, 5,000-persona completion, or release readiness.
+
+### Featured advertising — AD-001 remains the first implementation priority
+- Rechecked `functions/src/featured-advertising.ts` and `functions/src/featured-ad-rewards.ts`: they contain pure selection/reward-decision helpers and unit tests.
+- The current `functions/src/index.ts` has no exported featured-ad campaign feed/session/heartbeat/completion/history callables; its timed-ad callables operate on the separate `timedAdCampaigns` flow and must not be relabelled as featured advertising.
+- `lib/screens/featured_ads_screen.dart` still renders a static empty campaign state, local-only region chips and placeholder reward-history text.
+- Therefore AD-001 remains **partially implemented**. Required work: separate featured campaign persistence and owner controls; owner approval/payment confirmation/creative safety/withdrawal; explicit geography mapping; dedicated feed/player sessions and trusted visibility evidence; UTC daily and rolling campaign limits; atomic distinct `featured_ad_reward` wallet ledger entries; member history; responsive 75/25 player/context UI; emulator, replay, concurrency, revocation and UI tests.
+- Keep the owner-configurable reward policy versioned. The approved experimental defaults are not a hard-coded commercial promise; production enablement remains under owner control.
+
+### Calls — CALL-001 / CALL-002 status
+- CALL-001 is partially implemented: WebRTC signaling/session lifecycle, member/room authorization, participant locks, rolling attempt limits (5 audio / 3 video) and server-side 300-second connected-call deadline exist. Exact-head CI includes call-signaling emulator coverage.
+- Still open: checking both parties' 24h/7d/30d entitlements at creation/join, complete consent/preferences, TURN provisioning, and physical Android/browser device-to-device acceptance.
+- CALL-002 remains unimplemented: no connected-time metering, atomic per-party billing allocation, balance debit or call wallet ledger. The approved 120/400 per-minute allocation rules are not sufficient to infer a rounding/billing unit; owner decision is still required before enabling paid continuation.
+
+### 5,000-persona lab
+- Lab PR #2 retry branch is at `f024ebda492add4028f0ffb2a6901953e9ece48b`; its harness validation run [43772590541](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/actions/runs/43772590541) passed.
+- Lab PR #3 contention/runtime branch validation run [43783308441](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/actions/runs/43783308441) passed on `f148e25f5bd6579c3f5f301db3b0b0f588817557).
+- The latest full simulation available in the audit, run [43773980276](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/actions/runs/43773980276), failed at RSVP contention (851/5,000 lifecycle completions). Harness validation is not a full simulation. No 5,000/5,000 acceptance is claimed.
+- The connected GitHub actions interface exposes run/job reads and reruns, but no workflow-dispatch operation; a new full simulation has not been dispatched.
+
+### Execution order
+1. Complete AD-001 featured advertising backend/UI integration and its emulator/UI/security tests.
+2. Close remaining phase-one code, economy, media, room and call gaps without inventing prices, entitlements or unresolved billing rules.
+3. Freeze a candidate SHA and enter phase two: the isolated 5,000-persona lab.
+4. Phase three remains live non-production/cloud synchronization, platform acceptance and eventual release. No production changes, paid resources, main merge or deployment are authorized by this record.
+
+No production Firebase/Google Cloud resource, live member data, billing setting, deployment target, main branch or destructive retention worker was changed by this audit.
