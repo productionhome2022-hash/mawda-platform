@@ -707,7 +707,19 @@ test("owner economy pricing starts empty and only exposes owner-authored prices 
     assert.deepEqual(empty.coinPackages, []);
     assert.deepEqual(empty.adPrices, []);
     assert.equal(empty.manualCoinPurchasesEnabled, false);
+    assert.equal(empty.manualFeaturedAdsEnabled, false);
     assert.equal((await getAvailableCoinPackages.run({})).packages.length, 0);
+
+    const featuredOnly = await setOwnerEconomyPricing.run(ownerRequest("store-catalog-owner", {
+      coinPackages: [], adPrices: [],
+      manualCoinPurchasesEnabled: false, manualFeaturedAdsEnabled: true,
+      expectedVersion: empty.version,
+    }));
+    assert.equal(featuredOnly.manualFeaturedAdsEnabled, true);
+    const featuredOnlyRead = await getOwnerEconomyPricing.run(ownerRequest());
+    assert.deepEqual(featuredOnlyRead.coinPackages, []);
+    assert.deepEqual(featuredOnlyRead.adPrices, []);
+    assert.equal(featuredOnlyRead.manualFeaturedAdsEnabled, true);
 
     const packages = [{
       packageId: "test_coins_1000", name: "باقة اختبار", coins: 1000,
@@ -719,7 +731,7 @@ test("owner economy pricing starts empty and only exposes owner-authored prices 
     }];
     const saved = await setOwnerEconomyPricing.run(ownerRequest("store-catalog-owner", {
       coinPackages: packages, adPrices: ads,
-      manualCoinPurchasesEnabled: false, manualFeaturedAdsEnabled: false, expectedVersion: empty.version,
+      manualCoinPurchasesEnabled: false, manualFeaturedAdsEnabled: false, expectedVersion: featuredOnly.version,
     }));
     assert.equal(saved.saved, true);
     assert.equal(saved.realMoneyCheckoutEnabled, false);
