@@ -40,7 +40,6 @@ class _ShopScreenState extends State<ShopScreen> {
     final name = item['name'] as String? ?? 'عنصر مودة';
     final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
     if (itemId == null || itemId.isEmpty || price <= 0 || _purchasingItemId != null) return;
-    final category = item['category'] as String? ?? '';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -49,8 +48,7 @@ class _ShopScreenState extends State<ShopScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('سيتم خصم $price كوين من محفظتك مقابل "$name"، ومنح الاستحقاق عبر الخادم.'),
-          ],
+            Text('سيتم خصم $price BetaCoins من محفظتك مقابل "$name"، ومنح الاستحقاق عبر الخادم.'),
           ],
         ),
         actions: [
