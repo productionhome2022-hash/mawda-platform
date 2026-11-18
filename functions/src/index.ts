@@ -10930,6 +10930,42 @@ export const markCallConnected = onCall(async (request) => {
     if (call.status !== "accepted") {
       throw new HttpsError("failed-precondition", "لا يمكن تثبيت الاتصال قبل قبول المكالمة.");
     }
+    const activeParticipants = [...new Set([
+      ...(typeof call.callerUid === "string" ? [call.callerUid] : []),
+      ...acceptedUids,
+    ])].filter((memberUid) =>
+      !rejectedUids.includes(memberUid) && !leftUids.includes(memberUid));
+    if (call.scope === "room") {
+      if (typeof call.targetId !== "string" || !call.targetId) {
+        throw new HttpsError("failed-precondition", "مرجع الغرفة غير صالح لتثبيت الاتصال.");
+      }
+      const roomRef = db.collection("rooms").doc(call.targetId);
+      const [roomSnapshot] = await Promise.all([transaction.get(roomRef)]);
+      const roomData = roomSnapshot.data() ?? {};
+      if (!roomSnapshot.exists || typeof roomData.rentalId !== "string" || !roomData.rentalId) {
+        throw new HttpsError("failed-precondition", "الغرفة أو استئجارها لم يعد صالحاً لتثبيت الاتصال.");
+      }
+      const [rentalSnapshot, ...memberships] = await Promise.all([
+        transaction.get(db.collection("roomRentals").doc(roomData.rentalId)),
+        ...activeParticipants.map((memberUid) =>
+          transaction.get(roomRef.collection("members").doc(memberUid))),
+      ]);
+      if (!isActiveRentedPrivateRoom(roomData, rentalSnapshot.data(), Date.now()) ||
+          memberships.some((membership) => !membership.exists)) {
+        throw new HttpsError("failed-precondition", "انتهى استئجار الغرفة أو تغيرت عضوية أحد المشاركين؛ تعذر تثبيت الاتصال.");
+      }
+    } else if (call.scope === "direct") {
+      if (typeof call.targetId !== "string" || !call.targetId) {
+        throw new HttpsError("failed-precondition", "مرجع المحادثة الثنائية غير صالح لتثبيت الاتصال.");
+      }
+      const chatSnapshot = await transaction.get(db.collection("directChats").doc(call.targetId));
+      const currentParticipants = chatSnapshot.data()?.participantUids;
+      if (!chatSnapshot.exists || !Array.isArray(currentParticipants) ||
+          currentParticipants.length !== 2 ||
+          activeParticipants.some((memberUid) => !currentParticipants.includes(memberUid))) {
+        throw new HttpsError("permission-denied", "لم تعد عضوية المحادثة تسمح بتثبيت الاتصال.");
+      }
+    }
     if (!(call.maxDurationEndsAt instanceof Timestamp)) {
       const entitledParticipants = [...new Set([
         ...(typeof call.callerUid === "string" ? [call.callerUid] : []),
