@@ -83,6 +83,7 @@ No source code was changed during this recheck. No local command, test suite, em
 - Owner pricing settings can be saved with empty coin/ad price arrays. This represents an intentionally unconfigured catalog and allows the owner to configure the featured-ad manual mode without inventing coin package or ad prices.
 - Newly created coin purchase requests snapshot the manual channel and economy policy version. Existing pending requests retain their original manual channel; legacy requests without a snapshot are migrated to an explicit legacy-manual snapshot when owner instructions are first issued.
 - Coin purchase manual instructions now require `expectedInstructionsVersion`. Stale owner edits are rejected, and the owner UI submits the version returned by the request. Manual coin requests are no longer disabled merely because a future automated mode flag is independently enabled.
+- Members can now report that they initiated an external payment. This moves the request to `awaiting_payment_verification` and records a claim-only audit event; it never verifies receipt or credits coins. Once reported, payment instructions are locked against further edits. Owner verification remains the only credit authority.
 - New featured-ad campaigns snapshot whether manual payment was enabled at creation. New manual financial events fail closed if that snapshot disallows manual payment; legacy campaigns without a snapshot retain their legacy manual path. A later policy toggle does not rewrite an existing campaign's payment snapshot.
 - `OwnerFeaturedAdsDashboardScreen` is now reachable from Super Admin and exposes the manual receipt, refund, settlement reconciliation and financial review actions. The owner must enter the external reference and verification note; receipt/refund require an evidence reference. The server remains the sole authority for campaign payment state.
 
@@ -98,6 +99,7 @@ No source code was changed during this recheck. No local command, test suite, em
 
 - Owner payment instruction validator tests require a nonnegative expected version.
 - Wallet/store integration coverage includes stale instruction rejection, payment-policy snapshot preservation, missing approval-audit rejection, and transfer/store/gift balance snapshot assertions.
+- Manual coin payment integration coverage includes member payment-report idempotency, the claim-only status transition, and rejection of instruction edits after the member reports payment.
 - Featured-ad finance integration coverage includes concurrent exact replay, stale-version rejection, partial refund, immutable event/audit persistence, and rejection when the campaign's immutable payment snapshot disables manual payments.
 - Economy pricing tests allow empty owner price catalogs as an unconfigured state; integration coverage exercises featured-ad manual mode independently from coin/ad price lists.
 - Owner-grant integration coverage now exercises replay after expiry and a subsequent paid purchase, and checks that missing immutable audit evidence still fails closed.
