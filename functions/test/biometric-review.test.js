@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   BIOMETRIC_MAX_ATTEMPTS, BIOMETRIC_LOCKOUT_MS,
-  addBiometricRenewalMonth, canSubmitBiometricRequest, decideBiometricRequest,
+  addBiometricRenewalMonth, canSubmitBiometricRequest, nextBiometricAttemptNumber, decideBiometricRequest,
 } = require("../lib/biometric-review");
 
 const pending = (attemptNumber) => ({
@@ -26,6 +26,23 @@ test("email and biometric renewal policies stay separate; biometric renewal is o
     status: "accepted", attemptNumber: 1, rewardGranted: true, lockoutUntilMs: null,
     nextRenewalAtMs: feb28,
   }, feb28), true);
+});
+
+test("calendar-month renewal is UTC-stable across leap years and month ends", () => {
+  const jan31Leap = Date.parse("2024-01-31T23:30:00.000Z");
+  assert.equal(new Date(addBiometricRenewalMonth(jan31Leap)).toISOString(), "2024-02-29T23:30:00.000Z");
+  const mar31 = Date.parse("2026-03-31T00:15:00.000Z");
+  assert.equal(new Date(addBiometricRenewalMonth(mar31)).toISOString(), "2026-04-30T00:15:00.000Z");
+});
+
+test("attempt sequence advances after rejection and resets only after the full lockout", () => {
+  assert.equal(nextBiometricAttemptNumber(null, 100), 1);
+  assert.equal(nextBiometricAttemptNumber({ ...pending(1), status: "rejected" }, 100), 2);
+  assert.equal(nextBiometricAttemptNumber({ ...pending(2), status: "rejected" }, 100), 3);
+  const locked = { ...pending(3), status: "locked", lockoutUntilMs: 200 };
+  assert.throws(() => nextBiometricAttemptNumber(locked, 199), /LOCKOUT_ACTIVE/);
+  assert.equal(nextBiometricAttemptNumber(locked, 200), 1);
+  assert.throws(() => nextBiometricAttemptNumber(pending(1), 100), /ALREADY_PENDING/);
 });
 
 test("only Super Owner can decide and accepted request grants reward and schedules monthly renewal", () => {
