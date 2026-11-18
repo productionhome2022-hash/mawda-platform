@@ -7955,12 +7955,8 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
     coinPackages, adPrices, customCoinRequestBounds: bounds,
     version: data.version,
     realMoneyCheckoutEnabled: false,
-    manualCoinPurchasesEnabled: projectEconomicPaymentPolicy(data.paymentPolicy, {
-      manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled,
-    }).coin_purchases.manualEnabled,
-    paymentPolicy: projectEconomicPaymentPolicy(data.paymentPolicy, {
-      manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled,
-    }),
+    manualCoinPurchasesEnabled: projectEconomicPaymentPolicy(data.paymentPolicy).coin_purchases.manualEnabled,
+    paymentPolicy: projectEconomicPaymentPolicy(data.paymentPolicy),
     automatedCoinCheckoutEnabled: false,
     configured: true,
   };
