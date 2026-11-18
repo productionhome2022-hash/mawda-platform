@@ -697,6 +697,13 @@ test("manual coin package request issues no coins until owner verifies external 
     assert.equal((await userRef.get()).data().coins, 940);
     assert.equal((await db.collection("adminAuditLogs")
       .doc(`coin_purchase_approval_${uid}_${requestId}`).get()).exists, true);
+
+    await ledgerRef.delete();
+    await assert.rejects(
+      () => approveCoinPurchaseRequest.run(ownerRequest("manual-owner", approvalInput)),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await userRef.get()).data().coins, 940);
   } finally {
     await Promise.all([
       ledgerRef.delete().catch(() => undefined),
