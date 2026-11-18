@@ -9,6 +9,7 @@ const {
   TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER,
   TIMED_AD_DAILY_MAX_REWARD_COINS_PER_MEMBER,
   TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER,
+  decideTimedAdDailyCap,
 } = require("../lib/engagement-rewards");
 
 test("attendance policy defaults closed and rejects malformed or unsafe reward amounts", () => {
@@ -107,4 +108,22 @@ test("experimental timed-ad reward caps are bounded", () => {
   };
   assert.equal(validateTimedAdCampaignInput(base).maxClaimsPerMember, 3);
   assert.throws(() => validateTimedAdCampaignInput({ ...base, maxClaimsPerMember: 4 }), /AD_CAMPAIGN_INVALID/);
+});
+
+
+test("timed-ad daily cap decision enforces both limits at their exact boundaries", () => {
+  assert.deepEqual(decideTimedAdDailyCap({ claimCount: 9, rewardCoins: 10, nextRewardCoins: 10 }), {
+    eligible: true, reason: "within_daily_caps",
+  });
+  assert.deepEqual(decideTimedAdDailyCap({ claimCount: 10, rewardCoins: 0, nextRewardCoins: 1 }), {
+    eligible: false, reason: "daily_claim_cap",
+  });
+  assert.deepEqual(decideTimedAdDailyCap({ claimCount: 0, rewardCoins: 15, nextRewardCoins: 6 }), {
+    eligible: false, reason: "daily_coin_cap",
+  });
+  assert.deepEqual(decideTimedAdDailyCap({ claimCount: 9, rewardCoins: 19, nextRewardCoins: 1 }), {
+    eligible: true, reason: "within_daily_caps",
+  });
+  assert.throws(() => decideTimedAdDailyCap({ claimCount: -1, rewardCoins: 0, nextRewardCoins: 1 }), /INPUT_INVALID/);
+  assert.throws(() => decideTimedAdDailyCap({ claimCount: 0, rewardCoins: 0, nextRewardCoins: 0 }), /INPUT_INVALID/);
 });
