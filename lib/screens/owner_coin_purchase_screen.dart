@@ -64,7 +64,9 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
     final coinAmount = int.tryParse(coins.text.trim());
     final priceMinor = int.tryParse(price.text.trim());
     final currencyCode = currency.text.trim().toUpperCase();
-    if (coinAmount == null || priceMinor == null || !RegExp(r'^[A-Z]{3}
+    if (coinAmount == null || priceMinor == null ||
+        !RegExp(r'^[A-Z]{3}$').hasMatch(currencyCode) ||
+        instructions.text.trim().length < 5) {
       setState(() => _error = 'أدخل كمية وسعراً وتعليمات صحيحة.');
       coins.dispose(); price.dispose(); currency.dispose(); instructions.dispose(); return;
     }
