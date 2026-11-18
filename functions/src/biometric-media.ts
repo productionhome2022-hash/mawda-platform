@@ -77,15 +77,15 @@ export function readMp4DurationMs(buffer: Buffer): number {
       !Number.isSafeInteger(duration) || duration < 1) {
     throw new Error("BIOMETRIC_VIDEO_DURATION_INVALID");
   }
-  const durationMs = Math.round((duration / timescale) * 1000);
-  if (!Number.isSafeInteger(durationMs) || durationMs < 1) {
+  const durationMs = (duration / timescale) * 1000;
+  if (!Number.isFinite(durationMs) || durationMs < 1) {
     throw new Error("BIOMETRIC_VIDEO_DURATION_INVALID");
   }
   return durationMs;
 }
 
 export function isBiometricVideoDurationAllowed(durationMs: number): boolean {
-  return Number.isSafeInteger(durationMs) &&
+  return typeof durationMs === "number" && Number.isFinite(durationMs) &&
     durationMs >= VIDEO_MIN_DURATION_MS &&
     durationMs <= VIDEO_MAX_DURATION_MS;
 }
