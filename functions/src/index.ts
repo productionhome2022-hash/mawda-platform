@@ -9421,11 +9421,23 @@ export const recordOwnerFeaturedAdFinancialEvent = onCall(async (request) => {
   // Durable retry path: the financial transaction leaves a pending marker.
   // The deterministic chain-event ID makes this append safe after timeout/crash;
   // exact callable replays retry the append until the marker is completed.
-  await appendOwnerReviewAuditEvent({
+  const chainAuditId = await appendOwnerReviewAuditEvent({
     actorUid, action: "featured_ad_financial_event_recorded",
     campaignId: event.campaignId, eventId, financialAction: event.action,
     resultingVersion: result.version, outcome: "success",
   }, "featured_ad_finance_chain_" + eventId);
+  const chainAuditSnapshot = await db.collection("adminAuditLogs").doc(chainAuditId).get();
+  const chainAuditData = chainAuditSnapshot.data() ?? {};
+  if (!chainAuditSnapshot.exists || chainAuditData.auditChainId !== "owner-review-v1" ||
+      chainAuditData.actorUid !== actorUid ||
+      chainAuditData.action !== "featured_ad_financial_event_recorded" ||
+      chainAuditData.campaignId !== event.campaignId ||
+      chainAuditData.eventId !== eventId ||
+      chainAuditData.financialAction !== event.action ||
+      chainAuditData.resultingVersion !== result.version ||
+      chainAuditData.outcome !== "success") {
+    throw new HttpsError("data-loss", "تعذر التحقق من سجل التدقيق المتسلسل للحركة المالية.");
+  }
   await auditOutboxRef.set({
     status: "appended",
     appendedAt: FieldValue.serverTimestamp(),
