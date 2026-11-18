@@ -174,15 +174,22 @@ test("owner featured-ad manual payment and refund events persist atomically and 
     assert.equal(campaign.financialSnapshot.reconciledMinor, 0);
     const events = await campaignRef.collection("financialEvents").get();
     assert.equal(events.size, 2);
-    assert.ok(events.docs.every((doc) => doc.data().auditChainStatus === "appended"));
+    assert.ok(events.docs.every((doc) => doc.data().auditChainStatus === undefined));
     const paymentEvent = events.docs.find((doc) => doc.data().action === "payment_received");
+    const outbox = await db.collection("featuredAdFinancialAuditOutbox").doc(paymentEvent.id).get();
+    assert.equal(outbox.data().status, "appended");
     assert.ok((await db.collection("adminAuditLogs")
       .doc("featured_ad_finance_chain_" + paymentEvent.id).get()).exists);
     assert.equal(events.docs.filter((doc) => doc.data().action === "payment_received").length, 1);
     assert.equal(events.docs.filter((doc) => doc.data().action === "refund_recorded").length, 1);
   } finally {
     const events = await campaignRef.collection("financialEvents").get();
-    await Promise.all(events.docs.map((doc) => doc.ref.delete().catch(() => undefined)));
+    await Promise.all(events.docs.map(async (doc) => {
+      await db.collection("featuredAdFinancialAuditOutbox").doc(doc.id).delete().catch(() => undefined);
+      await doc.ref.delete().catch(() => undefined);
+      await db.collection("adminAuditLogs").doc("featured_ad_finance_" + doc.id).delete().catch(() => undefined);
+      await db.collection("adminAuditLogs").doc("featured_ad_finance_chain_" + doc.id).delete().catch(() => undefined);
+    }));
     await campaignRef.delete().catch(() => undefined);
   }
 });
