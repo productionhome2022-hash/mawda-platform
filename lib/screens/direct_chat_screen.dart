@@ -791,9 +791,22 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                               mediaType.startsWith('video/') ? 'video' :
                               mediaType == 'application/pdf' ? 'document' : 'image');
                         if (category == 'audio') {
-                          return ChatAudioMessagePlayer(
-                            url: url,
-                            messageId: message['messageId'] as String? ?? '',
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ChatAudioMessagePlayer(
+                                url: url,
+                                messageId: message['messageId'] as String? ?? '',
+                              ),
+                              Align(
+                                alignment: AlignmentDirectional.centerEnd,
+                                child: TextButton.icon(
+                                  onPressed: () => _saveAttachmentWithMediaSaver(message),
+                                  icon: const Icon(Icons.download_outlined, size: 18),
+                                  label: const Text('حفظ محلياً'),
+                                ),
+                              ),
+                            ],
                           );
                         }
                         if (category == 'image' || category == 'gif') {
