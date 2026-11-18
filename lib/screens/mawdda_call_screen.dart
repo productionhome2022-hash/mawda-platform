@@ -41,7 +41,6 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   Timer? _pollTimer;
   Timer? _iceRefreshTimer;
   Timer? _durationTimer;
-  DateTime? _maxDurationEndsAt;
   int? _remainingSeconds;
   List<String> _remoteUids = [];
   List<Map<String, dynamic>> _iceServers = [];
@@ -228,10 +227,9 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   void _startDurationCountdown(int deadlineMs) {
     _durationTimer?.cancel();
     final deadline = DateTime.fromMillisecondsSinceEpoch(deadlineMs);
-    _maxDurationEndsAt = deadline;
     void tick() {
       final remaining = deadline.difference(DateTime.now()).inSeconds;
-      if (mounted) setState(() => _remainingSeconds = remaining.clamp(0, 5 * 60));
+      if (mounted) setState(() => _remainingSeconds = remaining.clamp(0, 5 * 60).toInt());
       if (remaining <= 0) {
         _durationTimer?.cancel();
         unawaited(_finish());
