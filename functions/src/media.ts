@@ -1700,7 +1700,9 @@ export const getFeaturedAdCreativeUrl = onCall(async (request) => {
       campaign.data()?.status !== "published" ||
       campaign.data()?.version !== session.data()?.campaignVersion ||
       campaign.data()?.paymentConfirmed !== true ||
-      campaign.data()?.ownerApproved !== true) {
+      campaign.data()?.ownerApproved !== true ||
+      campaign.data()?.ownerWithdrawn === true ||
+      campaign.data()?.creativeApproved !== true) {
     throw new HttpsError("permission-denied", "لا توجد جلسة عرض مميز صالحة لهذا العضو.");
   }
   const campaignData = campaign.data()!;
