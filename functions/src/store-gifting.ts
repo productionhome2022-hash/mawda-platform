@@ -3,6 +3,7 @@ export type StoreGiftIdentity = {
   recipientUid: string;
   itemId: string;
   expectedPriceCoins: number;
+  expectedCatalogVersion: number;
 };
 
 /** Bind a replay to the exact sender, recipient, item and confirmed price. */
@@ -17,6 +18,8 @@ export function isStoreGiftReplayCompatible(
     prior.itemId === identity.itemId &&
     prior.priceCoins === identity.expectedPriceCoins &&
     Number.isSafeInteger(prior.priceCoins) &&
+    prior.catalogVersion === identity.expectedCatalogVersion &&
+    Number.isSafeInteger(prior.catalogVersion) &&
     (prior.status === "completed" || prior.status === "fulfilled");
 }
 
