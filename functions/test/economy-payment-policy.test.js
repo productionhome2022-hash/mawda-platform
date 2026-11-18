@@ -33,6 +33,29 @@ test("validates independent manual modes without inventing prices or enabling au
   assert.equal(policy.coin_purchases.automatedEnabled, false);
 });
 
+test("fails closed for manual payment services without complete request and fulfilment workflows", () => {
+  for (const service of ["public_ads", "influencer_services", "store_entitlements"]) {
+    assert.throws(() => validateEconomicPaymentPolicy({
+      [service]: { manualEnabled: true, automatedEnabled: false },
+    }), /MANUAL_PAYMENT_WORKFLOW_NOT_READY/);
+  }
+});
+
+test("projects previously persisted unsupported switches as disabled", () => {
+  const policy = projectEconomicPaymentPolicy({
+    coin_purchases: { manualEnabled: true, automatedEnabled: false },
+    featured_ads: { manualEnabled: true, automatedEnabled: false },
+    public_ads: { manualEnabled: true, automatedEnabled: false },
+    influencer_services: { manualEnabled: true, automatedEnabled: false },
+    store_entitlements: { manualEnabled: true, automatedEnabled: false },
+  });
+  assert.equal(policy.coin_purchases.manualEnabled, true);
+  assert.equal(policy.featured_ads.manualEnabled, true);
+  assert.equal(policy.public_ads.manualEnabled, false);
+  assert.equal(policy.influencer_services.manualEnabled, false);
+  assert.equal(policy.store_entitlements.manualEnabled, false);
+});
+
 test("rejects automated checkout until a verified provider integration is available", () => {
   assert.throws(() => validateEconomicPaymentPolicy({
     coin_purchases: { manualEnabled: true, automatedEnabled: true },
