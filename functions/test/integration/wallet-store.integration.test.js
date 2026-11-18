@@ -893,6 +893,11 @@ test("manual coin package request issues no coins until owner verifies external 
     ]);
     assert.equal(user.data().coins, 940);
     assert.equal(ledger.data().amount, 900);
+    assert.equal(ledger.data().balanceBefore, 40);
+    assert.equal(ledger.data().balanceAfter, 940);
+    assert.equal(ledger.data().priceMinor, 500);
+    assert.equal(ledger.data().currency, "EUR");
+    assert.equal(ledger.data().actorUid, "manual-owner");
     assert.equal(ledger.data().type, "coin_purchase_manual_credit");
     assert.equal(ledger.data().externalPaymentReference, `verified-${tag}`);
     assert.equal(purchase.data().status, "approved");
