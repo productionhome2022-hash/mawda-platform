@@ -111,7 +111,10 @@ export function validateStoreCatalogItemInput(input: unknown): ValidatedStoreCat
   // Privacy add-ons remain fail-closed until their visibility semantics are implemented.
   const fulfillmentReady = isStoreFulfillmentReady(projected.itemId, projected.category);
   const purchaseEnabled = value.purchaseEnabled === true;
-  if (purchaseEnabled && !fulfillmentReady) {
+  const callEntitlement = projected.category === "voice_call" || projected.category === "video_call";
+  // Call purchase stays closed until cancellation/refund and complete paid lifecycle
+  // acceptance are implemented. Owner free grants remain available via fulfillmentReady.
+  if (purchaseEnabled && (!fulfillmentReady || callEntitlement)) {
     throw new Error("STORE_FULFILLMENT_NOT_READY");
   }
   return {
@@ -128,6 +131,8 @@ export function validateStoreCatalogItemInput(input: unknown): ValidatedStoreCat
 export function isStoreItemPurchasable(value: unknown): boolean {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
   const item = value as Record<string, unknown>;
+  const callEntitlement = item.category === "voice_call" || item.category === "video_call";
+  if (callEntitlement) return false;
   return typeof item.itemId === "string" &&
     isStoreFulfillmentReady(item.itemId, String(item.category)) &&
     item.active === true &&
