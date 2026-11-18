@@ -132,3 +132,19 @@ Commit: `b0ddd12c4b7675e34fe7b69faa18bc533ac69e6d`
 - توجيه المالك للاختبارات: لا تُشغّل CI أو GitHub Actions أو Emulator سحابياً؛ تُجرى الاختبارات المطلوبة محلياً في بيئة معزولة بعد إكمال مسارات المرحلة الاقتصادية. لم تُشغّل اختبارات في هذه المراجعة.
 - لا تغيير في أسعار أو كتالوج منشور أو صلاحيات إنتاج أو إعدادات Firebase. تبقى جميع مسارات فوترة المكالمات معطلة/غير مقبولة حتى إغلاق CALL-P0-A/B/C/D.
 
+## Re-audit evidence — 2026-11-18 13:23 (+03:00)
+
+Reviewed the current branch source directly at `functions/src/index.ts` (call lifecycle region, approximately lines 9630–10380), plus `call-signaling.ts`, `room-call-policy.ts`, `group-call-economy.ts`, and the call-signaling integration test.
+
+Confirmed implementation gaps (not fixed in this audit):
+
+1. **Room invitee selection is absent.** `startCall` reads room members itself and treats all current members as recipients. The request contract only carries callId/scope/targetId/mode; it does not carry an explicit caller-selected invitee set.
+2. **Consent is not the admission boundary.** `startCall` creates active-member locks for every selected-by-server participant before they accept. `respondToCall` records acceptance/rejection later. This reserves non-consenting invitees and can block their unrelated calls.
+3. **Audio participant count is hard-coded.** Room membership is constrained to 2–5 for both modes, even though the approved product rule is audio participation according to room capacity and explicit sender-approved invitees. Video's four-person maximum is a separate approved rule.
+4. **Connection measurement is coarse.** `markCallConnected` records client-reported connected UIDs and starts one call-wide five-minute ceiling when caller plus any accepted recipient report connected. It does not establish per-participant billable intervals and is not proof of media delivery.
+5. **No group-call charge settlement is present in this call lifecycle region.** The existing `calculateGroupCallCoinShares` helper only calculates integer shares; it does not create atomic wallet debits, idempotent per-call/per-interval ledger entries, or reconcile participant connection intervals.
+6. **The current room-call integration test reflects the automatic-membership behavior** by expecting all three room members in the call. It must be replaced/extended to test explicit invitees, pending requests, sender approval, participant-specific admission/locks, disconnect/reconnect intervals, and replay-safe settlement.
+
+Safety boundary: do not enable call charging or mark this path economically complete until invitation/approval, entitlement checks, explicit financial consent, trusted per-participant measurement, atomic settlement, and emulator tests are implemented together.
+
+Validation status: source review only. No local tests were run in this audit. The connected execution container does not contain a checked-out Mawdda repository; an attempted shallow clone could not resolve github.com. No CI/workflow was triggered, per the owner's local-only testing instruction.
