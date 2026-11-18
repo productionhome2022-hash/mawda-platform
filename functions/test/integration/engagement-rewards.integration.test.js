@@ -686,6 +686,10 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
 
     const history = await getMyFeaturedAdRewardHistory.run(memberRequest({}));
     assert.equal(history.rewards.length, 1);
+    assert.equal(history.policy.rewardCoinsPerView, 2);
+    assert.equal(history.policy.maxRewardedViewsPerUtcDay, 10);
+    assert.equal(history.policy.maxRewardCoinsPerUtcDay, 20);
+    assert.equal(history.policy.maxRewardsPerCampaignRolling24h, 3);
 
     secondSessionRef = db.collection("featuredAdViewingSessions").doc();
     await secondSessionRef.set({
