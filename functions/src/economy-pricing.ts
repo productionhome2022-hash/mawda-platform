@@ -72,3 +72,35 @@ export function validateBilateralCallTariffs(value: unknown): BilateralCallTarif
     videoTotalCoinsPerMinute: validateOne(data.videoTotalCoinsPerMinute),
   };
 }
+
+
+export type EmailVerificationRewardPolicy = {
+  enabled: boolean;
+  rewardCoins: number;
+  cycleDays: number;
+};
+
+export function defaultEmailVerificationRewardPolicy(): EmailVerificationRewardPolicy {
+  return { enabled: false, rewardCoins: 0, cycleDays: 90 };
+}
+
+export function validateEmailVerificationRewardPolicy(value: unknown): EmailVerificationRewardPolicy {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("INVALID_EMAIL_VERIFICATION_REWARD_POLICY");
+  }
+  const data = value as Record<string, unknown>;
+  if (Object.keys(data).some((key) => !["enabled", "rewardCoins", "cycleDays"].includes(key)) ||
+      typeof data.enabled !== "boolean" ||
+      !Number.isSafeInteger(data.rewardCoins) || (data.rewardCoins as number) < 0 ||
+      (data.rewardCoins as number) > 1000000 ||
+      !Number.isSafeInteger(data.cycleDays) || (data.cycleDays as number) < 1 ||
+      (data.cycleDays as number) > 3650 ||
+      (data.enabled && (data.rewardCoins as number) < 1)) {
+    throw new Error("INVALID_EMAIL_VERIFICATION_REWARD_POLICY");
+  }
+  return {
+    enabled: data.enabled,
+    rewardCoins: data.rewardCoins as number,
+    cycleDays: data.cycleDays as number,
+  };
+}
