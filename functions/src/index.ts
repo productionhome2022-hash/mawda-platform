@@ -6711,6 +6711,38 @@ export const giftStoreItem = onCall(async (request) => {
   });
 });
 
+/** Members can read only the gift history delivered to their own account. */
+export const getMyStoreGiftHistory = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const member = await db.collection("users").doc(uid).get();
+  if (!member.exists || member.data()?.profileCompleted !== true ||
+      !isMemberAccountInGoodStanding(member.data())) {
+    throw new HttpsError("permission-denied", "سجل الهدايا متاح للأعضاء المسجلين فقط.");
+  }
+  const snapshot = await db.collection("users").doc(uid)
+    .collection("giftHistory")
+    .orderBy("createdAt", "desc")
+    .limit(50)
+    .get();
+  return {
+    entries: snapshot.docs.map((document) => {
+      const data = document.data();
+      return {
+        giftId: data.giftId,
+        senderUid: data.senderUid,
+        itemId: data.itemId,
+        itemName: data.itemName,
+        category: data.category,
+        priceCoins: data.priceCoins,
+        durationDays: data.durationDays,
+        expiresAtMs: data.expiresAt instanceof Timestamp ? data.expiresAt.toMillis() : null,
+        createdAtMs: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : null,
+        status: data.status,
+      };
+    }),
+  };
+});
+
 /**
  * Grants a free store entitlement to one member. Each target/request pair is
  * idempotent; a new request deliberately extends an existing timed entitlement.
