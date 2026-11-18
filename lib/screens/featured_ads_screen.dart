@@ -211,8 +211,9 @@ class FeaturedAdRewardsScreen extends StatelessWidget {
                   Text('سياسة مكافآت المشاهدة المعتمدة للتنفيذ', style: theme.textTheme.titleLarge),
                   const SizedBox(height: 8),
                   const Text('2 كوين لكل مشاهدة مؤهلة.'),
-                  const Text('حتى 10 مشاهدات مكافأة و20 كويناً في يوم UTC الواحد.'),
-                  const Text('الحملة نفسها: حتى 3 مكافآت لكل عضو خلال نافذة 24 ساعة متحركة.'),
+                          const Text('الإعداد التجريبي الافتراضي: حتى 100 مشاهدة مكافأة و200 كوين في يوم UTC الواحد.'),
+                  const Text('الحد لكل حملة يحدده المالك بصورة مستقلة، وكل مشاهدة مؤهلة ضمن الحد تمنح مكافأتها.'),
+                  const Text('يمكن للمالك تعديل مبلغ المكافأة والحدود من إعدادات Super Admin عند ربطها بالخدمة الخادمية.'),
                   const Text('هذه الحدود لا تُعد مفعّلة حتى يثبت تطبيقها واختبارها خادمياً.'),
                   const SizedBox(height: 8),
                   const Text(
