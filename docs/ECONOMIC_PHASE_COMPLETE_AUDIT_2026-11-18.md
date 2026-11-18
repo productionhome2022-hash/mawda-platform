@@ -27,7 +27,7 @@
 
 ## BetaCoins
 
-الاسم التجاري الظاهر المعتمد هو **BetaCoins — BetaCoins**.
+الاسم التجاري الظاهر المعتمد في جميع واجهات المنصة والتطبيقات هو **BetaCoins** كلمة إنجليزية واحدة دون مسافة.
 
 المعرفات التقنية القديمة مثل `coins` تبقى مؤقتاً حفاظاً على التوافق مع البيانات والعقود الخادمية، ولا يتم تغييرها لمجرد تغيير الاسم التجاري.
 
@@ -136,7 +136,7 @@ Approved behavior now recorded as ECON-007 in the decision traceability register
 - A gift is a distinct atomic transaction: price/catalog revalidation, sender debit, wallet ledger, gift record, recipient entitlement/history, and request idempotency. A new gift must not overwrite or shorten a recipient's active timed entitlement; stack from max(server-now, current expiry) unless a catalog-specific non-stackable policy is explicitly approved.
 - Owner free grants remain a separate privileged audited flow and do not fulfill member gifting.
 
-Current implementation gap: the existing backend exposes owner-only single/bulk grant functions, not member-to-member gifting. The store UI/backend still need gift purchase flow, recipient search/selection, guest exclusion, recipient history/notification, renewal and expiry integration tests, and cross-platform coverage. Do not mark gifting complete until those are implemented and tested.
+Historical gap recorded before the implementation sections below. This gap was partially addressed by the backend and recipient-profile-only UI changes documented in sections 142–167. Remaining acceptance work is Functions/Firestore Emulator execution, Flutter analysis/widget tests, renewal/expiry integration tests, and cross-platform coverage. Do not mark the gifting path fully accepted until those tests pass.
 
 
 ## Member-to-member gifting backend implementation — 2026-11-18
