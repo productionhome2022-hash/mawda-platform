@@ -781,11 +781,23 @@ test("group call end charges every media-connected member an equal share, includ
         [lateUid]: Timestamp.fromMillis(connectedAt.toMillis() + 8 * 1000),
         [lastSecondUid]: Timestamp.fromMillis(connectedAt.toMillis() + 9999),
       },
+      // Emulator fixture models provider-verified events; ordinary client
+      // markCallConnected reports alone must never authorize a debit.
+      mediaEvidenceVerifiedAt: {
+        [creatorUid]: connectedAt,
+        [earlyUid]: connectedAt,
+        [lateUid]: Timestamp.fromMillis(connectedAt.toMillis() + 8 * 1000),
+        [lastSecondUid]: Timestamp.fromMillis(connectedAt.toMillis() + 9999),
+      },
       groupCallPricingSnapshot: {
         policyId: "settlement_owner_policy", version: 9, active: true,
         audioCoinsPerMinute: 1000, videoCoinsPerMinute: 2000,
         updatedAtMs: Date.now(),
       },
+      billingConsents: Object.fromEntries(memberUids.map((memberUid) => [memberUid, {
+        consented: true, policyId: "settlement_owner_policy", policyVersion: 9,
+        consentedAt: connectedAt,
+      }])),
     }),
   ]);
   try {
@@ -864,5 +876,109 @@ test("ending a large audio room call clears more than 500 participant locks in b
       lockRefs.slice(offset, offset + 400).forEach((ref) => batch.delete(ref));
       await batch.commit().catch(() => undefined);
     }
+  }
+});
+
+
+test("group-call settlement fails closed when client-reported media lacks trusted provider evidence", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const creatorUid = uid("unverified_creator");
+  const memberUid = uid("unverified_member");
+  const callId = uid("unverified_media_call");
+  const callRef = db.collection("callSessions").doc(callId);
+  const creatorRef = db.collection("users").doc(creatorUid);
+  const memberRef = db.collection("users").doc(memberUid);
+  const connectedAt = Timestamp.fromMillis(Date.now() - 5000);
+  const policyId = uid("unverified_policy");
+  await Promise.all([
+    creatorRef.set({ coins: 1000, profileCompleted: true, accountStatus: "active", age: 30 }),
+    memberRef.set({ coins: 1000, profileCompleted: true, accountStatus: "active", age: 30 }),
+    callRef.set({
+      callId, scope: "room", targetId: uid("unverified_room"), mode: "video",
+      callerUid: creatorUid, participantUids: [creatorUid, memberUid],
+      acceptedUids: [creatorUid, memberUid], rejectedUids: [], leftUids: [],
+      status: "ended", connectedAt, endedAt: Timestamp.now(),
+      maxDurationEndsAt: Timestamp.fromMillis(connectedAt.toMillis() + 180000),
+      mediaConnectedAt: { [creatorUid]: connectedAt, [memberUid]: connectedAt },
+      groupCallPricingSnapshot: {
+        policyId, version: 1, active: true,
+        audioCoinsPerMinute: 100, videoCoinsPerMinute: 200, updatedAtMs: Date.now(),
+      },
+      billingConsents: Object.fromEntries([creatorUid, memberUid].map((uid) => [uid, {
+        consented: true, policyId, policyVersion: 1, consentedAt: connectedAt,
+      }])),
+    }),
+  ]);
+  try {
+    const result = await endCall.run(call(creatorUid, { callId }));
+    assert.equal(result.billingSettlementStatus, "blocked_unverified_media");
+    const [creator, member, ledger, finalCall] = await Promise.all([
+      creatorRef.get(), memberRef.get(),
+      creatorRef.collection("walletLedger").doc("group_call_" + callId).get(),
+      callRef.get(),
+    ]);
+    assert.equal(creator.data()?.coins, 1000);
+    assert.equal(member.data()?.coins, 1000);
+    assert.equal(ledger.exists, false);
+    assert.equal(finalCall.data()?.groupCallBillingState, "blocked_unverified_media");
+    assert.equal(finalCall.data()?.groupCallBillingBlockReason,
+      "awaiting_server_verified_media_evidence");
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(callRef).catch(() => undefined),
+      db.recursiveDelete(creatorRef).catch(() => undefined),
+      db.recursiveDelete(memberRef).catch(() => undefined),
+    ]);
+  }
+});
+
+test("group-call settlement fails closed when a connected member lacks matching financial consent", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const creatorUid = uid("no_consent_creator");
+  const memberUid = uid("no_consent_member");
+  const callId = uid("no_consent_call");
+  const callRef = db.collection("callSessions").doc(callId);
+  const creatorRef = db.collection("users").doc(creatorUid);
+  const memberRef = db.collection("users").doc(memberUid);
+  const connectedAt = Timestamp.fromMillis(Date.now() - 5000);
+  const policyId = uid("no_consent_policy");
+  await Promise.all([
+    creatorRef.set({ coins: 1000 }),
+    memberRef.set({ coins: 1000 }),
+    callRef.set({
+      callId, scope: "room", targetId: uid("no_consent_room"), mode: "audio",
+      callerUid: creatorUid, participantUids: [creatorUid, memberUid],
+      acceptedUids: [creatorUid, memberUid], rejectedUids: [], leftUids: [],
+      status: "ended", connectedAt, endedAt: Timestamp.now(),
+      maxDurationEndsAt: Timestamp.fromMillis(connectedAt.toMillis() + 300000),
+      mediaConnectedAt: { [creatorUid]: connectedAt, [memberUid]: connectedAt },
+      mediaEvidenceVerifiedAt: { [creatorUid]: connectedAt, [memberUid]: connectedAt },
+      groupCallPricingSnapshot: {
+        policyId, version: 2, active: true,
+        audioCoinsPerMinute: 100, videoCoinsPerMinute: 200, updatedAtMs: Date.now(),
+      },
+      billingConsents: {
+        [creatorUid]: { consented: true, policyId, policyVersion: 2, consentedAt: connectedAt },
+      },
+    }),
+  ]);
+  try {
+    const result = await endCall.run(call(creatorUid, { callId }));
+    assert.equal(result.billingSettlementStatus, "blocked_missing_financial_consent");
+    const [creator, member, ledger, finalCall] = await Promise.all([
+      creatorRef.get(), memberRef.get(),
+      creatorRef.collection("walletLedger").doc("group_call_" + callId).get(),
+      callRef.get(),
+    ]);
+    assert.equal(creator.data()?.coins, 1000);
+    assert.equal(member.data()?.coins, 1000);
+    assert.equal(ledger.exists, false);
+    assert.equal(finalCall.data()?.groupCallBillingState, "blocked_missing_financial_consent");
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(callRef).catch(() => undefined),
+      db.recursiveDelete(creatorRef).catch(() => undefined),
+      db.recursiveDelete(memberRef).catch(() => undefined),
+    ]);
   }
 });
