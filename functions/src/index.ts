@@ -7664,7 +7664,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
     }
     const economy = settings.data() ?? {};
     if (!settings.exists || economy.manualCoinPurchasesEnabled !== true ||
-        economy.automatedCoinCheckoutEnabled === true || !Array.isArray(economy.coinPackages)) {
+        !Array.isArray(economy.coinPackages)) {
       throw new HttpsError("failed-precondition", "لم يعتمد المالك باقات الشراء اليدوي أو أن الطلبات متوقفة حالياً.");
     }
     let packageSnapshot: Record<string, unknown> | null = null;
