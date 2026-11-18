@@ -52,6 +52,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   bool _polling = false;
   bool _connectedReportSent = false;
   bool _syncingRoomCall = false;
+  bool _creatorBillingConsented = false;
   final Set<String> _handledJoinRequestUids = <String>{};
   String _status = 'جارٍ تجهيز الاتصال...';
   String? _failure;
@@ -328,7 +329,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
           final roomCallResponse = await _functions.httpsCallable('getActiveRoomCall')
               .call({'roomId': widget.targetId});
           final roomCall = Map<String, dynamic>.from(roomCallResponse.data as Map);
-          if (roomCall['billingRequired'] == true) {
+          if (roomCall['billingRequired'] == true && !_creatorBillingConsented) {
             final rate = roomCall['billingRate'];
             final financialConsent = await showDialog<bool>(
               context: context,
@@ -362,6 +363,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
               'callId': widget.callId,
               'consent': true,
             });
+            _creatorBillingConsented = true;
           }
           final decision = await _functions.httpsCallable('respondToRoomCallJoinRequest').call({
             'callId': widget.callId,
