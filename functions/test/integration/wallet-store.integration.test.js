@@ -197,6 +197,7 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
   const itemRef = db.collection("storeCatalog").doc(itemId);
   const purchaseRef = db.collection("storePurchases").doc(purchaseId);
   const ledgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
+  const auditRef = db.collection("adminAuditLogs").doc(`store_purchase_${purchaseId}`);
   const entitlementRef = memberRef.collection("entitlements").doc(itemId);
   const catalogVersionRef = db.collection("storeCatalogVersions").doc(itemId).collection("versions").doc("1");
   const previousCatalog = await itemRef.get();
