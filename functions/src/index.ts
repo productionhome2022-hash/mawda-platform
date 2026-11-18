@@ -7235,7 +7235,7 @@ export const listOwnerCoinPurchaseRequests = onCall(async (request) => {
   requireOwner(request);
   const status = request.data?.status;
   const allowed = ["pending_owner_contact", "payment_instructions_sent",
-    "approved", "rejected", "withdrawn"];
+    "awaiting_payment_verification", "approved", "rejected", "withdrawn"];
   if (status !== undefined && !allowed.includes(status)) {
     throw new HttpsError("invalid-argument", "حالة الطلب غير صالحة.");
   }
@@ -7308,7 +7308,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
         messageId, chatId, senderUid: actorUid, recipientUid: requesterUid,
         text: "تعليمات الدفع لطلب شراء الكوينز رقم " + input.requestId +
           "\nالكمية المتفق عليها: " + input.agreedCoins + " كوين" +
-          "\nالسعر: " + (input.agreedPriceMinor / 100).toFixed(2) + " EUR" +
+          "\nالسعر: " + (input.agreedPriceMinor / Math.pow(10, input.currencyExponent)).toFixed(input.currencyExponent) + " " + input.currency +
           "\nالتعليمات: " + input.instructions,
         type: "text", isPlatformOwnerMessage: true,
         senderLabel: "إدارة منصة مودة", adminMessageType: "coin_purchase_payment_instructions",
