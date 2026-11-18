@@ -9543,6 +9543,45 @@ export const getOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
   const policy = snapshot.exists ? validateFeaturedAdRewardPolicy(snapshot.data()?.policy) : defaultFeaturedAdRewardPolicy();
   return { policy, version: snapshot.exists ? snapshot.data()?.version ?? 0 : 0 };
 });
+
+export const setOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "featured_ad_reward_policy_update_attempt");
+  let policy;
+  try {
+    policy = validateFeaturedAdRewardPolicy(request.data?.policy);
+  } catch {
+    throw new HttpsError("invalid-argument", "سياسة مكافآت الإعلانات المميزة غير صالحة.");
+  }
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "إصدار سياسة مكافآت الإعلانات مطلوب.");
+  }
+  const version = await db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(FEATURED_AD_REWARD_POLICY);
+    const previousVersion = Number.isSafeInteger(previous.data()?.version) ? previous.data()!.version : 0;
+    if (previousVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت سياسة مكافآت الإعلانات؛ حدّث البيانات ثم أعد المحاولة.");
+    }
+    const nextVersion = previousVersion + 1;
+    const now = FieldValue.serverTimestamp();
+    transaction.set(FEATURED_AD_REWARD_POLICY, {
+      policy, version: nextVersion, updatedAt: now, updatedBy: actorUid,
+      createdAt: previous.data()?.createdAt ?? now,
+    });
+    const auditRef = db.collection("adminAuditLogs").doc(`featured_ad_reward_policy_${nextVersion}`);
+    transaction.create(auditRef, {
+      actorUid, action: "featured_ad_reward_policy_updated", version: nextVersion,
+      previousPolicy: previous.data()?.policy ?? defaultFeaturedAdRewardPolicy(),
+      nextPolicy: policy, createdAt: now,
+    });
+    return nextVersion;
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid, action: "featured_ad_reward_policy_updated", version,
+    policy, outcome: "success",
+  });
+  return { saved: true, version, policy };
+});
 export const getOwnerCapacityMediaManagement = onCall(async (request) => {
   await requireOwnerForReview(request, "capacity_media_management_read");
   const currentMonthUtc = new Date().toISOString().slice(0, 7);
