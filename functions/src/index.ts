@@ -7918,6 +7918,7 @@ export const startFeaturedAdSession = onCall({ enforceAppCheck: true }, async (r
         !isMemberAccountInGoodStanding(user.data())) {
       throw new HttpsError("permission-denied", "مشاهدة الإعلانات المكافأة متاحة للأعضاء النشطين فقط.");
     }
+    let previousReservationReleasedForTarget = 0;
     if (active.exists) {
       const previousSessionId = active.data()?.sessionId;
       if (typeof previousSessionId !== "string" || !/^[0-9a-f-]{36}$/i.test(previousSessionId)) {
@@ -7938,10 +7939,15 @@ export const startFeaturedAdSession = onCall({ enforceAppCheck: true }, async (r
         if (previousCampaign.exists) {
           const previousReserved = readSafeInteger(previousCampaign.data()?.reservedRewardCoins ?? 0, "featuredPreviousReservedCoins");
           const previousReward = readSafeInteger(previousSession.data()?.rewardCoins, "featuredPreviousRewardCoins");
-          transaction.update(previousCampaignRef, {
-            reservedRewardCoins: Math.max(0, previousReserved - previousReward),
-            updatedAt: FieldValue.serverTimestamp(),
-          });
+          const actualRelease = Math.min(previousReserved, previousReward);
+          if (previousCampaignRef.id === campaignRef.id) {
+            previousReservationReleasedForTarget = actualRelease;
+          } else {
+            transaction.update(previousCampaignRef, {
+              reservedRewardCoins: previousReserved - actualRelease,
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+          }
         }
         transaction.update(previousSessionRef, {
           status: "expired", expiredAt: FieldValue.serverTimestamp(),
@@ -7980,7 +7986,11 @@ export const startFeaturedAdSession = onCall({ enforceAppCheck: true }, async (r
       throw new HttpsError("resource-exhausted", "بلغت الحد المسموح لمكافآت هذه الحملة.");
     }
     const spent = readSafeInteger(data.spentRewardCoins ?? 0, "featuredSpentRewardCoins");
-    const reserved = readSafeInteger(data.reservedRewardCoins ?? 0, "featuredReservedRewardCoins");
+    const storedReserved = readSafeInteger(data.reservedRewardCoins ?? 0, "featuredReservedRewardCoins");
+    if (storedReserved < previousReservationReleasedForTarget) {
+      throw new HttpsError("data-loss", "حجز مكافآت الجلسة السابقة غير متسق.");
+    }
+    const reserved = storedReserved - previousReservationReleasedForTarget;
     const budget = readSafeInteger(data.rewardBudgetCoins, "featuredRewardBudgetCoins");
     if (spent + reserved + policy.rewardCoinsPerView > budget) {
       throw new HttpsError("resource-exhausted", "لا توجد ميزانية كوينز متاحة لهذه الحملة.");
