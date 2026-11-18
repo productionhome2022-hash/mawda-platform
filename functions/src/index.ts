@@ -8292,17 +8292,18 @@ export const setFeaturedAdCampaignStatus = onCall(async (request) => {
          !current.mediaId || !["approved", "paused"].includes(String(current.status)))) {
       throw new HttpsError("failed-precondition", "لا يمكن نشر الحملة قبل اكتمال الاعتماد والدفع والمادة الآمنة.");
     }
+    const paymentConfirmed = request.data?.paymentConfirmed === true || current.paymentConfirmed === true;
     if (next === "approved") {
-      if (current.ownerWithdrawn === true || current.paymentConfirmed !== true || !current.mediaId) {
-        throw new HttpsError("failed-precondition", "لا يمكن اعتماد الحملة قبل تأكيد الدفع.");
+      if (current.ownerWithdrawn === true || !paymentConfirmed || !current.mediaId) {
+        throw new HttpsError("failed-precondition", "لا يمكن اعتماد الحملة قبل تأكيد الدفع وربط مادة آمنة.");
       }
-      if (current.mediaId) await validateFeaturedAdCreativeForOwner(String(current.mediaId), actorUid);
+      await validateFeaturedAdCreativeForOwner(String(current.mediaId), actorUid);
     }
     transaction.update(ref, {
       status: next, ownerApproved: next === "approved" || next === "published",
       ownerWithdrawn: next === "withdrawn",
       creativeApproved: next === "approved" || next === "published" ? true : current.creativeApproved === true,
-      paymentConfirmed: request.data?.paymentConfirmed === true ? true : current.paymentConfirmed === true,
+      paymentConfirmed,
       updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
       approvedAt: next === "approved" || next === "published" ? FieldValue.serverTimestamp() : current.approvedAt ?? null,
       withdrawnAt: next === "withdrawn" ? FieldValue.serverTimestamp() : current.withdrawnAt ?? null,
