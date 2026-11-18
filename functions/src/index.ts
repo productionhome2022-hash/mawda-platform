@@ -2494,7 +2494,12 @@ export const decideBiometricVerificationRequest = onCall(async (request) => {
     });
     const nowMs = Date.now();
     const decidedAt = Timestamp.fromMillis(nowMs);
-    const newBalance = Number.isSafeInteger(user.coins) ? user.coins as number : 0;
+    const storedBalance = user.coins;
+    if (policyDecision.rewardCoins > 0 &&
+        (!Number.isSafeInteger(storedBalance) || (storedBalance as number) < 0)) {
+      throw new HttpsError("data-loss", "رصيد العضو غير صالح؛ أوقفت مكافأة التوثيق لحماية المحفظة.");
+    }
+    const newBalance = Number.isSafeInteger(storedBalance) ? storedBalance as number : 0;
     const balanceAfter = newBalance + policyDecision.rewardCoins;
     if (!Number.isSafeInteger(balanceAfter) || balanceAfter < 0) {
       throw new HttpsError("out-of-range", "الرصيد الناتج عن مكافأة التوثيق غير صالح.");
@@ -2585,6 +2590,9 @@ export const decideBiometricVerificationRequest = onCall(async (request) => {
     };
   });
 
+  await deleteBiometricRequestObjects(
+    requestId, result.audioObjectPath, result.videoObjectPath,
+  );
   if (!result.idempotentReplay) {
     await appendOwnerReviewAuditEvent({
       actorUid,
@@ -2608,9 +2616,6 @@ export const decideBiometricVerificationRequest = onCall(async (request) => {
       { type: "biometric_verification_decision", requestId, status: result.status },
     );
   }
-  await deleteBiometricRequestObjects(
-    requestId, result.audioObjectPath, result.videoObjectPath,
-  );
   return {
     requestId,
     status: result.status,
