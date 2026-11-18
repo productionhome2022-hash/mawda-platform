@@ -69,13 +69,13 @@ class CoinSystemService {
     );
   }
 
-  Future<CoinTransferReceipt> transferBeta Coins({
+  Future<CoinTransferReceipt> transferCoins({
     required String recipientUid,
     required int amount,
     required String requestId,
     required int expectedCommissionBps,
   }) async {
-    final callable = _functions.httpsCallable('transferBeta Coins');
+    final callable = _functions.httpsCallable('transferCoins');
     final response = await callable.call(<String, dynamic>{
       'recipientUid': recipientUid,
       'amount': amount,
