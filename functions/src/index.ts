@@ -88,6 +88,7 @@ import { isActiveRentedPrivateRoom } from "./room-call-policy";
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
 import { validateCoinPackages, validateAdPrices, validateBilateralCallTariffs, defaultEmailVerificationRewardPolicy, validateEmailVerificationRewardPolicy } from "./economy-pricing";
+import { reconcileWalletLedger } from "./wallet-reconciliation";
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
@@ -6323,6 +6324,74 @@ export const listRoomMembers = onCall(async (request) => {
   };
 });
 
+
+/**
+ * Owner-only read-only reconciliation of one member wallet against its
+ * immutable ledger. Legacy rows without snapshots remain explicitly incomplete.
+ */
+export const reconcileMemberWallet = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "wallet_reconciliation_attempt");
+  const memberUid = typeof request.data?.memberUid === "string"
+    ? request.data.memberUid.trim() : "";
+  if (!memberUid || memberUid.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+  }
+  const userRef = db.collection("users").doc(memberUid);
+  const [userSnapshot, ledgerSnapshot] = await Promise.all([
+    userRef.get(),
+    userRef.collection("walletLedger").limit(10001).get(),
+  ]);
+  if (!userSnapshot.exists) throw new HttpsError("not-found", "ملف المحفظة غير موجود.");
+  const userData = userSnapshot.data() ?? {};
+  const entries = ledgerSnapshot.docs.slice(0, 10000).map((document) => {
+    const data = document.data();
+    const createdAt = data.createdAt;
+    const createdAtMs = createdAt instanceof Timestamp
+      ? createdAt.toMillis()
+      : typeof createdAt?.toMillis === "function" ? createdAt.toMillis() : null;
+    return {
+      id: document.id,
+      amount: data.amount,
+      balanceBefore: data.balanceBefore,
+      balanceAfter: data.balanceAfter,
+      createdAtMs,
+    };
+  }).sort((left, right) =>
+    (left.createdAtMs ?? Number.MIN_SAFE_INTEGER) -
+      (right.createdAtMs ?? Number.MIN_SAFE_INTEGER) ||
+    left.id.localeCompare(right.id));
+  let result;
+  try {
+    result = reconcileWalletLedger(userData.coins, entries);
+  } catch {
+    throw new HttpsError("data-loss", "بيانات المحفظة غير صالحة؛ تعذر إجراء المطابقة.");
+  }
+  const truncated = ledgerSnapshot.size > 10000;
+  const status = truncated && result.status === "consistent" ? "incomplete" : result.status;
+  await db.collection("adminAuditLogs").add({
+    actorUid,
+    action: "member_wallet_reconciliation",
+    memberUid,
+    status,
+    ledgerEntryCount: ledgerSnapshot.size,
+    inspectedEntryCount: entries.length,
+    truncated,
+    currentBalance: result.currentBalance,
+    computedBalance: result.computedBalance,
+    anomalyCount: result.anomalies.length,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "member_wallet_reconciliation",
+    memberUid,
+    status,
+    ledgerEntryCount: ledgerSnapshot.size,
+    truncated,
+    outcome: "success",
+  });
+  return { memberUid, ...result, status, truncated };
+});
 
 /** Owner operations overview: aggregate counts only, never member secrets. */
 export const getOwnerOperationsOverview = onCall(async (request) => {
