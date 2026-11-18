@@ -80,7 +80,7 @@ import {
   projectStoreEntitlementFeatures,
 } from "./store-purchase";
 import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
-import { deleteMediaAssetForMessage } from "./media";
+import { deleteMediaAssetForMessage, getStickerAssetUrl, sendStickerMessage } from "./media";
 import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
@@ -5199,6 +5199,8 @@ export const setRoomEventStatus = onCall(async (request) => {
   return { eventId, status: nextStatus };
 });
 
+
+export { getStickerAssetUrl, sendStickerMessage } from "./media";
 
 /** Returns only server-approved sticker pack metadata; asset delivery is a separate authorized operation. */
 export const getStickerCatalog = onCall(async (request) => {
