@@ -10797,6 +10797,37 @@ export const respondToCall = onCall(async (request) => {
           (!(call.expiresAt instanceof Timestamp) || call.expiresAt.toMillis() <= Date.now()))) {
       throw new HttpsError("failed-precondition", "انتهت مهلة المكالمة أو لم تعد متاحة.");
     }
+    if (response === "accept") {
+      const callerUid = typeof call.callerUid === "string" ? call.callerUid : "";
+      const [callerProfile, recipientProfile] = await Promise.all([
+        transaction.get(db.collection("users").doc(callerUid)),
+        transaction.get(db.collection("users").doc(uid)),
+      ]);
+      const callerData = callerProfile.data() ?? {};
+      const recipientData = recipientProfile.data() ?? {};
+      if (!callerUid || !callerProfile.exists || !recipientProfile.exists ||
+          callerData.profileCompleted !== true || recipientData.profileCompleted !== true ||
+          !isMemberAccountInGoodStanding(callerData) ||
+          !isMemberAccountInGoodStanding(recipientData) ||
+          !Number.isSafeInteger(callerData.age) || !Number.isSafeInteger(recipientData.age) ||
+          ((callerData.age < 18) !== (recipientData.age < 18)) ||
+          (Array.isArray(callerData.blockedUids) && callerData.blockedUids.includes(uid)) ||
+          (Array.isArray(recipientData.blockedUids) && recipientData.blockedUids.includes(callerUid))) {
+        throw new HttpsError("permission-denied", "لم تعد أهلية طرفي المكالمة أو إعدادات الخصوصية تسمح بالانضمام.");
+      }
+      if (call.scope === "direct") {
+        if (typeof call.targetId !== "string" || !call.targetId) {
+          throw new HttpsError("failed-precondition", "مرجع المحادثة الثنائية غير صالح.");
+        }
+        const chatSnapshot = await transaction.get(db.collection("directChats").doc(call.targetId));
+        const currentParticipants = chatSnapshot.data()?.participantUids;
+        if (!chatSnapshot.exists || !Array.isArray(currentParticipants) ||
+            currentParticipants.length !== 2 ||
+            !currentParticipants.includes(callerUid) || !currentParticipants.includes(uid)) {
+          throw new HttpsError("permission-denied", "لم تعد عضوية المحادثة الثنائية تسمح بقبول المكالمة.");
+        }
+      }
+    }
     if (response === "accept" && call.scope === "room") {
       if (typeof call.targetId !== "string" || !call.targetId) {
         throw new HttpsError("failed-precondition", "مرجع الغرفة غير صالح؛ تعذر قبول المكالمة.");
