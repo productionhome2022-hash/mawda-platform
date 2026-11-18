@@ -8461,7 +8461,7 @@ export const heartbeatFeaturedAdViewingSession = onCall(async (request) => {
     const session = snapshot.data()!;
     if (now - Number(session.startedAtMs) > 30 * 60 * 1000) {
       transaction.update(ref, { status: "expired", updatedAt: FieldValue.serverTimestamp() });
-      return { expired: true, visibleMs: Number(session.visibleMs) || 0, continuousVisibleMs: 0, progressPercent: Number(session.progressPercent) || 0 };
+      return { expired: true, foregroundVisible: false, visibleMs: Number(session.visibleMs) || 0, continuousVisibleMs: 0, progressPercent: Number(session.progressPercent) || 0 };
     }
     const campaignRef = featuredAdCampaignRef(String(session.campaignId));
     const campaignSnapshot = await transaction.get(campaignRef);
@@ -8469,7 +8469,7 @@ export const heartbeatFeaturedAdViewingSession = onCall(async (request) => {
     if (!campaignSnapshot.exists || campaign.status !== "published" || campaign.ownerWithdrawn === true ||
         campaign.ownerApproved !== true || campaign.paymentConfirmed !== true || campaign.creativeApproved !== true) {
       transaction.update(ref, { status: "campaign_revoked", updatedAt: FieldValue.serverTimestamp() });
-      return { revoked: true, visibleMs: Number(session.visibleMs) || 0, continuousVisibleMs: 0, progressPercent: Number(session.progressPercent) || 0 };
+      return { revoked: true, foregroundVisible: false, visibleMs: Number(session.visibleMs) || 0, continuousVisibleMs: 0, progressPercent: Number(session.progressPercent) || 0 };
     }
     const last = Number(session.lastHeartbeatAtMs);
     const elapsed = Math.max(0, Math.min(now - last, 15_000));
@@ -8477,7 +8477,7 @@ export const heartbeatFeaturedAdViewingSession = onCall(async (request) => {
     const continuousVisibleMs = foregroundVisible ? Number(session.continuousVisibleMs || 0) + elapsed : 0;
     const maxProgress = Math.max(Number(session.progressPercent) || 0, progressPercent);
     transaction.update(ref, { lastHeartbeatAtMs: now, visibleMs, continuousVisibleMs, progressPercent: maxProgress, foregroundVisible, updatedAt: FieldValue.serverTimestamp() });
-    return { visibleMs, continuousVisibleMs, progressPercent: maxProgress };
+    return { visibleMs, continuousVisibleMs, progressPercent: maxProgress, foregroundVisible };
   });
 });
 export const endFeaturedAdViewingSession = onCall(async (request) => {
