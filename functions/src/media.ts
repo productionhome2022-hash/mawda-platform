@@ -756,6 +756,10 @@ export const getMyMediaUploadStatus = onCall(async (request) => {
       ["safe_raster_derivative_ready", "safe_animation_derivative_ready",
         "safe_audio_derivative_ready", "safe_video_derivative_ready",
         "safe_document_derivative_ready"].includes(String(asset.processingStatus)),
+    ...(asset.mediaPurpose === "sticker" && asset.ownerUid === uid &&
+      asset.status === "security_approved" && asset.stickerMetadata
+      ? { stickerMetadata: asset.stickerMetadata }
+      : {}),
     rejectionCode: asset.status === "rejected" ? asset.rejectionCode ?? "MEDIA_REJECTED" : null,
   };
 });
