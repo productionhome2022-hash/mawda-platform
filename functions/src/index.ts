@@ -9128,9 +9128,10 @@ export const recordOwnerFeaturedAdFinancialEvent = onCall(async (request) => {
   );
   const eventRef = campaignRef.collection("financialEvents").doc(eventId);
   const auditRef = db.collection("adminAuditLogs").doc("featured_ad_finance_" + eventId);
+  const auditOutboxRef = db.collection("featuredAdFinancialAuditOutbox").doc(eventId);
   const result = await db.runTransaction(async (transaction) => {
-    const [campaignSnapshot, existingEvent] = await Promise.all([
-      transaction.get(campaignRef), transaction.get(eventRef),
+    const [campaignSnapshot, existingEvent, auditOutbox] = await Promise.all([
+      transaction.get(campaignRef), transaction.get(eventRef), transaction.get(auditOutboxRef),
     ]);
     if (!campaignSnapshot.exists) throw new HttpsError("not-found", "الحملة الإعلانية غير موجودة.");
     const campaign = campaignSnapshot.data() ?? {};
@@ -9144,6 +9145,18 @@ export const recordOwnerFeaturedAdFinancialEvent = onCall(async (request) => {
         prior.reviewOutcome === event.reviewOutcome && prior.actorUid === actorUid;
       if (!samePayload) {
         throw new HttpsError("already-exists", "مرجع الحركة المالية مستخدم لعملية مختلفة.");
+      }
+      if (auditOutbox.exists) {
+        const outbox = auditOutbox.data() ?? {};
+        if (outbox.eventId !== eventId || outbox.campaignId !== event.campaignId ||
+            outbox.actorUid !== actorUid || outbox.action !== event.action) {
+          throw new HttpsError("data-loss", "سجل ترحيل التدقيق لا يطابق الحركة المالية.");
+        }
+      } else {
+        transaction.create(auditOutboxRef, {
+          eventId, campaignId: event.campaignId, actorUid, action: event.action,
+          status: "pending", createdAt: FieldValue.serverTimestamp(),
+        });
       }
       return {
         campaignId: event.campaignId, eventId, idempotentReplay: true,
@@ -9189,7 +9202,10 @@ export const recordOwnerFeaturedAdFinancialEvent = onCall(async (request) => {
       ...event, actorUid, eventId, campaignId: event.campaignId,
       expectedVersion, resultingVersion: nextVersion,
       createdAt: now, source: "owner_manual_off_platform_attestation",
-      auditChainStatus: "pending",
+    });
+    transaction.create(auditOutboxRef, {
+      eventId, campaignId: event.campaignId, actorUid, action: event.action,
+      status: "pending", createdAt: now,
     });
     transaction.create(auditRef, {
       actorUid, action: "featured_ad_financial_" + event.action,
@@ -9214,9 +9230,9 @@ export const recordOwnerFeaturedAdFinancialEvent = onCall(async (request) => {
     campaignId: event.campaignId, eventId, financialAction: event.action,
     resultingVersion: result.version, outcome: "success",
   }, "featured_ad_finance_chain_" + eventId);
-  await eventRef.set({
-    auditChainStatus: "appended",
-    auditChainAppendedAt: FieldValue.serverTimestamp(),
+  await auditOutboxRef.set({
+    status: "appended",
+    appendedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
   return result;
 });
