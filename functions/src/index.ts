@@ -8366,7 +8366,7 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
   const creativeType = campaign.creativeType === "video" ? "video" : campaign.creativeType === "image" ? "image" : "text";
   const sessionData = {
     uid, campaignId, geography, creativeType, status: "active", startedAtMs: now, lastHeartbeatAtMs: now,
-    visibleMs: 0, progressPercent: 0, foregroundVisible: true, rewardClaimed: false,
+    visibleMs: 0, continuousVisibleMs: 0, progressPercent: 0, foregroundVisible: true, rewardClaimed: false,
     serverNonce: createHash("sha256").update(uid + ":" + sessionId + ":" + now).digest("hex"),
     createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
   };
@@ -8431,9 +8431,10 @@ export const heartbeatFeaturedAdViewingSession = onCall(async (request) => {
     const last = Number(session.lastHeartbeatAtMs);
     const elapsed = Math.max(0, Math.min(now - last, 15_000));
     const visibleMs = Number(session.visibleMs) + (foregroundVisible ? elapsed : 0);
+    const continuousVisibleMs = foregroundVisible ? Number(session.continuousVisibleMs || 0) + elapsed : 0;
     const maxProgress = Math.max(Number(session.progressPercent) || 0, progressPercent);
-    transaction.update(ref, { lastHeartbeatAtMs: now, visibleMs, progressPercent: maxProgress, foregroundVisible, updatedAt: FieldValue.serverTimestamp() });
-    return { visibleMs, progressPercent: maxProgress };
+    transaction.update(ref, { lastHeartbeatAtMs: now, visibleMs, continuousVisibleMs, progressPercent: maxProgress, foregroundVisible, updatedAt: FieldValue.serverTimestamp() });
+    return { visibleMs, continuousVisibleMs, progressPercent: maxProgress };
   });
 });
 export const completeFeaturedAdViewingSession = onCall(async (request) => {
@@ -8471,7 +8472,7 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
         now >= campaign.startsAtMs && now < campaign.endsAtMs,
       rewardBudgetAvailable: Number(campaign.rewardBudgetCoins) - Number(campaign.spentRewardCoins || 0) >= policy.rewardCoinsPerView,
       foregroundAndVisibilityValidated: session.foregroundVisible === true &&
-        Number(session.visibleMs) >= (session.creativeType === "image" ? policy.imageContinuousVisibleMs : 0),
+        Number(session.continuousVisibleMs) >= (session.creativeType === "image" ? policy.imageContinuousVisibleMs : 0),
       creativeType: session.creativeType === "video" ? "video" : "image",
       videoCompletionPercent: Number(session.progressPercent) || 0,
       continuousVisibleMs: Number(session.visibleMs) || 0,
