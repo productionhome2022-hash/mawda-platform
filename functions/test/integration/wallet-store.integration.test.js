@@ -839,6 +839,10 @@ test("manual coin package request issues no coins until owner verifies external 
     assert.equal((await requestDoc.get()).data().paymentPolicySnapshot.manualEnabled, true);
     assert.equal((await requestDoc.get()).data().paymentPolicySnapshot.automatedEnabled, false);
     await assert.rejects(
+      () => withdrawCoinPurchaseRequest.run(memberRequest(uid, { requestId })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await assert.rejects(
       () => setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
         requesterUid: uid, requestId, instructions: "تعليمات قديمة يجب رفضها",
         agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
