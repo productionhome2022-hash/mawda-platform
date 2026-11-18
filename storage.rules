@@ -28,7 +28,7 @@ service firebase.storage {
         biometricRequest(requestId).uid == uid &&
         biometricRequest(requestId).requestId == requestId &&
         biometricRequest(requestId).status == "uploading" &&
-        biometricRequest(uid, requestId).uploadExpiresAt > request.time &&
+        biometricRequest(requestId).uploadExpiresAt > request.time &&
         biometricSettings().enabled == true &&
         request.resource.size > 0 &&
         (
