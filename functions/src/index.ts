@@ -794,8 +794,8 @@ export const getPrivacyAcknowledgementStatus = onCall(async (request) => {
 
 /**
  * Completes a verified member's Mawda profile.
- * The profile, unique username reservation, 500-coin email reward and
- * immutable wallet ledger entry are created atomically by the trusted server.
+ * The profile, unique username reservation, owner-configured email reward (if
+ * explicitly enabled) and immutable wallet ledger entry are created atomically.
  * Registration is closed until the owner explicitly configures minimumAge at
  * platformSettings/registration; no age threshold is silently assumed.
  */
@@ -2229,7 +2229,7 @@ export const completeBiometricVerificationCycle = onCall(async (request) => {
 });
 
 /**
- * Starts a fresh 90-day email ownership challenge when the current cycle is due.
+ * Starts a fresh owner-configured email ownership challenge when the current cycle is due.
  * Firebase Auth is temporarily marked unverified so the member must redeem a
  * fresh provider-issued email action link before the renewal reward is credited.
  */
