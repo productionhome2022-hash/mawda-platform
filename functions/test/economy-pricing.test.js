@@ -45,3 +45,30 @@ test("advertising price validation rejects invalid billing models and prices", (
     { ...adPriceFixture, priceMinor: 0 },
   ]), /INVALID_AD_PRICE_FIELDS/);
 });
+
+
+const { validateBilateralCallTariffs } = require("../lib/economy-pricing");
+
+test("bilateral call tariffs accept unset or positive even whole-coin totals", () => {
+  assert.deepEqual(validateBilateralCallTariffs({
+    audioTotalCoinsPerMinute: null, videoTotalCoinsPerMinute: 200,
+  }), { audioTotalCoinsPerMinute: null, videoTotalCoinsPerMinute: 200 });
+  assert.deepEqual(validateBilateralCallTariffs({
+    audioTotalCoinsPerMinute: 500, videoTotalCoinsPerMinute: 2000,
+  }), { audioTotalCoinsPerMinute: 500, videoTotalCoinsPerMinute: 2000 });
+});
+
+test("bilateral call tariffs reject odd, fractional, negative, zero and non-finite totals", () => {
+  for (const invalid of [1, 3, 0, -2, 2.5, NaN, Infinity, "200", undefined]) {
+    assert.throws(() => validateBilateralCallTariffs({
+      audioTotalCoinsPerMinute: invalid, videoTotalCoinsPerMinute: null,
+    }), /INVALID_BILATERAL_CALL_TARIFF/);
+  }
+});
+
+test("bilateral call tariff validator rejects unknown fields", () => {
+  assert.throws(() => validateBilateralCallTariffs({
+    audioTotalCoinsPerMinute: 200, videoTotalCoinsPerMinute: null,
+    callerPrice: 100,
+  }), /INVALID_CALL_TARIFFS/);
+});
