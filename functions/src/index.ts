@@ -8318,8 +8318,9 @@ export const setFeaturedAdCampaignStatus = onCall(async (request) => {
     }
     const paymentConfirmed = request.data?.paymentConfirmed === true || current.paymentConfirmed === true;
     if (next === "approved" || next === "published") {
-      if (current.ownerWithdrawn === true || !paymentConfirmed || !current.mediaId) {
-        throw new HttpsError("failed-precondition", "لا يمكن اعتماد أو نشر الحملة قبل تأكيد الدفع وربط مادة آمنة.");
+      if (current.ownerWithdrawn === true || !paymentConfirmed || !current.mediaId ||
+          current.creativeApproved !== true) {
+        throw new HttpsError("failed-precondition", "لا يمكن اعتماد أو نشر الحملة قبل تأكيد الدفع واعتماد المادة الإعلانية.");
       }
       await validateFeaturedAdCreativeForOwner(String(current.mediaId), actorUid);
     }
@@ -8328,7 +8329,7 @@ export const setFeaturedAdCampaignStatus = onCall(async (request) => {
       ownerApproved: next === "approved" || next === "published"
         ? true : next === "paused" ? current.ownerApproved === true : false,
       ownerWithdrawn: next === "withdrawn",
-      creativeApproved: current.creativeApproved === true || next === "approved" || next === "published",
+      creativeApproved: current.creativeApproved === true,
       paymentConfirmed,
       updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
       approvedAt: next === "approved" || next === "published" ? FieldValue.serverTimestamp() : current.approvedAt ?? null,
@@ -8339,6 +8340,49 @@ export const setFeaturedAdCampaignStatus = onCall(async (request) => {
   await appendOwnerReviewAuditEvent({ actorUid, action: "featured_ad_campaign_status_changed", campaignId, status, outcome: "success" });
   return { campaignId, status, ...result };
 });
+export const reviewFeaturedAdCreative = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "featured_ad_creative_review_attempt");
+  const campaignId = typeof request.data?.campaignId === "string" ? request.data.campaignId.trim() : "";
+  const approved = request.data?.approved;
+  const reviewNote = typeof request.data?.reviewNote === "string" ? request.data.reviewNote.trim() : "";
+  if (!campaignId || typeof approved !== "boolean" ||
+      reviewNote.length > 500 || (!approved && reviewNote.length < 5)) {
+    throw new HttpsError("invalid-argument", "بيانات مراجعة المادة الإعلانية غير صالحة.");
+  }
+  const ref = featuredAdCampaignRef(campaignId);
+  const result = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
+    const campaign = snapshot.data() ?? {};
+    if (!["draft", "paused"].includes(String(campaign.status)) || campaign.ownerWithdrawn === true) {
+      throw new HttpsError("failed-precondition", "لا يمكن مراجعة مادة حملة منشورة أو مسحوبة.");
+    }
+    if (approved) {
+      if (!campaign.mediaId) throw new HttpsError("failed-precondition", "اربط مادة إعلانية آمنة قبل اعتمادها.");
+      await validateFeaturedAdCreativeForOwner(String(campaign.mediaId), actorUid);
+    }
+    transaction.update(ref, {
+      creativeApproved: approved,
+      creativeReviewStatus: approved ? "approved" : "rejected",
+      creativeReviewNote: reviewNote || null,
+      creativeReviewedBy: actorUid,
+      creativeReviewedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: actorUid,
+      version: (Number(campaign.version) || 1) + 1,
+    });
+    return { version: (Number(campaign.version) || 1) + 1 };
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: approved ? "featured_ad_creative_approved" : "featured_ad_creative_rejected",
+    campaignId,
+    reviewNote: reviewNote || null,
+    outcome: "success",
+  });
+  return { campaignId, approved, ...result };
+});
+
 export const getOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
   await requireOwnerForReview(request, "featured_ad_reward_policy_read_attempt");
   const snapshot = await FEATURED_AD_REWARD_POLICY.get();
