@@ -13,7 +13,8 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
   final _customMax = TextEditingController();
   List<Map<String, dynamic>> _packages = [];
   List<Map<String, dynamic>> _ads = [];
-  bool _loading = true, _saving = false, _manualPurchasesEnabled = false, _configured = false;
+  bool _loading = true, _saving = false, _manualPurchasesEnabled = false,
+      _manualFeaturedAdsEnabled = false, _configured = false;
   int _version = 0;
   String? _error;
 
@@ -40,6 +41,11 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
             .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
         _version = (data['version'] as num?)?.toInt() ?? 0;
         _manualPurchasesEnabled = data['manualCoinPurchasesEnabled'] == true;
+        final paymentPolicy = data['paymentPolicy'] is Map
+            ? Map<String, dynamic>.from(data['paymentPolicy'] as Map) : <String, dynamic>{};
+        final featuredAds = paymentPolicy['featured_ads'] is Map
+            ? Map<String, dynamic>.from(paymentPolicy['featured_ads'] as Map) : <String, dynamic>{};
+        _manualFeaturedAdsEnabled = featuredAds['manualEnabled'] == true;
         _customMin.text = bounds['minCoins']?.toString() ?? '';
         _customMax.text = bounds['maxCoins']?.toString() ?? '';
       });
@@ -188,6 +194,13 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
       final result = await _functions.httpsCallable('setOwnerEconomyPricing').call({
         'coinPackages': _packages, 'adPrices': _ads,
         'manualCoinPurchasesEnabled': _manualPurchasesEnabled,
+        'paymentPolicy': {
+          'coin_purchases': {'manualEnabled': _manualPurchasesEnabled, 'automatedEnabled': false},
+          'featured_ads': {'manualEnabled': _manualFeaturedAdsEnabled, 'automatedEnabled': false},
+          'public_ads': {'manualEnabled': false, 'automatedEnabled': false},
+          'influencer_services': {'manualEnabled': false, 'automatedEnabled': false},
+          'store_entitlements': {'manualEnabled': false, 'automatedEnabled': false},
+        },
         'customCoinRequestBounds': bounds,
       });
       final data = Map<String, dynamic>.from(result.data as Map);
@@ -224,6 +237,17 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
           value: _manualPurchasesEnabled,
           onChanged: _saving ? null : (value) => setState(() => _manualPurchasesEnabled = value),
         )),
+        Card(child: SwitchListTile(
+          title: const Text('استقبال دفعات الإعلانات اليدوية'),
+          subtitle: const Text('يسمح للمالك بتسجيل دفعات المعلنين ومراجعتها. لا يفعّل الإعلان أو يطلقه تلقائياً.'),
+          value: _manualFeaturedAdsEnabled,
+          onChanged: _saving ? null : (value) => setState(() => _manualFeaturedAdsEnabled = value),
+        )),
+        const ListTile(
+          dense: true,
+          title: Text('الإعلانات العامة، خدمات المؤثرين، واستحقاقات المتجر'),
+          subtitle: Text('تبقى وسائل الدفع اليدوية لهذه الخدمات متوقفة حتى اكتمال دوراتها. جميع وسائل الدفع الآلي متوقفة.'),
+        ),
         Text('حدود طلب الكمية المخصصة', style: Theme.of(context).textTheme.titleLarge),
         TextField(controller: _customMin, enabled: !_saving, keyboardType: TextInputType.number,
           decoration: const InputDecoration(labelText: 'الحد الأدنى لـ BetaCoins')),
