@@ -13,6 +13,12 @@ This change set covers:
 
 Do not deploy, merge to `main`, change production Firebase resources, enable paid services, or alter live member data as part of this work. All authorization must be enforced by trusted server code and security rules; hiding a control in Flutter is not authorization.
 
+## 2. Verification cadence — email and biometric are separate
+
+- Email verification renewal remains every **three calendar months**. Preserve the existing email-verification lifecycle and its separate 500 BetaCoins reward; do not change it as part of biometric work.
+- Biometric verification renewal is every **one calendar month** after successful owner approval. The server must record the approval timestamp and calculate the next due date using calendar-month arithmetic (not a fixed 90-day period and not the email cadence). Once due, the member may submit a new biometric review request; a currently pending request still blocks duplicates.
+- The three-month lockout after the third rejected biometric attempt is a separate abuse-control rule and remains three months. It must not be confused with the normal one-month biometric renewal cadence.
+
 ## 2. Biometric verification request workflow
 
 ### 2.1 Member submission
@@ -33,7 +39,7 @@ Do not deploy, merge to `main`, change production Firebase resources, enable pai
 
 ### 2.3 Accept / reject / retry lifecycle
 
-- **Accepted:** atomically set biometric verification to verified, grant the member the owner-approved **1,500 BetaCoins** reward exactly once, write the wallet ledger/reward record, add the biometric verification badge to the member profile, and create a member notification. A repeated decision/call must not grant another reward.
+- **Accepted:** atomically set biometric verification to verified, set `biometricVerifiedAt` and the next renewal due date exactly one calendar month later, grant the member **1,500 BetaCoins** exactly once for that accepted verification, write the wallet ledger/reward record, add the biometric verification badge to the member profile, and create a member notification. A repeated decision/call must not grant another reward. Each later monthly renewal is a new review cycle; reward eligibility must follow the approved reward policy and must never be inferred from a client flag.
 - **Rejected:** do not grant the reward; notify the member in their profile/inbox that this attempt was rejected and show the number of attempts remaining.
 - Maximum: **three total submitted attempts**. After rejection of attempt 1, two remain; after rejection of attempt 2, one remains; after rejection of attempt 3, the biometric-verification application is locked for **three months**.
 - During the lockout and after an unsuccessful biometric process, the member remains an ordinary member and retains email verification. The existing **500 BetaCoins email-verification reward** is not clawed back or replaced. The member may continue using the platform under ordinary account permissions.
