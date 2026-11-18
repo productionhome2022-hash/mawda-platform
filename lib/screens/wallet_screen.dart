@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'coin_purchase_screen.dart';
 import 'member_gift_history_screen.dart';
+import 'gift_coins_screen.dart';
 
 /// Read-only wallet history. All balance changes are performed by trusted
 /// Cloud Functions; this screen only reads the member-scoped immutable ledger.
@@ -27,6 +28,13 @@ class WalletScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('محفظتي وسجل العمليات'), actions: [
+        IconButton(
+          tooltip: 'إهداء BetaCoins',
+          icon: const Icon(Icons.card_giftcard),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => const GiftCoinsScreen(),
+          )),
+        ),
         IconButton(
           tooltip: 'سجل الهدايا المستلمة',
           icon: const Icon(Icons.card_giftcard_outlined),
