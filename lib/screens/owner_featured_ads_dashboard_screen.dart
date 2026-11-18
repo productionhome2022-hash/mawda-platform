@@ -17,6 +17,10 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
   final _policyDailyViews = TextEditingController(text: '0');
   final _policyDailyCoins = TextEditingController(text: '0');
   final _policyCampaignCap = TextEditingController(text: '0');
+  final _policyWindowMs = TextEditingController(text: '86400000');
+  final _policyVideoCompletion = TextEditingController(text: '90');
+  final _policyImageVisibleMs = TextEditingController(text: '10000');
+  int _policyVersion = 0;
   bool _uploadingMedia = false;
   bool _savingPolicy = false;
   bool _rewardEnabled = false;
@@ -65,6 +69,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
     _budget.dispose(); _reward.dispose();
     _policyReward.dispose(); _policyDailyViews.dispose();
     _policyDailyCoins.dispose(); _policyCampaignCap.dispose();
+    _policyWindowMs.dispose(); _policyVideoCompletion.dispose(); _policyImageVisibleMs.dispose();
     super.dispose();
   }
 
@@ -89,10 +94,14 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
       if (mounted) setState(() {
         _campaigns = items; _approvedMedia = media;
         _rewardEnabled = policy['enabled'] == true;
+        _policyVersion = (policyData['version'] as num?)?.toInt() ?? 0;
         _policyReward.text = (policy['rewardCoinsPerView'] ?? 0).toString();
         _policyDailyViews.text = (policy['maxRewardedViewsPerUtcDay'] ?? 0).toString();
         _policyDailyCoins.text = (policy['maxRewardCoinsPerUtcDay'] ?? 0).toString();
         _policyCampaignCap.text = (policy['maxRewardsPerCampaignRolling24h'] ?? 0).toString();
+        _policyWindowMs.text = (policy['sameCampaignWindowMs'] ?? 86400000).toString();
+        _policyVideoCompletion.text = (policy['videoCompletionPercent'] ?? 90).toString();
+        _policyImageVisibleMs.text = (policy['imageContinuousVisibleMs'] ?? 10000).toString();
         _reward.text = (policy['rewardCoinsPerView'] ?? 0).toString();
       });
     } on FirebaseFunctionsException catch (e) {
@@ -128,28 +137,41 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
     final views = int.tryParse(_policyDailyViews.text.trim());
     final coins = int.tryParse(_policyDailyCoins.text.trim());
     final campaignCap = int.tryParse(_policyCampaignCap.text.trim());
+    final windowMs = int.tryParse(_policyWindowMs.text.trim());
+    final videoCompletion = int.tryParse(_policyVideoCompletion.text.trim());
+    final imageVisibleMs = int.tryParse(_policyImageVisibleMs.text.trim());
     if (reward == null || views == null || coins == null || campaignCap == null ||
-        reward < 0 || views < 0 || coins < reward || campaignCap < 0 ||
+        windowMs == null || videoCompletion == null || imageVisibleMs == null ||
+        reward < 0 || reward > 100000 || views < 0 || views > 10000 ||
+        coins < reward || coins > 1000000 || campaignCap < 0 || campaignCap > 1000 ||
+        windowMs < 1 || windowMs > 2678400000 ||
+        videoCompletion < 1 || videoCompletion > 100 ||
+        imageVisibleMs < 1000 || imageVisibleMs > 3600000 ||
         (_rewardEnabled && (reward < 1 || views < 1 || campaignCap < 1))) {
-      setState(() => _error = 'قيم سياسة المكافآت غير صالحة؛ يجب أن يغطي الحد اليومي مكافأة مشاهدة واحدة على الأقل.');
+      setState(() => _error = 'قيم سياسة المكافآت غير صالحة؛ راجع المبالغ والحصص والنوافذ الزمنية وحدود إثبات المشاهدة.');
       return;
     }
     setState(() { _savingPolicy = true; _error = null; });
     try {
-      final current = await _functions.httpsCallable('getOwnerFeaturedAdRewardPolicy').call();
-      final envelope = Map<String, dynamic>.from(current.data as Map);
-      final policy = Map<String, dynamic>.from(envelope['policy'] as Map);
-      policy.addAll({
-        'enabled': _rewardEnabled,
-        'rewardCoinsPerView': reward,
-        'maxRewardedViewsPerUtcDay': views,
-        'maxRewardCoinsPerUtcDay': coins,
-        'maxRewardsPerCampaignRolling24h': campaignCap,
+      final response = await _functions.httpsCallable('setOwnerFeaturedAdRewardPolicy').call({
+        'expectedVersion': _policyVersion,
+        'policy': {
+          'enabled': _rewardEnabled,
+          'rewardCoinsPerView': reward,
+          'maxRewardedViewsPerUtcDay': views,
+          'maxRewardCoinsPerUtcDay': coins,
+          'maxRewardsPerCampaignRolling24h': campaignCap,
+          'sameCampaignWindowMs': windowMs,
+          'videoCompletionPercent': videoCompletion,
+          'imageContinuousVisibleMs': imageVisibleMs,
+        },
       });
-      await _functions.httpsCallable('setOwnerFeaturedAdRewardPolicy').call({'policy': policy, 'expectedVersion': envelope['version'] ?? 0});
+      final saved = Map<String, dynamic>.from(response.data as Map);
+      if (!mounted) return;
+      setState(() => _policyVersion = (saved['version'] as num?)?.toInt() ?? _policyVersion);
       _reward.text = reward.toString();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم حفظ سياسة المكافآت التجريبية بإصدار جديد.')),
+        SnackBar(content: Text('تم حفظ سياسة المكافآت بإصدار $_policyVersion.')),
       );
     } on FirebaseFunctionsException catch (e) {
       if (mounted) setState(() => _error = e.message ?? 'تعذر حفظ سياسة المكافآت.');
@@ -530,8 +552,15 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
               Row(children: [
                 Expanded(child: TextField(controller: _policyDailyCoins, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'الحد الأقصى اليومي للكوين UTC'))),
                 const SizedBox(width: 10),
-                Expanded(child: TextField(controller: _policyCampaignCap, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مشاهدات العضو لكل حملة/24 ساعة'))),
+                Expanded(child: TextField(controller: _policyCampaignCap, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'أقصى مكافآت للحملة ضمن النافذة'))),
               ]),
+              Row(children: [
+                Expanded(child: TextField(controller: _policyWindowMs, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'نافذة الحملة بالميلي ثانية'))),
+                const SizedBox(width: 10),
+                Expanded(child: TextField(controller: _policyVideoCompletion, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'إكمال الفيديو %'))),
+              ]),
+              TextField(controller: _policyImageVisibleMs, keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'الظهور المتصل للصورة بالميلي ثانية')),
               const SizedBox(height: 10),
               SizedBox(width: double.infinity, child: FilledButton(
                 onPressed: _savingPolicy ? null : _saveRewardPolicy,
