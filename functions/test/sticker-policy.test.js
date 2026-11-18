@@ -124,3 +124,62 @@ test("sticker send request accepts only bounded identifiers and explicit scope",
     downloadUrl: "https://attacker.invalid",
   }), /UNSUPPORTED_STICKER_SEND_FIELDS/);
 });
+
+
+import { projectPublishedStickerPack } from "../src/sticker-catalog.ts";
+
+test("public sticker catalog exposes only clean published assets and no storage paths", () => {
+  const projected = projectPublishedStickerPack("starter", {
+    status: "published",
+    approved: true,
+    title: "Starter",
+    sortOrder: 2,
+    storagePath: "private/sticker-packs/starter",
+    internalModerationNote: "private",
+    stickers: [{
+      stickerId: "hello",
+      assetId: "asset_hello",
+      scanStatus: "clean",
+      kind: "static",
+      contentType: "image/webp",
+      width: 256,
+      height: 256,
+      sizeBytes: 1200,
+      storagePath: "private/secret.webp",
+      downloadUrl: "https://private.invalid",
+    }],
+  });
+  assert.equal(projected?.stickers[0].assetId, "asset_hello");
+  assert.equal("storagePath" in (projected ?? {}), false);
+  assert.equal("storagePath" in (projected?.stickers[0] ?? {}), false);
+  assert.equal("downloadUrl" in (projected?.stickers[0] ?? {}), false);
+  assert.equal("internalModerationNote" in (projected ?? {}), false);
+});
+
+test("public sticker catalog rejects unpublished, unapproved and unscanned packs", () => {
+  const base = {
+    status: "published",
+    approved: true,
+    title: "Starter",
+    stickers: [{
+      stickerId: "hello",
+      assetId: "asset_hello",
+      scanStatus: "clean",
+      kind: "static",
+      contentType: "image/png",
+      width: 128,
+      height: 128,
+      sizeBytes: 1000,
+    }],
+  };
+  assert.equal(projectPublishedStickerPack("starter", { ...base, status: "draft" }), null);
+  assert.equal(projectPublishedStickerPack("starter", { ...base, approved: false }), null);
+  assert.throws(() => projectPublishedStickerPack("starter", {
+    ...base,
+    stickers: [{ ...base.stickers[0], scanStatus: "pending" }],
+  }), /UNAPPROVED_STICKER_ASSET/);
+  assert.throws(() => projectPublishedStickerPack("starter", {
+    ...base,
+    stickers: [{ ...base.stickers[0], assetId: "../private" }],
+  }), /UNAPPROVED_STICKER_ASSET/);
+});
