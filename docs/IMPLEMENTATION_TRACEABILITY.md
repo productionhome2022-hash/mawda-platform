@@ -645,3 +645,14 @@ Status: **implemented in source; automated validation pending; device/network ac
 4. Phase three remains live non-production/cloud synchronization, platform acceptance and eventual release. No production changes, paid resources, main merge or deployment are authorized by this record.
 
 No production Firebase/Google Cloud resource, live member data, billing setting, deployment target, main branch or destructive retention worker was changed by this audit.
+
+## 2026-11-19 — economic phase controlled integration audit
+
+- Added `docs/ECONOMIC_PHASE_CONTROLLED_INTEGRATION_AUDIT_2026-11-19.md` after comparing the official development line with the open economic draft branches.
+- Official development head immediately before this documentation update: `d561dc445ea352d94cd346a6b745e800a9114ee1`.
+- Economic work is split across PR #30 (payment/wallet replay hardening), PR #31 (economic policy, featured-ad finance, group-call work and reconciliation), PR #22 and PR #28 (different integration lines with broad overlapping ancestry). No wholesale merge is safe or authorized.
+- Group-call P0 remains blocking: trusted provider media proof, scalable topology, participant entitlements and consent, per-participant metering, reservation/insufficient-funds semantics, atomic idempotent settlement, UI acceptance and load/device evidence are not all complete.
+- Manual payment remains the approved Phase 1 approach; automated checkout remains disabled. Public-ad, influencer-service and cash-paid store-entitlement manual flows remain fail-closed until their complete workflows exist.
+- Featured-ad finance/serving/rewards and complete wallet/platform-wide reconciliation remain open. Reconciliation must remain read-only and must report incomplete/corrupt legacy history without auto-correcting balances.
+- No code was ported from the divergent draft branches in this audit. No tests or builds were run on this documentation commit. Exact-head CI must be run after each subsequent source integration.
+- **Economic phase status: OPEN.** Follow the controlled order and closure criteria in the linked audit. No merge to `main`, deployment, production mutation, billing activation or paid-resource activation is authorized.
