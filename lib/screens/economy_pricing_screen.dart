@@ -235,6 +235,17 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
     }
   }
 
+  int? _currencyExponent(String currency) {
+    const zero = {'JPY', 'KRW', 'VND'};
+    const three = {'BHD', 'IQD', 'JOD', 'KWD', 'LYD', 'OMR', 'TND'};
+    const two = {'AED', 'AUD', 'CAD', 'CHF', 'DZD', 'EGP', 'EUR', 'GBP',
+      'LBP', 'MAD', 'NZD', 'QAR', 'SAR', 'SDG', 'SYP', 'TRY', 'USD'};
+    if (zero.contains(currency)) return 0;
+    if (three.contains(currency)) return 3;
+    if (two.contains(currency)) return 2;
+    return null;
+  }
+
   String _formatMinor(int amount, int exponent, String currency) {
     final scale = exponent == 0 ? 1 : exponent == 1 ? 10 : exponent == 2 ? 100 : 1000;
     return (amount / scale).toStringAsFixed(exponent) + ' ' + currency;
@@ -270,7 +281,15 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
       maxLength: 3,
       textCapitalization: TextCapitalization.characters,
       decoration: const InputDecoration(labelText: 'العملة'),
-      onChanged: (text) => onChanged(text.trim().toUpperCase()),
+      onChanged: (text) {
+        final code = text.trim().toUpperCase();
+        final exponent = _currencyExponent(code);
+        onChanged(code);
+        if (exponent != null) {
+          // Keep the preview aligned with the ISO minor-unit exponent that
+          // the server derives and persists when the policy is saved.
+        }
+      },
     ),
   );
 
@@ -365,7 +384,10 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
               _priceField(value: (item['priceMinor'] as num?)?.toInt() ?? 1,
                 onChanged: (v) => setState(() => _packages[i] = {...item, 'priceMinor': v})),
               _currencyField(value: item['currency'] as String? ?? '',
-                onChanged: (v) => setState(() => _packages[i] = {...item, 'currency': v})),
+                onChanged: (v) => setState(() => _packages[i] = {
+                  ...item, 'currency': v,
+                  if (_currencyExponent(v) != null) 'currencyExponent': _currencyExponent(v),
+                })),
               Switch(value: item['active'] == true,
                 onChanged: _saving ? null : (v) => setState(() => _packages[i] = {...item, 'active': v})),
               IconButton(onPressed: _saving ? null : () => setState(() => _packages.removeAt(i)),
@@ -394,7 +416,10 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
               _priceField(value: (item['priceMinor'] as num?)?.toInt() ?? 1,
                 onChanged: (v) => setState(() => _ads[i] = {...item, 'priceMinor': v})),
               _currencyField(value: item['currency'] as String? ?? '',
-                onChanged: (v) => setState(() => _ads[i] = {...item, 'currency': v})),
+                onChanged: (v) => setState(() => _ads[i] = {
+                  ...item, 'currency': v,
+                  if (_currencyExponent(v) != null) 'currencyExponent': _currencyExponent(v),
+                })),
               Switch(value: item['active'] == true,
                 onChanged: _saving ? null : (v) => setState(() => _ads[i] = {...item, 'active': v})),
               IconButton(onPressed: _saving ? null : () => setState(() => _ads.removeAt(i)),
