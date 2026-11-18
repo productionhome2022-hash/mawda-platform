@@ -63,6 +63,8 @@ jobs:
           java-version: "21"
       - name: Install locked backend dependencies
         run: npm ci --no-audit --no-fund
+      - name: Compile Functions before emulator tests
+        run: npm run build
       - name: Run wallet and store atomicity regressions
         run: npm run test:wallet-store-integration
       - name: Run owner entitlement grant and replay regressions
