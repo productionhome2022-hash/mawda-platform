@@ -63,8 +63,6 @@ test("quota release decrements active reservations and fails closed on inconsist
 test("only owner-originated uploads bypass all personal media admission quotas", () => {
   assert.equal(mediaQuotaExemptForTransfer(true), true);
   assert.equal(mediaQuotaExemptForTransfer(false), false);
-  assert.equal(mediaQuotaExemptForTransfer(true), true);
-  assert.equal(mediaQuotaExemptForTransfer(false), false);
 });
 
 test("member-to-owner transfers bypass daily usage accounting but retain active guards", () => {
@@ -89,4 +87,18 @@ test("member-to-owner transfers bypass daily usage accounting but retain active 
     ...atDailyLimit, activeBytes: MEDIA_QUOTA_LIMITS.maxActiveBytes,
   }, 1, now, true), /quota exceeded/i);
   assert.equal(mediaDailyQuotaExemptForTransfer(false, false), false);
+});
+
+test("releasing a member-to-owner reservation frees active capacity without changing daily usage", () => {
+  const now = Date.UTC(2026, 10, 18, 12);
+  const before = {
+    activeUploads: 2,
+    activeBytes: 3072,
+    dailyBytes: 4096,
+    dailyUploads: 7,
+    dailyWindow: "2026-11-18",
+  };
+  const reserved = reserveMediaQuota(before, 2048, now, true);
+  const released = releaseMediaQuota(reserved, 2048);
+  assert.deepEqual(released, before);
 });
