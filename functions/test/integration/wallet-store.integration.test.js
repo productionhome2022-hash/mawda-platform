@@ -806,6 +806,8 @@ test("manual coin package request issues no coins until owner verifies external 
   const requestDoc = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
   const userRef = db.collection("users").doc(uid);
   const ledgerRef = userRef.collection("walletLedger").doc(`coin_purchase_${requestId}`);
+  const paymentReportAuditRef = db.collection("adminAuditLogs")
+    .doc(`coin_purchase_payment_report_${uid}_${requestId}_1`);
   const settingsRef = db.doc("platformSettings/economyPricing");
   await Promise.all([
     userRef.set({ coins: 40, profileCompleted: true, accountStatus: "active" }),
@@ -851,6 +853,8 @@ test("manual coin package request issues no coins until owner verifies external 
     assert.equal(reported.idempotentReplay, false);
     assert.equal((await requestDoc.get()).data().status, "awaiting_payment_verification");
     assert.equal((await userRef.get()).data().coins, 40);
+    assert.equal((await userRef.collection("walletLedger").get()).empty, true);
+    assert.equal((await paymentReportAuditRef.get()).data().authority, "member_claim_only_not_payment_proof");
     const reportReplay = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
       requestId, expectedInstructionsVersion: 1,
     }));
@@ -908,6 +912,7 @@ test("manual coin package request issues no coins until owner verifies external 
   } finally {
     await Promise.all([
       ledgerRef.delete().catch(() => undefined),
+      paymentReportAuditRef.delete().catch(() => undefined),
       requestDoc.delete().catch(() => undefined),
       userRef.delete().catch(() => undefined),
       settingsRef.delete().catch(() => undefined),
