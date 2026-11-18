@@ -112,6 +112,10 @@ import {
   timedAdMemberCounterId,
   AttendanceRewardType,
 } from "./engagement-rewards";
+import {
+  defaultFeaturedAdRewardPolicy,
+  validateFeaturedAdRewardPolicy,
+} from "./featured-ad-rewards";
 
 initializeApp();
 
@@ -7513,6 +7517,67 @@ export { startGuestSession, getGuestSessionStatus, endGuestSession, listGuestPub
 
 
 const ATTENDANCE_REWARD_POLICY = db.doc("platformSettings/attendanceRewards");
+const FEATURED_AD_REWARD_POLICY = db.doc("platformSettings/featuredAdRewards");
+
+/** Owner/MFA-only read and first-run seed for featured-ad reward controls. */
+export const getOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const current = await FEATURED_AD_REWARD_POLICY.get();
+  if (!current.exists) {
+    await db.runTransaction(async (transaction) => {
+      const latest = await transaction.get(FEATURED_AD_REWARD_POLICY);
+      if (latest.exists) return;
+      const now = FieldValue.serverTimestamp();
+      transaction.create(FEATURED_AD_REWARD_POLICY, {
+        policy: defaultFeaturedAdRewardPolicy(),
+        version: 1,
+        updatedBy: actorUid,
+        createdAt: now,
+        updatedAt: now,
+      });
+    });
+  }
+  const snapshot = await FEATURED_AD_REWARD_POLICY.get();
+  try {
+    return {
+      policy: validateFeaturedAdRewardPolicy(snapshot.data()?.policy),
+      version: Number.isSafeInteger(snapshot.data()?.version) ? snapshot.data()!.version : 1,
+    };
+  } catch {
+    throw new HttpsError("failed-precondition", "إعدادات مكافآت الإعلانات المميزة غير صالحة.");
+  }
+});
+
+/** Owner/MFA-only versioned update; this changes policy configuration, not live payments. */
+export const setOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let policy;
+  try {
+    policy = validateFeaturedAdRewardPolicy(request.data?.policy);
+  } catch {
+    throw new HttpsError("invalid-argument", "سياسة مكافآت الإعلانات المميزة غير صالحة.");
+  }
+  const version = await db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(FEATURED_AD_REWARD_POLICY);
+    const nextVersion = (Number.isSafeInteger(previous.data()?.version)
+      ? previous.data()!.version : 0) + 1;
+    const now = FieldValue.serverTimestamp();
+    transaction.set(FEATURED_AD_REWARD_POLICY, {
+      policy, version: nextVersion, updatedBy: actorUid,
+      createdAt: previous.data()?.createdAt ?? now,
+      updatedAt: now,
+    });
+    return nextVersion;
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "featured_ad_reward_policy_updated",
+    version,
+    policy,
+    outcome: "success",
+  });
+  return { saved: true, version, policy };
+});
 
 export const setAttendanceRewardPolicy = onCall(async (request) => {
   const actorUid = requireOwner(request);
