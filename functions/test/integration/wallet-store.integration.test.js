@@ -8,6 +8,7 @@ const {
   setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
   completeFeaturedAdViewingSession,
+  recordOwnerFeaturedAdFinancialEvent,
   sendOwnerLiveStream,
   deleteDirectMessageForEveryone, deleteRoomMessage, startCall, endCall,
 } = require("../../lib/index");
@@ -105,6 +106,71 @@ test("client-reported featured-ad progress cannot mint wallet rewards without tr
       db.recursiveDelete(campaignRef).catch(() => undefined),
       priorPolicy.exists ? policyRef.set(priorPolicy.data()) : policyRef.delete().catch(() => undefined),
     ]);
+  }
+});
+
+test("owner featured-ad manual payment and refund events persist atomically and replay safely", async () => {
+  const campaignId = `featured_finance_${suffix()}`;
+  const campaignRef = db.collection("featuredAdCampaigns").doc(campaignId);
+  await campaignRef.set({
+    status: "draft", ownerApproved: false, ownerWithdrawn: false,
+    paymentConfirmed: false, creativeApproved: false, version: 1,
+  });
+  const paymentInput = {
+    campaignId, action: "payment_received",
+    idempotencyKey: `payment_operation_${suffix()}`,
+    amountMinor: 12500, currency: "EUR",
+    externalReference: `bank-reference-${suffix()}`,
+    evidenceReference: `owner-statement-${suffix()}`,
+    note: "Owner verified incoming transfer against external bank records",
+    reviewOutcome: null, expectedVersion: 1,
+  };
+  try {
+    const payment = await recordOwnerFeaturedAdFinancialEvent.run(
+      ownerRequest("featured-finance-owner", paymentInput),
+    );
+    assert.equal(payment.idempotentReplay, false);
+    assert.equal(payment.paymentConfirmed, true);
+    assert.equal(payment.version, 2);
+    assert.equal(payment.financialSnapshot.receivedMinor, 12500);
+    assert.equal(payment.financialSnapshot.paymentStatus, "paid");
+
+    const replay = await recordOwnerFeaturedAdFinancialEvent.run(
+      ownerRequest("featured-finance-owner", paymentInput),
+    );
+    assert.equal(replay.idempotentReplay, true);
+    assert.equal(replay.version, 2);
+
+    const refundInput = {
+      campaignId, action: "refund_recorded",
+      idempotencyKey: `refund_operation_${suffix()}`,
+      amountMinor: 2500, currency: "EUR",
+      externalReference: `refund-reference-${suffix()}`,
+      evidenceReference: `owner-refund-statement-${suffix()}`,
+      note: "Owner verified partial refund against external bank records",
+      reviewOutcome: null, expectedVersion: 2,
+    };
+    const refund = await recordOwnerFeaturedAdFinancialEvent.run(
+      ownerRequest("featured-finance-owner", refundInput),
+    );
+    assert.equal(refund.idempotentReplay, false);
+    assert.equal(refund.paymentConfirmed, false);
+    assert.equal(refund.version, 3);
+    assert.equal(refund.financialSnapshot.refundedMinor, 2500);
+    assert.equal(refund.financialSnapshot.paymentStatus, "partially_refunded");
+
+    const campaign = (await campaignRef.get()).data();
+    assert.equal(campaign.version, 3);
+    assert.equal(campaign.paymentConfirmed, false);
+    assert.equal(campaign.financialSnapshot.reconciledMinor, 0);
+    const events = await campaignRef.collection("financialEvents").get();
+    assert.equal(events.size, 2);
+    assert.equal(events.docs.filter((doc) => doc.data().action === "payment_received").length, 1);
+    assert.equal(events.docs.filter((doc) => doc.data().action === "refund_recorded").length, 1);
+  } finally {
+    const events = await campaignRef.collection("financialEvents").get();
+    await Promise.all(events.docs.map((doc) => doc.ref.delete().catch(() => undefined)));
+    await campaignRef.delete().catch(() => undefined);
   }
 });
 
