@@ -8144,6 +8144,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     transaction.update(ref, {
       status: "payment_instructions_sent", chatId, agreedCoins: input.agreedCoins,
       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
+      agreedCurrency: input.currency,
       agreedCurrencyExponent: input.currencyExponent,
       paymentPolicySnapshot: prior.paymentPolicySnapshot ?? {
         manualEnabled: true, automatedEnabled: false, policyVersion: 0,
