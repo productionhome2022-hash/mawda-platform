@@ -5,6 +5,8 @@ const {
   defaultFeaturedAdRewardPolicy,
   validateFeaturedAdRewardPolicy,
   decideFeaturedAdReward,
+  featuredAdCampaignRewardPolicy,
+  featuredAdRewardBudgetAvailable,
 } = require("../lib/featured-ad-rewards");
 
 const defaults = defaultFeaturedAdRewardPolicy();
@@ -100,4 +102,15 @@ test("enforces the owner-configured per-campaign rolling window cap", () => {
 
 test("rejects invalid server evidence rather than granting a reward", () => {
   assert.throws(() => decideFeaturedAdReward(policy, { ...base, rewardedViewsToday: -1 }));
+});
+
+test("campaign reward cannot exceed the owner ceiling and must fit its remaining budget", () => {
+  assert.equal(featuredAdCampaignRewardPolicy(policy, 2).rewardCoinsPerView, 2);
+  assert.equal(featuredAdCampaignRewardPolicy(policy, 1).rewardCoinsPerView, 1);
+  assert.equal(featuredAdCampaignRewardPolicy(policy, 3).rewardCoinsPerView, 0);
+  assert.equal(featuredAdCampaignRewardPolicy(policy, "2").rewardCoinsPerView, 0);
+  assert.equal(featuredAdRewardBudgetAvailable(100, 98, 2), true);
+  assert.equal(featuredAdRewardBudgetAvailable(100, 99, 2), false);
+  assert.equal(featuredAdRewardBudgetAvailable(100, 101, 1), false);
+  assert.equal(featuredAdRewardBudgetAvailable(100, 0, 0), false);
 });
