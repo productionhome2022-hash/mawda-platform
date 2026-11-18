@@ -76,7 +76,7 @@ This run validates the exact commit above. It does not include a real-device acc
 
 ## Remaining blockers and explicit non-completions
 
-1. The member-to-owner exemption still requires end-to-end tests across each media category, upload finalization, delivery, cleanup, quota release, replay, and revoked-owner claims.
+1. The member-to-owner path now has Auth/Firestore/Storage emulator coverage for verified-recipient intent binding, daily-accounting exemption, ordinary-recipient denial of that exemption, and retained active-upload limits. Full end-to-end coverage across each media category, upload finalization, delivery, cleanup/release, replay and revoked-owner claims remains open.
 2. The sticker implementation is currently only a pure metadata policy plus GIF client-unblock/documentation. It is not yet a first-class product: no pack schema/owner management, scanner-enforced sticker profile, catalog/search/favorites/recently-used, message type/send callable, picker, or cross-platform playback tests.
 3. Capacity metering is not instrumented. Concurrent sessions, monthly usage, processing and actual cost remain unavailable; the policy is configuration-only and observe-only.
 4. Featured advertising still requires full owner governance, member campaign lifecycle, eligibility/heartbeat/completion, atomic reward ledger, budget/cap integration and complete UI journey verification.
@@ -87,3 +87,28 @@ This run validates the exact commit above. It does not include a real-device acc
 ## Release boundary
 
 All work remains on the development branch. No merge to `main`, production deployment, live Firebase mutation, billing activation, live retention worker activation, or destructive production operation was performed.
+
+
+## Follow-up emulator regression — 2026-11-18
+
+The development-branch regression workflow now runs the media callable/Storage lifecycle suite on every feature-branch push. The media emulator command starts Auth, Firestore and Storage emulators together so recipient custom claims are verified against the Auth emulator rather than a live identity service.
+
+New integration cases verify:
+- a member upload addressed to an Auth-emulator account carrying the server-managed `platformOwner: true` claim is bound to that exact recipient;
+- the upload intent does not become fully quota-exempt (`quotaExempt: false`);
+- active upload count and bytes are still reserved;
+- daily byte/upload counters remain unchanged for the verified owner recipient;
+- an ordinary recipient does not receive the daily exemption, even when the member has exhausted daily accounting;
+- owner-directed intents are rejected when active upload admission limits are exhausted.
+
+Exact verification: GitHub Actions run [44212614351](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/44212614351), commit `8ae97394c36150119deb7a5f09eb817d56b26c2e`, completed successfully. Both jobs passed:
+- backend TypeScript build and unit tests;
+- media upload, recipient authorization and quota emulator lifecycle (Auth + Firestore + Storage);
+- chat retention integration;
+- room event reservation/cancellation integration;
+- owner entitlement grant/replay integration;
+- voice/video call lifecycle integration;
+- timed advertising and reward-ledger integration;
+- Flutter analysis and widget/unit tests.
+
+This is emulator evidence for the tested cases only. It does not prove live Firebase/Storage behavior, scanner production connectivity, physical-device acceptance, or full owner-directed media lifecycle coverage across every category.
