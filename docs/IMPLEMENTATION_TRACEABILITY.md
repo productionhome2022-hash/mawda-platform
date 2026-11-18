@@ -645,3 +645,16 @@ Status: **implemented in source; automated validation pending; device/network ac
 4. Phase three remains live non-production/cloud synchronization, platform acceptance and eventual release. No production changes, paid resources, main merge or deployment are authorized by this record.
 
 No production Firebase/Google Cloud resource, live member data, billing setting, deployment target, main branch or destructive retention worker was changed by this audit.
+
+
+## 2026-11-18 — AD-001 featured-ad discovery serving foundation (draft PR #21)
+
+- Isolated implementation branch: `codex/featured-ads-serving-foundation`, based on development head `7fd1c6cd9b3810047bb0d87f1b6dd5d0dc8b4dd1`.
+- Added authenticated callable `getFeaturedAdShowcase`. It requires a completed active member account, accepts only one of the ten approved geography keys explicitly selected by the member, reads only published campaigns, and fails closed unless owner approval, payment confirmation, creative approval, non-withdrawal, date window and geography all qualify.
+- The callable uses the existing featured placement/rotation selector. It returns only campaign display metadata and explicitly reports `rewardEligible: false`; it does not create sessions, expose media URLs, charge advertisers or award coins.
+- Connected `FeaturedAdsScreen` to the callable with loading, retry/error, empty and campaign-card states. Region changes reload the server feed. No client-side Firestore access was introduced.
+- Added a Firestore composite index for the active featured campaign query and emulator integration coverage for geographic filtering, priority order, excluded/unpaid/withdrawn/unapproved campaigns, invalid geography, inactive membership and the invariant that discovery never changes coins or wallet ledger.
+- Draft PR: https://github.com/productionhome2022-hash/mawda-platform/pull/21
+- **Status: implemented, not yet tested.** No Actions check runs or jobs had been created for the feature branch/PR at the time of this record. Do not treat static review as TypeScript/Flutter/emulator test success.
+- **AD-001 remains open.** Still required: owner-only campaign create/edit/review/withdrawal workflow and audit, trusted creative serving from security-approved owner media, full-ad player and server sessions/heartbeats, UTC daily and rolling campaign caps, atomic distinct `featured_ad_reward` wallet ledger with replay/concurrency tests, member reward-history endpoint/UI, responsive 75/25 selected-player layout, and exact-head CI/emulator/widget/security acceptance.
+- No production Firebase data/configuration, billing, live payment, deployment, `main`, or member wallet was changed.
