@@ -7948,13 +7948,18 @@ export const requestCoinPurchasePaymentVerification = onCall(async (request) => 
     throw new HttpsError("invalid-argument", "معرف الطلب أو إصدار تعليمات الدفع غير صالح.");
   }
   const requestRef = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
+  const memberRef = db.collection("users").doc(uid);
   const auditRef = db.collection("adminAuditLogs").doc(
     `coin_purchase_payment_report_${uid}_${requestId}_${expectedInstructionsVersion}`,
   );
   return db.runTransaction(async (transaction) => {
-    const [purchase, audit] = await Promise.all([
-      transaction.get(requestRef), transaction.get(auditRef),
+    const [purchase, audit, member] = await Promise.all([
+      transaction.get(requestRef), transaction.get(auditRef), transaction.get(memberRef),
     ]);
+    if (!member.exists || member.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(member.data())) {
+      throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بتحديث طلب الدفع.");
+    }
     if (!purchase.exists || purchase.data()?.requesterUid !== uid) {
       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
     }
