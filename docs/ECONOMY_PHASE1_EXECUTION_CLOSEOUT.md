@@ -47,12 +47,19 @@
 - الكود والتغييرات موجودة على فرع التطوير فقط.
 - لا يوجد merge إلى `main` ولا نشر إنتاجي ولا تفعيل فوترة.
 
+## Beta Coins terminology pass
+
+- The approved commercial term is **Beta Coins / بيتا كوينز**.
+- User-facing economy, reward, featured-ad reward, manual coin-purchase, store, and privacy SKU labels were standardized where verified on the development branch.
+- Technical identifiers such as `coins`, `amountCoins`, `priceCoins`, `requestedCoins`, and Firestore/API field names remain unchanged intentionally; this is a presentation/brand migration, not a schema migration.
+- The visual coin identity is deliberately not marked complete yet. It remains a separate design/brand-asset selection step.
+
 ## بوابات الإغلاق التالية
 
 1. تشغيل exact-head Functions/Firestore integration + security tests.
 2. تشغيل Flutter analyze/widget tests بعد إضافة `file_saver` والتحقق من توافق SDK.
 3. إثبات Media Saver end-to-end في direct/public/rented-room مع انتهاء الاستحقاق وعدم تغيير retention.
 4. مراجعة جميع paid features مقابل consumers الخادمية وليس مجرد ظهورها في UI.
-5. مراجعة Media Workspace/advertising end-to-end.
+5. مراجعة جميع economy surfaces وMedia Workspace/advertising end-to-end.
 6. مراجعة owner/Super Admin مقابل moderator في كل المسارات الاقتصادية الحساسة.
 7. بعد نجاح الاختبارات، تحديث سجل التتبع وحالة المرحلة؛ لا يُرفع إلى "مكتمل" قبل الدليل.
