@@ -8302,23 +8302,33 @@ export const setFeaturedAdCampaignStatus = onCall(async (request) => {
     if (!snapshot.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
     const current = snapshot.data() ?? {};
     const next = String(status);
-    if (next === "published" &&
-        (current.ownerApproved !== true || current.paymentConfirmed !== true ||
-         current.creativeApproved !== true || current.ownerWithdrawn === true ||
-         !current.mediaId || !["approved", "paused"].includes(String(current.status)))) {
-      throw new HttpsError("failed-precondition", "لا يمكن نشر الحملة قبل اكتمال الاعتماد والدفع والمادة الآمنة.");
+    const previous = String(current.status);
+    const allowedTransitions: Record<string, string[]> = {
+      draft: ["approved", "withdrawn"],
+      approved: ["published", "paused", "withdrawn"],
+      published: ["paused", "withdrawn"],
+      paused: ["approved", "published", "withdrawn"],
+      withdrawn: ["withdrawn"],
+    };
+    if (!allowedTransitions[previous]?.includes(next)) {
+      throw new HttpsError("failed-precondition", "انتقال حالة الحملة غير مسموح؛ السحب نهائي ولا يمكن إحياء الحملة المسحوبة.");
+    }
+    if (request.data?.paymentConfirmed === true && next !== "approved") {
+      throw new HttpsError("invalid-argument", "تأكيد الدفع يجب أن يتم ضمن خطوة اعتماد الحملة.");
     }
     const paymentConfirmed = request.data?.paymentConfirmed === true || current.paymentConfirmed === true;
-    if (next === "approved") {
+    if (next === "approved" || next === "published") {
       if (current.ownerWithdrawn === true || !paymentConfirmed || !current.mediaId) {
-        throw new HttpsError("failed-precondition", "لا يمكن اعتماد الحملة قبل تأكيد الدفع وربط مادة آمنة.");
+        throw new HttpsError("failed-precondition", "لا يمكن اعتماد أو نشر الحملة قبل تأكيد الدفع وربط مادة آمنة.");
       }
       await validateFeaturedAdCreativeForOwner(String(current.mediaId), actorUid);
     }
     transaction.update(ref, {
-      status: next, ownerApproved: next === "approved" || next === "published",
+      status: next,
+      ownerApproved: next === "approved" || next === "published"
+        ? true : next === "paused" ? current.ownerApproved === true : false,
       ownerWithdrawn: next === "withdrawn",
-      creativeApproved: next === "approved" || next === "published" ? true : current.creativeApproved === true,
+      creativeApproved: current.creativeApproved === true || next === "approved" || next === "published",
       paymentConfirmed,
       updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
       approvedAt: next === "approved" || next === "published" ? FieldValue.serverTimestamp() : current.approvedAt ?? null,
