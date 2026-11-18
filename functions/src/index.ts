@@ -10419,7 +10419,9 @@ export const markCallConnected = onCall(async (request) => {
     if (hasCaller && hasAcceptedRecipient) {
       const nowMs = Date.now();
       const connectedAt = Timestamp.fromMillis(nowMs);
-      const maxDurationEndsAtMs = callMaxDurationEnd(nowMs, usagePolicy);
+      const maxDurationEndsAtMs = callMaxDurationEnd(
+        nowMs, usagePolicy, call.scope === "room" ? "room" : "direct", call.mode,
+      );
       const maxDurationEndsAt = maxDurationEndsAtMs === null
         ? null : Timestamp.fromMillis(maxDurationEndsAtMs);
       transaction.update(ref, {
