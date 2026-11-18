@@ -10043,7 +10043,17 @@ async function processGroupCallBillingSettlement(
       const [member, ledger, receipt] = await Promise.all([
         transaction.get(memberRef), transaction.get(ledgerRef), transaction.get(receiptRef),
       ]);
-      if (receipt.exists && receipt.data()?.status === "settled") return "settled";
+      if (receipt.exists && receipt.data()?.status === "settled") {
+        if (!ledger.exists) throw new Error("GROUP_CALL_SETTLEMENT_RECEIPT_WITHOUT_LEDGER");
+        const settledLedger = ledger.data() ?? {};
+        if (settledLedger.callId !== callRef.id ||
+            settledLedger.amount !== -share.amount ||
+            settledLedger.policyId !== settlement.policyId ||
+            settledLedger.policyVersion !== settlement.policyVersion) {
+          throw new Error("GROUP_CALL_LEDGER_IDEMPOTENCY_CONFLICT");
+        }
+        return "settled";
+      }
       if (ledger.exists) {
         const priorLedger = ledger.data() ?? {};
         if (priorLedger.callId !== callRef.id ||
