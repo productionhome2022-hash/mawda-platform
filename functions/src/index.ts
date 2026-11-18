@@ -6498,6 +6498,8 @@ export const lookupStoreGiftRecipient = onCall(async (request) => {
   ]);
   if (!member.exists || !isEligibleStoreGiftMemberRecord(member.data()) ||
       !isMemberAccountInGoodStanding(member.data()) ||
+      (member.data()?.uid !== targetUid && member.data()?.memberId !== targetUid) ||
+      member.data()?.username !== username ||
       guestProfile.exists || guestSession.exists) {
     throw new HttpsError("not-found", "لم يتم العثور على عضو مؤهل بهذا الاسم.");
   }
