@@ -391,19 +391,19 @@ The separate homepage entry **Watch Ads / مشاهدة الإعلانات** open
 - Present campaign cards in a responsive grid, supporting four or eight cards per visible grid/page according to available space and device size. Never fabricate filler ads; provide honest loading, empty, error and no-eligible-campaign states.
 - A single campaign impression/view must not be double-counted if the same campaign is reachable from multiple geographic views or placements.
 
-### 17.2 Selected-ad viewing surface — 75% player / 25% persistent app area
+### 17.2 Selected-ad viewing surface — 60% player / 40% persistent app area
 
-When a member explicitly selects an ad card, open a focused viewing surface sized to approximately **75% of the usable application viewport** on mobile and desktop. Preserve approximately **25% of the usable application viewport** as an available lower/context area for the member's other Mawdda activity, such as a conversation, public room or other permitted application content.
+When a member explicitly selects an ad card, open a focused viewing surface sized to approximately **60% of the usable application viewport** on mobile and desktop. Preserve approximately **40% of the usable application viewport** as an available lower/context area for the member's other Mawdda activity, such as a conversation, public room or other permitted application content.
 
 This ratio refers to the usable Mawdda application viewport, not the physical display including operating-system status/navigation bars, browser chrome, safe areas or the on-screen keyboard. Respect safe areas, orientation, accessibility scaling and responsive constraints. Do not cover OS controls or trap the member in an unescapable player.
 
-- The selected ad player occupies the upper approximately 75% viewing region.
-- The lower approximately 25% remains available for the member's permitted in-app context/activity. It must not be consumed by a full-screen ad overlay.
-- On narrow mobile screens, implement an adaptive vertical split; on desktop/tablet, use a responsive player/context layout while preserving the approximate 75/25 allocation of the usable app viewport.
+- The selected ad player occupies the upper approximately 60% viewing region.
+- The lower approximately 40% remains available for the member's permitted in-app context/activity. It must not be consumed by a full-screen ad overlay.
+- On narrow mobile screens, implement an adaptive vertical split; on desktop/tablet, use a responsive player/context layout while preserving the approximate 60/40 allocation of the usable app viewport.
 - The player must maintain stable playback and view-session state when the member interacts with the permitted lower context area. Do not count time when the ad is not genuinely visible/eligible under the reward policy.
 - Provide clear close/back, pause/resume where supported, accessibility controls, playback/error state, and safe handling of app backgrounding, route changes and connection loss.
 - The player must not silently navigate the member away from an existing conversation/room or destroy its state. The lower context remains usable without turning the ad player into a floating overlay that obscures messages or controls.
-- If the device cannot satisfy the 75/25 split (for example, keyboard or accessibility layout constraints), degrade responsively and safely; never shrink controls below usable accessibility sizes or falsely claim the exact ratio.
+- If the device cannot satisfy the 60/40 split (for example, keyboard or accessibility layout constraints), degrade responsively and safely; never shrink controls below usable accessibility sizes or falsely claim the exact ratio.
 
 ### 17.3 Reward eligibility — discovery previews never rewardable
 
@@ -437,7 +437,7 @@ These experimental values do not authorize paid advertising delivery, real-money
 - All ten geographic sections use the existing Owner-controlled mapping and inclusion rules.
 - Campaign appears in every applicable region without duplicate impression/reward accounting.
 - Responsive grid renders four/eight cards as layout permits, with no fabricated ads.
-- Selecting a card opens the focused 75/25 player/context surface on supported mobile, tablet and desktop layouts.
+- Selecting a card opens the focused 60/40 player/context surface on supported mobile, tablet and desktop layouts.
 - The lower context remains interactive and existing room/chat state is preserved.
 - Backgrounding, hiding the player, pausing, seeking, reconnecting, replaying and changing routes are handled without false completion.
 - Video under 90%, image under 10 eligible continuous seconds, invalid session or non-visible playback earns zero.
@@ -513,7 +513,7 @@ The two entry points serve different intents:
 
 Featured-ad reward credits must have a distinct ledger transaction type/source marker (for example, `featured_ad_reward`) while using the canonical wallet and the already-approved experimental baseline: 2 coins per qualified view, no more than 10 eligible views / 20 coins per member per UTC day, and no more than one reward for the same member/campaign in a rolling 24-hour window. These values remain Owner-editable server configuration; this route does not create an additional bonus on top of the existing ad-view reward.
 
-The 75% player / 25% persistent Mawdda activity split applies to the selected full-ad player, not to the discovery screen or the home button. The discovery screen must remain responsive and provide honest empty/error/loading states. The lower context area must preserve any existing chat/room state and remain accessible. Commercial featured placement and member reward funding/accounting are separate: an advertiser's commercial payment does not itself mint member coins, and the reward budget must be explicitly reserved by the platform's approved campaign/reward configuration.
+The 60% player / 40% persistent Mawdda activity split applies to the selected full-ad player, not to the discovery screen or the home button. The discovery screen must remain responsive and provide honest empty/error/loading states. The lower context area must preserve any existing chat/room state and remain accessible. Commercial featured placement and member reward funding/accounting are separate: an advertiser's commercial payment does not itself mint member coins, and the reward budget must be explicitly reserved by the platform's approved campaign/reward configuration.
 
 Acceptance:
 - The homepage button routes directly to the featured-ad discovery route.
