@@ -103,3 +103,25 @@ test("owner can configure rotation interval and invalid inputs fail closed", () 
     random: () => 1,
   }), /RANDOM_SOURCE_INVALID/);
 });
+
+test("all-Arab campaigns appear in regional feeds without widening regional campaigns", () => {
+  const regional = selectFeaturedAdShowcase({
+    campaigns: [
+      { ...base, campaignId: "all_arab", geographicTargets: ["all_arab_countries"] },
+      { ...base, campaignId: "syria_only", geographicTargets: ["syria"] },
+      { ...base, campaignId: "egypt_only", geographicTargets: ["egypt"] },
+    ],
+    audienceGeography: "syria",
+    nowMs: 500,
+  });
+  assert.deepEqual(new Set(regional.campaignIds), new Set(["all_arab", "syria_only"]));
+  const allArab = selectFeaturedAdShowcase({
+    campaigns: [
+      { ...base, campaignId: "all_arab", geographicTargets: ["all_arab_countries"] },
+      { ...base, campaignId: "syria_only", geographicTargets: ["syria"] },
+    ],
+    audienceGeography: "all_arab_countries",
+    nowMs: 500,
+  });
+  assert.deepEqual(allArab.campaignIds, ["all_arab"]);
+});
