@@ -60,7 +60,7 @@ export function calculateGroupCallCoinShares(
       participantUids.length < 2 ||
       participantUids.some((uid) => typeof uid !== "string" || uid.trim().length < 1 || uid.length > 128) ||
       new Set(participantUids).size !== participantUids.length ||
-      !participantUids.includes(initiatorUid) || participantUids.length > totalAmount) {
+      !participantUids.includes(initiatorUid)) {
     throw new Error("INVALID_GROUP_CALL_SETTLEMENT_INPUT");
   }
   const orderedUids = [...participantUids].sort((a, b) => a.localeCompare(b));
@@ -92,4 +92,51 @@ export function calculateGroupCallBillingSlice(
     totalAmount,
     shares: calculateGroupCallCoinShares(totalAmount, activeParticipantUids, initiatorUid),
   };
+}
+
+
+/** Maximum per-member hold: a group always has at least two billable members. */
+export function calculateGroupCallMaximumReservation(
+  policyInput: unknown,
+  mode: GroupCallMode,
+  maxDurationMs: number,
+): { policyId: string; policyVersion: number; maxBillableMinutes: number; maxTotalAmount: number; perParticipantReserve: number } {
+  if (!Number.isSafeInteger(maxDurationMs) || maxDurationMs < 1 || maxDurationMs > 24 * 60 * 60 * 1000) {
+    throw new Error("INVALID_GROUP_CALL_MAX_DURATION");
+  }
+  const policy = validateGroupCallPricingPolicy(policyInput);
+  const maxBillableMinutes = Math.ceil(maxDurationMs / 60000);
+  const maxTotalAmount = getGroupCallRate(policy, mode) * maxBillableMinutes;
+  if (!Number.isSafeInteger(maxTotalAmount) || maxTotalAmount < 1) {
+    throw new Error("GROUP_CALL_AMOUNT_OUT_OF_RANGE");
+  }
+  return {
+    policyId: policy.policyId,
+    policyVersion: policy.version,
+    maxBillableMinutes,
+    maxTotalAmount,
+    perParticipantReserve: Math.ceil(maxTotalAmount / 2),
+  };
+}
+
+/** Final billing ignores each member's join time: every media-connected member shares the same total. */
+export function calculateGroupCallFinalSettlement(
+  policyInput: unknown,
+  mode: GroupCallMode,
+  mediaConnectedParticipantUids: readonly string[],
+  initiatorUid: string,
+  elapsedMs: number,
+  maxDurationMs: number,
+): { policyId: string; policyVersion: number; billableMinutes: number; totalAmount: number; shares: GroupCallCoinShare[] } {
+  if (!Number.isSafeInteger(elapsedMs) || elapsedMs < 0 ||
+      !Number.isSafeInteger(maxDurationMs) || maxDurationMs < 1 ||
+      elapsedMs > maxDurationMs + 60000) {
+    throw new Error("INVALID_GROUP_CALL_ELAPSED_DURATION");
+  }
+  const maxBillableMinutes = Math.ceil(maxDurationMs / 60000);
+  const billableMinutes = Math.max(1, Math.min(maxBillableMinutes, Math.ceil(elapsedMs / 60000)));
+  const slice = calculateGroupCallBillingSlice(
+    policyInput, mode, mediaConnectedParticipantUids, initiatorUid, billableMinutes,
+  );
+  return { ...slice, billableMinutes };
 }
