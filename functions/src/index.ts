@@ -93,7 +93,7 @@ import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
 import { AD_INTAKE_GEOGRAPHIES, validateAdvertisingIntake, advertisingIntakeAuditEventId, advertisingIntakeReviewAuditEventId, AdvertisingIntakeValidationError } from "./advertising-intake";
 import { selectFeaturedAdShowcase, type FeaturedAdCampaignCandidate } from "./featured-advertising";
-import { defaultFeaturedAdRewardPolicy, validateFeaturedAdRewardPolicy, decideFeaturedAdReward, type FeaturedAdRewardPolicy } from "./featured-ad-rewards";
+import { defaultFeaturedAdRewardPolicy, validateFeaturedAdRewardPolicy, decideFeaturedAdReward, featuredAdCampaignRewardPolicy, featuredAdRewardBudgetAvailable, type FeaturedAdRewardPolicy } from "./featured-ad-rewards";
 import { getMawddaMediaBucket } from "./media";
 import { validateProductionApplication, ProductionApplicationValidationError } from "./production-applications";
 import {
@@ -9125,13 +9125,9 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
     const policy: FeaturedAdRewardPolicy = policySnapshot.exists ? validateFeaturedAdRewardPolicy(policySnapshot.data()?.policy) : defaultFeaturedAdRewardPolicy();
     const daily = daySnapshot.data() ?? {};
     const member = campaignMemberSnapshot.data() ?? {};
-    const campaignRewardCoins = campaign.rewardCoinsPerView;
-    const campaignRewardConfigured = Number.isSafeInteger(campaignRewardCoins) &&
-      campaignRewardCoins > 0 && campaignRewardCoins <= policy.rewardCoinsPerView;
-    const effectivePolicy: FeaturedAdRewardPolicy = {
-      ...policy,
-      rewardCoinsPerView: campaignRewardConfigured ? campaignRewardCoins : 0,
-    };
+    const effectivePolicy = featuredAdCampaignRewardPolicy(policy, campaign.rewardCoinsPerView);
+    const campaignRewardCoins = effectivePolicy.rewardCoinsPerView;
+    const campaignRewardConfigured = campaignRewardCoins > 0;
     const rewardTimestamps = Array.isArray(member.rewardTimestampsMs)
       ? member.rewardTimestampsMs.filter((value: unknown) => Number.isSafeInteger(value) && (value as number) >= now - policy.sameCampaignWindowMs)
       : [];
@@ -9144,9 +9140,11 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
         (campaign.geographicTargets.includes(session.geography) ||
           campaign.geographicTargets.includes("all_arab_countries")),
       rewardBudgetAvailable: campaignRewardConfigured &&
-        Number.isSafeInteger(campaign.rewardBudgetCoins) &&
-        Number.isSafeInteger(campaign.spentRewardCoins ?? 0) &&
-        campaign.rewardBudgetCoins - (campaign.spentRewardCoins ?? 0) >= campaignRewardCoins,
+        featuredAdRewardBudgetAvailable(
+          campaign.rewardBudgetCoins,
+          campaign.spentRewardCoins ?? 0,
+          campaignRewardCoins,
+        ),
       foregroundAndVisibilityValidated: session.foregroundVisible === true &&
         Number(session.continuousVisibleMs) >= (session.creativeType === "image" ? policy.imageContinuousVisibleMs : 0),
       creativeType: session.creativeType === "video" ? "video" : "image",
