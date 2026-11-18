@@ -276,6 +276,7 @@ test("video group call rejects a fifth total participant", async () => {
   const rentalId = uid("video_capacity_rental");
   const roomRef = db.collection("rooms").doc(roomId);
   const rentalRef = db.collection("roomRentals").doc(rentalId);
+  const callRef = db.collection("callSessions").doc(callId);
   const memberUids = [callerUid, ...Array.from({ length: 4 }, (_, i) => uid(`video_capacity_peer_${i}`))];
   const memberRefs = memberUids.map((memberUid) => db.collection("users").doc(memberUid));
   const expiresAt = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
