@@ -1,7 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { getFirestore } = require("firebase-admin/firestore");
 const { getOwnerFeaturedAdRewardPolicy, setOwnerFeaturedAdRewardPolicy } = require("../../lib/index");
 
+const db = getFirestore();
 const ownerRequest = (uid, data = {}) => ({
   data,
   auth: {
@@ -18,6 +20,10 @@ const ownerRequest = (uid, data = {}) => ({
 test("featured-ad reward policy is owner-only, versioned, audited and rejects stale or invalid updates", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const uid = `featured_reward_owner_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const policyRef = db.doc("platformSettings/featuredAdRewardPolicy");
+  const priorPolicy = await policyRef.get();
+  const priorPolicyData = priorPolicy.exists ? priorPolicy.data() : null;
+  try {
   const initial = await getOwnerFeaturedAdRewardPolicy.run(ownerRequest(uid));
   const policy = {
     enabled: true,
@@ -52,4 +58,13 @@ test("featured-ad reward policy is owner-only, versioned, audited and rejects st
     (error) => error && error.code === "invalid-argument",
     "daily cap below the per-view reward must be rejected",
   );
+  } finally {
+    const audit = await db.collection("adminAuditLogs")
+      .where("actorUid", "==", uid)
+      .where("action", "==", "featured_ad_reward_policy_updated").get();
+    await Promise.all([
+      ...audit.docs.map((doc) => doc.ref.delete().catch(() => undefined)),
+      priorPolicy.exists ? policyRef.set(priorPolicyData) : policyRef.delete(),
+    ]);
+  }
 });
