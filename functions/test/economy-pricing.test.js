@@ -18,14 +18,16 @@ test("empty price catalogs remain valid until the owner explicitly configures of
   assert.deepEqual(validateAdPrices([]), []);
 });
 
-test("owner-authored coin packages and ad prices validate with EUR minor units", () => {
+test("owner-authored coin packages and ad prices validate with selected ISO currency precision", () => {
   assert.equal(validateCoinPackages([coinPackageFixture]).length, 1);
   assert.equal(validateAdPrices([adPriceFixture]).length, 1);
   assert.equal(validateCoinPackages([coinPackageFixture])[0].currency, "EUR");
+  assert.equal(validateCoinPackages([coinPackageFixture])[0].currencyExponent, 2);
   assert.equal(validateAdPrices([adPriceFixture])[0].priceMinor, 200);
+  assert.equal(validateAdPrices([adPriceFixture])[0].currencyExponent, 2);
 });
 
-test("coin package validation rejects duplicate IDs, fractional values and unsupported currency", () => {
+test("coin package validation rejects duplicate IDs, fractional values and malformed currency", () => {
   assert.throws(() => validateCoinPackages([
     coinPackageFixture, { ...coinPackageFixture },
   ]), /INVALID_COIN_PACKAGE_ID/);
@@ -33,7 +35,7 @@ test("coin package validation rejects duplicate IDs, fractional values and unsup
     { ...coinPackageFixture, coins: 2.5 },
   ]), /INVALID_COIN_PACKAGE_FIELDS/);
   assert.throws(() => validateCoinPackages([
-    { ...coinPackageFixture, currency: "USD" },
+    { ...coinPackageFixture, currency: "XYZ" },
   ]), /INVALID_COIN_PACKAGE_FIELDS/);
 });
 
@@ -101,6 +103,7 @@ test("owner pricing catalogs accept owner-selected ISO 4217 currencies", () => {
     { ...coinPackageFixture, packageId: "coins_kwd", currency: "KWD" },
   ]);
   assert.deepEqual(packages.map((item) => item.currency), ["USD", "CHF", "KWD"]);
+  assert.deepEqual(packages.map((item) => item.currencyExponent), [2, 2, 3]);
   const ads = validateAdPrices([
     { ...adPriceFixture, placementId: "ad_chf", currency: "CHF" },
   ]);
