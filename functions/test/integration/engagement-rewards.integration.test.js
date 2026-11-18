@@ -659,6 +659,14 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
       () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "approved", paymentConfirmed: true })),
       (error) => error && error.code === "failed-precondition",
     );
+    await assert.rejects(
+      () => reviewFeaturedAdCreative.run(memberRequest({ campaignId, approved: true })),
+      (error) => error && error.code === "permission-denied",
+    );
+    const rejectedReview = await reviewFeaturedAdCreative.run(ownerRequest({
+      campaignId, approved: false, reviewNote: "يلزم تحسين وضوح المادة قبل النشر.",
+    }));
+    assert.equal(rejectedReview.approved, false);
     const creativeReview = await reviewFeaturedAdCreative.run(ownerRequest({
       campaignId, approved: true, reviewNote: "تم التحقق من المادة والمشتق الآمن.",
     }));
