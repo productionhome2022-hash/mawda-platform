@@ -166,6 +166,23 @@ test("only shipped premium profile consumers can be explicitly enabled for purch
 });
 
 
+test("Hide Coins is purchasable only through its explicit server fulfillment contract", () => {
+  const { validateStoreCatalogItemInput, isStoreItemPurchasable } = require("../lib/store-catalog");
+  const item = validateStoreCatalogItemInput({
+    itemId: "hide_coins_30d",
+    name: "إخفاء رصيد Beta Coins",
+    description: "إخفاء الرصيد في الملف عن الأعضاء الآخرين.",
+    category: "privacy",
+    priceCoins: 1000,
+    durationDays: 30,
+    sortOrder: 130,
+    active: true,
+    purchaseEnabled: true,
+  });
+  assert.equal(item.fulfillmentReady, true);
+  assert.equal(isStoreItemPurchasable(item), true);
+});
+
 test("voice and video call plans are valid catalog products but cannot be purchased before call fulfillment ships", () => {
   const { validateStoreCatalogItemInput, isStoreItemPurchasable } = require("../lib/store-catalog");
   const plans = [
