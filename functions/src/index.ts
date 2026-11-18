@@ -7723,7 +7723,9 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
   const guestSessionRef = giftRecipientUid ? db.collection("guestSessions").doc(giftRecipientUid) : null;
   const settingsRef = db.doc("platformSettings/economyPricing");
   const requestRef = db.collection("coinPurchaseRequests").doc(`${uid}_${input.requestId}`);
-  if (giftRecipientUid) {
+  // Existing request retries must not depend on the recipient's current Auth state.
+  const existingPreflight = await requestRef.get();
+  if (!existingPreflight.exists && giftRecipientUid) {
     let recipientAuth: UserRecord;
     try { recipientAuth = await getAuth().getUser(giftRecipientUid); }
     catch { throw new HttpsError("permission-denied", "تعذر التحقق من حساب مستلم الباقة."); }
@@ -7745,6 +7747,20 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
         !isMemberAccountInGoodStanding(user.data())) {
       throw new HttpsError("permission-denied", "يجب أن يكون حساب العضو مكتملاً ونشطاً.");
     }
+    if (existing.exists) {
+      const prior = existing.data() ?? {};
+      const sameRequest = prior.requesterUid === uid &&
+        prior.kind === input.kind &&
+        prior.packageId === (input.packageId ?? null) &&
+        (input.kind === "custom" ? prior.requestedCoins === input.requestedCoins : true) &&
+        (prior.giftRecipientUid ?? null) === (giftRecipientUid ?? null);
+      if (!sameRequest) {
+        throw new HttpsError("already-exists", "معرف الطلب مستخدم لطلب مختلف.");
+      }
+      // The request already owns its immutable package and payment-policy snapshot.
+      // A current catalogue/policy change must not invalidate an exact retry.
+      return { requestId: input.requestId, status: prior.status, idempotentReplay: true };
+    }
     if (giftRecipientUid) {
       const recipientData = recipient?.data();
       if (!recipient?.exists || !isMemberAccountInGoodStanding(recipientData) ||
@@ -7752,7 +7768,6 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
           guestProfile?.exists || guestSession?.exists) {
         throw new HttpsError("permission-denied", "المستلم ليس عضواً مؤهلاً لاستلام باقة الBetaCoins.");
       }
-
     }
     const economy = settings.data() ?? {};
     if (!settings.exists || economy.manualCoinPurchasesEnabled !== true ||
@@ -7771,16 +7786,6 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       requestedCoins = selected.coins;
     } else {
       requestedCoins = input.requestedCoins ?? null;
-    }
-    if (existing.exists) {
-      const prior = existing.data() ?? {};
-      if (prior.requesterUid !== uid || prior.kind !== input.kind ||
-          prior.packageId !== (input.packageId ?? null) ||
-          prior.requestedCoins !== requestedCoins ||
-          (prior.giftRecipientUid ?? null) !== (giftRecipientUid ?? null)) {
-        throw new HttpsError("already-exists", "معرف الطلب مستخدم لطلب مختلف.");
-      }
-      return { requestId: input.requestId, status: prior.status, idempotentReplay: true };
     }
     transaction.create(requestRef, {
       requestId: input.requestId, requesterUid: uid, kind: input.kind,
