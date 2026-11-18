@@ -10024,6 +10024,18 @@ export const setGroupCallPricingPolicy = onCall(async (request) => {
   return result;
 });
 
+/** Owner-only read of the current group-call price policy; no defaults are invented. */
+export const getOwnerGroupCallPricingPolicy = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await GROUP_CALL_PRICING_SETTINGS.get();
+  if (!snapshot.exists) return { configured: false, policy: null, version: 0 };
+  const data = snapshot.data() ?? {};
+  let policy;
+  try { policy = validateGroupCallPricingPolicy(data); }
+  catch { throw new HttpsError("failed-precondition", "سياسة تسعير المكالمات الجماعية غير صالحة."); }
+  return { configured: true, policy, version: policy.version };
+});
+
 export const getOwnerCallUsagePolicy = onCall(async (request) => {
   requireOwner(request);
   const snapshot = await CALL_USAGE_POLICY.get();
