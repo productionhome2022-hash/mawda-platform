@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase-admin/app";
 import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
 import { validateGroupCallPricingPolicy } from "./group-call-economy";
+import { isActiveRentedPrivateRoom } from "./room-call-policy";
 import { getAuth } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
 import { getStorage } from "firebase-admin/storage";
@@ -9532,6 +9533,7 @@ export const startCall = onCall(async (request) => {
   const callRef = CALL_SESSIONS.doc(input.callId);
   let participantUids: string[] = [];
   let recipientUids: string[] = [];
+  let rentalIdForCall: string | null = null;
 
   if (input.scope === "direct") {
     const chatRef = db.collection("directChats").doc(input.targetId);
@@ -9575,6 +9577,15 @@ export const startCall = onCall(async (request) => {
         !room.exists || room.data()?.status !== "active" || !membership.exists) {
       throw new HttpsError("permission-denied", "يجب أن تكون عضواً في غرفة نشطة لإجراء مكالمة.");
     }
+    const roomData = room.data() ?? {};
+    rentalIdForCall = typeof roomData.rentalId === "string" ? roomData.rentalId : null;
+    if (!rentalIdForCall) {
+      throw new HttpsError("failed-precondition", "مكالمات الغرف تتطلب غرفة خاصة مستأجرة بسجل إيجار فعال.");
+    }
+    const rentalSnapshot = await db.collection("roomRentals").doc(rentalIdForCall).get();
+    if (!isActiveRentedPrivateRoom(roomData, rentalSnapshot.data(), Date.now())) {
+      throw new HttpsError("failed-precondition", "الغرفة أو سجل استئجارها غير فعال؛ تم إيقاف المكالمة.");
+    }
     const members = await roomRef.collection("members").limit(6).get();
     if (members.size < 2 || members.size > 5) {
       throw new HttpsError("failed-precondition", "مكالمات الغرف تدعم حالياً من عضوين إلى خمسة أعضاء كحد أقصى.");
@@ -9600,9 +9611,20 @@ export const startCall = onCall(async (request) => {
   const expiresAt = Timestamp.fromMillis(now + CALL_RING_TIMEOUT_MS);
   const quotaRef = CALL_QUOTA_WINDOWS.doc(callerUid);
   const result = await db.runTransaction(async (transaction) => {
-    const [existing, caller, quotaSnapshot] = await Promise.all([
+    const roomRefForTransaction = input.scope === "room"
+      ? db.collection("rooms").doc(input.targetId) : null;
+    const rentalRefForTransaction = rentalIdForCall
+      ? db.collection("roomRentals").doc(rentalIdForCall) : null;
+    const [existing, caller, quotaSnapshot, roomForCall, rentalForCall] = await Promise.all([
       transaction.get(callRef), transaction.get(callerRef), transaction.get(quotaRef),
+      roomRefForTransaction ? transaction.get(roomRefForTransaction) : Promise.resolve(null),
+      rentalRefForTransaction ? transaction.get(rentalRefForTransaction) : Promise.resolve(null),
     ]);
+    if (input.scope === "room" &&
+        (!roomForCall?.exists || !rentalForCall?.exists ||
+         !isActiveRentedPrivateRoom(roomForCall.data(), rentalForCall.data(), now))) {
+      throw new HttpsError("failed-precondition", "انتهى استئجار الغرفة أو تغيرت حالته قبل بدء المكالمة.");
+    }
     if (existing.exists) {
       const prior = existing.data() ?? {};
       if (prior.callerUid === callerUid && prior.targetId === input.targetId &&
