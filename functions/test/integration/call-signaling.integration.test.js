@@ -220,6 +220,72 @@ test("room call signaling is peer-targeted and one member leaving does not end t
   }
 });
 
+test("room calls require a live private rental and video groups never exceed four members", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const memberUids = Array.from({ length: 5 }, (_, index) => uid(`room_policy_member_${index}`));
+  const [callerUid, ...peerUids] = memberUids;
+  const roomId = uid("room_policy");
+  const rentalId = uid("room_policy_rental");
+  const roomRef = db.collection("rooms").doc(roomId);
+  const rentalRef = db.collection("roomRentals").doc(rentalId);
+  const memberRefs = memberUids.map((memberUid) => db.collection("users").doc(memberUid));
+  const callIds = [uid("public_room_call"), uid("expired_room_call"), uid("oversized_video_call")];
+  const future = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
+  const past = Timestamp.fromMillis(Date.now() - 1000);
+  await Promise.all([
+    ...memberRefs.map((ref) => ref.set({
+      profileCompleted: true, accountStatus: "active", age: 30,
+    })),
+    ...memberUids.map((memberUid) =>
+      roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" })),
+  ]);
+  try {
+    await roomRef.set({
+      roomId, ownerUid: callerUid, kind: "public", isRented: false,
+      status: "active", capacity: 5, expiresAt: future,
+    });
+    await assert.rejects(
+      () => startCall.run(call(callerUid, {
+        callId: callIds[0], scope: "room", targetId: roomId, mode: "audio",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "public rooms cannot host group calls",
+    );
+
+    await roomRef.set({
+      roomId, ownerUid: callerUid, kind: "private", isRented: true,
+      rentalId, status: "active", capacity: 5, expiresAt: past,
+    });
+    await rentalRef.set({
+      rentalId, roomId, ownerUid: callerUid, status: "active", expiresAt: past,
+    });
+    await assert.rejects(
+      () => startCall.run(call(callerUid, {
+        callId: callIds[1], scope: "room", targetId: roomId, mode: "audio",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "expired room and rental records must block group calls",
+    );
+
+    await roomRef.update({ expiresAt: future });
+    await rentalRef.update({ expiresAt: future });
+    await assert.rejects(
+      () => startCall.run(call(callerUid, {
+        callId: callIds[2], scope: "room", targetId: roomId, mode: "video",
+      })),
+      (error) => error && error.code === "resource-exhausted",
+      "five members exceed the four-person video-call limit",
+    );
+    for (const callId of callIds) {
+      assert.equal((await db.collection("callSessions").doc(callId).get()).exists, false);
+    }
+  } finally {
+    await db.recursiveDelete(roomRef).catch(() => undefined);
+    await db.recursiveDelete(rentalRef).catch(() => undefined);
+    await Promise.all(memberRefs.map((ref) => db.recursiveDelete(ref).catch(() => undefined)));
+  }
+});
+
 test("expired ringing calls never expose stored signaling or ICE configuration", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const memberUid = uid("expired_call_member");
