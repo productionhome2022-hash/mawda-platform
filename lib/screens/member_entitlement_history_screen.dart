@@ -115,18 +115,21 @@ class _MemberEntitlementHistoryScreenState
                   ..._giftEntries.map((entry) {
                     final expiresAt = entry['expiresAtMs'];
                     final duration = (entry['durationDays'] as num?)?.toInt();
-                    return Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.redeem_outlined),
-                        title: Text(entry['itemName'] as String? ?? 'هدية من مودة'),
-                        subtitle: Text(
-                          'من العضو: ${entry['senderUid'] ?? 'غير معروف'}\\n'
+                    final isCoinPackage = entry['giftKind'] == 'coin_package';
+                    final detail = isCoinPackage
+                        ? 'هدية بقيمة ${entry['coins'] ?? 0} Beta Coins\\n'
+                          'تاريخ الاستلام: ${_formatTime(entry['createdAtMs'])}'
+                        : 'هدية من عضو في Mawdda\\n'
                           'القيمة: ${entry['priceCoins'] ?? 0} Beta Coins\\n'
                           'المدة: ${duration == null ? 'دائمة' : '$duration يوماً'}\\n'
                           'تاريخ الاستلام: ${_formatTime(entry['createdAtMs'])}\\n'
-                          'الانتهاء: ${expiresAt == null ? 'دائم' : _formatTime(expiresAt)}',
-                        ),
-                        isThreeLine: true,
+                          'الانتهاء: ${expiresAt == null ? 'دائم' : _formatTime(expiresAt)}';
+                    return Card(
+                      child: ListTile(
+                        leading: Icon(isCoinPackage ? Icons.monetization_on_outlined : Icons.redeem_outlined),
+                        title: Text(entry['itemName'] as String? ?? 'هدية من مودة'),
+                        subtitle: Text(detail),
+                        isThreeLine: !isCoinPackage,
                       ),
                     );
                   }),
