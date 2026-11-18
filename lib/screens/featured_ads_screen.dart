@@ -25,6 +25,11 @@ class FeaturedAdsScreen extends StatefulWidget {
 
 class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
   String _selectedRegion = 'all_arab_countries';
+  final PageController _showcaseController = PageController();
+  Timer? _rotationTimer;
+  int _rotationIntervalMs = 1000;
+  int _showcaseIndex = 0;
+  String _showcaseMode = 'empty';
   List<Map<String, dynamic>> _campaigns = const [];
   bool _loading = true;
   bool _starting = false;
@@ -38,8 +43,30 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _rotationTimer?.cancel();
+    _showcaseController.dispose();
+    super.dispose();
+  }
+
+  void _startRotation() {
+    _rotationTimer?.cancel();
+    if (_campaigns.length < 2) return;
+    _rotationTimer = Timer.periodic(Duration(milliseconds: _rotationIntervalMs), (_) {
+      if (!_showcaseController.hasClients || !mounted) return;
+      final next = (_showcaseIndex + 1) % _campaigns.length;
+      _showcaseController.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
   Future<void> _load() async {
     if (!mounted) return;
+    _rotationTimer?.cancel();
     setState(() { _loading = true; _error = null; });
     try {
       final response = await FirebaseFunctions.instance.httpsCallable('getFeaturedAdShowcase').call({
@@ -54,9 +81,14 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
       if (!mounted) return;
       setState(() {
         _campaigns = campaigns;
+        _showcaseMode = data['mode']?.toString() ?? 'empty';
+        _rotationIntervalMs = ((data['rotationIntervalMs'] as num?)?.toInt() ?? 1000)
+            .clamp(250, 60 * 1000);
+        _showcaseIndex = 0;
         _rewardsEnabled = policy['enabled'] == true;
         _rewardCoins = (policy['rewardCoinsPerView'] as num?)?.toInt() ?? 0;
       });
+      _startRotation();
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل الإعلانات المميزة.');
     } catch (_) {
@@ -209,21 +241,55 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
                         ),
                       ),
                     ),
-                  ..._campaigns.map((campaign) => Card(
-                    child: ListTile(
-                      leading: const CircleAvatar(child: Icon(Icons.campaign_outlined)),
-                      title: Text(campaign['title']?.toString() ?? 'حملة مميزة'),
-                      subtitle: Text('${campaign['sponsorLabel'] ?? ''}\n${campaign['body'] ?? ''}'),
-                      isThreeLine: true,
-                      trailing: FilledButton(
-                        onPressed: _starting ? null : () => _start(campaign),
-                        child: _starting
-                            ? const SizedBox(width: 18, height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Text('ابدأ المشاهدة'),
+                  if (_campaigns.isNotEmpty) ...[
+                    Text(_showcaseMode == 'priority'
+                        ? 'عرض الحملات ذات الأولوية المعتمدة'
+                        : 'تدوير الحملات المؤهلة'),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 250,
+                      child: PageView.builder(
+                        controller: _showcaseController,
+                        itemCount: _campaigns.length,
+                        onPageChanged: (index) => setState(() => _showcaseIndex = index),
+                        itemBuilder: (context, index) {
+                          final campaign = _campaigns[index];
+                          return Card(
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.campaign_outlined, size: 28),
+                                  const SizedBox(height: 8),
+                                  Text(campaign['title']?.toString() ?? 'حملة مميزة',
+                                      style: theme.textTheme.titleMedium),
+                                  Text(campaign['sponsorLabel']?.toString() ?? ''),
+                                  const SizedBox(height: 6),
+                                  Expanded(child: SingleChildScrollView(
+                                    child: Text(campaign['body']?.toString() ?? ''),
+                                  )),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: FilledButton(
+                                      onPressed: _starting ? null : () => _start(campaign),
+                                      child: _starting
+                                          ? const SizedBox(width: 18, height: 18,
+                                              child: CircularProgressIndicator(strokeWidth: 2))
+                                          : const Text('ابدأ المشاهدة'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                  )),
+                    const SizedBox(height: 6),
+                    Center(child: Text('${_showcaseIndex + 1} / ${_campaigns.length}')),
+                  ],
                 ],
               );
             }),
