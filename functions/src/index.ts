@@ -8450,6 +8450,15 @@ export const setAttendanceRewardPolicy = onCall(async (request) => {
       policy, version: nextVersion, updatedAt: now, updatedBy: actorUid,
       createdAt: previous.data()?.createdAt ?? now,
     });
+    const auditRef = db.collection("adminAuditLogs").doc(`attendance_reward_policy_${nextVersion}`);
+    transaction.create(auditRef, {
+      actorUid,
+      action: "attendance_reward_policy_updated",
+      version: nextVersion,
+      previousPolicy: previous.data()?.policy ?? defaultAttendanceRewardPolicy(),
+      nextPolicy: policy,
+      createdAt: now,
+    });
     return nextVersion;
   });
   await appendOwnerReviewAuditEvent({
