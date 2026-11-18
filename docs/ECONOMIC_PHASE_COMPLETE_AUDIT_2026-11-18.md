@@ -137,3 +137,12 @@ Approved behavior now recorded as ECON-007 in the decision traceability register
 - Owner free grants remain a separate privileged audited flow and do not fulfill member gifting.
 
 Current implementation gap: the existing backend exposes owner-only single/bulk grant functions, not member-to-member gifting. The store UI/backend still need gift purchase flow, recipient search/selection, guest exclusion, recipient history/notification, renewal and expiry integration tests, and cross-platform coverage. Do not mark gifting complete until those are implemented and tested.
+
+
+## Member-to-member gifting backend implementation — 2026-11-18
+
+- Added the giftStoreItem callable on the development branch. Anonymous senders are rejected from the verified Firebase Auth provider claim. Recipient Auth provider data is checked server-side; a recipient must also have a completed, good-standing member profile and no dedicated guest profile/session records. Sender and recipient are checked again in the Firestore transaction.
+- The transaction revalidates the published catalog item, fulfillment allowlist and exact current price; debits the sender's Beta Coins once; creates the immutable wallet-ledger debit and gift receipt; extends/creates the recipient entitlement; and writes recipient gift history plus an in-app notification. The sender's own entitlement is not read or modified.
+- Request IDs are bound to sender, recipient, item and confirmed price. Replaying the same request returns the original result; a distinct request ID remains a distinct gift.
+- Timed entitlements stack from the later of server time and current expiry. An active permanent entitlement is not shortened by a timed gift. Discovery boost expiry is also considered when applying a boost gift.
+- Added pure domain tests for eligibility, replay compatibility, expiry stacking, permanent entitlement preservation and malformed durations. Tests are committed but have NOT been executed. UI integration, emulator transaction tests and platform acceptance remain open.
