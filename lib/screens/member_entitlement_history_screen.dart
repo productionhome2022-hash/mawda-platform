@@ -12,6 +12,7 @@ class MemberEntitlementHistoryScreen extends StatefulWidget {
 class _MemberEntitlementHistoryScreenState
     extends State<MemberEntitlementHistoryScreen> {
   List<Map<String, dynamic>> _entries = [];
+  List<Map<String, dynamic>> _giftEntries = [];
   bool _loading = false;
   String? _error;
 
@@ -27,17 +28,20 @@ class _MemberEntitlementHistoryScreenState
       _error = null;
     });
     try {
-      final response = await FirebaseFunctions.instance
-          .httpsCallable('getMyEntitlementGrantHistory')
-          .call();
-      final data = Map<String, dynamic>.from(response.data as Map);
-      final raw = data['entries'] as List? ?? const [];
+      final responses = await Future.wait([
+        FirebaseFunctions.instance.httpsCallable('getMyEntitlementGrantHistory').call(),
+        FirebaseFunctions.instance.httpsCallable('getMyStoreGiftHistory').call(),
+      ]);
+      final grantData = Map<String, dynamic>.from(responses[0].data as Map);
+      final giftData = Map<String, dynamic>.from(responses[1].data as Map);
+      final grants = grantData['entries'] as List? ?? const [];
+      final gifts = giftData['entries'] as List? ?? const [];
       if (!mounted) return;
       setState(() {
-        _entries = raw
-            .whereType<Map>()
-            .map((entry) => Map<String, dynamic>.from(entry))
-            .toList();
+        _entries = grants.whereType<Map>()
+            .map((entry) => Map<String, dynamic>.from(entry)).toList();
+        _giftEntries = gifts.whereType<Map>()
+            .map((entry) => Map<String, dynamic>.from(entry)).toList();
       });
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل سجل الاستحقاقات.');
@@ -75,7 +79,7 @@ class _MemberEntitlementHistoryScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('سجل الاستحقاقات المجانية'),
+        title: const Text('سجل الهدايا والمنح'),
         actions: [
           IconButton(
             onPressed: _loading ? null : _load,
@@ -93,15 +97,49 @@ class _MemberEntitlementHistoryScreenState
                 padding: const EdgeInsets.all(16),
                 children: [
                   const Text(
-                    'يعرض هذا السجل المنح الإدارية المجانية التي وصلت إلى حسابك. '
-                    'لا تخصم هذه المنح أي كوينز.',
+                    'يعرض هذا السجل الهدايا التي اشتراها الأعضاء لك والمنح الإدارية المجانية. '
+                    'الهدايا مدفوعة من المرسل، أما المنح الإدارية فلا تخصم BetaCoins من حسابك.',
                   ),
                   const SizedBox(height: 12),
                   if (_error != null)
                     Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  const Padding(
+                    padding: EdgeInsets.only(top: 12, bottom: 6),
+                    child: Text('الهدايا التي وصلتك', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                  ),
+                  if (!_loading && _giftEntries.isEmpty && _error == null)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Center(child: Text('لا توجد هدايا مستلمة حتى الآن.')),
+                    ),
+                  ..._giftEntries.map((entry) {
+                    final expiresAt = entry['expiresAtMs'];
+                    final duration = (entry['durationDays'] as num?)?.toInt();
+                    final isCoinPackage = entry['giftKind'] == 'coin_package';
+                    final detail = isCoinPackage
+                        ? 'هدية بقيمة ${entry['coins'] ?? 0} BetaCoins\\n'
+                          'تاريخ الاستلام: ${_formatTime(entry['createdAtMs'])}'
+                        : 'هدية من عضو في Mawdda\\n'
+                          'القيمة: ${entry['priceCoins'] ?? 0} BetaCoins\\n'
+                          'المدة: ${duration == null ? 'دائمة' : '$duration يوماً'}\\n'
+                          'تاريخ الاستلام: ${_formatTime(entry['createdAtMs'])}\\n'
+                          'الانتهاء: ${expiresAt == null ? 'دائم' : _formatTime(expiresAt)}';
+                    return Card(
+                      child: ListTile(
+                        leading: Icon(isCoinPackage ? Icons.monetization_on_outlined : Icons.redeem_outlined),
+                        title: Text(entry['itemName'] as String? ?? 'هدية من مودة'),
+                        subtitle: Text(detail),
+                        isThreeLine: !isCoinPackage,
+                      ),
+                    );
+                  }),
+                  const Padding(
+                    padding: EdgeInsets.only(top: 18, bottom: 6),
+                    child: Text('المنح الإدارية المجانية', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                  ),
                   if (!_loading && _entries.isEmpty && _error == null)
                     const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 36),
+                      padding: EdgeInsets.symmetric(vertical: 12),
                       child: Center(child: Text('لا توجد منح مسجلة حتى الآن.')),
                     ),
                   ..._entries.map((entry) {

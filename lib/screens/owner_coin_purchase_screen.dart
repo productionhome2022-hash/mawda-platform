@@ -25,13 +25,14 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
       if (mounted) setState(() => _requests = (data['requests'] as List<dynamic>? ?? const [])
           .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList());
     } on FirebaseFunctionsException catch (e) {
-      if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل طلبات الكوينز.');
+      if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل طلبات BetaCoins.');
     } finally { if (mounted) setState(() => _loading = false); }
   }
 
   Future<void> _instructions(Map<String, dynamic> item) async {
     final uid = item['requesterUid'] as String? ?? '';
     final id = item['requestId'] as String? ?? '';
+    final isPackageGift = item['giftRecipientUid'] is String;
     final requested = (item['requestedCoins'] as num?)?.toInt() ??
         ((item['packageSnapshot'] is Map) ? ((item['packageSnapshot']['coins'] as num?)?.toInt() ?? 0) : 0);
     final coins = TextEditingController(text: requested > 0 ? requested.toString() : '');
@@ -42,9 +43,9 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
       title: const Text('تعليمات الدفع والاتفاق'),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
         Text('العضو: ' + uid),
-        TextField(controller: coins, keyboardType: TextInputType.number,
+        TextField(controller: coins, readOnly: isPackageGift, keyboardType: TextInputType.number,
           decoration: const InputDecoration(labelText: 'الكمية المتفق عليها')),
-        TextField(controller: price, keyboardType: TextInputType.number,
+        TextField(controller: price, readOnly: isPackageGift, keyboardType: TextInputType.number,
           decoration: const InputDecoration(labelText: 'السعر بالسنت EUR')),
         TextField(controller: instructions, minLines: 2, maxLines: 5,
           decoration: const InputDecoration(labelText: 'تعليمات الدفع اليدوي')),
@@ -92,7 +93,7 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
           FilledButton(onPressed: confirmed && reference.text.trim().length >= 3 &&
               note.text.trim().length >= 5 ? () => Navigator.pop(ctx, true) : null,
-            child: const Text('اعتماد وإضافة الكوينز')),
+            child: const Text('اعتماد وإضافة BetaCoins')),
         ],
       ),
     ));
@@ -136,13 +137,13 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('طلبات شراء الكوينز اليدوية'),
+    appBar: AppBar(title: const Text('طلبات شراء BetaCoins اليدوية'),
       actions: [IconButton(onPressed: _loading || _busy ? null : _load,
         icon: const Icon(Icons.refresh))]),
     body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
       padding: const EdgeInsets.all(16), children: [
         const Card(child: Padding(padding: EdgeInsets.all(12), child: Text(
-          'المسار يدوي فقط. لا تستخدم الاعتماد إلا بعد فحص وصول الدفعة خارج مودة. كل اعتماد يضيف الكوينز وسجل المحفظة وسجل التدقيق في معاملة خادمية واحدة.',
+          'المسار يدوي فقط. لا تستخدم الاعتماد إلا بعد فحص وصول الدفعة خارج مودة. كل اعتماد يضيف BetaCoins وسجل المحفظة وسجل التدقيق في معاملة خادمية واحدة.',
         ))),
         if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         if (_requests.isEmpty) const Text('لا توجد طلبات شراء حالياً.'),
@@ -153,7 +154,9 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
               ((item['packageSnapshot'] is Map) ? item['packageSnapshot']['coins'] : null) ?? 'غير محدد';
           return Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(
             crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('العضو: ' + (item['requesterUid'] as String? ?? '')),
+              Text('المشتري: ' + (item['requesterUid'] as String? ?? '')),
+              if (item['giftRecipientUid'] is String)
+                Text('نوع الطلب: باقة BetaCoins هدية للمستلم ' + (item['giftRecipientUid'] as String)),
               Text('الطلب: ' + id),
               Text('الكمية: ' + amount.toString() + ' كوين'),
               Text('الحالة: ' + status),

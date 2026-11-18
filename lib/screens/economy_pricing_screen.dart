@@ -83,16 +83,16 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
             Text('إعدادات قابلة للتعديل • الإصدار $_version',
               style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            const Text('الأسعار النقدية باليورو (السنت). هذه جداول تسعير فقط؛ الدفع النقدي وإصدار الكوينز مقابل الدفع معطلان حتى ربط مزود دفع مرخص واختباره.'),
+            const Text('الأسعار النقدية باليورو (السنت). هذه جداول تسعير فقط؛ الدفع النقدي وإصدار BetaCoins مقابل الدفع معطلان حتى ربط مزود دفع مرخص واختباره.'),
           ]))),
         if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         Card(child: SwitchListTile(
-          title: const Text('تفعيل طلبات شراء الكوينز اليدوية'),
+          title: const Text('تفعيل طلبات شراء BetaCoins اليدوية'),
           subtitle: const Text('عند الإيقاف لن يتمكن الأعضاء من إنشاء طلبات جديدة. لا يوجد دفع إلكتروني آلي؛ يبقى معطلاً دائماً.'),
           value: _manualPurchasesEnabled,
           onChanged: _saving ? null : (value) => setState(() => _manualPurchasesEnabled = value),
         )),
-        Text('باقات الكوينز', style: Theme.of(context).textTheme.titleLarge),
+        Text('باقات BetaCoins', style: Theme.of(context).textTheme.titleLarge),
         ..._packages.asMap().entries.map((entry) {
           final i = entry.key, item = entry.value;
           return Card(child: Padding(padding: const EdgeInsets.all(12), child: Row(

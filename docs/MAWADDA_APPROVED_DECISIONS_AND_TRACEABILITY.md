@@ -21,6 +21,14 @@
 6. [قائمة قبول الإطلاق](RELEASE_READINESS_CHECKLIST.md) — بوابات القبول.
 7. [حدود المختبر والمستودع الأساسي](DEVELOPMENT_AND_SIMULATION_BOUNDARY.md) — فصل اختبار 5000 شخصية.
 
+## Owner amendment — comprehensive economic phase (2026-11-18)
+
+- **ECON-004 — BetaCoins naming:** The product-facing currency name is BetaCoins / BetaCoins across Mawdda. Technical `coins` identifiers remain stable unless a separate migration is approved.
+- **ECON-005 — Coin privacy authority:** Owner and Super Admin are the same sole sovereign identity. The profile owner and sole Owner/Super Admin may see a balance; ordinary members, friends, non-friends and General Moderators must not receive the balance value. Hide Coins may render a lock instead.
+- **ECON-005 implementation constraint:** Because the baseline already hides the balance from every non-owner viewer, the current `hide_coins_30d` SKU has no distinct user-visible effect and is not fulfillment-ready or purchasable. Keep it fail-closed until an owner-approved behavior with independent value is defined; do not weaken baseline privacy to make the SKU saleable.
+- **AD-002 — Featured player layout:** The responsive player/context split is 60% player and 40% contextual information. This supersedes older 75/25 wording.
+- **ECON-006 — Development commercial values:** The owner authorizes engineering to choose centrally configurable test/development prices, durations, quotas and billing units needed to exercise lifecycle paths. These values are not launch prices and must remain isolated from production configuration.
+
 ## سجل القرارات والميزات
 
 | المعرّف | المجال / القرار المعتمد | الحالة الحالية بحسب الأدلة المتاحة | بوابة الإغلاق |
@@ -35,7 +43,7 @@
 | ROOM-001 | غرف عامة/خاصة، إيجارات، مشرفون، فعاليات وRSVP | أساس الغرف والإيجارات والفعاليات موجود. أضيفت سعة مقاعد مستقلة للحدث مع تحقق ذري من الامتلاء، RSVP idempotency، وإلغاء التسجيل قبل بدء الحدث مع تحرير المقعد؛ اختبارات emulator تغطي الامتلاء والإلغاء وإعادة المحاولة. التحقق الدقيق على HEAD قيد التشغيل؛ القبول التشغيلي/الأجهزة مفتوح | lifecycle + notifications + devices + reconciliation + concurrency/seat-capacity tests |
 | CALL-001 | صوت ومرئي منفصلان؛ باقات 24h/7d/30d؛ 5 صوت و3 مرئي لكل 24h متحركة؛ 5 دقائق لكل مكالمة | **منفذ جزئياً:** signaling/session lifecycle موجود للمحادثات المباشرة والغرف، مع قفل المشاركين، حصة محاولات 5/3، وتسقيف خادمي 300 ثانية بعد إبلاغ الطرفين بالاتصال؛ لكن لا يوجد تحقق من استحقاق صوت/فيديو لدى الطرفين عند الإنشاء/الانضمام، ولا consent/preferences كامل، ولا TURN provisioned. | ربط باقات الصوت/الفيديو بالمحرك المركزي، تحقق الطرفين خادمياً في الإنشاء والانضمام، استهلاك quota صحيح، consent/preferences، TURN/STUN، اختبارات التكامل والأجهزة؛ لا تعتبر signaling وحده مكالمات مدفوعة مكتملة |
 | CALL-002 | المكالمة المفتوحة استمرار للباقة نفسها بعد استنفاد المتصل حصته؛ 120 صوت/400 فيديو إجمالي بالدقيقة؛ إذا استنفد الطرفان يدفع كل منهما 60/200؛ وإذا استنفد المتصل وحده يدفع 120/400 وحده | **غير منفذ:** لا يوجد metering للوقت المتصل، ولا allocation مالي بين الطرفين، ولا خصم ذري أو قيود رصيد أو ledger مرتبط بفترات الفوترة. قاعدة التقريب/وحدة الفوترة لم تُحسم بعد، لذلك لا يجوز تفعيل open calling. | allocation خادمي ذري حسب quota الطرفين، تحديد وحدة الفوترة والتقريب بموافقة المالك، disclosures وموافقة كل طرف ملزم بالدفع، خصم ذري idempotent وسجلات ledger ومصالحة، اختبارات حدود/إعادة اتصال/تزامن |
-| WAL-001 | تحويل كوينز ذري بمعرف موحد وسجل المرسل والمستلم والمنصة والعمولة | تنفيذ backend واختبارات emulator موثقة في وثائق الحالة؛ قبول التشغيل الحي غير حاصل | مراجعة reconciliation والاختبارات الحالية وnon-prod |
+| WAL-001 | تحويل BetaCoins ذري بمعرف موحد وسجل المرسل والمستلم والمنصة والعمولة | تنفيذ backend واختبارات emulator موثقة في وثائق الحالة؛ قبول التشغيل الحي غير حاصل | مراجعة reconciliation والاختبارات الحالية وnon-prod |
 | STORE-001 | متجر ديناميكي وأسعار ومدة واستحقاقات خادمية؛ لا تفعيل دون fulfillment فعلي | شاشة المتجر تتحقق من purchaseId وitemId وnewBalance قبل النجاح؛ اختبارات emulator تغطي الخصم الذري والسجل والاستحقاق وربطه بالملف الشخصي؛ قبول كل SKU والأجهزة ما زال مفتوحاً | كل SKU مع consumer واختبار end-to-end |
 | STORE-002 | الإطارات المتحركة، الأسماء الملونة/المتحركة، التحليلات، التصميم الاحترافي، الأقسام المثبتة، boosts، الثيمات، التحية، VIP والشارات والألقاب | أجزاء من وظائف الاستحقاق والملف الشخصي موثقة؛ لا تعني كل المزايا مكتملة في تجربة المنتج | تحقق كل entitlement عبر كل الشاشة/السيناريو |
 | REWARD-001 | 500 كوين لكل دورة بريد 90 يوماً بعد إثبات خادمي | تجديد البريد/المكافأة له أساس backend واختبارات؛ قبول Auth حي مفتوح | اختبارات Auth/device والـ exactly-once |
@@ -275,7 +283,7 @@ This amendment records policy approval only. It does not establish that code, te
 
 | المعرّف | القرار المعتمد من المالك | حالة التنفيذ / بوابة القبول |
 |---|---|---|
-| LAUNCH-PAY-001 | المرحلة الأولى بلا بوابة دفع أو checkout أو تحصيل آلي؛ الاتفاق والدفع بالتواصل المباشر مع Owner/Super Admin فقط، والاعتماد اليدوي بعد تحقق خارجي موثق | مسار طلبات الشراء اليدوي موجود جزئياً؛ يلزم إثبات سجل التدقيق الكامل، حماية MFA، واختبارات عدم إصدار الكوينز قبل اعتماد المالك |
+| LAUNCH-PAY-001 | المرحلة الأولى بلا بوابة دفع أو checkout أو تحصيل آلي؛ الاتفاق والدفع بالتواصل المباشر مع Owner/Super Admin فقط، والاعتماد اليدوي بعد تحقق خارجي موثق | مسار طلبات الشراء اليدوي موجود جزئياً؛ يلزم إثبات سجل التدقيق الكامل، حماية MFA، واختبارات عدم إصدار الBetaCoins قبل اعتماد المالك |
 | LAUNCH-APK-001 | موقع Mawdda قناة APK الأساسية والموصى بها، وليست حصرية؛ يجوز التوزيع عبر قنوات موثوقة إضافية بموافقة المالك | أضيفت سياسة exact-host لروابط HTTPS وقائمة مضيفين معتمدة؛ يلزم ضبط النطاق الأساسي والمرايا، بناء Release موقّع، اختبار الأجهزة والنشر العام |
 | LAUNCH-SIGN-001 | كل القنوات توزع التطبيق الرسمي نفسه وبهوية توقيع Mawdda المتوافقة؛ لا APK غير موقع أو Debug | workflow توقيع يدوي موجود لكنه لم يثبت تشغيله؛ النسخ الاحتياطية المشفرة والأسرار والبناء والتحقق الفعلي ما زالت بوابات مفتوحة |
 | LAUNCH-PWA-001 | تثبيت نسخة الويب كتطبيق PWA في المرحلة الأولى على Android وSafari iOS ومتصفحات سطح المكتب المدعومة | manifest وإرشادات التثبيت موجودة؛ يلزم اختبار installability فعلي لكل متصفح/جهاز وتوثيق القيود |
@@ -294,3 +302,46 @@ This amendment records policy approval only. It does not establish that code, te
 - يجب أن يحقن workflow ملف `google-services.json` الإنتاجي من سر `MAWDDA_PRODUCTION_GOOGLE_SERVICES_JSON_B64`، ثم يطابق project ID ورقم المشروع وApp ID واسم الحزمة ومفتاح API وStorage bucket مع FlutterFire production options.
 - أُضيف تحقق آلي لهويات Android وiOS الإنتاجية في `functions/scripts/validate-firebase-config.cjs` واختبارات لها. غياب ملف Google Services الإنتاجي أو عدم التطابق يمنع بناء الإصدار.
 - لم يُقدّم المالك بعد سر ملف Google Services الإنتاجي في هذه المراجعة، ولذلك لم يُشغّل workflow الموقّع ولم تُنتج حزم Release.
+
+
+## ECON-007 — Store entitlement renewal and member-to-member gifting (owner clarification, 2026-11-18)
+
+- A member's purchase grants the selected catalog item for the exact duration configured for that selected plan/item. The server records the start/purchase and expiry; the entitlement is active only through that period and becomes inactive after expiry.
+- After an entitlement has expired, the same member may purchase the same item again and receive a fresh activation for the newly selected duration. An expired entitlement must never permanently block repurchase. A still-active entitlement is not silently double-charged; any extension/stacking behavior must be explicit and consistent with the catalog's published purchase flow.
+- Store browsing and gifting are independent of whether the sender owns or has previously purchased the item. A signed-in eligible member may select any currently published, purchasable, fulfillment-ready catalog item from its relevant store and buy/grant it to another eligible member. The sender's own entitlement is neither consumed nor transferred. The recipient receives the selected item for the catalog duration.
+- Visitors/guest accounts are excluded as gift recipients. A visitor cannot receive a store entitlement through gifting. The server must validate sender and recipient membership/account status; hiding the gift UI is not a security boundary.
+- Gifting is a separate atomic economic operation: validate catalog state and current price, validate recipient eligibility, debit sender BetaCoins once, create a unique gift/purchase record, append a sender wallet-ledger debit and recipient entitlement/gift history, and make retries idempotent. No client-authoritative price, duration, recipient role, or entitlement write is accepted.
+- Gifts may be repeated as deliberate new requests; idempotency prevents replay of the same request only. Existing active recipient entitlement handling must be explicit: a new gift must not overwrite or shorten an active entitlement. Timed benefits should extend from the later of server-now and the recipient's current expiry, unless a catalog item has a separately documented non-stackable rule.
+- Owner grants remain a separate free administrative workflow with its own audit trail; they are not a substitute for member-paid gifting.
+
+Implementation status update (2026-11-18): the development branch now contains a callable member-gifting backend (giftStoreItem) with verified Firebase Auth provider checks for the recipient, server-side member/guest-record checks for both parties, catalog/price revalidation, atomic sender debit + wallet ledger + gift receipt + recipient entitlement + gift history + in-app notification, request replay binding, and timed-entitlement stacking. Pure domain regression tests were added for eligibility, replay binding, expiry stacking and permanent-entitlement preservation. These tests have not yet been executed. The Flutter store now exposes an eligible-recipient username lookup, explicit gift confirmation and the gift callable; the member history screen displays received gifts alongside separate owner grants. Live Functions/Emulator transaction tests and cross-platform acceptance remain open; this is not a claim that gifting is fully shipped. Existing owner-only grant functions remain a separate workflow.
+
+
+### Owner clarification — gift initiation must be recipient-profile scoped (2026-11-18)
+- Member-to-member feature gifting is initiated only from the recipient's profile page. A visitor opens the intended member profile and sees separate actions for gifting BetaCoins and gifting a store feature. The feature action opens the eligible store catalog, then confirms the selected item, price and duration against that already-open profile identity.
+- No username search or recipient-name lookup is part of the feature-gifting flow; this avoids ambiguity from duplicate/similar usernames and supports gifting to non-friends. The recipient UID comes from the profile route and is revalidated server-side by giftStoreItem.
+- The shop itself remains a purchase/browse surface and does not expose a gift action. Gift eligibility, guest rejection, price/catalog validation and atomic settlement remain enforced by the backend.
+
+
+### Owner clarification — two BetaCoins gift methods (2026-11-18)
+- The recipient profile's BetaCoins gift action presents two explicit choices: (1) select an owner-configured active coin package and submit a package gift purchase request; (2) choose a custom amount to transfer from the sender's existing wallet balance through the existing quoted transfer flow.
+- Custom balance gifts debit the sender wallet atomically, apply the currently configured transfer commission, and credit the recipient net amount. The package route is not an instant credit: current checkout is manual owner-contact only. The package amount is credited to the profile-selected recipient only after the owner records payment instructions and verifies external payment; sender balance is not used for package purchase.
+- Package gift requests are bound to the profile recipient UID, reject self-gifting and ineligible/guest recipients, and preserve the existing owner-managed package catalog and audit trail. On approval, recipient balance, wallet ledger, gift receipt/history, notification and purchase request state are committed atomically.
+
+
+### Owner amendment — group calls in rented private rooms (2026-11-18)
+- Group audio/video calls are permitted only inside active rented private chat rooms. Public rooms do not support calls of either mode.
+- Group audio pricing is 1,000 BetaCoins total per connected call-minute. This is the total call price, not a per-member price, and is divided equally among the members actually connected during the billed interval.
+- Group video pricing is 2,000 BetaCoins total per connected call-minute. This is the total call price, not a per-member price, and is divided equally among the members actually connected during the billed interval.
+- A group video call is limited to four members total, including the initiator. A fifth member must be rejected server-side. Group audio has no new fixed participant cap in this amendment; its participant count follows the active rented room's approved capacity.
+- Every member, including the initiator, must independently satisfy the applicable audio/video entitlement or open-subscription eligibility before joining. Membership in the room alone is insufficient.
+- Billing must follow actual connected participation, exclude ringing/unconnected time, handle joins/leaves and reconnects without duplicate charges, disclose each participant's share before consent, and settle through server-authoritative atomic/idempotent wallet-ledger operations. No client-reported duration or participant list is authoritative.
+- This amendment does not change direct one-to-one call pricing or quota policy. Existing room-call signaling is not evidence that the above access, metering, allocation, or settlement controls are implemented; those remain implementation and test requirements.
+
+
+### Owner clarification — integer group-call billing and initiator remainder (2026-11-18)
+- BetaCoins wallet balances and ledger amounts remain whole integers; fractional coin amounts are never stored or debited.
+- For each billable group-call interval, divide the approved total by the actual connected participant count using integer floor shares for every participant other than the call initiator. Charge the initiator the exact remaining amount so the sum of all participant debits equals the approved interval total exactly.
+- The initiator therefore absorbs the complete rounding remainder. Example for 1,000 BetaCoins audio: with 7 connected members, six non-initiators pay 142 each and the initiator pays 148; with 9 connected members, eight non-initiators pay 111 each and the initiator pays 112. With 4 members, each pays 250. For 2,000 BetaCoins video and 4 members, each pays 500.
+- The split must be calculated server-side from the immutable participant set for that billed interval, validated as positive safe integers, and persisted with the corresponding idempotent wallet debits/ledger entries in one atomic settlement. A participant who is not actually connected in that interval is not included. Direct one-to-one call pricing is unchanged.
+- This is an approved allocation rule, not a claim that group-call entitlement, metering, or settlement has been integrated or accepted.

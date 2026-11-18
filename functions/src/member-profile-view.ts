@@ -62,3 +62,31 @@ export function canViewMemberProfile(
 ): boolean {
   return viewerUid === targetUid || visibility === "public";
 }
+
+export type CoinVisibilityProjection = {
+  visible: boolean;
+  hiddenByPrivacy: boolean;
+  balance?: number;
+};
+
+/**
+ * Coins are never part of the public profile projection. The caller must
+ * explicitly prove self-view or the sole Owner/Super Admin role before a
+ * balance can be returned. Moderators and ordinary members are never eligible.
+ */
+export function projectCoinVisibility(args: {
+  viewerUid: string;
+  targetUid: string;
+  targetCoins: unknown;
+  hideCoinsActive: boolean;
+  viewerIsSoleOwner: boolean;
+}): CoinVisibilityProjection {
+  const privileged = args.viewerUid === args.targetUid || args.viewerIsSoleOwner;
+  if (privileged) {
+    if (typeof args.targetCoins !== "number" || !Number.isSafeInteger(args.targetCoins) || args.targetCoins < 0) {
+      throw new Error("INVALID_COIN_BALANCE");
+    }
+    return { visible: true, hiddenByPrivacy: false, balance: args.targetCoins };
+  }
+  return { visible: false, hiddenByPrivacy: args.hideCoinsActive };
+}

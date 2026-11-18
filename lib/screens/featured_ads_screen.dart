@@ -79,7 +79,7 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'اكتشف الحملات المؤهلة حسب نطاقها الجغرافي. قد تحصل على كوينز بعد إكمال مشاهدة مؤهلة والتحقق منها خادمياً.',
+                        'اكتشف الحملات المؤهلة حسب نطاقها الجغرافي. قد تحصل على BetaCoinsز بعد إكمال مشاهدة مؤهلة والتحقق منها خادمياً.',
                       ),
                       const SizedBox(height: 12),
                       const Row(
@@ -182,7 +182,7 @@ class FeaturedAdRewardsScreen extends StatelessWidget {
                   Text('كيف تحصل على المكافأة؟', style: theme.textTheme.titleLarge),
                   const SizedBox(height: 8),
                   const Text(
-                    'تبدأ الأهلية عند اختيار إعلان مؤهل وبدء مشاهدته في المشغل المخصص. لا تمنح ضغطة الزر أو فتح الشاشة أو مشاهدة المعاينة أي كوينز.',
+                    'تبدأ الأهلية عند اختيار إعلان مؤهل وبدء مشاهدته في المشغل المخصص. لا تمنح ضغطة الزر أو فتح الشاشة أو مشاهدة المعاينة أي BetaCoinsز.',
                   ),
                   const SizedBox(height: 12),
                   const ListTile(
@@ -210,8 +210,8 @@ class FeaturedAdRewardsScreen extends StatelessWidget {
                 children: [
                   Text('سياسة مكافآت المشاهدة المعتمدة للتنفيذ', style: theme.textTheme.titleLarge),
                   const SizedBox(height: 8),
-                  const Text('2 كوين لكل مشاهدة مؤهلة.'),
-                  const Text('حتى 10 مشاهدات مكافأة و20 كويناً في يوم UTC الواحد.'),
+                  const Text('2 BetaCoinsز لكل مشاهدة مؤهلة.'),
+                  const Text('حتى 10 مشاهدات مكافأة و20 BetaCoins في يوم UTC الواحد.'),
                   const Text('الحملة نفسها: حتى 3 مكافآت لكل عضو خلال نافذة 24 ساعة متحركة.'),
                   const Text('هذه الحدود لا تُعد مفعّلة حتى يثبت تطبيقها واختبارها خادمياً.'),
                   const SizedBox(height: 8),
@@ -234,7 +234,7 @@ class FeaturedAdRewardsScreen extends StatelessWidget {
                   Text('سجل المكافآت'),
                   SizedBox(height: 4),
                   Text(
-                    'سيظهر هنا سجل المشاهدات المؤهلة والكوينز بعد ربط واجهة السجل بخدمة المكافآت الخادمية. لا يتم عرض رصيد أو سجل تجريبي غير حقيقي.',
+                    'سيظهر هنا سجل المشاهدات المؤهلة وBetaCoins بعد ربط واجهة السجل بخدمة المكافآت الخادمية. لا يتم عرض رصيد أو سجل تجريبي غير حقيقي.',
                     textAlign: TextAlign.center,
                   ),
                 ],
