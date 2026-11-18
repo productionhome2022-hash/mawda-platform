@@ -9320,8 +9320,16 @@ export const setGroupCallPricingPolicy = onCall(async (request) => {
     const next = validateGroupCallPricingPolicy({
       policyId, version, active, audioCoinsPerMinute, videoCoinsPerMinute, updatedAtMs: now,
     });
+    const immutableVersionRef = db.collection("platformSettings")
+      .doc("groupCallPricingVersions").collection("versions").doc(policyId);
+    transaction.create(immutableVersionRef, {
+      ...next,
+      createdBy: actorUid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
     transaction.set(GROUP_CALL_PRICING_SETTINGS, {
       ...next, updatedBy: actorUid, updatedAt: FieldValue.serverTimestamp(),
+      currentVersionRef: immutableVersionRef.path,
     });
     const auditRef = db.collection("adminAuditLogs").doc();
     transaction.create(auditRef, {
