@@ -9956,6 +9956,10 @@ async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<
   if (status === "duration_expired") {
     try { await processGroupCallBillingSettlement(callRef); }
     catch (error) {
+      await callRef.set({
+        groupCallBillingState: "pending",
+        groupCallBillingLastAttemptAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
       logger.error("Group-call billing settlement deferred after duration expiry", {
         callId: callRef.id, error: String(error),
       });
@@ -11188,6 +11192,10 @@ export const endCall = onCall(async (request) => {
       const billing = await processGroupCallBillingSettlement(ref);
       return { ...result, billingSettlementStatus: billing.status };
     } catch (error) {
+      await ref.set({
+        groupCallBillingState: "pending",
+        groupCallBillingLastAttemptAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
       logger.error("Group-call billing settlement deferred after call end", {
         callId, error: String(error),
       });
