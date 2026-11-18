@@ -21,6 +21,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
   final _maxClaims = TextEditingController(text: '1');
   String _placement = 'reward_center';
   String? _editingCampaignId;
+  int _editingCampaignVersion = 0;
   List<Map<String, dynamic>> _campaigns = [];
   List<Map<String, dynamic>> _approvedCreatives = [];
   String? _selectedMediaId;
@@ -208,6 +209,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
         'body': _body.text.trim(),
         'placement': _placement,
         if (_editingCampaignId != null) 'campaignId': _editingCampaignId,
+        'expectedVersion': _editingCampaignVersion,
         'durationSeconds': duration,
         'rewardCoins': reward,
         'startsAtMs': _startsAt.millisecondsSinceEpoch,
@@ -221,6 +223,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
       _title.clear(); _sponsor.clear(); _body.clear();
       _selectedMediaId = null;
       _editingCampaignId = null;
+      _editingCampaignVersion = 0;
       _maxClaims.text = '1';
       _placement = 'reward_center';
       await _load();
@@ -239,6 +242,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
     if (!['draft', 'paused'].contains(campaign['status'])) return;
     setState(() {
       _editingCampaignId = campaign['campaignId'] as String?;
+      _editingCampaignVersion = (campaign['version'] as num?)?.toInt() ?? 0;
       _title.text = campaign['title'] as String? ?? '';
       _sponsor.text = campaign['sponsorLabel'] as String? ?? '';
       _body.text = campaign['body'] as String? ?? '';
