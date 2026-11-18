@@ -110,3 +110,12 @@ No source code was changed during this recheck. No local command, test suite, em
 - General advertising intake, creator/production applications, subscriptions and other future paid services do not yet have complete per-service order/contract/payment/ledger fulfilment workflows; they must not be exposed as payable or enabled by a generic toggle until those service-specific flows exist.
 - The store and room rental purchases currently use BetaCoins; they are not cash checkout integrations.
 - No final build, emulator, Flutter, or external validation was run in this pass, in accordance with the owner's sequencing instruction.
+
+## Room-rental financial replay hardening — 2026-11-18
+
+- The economic recovery branch now validates room-rental creation replays against the original room, owner membership, immutable rental receipt and debit-ledger entry. Missing or inconsistent financial evidence fails closed instead of returning a successful replay.
+- Room-rental renewal replays now require the matching debit-ledger entry and reconcile the amount, rental/room/plan identity, balance-before/balance-after snapshot and receipt balance. Missing or inconsistent evidence fails closed.
+- New room-rental creation and renewal writes persist balance-before/balance-after snapshots in both the rental receipt and wallet ledger.
+- Added emulator integration assertions for creation/renewal snapshots, idempotent replay and fail-closed behavior when either debit ledger is missing; test source has been committed but has **not** been executed.
+- Commits: implementation `02dd33bd050ba0bd6fc4295a4d45a80e92477952`; regression tests `4dfc39d86bebbf7cdc800f004fc325e9d3c6fc48`.
+- Final TypeScript build, Functions unit suite and room-rental emulator integration remain deferred until the internal economic implementation pass is complete. No live Firebase operation, billing, deployment, merge to `main`, or 5,000-persona lab action occurred.
