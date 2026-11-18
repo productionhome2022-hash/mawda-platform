@@ -690,6 +690,10 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
       startedAtMs: Date.now() - 12000, lastHeartbeatAtMs: Date.now(),
       visibleMs: 12000, continuousVisibleMs: 12000, progressPercent: 0,
       foregroundVisible: true, rewardClaimed: false,
+      // Synthetic server-attested evidence for the settlement/idempotency path.
+      // Client heartbeat telemetry alone must never authorize a wallet reward.
+      serverValidatedVisibility: true,
+      serverValidatedContinuousVisibleMs: 12000,
     });
     const results = await Promise.all([
       completeFeaturedAdViewingSession.run(memberRequest({ sessionId: sessionRef.id })),
