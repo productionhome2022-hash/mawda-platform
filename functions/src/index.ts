@@ -8550,8 +8550,15 @@ export const heartbeatFeaturedAdViewingSession = onCall(async (request) => {
       return { expired: true, foregroundVisible: false, visibleMs: Number(session.visibleMs) || 0, continuousVisibleMs: 0, progressPercent: Number(session.progressPercent) || 0 };
     }
     const campaignRef = featuredAdCampaignRef(String(session.campaignId));
-    const campaignSnapshot = await transaction.get(campaignRef);
+    const [campaignSnapshot, userSnapshot] = await Promise.all([
+      transaction.get(campaignRef),
+      transaction.get(db.collection("users").doc(uid)),
+    ]);
     const campaign = campaignSnapshot.data() ?? {};
+    if (!userSnapshot.exists || !isMemberAccountInGoodStanding(userSnapshot.data())) {
+      transaction.update(ref, { status: "member_revoked", updatedAt: FieldValue.serverTimestamp() });
+      return { revoked: true, foregroundVisible: false, visibleMs: Number(session.visibleMs) || 0, continuousVisibleMs: 0, progressPercent: Number(session.progressPercent) || 0 };
+    }
     if (!campaignSnapshot.exists || campaign.status !== "published" || campaign.ownerWithdrawn === true ||
         campaign.ownerApproved !== true || campaign.paymentConfirmed !== true || campaign.creativeApproved !== true) {
       transaction.update(ref, { status: "campaign_revoked", updatedAt: FieldValue.serverTimestamp() });
@@ -8609,6 +8616,10 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
     if (!campaignSnapshot.exists || !userSnapshot.exists) throw new HttpsError("failed-precondition", "الحملة أو العضو غير موجود.");
     const campaign = campaignSnapshot.data()!;
     const user = userSnapshot.data()!;
+    if (user.profileCompleted !== true || !isMemberAccountInGoodStanding(user)) {
+      transaction.update(sessionRef, { status: "member_ineligible", rewardReason: "member_ineligible", completedAtMs: now, updatedAt: FieldValue.serverTimestamp() });
+      return { rewarded: false, idempotentReplay: false, amountCoins: 0, reason: "member_ineligible" };
+    }
     const policy: FeaturedAdRewardPolicy = policySnapshot.exists ? validateFeaturedAdRewardPolicy(policySnapshot.data()?.policy) : defaultFeaturedAdRewardPolicy();
     const daily = daySnapshot.data() ?? {};
     const member = campaignMemberSnapshot.data() ?? {};
@@ -8641,7 +8652,11 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
       transaction.update(sessionRef, { rewardClaimed: true, status: "rewarded", updatedAt: FieldValue.serverTimestamp() });
       return { rewarded: true, idempotentReplay: true, amountCoins: Number(existingLedger.data()?.amount) || amount };
     }
-    const currentCoins = Number(user.coins) || 0;
+    const currentCoins = Number(user.coins ?? 0);
+    if (!Number.isSafeInteger(currentCoins) || currentCoins < 0 || !Number.isSafeInteger(amount) || amount <= 0 ||
+        !Number.isSafeInteger(currentCoins + amount)) {
+      throw new HttpsError("failed-precondition", "رصيد المحفظة أو مبلغ المكافأة خارج الحدود الآمنة.");
+    }
     transaction.set(userRef, { coins: currentCoins + amount }, { merge: true });
     transaction.create(ledgerRef, {
       type: "featured_ad_reward", source: "featured_ad", amount, campaignId: session.campaignId,
