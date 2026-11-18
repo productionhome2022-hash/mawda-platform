@@ -121,6 +121,8 @@ test("coin transfer atomically writes both wallet ledgers and platform commissio
   const transferRef = db.collection("coinTransfers").doc(transferId);
   const senderLedgerRef = senderRef.collection("walletLedger").doc(transferId);
   const recipientLedgerRef = recipientRef.collection("walletLedger").doc(transferId);
+  const recipientGiftHistoryRef = recipientRef.collection("coinTransferGiftHistory").doc(transferId);
+  const recipientNotificationRef = recipientRef.collection("notifications").doc("coin_transfer_" + transferId);
   const platformLedgerRef = db.collection("platformWalletLedger").doc(transferId);
 
   await Promise.all([
@@ -159,6 +161,12 @@ test("coin transfer atomically writes both wallet ledgers and platform commissio
     assert.equal(recipientLedger.data().amount, 800);
     assert.equal(recipientLedger.data().senderUid, senderUid);
     assert.equal(recipientLedger.data().transferId, transferId);
+    const [giftHistory, giftNotification] = await Promise.all([
+      recipientGiftHistoryRef.get(), recipientNotificationRef.get(),
+    ]);
+    assert.equal(giftHistory.data().coins, 800);
+    assert.equal(giftHistory.data().senderUid, senderUid);
+    assert.equal(giftNotification.data().type, "coin_transfer_gift_received");
     assert.equal(platformLedger.data().amount, 200);
     assert.equal(platformLedger.data().transferId, transferId);
     assert.equal(transfer.data().status, "completed");
@@ -178,6 +186,8 @@ test("coin transfer atomically writes both wallet ledgers and platform commissio
     await Promise.all([
       senderLedgerRef.delete().catch(() => undefined),
       recipientLedgerRef.delete().catch(() => undefined),
+      recipientGiftHistoryRef.delete().catch(() => undefined),
+      recipientNotificationRef.delete().catch(() => undefined),
       platformLedgerRef.delete().catch(() => undefined),
       transferRef.delete().catch(() => undefined),
       senderRef.delete().catch(() => undefined),
