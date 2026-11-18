@@ -7420,6 +7420,15 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
   const guestSessionRef = giftRecipientUid ? db.collection("guestSessions").doc(giftRecipientUid) : null;
   const settingsRef = db.doc("platformSettings/economyPricing");
   const requestRef = db.collection("coinPurchaseRequests").doc(`${uid}_${input.requestId}`);
+  if (giftRecipientUid) {
+    let recipientAuth: UserRecord;
+    try { recipientAuth = await getAuth().getUser(giftRecipientUid); }
+    catch { throw new HttpsError("permission-denied", "تعذر التحقق من حساب مستلم الباقة."); }
+    if (recipientAuth.disabled || !recipientAuth.providerData.length ||
+        recipientAuth.providerData.every((provider) => provider.providerId === "anonymous")) {
+      throw new HttpsError("permission-denied", "حساب الزائر لا يمكنه استلام باقة مهداة.");
+    }
+  }
   const result = await db.runTransaction(async (transaction) => {
     const [user, settings, existing, recipient, guestProfile, guestSession] = await Promise.all([
       transaction.get(userRef), transaction.get(settingsRef), transaction.get(requestRef),
@@ -7438,13 +7447,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
           guestProfile?.exists || guestSession?.exists) {
         throw new HttpsError("permission-denied", "المستلم ليس عضواً مؤهلاً لاستلام باقة الكوينز.");
       }
-      let recipientAuth: UserRecord;
-      try { recipientAuth = await getAuth().getUser(giftRecipientUid); }
-      catch { throw new HttpsError("permission-denied", "تعذر التحقق من حساب مستلم الباقة."); }
-      if (recipientAuth.disabled || !recipientAuth.providerData.length ||
-          recipientAuth.providerData.every((provider) => provider.providerId === "anonymous")) {
-        throw new HttpsError("permission-denied", "حساب الزائر لا يمكنه استلام باقة مهداة.");
-      }
+
     }
     const economy = settings.data() ?? {};
     if (economy.manualCoinPurchasesEnabled === false || economy.automatedCoinCheckoutEnabled === true) {
