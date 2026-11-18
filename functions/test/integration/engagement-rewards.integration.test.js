@@ -130,8 +130,7 @@ test("timed advertisements require foreground heartbeat duration and pay once", 
 
     const started = await startTimedAdvertisement.run(memberRequest(uid, { campaignId }));
     sessionId = started.sessionId;
-    // Archiving prevents new sessions but does not strand a session already in progress.
-    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "archived" }));
+    // The campaign remains published and unchanged while this session is active.
     const restored = await getActiveTimedAdSession.run(memberRequest(uid));
     assert.equal(restored.active, true);
     assert.equal(restored.sessionId, sessionId);
@@ -526,6 +525,72 @@ test("active reward-ad discovery endpoints filter expired campaigns before apply
       userRef.delete().catch(() => undefined),
       ...expiredCampaigns.map((ref) => ref.delete().catch(() => undefined)),
       eligibleCampaign.delete().catch(() => undefined),
+    ]);
+  }
+});
+
+
+test("timed-ad completion cancels a session when its campaign is paused or version changes", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const ownerUid = `ad_pause_owner_${tag}`;
+  const uid = `ad_pause_member_${tag}`;
+  const userRef = db.collection("users").doc(uid);
+  let campaignId;
+  let sessionId;
+  await userRef.set({ coins: 0, profileCompleted: true, accountStatus: "active" });
+  try {
+    const campaign = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      title: "Paused campaign test",
+      sponsorLabel: "Mawdda test sponsor",
+      body: "A synthetic campaign to verify pause invalidates an active reward session.",
+      placement: "reward_center",
+      durationSeconds: 15,
+      rewardCoins: 9,
+      startsAtMs: Date.now() - 1000,
+      endsAtMs: Date.now() + 3600000,
+      maxClaimsPerMember: 100,
+      rewardBudgetCoins: 900,
+    }));
+    campaignId = campaign.campaignId;
+    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "published" }));
+    const started = await startTimedAdvertisement.run(memberRequest(uid, { campaignId }));
+    sessionId = started.sessionId;
+    await db.collection("timedAdSessions").doc(sessionId).update({
+      eligibleMs: 15000,
+      heartbeatSequence: 0,
+      lastHeartbeatAtMs: Date.now() - 5000,
+    });
+    await heartbeatTimedAdvertisement.run(memberRequest(uid, {
+      sessionId, sequence: 1, foreground: true, visible: true,
+    }));
+    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "paused" }));
+    await assert.rejects(
+      () => completeTimedAdvertisement.run(memberRequest(uid, { sessionId })),
+      (error) => error && error.code === "permission-denied",
+    );
+    const [user, session, campaignAfter, claim, ledger, active] = await Promise.all([
+      userRef.get(),
+      db.collection("timedAdSessions").doc(sessionId).get(),
+      db.collection("timedAdCampaigns").doc(campaignId).get(),
+      db.collection("timedAdRewardClaims").doc(sessionId).get(),
+      userRef.collection("walletLedger").doc(`timed_ad_${sessionId}`).get(),
+      db.collection("activeTimedAdSessions").doc(uid).get(),
+    ]);
+    assert.equal(user.data().coins, 0);
+    assert.equal(session.data().status, "cancelled");
+    assert.equal(campaignAfter.data().reservedRewardCoins, 0);
+    assert.equal(claim.exists, false);
+    assert.equal(ledger.exists, false);
+    assert.equal(active.exists, false);
+  } finally {
+    await Promise.all([
+      userRef.delete().catch(() => undefined),
+      ...(campaignId ? [db.collection("timedAdCampaigns").doc(campaignId).delete().catch(() => undefined)] : []),
+      ...(sessionId ? [
+        db.collection("timedAdSessions").doc(sessionId).delete().catch(() => undefined),
+        db.collection("activeTimedAdSessions").doc(uid).delete().catch(() => undefined),
+      ] : []),
     ]);
   }
 });
