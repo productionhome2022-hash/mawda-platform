@@ -23,6 +23,7 @@ test("projects only active catalog items with safe display fields", () => {
     priceCoins: 2500,
     durationDays: 30,
     sortOrder: 2,
+    version: null,
     purchaseEnabled: false,
     fulfillmentReady: false,
   });
