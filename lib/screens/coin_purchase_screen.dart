@@ -85,6 +85,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
   String _status(String? value) => switch (value) {
     'pending_owner_contact' => 'بانتظار تواصل المالك',
     'payment_instructions_sent' => 'أُرسلت تعليمات الدفع - بانتظار التحقق',
+    'awaiting_payment_verification' => 'الدفع قيد التحقق من المالك',
     'approved' => 'تم الاعتماد وإضافة الكوينز',
     'rejected' => 'مرفوض',
     'withdrawn' => 'مسحوب',
