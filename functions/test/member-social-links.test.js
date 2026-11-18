@@ -60,6 +60,9 @@ test("expired or revoked members may clear links but cannot publish links", () =
   assert.equal(canUpdateMemberSocialLinks(links, revoked, 1_800_000_000_000), false);
   assert.equal(canUpdateMemberSocialLinks(links, {
     status: "verified",
+    verificationMethod: "owner_manual_review",
+    reviewedBySuperOwner: true,
+    reviewRequestId: "review-request-member-links-active",
     expiresAt: { toMillis: () => 1_900_000_000_000 },
   }, 1_800_000_000_000), true);
 });
