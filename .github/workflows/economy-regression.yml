@@ -83,3 +83,5 @@ jobs:
         run: npm run test:call-signaling-integration
       - name: Run owner audit-chain export regressions
         run: npm run test:owner-audit-export-integration
+      - name: Run Firestore and Storage security rules regressions
+        run: npm run test:rules
