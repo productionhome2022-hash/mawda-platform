@@ -50,8 +50,8 @@ export function projectStoreCatalogItem(
     return null;
   }
   if (data.purchaseEnabled === true && priceCoins === null) return null;
-  const durationDays = data.durationDays;
-  if (durationDays !== undefined &&
+  const durationDays = data.durationDays ?? null;
+  if (durationDays !== null &&
       (typeof durationDays !== "number" || !Number.isSafeInteger(durationDays) ||
        durationDays < 1 || durationDays > 3650)) {
     return null;
@@ -68,7 +68,7 @@ export function projectStoreCatalogItem(
     description: data.description.trim(),
     category: data.category,
     priceCoins,
-    ...(typeof durationDays === "number" ? { durationDays } : {}),
+    ...(durationDays !== null ? { durationDays } : {}),
     sortOrder,
     purchaseEnabled: fulfillmentReady && data.purchaseEnabled === true,
     fulfillmentReady,
