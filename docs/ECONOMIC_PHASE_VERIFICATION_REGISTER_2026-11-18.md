@@ -266,3 +266,9 @@ For every economic price that is defined as one combined amount and divided equa
 ## Legacy ledger segment handling
 - Reconciliation now resets continuity comparison across a legacy entry whose balance delta cannot be verified. It reports the result as incomplete rather than falsely marking later valid snapshots corrupt. New regression coverage was added.
 - Commits: 2979e30b86a18fd6352c2cbd8cc3bfc022e4dd67, fc193db3a49bfc1c2847a69096b07676089219bf. Not executed.
+
+
+## Featured-ad reward controls consolidated in the campaign dashboard
+- Consolidated the complete featured-ad reward policy editor in the existing owner featured-ads dashboard (rather than duplicating controls in the timed-ad rewards screen). It now edits the full policy including per-view amount, daily view/coin caps, campaign reward cap/window, video completion threshold and continuous image visibility threshold.
+- The dashboard loads the policy version and submits that expected version, preventing stale values from silently overwriting newer owner changes. Disabled policy can retain draft caps without being blocked by enabled-only budget checks.
+- Commits: 1109d91fa07c3d7b0ac0c09c7df81bf56a7aa4fb, b022bd7cbd0d6d0924fb289bda8fbe5e13cbd2fd, bb2b159bcf9fab20c72e8d42f759e4380163d1d9, 735c59a1aeaafdb28b87d3b1a652ba012a882169. Not run.
