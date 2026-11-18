@@ -116,6 +116,7 @@ import {
   defaultFeaturedAdRewardPolicy,
   validateFeaturedAdRewardPolicy,
 } from "./featured-ad-rewards";
+import { CAPACITY_MEDIA_DEFAULTS, projectCapacityMediaPolicy, validateCapacityMediaQuotaInput } from "./capacity-media-management";
 
 initializeApp();
 
@@ -10029,4 +10030,94 @@ export const cleanupExpiredCallSignals = onSchedule("every 5 minutes", async () 
       signalsCleanedAtTimestamp: FieldValue.serverTimestamp(),
     });
   }
+});
+
+
+/* -------------------------------------------------------------------------- */
+/* Unified owner capacity, media quota and cost-management control plane.    */
+/* -------------------------------------------------------------------------- */
+
+const CAPACITY_MEDIA_SETTINGS = db.doc("platformSettings/capacityMediaManagement");
+
+/**
+ * The first delivery is deliberately observe-only. Concurrent presence and
+ * byte-level usage meters must be instrumented and reconciled before quotas
+ * can ever be enforced. Core chat and safety flows are explicitly exempt.
+ */
+export const getOwnerCapacityMediaManagement = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await CAPACITY_MEDIA_SETTINGS.get();
+  const data = snapshot.data() ?? {};
+  const rawQuotas = data.monthlyMediaQuotas;
+  let monthlyMediaQuotas = CAPACITY_MEDIA_DEFAULTS.monthlyMediaQuotas;
+  if (rawQuotas && typeof rawQuotas === "object" && !Array.isArray(rawQuotas)) {
+    try {
+      monthlyMediaQuotas = validateCapacityMediaQuotaInput(rawQuotas);
+    } catch {
+      // Corrupt settings fail back to unset quotas; they never activate limits.
+    }
+  }
+  return {
+    policy: {
+      ...projectCapacityMediaPolicy(monthlyMediaQuotas),
+      version: Number.isSafeInteger(data.version) && data.version >= 0 ? data.version : 0,
+      updatedAtMs: data.updatedAt instanceof Timestamp ? data.updatedAt.toMillis() : null,
+    },
+    measurement: {
+      status: "not_instrumented",
+      concurrentActiveMembers: null,
+      capacityTierCount: null,
+      monthlyUploadBytes: null,
+      monthlyDownloadBytes: null,
+      retainedStorageBytes: null,
+      processingMinutes: null,
+    },
+    enforcement: {
+      status: "observe_only",
+      coreServicesExemptFromQuota: true,
+      productionBillingConnected: false,
+    },
+    generatedAtMs: Date.now(),
+  };
+});
+
+export const setOwnerCapacityMediaManagement = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let monthlyMediaQuotas;
+  try {
+    monthlyMediaQuotas = validateCapacityMediaQuotaInput(request.data?.monthlyMediaQuotas);
+  } catch {
+    throw new HttpsError("invalid-argument", "قيم حصص الوسائط الشهرية غير صالحة.");
+  }
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "إصدار إعدادات السعة غير صالح.");
+  }
+  const nextVersion = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(CAPACITY_MEDIA_SETTINGS);
+    const data = snapshot.data() ?? {};
+    const currentVersion = Number.isSafeInteger(data.version) && data.version >= 0 ? data.version : 0;
+    if (currentVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت الإعدادات منذ فتح اللوحة. حدّث البيانات ثم أعد المحاولة.");
+    }
+    const next = currentVersion + 1;
+    transaction.set(CAPACITY_MEDIA_SETTINGS, {
+      ...projectCapacityMediaPolicy(monthlyMediaQuotas),
+      version: next,
+      updatedBy: actorUid,
+      updatedAt: FieldValue.serverTimestamp(),
+      enforcementStatus: "observe_only",
+    });
+    return next;
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "capacity_media_management_policy_update",
+    outcome: "success",
+    policyVersion: nextVersion,
+    monthlyMediaQuotas,
+    enforcementStatus: "observe_only",
+    coreServicesExemptFromQuota: true,
+  });
+  return { saved: true, version: nextVersion, enforcementStatus: "observe_only" };
 });
