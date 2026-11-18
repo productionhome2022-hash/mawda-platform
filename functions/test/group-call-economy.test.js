@@ -15,13 +15,19 @@ test("audio 1,000 coins split across four participants", () => {
     { b: 250, c: 250, d: 250, owner: 250 });
 });
 
-test("audio remainder is charged entirely to initiator for seven participants", () => {
+test("audio group allocation supports the five-person owner-approved maximum", () => {
+  const shares = assertExactSplit(1000, ["owner", "b", "c", "d", "e"], "owner");
+  assert.equal(shares.owner, 200);
+  for (const uid of ["b", "c", "d", "e"]) assert.equal(shares[uid], 200);
+});
+
+test("generic integer allocation assigns the remainder to initiator for seven entries", () => {
   const shares = assertExactSplit(1000, ["owner", "b", "c", "d", "e", "f", "g"], "owner");
   assert.equal(shares.owner, 148);
   for (const uid of ["b", "c", "d", "e", "f", "g"]) assert.equal(shares[uid], 142);
 });
 
-test("audio remainder is charged entirely to initiator for nine participants", () => {
+test("generic integer allocation assigns the remainder to initiator for nine entries", () => {
   const shares = assertExactSplit(1000, ["owner", "b", "c", "d", "e", "f", "g", "h", "i"], "owner");
   assert.equal(shares.owner, 112);
   for (const uid of ["b", "c", "d", "e", "f", "g", "h", "i"]) assert.equal(shares[uid], 111);
@@ -30,6 +36,11 @@ test("audio remainder is charged entirely to initiator for nine participants", (
 test("video 2,000 coins split across four participants", () => {
   assert.deepEqual(assertExactSplit(2000, ["owner", "b", "c", "d"], "owner"),
     { b: 500, c: 500, d: 500, owner: 500 });
+});
+
+test("video group allocation supports the four-person maximum", () => {
+  const shares = assertExactSplit(2000, ["owner", "b", "c", "d"], "owner");
+  assert.deepEqual(shares, { b: 500, c: 500, d: 500, owner: 500 });
 });
 
 test("initiator remainder is deterministic and independent of input order", () => {
