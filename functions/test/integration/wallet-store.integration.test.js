@@ -336,6 +336,15 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
     assert.equal(replay.idempotentReplay, true);
     assert.equal((await memberRef.get()).data().coins, 3750);
 
+    // A receipt without its immutable debit ledger is an integrity failure,
+    // not a successful idempotent replay.
+    await ledgerRef.delete();
+    await assert.rejects(
+      () => purchaseStoreItem.run(request),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await memberRef.get()).data().coins, 3750);
+
     await assert.rejects(
       () => purchaseStoreItem.run(memberRequest(uid, {
         itemId, requestId: `another_${tag}`, expectedPriceCoins: 1000,
