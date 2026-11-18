@@ -9869,7 +9869,7 @@ export const startCall = onCall(async (request) => {
     }
     const recentAttempts = (allAttempts as Array<{
       callId: string; mode: "audio" | "video"; startedAtMs: number;
-    }>).filter((attempt) => attempt.startedAtMs > quotaNow - CALL_QUOTA_WINDOW_MS);
+    }>).filter((attempt) => attempt.startedAtMs > quotaNow - usagePolicy.quotaWindowMs);
     const modeAttempts = recentAttempts.filter((attempt) => attempt.mode === input.mode).length;
     if (modeLimit !== null && modeAttempts >= modeLimit) {
       throw new HttpsError("resource-exhausted", "تم بلوغ الحصة التي حددها المالك لهذا النوع من المكالمات.");
@@ -10003,13 +10003,23 @@ export const markCallConnected = onCall(async (request) => {
         call.maxDurationEndsAt.toMillis() <= Date.now()) {
       throw new HttpsError("deadline-exceeded", "انتهت مدة المكالمة القصوى.");
     }
-    if (call.maxDurationEndsAt instanceof Timestamp) {
+    if (call.connectedAt instanceof Timestamp) {
       return {
         callId, connected: true,
-        connectedAtMs: call.connectedAt instanceof Timestamp ? call.connectedAt.toMillis() : null,
-        maxDurationEndsAtMs: call.maxDurationEndsAt.toMillis(),
+        connectedAtMs: call.connectedAt.toMillis(),
+        maxDurationEndsAtMs: call.maxDurationEndsAt instanceof Timestamp
+          ? call.maxDurationEndsAt.toMillis() : null,
         idempotentReplay: true,
       };
+    }
+    let usagePolicy;
+    try {
+      if (!Number.isSafeInteger(call.usagePolicyVersion) || call.usagePolicyVersion < 1) {
+        throw new Error("CALL_USAGE_VERSION_MISSING");
+      }
+      usagePolicy = validateCallUsagePolicy(call.usagePolicySnapshot);
+    } catch {
+      throw new HttpsError("failed-precondition", "لقطة سياسة المكالمة غير صالحة؛ تعذر تثبيت الاتصال.");
     }
     const connectedUids = [...new Set([
       ...(Array.isArray(call.connectedUids) ? call.connectedUids.filter((value): value is string => typeof value === "string") : []),
@@ -10021,7 +10031,9 @@ export const markCallConnected = onCall(async (request) => {
     if (hasCaller && hasAcceptedRecipient) {
       const nowMs = Date.now();
       const connectedAt = Timestamp.fromMillis(nowMs);
-      const maxDurationEndsAt = Timestamp.fromMillis(nowMs + CALL_MAX_DURATION_MS);
+      const maxDurationEndsAtMs = callMaxDurationEnd(nowMs, usagePolicy);
+      const maxDurationEndsAt = maxDurationEndsAtMs === null
+        ? null : Timestamp.fromMillis(maxDurationEndsAtMs);
       transaction.update(ref, {
         connectedUids,
         connectedAt,
@@ -10030,7 +10042,7 @@ export const markCallConnected = onCall(async (request) => {
       });
       return {
         callId, connected: true, connectedAtMs: nowMs,
-        maxDurationEndsAtMs: maxDurationEndsAt.toMillis(),
+        maxDurationEndsAtMs,
         idempotentReplay: false,
       };
     }
