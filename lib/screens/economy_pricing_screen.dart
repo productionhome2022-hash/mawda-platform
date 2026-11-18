@@ -10,6 +10,8 @@ class EconomyPricingScreen extends StatefulWidget {
 
 class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
   final _functions = FirebaseFunctions.instance;
+  final _audioCallTariff = TextEditingController();
+  final _videoCallTariff = TextEditingController();
   List<Map<String, dynamic>> _packages = [];
   List<Map<String, dynamic>> _ads = [];
   bool _loading = true;
@@ -18,6 +20,13 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
   bool _manualFeaturedAdsEnabled = false;
   int _version = 0;
   String? _error;
+
+  @override
+  void dispose() {
+    _audioCallTariff.dispose();
+    _videoCallTariff.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -40,6 +49,9 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
         _version = (data['version'] as num?)?.toInt() ?? 0;
         _manualPurchasesEnabled = data['manualCoinPurchasesEnabled'] == true;
         _manualFeaturedAdsEnabled = data['manualFeaturedAdsEnabled'] == true;
+        final tariffs = Map<String, dynamic>.from(data['callTariffs'] as Map? ?? const {});
+        _audioCallTariff.text = tariffs['audioTotalCoinsPerMinute']?.toString() ?? '';
+        _videoCallTariff.text = tariffs['videoTotalCoinsPerMinute']?.toString() ?? '';
       });
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل إعدادات الاقتصاد.');
@@ -52,11 +64,23 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
 
   Future<void> _save() async {
     if (_saving) return;
+    final audioTariff = _audioCallTariff.text.trim().isEmpty ? null : int.tryParse(_audioCallTariff.text.trim());
+    final videoTariff = _videoCallTariff.text.trim().isEmpty ? null : int.tryParse(_videoCallTariff.text.trim());
+    final audioInputValid = _audioCallTariff.text.trim().isEmpty || (audioTariff != null && audioTariff > 0 && audioTariff.isEven);
+    final videoInputValid = _videoCallTariff.text.trim().isEmpty || (videoTariff != null && videoTariff > 0 && videoTariff.isEven);
+    if (!audioInputValid || !videoInputValid) {
+      setState(() => _error = 'تعرفة المكالمة يجب أن تكون رقماً صحيحاً موجباً يقبل القسمة على 2 دون باقٍ، أو اتركها فارغة لإيقاف التعرفة.');
+      return;
+    }
     setState(() { _saving = true; _error = null; });
     try {
       final result = await _functions.httpsCallable('setOwnerEconomyPricing').call({
         'coinPackages': _packages,
         'adPrices': _ads,
+        'callTariffs': {
+          'audioTotalCoinsPerMinute': audioTariff,
+          'videoTotalCoinsPerMinute': videoTariff,
+        },
         'manualCoinPurchasesEnabled': _manualPurchasesEnabled,
         'manualFeaturedAdsEnabled': _manualFeaturedAdsEnabled,
         'expectedVersion': _version,
@@ -252,6 +276,33 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
               if (_error != null)
                 Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
               Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('تعرفة المكالمات الثنائية', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 6),
+                      const Text('أدخل السعر الإجمالي للدقيقة الواحدة. يقسمه الخادم تلقائياً بالتساوي بين الطرفين. اترك الحقل فارغاً لإبقاء التعرفة غير مهيأة. لا يتم تحصيل أي رسوم حتى اكتمال نظام الحصص والتسوية الذرية.'),
+                      TextField(
+                        controller: _audioCallTariff,
+                        enabled: !_saving,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'الصوت — إجمالي BetaCoins للدقيقة'),
+                      ),
+                      TextField(
+                        controller: _videoCallTariff,
+                        enabled: !_saving,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'المرئي — إجمالي BetaCoins للدقيقة'),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text('شرط الحفظ: عدد صحيح موجب زوجي فقط؛ لا تقريب ولا كسور ولا توزيع للباقي.'),
+                    ],
+                  ),
+                ),
+              ),
+              Card(
                 child: SwitchListTile(
                   title: const Text('تفعيل طلبات شراء الكوينز اليدوية'),
                   subtitle: const Text('عند الإيقاف لن يتمكن الأعضاء من إنشاء طلبات جديدة. الدفع الإلكتروني الآلي غير متاح حالياً حتى اعتماد مزود وربطه خادمياً.'),
@@ -384,7 +435,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
               }),
               const SizedBox(height: 12),
               FilledButton.icon(
-                onPressed: _saving || _packages.isEmpty || _ads.isEmpty ? null : _save,
+                onPressed: _saving ? null : _save,
                 icon: _saving
                     ? const SizedBox(width: 18, height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2))
