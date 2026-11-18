@@ -597,6 +597,16 @@ test("owner-approved coin package gifts credit only the recipient with an immuta
     }));
     assert.equal(replay.idempotentReplay, true);
     assert.equal((await recipientRef.get()).data().coins, 1100);
+    await auditRef.delete();
+    await assert.rejects(
+      () => approveCoinPurchaseRequest.run(ownerRequest("store-catalog-owner", {
+        requesterUid, requestId, externalPaymentVerified: true,
+        externalPaymentReference: `emulator-payment-${tag}`,
+        verificationNote: "تم التحقق من عملية الدفع الاختبارية محلياً",
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await recipientRef.get()).data().coins, 1100);
     const history = await getMyStoreGiftHistory.run(memberRequest(recipientUid, {}));
     assert.equal(history.entries.some((entry) => entry.giftId === giftRef.id && entry.giftKind === "coin_package"), true);
   } finally {
