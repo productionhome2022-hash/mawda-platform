@@ -46,13 +46,30 @@ test("attendance rewards are server-policy gated, UTC-period idempotent and ledg
   await userRef.set({ coins: 100, profileCompleted: true, accountStatus: "active" });
   const previousPolicy = await policyRef.get();
   try {
-    await setAttendanceRewardPolicy.run(ownerRequest(ownerUid, { policy: {
-      hourly: { enabled: false, amountCoins: 0 },
-      daily: { enabled: true, amountCoins: 12 },
-      weekly: { enabled: true, amountCoins: 40 },
-    } }));
+    const initialPolicy = await getOwnerAttendanceRewardPolicy.run(ownerRequest(ownerUid));
+    await setAttendanceRewardPolicy.run(ownerRequest(ownerUid, {
+      expectedVersion: initialPolicy.version,
+      policy: {
+        hourly: { enabled: false, amountCoins: 0 },
+        daily: { enabled: true, amountCoins: 12 },
+        weekly: { enabled: true, amountCoins: 40 },
+      },
+    }));
     const ownerPolicy = await getOwnerAttendanceRewardPolicy.run(ownerRequest(ownerUid));
     assert.equal(ownerPolicy.policy.daily.amountCoins, 12);
+    assert.equal(ownerPolicy.version, initialPolicy.version + 1);
+    await assert.rejects(
+      () => setAttendanceRewardPolicy.run(ownerRequest(ownerUid, {
+        expectedVersion: initialPolicy.version,
+        policy: {
+          hourly: { enabled: false, amountCoins: 0 },
+          daily: { enabled: true, amountCoins: 99 },
+          weekly: { enabled: true, amountCoins: 40 },
+        },
+      })),
+      (error) => error && error.code === "aborted",
+    );
+    assert.equal((await getOwnerAttendanceRewardPolicy.run(ownerRequest(ownerUid))).policy.daily.amountCoins, 12);
     const results = await Promise.all([
       claimAttendanceReward.run(memberRequest(uid, { type: "daily" })),
       claimAttendanceReward.run(memberRequest(uid, { type: "daily" })),
