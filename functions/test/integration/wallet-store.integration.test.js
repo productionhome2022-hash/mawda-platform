@@ -720,10 +720,11 @@ test("owner catalog seeds approved features as ready while keeping purchases dis
     const item = items.find((entry) => entry.itemId === itemId);
     assert.ok(item, `missing starter catalog item: ${itemId}`);
     assert.equal(item.priceCoins, price);
-    const implemented = itemId !== "hide_coins_30d";
-    assert.equal(item.active, implemented);
+    const fulfillmentReady = itemId !== "hide_coins_30d";
+    // Seeded suggestions stay unpublished until the owner explicitly activates them.
+    assert.equal(item.active, false);
     assert.equal(item.purchaseEnabled, false);
-    assert.equal(item.fulfillmentReady, implemented);
+    assert.equal(item.fulfillmentReady, fulfillmentReady);
   }
 });
 
