@@ -26,6 +26,7 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
   const campaignRef = db.collection("timedAdCampaigns").doc(campaignId);
   const financialRef = db.collection("featuredAdFinancials").doc(campaignId);
   const versionRef = db.collection("featuredAdFinancialVersions").doc(campaignId).collection("versions");
+  const campaignVersionRef = db.collection("timedAdCampaignVersions").doc(campaignId).collection("versions");
   const eventRef = financialRef.collection("events");
   const campaignInput = {
     campaignId,
@@ -41,6 +42,7 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
     rewardBudgetCoins: 1000,
   };
   await setTimedAdCampaign.run(ownerRequest(ownerUid, campaignInput));
+  assert.equal((await campaignVersionRef.doc("1").get()).exists, true);
   const base = {
     campaignId, note: "Verified against advertiser statement.",
     evidenceReference: "workspace-evidence://approved/receipt-01",
@@ -100,10 +102,11 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
     await Promise.all([
       ...events.docs.map((doc) => doc.ref.delete()),
       ...versions.docs.map((doc) => doc.ref.delete()),
+      ...((await campaignVersionRef.get()).docs.map((doc) => doc.ref.delete())),
       ...audits.docs.map((doc) => doc.ref.delete()),
       financialRef.delete().catch(() => undefined),
       campaignRef.delete().catch(() => undefined),
-      db.doc(`timedAdCampaignVersions/${campaignId}/versions/1`).delete().catch(() => undefined),
+      campaignVersionRef.doc("1").delete().catch(() => undefined),
     ]);
   }
 });
