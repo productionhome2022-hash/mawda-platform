@@ -15,6 +15,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
   bool _loading = true;
   bool _saving = false;
   bool _manualPurchasesEnabled = false;
+  bool _manualFeaturedAdsEnabled = false;
   int _version = 0;
   String? _error;
 
@@ -38,6 +39,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
             .whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList();
         _version = (data['version'] as num?)?.toInt() ?? 0;
         _manualPurchasesEnabled = data['manualCoinPurchasesEnabled'] == true;
+        _manualFeaturedAdsEnabled = data['manualFeaturedAdsEnabled'] == true;
       });
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل إعدادات الاقتصاد.');
@@ -56,6 +58,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
         'coinPackages': _packages,
         'adPrices': _ads,
         'manualCoinPurchasesEnabled': _manualPurchasesEnabled,
+        'manualFeaturedAdsEnabled': _manualFeaturedAdsEnabled,
         'expectedVersion': _version,
       });
       final data = Map<String, dynamic>.from(result.data as Map);
@@ -254,6 +257,21 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
                   subtitle: const Text('عند الإيقاف لن يتمكن الأعضاء من إنشاء طلبات جديدة. لا يوجد دفع إلكتروني آلي؛ يبقى معطلاً دائماً.'),
                   value: _manualPurchasesEnabled,
                   onChanged: _saving ? null : (value) => setState(() => _manualPurchasesEnabled = value),
+                ),
+              ),
+              Card(
+                child: SwitchListTile(
+                  title: const Text('تفعيل الدفع اليدوي الخارجي للإعلانات المميزة'),
+                  subtitle: const Text('يتفاوض المالك مع المعلن خارج المنصة، ويتحقق من وصول المبلغ بنفسه، ثم يسجل الحركة من لوحة الإعلانات. إعدادات الطلبات الجديدة لا تغير لقطة الدفع للحملات القائمة.'),
+                  value: _manualFeaturedAdsEnabled,
+                  onChanged: _saving ? null : (value) => setState(() => _manualFeaturedAdsEnabled = value),
+                ),
+              ),
+              const Card(
+                child: ListTile(
+                  leading: Icon(Icons.lock_clock_outlined),
+                  title: Text('الدفع الإلكتروني الآلي'),
+                  subtitle: Text('مغلق حالياً لجميع الخدمات؛ لا يوجد مزود دفع معتمد أو تكامل خادمي موثّق. لن يظهر خيار تفعيله قبل اكتمال تكامل المزود والتحقق من جاهزيته.'),
                 ),
               ),
               Text('باقات BetaCoins', style: Theme.of(context).textTheme.titleLarge),
