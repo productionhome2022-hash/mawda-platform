@@ -11,7 +11,7 @@ const {
   getRewardCenter,
   setOwnerFeaturedAdCampaign, setFeaturedAdCampaignStatus, setOwnerFeaturedAdRewardPolicy,
   completeFeaturedAdViewingSession, getMyFeaturedAdRewardHistory,
-  getFeaturedAdShowcase,
+  getFeaturedAdShowcase, startFeaturedAdViewingSession,
   startTimedAdvertisement,
   getActiveTimedAdSession,
   getTimedAdCreativeUrl,
@@ -650,6 +650,10 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
     const campaignId = created.campaignId;
     campaignRef = db.collection("featuredAdCampaigns").doc(campaignId);
     memberRef = db.collection("featuredAdCampaignMembers").doc(uid + "_" + campaignId);
+    await assert.rejects(
+      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published" })),
+      (error) => error && error.code === "failed-precondition",
+    );
     const approved = await setFeaturedAdCampaignStatus.run(ownerRequest({
       campaignId, status: "approved", paymentConfirmed: true,
     }));
@@ -702,5 +706,41 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
       db.collection("mediaAssets").doc("fixture-media-" + tag).delete().catch(() => undefined),
       userRef.collection("walletLedger").doc("featured_ad_reward_" + sessionRef.id).delete().catch(() => undefined),
     ]);
+  }
+});
+
+
+test("featured viewing session is not persisted when the safe media derivative is invalid", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const uid = "featured-media-member-" + tag;
+  const ownerUid = "featured-media-owner-" + tag;
+  const campaignRef = db.collection("featuredAdCampaigns").doc("featured_media_" + tag);
+  const mediaRef = db.collection("mediaAssets").doc("featured_media_asset_" + tag);
+  const userRef = db.collection("users").doc(uid);
+  await userRef.set({ coins: 0, profileCompleted: true, accountStatus: "active" });
+  await mediaRef.set({
+    ownerUid, uploaderRole: "platform_owner", mediaPurpose: "advertisement",
+    status: "security_approved", mediaCategory: "image",
+  });
+  await campaignRef.set({
+    status: "published", ownerApproved: true, ownerWithdrawn: false,
+    paymentConfirmed: true, creativeApproved: true, createdBy: ownerUid,
+    mediaId: mediaRef.id, creativeType: "image",
+    startsAtMs: Date.now() - 1000, endsAtMs: Date.now() + 60_000,
+    geographicTargets: ["syria"], featuredPlacement: "rotation",
+  });
+  try {
+    await assert.rejects(
+      () => startFeaturedAdViewingSession.run(memberRequest(uid, {
+        campaignId: campaignRef.id, geography: "syria",
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    const sessions = await db.collection("featuredAdViewingSessions")
+      .where("uid", "==", uid).where("campaignId", "==", campaignRef.id).get();
+    assert.equal(sessions.size, 0);
+  } finally {
+    await Promise.all([userRef.delete(), campaignRef.delete(), mediaRef.delete()]);
   }
 });
