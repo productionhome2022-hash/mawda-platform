@@ -133,11 +133,39 @@ test("scanner callback validates exact GIF, audio, video and flattened-PDF deriv
     signatureDatabaseAgeMs: 60 * 60 * 1000,
   };
   const derivatives = [
-    { category: "gif", path: "animation.gif", contentType: "image/gif", pipelineVersion: "gif-sanitize-preserve-animation-v1", processingStatus: "safe_animation_derivative_ready" },
+    { category: "gif", path: "animation.gif", contentType: "image/gif", pipelineVersion: "gif-sanitize-preserve-animation-v1", processingStatus: "safe_animation_derivative_ready", durationMs: 20_000, frameCount: 50 },
     { category: "audio", path: "audio.mp3", contentType: "audio/mpeg", pipelineVersion: "ffmpeg-audio-purpose-limit-v2", processingStatus: "safe_audio_derivative_ready" },
-    { category: "video", path: "video.mp4", contentType: "video/mp4", pipelineVersion: "ffmpeg-video-transcode-v1", processingStatus: "safe_video_derivative_ready" },
+    { category: "video", path: "video.mp4", contentType: "video/mp4", pipelineVersion: "ffmpeg-video-transcode-v1", processingStatus: "safe_video_derivative_ready", durationMs: 90_000 },
     { category: "document", path: "document.pdf", contentType: "application/pdf", pipelineVersion: "pdf-raster-flatten-v1", processingStatus: "safe_document_derivative_ready" },
   ];
+  const gif = derivatives[0];
+  const gifPayload = {
+    ...base,
+    processingStatus: gif.processingStatus,
+    safeDerivative: {
+      category: gif.category, path: `processed/member_1/${base.mediaId}/animation.gif`,
+      generation: "987654", sha256: "b".repeat(64), contentType: gif.contentType,
+      pipelineVersion: gif.pipelineVersion, durationMs: 20_001, frameCount: 50,
+    },
+  };
+  assert.equal(validateScannerVerdict(gifPayload, base.provider, now), null);
+  const tooManyFrames = {
+    ...gifPayload,
+    safeDerivative: { ...gifPayload.safeDerivative, durationMs: 20_000, frameCount: 51 },
+  };
+  assert.equal(validateScannerVerdict(tooManyFrames, base.provider, now), null);
+
+  const video = derivatives[2];
+  const longVideo = {
+    ...base,
+    processingStatus: video.processingStatus,
+    safeDerivative: {
+      category: video.category, path: `processed/member_1/${base.mediaId}/video.mp4`,
+      generation: "987654", sha256: "b".repeat(64), contentType: video.contentType,
+      pipelineVersion: video.pipelineVersion, durationMs: 90_001,
+    },
+  };
+  assert.equal(validateScannerVerdict(longVideo, base.provider, now), null);
   for (const item of derivatives) {
     const payload = {
       ...base,
@@ -149,6 +177,8 @@ test("scanner callback validates exact GIF, audio, video and flattened-PDF deriv
         sha256: "b".repeat(64),
         contentType: item.contentType,
         pipelineVersion: item.pipelineVersion,
+        ...(item.durationMs !== undefined ? { durationMs: item.durationMs } : {}),
+        ...(item.frameCount !== undefined ? { frameCount: item.frameCount } : {}),
       },
     };
     assert.equal(validateScannerVerdict(payload, base.provider, now).safeDerivative.category, item.category);
