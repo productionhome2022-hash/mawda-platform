@@ -7841,6 +7841,16 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
         : Promise.resolve(null),
     ]);
     if (data.status === "approved") {
+      const expectedLedgerType = data.giftRecipientUid
+        ? "coin_package_gift_credit" : "coin_purchase_manual_credit";
+      if (!ledger.exists || ledger.data()?.type !== expectedLedgerType ||
+          ledger.data()?.amount !== data.creditedCoins ||
+          ledger.data()?.purchaseRequestId !== input.requestId ||
+          ledger.data()?.externalPaymentReference !== input.externalPaymentReference ||
+          data.externalPaymentReference !== input.externalPaymentReference ||
+          !Number.isSafeInteger(data.creditedCoins) || data.creditedCoins < 1) {
+        throw new HttpsError("failed-precondition", "طلب الشراء المعتمد لا يطابق قيد المحفظة وإثبات الدفع؛ يلزم تدقيق السجل.");
+      }
       return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null, creditedToUid: targetUid };
     }
     if (data.status !== "payment_instructions_sent") {
