@@ -12,6 +12,7 @@ const {
   setOwnerFeaturedAdCampaign, setFeaturedAdCampaignStatus, setOwnerFeaturedAdRewardPolicy,
   completeFeaturedAdViewingSession, getMyFeaturedAdRewardHistory,
   getFeaturedAdShowcase, startFeaturedAdViewingSession,
+  heartbeatFeaturedAdViewingSession, endFeaturedAdViewingSession,
   startTimedAdvertisement,
   getActiveTimedAdSession,
   getTimedAdCreativeUrl,
@@ -742,5 +743,46 @@ test("featured viewing session is not persisted when the safe media derivative i
     assert.equal(sessions.size, 0);
   } finally {
     await Promise.all([userRef.delete(), campaignRef.delete(), mediaRef.delete()]);
+  }
+});
+
+
+test("featured session heartbeat is revoked on campaign withdrawal and close is idempotent", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const uid = "featured-heartbeat-member-" + tag;
+  const campaignRef = db.collection("featuredAdCampaigns").doc("featured_hb_" + tag);
+  const sessionRef = db.collection("featuredAdViewingSessions").doc();
+  const userRef = db.collection("users").doc(uid);
+  await userRef.set({ coins: 0, profileCompleted: true, accountStatus: "active" });
+  await campaignRef.set({
+    status: "published", ownerApproved: true, ownerWithdrawn: false,
+    paymentConfirmed: true, creativeApproved: true,
+  });
+  await sessionRef.set({
+    uid, campaignId: campaignRef.id, status: "active",
+    startedAtMs: Date.now() - 6000, lastHeartbeatAtMs: Date.now() - 6000,
+    visibleMs: 0, continuousVisibleMs: 0, progressPercent: 0,
+    foregroundVisible: true, rewardClaimed: false,
+  });
+  try {
+    const heartbeat = await heartbeatFeaturedAdViewingSession.run(memberRequest(uid, {
+      sessionId: sessionRef.id, foregroundVisible: true, progressPercent: 0,
+    }));
+    assert.equal(heartbeat.revoked, undefined);
+    await campaignRef.update({ status: "withdrawn", ownerWithdrawn: true });
+    const revoked = await heartbeatFeaturedAdViewingSession.run(memberRequest(uid, {
+      sessionId: sessionRef.id, foregroundVisible: true, progressPercent: 10,
+    }));
+    assert.equal(revoked.revoked, true);
+    assert.equal((await sessionRef.get()).data().status, "campaign_revoked");
+    await sessionRef.update({ status: "active" });
+    const ended = await endFeaturedAdViewingSession.run(memberRequest(uid, { sessionId: sessionRef.id }));
+    assert.equal(ended.ended, true);
+    const replay = await endFeaturedAdViewingSession.run(memberRequest(uid, { sessionId: sessionRef.id }));
+    assert.equal(replay.ended, false);
+    assert.equal((await sessionRef.get()).data().status, "abandoned");
+  } finally {
+    await Promise.all([userRef.delete(), campaignRef.delete(), sessionRef.delete()]);
   }
 });
