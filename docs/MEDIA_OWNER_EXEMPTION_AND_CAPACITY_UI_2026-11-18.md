@@ -39,7 +39,10 @@ Relevant commits:
 - 3e8de50f422c5eee1cd0ae2af76e6e04e7a886ac — split daily exemption from full owner exemption.
 - 1c78003300977737a2053ae65f0e608c3f52af66 — apply active reservations to owner-directed transfers.
 - 0bfe54b9d0e8c2cc83b8a80901dce0f219fda260 — add quota policy regression tests.
-- 3e7e2fc56e5f92d8f451fd98c8980bed491aab9d — suppress unused policy argument in strict TypeScript builds.
+- 3e7e2fc56e5f92d8f451fd98c8980bed491aab9d — initial strict-TypeScript compatibility pass.
+- ba33a30323bf9df19045fb1bbe1d62a9f0883c2a — simplify the full-exemption helper contract.
+- 646b9e2a13baa3cdf79befb07174065f307be3d4 — use the sender-only full-exemption helper.
+- ac0d86c005e5f76d85cbb9e1142d401a33767f84 — align policy tests with the helper contract.
 
 ## Capacity and media policy owner screen
 
