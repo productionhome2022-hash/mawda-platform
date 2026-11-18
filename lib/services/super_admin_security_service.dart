@@ -39,10 +39,12 @@ class SuperAdminSecurityService {
   Future<Map<String, dynamic>> setTransferCommission({
     required int commissionBps,
     required bool enabled,
+    required int expectedVersion,
   }) async {
     final result = await _functions.httpsCallable('setTransferCommission').call({
       'commissionBps': commissionBps,
       'enabled': enabled,
+      'expectedVersion': expectedVersion,
     });
     return Map<String, dynamic>.from(result.data as Map);
   }
