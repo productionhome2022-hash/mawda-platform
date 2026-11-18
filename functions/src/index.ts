@@ -8371,7 +8371,6 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
     serverNonce: createHash("sha256").update(uid + ":" + sessionId + ":" + now).digest("hex"),
     createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
   };
-  await sessionRef.create(sessionData);
   let media: { url: string | null; creativeType: string; contentType: string | null; expiresAt: number | null } =
     { url: null, creativeType, contentType: null, expiresAt: null };
   if (campaign.mediaId) {
@@ -8407,6 +8406,9 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
     const [url] = await file.getSignedUrl({ version: "v4", action: "read", expires: expiresAt, responseType: expectedType, responseDisposition: "inline" });
     media = { url, creativeType: isVideo ? "video" : isGif ? "gif" : "image", contentType: expectedType, expiresAt };
   }
+  // Create the session only after all creative/storage checks succeed; a rejected
+  // media object must not leave an active, rewardable orphan session.
+  await sessionRef.create(sessionData);
   return { sessionId, campaignId, creativeType, serverNonce: sessionData.serverNonce, ...media };
 });
 export const heartbeatFeaturedAdViewingSession = onCall(async (request) => {
