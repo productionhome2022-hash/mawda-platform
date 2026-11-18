@@ -85,7 +85,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
   String _status(String? value) => switch (value) {
     'pending_owner_contact' => 'بانتظار تواصل المالك',
     'payment_instructions_sent' => 'أُرسلت تعليمات الدفع - بانتظار التحقق',
-    'approved' => 'تم الاعتماد وإضافة الكوينز',
+    'approved' => 'تم الاعتماد وإضافة BetaCoins',
     'rejected' => 'مرفوض',
     'withdrawn' => 'مسحوب',
     _ => 'قيد المعالجة',
@@ -93,7 +93,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('شراء الكوينز يدوياً'),
+    appBar: AppBar(title: const Text('شراء BetaCoins يدوياً'),
       actions: [IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh))]),
     body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
       padding: const EdgeInsets.all(16), children: [
@@ -119,7 +119,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
         Row(children: [
           Expanded(child: TextField(controller: _customCoins, enabled: !_sending,
             keyboardType: TextInputType.number, decoration: const InputDecoration(
-              labelText: 'عدد الكوينز المطلوب', border: OutlineInputBorder(),
+              labelText: 'عدد BetaCoins المطلوب', border: OutlineInputBorder(),
             ))),
           const SizedBox(width: 10),
           FilledButton(onPressed: _sending ? null : _requestCustom, child: const Text('إرسال الطلب')),
@@ -134,9 +134,9 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
               (item['packageSnapshot'] is Map ? item['packageSnapshot']['coins'] : null) ?? 'قيد التحديد';
           return Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(
             crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('الكمية: ' + coins.toString() + ' Beta Coins'),
+              Text('الكمية: ' + coins.toString() + ' BetaCoins'),
               if (item['giftRecipientUid'] is String)
-                const Text('هذا الطلب لشراء باقة كهدية؛ ستصل الكوينز إلى العضو المستلم بعد اعتماد المالك.'),
+                const Text('هذا الطلب لشراء باقة كهدية؛ ستصل BetaCoins إلى العضو المستلم بعد اعتماد المالك.'),
               Text(_status(status)),
               if (item['agreedPriceMinor'] is num)
                 Text('السعر المتفق عليه: ' +
