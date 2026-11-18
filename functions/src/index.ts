@@ -7860,8 +7860,8 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
         throw new HttpsError("failed-precondition", "لا يمكن تغيير كمية أو سعر الباقة المحددة كهدية؛ يجب اعتماد شروط الباقة التي اختارها المرسل.");
       }
     }
-    if (["approved", "rejected", "withdrawn"].includes(String(prior.status))) {
-      throw new HttpsError("failed-precondition", "لا يمكن تعديل طلب منتهٍ.");
+    if (["approved", "rejected", "withdrawn", "awaiting_payment_verification"].includes(String(prior.status))) {
+      throw new HttpsError("failed-precondition", "لا يمكن تعديل تعليمات الدفع بعد إبلاغ العضو بإرسال الدفعة أو انتهاء الطلب.");
     }
     if (prior.paymentChannel !== "manual_owner_contact" ||
         (prior.paymentPolicySnapshot !== undefined &&
@@ -7932,6 +7932,82 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     "أرسل مالك المنصة تعليمات الدفع لطلب الBetaCoins. افتح المحادثة للاطلاع عليها.",
     { type: "coin_purchase_payment_instructions", chatId, messageId });
   return { requestId: input.requestId, status: "payment_instructions_sent", chatId, messageId };
+});
+
+/**
+ * A member may notify the owner that they initiated an external payment.
+ * This is only a workflow signal: it never verifies receipt or credits coins.
+ */
+export const requestCoinPurchasePaymentVerification = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const requestId = request.data?.requestId;
+  const expectedInstructionsVersion = request.data?.expectedInstructionsVersion;
+  if (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestId) ||
+      !Number.isSafeInteger(expectedInstructionsVersion) ||
+      (expectedInstructionsVersion as number) < 1) {
+    throw new HttpsError("invalid-argument", "معرف الطلب أو إصدار تعليمات الدفع غير صالح.");
+  }
+  const requestRef = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
+  const auditRef = db.collection("adminAuditLogs").doc(
+    `coin_purchase_payment_report_${uid}_${requestId}_${expectedInstructionsVersion}`,
+  );
+  return db.runTransaction(async (transaction) => {
+    const [purchase, audit] = await Promise.all([
+      transaction.get(requestRef), transaction.get(auditRef),
+    ]);
+    if (!purchase.exists || purchase.data()?.requesterUid !== uid) {
+      throw new HttpsError("not-found", "طلب الشراء غير موجود.");
+    }
+    const data = purchase.data() ?? {};
+    if (data.paymentChannel !== "manual_owner_contact" ||
+        data.paymentPolicySnapshot?.manualEnabled !== true) {
+      throw new HttpsError("failed-precondition", "هذا الطلب لا يستخدم مسار الدفع اليدوي.");
+    }
+    if (data.status === "awaiting_payment_verification" &&
+        data.instructionsVersion === expectedInstructionsVersion &&
+        data.paymentReportedInstructionVersion === expectedInstructionsVersion) {
+      if (audit.exists) {
+        const priorAudit = audit.data() ?? {};
+        if (priorAudit.action !== "coin_purchase_member_reported_external_payment" ||
+            priorAudit.actorUid !== uid || priorAudit.requestId !== requestId) {
+          throw new HttpsError("data-loss", "سجل الإبلاغ عن الدفع غير متطابق.");
+        }
+      } else {
+        transaction.create(auditRef, {
+          actorUid: uid, targetUid: uid,
+          action: "coin_purchase_member_reported_external_payment",
+          requestId, instructionVersion: expectedInstructionsVersion,
+          authority: "member_claim_only_not_payment_proof",
+          createdAt: FieldValue.serverTimestamp(),
+        });
+      }
+      return { requestId, status: "awaiting_payment_verification", idempotentReplay: true };
+    }
+    if (data.status !== "payment_instructions_sent") {
+      throw new HttpsError("failed-precondition", "لا يمكن الإبلاغ عن الدفع في الحالة الحالية للطلب.");
+    }
+    if (data.instructionsVersion !== expectedInstructionsVersion) {
+      throw new HttpsError("aborted", "تغيرت تعليمات الدفع؛ حدّث الطلب قبل الإبلاغ.");
+    }
+    if (audit.exists) {
+      throw new HttpsError("data-loss", "يوجد سجل إبلاغ سابق لا يطابق حالة الطلب.");
+    }
+    transaction.update(requestRef, {
+      status: "awaiting_payment_verification",
+      paymentReportedBy: uid,
+      paymentReportedAt: FieldValue.serverTimestamp(),
+      paymentReportedInstructionVersion: expectedInstructionsVersion,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.create(auditRef, {
+      actorUid: uid, targetUid: uid,
+      action: "coin_purchase_member_reported_external_payment",
+      requestId, instructionVersion: expectedInstructionsVersion,
+      authority: "member_claim_only_not_payment_proof",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { requestId, status: "awaiting_payment_verification", idempotentReplay: false };
+  });
 });
 
 /** Only the owner can attest to external receipt; approval atomically credits coins and ledger. */
@@ -8022,7 +8098,7 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
       }
       return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null, creditedToUid: targetUid };
     }
-    if (data.status !== "payment_instructions_sent") {
+    if (!["payment_instructions_sent", "awaiting_payment_verification"].includes(String(data.status))) {
       throw new HttpsError("failed-precondition", "لا يمكن اعتماد الطلب قبل إرسال تعليمات الدفع.");
     }
     if (!user.exists || !isMemberAccountInGoodStanding(user.data()) ||
