@@ -93,6 +93,7 @@ import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
 import { validateCoinPackages, validateAdPrices } from "./economy-pricing";
 import { currencyExponentForCode } from "./economy-pricing";
+import { validateEconomicPaymentPolicy, projectEconomicPaymentPolicy } from "./economy-payment-policy";
 import {
   validateFeaturedAdFinancialEvent, applyFeaturedAdFinancialEvent,
   featuredAdFinancialIdempotencyId, defaultFeaturedAdFinancialSnapshot,
@@ -7407,7 +7408,11 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
 export const getAvailableCoinPackages = onCall(async () => {
   const snapshot = await ECONOMY_PRICING_SETTINGS.get();
   const data = snapshot.data() ?? {};
-  if (!snapshot.exists || data.manualCoinPurchasesEnabled !== true ||
+  const paymentPolicy = projectEconomicPaymentPolicy(data.paymentPolicy, {
+    manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled,
+  });
+  if (!snapshot.exists || paymentPolicy.coin_purchases.manualEnabled !== true ||
+      paymentPolicy.coin_purchases.automatedEnabled !== false ||
       data.automatedCoinCheckoutEnabled === true || !Number.isSafeInteger(data.version) ||
       data.version < 1 || !Array.isArray(data.coinPackages)) {
     return { packages: [], manualPurchasesEnabled: false, automatedCheckoutEnabled: false, customCoinRequestBounds: null };
@@ -7448,7 +7453,11 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       throw new HttpsError("permission-denied", "يجب أن يكون حساب العضو مكتملاً ونشطاً.");
     }
     const economy = settings.data() ?? {};
-    if (!settings.exists || economy.manualCoinPurchasesEnabled !== true ||
+    const paymentPolicy = projectEconomicPaymentPolicy(economy.paymentPolicy, {
+      manualCoinPurchasesEnabled: economy.manualCoinPurchasesEnabled,
+    });
+    if (!settings.exists || paymentPolicy.coin_purchases.manualEnabled !== true ||
+        paymentPolicy.coin_purchases.automatedEnabled !== false ||
         economy.automatedCoinCheckoutEnabled === true || !Number.isSafeInteger(economy.version) ||
         economy.version < 1) {
       throw new HttpsError("failed-precondition", "سياسة الشراء اليدوي غير مهيأة أو غير فعالة؛ لم ننشئ طلباً مالياً.");
@@ -7493,7 +7502,9 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       paymentChannel: "manual_owner_contact", currency: packageSnapshot?.currency ?? economy.currency ?? null,
       currencyExponent: packageSnapshot?.currencyExponent ?? null,
       paymentPolicySnapshot: {
-        manualEnabled: true, automatedEnabled: false,
+        service: "coin_purchases",
+        manualEnabled: paymentPolicy.coin_purchases.manualEnabled,
+        automatedEnabled: paymentPolicy.coin_purchases.automatedEnabled,
         policyVersion: economy.version, pricingPolicyVersion: economy.version,
       },
       createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
@@ -7948,7 +7959,12 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
     coinPackages, adPrices, customCoinRequestBounds: bounds,
     version: data.version,
     realMoneyCheckoutEnabled: false,
-    manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled === true,
+    manualCoinPurchasesEnabled: projectEconomicPaymentPolicy(data.paymentPolicy, {
+      manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled,
+    }).coin_purchases.manualEnabled,
+    paymentPolicy: projectEconomicPaymentPolicy(data.paymentPolicy, {
+      manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled,
+    }),
     automatedCoinCheckoutEnabled: false,
     configured: true,
   };
@@ -7991,17 +8007,24 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
     if (!Number.isSafeInteger(nextVersion)) {
       throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة الاقتصاد.");
     }
+    const previousPaymentPolicy = projectEconomicPaymentPolicy(previousData.paymentPolicy, {
+      manualCoinPurchasesEnabled: previousData.manualCoinPurchasesEnabled,
+    });
+    const paymentPolicy = validateEconomicPaymentPolicy({
+      ...previousPaymentPolicy,
+      coin_purchases: { manualEnabled: manualCoinPurchasesEnabled, automatedEnabled: false },
+    });
     const now = FieldValue.serverTimestamp();
     const versionRef = db.collection("platformSettings").doc("economyPricingVersions")
       .collection("versions").doc(String(nextVersion));
     transaction.create(versionRef, {
-      coinPackages, adPrices, customCoinRequestBounds,
+      coinPackages, adPrices, customCoinRequestBounds, paymentPolicy,
       manualCoinPurchasesEnabled, automatedCoinCheckoutEnabled: false,
       realMoneyCheckoutEnabled: false, version: nextVersion,
       createdAt: now, createdBy: actorUid,
     });
     transaction.set(ECONOMY_PRICING_SETTINGS, {
-      coinPackages, adPrices, customCoinRequestBounds, version: nextVersion,
+      coinPackages, adPrices, customCoinRequestBounds, paymentPolicy, version: nextVersion,
       manualCoinPurchasesEnabled,
       automatedCoinCheckoutEnabled: false,
       realMoneyCheckoutEnabled: false,
