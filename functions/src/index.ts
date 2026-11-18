@@ -9924,6 +9924,26 @@ const CALL_USAGE_POLICY = db.doc("platformSettings/callUsagePolicy");
  * a server-recorded client connectivity signal, not cryptographic proof of
  * network delivery; live device acceptance remains a separate release gate.
  */
+async function clearCallMemberLocks(callRef: DocumentReference): Promise<void> {
+  const snapshot = await callRef.get();
+  const participantUids = Array.isArray(snapshot.data()?.participantUids)
+    ? [...new Set((snapshot.data()!.participantUids as unknown[])
+        .filter((uid): uid is string => typeof uid === "string"))]
+    : [];
+  for (let offset = 0; offset < participantUids.length; offset += 100) {
+    const batchUids = participantUids.slice(offset, offset + 100);
+    await db.runTransaction(async (transaction) => {
+      const lockRefs = batchUids.map((uid) => ACTIVE_CALL_MEMBER_LOCKS.doc(uid));
+      const locks = await Promise.all(lockRefs.map((lockRef) => transaction.get(lockRef)));
+      lockRefs.forEach((lockRef, index) => {
+        if (locks[index].exists && locks[index].data()?.callId === callRef.id) {
+          transaction.delete(lockRef);
+        }
+      });
+    });
+  }
+}
+
 async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<string | null> {
   const status = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(callRef);
@@ -9934,11 +9954,6 @@ async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<
         call.maxDurationEndsAt.toMillis() > Date.now()) {
       return typeof call.status === "string" ? call.status : null;
     }
-    const participantUids = Array.isArray(call.participantUids)
-      ? call.participantUids.filter((uid): uid is string => typeof uid === "string")
-      : [];
-    const lockRefs = participantUids.map((uid) => ACTIVE_CALL_MEMBER_LOCKS.doc(uid));
-    const locks = await Promise.all(lockRefs.map((lockRef) => transaction.get(lockRef)));
     transaction.update(callRef, {
       status: "ended",
       endedBy: "system",
@@ -9946,14 +9961,15 @@ async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<
       endedAt: FieldValue.serverTimestamp(),
       lastActivityAt: FieldValue.serverTimestamp(),
     });
-    lockRefs.forEach((lockRef, index) => {
-      if (locks[index].exists && locks[index].data()?.callId === callRef.id) {
-        transaction.delete(lockRef);
-      }
-    });
     return "duration_expired";
   });
   if (status === "duration_expired") {
+    try { await clearCallMemberLocks(callRef); }
+    catch (error) {
+      logger.error("Call member lock cleanup deferred after duration expiry", {
+        callId: callRef.id, error: String(error),
+      });
+    }
     try { await processGroupCallBillingSettlement(callRef); }
     catch (error) {
       await callRef.set({
