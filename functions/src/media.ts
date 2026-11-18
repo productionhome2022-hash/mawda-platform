@@ -1900,13 +1900,13 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
             updatedAt: FieldValue.serverTimestamp(),
           });
           return { ownerUid: String(data.ownerUid), objectPath: String(data.objectPath),
-            reservedBytes: Number(data.declaredSizeBytes) };
+            reservedBytes: Number(data.declaredSizeBytes), quotaExempt: data.quotaExempt === true };
         }
         if (data.status === "expired_cleanup_in_progress") {
           const recheckAt = data.cleanupMissingObjectRecheckAt as Timestamp | undefined;
           if (recheckAt && recheckAt.toMillis() > nowMs) return null;
           return { ownerUid: String(data.ownerUid), objectPath: String(data.objectPath),
-            reservedBytes: Number(data.declaredSizeBytes) };
+            reservedBytes: Number(data.declaredSizeBytes), quotaExempt: data.quotaExempt === true };
         }
         return null;
       });
@@ -1959,20 +1959,20 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
           await abandonedFile.delete({ ignoreNotFound: true, ifGenerationMatch: generation });
         }
         await mediaDb().runTransaction(async (transaction) => {
+          const quotaRef = mediaDb().collection("mediaUploadQuotas").doc(claimed.ownerUid);
           const [current, quotaSnapshot] = await Promise.all([
             transaction.get(assetRef),
-            transaction.get(mediaDb().collection("mediaUploadQuotas").doc(claimed.ownerUid)),
+            claimed.quotaExempt ? Promise.resolve(null) : transaction.get(quotaRef),
           ]);
           if (!current.exists || current.data()?.status !== "expired_cleanup_in_progress") return;
-          const quota = releaseMediaQuota(quotaSnapshot.data(), claimed.reservedBytes);
+          const quota = claimed.quotaExempt ? null :
+            releaseMediaQuota(quotaSnapshot?.data(), claimed.reservedBytes);
           transaction.update(assetRef, {
             status: "expired",
             expiredAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
           });
-          transaction.set(mediaDb().collection("mediaUploadQuotas").doc(claimed.ownerUid), {
-            ...quota, updatedAt: FieldValue.serverTimestamp(),
-          });
+          if (quota) transaction.set(quotaRef, { ...quota, updatedAt: FieldValue.serverTimestamp() });
           transaction.create(mediaDb().collection("mediaAccessAudit").doc(), {
             actorUid: claimed.ownerUid,
             mediaId: candidate.id,
