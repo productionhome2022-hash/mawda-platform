@@ -261,3 +261,8 @@ For every economic price that is defined as one combined amount and divided equa
 ## Reconciliation ordering precision note (2026-11-18)
 - Wallet ledger reconciliation now orders Firestore timestamps using safe millisecond precision plus nanoseconds, avoiding unsafe large integer timestamp arithmetic. Missing timestamps and truncated histories remain explicitly incomplete.
 - Commit: 851076fc032a9e200eeb5512e56c9766fab9bd68. No tests run.
+
+
+## Legacy ledger segment handling
+- Reconciliation now resets continuity comparison across a legacy entry whose balance delta cannot be verified. It reports the result as incomplete rather than falsely marking later valid snapshots corrupt. New regression coverage was added.
+- Commits: 2979e30b86a18fd6352c2cbd8cc3bfc022e4dd67, fc193db3a49bfc1c2847a69096b07676089219bf. Not executed.
