@@ -54,7 +54,7 @@ test("coin package offers and purchase requests fail closed without owner-config
 
 test("client-reported featured-ad progress cannot mint wallet rewards without trusted server evidence", async () => {
   const uid = `featured_reward_spoof_${suffix()}`;
-  const sessionId = `featured_session_${suffix()}`;
+  const sessionId = require("node:crypto").randomUUID();
   const campaignId = `featured_campaign_${suffix()}`;
   const userRef = db.collection("users").doc(uid);
   const sessionRef = db.collection("featuredAdViewingSessions").doc(sessionId);
