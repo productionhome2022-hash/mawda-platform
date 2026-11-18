@@ -56,6 +56,12 @@ test("documents are owner-only even if a member forges uploaderRole", () => {
   assert.equal(resolveChatMediaDeliveryArtifact(pdf, false), null);
   assert.equal(resolveChatMediaDeliveryArtifact({ ...pdf, uploaderRole: "platform_owner" }, false), null);
   assert.equal(resolveChatMediaDeliveryArtifact({ ...pdf, uploaderRole: "platform_owner" }, true)?.category, "document");
+  const memberToOwnerPdf = {
+    ...pdf, uploaderRole: "member", intendedRecipientUid: "verified-owner-uid",
+  };
+  assert.equal(resolveChatMediaDeliveryArtifact(memberToOwnerPdf, false), null);
+  assert.equal(resolveChatMediaDeliveryArtifact(memberToOwnerPdf, false, true)?.category, "document");
+  assert.equal(chatMediaUploaderAllowed(memberToOwnerPdf, false, true), true);
 });
 
 test("all owner-uploaded chat media requires a verified owner session, not just a stored role", () => {
