@@ -7840,9 +7840,24 @@ export const getFeaturedAdShowcase = onCall({ enforceAppCheck: true }, async (re
   const selection = selectFeaturedAdShowcase({
     campaigns: candidates as any, audienceGeography: geography, nowMs: now,
   });
+  const policySnapshot = await FEATURED_AD_REWARD_POLICY.get();
+  let rewardPolicy;
+  try {
+    rewardPolicy = policySnapshot.exists
+      ? validateFeaturedAdRewardPolicy(policySnapshot.data()?.policy)
+      : defaultFeaturedAdRewardPolicy();
+  } catch {
+    rewardPolicy = defaultFeaturedAdRewardPolicy();
+  }
   const byId = new Map(snapshot.docs.map((doc) => [doc.id, doc.data()]));
   return {
     ...selection,
+    rewardPolicy: {
+      enabled: rewardPolicy.enabled,
+      rewardCoinsPerView: rewardPolicy.rewardCoinsPerView,
+      imageContinuousVisibleMs: rewardPolicy.imageContinuousVisibleMs,
+      videoCompletionPercent: rewardPolicy.videoCompletionPercent,
+    },
     campaigns: selection.campaignIds.map((id) => {
       const data = byId.get(id)!;
       return {
