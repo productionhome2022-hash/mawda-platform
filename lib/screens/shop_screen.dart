@@ -41,11 +41,6 @@ class _ShopScreenState extends State<ShopScreen> {
     final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
     if (itemId == null || itemId.isEmpty || price <= 0 || _purchasingItemId != null) return;
     final category = item['category'] as String? ?? '';
-    final callPackageNotice = category == 'voice_call'
-        ? 'تمنحك الباقة 5 مكالمات صوتية عادية في كل 24 ساعة طوال مدة صلاحيتها. بعد استنفاد حصتك، يكون سعر المكالمة الصوتية المفتوحة 120 كوينز للدقيقة إجمالاً: 60 من كل طرف إذا استنفد الطرفان حصتيهما، أو 120 من المتصل وحده إذا كان المستقبل لا يزال يملك محاولات.'
-        : category == 'video_call'
-            ? 'تمنحك الباقة 3 مكالمات مرئية عادية في كل 24 ساعة طوال مدة صلاحيتها. بعد استنفاد حصتك، يكون سعر المكالمة المرئية المفتوحة 400 كوينز للدقيقة إجمالاً: 200 من كل طرف إذا استنفد الطرفان حصتيهما، أو 400 من المتصل وحده إذا كان المستقبل لا يزال يملك محاولات.'
-            : null;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -55,12 +50,7 @@ class _ShopScreenState extends State<ShopScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('سيتم خصم $price كوين من محفظتك مقابل "$name"، ومنح الاستحقاق عبر الخادم.'),
-            if (callPackageNotice != null) ...[
-              const SizedBox(height: 12),
-              Text(callPackageNotice),
-              const SizedBox(height: 8),
-              const Text('يشترط امتلاك الطرفين اشتراكاً سارياً من نوع المكالمة نفسه. هذه الأسعار هي الأسعار المعتمدة حالياً، ويجب عرض أي تغيير يقرره مالك المنصة من إعدادات الخادم قبل الشراء والاستخدام.'),
-            ],
+          ],
           ],
         ),
         actions: [
@@ -260,22 +250,6 @@ class _ShopScreenState extends State<ShopScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('تنبيه أسعار المكالمات المفتوحة', style: TextStyle(fontWeight: FontWeight.bold)),
-                      SizedBox(height: 8),
-                      Text('الصوتية: 120 كوينز للدقيقة إجمالاً (60 من كل طرف إذا استنفد الطرفان حصتيهما).'),
-                      Text('المرئية: 400 كوينز للدقيقة إجمالاً (200 من كل طرف إذا استنفد الطرفان حصتيهما).'),
-                      SizedBox(height: 6),
-                      Text('إذا استنفد المتصل حصته وبقيت لدى المستقبل محاولات عادية، يتحمل المتصل السعر الإجمالي وحده، ولا يُخصم من المستقبل ولا تُستهلك محاولاته. تُتاح المكالمات المفتوحة بعد استنفاد حصة المتصل اليومية، ومع سريان اشتراك النوع نفسه لدى الطرفين.'),
-                    ],
-                  ),
-                ),
-              ),
               const SizedBox(height: 12),
               if (visibleItems.isEmpty)
                 Padding(
@@ -312,7 +286,7 @@ class _ShopScreenState extends State<ShopScreen> {
                           children: [
                             const Icon(Icons.monetization_on_outlined),
                             const SizedBox(width: 6),
-                            Text('$price كوين'),
+                            Text(price > 0 ? '$price BetaCoins' : 'السعر والمدة يحددهما المالك'),
                             if (duration != null) ...[
                               const SizedBox(width: 12),
                               Text('المدة: $duration يوماً'),
