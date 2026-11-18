@@ -6316,11 +6316,13 @@ export const purchaseStoreItem = onCall(async (request) => {
   const itemId = request.data?.itemId;
   const requestId = request.data?.requestId;
   const expectedPriceCoins = request.data?.expectedPriceCoins;
+  const expectedCatalogVersion = request.data?.expectedCatalogVersion;
   if (typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
       typeof requestId !== "string" || requestId.length < 8 ||
       requestId.length > 80 || !/^[A-Za-z0-9_-]+$/.test(requestId) ||
       typeof expectedPriceCoins !== "number" || !Number.isSafeInteger(expectedPriceCoins) ||
-      expectedPriceCoins <= 0) {
+      expectedPriceCoins <= 0 || !Number.isSafeInteger(expectedCatalogVersion) ||
+      expectedCatalogVersion < 1) {
     throw new HttpsError("invalid-argument", "بيانات شراء العنصر غير صالحة.");
   }
 
@@ -6340,7 +6342,7 @@ export const purchaseStoreItem = onCall(async (request) => {
     ]);
     if (priorPurchase.exists) {
       const prior = priorPurchase.data() ?? {};
-      if (!isStorePurchaseReplayCompatible(prior, uid, itemId, expectedPriceCoins)) {
+      if (!isStorePurchaseReplayCompatible(prior, uid, itemId, expectedPriceCoins, expectedCatalogVersion)) {
         throw new HttpsError("already-exists", "معرف طلب الشراء مستخدم لعملية أخرى أو ببيانات سعر مختلفة.");
       }
       return {
@@ -6369,6 +6371,9 @@ export const purchaseStoreItem = onCall(async (request) => {
         "failed-precondition",
         "شراء هذا العنصر غير متاح حتى اكتمال تنفيذ استحقاقه والتحقق منه.",
       );
+    }
+    if (item.version !== expectedCatalogVersion) {
+      throw new HttpsError("failed-precondition", "تغير إصدار عنصر المتجر منذ تحميله. حدّث الصفحة وراجع الشروط قبل الشراء.");
     }
     if (!isStorePurchasePriceCurrent(expectedPriceCoins, item.priceCoins)) {
       throw new HttpsError(
@@ -6425,6 +6430,12 @@ export const purchaseStoreItem = onCall(async (request) => {
       category: item.category,
       priceCoins: item.priceCoins,
       durationDays: item.durationDays ?? null,
+      catalogVersion: item.version,
+      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
+      itemTermsSnapshot: {
+        name: item.name, description: item.description, category: item.category,
+        priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
+      },
       newBalance,
       expiresAt,
       status: "completed",
@@ -6436,7 +6447,9 @@ export const purchaseStoreItem = onCall(async (request) => {
       amount: -item.priceCoins,
       itemId,
       itemName: item.name,
-      purchaseId,
+      purchaseId, catalogVersion: item.version,
+      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
+      priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
       createdAt,
     });
     transaction.set(entitlementRef, {
@@ -6445,6 +6458,8 @@ export const purchaseStoreItem = onCall(async (request) => {
       category: item.category,
       status: "active",
       purchaseId,
+      catalogVersion: item.version,
+      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
       purchasedAt: createdAt,
       expiresAt,
     });
@@ -6681,38 +6696,40 @@ export const setStoreCatalogItem = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "بيانات عنصر المتجر أو سعره أو تصنيفه غير صالحة.");
   }
   const itemRef = db.collection("storeCatalog").doc(item.itemId);
+  let savedVersion = 0;
   await db.runTransaction(async (transaction) => {
     const previousSnapshot = await transaction.get(itemRef);
+    const previous = previousSnapshot.data() ?? {};
+    if (previousSnapshot.exists && (!Number.isSafeInteger(previous.version) || previous.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار عنصر المتجر الحالي غير صالح؛ أوقفنا التحديث لحماية سجل الأسعار.");
+    }
+    savedVersion = previousSnapshot.exists ? previous.version + 1 : 1;
+    if (!Number.isSafeInteger(savedVersion)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لعنصر المتجر.");
     const now = FieldValue.serverTimestamp();
-    transaction.set(itemRef, {
-      itemId: item.itemId,
-      name: item.name,
-      description: item.description,
-      category: item.category,
-      priceCoins: item.priceCoins,
-      durationDays: item.durationDays ?? null,
-      sortOrder: item.sortOrder,
-      active: item.active,
-      purchaseEnabled: item.purchaseEnabled,
-      fulfillmentReady: item.fulfillmentReady,
-      createdAt: previousSnapshot.data()?.createdAt ?? now,
-      updatedAt: now,
-      updatedBy: actorUid,
-    });
+    const nextItem = {
+      itemId: item.itemId, name: item.name, description: item.description,
+      category: item.category, priceCoins: item.priceCoins,
+      durationDays: item.durationDays ?? null, sortOrder: item.sortOrder,
+      active: item.active, purchaseEnabled: item.purchaseEnabled,
+      fulfillmentReady: item.fulfillmentReady, version: savedVersion,
+      createdAt: previous.createdAt ?? now, updatedAt: now, updatedBy: actorUid,
+    };
+    const versionRef = db.collection("storeCatalogVersions").doc(item.itemId)
+      .collection("versions").doc(String(savedVersion));
+    transaction.create(versionRef, { ...nextItem, createdBy: actorUid });
+    transaction.set(itemRef, { ...nextItem, currentVersionPath: versionRef.path });
     const auditRef = db.collection("adminAuditLogs").doc();
     transaction.create(auditRef, {
       actorUid,
       action: previousSnapshot.exists ? "store_catalog_item_updated" : "store_catalog_item_created",
-      itemId: item.itemId,
-      active: item.active,
-      priceCoins: item.priceCoins,
-      category: item.category,
-      purchaseEnabled: item.purchaseEnabled,
-      fulfillmentReady: item.fulfillmentReady,
+      itemId: item.itemId, version: savedVersion,
+      active: item.active, priceCoins: item.priceCoins,
+      category: item.category, purchaseEnabled: item.purchaseEnabled,
+      fulfillmentReady: item.fulfillmentReady, durationDays: item.durationDays ?? null,
       createdAt: now,
     });
   });
-  return { itemId: item.itemId, active: item.active };
+  return { itemId: item.itemId, active: item.active, version: savedVersion };
 });
 
 /** Returns only display-safe catalog fields to the authenticated owner. */
@@ -6730,17 +6747,21 @@ export const getOwnerStoreCatalog = onCall(async (request) => {
         active: true,
         fulfillmentReady: true,
       })?.fulfillmentReady ?? false;
-      transaction.create(ref, {
+      const now = FieldValue.serverTimestamp();
+      const seeded = {
         ...item,
         // Publish approved, implemented profile features for discovery in the
         // shop, but leave charging disabled until the owner confirms prices.
         active: fulfillmentReady,
         purchaseEnabled: false,
         fulfillmentReady,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-        updatedBy: actorUid,
-      });
+        version: 1,
+        createdAt: now, updatedAt: now, updatedBy: actorUid,
+      };
+      const versionRef = db.collection("storeCatalogVersions").doc(item.itemId)
+        .collection("versions").doc("1");
+      transaction.create(versionRef, { ...seeded, createdBy: actorUid });
+      transaction.create(ref, { ...seeded, currentVersionPath: versionRef.path });
     });
   });
   const snapshot = await db.collection("storeCatalog").limit(100).get();
