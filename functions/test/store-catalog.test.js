@@ -27,6 +27,24 @@ test("projects only active catalog items with safe display fields", () => {
   });
 });
 
+test("store durations are limited to the approved 24-hour, 7-day and 30-day periods", () => {
+  const base = {
+    active: true, name: "مدة معتمدة", description: "اختبار مدد الاستحقاق.",
+    category: "vip", priceCoins: 100,
+  };
+  for (const durationDays of [1, 7, 30]) {
+    assert.equal(projectStoreCatalogItem("valid_duration", {
+      ...base, durationDays,
+    }).durationDays, durationDays);
+  }
+  for (const durationDays of [2, 14, 31, 365, 3650, 0, -1]) {
+    assert.equal(projectStoreCatalogItem("invalid_duration", {
+      ...base, durationDays,
+    }), null, String(durationDays));
+  }
+  assert.equal(projectStoreCatalogItem("permanent_item", base).durationDays, undefined);
+});
+
 test("rejects unpublished, malformed, and unsafe-price items", () => {
   assert.equal(projectStoreCatalogItem("hidden", { active: false }), null);
   assert.equal(projectStoreCatalogItem("bad-name", {
