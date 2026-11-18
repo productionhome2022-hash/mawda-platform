@@ -47,6 +47,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   bool _registrationEnabled = false;
   bool _savingRegistrationPolicy = false;
   bool _transferEnabled = false;
+  int _transferVersion = 0;
   bool _savingTransferSettings = false;
   bool _creatingRoom = false;
   bool _loadingCatalog = false;
@@ -554,6 +555,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
         _registrationEnabled = policy['enabled'] == true;
         final transfer = result['transferSettings'] as Map<String, dynamic>? ?? {};
         _transferEnabled = transfer['enabled'] == true;
+        _transferVersion = (transfer['version'] as num?)?.toInt() ?? 0;
         final commissionBps = transfer['commissionBps'];
         _commissionPercentController.text = commissionBps is num
             ? (commissionBps.toDouble() / 100).toStringAsFixed(2)
@@ -973,6 +975,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       await _service.setTransferCommission(
         commissionBps: (percent * 100).round(),
         enabled: _transferEnabled,
+        expectedVersion: _transferVersion,
       );
       await _loadOverview();
       if (!mounted) return;
