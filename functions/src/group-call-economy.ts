@@ -36,9 +36,12 @@ export function validateGroupCallPricingPolicy(value: unknown): GroupCallPricing
 }
 
 export function getGroupCallRate(policyInput: unknown, mode: GroupCallMode): number {
+  if (mode !== "audio" && mode !== "video") throw new Error("INVALID_GROUP_CALL_MODE");
   const policy = validateGroupCallPricingPolicy(policyInput);
   if (!policy.active) throw new Error("GROUP_CALL_PRICING_DISABLED");
-  const rate = mode === "audio" ? policy.audioCoinsPerMinute : policy.videoCoinsPerMinute;\n  if (rate < 1) throw new Error("GROUP_CALL_MODE_DISABLED");\n  return rate;
+  const rate = mode === "audio" ? policy.audioCoinsPerMinute : policy.videoCoinsPerMinute;
+  if (rate < 1) throw new Error("GROUP_CALL_MODE_DISABLED");
+  return rate;
 }
 
 /**
