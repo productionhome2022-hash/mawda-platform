@@ -6634,6 +6634,7 @@ export const giftStoreEntitlement = onCall(async (request) => {
   return db.runTransaction(async (transaction) => {
     const [
       sender, recipient, itemSnapshot, priorGift, priorLedger, priorEntitlement,
+      priorHistory, priorNotification,
       senderGuestProfile, senderGuestSession, recipientGuestProfile, recipientGuestSession,
     ] = await Promise.all([
       transaction.get(senderRef),
@@ -6642,6 +6643,8 @@ export const giftStoreEntitlement = onCall(async (request) => {
       transaction.get(giftRef),
       transaction.get(senderLedgerRef),
       transaction.get(recipientEntitlementRef),
+      transaction.get(recipientHistoryRef),
+      transaction.get(recipientNotificationRef),
       transaction.get(senderGuestProfileRef),
       transaction.get(senderGuestSessionRef),
       transaction.get(recipientGuestProfileRef),
@@ -6650,10 +6653,20 @@ export const giftStoreEntitlement = onCall(async (request) => {
 
     if (priorGift.exists) {
       const prior = priorGift.data() ?? {};
+      const ledger = priorLedger.data() ?? {};
+      const history = priorHistory.data() ?? {};
+      const notification = priorNotification.data() ?? {};
       if (!isStoreGiftReplayCompatible(prior, {
         senderUid, recipientUid, itemId, expectedPriceCoins,
       })) {
         throw new HttpsError("already-exists", "معرف طلب الإهداء مستخدم لعملية أخرى أو بسعر مختلف.");
+      }
+      if (!priorLedger.exists || !priorHistory.exists || !priorNotification.exists ||
+          ledger.type !== "store_gift" || ledger.amount !== -prior.priceCoins ||
+          ledger.giftId !== giftId || history.giftId !== giftId ||
+          history.senderUid !== senderUid || history.itemId !== itemId ||
+          notification.type !== "store_gift_received" || notification.giftId !== giftId) {
+        throw new HttpsError("failed-precondition", "سجلات الإهداء غير متطابقة؛ أوقفنا إعادة الطلب للحماية.");
       }
       return {
         giftId, itemId, recipientUid,
