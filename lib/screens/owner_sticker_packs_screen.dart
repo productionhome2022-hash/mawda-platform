@@ -163,7 +163,7 @@ class _OwnerStickerPacksScreenState extends State<OwnerStickerPacksScreen> {
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: _busy ? null : () => _pickSticker('animated'),
-            icon: const Icon(Icons.gif_box_outlined),
+            icon: const Icon(Icons.gif),
             label: const Text('رفع ملصق متحرك GIF (حتى 512 KiB)'),
           ),
           if (_busy) ...[
@@ -179,7 +179,7 @@ class _OwnerStickerPacksScreenState extends State<OwnerStickerPacksScreen> {
           ..._stickers.map((sticker) => Card(
                 child: ListTile(
                   leading: Icon(sticker['kind'] == 'animated'
-                      ? Icons.gif_box_outlined
+                      ? Icons.gif
                       : Icons.image_outlined),
                   title: Text(sticker['stickerId'] as String),
                   subtitle: Text(
