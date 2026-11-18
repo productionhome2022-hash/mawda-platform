@@ -8071,6 +8071,13 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     const legacyClaims = legacyCounter.exists
       ? readSafeInteger(legacyCounter.data()?.claimCount, "legacyClaimCount") : 0;
     const claims = Math.max(currentClaims, legacyClaims);
+    const dailyData = dailyCounter.data() ?? {};
+    const dailyClaims = dailyCounter.exists ? readSafeInteger(dailyData.claimCount ?? 0, "dailyClaimCount") : 0;
+    const dailyRewardCoins = dailyCounter.exists ? readSafeInteger(dailyData.rewardCoins ?? 0, "dailyRewardCoins") : 0;
+    if (dailyClaims >= TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER ||
+        dailyRewardCoins + data.rewardCoins > TIMED_AD_DAILY_MAX_REWARD_COINS_PER_MEMBER) {
+      return cancelSession("ineligible");
+    }
     if (reserved < data.rewardCoins || spent + data.rewardCoins > budget ||
         claims >= campaignData.maxClaimsPerMember) {
       throw new HttpsError("resource-exhausted", "انتهت ميزانية الحملة أو الحد المسموح للمكافآت.");
@@ -8080,6 +8087,12 @@ export const completeTimedAdvertisement = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "رصيد المحفظة لا يسمح بإضافة المكافأة بأمان.");
     }
     const now = FieldValue.serverTimestamp();
+    transaction.set(dailyCounterRef, {
+      uid, period: dailyPeriod,
+      claimCount: dailyClaims + 1,
+      rewardCoins: dailyRewardCoins + data.rewardCoins,
+      updatedAt: now,
+    }, { merge: true });
     transaction.update(userRef, { coins: balance + data.rewardCoins, walletUpdatedAt: now });
     transaction.create(claimRef, {
       uid, sessionId, campaignId: data.campaignId,
