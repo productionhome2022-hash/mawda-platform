@@ -7,7 +7,7 @@ const {
   setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
   sendOwnerLiveStream,
-  deleteDirectMessageForEveryone, deleteRoomMessage,
+  deleteDirectMessageForEveryone, deleteRoomMessage, startCall, endCall,
 } = require("../../lib/index");
 const { createDirectChatId } = require("../../lib/direct-chat-id");
 
@@ -702,6 +702,54 @@ test("every shipped premium store category charges once and grants its matching 
       ...catalogRefs.map((ref) => ref.delete().catch(() => undefined)),
       db.collection("storeCatalog").doc("hide_coins_30d").delete().catch(() => undefined),
       db.recursiveDelete(memberRef).catch(() => undefined),
+    ]);
+  }
+});
+
+
+test("call entitlement SKUs can be purchased through the central store and immediately authorize both-party call creation", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const callerUid = "call_store_caller_" + tag;
+  const calleeUid = "call_store_callee_" + tag;
+  const chatId = "call_store_chat_" + tag;
+  const callId = "call_store_session_" + tag;
+  const callerRef = db.collection("users").doc(callerUid);
+  const calleeRef = db.collection("users").doc(calleeUid);
+  const chatRef = db.collection("directChats").doc(chatId);
+  const itemRef = db.collection("storeCatalog").doc("voice_call_24h");
+  await Promise.all([
+    callerRef.set({ coins: 500, profileCompleted: true, accountStatus: "active", age: 29 }),
+    calleeRef.set({ coins: 500, profileCompleted: true, accountStatus: "active", age: 31 }),
+    chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
+    itemRef.set({
+      itemId: "voice_call_24h", name: "مكالمات صوتية 24 ساعة",
+      description: "اختبار تكامل", category: "voice_call", priceCoins: 100,
+      durationDays: 1, sortOrder: 1, active: true,
+      purchaseEnabled: true, fulfillmentReady: true,
+    }),
+  ]);
+  try {
+    await purchaseStoreItem.run(memberRequest(callerUid, {
+      itemId: "voice_call_24h", requestId: "call_purchase_" + tag + "_a", expectedPriceCoins: 100,
+    }));
+    await purchaseStoreItem.run(memberRequest(calleeUid, {
+      itemId: "voice_call_24h", requestId: "call_purchase_" + tag + "_b", expectedPriceCoins: 100,
+    }));
+    const started = await startCall.run(memberRequest(callerUid, {
+      callId, scope: "direct", targetId: chatId, mode: "audio",
+    }));
+    assert.equal(started.status, "ringing");
+    await endCall.run(memberRequest(callerUid, { callId }));
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(callerRef).catch(() => undefined),
+      db.recursiveDelete(calleeRef).catch(() => undefined),
+      db.recursiveDelete(chatRef).catch(() => undefined),
+      db.recursiveDelete(itemRef).catch(() => undefined),
+      db.recursiveDelete(db.collection("callSessions").doc(callId)).catch(() => undefined),
+      db.recursiveDelete(db.collection("activeCallMemberLocks").doc(callerUid)).catch(() => undefined),
+      db.recursiveDelete(db.collection("activeCallMemberLocks").doc(calleeUid)).catch(() => undefined),
     ]);
   }
 });
