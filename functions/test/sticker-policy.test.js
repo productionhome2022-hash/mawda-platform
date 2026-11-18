@@ -174,12 +174,12 @@ test("public sticker catalog rejects unpublished, unapproved and unscanned packs
   };
   assert.equal(projectPublishedStickerPack("starter", { ...base, status: "draft" }), null);
   assert.equal(projectPublishedStickerPack("starter", { ...base, approved: false }), null);
-  assert.throws(() => projectPublishedStickerPack("starter", {
+  assert.equal(projectPublishedStickerPack("starter", {
     ...base,
     stickers: [{ ...base.stickers[0], scanStatus: "pending" }],
-  }), /UNAPPROVED_STICKER_ASSET/);
-  assert.throws(() => projectPublishedStickerPack("starter", {
+  }), null);
+  assert.equal(projectPublishedStickerPack("starter", {
     ...base,
     stickers: [{ ...base.stickers[0], assetId: "../private" }],
-  }), /UNAPPROVED_STICKER_ASSET/);
+  }), null);
 });
