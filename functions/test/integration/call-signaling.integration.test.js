@@ -156,7 +156,21 @@ test("room call signaling is peer-targeted and one member leaving does not end t
     }));
     assert.deepEqual(started.participantUids, [callerUid]);
     await requestRoomCallJoin.run(call(firstUid, { callId }));
+    const replayRequest = await requestRoomCallJoin.run(call(firstUid, { callId }));
+    assert.equal(replayRequest.idempotentReplay, true);
     await requestRoomCallJoin.run(call(secondUid, { callId }));
+    await assert.rejects(
+      () => respondToRoomCallJoinRequest.run(call(firstUid, {
+        callId, requesterUid: secondUid, decision: "approve",
+      })),
+      (error) => error && error.code === "permission-denied",
+      "only the creator may approve a room-call join request",
+    );
+    await assert.rejects(
+      () => respondToCall.run(call(firstUid, { callId, response: "accept" })),
+      (error) => error && error.code === "permission-denied",
+      "room participants cannot self-approve through the direct-call endpoint",
+    );
     await assert.rejects(
       () => sendCallSignal.run(call(callerUid, {
         callId, toUid: firstUid,
@@ -168,6 +182,10 @@ test("room call signaling is peer-targeted and one member leaving does not end t
     await respondToRoomCallJoinRequest.run(call(callerUid, {
       callId, requesterUid: firstUid, decision: "approve",
     }));
+    const replayApproval = await respondToRoomCallJoinRequest.run(call(callerUid, {
+      callId, requesterUid: firstUid, decision: "approve",
+    }));
+    assert.equal(replayApproval.idempotentReplay, true);
     await respondToRoomCallJoinRequest.run(call(callerUid, {
       callId, requesterUid: secondUid, decision: "approve",
     }));
@@ -561,6 +579,17 @@ test("room group call records late media connections without resetting the share
     const replay = await markCallConnected.run(call(lateUid, { callId }));
     assert.equal(replay.idempotentReplay, true);
     assert.equal(replay.maxDurationEndsAtMs, firstParticipantReport.maxDurationEndsAtMs);
+
+    await callRef.update({ maxDurationEndsAt: Timestamp.fromMillis(Date.now() - 1) });
+    await assert.rejects(
+      () => markCallConnected.run(call(lateUid, { callId })),
+      (error) => error && error.code === "deadline-exceeded",
+      "the shared deadline must end the call for every participant",
+    );
+    assert.equal((await callRef.get()).data()?.status, "ended");
+    for (const memberUid of [callerUid, firstUid, lateUid]) {
+      assert.equal((await getActiveCall.run(call(memberUid))).active, false);
+    }
   } finally {
     await Promise.all([
       db.recursiveDelete(callRef).catch(() => undefined),
