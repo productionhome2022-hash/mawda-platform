@@ -317,7 +317,16 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
     final values = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
+        builder: (dialogContext, setDialogState) {
+          final amountValue = int.tryParse(amount.text.trim());
+          final currencyCode = currency.text.trim().toUpperCase();
+          final validCurrency = currencyCode.length == 3 &&
+              currencyCode.codeUnits.every((unit) => unit >= 65 && unit <= 90);
+          final validInput = externalReference.text.trim().length >= 3 &&
+              note.text.trim().length >= 5 &&
+              (isReview || (amountValue != null && amountValue > 0 && validCurrency)) &&
+              (!needsEvidence || evidenceReference.text.trim().length >= 3);
+          return AlertDialog(
           title: Text(switch (action) {
             'payment_received' => 'تسجيل استلام دفعة خارجية',
             'refund_recorded' => 'تسجيل استرداد مالي',
@@ -365,30 +374,19 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
             FilledButton(
-              onPressed: () {
-                final amountValue = int.tryParse(amount.text.trim());
-                final currencyCode = currency.text.trim().toUpperCase();
-                final validCurrency = currencyCode.length == 3 &&
-                    currencyCode.codeUnits.every((unit) => unit >= 65 && unit <= 90);
-                if (externalReference.text.trim().length < 3 ||
-                    note.text.trim().length < 5 ||
-                    (!isReview && (amountValue == null || amountValue < 1 || !validCurrency)) ||
-                    (needsEvidence && evidenceReference.text.trim().length < 3)) {
-                  return null;
-                }
-                return () => Navigator.pop(dialogContext, {
-                  'amountMinor': isReview ? null : amountValue,
-                  'currency': isReview ? null : currencyCode,
-                  'externalReference': externalReference.text.trim(),
-                  'evidenceReference': needsEvidence ? evidenceReference.text.trim() : null,
-                  'note': note.text.trim(),
-                  'reviewOutcome': isReview ? reviewOutcome : null,
-                });
-              }(),
+              onPressed: validInput ? () => Navigator.pop(dialogContext, {
+                'amountMinor': isReview ? null : amountValue,
+                'currency': isReview ? null : currencyCode,
+                'externalReference': externalReference.text.trim(),
+                'evidenceReference': needsEvidence ? evidenceReference.text.trim() : null,
+                'note': note.text.trim(),
+                'reviewOutcome': isReview ? reviewOutcome : null,
+              }) : null,
               child: const Text('تسجيل الحركة'),
             ),
           ],
-        ),
+          );
+        },
       ),
     );
     amount.dispose();
