@@ -72,3 +72,22 @@ test("bilateral call tariff validator rejects unknown fields", () => {
     callerPrice: 100,
   }), /INVALID_CALL_TARIFFS/);
 });
+
+
+test("email verification reward policy is disabled until owner configures it", () => {
+  const { defaultEmailVerificationRewardPolicy, validateEmailVerificationRewardPolicy } =
+    require("../lib/economy-pricing");
+  assert.deepEqual(defaultEmailVerificationRewardPolicy(), {
+    enabled: false, rewardCoins: 0, cycleDays: 90,
+  });
+  assert.deepEqual(validateEmailVerificationRewardPolicy({
+    enabled: true, rewardCoins: 750, cycleDays: 45,
+  }), { enabled: true, rewardCoins: 750, cycleDays: 45 });
+  for (const policy of [
+    { enabled: true, rewardCoins: 0, cycleDays: 90 },
+    { enabled: false, rewardCoins: -1, cycleDays: 90 },
+    { enabled: false, rewardCoins: 0, cycleDays: 0 },
+    { enabled: false, rewardCoins: 0, cycleDays: 3651 },
+    { enabled: "yes", rewardCoins: 100, cycleDays: 90 },
+  ]) assert.throws(() => validateEmailVerificationRewardPolicy(policy));
+});
