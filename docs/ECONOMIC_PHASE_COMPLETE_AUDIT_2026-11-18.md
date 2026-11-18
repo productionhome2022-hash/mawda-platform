@@ -111,3 +111,11 @@ The development branch tree inspected in this pass contains no dedicated Media S
 
 ### Call UI lifecycle audit
 The inspected Flutter call screen reports connection and uses a five-minute display, but it does not show a billing-consent step or billing status. This is a concrete integration gap, not a cosmetic issue. The next call-economy implementation must fail closed when entitlement/consent/settlement state is missing and must not infer consent from accepting a call.
+
+
+## Daily rewarded-ad cap testability hardening — 2026-11-18
+
+- Extracted the daily claim/coin cap decision into the pure `decideTimedAdDailyCap` guard used by the existing Firestore transaction.
+- The guard validates all counter inputs as safe non-negative integers, rejects a zero/invalid next reward, and returns a stable rejection reason for claim-count or coin-budget exhaustion.
+- Added exact-boundary unit cases for 9/10 claims, 20/21 daily coins, and malformed inputs. These tests are committed but have **not** been executed in this environment.
+- The transaction still reads the per-member UTC-day counter before writes and applies the wallet credit, reward claim, campaign budget, and daily counter atomically. Cap rejection continues through the existing cancellation path, which releases the reserved campaign reward and grants no coins.
