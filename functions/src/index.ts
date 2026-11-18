@@ -14,7 +14,7 @@ import { validateMessageLegalHoldInput } from "./message-legal-hold";
 import { logger } from "firebase-functions";
 import { calculateTransferBreakdown } from "./coin-math";
 import { validateRegistrationPolicy } from "./registration-policy";
-import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
+import { canViewMemberProfile, projectPublicMemberProfile, projectCoinVisibility } from "./member-profile-view";
 import { validateMemberProfileUpdate } from "./member-profile-update";
 import {
   canChangeMemberSocialLinkVisibility,
@@ -948,6 +948,19 @@ export const getMemberProfile = onCall(async (request) => {
     entitlementSnapshot.docs.map((document) => document.data()),
   );
   const activeItemIds = new Set(premiumFeatures.activeFeatures.map((feature) => feature.itemId));
+  const hideCoinsActive = activeItemIds.has("hide_coins_30d");
+  const viewerIsSoleOwner = hasPlatformOwnerSession(
+    (request.auth?.token ?? {}) as Record<string, unknown>,
+    undefined,
+    viewerUid,
+  );
+  const coinVisibility = projectCoinVisibility({
+    viewerUid,
+    targetUid,
+    targetCoins: memberData.coins,
+    hideCoinsActive,
+    viewerIsSoleOwner,
+  });
   const analyticsActive = activeItemIds.has("profile_analytics_30d");
   let profileAnalytics: { last7DaysViews: number } | null = null;
 
@@ -1044,15 +1057,21 @@ export const getMemberProfile = onCall(async (request) => {
   if (!profile) {
     throw new HttpsError("permission-denied", "هذا الملف خاص ولا يمكن عرضه.");
   }
+  const economicProfile = {
+    coinBalanceVisible: coinVisibility.visible,
+    coinBalanceHiddenByPrivacy: coinVisibility.hiddenByPrivacy,
+    ...(coinVisibility.visible ? { coinBalance: coinVisibility.balance } : {}),
+  };
   return viewerUid === targetUid
     ? {
         ...profile,
         ...premiumProfileData,
+        ...economicProfile,
         profileVisibility: memberData.profileVisibility === "public" ? "public" : "private",
         canManageSocialLinks: biometricLinksActive,
         hiddenSocialLinks: hiddenProviders,
       }
-    : { ...profile, ...premiumProfileData };
+    : { ...profile, ...premiumProfileData, ...economicProfile };
 });
 
 /**
