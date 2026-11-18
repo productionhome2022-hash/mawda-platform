@@ -6295,14 +6295,34 @@ export const listMemberRooms = onCall(async (request) => {
 /** Gifts a configured store entitlement; sender debit, gift receipt and recipient grant are atomic. */
 export const giftStoreItem = onCall(async (request) => {
   const senderUid = requireAuthenticatedUid(request.auth?.uid);
-  const recipientUid = request.data?.recipientUid;
+  const rawRecipientUid = request.data?.recipientUid;
+  const recipientUsername = request.data?.recipientUsername;
   const itemId = request.data?.itemId;
   const requestId = request.data?.requestId;
   const expectedPriceCoins = request.data?.expectedPriceCoins;
   const expectedCatalogVersion = request.data?.expectedCatalogVersion;
+  let recipientUid = typeof rawRecipientUid === "string" ? rawRecipientUid : null;
+  let usernameRef: FirebaseFirestore.DocumentReference | null = null;
+  if (typeof recipientUsername === "string") {
+    const normalizedUsername = recipientUsername.trim();
+    if (normalizedUsername.length < 1 || normalizedUsername.length > 64 ||
+        normalizedUsername.includes("/") || /\\s/.test(normalizedUsername)) {
+      throw new HttpsError("invalid-argument", "اسم المستلم غير صالح.");
+    }
+    usernameRef = db.collection("usernameRegistry").doc(normalizedUsername);
+    const usernameSnapshot = await usernameRef.get();
+    const registeredUid = usernameSnapshot.data()?.uid;
+    if (!usernameSnapshot.exists || typeof registeredUid !== "string") {
+      throw new HttpsError("not-found", "اسم المستخدم غير موجود.");
+    }
+    if (recipientUid !== null && recipientUid !== registeredUid) {
+      throw new HttpsError("invalid-argument", "معرف المستلم لا يطابق اسم المستخدم.");
+    }
+    recipientUid = registeredUid;
+  }
   if (typeof recipientUid !== "string" || recipientUid.trim() !== recipientUid ||
       recipientUid.length < 1 || recipientUid.length > 128 || recipientUid.includes("/") ||
-      recipientUid === senderUid ||
+      recipientUid === senderUid || (usernameRef === null && typeof rawRecipientUid !== "string") ||
       typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
       typeof requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestId) ||
       !Number.isSafeInteger(expectedPriceCoins) || expectedPriceCoins < 1 ||
@@ -6320,11 +6340,15 @@ export const giftStoreItem = onCall(async (request) => {
   const entitlementRef = recipientRef.collection("entitlements").doc(itemId);
   const auditRef = db.collection("adminAuditLogs").doc(`store_gift_${giftId}`);
   return db.runTransaction(async (transaction) => {
-    const [sender, recipient, itemSnapshot, priorGift, priorEntitlement, priorLedger, priorAudit] = await Promise.all([
+    const [sender, recipient, itemSnapshot, priorGift, priorEntitlement, priorLedger, priorAudit, usernameSnapshot] = await Promise.all([
       transaction.get(senderRef), transaction.get(recipientRef),
       transaction.get(itemRef), transaction.get(giftRef), transaction.get(entitlementRef),
       transaction.get(ledgerRef), transaction.get(auditRef),
+      usernameRef ? transaction.get(usernameRef) : Promise.resolve(null),
     ]);
+    if (usernameRef && (!usernameSnapshot?.exists || usernameSnapshot.data()?.uid !== recipientUid)) {
+      throw new HttpsError("aborted", "تغير سجل اسم المستخدم؛ أعد المحاولة.");
+    }
     if (priorGift.exists) {
       const prior = priorGift.data() ?? {};
       const ledger = priorLedger.data() ?? {};
