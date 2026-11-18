@@ -804,6 +804,69 @@ test("owner economy pricing starts empty and only exposes owner-authored prices 
   }
 });
 
+test("canonical service payment policy overrides stale legacy coin-purchase flags", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const uid = `payment_policy_member_${tag}`;
+  const requestId = `policy_${tag}`;
+  const userRef = db.collection("users").doc(uid);
+  const requestRef = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
+  const settingsRef = db.doc("platformSettings/economyPricing");
+  const previous = await settingsRef.get();
+  const previousData = previous.exists ? previous.data() : null;
+  await userRef.set({ profileCompleted: true, accountStatus: "active", coins: 0 });
+  const base = {
+    coinPackages: [{ packageId: "policy_pack", name: "Policy package", coins: 250,
+      priceMinor: 100, currency: "EUR", active: true }],
+    adPrices: [], version: 41,
+    manualCoinPurchasesEnabled: true,
+    manualFeaturedAdsEnabled: false,
+    paymentPolicy: {
+      coin_purchases: { manualEnabled: false, automatedEnabled: false },
+      featured_ads: { manualEnabled: false, automatedEnabled: false },
+      public_ads: { manualEnabled: false, automatedEnabled: false },
+      influencer_services: { manualEnabled: false, automatedEnabled: false },
+      store_entitlements: { manualEnabled: false, automatedEnabled: false },
+    },
+  };
+  try {
+    await settingsRef.set(base);
+    const disabled = await getOwnerEconomyPricing.run(ownerRequest());
+    assert.equal(disabled.manualCoinPurchasesEnabled, false);
+    assert.equal(disabled.paymentPolicy.coin_purchases.manualEnabled, false);
+    assert.deepEqual((await getAvailableCoinPackages.run({})).packages, []);
+    await assert.rejects(
+      () => createCoinPurchaseRequest.run(memberRequest(uid, {
+        requestId, kind: "package", packageId: "policy_pack",
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+
+    await settingsRef.set({
+      ...base,
+      manualCoinPurchasesEnabled: false,
+      paymentPolicy: {
+        ...base.paymentPolicy,
+        coin_purchases: { manualEnabled: true, automatedEnabled: false },
+      },
+    });
+    const enabled = await getOwnerEconomyPricing.run(ownerRequest());
+    assert.equal(enabled.manualCoinPurchasesEnabled, true);
+    assert.equal((await getAvailableCoinPackages.run({})).packages.length, 1);
+    const created = await createCoinPurchaseRequest.run(memberRequest(uid, {
+      requestId, kind: "package", packageId: "policy_pack",
+    }));
+    assert.equal(created.status, "pending_owner_contact");
+    assert.equal((await requestRef.get()).data().paymentPolicySnapshot.manualEnabled, true);
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(userRef).catch(() => undefined),
+      requestRef.delete().catch(() => undefined),
+      previousData ? settingsRef.set(previousData) : settingsRef.delete().catch(() => undefined),
+    ]);
+  }
+});
+
 test("owner authority is bound to the single canonical owner UID", async () => {
   const mismatched = ownerRequest("different-owner", {});
   mismatched.auth.token.platformOwnerUid = "canonical-owner";
