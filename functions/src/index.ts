@@ -80,7 +80,7 @@ import {
   projectStoreEntitlementFeatures,
 } from "./store-purchase";
 import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
-import { deleteMediaAssetForMessage, getStickerAssetUrl, sendStickerMessage } from "./media";
+import { deleteMediaAssetForMessage } from "./media";
 import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
