@@ -26,6 +26,7 @@ export interface ChatMediaAssetForDelivery {
   safeDocumentGeneration?: unknown;
   safeDocumentSha256?: unknown;
   processingPipelineVersion?: unknown;
+  intendedRecipientUid?: unknown;
 }
 
 export interface ChatMediaDeliveryArtifact {
@@ -76,6 +77,7 @@ export function chatMediaProcessorFor(contentType: string): ChatMediaProcessor |
 export function resolveChatMediaDeliveryArtifact(
   asset: ChatMediaAssetForDelivery,
   isVerifiedPlatformOwner: boolean,
+  isVerifiedPlatformOwnerRecipient = false,
 ): ChatMediaDeliveryArtifact | null {
   if (asset.mediaPurpose !== "chat" && asset.mediaPurpose !== "room") return null;
   if (asset.status !== "security_approved") return null;
@@ -86,7 +88,10 @@ export function resolveChatMediaDeliveryArtifact(
   // A stored owner role is not proof of an owner session. Require the
   // server-verified owner/MFA context for every owner-uploaded media type.
   if (asset.uploaderRole === "platform_owner" && !isVerifiedPlatformOwner) return null;
-  if (route.category === "document" && asset.uploaderRole !== "platform_owner") return null;
+  if (route.category === "document" &&
+      !(asset.uploaderRole === "platform_owner" && isVerifiedPlatformOwner) &&
+      !(asset.uploaderRole === "member" && isVerifiedPlatformOwnerRecipient &&
+        typeof asset.intendedRecipientUid === "string" && asset.intendedRecipientUid.length > 0)) return null;
   if (route.category !== "document" && asset.uploaderRole !== "member" && asset.uploaderRole !== "platform_owner" &&
       !(route.category === "audio" && asset.mediaPurpose === "room" && asset.uploaderRole === "guest")) return null;
   const expectedProcessingStatus = route.category === "image" ? "safe_raster_derivative_ready" :
@@ -115,10 +120,12 @@ export function resolveChatMediaDeliveryArtifact(
 export function chatMediaUploaderAllowed(
   asset: Pick<ChatMediaAssetForDelivery, "uploaderRole" | "detectedContentType">,
   isVerifiedPlatformOwner: boolean,
+  isVerifiedPlatformOwnerRecipient = false,
 ): boolean {
   if (typeof asset.detectedContentType !== "string" || !PROCESSORS[asset.detectedContentType]) return false;
   const isDocument = PROCESSORS[asset.detectedContentType].category === "document";
-  if (isDocument) return isVerifiedPlatformOwner && asset.uploaderRole === "platform_owner";
+  if (isDocument) return (isVerifiedPlatformOwner && asset.uploaderRole === "platform_owner") ||
+    (isVerifiedPlatformOwnerRecipient && asset.uploaderRole === "member");
   return asset.uploaderRole === "member" ||
     (PROCESSORS[asset.detectedContentType].category === "audio" && asset.uploaderRole === "guest") ||
     (isVerifiedPlatformOwner && asset.uploaderRole === "platform_owner");
