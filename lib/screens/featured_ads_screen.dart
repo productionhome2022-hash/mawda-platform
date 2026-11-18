@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 
 const _featuredAdRegions = <String, String>{
@@ -22,6 +23,28 @@ class FeaturedAdsScreen extends StatefulWidget {
 
 class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
   String _selectedRegion = 'all_arab_countries';
+  late Future<List<Map<String, dynamic>>> _campaignsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _campaignsFuture = _loadCampaigns(_selectedRegion);
+  }
+
+  Future<List<Map<String, dynamic>>> _loadCampaigns(String geography) async {
+    final response = await FirebaseFunctions.instance
+        .httpsCallable('getFeaturedAdShowcase')
+        .call(<String, Object?>{'geography': geography});
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final campaigns = data['campaigns'];
+    if (campaigns is! List) {
+      throw const FormatException('Invalid featured-ad response');
+    }
+    return campaigns
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,22 +124,75 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
               const SizedBox(height: 18),
               Text('الحملات المميزة', style: theme.textTheme.titleLarge),
               const SizedBox(height: 8),
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      Icon(Icons.campaign_outlined, size: 38),
-                      SizedBox(height: 8),
-                      Text('لا توجد حملات مميزة متاحة للعرض حالياً.'),
-                      SizedBox(height: 4),
-                      Text(
-                        'سيتم عرض الحملات بعد اكتمال ربط خدمة الاستهداف والعرض واعتمادها من الإدارة.',
-                        textAlign: TextAlign.center,
+              FutureBuilder<List<Map<String, dynamic>>>(
+                future: _campaignsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Center(child: CircularProgressIndicator()),
                       ),
-                    ],
-                  ),
-                ),
+                    );
+                  }
+                  if (snapshot.hasError) {
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: Column(
+                          children: [
+                            const Icon(Icons.cloud_off_outlined, size: 34),
+                            const SizedBox(height: 8),
+                            const Text('تعذر تحميل الحملات المميزة.'),
+                            const SizedBox(height: 8),
+                            TextButton.icon(
+                              onPressed: () => setState(() {
+                                _campaignsFuture = _loadCampaigns(_selectedRegion);
+                              }),
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('إعادة المحاولة'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  final campaigns = snapshot.data ?? const <Map<String, dynamic>>[];
+                  if (campaigns.isEmpty) {
+                    return const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Column(
+                          children: [
+                            Icon(Icons.campaign_outlined, size: 38),
+                            SizedBox(height: 8),
+                            Text('لا توجد حملات مميزة معتمدة في هذا النطاق حالياً.'),
+                            SizedBox(height: 4),
+                            Text(
+                              'تظهر هنا الحملات المنشورة بعد اعتمادها والتحقق من الدفع والمادة الإعلانية.',
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  return Column(
+                    children: campaigns.map((campaign) {
+                      final title = campaign['title'] as String? ?? 'إعلان مميز';
+                      final sponsor = campaign['sponsorLabel'] as String? ?? '';
+                      final body = campaign['body'] as String? ?? '';
+                      return Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.campaign_outlined),
+                          title: Text(title),
+                          subtitle: Text(sponsor.isEmpty ? body : '$sponsor\\n$body'),
+                          isThreeLine: true,
+                        ),
+                      );
+                    }).toList(growable: false),
+                  );
+                },
               ),
               const SizedBox(height: 18),
               Text('تصفح حسب النطاق الجغرافي', style: theme.textTheme.titleLarge),
@@ -140,7 +216,7 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
                       width: double.infinity,
                       child: Text(entry.value, textAlign: TextAlign.center),
                     ),
-                    onSelected: (_) => setState(() => _selectedRegion = entry.key),
+                    onSelected: (_) => setState(() {\n                      _selectedRegion = entry.key;\n                      _campaignsFuture = _loadCampaigns(entry.key);\n                    }),
                   );
                 },
               ),
