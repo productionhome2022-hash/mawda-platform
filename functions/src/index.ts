@@ -8237,6 +8237,10 @@ export const getOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
 /** Owner/MFA-only versioned update; this changes policy configuration, not live payments. */
 export const setOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
   const actorUid = requireOwner(request);
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+    throw new HttpsError("invalid-argument", "إصدار سياسة المكافآت المتوقع غير صالح.");
+  }
   let policy;
   try {
     policy = validateFeaturedAdRewardPolicy(request.data?.policy);
@@ -8245,8 +8249,12 @@ export const setOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
   }
   const version = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(FEATURED_AD_REWARD_POLICY);
-    const nextVersion = (Number.isSafeInteger(previous.data()?.version)
-      ? previous.data()!.version : 0) + 1;
+    const currentVersion = Number.isSafeInteger(previous.data()?.version)
+      ? previous.data()!.version : 0;
+    if (currentVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت سياسة المكافآت؛ حدّث الصفحة قبل الحفظ.");
+    }
+    const nextVersion = currentVersion + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(FEATURED_AD_REWARD_POLICY, {
       policy, version: nextVersion, updatedBy: actorUid,
