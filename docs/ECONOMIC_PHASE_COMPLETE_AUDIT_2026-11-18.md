@@ -92,3 +92,9 @@
 ## آخر تغيير في هذه الجولة
 
 تم تنفيذ حماية رصيد Beta Coins خادمياً، وتوحيد اسم Beta Coins في واجهات الملف والإعلانات المميزة، وتثبيت نسبة 60/40 في وثيقة المرحلة، مع عدم دمج main أو لمس الإنتاج.
+
+## New hardening in this execution pass
+
+- Timed-ad reward caps are now enforced server-side for the development environment: maximum 10 rewarded ad claims per member per UTC day, maximum 20 Beta Coins from rewarded ads per member per UTC day, and maximum 3 rewarded claims per member per campaign.
+- The daily cap is stored in a dedicated per-member/per-UTC-day counter inside the same transaction as the wallet credit and reward claim, preventing concurrent requests from bypassing the cap.
+- Campaign validation rejects a per-member campaign limit above the experimental maximum.
