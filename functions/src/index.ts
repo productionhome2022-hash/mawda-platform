@@ -6482,6 +6482,7 @@ export const purchaseStoreItem = onCall(async (request) => {
       transaction.get(itemRef),
       transaction.get(purchaseRef),
       transaction.get(entitlementRef),
+      transaction.get(ledgerRef),
     ]);
     if (priorPurchase.exists) {
       const prior = priorPurchase.data() ?? {};
