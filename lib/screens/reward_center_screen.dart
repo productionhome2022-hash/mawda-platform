@@ -109,7 +109,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(data['idempotentReplay'] == true
             ? 'تم تسجيل هذه المكافأة مسبقاً.'
-            : 'أضيفت ${data['amountCoins'] ?? 0} كوين إلى محفظتك.'),
+            : 'أضيفت ${data['amountBeta Coins'] ?? 0} بيتا كوينز إلى محفظتك.'),
       ));
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذرت المطالبة بالمكافأة.');
@@ -216,7 +216,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(result['idempotentReplay'] == true
             ? 'تم تسجيل مشاهدة الإعلان مسبقاً.'
-            : 'اكتملت المشاهدة وأضيفت ${result['amountCoins'] ?? 0} كوين إلى محفظتك.'),
+            : 'اكتملت المشاهدة وأضيفت ${result['amountBeta Coins'] ?? 0} بيتا كوينز إلى محفظتك.'),
       ));
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'لم يثبت الخادم اكتمال المشاهدة بعد.');
@@ -226,12 +226,12 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
 
   Widget _attendanceCard(String type, String title, IconData icon) {
     final rule = Map<String, dynamic>.from(_policy[type] as Map? ?? const {});
-    final enabled = rule['enabled'] == true && (rule['amountCoins'] as num? ?? 0) > 0;
+    final enabled = rule['enabled'] == true && (rule['amountBeta Coins'] as num? ?? 0) > 0;
     final claimed = _claimed[type] == true;
     return Card(child: ListTile(
       leading: Icon(icon),
       title: Text(title),
-      subtitle: Text(enabled ? 'المكافأة: ${rule['amountCoins']} كوين' : 'المكافأة غير مفعّلة حالياً'),
+      subtitle: Text(enabled ? 'المكافأة: ${rule['amountBeta Coins']} بيتا كوينز' : 'المكافأة غير مفعّلة حالياً'),
       trailing: FilledButton(
         onPressed: !enabled || claimed || _busy || _activeSession != null
             ? null : () => _claimAttendance(type),
@@ -290,7 +290,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
               Text('${(_eligibleMs / 1000).floor()} / ${(_requiredMs / 1000).ceil()} ثانية معتمدة من الخادم',
                 textAlign: TextAlign.center),
               const SizedBox(height: 12),
-              Text('المكافأة: ${session['rewardCoins'] ?? 0} كوين', textAlign: TextAlign.center),
+              Text('المكافأة: ${session['rewardBeta Coins'] ?? 0} بيتا كوينز', textAlign: TextAlign.center),
               const SizedBox(height: 8),
               const Text('لا يوجد زر تخطي أو مطالبة يدوية؛ يمنح الخادم المكافأة بعد التحقق من المدة.',
                 textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
@@ -336,7 +336,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
               const SizedBox(height: 8),
               Text(campaign['body'] as String? ?? ''),
               const SizedBox(height: 8),
-              Text('المدة: ${campaign['durationSeconds'] ?? 0} ثانية • المكافأة: ${campaign['rewardCoins'] ?? 0} كوين'),
+              Text('المدة: ${campaign['durationSeconds'] ?? 0} ثانية • المكافأة: ${campaign['rewardBeta Coins'] ?? 0} بيتا كوينز'),
               const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: _busy ? null : () => _startCampaign(campaign),
