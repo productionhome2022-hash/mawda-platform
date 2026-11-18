@@ -26,6 +26,7 @@ import {
   MEDIA_SIGNED_URL_TTL_MS,
 } from "./media-security";
 import { MEDIA_UPLOAD_CLEANUP_GRACE_MS, uploadIntentIsEligibleForCleanup } from "./media-cleanup";
+import { validateStickerMediaMetadata } from "./sticker-policy";
 
 // Resolve Admin SDK services lazily. This module is re-exported by index.ts,
 // whose static imports execute before initializeApp(); eager resolution here
@@ -370,6 +371,18 @@ export const receiveMediaScanVerdict = onRequest(
     return;
   }
   const actualHash = await sha256Object(file);
+  if (verdict.purpose === "sticker") {
+    let stickerMetadata;
+    try { stickerMetadata = validateStickerMediaMetadata(verdict.stickerMetadata); } catch {
+      response.status(409).send("Sticker metadata is missing or invalid");
+      return;
+    }
+    if (stickerMetadata.contentType !== asset.detectedContentType ||
+        stickerMetadata.sizeBytes !== Number(asset.sizeBytes)) {
+      response.status(409).send("Sticker metadata does not match the quarantined source");
+      return;
+    }
+  }
   if (actualHash !== verdict.sha256) {
     response.status(409).send("Object hash mismatch");
     return;
@@ -395,6 +408,11 @@ export const receiveMediaScanVerdict = onRequest(
       return;
     }
     const customMetadata = previewMetadata.metadata as Record<string, unknown> | undefined;
+    if (asset.mediaPurpose === "sticker" &&
+        (!Number.isSafeInteger(Number(previewMetadata.size)) || Number(previewMetadata.size) <= 0 || Number(previewMetadata.size) > 256 * 1024)) {
+      response.status(409).send("Sticker preview exceeds the safe size limit");
+      return;
+    }
     if (String(previewMetadata.generation) !== verdict.safePreviewGeneration ||
         previewMetadata.contentType !== "image/webp" ||
         customMetadata?.mediaId !== verdict.mediaId ||
@@ -450,7 +468,7 @@ export const receiveMediaScanVerdict = onRequest(
     const sizeBytes = Number(derivativeMetadata.size);
     if (String(derivativeMetadata.generation) !== derivative.generation ||
         derivativeMetadata.contentType !== derivative.contentType ||
-        !Number.isSafeInteger(sizeBytes) || sizeBytes <= 0 || sizeBytes > expected.maxBytes ||
+        !Number.isSafeInteger(sizeBytes) || sizeBytes <= 0 || sizeBytes > (asset.mediaPurpose === "sticker" ? 512 * 1024 : expected.maxBytes) ||
         custom?.mediaId !== verdict.mediaId ||
         custom?.sourceGeneration !== verdict.objectGeneration ||
         custom?.sourceSha256 !== verdict.sha256 ||
@@ -489,6 +507,9 @@ export const receiveMediaScanVerdict = onRequest(
       scannerObjectGeneration: verdict.objectGeneration,
       scannerScannedAt: new Date(verdict.scannedAtMs),
       scannerVerifiedAt: FieldValue.serverTimestamp(),
+      ...(verdict.purpose === "sticker" && verdict.stickerMetadata ? {
+        stickerMetadata: verdict.stickerMetadata,
+      } : {}),
       ...(safePreview ? {
         safePreviewPath: safePreview.path,
         safePreviewGeneration: safePreview.generation,
