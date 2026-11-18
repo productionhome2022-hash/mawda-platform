@@ -8572,6 +8572,11 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
       !Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
     throw new HttpsError("invalid-argument", "يجب تحديد حالة طلبات الشراء وإصدار إعدادات الاقتصاد الحالي.");
   }
+  if (requestedPaymentPolicy &&
+      (requestedPaymentPolicy.coin_purchases.manualEnabled !== manualCoinPurchasesEnabled ||
+       requestedPaymentPolicy.featured_ads.manualEnabled !== manualFeaturedAdsEnabled)) {
+    throw new HttpsError("invalid-argument", "يجب أن تتطابق مفاتيح الدفع اليدوي القديمة مع سياسة الخدمات الجديدة.");
+  }
   const version = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(ECONOMY_PRICING_SETTINGS);
     const previousVersion = Number.isSafeInteger(previous.data()?.version) ? previous.data()!.version : 0;
