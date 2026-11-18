@@ -78,16 +78,6 @@ class MediaWorkspaceScreen extends StatelessWidget {
               ) : null,
             ),
             _WorkspaceEntry(
-              icon: Icons.support_agent_outlined,
-              title: 'مراسلة المشرفين العامين',
-              subtitle: 'ستظهر أسماء المشرفين النشطين المكلفين فعلياً بعد ربط سجل التكليفات',
-            ),
-            _WorkspaceEntry(
-              icon: Icons.admin_panel_settings_outlined,
-              title: 'مراسلة الإدارة العامة',
-              subtitle: 'قناة مراسلة مرتبطة بصلاحيات المالك والإحالة المعتمدة — قيد الاستكمال',
-            ),
-            _WorkspaceEntry(
               icon: Icons.stars_rounded,
               title: 'مكافآت مشاهدة الإعلانات',
               subtitle: 'شروط الأهلية وسجل مكافآت المشاهدة الخاصة بك',
@@ -97,6 +87,16 @@ class MediaWorkspaceScreen extends StatelessWidget {
                   builder: (_) => const FeaturedAdRewardsScreen(),
                 ),
               ),
+            ),
+            _WorkspaceEntry(
+              icon: Icons.support_agent_outlined,
+              title: 'مراسلة المشرفين العامين',
+              subtitle: 'ستظهر أسماء المشرفين النشطين المكلفين فعلياً بعد ربط سجل التكليفات',
+            ),
+            _WorkspaceEntry(
+              icon: Icons.admin_panel_settings_outlined,
+              title: 'مراسلة الإدارة العامة',
+              subtitle: 'قناة مراسلة مرتبطة بصلاحيات المالك والإحالة المعتمدة — قيد الاستكمال',
             ),
             const SizedBox(height: 12),
             const Text(
