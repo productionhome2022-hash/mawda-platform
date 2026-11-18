@@ -436,6 +436,18 @@ class MemberMediaUploadService {
     throw TimeoutException('لم تكتمل معالجة الملصق الآمنة؛ بقي غير قابل للنشر.', const Duration(minutes: 3));
   }
 
+  Future<Map<String, dynamic>> getStickerAssetMetadata(String mediaId) async {
+    final response = await _functions.httpsCallable('getMyMediaUploadStatus')
+        .call({'mediaId': mediaId});
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final metadata = data['stickerMetadata'];
+    if (data['purpose'] != 'sticker' || data['status'] != 'security_approved' ||
+        metadata is! Map) {
+      throw StateError('لم تكتمل بيانات الملصق المفحوص بعد.');
+    }
+    return Map<String, dynamic>.from(metadata);
+  }
+
   Future<Map<String, dynamic>> saveStickerPack({
     required String packId,
     required String title,
