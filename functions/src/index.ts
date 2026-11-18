@@ -1,6 +1,8 @@
 import { initializeApp } from "firebase-admin/app";
 import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
-import { validateGroupCallPricingPolicy } from "./group-call-economy";
+import {
+  validateGroupCallPricingPolicy, calculateGroupCallFinalSettlement,
+} from "./group-call-economy";
 import { reconcileWalletLedger } from "./wallet-reconciliation";
 import {
   isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, calculateStoreGiftExpiryMs,
@@ -9955,6 +9957,146 @@ async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<
 
 
 const GROUP_CALL_PRICING_SETTINGS = db.doc("platformSettings/groupCallPricing");
+/**
+ * Final group-call billing is idempotent per member. Each member's wallet
+ * debit, wallet ledger entry and settlement receipt are committed atomically.
+ * Insufficient balances remain pending for safe retry; coins never go negative.
+ */
+async function processGroupCallBillingSettlement(
+  callRef: DocumentReference,
+): Promise<{ status: string; totalAmount?: number; billableMinutes?: number }> {
+  const snapshot = await callRef.get();
+  if (!snapshot.exists) return { status: "missing" };
+  const call = snapshot.data() ?? {};
+  if (call.scope !== "room" || call.groupCallPricingSnapshot?.active !== true) {
+    await callRef.set({ groupCallBillingState: "not_applicable" }, { merge: true });
+    return { status: "not_applicable" };
+  }
+  if (call.status !== "ended" || !(call.connectedAt instanceof Timestamp) ||
+      !(call.endedAt instanceof Timestamp) ||
+      !(call.maxDurationEndsAt instanceof Timestamp)) {
+    return { status: "pending" };
+  }
+  const policy = call.groupCallPricingSnapshot;
+  const mediaConnectedAt = call.mediaConnectedAt && typeof call.mediaConnectedAt === "object" &&
+      !Array.isArray(call.mediaConnectedAt)
+    ? call.mediaConnectedAt as Record<string, unknown> : {};
+  const participantUids = Array.isArray(call.participantUids)
+    ? [...new Set(call.participantUids.filter((uid): uid is string =>
+        typeof uid === "string" && mediaConnectedAt[uid] instanceof Timestamp))]
+    : [];
+  if (participantUids.length < 2 || !participantUids.includes(String(call.callerUid))) {
+    await callRef.set({ groupCallBillingState: "not_applicable" }, { merge: true });
+    return { status: "not_applicable" };
+  }
+  const maxDurationMs = call.maxDurationEndsAt.toMillis() - call.connectedAt.toMillis();
+  if (!Number.isSafeInteger(maxDurationMs) || maxDurationMs < 1) {
+    throw new Error("GROUP_CALL_MAX_DURATION_SNAPSHOT_INVALID");
+  }
+  const settlement = calculateGroupCallFinalSettlement(
+    policy,
+    call.mode,
+    participantUids,
+    String(call.callerUid),
+    Math.max(0, call.endedAt.toMillis() - call.connectedAt.toMillis()),
+    maxDurationMs,
+  );
+  const settlementResults: string[] = [];
+  for (const share of settlement.shares) {
+    const memberRef = db.collection("users").doc(share.uid);
+    const ledgerRef = memberRef.collection("walletLedger").doc("group_call_" + callRef.id);
+    const receiptRef = callRef.collection("billingSettlements").doc(share.uid);
+    const outcome = await db.runTransaction(async (transaction) => {
+      const [member, ledger, receipt] = await Promise.all([
+        transaction.get(memberRef), transaction.get(ledgerRef), transaction.get(receiptRef),
+      ]);
+      if (receipt.exists && receipt.data()?.status === "settled") return "settled";
+      if (ledger.exists) {
+        const priorLedger = ledger.data() ?? {};
+        if (priorLedger.callId !== callRef.id ||
+            priorLedger.amount !== -share.amount ||
+            priorLedger.policyId !== settlement.policyId ||
+            priorLedger.policyVersion !== settlement.policyVersion) {
+          throw new Error("GROUP_CALL_LEDGER_IDEMPOTENCY_CONFLICT");
+        }
+        transaction.set(receiptRef, {
+          uid: share.uid, status: "settled", amount: share.amount,
+          callId: callRef.id, policyId: settlement.policyId,
+          policyVersion: settlement.policyVersion,
+          billableMinutes: settlement.billableMinutes,
+          participantCount: settlement.shares.length,
+          settledAt: FieldValue.serverTimestamp(),
+        });
+        return "settled";
+      }
+      if (!member.exists) {
+        transaction.set(receiptRef, {
+          uid: share.uid, status: "account_missing", amount: share.amount,
+          callId: callRef.id, policyId: settlement.policyId,
+          policyVersion: settlement.policyVersion,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        return "account_missing";
+      }
+      const memberData = member.data() ?? {};
+      const balance = readSafeInteger(memberData.coins ?? 0, "groupCallMember.coins");
+      if (balance < 0) throw new Error("GROUP_CALL_MEMBER_BALANCE_INVALID");
+      if (balance < share.amount) {
+        transaction.set(receiptRef, {
+          uid: share.uid, status: "insufficient_funds", amount: share.amount,
+          availableBalance: balance, callId: callRef.id,
+          policyId: settlement.policyId, policyVersion: settlement.policyVersion,
+          billableMinutes: settlement.billableMinutes,
+          participantCount: settlement.shares.length,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        return "insufficient_funds";
+      }
+      transaction.update(memberRef, { coins: balance - share.amount });
+      transaction.create(ledgerRef, {
+        type: "group_call_charge", direction: "debit",
+        amount: -share.amount, currency: "coin",
+        callId: callRef.id, mode: call.mode,
+        totalCallAmount: settlement.totalAmount,
+        participantCount: settlement.shares.length,
+        billableMinutes: settlement.billableMinutes,
+        policyId: settlement.policyId,
+        policyVersion: settlement.policyVersion,
+        equalShare: true,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      transaction.set(receiptRef, {
+        uid: share.uid, status: "settled", amount: share.amount,
+        callId: callRef.id, policyId: settlement.policyId,
+        policyVersion: settlement.policyVersion,
+        billableMinutes: settlement.billableMinutes,
+        participantCount: settlement.shares.length,
+        settledAt: FieldValue.serverTimestamp(),
+      });
+      return "settled";
+    });
+    settlementResults.push(outcome);
+  }
+  const complete = settlementResults.every((status) => status === "settled");
+  await callRef.set({
+    groupCallBillingState: complete ? "settled" : "pending",
+    groupCallBillingSummary: {
+      totalAmount: settlement.totalAmount,
+      billableMinutes: settlement.billableMinutes,
+      participantCount: settlement.shares.length,
+      policyId: settlement.policyId,
+      policyVersion: settlement.policyVersion,
+      shares: settlement.shares,
+    },
+    groupCallBillingLastAttemptAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return {
+    status: complete ? "settled" : "pending",
+    totalAmount: settlement.totalAmount,
+    billableMinutes: settlement.billableMinutes,
+  };
+}
+
 
 /**
  * Only the MFA-verified platform owner can publish a new immutable pricing
