@@ -89,7 +89,6 @@ export function releaseMediaQuota(
  * concurrency/active-byte admission protection until finalize or cleanup. */
 export function mediaQuotaExemptForTransfer(
   isVerifiedPlatformOwnerSender: boolean,
-  _isVerifiedPlatformOwnerRecipient: boolean,
 ): boolean {
   return isVerifiedPlatformOwnerSender;
 }
