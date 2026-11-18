@@ -1,3 +1,5 @@
+const MAX_GROUP_CALL_PARTICIPANTS = 5;
+
 export type GroupCallCoinShare = {
   uid: string;
   amount: number;
@@ -26,6 +28,9 @@ export function calculateGroupCallCoinShares(
         uid.length > 128) || new Set(participantUids).size !== participantUids.length ||
       !participantUids.includes(initiatorUid)) {
     throw new Error("INVALID_GROUP_CALL_PARTICIPANTS");
+  }
+  if (participantUids.length > MAX_GROUP_CALL_PARTICIPANTS) {
+    throw new Error("GROUP_CALL_PARTICIPANT_LIMIT_EXCEEDED");
   }
   if (participantUids.length > totalAmount) {
     throw new Error("GROUP_CALL_TOTAL_BELOW_MINIMUM_SHARE");
