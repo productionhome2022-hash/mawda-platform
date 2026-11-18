@@ -206,3 +206,13 @@ test("unpriced owner catalog drafts remain displayable but cannot be purchased",
     category: "vip", priceCoins: null, sortOrder: 1, active: true, purchaseEnabled: true,
   }), /STORE_PRICE_NOT_CONFIGURED/);
 });
+
+test("store duration may be omitted or explicitly cleared by the owner", () => {
+  const { validateStoreCatalogItemInput } = require("../lib/store-catalog");
+  const item = validateStoreCatalogItemInput({
+    itemId: "vip_monthly", name: "VIP", description: "امتيازات العضوية.",
+    category: "vip", priceCoins: 500, durationDays: null,
+    sortOrder: 1, active: true, purchaseEnabled: false,
+  });
+  assert.equal(Object.hasOwn(item, "durationDays"), false);
+});
