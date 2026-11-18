@@ -55,9 +55,14 @@ test("timed-ad campaign validation bounds duration, rewards, dates and budget", 
     rewardBudgetCoins: 1000,
   };
   assert.equal(validateTimedAdCampaignInput(valid).rewardCoins, 10);
-  assert.throws(() => validateTimedAdCampaignInput({ ...valid, durationSeconds: 5 }));
+  assert.throws(() => validateTimedAdCampaignInput({ ...valid, durationSeconds: 0 }));
   assert.throws(() => validateTimedAdCampaignInput({ ...valid, rewardBudgetCoins: 9 }));
   assert.throws(() => validateTimedAdCampaignInput({ ...valid, endsAtMs: 1000 }));
+  const ownerChosenScale = validateTimedAdCampaignInput({
+    ...valid, durationSeconds: 3600, maxClaimsPerMember: 500,
+    rewardCoins: 5000, rewardBudgetCoins: 1000000,
+  });
+  assert.equal(ownerChosenScale.maxClaimsPerMember, 500);
 });
 
 test("timed-ad heartbeat credits only sequential, visible foreground intervals", () => {
