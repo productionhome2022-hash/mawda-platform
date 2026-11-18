@@ -108,6 +108,7 @@ class MemberMediaUploadService {
   Future<void> waitForSafeApproval(
     String mediaId, {
     Duration timeout = const Duration(seconds: 90),
+    bool requireAnySafeDerivative = false,
   }) async {
     final deadline = DateTime.now().add(timeout);
     var pollCount = 0;
@@ -116,7 +117,8 @@ class MemberMediaUploadService {
           .httpsCallable('getMyMediaUploadStatus')
           .call({'mediaId': mediaId});
       final status = Map<String, dynamic>.from(response.data as Map);
-      if (status['safePreviewReady'] == true) return;
+      if (status['safePreviewReady'] == true ||
+          (requireAnySafeDerivative && status['safeDerivativeReady'] == true)) return;
       if (status['status'] == 'rejected') {
         throw StateError('رفض نظام الفحص الصورة: ${status['rejectionCode'] ?? 'MEDIA_REJECTED'}');
       }
@@ -131,6 +133,43 @@ class MemberMediaUploadService {
       await Future<void>.delayed(delay < remaining ? delay : remaining);
     }
     throw TimeoutException('لم يكتمل فحص الصورة خلال المهلة المحددة؛ بقيت الصورة غير متاحة.', timeout);
+  }
+
+  /// Uploads a platform-owner advertisement through the same quarantined,
+  /// scanned and derivative-only media pipeline used by the rest of Mawdda.
+  Future<String> uploadAdvertisementCreative({required XFile file}) async {
+    final contentType = _chatAttachmentContentType(file);
+    if (!contentType.startsWith('image/') && contentType != 'video/mp4') {
+      throw const FormatException('المادة الإعلانية يجب أن تكون صورة أو فيديو MP4.');
+    }
+    await _validateFileLength(file, contentType);
+    final bytes = await file.readAsBytes();
+    final intentResponse = await _functions.httpsCallable('createMediaUploadIntent').call({
+      'originalName': file.name,
+      'contentType': contentType,
+      'sizeBytes': bytes.length,
+      'purpose': 'advertisement',
+    });
+    final intent = Map<String, dynamic>.from(intentResponse.data as Map);
+    final uploadUrl = intent['uploadUrl'] as String?;
+    final mediaId = intent['mediaId'] as String?;
+    final headers = Map<String, dynamic>.from(
+      intent['requiredHeaders'] as Map? ?? const <String, dynamic>{},
+    );
+    if (uploadUrl == null || mediaId == null || headers.isEmpty) {
+      throw StateError('استجابة طلب رفع المادة الإعلانية غير مكتملة.');
+    }
+    final response = await _client.put(
+      Uri.parse(uploadUrl),
+      headers: headers.map((key, value) => MapEntry(key, '$value')),
+      body: bytes,
+    );
+    if (response.statusCode != 200) {
+      throw StateError('فشل رفع المادة الإعلانية إلى التخزين الآمن (HTTP ${response.statusCode}).');
+    }
+    await _functions.httpsCallable('finalizeMediaUpload').call({'mediaId': mediaId});
+    await waitForSafeApproval(mediaId, requireAnySafeDerivative: true);
+    return mediaId;
   }
 
   String _chatAttachmentContentType(XFile file) {
