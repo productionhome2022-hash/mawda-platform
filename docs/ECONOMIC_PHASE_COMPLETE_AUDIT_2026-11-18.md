@@ -119,3 +119,8 @@ The inspected Flutter call screen reports connection and uses a five-minute disp
 - The guard validates all counter inputs as safe non-negative integers, rejects a zero/invalid next reward, and returns a stable rejection reason for claim-count or coin-budget exhaustion.
 - Added exact-boundary unit cases for 9/10 claims, 20/21 daily coins, and malformed inputs. These tests are committed but have **not** been executed in this environment.
 - The transaction still reads the per-member UTC-day counter before writes and applies the wallet credit, reward claim, campaign budget, and daily counter atomically. Cap rejection continues through the existing cancellation path, which releases the reserved campaign reward and grants no coins.
+
+
+## Store fulfillment safety correction — Hide Coins SKU
+
+The server-side profile projection already withholds every member's Beta Coins balance from all non-owner viewers, regardless of whether the target member has purchased a Hide Coins entitlement. Therefore the current `hide_coins_30d` SKU would charge for no additional observable behavior under the approved privacy rule. Its fulfillment-ready allowlist entry has been removed and purchase validation now fails closed. The catalog item may remain unpublished/disabled for future redesign, but it must not be sold until a distinct, owner-approved behavior exists that does not weaken the baseline privacy rule.
