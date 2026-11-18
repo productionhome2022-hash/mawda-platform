@@ -215,3 +215,11 @@ For every economic price that is defined as one combined amount and divided equa
 - Removed the obsolete hard-coded active room-rental plan presets from the runtime module. No room-rental commercial value is used when owner policy is absent.
 - Commits: d20515b0a78780cdcef4ad713eff70fc104ad1a0, d0240b7359036131ea468d3707544e6d9be7529a, 3ee54c0fc2d785ea58411c8f504871c6ffc20e44, 791eaf26021ba2030a2081bf718bcaad4e980915, 93df014e4e85afe143f64988966e2ce643d5a77b, c8ba0f4ac1b2fb2da47feb1dc1da614643a89079, f90947c90189db2ba4833fe5252023afd22591af, 36ddfcbd48fc8ae6eeeef56f509a6dd2272ff0e2, 9d08d399bcc427072927061262c382acfc9c2a53.
 - All test source remains unexecuted pending the complete final test environment. No production billing, payment provider, Firebase deployment, or merge was performed.
+
+
+## Featured-ad reward policy owner controls (2026-11-18)
+
+- Added an owner/MFA-protected `setOwnerFeaturedAdRewardPolicy` callable with server validation, expected-version concurrency guard, and a before/after immutable audit row in the same Firestore transaction as the policy update. The existing hash-chain audit append remains additional evidence.
+- Added owner-console controls for reward enablement, per-view amount, daily view and coin caps, rolling campaign cap/window, video completion threshold, and continuous image visibility threshold. Defaults remain disabled and zero-valued; this does not bypass the trusted-view-evidence gate, so reward payout remains blocked until that server attestation exists.
+- Added a dedicated emulator integration test source for owner authorization, update/readback, version conflict, and invalid reward-cap rejection; registered it in the full Functions test script. Not executed yet.
+- Commits: 021aac8d548a1816163678767fcf95adf37d6c9e, 91ba40c07638b2945ae7beeb5cc0daa8fdfaa375, 44d5cdccdbd7f8d580ecd6fd31db13c384dd2676, ed58e9197bcf3346dfa113b3f9faf8e37fc4d28b.
