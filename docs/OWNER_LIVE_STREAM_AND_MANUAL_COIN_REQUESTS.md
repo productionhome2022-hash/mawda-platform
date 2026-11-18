@@ -101,3 +101,10 @@ A visible sign-out action must be reachable for ordinary members and the platfor
 ## 7. Current implementation boundary
 
 The repository already has an owner link allowance in text-message policy and a Firebase sign-out service/action in the main member shell. That is not the requested integrated live-stream player, room-wide owner broadcast path, or manual coin-request lifecycle. Those remain implementation work and must not be represented as complete until the acceptance tests above pass on an exact CI-tested commit.
+
+
+## 8. Call-economy tariff authority and experimental examples
+
+Any previously discussed example voice/video rates (including 120/400 or 60/200 coins per minute) are experimental placeholders only. They are not final prices and must not be hard-coded, auto-published, or treated as approved defaults. The canonical platform owner/Super Admin must be able to independently change, increase, decrease, disable, or leave voice and video tariffs unconfigured through versioned server-side settings. Each call must snapshot the applicable approved tariff and billing policy at its billable start; later owner edits apply only to future billable sessions. The same owner authority applies to mutual charging and the caller-only exception when the recipient still has included quota. No actual tariff amount, rounding rule, commission or final price is approved by this clause.
+
+Call charges remain fail-closed until the economic implementation supports authoritative connected/billable time, daily included quota eligibility and consumption, caller/receiver allocation, safe rounding, wallet sufficiency, atomic immutable ledger legs, idempotent end-of-call settlement, retry/recovery, and auditable reversals/refunds. A call admission entitlement is not itself proof that per-minute billing or included quota logic exists. The example values above must remain absent from production constants and customer-facing final-price claims.
