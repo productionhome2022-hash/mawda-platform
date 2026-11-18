@@ -117,7 +117,7 @@ class _OwnerEntitlementGrantsScreenState
           'المدة: ${_durationLabel(_durationHours)}\n'
           'الدفعات التقنية: ${(targets.length / 500).ceil()}\n'
           'السبب: $reason\n\n'
-          'المنح مجاني ولا يخصم كوينز. إذا كان الاستحقاق فعالاً، تضاف المدة الجديدة إلى تاريخ انتهائه الحالي.',
+          'المنح مجاني ولا يخصم BetaCoins. إذا كان الاستحقاق فعالاً، تضاف المدة الجديدة إلى تاريخ انتهائه الحالي.',
         ),
         actions: [
           TextButton(
@@ -280,7 +280,7 @@ class _OwnerEntitlementGrantsScreenState
                     ),
                     const SizedBox(height: 12),
                     if (selected.isNotEmpty)
-                      Text('سيتم منح ${selected['name']} مجاناً دون خصم أي كوينز.'),
+                      Text('سيتم منح ${selected['name']} مجاناً دون خصم أي BetaCoins.'),
                     const SizedBox(height: 12),
                     FilledButton.icon(
                       onPressed: _submitting || _loadingCatalog || _catalogItems.isEmpty
