@@ -39,7 +39,9 @@ class _ShopScreenState extends State<ShopScreen> {
     final itemId = item['itemId'] as String?;
     final name = item['name'] as String? ?? 'عنصر مودة';
     final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
-    if (itemId == null || itemId.isEmpty || price <= 0 || _purchasingItemId != null) return;
+    final catalogVersion = (item['version'] as num?)?.toInt() ?? 0;
+    if (itemId == null || itemId.isEmpty || price <= 0 ||
+        catalogVersion < 1 || _purchasingItemId != null) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -70,6 +72,7 @@ class _ShopScreenState extends State<ShopScreen> {
         'itemId': itemId,
         'requestId': const Uuid().v4(),
         'expectedPriceCoins': price,
+        'expectedCatalogVersion': catalogVersion,
       });
       final result = Map<String, dynamic>.from(response.data as Map);
       final purchaseId = result['purchaseId'] as String?;
@@ -81,7 +84,7 @@ class _ShopScreenState extends State<ShopScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(
-          'تم تأكيد شراء "$name" ومنح استحقاقه. رصيدك الجديد: $balance كوين. رقم الإيصال: $purchaseId',
+          'تم تأكيد شراء "$name" ومنح استحقاقه. رصيدك الجديد: $balance BetaCoins. رقم الإيصال: $purchaseId',
         )),
       );
       _refresh();
