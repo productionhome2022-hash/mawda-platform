@@ -25,14 +25,14 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
       if (mounted) setState(() => _requests = (data['requests'] as List<dynamic>? ?? const [])
           .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList());
     } on FirebaseFunctionsException catch (e) {
-      if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل طلبات البيتا بيتا كوينزز.');
+      if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل طلبات BetaCoins.');
     } finally { if (mounted) setState(() => _loading = false); }
   }
 
   Future<void> _instructions(Map<String, dynamic> item) async {
     final uid = item['requesterUid'] as String? ?? '';
     final id = item['requestId'] as String? ?? '';
-    final requested = (item['requestedBeta Coins'] as num?)?.toInt() ??
+    final requested = (item['requestedCoins'] as num?)?.toInt() ??
         ((item['packageSnapshot'] is Map) ? ((item['packageSnapshot']['coins'] as num?)?.toInt() ?? 0) : 0);
     final coins = TextEditingController(text: requested > 0 ? requested.toString() : '');
     final price = TextEditingController(text: item['packageSnapshot'] is Map
@@ -64,7 +64,7 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
       coins.dispose(); price.dispose(); instructions.dispose(); return;
     }
     await _runAction(() => _functions.httpsCallable('setCoinPurchasePaymentInstructions').call({
-      'requesterUid': uid, 'requestId': id, 'agreedBeta Coins': coinAmount,
+      'requesterUid': uid, 'requestId': id, 'agreedCoins': coinAmount,
       'agreedPriceMinor': priceMinor, 'currency': 'EUR',
       'instructions': instructions.text.trim(),
     }));
@@ -92,7 +92,7 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
           FilledButton(onPressed: confirmed && reference.text.trim().length >= 3 &&
               note.text.trim().length >= 5 ? () => Navigator.pop(ctx, true) : null,
-            child: const Text('اعتماد وإضافة البيتا بيتا كوينزز')),
+            child: const Text('اعتماد وإضافة BetaCoins')),
         ],
       ),
     ));
@@ -136,7 +136,7 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('طلبات شراء البيتا بيتا كوينزز اليدوية'),
+    appBar: AppBar(title: const Text('طلبات شراء وإهداء BetaCoins اليدوية'),
       actions: [IconButton(onPressed: _loading || _busy ? null : _load,
         icon: const Icon(Icons.refresh))]),
     body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
@@ -149,13 +149,15 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
         ..._requests.map((item) {
           final status = item['status'] as String? ?? '';
           final id = item['requestId'] as String? ?? '';
-          final amount = item['requestedBeta Coins'] ?? item['agreedBeta Coins'] ??
+          final amount = item['requestedCoins'] ?? item['agreedCoins'] ??
               ((item['packageSnapshot'] is Map) ? item['packageSnapshot']['coins'] : null) ?? 'غير محدد';
           return Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(
             crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('العضو: ' + (item['requesterUid'] as String? ?? '')),
+              Text('صاحب الطلب: ' + (item['requesterUid'] as String? ?? '')),
+              if (item['giftRecipientUid'] is String)
+                Text('مستلم الهدية: ' + (item['giftRecipientUid'] as String)),
               Text('الطلب: ' + id),
-              Text('الكمية: ' + amount.toString() + ' بيتا كوينز'),
+              Text('الكمية: ' + amount.toString() + ' BetaCoins'),
               Text('الحالة: ' + status),
               if (item['paymentInstructions'] is String)
                 SelectableText('التعليمات الحالية: ' + (item['paymentInstructions'] as String)),
