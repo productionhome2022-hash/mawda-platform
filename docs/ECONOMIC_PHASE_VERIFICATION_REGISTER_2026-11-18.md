@@ -293,11 +293,11 @@ For every economic price that is defined as one combined amount and divided equa
 
 ## GitHub verification evidence — economic and Flutter regression pass (2026-11-18)
 
-- Cloud Functions build and complete Node unit suite passed on commit `c36b728916188a5cff77439efc882f8dc45a9a35` (GitHub Actions run `44370983353`): TypeScript build succeeded and all 368 unit tests passed.
-- Firebase Emulator integration suites passed in the same run: wallet/store atomicity (including concurrent store gifting and canonical payment-policy precedence), owner entitlement grants/replay, featured-ad reward policy, store catalog, room-rental wallet/replay, email verification reward cycle, engagement/featured-ad reward lifecycle, call entitlement/signaling, and owner audit-chain export.
+- Cloud Functions build and complete Node unit suite passed on commit `6dba47eb163b549ee122460a0510b664ed40a0dd` (GitHub Actions run `44371827203`): TypeScript build succeeded and all 368 unit tests passed.
+- Firebase Emulator integration suites passed in the same run: wallet/store atomicity (including concurrent store gifting and canonical payment-policy precedence), owner entitlement grants/replay, featured-ad reward policy, store catalog, room-rental wallet/replay, email verification reward cycle, engagement/featured-ad reward lifecycle, call entitlement/signaling, owner audit-chain export, and Firestore/Storage security rules.
 - Flutter CI passed on commit `d3ff34ff7c718755c49e249056c26a74659247fb` (GitHub Actions run `44371751238`): `flutter pub get --enforce-lockfile`, `flutter analyze`, all 32 Flutter tests, and `flutter build web --release`.
 - The Flutter lock resolver refreshed `pubspec.lock` with the pinned Flutter SDK. No deployment or production Firebase operation occurred.
-- Firestore and Storage security-rules regression suite passed in GitHub Actions run `44371349893` on workflow commit `f23adf91fb8e8b49433f2a2ece9cec1506542b40`. A full-head rerun after the subsequent policy-comment correction is tracked separately.
+- The complete economic CI gate, including Firestore and Storage security-rules regression, passed on the same latest Functions commit/run above.
 
 ### Remaining economic closure gates — not complete
 
