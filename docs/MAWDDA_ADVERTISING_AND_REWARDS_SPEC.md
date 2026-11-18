@@ -114,3 +114,8 @@ Budget integrity addendum:
 - Campaign edits are blocked while reward reservations are outstanding. Published campaign feeds and start checks account for spent plus reserved budget, preventing concurrent sessions from overcommitting the configured reward budget.
 - Existing active sessions may finish after a campaign is paused or archived; new sessions cannot start. Media approval is rechecked at publish, start, creative delivery and reward completion.
 - The only currently publishable placement is the reward center. Home placement and video publication are fail-closed until their in-app presentation paths are implemented and tested.
+
+
+## Featured Ads and financial review implementation note — 2026-11-18
+
+A separate development-branch lifecycle now exists for featured campaigns, geographic showcase selection, explicit rewarded sessions, heartbeat validation, secure creative delivery and exactly-once member Coin credits. Owner financial records distinguish external receipt, refund record, accounting reconciliation and review. These records do not execute cash movement or representative payouts. See `docs/FEATURED_ADVERTISING_SECURE_LIFECYCLE_IMPLEMENTATION.md` for callable names, transaction invariants, test scope and remaining release gates. Exact-HEAD CI and production acceptance remain pending.
