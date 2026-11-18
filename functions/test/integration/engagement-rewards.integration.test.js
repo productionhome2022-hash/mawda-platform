@@ -9,7 +9,7 @@ const {
   setTimedAdCampaignStatus,
   getActiveTimedAdCampaigns,
   getRewardCenter,
-  setOwnerFeaturedAdCampaign, setFeaturedAdCampaignStatus, setOwnerFeaturedAdRewardPolicy,
+  setOwnerFeaturedAdCampaign, setFeaturedAdCampaignStatus, reviewFeaturedAdCreative, setOwnerFeaturedAdRewardPolicy,
   completeFeaturedAdViewingSession, getMyFeaturedAdRewardHistory,
   getFeaturedAdShowcase, startFeaturedAdViewingSession,
   heartbeatFeaturedAdViewingSession, endFeaturedAdViewingSession,
@@ -655,6 +655,14 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
       () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published" })),
       (error) => error && error.code === "failed-precondition",
     );
+    await assert.rejects(
+      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "approved", paymentConfirmed: true })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    const creativeReview = await reviewFeaturedAdCreative.run(ownerRequest({
+      campaignId, approved: true, reviewNote: "تم التحقق من المادة والمشتق الآمن.",
+    }));
+    assert.equal(creativeReview.approved, true);
     const approved = await setFeaturedAdCampaignStatus.run(ownerRequest({
       campaignId, status: "approved", paymentConfirmed: true,
     }));
