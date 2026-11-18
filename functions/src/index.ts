@@ -27,6 +27,7 @@ import { createDirectChatId } from "./direct-chat-id";
 import { encodeMemberMessagePageToken, validateMemberMessagePageRequest } from "./member-message-pagination";
 import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
 import { hasActiveBiometricVerification } from "./biometric-verification";
+import { assertPlatformRoleCapacity, type NumberedPlatformRole } from "./platform-role-identities";
 import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, isEmailVerificationCycleDue, canRewardEmailVerificationCycle } from "./email-verification-cycle";
 import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
 import { isMemberAccountInGoodStanding } from "./member-access";
@@ -8750,12 +8751,39 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
   }
   const grantId = specializedRoleGrantId(grant.uid, grant.role);
   const grantRef = SPECIALIZED_ROLE_GRANTS.doc(grantId);
+  const limitedRole: NumberedPlatformRole | null =
+    grant.role === "ad_general_supervisor" || grant.role === "production_general_supervisor"
+      ? grant.role
+      : null;
   const result = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(grantRef);
     const previousVersion = previous.exists ? Number(previous.data()?.version) : 0;
     if (!Number.isSafeInteger(previousVersion) || previousVersion !== expectedVersion) {
       throw new HttpsError("aborted", "تغيرت الصلاحية منذ آخر قراءة؛ أعد تحميلها قبل الحفظ.");
     }
+
+    // Capacity is checked against a transactional query so concurrent owner
+    // assignments cannot both take the fifth seat.
+    if (limitedRole !== null) {
+      const roleSnapshot = await transaction.get(
+        SPECIALIZED_ROLE_GRANTS.where("role", "==", limitedRole),
+      );
+      const nowMs = Date.now();
+      const otherActiveAssignments = roleSnapshot.docs.filter((doc) => {
+        if (doc.id === grantId) return false;
+        const data = doc.data();
+        return data.status === "active" &&
+          (data.endsAtMs === null || (Number.isSafeInteger(data.endsAtMs) && data.endsAtMs > nowMs));
+      }).length;
+      const targetConsumesSeat = grant.status === "active" &&
+        (grant.endsAtMs === null || grant.endsAtMs > nowMs);
+      try {
+        assertPlatformRoleCapacity(limitedRole, otherActiveAssignments + (targetConsumesSeat ? 1 : 0));
+      } catch {
+        throw new HttpsError("resource-exhausted", "اكتمل العدد المسموح لهذه الفئة الإشرافية؛ الحد الأقصى خمسة.");
+      }
+    }
+
     const version = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(grantRef, {
