@@ -10,6 +10,11 @@ void main() {
     expect(find.text('سوريا'), findsOneWidget);
     expect(find.text('لبنان وفلسطين'), findsOneWidget);
     await tester.pump();
+    await tester.scrollUntilVisible(
+      find.textContaining('لا نستخدم لغة الجهاز أو موقعه لتحديد الاستهداف.'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.textContaining('لا نستخدم لغة الجهاز أو موقعه لتحديد الاستهداف.'), findsOneWidget);
   });
 
