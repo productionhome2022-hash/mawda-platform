@@ -679,3 +679,21 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 - Included: owner campaign control plane, secure creative gate/storage delivery, dedicated viewing session/heartbeat/completion, atomic wallet reward ledger, rolling campaign cap, daily UTC cap, member history, owner dashboard, selected-ad 60/40 player UI, and related indexes/tests.
 - CI status at the time of this record: GitHub reports the commit status as **pending** with zero check runs currently exposed. Therefore this implementation is **implemented but not yet test-verified**.
 - No merge to `main`, production deployment, production Firebase mutation or paid-resource activation was performed.
+
+
+## 2026-11-18 — AD-001 hardening and owner workflow completion pass
+
+- Owner campaign administration now includes editable start/end schedule, campaign draft create/update, explicit creative review/approval/rejection, separate campaign approval with owner payment confirmation, publication, pause/resume and terminal withdrawal.
+- Creative approval is now an independent owner-MFA callable. Campaign approval/publishing cannot proceed until the secure creative is separately approved; the approval check requires the expected derivative path, generation, SHA-256, content type and processing status.
+- Added owner upload action in the campaign dashboard. It uses `createMediaUploadIntent` / `finalizeMediaUpload` through the shared media upload service with purpose `advertisement`, waits for the secure derivative and lists only owner-review assets with `security_approved`.
+- Campaign status transitions are constrained. A withdrawn campaign is terminal and cannot be resumed; paused campaigns preserve their approval evidence and can be resumed after revalidation.
+- Fixed owner approval so the explicit owner payment confirmation is applied in the same transaction as campaign approval. Creative approval and payment confirmation are no longer conflated.
+- Viewing sessions are created only after safe media validation and a transactional final campaign recheck. Heartbeats revoke sessions after campaign withdrawal; session close marks abandoned sessions; expired sessions commit their expiry state instead of aborting the transaction.
+- Player heartbeats include server-reported foreground/visibility evidence. The client observes app lifecycle and current route, pauses video in background, gates completion on the server-returned reward thresholds/evidence and stops playback when the server revokes a session.
+- The selected player now fills a responsive 60/40 layout: vertical 6:4 on narrow screens and horizontal 6:4 on wider screens. The 40% pane currently contains campaign/context information; embedding the actual host conversation/room inside that pane remains an integration item and is not claimed complete.
+- The member reward-history endpoint returns the active server policy summary; the member history screen displays the live configured limits instead of hard-coded values. The Owner dashboard can edit the central experimental policy.
+- The featured reward-history route is positioned as the sixth Media Workspace entry, matching the approved specification.
+- Added emulator integration coverage for independent creative rejection/approval, owner payment confirmation, campaign pause/resume/terminal withdrawal, concurrent reward claims, replay, reward ledger/history/policy summary, withdrawal heartbeat revocation, abandoned-session close, invalid derivative session-orphan prevention and owner-only advertisement upload intake.
+- **Current branch head for this pass:** `933d2299c5ea9dc66806946e4e0a00bcd9bd25d6`.
+- **Verification:** GitHub currently reports commit status `pending`, with zero check runs and zero workflow runs for this exact head. No Flutter analysis, TypeScript build, Firestore emulator integration, Storage emulator integration or widget test has been observed running for this head. The code is therefore implemented but unverified.
+- PR #21 remains Draft, open, targeting `codex/mawda-full-platform-implementation`. No merge to `main`, deployment, production Firebase mutation, paid-resource activation or live wallet mutation occurred.
