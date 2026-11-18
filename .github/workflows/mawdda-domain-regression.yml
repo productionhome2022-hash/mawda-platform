@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - codex/mawda-full-platform-implementation
+      - codex/featured-ads-secure-lifecycle-20261118
 
 permissions:
   contents: read
