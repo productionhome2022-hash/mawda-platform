@@ -27,6 +27,12 @@ test("missing, inactive, malformed or zero active rates fail closed", () => {
   assert.throws(() => validateGroupCallPricingPolicy({ ...policy, version: 0 }));
 });
 
+test("owner can independently disable one call mode without inventing a price", () => {
+  const audioOnly = { ...policy, videoCoinsPerMinute: 0 };
+  assert.equal(getGroupCallRate(audioOnly, "audio"), policy.audioCoinsPerMinute);
+  assert.throws(() => getGroupCallRate(audioOnly, "video"), /MODE_DISABLED/);
+});
+
 test("integer allocation assigns all remainder to initiator and is deterministic", () => {
   const a = calculateGroupCallCoinShares(101, ["owner", "b", "c"], "owner");
   const b = calculateGroupCallCoinShares(101, ["c", "owner", "b"], "owner");
