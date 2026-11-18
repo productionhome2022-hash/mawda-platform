@@ -770,18 +770,26 @@ test("featured session heartbeat is revoked on campaign withdrawal and close is 
       sessionId: sessionRef.id, foregroundVisible: true, progressPercent: 0,
     }));
     assert.equal(heartbeat.revoked, undefined);
-    await campaignRef.update({ status: "withdrawn", ownerWithdrawn: true });
-    const revoked = await heartbeatFeaturedAdViewingSession.run(memberRequest(uid, {
-      sessionId: sessionRef.id, foregroundVisible: true, progressPercent: 10,
-    }));
-    assert.equal(revoked.revoked, true);
-    assert.equal((await sessionRef.get()).data().status, "campaign_revoked");
-    await sessionRef.update({ status: "active" });
     const ended = await endFeaturedAdViewingSession.run(memberRequest(uid, { sessionId: sessionRef.id }));
     assert.equal(ended.ended, true);
     const replay = await endFeaturedAdViewingSession.run(memberRequest(uid, { sessionId: sessionRef.id }));
     assert.equal(replay.ended, false);
     assert.equal((await sessionRef.get()).data().status, "abandoned");
+
+    const revokedSessionRef = db.collection("featuredAdViewingSessions").doc();
+    await revokedSessionRef.set({
+      uid, campaignId: campaignRef.id, status: "active",
+      startedAtMs: Date.now() - 1000, lastHeartbeatAtMs: Date.now() - 1000,
+      visibleMs: 0, continuousVisibleMs: 0, progressPercent: 0,
+      foregroundVisible: true, rewardClaimed: false,
+    });
+    await campaignRef.update({ status: "withdrawn", ownerWithdrawn: true });
+    const revoked = await heartbeatFeaturedAdViewingSession.run(memberRequest(uid, {
+      sessionId: revokedSessionRef.id, foregroundVisible: true, progressPercent: 10,
+    }));
+    assert.equal(revoked.revoked, true);
+    assert.equal((await revokedSessionRef.get()).data().status, "campaign_revoked");
+    await revokedSessionRef.delete();
   } finally {
     await Promise.all([userRef.delete(), campaignRef.delete(), sessionRef.delete()]);
   }
