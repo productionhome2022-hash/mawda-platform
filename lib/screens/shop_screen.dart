@@ -52,7 +52,7 @@ class _ShopScreenState extends State<ShopScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('سيتم خصم $price بيتا كوينز من محفظتك مقابل "$name"، ومنح الاستحقاق عبر الخادم.'),
+            Text('سيتم خصم $price بيتا بيتا كوينز من محفظتك مقابل "$name"، ومنح الاستحقاق عبر الخادم.'),
             if (callPackageNotice != null) ...[
               const SizedBox(height: 12),
               Text(callPackageNotice),
@@ -254,7 +254,7 @@ class _ShopScreenState extends State<ShopScreen> {
                 child: Padding(
                   padding: EdgeInsets.all(14),
                   child: Text(
-                    'العناصر وأسعارها مصدرها كتالوج الخادم. عند إتاحة الشراء، ينفّذ الخادم خصم البيتا كوينز وتسجيل الإيصال وقيد المحفظة ومنح الاستحقاق في معاملة واحدة. العناصر غير الجاهزة تبقى غير قابلة للشراء.',
+                    'العناصر وأسعارها مصدرها كتالوج الخادم. عند إتاحة الشراء، ينفّذ الخادم خصم البيتا بيتا كوينز وتسجيل الإيصال وقيد المحفظة ومنح الاستحقاق في معاملة واحدة. العناصر غير الجاهزة تبقى غير قابلة للشراء.',
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -268,8 +268,8 @@ class _ShopScreenState extends State<ShopScreen> {
                     children: [
                       Text('تنبيه أسعار المكالمات المفتوحة', style: TextStyle(fontWeight: FontWeight.bold)),
                       SizedBox(height: 8),
-                      Text('الصوتية: 120 بيتا كوينز للدقيقة إجمالاً (60 من كل طرف إذا استنفد الطرفان حصتيهما).'),
-                      Text('المرئية: 400 بيتا كوينز للدقيقة إجمالاً (200 من كل طرف إذا استنفد الطرفان حصتيهما).'),
+                      Text('الصوتية: 120 بيتا بيتا كوينز للدقيقة إجمالاً (60 من كل طرف إذا استنفد الطرفان حصتيهما).'),
+                      Text('المرئية: 400 بيتا بيتا كوينز للدقيقة إجمالاً (200 من كل طرف إذا استنفد الطرفان حصتيهما).'),
                       SizedBox(height: 6),
                       Text('إذا استنفد المتصل حصته وبقيت لدى المستقبل محاولات عادية، يتحمل المتصل السعر الإجمالي وحده، ولا يُخصم من المستقبل ولا تُستهلك محاولاته. تُتاح المكالمات المفتوحة بعد استنفاد حصة المتصل اليومية، ومع سريان اشتراك النوع نفسه لدى الطرفين.'),
                     ],
@@ -312,7 +312,7 @@ class _ShopScreenState extends State<ShopScreen> {
                           children: [
                             const Icon(Icons.monetization_on_outlined),
                             const SizedBox(width: 6),
-                            Text('$price بيتا كوينز'),
+                            Text('$price بيتا بيتا كوينز'),
                             if (duration != null) ...[
                               const SizedBox(width: 12),
                               Text('المدة: $duration يوماً'),
