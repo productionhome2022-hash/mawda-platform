@@ -10151,16 +10151,19 @@ export const startCall = onCall(async (request) => {
   const result = await db.runTransaction(async (transaction) => {
     const roomRefForTransaction = input.scope === "room"
       ? db.collection("rooms").doc(input.targetId) : null;
+    const roomMemberRefForTransaction = input.scope === "room"
+      ? db.collection("rooms").doc(input.targetId).collection("members").doc(callerUid) : null;
     const rentalRefForTransaction = rentalIdForCall
       ? db.collection("roomRentals").doc(rentalIdForCall) : null;
-    const [existing, caller, quotaSnapshot, usagePolicySnapshot, roomForCall, rentalForCall] = await Promise.all([
+    const [existing, caller, quotaSnapshot, usagePolicySnapshot, roomForCall, rentalForCall, roomMemberForCall] = await Promise.all([
       transaction.get(callRef), transaction.get(callerRef), transaction.get(quotaRef),
       transaction.get(CALL_USAGE_POLICY),
       roomRefForTransaction ? transaction.get(roomRefForTransaction) : Promise.resolve(null),
       rentalRefForTransaction ? transaction.get(rentalRefForTransaction) : Promise.resolve(null),
+      roomMemberRefForTransaction ? transaction.get(roomMemberRefForTransaction) : Promise.resolve(null),
     ]);
     if (input.scope === "room" &&
-        (!roomForCall?.exists || !rentalForCall?.exists ||
+        (!roomForCall?.exists || !rentalForCall?.exists || !roomMemberForCall?.exists ||
          !isActiveRentedPrivateRoom(roomForCall.data(), rentalForCall.data(), now))) {
       throw new HttpsError("failed-precondition", "انتهى استئجار الغرفة أو تغيرت حالته قبل بدء المكالمة.");
     }
