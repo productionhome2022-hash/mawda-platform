@@ -111,7 +111,7 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
       typeof startsAtMs !== "number" || !Number.isSafeInteger(startsAtMs) || startsAtMs < 0 ||
       typeof endsAtMs !== "number" || !Number.isSafeInteger(endsAtMs) || endsAtMs <= startsAtMs ||
       typeof maxClaimsPerMember !== "number" || !Number.isSafeInteger(maxClaimsPerMember) ||
-      maxClaimsPerMember < 1 || maxClaimsPerMember > 100 ||
+      maxClaimsPerMember < 1 ||
       typeof rewardBudgetCoins !== "number" || !Number.isSafeInteger(rewardBudgetCoins) ||
       rewardBudgetCoins < rewardCoins || rewardBudgetCoins > MAX_AD_BUDGET_COINS) {
     throw new Error("AD_CAMPAIGN_INVALID");
