@@ -1173,6 +1173,7 @@ test("every shipped premium store category charges once and grants its matching 
         sortOrder: index + 1,
         active: true,
         purchaseEnabled: true,
+        expectedVersion: 0,
       })),
     ));
 
@@ -1240,6 +1241,7 @@ test("every shipped premium store category charges once and grants its matching 
         sortOrder: 99,
         active: true,
         purchaseEnabled: true,
+        expectedVersion: 0,
       })),
       (error) => error && error.code === "invalid-argument",
     );
@@ -1253,6 +1255,7 @@ test("every shipped premium store category charges once and grants its matching 
       sortOrder: 99,
       active: true,
       purchaseEnabled: false,
+      expectedVersion: 0,
     }));
     await assert.rejects(
       () => purchaseStoreItem.run(memberRequest(uid, {
