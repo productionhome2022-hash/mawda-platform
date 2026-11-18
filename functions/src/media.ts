@@ -7,7 +7,7 @@ import { getStorage } from "firebase-admin/storage";
 import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { defineSecret, defineString } from "firebase-functions/params";
-import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
+import { verifyScannerWebhook, validateScannerVerdict, type ScannerSafeDerivative } from "./media-scanner";
 import { expectedSafeDerivativeContract, safeDerivativePurposeAllowed } from "./media-derivative-contract";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
@@ -444,11 +444,7 @@ export const receiveMediaScanVerdict = onRequest(
       sizeBytes: Number(previewMetadata.size),
     };
   }
-  let safeNonImageDerivative: {
-    category: "gif" | "audio" | "video" | "document";
-    path: string; generation: string; sha256: string;
-    contentType: string; pipelineVersion: string; sizeBytes: number;
-  } | null = null;
+  let safeNonImageDerivative: (ScannerSafeDerivative & { sizeBytes: number }) | null = null;
   if (verdict.safeDerivative) {
     const derivative = verdict.safeDerivative;
     const expected = expectedSafeDerivativeContract(derivative.category);
