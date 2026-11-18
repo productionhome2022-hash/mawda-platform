@@ -814,6 +814,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
         sortOrder: values['sortOrder'] as int,
         active: values['active'] as bool,
         purchaseEnabled: values['purchaseEnabled'] as bool,
+        expectedVersion: existing?['version'] as int? ?? 0,
       );
       await _loadCatalog();
       if (!mounted) return;
