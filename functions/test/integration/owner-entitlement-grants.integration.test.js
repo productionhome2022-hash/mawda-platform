@@ -130,6 +130,8 @@ test("owner free grant is MFA-gated, audited, coin-neutral, idempotent and repea
   } finally {
     await Promise.all([
       db.recursiveDelete(memberRef).catch(() => undefined),
+      db.collection("storePurchases").doc(`${memberUid}_purchase_after_grant_${tag}`).delete().catch(() => undefined),
+      memberRef.collection("walletLedger").doc(`store_${memberUid}_purchase_after_grant_${tag}`).delete().catch(() => undefined),
       itemRef.delete().catch(() => undefined),
       grantRef.delete().catch(() => undefined),
       ledgerRef.delete().catch(() => undefined),
