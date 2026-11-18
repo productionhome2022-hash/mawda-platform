@@ -77,16 +77,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     if (!mounted || _showingIncomingCall) return;
     try {
       final response = await FirebaseFunctions.instance
-          .httpsCallable('getActiveCall').call();
+          .httpsCallable('getActiveRoomCall').call({'roomId': widget.chatId});
       final call = Map<String, dynamic>.from(response.data as Map);
-      final acceptedUids = (call['acceptedUids'] as List<dynamic>? ?? const []).whereType<String>();
-      final rejectedUids = (call['rejectedUids'] as List<dynamic>? ?? const []).whereType<String>();
-      if (call['active'] != true || !['ringing', 'accepted'].contains(call['status']) ||
-          acceptedUids.contains(widget.currentUserId) || rejectedUids.contains(widget.currentUserId) ||
-          call['callerUid'] == widget.currentUserId ||
-          call['scope'] != 'room' || call['targetId'] != widget.chatId) return;
+      if (call['active'] != true || call['isCreator'] == true) return;
       final callId = call['callId'] as String?;
       if (callId == null || callId.isEmpty || _promptedIncomingCallId == callId) return;
+      final priorRequestStatus = call['joinRequestStatus'];
+      if (priorRequestStatus == 'requested') return;
       _promptedIncomingCallId = callId;
       _showingIncomingCall = true;
       final mode = call['mode'] == 'video' ? 'video' : 'audio';
@@ -94,27 +91,74 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => AlertDialog(
-          title: Text(mode == 'video' ? 'مكالمة مرئية جماعية واردة' : 'مكالمة صوتية جماعية واردة'),
-          content: const Text('بدأ أحد أعضاء الغرفة مكالمة جماعية. هل تريد الانضمام؟'),
+          title: Text(mode == 'video' ? 'مكالمة مرئية جماعية' : 'مكالمة صوتية جماعية'),
+          content: const Text('يوجد عضو بدأ مكالمة جماعية في هذه الغرفة. يمكنك طلب الانضمام، ويظل الدخول بانتظار موافقة المنشئ.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('رفض'),
+              child: const Text('ليس الآن'),
             ),
             FilledButton.icon(
               onPressed: () => Navigator.pop(dialogContext, true),
               icon: const Icon(Icons.call),
-              label: const Text('انضمام'),
+              label: const Text('طلب الانضمام'),
             ),
           ],
         ),
       );
-      if (!mounted) return;
-      await FirebaseFunctions.instance.httpsCallable('respondToCall').call({
+      if (!mounted || accepted != true) return;
+
+      if (call['billingRequired'] == true) {
+        final rate = call['billingRate'];
+        final consent = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('موافقة مالية مستقلة'),
+            content: Text(
+              'سعر هذه المكالمة هو $rate كوينز لكل دقيقة إجمالاً. تُقسّم كلفة الدقيقة بالتساوي على المشاركين الفعليين، ولا تنخفض حصة المنضم المتأخر بسبب وقت انضمامه. موافقتك المالية منفصلة عن موافقة منشئ المكالمة على دخولك.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('عدم الموافقة'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('أوافق مالياً'),
+              ),
+            ],
+          ),
+        );
+        if (!mounted || consent != true) return;
+        await FirebaseFunctions.instance.httpsCallable('consentToRoomCallBilling').call({
+          'callId': callId,
+          'consent': true,
+        });
+      }
+
+      await FirebaseFunctions.instance.httpsCallable('requestRoomCallJoin').call({
         'callId': callId,
-        'response': accepted == true ? 'accept' : 'reject',
       });
-      if (accepted == true && mounted) {
+
+      var approved = false;
+      var rejected = false;
+      for (var attempt = 0; attempt < 150 && mounted; attempt++) {
+        final statusResponse = await FirebaseFunctions.instance
+            .httpsCallable('getRoomCallJoinRequestStatus').call({'callId': callId});
+        final status = Map<String, dynamic>.from(statusResponse.data as Map);
+        if (status['approved'] == true) {
+          approved = true;
+          break;
+        }
+        if (status['rejected'] == true || status['active'] != true) {
+          rejected = true;
+          break;
+        }
+        await Future<void>.delayed(const Duration(seconds: 2));
+      }
+      if (!mounted) return;
+      if (approved) {
         await Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => MawddaCallScreen(
             callId: callId,
@@ -125,9 +169,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             outgoing: false,
           ),
         ));
+      } else if (rejected && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('لم تتم الموافقة على طلب الانضمام أو انتهت المكالمة.')),
+        );
       }
     } catch (_) {
-      // Expired or already-answered invitations are ignored and polled again.
+      // Expired calls and stale requests are ignored; the next poll rechecks state.
     } finally {
       _showingIncomingCall = false;
       _promptedIncomingCallId = null;
