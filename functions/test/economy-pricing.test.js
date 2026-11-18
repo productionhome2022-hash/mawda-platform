@@ -91,3 +91,26 @@ test("email verification reward policy is disabled until owner configures it", (
     { enabled: "yes", rewardCoins: 100, cycleDays: 90 },
   ]) assert.throws(() => validateEmailVerificationRewardPolicy(policy));
 });
+
+
+test("owner pricing catalogs accept owner-selected ISO 4217 currencies", () => {
+  const { validateCoinPackages, validateAdPrices } = require("../lib/economy-pricing");
+  const packages = validateCoinPackages([
+    { ...coinPackageFixture, packageId: "coins_usd", currency: "USD" },
+    { ...coinPackageFixture, packageId: "coins_chf", currency: "CHF" },
+    { ...coinPackageFixture, packageId: "coins_kwd", currency: "KWD" },
+  ]);
+  assert.deepEqual(packages.map((item) => item.currency), ["USD", "CHF", "KWD"]);
+  const ads = validateAdPrices([
+    { ...adPriceFixture, placementId: "ad_chf", currency: "CHF" },
+  ]);
+  assert.equal(ads[0].currency, "CHF");
+  for (const currency of ["eur", "US", "USDD", "1US"]) {
+    assert.throws(() => validateCoinPackages([
+      { ...coinPackageFixture, currency },
+    ]), /INVALID_COIN_PACKAGE_FIELDS/);
+    assert.throws(() => validateAdPrices([
+      { ...adPriceFixture, currency },
+    ]), /INVALID_AD_PRICE_FIELDS/);
+  }
+});
