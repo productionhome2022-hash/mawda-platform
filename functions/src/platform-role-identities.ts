@@ -20,6 +20,17 @@ export const PLATFORM_ROLE_CAPACITY: Record<NumberedPlatformRole, number | null>
   production_supervisor: null,
 };
 
+/** Server-side seat guard. Call with the active count read in the same Firestore transaction. */
+export function assertPlatformRoleCapacity(role: NumberedPlatformRole, activeCountAfterWrite: number): void {
+  if (!Number.isSafeInteger(activeCountAfterWrite) || activeCountAfterWrite < 0) {
+    throw new Error("PLATFORM_ROLE_ACTIVE_COUNT_INVALID");
+  }
+  const capacity = PLATFORM_ROLE_CAPACITY[role];
+  if (capacity !== null && activeCountAfterWrite > capacity) {
+    throw new Error("PLATFORM_ROLE_CAPACITY_EXCEEDED");
+  }
+}
+
 export function platformRoleDisplayLabel(
   role: NumberedPlatformRole,
   ordinal: number,
