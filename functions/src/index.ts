@@ -9116,14 +9116,25 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
     const policy: FeaturedAdRewardPolicy = policySnapshot.exists ? validateFeaturedAdRewardPolicy(policySnapshot.data()?.policy) : defaultFeaturedAdRewardPolicy();
     const daily = daySnapshot.data() ?? {};
     const member = campaignMemberSnapshot.data() ?? {};
+    const campaignRewardCoins = campaign.rewardCoinsPerView;
+    const campaignRewardConfigured = Number.isSafeInteger(campaignRewardCoins) &&
+      campaignRewardCoins > 0 && campaignRewardCoins <= policy.rewardCoinsPerView;
+    const effectivePolicy: FeaturedAdRewardPolicy = {
+      ...policy,
+      rewardCoinsPerView: campaignRewardConfigured ? campaignRewardCoins : 0,
+    };
     const rewardTimestamps = Array.isArray(member.rewardTimestampsMs)
       ? member.rewardTimestampsMs.filter((value: unknown) => Number.isSafeInteger(value) && (value as number) >= now - policy.sameCampaignWindowMs)
       : [];
-    const decision = decideFeaturedAdReward(policy, {
-      nowMs: now, campaignEligible: campaign.status === "published" && campaign.ownerWithdrawn !== true &&
+    const decision = decideFeaturedAdReward(effectivePolicy, {
+      nowMs: now, campaignEligible: campaignRewardConfigured &&
+        campaign.status === "published" && campaign.ownerWithdrawn !== true &&
         campaign.ownerApproved === true && campaign.paymentConfirmed === true && campaign.creativeApproved === true &&
         now >= campaign.startsAtMs && now < campaign.endsAtMs,
-      rewardBudgetAvailable: Number(campaign.rewardBudgetCoins) - Number(campaign.spentRewardCoins || 0) >= policy.rewardCoinsPerView,
+      rewardBudgetAvailable: campaignRewardConfigured &&
+        Number.isSafeInteger(campaign.rewardBudgetCoins) &&
+        Number.isSafeInteger(campaign.spentRewardCoins ?? 0) &&
+        campaign.rewardBudgetCoins - (campaign.spentRewardCoins ?? 0) >= campaignRewardCoins,
       foregroundAndVisibilityValidated: session.foregroundVisible === true &&
         Number(session.continuousVisibleMs) >= (session.creativeType === "image" ? policy.imageContinuousVisibleMs : 0),
       creativeType: session.creativeType === "video" ? "video" : "image",
