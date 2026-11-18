@@ -1,10 +1,6 @@
 import { createHash } from "node:crypto";
 
-export const EMAIL_VERIFICATION_CYCLE_DAYS = 90;
-export const EMAIL_VERIFICATION_REWARD_COINS = 500;
-export const EMAIL_VERIFICATION_CYCLE_MS = EMAIL_VERIFICATION_CYCLE_DAYS * 24 * 60 * 60 * 1000;
-
-export type EmailVerificationCycleStatus = "pending" | "rewarded" | "expired" | "revoked";
+export type EmailVerificationCycleStatus = "pending" | "verified" | "rewarded" | "expired" | "revoked";
 
 export interface EmailVerificationCycle {
   cycleId: string;
@@ -22,6 +18,7 @@ export function createEmailVerificationCycle(input: {
   email: string;
   sequence: number;
   serverNowMs: number;
+  cycleDays: number;
 }): EmailVerificationCycle {
   const uid = input.uid.trim();
   const email = input.email.trim().toLowerCase();
@@ -29,7 +26,8 @@ export function createEmailVerificationCycle(input: {
     throw new Error("INVALID_MEMBER_OR_EMAIL");
   }
   if (!Number.isSafeInteger(input.sequence) || input.sequence < 1 ||
-      !Number.isSafeInteger(input.serverNowMs) || input.serverNowMs < 0) {
+      !Number.isSafeInteger(input.serverNowMs) || input.serverNowMs < 0 ||
+      !Number.isSafeInteger(input.cycleDays) || input.cycleDays < 1 || input.cycleDays > 3650) {
     throw new Error("INVALID_CYCLE_CLOCK_OR_SEQUENCE");
   }
   const cycleId = createHash("sha256")
@@ -38,16 +36,17 @@ export function createEmailVerificationCycle(input: {
   return {
     cycleId, uid, email, sequence: input.sequence, status: "pending",
     startedAtMs: input.serverNowMs,
-    expiresAtMs: input.serverNowMs + EMAIL_VERIFICATION_CYCLE_MS,
+    expiresAtMs: input.serverNowMs + input.cycleDays * 24 * 60 * 60 * 1000,
   };
 }
 
-export function isEmailVerificationCycleDue(lastVerifiedAtMs: number, serverNowMs: number): boolean {
+export function isEmailVerificationCycleDue(lastVerifiedAtMs: number, serverNowMs: number, cycleDays: number): boolean {
   if (!Number.isSafeInteger(lastVerifiedAtMs) || lastVerifiedAtMs < 0 ||
-      !Number.isSafeInteger(serverNowMs) || serverNowMs < 0) {
+      !Number.isSafeInteger(serverNowMs) || serverNowMs < 0 ||
+      !Number.isSafeInteger(cycleDays) || cycleDays < 1 || cycleDays > 3650) {
     throw new Error("INVALID_VERIFICATION_CLOCK");
   }
-  return serverNowMs >= lastVerifiedAtMs + EMAIL_VERIFICATION_CYCLE_MS;
+  return serverNowMs >= lastVerifiedAtMs + cycleDays * 24 * 60 * 60 * 1000;
 }
 
 /** Confirmation requires the same normalized address and a live, unused cycle. */
