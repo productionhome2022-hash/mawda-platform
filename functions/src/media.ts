@@ -1721,7 +1721,7 @@ export const getFeaturedAdCreativeUrl = onCall(async (request) => {
     throw new HttpsError("failed-precondition", "لم يعد ملف الإعلان معتمداً أمنياً.");
   }
   const isGif = asset.detectedContentType === "image/gif";
-  if (asset.mediaCategory === "video" || (campaignData.creativeType === "gif" && !isGif)) {
+  if (asset.mediaCategory === "video" || (campaignData.creativeType === "gif") !== isGif) {
     throw new HttpsError("failed-precondition", "مادة الإعلان لا تطابق نوع المشغل المعتمد.");
   }
   const derivativePath = isGif ? asset.safeAnimationPath : asset.safePreviewPath;
