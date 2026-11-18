@@ -377,16 +377,51 @@ export const transferCoins = onCall(async (request) => {
 
     if (existing.exists) {
       const prior = existing.data()!;
+      let expectedBreakdown;
+      try {
+        expectedBreakdown = calculateTransferBreakdown(prior.grossAmount, prior.commissionBps);
+      } catch {
+        throw new HttpsError("failed-precondition", "بيانات التحويل التاريخية غير صالحة؛ يلزم تدقيق مالي.");
+      }
+      const senderEntry = senderLedger.data() ?? {};
+      const recipientEntry = recipientLedger.data() ?? {};
+      const platformEntry = platformLedger.data() ?? {};
+      const senderBalanceSnapshotValid =
+        senderEntry.balanceBefore === undefined && senderEntry.balanceAfter === undefined ||
+        Number.isSafeInteger(senderEntry.balanceBefore) &&
+        Number.isSafeInteger(senderEntry.balanceAfter) &&
+        senderEntry.balanceBefore >= 0 &&
+        senderEntry.balanceAfter === senderEntry.balanceBefore - prior.grossAmount;
+      const recipientBalanceSnapshotValid =
+        recipientEntry.balanceBefore === undefined && recipientEntry.balanceAfter === undefined ||
+        Number.isSafeInteger(recipientEntry.balanceBefore) &&
+        Number.isSafeInteger(recipientEntry.balanceAfter) &&
+        recipientEntry.balanceBefore >= 0 &&
+        recipientEntry.balanceAfter === recipientEntry.balanceBefore + prior.netAmount;
       if (prior.status !== "completed" ||
-          !senderLedger.exists || senderLedger.data()?.type !== "coin_transfer_sent" ||
-          senderLedger.data()?.direction !== "debit" || senderLedger.data()?.amount !== -prior.grossAmount ||
-          senderLedger.data()?.transferId !== transferId ||
-          !recipientLedger.exists || recipientLedger.data()?.type !== "coin_transfer_received" ||
-          recipientLedger.data()?.direction !== "credit" || recipientLedger.data()?.amount !== prior.netAmount ||
-          recipientLedger.data()?.transferId !== transferId ||
-          !platformLedger.exists || platformLedger.data()?.type !== "coin_transfer_commission" ||
-          platformLedger.data()?.direction !== "credit" || platformLedger.data()?.amount !== prior.commissionAmount ||
-          platformLedger.data()?.transferId !== transferId) {
+          prior.senderUid !== senderUid ||
+          prior.grossAmount !== amount ||
+          prior.commissionAmount !== expectedBreakdown.commissionAmount ||
+          prior.netAmount !== expectedBreakdown.netAmount ||
+          !senderLedger.exists || senderEntry.type !== "coin_transfer_sent" ||
+          senderEntry.direction !== "debit" || senderEntry.amount !== -prior.grossAmount ||
+          senderEntry.grossAmount !== prior.grossAmount ||
+          senderEntry.commissionAmount !== prior.commissionAmount ||
+          senderEntry.commissionBps !== prior.commissionBps ||
+          senderEntry.recipientUid !== prior.recipientUid ||
+          senderEntry.recipientNetAmount !== prior.netAmount ||
+          senderEntry.transferId !== transferId || !senderBalanceSnapshotValid ||
+          !recipientLedger.exists || recipientEntry.type !== "coin_transfer_received" ||
+          recipientEntry.direction !== "credit" || recipientEntry.amount !== prior.netAmount ||
+          recipientEntry.senderUid !== senderUid ||
+          recipientEntry.transferId !== transferId || !recipientBalanceSnapshotValid ||
+          !platformLedger.exists || platformEntry.type !== "coin_transfer_commission" ||
+          platformEntry.direction !== "credit" || platformEntry.amount !== prior.commissionAmount ||
+          platformEntry.grossAmount !== prior.grossAmount ||
+          platformEntry.commissionBps !== prior.commissionBps ||
+          platformEntry.senderUid !== senderUid ||
+          platformEntry.recipientUid !== prior.recipientUid ||
+          platformEntry.transferId !== transferId) {
         throw new HttpsError("failed-precondition", "سجل التحويل لا يطابق قيود المحافظ ودفتر عمولة المنصة؛ يلزم تدقيق مالي.");
       }
       if (prior.senderUid !== senderUid) {
@@ -472,6 +507,10 @@ export const transferCoins = onCall(async (request) => {
       commissionPercent: commissionBps / 100,
       commissionAmount: fee,
       netAmount,
+      senderBalanceBefore: senderBalance,
+      senderBalanceAfter: senderBalance - amount,
+      recipientBalanceBefore: recipientBalance,
+      recipientBalanceAfter: recipientBalance + netAmount,
       status: "completed",
       createdAt,
     };
@@ -484,6 +523,8 @@ export const transferCoins = onCall(async (request) => {
       type: "coin_transfer_sent",
       direction: "debit",
       amount: -amount,
+      balanceBefore: senderBalance,
+      balanceAfter: senderBalance - amount,
       grossAmount: amount,
       commissionAmount: fee,
       commissionBps,
@@ -497,6 +538,8 @@ export const transferCoins = onCall(async (request) => {
       type: "coin_transfer_received",
       direction: "credit",
       amount: netAmount,
+      balanceBefore: recipientBalance,
+      balanceAfter: recipientBalance + netAmount,
       senderUid,
       transferId,
       createdAt,
