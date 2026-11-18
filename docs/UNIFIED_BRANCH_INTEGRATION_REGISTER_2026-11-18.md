@@ -314,3 +314,13 @@ Commits:
 6. لا تكرار أو تعديل رصيد BetaCoins بسبب تسوية إعلان نقدية إلا إذا ثبت قرار معماري معتمد يحدد العلاقة.
 
 لم يتم تشغيل هذه الاختبارات في جلسة التنفيذ الحالية، ولم يتم تفعيل أي معاملة مالية أو مورد خارجي.
+
+
+### Financial policy boundary hardening — 2026-11-18
+
+- Hardened `applyFeaturedAdFinancialEvent` to re-run runtime validation at the state-transition boundary. Static TypeScript types alone are not treated as runtime trust.
+- Added snapshot consistency checks for currency, payment/review states, and zero/non-zero receipt invariants before applying any event.
+- Added unit cases for forged fractional/unsafe-precision events and inconsistent persisted snapshots.
+- Commits: `b8cc837ab2694860c18302f8e3f5bbba9114c8f0` (policy), `875d42dd435067bc5c497ce00c336b29be0ee3ee` (tests).
+- These changes harden the pure policy module only. They do not close the server-side owner authorization, Firestore transaction/idempotency, payment-provider evidence, or reconciliation integration gaps listed above.
+- Tests remain unexecuted in this environment; no CI was triggered. No main, Firebase, production, billing, or 5,000-persona lab changes were made.
