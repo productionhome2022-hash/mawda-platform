@@ -87,7 +87,7 @@ import { validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance }
 import { isActiveRentedPrivateRoom } from "./room-call-policy";
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
-import { validateCoinPackages, validateAdPrices, validateBilateralCallTariffs, defaultEmailVerificationRewardPolicy, validateEmailVerificationRewardPolicy } from "./economy-pricing";
+import { validateCoinPackages, validateAdPrices, validateBilateralCallTariffs, defaultEmailVerificationRewardPolicy, validateEmailVerificationRewardPolicy, currencyExponentForCode } from "./economy-pricing";
 import { validateEconomicPaymentPolicy, projectEconomicPaymentPolicy } from "./economy-payment-policy";
 import { reconcileWalletLedger } from "./wallet-reconciliation";
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
@@ -8041,7 +8041,8 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
         policyVersion: Number.isSafeInteger(economy.version) ? economy.version : 0,
         capturedAt: FieldValue.serverTimestamp(),
       },
-      currency: "EUR",
+      currency: packageSnapshot?.currency ?? null,
+      currencyExponent: packageSnapshot?.currencyExponent ?? null,
       createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
     });
     return { requestId: input.requestId, status: "pending_owner_contact", idempotentReplay: false };
@@ -8352,7 +8353,8 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
           ledgerData.purchaseRequestId !== input.requestId ||
           ledgerData.externalPaymentReference !== input.externalPaymentReference ||
           ledgerData.priceMinor !== data.agreedPriceMinor ||
-          ledgerData.currency !== (data.currency ?? "EUR") ||
+          ledgerData.currency !== data.currency ||
+          ledgerData.currencyExponent !== data.agreedCurrencyExponent ||
           ledgerData.actorUid !== data.verifiedBy ||
           ledgerData.purchaserUid !== requesterUid ||
           ledgerData.giftedByUid !== (data.giftRecipientUid ? requesterUid : null) ||
@@ -8372,7 +8374,8 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
           auditData.externalPaymentReference !== input.externalPaymentReference ||
           auditData.creditedCoins !== data.creditedCoins ||
           auditData.priceMinor !== data.agreedPriceMinor ||
-          auditData.currency !== (data.currency ?? "EUR")) {
+          auditData.currency !== data.currency ||
+          auditData.currencyExponent !== data.agreedCurrencyExponent) {
         throw new HttpsError("failed-precondition", "طلب الشراء المعتمد لا يطابق قيد المحفظة وإثبات الدفع؛ يلزم تدقيق السجل.");
       }
       return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null, creditedToUid: targetUid };
@@ -8391,8 +8394,13 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
     if (data.giftRecipientUid && (!data.packageSnapshot ||
         coins !== data.packageSnapshot.coins ||
         data.agreedPriceMinor !== data.packageSnapshot.priceMinor ||
-        (data.currency ?? "EUR") !== (data.packageSnapshot.currency ?? "EUR"))) {
+        data.currency !== data.packageSnapshot.currency ||
+        data.agreedCurrencyExponent !== data.packageSnapshot.currencyExponent)) {
       throw new HttpsError("failed-precondition", "شروط باقة الهدية تغيرت عن الباقة التي اختارها المرسل.");
+    }
+    if (currencyExponentForCode(data.currency) === null ||
+        currencyExponentForCode(data.currency) !== data.agreedCurrencyExponent) {
+      throw new HttpsError("failed-precondition", "عملة الاتفاق أو دقتها غير صالحة؛ لم يتم اعتماد أي دفعة.");
     }
     if (!Number.isSafeInteger(coins) || coins < 1 || coins > 1000000000) {
       throw new HttpsError("failed-precondition", "الكمية المتفق عليها غير صالحة.");
@@ -8407,7 +8415,8 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
       type: data.giftRecipientUid ? "coin_package_gift_credit" : "coin_purchase_manual_credit",
       amount: coins, balanceBefore: oldBalance, balanceAfter: oldBalance + coins,
       purchaseRequestId: input.requestId, externalPaymentReference: input.externalPaymentReference,
-      priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR",
+      priceMinor: data.agreedPriceMinor, currency: data.currency,
+      currencyExponent: data.agreedCurrencyExponent,
       actorUid, purchaserUid: requesterUid, giftedByUid: data.giftRecipientUid ? requesterUid : null,
       createdAt: now,
     });
@@ -8423,20 +8432,23 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
         "coin_purchase_manually_verified_and_approved",
       requestId: input.requestId, externalPaymentReference: input.externalPaymentReference,
       verificationNote: input.verificationNote, creditedCoins: coins,
-      priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR", createdAt: now,
+      priceMinor: data.agreedPriceMinor, currency: data.currency,
+      currencyExponent: data.agreedCurrencyExponent, createdAt: now,
     });
     if (data.giftRecipientUid) {
       transaction.create(giftRef, {
         giftId: giftRef.id, senderUid: requesterUid, recipientUid: targetUid,
         packageId: data.packageId, packageSnapshot: data.packageSnapshot ?? null,
-        coins, priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR",
+        coins, priceMinor: data.agreedPriceMinor, currency: data.currency,
+        currencyExponent: data.agreedCurrencyExponent,
         purchaseRequestId: input.requestId, status: "credited",
         creditedByOwnerUid: actorUid, createdAt: now,
       });
       transaction.create(historyRef, {
         giftId: giftRef.id, senderUid: requesterUid, packageId: data.packageId,
         packageName: (data.packageSnapshot as Record<string, unknown> | null)?.name ?? "باقة BetaCoins",
-        coins, priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR",
+        coins, priceMinor: data.agreedPriceMinor, currency: data.currency,
+        currencyExponent: data.agreedCurrencyExponent,
         purchaseRequestId: input.requestId, createdAt: now,
       });
       transaction.create(notificationRef, {
