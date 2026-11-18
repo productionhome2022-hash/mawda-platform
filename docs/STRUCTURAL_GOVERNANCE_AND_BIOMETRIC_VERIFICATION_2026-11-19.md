@@ -60,6 +60,7 @@ Do not deploy, merge to `main`, change production Firebase resources, enable pai
 - Use server-generated request IDs, one-active-request constraints, transactionally incremented attempt counters, expected-version checks, idempotency keys, rate limits, and signed short-lived upload/download access.
 - Prevent client-supplied identity fields from overriding canonical profile fields. Snapshot the canonical values at submission and show the snapshot to the owner.
 - The reward must be credited only by the owner decision transaction; client booleans, local OS biometric prompts, client-generated status flags, and replayed calls are never reward proof.
+- A profile may be considered actively biometrically verified only when the server record proves `verificationMethod: owner_manual_review`, `reviewedBySuperOwner: true`, a non-empty `reviewRequestId`, and a future server-controlled expiry. Missing or legacy local-device-only evidence fails closed; it must not unlock biometric-only privileges or rewards.
 - Do not enable this workflow until storage lifecycle deletion, authorization, notifications, wallet ledger atomicity, and emulator tests are implemented.
 
 ## 3. Canonical owner title: Super Owner
