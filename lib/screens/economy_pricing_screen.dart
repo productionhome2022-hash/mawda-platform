@@ -240,7 +240,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
           final index = entry.key, item = entry.value;
           return Card(child: ListTile(
             title: Text(item['name']?.toString() ?? item['packageId']?.toString() ?? 'باقة'),
-            subtitle: Text('\${item['coins']} BetaCoins • \${item['priceMinor']} \${item['currency']} (وحدات صغرى) • \${item['active'] == true ? 'مفعلة' : 'متوقفة'}'),
+            subtitle: Text('${item['coins']} BetaCoins • ${item['priceMinor']} ${item['currency']} (وحدات صغرى) • ${item['active'] == true ? 'مفعلة' : 'متوقفة'}'),
             trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
               IconButton(onPressed: _saving ? null : () => _editPackage(existing: item, index: index), icon: const Icon(Icons.edit_outlined)),
               IconButton(onPressed: _saving ? null : () => setState(() => _packages.removeAt(index)), icon: const Icon(Icons.delete_outline)),
@@ -257,7 +257,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
           final index = entry.key, item = entry.value;
           return Card(child: ListTile(
             title: Text(item['name']?.toString() ?? item['placementId']?.toString() ?? 'موضع إعلاني'),
-            subtitle: Text('\${item['billingModel']} • \${item['priceMinor']} \${item['currency']} (وحدات صغرى) • \${item['active'] == true ? 'مفعل' : 'متوقف'}'),
+            subtitle: Text('${item['billingModel']} • ${item['priceMinor']} ${item['currency']} (وحدات صغرى) • ${item['active'] == true ? 'مفعل' : 'متوقف'}'),
             trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
               IconButton(onPressed: _saving ? null : () => _editAd(existing: item, index: index), icon: const Icon(Icons.edit_outlined)),
               IconButton(onPressed: _saving ? null : () => setState(() => _ads.removeAt(index)), icon: const Icon(Icons.delete_outline)),
