@@ -539,6 +539,38 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     }
   }
 
+  Future<void> _saveAttachmentWithMediaSaver(Map<String, dynamic> message) async {
+    final mediaId = message['mediaId'] as String? ?? '';
+    final messageId = message['messageId'] as String? ?? '';
+    if (mediaId.isEmpty || messageId.isEmpty) return;
+    try {
+      final conversation = await _messagesFuture;
+      final chatId = conversation['chatId'] as String? ?? '';
+      if (chatId.isEmpty) throw StateError('CHAT_ID_MISSING');
+      await _mediaService.saveMediaWithMediaSaver(
+        scope: 'direct',
+        chatId: chatId,
+        mediaId: mediaId,
+        messageId: messageId,
+        suggestedName: 'mawdda_media',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم حفظ الوسيط محلياً عبر Mawdda Media Saver.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'لا يوجد استحقاق Media Saver فعال.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر حفظ الوسيط محلياً.')),
+      );
+    }
+  }
+
   Future<void> _openAttachment(String url) async {
     final opened = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     if (!opened && mounted) {
@@ -759,21 +791,47 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                               mediaType.startsWith('video/') ? 'video' :
                               mediaType == 'application/pdf' ? 'document' : 'image');
                         if (category == 'audio') {
-                          return ChatAudioMessagePlayer(
-                            url: url,
-                            messageId: message['messageId'] as String? ?? '',
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ChatAudioMessagePlayer(
+                                url: url,
+                                messageId: message['messageId'] as String? ?? '',
+                              ),
+                              Align(
+                                alignment: AlignmentDirectional.centerEnd,
+                                child: TextButton.icon(
+                                  onPressed: () => _saveAttachmentWithMediaSaver(message),
+                                  icon: const Icon(Icons.download_outlined, size: 18),
+                                  label: const Text('حفظ محلياً'),
+                                ),
+                              ),
+                            ],
                           );
                         }
                         if (category == 'image' || category == 'gif') {
-                          return ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              url, width: 260, height: 220, fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const SizedBox(
-                                height: 100,
-                                child: Center(child: Text('تعذر تحميل الصورة الآمنة.')),
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  url, width: 260, height: 220, fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const SizedBox(
+                                    height: 100,
+                                    child: Center(child: Text('تعذر تحميل الصورة الآمنة.')),
+                                  ),
+                                ),
                               ),
-                            ),
+                              Align(
+                                alignment: AlignmentDirectional.centerEnd,
+                                child: TextButton.icon(
+                                  onPressed: () => _saveAttachmentWithMediaSaver(message),
+                                  icon: const Icon(Icons.download_outlined, size: 18),
+                                  label: const Text('حفظ محلياً'),
+                                ),
+                              ),
+                            ],
                           );
                         }
                         final isDocument = category == 'document';
@@ -788,10 +846,21 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                               leading: Icon(icon),
                               title: Text(label),
                               subtitle: Text(isDocument ? 'تنزيل المستند' : 'فتح المرفق'),
-                              trailing: IconButton(
-                                tooltip: 'فتح المرفق',
-                                onPressed: () => _openAttachment(url),
-                                icon: const Icon(Icons.open_in_new),
+                              trailing: Wrap(
+                                spacing: 0,
+                                children: [
+                                  if (!isDocument)
+                                    IconButton(
+                                      tooltip: 'حفظ محلياً عبر Media Saver',
+                                      onPressed: () => _saveAttachmentWithMediaSaver(message),
+                                      icon: const Icon(Icons.download_outlined),
+                                    ),
+                                  IconButton(
+                                    tooltip: 'فتح المرفق',
+                                    onPressed: () => _openAttachment(url),
+                                    icon: const Icon(Icons.open_in_new),
+                                  ),
+                                ],
                               ),
                             ),
                           ),

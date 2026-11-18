@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:file_saver/file_saver.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
@@ -108,6 +109,7 @@ class MemberMediaUploadService {
   Future<void> waitForSafeApproval(
     String mediaId, {
     Duration timeout = const Duration(seconds: 90),
+    bool requireAnySafeDerivative = false,
   }) async {
     final deadline = DateTime.now().add(timeout);
     var pollCount = 0;
@@ -116,7 +118,8 @@ class MemberMediaUploadService {
           .httpsCallable('getMyMediaUploadStatus')
           .call({'mediaId': mediaId});
       final status = Map<String, dynamic>.from(response.data as Map);
-      if (status['safePreviewReady'] == true) return;
+      if (status['safePreviewReady'] == true ||
+          (requireAnySafeDerivative && status['safeDerivativeReady'] == true)) return;
       if (status['status'] == 'rejected') {
         throw StateError('رفض نظام الفحص الصورة: ${status['rejectionCode'] ?? 'MEDIA_REJECTED'}');
       }
@@ -131,6 +134,43 @@ class MemberMediaUploadService {
       await Future<void>.delayed(delay < remaining ? delay : remaining);
     }
     throw TimeoutException('لم يكتمل فحص الصورة خلال المهلة المحددة؛ بقيت الصورة غير متاحة.', timeout);
+  }
+
+  /// Uploads a platform-owner advertisement through the same quarantined,
+  /// scanned and derivative-only media pipeline used by the rest of Mawdda.
+  Future<String> uploadAdvertisementCreative({required XFile file}) async {
+    final contentType = _chatAttachmentContentType(file);
+    if (!contentType.startsWith('image/') && contentType != 'video/mp4') {
+      throw const FormatException('المادة الإعلانية يجب أن تكون صورة أو فيديو MP4.');
+    }
+    await _validateFileLength(file, contentType);
+    final bytes = await file.readAsBytes();
+    final intentResponse = await _functions.httpsCallable('createMediaUploadIntent').call({
+      'originalName': file.name,
+      'contentType': contentType,
+      'sizeBytes': bytes.length,
+      'purpose': 'advertisement',
+    });
+    final intent = Map<String, dynamic>.from(intentResponse.data as Map);
+    final uploadUrl = intent['uploadUrl'] as String?;
+    final mediaId = intent['mediaId'] as String?;
+    final headers = Map<String, dynamic>.from(
+      intent['requiredHeaders'] as Map? ?? const <String, dynamic>{},
+    );
+    if (uploadUrl == null || mediaId == null || headers.isEmpty) {
+      throw StateError('استجابة طلب رفع المادة الإعلانية غير مكتملة.');
+    }
+    final response = await _client.put(
+      Uri.parse(uploadUrl),
+      headers: headers.map((key, value) => MapEntry(key, '$value')),
+      body: bytes,
+    );
+    if (response.statusCode != 200) {
+      throw StateError('فشل رفع المادة الإعلانية إلى التخزين الآمن (HTTP ${response.statusCode}).');
+    }
+    await _functions.httpsCallable('finalizeMediaUpload').call({'mediaId': mediaId});
+    await waitForSafeApproval(mediaId, requireAnySafeDerivative: true);
+    return mediaId;
   }
 
   String _chatAttachmentContentType(XFile file) {
@@ -242,6 +282,77 @@ class MemberMediaUploadService {
       if (roomId != null) 'roomId': roomId,
     });
     return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// Gets a short-lived Media Saver capability. The server re-checks
+  /// the paid entitlement on every call and never extends media retention.
+  Future<String?> saveMediaWithMediaSaver({
+    required String mediaId,
+    required String messageId,
+    required String scope,
+    String? chatId,
+    String? roomId,
+    String? suggestedName,
+  }) async {
+    final response = await _functions.httpsCallable('getMediaSaverAttachmentUrl').call({
+      'mediaId': mediaId,
+      'messageId': messageId,
+      'scope': scope,
+      if (chatId != null) 'chatId': chatId,
+      if (roomId != null) 'roomId': roomId,
+    });
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final url = data['url'] as String?;
+    final contentType = data['contentType'] as String?;
+    if (url == null || url.isEmpty || contentType == null || contentType.isEmpty) {
+      throw StateError('MEDIA_SAVER_CAPABILITY_INVALID');
+    }
+    final extension = _extensionForContentType(contentType);
+    final safeName = (suggestedName ?? 'mawdda_media').replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
+    return FileSaver.instance.saveFile(
+      name: safeName.isEmpty ? 'mawdda_media' : safeName,
+      link: LinkDetails(link: url),
+      fileExtension: extension,
+      mimeType: MimeType.custom,
+      customMimeType: contentType,
+    );
+  }
+
+  String _extensionForContentType(String contentType) {
+    switch (contentType.toLowerCase()) {
+      case 'image/jpeg': return 'jpg';
+      case 'image/png': return 'png';
+      case 'image/webp': return 'webp';
+      case 'image/gif': return 'gif';
+      case 'video/mp4': return 'mp4';
+      case 'audio/mpeg': return 'mp3';
+      case 'audio/mp4': return 'm4a';
+      case 'audio/ogg': return 'ogg';
+      case 'audio/wav': return 'wav';
+      default: return 'bin';
+    }
+  }
+
+  Future<String> getMediaSaverAttachmentUrl({
+    required String mediaId,
+    required String messageId,
+    required String scope,
+    String? chatId,
+    String? roomId,
+  }) async {
+    final response = await _functions.httpsCallable('getMediaSaverAttachmentUrl').call({
+      'mediaId': mediaId,
+      'messageId': messageId,
+      'scope': scope,
+      if (chatId != null) 'chatId': chatId,
+      if (roomId != null) 'roomId': roomId,
+    });
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final url = data['url'] as String?;
+    if (url == null || url.isEmpty) {
+      throw StateError('MEDIA_SAVER_URL_MISSING');
+    }
+    return url;
   }
 
   Future<String> getChatMediaAttachmentUrl({

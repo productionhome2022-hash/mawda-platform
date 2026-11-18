@@ -40,7 +40,12 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   MediaStream? _localStream;
   Timer? _pollTimer;
   Timer? _iceRefreshTimer;
+  Timer? _durationTimer;
+  Timer? _participantSyncTimer;
+  int? _remainingSeconds;
   List<String> _remoteUids = [];
+  final Set<String> _allParticipantUids = <String>{};
+  final Set<String> _offerSentTo = <String>{};
   List<Map<String, dynamic>> _iceServers = [];
   bool _initializing = true;
   bool _ending = false;
@@ -71,10 +76,9 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
           'mode': widget.mode,
         });
         final data = Map<String, dynamic>.from(started.data as Map);
-        _remoteUids = (data['participantUids'] as List<dynamic>? ?? const [])
-            .whereType<String>()
-            .where((uid) => uid != widget.currentUserId)
-            .toList(growable: false);
+        _allParticipantUids.addAll(
+          (data['participantUids'] as List<dynamic>? ?? const []).whereType<String>(),
+        );
       } else {
         final active = await _functions.httpsCallable('getActiveCall').call();
         final data = Map<String, dynamic>.from(active.data as Map);
@@ -85,14 +89,15 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
         if (callerUid is! String || callerUid.isEmpty) {
           throw StateError('تعذر تحديد صاحب المكالمة.');
         }
-        _remoteUids = [callerUid];
+        _allParticipantUids.addAll(
+          (data['participantUids'] as List<dynamic>? ?? const []).whereType<String>(),
+        );
+        _allParticipantUids.add(callerUid);
         await _functions.httpsCallable('respondToCall').call({
           'callId': widget.callId,
           'response': 'accept',
         });
       }
-      if (_remoteUids.isEmpty) throw StateError('لا يوجد طرف آخر متاح للمكالمة.');
-
       final iceResponse = await _functions.httpsCallable('getCallIceConfiguration')
           .call({'callId': widget.callId});
       final iceData = Map<String, dynamic>.from(iceResponse.data as Map);
@@ -109,18 +114,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       });
       _localRenderer.srcObject = _localStream;
 
-      for (final remoteUid in _remoteUids) {
-        final peer = await _createPeer(remoteUid, _iceServers);
-        if (widget.outgoing) {
-          final offer = await peer.createOffer(<String, dynamic>{
-            'offerToReceiveAudio': true,
-            'offerToReceiveVideo': widget.mode == 'video',
-          });
-          await peer.setLocalDescription(offer);
-          await _queueSignal(remoteUid, 'offer', offer.toMap());
-        }
-      }
-
+      await _syncCallParticipants();
       if (!mounted) return;
       setState(() {
         _initializing = false;
@@ -132,12 +126,28 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       _iceRefreshTimer = Timer.periodic(const Duration(minutes: 10), (_) {
         unawaited(_refreshIceConfiguration());
       });
+      _participantSyncTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+        unawaited(_syncCallParticipants());
+      });
       await _pollSignals();
     } catch (error) {
       _pollTimer?.cancel();
-      try {
-        await _functions.httpsCallable('endCall').call({'callId': widget.callId});
-      } catch (_) {}
+      if (widget.outgoing) {
+        try {
+          await _functions.httpsCallable('endCall').call({'callId': widget.callId});
+        } catch (_) {}
+      } else {
+        try {
+          await _functions.httpsCallable('respondToCall').call({
+            'callId': widget.callId,
+            'response': 'reject',
+          });
+        } catch (_) {
+          try {
+            await _functions.httpsCallable('endCall').call({'callId': widget.callId});
+          } catch (_) {}
+        }
+      }
       await _releaseMedia();
       if (!mounted) return;
       setState(() {
@@ -145,6 +155,66 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
         _failure = error.toString();
         _status = 'تعذر بدء المكالمة';
       });
+    }
+  }
+
+  Future<void> _syncCallParticipants() async {
+    if (_ending || _localStream == null) return;
+    try {
+      final response = await _functions.httpsCallable('getActiveCall').call();
+      final data = Map<String, dynamic>.from(response.data as Map);
+      if (data['active'] != true || data['callId'] != widget.callId) {
+        await _finish(notifyServer: false);
+        return;
+      }
+      final callerUid = data['callerUid'] as String? ?? '';
+      final participants = (data['participantUids'] as List<dynamic>? ?? const [])
+          .whereType<String>().toSet();
+      final accepted = (data['acceptedUids'] as List<dynamic>? ?? const [])
+          .whereType<String>().toSet();
+      final rejected = (data['rejectedUids'] as List<dynamic>? ?? const [])
+          .whereType<String>().toSet();
+      final left = (data['leftUids'] as List<dynamic>? ?? const [])
+          .whereType<String>().toSet();
+      _allParticipantUids.addAll(participants);
+      final activeRemoteUids = participants.where((uid) =>
+        uid != widget.currentUserId &&
+        !rejected.contains(uid) &&
+        !left.contains(uid) &&
+        (uid == callerUid || accepted.contains(uid)),
+      ).toSet();
+
+      final removed = _remoteUids.where((uid) => !activeRemoteUids.contains(uid)).toList();
+      for (final uid in removed) {
+        _remoteUids.remove(uid);
+        final peer = _peers.remove(uid);
+        try { await peer?.close(); } catch (_) {}
+        try { await peer?.dispose(); } catch (_) {}
+        final renderer = _remoteRenderers.remove(uid);
+        try { renderer?.srcObject = null; } catch (_) {}
+        try { await renderer?.dispose(); } catch (_) {}
+        _pendingCandidates.remove(uid);
+        _remoteDescriptionsReady.remove(uid);
+      }
+
+      for (final uid in activeRemoteUids) {
+        if (!_remoteUids.contains(uid)) _remoteUids.add(uid);
+        final peer = await _createPeer(uid, _iceServers);
+        // A deterministic UID ordering selects one offerer per peer pair.
+        if (widget.currentUserId.compareTo(uid) < 0 && _offerSentTo.add(uid)) {
+          final offer = await peer.createOffer(<String, dynamic>{
+            'offerToReceiveAudio': true,
+            'offerToReceiveVideo': widget.mode == 'video',
+          });
+          await peer.setLocalDescription(offer);
+          await _queueSignal(uid, 'offer', offer.toMap());
+        }
+      }
+      if (mounted) setState(() {});
+    } catch (error) {
+      if (mounted && !_ending) {
+        setState(() => _failure = 'تعذر مزامنة أعضاء المكالمة: $error');
+      }
     }
   }
 
@@ -203,17 +273,38 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       });
       final data = Map<String, dynamic>.from(response.data as Map);
       if (!mounted) return;
-      setState(() {
-        _status = data['connected'] == true
-            ? 'المكالمة متصلة — الحد الأقصى 5 دقائق'
-            : 'تم تأكيد طرف واحد؛ بانتظار تأكيد اتصال الطرف الآخر';
-      });
+      if (data['connected'] == true) {
+        _connectedReportSent = true;
+        final deadline = data['maxDurationEndsAtMs'];
+        if (deadline is num) _startDurationCountdown(deadline.toInt());
+        if (mounted) setState(() => _status = 'المكالمة متصلة');
+      } else {
+        // The first endpoint must retry until the second participant reports
+        // connectivity and the server starts the shared duration clock.
+        _connectedReportSent = false;
+        if (mounted) setState(() => _status = 'تم تأكيد طرف واحد؛ بانتظار تأكيد اتصال الطرف الآخر');
+      }
     } catch (error) {
       _connectedReportSent = false;
       if (mounted && !_ending) {
         setState(() => _failure = 'تعذر تثبيت بدء مدة المكالمة من الخادم: $error');
       }
     }
+  }
+
+  void _startDurationCountdown(int deadlineMs) {
+    _durationTimer?.cancel();
+    final deadline = DateTime.fromMillisecondsSinceEpoch(deadlineMs);
+    void tick() {
+      final remaining = deadline.difference(DateTime.now()).inSeconds;
+      if (mounted) setState(() => _remainingSeconds = remaining.clamp(0, 5 * 60).toInt());
+      if (remaining <= 0) {
+        _durationTimer?.cancel();
+        unawaited(_finish());
+      }
+    }
+    tick();
+    _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) => tick());
   }
 
   Future<void> _attachRemoteStream(String uid, MediaStream stream) async {
@@ -293,11 +384,13 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
         final senderUid = signal['senderUid'] as String? ?? '';
         final kind = signal['kind'];
         final payloadText = signal['payload'];
-        if (signalId.isEmpty || senderUid.isEmpty || !_seenSignals.add(signalId) ||
-            payloadText is! String || !_remoteUids.contains(senderUid)) continue;
+        if (signalId.isEmpty || senderUid.isEmpty || payloadText is! String ||
+            !_allParticipantUids.contains(senderUid)) continue;
+        if (!_remoteUids.contains(senderUid)) await _syncCallParticipants();
+        if (!_remoteUids.contains(senderUid) || !_seenSignals.add(signalId)) continue;
         final payload = Map<String, dynamic>.from(jsonDecode(payloadText) as Map);
         final peer = _peers[senderUid] ?? await _createPeer(senderUid, _iceServers);
-        if (kind == 'offer' && !widget.outgoing && !_remoteDescriptionsReady.contains(senderUid)) {
+        if (kind == 'offer' && !_remoteDescriptionsReady.contains(senderUid)) {
           await peer.setRemoteDescription(RTCSessionDescription(
             payload['sdp'] as String?, payload['type'] as String?,
           ));
@@ -309,8 +402,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
           });
           await peer.setLocalDescription(answer);
           await _queueSignal(senderUid, 'answer', answer.toMap());
-        } else if (kind == 'answer' && widget.outgoing &&
-            !_remoteDescriptionsReady.contains(senderUid)) {
+        } else if (kind == 'answer' && !_remoteDescriptionsReady.contains(senderUid)) {
           await peer.setRemoteDescription(RTCSessionDescription(
             payload['sdp'] as String?, payload['type'] as String?,
           ));
@@ -394,6 +486,8 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
     _ending = true;
     _pollTimer?.cancel();
     _iceRefreshTimer?.cancel();
+    _participantSyncTimer?.cancel();
+    _durationTimer?.cancel();
     if (notifyServer) {
       try {
         await _functions.httpsCallable('endCall').call({'callId': widget.callId});
@@ -409,6 +503,8 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   void dispose() {
     _pollTimer?.cancel();
     _iceRefreshTimer?.cancel();
+    _participantSyncTimer?.cancel();
+    _durationTimer?.cancel();
     if (!_ending) {
       _ending = true;
       unawaited(() async {
@@ -478,6 +574,17 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
               children: [
                 Text(_status, textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.titleMedium),
+                if (_remainingSeconds != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      'الوقت المتبقي: ' +
+                          (_remainingSeconds! ~/ 60).toString().padLeft(2, '0') +
+                          ':' +
+                          (_remainingSeconds! % 60).toString().padLeft(2, '0'),
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
                 if (!_turnConfigured)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),

@@ -2,12 +2,12 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getFirestore } = require("firebase-admin/firestore");
 const {
-  transferCoins, purchaseStoreItem, getOwnerStoreCatalog, setStoreCatalogItem, getOwnerEconomyPricing,
+  transferCoins, purchaseStoreItem, giftStoreEntitlement, getOwnerStoreCatalog, setStoreCatalogItem, getOwnerEconomyPricing,
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
   setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
   sendOwnerLiveStream,
-  deleteDirectMessageForEveryone, deleteRoomMessage,
+  deleteDirectMessageForEveryone, deleteRoomMessage, startCall, endCall,
 } = require("../../lib/index");
 const { createDirectChatId } = require("../../lib/direct-chat-id");
 
@@ -247,6 +247,70 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
 });
 
 
+test("store entitlement gifting atomically debits giver, grants recipient and is idempotent", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const giverUid = `gift_giver_${tag}`;
+  const recipientUid = `gift_recipient_${tag}`;
+  const itemId = "vip_monthly";
+  const requestId = `gift_${tag}`;
+  const giftId = require("node:crypto").createHash("sha256")
+    .update(`mawdda-store-gift-v1:${giverUid}:${recipientUid}:${requestId}`).digest("hex");
+  const giverRef = db.collection("users").doc(giverUid);
+  const recipientRef = db.collection("users").doc(recipientUid);
+  const itemRef = db.collection("storeCatalog").doc(itemId);
+  const giftRef = db.collection("storeGifts").doc(giftId);
+  const giverLedgerRef = giverRef.collection("walletLedger").doc(`gift_${giftId}`);
+  const recipientLedgerRef = recipientRef.collection("entitlementGiftLedger").doc(giftId);
+  const entitlementRef = recipientRef.collection("entitlements").doc(itemId);
+  await Promise.all([
+    giverRef.set({ coins: 3000, profileCompleted: true, accountStatus: "active" }),
+    recipientRef.set({ coins: 10, profileCompleted: true, accountStatus: "active" }),
+    itemRef.set({
+      name: "VIP gift", description: "Emulator-only gift entitlement",
+      category: "vip", priceCoins: 1250, durationDays: 30, sortOrder: 1,
+      active: true, purchaseEnabled: true, fulfillmentReady: true,
+    }),
+  ]);
+  try {
+    const request = memberRequest(giverUid, {
+      itemId, recipientUid, requestId, expectedPriceCoins: 1250,
+    });
+    const concurrent = await Promise.all([
+      giftStoreEntitlement.run(request),
+      giftStoreEntitlement.run(request),
+    ]);
+    assert.equal(concurrent.filter((value) => value.idempotentReplay === false).length, 1);
+    assert.equal(concurrent.filter((value) => value.idempotentReplay === true).length, 1);
+    assert.equal((await giverRef.get()).data().coins, 1750);
+    assert.equal((await recipientRef.get()).data().coins, 10);
+    assert.equal((await giftRef.get()).data().status, "completed");
+    assert.equal((await giverLedgerRef.get()).data().amount, -1250);
+    assert.equal((await recipientLedgerRef.get()).data().giftId, giftId);
+    assert.equal((await entitlementRef.get()).data().grantSource, "member_gift");
+    assert.ok((await entitlementRef.get()).data().expiresAt.toMillis() > Date.now());
+    const replay = await giftStoreEntitlement.run(request);
+    assert.equal(replay.idempotentReplay, true);
+    assert.equal((await giverRef.get()).data().coins, 1750);
+    await assert.rejects(
+      () => giftStoreEntitlement.run(memberRequest(giverUid, {
+        itemId, recipientUid: giverUid, requestId: `self_${tag}`, expectedPriceCoins: 1250,
+      })),
+      (error) => error && error.code === "invalid-argument",
+    );
+  } finally {
+    await Promise.all([
+      giverLedgerRef.delete().catch(() => undefined),
+      recipientLedgerRef.delete().catch(() => undefined),
+      giftRef.delete().catch(() => undefined),
+      entitlementRef.delete().catch(() => undefined),
+      itemRef.delete().catch(() => undefined),
+      giverRef.delete().catch(() => undefined),
+      recipientRef.delete().catch(() => undefined),
+    ]);
+  }
+});
+
 test("owner catalog seeds approved features as ready while keeping purchases disabled", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const result = await getOwnerStoreCatalog.run(ownerRequest());
@@ -258,12 +322,13 @@ test("owner catalog seeds approved features as ready while keeping purchases dis
     ["profile_layout_30d", 3500], ["profile_pin_30d", 900],
     ["discovery_boost_7d", 1500], ["profile_theme_30d", 2000],
     ["visitor_greeting_30d", 1000], ["hide_coins_30d", 1000], ["ghost_mode_7d", 1800],
+    ["media_saver_7d", 200], ["voice_call_24h", 100], ["voice_call_7d", 500], ["voice_call_30d", 1500], ["video_call_24h", 250], ["video_call_7d", 1250], ["video_call_30d", 3750],
   ]);
   for (const [itemId, price] of expected) {
     const item = items.find((entry) => entry.itemId === itemId);
     assert.ok(item, `missing starter catalog item: ${itemId}`);
     assert.equal(item.priceCoins, price);
-    const implemented = !["hide_coins_30d", "ghost_mode_7d"].includes(itemId);
+    const implemented = itemId !== "hide_coins_30d";
     assert.equal(item.active, implemented);
     assert.equal(item.purchaseEnabled, false);
     assert.equal(item.fulfillmentReady, implemented);
@@ -702,6 +767,54 @@ test("every shipped premium store category charges once and grants its matching 
       ...catalogRefs.map((ref) => ref.delete().catch(() => undefined)),
       db.collection("storeCatalog").doc("hide_coins_30d").delete().catch(() => undefined),
       db.recursiveDelete(memberRef).catch(() => undefined),
+    ]);
+  }
+});
+
+
+test("call entitlement SKUs can be purchased through the central store and immediately authorize both-party call creation", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const callerUid = "call_store_caller_" + tag;
+  const calleeUid = "call_store_callee_" + tag;
+  const chatId = "call_store_chat_" + tag;
+  const callId = "call_store_session_" + tag;
+  const callerRef = db.collection("users").doc(callerUid);
+  const calleeRef = db.collection("users").doc(calleeUid);
+  const chatRef = db.collection("directChats").doc(chatId);
+  const itemRef = db.collection("storeCatalog").doc("voice_call_24h");
+  await Promise.all([
+    callerRef.set({ coins: 500, profileCompleted: true, accountStatus: "active", age: 29 }),
+    calleeRef.set({ coins: 500, profileCompleted: true, accountStatus: "active", age: 31 }),
+    chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
+    itemRef.set({
+      itemId: "voice_call_24h", name: "مكالمات صوتية 24 ساعة",
+      description: "اختبار تكامل", category: "voice_call", priceCoins: 100,
+      durationDays: 1, sortOrder: 1, active: true,
+      purchaseEnabled: true, fulfillmentReady: true,
+    }),
+  ]);
+  try {
+    await purchaseStoreItem.run(memberRequest(callerUid, {
+      itemId: "voice_call_24h", requestId: "call_purchase_" + tag + "_a", expectedPriceCoins: 100,
+    }));
+    await purchaseStoreItem.run(memberRequest(calleeUid, {
+      itemId: "voice_call_24h", requestId: "call_purchase_" + tag + "_b", expectedPriceCoins: 100,
+    }));
+    const started = await startCall.run(memberRequest(callerUid, {
+      callId, scope: "direct", targetId: chatId, mode: "audio",
+    }));
+    assert.equal(started.status, "ringing");
+    await endCall.run(memberRequest(callerUid, { callId }));
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(callerRef).catch(() => undefined),
+      db.recursiveDelete(calleeRef).catch(() => undefined),
+      db.recursiveDelete(chatRef).catch(() => undefined),
+      db.recursiveDelete(itemRef).catch(() => undefined),
+      db.recursiveDelete(db.collection("callSessions").doc(callId)).catch(() => undefined),
+      db.recursiveDelete(db.collection("activeCallMemberLocks").doc(callerUid)).catch(() => undefined),
+      db.recursiveDelete(db.collection("activeCallMemberLocks").doc(calleeUid)).catch(() => undefined),
     ]);
   }
 });

@@ -124,6 +124,8 @@ test("only shipped premium profile consumers can be explicitly enabled for purch
     ["discovery_boost_7d", "boost"],
     ["profile_theme_30d", "theme"],
     ["visitor_greeting_30d", "greeting"],
+    ["ghost_mode_7d", "privacy"],
+    ["hide_coins_30d", "privacy"],
   ];
   for (const [itemId, category] of ready) {
     const item = validateStoreCatalogItemInput({
@@ -166,7 +168,7 @@ test("only shipped premium profile consumers can be explicitly enabled for purch
 });
 
 
-test("voice and video call plans are valid catalog products but cannot be purchased before call fulfillment ships", () => {
+test("voice and video call plans are fully connected to call entitlement fulfillment", () => {
   const { validateStoreCatalogItemInput, isStoreItemPurchasable } = require("../lib/store-catalog");
   const plans = [
     ["voice_call_24h", "voice_call", 100, 1],
@@ -181,8 +183,12 @@ test("voice and video call plans are valid catalog products but cannot be purcha
       itemId, name: "خطة مكالمات تجريبية", description: "تتطلب استحقاق الطرفين.",
       category, priceCoins, durationDays, active: false, purchaseEnabled: false,
     });
-    assert.equal(item.fulfillmentReady, false, itemId);
-    assert.equal(item.purchaseEnabled, false, itemId);
-    assert.equal(isStoreItemPurchasable(item), false, itemId);
+    const purchasable = validateStoreCatalogItemInput({
+      itemId, name: "خطة مكالمات تجريبية", description: "تتطلب استحقاق الطرفين.",
+      category, priceCoins, durationDays, active: true, purchaseEnabled: true,
+    });
+    assert.equal(purchasable.fulfillmentReady, true, itemId);
+    assert.equal(purchasable.purchaseEnabled, true, itemId);
+    assert.equal(isStoreItemPurchasable(purchasable), true, itemId);
   }
 });

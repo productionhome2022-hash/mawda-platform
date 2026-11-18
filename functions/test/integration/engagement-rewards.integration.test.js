@@ -9,6 +9,10 @@ const {
   setTimedAdCampaignStatus,
   getActiveTimedAdCampaigns,
   getRewardCenter,
+  setOwnerFeaturedAdCampaign, setFeaturedAdCampaignStatus, reviewFeaturedAdCreative, setOwnerFeaturedAdRewardPolicy,
+  completeFeaturedAdViewingSession, getMyFeaturedAdRewardHistory,
+  getFeaturedAdShowcase, startFeaturedAdViewingSession,
+  heartbeatFeaturedAdViewingSession, endFeaturedAdViewingSession,
   startTimedAdvertisement,
   getActiveTimedAdSession,
   getTimedAdCreativeUrl,
@@ -527,5 +531,293 @@ test("active reward-ad discovery endpoints filter expired campaigns before apply
       ...expiredCampaigns.map((ref) => ref.delete().catch(() => undefined)),
       eligibleCampaign.delete().catch(() => undefined),
     ]);
+  }
+});
+
+
+test("featured-ad discovery is member-only, geography-scoped, and never grants rewards", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const uid = `featured_member_${tag}`;
+  const userRef = db.collection("users").doc(uid);
+  const campaignCollection = db.collection("featuredAdCampaigns");
+  const campaignIds = [];
+  const now = Date.now();
+  await userRef.set({ coins: 17, profileCompleted: true, accountStatus: "active" });
+  const base = {
+    status: "published", ownerApproved: true, ownerWithdrawn: false,
+    paymentConfirmed: true, creativeApproved: true,
+    startsAtMs: now - 60_000, endsAtMs: now + 3_600_000,
+    geographicTargets: ["syria"], featuredPlacement: "rotation",
+    title: "Synthetic featured campaign", sponsorLabel: "CI fixture",
+    body: "Synthetic campaign data used only by the Firestore emulator regression.",
+  };
+  const fixtures = [
+    { ...base, featuredPlacement: "priority", priorityOrder: 2 },
+    { ...base, featuredPlacement: "priority", priorityOrder: 1 },
+    { ...base, ownerWithdrawn: true },
+    { ...base, paymentConfirmed: false },
+    { ...base, creativeApproved: false },
+    { ...base, geographicTargets: ["egypt"] },
+  ];
+  try {
+    for (const fixture of fixtures) {
+      const ref = campaignCollection.doc();
+      campaignIds.push(ref.id);
+      await ref.set(fixture);
+    }
+    const result = await getFeaturedAdShowcase.run(memberRequest(uid, { geography: "syria" }));
+    assert.equal(result.mode, "priority");
+    assert.equal(result.geography, "syria");
+    assert.equal(result.rewardEligible, false);
+    assert.deepEqual(result.campaigns.map((item) => item.campaignId), campaignIds.slice(0, 2).reverse());
+    assert.equal(result.campaigns.length, 2);
+    await assert.rejects(
+      () => getFeaturedAdShowcase.run(memberRequest(uid, { geography: "unknown_region" })),
+      (error) => error && error.code === "invalid-argument",
+    );
+    await assert.rejects(
+      () => getFeaturedAdShowcase.run(memberRequest(`missing_${uid}`, { geography: "syria" })),
+      (error) => error && error.code === "permission-denied",
+    );
+    const [user, ledger, claims] = await Promise.all([
+      userRef.get(),
+      userRef.collection("walletLedger").get(),
+      db.collection("featuredAdRewardClaims").where("uid", "==", uid).get(),
+    ]);
+    assert.equal(user.data().coins, 17);
+    assert.equal(ledger.size, 0);
+    assert.equal(claims.size, 0);
+  } finally {
+    await Promise.all([
+      userRef.delete().catch(() => undefined),
+      ...campaignIds.map((id) => campaignCollection.doc(id).delete().catch(() => undefined)),
+    ]);
+  }
+});
+
+
+test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const ownerUid = "featured-owner-" + tag;
+  const uid = "featured-member-" + tag;
+  const sessionRef = db.collection("featuredAdViewingSessions").doc();
+  let secondSessionRef;
+  let campaignRef;
+  const userRef = db.collection("users").doc(uid);
+  const policyRef = db.doc("platformSettings/featuredAdRewardPolicy");
+  let memberRef;
+  const dayRef = userRef.collection("featuredAdRewardDays").doc(new Date().toISOString().slice(0, 10));
+  const ownerRequest = (data) => ({
+    data,
+    auth: { uid: ownerUid, token: {
+      platformOwner: true, platformOwnerUid: ownerUid,
+      auth_time: Math.floor(Date.now() / 1000),
+      firebase: { sign_in_second_factor: "phone" },
+    } },
+  });
+  const memberRequest = (data) => ({
+    data,
+    auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+  });
+  const previousPolicy = await policyRef.get();
+  await userRef.set({ coins: 0, profileCompleted: true, accountStatus: "active" });
+  await policyRef.set({
+    policy: {
+      enabled: true, rewardCoinsPerView: 2, maxRewardedViewsPerUtcDay: 10,
+      maxRewardCoinsPerUtcDay: 20, maxRewardsPerCampaignRolling24h: 3,
+      sameCampaignWindowMs: 86400000, videoCompletionPercent: 90,
+      imageContinuousVisibleMs: 10000,
+    },
+    version: 1,
+  });
+  try {
+    const mediaId = "fixture-media-" + tag;
+    await db.collection("mediaAssets").doc(mediaId).set({
+      ownerUid: ownerUid, uploaderRole: "platform_owner", mediaPurpose: "advertisement",
+      status: "security_approved", mediaCategory: "image",
+      safePreviewPath: `processed/${ownerUid}/fixture-media-${tag}/preview.webp`,
+      safePreviewGeneration: "1", safePreviewSha256: "a".repeat(64),
+      safePreviewContentType: "image/webp", processingStatus: "safe_raster_derivative_ready",
+    });
+    const created = await setOwnerFeaturedAdCampaign.run(ownerRequest({
+      title: "CI Featured Campaign", sponsorLabel: "CI", body: "Synthetic featured campaign fixture",
+      geographicTargets: ["syria"], featuredPlacement: "priority",
+      startsAtMs: Date.now() - 60000, endsAtMs: Date.now() + 3600000,
+      rewardBudgetCoins: 20, rewardCoinsPerView: 2, mediaId,
+    }));
+    assert.equal(created.status, "draft");
+    const campaignId = created.campaignId;
+    campaignRef = db.collection("featuredAdCampaigns").doc(campaignId);
+    memberRef = db.collection("featuredAdCampaignMembers").doc(uid + "_" + campaignId);
+    await assert.rejects(
+      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published" })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await assert.rejects(
+      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "approved", paymentConfirmed: true })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await assert.rejects(
+      () => reviewFeaturedAdCreative.run(memberRequest({ campaignId, approved: true })),
+      (error) => error && error.code === "permission-denied",
+    );
+    const rejectedReview = await reviewFeaturedAdCreative.run(ownerRequest({
+      campaignId, approved: false, reviewNote: "يلزم تحسين وضوح المادة قبل النشر.",
+    }));
+    assert.equal(rejectedReview.approved, false);
+    const creativeReview = await reviewFeaturedAdCreative.run(ownerRequest({
+      campaignId, approved: true, reviewNote: "تم التحقق من المادة والمشتق الآمن.",
+    }));
+    assert.equal(creativeReview.approved, true);
+    const approved = await setFeaturedAdCampaignStatus.run(ownerRequest({
+      campaignId, status: "approved", paymentConfirmed: true,
+    }));
+    const approvedSnapshot = await campaignRef.get();
+    assert.equal(approvedSnapshot.data().ownerApproved, true);
+    assert.equal(approvedSnapshot.data().creativeApproved, true);
+    assert.equal(approvedSnapshot.data().paymentConfirmed, true);
+    assert.equal(approved.status, "approved");
+    const published = await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published" }));
+    assert.equal(published.status, "published");
+    await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "paused" }));
+    assert.equal((await campaignRef.get()).data().ownerApproved, true);
+    await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published" }));
+
+    await sessionRef.set({
+      uid, campaignId, geography: "syria", creativeType: "image", status: "active",
+      startedAtMs: Date.now() - 12000, lastHeartbeatAtMs: Date.now(),
+      visibleMs: 12000, continuousVisibleMs: 12000, progressPercent: 0,
+      foregroundVisible: true, rewardClaimed: false,
+    });
+    const results = await Promise.all([
+      completeFeaturedAdViewingSession.run(memberRequest({ sessionId: sessionRef.id })),
+      completeFeaturedAdViewingSession.run(memberRequest({ sessionId: sessionRef.id })),
+      completeFeaturedAdViewingSession.run(memberRequest({ sessionId: sessionRef.id })),
+    ]);
+    assert.equal(results.filter((r) => r.rewarded === true && r.idempotentReplay === false).length, 1);
+    assert.equal((await userRef.get()).data().coins, 2);
+    assert.equal((await userRef.collection("walletLedger").doc("featured_ad_reward_" + sessionRef.id).get()).data().type, "featured_ad_reward");
+
+    const history = await getMyFeaturedAdRewardHistory.run(memberRequest({}));
+    assert.equal(history.rewards.length, 1);
+    assert.equal(history.policy.rewardCoinsPerView, 2);
+    assert.equal(history.policy.maxRewardedViewsPerUtcDay, 10);
+    assert.equal(history.policy.maxRewardCoinsPerUtcDay, 20);
+    assert.equal(history.policy.maxRewardsPerCampaignRolling24h, 3);
+
+    secondSessionRef = db.collection("featuredAdViewingSessions").doc();
+    await secondSessionRef.set({
+      uid, campaignId, geography: "syria", creativeType: "image", status: "active",
+      startedAtMs: Date.now() - 12000, lastHeartbeatAtMs: Date.now(),
+      visibleMs: 12000, continuousVisibleMs: 12000, progressPercent: 0,
+      foregroundVisible: true, rewardClaimed: false,
+    });
+    await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "withdrawn" }));
+    await assert.rejects(
+      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "paused" })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    const denied = await completeFeaturedAdViewingSession.run(memberRequest({ sessionId: secondSessionRef.id }));
+    assert.equal(denied.rewarded, false);
+    assert.equal((await userRef.get()).data().coins, 2);
+  } finally {
+    await Promise.all([
+      sessionRef.delete().catch(() => undefined),
+      secondSessionRef?.delete().catch(() => undefined),
+      userRef.collection("featuredAdRewardDays").doc(new Date().toISOString().slice(0, 10)).delete().catch(() => undefined),
+      userRef.delete().catch(() => undefined),
+      campaignRef?.delete().catch(() => undefined),
+      previousPolicy.exists ? policyRef.set(previousPolicy.data()) : policyRef.delete(),
+      memberRef?.delete().catch(() => undefined), dayRef.delete().catch(() => undefined),
+      db.collection("mediaAssets").doc("fixture-media-" + tag).delete().catch(() => undefined),
+      userRef.collection("walletLedger").doc("featured_ad_reward_" + sessionRef.id).delete().catch(() => undefined),
+    ]);
+  }
+});
+
+
+test("featured viewing session is not persisted when the safe media derivative is invalid", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const uid = "featured-media-member-" + tag;
+  const ownerUid = "featured-media-owner-" + tag;
+  const campaignRef = db.collection("featuredAdCampaigns").doc("featured_media_" + tag);
+  const mediaRef = db.collection("mediaAssets").doc("featured_media_asset_" + tag);
+  const userRef = db.collection("users").doc(uid);
+  await userRef.set({ coins: 0, profileCompleted: true, accountStatus: "active" });
+  await mediaRef.set({
+    ownerUid, uploaderRole: "platform_owner", mediaPurpose: "advertisement",
+    status: "security_approved", mediaCategory: "image",
+  });
+  await campaignRef.set({
+    status: "published", ownerApproved: true, ownerWithdrawn: false,
+    paymentConfirmed: true, creativeApproved: true, createdBy: ownerUid,
+    mediaId: mediaRef.id, creativeType: "image",
+    startsAtMs: Date.now() - 1000, endsAtMs: Date.now() + 60_000,
+    geographicTargets: ["syria"], featuredPlacement: "rotation",
+  });
+  try {
+    await assert.rejects(
+      () => startFeaturedAdViewingSession.run(memberRequest(uid, {
+        campaignId: campaignRef.id, geography: "syria",
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    const sessions = await db.collection("featuredAdViewingSessions")
+      .where("uid", "==", uid).where("campaignId", "==", campaignRef.id).get();
+    assert.equal(sessions.size, 0);
+  } finally {
+    await Promise.all([userRef.delete(), campaignRef.delete(), mediaRef.delete()]);
+  }
+});
+
+
+test("featured session heartbeat is revoked on campaign withdrawal and close is idempotent", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const uid = "featured-heartbeat-member-" + tag;
+  const campaignRef = db.collection("featuredAdCampaigns").doc("featured_hb_" + tag);
+  const sessionRef = db.collection("featuredAdViewingSessions").doc();
+  const userRef = db.collection("users").doc(uid);
+  await userRef.set({ coins: 0, profileCompleted: true, accountStatus: "active" });
+  await campaignRef.set({
+    status: "published", ownerApproved: true, ownerWithdrawn: false,
+    paymentConfirmed: true, creativeApproved: true,
+  });
+  await sessionRef.set({
+    uid, campaignId: campaignRef.id, status: "active",
+    startedAtMs: Date.now() - 6000, lastHeartbeatAtMs: Date.now() - 6000,
+    visibleMs: 0, continuousVisibleMs: 0, progressPercent: 0,
+    foregroundVisible: true, rewardClaimed: false,
+  });
+  try {
+    const heartbeat = await heartbeatFeaturedAdViewingSession.run(memberRequest(uid, {
+      sessionId: sessionRef.id, foregroundVisible: true, progressPercent: 0,
+    }));
+    assert.equal(heartbeat.revoked, undefined);
+    const ended = await endFeaturedAdViewingSession.run(memberRequest(uid, { sessionId: sessionRef.id }));
+    assert.equal(ended.ended, true);
+    const replay = await endFeaturedAdViewingSession.run(memberRequest(uid, { sessionId: sessionRef.id }));
+    assert.equal(replay.ended, false);
+    assert.equal((await sessionRef.get()).data().status, "abandoned");
+
+    const revokedSessionRef = db.collection("featuredAdViewingSessions").doc();
+    await revokedSessionRef.set({
+      uid, campaignId: campaignRef.id, status: "active",
+      startedAtMs: Date.now() - 1000, lastHeartbeatAtMs: Date.now() - 1000,
+      visibleMs: 0, continuousVisibleMs: 0, progressPercent: 0,
+      foregroundVisible: true, rewardClaimed: false,
+    });
+    await campaignRef.update({ status: "withdrawn", ownerWithdrawn: true });
+    const revoked = await heartbeatFeaturedAdViewingSession.run(memberRequest(uid, {
+      sessionId: revokedSessionRef.id, foregroundVisible: true, progressPercent: 10,
+    }));
+    assert.equal(revoked.revoked, true);
+    assert.equal((await revokedSessionRef.get()).data().status, "campaign_revoked");
+    await revokedSessionRef.delete();
+  } finally {
+    await Promise.all([userRef.delete(), campaignRef.delete(), sessionRef.delete()]);
   }
 });

@@ -11,6 +11,15 @@ const FULFILLMENT_READY_ITEM_CATEGORIES: Record<string, string> = {
   discovery_boost_7d: "boost",
   profile_theme_30d: "theme",
   visitor_greeting_30d: "greeting",
+  voice_call_24h: "voice_call",
+  voice_call_7d: "voice_call",
+  voice_call_30d: "voice_call",
+  video_call_24h: "video_call",
+  video_call_7d: "video_call",
+  video_call_30d: "video_call",
+  ghost_mode_7d: "privacy",
+  hide_coins_30d: "privacy",
+  media_saver_7d: "media_saver",
 };
 
 function isStoreFulfillmentReady(itemId: string, category: string): boolean {
@@ -41,7 +50,7 @@ export function projectStoreCatalogItem(
   }
   if (typeof data.description !== "string" || data.description.length > 500) return null;
   if (typeof data.category !== "string" ||
-      !["feature", "avatar", "theme", "title", "vip", "analytics", "discovery", "badge", "frame", "username_style", "profile_layout", "boost", "greeting", "privacy", "voice_call", "video_call"].includes(data.category)) {
+      !["feature", "avatar", "theme", "title", "vip", "analytics", "discovery", "badge", "frame", "username_style", "profile_layout", "boost", "greeting", "privacy", "media_saver", "voice_call", "video_call"].includes(data.category)) {
     return null;
   }
   if (typeof data.priceCoins !== "number" ||

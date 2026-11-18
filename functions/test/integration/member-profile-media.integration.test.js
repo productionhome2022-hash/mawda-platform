@@ -11,7 +11,7 @@ process.env.GCLOUD_PROJECT = projectId;
 process.env.FIREBASE_CONFIG = JSON.stringify({
   projectId, storageBucket: `${projectId}.appspot.com`,
 });
-const { setMemberProfileMedia, resetMemberProfileMedia } = require("../../lib/index");
+const { setMemberProfileMedia, resetMemberProfileMedia, setMemberGhostMode, discoverMembers, getMemberProfile } = require("../../lib/index");
 const { getMemberProfileMediaUrl } = require("../../lib/media");
 const { listMemberProfileGallery } = require("../../lib/media");
 const db = getFirestore();
@@ -260,6 +260,118 @@ test("avatar expiry applies Mawda default during a legal hold but delays object 
       userRef.delete().catch(() => undefined),
       assetRef.delete().catch(() => undefined),
       original.delete({ ignoreNotFound: true }).catch(() => undefined),
+    ]);
+  }
+});
+
+
+test("Hide Coins hides only the profile projection from ordinary members while owner, self, and platform owner retain balance visibility", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const suffix = Date.now().toString();
+  const memberUid = "hide-coins-member-" + suffix;
+  const viewerUid = "hide-coins-viewer-" + suffix;
+  const ownerUid = "hide-coins-owner-" + suffix;
+  const memberRef = db.collection("users").doc(memberUid);
+  const viewerRef = db.collection("users").doc(viewerUid);
+  const ownerRef = db.collection("users").doc(ownerUid);
+  const entitlementRef = memberRef.collection("entitlements").doc("hide_coins_30d");
+  const base = {
+    profileCompleted: true, accountStatus: "active", age: 29,
+    profileVisibility: "public", displayName: "Coin Member",
+    username: "coin_" + suffix, fullName: "Coin Member",
+    profession: "Creator", country: "syria", region: "damascus",
+    gender: "male", maritalStatus: "single", bio: "", interests: [], goals: [],
+    coins: 4321,
+  };
+  await Promise.all([
+    memberRef.set(base),
+    viewerRef.set({ ...base, username: "viewer_" + suffix, displayName: "Viewer", coins: 50 }),
+    ownerRef.set({ ...base, username: "owner_" + suffix, displayName: "Owner", coins: 999999 }),
+    entitlementRef.set({
+      itemId: "hide_coins_30d", itemName: "إخفاء رصيد الكوينز",
+      category: "privacy", status: "active",
+      expiresAt: Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      purchasedAt: Timestamp.now(),
+    }),
+  ]);
+  const ownerRequest = (data) => ({
+    data,
+    auth: {
+      uid: ownerUid,
+      token: {
+        platformOwner: true,
+        platformOwnerUid: ownerUid,
+        auth_time: Math.floor(Date.now() / 1000),
+        firebase: { sign_in_second_factor: "totp", sign_in_provider: "password" },
+      },
+    },
+  });
+  try {
+    const ordinary = await getMemberProfile.run(memberRequest(viewerUid, { userId: memberUid }));
+    assert.equal(ordinary.coinBalanceLocked, true);
+    assert.equal(Object.prototype.hasOwnProperty.call(ordinary, "coins"), false);
+
+    const self = await getMemberProfile.run(memberRequest(memberUid, { userId: memberUid }));
+    assert.equal(self.coinBalanceLocked, false);
+    assert.equal(self.coins, 4321);
+
+    const owner = await getMemberProfile.run(ownerRequest({ userId: memberUid }));
+    assert.equal(owner.coinBalanceLocked, false);
+    assert.equal(owner.coins, 4321);
+  } finally {
+    await Promise.all([
+      memberRef.delete().catch(() => undefined),
+      viewerRef.delete().catch(() => undefined),
+      ownerRef.delete().catch(() => undefined),
+      entitlementRef.delete().catch(() => undefined),
+    ]);
+  }
+});
+
+test("purchased ghost mode hides a member from discovery and can be disabled without altering public profile visibility", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = Date.now().toString();
+  const memberUid = "ghost_member_" + tag;
+  const viewerUid = "ghost_viewer_" + tag;
+  const userRef = db.collection("users").doc(memberUid);
+  const viewerRef = db.collection("users").doc(viewerUid);
+  const entitlementRef = userRef.collection("entitlements").doc("ghost_mode_7d");
+  await Promise.all([
+    userRef.set({
+      profileCompleted: true, accountStatus: "active", age: 29,
+      profileVisibility: "public", displayName: "Ghost Member", username: "ghost_" + tag,
+      fullName: "Ghost Member", profession: "Creator", country: "syria", region: "damascus",
+      gender: "male", maritalStatus: "single", bio: "public profile", interests: [], goals: [],
+    }),
+    viewerRef.set({
+      profileCompleted: true, accountStatus: "active", age: 31,
+      profileVisibility: "public", displayName: "Viewer", username: "viewer_" + tag,
+      fullName: "Viewer", profession: "Member", country: "syria", region: "damascus",
+      gender: "female", maritalStatus: "single", bio: "", interests: [], goals: [],
+    }),
+    entitlementRef.set({
+      itemId: "ghost_mode_7d", itemName: "وضع التخفي", category: "privacy",
+      status: "active", expiresAt: Timestamp.fromMillis(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    }),
+  ]);
+  try {
+    const enabled = await setMemberGhostMode.run(memberRequest(memberUid, { enabled: true }));
+    assert.equal(enabled.enabled, true);
+    const hidden = await discoverMembers.run(memberRequest(viewerUid));
+    assert.equal(hidden.members.some((member) => member.uid === memberUid), false);
+    const ownProfile = await getMemberProfile.run(memberRequest(memberUid, { userId: memberUid }));
+    assert.equal(ownProfile.ghostModeActive, true);
+    await setMemberGhostMode.run(memberRequest(memberUid, { enabled: false }));
+    const visible = await discoverMembers.run(memberRequest(viewerUid));
+    assert.equal(visible.members.some((member) => member.uid === memberUid), true);
+    assert.equal((await userRef.get()).data().profileVisibility, "public");
+  } finally {
+    const audits = await db.collection("profileFeatureAuditLogs").where("actorUid", "==", memberUid).get();
+    await Promise.all([
+      userRef.delete().catch(() => undefined),
+      viewerRef.delete().catch(() => undefined),
+      entitlementRef.delete().catch(() => undefined),
+      ...audits.docs.map((doc) => doc.ref.delete()),
     ]);
   }
 });

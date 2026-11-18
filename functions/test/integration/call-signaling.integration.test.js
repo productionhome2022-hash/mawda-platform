@@ -9,6 +9,24 @@ const db = getFirestore();
 const call = (uid, data = {}) => ({ data, auth: { uid, token: {} } });
 const uid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
+async function seedCallEntitlements(memberUid, modes) {
+  const itemIds = modes.flatMap((mode) => mode === "audio"
+    ? ["voice_call_24h"] : ["video_call_24h"]);
+  const refs = itemIds.map((itemId) =>
+    db.collection("users").doc(memberUid).collection("entitlements").doc(itemId));
+  await Promise.all(refs.map((ref) => {
+    const itemId = ref.id;
+    return ref.set({
+      itemId,
+      category: itemId.startsWith("voice_") ? "voice_call" : "video_call",
+      status: "active",
+      startsAt: Timestamp.fromMillis(Date.now() - 1000),
+      expiresAt: Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000),
+    });
+  }));
+  return refs;
+}
+
 test("direct call lifecycle enforces membership, callee acceptance, sequenced signaling and termination", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const callerUid = uid("call_caller");
@@ -20,6 +38,7 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
   const calleeRef = db.collection("users").doc(calleeUid);
   const outsiderRef = db.collection("users").doc(outsiderUid);
   const chatRef = db.collection("directChats").doc(chatId);
+  const missingEntitlementChatRef = db.collection("directChats").doc(uid("call_missing_entitlement_chat"));
   const callRef = db.collection("callSessions").doc(callId);
 
   await Promise.all([
@@ -27,8 +46,19 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
     calleeRef.set({ profileCompleted: true, accountStatus: "active", age: 31 }),
     outsiderRef.set({ profileCompleted: true, accountStatus: "active", age: 28 }),
     chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
+    missingEntitlementChatRef.set({ participantUids: [callerUid, outsiderUid].sort() }),
+    seedCallEntitlements(callerUid, ["audio"]),
+    seedCallEntitlements(calleeUid, ["audio"]),
   ]);
   try {
+    await assert.rejects(
+      () => startCall.run(call(callerUid, {
+        callId: uid("call_without_peer_entitlement"),
+        scope: "direct", targetId: missingEntitlementChatRef.id, mode: "audio",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "both direct-call participants must hold the matching active entitlement",
+    );
     const started = await startCall.run(call(callerUid, {
       callId, scope: "direct", targetId: chatId, mode: "audio",
     }));
@@ -95,7 +125,7 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
   } finally {
     await db.recursiveDelete(callRef).catch(() => undefined);
     await Promise.all([
-      callerRef, calleeRef, outsiderRef, chatRef,
+      callerRef, calleeRef, outsiderRef, chatRef, missingEntitlementChatRef,
       db.collection("activeCallMemberLocks").doc(callerUid),
       db.collection("activeCallMemberLocks").doc(calleeUid),
     ].map((ref) => db.recursiveDelete(ref).catch(() => undefined)));
@@ -125,6 +155,9 @@ test("room call signaling is peer-targeted and one member leaving does not end t
     }),
     ...[callerUid, firstUid, secondUid].map((memberUid) =>
       roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" })),
+    seedCallEntitlements(callerUid, ["video"]),
+    seedCallEntitlements(firstUid, ["video"]),
+    seedCallEntitlements(secondUid, ["video"]),
   ]);
   try {
     const started = await startCall.run(call(callerUid, {
@@ -245,6 +278,8 @@ test("server enforces rolling audio and video attempt quotas without charging re
     callerRef.set({ profileCompleted: true, accountStatus: "active", age: 29 }),
     calleeRef.set({ profileCompleted: true, accountStatus: "active", age: 31 }),
     chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
+    seedCallEntitlements(callerUid, ["audio", "video"]),
+    seedCallEntitlements(calleeUid, ["audio", "video"]),
     quotaRef.set({
       attempts: [
         ...Array.from({ length: 4 }, (_, index) => ({
@@ -320,13 +355,15 @@ test("server starts a non-resettable five-minute call ceiling only after both en
   const callerLock = db.collection("activeCallMemberLocks").doc(callerUid);
   const calleeLock = db.collection("activeCallMemberLocks").doc(calleeUid);
   await callRef.set({
-    callId, scope: "direct", status: "accepted", callerUid,
+    callId, scope: "direct", mode: "audio", status: "accepted", callerUid,
     participantUids: [callerUid, calleeUid], acceptedUids: [calleeUid],
     rejectedUids: [], leftUids: [], connectedUids: [],
   });
   await Promise.all([
     callerLock.set({ callId, status: "active" }),
     calleeLock.set({ callId, status: "active" }),
+    seedCallEntitlements(callerUid, ["audio"]),
+    seedCallEntitlements(calleeUid, ["audio"]),
   ]);
   try {
     const callerReport = await markCallConnected.run(call(callerUid, { callId }));
@@ -361,6 +398,59 @@ test("server starts a non-resettable five-minute call ceiling only after both en
       db.recursiveDelete(callRef).catch(() => undefined),
       db.recursiveDelete(callerLock).catch(() => undefined),
       db.recursiveDelete(calleeLock).catch(() => undefined),
+      db.recursiveDelete(db.collection("users").doc(callerUid)).catch(() => undefined),
+      db.recursiveDelete(db.collection("users").doc(calleeUid)).catch(() => undefined),
+    ]);
+  }
+});
+
+
+test("call acceptance revalidates the matching active entitlement and rejects expired access", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const callerUid = uid("call_entitlement_caller");
+  const calleeUid = uid("call_entitlement_callee");
+  const chatId = uid("call_entitlement_chat");
+  const callId = uid("call_entitlement_session");
+  const callerRef = db.collection("users").doc(callerUid);
+  const calleeRef = db.collection("users").doc(calleeUid);
+  const chatRef = db.collection("directChats").doc(chatId);
+  const callRef = db.collection("callSessions").doc(callId);
+  const calleeEntitlement = calleeRef.collection("entitlements").doc("voice_call_24h");
+  await Promise.all([
+    callerRef.set({ profileCompleted: true, accountStatus: "active", age: 30 }),
+    calleeRef.set({ profileCompleted: true, accountStatus: "active", age: 30 }),
+    chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
+    seedCallEntitlements(callerUid, ["audio"]),
+    seedCallEntitlements(calleeUid, ["audio"]),
+  ]);
+  try {
+    await assert.rejects(
+      () => startCall.run(call(callerUid, {
+        callId: uid("video_requires_video_entitlement"),
+        scope: "direct", targetId: chatId, mode: "video",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "voice entitlement must not authorize a video call",
+    );
+    await startCall.run(call(callerUid, { callId, scope: "direct", targetId: chatId, mode: "audio" }));
+    await calleeEntitlement.delete();
+    await assert.rejects(
+      () => respondToCall.run(call(calleeUid, { callId, response: "accept" })),
+      (error) => error && error.code === "failed-precondition",
+      "entitlements must still be active at acceptance time",
+    );
+    const rejected = await respondToCall.run(call(calleeUid, { callId, response: "reject" }));
+    assert.equal(rejected.status, "rejected");
+    assert.equal((await getActiveCall.run(call(callerUid))).active, false);
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(callRef).catch(() => undefined),
+      db.recursiveDelete(callerRef).catch(() => undefined),
+      db.recursiveDelete(calleeRef).catch(() => undefined),
+      db.recursiveDelete(chatRef).catch(() => undefined),
+      db.recursiveDelete(db.collection("activeCallMemberLocks").doc(callerUid)).catch(() => undefined),
+      db.recursiveDelete(db.collection("activeCallMemberLocks").doc(calleeUid)).catch(() => undefined),
+      db.recursiveDelete(db.collection("callQuotaWindows").doc(callerUid)).catch(() => undefined),
     ]);
   }
 });

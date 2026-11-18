@@ -25,14 +25,14 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
       if (mounted) setState(() => _requests = (data['requests'] as List<dynamic>? ?? const [])
           .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList());
     } on FirebaseFunctionsException catch (e) {
-      if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل طلبات الكوينز.');
+      if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل طلبات البيتا بيتا كوينزز.');
     } finally { if (mounted) setState(() => _loading = false); }
   }
 
   Future<void> _instructions(Map<String, dynamic> item) async {
     final uid = item['requesterUid'] as String? ?? '';
     final id = item['requestId'] as String? ?? '';
-    final requested = (item['requestedCoins'] as num?)?.toInt() ??
+    final requested = (item['requestedBeta Coins'] as num?)?.toInt() ??
         ((item['packageSnapshot'] is Map) ? ((item['packageSnapshot']['coins'] as num?)?.toInt() ?? 0) : 0);
     final coins = TextEditingController(text: requested > 0 ? requested.toString() : '');
     final price = TextEditingController(text: item['packageSnapshot'] is Map
@@ -64,7 +64,7 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
       coins.dispose(); price.dispose(); instructions.dispose(); return;
     }
     await _runAction(() => _functions.httpsCallable('setCoinPurchasePaymentInstructions').call({
-      'requesterUid': uid, 'requestId': id, 'agreedCoins': coinAmount,
+      'requesterUid': uid, 'requestId': id, 'agreedBeta Coins': coinAmount,
       'agreedPriceMinor': priceMinor, 'currency': 'EUR',
       'instructions': instructions.text.trim(),
     }));
@@ -92,7 +92,7 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
           FilledButton(onPressed: confirmed && reference.text.trim().length >= 3 &&
               note.text.trim().length >= 5 ? () => Navigator.pop(ctx, true) : null,
-            child: const Text('اعتماد وإضافة الكوينز')),
+            child: const Text('اعتماد وإضافة البيتا بيتا كوينزز')),
         ],
       ),
     ));
@@ -136,26 +136,26 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('طلبات شراء الكوينز اليدوية'),
+    appBar: AppBar(title: const Text('طلبات شراء البيتا بيتا كوينزز اليدوية'),
       actions: [IconButton(onPressed: _loading || _busy ? null : _load,
         icon: const Icon(Icons.refresh))]),
     body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
       padding: const EdgeInsets.all(16), children: [
         const Card(child: Padding(padding: EdgeInsets.all(12), child: Text(
-          'المسار يدوي فقط. لا تستخدم الاعتماد إلا بعد فحص وصول الدفعة خارج مودة. كل اعتماد يضيف الكوينز وسجل المحفظة وسجل التدقيق في معاملة خادمية واحدة.',
+          'المسار يدوي فقط. لا تستخدم الاعتماد إلا بعد فحص وصول الدفعة خارج مودة. كل اعتماد يضيف البيتا بيتا كوينزز وسجل المحفظة وسجل التدقيق في معاملة خادمية واحدة.',
         ))),
         if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         if (_requests.isEmpty) const Text('لا توجد طلبات شراء حالياً.'),
         ..._requests.map((item) {
           final status = item['status'] as String? ?? '';
           final id = item['requestId'] as String? ?? '';
-          final amount = item['requestedCoins'] ?? item['agreedCoins'] ??
+          final amount = item['requestedBeta Coins'] ?? item['agreedBeta Coins'] ??
               ((item['packageSnapshot'] is Map) ? item['packageSnapshot']['coins'] : null) ?? 'غير محدد';
           return Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(
             crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('العضو: ' + (item['requesterUid'] as String? ?? '')),
               Text('الطلب: ' + id),
-              Text('الكمية: ' + amount.toString() + ' كوين'),
+              Text('الكمية: ' + amount.toString() + ' بيتا كوينز'),
               Text('الحالة: ' + status),
               if (item['paymentInstructions'] is String)
                 SelectableText('التعليمات الحالية: ' + (item['paymentInstructions'] as String)),

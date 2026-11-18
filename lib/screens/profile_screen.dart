@@ -130,7 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: const Text(
           'تفتح هذه الخطوة نافذة المصادقة المحلية في Android أو Apple فقط. لا تلتقط مودة البصمة أو الوجه '
           'ولا ترسل بيانات بيومترية إلى الخادم. تنبيه: المصادقة المحلية وحدها ليست إثباتاً تشفيرياً موثوقاً لدى الخادم؛ '
-          'لذلك فإن مكافأة 1500 كوين وصلاحيات التوثيق البيومتري معلّقة حتى اكتمال التحقق الآمن المرتبط بالجهاز. '
+          'لذلك فإن مكافأة 1500 بيتا بيتا كوينز وصلاحيات التوثيق البيومتري معلّقة حتى اكتمال التحقق الآمن المرتبط بالجهاز. '
           'لن يُخصم أو يُضاف أي رصيد بسبب هذا الاختبار المحلي.',
         ),
         actions: [
@@ -193,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'تم تجديد التحقق من البريد وإضافة 500 كوين إلى محفظتك${balance == null ? '' : '؛ رصيدك الجديد $balance'}.',
+              'تم تجديد التحقق من البريد وإضافة 500 بيتا بيتا كوينز إلى محفظتك${balance == null ? '' : '؛ رصيدك الجديد $balance'}.',
             ),
             duration: const Duration(seconds: 6),
           ),
@@ -203,7 +203,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('أرسلنا رابط تحقق جديد إلى بريدك. افتحه ثم ارجع إلى هنا واضغط الزر نفسه لاعتماد مكافأة 500 كوين.'),
+            content: Text('أرسلنا رابط تحقق جديد إلى بريدك. افتحه ثم ارجع إلى هنا واضغط الزر نفسه لاعتماد مكافأة 500 بيتا بيتا كوينز.'),
             duration: Duration(seconds: 8),
           ),
         );
@@ -374,6 +374,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+
+  Future<void> _setGhostMode(bool enabled) async {
+    try {
+      final result = await FirebaseFunctions.instance.httpsCallable('setMemberGhostMode').call({
+        'enabled': enabled,
+      });
+      if (!mounted) return;
+      final data = Map<String, dynamic>.from(result.data as Map);
+      setState(() => _profileFuture = _loadProfile());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(data['enabled'] == true
+            ? 'تم تفعيل وضع التخفي حتى انتهاء استحقاقه.'
+            : 'تم إيقاف وضع التخفي.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر تحديث وضع التخفي.')),
+      );
+    }
+  }
 
   Future<void> _changeProfileVisibility(String visibility) async {
     try {
@@ -761,7 +782,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final amount = await showDialog<int>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('تحويل كوينز إلى العضو 🪙'),
+        title: const Text('تحويل بيتا بيتا كوينز إلى العضو 🪙'),
         content: TextField(
           controller: amountController,
           autofocus: true,
@@ -804,13 +825,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _summaryRow('المبلغ الذي سيُخصم منك', '${quote.grossAmount} كوين'),
+              _summaryRow('المبلغ الذي سيُخصم منك', '${quote.grossAmount} بيتا بيتا كوينز'),
               _summaryRow(
                 'عمولة المنصة (${quote.commissionPercent.toStringAsFixed(2)}%)',
-                '${quote.commissionAmount} كوين',
+                '${quote.commissionAmount} بيتا بيتا كوينز',
               ),
               const Divider(),
-              _summaryRow('الصافي الذي سيصل للعضو', '${quote.netAmount} كوين'),
+              _summaryRow('الصافي الذي سيصل للعضو', '${quote.netAmount} بيتا بيتا كوينز'),
             ],
           ),
           actions: [
@@ -844,7 +865,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'تم التحويل: وصل ${receipt.netAmount} كوين، وعمولة المنصة ${receipt.commissionAmount} كوين. رقم العملية: ${receipt.transferId}',
+            'تم التحويل: وصل ${receipt.netAmount} بيتا بيتا كوينز، وعمولة المنصة ${receipt.commissionAmount} بيتا بيتا كوينز. رقم العملية: ${receipt.transferId}',
           ),
         ),
       );
@@ -977,6 +998,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             data['profileAnalytics'] as Map? ?? const <String, dynamic>{},
           );
           final discoveryBoostActive = data['discoveryBoostActive'] == true;
+          final ghostModeActive = data['ghostModeActive'] == true;
           final username = (data['username'] as String?) ?? '';
           final bio = (data['bio'] as String?) ?? '';
           final profession = (data['profession'] as String?) ?? '';
@@ -1181,7 +1203,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           }).toList(growable: false),
                         ),
                       ),
-                    if (username.isNotEmpty) Text('@$username'),
+                    if (username.isNotEmpty) Text('@$username'),                    if (data['coinBalanceLocked'] == true)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Chip(
+                          avatar: Icon(Icons.lock_outline, size: 18),
+                          label: Text('رصيد البيتا بيتا كوينز مخفي'),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      )
+                    else if (data['coins'] is num)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Chip(
+                          avatar: const Icon(Icons.monetization_on_outlined, size: 18),
+                          label: Text('الرصيد: ${(data['coins'] as num).toInt()} كوين'),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+
                     if (pinnedSection == 'bio' && bio.isNotEmpty)
                       Card(
                         margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
@@ -1403,7 +1443,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.mark_email_read_outlined),
-                    label: const Text('تجديد التحقق من البريد (500 كوين كل 90 يوماً)'),
+                    label: const Text('تجديد التحقق من البريد (500 بيتا بيتا كوينز كل 90 يوماً)'),
                   ),
                 ),
               if (isMyProfile)
@@ -1442,6 +1482,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
+              if (isMyProfile && activeItemIds.contains('ghost_mode_7d'))
+                SwitchListTile(
+                  title: const Text('وضع التخفي'),
+                  subtitle: const Text('يخفي ملفك من نتائج الاكتشاف أثناء سريان الاستحقاق.'),
+                  value: ghostModeActive,
+                  onChanged: _setGhostMode,
+                  secondary: const Icon(Icons.visibility_off_outlined),
+                ),
               if (isMyProfile)
                 SwitchListTile(
                   title: const Text('إتاحة ملفي للأعضاء'),
@@ -1457,7 +1505,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.monetization_on),
-                    label: Text(_isTransferringCoins ? 'جارٍ التحويل...' : 'إهداء كوينز'),
+                    label: Text(_isTransferringCoins ? 'جارٍ التحويل...' : 'إهداء بيتا بيتا كوينز'),
                     onPressed: _isTransferringCoins ? null : _showGiftCoinsDialog,
                   ),
                 ),
