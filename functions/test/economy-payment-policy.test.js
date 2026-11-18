@@ -74,7 +74,11 @@ test("rejects unknown services and malformed switches", () => {
 test("explicit service policy overrides legacy migration defaults", () => {
   const policy = projectEconomicPaymentPolicy({
     coin_purchases: { manualEnabled: false, automatedEnabled: false },
-  }, { manualCoinPurchasesEnabled: true });
+    featured_ads: { manualEnabled: true, automatedEnabled: false },
+  }, {
+    manualCoinPurchasesEnabled: true,
+    manualFeaturedAdsEnabled: false,
+  });
   assert.equal(policy.coin_purchases.manualEnabled, false);
-  assert.equal(policy.featured_ads.manualEnabled, false);
+  assert.equal(policy.featured_ads.manualEnabled, true);
 });
