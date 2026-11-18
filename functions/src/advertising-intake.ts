@@ -96,12 +96,13 @@ export function validateAdvertisingIntake(value: unknown): AdvertisingIntakePayl
       throw new AdvertisingIntakeValidationError("quote_and_budget_are_mutually_exclusive");
     }
   } else {
-    if (typeof data.currency !== "string" ||
-        !isValidPositiveCurrencyAmount(data.proposedBudgetAmount, data.currency)) {
+    const proposedCurrency = data.currency;
+    if (typeof proposedCurrency !== "string" ||
+        !isValidPositiveCurrencyAmount(data.proposedBudgetAmount, proposedCurrency)) {
       throw new AdvertisingIntakeValidationError("invalid_budget");
     }
-    proposedBudgetAmount = data.proposedBudgetAmount;
-    currency = data.currency;
+    proposedBudgetAmount = data.proposedBudgetAmount as string;
+    currency = proposedCurrency;
   }
   const idempotencyKey = text(data.idempotencyKey, 16, 100, "invalid_idempotency_key");
   if (!/^[A-Za-z0-9_-]{16,100}$/.test(idempotencyKey)) {
