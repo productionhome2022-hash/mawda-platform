@@ -38,3 +38,37 @@ export function validateAdPrices(value: unknown): AdPrice[] {
       priceMinor: p.priceMinor as number, currency: "EUR", active: p.active };
   });
 }
+
+
+export type BilateralCallTariffs = {
+  audioTotalCoinsPerMinute: number | null;
+  videoTotalCoinsPerMinute: number | null;
+};
+
+/**
+ * Owner-authored combined per-minute tariffs. Null means deliberately
+ * unconfigured/disabled. A configured bilateral total must be a positive,
+ * safe, even integer so the server can split it exactly 50/50.
+ */
+export function validateBilateralCallTariffs(value: unknown): BilateralCallTariffs {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("INVALID_CALL_TARIFFS");
+  }
+  const data = value as Record<string, unknown>;
+  if (Object.keys(data).some((key) =>
+    !["audioTotalCoinsPerMinute", "videoTotalCoinsPerMinute"].includes(key))) {
+    throw new Error("INVALID_CALL_TARIFFS");
+  }
+  const validateOne = (amount: unknown): number | null => {
+    if (amount === null) return null;
+    if (typeof amount !== "number" || !Number.isSafeInteger(amount) ||
+        amount <= 0 || amount % 2 !== 0) {
+      throw new Error("INVALID_BILATERAL_CALL_TARIFF");
+    }
+    return amount;
+  };
+  return {
+    audioTotalCoinsPerMinute: validateOne(data.audioTotalCoinsPerMinute),
+    videoTotalCoinsPerMinute: validateOne(data.videoTotalCoinsPerMinute),
+  };
+}
