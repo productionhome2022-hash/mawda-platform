@@ -3,7 +3,8 @@ const assert = require("node:assert/strict");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const {
   startCall, respondToCall, requestRoomCallJoin, respondToRoomCallJoinRequest,
-  consentToRoomCallBilling, markCallConnected, sendCallSignal, getCallSignals,
+  consentToRoomCallBilling, getActiveRoomCall, listRoomCallJoinRequests,
+  getRoomCallJoinRequestStatus, markCallConnected, sendCallSignal, getCallSignals,
   endCall, getActiveCall, getCallIceConfiguration,
 } = require("../../lib/index");
 
@@ -686,6 +687,15 @@ test("room call pricing is snapshotted and join approval requires separate finan
       "an owner price change must not rewrite the call's accepted price snapshot");
 
     await requestRoomCallJoin.run(call(memberUid, { callId }));
+    const roomCallState = await getActiveRoomCall.run(call(memberUid, { roomId }));
+    assert.equal(roomCallState.active, true);
+    assert.equal(roomCallState.callId, callId);
+    assert.equal(roomCallState.billingRequired, true);
+    assert.equal(roomCallState.billingRate, 2000);
+    const creatorPending = await listRoomCallJoinRequests.run(call(creatorUid, { callId }));
+    assert.deepEqual(creatorPending.requests.map((item) => item.uid), [memberUid]);
+    const requesterState = await getRoomCallJoinRequestStatus.run(call(memberUid, { callId }));
+    assert.equal(requesterState.status, "requested");
     await assert.rejects(
       () => respondToRoomCallJoinRequest.run(call(creatorUid, {
         callId, requesterUid: memberUid, decision: "approve",
