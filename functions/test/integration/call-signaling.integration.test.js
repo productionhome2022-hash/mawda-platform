@@ -590,15 +590,18 @@ test("server starts a non-resettable five-minute call ceiling only after both en
   const callerUid = uid("call_timer_caller");
   const calleeUid = uid("call_timer_callee");
   const callId = uid("call_timer_session");
+  const chatId = uid("call_timer_chat");
   const callRef = db.collection("callSessions").doc(callId);
+  const chatRef = db.collection("directChats").doc(chatId);
   const callerLock = db.collection("activeCallMemberLocks").doc(callerUid);
   const calleeLock = db.collection("activeCallMemberLocks").doc(calleeUid);
-  await callRef.set({
-    callId, scope: "direct", mode: "audio", status: "accepted", callerUid,
-    participantUids: [callerUid, calleeUid], acceptedUids: [calleeUid],
-    rejectedUids: [], leftUids: [], connectedUids: [],
-  });
   await Promise.all([
+    chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
+    callRef.set({
+      callId, scope: "direct", targetId: chatId, mode: "audio", status: "accepted", callerUid,
+      participantUids: [callerUid, calleeUid], acceptedUids: [calleeUid],
+      rejectedUids: [], leftUids: [], connectedUids: [],
+    }),
     callerLock.set({ callId, status: "active" }),
     calleeLock.set({ callId, status: "active" }),
     seedCallEntitlements(callerUid, ["audio"]),
@@ -639,6 +642,7 @@ test("server starts a non-resettable five-minute call ceiling only after both en
       db.recursiveDelete(calleeLock).catch(() => undefined),
       db.recursiveDelete(db.collection("users").doc(callerUid)).catch(() => undefined),
       db.recursiveDelete(db.collection("users").doc(calleeUid)).catch(() => undefined),
+      db.recursiveDelete(chatRef).catch(() => undefined),
     ]);
   }
 });
