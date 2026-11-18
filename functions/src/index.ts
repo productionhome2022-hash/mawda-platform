@@ -9854,6 +9854,42 @@ async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<
   });
 }
 
+function callEntitlementItemIds(mode: "audio" | "video"): string[] {
+  return mode === "audio"
+    ? ["voice_call_24h", "voice_call_7d", "voice_call_30d"]
+    : ["video_call_24h", "video_call_7d", "video_call_30d"];
+}
+
+async function requireCallEntitlements(
+  transaction: Transaction,
+  participantUids: readonly string[],
+  mode: "audio" | "video",
+  nowMs: number,
+): Promise<void> {
+  const itemIds = callEntitlementItemIds(mode);
+  const refs = participantUids.flatMap((uid) =>
+    itemIds.map((itemId) => db.collection("users").doc(uid).collection("entitlements").doc(itemId)),
+  );
+  const snapshots = await Promise.all(refs.map((ref) => transaction.get(ref)));
+  const category = mode === "audio" ? "voice_call" : "video_call";
+  for (let index = 0; index < participantUids.length; index += 1) {
+    const memberSnapshots = snapshots.slice(index * itemIds.length, (index + 1) * itemIds.length);
+    const entitled = memberSnapshots.some((snapshot, entitlementIndex) => {
+      const data = snapshot.data() ?? {};
+      return snapshot.exists && data.itemId === itemIds[entitlementIndex] &&
+        data.category === category && isStoreEntitlementActive(data, nowMs);
+    });
+    if (!entitled) {
+      throw new HttpsError(
+        "failed-precondition",
+        mode === "audio"
+          ? "يجب أن يمتلك كل مشارك استحقاق المكالمات الصوتية النشط (24 ساعة أو 7 أيام أو 30 يوماً)."
+          : "يجب أن يمتلك كل مشارك استحقاق المكالمات المرئية النشط (24 ساعة أو 7 أيام أو 30 يوماً).",
+      );
+    }
+  }
+}
+
 export const startCall = onCall(async (request) => {
   const callerUid = requireAuthenticatedUid(request.auth?.uid);
   let input;
@@ -9957,6 +9993,7 @@ export const startCall = onCall(async (request) => {
     });
     const lockedCalls = await Promise.all(lockCallRefs.map((lockCallRef) =>
       lockCallRef ? transaction.get(lockCallRef) : Promise.resolve(null)));
+    await requireCallEntitlements(transaction, participantUids, input.mode, now);
     for (let index = 0; index < memberLocks.length; index += 1) {
       const lock = memberLocks[index];
       const lockedCall = lockedCalls[index];
@@ -10064,6 +10101,9 @@ export const respondToCall = onCall(async (request) => {
           (!(call.expiresAt instanceof Timestamp) || call.expiresAt.toMillis() <= Date.now()))) {
       throw new HttpsError("failed-precondition", "انتهت مهلة المكالمة أو لم تعد متاحة.");
     }
+    if (response === "accept") {
+      await requireCallEntitlements(transaction, call.participantUids as string[], call.mode, Date.now());
+    }
     if (response === "reject" && call.status !== "ringing" && call.status !== "accepted") {
       throw new HttpsError("failed-precondition", "لا يمكن رفض المكالمة في حالتها الحالية.");
     }
@@ -10128,6 +10168,9 @@ export const markCallConnected = onCall(async (request) => {
     }
     if (call.status !== "accepted") {
       throw new HttpsError("failed-precondition", "لا يمكن تثبيت الاتصال قبل قبول المكالمة.");
+    }
+    if (!(call.maxDurationEndsAt instanceof Timestamp)) {
+      await requireCallEntitlements(transaction, participantUids, call.mode, Date.now());
     }
     if (call.maxDurationEndsAt instanceof Timestamp &&
         call.maxDurationEndsAt.toMillis() <= Date.now()) {
