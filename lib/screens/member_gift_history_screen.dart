@@ -42,6 +42,13 @@ class _MemberGiftHistoryScreenState extends State<MemberGiftHistoryScreen> {
       final coins = (entry['coins'] as num?)?.toInt() ?? 0;
       return '$coins BetaCoins وصلت إلى محفظتك';
     }
+    if (entry['giftKind'] == 'coin_transfer') {
+      final coins = (entry['coins'] as num?)?.toInt() ?? 0;
+      final commission = (entry['commissionAmount'] as num?)?.toInt() ?? 0;
+      return commission > 0
+          ? '$coins BetaCoins وصلت بعد عمولة $commission'
+          : '$coins BetaCoins وصلت إلى محفظتك';
+    }
     final price = (entry['priceCoins'] as num?)?.toInt() ?? 0;
     final duration = (entry['durationDays'] as num?)?.toInt();
     return duration == null
