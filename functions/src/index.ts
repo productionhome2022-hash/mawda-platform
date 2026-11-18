@@ -9536,9 +9536,9 @@ const CALL_QUOTA_WINDOWS = db.collection("callQuotaWindows");
 const CALL_USAGE_POLICY = db.doc("platformSettings/callUsagePolicy");
 
 /**
- * Enforce the five-minute ceiling from the server timestamp created only
- * after both sides report an established RTCPeerConnection. This is a
- * server-recorded client connectivity signal, not cryptographic proof of
+ * Enforce the immutable owner-configured call duration from the server timestamp
+ * created only after both sides report an established RTCPeerConnection. This is
+ * a server-recorded client connectivity signal, not cryptographic proof of
  * network delivery; live device acceptance remains a separate release gate.
  */
 async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<string | null> {
