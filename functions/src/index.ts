@@ -10194,7 +10194,10 @@ export const startCall = onCall(async (request) => {
       try {
         const candidate = validateGroupCallPricingPolicy(groupPricingSnapshot.data());
         const rate = input.mode === "audio" ? candidate.audioCoinsPerMinute : candidate.videoCoinsPerMinute;
-        if (candidate.active && rate > 0) groupCallPricingSnapshot = candidate;
+        if (candidate.active && rate < 1) {
+          throw new HttpsError("failed-precondition", "هذا النوع من المكالمات الجماعية غير مسعّر وموقوف بقرار المالك.");
+        }
+        if (candidate.active) groupCallPricingSnapshot = candidate;
       } catch {
         throw new HttpsError("failed-precondition", "سياسة تسعير المكالمات الجماعية غير صالحة؛ تعذر بدء المكالمة.");
       }
