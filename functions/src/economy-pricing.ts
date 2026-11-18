@@ -6,19 +6,6 @@ export type AdPrice = {
   placementId: string; name: string; billingModel: "cpm" | "cpc" | "daily";
   priceMinor: number; currency: "EUR"; active: boolean;
 };
-export const DEFAULT_COIN_PACKAGES: CoinPackage[] = [
-  { packageId: "coins_1000", name: "باقة البداية", coins: 1000, priceMinor: 99, currency: "EUR", active: true },
-  { packageId: "coins_5500", name: "باقة التوفير", coins: 5500, priceMinor: 499, currency: "EUR", active: true },
-  { packageId: "coins_12000", name: "باقة المميزة", coins: 12000, priceMinor: 999, currency: "EUR", active: true },
-  { packageId: "coins_30000", name: "باقة المحترفين", coins: 30000, priceMinor: 1999, currency: "EUR", active: true },
-  { packageId: "coins_65000", name: "باقة النخبة", coins: 65000, priceMinor: 3999, currency: "EUR", active: true },
-];
-export const DEFAULT_AD_PRICES: AdPrice[] = [
-  { placementId: "banner_cpm", name: "إعلان بانر", billingModel: "cpm", priceMinor: 250, currency: "EUR", active: true },
-  { placementId: "interstitial_cpm", name: "إعلان بيني", billingModel: "cpm", priceMinor: 500, currency: "EUR", active: true },
-  { placementId: "sponsored_room_daily", name: "إبراز غرفة يومياً", billingModel: "daily", priceMinor: 1000, currency: "EUR", active: true },
-  { placementId: "profile_boost_daily", name: "تعزيز ملف يومياً", billingModel: "daily", priceMinor: 500, currency: "EUR", active: true },
-];
 export function validateCoinPackages(value: unknown): CoinPackage[] {
   if (!Array.isArray(value) || value.length < 1 || value.length > 30) throw new Error("INVALID_COIN_PACKAGES");
   const ids = new Set<string>();
