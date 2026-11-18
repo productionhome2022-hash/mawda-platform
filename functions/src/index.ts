@@ -6781,9 +6781,20 @@ export const giftStoreEntitlement = onCall(async (request) => {
       })) {
         throw new HttpsError("already-exists", "معرف طلب الإهداء مستخدم لعملية أخرى أو بسعر مختلف.");
       }
+      const balanceSnapshotValid =
+        ledger.balanceBefore === undefined && ledger.balanceAfter === undefined ||
+        Number.isSafeInteger(ledger.balanceBefore) &&
+        Number.isSafeInteger(ledger.balanceAfter) &&
+        ledger.balanceBefore >= 0 &&
+        ledger.balanceAfter === ledger.balanceBefore - prior.priceCoins &&
+        ledger.balanceAfter === prior.newBalance;
       if (!priorLedger.exists || !priorHistory.exists || !priorNotification.exists ||
-          ledger.type !== "store_gift" || ledger.amount !== -prior.priceCoins ||
-          ledger.giftId !== giftId || history.giftId !== giftId ||
+          !Number.isSafeInteger(prior.priceCoins) || prior.priceCoins <= 0 ||
+          !Number.isSafeInteger(prior.newBalance) || prior.newBalance < 0 ||
+          ledger.type !== "store_gift" || ledger.direction !== "debit" ||
+          ledger.amount !== -prior.priceCoins || !balanceSnapshotValid ||
+          ledger.giftId !== giftId || ledger.recipientUid !== recipientUid ||
+          ledger.itemId !== itemId || history.giftId !== giftId ||
           history.senderUid !== senderUid || history.itemId !== itemId ||
           notification.type !== "store_gift_received" || notification.giftId !== giftId) {
         throw new HttpsError("failed-precondition", "سجلات الإهداء غير متطابقة؛ أوقفنا إعادة الطلب للحماية.");
@@ -6859,10 +6870,11 @@ export const giftStoreEntitlement = onCall(async (request) => {
       giftId, requestId, senderUid, recipientUid, itemId,
       itemName: item.name, category: item.category,
       priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
-      newBalance, expiresAt, status: "completed", createdAt,
+      balanceBefore: senderData.coins, newBalance, expiresAt, status: "completed", createdAt,
     });
     transaction.create(senderLedgerRef, {
       type: "store_gift", direction: "debit", amount: -item.priceCoins,
+      balanceBefore: senderData.coins, balanceAfter: newBalance,
       giftId, recipientUid, itemId, itemName: item.name, createdAt,
     });
     transaction.set(recipientEntitlementRef, {
