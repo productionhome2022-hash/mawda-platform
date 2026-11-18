@@ -1297,9 +1297,10 @@ export const createMediaUploadIntent = onCall(async (request) => {
     } catch {
       throw new HttpsError("not-found", "حساب مستلم المرفق غير موجود.");
     }
-    if (!isVerifiedPlatformOwnerRecipient) {
-      throw new HttpsError("permission-denied", "استثناء المستندات مخصص للمراسلة المباشرة مع مالك المنصة المعتمد.");
-    }
+    // A direct-chat recipient is supplied for every attachment so the server
+    // can determine whether the member-to-owner quota exemption applies.
+    // Ordinary recipients remain on the normal quota path; document policy is
+    // still enforced below and remains owner-recipient-only.
   }
   if (!mediaUploadAllowedForRole(input, isPlatformOwner, isVerifiedPlatformOwnerRecipient)) {
     throw new HttpsError(
