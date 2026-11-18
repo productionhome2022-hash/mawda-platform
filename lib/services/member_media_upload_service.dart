@@ -158,9 +158,16 @@ class MemberMediaUploadService {
   Future<String> uploadChatAttachment({
     required XFile file,
     required String scope,
+    String? recipientUid,
   }) async {
     if (scope != 'direct' && scope != 'room') {
       throw ArgumentError.value(scope, 'scope');
+    }
+    if (scope == 'direct' && recipientUid != null && recipientUid.isEmpty) {
+      throw ArgumentError('recipientUid must not be empty.');
+    }
+    if (scope == 'room' && recipientUid != null) {
+      throw ArgumentError('recipientUid is only valid for direct messages.');
     }
     final contentType = _chatAttachmentContentType(file);
     await _validateFileLength(file, contentType);
@@ -170,6 +177,7 @@ class MemberMediaUploadService {
       'contentType': contentType,
       'sizeBytes': bytes.length,
       'purpose': scope == 'direct' ? 'chat' : 'room',
+      if (recipientUid != null) 'recipientUid': recipientUid,
     });
     final intent = Map<String, dynamic>.from(intentResponse.data as Map);
     final uploadUrl = intent['uploadUrl'] as String?;
