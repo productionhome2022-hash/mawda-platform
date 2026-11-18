@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: mawdda-domain-regression-${{ github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   backend-domain-regression:
