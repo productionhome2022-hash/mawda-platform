@@ -111,7 +111,7 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
       typeof startsAtMs !== "number" || !Number.isSafeInteger(startsAtMs) || startsAtMs < 0 ||
       typeof endsAtMs !== "number" || !Number.isSafeInteger(endsAtMs) || endsAtMs <= startsAtMs ||
       typeof maxClaimsPerMember !== "number" || !Number.isSafeInteger(maxClaimsPerMember) ||
-      maxClaimsPerMember < 1 || maxClaimsPerMember > 100 ||
+      maxClaimsPerMember < 1 || maxClaimsPerMember > TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER ||
       typeof rewardBudgetCoins !== "number" || !Number.isSafeInteger(rewardBudgetCoins) ||
       rewardBudgetCoins < rewardCoins || rewardBudgetCoins > MAX_AD_BUDGET_COINS) {
     throw new Error("AD_CAMPAIGN_INVALID");
@@ -129,6 +129,11 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
 }
 
 export const AD_HEARTBEAT_MAX_GAP_MS = 15_000;
+
+// Experimental development safety rails; production values remain owner-configurable.
+export const TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER = 10;
+export const TIMED_AD_DAILY_MAX_REWARD_COINS_PER_MEMBER = 20;
+export const TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER = 3;
 
 /** Only short, sequential foreground intervals may add eligible viewing time. */
 export function eligibleHeartbeatDelta(
