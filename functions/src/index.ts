@@ -7015,20 +7015,25 @@ async function executeOwnerEntitlementGrant(
       const prior = priorGrant.data() ?? {};
       const ledger = priorLedger.data() ?? {};
       const audit = priorAudit.data() ?? {};
+      const priorExpiryMs = prior.expiresAt instanceof Timestamp ? prior.expiresAt.toMillis() : null;
+      const ledgerExpiryMs = ledger.expiresAt instanceof Timestamp ? ledger.expiresAt.toMillis() : null;
       const sameGrant = prior.actorUid === actorUid && prior.targetUid === targetUid &&
         prior.itemId === itemId && prior.durationHours === durationHours &&
-        prior.requestId === requestId && prior.status === "granted";
+        prior.requestId === requestId && prior.reason === reason &&
+        prior.status === "granted";
       const sameLedger = priorLedger.exists && ledger.type === "owner_entitlement_grant" &&
         ledger.grantId === grantId && ledger.requestId === requestId &&
         ledger.actorUid === actorUid && ledger.targetUid === targetUid &&
-        ledger.itemId === itemId && ledger.durationHours === durationHours;
+        ledger.itemId === itemId && ledger.durationHours === durationHours &&
+        ledger.reason === reason && ledgerExpiryMs === priorExpiryMs;
       const sameAudit = priorAudit.exists && audit.action === "owner_entitlement_granted" &&
         audit.grantId === grantId && audit.requestId === requestId &&
-        audit.actorUid === actorUid && audit.targetUid === targetUid && audit.itemId === itemId;
-      const entitlement = priorEntitlement.data() ?? {};
-      const sameEntitlement = priorEntitlement.exists && entitlement.status === "active" &&
-        entitlement.grantSource === "platform_owner";
-      if (!sameGrant || !sameLedger || !sameAudit || !sameEntitlement) {
+        audit.actorUid === actorUid && audit.targetUid === targetUid &&
+        audit.itemId === itemId && audit.durationHours === durationHours &&
+        audit.reason === reason;
+      // The current entitlement may have expired or been superseded by a later
+      // purchase/grant. Replay validates immutable grant evidence, never rewrites it.
+      if (!sameGrant || !sameLedger || !sameAudit) {
         throw new HttpsError("failed-precondition", "سجل المنح أو دفتره أو سجل التدقيق أو الاستحقاق غير متطابق؛ يلزم تدقيق المالك.");
       }
       return {
