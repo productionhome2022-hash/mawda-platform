@@ -203,6 +203,86 @@ test("room call signaling is peer-targeted and one member leaving does not end t
   }
 });
 
+test("audio group participant capacity follows rented-room capacity for 2, 4, 7 and 9 members", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  for (const size of [2, 4, 7, 9]) {
+    const callerUid = uid(`audio_capacity_${size}`);
+    const roomId = uid(`audio_room_${size}`);
+    const callId = uid(`audio_call_${size}`);
+    const rentalId = uid(`audio_rental_${size}`);
+    const roomRef = db.collection("rooms").doc(roomId);
+    const rentalRef = db.collection("roomRentals").doc(rentalId);
+    const callRef = db.collection("callSessions").doc(callId);
+    const memberUids = [callerUid, ...Array.from({ length: size - 1 }, (_, i) => uid(`audio_peer_${size}_${i}`))];
+    const memberRefs = memberUids.map((memberUid) => db.collection("users").doc(memberUid));
+    const expiresAt = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
+    await Promise.all([
+      ...memberRefs.map((ref) => ref.set({ profileCompleted: true, accountStatus: "active", age: 30 })),
+      roomRef.set({
+        roomId, ownerUid: callerUid, kind: "private", isRented: true,
+        rentalId, expiresAt, status: "active", capacity: size, memberCount: size,
+      }),
+      rentalRef.set({ rentalId, roomId, ownerUid: callerUid, status: "active", expiresAt }),
+      ...memberUids.map((memberUid) =>
+        roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: memberUid === callerUid ? "owner" : "member" })),
+    ]);
+    try {
+      const started = await startCall.run(call(callerUid, {
+        callId, scope: "room", targetId: roomId, mode: "audio",
+      }));
+      assert.equal(started.participantUids.length, size);
+      await endCall.run(call(callerUid, { callId }));
+    } finally {
+      await Promise.all([
+        db.recursiveDelete(callRef).catch(() => undefined),
+        db.recursiveDelete(roomRef).catch(() => undefined),
+        db.recursiveDelete(rentalRef).catch(() => undefined),
+        ...memberRefs.map((ref) => db.recursiveDelete(ref).catch(() => undefined)),
+        ...memberUids.map((memberUid) =>
+          db.recursiveDelete(db.collection("activeCallMemberLocks").doc(memberUid)).catch(() => undefined)),
+      ]);
+    }
+  }
+});
+
+test("video group call rejects a fifth total participant", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const callerUid = uid("video_capacity_caller");
+  const roomId = uid("video_capacity_room");
+  const callId = uid("video_capacity_call");
+  const rentalId = uid("video_capacity_rental");
+  const roomRef = db.collection("rooms").doc(roomId);
+  const rentalRef = db.collection("roomRentals").doc(rentalId);
+  const memberUids = [callerUid, ...Array.from({ length: 4 }, (_, i) => uid(`video_capacity_peer_${i}`))];
+  const memberRefs = memberUids.map((memberUid) => db.collection("users").doc(memberUid));
+  const expiresAt = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
+  await Promise.all([
+    ...memberRefs.map((ref) => ref.set({ profileCompleted: true, accountStatus: "active", age: 30 })),
+    roomRef.set({
+      roomId, ownerUid: callerUid, kind: "private", isRented: true,
+      rentalId, expiresAt, status: "active", capacity: 5, memberCount: 5,
+    }),
+    rentalRef.set({ rentalId, roomId, ownerUid: callerUid, status: "active", expiresAt }),
+    ...memberUids.map((memberUid) =>
+      roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" })),
+  ]);
+  try {
+    await assert.rejects(
+      () => startCall.run(call(callerUid, { callId, scope: "room", targetId: roomId, mode: "video" })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await db.collection("callSessions").doc(callId).get()).exists, false);
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(roomRef).catch(() => undefined),
+      db.recursiveDelete(rentalRef).catch(() => undefined),
+      ...memberRefs.map((ref) => db.recursiveDelete(ref).catch(() => undefined)),
+      ...memberUids.map((memberUid) =>
+        db.recursiveDelete(db.collection("activeCallMemberLocks").doc(memberUid)).catch(() => undefined)),
+    ]);
+  }
+});
+
 test("expired ringing calls never expose stored signaling or ICE configuration", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const memberUid = uid("expired_call_member");
