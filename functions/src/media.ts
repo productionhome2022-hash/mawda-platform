@@ -1543,6 +1543,8 @@ export const finalizeMediaUpload = onCall(async (request) => {
   }
 
   const quotaRef = mediaDb().collection("mediaUploadQuotas").doc(uid);
+  const usageMonthUtc = new Date().toISOString().slice(0, 7);
+  const capacityMeterRef = mediaDb().collection("platformCapacityMeters").doc(usageMonthUtc);
   await mediaDb().runTransaction(async (transaction) => {
     const [latestAsset, quotaSnapshot] = await Promise.all([
       transaction.get(assetRef),
@@ -1574,6 +1576,14 @@ export const finalizeMediaUpload = onCall(async (request) => {
       updatedAt: FieldValue.serverTimestamp(),
     });
     transaction.set(quotaRef, { ...reservation, updatedAt: FieldValue.serverTimestamp() });
+    // Count finalized source bytes once in the same transaction as the state transition.
+    // This aggregate intentionally contains no member identifiers and is not billing data.
+    transaction.set(capacityMeterRef, {
+      monthUtc: usageMonthUtc,
+      monthlyUploadBytes: FieldValue.increment(sizeBytes),
+      finalizedUploadCount: FieldValue.increment(1),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
     transaction.create(mediaDb().collection("mediaAccessAudit").doc(), {
       actorUid: uid, mediaId, action: "media_upload_validation", outcome: "pending_security_scan",
       detectedContentType: detectedType, sizeBytes, storageGeneration: String(metadata.generation),
