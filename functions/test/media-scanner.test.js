@@ -106,6 +106,10 @@ test("scanner verdict accepts sticker assets while preserving signed purpose bin
     sha256: "a".repeat(64), scannedAtMs: now, scanEngine: "ClamAV",
     engineVersion: "1.4.6", signatureDatabaseVersion: "28202",
     signatureDatabaseAgeMs: 60 * 60 * 1000,
+    stickerMetadata: {
+      kind: "static", contentType: "image/webp", width: 512, height: 512,
+      sizeBytes: 256 * 1024,
+    },
   };
   assert.equal(validateScannerVerdict(payload, payload.provider, now).purpose, "sticker");
   assert.equal(validateScannerVerdict({ ...payload, purpose: "member_sticker" }, payload.provider, now), null);
