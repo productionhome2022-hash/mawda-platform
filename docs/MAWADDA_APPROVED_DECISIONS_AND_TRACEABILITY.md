@@ -337,3 +337,11 @@ Implementation status update (2026-11-18): the development branch now contains a
 - Every member, including the initiator, must independently satisfy the applicable audio/video entitlement or open-subscription eligibility before joining. Membership in the room alone is insufficient.
 - Billing must follow actual connected participation, exclude ringing/unconnected time, handle joins/leaves and reconnects without duplicate charges, disclose each participant's share before consent, and settle through server-authoritative atomic/idempotent wallet-ledger operations. No client-reported duration or participant list is authoritative.
 - This amendment does not change direct one-to-one call pricing or quota policy. Existing room-call signaling is not evidence that the above access, metering, allocation, or settlement controls are implemented; those remain implementation and test requirements.
+
+
+### Owner clarification — integer group-call billing and initiator remainder (2026-11-18)
+- BetaCoins wallet balances and ledger amounts remain whole integers; fractional coin amounts are never stored or debited.
+- For each billable group-call interval, divide the approved total by the actual connected participant count using integer floor shares for every participant other than the call initiator. Charge the initiator the exact remaining amount so the sum of all participant debits equals the approved interval total exactly.
+- The initiator therefore absorbs the complete rounding remainder. Example for 1,000 BetaCoins audio: with 7 connected members, six non-initiators pay 142 each and the initiator pays 148; with 9 connected members, eight non-initiators pay 111 each and the initiator pays 112. With 4 members, each pays 250. For 2,000 BetaCoins video and 4 members, each pays 500.
+- The split must be calculated server-side from the immutable participant set for that billed interval, validated as positive safe integers, and persisted with the corresponding idempotent wallet debits/ledger entries in one atomic settlement. A participant who is not actually connected in that interval is not included. Direct one-to-one call pricing is unchanged.
+- This is an approved allocation rule, not a claim that group-call entitlement, metering, or settlement has been integrated or accepted.
