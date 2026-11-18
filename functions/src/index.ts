@@ -8880,15 +8880,23 @@ export const getOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
   await requireOwnerForReview(request, "featured_ad_reward_policy_read_attempt");
   const snapshot = await FEATURED_AD_REWARD_POLICY.get();
   const policy = snapshot.exists ? validateFeaturedAdRewardPolicy(snapshot.data()?.policy) : defaultFeaturedAdRewardPolicy();
-  return { policy, version: snapshot.exists ? snapshot.data()?.version ?? 1 : 1 };
+  return { policy, version: snapshot.exists ? snapshot.data()?.version ?? 0 : 0 };
 });
 export const setOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
   const actorUid = await requireOwnerForReview(request, "featured_ad_reward_policy_update_attempt");
   const policy = validateFeaturedAdRewardPolicy(request.data?.policy);
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "إصدار سياسة المكافآت غير صالح.");
+  }
   const version = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(FEATURED_AD_REWARD_POLICY);
-    const previous = snapshot.exists ? Number(snapshot.data()?.version) : 0;
-    const next = Number.isSafeInteger(previous) ? previous + 1 : 1;
+    const previous = snapshot.exists && Number.isSafeInteger(snapshot.data()?.version)
+      ? snapshot.data()!.version as number : 0;
+    if (previous !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت سياسة المكافآت منذ فتح اللوحة؛ حدّث البيانات ثم أعد المحاولة.");
+    }
+    const next = previous + 1;
     transaction.set(FEATURED_AD_REWARD_POLICY, { policy, version: next, updatedBy: actorUid, updatedAt: FieldValue.serverTimestamp() });
     return next;
   });
