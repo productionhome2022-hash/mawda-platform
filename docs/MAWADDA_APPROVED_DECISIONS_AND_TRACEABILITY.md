@@ -25,6 +25,7 @@
 
 - **ECON-004 — Beta Coins naming:** The product-facing currency name is Beta Coins / بيتا كوينز across Mawdda. Technical `coins` identifiers remain stable unless a separate migration is approved.
 - **ECON-005 — Coin privacy authority:** Owner and Super Admin are the same sole sovereign identity. The profile owner and sole Owner/Super Admin may see a balance; ordinary members, friends, non-friends and General Moderators must not receive the balance value. Hide Coins may render a lock instead.
+- **ECON-005 implementation constraint:** Because the baseline already hides the balance from every non-owner viewer, the current `hide_coins_30d` SKU has no distinct user-visible effect and is not fulfillment-ready or purchasable. Keep it fail-closed until an owner-approved behavior with independent value is defined; do not weaken baseline privacy to make the SKU saleable.
 - **AD-002 — Featured player layout:** The responsive player/context split is 60% player and 40% contextual information. This supersedes older 75/25 wording.
 - **ECON-006 — Development commercial values:** The owner authorizes engineering to choose centrally configurable test/development prices, durations, quotas and billing units needed to exercise lifecycle paths. These values are not launch prices and must remain isolated from production configuration.
 
