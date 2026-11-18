@@ -8148,7 +8148,7 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
     return {
       coinPackages: [], adPrices: [], version: 0, configured: false,
       realMoneyCheckoutEnabled: false, manualCoinPurchasesEnabled: false,
-      automatedCoinCheckoutEnabled: false,
+      manualFeaturedAdsEnabled: false, automatedCoinCheckoutEnabled: false,
     };
   }
   const data = snapshot.data() ?? {};
@@ -8165,6 +8165,7 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
     configured: true,
     realMoneyCheckoutEnabled: false,
     manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled === true,
+    manualFeaturedAdsEnabled: data.manualFeaturedAdsEnabled === true,
     automatedCoinCheckoutEnabled: false,
   };
 });
@@ -8180,8 +8181,10 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "أسعار باقات الكوينز أو الإعلانات غير صالحة.");
   }
   const manualCoinPurchasesEnabled = request.data?.manualCoinPurchasesEnabled;
+  const manualFeaturedAdsEnabled = request.data?.manualFeaturedAdsEnabled;
   const expectedVersion = request.data?.expectedVersion;
   if (typeof manualCoinPurchasesEnabled !== "boolean" ||
+      typeof manualFeaturedAdsEnabled !== "boolean" ||
       !Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
     throw new HttpsError("invalid-argument", "يجب تحديد حالة طلبات الشراء وإصدار إعدادات الاقتصاد الحالي.");
   }
@@ -8196,6 +8199,7 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
     transaction.set(ECONOMY_PRICING_SETTINGS, {
       coinPackages, adPrices, version: nextVersion,
       manualCoinPurchasesEnabled,
+      manualFeaturedAdsEnabled,
       automatedCoinCheckoutEnabled: false,
       realMoneyCheckoutEnabled: false,
       updatedAt: now, updatedBy: actorUid,
@@ -8209,7 +8213,11 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
     });
     return nextVersion;
   });
-  return { saved: true, version, realMoneyCheckoutEnabled: false };
+  return {
+    saved: true, version, realMoneyCheckoutEnabled: false,
+    manualCoinPurchasesEnabled, manualFeaturedAdsEnabled,
+    automatedCheckoutEnabled: false,
+  };
 });
 
 
