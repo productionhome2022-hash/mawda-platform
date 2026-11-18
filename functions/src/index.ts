@@ -8360,12 +8360,28 @@ export const setOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
 });
 export const getMyFeaturedAdRewardHistory = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
-  const snapshot = await db.collection("users").doc(uid).collection("walletLedger")
-    .where("type", "==", "featured_ad_reward").orderBy("createdAt", "desc").limit(100).get();
-  return { rewards: snapshot.docs.map((doc) => {
-    const data = doc.data();
-    return { ledgerId: doc.id, amount: data.amount, campaignId: data.campaignId ?? null, sessionId: data.sessionId ?? null, createdAt: data.createdAt ?? null };
-  }) };
+  const [snapshot, policySnapshot] = await Promise.all([
+    db.collection("users").doc(uid).collection("walletLedger")
+      .where("type", "==", "featured_ad_reward").orderBy("createdAt", "desc").limit(100).get(),
+    FEATURED_AD_REWARD_POLICY.get(),
+  ]);
+  const policy = policySnapshot.exists
+    ? validateFeaturedAdRewardPolicy(policySnapshot.data()?.policy)
+    : defaultFeaturedAdRewardPolicy();
+  return {
+    rewards: snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return { ledgerId: doc.id, amount: data.amount, campaignId: data.campaignId ?? null, sessionId: data.sessionId ?? null, createdAt: data.createdAt ?? null };
+    }),
+    policy: {
+      enabled: policy.enabled,
+      rewardCoinsPerView: policy.rewardCoinsPerView,
+      maxRewardedViewsPerUtcDay: policy.maxRewardedViewsPerUtcDay,
+      maxRewardCoinsPerUtcDay: policy.maxRewardCoinsPerUtcDay,
+      maxRewardsPerCampaignRolling24h: policy.maxRewardsPerCampaignRolling24h,
+      sameCampaignWindowMs: policy.sameCampaignWindowMs,
+    },
+  };
 });
 export const startFeaturedAdViewingSession = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
