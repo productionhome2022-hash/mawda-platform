@@ -436,6 +436,28 @@ class MemberMediaUploadService {
     throw TimeoutException('لم تكتمل معالجة الملصق الآمنة؛ بقي غير قابل للنشر.', const Duration(minutes: 3));
   }
 
+  Future<Map<String, dynamic>> saveStickerPack({
+    required String packId,
+    required String title,
+    String description = '',
+    int sortOrder = 0,
+    required String status,
+    required List<Map<String, dynamic>> stickers,
+  }) async {
+    if (status != 'draft' && status != 'published') {
+      throw ArgumentError.value(status, 'status');
+    }
+    final response = await _functions.httpsCallable('saveStickerPack').call({
+      'packId': packId,
+      'title': title,
+      'description': description,
+      'sortOrder': sortOrder,
+      'status': status,
+      'stickers': stickers,
+    });
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   Future<List<Map<String, dynamic>>> getStickerCatalog() async {
     final response = await _functions.httpsCallable('getStickerCatalog').call();
     final data = Map<String, dynamic>.from(response.data as Map);
