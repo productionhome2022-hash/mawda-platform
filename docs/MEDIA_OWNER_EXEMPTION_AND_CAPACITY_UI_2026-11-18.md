@@ -112,3 +112,20 @@ Exact verification: GitHub Actions run [44212614351](https://github.com/producti
 - Flutter analysis and widget/unit tests.
 
 This is emulator evidence for the tested cases only. It does not prove live Firebase/Storage behavior, scanner production connectivity, physical-device acceptance, or full owner-directed media lifecycle coverage across every category.
+
+
+## Finalize and expired-intent cleanup regression — 2026-11-18
+
+Added two Auth/Firestore/Storage emulator integration cases in
+`functions/test/integration/media-callables.integration.test.js`:
+
+- A verified-owner-directed upload is finalized through the callable; the active upload reservation is released while the sender's daily usage counters remain unchanged.
+- An expired owner-directed upload intent is cleaned up; its source object is removed, the asset transitions to `expired`, active reservation counters are released, and daily usage counters are preserved.
+
+Verification: GitHub Actions run [44213277492](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/44213277492), commit `38b50dc0e4b06217dabdb68ebc65ec131ad4dc5d`, completed successfully. The backend job explicitly passed:
+- backend compile and unit tests (which include sticker-policy unit tests);
+- media upload, recipient authorization and quota lifecycle against Auth + Firestore + Storage emulators;
+- chat retention, room reservation/cancellation, owner entitlement grant/replay, call lifecycle, and timed advertising/reward-ledger emulator suites.
+The Flutter job passed `flutter analyze` and `flutter test`.
+
+Scope note: these results establish the exercised emulator cases only. They do not establish a production scanner connection, all media categories, 5,000-persona load acceptance, real-device WebRTC, or release readiness. The sticker product feature remains incomplete as listed above; do not represent its pure policy tests as an integrated sticker service or UI.
