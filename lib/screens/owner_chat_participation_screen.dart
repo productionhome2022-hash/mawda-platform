@@ -26,7 +26,7 @@ class _OwnerChatParticipationScreenState
 
   static const _labels = <String, String>{
     'platform_admin': 'إدارة منصة مودة',
-    'super_admin': 'السوبر أدمن',
+    'super_admin': 'Super Owner — مالك المنصة',
     'anonymous': 'مجهول',
   };
 
