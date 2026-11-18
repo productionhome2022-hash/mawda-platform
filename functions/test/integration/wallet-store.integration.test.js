@@ -848,7 +848,7 @@ test("manual coin package request issues no coins until owner verifies external 
         agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
         expectedInstructionsVersion: 0,
       })),
-      (error) => error && error.code === "aborted",
+      (error) => error && error.code === "failed-precondition",
     );
     const reported = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
       requestId, expectedInstructionsVersion: 1,
