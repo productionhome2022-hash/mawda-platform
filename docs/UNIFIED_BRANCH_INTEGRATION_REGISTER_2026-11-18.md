@@ -324,3 +324,37 @@ Commits:
 - Commits: `b8cc837ab2694860c18302f8e3f5bbba9114c8f0` (policy), `875d42dd435067bc5c497ce00c336b29be0ee3ee` (tests).
 - These changes harden the pure policy module only. They do not close the server-side owner authorization, Firestore transaction/idempotency, payment-provider evidence, or reconciliation integration gaps listed above.
 - Tests remain unexecuted in this environment; no CI was triggered. No main, Firebase, production, billing, or 5,000-persona lab changes were made.
+
+
+## Reconciliation checkpoint — 2026-11-18 14:50 (+03:00)
+
+### Immutable branch evidence
+
+- Unified test branch: `codex/mawdda-unified-test-2026-11-18`.
+- Branch HEAD verified from GitHub: `37e0b27dd2c676ac67e5d1e27dfb565cd831c722`.
+- Comparison against `main`: ahead 2807, behind 0; main base SHA remains `460a79a7dc2e16f4ad146af22aab58e152ad1e8c`.
+- No workflow runs were returned for this exact HEAD. No CI or remote Actions run was initiated in this checkpoint.
+
+### Open PR disposition — no blind merges
+
+- PR #22 (economic closeout): draft, 34 changed files, diverged from the unified branch (124 commits unique to its head; 215 unique to the unified branch from the common base). Its source audit explicitly leaves call admission/consent, entitlement, trusted per-participant measurement, topology, and atomic settlement incomplete. Do not merge as a whole.
+- PR #24 (featured ads/media/stickers): draft, 58 changed files, diverged (199 head-only; 216 unified-only). It overlaps `functions/src/index.ts`, `functions/src/media.ts`, media scanner/security/quota, indexes, UI and workflow configuration. The source branch's workflow changes add additional test jobs; do not merge workflow changes or trigger remote CI under the current local-only test instruction. Only isolated, reviewed deltas may be considered.
+- PR #25 (media hardening): draft, 23 changed files; GitHub reports not mergeable against its recorded base. Preserve the unified branch's newer scanner contract; compare individual changes only.
+- PR #26 (test account system): draft, 11 changed files; not mergeable against its recorded base. Treat test fixtures/scripts as isolated candidates; inspect for destructive seeding, production project targeting, credentials, and any workflow dispatch before transfer.
+- PR #27 (profile/email verification): draft, not mergeable against its recorded base. It changes `functions/src/index.ts`, `functions/package.json`, workflow configuration and profile UI. Review the full callable lifecycle and Auth/Firestore consistency before any selective transfer; do not copy its workflow trigger changes.
+- PR #2 remains a draft targeting `main`; it is outside this branch integration and remains untouched.
+
+### Current review findings and gates
+
+- Current `media.ts` contains active sticker upload/finalization/send and secure derivative delivery paths, including server-side membership/account checks, replay identity checks, generation/hash/provenance checks and short-lived URLs. This is source inspection only, not runtime proof.
+- `featured-ad-finance.ts` remains a pure policy module. It does not implement owner authorization, Firestore transaction/idempotency, payment-provider verification, or a wallet ledger integration. No real payment/refund/settlement path is authorized by this code alone.
+- The branch contains significant production-sensitive workflow/configuration and Firebase-related diffs relative to `main`; this checkpoint did not alter them. No merge to `main`, Firebase mutation, deployment, billing, or 5,000-persona lab access occurred.
+- Tests remain unexecuted. Exact-HEAD workflow lookup returned an empty list; this is not a passing CI result. Local Flutter/Dart/Node/Emulator execution remains blocked until a checked-out local environment is available.
+
+### Next safe integration order
+
+1. Select PR #26 test-only files after inspecting each complete diff and confirming all project IDs are emulator/demo-only; exclude workflow dispatch and any production-seeding capability.
+2. Reconcile PR #27's email-renewal state machine and reward path against the current member/account and wallet contracts; transfer only discrete files after checking exports, Auth/Firestore failure recovery and UI behavior.
+3. Continue PR #24/25 media work by semantic units, retaining the current scanner contract and refusing quota exemptions until recipient identity and conversation membership are proven server-side.
+4. Keep PR #22 call charging fail-closed until invitation approval, independent financial consent, entitlement, trusted participant intervals, scalable media topology and atomic idempotent ledger settlement are implemented together.
+5. Run the full required local suite on one immutable SHA and record actual output before any acceptance claim. No remote CI, production action, or main merge is part of this checkpoint.
