@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const { getFirestore } = require("firebase-admin/firestore");
 const { getAuth } = require("firebase-admin/auth");
 const {
-  transferCoins, purchaseStoreItem, giftStoreEntitlement, getMyStoreGiftHistory, getOwnerStoreCatalog, setStoreCatalogItem, getOwnerEconomyPricing,
+  transferCoins, purchaseStoreItem, giftStoreEntitlement, getMyStoreGiftHistory, getOwnerStoreCatalog, setStoreCatalogItem, getOwnerEconomyPricing, getAvailableCoinPackages,
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
   setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
@@ -24,6 +24,31 @@ const ownerRequest = (uid = "store-catalog-owner", data = {}) => ({
     platformOwner: true, platformOwnerUid: uid, auth_time: Math.floor(Date.now() / 1000),
     firebase: { sign_in_second_factor: "phone" },
   } },
+});
+
+test("coin package offers and purchase requests fail closed without owner-configured pricing", async () => {
+  const settingsRef = db.doc("platformSettings/economyPricing");
+  const priorSettings = await settingsRef.get();
+  const uid = `unconfigured-package-${suffix()}`;
+  const userRef = db.collection("users").doc(uid);
+  await userRef.set({ profileCompleted: true, accountStatus: "active", coins: 0 });
+  try {
+    await settingsRef.delete();
+    const catalogue = await getAvailableCoinPackages.run({});
+    assert.deepEqual(catalogue.packages, []);
+    assert.equal(catalogue.manualPurchasesEnabled, false);
+    await assert.rejects(
+      () => createCoinPurchaseRequest.run(memberRequest(uid, {
+        requestId: `request_${suffix()}`, kind: "package", packageId: "coins_1000",
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+  } finally {
+    await Promise.all([
+      userRef.delete().catch(() => undefined),
+      priorSettings.exists ? settingsRef.set(priorSettings.data()) : Promise.resolve(),
+    ]);
+  }
 });
 
 test("coin transfer atomically writes both wallet ledgers and platform commission; retries are idempotent", async () => {
