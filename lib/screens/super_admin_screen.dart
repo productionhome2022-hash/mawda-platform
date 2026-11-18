@@ -1452,7 +1452,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                       builder: (_) => const OwnerFeaturedAdsDashboardScreen(),
                     )),
-                    icon: const Icon(Icons.price_check_outlined),
+                    icon: const Icon(Icons.payments_outlined),
                     label: const Text('إدارة الحملات المميزة والمدفوعات والتسويات'),
                   ),
                 ),
