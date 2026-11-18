@@ -31,6 +31,7 @@ export function reserveMediaQuota(
   current: MediaQuotaState | undefined,
   bytes: number,
   now = Date.now(),
+  dailyQuotaExempt = false,
 ): MediaQuotaReservation {
   if (!Number.isSafeInteger(bytes) || bytes <= 0) throw new Error("Invalid media reservation size.");
   const day = utcDay(now);
@@ -45,15 +46,15 @@ export function reserveMediaQuota(
   }
   if (activeUploads + 1 > MEDIA_QUOTA_LIMITS.maxActiveUploads ||
       activeBytes + bytes > MEDIA_QUOTA_LIMITS.maxActiveBytes ||
-      dailyBytes + bytes > MEDIA_QUOTA_LIMITS.maxDailyBytes ||
-      dailyUploads + 1 > MEDIA_QUOTA_LIMITS.maxDailyUploads) {
+      (!dailyQuotaExempt && dailyBytes + bytes > MEDIA_QUOTA_LIMITS.maxDailyBytes) ||
+      (!dailyQuotaExempt && dailyUploads + 1 > MEDIA_QUOTA_LIMITS.maxDailyUploads)) {
     throw new Error("Media upload quota exceeded.");
   }
   return {
     activeUploads: activeUploads + 1,
     activeBytes: activeBytes + bytes,
-    dailyBytes: dailyBytes + bytes,
-    dailyUploads: dailyUploads + 1,
+    dailyBytes: dailyQuotaExempt ? dailyBytes : dailyBytes + bytes,
+    dailyUploads: dailyQuotaExempt ? dailyUploads : dailyUploads + 1,
     dailyWindow: day,
   };
 }
@@ -81,4 +82,17 @@ export function releaseMediaQuota(
     dailyUploads,
     dailyWindow,
   };
+}
+
+/** Only verified owner uploads bypass all personal quota. Member-to-owner transfers
+ * bypass daily accounting but retain active concurrency/byte admission guards. */
+export function mediaQuotaExemptForTransfer(isVerifiedPlatformOwnerSender: boolean): boolean {
+  return isVerifiedPlatformOwnerSender;
+}
+
+export function mediaDailyQuotaExemptForTransfer(
+  isVerifiedPlatformOwnerSender: boolean,
+  isVerifiedPlatformOwnerRecipient: boolean,
+): boolean {
+  return isVerifiedPlatformOwnerSender || isVerifiedPlatformOwnerRecipient;
 }
