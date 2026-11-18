@@ -7357,9 +7357,17 @@ export const setRoomRentalPlans = onCall(async (request) => {
   } catch {
     throw new HttpsError("invalid-argument", "خطط الغرف أو الأسعار أو المدد غير صالحة.");
   }
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "إصدار إعدادات استئجار الغرف الحالي مطلوب.");
+  }
   const result = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(ROOM_RENTAL_SETTINGS);
-    const version = (Number.isSafeInteger(previous.data()?.version) ? previous.data()!.version : 0) + 1;
+    const previousVersion = Number.isSafeInteger(previous.data()?.version) ? previous.data()!.version : 0;
+    if (previousVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت خطط الاستئجار منذ فتح اللوحة؛ حدّث البيانات ثم أعد المحاولة.");
+    }
+    const version = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(ROOM_RENTAL_SETTINGS, { plans, version, updatedAt: now, updatedBy: actorUid });
     const auditRef = db.collection("adminAuditLogs").doc();
