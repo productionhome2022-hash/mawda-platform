@@ -28,6 +28,7 @@ import {
 import { MEDIA_UPLOAD_CLEANUP_GRACE_MS, uploadIntentIsEligibleForCleanup } from "./media-cleanup";
 import { validateStickerMediaMetadata, validateStickerPackManifest, validateStickerSendRequest, stickerMessageReplayMatches } from "./sticker-policy";
 import { isStoreEntitlementActive } from "./store-purchase";
+import { isMemberAccountInGoodStanding } from "./member-access";
 
 // Resolve Admin SDK services lazily. This module is re-exported by index.ts,
 // whose static imports execute before initializeApp(); eager resolution here
@@ -2402,9 +2403,11 @@ export const sendStickerMessage = onCall(async (request) => {
               freshStickerData.frameCount !== freshMetadata.frameCount))) {
         throw new HttpsError("failed-precondition", "تم إيقاف الحزمة أو أصل الملصق قبل الإرسال.");
       }
+      const senderAccount = sender.data() ?? {};
+      const recipientAccount = recipient.data() ?? {};
       if (!sender.exists || !recipient.exists ||
-          sender.data()?.profileCompleted !== true || recipient.data()?.profileCompleted !== true ||
-          sender.data()?.status === "suspended" || recipient.data()?.status === "suspended") {
+          senderAccount.profileCompleted !== true || recipientAccount.profileCompleted !== true ||
+          !isMemberAccountInGoodStanding(senderAccount) || !isMemberAccountInGoodStanding(recipientAccount)) {
         throw new HttpsError("permission-denied", "حالة الحساب لا تسمح بإرسال الملصق.");
       }
       const senderData = sender.data() ?? {};
@@ -2486,8 +2489,11 @@ export const sendStickerMessage = onCall(async (request) => {
             freshStickerData.frameCount !== freshMetadata.frameCount))) {
       throw new HttpsError("failed-precondition", "تم إيقاف الحزمة أو أصل الملصق قبل الإرسال.");
     }
+    const memberData = member.data() ?? {};
+    const userData = user.data() ?? {};
     if (!room.exists || room.data()?.status !== "active" || !member.exists ||
-        !user.exists || user.data()?.status === "suspended") {
+        memberData.profileCompleted !== true || !user.exists ||
+        userData.profileCompleted !== true || !isMemberAccountInGoodStanding(userData)) {
       throw new HttpsError("permission-denied", "يجب أن تكون عضواً نشطاً في الغرفة لإرسال الملصقات.");
     }
     const mutedUntil = member.data()?.mutedUntil;
