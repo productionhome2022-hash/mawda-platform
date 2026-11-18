@@ -7695,7 +7695,13 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       packageId: input.packageId ?? null, packageSnapshot,
       giftRecipientUid: giftRecipientUid ?? null,
       requestedCoins, status: "pending_owner_contact",
-      paymentChannel: "manual_owner_contact", currency: "EUR",
+      paymentChannel: "manual_owner_contact",
+      paymentPolicySnapshot: {
+        manualEnabled: true, automatedEnabled: false,
+        policyVersion: Number.isSafeInteger(economy.version) ? economy.version : 0,
+        capturedAt: FieldValue.serverTimestamp(),
+      },
+      currency: "EUR",
       createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
     });
     return { requestId: input.requestId, status: "pending_owner_contact", idempotentReplay: false };
@@ -7717,7 +7723,7 @@ export const listOwnerCoinPurchaseRequests = onCall(async (request) => {
   requireOwner(request);
   const status = request.data?.status;
   const allowed = ["pending_owner_contact", "payment_instructions_sent",
-    "approved", "rejected", "withdrawn"];
+    "awaiting_payment_verification", "approved", "rejected", "withdrawn"];
   if (status !== undefined && !allowed.includes(status)) {
     throw new HttpsError("invalid-argument", "حالة الطلب غير صالحة.");
   }
@@ -7736,6 +7742,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     requestId: request.data?.requestId, instructions: request.data?.instructions,
     agreedCoins: request.data?.agreedCoins, agreedPriceMinor: request.data?.agreedPriceMinor,
     currency: request.data?.currency,
+    expectedInstructionsVersion: request.data?.expectedInstructionsVersion,
   }); }
   catch { throw new HttpsError("invalid-argument", "تعليمات الدفع أو الكمية أو السعر غير صالحة."); }
   const requesterUid = request.data?.requesterUid;
@@ -7764,7 +7771,16 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     if (["approved", "rejected", "withdrawn"].includes(String(prior.status))) {
       throw new HttpsError("failed-precondition", "لا يمكن تعديل طلب منتهٍ.");
     }
-    const nextVersion = (Number.isSafeInteger(prior.instructionsVersion) ? prior.instructionsVersion : 0) + 1;
+    if (prior.paymentChannel !== "manual_owner_contact" ||
+        prior.paymentPolicySnapshot?.manualEnabled !== true) {
+      throw new HttpsError("failed-precondition", "مسار الدفع اليدوي غير مثبت في لقطة الطلب؛ لا يمكن تغيير مسار طلب قائم.");
+    }
+    const currentInstructionsVersion = Number.isSafeInteger(prior.instructionsVersion)
+      ? prior.instructionsVersion : 0;
+    if (currentInstructionsVersion !== input.expectedInstructionsVersion) {
+      throw new HttpsError("aborted", "تغيرت تعليمات الدفع أو الاتفاق؛ حدّث الطلب قبل إعادة الإرسال.");
+    }
+    const nextVersion = currentInstructionsVersion + 1;
     messageId = createHash("sha256").update(`coin-purchase:${requesterUid}:${input.requestId}:${nextVersion}`).digest("hex");
     const messageRef = chatRef.collection("messages").doc(messageId);
     const [chatSnapshot, existingMessage] = await Promise.all([
