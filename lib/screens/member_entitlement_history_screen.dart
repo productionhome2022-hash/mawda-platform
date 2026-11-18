@@ -117,10 +117,10 @@ class _MemberEntitlementHistoryScreenState
                     final duration = (entry['durationDays'] as num?)?.toInt();
                     final isCoinPackage = entry['giftKind'] == 'coin_package';
                     final detail = isCoinPackage
-                        ? 'هدية بقيمة ${entry['coins'] ?? 0} Beta Coins\\n'
+                        ? 'هدية بقيمة ${entry['coins'] ?? 0} BetaCoins\\n'
                           'تاريخ الاستلام: ${_formatTime(entry['createdAtMs'])}'
                         : 'هدية من عضو في Mawdda\\n'
-                          'القيمة: ${entry['priceCoins'] ?? 0} Beta Coins\\n'
+                          'القيمة: ${entry['priceCoins'] ?? 0} BetaCoins\\n'
                           'المدة: ${duration == null ? 'دائمة' : '$duration يوماً'}\\n'
                           'تاريخ الاستلام: ${_formatTime(entry['createdAtMs'])}\\n'
                           'الانتهاء: ${expiresAt == null ? 'دائم' : _formatTime(expiresAt)}';
