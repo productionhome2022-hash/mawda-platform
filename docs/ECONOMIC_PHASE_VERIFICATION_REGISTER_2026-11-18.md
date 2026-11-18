@@ -143,3 +143,41 @@ Continue implementation, repair, audit and tests only for the platform-wide econ
 - The earlier caller-only exception remains a separately defined eligibility case: if the caller has exhausted their included quota while the recipient still has eligible included quota, charge only the caller at the configured total bilateral rate (the full combined tariff), and do not charge the recipient. This exception must be explicit in the session's immutable billing-policy snapshot and ledger allocation.
 - The total tariff and 50/50 allocation rule must be snapshotted at the billable session start. Later owner price changes apply only to new sessions. Currency/coin precision, odd-number split remainder handling, minute rounding and insufficient-balance behavior must be explicitly validated and tested before collection is enabled; never silently lose or create coins.
 - All numeric examples remain experimental illustrations only. No final tariff amount is approved by this clarification.
+
+## Platform-wide economic authority — experimental values are test fixtures only — 2026-11-18
+
+### Non-negotiable owner authority
+
+This policy applies to **every economic surface and every present or future paid, rewarded, timed, metered, promotional or entitlement-bearing feature throughout Mawdda Platform**, not merely calls or the store. This includes (without limitation): BetaCoins and wallet operations; coin packages/top-ups/gifts/transfers/commissions/rewards; all store products, features, badges, titles and gifts; subscriptions and renewals; room rentals and extensions; voice/video calls and quotas; Media Saver and all media-related paid entitlements; advertising, featured campaigns, creator/production monetization, referral/attendance/engagement rewards, service fees, discounts, taxes/fees if applicable, limits and usage-based charges.
+
+The platform owner (Super Admin) must have complete, granular, auditable control over each applicable economic parameter through the owner console, including:
+
+- Price/amount/rate, currency or coin denomination, price tiers and per-period pricing.
+- Duration, validity, expiry, renewal, grace period, cooldown, retention window where it is an economic entitlement, and any other time interval.
+- Quantity, quota, usage caps, per-user/per-period limits, capacity, minimum/maximum purchase, stacking and concurrency policy.
+- Active/inactive/paused/hidden state; availability by account/region/feature as supported by policy; manual versus automated payment mode for each independently supported flow.
+- Reward, commission, split/allocation, discount and fee rules, including the bilateral call tariff split and exception policy.
+
+Every setting must be independently configurable where the business rule requires it, validated server-side, versioned, auditable, and enforced by server-authoritative logic. The owner console must expose the full supported control surface; it must not show editable controls that the backend ignores. A missing, invalid, expired or unconfigured policy must fail closed for paid collection/entitlement grants rather than silently fall back to a hard-coded commercial value.
+
+### Experimental/test data policy
+
+1. All numeric prices, durations, quotas, quantities, commissions, rates and limits introduced by engineering for development, automated tests, emulator fixtures, demos or internal verification are **experimental test values only**.
+2. Such values must be clearly marked as test/fixture/sample values in source, seed data, documentation and test reports. They must never be represented as approved production defaults, final prices, or launch-ready commercial policy.
+3. No test fixture or development fallback may silently seed or overwrite production owner settings. No production migration may promote experimental values into active production configuration.
+4. At real-user trial/release preparation, all economic settings must remain unconfigured/disabled or be explicitly reviewed and approved by the owner through the production owner console. Engineering examples are not owner approval.
+5. Tests should use named fixture factories and isolated emulator/test namespaces, with assertions proving that fixture settings cannot leak into production configuration. Avoid hard-coded commercial constants in runtime code; technical safety ceilings may exist only when they are clearly identified as security/resource-protection limits rather than owner-set commercial prices or durations, and must be documented separately.
+6. If a parameter must have a technical invariant (for example, a safety maximum imposed for abuse or infrastructure protection), distinguish it from the commercial policy: the owner can configure values within the safe envelope, while the invariant is not mislabeled as a product price or commercial duration.
+
+### Configuration model and lifecycle requirements
+
+- Use a canonical, typed, versioned economic policy/catalog model rather than scattered constants or per-screen local defaults.
+- Support independently configurable duration/price options wherever relevant (including the owner's previously specified 24-hour, one-week and one-month examples); these are option examples, not mandatory fixed durations. The owner may add, remove, reorder, disable or change supported periods and their independent prices, subject to technical constraints.
+- Persist a complete immutable policy snapshot with every order, purchase, renewal, rental, call settlement, campaign financial event, reward claim or other economic transaction. The snapshot must identify policy version, selected product/period, applied amounts, allocation rules, actor and timestamps. Later edits apply prospectively and never rewrite historical transactions.
+- Enforce optimistic concurrency/version checks on owner edits; reject stale updates. Record before/after values, owner identity, reason and timestamp in an append-only audit trail. Require appropriate recent owner authentication for sensitive changes.
+- Ensure UI, callable/API validation, transaction processing, ledger, receipts, reports and tests all use the same canonical policy contract. Never trust a price, duration, quota, split or discount supplied by the client as authoritative.
+- Include a safe preview/simulation mode for testing a proposed policy before activation, and separate draft/test values from explicitly owner-approved active values.
+
+### Release gate
+
+No economic parameter is considered final or ready for real users merely because it appears in code, a test, a sample catalog, a demo screen or a documentation example. The owner must explicitly review and activate the production values. Before the economic phase is declared complete, audit all economic domains for hard-coded commercial values, missing owner controls, inconsistent UI/backend contracts, missing policy snapshots, unsafe fallback behavior, and test-to-production configuration leakage. Record each gap and its disposition in the economic verification register.
