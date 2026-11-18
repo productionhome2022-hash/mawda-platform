@@ -348,13 +348,24 @@ export const transferCoins = onCall(async (request) => {
   const senderLedgerRef = senderRef.collection("walletLedger").doc(transferId);
   const recipientLedgerRef = recipientRef.collection("walletLedger").doc(transferId);
   const platformLedgerRef = db.collection("platformWalletLedger").doc(transferId);
+  const senderGuestProfileRef = db.collection("guestProfiles").doc(senderUid);
+  const senderGuestSessionRef = db.collection("guestSessions").doc(senderUid);
+  const recipientGuestProfileRef = db.collection("guestProfiles").doc(recipientUid);
+  const recipientGuestSessionRef = db.collection("guestSessions").doc(recipientUid);
 
   const result = await db.runTransaction(async (transaction) => {
-    const [existing, settings, senderSnapshot, recipientSnapshot] = await Promise.all([
+    const [
+      existing, settings, senderSnapshot, recipientSnapshot,
+      senderGuestProfile, senderGuestSession, recipientGuestProfile, recipientGuestSession,
+    ] = await Promise.all([
       transaction.get(transferRef),
       transaction.get(TRANSFER_SETTINGS),
       transaction.get(senderRef),
       transaction.get(recipientRef),
+      transaction.get(senderGuestProfileRef),
+      transaction.get(senderGuestSessionRef),
+      transaction.get(recipientGuestProfileRef),
+      transaction.get(recipientGuestSessionRef),
     ]);
 
     if (existing.exists) {
@@ -384,6 +395,10 @@ export const transferCoins = onCall(async (request) => {
 
     if (!senderSnapshot.exists || !recipientSnapshot.exists) {
       throw new HttpsError("not-found", "تعذر العثور على حساب المرسل أو المستلم.");
+    }
+    if (senderGuestProfile.exists || senderGuestSession.exists ||
+        recipientGuestProfile.exists || recipientGuestSession.exists) {
+      throw new HttpsError("permission-denied", "التحويلات المالية متاحة للأعضاء المسجلين فقط، ولا تقبل حسابات الزوار.");
     }
 
     if (!settings.exists) {
