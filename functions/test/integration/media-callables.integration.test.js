@@ -24,7 +24,7 @@ const {
   getOwnerMediaSafePreview,
   cleanupExpiredMediaUploadIntents,
   sendChatImageAttachment,
-  getChatImageAttachmentUrl,
+  getChatImageAttachmentUrl, getMediaSaverAttachmentUrl,
   sendChatMediaAttachment,
   getChatMediaAttachmentUrl,
 } = require("../../lib/media");
@@ -932,5 +932,27 @@ test("advertisement creative upload intents are owner-MFA-only and visible in th
   } finally {
     if (mediaId) await db.collection("mediaAssets").doc(mediaId).delete().catch(() => undefined);
     await db.collection("mediaUploadQuotas").doc(uid).delete().catch(() => undefined);
+  }
+});
+
+
+test("Media Saver capability is fail-closed without the active server entitlement", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const uid = "media-saver-gate-" + Date.now();
+  const userRef = db.collection("users").doc(uid);
+  await userRef.set({ profileCompleted: true, accountStatus: "active" });
+  try {
+    await assert.rejects(
+      () => getMediaSaverAttachmentUrl.run({
+        data: {
+          scope: "direct", mediaId: "11111111-1111-4111-8111-111111111111",
+          messageId: "a".repeat(64), chatId: "missing-chat",
+        },
+        auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+      }),
+      (error) => error && error.code === "failed-precondition",
+    );
+  } finally {
+    await userRef.delete().catch(() => undefined);
   }
 });
