@@ -26,6 +26,7 @@ import {
   MEDIA_SIGNED_URL_TTL_MS,
 } from "./media-security";
 import { MEDIA_UPLOAD_CLEANUP_GRACE_MS, uploadIntentIsEligibleForCleanup } from "./media-cleanup";
+import { isStoreEntitlementActive } from "./store-purchase";
 
 // Resolve Admin SDK services lazily. This module is re-exported by index.ts,
 // whose static imports execute before initializeApp(); eager resolution here
@@ -1126,10 +1127,18 @@ export const sendChatImageAttachment = onCall(async (request) => {
 });
 
 /** Issues a two-minute generation-pinned URL only to a linked conversation participant. */
-export const getChatImageAttachmentUrl = onCall(async (request) => {
-  const viewerUid = requireUid(request.auth?.uid);
-  const data = request.data ?? {};
+async function issueChatMediaDeliveryUrl(request: Parameters<Parameters<typeof onCall>[0]>[0], viewerUid: string, mediaSaver: boolean): Promise<Record<string, unknown>> {
+    const data = request.data ?? {};
   const scope = data.scope;
+  if (mediaSaver) {
+    const entitlement = await mediaDb().collection("users").doc(viewerUid)
+      .collection("entitlements").doc("media_saver_7d").get();
+    if (!entitlement.exists || !isStoreEntitlementActive(entitlement.data())) {
+      throw new HttpsError("failed-precondition", "استحقاق Mawdda Media Saver غير نشط.");
+    }
+  }
+
+
   const mediaId = typeof data.mediaId === "string" ? data.mediaId.trim() : "";
   const messageId = typeof data.messageId === "string" ? data.messageId.trim() : "";
   if ((scope !== "direct" && scope !== "room") ||
@@ -1265,6 +1274,30 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
   });
   return { url, expiresAt, contentType: artifact.contentType, category: artifact.category };
 });
+
+export const getChatImageAttachmentUrl = onCall(async (request) => {
+  const viewerUid = requireUid(request.auth?.uid);
+  return issueChatMediaDeliveryUrl(request, viewerUid, false);
+});
+
+/**
+ * Issues the same authorized safe-derivative capability for local Media Saver.
+ * The entitlement is checked server-side on every save request and never changes
+ * the source media retention deadline.
+ */
+export const getMediaSaverAttachmentUrl = onCall(async (request) => {
+  const viewerUid = requireUid(request.auth?.uid);
+  const result = await issueChatMediaDeliveryUrl(request, viewerUid, true);
+  await auditMediaAccess({
+    actorUid: viewerUid,
+    mediaId: typeof request.data?.mediaId === "string" ? request.data.mediaId : null,
+    action: "media_saver_save_capability_issued",
+    outcome: "success",
+    scope: request.data?.scope ?? null,
+  });
+  return result;
+});
+
 
 export const createMediaUploadIntent = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
