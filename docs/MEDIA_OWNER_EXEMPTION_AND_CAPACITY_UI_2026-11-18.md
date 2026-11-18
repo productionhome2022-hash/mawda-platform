@@ -129,3 +129,14 @@ Verification: GitHub Actions run [44213277492](https://github.com/productionhome
 The Flutter job passed `flutter analyze` and `flutter test`.
 
 Scope note: these results establish the exercised emulator cases only. They do not establish a production scanner connection, all media categories, 5,000-persona load acceptance, real-device WebRTC, or release readiness. The sticker product feature remains incomplete as listed above; do not represent its pure policy tests as an integrated sticker service or UI.
+
+
+## Capacity telemetry follow-up — 2026-11-18
+
+- Finalized upload source bytes are now counted once in the same Firestore transaction that changes an upload intent from `upload_authorized` to `pending_security_scan`.
+- The aggregate is stored by UTC month in `platformCapacityMeters/{YYYY-MM}` and contains only total bytes, finalized object count, and update time; it does not contain member identifiers.
+- The owner capacity callable now returns this observed upload metric and reports measurement state as `partial`.
+- The owner UI labels this as finalized upload bytes, not network egress or billed storage, and exposes the UTC month and finalized object count.
+- Emulator regression coverage verifies exact increment and that a repeated finalize attempt cannot increment the meter again.
+
+Still intentionally unavailable: concurrent active members, download/network egress bytes, retained storage bytes and processing minutes. These require authoritative session/presence, Storage access/billing, object lifecycle and worker telemetry. The policy remains observe-only; no quotas are enforced and no billing integration is connected.
