@@ -11127,7 +11127,7 @@ export const endCall = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
   }
   const ref = CALL_SESSIONS.doc(callId);
-  return db.runTransaction(async (transaction) => {
+  const result = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) return { callId, status: "ended", idempotentReplay: true };
     const call = snapshot.data()!;
@@ -11183,6 +11183,18 @@ export const endCall = onCall(async (request) => {
     });
     return { callId, status: next, idempotentReplay: false };
   });
+  if (result.status === "ended") {
+    try {
+      const billing = await processGroupCallBillingSettlement(ref);
+      return { ...result, billingSettlementStatus: billing.status };
+    } catch (error) {
+      logger.error("Group-call billing settlement deferred after call end", {
+        callId, error: String(error),
+      });
+      return { ...result, billingSettlementStatus: "pending" };
+    }
+  }
+  return result;
 });
 
 
