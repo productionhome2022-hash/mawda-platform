@@ -4,20 +4,29 @@ export type CoinPurchaseRequestStatus =
   | "awaiting_payment_verification" | "approved" | "rejected" | "withdrawn";
 
 export function validateCoinPurchaseRequestInput(value: unknown): {
-  requestId: string; kind: CoinPurchaseRequestKind; packageId?: string; requestedCoins?: number;
+  requestId: string; kind: CoinPurchaseRequestKind; packageId?: string; requestedCoins?: number; giftRecipientUid?: string;
 } {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_REQUEST");
   const data = value as Record<string, unknown>;
-  if (Object.keys(data).some((key) => !["requestId", "kind", "packageId", "requestedCoins"].includes(key))) throw new Error("INVALID_REQUEST");
+  if (Object.keys(data).some((key) => !["requestId", "kind", "packageId", "requestedCoins", "giftRecipientUid"].includes(key))) throw new Error("INVALID_REQUEST");
   if (typeof data.requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(data.requestId)) {
     throw new Error("INVALID_REQUEST_ID");
+  }
+  const giftRecipientUid = data.giftRecipientUid;
+  if (giftRecipientUid !== undefined &&
+      (typeof giftRecipientUid !== "string" || giftRecipientUid.trim() !== giftRecipientUid ||
+       giftRecipientUid.length < 1 || giftRecipientUid.length > 128)) {
+    throw new Error("INVALID_GIFT_RECIPIENT");
   }
   if (data.kind === "package") {
     if (typeof data.packageId !== "string" || !/^[a-z0-9][a-z0-9_-]{2,40}$/.test(data.packageId)) {
       throw new Error("INVALID_PACKAGE_ID");
     }
-    return { requestId: data.requestId, kind: "package", packageId: data.packageId };
+    return { requestId: data.requestId, kind: "package", packageId: data.packageId,
+      ...(typeof giftRecipientUid === "string" ? { giftRecipientUid } : {}) };
   }
+  if (giftRecipientUid !== undefined) throw new Error("CUSTOM_GIFT_NOT_SUPPORTED");
+
   if (data.kind === "custom") {
     if (!Number.isSafeInteger(data.requestedCoins) ||
         (data.requestedCoins as number) < 1 || (data.requestedCoins as number) > 1000000000) {
@@ -27,7 +36,6 @@ export function validateCoinPurchaseRequestInput(value: unknown): {
   }
   throw new Error("INVALID_REQUEST_KIND");
 }
-
 export function validateOwnerPaymentInstructionInput(value: unknown): {
   requestId: string; instructions: string; agreedCoins: number; agreedPriceMinor: number; currency: "EUR";
 } {
