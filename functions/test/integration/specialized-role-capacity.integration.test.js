@@ -64,8 +64,12 @@ test("Admin Media and general production supervisor assignments enforce five sea
         .where("role", "==", role).where("status", "==", "active").get()).size, 5);
     }
   } finally {
-    await Promise.all([...seeded, ...attempted].map((id) =>
-      db.collection("specializedRoleGrants").doc(id).delete().catch(() => undefined)));
+    await Promise.all([
+      ...[...seeded, ...attempted].map((id) =>
+        db.collection("specializedRoleGrants").doc(id).delete().catch(() => undefined)),
+      ...roles.map((role) =>
+        db.collection("specializedRoleSeatCounters").doc(role).delete().catch(() => undefined)),
+    ]);
   }
 });
 
@@ -87,8 +91,11 @@ test("concurrent owner assignments cannot oversubscribe the fifth Admin Media se
     assert.equal((await db.collection("specializedRoleGrants")
       .where("role", "==", role).where("status", "==", "active").get()).size, 5);
   } finally {
-    await Promise.all([...seeded, ...candidateIds].map((id) =>
-      db.collection("specializedRoleGrants").doc(id).delete().catch(() => undefined)));
+    await Promise.all([
+      ...[...seeded, ...candidateIds].map((id) =>
+        db.collection("specializedRoleGrants").doc(id).delete().catch(() => undefined)),
+      db.collection("specializedRoleSeatCounters").doc(role).delete().catch(() => undefined),
+    ]);
   }
 });
 
