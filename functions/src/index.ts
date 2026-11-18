@@ -8227,6 +8227,11 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
     transaction.create(auditRef, {
       actorUid, action: "economy_pricing_updated", version: nextVersion,
       coinPackageCount: coinPackages.length, adPlacementCount: adPrices.length,
+      previousManualCoinPurchasesEnabled: previous.data()?.manualCoinPurchasesEnabled === true,
+      manualCoinPurchasesEnabled,
+      previousManualFeaturedAdsEnabled: previous.data()?.manualFeaturedAdsEnabled === true,
+      manualFeaturedAdsEnabled,
+      automatedCheckoutEnabled: false,
       realMoneyCheckoutEnabled: false, createdAt: now,
     });
     return nextVersion;
