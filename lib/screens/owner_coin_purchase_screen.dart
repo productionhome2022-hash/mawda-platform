@@ -64,8 +64,11 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
     final coinAmount = int.tryParse(coins.text.trim());
     final priceMinor = int.tryParse(price.text.trim());
     final currencyCode = currency.text.trim().toUpperCase();
-    if (coinAmount == null || priceMinor == null || !RegExp(r'^[A-Z]{3}
-      setState(() => _error = 'أدخل كمية وسعراً وتعليمات صحيحة.');
+    final validCurrency = currencyCode.length == 3 &&
+        currencyCode.codeUnits.every((unit) => unit >= 65 && unit <= 90);
+    if (coinAmount == null || priceMinor == null || !validCurrency ||
+        instructions.text.trim().length < 5) {
+      setState(() => _error = 'أدخل كمية وسعراً ورمز عملة وتعليمات صحيحة.');
       coins.dispose(); price.dispose(); currency.dispose(); instructions.dispose(); return;
     }
     await _runAction(() => _functions.httpsCallable('setCoinPurchasePaymentInstructions').call({
