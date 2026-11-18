@@ -124,6 +124,12 @@ test("only shipped premium profile consumers can be explicitly enabled for purch
     ["discovery_boost_7d", "boost"],
     ["profile_theme_30d", "theme"],
     ["visitor_greeting_30d", "greeting"],
+    ["voice_call_24h", "voice_call"],
+    ["voice_call_7d", "voice_call"],
+    ["voice_call_30d", "voice_call"],
+    ["video_call_24h", "video_call"],
+    ["video_call_7d", "video_call"],
+    ["video_call_30d", "video_call"],
   ];
   for (const [itemId, category] of ready) {
     const item = validateStoreCatalogItemInput({
@@ -179,10 +185,10 @@ test("voice and video call plans are valid catalog products but cannot be purcha
   for (const [itemId, category, priceCoins, durationDays] of plans) {
     const item = validateStoreCatalogItemInput({
       itemId, name: "خطة مكالمات تجريبية", description: "تتطلب استحقاق الطرفين.",
-      category, priceCoins, durationDays, active: false, purchaseEnabled: false,
+      category, priceCoins, durationDays, active: true, purchaseEnabled: true,
     });
-    assert.equal(item.fulfillmentReady, false, itemId);
-    assert.equal(item.purchaseEnabled, false, itemId);
-    assert.equal(isStoreItemPurchasable(item), false, itemId);
+    assert.equal(item.fulfillmentReady, true, itemId);
+    assert.equal(item.purchaseEnabled, true, itemId);
+    assert.equal(isStoreItemPurchasable(item), true, itemId);
   }
 });
