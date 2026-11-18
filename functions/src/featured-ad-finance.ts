@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export type FeaturedAdFinancialAction =
   | "payment_received"
   | "refund_recorded"
@@ -100,7 +102,7 @@ export function applyFeaturedAdFinancialEvent(
   const refundedMinor = safe(current.refundedMinor);
   const reconciledMinor = safe(current.reconciledMinor);
   const netReceived = receivedMinor - refundedMinor;
-  if (refundedMinor > receivedMinor || reconciledMinor > netReceived) {
+  if (refundedMinor > receivedMinor) {
     throw new FeaturedAdFinancialValidationError("financial_snapshot_inconsistent");
   }
   if (event.action === "payment_received") {
@@ -133,7 +135,7 @@ export function applyFeaturedAdFinancialEvent(
   }
   if (event.action === "settlement_reconciled") {
     if (current.currency !== event.currency || receivedMinor === 0 ||
-        event.amountMinor! > netReceived - reconciledMinor) {
+        reconciledMinor > netReceived || event.amountMinor! > netReceived - reconciledMinor) {
       throw new FeaturedAdFinancialValidationError("settlement_exceeds_unreconciled_balance");
     }
     const nextReconciled = reconciledMinor + event.amountMinor!;
@@ -164,12 +166,7 @@ export function featuredAdFinancialIdempotencyId(campaignId: string, idempotency
       !/^[A-Za-z0-9_-]{16,100}$/.test(idempotencyKey)) {
     throw new FeaturedAdFinancialValidationError("invalid_idempotency_identity");
   }
-  return createHashSafe(campaignId + ":" + idempotencyKey);
-}
-
-function createHashSafe(value: string): string {
-  // Node's crypto is loaded lazily to keep the pure policy helper dependency-light.
-  return require("node:crypto").createHash("sha256").update(value).digest("hex") as string;
+  return createHash("sha256").update(campaignId + ":" + idempotencyKey).digest("hex");
 }
 
 export function defaultFeaturedAdFinancialSnapshot(): FeaturedAdFinancialSnapshot {
