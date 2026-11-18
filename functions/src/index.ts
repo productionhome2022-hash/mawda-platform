@@ -92,7 +92,7 @@ import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput,
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
 import { AD_INTAKE_GEOGRAPHIES, validateAdvertisingIntake, advertisingIntakeAuditEventId, advertisingIntakeReviewAuditEventId, AdvertisingIntakeValidationError } from "./advertising-intake";
-import { selectFeaturedAdShowcase, type FeaturedAdCampaignCandidate } from "./featured-advertising";
+import { selectFeaturedAdShowcase, featuredAdTargetsGeography, type FeaturedAdCampaignCandidate } from "./featured-advertising";
 import { CAPACITY_MEDIA_DEFAULTS, projectCapacityMediaPolicy, validateCapacityMediaQuotaInput, type CapacityMediaPolicy } from "./capacity-media-management";
 import { defaultFeaturedAdRewardPolicy, validateFeaturedAdRewardPolicy, decideFeaturedAdReward, featuredAdCampaignRewardPolicy, featuredAdRewardBudgetAvailable, type FeaturedAdRewardPolicy } from "./featured-ad-rewards";
 import { getMawddaMediaBucket } from "./media";
@@ -9045,8 +9045,7 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
   if (campaign.status !== "published" || campaign.ownerWithdrawn === true || campaign.ownerApproved !== true ||
       campaign.paymentConfirmed !== true || campaign.creativeApproved !== true ||
       campaign.startsAtMs > now || campaign.endsAtMs <= now ||
-      !Array.isArray(campaign.geographicTargets) ||
-      (!campaign.geographicTargets.includes(geography) && !campaign.geographicTargets.includes("all_arab_countries"))) {
+      !featuredAdTargetsGeography(campaign.geographicTargets, geography)) {
     throw new HttpsError("failed-precondition", "الحملة غير مؤهلة للمشاهدة حالياً.");
   }
   let rewardPolicy: FeaturedAdRewardPolicy;
@@ -9115,8 +9114,7 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
     if (!latestCampaign.exists || latest.status !== "published" || latest.ownerWithdrawn === true ||
         latest.ownerApproved !== true || latest.paymentConfirmed !== true || latest.creativeApproved !== true ||
         sessionNow < latest.startsAtMs || sessionNow >= latest.endsAtMs ||
-        !Array.isArray(latest.geographicTargets) ||
-        (!latest.geographicTargets.includes(geography) && !latest.geographicTargets.includes("all_arab_countries")) ||
+        !featuredAdTargetsGeography(latest.geographicTargets, geography) ||
         latest.mediaId !== campaign.mediaId) {
       throw new HttpsError("failed-precondition", "تم إيقاف الحملة أو تغيرت أثناء بدء جلسة المشاهدة.");
     }
@@ -9236,9 +9234,7 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
         campaign.status === "published" && campaign.ownerWithdrawn !== true &&
         campaign.ownerApproved === true && campaign.paymentConfirmed === true && campaign.creativeApproved === true &&
         now >= campaign.startsAtMs && now < campaign.endsAtMs &&
-        Array.isArray(campaign.geographicTargets) &&
-        (campaign.geographicTargets.includes(session.geography) ||
-          campaign.geographicTargets.includes("all_arab_countries")),
+        featuredAdTargetsGeography(campaign.geographicTargets, String(session.geography ?? "")),
       rewardBudgetAvailable: campaignRewardConfigured &&
         featuredAdRewardBudgetAvailable(
           campaign.rewardBudgetCoins,
