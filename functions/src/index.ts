@@ -5225,12 +5225,12 @@ export const getStickerCatalog = onCall(async (request) => {
   }
   const packs = projected.filter((pack) => pack.stickers.every((sticker) => {
     const asset = assets.get(sticker.assetId);
-    const metadata = asset?.stickerMetadata;
+    const metadata = asset?.stickerMetadata as Record<string, unknown> | undefined;
     return asset?.uploaderRole === "platform_owner" &&
       asset?.mediaPurpose === "sticker" &&
       asset?.status === "security_approved" &&
       asset?.scannerVerdict === "clean" &&
-      metadata && metadata.kind === sticker.kind &&
+      metadata !== undefined && metadata.kind === sticker.kind &&
       metadata.contentType === sticker.contentType &&
       metadata.width === sticker.width &&
       metadata.height === sticker.height &&
