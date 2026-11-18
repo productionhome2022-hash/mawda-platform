@@ -146,3 +146,22 @@ test("media metadata and access audit collections are server-only", async () => 
     action: "owner_media_inspection_url_issued",
   }));
 });
+
+
+test("featured ad campaigns, sessions, rewards and financial events are server-only", async () => {
+  const alice = env.authenticatedContext("alice").firestore();
+  const protectedPaths = [
+    "featuredAdCampaigns/campaign-12345678",
+    "featuredAdSessions/00000000-0000-4000-8000-000000000001",
+    "activeFeaturedAdSessions/alice",
+    "featuredAdRewardClaims/claim-12345678",
+    "featuredAdFinancialEvents/event-12345678",
+    "featuredAdFinancialIdempotency/key-12345678",
+    "featuredAdMemberCounters/counter-12345678",
+    "featuredAdDailyCounters/daily-12345678",
+  ];
+  for (const path of protectedPaths) {
+    await assertFails(getDoc(doc(alice, path)));
+    await assertFails(setDoc(doc(alice, path), { status: "published", coins: 999999 }));
+  }
+});
