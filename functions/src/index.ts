@@ -7408,9 +7408,7 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
 export const getAvailableCoinPackages = onCall(async () => {
   const snapshot = await ECONOMY_PRICING_SETTINGS.get();
   const data = snapshot.data() ?? {};
-  const paymentPolicy = projectEconomicPaymentPolicy(data.paymentPolicy, {
-    manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled,
-  });
+  const paymentPolicy = projectEconomicPaymentPolicy(data.paymentPolicy);
   if (!snapshot.exists || paymentPolicy.coin_purchases.manualEnabled !== true ||
       paymentPolicy.coin_purchases.automatedEnabled !== false ||
       data.automatedCoinCheckoutEnabled === true || !Number.isSafeInteger(data.version) ||
@@ -7453,9 +7451,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       throw new HttpsError("permission-denied", "يجب أن يكون حساب العضو مكتملاً ونشطاً.");
     }
     const economy = settings.data() ?? {};
-    const paymentPolicy = projectEconomicPaymentPolicy(economy.paymentPolicy, {
-      manualCoinPurchasesEnabled: economy.manualCoinPurchasesEnabled,
-    });
+    const paymentPolicy = projectEconomicPaymentPolicy(economy.paymentPolicy);
     if (!settings.exists || paymentPolicy.coin_purchases.manualEnabled !== true ||
         paymentPolicy.coin_purchases.automatedEnabled !== false ||
         economy.automatedCoinCheckoutEnabled === true || !Number.isSafeInteger(economy.version) ||
@@ -8007,9 +8003,7 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
     if (!Number.isSafeInteger(nextVersion)) {
       throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة الاقتصاد.");
     }
-    const previousPaymentPolicy = projectEconomicPaymentPolicy(previousData.paymentPolicy, {
-      manualCoinPurchasesEnabled: previousData.manualCoinPurchasesEnabled,
-    });
+    const previousPaymentPolicy = projectEconomicPaymentPolicy(previousData.paymentPolicy);
     let paymentPolicy;
     try {
       paymentPolicy = request.data?.paymentPolicy === undefined
@@ -8729,9 +8723,7 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
     }
     if (event.action === "payment_received") {
       const settings = paymentSettings.data() ?? {};
-      const policy = projectEconomicPaymentPolicy(settings.paymentPolicy, {
-        manualCoinPurchasesEnabled: settings.manualCoinPurchasesEnabled,
-      });
+      const policy = projectEconomicPaymentPolicy(settings.paymentPolicy);
       if (policy.featured_ads.manualEnabled !== true ||
           policy.featured_ads.automatedEnabled !== false) {
         throw new HttpsError("failed-precondition", "استقبال دفعات الإعلانات اليدوي متوقف في سياسة المالك.");
