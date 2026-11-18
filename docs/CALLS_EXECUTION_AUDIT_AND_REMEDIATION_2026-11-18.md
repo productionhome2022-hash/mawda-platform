@@ -174,3 +174,35 @@ Execution and validation:
 - No production Firebase resource, billing setting, deployment, or merge was touched.
 
 Status: call economy is **not complete**. Do not enable call charges until the missing server-side entitlement/admission, trustworthy per-participant metering, atomic/idempotent wallet settlement, and local emulator coverage are implemented and pass.
+
+
+## Partial code remediation — 2026-11-18
+
+Status: **partial; not a completed call-economy phase**.
+
+Implemented on `codex/economic-phase1-closeout-2026-11-18`:
+
+- Added `isCallMemberBusyInSession` to `functions/src/call-signaling.ts`.
+- Wired the helper into the `startCall` transaction in `functions/src/index.ts`.
+- A caller remains reserved while their call is ringing/accepted.
+- A room invitee is not treated as busy until they explicitly accept; accepted members remain reserved, while rejected/departed members do not retain a reservation.
+- Added pure unit coverage in `functions/test/call-signaling-policy.test.js`.
+- Added explicit five-person audio and four-person video allocation cases in `functions/test/group-call-economy.test.js`; the seven/nine-entry tests are now labelled generic arithmetic coverage, not supported audio-call capacities.
+
+Commits:
+- `7bf65b812c2f456ab4a4187f6257cb20ac42324f` — call reservation policy helper.
+- `53d6a038a60158ba57ef8f4d3f968d37ef921aeb` — lifecycle wiring.
+- `6d54df1b251033aecbc7ee8c25e162ce6676b87f` — unit tests.
+- `6ef8fc34262d3ea8c947cf6839b0070995ecc5d2` — group-call math test corrections.
+
+Verification: GitHub read-back confirmed the helper, wiring, and test files are present. **No local test command was executed**: this session has no checked-out repository and no installed project dependencies/TypeScript compiler/Firestore emulator. No CI/workflow was run, per owner instruction.
+
+Still open and blocking completion:
+- Explicit per-invitee selection and request/approval lifecycle for room calls.
+- Server-side entitlement validation and explicit financial consent for direct and group calls.
+- Trusted per-participant connected-time measurement; client connectivity reports are not billing proof.
+- Atomic, idempotent call settlement and wallet-ledger integration.
+- Front-end integration for invitations, consent, participant state, and call UI.
+- Local unit/build/emulator verification after a runnable checkout is available; Firebase integration remains deferred until the owner-requested later stage.
+
+No production resources, billing, deployment, or main branch were changed.
