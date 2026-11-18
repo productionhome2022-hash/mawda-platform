@@ -1243,6 +1243,9 @@ async function issueChatMediaDeliveryUrl(
       (scope !== "room" || artifact?.category !== "audio")) {
     throw new HttpsError("permission-denied", "لا يستطيع الزائر قراءة إلا الرسائل الصوتية في الغرف العامة.");
   }
+  if (mediaSaver && !["image", "gif", "video", "audio"].includes(String(artifact?.category))) {
+    throw new HttpsError("failed-precondition", "Mawdda Media Saver لا يدعم هذا النوع من الملفات.");
+  }
   const maxBytes = artifact?.category === "video" ? 15 * 1024 * 1024 :
     artifact?.category === "audio" ? 5 * 1024 * 1024 :
       artifact?.category === "document" ? 20 * 1024 * 1024 : 3 * 1024 * 1024;
