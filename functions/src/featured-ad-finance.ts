@@ -74,7 +74,7 @@ export function validateFeaturedAdFinancialEvent(value: unknown): FeaturedAdFina
     if (typeof amountMinor !== "number" || !Number.isSafeInteger(amountMinor) ||
         amountMinor < 1 || amountMinor > Number.MAX_SAFE_INTEGER ||
         typeof currency !== "string" || !/^[A-Z]{3}$/.test(currency) ||
-        externalReference === null || reviewOutcome !== null) {
+        reviewOutcome !== null) {
       throw new FeaturedAdFinancialValidationError("invalid_financial_amount");
     }
   }
@@ -162,7 +162,7 @@ export function applyFeaturedAdFinancialEvent(
   };
 }
 
-/** Hash the caller key so arbitrary client text never becomes a Firestore document path. */
+/** Hash the external reference so arbitrary client text never becomes a Firestore document path. */
 export function featuredAdFinancialIdempotencyId(
   campaignId: string,
   action: FeaturedAdFinancialAction,
