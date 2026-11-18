@@ -9867,9 +9867,16 @@ export const startCall = onCall(async (request) => {
     if (!isActiveRentedPrivateRoom(roomData, rentalSnapshot.data(), Date.now())) {
       throw new HttpsError("failed-precondition", "الغرفة أو سجل استئجارها غير فعال؛ تم إيقاف المكالمة.");
     }
-    const members = await roomRef.collection("members").limit(6).get();
-    if (members.size < 2 || members.size > 5) {
-      throw new HttpsError("failed-precondition", "مكالمات الغرف تدعم حالياً من عضوين إلى خمسة أعضاء كحد أقصى.");
+    const roomCapacity = roomData.capacity;
+    if (!Number.isSafeInteger(roomCapacity) || roomCapacity < 2 || roomCapacity > 1000) {
+      throw new HttpsError("failed-precondition", "سعة الغرفة المستأجرة غير صالحة؛ تعذر تحديد المشاركين.");
+    }
+    const members = await roomRef.collection("members").limit(roomCapacity + 1).get();
+    if (members.size < 2 || members.size > roomCapacity) {
+      throw new HttpsError("failed-precondition", "عدد أعضاء الغرفة يتجاوز سعتها أو لا يكفي لبدء المكالمة.");
+    }
+    if (input.mode === "video" && members.size > 4) {
+      throw new HttpsError("failed-precondition", "المكالمة المرئية الجماعية محدودة بأربعة مشاركين إجمالاً بمن فيهم المنشئ.");
     }
     participantUids = members.docs.map((doc) => doc.id).sort();
     recipientUids = participantUids.filter((uid) => uid !== callerUid);
