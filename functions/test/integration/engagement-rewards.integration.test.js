@@ -598,7 +598,7 @@ test("timed-ad completion cancels a session when its campaign is paused or versi
 });
 
 
-test("featured-ad reward policy is owner/MFA managed, versioned and defaults to the 100-view test cap", async () => {
+test("featured-ad reward policy is owner/MFA managed, versioned and safely disabled until configured", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = suffix();
   const ownerUid = `featured_policy_owner_${tag}`;
@@ -608,14 +608,16 @@ test("featured-ad reward policy is owner/MFA managed, versioned and defaults to 
   try {
     if (previousPolicy.exists) await policyRef.delete();
     const initial = await getOwnerFeaturedAdRewardPolicy.run(ownerRequest(ownerUid));
-    assert.equal(initial.policy.rewardCoinsPerView, 2);
-    assert.equal(initial.policy.maxRewardedViewsPerUtcDay, 100);
-    assert.equal(initial.policy.maxRewardCoinsPerUtcDay, 200);
+    assert.equal(initial.policy.enabled, false);
+    assert.equal(initial.policy.rewardCoinsPerView, 0);
+    assert.equal(initial.policy.maxRewardedViewsPerUtcDay, 0);
+    assert.equal(initial.policy.maxRewardCoinsPerUtcDay, 0);
     assert.equal(initial.version, 1);
 
     const updated = await setOwnerFeaturedAdRewardPolicy.run(ownerRequest(ownerUid, {
       policy: {
         ...initial.policy,
+        enabled: true,
         rewardCoinsPerView: 5,
         maxRewardedViewsPerUtcDay: 100,
         maxRewardCoinsPerUtcDay: 500,
