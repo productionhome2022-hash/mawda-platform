@@ -689,7 +689,7 @@ test("owner economy pricing starts empty and only exposes owner-authored prices 
     }];
     const saved = await setOwnerEconomyPricing.run(ownerRequest("store-catalog-owner", {
       coinPackages: packages, adPrices: ads,
-      manualCoinPurchasesEnabled: false, expectedVersion: empty.version,
+      manualCoinPurchasesEnabled: false, manualFeaturedAdsEnabled: false, expectedVersion: empty.version,
     }));
     assert.equal(saved.saved, true);
     assert.equal(saved.realMoneyCheckoutEnabled, false);
@@ -699,26 +699,28 @@ test("owner economy pricing starts empty and only exposes owner-authored prices 
     assert.equal(readback.version, saved.version);
     assert.equal(readback.coinPackages[0].priceMinor, 100);
     assert.equal(readback.manualCoinPurchasesEnabled, false);
+    assert.equal(readback.manualFeaturedAdsEnabled, false);
 
     const enabled = await setOwnerEconomyPricing.run(ownerRequest("store-catalog-owner", {
       coinPackages: [{ ...packages[0], priceMinor: 110 }],
-      adPrices: ads, manualCoinPurchasesEnabled: true,
+      adPrices: ads, manualCoinPurchasesEnabled: true, manualFeaturedAdsEnabled: true,
       expectedVersion: readback.version,
     }));
     assert.equal(enabled.version, readback.version + 1);
+    assert.equal(enabled.manualFeaturedAdsEnabled, true);
     assert.equal((await getAvailableCoinPackages.run({})).packages[0].priceMinor, 110);
 
     await assert.rejects(
       () => setOwnerEconomyPricing.run(memberRequest("not_owner", {
         coinPackages: packages, adPrices: ads,
-        manualCoinPurchasesEnabled: false, expectedVersion: enabled.version,
+        manualCoinPurchasesEnabled: false, manualFeaturedAdsEnabled: false, expectedVersion: enabled.version,
       })),
       (error) => error && error.code === "permission-denied",
     );
     await assert.rejects(
       () => setOwnerEconomyPricing.run(ownerRequest("store-catalog-owner", {
         coinPackages: packages, adPrices: ads,
-        manualCoinPurchasesEnabled: false, expectedVersion: readback.version,
+        manualCoinPurchasesEnabled: false, manualFeaturedAdsEnabled: false, expectedVersion: readback.version,
       })),
       (error) => error && error.code === "aborted",
     );
