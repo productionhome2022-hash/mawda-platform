@@ -45,6 +45,22 @@ test("attempt sequence advances after rejection and resets only after the full l
   assert.throws(() => nextBiometricAttemptNumber(pending(1), 100), /ALREADY_PENDING/);
 });
 
+test("malformed attempt counters and renewal timestamps fail closed", () => {
+  assert.equal(canSubmitBiometricRequest({
+    status: "accepted", attemptNumber: 1, rewardGranted: true, lockoutUntilMs: null,
+    nextRenewalAtMs: "2099-01-01",
+  }, Date.now()), false);
+  assert.equal(canSubmitBiometricRequest({
+    status: "locked", attemptNumber: 3, rewardGranted: false, lockoutUntilMs: "2099-01-01",
+  }, Date.now()), false);
+  assert.equal(canSubmitBiometricRequest({
+    status: "rejected", attemptNumber: 0, rewardGranted: false, lockoutUntilMs: null,
+  }, Date.now()), false);
+  assert.throws(() => nextBiometricAttemptNumber({
+    status: "rejected", attemptNumber: 0, rewardGranted: false, lockoutUntilMs: null,
+  }, Date.now()), /ATTEMPT_STATE_INVALID/);
+});
+
 test("only Super Owner can decide and accepted request grants reward and schedules monthly renewal", () => {
   assert.throws(() => decideBiometricRequest({
     state: pending(1), decision: "accept", actorIsSuperOwner: false, nowMs: 10,
