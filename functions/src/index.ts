@@ -6901,20 +6901,28 @@ export const createRentedRoom = onCall(async (request) => {
       roomId: roomRef.id, name, kind: "private", capacity, audience, ownerUid: uid,
       memberCount: 1, status: "active", isRented: true, rentalId: rentalRef.id,
       rentalPlanId: plan.planId, rentalPriceCoins: plan.priceCoins,
-      rentalDurationDays: plan.durationDays, expiresAt, invitedUids: [],
+      rentalDurationDays: plan.durationDays,
+      rentalPricingPolicyVersion: settings.data()!.version,
+      rentalPricingPolicyPath: `platformSettings/roomRentalPricingVersions/versions/${settings.data()!.version}`,
+      expiresAt, invitedUids: [],
       createdAt: now, updatedAt: now,
     });
     transaction.create(memberRef, { uid, role: "owner", joinedAt: now });
     transaction.create(rentalRef, {
       rentalId: rentalRef.id, roomId: roomRef.id, ownerUid: uid, planId: plan.planId,
       priceCoins: plan.priceCoins, durationDays: plan.durationDays, status: "active",
+      pricingPolicyVersion: settings.data()!.version,
+      pricingPolicyPath: `platformSettings/roomRentalPricingVersions/versions/${settings.data()!.version}`,
       requestedName: name, requestedCapacity: capacity, requestedPriceCoins: expectedPriceCoins,
       startsAt: Timestamp.fromMillis(nowMs), expiresAt, createdAt: now,
     });
     transaction.create(ledgerRef, {
       type: "room_rental", direction: "debit", amount: -plan.priceCoins,
       roomId: roomRef.id, rentalId: rentalRef.id, planId: plan.planId,
-      durationDays: plan.durationDays, createdAt: now,
+      durationDays: plan.durationDays,
+      pricingPolicyVersion: settings.data()!.version,
+      pricingPolicyPath: `platformSettings/roomRentalPricingVersions/versions/${settings.data()!.version}`,
+      createdAt: now,
     });
     return { roomId: roomRef.id, rentalId: rentalRef.id, priceCoins: plan.priceCoins,
       expiresAt: expiresAtMs, newBalance, idempotentReplay: false };
@@ -7002,7 +7010,10 @@ export const renewRoomRental = onCall(async (request) => {
     transaction.create(ledgerRef, {
       type: "room_rental_renewal", direction: "debit", amount: -plan.priceCoins,
       roomId, rentalId: rentalRef.id, planId: plan.planId,
-      durationDays: plan.durationDays, createdAt: now,
+      durationDays: plan.durationDays,
+      pricingPolicyVersion: settings.data()!.version,
+      pricingPolicyPath: `platformSettings/roomRentalPricingVersions/versions/${settings.data()!.version}`,
+      createdAt: now,
     });
     return { renewed: true, expiresAt: expiresAt.toMillis(), newBalance: balance, idempotentReplay: false };
   });
