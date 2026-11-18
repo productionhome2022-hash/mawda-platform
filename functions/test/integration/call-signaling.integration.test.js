@@ -474,3 +474,61 @@ test("server starts a non-resettable five-minute call ceiling only after both en
     ]);
   }
 });
+
+test("room group call records late media connections without resetting the shared deadline", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const callerUid = uid("room_timer_creator");
+  const firstUid = uid("room_timer_first");
+  const lateUid = uid("room_timer_late");
+  const callId = uid("room_timer_session");
+  const callRef = db.collection("callSessions").doc(callId);
+  const locks = [callerUid, firstUid, lateUid].map((memberUid) =>
+    db.collection("activeCallMemberLocks").doc(memberUid));
+  await callRef.set({
+    callId, scope: "room", targetId: uid("rented_room"), mode: "audio",
+    status: "accepted", callerUid,
+    participantUids: [callerUid, firstUid, lateUid],
+    acceptedUids: [firstUid, lateUid], rejectedUids: [], leftUids: [],
+    connectedUids: [],
+    usagePolicyVersion: 1,
+    usagePolicySnapshot: {
+      active: true, quotaWindowMs: 24 * 60 * 60 * 1000,
+      audioCallsPerWindow: 5, videoCallsPerWindow: 3,
+      maxCallDurationMs: 60 * 1000,
+    },
+  });
+  await Promise.all(locks.map((lock) => lock.set({ callId, status: "active" })));
+  try {
+    const creatorReport = await markCallConnected.run(call(callerUid, { callId }));
+    assert.equal(creatorReport.connected, false);
+    const firstParticipantReport = await markCallConnected.run(call(firstUid, { callId }));
+    assert.equal(firstParticipantReport.connected, true);
+    assert.equal(
+      firstParticipantReport.maxDurationEndsAtMs - firstParticipantReport.connectedAtMs,
+      5 * 60 * 1000,
+      "room audio uses the fixed shared five-minute ceiling",
+    );
+
+    const lateParticipantReport = await markCallConnected.run(call(lateUid, { callId }));
+    assert.equal(lateParticipantReport.connected, true);
+    assert.equal(lateParticipantReport.idempotentReplay, false);
+    assert.equal(lateParticipantReport.connectedAtMs, firstParticipantReport.connectedAtMs);
+    assert.equal(lateParticipantReport.maxDurationEndsAtMs, firstParticipantReport.maxDurationEndsAtMs);
+
+    const stored = (await callRef.get()).data();
+    assert.deepEqual(new Set(stored.connectedUids), new Set([callerUid, firstUid, lateUid]));
+    assert.ok(stored.mediaConnectedAt[callerUid] instanceof Timestamp);
+    assert.ok(stored.mediaConnectedAt[firstUid] instanceof Timestamp);
+    assert.ok(stored.mediaConnectedAt[lateUid] instanceof Timestamp);
+
+    const replay = await markCallConnected.run(call(lateUid, { callId }));
+    assert.equal(replay.idempotentReplay, true);
+    assert.equal(replay.maxDurationEndsAtMs, firstParticipantReport.maxDurationEndsAtMs);
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(callRef).catch(() => undefined),
+      ...locks.map((lock) => db.recursiveDelete(lock).catch(() => undefined)),
+    ]);
+  }
+});
+
