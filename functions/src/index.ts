@@ -8229,7 +8229,23 @@ async function validateFeaturedAdCreativeForOwner(mediaId: string | null, ownerU
       !["image", "video"].includes(String(asset.mediaCategory))) {
     throw new HttpsError("failed-precondition", "لا يمكن اعتماد مادة لم تجتز الفحص الأمني.");
   }
-  return { creativeType: asset.mediaCategory === "video" ? "video" as const : "image" as const };
+  const isVideo = asset.mediaCategory === "video";
+  const isGif = !isVideo && asset.detectedContentType === "image/gif";
+  const expectedPath = "processed/" + ownerUid + "/" + mediaId + "/" +
+    (isVideo ? "video.mp4" : isGif ? "animation.gif" : "preview.webp");
+  const path = isVideo ? asset.safeVideoPath : isGif ? asset.safeAnimationPath : asset.safePreviewPath;
+  const generation = isVideo ? asset.safeVideoGeneration : isGif ? asset.safeAnimationGeneration : asset.safePreviewGeneration;
+  const sha256 = isVideo ? asset.safeVideoSha256 : isGif ? asset.safeAnimationSha256 : asset.safePreviewSha256;
+  const contentType = isVideo ? asset.safeVideoContentType : isGif ? asset.safeAnimationContentType : asset.safePreviewContentType;
+  const expectedType = isVideo ? "video/mp4" : isGif ? "image/gif" : "image/webp";
+  const processingStatus = isVideo ? "safe_video_derivative_ready" : isGif
+    ? "safe_animation_derivative_ready" : "safe_raster_derivative_ready";
+  if (path !== expectedPath || typeof generation !== "string" || !/^[1-9][0-9]*$/.test(generation) ||
+      typeof sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(sha256) ||
+      contentType !== expectedType || asset.processingStatus !== processingStatus) {
+    throw new HttpsError("failed-precondition", "المادة لم تنتج مشتقاً آمناً موثقاً وقابلاً للعرض.");
+  }
+  return { creativeType: isVideo ? "video" as const : "image" as const };
 }
 export const getOwnerFeaturedAdCampaigns = onCall(async (request) => {
   await requireOwnerForReview(request, "featured_ad_campaign_list_attempt");
