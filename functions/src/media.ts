@@ -2492,8 +2492,8 @@ export const sendStickerMessage = onCall(async (request) => {
     const memberData = member.data() ?? {};
     const userData = user.data() ?? {};
     if (!room.exists || room.data()?.status !== "active" || !member.exists ||
-        memberData.profileCompleted !== true || !user.exists ||
-        userData.profileCompleted !== true || !isMemberAccountInGoodStanding(userData)) {
+        memberData.accountType === "guest" || !user.exists ||
+        !isMemberAccountInGoodStanding(userData)) {
       throw new HttpsError("permission-denied", "يجب أن تكون عضواً نشطاً في الغرفة لإرسال الملصقات.");
     }
     const mutedUntil = member.data()?.mutedUntil;
