@@ -72,6 +72,7 @@ import {
   projectStoreCatalogItem,
   validateStoreCatalogItemInput,
 } from "./store-catalog";
+import { isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, calculateStoreGiftExpiryMs } from "./store-gifting";
 import {
   calculateStorePurchaseBalance,
   isStoreEntitlementActive,
@@ -6470,6 +6471,207 @@ export const purchaseStoreItem = onCall(async (request) => {
   });
 });
 
+
+/**
+ * Member-to-member paid store gifting. Debit, immutable ledger, gift receipt,
+ * recipient entitlement/history and in-app notification are one transaction.
+ * Guest identities are rejected using verified Auth provider data and the
+ * dedicated guest profile/session records; owner grants remain separate.
+ */
+export const giftStoreItem = onCall(async (request) => {
+  const senderUid = requireAuthenticatedUid(request.auth?.uid);
+  const firebaseIdentity = request.auth?.token.firebase;
+  const signInProvider = firebaseIdentity && typeof firebaseIdentity === "object" &&
+      !Array.isArray(firebaseIdentity)
+    ? (firebaseIdentity as Record<string, unknown>).sign_in_provider
+    : undefined;
+  if (signInProvider === "anonymous") {
+    throw new HttpsError("permission-denied", "إهداء المتجر متاح للأعضاء المسجلين فقط.");
+  }
+
+  const recipientUid = request.data?.recipientUid;
+  const itemId = request.data?.itemId;
+  const requestId = request.data?.requestId;
+  const expectedPriceCoins = request.data?.expectedPriceCoins;
+  if (typeof recipientUid !== "string" || recipientUid.length < 1 ||
+      recipientUid.length > 128 || recipientUid.trim() !== recipientUid ||
+      recipientUid.includes("/") ||
+      typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
+      typeof requestId !== "string" || requestId.length < 8 ||
+      requestId.length > 80 || !/^[A-Za-z0-9_-]+$/.test(requestId) ||
+      typeof expectedPriceCoins !== "number" || !Number.isSafeInteger(expectedPriceCoins) ||
+      expectedPriceCoins <= 0) {
+    throw new HttpsError("invalid-argument", "بيانات إهداء العنصر غير صالحة.");
+  }
+
+  // Auth provider data is authoritative for distinguishing anonymous Firebase
+  // identities from registered accounts; profile fields alone are not enough.
+  let recipientAuth;
+  try {
+    recipientAuth = await getAuth().getUser(recipientUid);
+  } catch {
+    throw new HttpsError("not-found", "حساب المستلم غير موجود.");
+  }
+  if (!Array.isArray(recipientAuth.providerData) ||
+      recipientAuth.providerData.length === 0 ||
+      recipientAuth.providerData.every((provider) => provider.providerId === "anonymous")) {
+    throw new HttpsError("permission-denied", "لا يمكن إهداء المزايا إلى حساب زائر.");
+  }
+
+  const senderRef = db.collection("users").doc(senderUid);
+  const recipientRef = db.collection("users").doc(recipientUid);
+  const itemRef = db.collection("storeCatalog").doc(itemId);
+  const giftId = createHash("sha256")
+    .update("mawdda-store-gift-v1:" + senderUid + ":" + requestId)
+    .digest("hex");
+  const giftRef = db.collection("storeGifts").doc(giftId);
+  const senderLedgerRef = senderRef.collection("walletLedger").doc("gift_" + giftId);
+  const recipientEntitlementRef = recipientRef.collection("entitlements").doc(itemId);
+  const recipientHistoryRef = recipientRef.collection("giftHistory").doc(giftId);
+  const recipientNotificationRef = recipientRef.collection("notifications").doc("gift_" + giftId);
+  const senderGuestProfileRef = db.collection("guestProfiles").doc(senderUid);
+  const senderGuestSessionRef = db.collection("guestSessions").doc(senderUid);
+  const recipientGuestProfileRef = db.collection("guestProfiles").doc(recipientUid);
+  const recipientGuestSessionRef = db.collection("guestSessions").doc(recipientUid);
+
+  return db.runTransaction(async (transaction) => {
+    const [
+      sender, recipient, itemSnapshot, priorGift, priorLedger, priorEntitlement,
+      senderGuestProfile, senderGuestSession, recipientGuestProfile, recipientGuestSession,
+    ] = await Promise.all([
+      transaction.get(senderRef),
+      transaction.get(recipientRef),
+      transaction.get(itemRef),
+      transaction.get(giftRef),
+      transaction.get(senderLedgerRef),
+      transaction.get(recipientEntitlementRef),
+      transaction.get(senderGuestProfileRef),
+      transaction.get(senderGuestSessionRef),
+      transaction.get(recipientGuestProfileRef),
+      transaction.get(recipientGuestSessionRef),
+    ]);
+
+    if (priorGift.exists) {
+      const prior = priorGift.data() ?? {};
+      if (!isStoreGiftReplayCompatible(prior, {
+        senderUid, recipientUid, itemId, expectedPriceCoins,
+      })) {
+        throw new HttpsError("already-exists", "معرف طلب الإهداء مستخدم لعملية أخرى أو بسعر مختلف.");
+      }
+      return {
+        giftId, itemId, recipientUid,
+        priceCoins: prior.priceCoins,
+        newBalance: prior.newBalance,
+        expiresAt: prior.expiresAt instanceof Timestamp ? prior.expiresAt.toMillis() : null,
+        idempotentReplay: true,
+      };
+    }
+    if (priorLedger.exists) {
+      throw new HttpsError("failed-precondition", "تعارض سجل المحفظة مع طلب الإهداء؛ أوقفنا العملية للحماية.");
+    }
+    if (senderUid === recipientUid) {
+      throw new HttpsError("failed-precondition", "اختر عضواً آخر لإرسال الهدية.");
+    }
+    if (!sender.exists || !isEligibleStoreGiftMemberRecord(sender.data()) ||
+        !isMemberAccountInGoodStanding(sender.data()) ||
+        senderGuestProfile.exists || senderGuestSession.exists) {
+      throw new HttpsError("permission-denied", "حساب المرسل غير مؤهل لإهداء المتجر.");
+    }
+    if (!recipient.exists || !isEligibleStoreGiftMemberRecord(recipient.data()) ||
+        !isMemberAccountInGoodStanding(recipient.data()) ||
+        recipientGuestProfile.exists || recipientGuestSession.exists) {
+      throw new HttpsError("permission-denied", "المستلم يجب أن يكون عضواً مسجلاً ومؤهلاً، ولا تقبل حسابات الزوار الهدايا.");
+    }
+    if (!itemSnapshot.exists) {
+      throw new HttpsError("not-found", "عنصر المتجر غير موجود.");
+    }
+    const item = projectStoreCatalogItem(itemId, itemSnapshot.data() ?? {});
+    if (!item || !isStoreItemPurchasable(item)) {
+      throw new HttpsError("failed-precondition", "هذا العنصر غير منشور أو لم يكتمل تنفيذ استحقاقه.");
+    }
+    if (!isStorePurchasePriceCurrent(expectedPriceCoins, item.priceCoins)) {
+      throw new HttpsError("failed-precondition", "تغير سعر العنصر؛ حدّث المتجر وراجع السعر قبل الإهداء.");
+    }
+
+    const senderData = sender.data() ?? {};
+    const newBalance = calculateStorePurchaseBalance(senderData.coins ?? 0, item.priceCoins);
+    if (newBalance === null) {
+      throw new HttpsError("failed-precondition", "رصيد Beta Coins غير كافٍ أو غير صالح.");
+    }
+
+    const nowMs = Date.now();
+    const currentEntitlement = priorEntitlement.data() ?? {};
+    let expirySource: Record<string, unknown> = currentEntitlement;
+    if (item.category === "boost") {
+      const boostExpiry = senderData.discoveryBoostExpiresAt;
+      const recipientBoostExpiry = recipient.data()?.discoveryBoostExpiresAt;
+      const boostExpiryMs = recipientBoostExpiry instanceof Timestamp
+        ? recipientBoostExpiry.toMillis()
+        : typeof recipientBoostExpiry?.toMillis === "function"
+          ? recipientBoostExpiry.toMillis() : 0;
+      const entitlementExpiryMs = currentEntitlement.expiresAt instanceof Timestamp
+        ? currentEntitlement.expiresAt.toMillis()
+        : typeof currentEntitlement.expiresAt?.toMillis === "function"
+          ? currentEntitlement.expiresAt.toMillis() : 0;
+      expirySource = {
+        ...currentEntitlement,
+        status: currentEntitlement.status === "active" ? "active" :
+          boostExpiryMs > nowMs ? "active" : currentEntitlement.status,
+        expiresAt: boostExpiryMs > entitlementExpiryMs
+          ? Timestamp.fromMillis(boostExpiryMs) : currentEntitlement.expiresAt,
+      };
+    }
+    const expiresAtMs = calculateStoreGiftExpiryMs(expirySource, item.durationDays, nowMs);
+    const expiresAt = expiresAtMs === null ? null : Timestamp.fromMillis(expiresAtMs);
+    const createdAt = FieldValue.serverTimestamp();
+
+    transaction.update(senderRef, { coins: newBalance, updatedAt: createdAt });
+    transaction.create(giftRef, {
+      giftId, requestId, senderUid, recipientUid, itemId,
+      itemName: item.name, category: item.category,
+      priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
+      newBalance, expiresAt, status: "completed", createdAt,
+    });
+    transaction.create(senderLedgerRef, {
+      type: "store_gift", direction: "debit", amount: -item.priceCoins,
+      giftId, recipientUid, itemId, itemName: item.name, createdAt,
+    });
+    transaction.set(recipientEntitlementRef, {
+      itemId, itemName: item.name, category: item.category,
+      status: "active", giftId, giftedByUid: senderUid,
+      giftedAt: createdAt, expiresAt,
+    });
+    transaction.create(recipientHistoryRef, {
+      giftId, senderUid, itemId, itemName: item.name,
+      category: item.category, priceCoins: item.priceCoins,
+      durationDays: item.durationDays ?? null, expiresAt,
+      status: "received", createdAt,
+    });
+    transaction.create(recipientNotificationRef, {
+      notificationId: "gift_" + giftId, type: "store_gift_received",
+      senderUid, giftId, itemId, itemName: item.name,
+      title: "وصلتك هدية من متجر مودة",
+      body: "أهداك أحد الأعضاء ميزة: " + item.name,
+      isRead: false, createdAt,
+    });
+    const recipientUpdate: Record<string, unknown> = { updatedAt: createdAt };
+    if (item.category === "boost" && expiresAt) {
+      recipientUpdate.discoveryBoostExpiresAt = expiresAt;
+      recipientUpdate.discoveryBoostGiftId = giftId;
+    }
+    if (item.itemId === "profile_pin_30d" &&
+        typeof recipient.data()?.pinnedProfileSection !== "string") {
+      recipientUpdate.pinnedProfileSection = "interests";
+    }
+    if (Object.keys(recipientUpdate).length > 1) transaction.update(recipientRef, recipientUpdate);
+
+    return {
+      giftId, itemId, recipientUid, priceCoins: item.priceCoins,
+      newBalance, expiresAt: expiresAt?.toMillis() ?? null,
+      idempotentReplay: false,
+    };
+  });
+});
 
 /**
  * Grants a free store entitlement to one member. Each target/request pair is
