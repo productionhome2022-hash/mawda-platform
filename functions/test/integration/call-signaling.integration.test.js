@@ -133,6 +133,53 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
 });
 
 
+test("direct-call acceptance rechecks account blocks and live chat membership", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const callerUid = uid("call_recheck_caller");
+  const calleeUid = uid("call_recheck_callee");
+  const chatId = uid("call_recheck_chat");
+  const callId = uid("call_recheck_session");
+  const callerRef = db.collection("users").doc(callerUid);
+  const calleeRef = db.collection("users").doc(calleeUid);
+  const chatRef = db.collection("directChats").doc(chatId);
+  const callRef = db.collection("callSessions").doc(callId);
+  await Promise.all([
+    callerRef.set({ profileCompleted: true, accountStatus: "active", age: 29 }),
+    calleeRef.set({ profileCompleted: true, accountStatus: "active", age: 30 }),
+    chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
+    seedCallEntitlements(callerUid, ["audio"]),
+    seedCallEntitlements(calleeUid, ["audio"]),
+  ]);
+  try {
+    await startCall.run(call(callerUid, {
+      callId, scope: "direct", targetId: chatId, mode: "audio",
+    }));
+    await calleeRef.update({ blockedUids: [callerUid] });
+    await assert.rejects(
+      () => respondToCall.run(call(calleeUid, { callId, response: "accept" })),
+      (error) => error && error.code === "permission-denied",
+    );
+    await calleeRef.update({ blockedUids: [] });
+    await chatRef.update({ participantUids: [callerUid] });
+    await assert.rejects(
+      () => respondToCall.run(call(calleeUid, { callId, response: "accept" })),
+      (error) => error && error.code === "permission-denied",
+    );
+    const session = await callRef.get();
+    assert.equal(session.data().status, "ringing");
+    await endCall.run(call(callerUid, { callId }));
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(callRef).catch(() => undefined),
+      db.recursiveDelete(callerRef).catch(() => undefined),
+      db.recursiveDelete(calleeRef).catch(() => undefined),
+      db.recursiveDelete(chatRef).catch(() => undefined),
+      db.recursiveDelete(db.collection("activeCallMemberLocks").doc(callerUid)).catch(() => undefined),
+      db.recursiveDelete(db.collection("activeCallMemberLocks").doc(calleeUid)).catch(() => undefined),
+    ]);
+  }
+});
+
 test("room call signaling is peer-targeted and one member leaving does not end the room call", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const callerUid = uid("room_call_caller");
