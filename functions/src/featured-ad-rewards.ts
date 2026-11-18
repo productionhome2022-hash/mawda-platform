@@ -76,6 +76,32 @@ export function defaultFeaturedAdRewardPolicy(): FeaturedAdRewardPolicy {
   return { ...FEATURED_AD_REWARD_DEFAULTS };
 }
 
+/** Resolve an immutable campaign reward under the owner's global per-view ceiling. */
+export function featuredAdCampaignRewardPolicy(
+  policyInput: unknown,
+  campaignRewardCoins: unknown,
+): FeaturedAdRewardPolicy {
+  const policy = validateFeaturedAdRewardPolicy(policyInput);
+  const configured = integerInRange(campaignRewardCoins, 1, 100_000) &&
+    campaignRewardCoins <= policy.rewardCoinsPerView;
+  return {
+    ...policy,
+    rewardCoinsPerView: configured ? campaignRewardCoins : 0,
+  };
+}
+
+export function featuredAdRewardBudgetAvailable(
+  budgetCoins: unknown,
+  spentCoins: unknown,
+  rewardCoins: unknown,
+): boolean {
+  return integerInRange(budgetCoins, 0, Number.MAX_SAFE_INTEGER) &&
+    integerInRange(spentCoins, 0, Number.MAX_SAFE_INTEGER) &&
+    integerInRange(rewardCoins, 1, 100_000) &&
+    spentCoins <= budgetCoins &&
+    budgetCoins - spentCoins >= rewardCoins;
+}
+
 export interface FeaturedAdRewardEvidence {
   nowMs: number;
   campaignEligible: boolean;
