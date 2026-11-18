@@ -54,7 +54,6 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
         _version = (data['version'] as num?)?.toInt() ?? 0;
         _manualPurchasesEnabled = data['manualCoinPurchasesEnabled'] == true;
         _manualFeaturedAdsEnabled = data['manualFeaturedAdsEnabled'] == true;
-        final paymentPolicy = Map<String, dynamic>.from(data['paymentPolicy'] as Map? ?? const {});
         final tariffs = Map<String, dynamic>.from(data['callTariffs'] as Map? ?? const {});
         _audioCallTariff.text = tariffs['audioTotalCoinsPerMinute']?.toString() ?? '';
         _videoCallTariff.text = tariffs['videoTotalCoinsPerMinute']?.toString() ?? '';
