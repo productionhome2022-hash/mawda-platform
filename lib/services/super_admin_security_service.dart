@@ -49,6 +49,13 @@ class SuperAdminSecurityService {
     return Map<String, dynamic>.from(result.data as Map);
   }
 
+  Future<Map<String, dynamic>> reconcileMemberWallet(String memberUid) async {
+    final result = await _functions.httpsCallable('reconcileMemberWallet').call({
+      'memberUid': memberUid,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
   Future<List<Map<String, dynamic>>> getOwnerStoreCatalog() async {
     final result = await _functions.httpsCallable('getOwnerStoreCatalog').call();
     final data = Map<String, dynamic>.from(result.data as Map);
