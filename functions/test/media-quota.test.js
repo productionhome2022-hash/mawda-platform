@@ -4,6 +4,7 @@ const {
   MEDIA_QUOTA_LIMITS,
   reserveMediaQuota,
   releaseMediaQuota,
+  mediaQuotaExemptForTransfer,
 } = require("../lib/media-quota");
 
 test("media quota enforces concurrent count, active bytes, UTC daily bytes and upload count", () => {
@@ -56,4 +57,11 @@ test("quota release decrements active reservations and fails closed on inconsist
   assert.throws(() => releaseMediaQuota({
     activeUploads: 0, activeBytes: 0, dailyBytes: 0, dailyUploads: 0, dailyWindow: "2026-11-13",
   }, 1), /inconsistent/i);
+});
+
+test("verified platform owner sender or recipient bypasses member media admission quotas", () => {
+  assert.equal(mediaQuotaExemptForTransfer(true, false), true);
+  assert.equal(mediaQuotaExemptForTransfer(false, true), true);
+  assert.equal(mediaQuotaExemptForTransfer(true, true), true);
+  assert.equal(mediaQuotaExemptForTransfer(false, false), false);
 });
