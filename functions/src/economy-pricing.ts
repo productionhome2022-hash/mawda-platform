@@ -15,7 +15,7 @@ export function currencyExponentForCode(value: unknown): number | null {
 export function isValidPositiveCurrencyAmount(value: unknown, currency: unknown): boolean {
   const exponent = currencyExponentForCode(currency);
   if (exponent === null || typeof value !== "string") return false;
-  const match = /^(?:0|[1-9]\\d{0,11})(?:\\.(\\d{1,4}))?$/.exec(value);
+  const match = /^(?:0|[1-9]\d{0,11})(?:\.(\d{1,4}))?$/.exec(value);
   if (!match || (match[1]?.length ?? 0) > exponent) return false;
   const amount = Number(value);
   return Number.isFinite(amount) && amount > 0;
