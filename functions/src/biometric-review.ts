@@ -33,11 +33,11 @@ export function addBiometricRenewalMonth(timestampMs: number): number {
     throw new Error("BIOMETRIC_TIMESTAMP_INVALID");
   }
   const date = new Date(timestampMs);
-  const day = date.getDate();
-  date.setDate(1);
-  date.setMonth(date.getMonth() + BIOMETRIC_RENEWAL_INTERVAL_MONTHS);
-  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  date.setDate(Math.min(day, lastDay));
+  const day = date.getUTCDate();
+  date.setUTCDate(1);
+  date.setUTCMonth(date.getUTCMonth() + BIOMETRIC_RENEWAL_INTERVAL_MONTHS);
+  const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+  date.setUTCDate(Math.min(day, lastDay));
   return date.getTime();
 }
 
@@ -57,6 +57,40 @@ export function canSubmitBiometricRequest(
   }
   return state.status === "rejected" &&
     state.attemptNumber < BIOMETRIC_MAX_ATTEMPTS;
+}
+
+/**
+ * Returns the attempt number for the next request in the current eligibility
+ * window. A completed three-attempt lockout starts a fresh three-attempt set
+ * only after the full lockout expires; prior request records remain historical.
+ */
+export function nextBiometricAttemptNumber(
+  state: BiometricReviewState | null,
+  nowMs: number,
+): number {
+  if (!Number.isSafeInteger(nowMs) || nowMs < 0) {
+    throw new Error("BIOMETRIC_TIMESTAMP_INVALID");
+  }
+  if (state === null) return 1;
+  if (state.status === "pending_review") {
+    throw new Error("BIOMETRIC_REQUEST_ALREADY_PENDING");
+  }
+  if (state.status === "accepted") {
+    if (state.nextRenewalAtMs == null || state.nextRenewalAtMs > nowMs) {
+      throw new Error("BIOMETRIC_RENEWAL_NOT_DUE");
+    }
+    return 1;
+  }
+  if (state.status === "locked") {
+    if (state.lockoutUntilMs == null || state.lockoutUntilMs > nowMs) {
+      throw new Error("BIOMETRIC_LOCKOUT_ACTIVE");
+    }
+    return 1;
+  }
+  if (state.status === "rejected" && state.attemptNumber < BIOMETRIC_MAX_ATTEMPTS) {
+    return state.attemptNumber + 1;
+  }
+  throw new Error("BIOMETRIC_ATTEMPTS_EXHAUSTED");
 }
 
 /** Pure decision policy. Firestore transaction, owner authentication, ledger and deletion remain server responsibilities. */
