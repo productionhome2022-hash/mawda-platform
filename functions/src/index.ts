@@ -7713,8 +7713,15 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
     return { status: "approved", idempotentReplay: false, newBalance: oldBalance + coins, creditedToUid: targetUid };
   });
   if (notifyRecipientUid && !result.idempotentReplay) {
-    await sendPushToMember(notifyRecipientUid, "وصلتك هدية Beta Coins",
-      "تمت إضافة باقة Beta Coins إلى محفظتك كهدية.", { type: "coin_package_gift_received" });
+    try {
+      await sendPushToMember(notifyRecipientUid, "وصلتك هدية Beta Coins",
+        "تمت إضافة باقة Beta Coins إلى محفظتك كهدية.", { type: "coin_package_gift_received" });
+    } catch (error) {
+      logger.warn("Coin package gift push notification failed after committed settlement", {
+        recipientUid: notifyRecipientUid, requestId: input.requestId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
   return result;
 });
