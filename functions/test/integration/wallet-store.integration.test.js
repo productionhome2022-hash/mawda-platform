@@ -182,6 +182,16 @@ test("owner featured-ad manual payment and refund events persist atomically and 
     assert.equal(outbox.data().status, "appended");
     assert.ok((await db.collection("adminAuditLogs")
       .doc("featured_ad_finance_chain_" + paymentEvent.id).get()).exists);
+    const immutableAuditRef = db.collection("adminAuditLogs")
+      .doc("featured_ad_finance_" + paymentEvent.id);
+    await immutableAuditRef.delete();
+    await assert.rejects(
+      () => recordOwnerFeaturedAdFinancialEvent.run(ownerRequest("featured-finance-owner", {
+        ...paymentInput, idempotencyKey: `retry_missing_audit_${suffix()}`,
+      })),
+      (error) => error && error.code === "data-loss",
+    );
+    assert.equal((await campaignRef.get()).data().version, 3);
     assert.equal(events.docs.filter((doc) => doc.data().action === "payment_received").length, 1);
     assert.equal(events.docs.filter((doc) => doc.data().action === "refund_recorded").length, 1);
   } finally {
