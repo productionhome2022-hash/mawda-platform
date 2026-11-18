@@ -1203,7 +1203,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           }).toList(growable: false),
                         ),
                       ),
-                    if (username.isNotEmpty) Text('@$username'),
+                    if (username.isNotEmpty) Text('@$username'),                    if (data['coinBalanceLocked'] == true)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Chip(
+                          avatar: Icon(Icons.lock_outline, size: 18),
+                          label: Text('رصيد الكوينز مخفي'),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      )
+                    else if (data['coins'] is num)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Chip(
+                          avatar: const Icon(Icons.monetization_on_outlined, size: 18),
+                          label: Text('الرصيد: ${(data['coins'] as num).toInt()} كوين'),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+
                     if (pinnedSection == 'bio' && bio.isNotEmpty)
                       Card(
                         margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
