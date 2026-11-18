@@ -8086,7 +8086,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       const packageSnapshot = prior.packageSnapshot as Record<string, unknown> | null;
       if (!packageSnapshot || input.agreedCoins !== packageSnapshot.coins ||
           input.agreedPriceMinor !== packageSnapshot.priceMinor ||
-          input.currency !== (packageSnapshot.currency ?? "EUR")) {
+          input.currency !== packageSnapshot.currency) {
         throw new HttpsError("failed-precondition", "لا يمكن تغيير كمية أو سعر الباقة المحددة كهدية؛ يجب اعتماد شروط الباقة التي اختارها المرسل.");
       }
     }
