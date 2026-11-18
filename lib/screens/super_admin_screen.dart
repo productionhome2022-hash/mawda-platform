@@ -594,13 +594,13 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     final nameController = TextEditingController(text: existing?['name'] as String? ?? '');
     final descriptionController = TextEditingController(text: existing?['description'] as String? ?? '');
     final priceController = TextEditingController(
-      text: existing?['priceCoins']?.toString() ?? '1000',
+      text: existing?['priceCoins']?.toString() ?? '',
     );
     final durationController = TextEditingController(
       text: existing?['durationDays']?.toString() ?? '',
     );
     final sortController = TextEditingController(
-      text: existing?['sortOrder']?.toString() ?? '1000',
+      text: existing?['sortOrder']?.toString() ?? '',
     );
     const categories = [
       'feature', 'avatar', 'theme', 'title', 'vip', 'analytics', 'discovery',
