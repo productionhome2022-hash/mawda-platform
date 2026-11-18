@@ -130,7 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: const Text(
           'تفتح هذه الخطوة نافذة المصادقة المحلية في Android أو Apple فقط. لا تلتقط مودة البصمة أو الوجه '
           'ولا ترسل بيانات بيومترية إلى الخادم. تنبيه: المصادقة المحلية وحدها ليست إثباتاً تشفيرياً موثوقاً لدى الخادم؛ '
-          'لذلك فإن مكافأة 1500 كوين وصلاحيات التوثيق البيومتري معلّقة حتى اكتمال التحقق الآمن المرتبط بالجهاز. '
+          'لذلك فإن مكافأة 1500 بيتا كوينز وصلاحيات التوثيق البيومتري معلّقة حتى اكتمال التحقق الآمن المرتبط بالجهاز. '
           'لن يُخصم أو يُضاف أي رصيد بسبب هذا الاختبار المحلي.',
         ),
         actions: [
@@ -193,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'تم تجديد التحقق من البريد وإضافة 500 كوين إلى محفظتك${balance == null ? '' : '؛ رصيدك الجديد $balance'}.',
+              'تم تجديد التحقق من البريد وإضافة 500 بيتا كوينز إلى محفظتك${balance == null ? '' : '؛ رصيدك الجديد $balance'}.',
             ),
             duration: const Duration(seconds: 6),
           ),
@@ -203,7 +203,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('أرسلنا رابط تحقق جديد إلى بريدك. افتحه ثم ارجع إلى هنا واضغط الزر نفسه لاعتماد مكافأة 500 كوين.'),
+            content: Text('أرسلنا رابط تحقق جديد إلى بريدك. افتحه ثم ارجع إلى هنا واضغط الزر نفسه لاعتماد مكافأة 500 بيتا كوينز.'),
             duration: Duration(seconds: 8),
           ),
         );
@@ -825,13 +825,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _summaryRow('المبلغ الذي سيُخصم منك', '${quote.grossAmount} كوين'),
+              _summaryRow('المبلغ الذي سيُخصم منك', '${quote.grossAmount} بيتا كوينز'),
               _summaryRow(
                 'عمولة المنصة (${quote.commissionPercent.toStringAsFixed(2)}%)',
-                '${quote.commissionAmount} كوين',
+                '${quote.commissionAmount} بيتا كوينز',
               ),
               const Divider(),
-              _summaryRow('الصافي الذي سيصل للعضو', '${quote.netAmount} كوين'),
+              _summaryRow('الصافي الذي سيصل للعضو', '${quote.netAmount} بيتا كوينز'),
             ],
           ),
           actions: [
@@ -865,7 +865,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'تم التحويل: وصل ${receipt.netAmount} كوين، وعمولة المنصة ${receipt.commissionAmount} كوين. رقم العملية: ${receipt.transferId}',
+            'تم التحويل: وصل ${receipt.netAmount} بيتا كوينز، وعمولة المنصة ${receipt.commissionAmount} بيتا كوينز. رقم العملية: ${receipt.transferId}',
           ),
         ),
       );
@@ -1443,7 +1443,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.mark_email_read_outlined),
-                    label: const Text('تجديد التحقق من البريد (500 كوين كل 90 يوماً)'),
+                    label: const Text('تجديد التحقق من البريد (500 بيتا كوينز كل 90 يوماً)'),
                   ),
                 ),
               if (isMyProfile)
