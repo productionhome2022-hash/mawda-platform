@@ -6915,18 +6915,34 @@ async function executeOwnerEntitlementGrant(
   const auditRef = db.collection("adminAuditLogs").doc(`owner_entitlement_grant_${grantId}`);
 
   return db.runTransaction(async (transaction) => {
-    const [member, itemSnapshot, priorGrant, priorEntitlement] = await Promise.all([
+    const [member, itemSnapshot, priorGrant, priorEntitlement, priorLedger, priorAudit] = await Promise.all([
       transaction.get(memberRef),
       transaction.get(itemRef),
       transaction.get(grantRef),
       transaction.get(entitlementRef),
+      transaction.get(ledgerRef),
+      transaction.get(auditRef),
     ]);
     if (priorGrant.exists) {
       const prior = priorGrant.data() ?? {};
-      if (prior.actorUid !== actorUid || prior.targetUid !== targetUid ||
-          prior.itemId !== itemId || prior.durationHours !== durationHours ||
-          prior.requestId !== requestId) {
-        throw new HttpsError("already-exists", "مفتاح طلب المنح مستخدم لعملية مختلفة.");
+      const ledger = priorLedger.data() ?? {};
+      const audit = priorAudit.data() ?? {};
+      const sameGrant = prior.actorUid === actorUid && prior.targetUid === targetUid &&
+        prior.itemId === itemId && prior.durationHours === durationHours &&
+        prior.requestId === requestId && prior.status === "granted";
+      const sameLedger = priorLedger.exists && ledger.type === "owner_entitlement_grant" &&
+        ledger.grantId === grantId && ledger.requestId === requestId &&
+        ledger.actorUid === actorUid && ledger.targetUid === targetUid &&
+        ledger.itemId === itemId && ledger.durationHours === durationHours;
+      const sameAudit = priorAudit.exists && audit.action === "owner_entitlement_granted" &&
+        audit.grantId === grantId && audit.requestId === requestId &&
+        audit.actorUid === actorUid && audit.targetUid === targetUid && audit.itemId === itemId;
+      const entitlement = priorEntitlement.data() ?? {};
+      const sameEntitlement = priorEntitlement.exists && entitlement.status === "active" &&
+        entitlement.grantSource === "platform_owner" && entitlement.grantId === grantId &&
+        entitlement.grantedBy === actorUid;
+      if (!sameGrant || !sameLedger || !sameAudit || !sameEntitlement) {
+        throw new HttpsError("failed-precondition", "سجل المنح أو دفتره أو سجل التدقيق أو الاستحقاق غير متطابق؛ يلزم تدقيق المالك.");
       }
       return {
         grantId, targetUid, itemId, status: "granted",
