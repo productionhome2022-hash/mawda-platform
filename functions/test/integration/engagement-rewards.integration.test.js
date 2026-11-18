@@ -680,6 +680,7 @@ test("featured-ad reward policy is owner/MFA managed, versioned and safely disab
     assert.equal(initial.version, 1);
 
     const updated = await setOwnerFeaturedAdRewardPolicy.run(ownerRequest(ownerUid, {
+      expectedVersion: initial.version,
       policy: {
         ...initial.policy,
         enabled: true,
@@ -738,7 +739,10 @@ test("featured campaigns require owner approval and verified finance, then rewar
       status: "security_approved", mediaCategory: "image",
       detectedContentType: "image/webp",
     });
-    await setOwnerFeaturedAdRewardPolicy.run(ownerRequest(ownerUid, { policy: {
+    const currentFeaturedPolicy = await getOwnerFeaturedAdRewardPolicy.run(ownerRequest(ownerUid));
+    await setOwnerFeaturedAdRewardPolicy.run(ownerRequest(ownerUid, {
+      expectedVersion: currentFeaturedPolicy.version,
+      policy: {
       enabled: true, rewardCoinsPerView: 5, maxRewardedViewsPerUtcDay: 10,
       maxRewardCoinsPerUtcDay: 50, videoCompletionPercent: 90,
       imageContinuousVisibleMs: 1000,
