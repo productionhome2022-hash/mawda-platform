@@ -7139,8 +7139,16 @@ export const getAvailableCoinPackages = onCall(async () => {
   const snapshot = await ECONOMY_PRICING_SETTINGS.get();
   const data = snapshot.data() ?? {};
   if (!snapshot.exists || data.manualCoinPurchasesEnabled !== true ||
-      data.automatedCoinCheckoutEnabled === true || !Array.isArray(data.coinPackages)) {
+      data.automatedCoinCheckoutEnabled === true || !Number.isSafeInteger(data.version) ||
+      data.version < 1 || !Array.isArray(data.coinPackages)) {
     return { packages: [], manualPurchasesEnabled: false, automatedCheckoutEnabled: false, customCoinRequestBounds: null };
+  }
+  const bounds = data.customCoinRequestBounds ?? null;
+  if (bounds !== null && (!bounds || typeof bounds !== "object" ||
+      !Number.isSafeInteger(bounds.minCoins) || bounds.minCoins < 1 ||
+      !Number.isSafeInteger(bounds.maxCoins) || bounds.maxCoins < bounds.minCoins ||
+      bounds.maxCoins > 1000000000)) {
+    throw new HttpsError("failed-precondition", "حدود طلبات الكمية المخصصة غير صالحة؛ أوقفنا عرضها.");
   }
   let packages;
   try { packages = validateCoinPackages(data.coinPackages); }
@@ -7149,7 +7157,7 @@ export const getAvailableCoinPackages = onCall(async () => {
     packages: packages.filter((item) => item.active),
     manualPurchasesEnabled: true,
     automatedCheckoutEnabled: false,
-    customCoinRequestBounds: data.customCoinRequestBounds ?? null,
+    customCoinRequestBounds: bounds,
   };
 });
 
@@ -7652,6 +7660,9 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
     throw new HttpsError("failed-precondition", "إعدادات اقتصاد المنصة غير صالحة؛ راجع الدعم التقني.");
   }
   const bounds = data.customCoinRequestBounds ?? null;
+  if (!Number.isSafeInteger(data.version) || data.version < 1) {
+    throw new HttpsError("failed-precondition", "إصدار سياسة الاقتصاد الحالية غير صالح.");
+  }
   if (bounds !== null && (!bounds || typeof bounds !== "object" ||
       !Number.isSafeInteger(bounds.minCoins) || bounds.minCoins < 1 ||
       !Number.isSafeInteger(bounds.maxCoins) || bounds.maxCoins < bounds.minCoins ||
@@ -7660,7 +7671,7 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
   }
   return {
     coinPackages, adPrices, customCoinRequestBounds: bounds,
-    version: Number.isSafeInteger(data.version) ? data.version : 0,
+    version: data.version,
     realMoneyCheckoutEnabled: false,
     manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled === true,
     automatedCoinCheckoutEnabled: false,
