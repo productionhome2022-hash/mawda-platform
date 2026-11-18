@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 
 const _featuredAdRegions = <String, String>{
@@ -21,7 +24,97 @@ class FeaturedAdsScreen extends StatefulWidget {
 }
 
 class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
+  final _functions = FirebaseFunctions.instance;
   String _selectedRegion = 'all_arab_countries';
+  List<Map<String, dynamic>> _campaigns = const [];
+  bool _loading = true;
+  bool _starting = false;
+  bool _rewardsEnabled = false;
+  int _rewardCoins = 0;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (!mounted) return;
+    setState(() { _loading = true; _error = null; });
+    try {
+      final response = await _functions.httpsCallable('getFeaturedAdShowcase').call({
+        'geography': _selectedRegion,
+      });
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final policy = Map<String, dynamic>.from(data['rewardPolicy'] as Map? ?? const {});
+      final campaigns = (data['campaigns'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList(growable: false);
+      if (!mounted) return;
+      setState(() {
+        _campaigns = campaigns;
+        _rewardsEnabled = policy['enabled'] == true;
+        _rewardCoins = (policy['rewardCoinsPerView'] as num?)?.toInt() ?? 0;
+      });
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل الإعلانات المميزة.');
+    } catch (_) {
+      if (mounted) setState(() => _error = 'تعذر تحميل الإعلانات المميزة حالياً.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _start(Map<String, dynamic> campaign) async {
+    if (_starting) return;
+    setState(() { _starting = true; _error = null; });
+    String? sessionId;
+    try {
+      final started = await _functions.httpsCallable('startFeaturedAdSession').call({
+        'campaignId': campaign['campaignId'],
+        'geography': _selectedRegion,
+      });
+      final session = Map<String, dynamic>.from(started.data as Map);
+      sessionId = session['sessionId'] as String;
+      final creativeResponse = await _functions.httpsCallable('getFeaturedAdCreativeUrl').call({
+        'campaignId': campaign['campaignId'],
+        'sessionId': sessionId,
+      });
+      final creative = Map<String, dynamic>.from(creativeResponse.data as Map);
+      final url = creative['url'] as String?;
+      if (url == null || url.isEmpty) {
+        await _functions.httpsCallable('cancelFeaturedAdSession').call({'sessionId': sessionId});
+        throw StateError('لا تتوفر مادة عرض آمنة لهذه الحملة.');
+      }
+      if (!mounted) return;
+      await Navigator.of(context).push<bool>(MaterialPageRoute<bool>(
+        builder: (_) => FeaturedAdPlayerScreen(
+          campaignId: campaign['campaignId'] as String,
+          sessionId: sessionId!,
+          imageUrl: url,
+          requiredVisibleMs: (session['requiredVisibleMs'] as num).toInt(),
+          rewardCoins: (session['rewardCoins'] as num).toInt(),
+        ),
+      ));
+      await _load();
+    } on FirebaseFunctionsException catch (error) {
+      if (sessionId != null) {
+        await _functions.httpsCallable('cancelFeaturedAdSession')
+            .call({'sessionId': sessionId}).catchError((_) => null);
+      }
+      if (mounted) setState(() => _error = error.message ?? 'تعذر بدء مشاهدة الإعلان.');
+    } catch (error) {
+      if (sessionId != null) {
+        await _functions.httpsCallable('cancelFeaturedAdSession')
+            .call({'sessionId': sessionId}).catchError((_) => null);
+      }
+      if (mounted) setState(() => _error = error.toString().replaceFirst('Bad state: ', ''));
+    } finally {
+      if (mounted) setState(() => _starting = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,227 +126,365 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
           IconButton(
             tooltip: 'مكافآت المشاهدة',
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const FeaturedAdRewardsScreen(),
-              ),
+              MaterialPageRoute<void>(builder: (_) => const FeaturedAdRewardsScreen()),
             ),
             icon: const Icon(Icons.card_giftcard_outlined),
           ),
+          IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh)),
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 720;
-          return ListView(
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : LayoutBuilder(builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 720;
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('عروض مميزة من الشركات والمؤسسات',
+                              style: theme.textTheme.titleLarge),
+                          const SizedBox(height: 8),
+                          const Text('المعاينة لا تمنح كوينز. تبدأ جلسة المكافأة فقط عند اختيار الإعلان وبدء مشاهدته في المشغل المخصص.'),
+                          const SizedBox(height: 8),
+                          Text(_rewardsEnabled && _rewardCoins > 0
+                              ? 'المكافأة الحالية المعتمدة خادمياً: $_rewardCoins كوين للمشاهدة المؤهلة.'
+                              : 'مكافآت المشاهدة متوقفة حالياً؛ لا تُمنح كوينز حتى يعتمد المالك سياسة فعالة.'),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('تصفح حسب النطاق الجغرافي', style: theme.textTheme.titleLarge),
+                  const SizedBox(height: 8),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _featuredAdRegions.length,
+                    gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: wide ? 250 : 190,
+                      mainAxisExtent: 64,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                    ),
+                    itemBuilder: (context, index) {
+                      final entry = _featuredAdRegions.entries.elementAt(index);
+                      return ChoiceChip(
+                        selected: _selectedRegion == entry.key,
+                        label: SizedBox(width: double.infinity,
+                            child: Text(entry.value, textAlign: TextAlign.center)),
+                        onSelected: _starting ? null : (_) {
+                          setState(() => _selectedRegion = entry.key);
+                          _load();
+                        },
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Text('الحملات المتاحة', style: theme.textTheme.titleLarge),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+                    ),
+                  if (_campaigns.isEmpty)
+                    const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(22),
+                        child: Column(
+                          children: [
+                            Icon(Icons.campaign_outlined, size: 38),
+                            SizedBox(height: 8),
+                            Text('لا توجد حملات مميزة متاحة في هذا النطاق حالياً.'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ..._campaigns.map((campaign) => Card(
+                    child: ListTile(
+                      leading: const CircleAvatar(child: Icon(Icons.campaign_outlined)),
+                      title: Text(campaign['title']?.toString() ?? 'حملة مميزة'),
+                      subtitle: Text('${campaign['sponsorLabel'] ?? ''}\n${campaign['body'] ?? ''}'),
+                      isThreeLine: true,
+                      trailing: FilledButton(
+                        onPressed: _starting ? null : () => _start(campaign),
+                        child: _starting
+                            ? const SizedBox(width: 18, height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Text('ابدأ المشاهدة'),
+                      ),
+                    ),
+                  )),
+                ],
+              );
+            }),
+    );
+  }
+}
+
+class FeaturedAdPlayerScreen extends StatefulWidget {
+  const FeaturedAdPlayerScreen({
+    required this.campaignId,
+    required this.sessionId,
+    required this.imageUrl,
+    required this.requiredVisibleMs,
+    required this.rewardCoins,
+    super.key,
+  });
+
+  final String campaignId;
+  final String sessionId;
+  final String imageUrl;
+  final int requiredVisibleMs;
+  final int rewardCoins;
+
+  @override
+  State<FeaturedAdPlayerScreen> createState() => _FeaturedAdPlayerScreenState();
+}
+
+class _FeaturedAdPlayerScreenState extends State<FeaturedAdPlayerScreen>
+    with WidgetsBindingObserver {
+  final _functions = FirebaseFunctions.instance;
+  Timer? _heartbeatTimer;
+  int _sequence = 0;
+  int _eligibleMs = 0;
+  bool _foreground = true;
+  bool _sending = false;
+  bool _completing = false;
+  bool _completed = false;
+  bool _canExit = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 5), (_) => _sendHeartbeat());
+  }
+
+  @override
+  void dispose() {
+    _heartbeatTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    _sendHeartbeat();
+  }
+
+  Future<void> _sendHeartbeat() async {
+    if (_sending || _completed || _canExit) return;
+    _sending = true;
+    final nextSequence = _sequence + 1;
+    try {
+      final response = await _functions.httpsCallable('heartbeatFeaturedAdSession').call({
+        'sessionId': widget.sessionId,
+        'sequence': nextSequence,
+        'foreground': _foreground,
+        'visible': true,
+      });
+      final data = Map<String, dynamic>.from(response.data as Map);
+      _sequence = nextSequence;
+      if (!mounted) return;
+      setState(() {
+        _eligibleMs = (data['eligibleMs'] as num?)?.toInt() ?? _eligibleMs;
+        if (data['cancelled'] == true) {
+          _canExit = true;
+          _error = 'انتهت صلاحية الحملة أو تغيرت؛ لم تُمنح مكافأة.';
+        }
+      });
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر التحقق من جلسة المشاهدة.');
+    } catch (_) {
+      if (mounted) setState(() => _error = 'تعذر إرسال تحقق المشاهدة؛ حاول مجدداً.');
+    } finally {
+      _sending = false;
+    }
+  }
+
+  Future<void> _complete() async {
+    if (_completing || _eligibleMs < widget.requiredVisibleMs || _canExit) return;
+    setState(() { _completing = true; _error = null; });
+    try {
+      await _functions.httpsCallable('completeFeaturedAdSession').call({
+        'sessionId': widget.sessionId,
+      });
+      if (!mounted) return;
+      setState(() { _completed = true; _canExit = true; });
+      _heartbeatTimer?.cancel();
+      Navigator.of(context).pop(true);
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'لم تُعتمد المشاهدة بعد.');
+    } finally {
+      if (mounted) setState(() => _completing = false);
+    }
+  }
+
+  Future<void> _cancelAndExit() async {
+    try {
+      await _functions.httpsCallable('cancelFeaturedAdSession').call({
+        'sessionId': widget.sessionId,
+      });
+    } catch (_) {
+      // Server expiry cleanup remains the fallback if the network is unavailable.
+    }
+    if (!mounted) return;
+    setState(() => _canExit = true);
+    Navigator.of(context).pop(false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = widget.requiredVisibleMs <= 0
+        ? 0.0
+        : (_eligibleMs / widget.requiredVisibleMs).clamp(0.0, 1.0);
+    return PopScope(
+      canPop: _canExit,
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: const Text('مشاهدة الإعلان'),
+          actions: [
+            TextButton(onPressed: _canExit ? () => Navigator.pop(context) : null,
+                child: const Text('')),
+          ],
+        ),
+        body: SafeArea(
+          child: Padding(
             padding: const EdgeInsets.all(16),
-            children: [
-              Card(
-                clipBehavior: Clip.antiAlias,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topRight,
-                      end: Alignment.bottomLeft,
-                      colors: [
-                        theme.colorScheme.primaryContainer,
-                        theme.colorScheme.surfaceContainerHighest,
-                      ],
+            child: Column(
+              children: [
+                const Text('ابقَ في هذه الشاشة حتى يكتمل التحقق من المشاهدة.'),
+                const SizedBox(height: 14),
+                Expanded(
+                  child: Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        widget.imageUrl,
+                        fit: BoxFit.contain,
+                        width: double.infinity,
+                        loadingBuilder: (context, child, progress) => progress == null
+                            ? child
+                            : const Center(child: CircularProgressIndicator()),
+                        errorBuilder: (context, error, stack) => const Center(
+                          child: Text('تعذر تحميل مادة الإعلان الآمنة.'),
+                        ),
+                      ),
                     ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.stars_rounded, size: 30),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'عروض مميزة من الشركات والمؤسسات',
-                              style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'اكتشف الحملات المؤهلة حسب نطاقها الجغرافي. قد تحصل على كوينز بعد إكمال مشاهدة مؤهلة والتحقق منها خادمياً.',
-                      ),
-                      const SizedBox(height: 12),
-                      const Row(
-                        children: [
-                          Icon(Icons.verified_user_outlined, size: 18),
-                          SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'المعاينات وفتح الشاشة لا يمنحان مكافأة.',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                ),
+                const SizedBox(height: 16),
+                LinearProgressIndicator(value: progress, minHeight: 8),
+                const SizedBox(height: 8),
+                Text('التحقق: ${(_eligibleMs / 1000).toStringAsFixed(1)} / ${(widget.requiredVisibleMs / 1000).toStringAsFixed(0)} ثانية'),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(_error!, textAlign: TextAlign.center,
+                        style: TextStyle(color: Theme.of(context).colorScheme.error)),
                   ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Text('الحملات المميزة', style: theme.textTheme.titleLarge),
-              const SizedBox(height: 8),
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      Icon(Icons.campaign_outlined, size: 38),
-                      SizedBox(height: 8),
-                      Text('لا توجد حملات مميزة متاحة للعرض حالياً.'),
-                      SizedBox(height: 4),
-                      Text(
-                        'سيتم عرض الحملات بعد اكتمال ربط خدمة الاستهداف والعرض واعتمادها من الإدارة.',
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                const SizedBox(height: 12),
+                if (_canExit)
+                  FilledButton(onPressed: () => Navigator.pop(context), child: const Text('العودة'))
+                else
+                  FilledButton.icon(
+                    onPressed: _eligibleMs >= widget.requiredVisibleMs && !_completing
+                        ? _complete : null,
+                    icon: _completing
+                        ? const SizedBox(width: 18, height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.verified_outlined),
+                    label: Text('اعتماد المشاهدة والحصول على ${widget.rewardCoins} كوين'),
                   ),
+                TextButton(
+                  onPressed: _canExit ? null : _cancelAndExit,
+                  child: const Text('إلغاء المشاهدة دون مكافأة'),
                 ),
-              ),
-              const SizedBox(height: 18),
-              Text('تصفح حسب النطاق الجغرافي', style: theme.textTheme.titleLarge),
-              const SizedBox(height: 8),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _featuredAdRegions.length,
-                gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: wide ? 250 : 190,
-                  mainAxisExtent: 64,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                itemBuilder: (context, index) {
-                  final entry = _featuredAdRegions.entries.elementAt(index);
-                  final selected = _selectedRegion == entry.key;
-                  return ChoiceChip(
-                    selected: selected,
-                    label: SizedBox(
-                      width: double.infinity,
-                      child: Text(entry.value, textAlign: TextAlign.center),
-                    ),
-                    onSelected: (_) => setState(() => _selectedRegion = entry.key),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-              Card(
-                child: ListTile(
-                  leading: const Icon(Icons.public),
-                  title: Text(_featuredAdRegions[_selectedRegion]!),
-                  subtitle: const Text(
-                    'لا توجد إعلانات مؤهلة في هذا النطاق حالياً. لا نستخدم لغة الجهاز أو موقعه لتحديد الاستهداف.',
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-class FeaturedAdRewardsScreen extends StatelessWidget {
+class FeaturedAdRewardsScreen extends StatefulWidget {
   const FeaturedAdRewardsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(title: const Text('مكافآت مشاهدة الإعلانات')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('كيف تحصل على المكافأة؟', style: theme.textTheme.titleLarge),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'تبدأ الأهلية عند اختيار إعلان مؤهل وبدء مشاهدته في المشغل المخصص. لا تمنح ضغطة الزر أو فتح الشاشة أو مشاهدة المعاينة أي كوينز.',
-                  ),
-                  const SizedBox(height: 12),
-                  const ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.play_circle_outline),
-                    title: Text('الفيديو'),
-                    subtitle: Text('إكمال 90% على الأقل من مدة المادة المعتمدة مع تحقق الظهور والتطبيق في المقدمة.'),
-                  ),
-                  const ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.image_outlined),
-                    title: Text('الصورة الثابتة'),
-                    subtitle: Text('10 ثوانٍ متصلة مؤهلة وهي ظاهرة في مشغل الإعلان المختار.'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('سياسة مكافآت المشاهدة المعتمدة للتنفيذ', style: theme.textTheme.titleLarge),
-                  const SizedBox(height: 8),
-                  const Text('2 كوين لكل مشاهدة مؤهلة.'),
-                          const Text('الإعداد التجريبي الافتراضي: حتى 100 مشاهدة مكافأة و200 كوين في يوم UTC الواحد.'),
-                  const Text('الحد لكل حملة يحدده المالك بصورة مستقلة، وكل مشاهدة مؤهلة ضمن الحد تمنح مكافأتها.'),
-                  const Text('يمكن للمالك تعديل مبلغ المكافأة والحدود من إعدادات Super Admin عند ربطها بالخدمة الخادمية.'),
-                  const Text('هذه الحدود لا تُعد مفعّلة حتى يثبت تطبيقها واختبارها خادمياً.'),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'هذه قيم هندسية تجريبية قابلة للتعديل من المالك، وليست وعداً بدخل أو سياسة إطلاق نهائية.',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.all(18),
-              child: Column(
-                children: [
-                  Icon(Icons.history, size: 34),
-                  SizedBox(height: 8),
-                  Text('سجل المكافآت'),
-                  SizedBox(height: 4),
-                  Text(
-                    'سيظهر هنا سجل المشاهدات المؤهلة والكوينز بعد ربط واجهة السجل بخدمة المكافآت الخادمية. لا يتم عرض رصيد أو سجل تجريبي غير حقيقي.',
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const FeaturedAdsScreen(),
-              ),
-            ),
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('الانتقال إلى الإعلانات المميزة'),
-          ),
-        ],
-      ),
-    );
+  State<FeaturedAdRewardsScreen> createState() => _FeaturedAdRewardsScreenState();
+}
+
+class _FeaturedAdRewardsScreenState extends State<FeaturedAdRewardsScreen> {
+  final _functions = FirebaseFunctions.instance;
+  List<Map<String, dynamic>> _claims = const [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
   }
+
+  Future<void> _load() async {
+    try {
+      final response = await _functions.httpsCallable('getFeaturedAdRewardHistory').call();
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final claims = (data['claims'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList(growable: false);
+      if (mounted) setState(() { _claims = claims; _error = null; });
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل سجل المكافآت.');
+    } catch (_) {
+      if (mounted) setState(() => _error = 'تعذر تحميل سجل المكافآت.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('مكافآت مشاهدة الإعلانات'),
+      actions: [IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh))],
+    ),
+    body: _loading
+        ? const Center(child: CircularProgressIndicator())
+        : ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(18),
+                  child: Text('تُمنح الكوينز فقط بعد جلسة مشاهدة صريحة والتحقق الخادمي من الظهور والمدة والميزانية والحدود. المعاينات لا تمنح مكافآت.'),
+                ),
+              ),
+              if (_error != null) Text(_error!),
+              if (_claims.isEmpty)
+                const Card(child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text('لا توجد مكافآت مشاهدة مسجلة حتى الآن.', textAlign: TextAlign.center),
+                )),
+              ..._claims.map((claim) => Card(
+                child: ListTile(
+                  leading: const Icon(Icons.stars_outlined),
+                  title: Text('+ ${claim['amountCoins'] ?? 0} كوين'),
+                  subtitle: Text('حملة: ${claim['campaignId'] ?? '—'}'),
+                ),
+              )),
+            ],
+          ),
+  );
 }
