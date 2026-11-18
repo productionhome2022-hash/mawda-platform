@@ -354,15 +354,18 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
     return DateTime(date.year, date.month, date.day, 12);
   }
 
-  Widget _coinField(String label, TextEditingController controller) => SizedBox(
-    width: 110,
+  Widget _numberField(String label, TextEditingController controller, String suffix) => SizedBox(
+    width: 220,
     child: TextField(
       controller: controller,
       enabled: !_saving,
       keyboardType: TextInputType.number,
-      decoration: InputDecoration(labelText: label, suffixText: 'كوين'),
+      decoration: InputDecoration(labelText: label, suffixText: suffix),
     ),
   );
+
+  Widget _coinField(String label, TextEditingController controller) =>
+      _numberField(label, controller, 'كوين');
 
   String _statusLabel(Object? status) {
     switch (status) {
@@ -422,12 +425,12 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
               value: _featuredRewardsEnabled,
               onChanged: _saving ? null : (value) => setState(() => _featuredRewardsEnabled = value)),
             _coinField('كوينز لكل مشاهدة مؤهلة', _featuredRewardCoins),
-            _coinField('أقصى مشاهدات مكافأة يومياً', _featuredMaxViews),
+            _numberField('أقصى مشاهدات مكافأة يومياً', _featuredMaxViews, 'مشاهدة'),
             _coinField('أقصى كوينز مكافأة يومياً', _featuredMaxCoins),
-            _coinField('أقصى مكافآت للحملة خلال النافذة', _featuredMaxCampaign),
-            _coinField('نافذة الحملة بالميلي ثانية', _featuredWindowMs),
-            _coinField('نسبة إكمال الفيديو المطلوبة %', _featuredVideoCompletion),
-            _coinField('زمن ظهور الصورة المتصل بالميلي ثانية', _featuredImageVisibleMs),
+            _numberField('أقصى مكافآت للحملة خلال النافذة', _featuredMaxCampaign, 'مكافأة'),
+            _numberField('نافذة الحملة', _featuredWindowMs, 'ms'),
+            _numberField('نسبة إكمال الفيديو المطلوبة', _featuredVideoCompletion, '%'),
+            _numberField('زمن ظهور الصورة المتصل', _featuredImageVisibleMs, 'ms'),
             const SizedBox(height: 8),
             OutlinedButton.icon(
               onPressed: _saving ? null : _saveFeaturedRewardPolicy,
