@@ -28,6 +28,8 @@ test("uses editable experimental featured-ad reward defaults", () => {
 
 test("validates owner-configurable reward values", () => {
   assert.equal(validateFeaturedAdRewardPolicy(policy).rewardCoinsPerView, 2);
+  assert.equal(policy.maxRewardedViewsPerUtcDay, 100);
+  assert.equal(policy.maxRewardCoinsPerUtcDay, 200);
   assert.throws(() => validateFeaturedAdRewardPolicy({ ...policy, maxRewardCoinsPerUtcDay: 1 }));
   assert.throws(() => validateFeaturedAdRewardPolicy({ ...policy, videoCompletionPercent: 101 }));
   assert.equal(validateFeaturedAdRewardPolicy({
@@ -72,8 +74,8 @@ test("enforces continuous visible time for static images", () => {
 });
 
 test("enforces global daily view and coin controls", () => {
-  assert.equal(decideFeaturedAdReward(policy, { ...base, rewardedViewsToday: 10 }).reason, "daily_view_cap");
-  assert.equal(decideFeaturedAdReward(policy, { ...base, rewardCoinsToday: 19 }).reason, "daily_coin_cap");
+  assert.equal(decideFeaturedAdReward(policy, { ...base, rewardedViewsToday: 100 }).reason, "daily_view_cap");
+  assert.equal(decideFeaturedAdReward(policy, { ...base, rewardCoinsToday: 199 }).reason, "daily_coin_cap");
 });
 
 test("honors the per-campaign repeat count configured by the owner", () => {
@@ -86,6 +88,9 @@ test("honors the per-campaign repeat count configured by the owner", () => {
   assert.equal(decideFeaturedAdReward(policy, {
     ...base, maxRewardedViewsForCampaign: 3, rewardedViewsForCampaign: 3,
   }).reason, "campaign_view_cap");
+  assert.equal(decideFeaturedAdReward(policy, {
+    ...base, maxRewardedViewsForCampaign: 1_000_000, rewardedViewsForCampaign: 999_999,
+  }).eligible, true);
 });
 
 test("rejects invalid server evidence rather than granting a reward", () => {
