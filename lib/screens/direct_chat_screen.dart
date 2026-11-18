@@ -460,7 +460,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     if (file == null || !mounted) return;
     setState(() => _sending = true);
     try {
-      final mediaId = await _mediaService.uploadImage(file: file, purpose: 'chat');
+      final mediaId = await _mediaService.uploadImage(file: file, purpose: 'chat', recipientUid: _resolvedPeerUid);
       await _mediaService.sendChatImageAttachment(
         scope: 'direct',
         recipientUid: _resolvedPeerUid,
@@ -493,7 +493,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       type: FileType.custom,
       allowedExtensions: const [
         'jpg', 'jpeg', 'png', 'webp', 'gif',
-        'mp3', 'm4a', 'ogg', 'wav', 'mp4',
+        'mp3', 'm4a', 'ogg', 'wav', 'mp4', 'pdf',
       ],
       allowMultiple: false,
       withData: kIsWeb,
@@ -517,6 +517,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       final mediaId = await _mediaService.uploadChatAttachment(
         file: selectedFile,
         scope: 'direct',
+        recipientUid: _resolvedPeerUid,
       );
       await _mediaService.sendChatMediaAttachment(
         scope: 'direct',
