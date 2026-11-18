@@ -8858,9 +8858,16 @@ async function validateFeaturedAdCreativeForOwner(mediaId: string | null, ownerU
   const expectedType = isVideo ? "video/mp4" : isGif ? "image/gif" : "image/webp";
   const processingStatus = isVideo ? "safe_video_derivative_ready" : isGif
     ? "safe_animation_derivative_ready" : "safe_raster_derivative_ready";
+  const measuredDurationMs = isVideo ? asset.safeVideoDurationMs : isGif ? asset.safeAnimationDurationMs : null;
+  const measuredFrameCount = isGif ? asset.safeAnimationFrameCount : null;
   if (path !== expectedPath || typeof generation !== "string" || !/^[1-9][0-9]*$/.test(generation) ||
       typeof sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(sha256) ||
-      contentType !== expectedType || asset.processingStatus !== processingStatus) {
+      contentType !== expectedType || asset.processingStatus !== processingStatus ||
+      (isGif && (!Number.isSafeInteger(measuredDurationMs) || measuredDurationMs < 1 ||
+        measuredDurationMs > 20_000 || !Number.isSafeInteger(measuredFrameCount) ||
+        measuredFrameCount < 1 || measuredFrameCount > 50)) ||
+      (isVideo && (!Number.isSafeInteger(measuredDurationMs) || measuredDurationMs < 1 ||
+        measuredDurationMs > 90_000))) {
     throw new HttpsError("failed-precondition", "المادة لم تنتج مشتقاً آمناً موثقاً وقابلاً للعرض.");
   }
   return { creativeType: isVideo ? "video" as const : "image" as const };
