@@ -8289,11 +8289,11 @@ export const setFeaturedAdCampaignStatus = onCall(async (request) => {
     if (next === "published" &&
         (current.ownerApproved !== true || current.paymentConfirmed !== true ||
          current.creativeApproved !== true || current.ownerWithdrawn === true ||
-         !["approved", "paused"].includes(String(current.status)))) {
+         !current.mediaId || !["approved", "paused"].includes(String(current.status)))) {
       throw new HttpsError("failed-precondition", "لا يمكن نشر الحملة قبل اكتمال الاعتماد والدفع والمادة الآمنة.");
     }
     if (next === "approved") {
-      if (current.ownerWithdrawn === true || current.paymentConfirmed !== true) {
+      if (current.ownerWithdrawn === true || current.paymentConfirmed !== true || !current.mediaId) {
         throw new HttpsError("failed-precondition", "لا يمكن اعتماد الحملة قبل تأكيد الدفع.");
       }
       if (current.mediaId) await validateFeaturedAdCreativeForOwner(String(current.mediaId), actorUid);
