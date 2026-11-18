@@ -4,7 +4,7 @@
 
 هذه المرحلة هي المسار الاقتصادي الموحد للمنصة وتطبيقاتها، وتشمل:
 
-- Beta Coins والمحفظة والتحويلات والعمولات وسجل التدقيق.
+- BetaCoins والمحفظة والتحويلات والعمولات وسجل التدقيق.
 - جميع المتاجر والـSKU والاستحقاقات والمدد والأسعار التجريبية.
 - شراء المزايا، المنح، الإهداء، والهدايا.
 - مكافآت الحضور الساعي واليومي والأسبوعي.
@@ -25,9 +25,9 @@
 - قيم الاختبار/التطوير قابلة للتعديل من المالك وليست أسعار إطلاق.
 - لا نشر أو دمج إلى main أو فوترة إنتاجية من هذه المرحلة.
 
-## Beta Coins
+## BetaCoins
 
-الاسم التجاري الظاهر المعتمد هو **Beta Coins — بيتا كوينز**.
+الاسم التجاري الظاهر المعتمد هو **BetaCoins — BetaCoins**.
 
 المعرفات التقنية القديمة مثل `coins` تبقى مؤقتاً حفاظاً على التوافق مع البيانات والعقود الخادمية، ولا يتم تغييرها لمجرد تغيير الاسم التجاري.
 
@@ -91,11 +91,11 @@
 
 ## آخر تغيير في هذه الجولة
 
-تم تنفيذ حماية رصيد Beta Coins خادمياً، وتوحيد اسم Beta Coins في واجهات الملف والإعلانات المميزة، وتثبيت نسبة 60/40 في وثيقة المرحلة، مع عدم دمج main أو لمس الإنتاج.
+تم تنفيذ حماية رصيد BetaCoins خادمياً، وتوحيد اسم BetaCoins في واجهات الملف والإعلانات المميزة، وتثبيت نسبة 60/40 في وثيقة المرحلة، مع عدم دمج main أو لمس الإنتاج.
 
 ## New hardening in this execution pass
 
-- Timed-ad reward caps are now enforced server-side for the development environment: maximum 10 rewarded ad claims per member per UTC day, maximum 20 Beta Coins from rewarded ads per member per UTC day, and maximum 3 rewarded claims per member per campaign.
+- Timed-ad reward caps are now enforced server-side for the development environment: maximum 10 rewarded ad claims per member per UTC day, maximum 20 BetaCoins from rewarded ads per member per UTC day, and maximum 3 rewarded claims per member per campaign.
 - The daily cap is stored in a dedicated per-member/per-UTC-day counter inside the same transaction as the wallet credit and reward claim, preventing concurrent requests from bypassing the cap.
 - Campaign validation rejects a per-member campaign limit above the experimental maximum.
 
@@ -104,7 +104,7 @@
 ### Calls
 The current call backend implements authenticated WebRTC signaling, participant locks, rolling 24-hour attempt counters (5 audio / 3 video), and a server-recorded five-minute maximum beginning after connection confirmation. The Flutter call screen invokes signaling/connection functions and displays the five-minute ceiling.
 
-The inspected call lifecycle does **not** yet implement economic entitlement checks, explicit per-party billing consent, a metered connected-duration ledger, atomic Beta Coins debit/refund, or an idempotent call-settlement record. The existing 5/3 quota counts attempts, not billable completed calls. Do not represent it as a free-call entitlement or a paid-call billing system. Multi-party room-call settlement also requires a deliberate policy before implementation.
+The inspected call lifecycle does **not** yet implement economic entitlement checks, explicit per-party billing consent, a metered connected-duration ledger, atomic BetaCoins debit/refund, or an idempotent call-settlement record. The existing 5/3 quota counts attempts, not billable completed calls. Do not represent it as a free-call entitlement or a paid-call billing system. Multi-party room-call settlement also requires a deliberate policy before implementation.
 
 ### Media Saver
 The development branch tree inspected in this pass contains no dedicated Media Saver client service/screen or end-to-end local-save workflow. The secure media gateway and entitlement/store infrastructure exist separately, but their presence does not prove local save fulfillment. Keep Media Saver purchase fulfillment disabled until the client-side secure download/save, per-operation server entitlement verification, platform permission handling, and tests are implemented.
@@ -123,7 +123,7 @@ The inspected Flutter call screen reports connection and uses a five-minute disp
 
 ## Store fulfillment safety correction — Hide Coins SKU
 
-The server-side profile projection already withholds every member's Beta Coins balance from all non-owner viewers, regardless of whether the target member has purchased a Hide Coins entitlement. Therefore the current `hide_coins_30d` SKU would charge for no additional observable behavior under the approved privacy rule. Its fulfillment-ready allowlist entry has been removed and purchase validation now fails closed. The catalog item may remain unpublished/disabled for future redesign, but it must not be sold until a distinct, owner-approved behavior exists that does not weaken the baseline privacy rule.
+The server-side profile projection already withholds every member's BetaCoins balance from all non-owner viewers, regardless of whether the target member has purchased a Hide Coins entitlement. Therefore the current `hide_coins_30d` SKU would charge for no additional observable behavior under the approved privacy rule. Its fulfillment-ready allowlist entry has been removed and purchase validation now fails closed. The catalog item may remain unpublished/disabled for future redesign, but it must not be sold until a distinct, owner-approved behavior exists that does not weaken the baseline privacy rule.
 
 
 ## Owner clarification: recurring store entitlements and gifting — 2026-11-18
@@ -142,7 +142,7 @@ Current implementation gap: the existing backend exposes owner-only single/bulk 
 ## Member-to-member gifting backend implementation — 2026-11-18
 
 - Added the giftStoreItem callable on the development branch. Anonymous senders are rejected from the verified Firebase Auth provider claim. Recipient Auth provider data is checked server-side; a recipient must also have a completed, good-standing member profile and no dedicated guest profile/session records. Sender and recipient are checked again in the Firestore transaction.
-- The transaction revalidates the published catalog item, fulfillment allowlist and exact current price; debits the sender's Beta Coins once; creates the immutable wallet-ledger debit and gift receipt; extends/creates the recipient entitlement; and writes recipient gift history plus an in-app notification. The sender's own entitlement is not read or modified.
+- The transaction revalidates the published catalog item, fulfillment allowlist and exact current price; debits the sender's BetaCoins once; creates the immutable wallet-ledger debit and gift receipt; extends/creates the recipient entitlement; and writes recipient gift history plus an in-app notification. The sender's own entitlement is not read or modified.
 - Request IDs are bound to sender, recipient, item and confirmed price. Replaying the same request returns the original result; a distinct request ID remains a distinct gift.
 - Timed entitlements stack from the later of server time and current expiry. An active permanent entitlement is not shortened by a timed gift. Discovery boost expiry is also considered when applying a boost gift.
 - Added pure domain tests for eligibility, replay compatibility, expiry stacking, permanent entitlement preservation and malformed durations. Tests are committed but have NOT been executed. UI integration, emulator transaction tests and platform acceptance remain open.
@@ -150,16 +150,16 @@ Current implementation gap: the existing backend exposes owner-only single/bulk 
 
 ## Recipient-profile-only feature gifting UX — 2026-11-18
 
-- Updated the Flutter member profile so a visitor to another member's profile sees two distinct actions: gifting Beta Coins and gifting a store feature. The feature flow loads the server catalog, shows only purchase-enabled and fulfillment-ready items, displays price/duration, asks for confirmation, and sends the already-open profile UID directly to giftStoreItem.
+- Updated the Flutter member profile so a visitor to another member's profile sees two distinct actions: gifting BetaCoins and gifting a store feature. The feature flow loads the server catalog, shows only purchase-enabled and fulfillment-ready items, displays price/duration, asks for confirmation, and sends the already-open profile UID directly to giftStoreItem.
 - This works for friends and non-friends and avoids ambiguous username search. Recipient identity is anchored to the profile being viewed, not user-entered text.
 - Removed the gift action and username search flow from the store screen. The store remains for browsing and self-purchase. Removed the now-unneeded username lookup callable.
 - Backend eligibility and guest checks remain authoritative. No client-side state is trusted for settlement.
 - Static source review only; Flutter analysis/tests and Functions/Firestore Emulator tests have not been run.
 
 
-## Beta Coins gifting choices on recipient profile — 2026-11-18
+## BetaCoins gifting choices on recipient profile — 2026-11-18
 
-- The profile's existing Beta Coins gift button now opens two choices: an owner-configured active package, or a custom amount transferred from the sender's own current balance.
+- The profile's existing BetaCoins gift button now opens two choices: an owner-configured active package, or a custom amount transferred from the sender's own current balance.
 - The custom amount reuses the existing server quote and atomic transfer callable, showing gross debit, configured commission and recipient net amount before confirmation.
 - Package gifts load only active packages from platformSettings/economyPricing. The user confirms the displayed price and target profile. Because this repository's current coin checkout is manual owner-contact (automated checkout is disabled), the UI explicitly says this creates a purchase request and that no coins are issued until the owner verifies external payment and approves it.
 - Backend package requests bind giftRecipientUid to the open profile, reject self-gifting, verify recipient membership/Auth eligibility and guest exclusion, and include recipient identity in replay compatibility. Owner approval revalidates recipient eligibility and atomically credits the recipient (not the purchaser), writes the recipient wallet ledger, coinPackageGifts receipt, coinPackageGiftHistory and in-app notification, and records owner audit. Push delivery is best-effort after commit.
