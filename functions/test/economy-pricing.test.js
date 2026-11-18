@@ -13,6 +13,11 @@ const adPriceFixture = {
   billingModel: "cpm", priceMinor: 200, currency: "EUR", active: true,
 };
 
+test("empty price catalogs remain valid until the owner explicitly configures offers", () => {
+  assert.deepEqual(validateCoinPackages([]), []);
+  assert.deepEqual(validateAdPrices([]), []);
+});
+
 test("owner-authored coin packages and ad prices validate with EUR minor units", () => {
   assert.equal(validateCoinPackages([coinPackageFixture]).length, 1);
   assert.equal(validateAdPrices([adPriceFixture]).length, 1);
