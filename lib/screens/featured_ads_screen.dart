@@ -24,7 +24,6 @@ class FeaturedAdsScreen extends StatefulWidget {
 }
 
 class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
-  final _functions = FirebaseFunctions.instance;
   String _selectedRegion = 'all_arab_countries';
   List<Map<String, dynamic>> _campaigns = const [];
   bool _loading = true;
@@ -43,7 +42,7 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
     if (!mounted) return;
     setState(() { _loading = true; _error = null; });
     try {
-      final response = await _functions.httpsCallable('getFeaturedAdShowcase').call({
+      final response = await FirebaseFunctions.instance.httpsCallable('getFeaturedAdShowcase').call({
         'geography': _selectedRegion,
       });
       final data = Map<String, dynamic>.from(response.data as Map);
@@ -69,7 +68,7 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
 
   Future<void> _cancelSessionQuietly(String sessionId) async {
     try {
-      await _functions.httpsCallable('cancelFeaturedAdSession').call({'sessionId': sessionId});
+      await FirebaseFunctions.instance.httpsCallable('cancelFeaturedAdSession').call({'sessionId': sessionId});
     } catch (_) {
       // The scheduled server cleanup releases the reservation if cancellation cannot reach the server.
     }
@@ -80,20 +79,20 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
     setState(() { _starting = true; _error = null; });
     String? sessionId;
     try {
-      final started = await _functions.httpsCallable('startFeaturedAdSession').call({
+      final started = await FirebaseFunctions.instance.httpsCallable('startFeaturedAdSession').call({
         'campaignId': campaign['campaignId'],
         'geography': _selectedRegion,
       });
       final session = Map<String, dynamic>.from(started.data as Map);
       sessionId = session['sessionId'] as String;
-      final creativeResponse = await _functions.httpsCallable('getFeaturedAdCreativeUrl').call({
+      final creativeResponse = await FirebaseFunctions.instance.httpsCallable('getFeaturedAdCreativeUrl').call({
         'campaignId': campaign['campaignId'],
         'sessionId': sessionId,
       });
       final creative = Map<String, dynamic>.from(creativeResponse.data as Map);
       final url = creative['url'] as String?;
       if (url == null || url.isEmpty) {
-        await _functions.httpsCallable('cancelFeaturedAdSession').call({'sessionId': sessionId});
+        await FirebaseFunctions.instance.httpsCallable('cancelFeaturedAdSession').call({'sessionId': sessionId});
         throw StateError('لا تتوفر مادة عرض آمنة لهذه الحملة.');
       }
       if (!mounted) return;
@@ -114,7 +113,7 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
       if (mounted) setState(() => _error = error.message ?? 'تعذر بدء مشاهدة الإعلان.');
     } catch (error) {
       if (sessionId != null) {
-        await _functions.httpsCallable('cancelFeaturedAdSession')
+        await FirebaseFunctions.instance.httpsCallable('cancelFeaturedAdSession')
             .call({'sessionId': sessionId}).catchError((_) => null);
       }
       if (mounted) setState(() => _error = error.toString().replaceFirst('Bad state: ', ''));
@@ -255,7 +254,6 @@ class FeaturedAdPlayerScreen extends StatefulWidget {
 
 class _FeaturedAdPlayerScreenState extends State<FeaturedAdPlayerScreen>
     with WidgetsBindingObserver {
-  final _functions = FirebaseFunctions.instance;
   Timer? _heartbeatTimer;
   int _sequence = 0;
   int _eligibleMs = 0;
@@ -291,7 +289,7 @@ class _FeaturedAdPlayerScreenState extends State<FeaturedAdPlayerScreen>
     _sending = true;
     final nextSequence = _sequence + 1;
     try {
-      final response = await _functions.httpsCallable('heartbeatFeaturedAdSession').call({
+      final response = await FirebaseFunctions.instance.httpsCallable('heartbeatFeaturedAdSession').call({
         'sessionId': widget.sessionId,
         'sequence': nextSequence,
         'foreground': _foreground,
@@ -320,7 +318,7 @@ class _FeaturedAdPlayerScreenState extends State<FeaturedAdPlayerScreen>
     if (_completing || _eligibleMs < widget.requiredVisibleMs || _canExit) return;
     setState(() { _completing = true; _error = null; });
     try {
-      await _functions.httpsCallable('completeFeaturedAdSession').call({
+      await FirebaseFunctions.instance.httpsCallable('completeFeaturedAdSession').call({
         'sessionId': widget.sessionId,
       });
       if (!mounted) return;
@@ -336,7 +334,7 @@ class _FeaturedAdPlayerScreenState extends State<FeaturedAdPlayerScreen>
 
   Future<void> _cancelAndExit() async {
     try {
-      await _functions.httpsCallable('cancelFeaturedAdSession').call({
+      await FirebaseFunctions.instance.httpsCallable('cancelFeaturedAdSession').call({
         'sessionId': widget.sessionId,
       });
     } catch (_) {
@@ -429,7 +427,6 @@ class FeaturedAdRewardsScreen extends StatefulWidget {
 }
 
 class _FeaturedAdRewardsScreenState extends State<FeaturedAdRewardsScreen> {
-  final _functions = FirebaseFunctions.instance;
   List<Map<String, dynamic>> _claims = const [];
   bool _loading = true;
   String? _error;
@@ -442,7 +439,7 @@ class _FeaturedAdRewardsScreenState extends State<FeaturedAdRewardsScreen> {
 
   Future<void> _load() async {
     try {
-      final response = await _functions.httpsCallable('getFeaturedAdRewardHistory').call();
+      final response = await FirebaseFunctions.instance.httpsCallable('getFeaturedAdRewardHistory').call();
       final data = Map<String, dynamic>.from(response.data as Map);
       final claims = (data['claims'] as List<dynamic>? ?? const [])
           .whereType<Map>()
