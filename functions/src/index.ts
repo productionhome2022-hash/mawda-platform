@@ -111,8 +111,6 @@ import {
   eligibleHeartbeatDelta,
   timedAdMemberCounterId,
   decideTimedAdDailyCap,
-  TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER,
-  TIMED_AD_DAILY_MAX_REWARD_COINS_PER_MEMBER,
   AttendanceRewardType,
 } from "./engagement-rewards";
 
