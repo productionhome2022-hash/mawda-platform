@@ -254,29 +254,25 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
 });
 
 
-test("owner catalog seeds approved features as ready while keeping purchases disabled", async () => {
+test("owner catalog seeds product metadata without commercial prices or fixed durations", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const result = await getOwnerStoreCatalog.run(ownerRequest());
   const items = result.items;
-  const expected = new Map([
-    ["vip_monthly", 5000], ["title_custom", 800], ["badge_special", 1200],
-    ["avatar_frame_30d", 2500], ["username_color_30d", 1200],
-    ["username_animated_30d", 3000], ["profile_analytics_30d", 1800],
-    ["profile_layout_30d", 3500], ["profile_pin_30d", 900],
-    ["discovery_boost_7d", 1500], ["profile_theme_30d", 2000],
-    ["visitor_greeting_30d", 1000], ["hide_coins_30d", 1000], ["ghost_mode_7d", 1800],
-  ]);
-  for (const [itemId, price] of expected) {
+  const expected = [
+    "vip_monthly", "title_custom", "badge_special", "avatar_frame_30d",
+    "username_color_30d", "username_animated_30d", "profile_analytics_30d",
+    "profile_layout_30d", "profile_pin_30d", "discovery_boost_7d",
+    "profile_theme_30d", "visitor_greeting_30d", "hide_coins_30d", "ghost_mode_7d",
+  ];
+  for (const itemId of expected) {
     const item = items.find((entry) => entry.itemId === itemId);
     assert.ok(item, `missing starter catalog item: ${itemId}`);
-    assert.equal(item.priceCoins, price);
-    const implemented = !["hide_coins_30d", "ghost_mode_7d"].includes(itemId);
-    assert.equal(item.active, implemented);
+    assert.equal(item.priceCoins, null, `seed price must remain unset: ${itemId}`);
+    assert.equal(item.durationDays, undefined, `seed duration must remain unset: ${itemId}`);
     assert.equal(item.purchaseEnabled, false);
-    assert.equal(item.fulfillmentReady, implemented);
+    assert.ok(Number.isSafeInteger(item.version) && item.version >= 1);
   }
 });
-
 
 test("owner economy pricing never seeds commercial defaults and publishes immutable versions", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
