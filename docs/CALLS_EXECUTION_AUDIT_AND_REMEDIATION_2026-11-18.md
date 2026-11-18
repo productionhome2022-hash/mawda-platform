@@ -157,3 +157,20 @@ The owner explicitly confirmed that the existing group-audio participant cap mus
 - Do not alter the existing 2–5 validation as part of the call-economy remediation.
 - This clarification concerns group audio only; the separately approved group-video maximum remains four people total, including the initiator.
 - Continue implementing the remaining call-economy lifecycle (individual join requests, initiator approval, entitlement and explicit financial consent, trusted participant-level connection measurement, and idempotent atomic settlement) without changing this audio capacity rule.
+
+## Economic integration verification — 2026-11-18
+
+A second source-level pass checked whether the existing helper/catalog are actually connected to the callable lifecycle.
+
+- `functions/src/group-call-economy.ts` exports `calculateGroupCallCoinShares`, but the current `functions/src/index.ts` has **zero references** to that helper. It is a calculation helper only; it does not debit wallets or write ledger entries.
+- The current `functions/src/index.ts` has no call-specific entitlement, billing, or settlement identifiers/references. The general wallet ledger exists for other flows, but no call-session billing flow was found in the inspected source.
+- The default catalog contains `voice_call_*` and `video_call_*` entries, but catalog presence alone does not enforce entitlement checks inside `startCall`/admission or create call billing.
+- `functions/test/group-call-economy.test.js` currently labels 7-person and 9-person splits as audio tests. Those test fixtures exceed the owner's explicitly approved audio maximum of five total participants. They are math-helper tests, not proof that runtime call admission allows those sizes. Future call-economy tests must use 2–5 total participants for group audio and 2–4 total participants for group video.
+- The current room admission code enforces 2–5 members for room calls and additionally rejects video groups above four. Preserve the 5-person audio cap and the 4-person video cap; do not broaden them.
+
+Execution and validation:
+- Local runtime inspection: Node.js v22.16.0 and npm are present; this execution container has no Mawdda checkout, no `.git` working tree for Mawdda, and no Flutter, Dart, or Firebase CLI.
+- Therefore neither the Functions build nor Node unit tests nor Firestore Emulator integration tests could be executed locally in this session. No remote CI/workflow was started, in accordance with the owner's instruction.
+- No production Firebase resource, billing setting, deployment, or merge was touched.
+
+Status: call economy is **not complete**. Do not enable call charges until the missing server-side entitlement/admission, trustworthy per-participant metering, atomic/idempotent wallet settlement, and local emulator coverage are implemented and pass.
