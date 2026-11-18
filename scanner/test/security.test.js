@@ -79,6 +79,8 @@ test("ClamAV signature freshness fails closed for missing, stale and future time
   assert.equal(isSignatureDatabaseFresh(now - 40 * 60 * 60 * 1000, now, maxAge), false);
   assert.equal(isSignatureDatabaseFresh(Number.NaN, now, maxAge), false);
   assert.equal(isSignatureDatabaseFresh(now + 10 * 60 * 1000, now, maxAge), false);
+  assert.equal(isSignatureDatabaseFresh(now - 40 * 60 * 60 * 1000, now, 48 * 60 * 60 * 1000), false,
+    "a caller cannot relax the fixed 36-hour maximum");
 });
 
 
