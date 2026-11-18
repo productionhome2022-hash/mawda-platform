@@ -220,6 +220,64 @@ test("room call signaling is peer-targeted and one member leaving does not end t
   }
 });
 
+test("room invitations admit only entitled participants and rejected members do not block the call", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const callerUid = uid("room_entitled_caller");
+  const acceptedUid = uid("room_entitled_peer");
+  const rejectedUid = uid("room_unentitled_peer");
+  const roomId = uid("room_entitled");
+  const rentalId = uid("room_entitled_rental");
+  const callId = uid("room_entitled_call");
+  const roomRef = db.collection("rooms").doc(roomId);
+  const rentalRef = db.collection("roomRentals").doc(rentalId);
+  const callRef = db.collection("callSessions").doc(callId);
+  const memberUids = [callerUid, acceptedUid, rejectedUid];
+  const memberRefs = memberUids.map((memberUid) => db.collection("users").doc(memberUid));
+  const expiresAt = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
+  const callerEntitlements = await seedCallEntitlements(callerUid, ["audio"]);
+  const acceptedEntitlements = await seedCallEntitlements(acceptedUid, ["audio"]);
+  await Promise.all([
+    ...memberRefs.map((ref) => ref.set({
+      profileCompleted: true, accountStatus: "active", age: 30,
+    })),
+    roomRef.set({
+      roomId, ownerUid: callerUid, kind: "private", isRented: true,
+      rentalId, status: "active", capacity: 5, expiresAt,
+    }),
+    rentalRef.set({
+      rentalId, roomId, ownerUid: callerUid, status: "active", expiresAt,
+    }),
+    ...memberUids.map((memberUid) =>
+      roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" })),
+  ]);
+  try {
+    const started = await startCall.run(call(callerUid, {
+      callId, scope: "room", targetId: roomId, mode: "audio",
+    }));
+    assert.equal(started.status, "ringing");
+    await respondToCall.run(call(rejectedUid, { callId, response: "reject" }));
+    assert.equal((await db.collection("activeCallMemberLocks").doc(rejectedUid).get()).exists, false);
+    await respondToCall.run(call(acceptedUid, { callId, response: "accept" }));
+    assert.equal((await callRef.get()).data().acceptedUids.includes(acceptedUid), true);
+    const callerConnected = await markCallConnected.run(call(callerUid, { callId }));
+    assert.equal(callerConnected.connected, false);
+    const peerConnected = await markCallConnected.run(call(acceptedUid, { callId }));
+    assert.equal(peerConnected.connected, true);
+    await endCall.run(call(callerUid, { callId }));
+  } finally {
+    await db.recursiveDelete(callRef).catch(() => undefined);
+    await db.recursiveDelete(roomRef).catch(() => undefined);
+    await db.recursiveDelete(rentalRef).catch(() => undefined);
+    await Promise.all([
+      ...memberRefs,
+      ...memberUids.map((memberUid) => db.collection("activeCallMemberLocks").doc(memberUid)),
+      db.collection("callQuotaWindows").doc(callerUid),
+      ...callerEntitlements,
+      ...acceptedEntitlements,
+    ].map((ref) => db.recursiveDelete(ref).catch(() => undefined)));
+  }
+});
+
 test("room calls require a live private rental and video groups never exceed four members", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const memberUids = Array.from({ length: 5 }, (_, index) => uid(`room_policy_member_${index}`));
