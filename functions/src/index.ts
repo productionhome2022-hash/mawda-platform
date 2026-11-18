@@ -6320,16 +6320,30 @@ export const giftStoreItem = onCall(async (request) => {
   const entitlementRef = recipientRef.collection("entitlements").doc(itemId);
   const auditRef = db.collection("adminAuditLogs").doc(`store_gift_${giftId}`);
   return db.runTransaction(async (transaction) => {
-    const [sender, recipient, itemSnapshot, priorGift, priorEntitlement] = await Promise.all([
+    const [sender, recipient, itemSnapshot, priorGift, priorEntitlement, priorLedger, priorAudit] = await Promise.all([
       transaction.get(senderRef), transaction.get(recipientRef),
       transaction.get(itemRef), transaction.get(giftRef), transaction.get(entitlementRef),
+      transaction.get(ledgerRef), transaction.get(auditRef),
     ]);
     if (priorGift.exists) {
       const prior = priorGift.data() ?? {};
+      const ledger = priorLedger.data() ?? {};
+      const audit = priorAudit.data() ?? {};
       if (!isStoreGiftReplayCompatible(prior, {
         senderUid, recipientUid, itemId, expectedPriceCoins, expectedCatalogVersion,
       })) {
         throw new HttpsError("already-exists", "معرف طلب الإهداء مستخدم لعملية أو مستلم أو سعر مختلف.");
+      }
+      if (!priorLedger.exists || !priorAudit.exists ||
+          ledger.type !== "store_gift_purchase" || ledger.giftId !== giftId ||
+          ledger.amount !== -prior.priceCoins || ledger.recipientUid !== recipientUid ||
+          ledger.catalogVersion !== expectedCatalogVersion ||
+          !Number.isSafeInteger(ledger.balanceBefore) ||
+          !Number.isSafeInteger(ledger.balanceAfter) ||
+          ledger.balanceBefore - prior.priceCoins !== ledger.balanceAfter ||
+          audit.action !== "store_item_gifted" || audit.giftId !== giftId ||
+          audit.actorUid !== senderUid || audit.targetUid !== recipientUid) {
+        throw new HttpsError("data-loss", "إيصال الإهداء لا يطابق قيد المحفظة وسجل التدقيق.");
       }
       return {
         giftId, itemId, recipientUid, priceCoins: prior.priceCoins,
@@ -6361,8 +6375,17 @@ export const giftStoreItem = onCall(async (request) => {
     }
     const nowMs = Date.now();
     let expiresAtMs: number | null;
-    try { expiresAtMs = calculateStoreGiftExpiryMs(prior, item.durationDays, nowMs); }
-    catch { throw new HttpsError("failed-precondition", "سجل استحقاق المستلم غير صالح؛ أوقفنا الإهداء."); }
+    try {
+      const durationBase = item.category === "boost"
+        ? {
+            ...prior,
+            expiresAt: prior.expiresAt ?? recipient.data()?.discoveryBoostExpiresAt ?? null,
+          }
+        : prior;
+      expiresAtMs = calculateStoreGiftExpiryMs(durationBase, item.durationDays, nowMs);
+    } catch {
+      throw new HttpsError("failed-precondition", "سجل استحقاق المستلم غير صالح؛ أوقفنا الإهداء.");
+    }
     const expiresAt = expiresAtMs === null ? null : Timestamp.fromMillis(expiresAtMs);
     const senderBalance = readSafeInteger(sender.data()?.coins ?? 0, "coins");
     const newBalance = calculateStorePurchaseBalance(senderBalance, item.priceCoins);
@@ -6374,7 +6397,7 @@ export const giftStoreItem = onCall(async (request) => {
       category: item.category, priceCoins: item.priceCoins,
       durationDays: item.durationDays ?? null, catalogVersion: item.version,
       catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
-      newBalance, expiresAt, status: "completed", createdAt: now,
+      balanceBefore: senderBalance, newBalance, expiresAt, status: "completed", createdAt: now,
     });
     transaction.create(ledgerRef, {
       type: "store_gift_purchase", direction: "debit", amount: -item.priceCoins,
@@ -6390,15 +6413,16 @@ export const giftStoreItem = onCall(async (request) => {
       catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
       purchasedAt: now, expiresAt,
     });
+    const recipientUpdate: Record<string, unknown> = {};
     if (item.category === "boost" && expiresAt) {
-      transaction.update(recipientRef, {
-        discoveryBoostExpiresAt: expiresAt, discoveryBoostGiftId: giftId,
-      });
+      recipientUpdate.discoveryBoostExpiresAt = expiresAt;
+      recipientUpdate.discoveryBoostGiftId = giftId;
     }
     if (item.itemId === "profile_pin_30d" &&
         typeof recipient.data()?.pinnedProfileSection !== "string") {
-      transaction.update(recipientRef, { pinnedProfileSection: "interests" });
+      recipientUpdate.pinnedProfileSection = "interests";
     }
+    if (Object.keys(recipientUpdate).length > 0) transaction.update(recipientRef, recipientUpdate);
     transaction.create(auditRef, {
       actorUid: senderUid, targetUid: recipientUid,
       action: "store_item_gifted", giftId, itemId, itemName: item.name,
