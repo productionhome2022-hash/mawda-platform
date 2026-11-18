@@ -224,7 +224,7 @@ Commit: `efb80d130793ba2f3f5c5d6a58ced11f4fb08736`.
 
 ### حدود لم تُغلق بعد
 
-- لم تُدمج واجهات Flutter: شاشة إدارة حزم المالك، منتقي الملصقات، renderer في المحادثات والغرف، ولا خدمة العميل التي تستدعي callables. لذلك لا تُعتبر تجربة الملصقات مكتملة للمستخدم حتى ربط هذه الواجهات واختبارها.
+- تم دمج أساس واجهات Flutter على فرع الاختبار: `MemberMediaUploadService` لرفع الملصق والتحقق من نتيجة الفحص وإدارة الحزم/الكتالوج/الإرسال، شاشة إدارة حزم المالك، منتقي الملصقات وعارضها، وربط زر الإرسال والعرض في المحادثة الخاصة والغرف، وإضافة مدخل الشاشة إلى لوحة السوبر أدمن. لم تُشغّل Flutter Analyze أو اختبارات Widget، لذلك لا تُعد الواجهات مقبولة نهائياً حتى فحص التحليل والبناء والاختبار على الأجهزة.
 - لم يُضف بعد اختبار Emulator شامل يثبت المسار: جلسة المالك → رفع sticker → callback → اعتماد المشتق → نشر الحزمة → الكتالوج → URL → إرسال مباشر/غرفة → العرض.
 - لم يُنشر scanner worker ولم يُربط ببيئة Firebase غير إنتاجية. لم تُختبر callback حية أو Storage generations في بيئة فعلية.
 - لم تُنفذ ميزات البحث والمفضلة والمستخدمة حديثاً، ولا ضوابط الحركة المخففة/إيقاف autoplay عند إخفاء الشاشة/حدود الذاكرة وإمكانية الوصول.
@@ -251,6 +251,11 @@ Commit: `efb80d130793ba2f3f5c5d6a58ced11f4fb08736`.
 - `5e9f4d15c8f5f805713ba1ce0e6822aafdeab296` — catalog callable and public exports.
 - `a43a8db9e1b06bd125eb10a1cb401b1ae8452405`, `0b8b00a142cc4aaf5c87714face3bc90e03dcfb4`, `c3b48f9c8ae45a6f8fe63740a94d2b76a22fd6ed` — full sticker replay identity hardening.
 - `e9e3cb6e43e3a680f1de05f910e2583d8a158bd3` — import consolidation.
+- `5cdea71ecb890beabe393e1b3fabd5e91f6f0ed1` — client sticker upload/catalog/send service methods.
+- `7a88ebf2eb2db209618e2c8bcbfce1ff3825deca`, `41eeaba73512e3e0322c9e5afcb363c95abdcb56` — owner pack editor and picker/renderer widgets.
+- `2d91f7baae1b7d9b743fb26019a2ec15f2be0f2d` — owner dashboard entry point.
+- `8c665200e16fa6b75a6cdeaef587cc7ee065320d`, `08230028d65d7a643e87bfea997a2ca0c31dd2d8` — direct-chat and room picker/send/render integration.
+- `8f2d0863d36901d6e1906d7b46c0754feb32153e` — account eligibility hardening; `7efd056aefc626151297d96735640c1666ea96d9` — room membership alignment.
 
 
 ### مراجعة أخيرة لمسار إرسال الملصقات
