@@ -338,7 +338,8 @@ if (API_TOKEN.length < 32 || HMAC_SECRET.length < 32 || !BUCKET_NAME ||
     !Number.isSafeInteger(MAX_DOWNLOAD_BYTES) || MAX_DOWNLOAD_BYTES <= 0 ||
     MAX_DOWNLOAD_BYTES > 25 * 1024 * 1024 ||
     !Number.isSafeInteger(SCAN_TIMEOUT_MS) || SCAN_TIMEOUT_MS <= 0 ||
-    !Number.isSafeInteger(MAX_SIGNATURE_AGE_MS) || MAX_SIGNATURE_AGE_MS <= 0) {
+    !Number.isSafeInteger(MAX_SIGNATURE_AGE_MS) || MAX_SIGNATURE_AGE_MS <= 0 ||
+    MAX_SIGNATURE_AGE_MS > 36 * 60 * 60 * 1000) {
   throw new Error("Scanner runtime configuration is incomplete or outside approved safety bounds.");
 }
 
