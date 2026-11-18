@@ -118,5 +118,5 @@ No source code was changed during this recheck. No local command, test suite, em
 - Room-rental renewal replays now require the matching debit-ledger entry and reconcile the amount, rental/room/plan identity, balance-before/balance-after snapshot and receipt balance. Missing or inconsistent evidence fails closed.
 - New room-rental creation and renewal writes persist balance-before/balance-after snapshots in both the rental receipt and wallet ledger.
 - Added emulator integration assertions for creation/renewal snapshots, idempotent replay and fail-closed behavior when either debit ledger is missing; test source has been committed but has **not** been executed.
-- Commits: implementation `02dd33bd050ba0bd6fc4295a4d45a80e92477952`; regression tests `4dfc39d86bebbf7cdc800f004fc325e9d3c6fc48`.
+- Commits: implementation `02dd33bd050ba0bd6fc4295a4d45a80e92477952`; initial regression tests `4dfc39d86bebbf7cdc800f004fc325e9d3c6fc48`; test isolation correction `47712ea84ffcc7fea2d3e6d46d7030c5cac86c72`.
 - Final TypeScript build, Functions unit suite and room-rental emulator integration remain deferred until the internal economic implementation pass is complete. No live Firebase operation, billing, deployment, merge to `main`, or 5,000-persona lab action occurred.
