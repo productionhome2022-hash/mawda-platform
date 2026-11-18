@@ -658,6 +658,10 @@ test("room call pricing is snapshotted and join approval requires separate finan
   const priorPricing = await pricingRef.get();
   const priorPricingData = priorPricing.exists ? priorPricing.data() : null;
   const expiresAt = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
+  await pricingRef.set({
+    policyId: uid("group_video_unpriced"), version: 6, active: true,
+    audioCoinsPerMinute: 1000, videoCoinsPerMinute: 0, updatedAtMs: Date.now(),
+  });
   await Promise.all([
     db.collection("users").doc(creatorUid).set({ profileCompleted: true, accountStatus: "active", age: 30 }),
     db.collection("users").doc(memberUid).set({ profileCompleted: true, accountStatus: "active", age: 31 }),
@@ -671,6 +675,21 @@ test("room call pricing is snapshotted and join approval requires separate finan
     }),
   ]);
   try {
+    await pricingRef.set({
+      policyId: uid("group_video_unpriced"), version: 6, active: true,
+      audioCoinsPerMinute: 1000, videoCoinsPerMinute: 0, updatedAtMs: Date.now(),
+    });
+    await assert.rejects(
+      () => startCall.run(call(creatorUid, {
+        callId: uid("unpriced_video_call"), scope: "room", targetId: roomId, mode: "video",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "an active owner policy with no price for this mode must not silently allow free calls",
+    );
+    await pricingRef.set({
+      policyId: uid("group_price_policy"), version: 7, active: true,
+      audioCoinsPerMinute: 1000, videoCoinsPerMinute: 2000, updatedAtMs: Date.now(),
+    });
     const started = await startCall.run(call(creatorUid, {
       callId, scope: "room", targetId: roomId, mode: "video",
     }));
