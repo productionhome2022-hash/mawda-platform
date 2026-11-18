@@ -8154,8 +8154,8 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
   const data = snapshot.data() ?? {};
   let coinPackages, adPrices;
   try {
-    coinPackages = validateCoinPackages(data.coinPackages);
-    adPrices = validateAdPrices(data.adPrices);
+    coinPackages = validateCoinPackages(data.coinPackages ?? []);
+    adPrices = validateAdPrices(data.adPrices ?? []);
   } catch {
     throw new HttpsError("failed-precondition", "إعدادات اقتصاد المنصة غير صالحة؛ راجع الدعم التقني.");
   }
@@ -9150,6 +9150,10 @@ export const recordOwnerFeaturedAdFinancialEvent = onCall(async (request) => {
         version: Number.isSafeInteger(campaign.version) ? campaign.version : null,
         financialSnapshot: campaign.financialSnapshot ?? defaultFeaturedAdFinancialSnapshot(),
       };
+    }
+    const paymentPolicySnapshot = campaign.paymentPolicySnapshot;
+    if (paymentPolicySnapshot !== undefined && paymentPolicySnapshot?.manualEnabled !== true) {
+      throw new HttpsError("failed-precondition", "لقطة الحملة لا تسمح بالدفع اليدوي؛ لا يمكن تغيير مسار الدفع بعد إنشاء الطلب.");
     }
     if (campaign.version !== expectedVersion) {
       throw new HttpsError("aborted", "تغيرت الحملة منذ تحميلها؛ حدّث بياناتها ثم أعد تسجيل الحركة.");
