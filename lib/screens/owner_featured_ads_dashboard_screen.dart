@@ -13,18 +13,18 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
   final _functions = FirebaseFunctions.instance;
   final _mediaUpload = MemberMediaUploadService();
   final _picker = ImagePicker();
-  final _policyReward = TextEditingController(text: '2');
-  final _policyDailyViews = TextEditingController(text: '10');
-  final _policyDailyCoins = TextEditingController(text: '20');
-  final _policyCampaignCap = TextEditingController(text: '3');
+  final _policyReward = TextEditingController(text: '0');
+  final _policyDailyViews = TextEditingController(text: '0');
+  final _policyDailyCoins = TextEditingController(text: '0');
+  final _policyCampaignCap = TextEditingController(text: '0');
   bool _uploadingMedia = false;
   bool _savingPolicy = false;
-  bool _rewardEnabled = true;
+  bool _rewardEnabled = false;
   final _title = TextEditingController();
   final _sponsor = TextEditingController();
   final _body = TextEditingController();
-  final _budget = TextEditingController(text: '20');
-  final _reward = TextEditingController(text: '2');
+  final _budget = TextEditingController(text: '0');
+  final _reward = TextEditingController(text: '0');
   String _placement = 'rotation';
   String _geography = 'all_arab_countries';
   String? _mediaId;
@@ -88,11 +88,11 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
       if (mounted) setState(() {
         _campaigns = items; _approvedMedia = media;
         _rewardEnabled = policy['enabled'] == true;
-        _policyReward.text = (policy['rewardCoinsPerView'] ?? 2).toString();
-        _policyDailyViews.text = (policy['maxRewardedViewsPerUtcDay'] ?? 10).toString();
-        _policyDailyCoins.text = (policy['maxRewardCoinsPerUtcDay'] ?? 20).toString();
-        _policyCampaignCap.text = (policy['maxRewardsPerCampaignRolling24h'] ?? 3).toString();
-        _reward.text = (policy['rewardCoinsPerView'] ?? 2).toString();
+        _policyReward.text = (policy['rewardCoinsPerView'] ?? 0).toString();
+        _policyDailyViews.text = (policy['maxRewardedViewsPerUtcDay'] ?? 0).toString();
+        _policyDailyCoins.text = (policy['maxRewardCoinsPerUtcDay'] ?? 0).toString();
+        _policyCampaignCap.text = (policy['maxRewardsPerCampaignRolling24h'] ?? 0).toString();
+        _reward.text = (policy['rewardCoinsPerView'] ?? 0).toString();
       });
     } on FirebaseFunctionsException catch (e) {
       if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل الحملات.');
@@ -128,8 +128,8 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
     final coins = int.tryParse(_policyDailyCoins.text.trim());
     final campaignCap = int.tryParse(_policyCampaignCap.text.trim());
     if (reward == null || views == null || coins == null || campaignCap == null ||
-        reward < 0 || views < 0 || coins < reward || campaignCap < 1 ||
-        (_rewardEnabled && (reward < 1 || views < 1))) {
+        reward < 0 || views < 0 || coins < reward || campaignCap < 0 ||
+        (_rewardEnabled && (reward < 1 || views < 1 || campaignCap < 1))) {
       setState(() => _error = 'قيم سياسة المكافآت غير صالحة؛ يجب أن يغطي الحد اليومي مكافأة مشاهدة واحدة على الأقل.');
       return;
     }
