@@ -254,7 +254,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
               Card(
                 child: SwitchListTile(
                   title: const Text('تفعيل طلبات شراء الكوينز اليدوية'),
-                  subtitle: const Text('عند الإيقاف لن يتمكن الأعضاء من إنشاء طلبات جديدة. لا يوجد دفع إلكتروني آلي؛ يبقى معطلاً دائماً.'),
+                  subtitle: const Text('عند الإيقاف لن يتمكن الأعضاء من إنشاء طلبات جديدة. الدفع الإلكتروني الآلي غير متاح حالياً حتى اعتماد مزود وربطه خادمياً.'),
                   value: _manualPurchasesEnabled,
                   onChanged: _saving ? null : (value) => setState(() => _manualPurchasesEnabled = value),
                 ),
@@ -269,7 +269,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
               ),
               const Card(
                 child: ListTile(
-                  leading: Icon(Icons.lock_clock_outlined),
+                  leading: Icon(Icons.lock_outline),
                   title: Text('الدفع الإلكتروني الآلي'),
                   subtitle: Text('مغلق حالياً لجميع الخدمات؛ لا يوجد مزود دفع معتمد أو تكامل خادمي موثّق. لن يظهر خيار تفعيله قبل اكتمال تكامل المزود والتحقق من جاهزيته.'),
                 ),
