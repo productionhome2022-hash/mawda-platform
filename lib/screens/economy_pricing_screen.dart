@@ -109,6 +109,8 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
       final saved = Map<String, dynamic>.from(response.data as Map);
       if (!mounted) return;
       setState(() => _version = (saved['version'] as num?)?.toInt() ?? _version);
+      await _load();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('تم حفظ إعدادات الاقتصاد • الإصدار $_version')),
       );
@@ -257,7 +259,6 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
   }) => SizedBox(
     width: 130,
     child: TextFormField(
-      key: ValueKey(value),
       initialValue: value.toString(),
       enabled: !_saving,
       keyboardType: TextInputType.number,
