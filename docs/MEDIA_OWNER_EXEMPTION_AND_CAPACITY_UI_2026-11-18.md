@@ -10,17 +10,36 @@ This record documents a targeted repair and an owner-console surface. It does no
 
 The direct-chat UI now supplies the intended recipient when creating upload intents for both image uploads and general attachments. The server looks up the recipient in Firebase Auth and checks the server-controlled `platformOwner` custom claim.
 
-- A verified platform-owner recipient qualifies the member-to-owner transfer for the media admission-quota exemption.
+- A verified platform-owner recipient bypasses daily personal upload accounting, while a short-lived active-upload/active-byte reservation remains in place until finalization or abandoned-intent cleanup. This prevents unused upload intents from bypassing all admission controls.
 - A normal member recipient remains on the ordinary quota path; the presence of a recipient UID does not itself grant an exemption.
 - PDF remains denied unless the upload is from a verified platform-owner session or is a direct chat addressed to a verified platform-owner recipient.
 - The direct-chat attachment picker now includes PDF; the server remains authoritative and only accepts the currently allowlisted PDF type.
-- Owner-originated media remains exempt from member admission quotas when the caller has a valid owner session.
+- Owner-originated media remains fully exempt from member personal admission quotas when the caller has a valid owner session.
 - All existing scanner, quarantine, signature, generation, derivative, retention, authorization and technical size ceilings remain in force. Quota exemption is not a safety bypass.
 
 Relevant commits:
 - `bc49d115e66f243051103edd211d0ccef7c369df` — upload service recipient binding.
 - `a8a8b77eabad5658bf0eac1fec1fe9e5f12e6204` — direct-chat UI recipient binding and PDF picker.
 - `c1ac171991edd5296af44bd13a067e81959206d3` — ordinary recipients remain on standard quota path.
+
+## Owner-recipient quota-abuse hardening — 2026-11-18
+
+A review found that treating a member-to-owner upload intent as fully quota-exempt allowed an authenticated member to request an owner-directed signed upload URL and abandon it without consuming any admission reservation. The intent's recipient binding prevented delivery to another account, but did not itself prevent unused intents from bypassing the member's temporary-upload safeguards.
+
+The quota policy is now split:
+- owner-originated uploads remain fully exempt from member personal quotas;
+- member-to-verified-owner transfers do not increment daily personal upload bytes/counts;
+- member-to-owner intents still reserve bounded active-upload count and active bytes, released by the existing finalize/reject/expiry cleanup paths;
+- ordinary member-to-member transfers retain both active and daily limits;
+- scanner, quarantine, MIME/signature, hard media-size ceilings, recipient binding and delivery authorization remain unchanged.
+
+Regression coverage was added for the policy split, daily-limit bypass for owner-directed transfers, and continued active-upload/active-byte rejection at the technical admission limits. This is unit-level policy coverage; the full callable/Storage emulator lifecycle and live non-production verification remain open.
+
+Relevant commits:
+- 3e8de50f422c5eee1cd0ae2af76e6e04e7a886ac — split daily exemption from full owner exemption.
+- 1c78003300977737a2053ae65f0e608c3f52af66 — apply active reservations to owner-directed transfers.
+- 0bfe54b9d0e8c2cc83b8a80901dce0f219fda260 — add quota policy regression tests.
+- 3e7e2fc56e5f92d8f451fd98c8980bed491aab9d — suppress unused policy argument in strict TypeScript builds.
 
 ## Capacity and media policy owner screen
 
