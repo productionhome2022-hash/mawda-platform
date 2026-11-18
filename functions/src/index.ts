@@ -7422,14 +7422,44 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
   const ledgerRef = userRef.collection("walletLedger").doc(ledgerId);
   const auditRef = db.collection("adminAuditLogs").doc(`coin_purchase_approval_${requesterUid}_${input.requestId}`);
   const result = await db.runTransaction(async (transaction) => {
-    const [purchase, user, ledger] = await Promise.all([
+    const [purchase, user, ledger, approvalAudit] = await Promise.all([
       transaction.get(requestRef), transaction.get(userRef), transaction.get(ledgerRef),
+      transaction.get(auditRef),
     ]);
     if (!purchase.exists || purchase.data()?.requesterUid !== requesterUid) {
       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
     }
     const data = purchase.data()!;
-    if (data.status === "approved") return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null };
+    if (data.status === "approved") {
+      const ledgerData = ledger.data() ?? {};
+      const auditData = approvalAudit.data() ?? {};
+      if (!ledger.exists || !approvalAudit.exists ||
+          ledgerData.type !== "coin_purchase_manual_credit" ||
+          ledgerData.amount !== data.creditedCoins ||
+          ledgerData.purchaseRequestId !== input.requestId ||
+          ledgerData.externalPaymentReference !== input.externalPaymentReference ||
+          ledgerData.priceMinor !== data.agreedPriceMinor ||
+          ledgerData.currency !== (data.currency ?? "EUR") ||
+          ledgerData.actorUid !== data.verifiedBy ||
+          !Number.isSafeInteger(ledgerData.balanceBefore) ||
+          !Number.isSafeInteger(ledgerData.balanceAfter) ||
+          ledgerData.balanceBefore < 0 ||
+          ledgerData.balanceAfter !== ledgerData.balanceBefore + ledgerData.amount ||
+          data.externalPaymentVerified !== true ||
+          data.externalPaymentReference !== input.externalPaymentReference ||
+          !Number.isSafeInteger(data.creditedCoins) || data.creditedCoins < 1 ||
+          auditData.action !== "coin_purchase_manually_verified_and_approved" ||
+          auditData.actorUid !== data.verifiedBy ||
+          auditData.targetUid !== requesterUid ||
+          auditData.requestId !== input.requestId ||
+          auditData.externalPaymentReference !== input.externalPaymentReference ||
+          auditData.creditedCoins !== data.creditedCoins ||
+          auditData.priceMinor !== data.agreedPriceMinor ||
+          auditData.currency !== (data.currency ?? "EUR")) {
+        throw new HttpsError("failed-precondition", "طلب الشراء المعتمد لا يطابق قيد المحفظة وسجل المالك؛ يلزم تدقيق مالي.");
+      }
+      return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null };
+    }
     if (data.paymentChannel !== "manual_owner_contact" ||
         (data.paymentPolicySnapshot !== undefined && data.paymentPolicySnapshot?.manualEnabled !== true)) {
       throw new HttpsError("failed-precondition", "لقطة الطلب لا تسمح بالاعتماد اليدوي.");
