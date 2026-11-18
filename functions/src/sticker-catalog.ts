@@ -45,15 +45,20 @@ export function projectPublishedStickerPack(
     return null;
   }
   const rawStickers = input.stickers as Array<Record<string, unknown>>;
-  const stickers = manifest.stickers.map((sticker, index) => {
-    const assetId = typeof rawStickers[index]?.assetId === "string"
-      ? (rawStickers[index].assetId as string).trim()
-      : "";
-    if (!SAFE_ASSET_ID.test(assetId) || rawStickers[index]?.scanStatus !== "clean") {
-      throw new Error("UNAPPROVED_STICKER_ASSET");
-    }
-    return { ...sticker, assetId };
-  });
+  let stickers: PublicStickerCatalogItem["stickers"];
+  try {
+    stickers = manifest.stickers.map((sticker, index) => {
+      const assetId = typeof rawStickers[index]?.assetId === "string"
+        ? (rawStickers[index].assetId as string).trim()
+        : "";
+      if (!SAFE_ASSET_ID.test(assetId) || rawStickers[index]?.scanStatus !== "clean") {
+        throw new Error("UNAPPROVED_STICKER_ASSET");
+      }
+      return { ...sticker, assetId };
+    });
+  } catch {
+    return null;
+  }
   const sortOrder = Number.isSafeInteger(input.sortOrder) && (input.sortOrder as number) >= 0
     ? input.sortOrder as number
     : 0;
