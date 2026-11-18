@@ -6513,18 +6513,35 @@ export const purchaseStoreItem = onCall(async (request) => {
   const purchaseRef = db.collection("storePurchases").doc(purchaseId);
   const ledgerRef = userRef.collection("walletLedger").doc(`store_${purchaseId}`);
   const entitlementRef = userRef.collection("entitlements").doc(itemId);
+  const auditRef = db.collection("adminAuditLogs").doc(`store_purchase_${purchaseId}`);
 
   return db.runTransaction(async (transaction) => {
-    const [member, itemSnapshot, priorPurchase, priorEntitlement] = await Promise.all([
+    const [member, itemSnapshot, priorPurchase, priorEntitlement, priorLedger, priorAudit] = await Promise.all([
       transaction.get(userRef),
       transaction.get(itemRef),
       transaction.get(purchaseRef),
       transaction.get(entitlementRef),
+      transaction.get(ledgerRef),
+      transaction.get(auditRef),
     ]);
     if (priorPurchase.exists) {
       const prior = priorPurchase.data() ?? {};
+      const ledger = priorLedger.data() ?? {};
+      const audit = priorAudit.data() ?? {};
       if (!isStorePurchaseReplayCompatible(prior, uid, itemId, expectedPriceCoins, expectedCatalogVersion)) {
         throw new HttpsError("already-exists", "معرف طلب الشراء مستخدم لعملية أخرى أو ببيانات سعر مختلفة.");
+      }
+      if (!priorLedger.exists || !priorAudit.exists ||
+          ledger.type !== "store_purchase" || ledger.purchaseId !== purchaseId ||
+          ledger.amount !== -prior.priceCoins || ledger.itemId !== itemId ||
+          ledger.catalogVersion !== expectedCatalogVersion ||
+          !Number.isSafeInteger(ledger.balanceBefore) ||
+          !Number.isSafeInteger(ledger.balanceAfter) ||
+          ledger.balanceBefore - prior.priceCoins !== ledger.balanceAfter ||
+          audit.action !== "store_item_purchased" || audit.purchaseId !== purchaseId ||
+          audit.actorUid !== uid || audit.itemId !== itemId ||
+          audit.catalogVersion !== expectedCatalogVersion || audit.priceCoins !== prior.priceCoins) {
+        throw new HttpsError("data-loss", "إيصال الشراء لا يطابق قيد المحفظة وسجل التدقيق.");
       }
       return {
         purchaseId,
@@ -6617,7 +6634,7 @@ export const purchaseStoreItem = onCall(async (request) => {
         name: item.name, description: item.description, category: item.category,
         priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
       },
-      newBalance,
+      balanceBefore: currentBalance, newBalance,
       expiresAt,
       status: "completed",
       createdAt,
@@ -6631,6 +6648,13 @@ export const purchaseStoreItem = onCall(async (request) => {
       purchaseId, catalogVersion: item.version,
       catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
       priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
+      balanceBefore: currentBalance, balanceAfter: newBalance,
+      createdAt,
+    });
+    transaction.create(auditRef, {
+      actorUid: uid, action: "store_item_purchased", purchaseId, itemId,
+      itemName: item.name, priceCoins: item.priceCoins,
+      catalogVersion: item.version, durationDays: item.durationDays ?? null,
       createdAt,
     });
     transaction.set(entitlementRef, {
