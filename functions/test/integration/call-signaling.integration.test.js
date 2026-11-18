@@ -154,6 +154,10 @@ test("room call signaling is peer-targeted and one member leaving does not end t
       callId, scope: "room", targetId: roomId, mode: "video",
     }));
     assert.equal(started.participantUids.length, 3);
+    // Room signaling is intentionally unavailable until each member accepts.
+    // Accept first, then exchange the peer-targeted offers.
+    await respondToCall.run(call(firstUid, { callId, response: "accept" }));
+    await respondToCall.run(call(secondUid, { callId, response: "accept" }));
     await sendCallSignal.run(call(callerUid, {
       callId, toUid: firstUid,
       signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
@@ -162,8 +166,6 @@ test("room call signaling is peer-targeted and one member leaving does not end t
       callId, toUid: secondUid,
       signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
     }));
-    await respondToCall.run(call(firstUid, { callId, response: "accept" }));
-    await respondToCall.run(call(secondUid, { callId, response: "accept" }));
     const firstSignals = await getCallSignals.run(call(firstUid, { callId, afterSequence: -1 }));
     const secondSignals = await getCallSignals.run(call(secondUid, { callId, afterSequence: -1 }));
     assert.equal(firstSignals.signals.length, 1);
