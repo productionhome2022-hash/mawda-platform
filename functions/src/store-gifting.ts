@@ -30,14 +30,16 @@ export function isEligibleStoreGiftMemberRecord(value: unknown): boolean {
   return true;
 }
 
-function readExpiryMs(value: unknown): number {
-  if (value instanceof Date) return value.getTime();
-  if (typeof value === "number") return value;
-  if (value !== null && typeof value === "object" &&
+function readExpiryMs(value: unknown): number | null {
+  let result: unknown;
+  if (value instanceof Date) result = value.getTime();
+  else if (typeof value === "number") result = value;
+  else if (value !== null && typeof value === "object" &&
       typeof (value as { toMillis?: unknown }).toMillis === "function") {
-    try { return (value as { toMillis: () => number }).toMillis(); } catch { return 0; }
-  }
-  return 0;
+    try { result = (value as { toMillis: () => number }).toMillis(); } catch { return null; }
+  } else return null;
+  return typeof result === "number" && Number.isSafeInteger(result) && result >= 0
+    ? result : null;
 }
 
 /**
@@ -61,9 +63,10 @@ export function calculateStoreGiftExpiryMs(
   if (active && (currentExpiry === null || currentExpiry === undefined)) return null;
   if (durationDays === undefined) return null;
   const existingExpiryMs = active ? readExpiryMs(currentExpiry) : 0;
-  if (active && existingExpiryMs <= nowMs && existingExpiryMs !== 0) {
+  if (active && existingExpiryMs === null) throw new Error("INVALID_CURRENT_ENTITLEMENT_EXPIRY");
+  if (active && existingExpiryMs !== null && existingExpiryMs <= nowMs) {
     // Expired records do not contribute time to a new gift.
     return nowMs + durationDays * 24 * 60 * 60 * 1000;
   }
-  return Math.max(nowMs, existingExpiryMs) + durationDays * 24 * 60 * 60 * 1000;
+  return Math.max(nowMs, existingExpiryMs ?? 0) + durationDays * 24 * 60 * 60 * 1000;
 }
