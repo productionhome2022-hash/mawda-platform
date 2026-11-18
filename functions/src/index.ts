@@ -7339,6 +7339,15 @@ async function readRoomRentalPlans(): Promise<ReturnType<typeof validateRoomRent
   }
 }
 
+/** Owner-only catalog view includes inactive plans so the owner can restore or retire them. */
+export const getOwnerRoomRentalPlans = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await ROOM_RENTAL_SETTINGS.get();
+  const plans = await readRoomRentalPlans();
+  const version = Number.isSafeInteger(snapshot.data()?.version) ? snapshot.data()!.version : 0;
+  return { plans, version, configured: snapshot.exists };
+});
+
 /** Public plan list: published plan prices are server-authored and versioned. */
 export const getRoomRentalPlans = onCall(async (request) => {
   requireAuthenticatedUid(request.auth?.uid);
