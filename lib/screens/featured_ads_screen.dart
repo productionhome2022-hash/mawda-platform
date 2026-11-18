@@ -67,6 +67,14 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
     }
   }
 
+  Future<void> _cancelSessionQuietly(String sessionId) async {
+    try {
+      await _functions.httpsCallable('cancelFeaturedAdSession').call({'sessionId': sessionId});
+    } catch (_) {
+      // The scheduled server cleanup releases the reservation if cancellation cannot reach the server.
+    }
+  }
+
   Future<void> _start(Map<String, dynamic> campaign) async {
     if (_starting) return;
     setState(() { _starting = true; _error = null; });
@@ -101,8 +109,7 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
       await _load();
     } on FirebaseFunctionsException catch (error) {
       if (sessionId != null) {
-        await _functions.httpsCallable('cancelFeaturedAdSession')
-            .call({'sessionId': sessionId}).catchError((_) => null);
+        await _cancelSessionQuietly(sessionId);
       }
       if (mounted) setState(() => _error = error.message ?? 'تعذر بدء مشاهدة الإعلان.');
     } catch (error) {
