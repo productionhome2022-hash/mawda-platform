@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 import '../services/member_media_upload_service.dart';
+import '../widgets/mawdda_sticker_widgets.dart';
 import '../policies/chat_audio_policy.dart';
 import '../widgets/chat_audio_controls.dart';
 import '../services/super_admin_security_service.dart';
@@ -268,6 +269,28 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
   }
 
+  Future<void> _pickAndSendSticker() async {
+    if (_sending) return;
+    final selected = await showMawddaStickerPicker(context: context, service: _mediaService);
+    if (selected == null || !mounted) return;
+    setState(() => _sending = true);
+    try {
+      await _mediaService.sendStickerMessage(
+        scope: 'room', targetId: widget.chatId,
+        packId: selected['packId'] as String,
+        stickerId: selected['stickerId'] as String,
+        clientMessageId: const Uuid().v4(),
+      );
+      if (mounted) await _reloadMessages();
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تعذر إرسال الملصق: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
   Future<void> _openAttachment(String url) async {
     final opened = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     if (!opened && mounted) {
@@ -488,6 +511,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                                   style: Theme.of(context).textTheme.labelSmall,
                                 ),
                                 const SizedBox(height: 4),
+                                if (message['type'] == 'sticker')
+                                  MawddaStickerMessage(
+                                    service: _mediaService,
+                                    packId: message['stickerPackId'] as String? ?? '',
+                                    stickerId: message['stickerId'] as String? ?? '',
+                                  ),
                                 if (message['type'] == 'attachment' && message['mediaId'] is String)
                                   Padding(
                                     padding: const EdgeInsets.only(top: 8),
@@ -584,6 +613,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
               child: Row(
                 children: [
+                  IconButton(
+                    tooltip: 'الملصقات',
+                    onPressed: _sending ? null : _pickAndSendSticker,
+                    icon: const Icon(Icons.emoji_emotions_outlined),
+                  ),
                   IconButton(
                     tooltip: 'إرفاق صورة',
                     onPressed: _sending ? null : _pickAndSendImage,
