@@ -1,3 +1,4 @@
+import { currencyExponentForCode } from "./economy-pricing";
 export type CoinPurchaseRequestKind = "package" | "custom";
 export type CoinPurchaseRequestStatus =
   | "pending_owner_contact" | "payment_instructions_sent"
@@ -39,7 +40,7 @@ export function validateCoinPurchaseRequestInput(value: unknown): {
 }
 export function validateOwnerPaymentInstructionInput(value: unknown): {
   requestId: string; instructions: string; agreedCoins: number; agreedPriceMinor: number;
-  currency: "EUR"; expectedInstructionsVersion: number;
+  currency: string; currencyExponent: number; expectedInstructionsVersion: number;
 } {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_INSTRUCTIONS");
   const data = value as Record<string, unknown>;
@@ -50,7 +51,7 @@ export function validateOwnerPaymentInstructionInput(value: unknown): {
       !Number.isSafeInteger(data.agreedCoins) || (data.agreedCoins as number) < 1 ||
       (data.agreedCoins as number) > 1000000000 ||
       !Number.isSafeInteger(data.agreedPriceMinor) || (data.agreedPriceMinor as number) < 1 ||
-      (data.agreedPriceMinor as number) > 100000000 || data.currency !== "EUR" ||
+      (data.agreedPriceMinor as number) > 100000000 || currencyExponentForCode(data.currency) === null ||
       !Number.isSafeInteger(data.expectedInstructionsVersion) ||
       (data.expectedInstructionsVersion as number) < 0) {
     throw new Error("INVALID_INSTRUCTIONS");
@@ -58,7 +59,9 @@ export function validateOwnerPaymentInstructionInput(value: unknown): {
   return {
     requestId: data.requestId, instructions: data.instructions.trim(),
     agreedCoins: data.agreedCoins as number, agreedPriceMinor: data.agreedPriceMinor as number,
-    currency: "EUR", expectedInstructionsVersion: data.expectedInstructionsVersion as number,
+    currency: data.currency as string,
+    currencyExponent: currencyExponentForCode(data.currency) as number,
+    expectedInstructionsVersion: data.expectedInstructionsVersion as number,
   };
 }
 
