@@ -15,7 +15,7 @@ import { hasPlatformOwnerSession } from "./owner-access";
 import { isGuestSessionActive } from "./guest-sessions";
 import { createDirectChatId } from "./direct-chat-id";
 import { resolveChatMediaDeliveryArtifact } from "./chat-media-policy";
-import { reserveMediaQuota, releaseMediaQuota, mediaQuotaExemptForTransfer } from "./media-quota";
+import { reserveMediaQuota, releaseMediaQuota, mediaQuotaExemptForTransfer, mediaDailyQuotaExemptForTransfer } from "./media-quota";
 import {
   detectMediaSignature,
   mediaPolicyFor,
@@ -1323,7 +1323,12 @@ export const createMediaUploadIntent = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "حجم الملف يتجاوز الحد المسموح لهذا النوع.");
   }
 
+  // Owner-originated uploads are fully exempt. A member uploading directly to
+  // the verified owner bypasses daily personal usage accounting, but still gets
+  // a bounded active reservation so abandoned intents cannot evade concurrency
+  // and temporary-storage admission controls.
   const quotaExempt = mediaQuotaExemptForTransfer(isPlatformOwner, isVerifiedPlatformOwnerRecipient);
+  const dailyQuotaExempt = mediaDailyQuotaExemptForTransfer(isPlatformOwner, isVerifiedPlatformOwnerRecipient);
   const mediaId = randomUUID();
   const objectPath = `quarantine/${uid}/${mediaId}`;
   const file = mediaBucket().file(objectPath);
@@ -1355,7 +1360,9 @@ export const createMediaUploadIntent = onCall(async (request) => {
     let reservation;
     if (!quotaExempt) {
       try {
-        reservation = reserveMediaQuota(quotaSnapshot?.data(), input.declaredSizeBytes);
+        reservation = reserveMediaQuota(
+          quotaSnapshot?.data(), input.declaredSizeBytes, Date.now(), dailyQuotaExempt,
+        );
       } catch {
         throw new HttpsError("resource-exhausted", "تم بلوغ حصة الرفع المؤقتة أو اليومية. حاول لاحقاً.");
       }
