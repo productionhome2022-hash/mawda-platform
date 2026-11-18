@@ -79,8 +79,8 @@ export function validateFeaturedAdFinancialEvent(value: unknown): FeaturedAdFina
       throw new FeaturedAdFinancialValidationError("invalid_financial_amount");
     }
   }
-  if (action === "refund_recorded" && evidenceReference === null) {
-    throw new FeaturedAdFinancialValidationError("refund_evidence_required");
+  if ((action === "refund_recorded" || action === "payment_received") && evidenceReference === null) {
+    throw new FeaturedAdFinancialValidationError("financial_evidence_required");
   }
   return {
     campaignId, action, idempotencyKey, amountMinor, currency,
