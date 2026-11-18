@@ -71,6 +71,28 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
     await _submitRequest({'kind': 'custom', 'requestedCoins': coins});
   }
 
+  Future<void> _reportPaymentSent(Map<String, dynamic> item) async {
+    if (_sending) return;
+    final requestId = item['requestId'] as String? ?? '';
+    final version = (item['instructionsVersion'] as num?)?.toInt() ?? 0;
+    if (requestId.isEmpty || version < 1) return;
+    setState(() { _sending = true; _error = null; });
+    try {
+      await _functions.httpsCallable('requestCoinPurchasePaymentVerification').call({
+        'requestId': requestId, 'expectedInstructionsVersion': version,
+      });
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(
+        'تم إبلاغ المالك. هذا الإبلاغ ليس إثباتاً لوصول المبلغ، ولن تُضاف الكوينز حتى يتحقق المالك ويعتمد الطلب.',
+      )));
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر إبلاغ المالك.');
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
   Future<void> _withdraw(String requestId) async {
     try {
       await _functions.httpsCallable('withdrawCoinPurchaseRequest').call({'requestId': requestId});
@@ -85,6 +107,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
   String _status(String? value) => switch (value) {
     'pending_owner_contact' => 'بانتظار تواصل المالك',
     'payment_instructions_sent' => 'أُرسلت تعليمات الدفع - بانتظار التحقق',
+    'awaiting_payment_verification' => 'الدفع قيد التحقق من المالك',
     'approved' => 'تم الاعتماد وإضافة الكوينز',
     'rejected' => 'مرفوض',
     'withdrawn' => 'مسحوب',
@@ -141,6 +164,11 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                     (((item['agreedPriceMinor'] as num).toDouble() / 100).toStringAsFixed(2)) + ' EUR'),
               if (item['paymentInstructions'] is String)
                 SelectableText('تعليمات المالك: ' + (item['paymentInstructions'] as String)),
+              if (status == 'payment_instructions_sent')
+                Align(alignment: Alignment.centerLeft, child: FilledButton.tonal(
+                  onPressed: _sending ? null : () => _reportPaymentSent(item),
+                  child: const Text('أبلغت المالك بإرسال الدفعة'),
+                )),
               if (item['chatId'] is String && FirebaseAuth.instance.currentUser?.uid != null)
                 Align(alignment: Alignment.centerLeft, child: TextButton.icon(
                   onPressed: () => Navigator.of(context).push(MaterialPageRoute(
@@ -155,7 +183,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                 )),
               if (item['rejectionReason'] is String)
                 Text('سبب الرفض: ' + (item['rejectionReason'] as String)),
-              if (status == 'pending_owner_contact' || status == 'payment_instructions_sent')
+              if (status == 'pending_owner_contact')
                 Align(alignment: Alignment.centerLeft, child: TextButton(
                   onPressed: _sending ? null : () => _withdraw(id), child: const Text('سحب الطلب'),
                 )),
