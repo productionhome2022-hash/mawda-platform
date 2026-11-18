@@ -8000,7 +8000,7 @@ export const startFeaturedAdSession = onCall({ enforceAppCheck: true }, async (r
       geography, creativeType: data.creativeType,
       createdAt: FieldValue.serverTimestamp(),
     });
-    transaction.create(activeRef, { sessionId, campaignId, expiresAtMs, updatedAt: FieldValue.serverTimestamp() });
+    transaction.set(activeRef, { sessionId, campaignId, expiresAtMs, updatedAt: FieldValue.serverTimestamp() });
     return { sessionId, campaignId, rewardCoins: policy.rewardCoinsPerView,
       requiredVisibleMs: policy.imageContinuousVisibleMs, expiresAtMs };
   });
