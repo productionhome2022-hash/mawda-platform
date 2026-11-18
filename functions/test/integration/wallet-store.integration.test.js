@@ -856,6 +856,10 @@ test("manual coin package request issues no coins until owner verifies external 
     }));
     assert.equal(reportReplay.idempotentReplay, true);
     await assert.rejects(
+      () => withdrawCoinPurchaseRequest.run(memberRequest(uid, { requestId })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await assert.rejects(
       () => setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
         requesterUid: uid, requestId, instructions: "لا يمكن تغيير الاتفاق بعد إبلاغ الدفع",
         agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
