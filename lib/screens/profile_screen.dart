@@ -375,6 +375,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
 
+  Future<void> _setGhostMode(bool enabled) async {
+    try {
+      final result = await FirebaseFunctions.instance.httpsCallable('setMemberGhostMode').call({
+        'enabled': enabled,
+      });
+      if (!mounted) return;
+      final data = Map<String, dynamic>.from(result.data as Map);
+      setState(() => _profileFuture = _loadProfile());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(data['enabled'] == true
+            ? 'تم تفعيل وضع التخفي حتى انتهاء استحقاقه.'
+            : 'تم إيقاف وضع التخفي.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر تحديث وضع التخفي.')),
+      );
+    }
+  }
+
   Future<void> _changeProfileVisibility(String visibility) async {
     try {
       final callable = FirebaseFunctions.instance.httpsCallable('setMemberProfileVisibility');
@@ -977,6 +998,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             data['profileAnalytics'] as Map? ?? const <String, dynamic>{},
           );
           final discoveryBoostActive = data['discoveryBoostActive'] == true;
+          final ghostModeActive = data['ghostModeActive'] == true;
           final username = (data['username'] as String?) ?? '';
           final bio = (data['bio'] as String?) ?? '';
           final profession = (data['profession'] as String?) ?? '';
@@ -1442,6 +1464,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
+              if (isMyProfile && activeItemIds.contains('ghost_mode_7d'))
+                SwitchListTile(
+                  title: const Text('وضع التخفي'),
+                  subtitle: const Text('يخفي ملفك من نتائج الاكتشاف أثناء سريان الاستحقاق.'),
+                  value: ghostModeActive,
+                  onChanged: _setGhostMode,
+                  secondary: const Icon(Icons.visibility_off_outlined),
+                ),
               if (isMyProfile)
                 SwitchListTile(
                   title: const Text('إتاحة ملفي للأعضاء'),
