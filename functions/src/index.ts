@@ -6472,47 +6472,6 @@ export const purchaseStoreItem = onCall(async (request) => {
 });
 
 
-/** Resolve an exact, normalized username to a gift-eligible member without exposing private profile fields. */
-export const lookupStoreGiftRecipient = onCall(async (request) => {
-  const senderUid = requireAuthenticatedUid(request.auth?.uid);
-  const firebaseIdentity = request.auth?.token.firebase;
-  if (firebaseIdentity && typeof firebaseIdentity === "object" &&
-      (firebaseIdentity as Record<string, unknown>).sign_in_provider === "anonymous") {
-    throw new HttpsError("permission-denied", "البحث عن مستلم الهدية متاح للأعضاء المسجلين فقط.");
-  }
-  const rawUsername = request.data?.username;
-  if (typeof rawUsername !== "string" || rawUsername.trim() !== rawUsername ||
-      !/^[A-Za-z0-9_]{3,20}$/.test(rawUsername)) {
-    throw new HttpsError("invalid-argument", "أدخل اسم مستخدم صحيحاً.");
-  }
-  const username = rawUsername.toLowerCase();
-  const usernameSnapshot = await db.collection("usernameRegistry").doc(username).get();
-  const targetUid = usernameSnapshot.data()?.uid;
-  if (!usernameSnapshot.exists || typeof targetUid !== "string" || targetUid === senderUid) {
-    throw new HttpsError("not-found", "لم يتم العثور على عضو مؤهل بهذا الاسم.");
-  }
-  const [member, guestProfile, guestSession] = await Promise.all([
-    db.collection("users").doc(targetUid).get(),
-    db.collection("guestProfiles").doc(targetUid).get(),
-    db.collection("guestSessions").doc(targetUid).get(),
-  ]);
-  if (!member.exists || !isEligibleStoreGiftMemberRecord(member.data()) ||
-      !isMemberAccountInGoodStanding(member.data()) ||
-      (member.data()?.uid !== targetUid && member.data()?.memberId !== targetUid) ||
-      member.data()?.username !== username ||
-      guestProfile.exists || guestSession.exists) {
-    throw new HttpsError("not-found", "لم يتم العثور على عضو مؤهل بهذا الاسم.");
-  }
-  let authUser: UserRecord;
-  try { authUser = await getAuth().getUser(targetUid); }
-  catch { throw new HttpsError("not-found", "لم يتم العثور على عضو مؤهل بهذا الاسم."); }
-  if (authUser.disabled === true || !Array.isArray(authUser.providerData) || authUser.providerData.length === 0 ||
-      authUser.providerData.every((provider) => provider.providerId === "anonymous")) {
-    throw new HttpsError("not-found", "لم يتم العثور على عضو مؤهل بهذا الاسم.");
-  }
-  return { uid: targetUid, username: member.data()?.username ?? username };
-});
-
 /**
  * Member-to-member paid store gifting. Debit, immutable ledger, gift receipt,
  * recipient entitlement/history and in-app notification are one transaction.
