@@ -15,10 +15,10 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
   final _title = TextEditingController();
   final _sponsor = TextEditingController();
   final _body = TextEditingController();
-  final _duration = TextEditingController(text: '30');
-  final _reward = TextEditingController(text: '10');
-  final _budget = TextEditingController(text: '1000');
-  final _maxClaims = TextEditingController(text: '1');
+  final _duration = TextEditingController();
+  final _reward = TextEditingController();
+  final _budget = TextEditingController();
+  final _maxClaims = TextEditingController();
   String _placement = 'reward_center';
   String? _editingCampaignId;
   int _editingCampaignVersion = 0;
