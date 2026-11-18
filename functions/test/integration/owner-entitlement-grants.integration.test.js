@@ -81,21 +81,27 @@ test("owner free grant is MFA-gated, audited, coin-neutral, idempotent and repea
     assert.equal(replay.expiresAt, first.expiresAt);
     assert.equal((await entitlementRef.get()).data().expiresAt.toMillis(), first.expiresAt);
 
-    // A prior grant is not a valid replay if either immutable audit evidence is missing.
-    await auditRef.delete();
-    await assert.rejects(
-      () => grantStoreEntitlement.run(ownerRequest(ownerUid, input)),
-      (error) => error && error.code === "failed-precondition",
-    );
-    assert.equal((await memberRef.get()).data().coins, 4321);
-    assert.equal((await entitlementRef.get()).data().expiresAt.toMillis(), first.expiresAt);
-
     const second = await grantStoreEntitlement.run(ownerRequest(ownerUid, {
       ...input, requestId: secondRequestId, durationHours: 24,
     }));
     assert.equal(second.idempotentReplay, false);
     assert.ok(second.expiresAt >= first.expiresAt + 24 * 60 * 60 * 1000 - 1000);
     assert.equal((await memberRef.get()).data().coins, 4321);
+
+    // Replaying an older grant remains valid after a later grant extends the entitlement.
+    const replayAfterExtension = await grantStoreEntitlement.run(ownerRequest(ownerUid, input));
+    assert.equal(replayAfterExtension.idempotentReplay, true);
+    assert.equal(replayAfterExtension.expiresAt, first.expiresAt);
+    assert.equal((await entitlementRef.get()).data().expiresAt.toMillis(), second.expiresAt);
+
+    // A prior grant is not a valid replay if immutable audit evidence is missing.
+    await auditRef.delete();
+    await assert.rejects(
+      () => grantStoreEntitlement.run(ownerRequest(ownerUid, input)),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await memberRef.get()).data().coins, 4321);
+    assert.equal((await entitlementRef.get()).data().expiresAt.toMillis(), second.expiresAt);
 
     const history = await getMyEntitlementGrantHistory.run(memberRequest(memberUid));
     assert.equal(history.entries.length, 2);
