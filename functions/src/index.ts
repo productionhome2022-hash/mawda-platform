@@ -6603,7 +6603,6 @@ export const giftStoreItem = onCall(async (request) => {
     const currentEntitlement = priorEntitlement.data() ?? {};
     let expirySource: Record<string, unknown> = currentEntitlement;
     if (item.category === "boost") {
-      const boostExpiry = senderData.discoveryBoostExpiresAt;
       const recipientBoostExpiry = recipient.data()?.discoveryBoostExpiresAt;
       const boostExpiryMs = recipientBoostExpiry instanceof Timestamp
         ? recipientBoostExpiry.toMillis()
