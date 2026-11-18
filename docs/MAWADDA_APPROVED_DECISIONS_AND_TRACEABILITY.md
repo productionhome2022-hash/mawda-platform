@@ -302,3 +302,16 @@ This amendment records policy approval only. It does not establish that code, te
 - يجب أن يحقن workflow ملف `google-services.json` الإنتاجي من سر `MAWDDA_PRODUCTION_GOOGLE_SERVICES_JSON_B64`، ثم يطابق project ID ورقم المشروع وApp ID واسم الحزمة ومفتاح API وStorage bucket مع FlutterFire production options.
 - أُضيف تحقق آلي لهويات Android وiOS الإنتاجية في `functions/scripts/validate-firebase-config.cjs` واختبارات لها. غياب ملف Google Services الإنتاجي أو عدم التطابق يمنع بناء الإصدار.
 - لم يُقدّم المالك بعد سر ملف Google Services الإنتاجي في هذه المراجعة، ولذلك لم يُشغّل workflow الموقّع ولم تُنتج حزم Release.
+
+
+## ECON-007 — Store entitlement renewal and member-to-member gifting (owner clarification, 2026-11-18)
+
+- A member's purchase grants the selected catalog item for the exact duration configured for that selected plan/item. The server records the start/purchase and expiry; the entitlement is active only through that period and becomes inactive after expiry.
+- After an entitlement has expired, the same member may purchase the same item again and receive a fresh activation for the newly selected duration. An expired entitlement must never permanently block repurchase. A still-active entitlement is not silently double-charged; any extension/stacking behavior must be explicit and consistent with the catalog's published purchase flow.
+- Store browsing and gifting are independent of whether the sender owns or has previously purchased the item. A signed-in eligible member may select any currently published, purchasable, fulfillment-ready catalog item from its relevant store and buy/grant it to another eligible member. The sender's own entitlement is neither consumed nor transferred. The recipient receives the selected item for the catalog duration.
+- Visitors/guest accounts are excluded as gift recipients. A visitor cannot receive a store entitlement through gifting. The server must validate sender and recipient membership/account status; hiding the gift UI is not a security boundary.
+- Gifting is a separate atomic economic operation: validate catalog state and current price, validate recipient eligibility, debit sender Beta Coins once, create a unique gift/purchase record, append a sender wallet-ledger debit and recipient entitlement/gift history, and make retries idempotent. No client-authoritative price, duration, recipient role, or entitlement write is accepted.
+- Gifts may be repeated as deliberate new requests; idempotency prevents replay of the same request only. Existing active recipient entitlement handling must be explicit: a new gift must not overwrite or shorten an active entitlement. Timed benefits should extend from the later of server-now and the recipient's current expiry, unless a catalog item has a separately documented non-stackable rule.
+- Owner grants remain a separate free administrative workflow with its own audit trail; they are not a substitute for member-paid gifting.
+
+Implementation status: approved product behavior; backend member-to-member gifting, recipient account validation, gift history/UI, and end-to-end tests remain to be implemented and verified. Existing owner-only grant functions do not satisfy this requirement.
