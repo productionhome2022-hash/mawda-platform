@@ -34,7 +34,7 @@ async function probeMedia(sourcePath) {
     hasVideo: streams.some((s) => s.codec_type === "video") };
 }
 
-async function uploadDerivative({ storage, bucketName, outputPath, request, sourceSha256, provider, filename, contentType, pipelineVersion, maxBytes }) {
+async function uploadDerivative({ storage, bucketName, outputPath, request, sourceSha256, provider, filename, contentType, pipelineVersion, maxBytes, durationMs, frameCount }) {
   const stat = await fs.stat(outputPath);
   if (!stat.isFile() || stat.size <= 0 || stat.size > maxBytes) throw new Error("DERIVATIVE_SIZE_INVALID");
   const uid = request.objectPath.split("/")[1];
@@ -46,6 +46,8 @@ async function uploadDerivative({ storage, bucketName, outputPath, request, sour
     sourceSha256,
     scannerProvider: provider,
     processing: pipelineVersion,
+    ...(Number.isSafeInteger(durationMs) ? { durationMs: String(durationMs) } : {}),
+    ...(Number.isSafeInteger(frameCount) ? { frameCount: String(frameCount) } : {}),
   };
   try {
     await file.save(await fs.readFile(outputPath), {
@@ -67,12 +69,16 @@ async function uploadDerivative({ storage, bucketName, outputPath, request, sour
         String(custom.sourceSha256) !== sourceSha256 ||
         String(custom.scannerProvider) !== provider ||
         String(custom.processing) !== pipelineVersion ||
+        (Number.isSafeInteger(durationMs) && Number(custom.durationMs) !== durationMs) ||
+        (Number.isSafeInteger(frameCount) && Number(custom.frameCount) !== frameCount) ||
         Number(existing.size) <= 0 || Number(existing.size) > maxBytes) {
       throw new Error("EXISTING_DERIVATIVE_PROVENANCE_MISMATCH");
     }
     return {
       path: objectPath, generation: String(existing.generation),
       sha256: await sha256StorageObject(file), contentType, pipelineVersion,
+      ...(Number.isSafeInteger(durationMs) ? { durationMs, } : {}),
+      ...(Number.isSafeInteger(frameCount) ? { frameCount, } : {}),
     };
   }
   const [saved] = await file.getMetadata();
@@ -82,12 +88,16 @@ async function uploadDerivative({ storage, bucketName, outputPath, request, sour
       String(custom.sourceGeneration) !== request.objectGeneration ||
       String(custom.sourceSha256) !== sourceSha256 ||
       String(custom.scannerProvider) !== provider ||
-      String(custom.processing) !== pipelineVersion) {
+      String(custom.processing) !== pipelineVersion ||
+      (Number.isSafeInteger(durationMs) && Number(custom.durationMs) !== durationMs) ||
+      (Number.isSafeInteger(frameCount) && Number(custom.frameCount) !== frameCount)) {
     throw new Error("DERIVATIVE_METADATA_MISMATCH");
   }
   return {
     path: objectPath, generation: String(saved.generation),
     sha256: await sha256StorageObject(file), contentType, pipelineVersion,
+    ...(Number.isSafeInteger(durationMs) ? { durationMs, } : {}),
+    ...(Number.isSafeInteger(frameCount) ? { frameCount, } : {}),
   };
 }
 
@@ -117,11 +127,11 @@ async function probeGif(sourcePath) {
       width * height * frames > LIMITS.gif.maxPixels) {
     throw new Error("GIF_COMPLEXITY_EXCEEDS_SAFE_LIMIT");
   }
-  return { frames };
+  return { frames, durationMs: Math.round(duration * 1000) };
 }
 
 async function processGif({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
-  const { frames } = await probeGif(sourcePath);
+  const { frames, durationMs } = await probeGif(sourcePath);
   const output = path.join(tempDir, "safe-animation.gif");
   await execFileAsync("ffmpeg", [
     "-nostdin", "-v", "error", "-y", "-i", sourcePath,
@@ -131,11 +141,14 @@ async function processGif({ sourcePath, tempDir, request, sourceSha256, storage,
     "-loop", "0", "-f", "gif", output,
   ], { timeout: 120_000, maxBuffer: 64 * 1024 });
   const outputFrames = await probeGif(output);
-  if (outputFrames.frames !== frames) throw new Error("GIF_ANIMATION_FRAME_COUNT_CHANGED");
+  if (outputFrames.frames !== frames || outputFrames.durationMs > LIMITS.gif.maxDurationSeconds * 1000) {
+    throw new Error("GIF_ANIMATION_FRAME_COUNT_OR_DURATION_CHANGED");
+  }
   const artifact = await uploadDerivative({
     storage, bucketName, outputPath: output, request, sourceSha256, provider,
     filename: "animation.gif", contentType: "image/gif",
     pipelineVersion: "gif-sanitize-preserve-animation-v1", maxBytes: request.purpose === "sticker" ? 512 * 1024 : LIMITS.gif.maxBytes,
+    durationMs: outputFrames.durationMs, frameCount: outputFrames.frames,
   });
   return { safeDerivative: { category: "gif", ...artifact }, processingStatus: "safe_animation_derivative_ready" };
 }
@@ -180,10 +193,15 @@ async function processVideo({ sourcePath, tempDir, request, sourceSha256, storag
     "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", "-threads", "2",
     "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", "-f", "mp4", output,
   ], { timeout: 180_000, maxBuffer: 64 * 1024 });
+  const outputProbe = await probeMedia(output);
+  if (!outputProbe.hasVideo || outputProbe.duration > LIMITS.video.maxDurationSeconds) {
+    throw new Error("SAFE_VIDEO_DERIVATIVE_DURATION_INVALID");
+  }
   const artifact = await uploadDerivative({
     storage, bucketName, outputPath: output, request, sourceSha256, provider,
     filename: "video.mp4", contentType: "video/mp4",
     pipelineVersion: "ffmpeg-video-transcode-v1", maxBytes: LIMITS.video.maxBytes,
+    durationMs: Math.round(outputProbe.duration * 1000),
   });
   return { safeDerivative: { category: "video", ...artifact }, processingStatus: "safe_video_derivative_ready" };
 }
