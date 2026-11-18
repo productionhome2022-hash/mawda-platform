@@ -7491,6 +7491,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       pricingPolicyPath: `platformSettings/economyPricingVersions/versions/${economy.version}`,
       status: "pending_owner_contact",
       paymentChannel: "manual_owner_contact", currency: packageSnapshot?.currency ?? economy.currency ?? null,
+      currencyExponent: packageSnapshot?.currencyExponent ?? null,
       paymentPolicySnapshot: {
         manualEnabled: true, automatedEnabled: false,
         policyVersion: economy.version, pricingPolicyVersion: economy.version,
@@ -7726,6 +7727,7 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
           ledgerData.externalPaymentReference !== input.externalPaymentReference ||
           ledgerData.priceMinor !== data.agreedPriceMinor ||
           ledgerData.currency !== data.currency ||
+          ledgerData.currencyExponent !== data.currencyExponent ||
           ledgerData.actorUid !== data.verifiedBy ||
           !Number.isSafeInteger(ledgerData.balanceBefore) ||
           !Number.isSafeInteger(ledgerData.balanceAfter) ||
@@ -7741,7 +7743,8 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
           auditData.externalPaymentReference !== input.externalPaymentReference ||
           auditData.creditedCoins !== data.creditedCoins ||
           auditData.priceMinor !== data.agreedPriceMinor ||
-          auditData.currency !== data.currency) {
+          auditData.currency !== data.currency ||
+          auditData.currencyExponent !== data.currencyExponent) {
         throw new HttpsError("failed-precondition", "طلب الشراء المعتمد لا يطابق قيد المحفظة وسجل المالك؛ يلزم تدقيق مالي.");
       }
       return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null };
@@ -7762,7 +7765,8 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
     const coins = data.agreedCoins;
     if (!Number.isSafeInteger(coins) || coins < 1 || coins > 1000000000 ||
         !Number.isSafeInteger(data.agreedPriceMinor) || data.agreedPriceMinor < 1 ||
-        typeof data.currency !== "string" || !/^[A-Z]{3}$/.test(data.currency) ||
+        typeof data.currency !== "string" || currencyExponentForCode(data.currency) === null ||
+        data.currencyExponent !== currencyExponentForCode(data.currency) ||
         !Number.isSafeInteger(data.instructionsVersion) || data.instructionsVersion < 1) {
       throw new HttpsError("failed-precondition", "الكمية أو السعر أو لقطة تعليمات الدفع غير صالحة.");
     }
@@ -7778,6 +7782,7 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
       balanceAfter: oldBalance + coins, purchaseRequestId: input.requestId,
       externalPaymentReference: input.externalPaymentReference,
       priceMinor: data.agreedPriceMinor, currency: data.currency,
+      currencyExponent: data.currencyExponent,
       actorUid, createdAt: now,
     });
     transaction.update(requestRef, {
@@ -7791,6 +7796,7 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
       requestId: input.requestId, externalPaymentReference: input.externalPaymentReference,
       verificationNote: input.verificationNote, creditedCoins: coins,
       priceMinor: data.agreedPriceMinor, currency: data.currency,
+      currencyExponent: data.currencyExponent,
       instructionsVersion: data.instructionsVersion, createdAt: now,
     });
     return { status: "approved", idempotentReplay: false, newBalance: oldBalance + coins };
