@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
-  PLATFORM_ROLE_CAPACITY, platformRoleDisplayLabel, nextPermanentRoleOrdinal,
+  PLATFORM_ROLE_CAPACITY, platformRoleDisplayLabel, nextPermanentRoleOrdinal, assertPlatformRoleCapacity,
 } = require("../lib/platform-role-identities");
 
 test("general Admin sequence is open-ended and monotonic", () => {
@@ -23,6 +23,16 @@ test("Team Production Supervisor is open-ended and distinct", () => {
   assert.equal(PLATFORM_ROLE_CAPACITY.production_supervisor, null);
   assert.equal(platformRoleDisplayLabel("production_supervisor", 12), "Team Production Supervisor 12");
   assert.equal(platformRoleDisplayLabel("production_supervisor", 1, "ar"), "مشرف إنتاج الفريق ١");
+});
+
+test("role seat capacity guard blocks a sixth Admin Media or general production supervisor", () => {
+  assert.doesNotThrow(() => assertPlatformRoleCapacity("ad_general_supervisor", 5));
+  assert.doesNotThrow(() => assertPlatformRoleCapacity("production_general_supervisor", 5));
+  assert.throws(() => assertPlatformRoleCapacity("ad_general_supervisor", 6), /CAPACITY_EXCEEDED/);
+  assert.throws(() => assertPlatformRoleCapacity("production_general_supervisor", 6), /CAPACITY_EXCEEDED/);
+  assert.doesNotThrow(() => assertPlatformRoleCapacity("platform_admin", 1000));
+  assert.doesNotThrow(() => assertPlatformRoleCapacity("production_supervisor", 1000));
+  assert.throws(() => assertPlatformRoleCapacity("platform_admin", -1), /ACTIVE_COUNT_INVALID/);
 });
 
 test("sequence history rejects corrupt ordinals and never reuses removed slots", () => {
