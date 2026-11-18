@@ -2230,16 +2230,15 @@ export const saveStickerPack = onCall(async (request) => {
   try { manifest = validateStickerPackManifest(data); } catch (error) {
     throw new HttpsError("invalid-argument", error instanceof Error ? error.message : "بيانات الحزمة غير صالحة.");
   }
-  const assetIds = data.stickers.map((item: Record<string, unknown>) => String(item.assetId));
+  const assetIds: string[] = data.stickers.map((item: Record<string, unknown>) => String(item.assetId));
   if (new Set(assetIds).size !== assetIds.length) {
     throw new HttpsError("invalid-argument", "لا يمكن تكرار أصل الملصق داخل الحزمة.");
   }
   const packRef = mediaDb().collection("stickerPacks").doc(manifest.packId);
-  const assetRefs = assetIds.map((id: string) => mediaDb().collection("mediaAssets").doc(id));
   await mediaDb().runTransaction(async (transaction) => {
     const [packSnapshot, ...assetSnapshots] = await Promise.all([
       transaction.get(packRef),
-      ...assetRefs.map((ref) => transaction.get(ref)),
+      ...assetIds.map((id: string) => transaction.get(mediaDb().collection("mediaAssets").doc(id))),
     ]);
     const persistedStickers = manifest.stickers.map((sticker, index) => {
       const assetSnapshot = assetSnapshots[index];
