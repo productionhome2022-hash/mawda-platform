@@ -7860,8 +7860,8 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
         throw new HttpsError("failed-precondition", "لا يمكن تغيير كمية أو سعر الباقة المحددة كهدية؛ يجب اعتماد شروط الباقة التي اختارها المرسل.");
       }
     }
-    if (["approved", "rejected", "withdrawn", "awaiting_payment_verification"].includes(String(prior.status))) {
-      throw new HttpsError("failed-precondition", "لا يمكن تعديل تعليمات الدفع بعد إبلاغ العضو بإرسال الدفعة أو انتهاء الطلب.");
+    if (prior.status !== "pending_owner_contact") {
+      throw new HttpsError("failed-precondition", "تعليمات الدفع المرسلة لا تُعدّل؛ إذا لزم تصحيح الاتفاق فأغلق الطلب وافتح طلباً جديداً.");
     }
     if (prior.paymentChannel !== "manual_owner_contact" ||
         (prior.paymentPolicySnapshot !== undefined &&
