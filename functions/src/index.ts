@@ -88,7 +88,7 @@ import { DEFAULT_COIN_PACKAGES, DEFAULT_AD_PRICES, validateCoinPackages, validat
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
-import { validateAdvertisingIntake, advertisingIntakeAuditEventId, advertisingIntakeReviewAuditEventId, AdvertisingIntakeValidationError } from "./advertising-intake";
+import { AD_INTAKE_GEOGRAPHIES, validateAdvertisingIntake, advertisingIntakeAuditEventId, advertisingIntakeReviewAuditEventId, AdvertisingIntakeValidationError } from "./advertising-intake";
 import { selectFeaturedAdShowcase, type FeaturedAdCampaignCandidate } from "./featured-advertising";
 import { validateProductionApplication, ProductionApplicationValidationError } from "./production-applications";
 import {
@@ -8111,12 +8111,8 @@ export const getFeaturedAdShowcase = onCall(async (request) => {
     throw new HttpsError("permission-denied", "الإعلانات المميزة متاحة للأعضاء النشطين فقط.");
   }
   const geography = request.data?.geography;
-  const allowedGeographies = [
-    "all_arab_countries", "syria", "lebanon_palestine", "iraq_jordan", "gcc",
-    "egypt", "tunisia_libya_sudan", "algeria_morocco", "europe_turkey",
-    "asia_middle_east",
-  ];
-  if (typeof geography !== "string" || !allowedGeographies.includes(geography)) {
+  if (typeof geography !== "string" ||
+      !(AD_INTAKE_GEOGRAPHIES as readonly string[]).includes(geography)) {
     throw new HttpsError("invalid-argument", "يجب اختيار نطاق جغرافي معتمد.");
   }
   const now = Date.now();
