@@ -11,6 +11,7 @@ test("projects only active catalog items with safe display fields", () => {
     priceCoins: 2500,
     durationDays: 30,
     sortOrder: 2,
+    version: null,
     internalCost: 999999,
     paymentSecret: "must-not-leak",
   }), {
@@ -64,6 +65,7 @@ test("owner catalog input requires safe identifiers, prices, category and public
     priceCoins: 2500,
     durationDays: 30,
     sortOrder: 3,
+    version: null,
     purchaseEnabled: false,
     fulfillmentReady: true,
     active: true,
@@ -133,6 +135,7 @@ test("only shipped premium profile consumers can be explicitly enabled for purch
       name: "عنصر مميز",
       description: "استحقاق ملف شخصي.",
       category,
+      version: 1,
       priceCoins: 500,
       durationDays: 30,
       sortOrder: 1,
