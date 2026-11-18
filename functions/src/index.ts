@@ -6826,6 +6826,7 @@ export {
   dispatchMediaSecurityScan,
   receiveMediaScanVerdict,
   getTimedAdCreativeUrl,
+  getFeaturedAdCreativeUrl,
 } from "./media";
 
 export { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative };
