@@ -19,6 +19,7 @@ function isStoreFulfillmentReady(itemId: string, category: string): boolean {
 
 export type StoreCatalogItem = {
   itemId: string;
+  version: number | null;
   active: boolean;
   name: string;
   description: string;
@@ -44,6 +45,8 @@ export function projectStoreCatalogItem(
       !["feature", "avatar", "theme", "title", "vip", "analytics", "discovery", "badge", "frame", "username_style", "profile_layout", "boost", "greeting", "privacy", "voice_call", "video_call"].includes(data.category)) {
     return null;
   }
+  const version = data.version ?? null;
+  if (version !== null && (!Number.isSafeInteger(version) || (version as number) < 1)) return null;
   const priceCoins = data.priceCoins ?? null;
   if (priceCoins !== null &&
       (typeof priceCoins !== "number" || !Number.isSafeInteger(priceCoins) || priceCoins <= 0)) {
@@ -63,6 +66,7 @@ export function projectStoreCatalogItem(
     data.fulfillmentReady === true;
   return {
     itemId,
+    version: version as number | null,
     active: true,
     name: data.name.trim(),
     description: data.description.trim(),
@@ -129,6 +133,7 @@ export function isStoreItemPurchasable(value: unknown): boolean {
   return typeof item.itemId === "string" &&
     isStoreFulfillmentReady(item.itemId, String(item.category)) &&
     item.active === true &&
+    Number.isSafeInteger(item.version) && (item.version as number) > 0 &&
     item.purchaseEnabled === true &&
     item.fulfillmentReady === true &&
     typeof item.priceCoins === "number" &&
