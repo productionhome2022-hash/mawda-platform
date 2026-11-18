@@ -7804,12 +7804,19 @@ export const setAttendanceRewardPolicy = onCall(async (request) => {
   }
   const version = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(ATTENDANCE_REWARD_POLICY);
-    const nextVersion = (Number.isSafeInteger(previous.data()?.version)
-      ? previous.data()!.version : 0) + 1;
+    const previousData = previous.data() ?? {};
+    if (previous.exists && (!Number.isSafeInteger(previousData.version) || previousData.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار سياسة المكافآت الحالية غير صالح؛ أوقفنا التحديث لحماية السجل.");
+    }
+    const nextVersion = previous.exists ? previousData.version + 1 : 1;
+    if (!Number.isSafeInteger(nextVersion)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة المكافآت.");
     const now = FieldValue.serverTimestamp();
+    const versionRef = db.collection("platformSettings").doc("attendanceRewardVersions")
+      .collection("versions").doc(String(nextVersion));
+    transaction.create(versionRef, { policy, version: nextVersion, createdAt: now, createdBy: actorUid });
     transaction.set(ATTENDANCE_REWARD_POLICY, {
       policy, version: nextVersion, updatedAt: now, updatedBy: actorUid,
-      createdAt: previous.data()?.createdAt ?? now,
+      createdAt: previousData.createdAt ?? now, currentVersionPath: versionRef.path,
     });
     return nextVersion;
   });
@@ -7857,6 +7864,10 @@ export const claimAttendanceReward = onCall(async (request) => {
     } catch {
       throw new HttpsError("failed-precondition", "سياسة مكافآت الحضور غير صالحة؛ تم إيقاف المطالبة.");
     }
+    if (policySnapshot.exists && (!Number.isSafeInteger(policySnapshot.data()?.version) ||
+        policySnapshot.data()!.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار سياسة المكافآت غير صالح؛ تم إيقاف المطالبة.");
+    }
     const rule = policy[type];
     if (!rule.enabled || rule.amountCoins < 1) {
       throw new HttpsError("failed-precondition", "مكافأة هذا النوع غير مفعّلة حالياً.");
@@ -7870,6 +7881,9 @@ export const claimAttendanceReward = onCall(async (request) => {
     transaction.create(claimRef, {
       uid, type, period, amountCoins: rule.amountCoins,
       policyVersion: policySnapshot.data()?.version ?? 0,
+      policyPath: policySnapshot.exists
+        ? `platformSettings/attendanceRewardVersions/versions/${policySnapshot.data()!.version}`
+        : null,
       createdAt: now,
     });
     transaction.create(ledgerRef, {
