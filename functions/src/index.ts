@@ -9985,8 +9985,12 @@ async function processGroupCallBillingSettlement(
     await callRef.set({ groupCallBillingState: "not_applicable" }, { merge: true });
     return { status: "not_applicable" };
   }
-  if (call.status !== "ended" || !(call.connectedAt instanceof Timestamp) ||
-      !(call.endedAt instanceof Timestamp) ||
+  if (call.status !== "ended") return { status: "pending" };
+  if (!(call.connectedAt instanceof Timestamp)) {
+    await callRef.set({ groupCallBillingState: "not_applicable" }, { merge: true });
+    return { status: "not_applicable" };
+  }
+  if (!(call.endedAt instanceof Timestamp) ||
       !(call.maxDurationEndsAt instanceof Timestamp)) {
     return { status: "pending" };
   }
