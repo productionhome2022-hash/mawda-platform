@@ -1327,7 +1327,7 @@ export const createMediaUploadIntent = onCall(async (request) => {
   // the verified owner bypasses daily personal usage accounting, but still gets
   // a bounded active reservation so abandoned intents cannot evade concurrency
   // and temporary-storage admission controls.
-  const quotaExempt = mediaQuotaExemptForTransfer(isPlatformOwner, isVerifiedPlatformOwnerRecipient);
+  const quotaExempt = mediaQuotaExemptForTransfer(isPlatformOwner);
   const dailyQuotaExempt = mediaDailyQuotaExemptForTransfer(isPlatformOwner, isVerifiedPlatformOwnerRecipient);
   const mediaId = randomUUID();
   const objectPath = `quarantine/${uid}/${mediaId}`;
