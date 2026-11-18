@@ -13,6 +13,21 @@ test("validates fixed package and custom coin requests without accepting client-
   assert.deepEqual(validateCoinPurchaseRequestInput({
     requestId: "request_456", kind: "custom", requestedCoins: 7500,
   }), { requestId: "request_456", kind: "custom", requestedCoins: 7500 });
+  assert.deepEqual(validateCoinPurchaseRequestInput({
+    requestId: "gift_req_123", kind: "package", packageId: "coins_1000",
+    giftRecipientUid: "recipient-member-uid",
+  }), {
+    requestId: "gift_req_123", kind: "package", packageId: "coins_1000",
+    giftRecipientUid: "recipient-member-uid",
+  });
+  assert.throws(() => validateCoinPurchaseRequestInput({
+    requestId: "gift_req_123", kind: "custom", requestedCoins: 7500,
+    giftRecipientUid: "recipient-member-uid",
+  }), /CUSTOM_GIFT_NOT_SUPPORTED/);
+  assert.throws(() => validateCoinPurchaseRequestInput({
+    requestId: "gift_req_123", kind: "package", packageId: "coins_1000",
+    giftRecipientUid: " ",
+  }), /INVALID_GIFT_RECIPIENT/);
   assert.throws(() => validateCoinPurchaseRequestInput({
     requestId: "request_456", kind: "custom", requestedCoins: 7500, priceMinor: 1,
   }), /INVALID_REQUEST/);
