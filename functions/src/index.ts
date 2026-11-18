@@ -9421,11 +9421,19 @@ export const recordOwnerFeaturedAdFinancialEvent = onCall(async (request) => {
   // Durable retry path: the financial transaction leaves a pending marker.
   // The deterministic chain-event ID makes this append safe after timeout/crash;
   // exact callable replays retry the append until the marker is completed.
+  const chainEventId = "featured_ad_finance_chain_" + eventId;
+  const chainEventRef = db.collection("adminAuditLogs").doc(chainEventId);
+  const [outboxState, existingChainEvent] = await Promise.all([
+    auditOutboxRef.get(), chainEventRef.get(),
+  ]);
+  if (outboxState.data()?.status === "appended" && !existingChainEvent.exists) {
+    throw new HttpsError("data-loss", "سجل التدقيق المتسلسل المشار إليه من صندوق الترحيل مفقود؛ يلزم تدقيق السلسلة.");
+  }
   const chainAuditId = await appendOwnerReviewAuditEvent({
     actorUid, action: "featured_ad_financial_event_recorded",
     campaignId: event.campaignId, eventId, financialAction: event.action,
     resultingVersion: result.version, outcome: "success",
-  }, "featured_ad_finance_chain_" + eventId);
+  }, chainEventId);
   const chainAuditSnapshot = await db.collection("adminAuditLogs").doc(chainAuditId).get();
   const chainAuditData = chainAuditSnapshot.data() ?? {};
   if (!chainAuditSnapshot.exists || chainAuditData.auditChainId !== "owner-review-v1" ||
