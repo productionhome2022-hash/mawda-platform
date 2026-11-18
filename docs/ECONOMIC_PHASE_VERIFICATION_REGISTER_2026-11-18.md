@@ -223,3 +223,12 @@ For every economic price that is defined as one combined amount and divided equa
 - Added owner-console controls for reward enablement, per-view amount, daily view and coin caps, rolling campaign cap/window, video completion threshold, and continuous image visibility threshold. Defaults remain disabled and zero-valued; this does not bypass the trusted-view-evidence gate, so reward payout remains blocked until that server attestation exists.
 - Added a dedicated emulator integration test source for owner authorization, update/readback, version conflict, and invalid reward-cap rejection; registered it in the full Functions test script. Not executed yet.
 - Commits: 021aac8d548a1816163678767fcf95adf37d6c9e, 91ba40c07638b2945ae7beeb5cc0daa8fdfaa375, 44d5cdccdbd7f8d580ecd6fd31db13c384dd2676, ed58e9197bcf3346dfa113b3f9faf8e37fc4d28b.
+
+
+## Store catalog concurrency and complete featured-reward administration (2026-11-18)
+
+- Store catalog writes now require the current item version, reject stale edits, increment the item version, and atomically persist before/after commercial values in the owner audit row. The owner catalog read exposes the version; the Super Admin UI/service sends the expected version.
+- Added a dedicated store-catalog emulator integration test for create/readback, stale-update rejection, and atomic audit evidence; registered it in `test:all`.
+- Added owner-managed featured-ad reward policy writes (MFA, server validation, expected-version guard, versioned policy, before/after audit row, and hash-chain audit append). The owner advertising/rewards screen exposes the full reward amount, quota, campaign-window, and evidence-threshold controls. Reward issuance remains blocked unless trusted server-side viewing evidence is available.
+- Added and registered the featured-ad reward policy emulator integration test. Neither new integration suite nor any other test was run in this pass.
+- Commits: 021aac8d548a1816163678767fcf95adf37d6c9e, 91ba40c07638b2945ae7beeb5cc0daa8fdfaa375, 44d5cdccdbd7f8d580ecd6fd31db13c384dd2676, ed58e9197bcf3346dfa113b3f9faf8e37fc4d28b, 69c13f87690392e1535f0736f48e5da865f5697d, 784515b5373836158a3ab458d8f37c2b3b95b45b, cdd2bfbeaf0265086974a22cbd758a552cc4166e, b75f0c83f2b5bbfa8e4e25bf758c8717f525146a, 1c39e26729ab83b2676e190a907a058cae6d8e47, 678f6322150d23f4288dbf9d191149378152f8a0.
