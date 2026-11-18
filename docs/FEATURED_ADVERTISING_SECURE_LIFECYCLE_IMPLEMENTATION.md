@@ -95,3 +95,36 @@ Remaining featured-ad gates are unchanged: implement the independent featured ca
 - The owner Flutter console carries the version for edits and status transitions and surfaces a refresh-required conflict instead of silently overwriting.
 - The engagement emulator suite now covers a stale edit, a successful edit/version increment, a publish transition, and rejection of a stale pause attempt.
 - This protects the current platform-managed timed-ad campaign workflow. It does not complete the separate featured-showcase delivery/session/reward service described above.
+
+
+## Featured Ads lifecycle implementation — 2026-11-18 (development branch)
+
+### Implemented in this development increment
+- Added a separate `featuredAdCampaigns` collection and owner callables: `saveFeaturedAdCampaign`, `getOwnerFeaturedAdCampaigns`, and `setFeaturedAdCampaignStatus`. Campaign edits are version-checked; saving an edit clears owner approval; paid campaign terms are frozen and must be represented by a new campaign if changed.
+- Publication is fail-closed unless owner approval, actual payment confirmation recorded by the Owner, approved creative, active reward policy, valid schedule and sufficient reward budget all exist. Only scanned image/GIF campaigns can publish; video remains blocked pending a real player and device acceptance.
+- Added a separate member showcase selector and `getFeaturedAdShowcase`. Preview selection is explicitly non-rewarding. The broad Arab-region filter includes region-specific campaigns; exact regional selection remains supported.
+- Added `featuredAdSessions`, active-session locking, bounded foreground heartbeats, policy/campaign version snapshots, budget reservation, expiry cleanup, explicit cancellation, and atomic completion into `featuredAdRewardClaims` plus the member wallet ledger. Daily member caps, per-campaign caps and campaign coin budgets are checked transactionally. Repeated completion returns the existing claim without a second credit.
+- Added `getFeaturedAdCreativeUrl`, which only issues a short-lived signed URL for an approved safe derivative when the member owns the active session and the campaign/version/payment/creative gates still pass.
+- Connected the member discovery, blocking image/GIF player, lifecycle heartbeats, cancel/complete actions and server-backed reward history UI. Added a separate owner console linked from the existing advertising/rewards screen, with campaign controls, owner reward-policy controls and financial event review.
+- Featured reward policy updates now use optimistic version checks. Defaults remain disabled and zero until the Owner explicitly configures them.
+
+### Advertising finance review boundary
+- Added append-only `featuredAdFinancialEvents` and idempotency records for owner-recorded `payment_received`, `refund_recorded`, `settlement_reconciled` and `review_completed` events.
+- Financial event IDs are derived from campaign + action + external reference, so retries from another device or after app restart cannot duplicate the same referenced operation. Reusing the reference with changed payload is rejected.
+- Refunds cannot exceed the unrefunded recorded receipt. A refund pauses a published campaign, clears payment eligibility, reduces the reconciled net balance and forces a new owner financial review.
+- Settlement in this increment means accounting reconciliation of the recorded net receipt only. It is **not** a payout, bank transfer, representative commission payment or money movement. The event stores `moneyMovementExecuted: false`.
+- Payment receipt and refund events require an owner-supplied external reference and evidence reference. This is an owner attestation/reference record; it does not independently verify a bank statement or execute the external transaction.
+- No currency conversion, tax, fee, commission percentage, partial-payment schedule, chargeback rule, automated refund, payout or payment gateway has been invented or enabled. Those remain subject to the existing advertising contracts, legal/accounting review and separate owner approval.
+
+### Verification and release gates
+- Added unit tests for financial event validation, over-refund rejection, net reconciliation after refunds, idempotency identity and broad-region showcase selection.
+- Added a Firestore Emulator integration scenario for campaign creation/approval, owner payment record, settlement, member discovery, session heartbeats, exactly-once wallet credit, reward history and refund-triggered pause.
+- Added Firestore composite indexes for featured campaign discovery, session cleanup, reward history and financial event history. Firestore rules continue to deny all direct client writes to these server-owned collections.
+- This increment has **not yet been verified by CI on its exact current HEAD** at the time of this note. The previously passed CI SHA is not evidence for these new changes.
+- No production Firebase writes, deployment, real-money transfer, billing activation, provider connection, main merge or live campaign publication has occurred.
+
+### Remaining limitations before phase-one acceptance
+- Video creatives are intentionally not publishable. Real Android/iOS/Web device acceptance, platform integrity/fraud signals and stronger anti-tamper evidence remain open.
+- Owner-provided evidence references are audit pointers, not automatic external financial verification.
+- Representative commission and payout accounting belongs to the separate Advertising Department contract workflow; it is not silently mixed into member Coins rewards.
+- A full phase exit still requires exact-HEAD CI green, emulator proof, UI tests, review of Firestore indexes/rules, and an owner acceptance of the manual financial workflow and its legal/accounting semantics.
