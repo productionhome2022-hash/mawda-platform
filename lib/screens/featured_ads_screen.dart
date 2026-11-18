@@ -279,14 +279,37 @@ class _FeaturedAdViewingSurface extends StatefulWidget {
   State<_FeaturedAdViewingSurface> createState() => _FeaturedAdViewingSurfaceState();
 }
 
-class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> {
+class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> with WidgetsBindingObserver {
   String? _sessionId, _url, _contentType, _error;
   bool _loading = true, _completed = false, _heartbeatInFlight = false;
+  bool _appForeground = true, _rewardEnabled = true;
+  int _videoThresholdPercent = 90, _imageThresholdMs = 10000;
+  double _serverProgressPercent = 0;
+  int _serverContinuousVisibleMs = 0;
   Timer? _heartbeatTimer;
   VideoPlayerController? _videoController;
 
   @override
-  void initState() { super.initState(); _start(); }
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _start();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final foreground = state == AppLifecycleState.resumed;
+    if (mounted) setState(() => _appForeground = foreground);
+    if (!foreground) _videoController?.pause();
+  }
+
+  bool get _canComplete {
+    if (_sessionId == null || _completed || !_rewardEnabled) return false;
+    if (_videoController != null) {
+      return _serverProgressPercent >= _videoThresholdPercent;
+    }
+    return _serverContinuousVisibleMs >= _imageThresholdMs;
+  }
 
   Future<void> _start() async {
     try {
@@ -300,6 +323,10 @@ class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> {
         _sessionId = sessionId;
         _url = data['url'] as String?;
         _contentType = data['contentType'] as String?;
+        final requirements = Map<String, dynamic>.from(data['rewardRequirements'] as Map? ?? const {});
+        _rewardEnabled = requirements['enabled'] == true;
+        _videoThresholdPercent = (requirements['videoCompletionPercent'] as num?)?.toInt() ?? 90;
+        _imageThresholdMs = (requirements['imageContinuousVisibleMs'] as num?)?.toInt() ?? 10000;
         _loading = false;
       });
       if (_contentType == 'video/mp4' && _url != null) {
@@ -329,7 +356,6 @@ class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> {
     if (controller == null || !controller.value.isInitialized || _completed) return;
     final duration = controller.value.duration.inMilliseconds;
     final position = controller.value.position.inMilliseconds;
-    if (duration > 0 && position * 100 >= duration * 90) _complete();
     if (mounted) setState(() {});
   }
 
@@ -339,18 +365,23 @@ class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> {
     _heartbeatInFlight = true;
     final controller = _videoController;
     double progress = 0;
-    var visible = mounted;
+    var visible = mounted && _appForeground && (ModalRoute.of(context)?.isCurrent ?? true);
     if (controller != null && controller.value.isInitialized) {
       final duration = controller.value.duration.inMilliseconds;
       final position = controller.value.position.inMilliseconds;
       progress = duration > 0 ? (position * 100 / duration).clamp(0, 100).toDouble() : 0;
-      visible = mounted && controller.value.isPlaying && !controller.value.isBuffering;
+      visible = visible && controller.value.isPlaying && !controller.value.isBuffering;
     }
     try {
-      await FirebaseFunctions.instance.httpsCallable('heartbeatFeaturedAdViewingSession').call({
+      final response = await FirebaseFunctions.instance.httpsCallable('heartbeatFeaturedAdViewingSession').call({
         'sessionId': sessionId,
         'foregroundVisible': visible,
         'progressPercent': progress,
+      });
+      final data = Map<String, dynamic>.from(response.data as Map);
+      if (mounted) setState(() {
+        _serverProgressPercent = (data['progressPercent'] as num?)?.toDouble() ?? _serverProgressPercent;
+        _serverContinuousVisibleMs = (data['continuousVisibleMs'] as num?)?.toInt() ?? _serverContinuousVisibleMs;
       });
     } catch (_) {
       // A missed heartbeat cannot produce a reward; the server owns eligibility.
@@ -361,7 +392,7 @@ class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> {
 
   Future<void> _complete() async {
     final sessionId = _sessionId;
-    if (sessionId == null || _completed) return;
+    if (sessionId == null || !_canComplete) return;
     setState(() => _completed = true);
     try {
       final result = await FirebaseFunctions.instance
@@ -380,6 +411,7 @@ class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _heartbeatTimer?.cancel();
     _videoController?.removeListener(_watchVideo);
     _videoController?.dispose();
@@ -439,7 +471,20 @@ class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> {
                 color: Colors.white,
                 icon: Icon(_videoController!.value.isPlaying ? Icons.pause_circle : Icons.play_circle),
               ),
+              const SizedBox(width: 12),
+              FilledButton.tonal(
+                onPressed: _canComplete ? _complete : null,
+                child: const Text('إنهاء والتحقق'),
+              ),
             ])),
+          ),
+        if (_videoController == null && _sessionId != null)
+          Positioned(
+            bottom: 8, left: 8, right: 8,
+            child: SafeArea(child: Center(child: FilledButton.tonal(
+              onPressed: _canComplete ? _complete : null,
+              child: const Text('إنهاء والتحقق'),
+            ))),
           ),
       ]),
     );
