@@ -143,7 +143,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
     if (reward == null || views == null || coins == null || campaignCap == null ||
         windowMs == null || videoCompletion == null || imageVisibleMs == null ||
         reward < 0 || reward > 100000 || views < 0 || views > 10000 ||
-        coins < reward || coins > 1000000 || campaignCap < 0 || campaignCap > 1000 ||
+        (_rewardEnabled && coins < reward) || coins < 0 || coins > 1000000 || campaignCap < 0 || campaignCap > 1000 ||
         windowMs < 1 || windowMs > 2678400000 ||
         videoCompletion < 1 || videoCompletion > 100 ||
         imageVisibleMs < 1000 || imageVisibleMs > 3600000 ||
