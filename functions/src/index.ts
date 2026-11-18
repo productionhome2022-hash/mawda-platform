@@ -8232,12 +8232,12 @@ async function validateFeaturedAdCreativeForOwner(mediaId: string | null, ownerU
   return { creativeType: asset.mediaCategory === "video" ? "video" as const : "image" as const };
 }
 export const getOwnerFeaturedAdCampaigns = onCall(async (request) => {
-  requireOwner(request);
+  await requireOwnerForReview(request, "featured_ad_campaign_list_attempt");
   const snapshot = await db.collection("featuredAdCampaigns").orderBy("updatedAt", "desc").limit(200).get();
   return { campaigns: snapshot.docs.map((doc) => ({ campaignId: doc.id, ...doc.data() })) };
 });
 export const setOwnerFeaturedAdCampaign = onCall(async (request) => {
-  const actorUid = requireOwner(request);
+  const actorUid = await requireOwnerForReview(request, "featured_ad_campaign_save_attempt");
   const data = (request.data ?? {}) as Record<string, unknown>;
   const input = validateFeaturedAdCampaignInput(data);
   const campaignId = typeof data.campaignId === "string" ? data.campaignId.trim() : "";
@@ -8274,7 +8274,7 @@ export const setOwnerFeaturedAdCampaign = onCall(async (request) => {
   return { ...result, status: "draft" };
 });
 export const setFeaturedAdCampaignStatus = onCall(async (request) => {
-  const actorUid = requireOwner(request);
+  const actorUid = await requireOwnerForReview(request, "featured_ad_campaign_status_attempt");
   const campaignId = typeof request.data?.campaignId === "string" ? request.data.campaignId.trim() : "";
   const status = request.data?.status;
   if (!campaignId || !FEATURED_AD_ALLOWED_STATUSES.includes(status as typeof FEATURED_AD_ALLOWED_STATUSES[number])) {
@@ -8314,13 +8314,13 @@ export const setFeaturedAdCampaignStatus = onCall(async (request) => {
   return { campaignId, status, ...result };
 });
 export const getOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
-  requireOwner(request);
+  await requireOwnerForReview(request, "featured_ad_reward_policy_read_attempt");
   const snapshot = await FEATURED_AD_REWARD_POLICY.get();
   const policy = snapshot.exists ? validateFeaturedAdRewardPolicy(snapshot.data()?.policy) : defaultFeaturedAdRewardPolicy();
   return { policy, version: snapshot.exists ? snapshot.data()?.version ?? 1 : 1 };
 });
 export const setOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
-  const actorUid = requireOwner(request);
+  const actorUid = await requireOwnerForReview(request, "featured_ad_reward_policy_update_attempt");
   const policy = validateFeaturedAdRewardPolicy(request.data?.policy);
   const version = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(FEATURED_AD_REWARD_POLICY);
