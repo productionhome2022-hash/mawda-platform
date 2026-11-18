@@ -44,6 +44,27 @@ test("accepts a written proposal with a proposed budget and currency", () => {
   assert.equal(result.currency, "EUR");
 });
 
+test("creator proposal budgets obey selected currency precision", () => {
+  const written = {
+    ...base,
+    sourceType: "written_proposal",
+    contentUrl: null,
+    platformName: null,
+    quoteRequested: false,
+    proposedBudgetAmount: "125.000",
+    currency: "KWD",
+  };
+  assert.equal(validateCreatorProposalInput(written).currency, "KWD");
+  assert.throws(
+    () => validateCreatorProposalInput({ ...written, currency: "EUR" }),
+    /invalid_proposed_budget/,
+  );
+  assert.throws(
+    () => validateCreatorProposalInput({ ...written, currency: "XXX" }),
+    /invalid_proposed_budget/,
+  );
+});
+
 test("rejects insecure, credential-bearing and local URLs", () => {
   for (const contentUrl of [
     "http://www.example.com/ad",
