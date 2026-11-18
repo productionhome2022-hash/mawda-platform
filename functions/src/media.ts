@@ -36,6 +36,11 @@ const mediaBucket = () => {
   return configuredName ? getStorage().bucket(configuredName) : getStorage().bucket();
 };
 
+/** Shared secure media bucket accessor for server-authoritative ad delivery. */
+export function getMawddaMediaBucket() {
+  return mediaBucket();
+}
+
 const mediaScannerHmacSecret = defineSecret("MAWDA_MEDIA_SCANNER_HMAC_SECRET");
 const mediaScannerApiToken = defineSecret("MAWDA_MEDIA_SCANNER_API_TOKEN");
 const mediaBucketName = defineString("MAWDA_MEDIA_BUCKET_NAME", { default: "" });
