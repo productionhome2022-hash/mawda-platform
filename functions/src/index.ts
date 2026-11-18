@@ -8070,15 +8070,23 @@ const ATTENDANCE_REWARD_POLICY = db.doc("platformSettings/attendanceRewards");
 export const setAttendanceRewardPolicy = onCall(async (request) => {
   const actorUid = requireOwner(request);
   let policy;
+  const expectedVersion = request.data?.expectedVersion;
   try {
     policy = validateAttendanceRewardPolicy(request.data?.policy);
   } catch {
     throw new HttpsError("invalid-argument", "سياسة مكافآت الحضور غير صالحة.");
   }
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "يجب تحديد إصدار سياسة الحضور الحالي.");
+  }
   const version = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(ATTENDANCE_REWARD_POLICY);
-    const nextVersion = (Number.isSafeInteger(previous.data()?.version)
-      ? previous.data()!.version : 0) + 1;
+    const previousVersion = Number.isSafeInteger(previous.data()?.version)
+      ? previous.data()!.version : 0;
+    if (previousVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت سياسة الحضور منذ فتح اللوحة؛ حدّث البيانات ثم أعد المحاولة.");
+    }
+    const nextVersion = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(ATTENDANCE_REWARD_POLICY, {
       policy, version: nextVersion, updatedAt: now, updatedBy: actorUid,
