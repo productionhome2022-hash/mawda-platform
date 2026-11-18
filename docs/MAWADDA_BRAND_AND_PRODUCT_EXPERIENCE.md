@@ -243,3 +243,25 @@ Extend the Brand & Platform Content section so the platform owner can manage the
 - No arbitrary remote image URLs or client-side Storage/Firestore writes to publish backgrounds. Use a trusted upload and validation pipeline.
 
 This requirement covers shared platform/app surfaces only. Existing special-purpose backgrounds for one-to-one chats and rented rooms remain independently governed. Background management is a product requirement, not evidence that its UI, upload pipeline, delivery configuration or tests have already been implemented.
+
+## 18. Production Home Company identity within Media Workspace and ad viewing (owner-approved requirement, 19 November 2026)
+
+**Decision scope:** The owner explicitly requires the *Production Home Company corporate logo* (not the MAWADDA platform logo) to be part of the visual identity treatment for both the member-facing Media Workspace and the ad-viewing experience.
+
+### Media Workspace
+- Use the official Production Home Company logo as a deliberate, integrated background/visual identity element when a member opens Media Workspace.
+- Carry the corporate visual language into the section's category/destination buttons, icons and interactive states through coordinated, art-directed shapes and treatments.
+- The logo may inform restrained background motifs, framing, button silhouettes, icon containers and subtle decorative details; it must not reduce text contrast, touch-target clarity, navigation comprehension or accessibility.
+
+### Ad-viewing experience
+- Use the same official Production Home Company logo as an integrated background/visual identity element in the ad-viewing section.
+- Give the section's button types, controls and icons a coordinated visual treatment derived from the corporate identity, while keeping the advertisement itself, playback controls, disclosures, reward conditions and member actions clear and unobstructed.
+
+### Asset and brand-separation safeguards
+- The corporate logo is distinct from the MAWADDA product/platform logo. Do not substitute one for the other or treat any proposed MAWADDA logo as finally approved by this decision.
+- Use only the verified official Production Home Company logo asset supplied/identified by the owner. Do not redraw, approximate, generate, recolor or fabricate a corporate logo. Until the exact asset is verified in the repository/assets, document the requirement and reserve the integration point; do not claim the logo asset has been installed.
+- Do not infer or invent corporate brand colors, typography or logo-clear-space rules from the MAWADDA palette. Derive the detailed treatment from the verified company brand asset/guidelines when available.
+- Preserve responsive performance, low-end Android support, reduced-motion behavior, Arabic RTL/localization, accessibility contrast and touch-target requirements.
+- This section-specific corporate identity decision does not authorize a redesign of the overall MAWADDA app, its global backgrounds, general color system, buttons or logo. Those remain subject to the owner's separately scheduled visual-design phase and approval.
+
+**Status:** Owner-approved design requirement; official company logo asset verification, visual implementation, responsive/accessibility review and UI tests remain open. This entry records the requirement only and is not evidence that the visual changes are implemented or tested.
