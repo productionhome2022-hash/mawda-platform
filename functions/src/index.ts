@@ -6477,7 +6477,7 @@ export const purchaseStoreItem = onCall(async (request) => {
   const entitlementRef = userRef.collection("entitlements").doc(itemId);
 
   return db.runTransaction(async (transaction) => {
-    const [member, itemSnapshot, priorPurchase, priorEntitlement] = await Promise.all([
+    const [member, itemSnapshot, priorPurchase, priorEntitlement, priorLedger] = await Promise.all([
       transaction.get(userRef),
       transaction.get(itemRef),
       transaction.get(purchaseRef),
