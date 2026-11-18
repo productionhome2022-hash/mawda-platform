@@ -2385,7 +2385,7 @@ export const getOwnerBiometricVerificationRequests = onCall(async (request) => {
 });
 
 export const getOwnerBiometricVerificationMediaAccess = onCall(async (request) => {
-  await requireOwnerForReview(request, "biometric_verification_media_access");
+  const actorUid = await requireOwnerForReview(request, "biometric_verification_media_access");
   const requestId = request.data?.requestId;
   if (typeof requestId !== "string" || !/^[0-9a-f-]{36}$/i.test(requestId)) {
     throw new HttpsError("invalid-argument", "معرّف طلب التوثيق غير صالح.");
@@ -2403,6 +2403,15 @@ export const getOwnerBiometricVerificationMediaAccess = onCall(async (request) =
   }
   const bucket = getStorage().bucket();
   const expires = Date.now() + settings.mediaAccessTtlSeconds * 1000;
+  await db.collection("verificationAuditLogs").add({
+    action: "biometric_verification_media_access_issued",
+    actorUid,
+    targetUid: data.uid,
+    requestId,
+    mediaKinds: ["audio", "video"],
+    accessExpiresAt: Timestamp.fromMillis(expires),
+    createdAt: FieldValue.serverTimestamp(),
+  });
   const [audio, video] = await Promise.all([
     bucket.file(data.audioObjectPath).getSignedUrl({ version: "v4", action: "read", expires }),
     bucket.file(data.videoObjectPath).getSignedUrl({ version: "v4", action: "read", expires }),
