@@ -145,7 +145,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
         'maxRewardCoinsPerUtcDay': coins,
         'maxRewardsPerCampaignRolling24h': campaignCap,
       });
-      await _functions.httpsCallable('setOwnerFeaturedAdRewardPolicy').call({'policy': policy});
+      await _functions.httpsCallable('setOwnerFeaturedAdRewardPolicy').call({'policy': policy, 'expectedVersion': envelope['version'] ?? 0});
       _reward.text = reward.toString();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم حفظ سياسة المكافآت التجريبية بإصدار جديد.')),
