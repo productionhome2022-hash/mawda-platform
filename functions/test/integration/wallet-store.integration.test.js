@@ -199,6 +199,8 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
   const ledgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
   const entitlementRef = memberRef.collection("entitlements").doc(itemId);
   const catalogVersionRef = db.collection("storeCatalogVersions").doc(itemId).collection("versions").doc("1");
+  const previousCatalog = await itemRef.get();
+  const previousCatalogVersions = await db.collection("storeCatalogVersions").doc(itemId).collection("versions").get();
 
   await Promise.all([
     memberRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active" }),
@@ -246,8 +248,13 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
       ledgerRef.delete().catch(() => undefined),
       purchaseRef.delete().catch(() => undefined),
       entitlementRef.delete().catch(() => undefined),
-      itemRef.delete().catch(() => undefined),
-      catalogVersionRef.delete().catch(() => undefined),
+      (async () => {
+        await itemRef.delete().catch(() => undefined);
+        const currentVersions = await db.collection("storeCatalogVersions").doc(itemId).collection("versions").get();
+        await Promise.all(currentVersions.docs.map((doc) => doc.ref.delete()));
+        if (previousCatalog.exists) await itemRef.set(previousCatalog.data());
+        await Promise.all(previousCatalogVersions.docs.map((doc) => doc.ref.set(doc.data())));
+      })(),
       memberRef.delete().catch(() => undefined),
     ]);
   }
