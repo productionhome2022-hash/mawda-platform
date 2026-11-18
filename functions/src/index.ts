@@ -9668,9 +9668,14 @@ export const recordOwnerFeaturedAdFinancialEvent = onCall(async (request) => {
           status: "pending", createdAt: FieldValue.serverTimestamp(),
         });
       }
+      if (!Number.isSafeInteger(prior.resultingVersion) || prior.resultingVersion < 1) {
+        throw new HttpsError("data-loss", "نسخة الحركة المالية الأصلية غير موجودة أو غير صالحة؛ أوقفنا إعادة التنفيذ.");
+      }
       return {
         campaignId: event.campaignId, eventId, idempotentReplay: true,
-        version: Number.isSafeInteger(campaign.version) ? campaign.version : null,
+        // Replay verifies the immutable event's original version, not the
+        // campaign's newer current version after later payments/refunds.
+        version: prior.resultingVersion,
         financialSnapshot: campaign.financialSnapshot ?? defaultFeaturedAdFinancialSnapshot(),
       };
     }
