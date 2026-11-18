@@ -6,11 +6,12 @@ const {
   grantStoreEntitlement,
   bulkGrantStoreEntitlements,
   getMyEntitlementGrantHistory,
+  purchaseStoreItem,
 } = require("../../lib/index");
 
 const db = getFirestore();
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-const memberRequest = (uid) => ({ data: {}, auth: { uid, token: { firebase: { sign_in_provider: "password" } } } });
+const memberRequest = (uid, data = {}) => ({ data, auth: { uid, token: { firebase: { sign_in_provider: "password" } } } });
 const ownerRequest = (uid, data) => ({
   data,
   auth: { uid, token: {
@@ -94,14 +95,33 @@ test("owner free grant is MFA-gated, audited, coin-neutral, idempotent and repea
     assert.equal(replayAfterExtension.expiresAt, first.expiresAt);
     assert.equal((await entitlementRef.get()).data().expiresAt.toMillis(), second.expiresAt);
 
+    // Expire the current grant, then purchase the same item. Replaying the
+    // original grant must remain idempotent and must not overwrite the purchase.
+    await entitlementRef.update({ expiresAt: new Date(Date.now() - 1000) });
+    await itemRef.update({ purchaseEnabled: true });
+    const purchaseId = `purchase_after_grant_${tag}`;
+    const purchase = await purchaseStoreItem.run(memberRequest(memberUid, {
+      itemId, requestId: purchaseId, expectedPriceCoins: 900,
+    }));
+    assert.equal(purchase.idempotentReplay, false);
+    assert.equal(purchase.newBalance, 3421);
+    const entitlementAfterPurchase = (await entitlementRef.get()).data();
+    assert.equal(entitlementAfterPurchase.purchaseId, `${memberUid}_${purchaseId}`);
+    assert.equal(entitlementAfterPurchase.grantSource, undefined);
+
+    const replayAfterPurchase = await grantStoreEntitlement.run(ownerRequest(ownerUid, input));
+    assert.equal(replayAfterPurchase.idempotentReplay, true);
+    assert.equal((await entitlementRef.get()).data().purchaseId, `${memberUid}_${purchaseId}`);
+    assert.equal((await memberRef.get()).data().coins, 3421);
+
     // A prior grant is not a valid replay if immutable audit evidence is missing.
     await auditRef.delete();
     await assert.rejects(
       () => grantStoreEntitlement.run(ownerRequest(ownerUid, input)),
       (error) => error && error.code === "failed-precondition",
     );
-    assert.equal((await memberRef.get()).data().coins, 4321);
-    assert.equal((await entitlementRef.get()).data().expiresAt.toMillis(), second.expiresAt);
+    assert.equal((await memberRef.get()).data().coins, 3421);
+    assert.equal((await entitlementRef.get()).data().purchaseId, `${memberUid}_${purchaseId}`);
 
     const history = await getMyEntitlementGrantHistory.run(memberRequest(memberUid));
     assert.equal(history.entries.length, 2);
