@@ -7844,7 +7844,9 @@ export const getFeaturedAdShowcase = onCall({ enforceAppCheck: true }, async (re
   }
   const now = Date.now();
   const snapshot = await FEATURED_AD_CAMPAIGNS.where("status", "==", "published")
-    .where("startsAtMs", "<=", now).limit(100).get();
+    .where("startsAtMs", "<=", now)
+    .where("endsAtMs", ">", now)
+    .limit(100).get();
   const candidates = snapshot.docs.map((doc) => ({ campaignId: doc.id, ...doc.data() }));
   const selection = selectFeaturedAdShowcase({
     campaigns: candidates as any, audienceGeography: geography, nowMs: now,
