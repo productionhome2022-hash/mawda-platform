@@ -7639,6 +7639,9 @@ export const saveFeaturedAdCampaign = onCall({ enforceAppCheck: true }, async (r
     if (previous.exists && !["draft", "paused"].includes(String(previousData.status))) {
       throw new HttpsError("failed-precondition", "أوقف الحملة قبل تعديل بياناتها.");
     }
+    if (previous.exists && previousData.paymentConfirmed === true) {
+      throw new HttpsError("failed-precondition", "لا تعدل حملة بعد تأكيد قبضها؛ أنشئ إصدار حملة جديداً حتى لا تتغير الشروط المالية بعد الدفع.");
+    }
     if (previous.exists && Number(previousData.reservedRewardCoins ?? 0) > 0) {
       throw new HttpsError("failed-precondition", "لا يمكن تعديل الحملة مع وجود جلسات مكافآت نشطة.");
     }
@@ -7722,7 +7725,7 @@ export const setFeaturedAdCampaignStatus = onCall({ enforceAppCheck: true }, asy
           data.creativeApproved !== true || data.endsAtMs <= Date.now() ||
           data.startsAtMs > data.endsAtMs || !policy.enabled ||
           data.spentRewardCoins + data.reservedRewardCoins + policy.rewardCoinsPerView >
-            data.rewardBudgetCoins || data.creativeType === "video") {
+            data.rewardBudgetCoins || !["image", "gif"].includes(String(data.creativeType))) {
         throw new HttpsError("failed-precondition",
           "النشر يتطلب اعتماد المالك والقبض المالي والمادة الآمنة وسياسة مكافآت فعالة وميزانية كافية؛ الفيديو غير متاح حتى اكتمال المشغل.");
       }
