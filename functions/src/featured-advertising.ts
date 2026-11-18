@@ -38,7 +38,8 @@ function isEligible(
     campaign.startsAtMs <= nowMs &&
     campaign.endsAtMs > nowMs &&
     Array.isArray(campaign.geographicTargets) &&
-    campaign.geographicTargets.includes(audienceGeography);
+    (campaign.geographicTargets.includes(audienceGeography) ||
+      campaign.geographicTargets.includes("all_arab_countries"));
 }
 
 /** Fisher-Yates shuffle with injectable RNG so the fallback can be tested deterministically. */
