@@ -7604,24 +7604,50 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
   if (typeof requesterUid !== "string" || requesterUid.length < 1 || requesterUid.length > 128 ||
       requesterUid === actorUid) throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
   const requestRef = db.collection("coinPurchaseRequests").doc(`${requesterUid}_${input.requestId}`);
-  const userRef = db.collection("users").doc(requesterUid);
-  const ledgerId = `coin_purchase_${input.requestId}`;
-  const ledgerRef = userRef.collection("walletLedger").doc(ledgerId);
   const auditRef = db.collection("adminAuditLogs").doc(`coin_purchase_approval_${requesterUid}_${input.requestId}`);
+  let notifyRecipientUid: string | null = null;
   const result = await db.runTransaction(async (transaction) => {
-    const [purchase, user, ledger] = await Promise.all([
-      transaction.get(requestRef), transaction.get(userRef), transaction.get(ledgerRef),
-    ]);
+    const purchase = await transaction.get(requestRef);
     if (!purchase.exists || purchase.data()?.requesterUid !== requesterUid) {
       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
     }
     const data = purchase.data()!;
-    if (data.status === "approved") return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null };
+    const targetUid = typeof data.giftRecipientUid === "string" ? data.giftRecipientUid : requesterUid;
+    if (targetUid === actorUid || targetUid === requesterUid && data.giftRecipientUid) {
+      throw new HttpsError("failed-precondition", "مستلم باقة الهدية غير صالح.");
+    }
+    const userRef = db.collection("users").doc(targetUid);
+    const ledgerId = `coin_purchase_${input.requestId}`;
+    const ledgerRef = userRef.collection("walletLedger").doc(ledgerId);
+    const giftRef = db.collection("coinPackageGifts").doc(`${requesterUid}_${input.requestId}`);
+    const historyRef = userRef.collection("coinPackageGiftHistory").doc(input.requestId);
+    const notificationRef = userRef.collection("notifications").doc(`coin_package_gift_${input.requestId}`);
+    const [user, ledger, guestProfile, guestSession] = await Promise.all([
+      transaction.get(userRef), transaction.get(ledgerRef),
+      ...(data.giftRecipientUid ? [
+        transaction.get(db.collection("guestProfiles").doc(targetUid)),
+        transaction.get(db.collection("guestSessions").doc(targetUid)),
+      ] : [Promise.resolve(null), Promise.resolve(null)]),
+    ]);
+    if (data.status === "approved") {
+      return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null, creditedToUid: targetUid };
+    }
     if (data.status !== "payment_instructions_sent") {
       throw new HttpsError("failed-precondition", "لا يمكن اعتماد الطلب قبل إرسال تعليمات الدفع.");
     }
-    if (!user.exists || !isMemberAccountInGoodStanding(user.data())) {
-      throw new HttpsError("permission-denied", "حساب العضو غير مؤهل لاستلام الكوينز.");
+    if (!user.exists || !isMemberAccountInGoodStanding(user.data()) ||
+        user.data()?.profileCompleted !== true ||
+        (data.giftRecipientUid && (guestProfile?.exists || guestSession?.exists))) {
+      throw new HttpsError("permission-denied", "حساب مستلم الكوينز غير مؤهل.");
+    }
+    if (data.giftRecipientUid) {
+      let recipientAuth: UserRecord;
+      try { recipientAuth = await getAuth().getUser(targetUid); }
+      catch { throw new HttpsError("permission-denied", "تعذر التحقق من حساب مستلم الباقة."); }
+      if (recipientAuth.disabled || !recipientAuth.providerData.length ||
+          recipientAuth.providerData.every((provider) => provider.providerId === "anonymous")) {
+        throw new HttpsError("permission-denied", "حساب الزائر لا يمكنه استلام باقة مهداة.");
+      }
     }
     if (ledger.exists) throw new HttpsError("already-exists", "يوجد سجل مالي سابق لهذا الطلب؛ يلزم تدقيقه.");
     const coins = data.agreedCoins;
@@ -7635,26 +7661,55 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
     const now = FieldValue.serverTimestamp();
     transaction.update(userRef, { coins: oldBalance + coins, walletUpdatedAt: now });
     transaction.create(ledgerRef, {
-      type: "coin_purchase_manual_credit", amount: coins, balanceBefore: oldBalance,
-      balanceAfter: oldBalance + coins, purchaseRequestId: input.requestId,
-      externalPaymentReference: input.externalPaymentReference,
+      type: data.giftRecipientUid ? "coin_package_gift_credit" : "coin_purchase_manual_credit",
+      amount: coins, balanceBefore: oldBalance, balanceAfter: oldBalance + coins,
+      purchaseRequestId: input.requestId, externalPaymentReference: input.externalPaymentReference,
       priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR",
-      actorUid, createdAt: now,
+      actorUid, purchaserUid: requesterUid, giftedByUid: data.giftRecipientUid ? requesterUid : null,
+      createdAt: now,
     });
     transaction.update(requestRef, {
       status: "approved", externalPaymentVerified: true,
       externalPaymentReference: input.externalPaymentReference,
       verificationNote: input.verificationNote, verifiedBy: actorUid,
-      verifiedAt: now, creditedCoins: coins, updatedAt: now,
+      verifiedAt: now, creditedCoins: coins, creditedToUid: targetUid, updatedAt: now,
     });
     transaction.create(auditRef, {
-      actorUid, targetUid: requesterUid, action: "coin_purchase_manually_verified_and_approved",
+      actorUid, targetUid, purchaserUid: requesterUid,
+      action: data.giftRecipientUid ? "coin_package_gift_manually_verified_and_approved" :
+        "coin_purchase_manually_verified_and_approved",
       requestId: input.requestId, externalPaymentReference: input.externalPaymentReference,
       verificationNote: input.verificationNote, creditedCoins: coins,
       priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR", createdAt: now,
     });
-    return { status: "approved", idempotentReplay: false, newBalance: oldBalance + coins };
+    if (data.giftRecipientUid) {
+      transaction.create(giftRef, {
+        giftId: giftRef.id, senderUid: requesterUid, recipientUid: targetUid,
+        packageId: data.packageId, packageSnapshot: data.packageSnapshot ?? null,
+        coins, priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR",
+        purchaseRequestId: input.requestId, status: "credited",
+        creditedByOwnerUid: actorUid, createdAt: now,
+      });
+      transaction.create(historyRef, {
+        giftId: giftRef.id, senderUid: requesterUid, packageId: data.packageId,
+        packageName: (data.packageSnapshot as Record<string, unknown> | null)?.name ?? "باقة Beta Coins",
+        coins, priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR",
+        purchaseRequestId: input.requestId, createdAt: now,
+      });
+      transaction.create(notificationRef, {
+        notificationId: notificationRef.id, type: "coin_package_gift_received",
+        senderUid: requesterUid, title: "وصلتك هدية Beta Coins",
+        body: `تمت إضافة ${coins} Beta Coins إلى محفظتك كهدية.`,
+        isRead: false, createdAt: now,
+      });
+      notifyRecipientUid = targetUid;
+    }
+    return { status: "approved", idempotentReplay: false, newBalance: oldBalance + coins, creditedToUid: targetUid };
   });
+  if (notifyRecipientUid && !result.idempotentReplay) {
+    await sendPushToMember(notifyRecipientUid, "وصلتك هدية Beta Coins",
+      "تمت إضافة باقة Beta Coins إلى محفظتك كهدية.", { type: "coin_package_gift_received" });
+  }
   return result;
 });
 
