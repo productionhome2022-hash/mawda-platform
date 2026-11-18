@@ -6,6 +6,7 @@ on:
       - codex/economy-recovery-2026-11-18
     paths:
       - "lib/**"
+      - "test/**"
       - "pubspec.yaml"
       - "pubspec.lock"
       - ".github/workflows/flutter-ci.yml"
@@ -14,6 +15,7 @@ on:
       - codex/economy-recovery-2026-11-18
     paths:
       - "lib/**"
+      - "test/**"
       - "pubspec.yaml"
       - "pubspec.lock"
       - ".github/workflows/flutter-ci.yml"
