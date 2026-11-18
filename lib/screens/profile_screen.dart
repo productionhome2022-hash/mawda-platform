@@ -131,7 +131,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: const Text(
           'تفتح هذه الخطوة نافذة المصادقة المحلية في Android أو Apple فقط. لا تلتقط مودة البصمة أو الوجه '
           'ولا ترسل بيانات بيومترية إلى الخادم. تنبيه: المصادقة المحلية وحدها ليست إثباتاً تشفيرياً موثوقاً لدى الخادم؛ '
-          'لذلك فإن مكافأة 1500 بيتا كوينز وصلاحيات التوثيق البيومتري معلّقة حتى اكتمال التحقق الآمن المرتبط بالجهاز. '
+          'لذلك فإن مكافأة 1500 BetaCoinsز وصلاحيات التوثيق البيومتري معلّقة حتى اكتمال التحقق الآمن المرتبط بالجهاز. '
           'لن يُخصم أو يُضاف أي رصيد بسبب هذا الاختبار المحلي.',
         ),
         actions: [
@@ -194,7 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'تم تجديد التحقق من البريد وإضافة 500 بيتا كوينز إلى محفظتك${balance == null ? '' : '؛ رصيدك الجديد $balance'}.',
+              'تم تجديد التحقق من البريد وإضافة 500 BetaCoinsز إلى محفظتك${balance == null ? '' : '؛ رصيدك الجديد $balance'}.',
             ),
             duration: const Duration(seconds: 6),
           ),
@@ -204,7 +204,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('أرسلنا رابط تحقق جديد إلى بريدك. افتحه ثم ارجع إلى هنا واضغط الزر نفسه لاعتماد مكافأة 500 بيتا كوينز.'),
+            content: Text('أرسلنا رابط تحقق جديد إلى بريدك. افتحه ثم ارجع إلى هنا واضغط الزر نفسه لاعتماد مكافأة 500 BetaCoinsز.'),
             duration: Duration(seconds: 8),
           ),
         );
@@ -765,7 +765,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ListTile(
             leading: const Icon(Icons.inventory_2_outlined),
-            title: const Text('إهداء باقة Beta Coins'),
+            title: const Text('إهداء باقة BetaCoins'),
             subtitle: const Text('اختر باقة يحددها المالك، ثم تُستكمل عملية الشراء والتحقق'),
             onTap: () => Navigator.pop(sheetContext, 'package'),
           ),
@@ -784,7 +784,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final amount = await showDialog<int>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('إهداء من رصيد Beta Coins'),
+          title: const Text('إهداء من رصيد BetaCoins'),
           content: TextField(
             controller: amountController,
             autofocus: true,
@@ -832,7 +832,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       if (packages.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('لا توجد باقات Beta Coins متاحة حالياً.')),
+          const SnackBar(content: Text('لا توجد باقات BetaCoins متاحة حالياً.')),
         );
         return;
       }
@@ -851,9 +851,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 ...packages.map((item) => ListTile(
                   leading: const Icon(Icons.card_giftcard_outlined),
-                  title: Text(item['name'] as String? ?? 'باقة Beta Coins'),
+                  title: Text(item['name'] as String? ?? 'باقة BetaCoins'),
                   subtitle: Text(
-                    '${item['coins']} Beta Coins • '
+                    '${item['coins']} BetaCoins • '
                     '${((item['priceMinor'] as num).toDouble() / 100).toStringAsFixed(2)} ${item['currency'] ?? 'EUR'}',
                   ),
                   trailing: const Icon(Icons.chevron_left),
@@ -872,7 +872,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           content: Text(
             'سيتم تسجيل طلب شراء باقة ${selected['name']} بقيمة '
             '${((selected['priceMinor'] as num).toDouble() / 100).toStringAsFixed(2)} '
-            '${selected['currency'] ?? 'EUR'}، وستصل الكوينز إلى صاحب هذا الملف فقط بعد تحقق المالك من الدفع واعتماد الطلب.',
+            '${selected['currency'] ?? 'EUR'}، وستصل BetaCoins إلى صاحب هذا الملف فقط بعد تحقق المالك من الدفع واعتماد الطلب.',
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext, false),
@@ -893,7 +893,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text(
-          'تم تسجيل طلب إهداء الباقة. ستصل الكوينز إلى المستلم بعد تحقق المالك من الدفع واعتماد الطلب.',
+          'تم تسجيل طلب إهداء الباقة. ستصل BetaCoins إلى المستلم بعد تحقق المالك من الدفع واعتماد الطلب.',
         )),
       );
     } on FirebaseFunctionsException catch (error) {
@@ -964,7 +964,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         leading: const CircleAvatar(child: Icon(Icons.card_giftcard_outlined)),
                         title: Text(name),
                         subtitle: Text(
-                          '$price Beta Coins'
+                          '$price BetaCoins'
                           '${duration == null ? ' • ميزة دائمة' : ' • $duration يوماً'}',
                         ),
                         trailing: const Icon(Icons.chevron_left),
@@ -988,7 +988,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (dialogContext) => AlertDialog(
           title: const Text('تأكيد إهداء الميزة'),
           content: Text(
-            'ستُهدي "$name" إلى $recipientName مقابل $price Beta Coins. '
+            'ستُهدي "$name" إلى $recipientName مقابل $price BetaCoins. '
             '${duration == null ? 'هذه ميزة دائمة.' : 'مدة الاستحقاق $duration يوماً.'} '
             'سيتم التحقق من أهلية المستلم وخصم المبلغ ومنح الميزة خادمياً.',
           ),
@@ -1053,13 +1053,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _summaryRow('المبلغ الذي سيُخصم منك', '${quote.grossAmount} بيتا كوينز'),
+              _summaryRow('المبلغ الذي سيُخصم منك', '${quote.grossAmount} BetaCoinsز'),
               _summaryRow(
                 'عمولة المنصة (${quote.commissionPercent.toStringAsFixed(2)}%)',
-                '${quote.commissionAmount} بيتا كوينز',
+                '${quote.commissionAmount} BetaCoinsز',
               ),
               const Divider(),
-              _summaryRow('الصافي الذي سيصل للعضو', '${quote.netAmount} بيتا كوينز'),
+              _summaryRow('الصافي الذي سيصل للعضو', '${quote.netAmount} BetaCoinsز'),
             ],
           ),
           actions: [
@@ -1093,7 +1093,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'تم التحويل: وصل ${receipt.netAmount} بيتا كوينز، وعمولة المنصة ${receipt.commissionAmount} بيتا كوينز. رقم العملية: ${receipt.transferId}',
+            'تم التحويل: وصل ${receipt.netAmount} BetaCoinsز، وعمولة المنصة ${receipt.commissionAmount} BetaCoinsز. رقم العملية: ${receipt.transferId}',
           ),
         ),
       );
@@ -1391,10 +1391,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ? Icons.monetization_on_outlined
                                 : Icons.lock_outline,
                           ),
-                          title: const Text('رصيد Beta Coins'),
+                          title: const Text('رصيد BetaCoins'),
                           subtitle: Text(
                             data['coinBalanceVisible'] == true
-                                ? 'الرصيد الحالي: ${data['coinBalance'] ?? 0} Beta Coins'
+                                ? 'الرصيد الحالي: ${data['coinBalance'] ?? 0} BetaCoins'
                                 : 'الرصيد مخفي عن الأعضاء الآخرين',
                           ),
                         ),
@@ -1670,7 +1670,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.mark_email_read_outlined),
-                    label: const Text('تجديد التحقق من البريد (500 بيتا كوينز كل 90 يوماً)'),
+                    label: const Text('تجديد التحقق من البريد (500 BetaCoinsز كل 90 يوماً)'),
                   ),
                 ),
               if (isMyProfile)
@@ -1724,7 +1724,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.monetization_on),
-                    label: Text(_isTransferringCoins ? 'جارٍ التحويل...' : 'إهداء بيتا كوينز'),
+                    label: Text(_isTransferringCoins ? 'جارٍ التحويل...' : 'إهداء BetaCoinsز'),
                     onPressed: _isTransferringCoins ? null : _showGiftCoinsDialog,
                   ),
                 ),
