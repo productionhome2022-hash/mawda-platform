@@ -42,6 +42,10 @@ test("store catalog owner edits are version-checked and atomically audited", asy
     assert.equal(audit.size, 1);
     assert.equal(audit.docs[0].data().nextValues.priceCoins, 321);
   } finally {
-    await itemRef.delete().catch(() => undefined);
+    const audit = await db.collection("adminAuditLogs").where("itemId", "==", itemId).get();
+    await Promise.all([
+      itemRef.delete().catch(() => undefined),
+      ...audit.docs.map((doc) => doc.ref.delete().catch(() => undefined)),
+    ]);
   }
 });
