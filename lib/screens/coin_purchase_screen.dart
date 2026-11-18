@@ -184,7 +184,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                 )),
               if (item['rejectionReason'] is String)
                 Text('سبب الرفض: ' + (item['rejectionReason'] as String)),
-              if (status == 'pending_owner_contact' || status == 'payment_instructions_sent')
+              if (status == 'pending_owner_contact')
                 Align(alignment: Alignment.centerLeft, child: TextButton(
                   onPressed: _sending ? null : () => _withdraw(id), child: const Text('سحب الطلب'),
                 )),
