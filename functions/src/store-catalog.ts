@@ -127,7 +127,9 @@ export function validateStoreCatalogItemInput(input: unknown): ValidatedStoreCat
 
 
 /** Charging is denied unless the catalog entry is published and fulfillment is explicitly ready. */
-export function isStoreItemPurchasable(value: unknown): boolean {
+export function isStoreItemPurchasable(
+  value: unknown,
+): value is StoreCatalogItem & { version: number; priceCoins: number } {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
   const item = value as Record<string, unknown>;
   return typeof item.itemId === "string" &&
