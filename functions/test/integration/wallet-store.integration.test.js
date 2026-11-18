@@ -823,6 +823,21 @@ test("manual coin package request issues no coins until owner verifies external 
     const member = memberRequest(uid, { requestId, kind: "package", packageId: "test_pack" });
     const created = await createCoinPurchaseRequest.run(member);
     assert.equal(created.status, "pending_owner_contact");
+
+    // Exact retries must resolve from the immutable request snapshot even
+    // after the owner disables the current manual channel and edits the catalogue.
+    const originalEconomySettings = (await settingsRef.get()).data();
+    await settingsRef.set({
+      ...originalEconomySettings,
+      manualCoinPurchasesEnabled: false,
+      coinPackages: [],
+      version: (originalEconomySettings.version ?? 0) + 1,
+    });
+    const policyChangedReplay = await createCoinPurchaseRequest.run(member);
+    assert.equal(policyChangedReplay.idempotentReplay, true);
+    assert.equal(policyChangedReplay.status, "pending_owner_contact");
+    await settingsRef.set(originalEconomySettings);
+
     const memberRequests = await getMyCoinPurchaseRequests.run(member);
     assert.equal(memberRequests.requests.length, 1);
     assert.equal(memberRequests.requests[0].requestId, requestId);
