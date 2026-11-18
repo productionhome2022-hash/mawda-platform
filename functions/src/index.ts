@@ -2150,6 +2150,95 @@ async function failBiometricUpload(
   await deleteBiometricRequestObjects(requestId, audioObjectPath, videoObjectPath);
 }
 
+export const getOwnerBiometricVerificationSettings = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "biometric_verification_settings_read");
+  const snapshot = await BIOMETRIC_SETTINGS.get();
+  if (!snapshot.exists) return { configured: false, settings: null };
+  const data = snapshot.data() ?? {};
+  return {
+    configured: true,
+    settings: {
+      enabled: data.enabled === true,
+      maxAudioBytes: data.maxAudioBytes ?? null,
+      maxVideoBytes: data.maxVideoBytes ?? null,
+      uploadWindowMinutes: data.uploadWindowMinutes ?? null,
+      mediaAccessTtlSeconds: data.mediaAccessTtlSeconds ?? null,
+      phrases: Array.isArray(data.phrases)
+        ? data.phrases.map((item: Record<string, unknown>) => ({
+          id: item.id, text: item.text,
+        }))
+        : [],
+      version: Number.isSafeInteger(data.version) ? data.version : 0,
+    },
+    actorUid,
+  };
+});
+
+export const setOwnerBiometricVerificationSettings = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "biometric_verification_settings_update");
+  const input = request.data ?? {};
+  const expectedVersion = input.expectedVersion;
+  const enabled = input.enabled;
+  const maxAudioBytes = input.maxAudioBytes;
+  const maxVideoBytes = input.maxVideoBytes;
+  const uploadWindowMinutes = input.uploadWindowMinutes;
+  const mediaAccessTtlSeconds = input.mediaAccessTtlSeconds;
+  const phrases = input.phrases;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0 ||
+      typeof enabled !== "boolean" ||
+      !Number.isSafeInteger(maxAudioBytes) || maxAudioBytes < 1 ||
+      !Number.isSafeInteger(maxVideoBytes) || maxVideoBytes < 1 ||
+      !Number.isSafeInteger(uploadWindowMinutes) || uploadWindowMinutes < 5 || uploadWindowMinutes > 60 ||
+      !Number.isSafeInteger(mediaAccessTtlSeconds) || mediaAccessTtlSeconds < 60 || mediaAccessTtlSeconds > 600 ||
+      !Array.isArray(phrases) || phrases.length < 1 || phrases.length > 100) {
+    throw new HttpsError("invalid-argument", "إعدادات التوثيق البيومتري غير صالحة.");
+  }
+  const normalizedPhrases = phrases.map((item: unknown) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      throw new HttpsError("invalid-argument", "قائمة جمل التوثيق غير صالحة.");
+    }
+    const phrase = item as Record<string, unknown>;
+    if (typeof phrase.id !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(phrase.id) ||
+        typeof phrase.text !== "string" || phrase.text.trim().length < 8 ||
+        phrase.text.trim().length > 180) {
+      throw new HttpsError("invalid-argument", "قائمة جمل التوثيق غير صالحة.");
+    }
+    return { id: phrase.id, text: phrase.text.trim() };
+  });
+  if (new Set(normalizedPhrases.map((item: { id: string }) => item.id)).size !== normalizedPhrases.length) {
+    throw new HttpsError("invalid-argument", "معرّفات جمل التوثيق مكررة.");
+  }
+  const result = await db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(BIOMETRIC_SETTINGS);
+    const version = previous.exists && Number.isSafeInteger(previous.data()?.version)
+      ? Number(previous.data()?.version) : 0;
+    if (version !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت إعدادات التوثيق؛ أعد تحميلها قبل الحفظ.");
+    }
+    const nextVersion = version + 1;
+    transaction.set(BIOMETRIC_SETTINGS, {
+      enabled,
+      maxAudioBytes,
+      maxVideoBytes,
+      uploadWindowMinutes,
+      mediaAccessTtlSeconds,
+      phrases: normalizedPhrases,
+      version: nextVersion,
+      updatedBy: actorUid,
+      updatedAt: FieldValue.serverTimestamp(),
+      createdAt: previous.data()?.createdAt ?? FieldValue.serverTimestamp(),
+    });
+    return { version: nextVersion, enabled, phraseCount: normalizedPhrases.length };
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "biometric_verification_settings_updated",
+    ...result,
+    outcome: "success",
+  });
+  return result;
+});
+
 export const startBiometricVerificationRequest = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const userRef = db.collection("users").doc(uid);
