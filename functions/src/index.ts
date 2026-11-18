@@ -11334,6 +11334,16 @@ export const cleanupExpiredCallSignals = onSchedule("every 5 minutes", async () 
       await expireCallIfDurationElapsed(doc.ref);
     }
   }
+  const pendingGroupCallSettlements = await CALL_SESSIONS
+    .where("groupCallBillingState", "==", "pending").limit(100).get();
+  for (const doc of pendingGroupCallSettlements.docs) {
+    try { await processGroupCallBillingSettlement(doc.ref); }
+    catch (error) {
+      logger.error("Scheduled group-call billing retry failed", {
+        callId: doc.id, error: String(error),
+      });
+    }
+  }
   const oldCalls = await CALL_SESSIONS.where("signalsCleanedAt", "==", false)
     .where("createdAt", "<=", Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000))
     .limit(100).get();
