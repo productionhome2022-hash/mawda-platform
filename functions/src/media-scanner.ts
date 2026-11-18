@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { validateStickerMediaMetadata, type StickerMediaMetadata } from "./sticker-policy";
 
 export interface ScannerSafeDerivative {
   category: "gif" | "audio" | "video" | "document";
@@ -12,6 +13,7 @@ export interface ScannerSafeDerivative {
 export interface ScannerVerdictPayload {
   mediaId: string;
   purpose: "chat" | "room" | "profile_album" | "avatar_cover" | "story" | "advertisement" | "sticker";
+  stickerMetadata?: StickerMediaMetadata;
   provider: string;
   verdict: "clean" | "malicious" | "error";
   objectGeneration: string;
@@ -59,6 +61,17 @@ export function validateScannerVerdict(
     /^[A-Za-z0-9_-]{1,128}$/.test(previewParts[1]) &&
     previewParts[2] === v.mediaId &&
     previewParts[3] === "preview.webp";
+
+  let stickerMetadata: StickerMediaMetadata | undefined;
+  if (v.purpose === "sticker") {
+    try {
+      stickerMetadata = validateStickerMediaMetadata(v.stickerMetadata);
+    } catch {
+      return null;
+    }
+  } else if (v.stickerMetadata !== undefined) {
+    return null;
+  }
 
   let safeDerivative: ScannerSafeDerivative | undefined;
   if (v.safeDerivative !== undefined) {
@@ -119,5 +132,5 @@ export function validateScannerVerdict(
         v.safePreviewContentType !== "image/webp" || v.verdict !== "clean"
       )) ||
       (v.verdict !== "clean" && (hasAnyPreview || safeDerivative !== undefined))) return null;
-  return v as unknown as ScannerVerdictPayload;
+  return { ...v, ...(stickerMetadata ? { stickerMetadata } : {}) } as unknown as ScannerVerdictPayload;
 }
