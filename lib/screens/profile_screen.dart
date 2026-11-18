@@ -37,6 +37,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _loadingTargetBlock = false;
   bool _checkingEmailRenewal = false;
   bool _isTransferringCoins = false;
+  bool _isGiftingStoreItem = false;
   String? _pendingTransferKey;
   String? _pendingTransferRequestId;
   late Future<Map<String, dynamic>> _profileFuture;
@@ -791,6 +792,138 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _quoteAndConfirmCoinTransfer(amount);
   }
 
+  Future<void> _showGiftStoreItemDialog() async {
+    if (_isGiftingStoreItem || widget.profileUserId == widget.currentUserId) return;
+    setState(() => _isGiftingStoreItem = true);
+    try {
+      final response = await FirebaseFunctions.instance
+          .httpsCallable('getStoreCatalog')
+          .call();
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final items = (data['items'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .where((item) =>
+              item['isPurchasable'] == true &&
+              item['isPublished'] != false &&
+              item['itemId'] is String &&
+              (item['priceCoins'] as num?) != null &&
+              (item['priceCoins'] as num).toInt() > 0)
+          .toList(growable: false);
+      if (!mounted) return;
+      if (items.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('لا توجد حالياً ميزات جاهزة للإهداء من المتجر.')),
+        );
+        return;
+      }
+      final selected = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        isScrollControlled: true,
+        builder: (sheetContext) => SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(sheetContext).size.height * 0.72,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'اختر ميزة لإهدائها',
+                    style: Theme.of(sheetContext).textTheme.titleLarge,
+                  ),
+                ),
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: items.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      final name = item['name'] as String? ?? 'ميزة من متجر مودة';
+                      final price = (item['priceCoins'] as num).toInt();
+                      final duration = (item['durationDays'] as num?)?.toInt();
+                      return ListTile(
+                        leading: const CircleAvatar(child: Icon(Icons.card_giftcard_outlined)),
+                        title: Text(name),
+                        subtitle: Text(
+                          '$price Beta Coins'
+                          '${duration == null ? ' • ميزة دائمة' : ' • $duration يوماً'}',
+                        ),
+                        trailing: const Icon(Icons.chevron_left),
+                        onTap: () => Navigator.pop(sheetContext, item),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      if (selected == null || !mounted) return;
+      final itemId = selected['itemId'] as String;
+      final name = selected['name'] as String? ?? 'ميزة من متجر مودة';
+      final price = (selected['priceCoins'] as num).toInt();
+      final duration = (selected['durationDays'] as num?)?.toInt();
+      final recipientName = (_profileFuture != null)
+          ? 'هذا العضو'
+          : 'هذا العضو';
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('تأكيد إهداء الميزة'),
+          content: Text(
+            'ستُهدي "$name" إلى $recipientName مقابل $price Beta Coins. '
+            '${duration == null ? 'هذه ميزة دائمة.' : 'مدة الاستحقاق $duration يوماً.'} '
+            'سيتم التحقق من أهلية المستلم وخصم المبلغ ومنح الميزة خادمياً.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.card_giftcard_outlined),
+              label: const Text('تأكيد الإهداء'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      final requestId = const Uuid().v4();
+      final giftResponse = await FirebaseFunctions.instance
+          .httpsCallable('giftStoreItem')
+          .call({
+        'recipientUid': widget.profileUserId,
+        'itemId': itemId,
+        'requestId': requestId,
+        'expectedPriceCoins': price,
+      });
+      final receipt = Map<String, dynamic>.from(giftResponse.data as Map);
+      if (receipt['recipientUid'] != widget.profileUserId ||
+          receipt['itemId'] != itemId ||
+          receipt['giftId'] is! String) {
+        throw StateError('STORE_GIFT_RECEIPT_MISMATCH');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تم إهداء "$name" إلى صاحب هذا الملف بنجاح.')),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر إتمام إهداء الميزة.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر تأكيد الإهداء. لم نعرض نجاحاً غير مؤكد.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isGiftingStoreItem = false);
+    }
+  }
+
   Future<void> _quoteAndConfirmCoinTransfer(int amount) async {
     setState(() => _isTransferringCoins = true);
     try {
@@ -1477,6 +1610,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     icon: const Icon(Icons.monetization_on),
                     label: Text(_isTransferringCoins ? 'جارٍ التحويل...' : 'إهداء بيتا كوينز'),
                     onPressed: _isTransferringCoins ? null : _showGiftCoinsDialog,
+                  ),
+                ),
+              if (!isMyProfile)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                  child: OutlinedButton.icon(
+                    icon: _isGiftingStoreItem
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.card_giftcard_outlined),
+                    label: Text(_isGiftingStoreItem ? 'جارٍ تحميل المتجر...' : 'إهداء ميزة من المتجر'),
+                    onPressed: _isGiftingStoreItem ? null : _showGiftStoreItemDialog,
                   ),
                 ),
               if (!isMyProfile)
