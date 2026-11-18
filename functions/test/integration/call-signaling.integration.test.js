@@ -2,7 +2,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const {
-  startCall, respondToCall, markCallConnected, sendCallSignal, getCallSignals, endCall, getActiveCall, getCallIceConfiguration,
+  startCall, respondToCall, requestRoomCallJoin, respondToRoomCallJoinRequest,
+  markCallConnected, sendCallSignal, getCallSignals, endCall, getActiveCall, getCallIceConfiguration,
 } = require("../../lib/index");
 
 const db = getFirestore();
@@ -153,11 +154,23 @@ test("room call signaling is peer-targeted and one member leaving does not end t
     const started = await startCall.run(call(callerUid, {
       callId, scope: "room", targetId: roomId, mode: "video",
     }));
-    assert.equal(started.participantUids.length, 3);
-    // Room signaling is intentionally unavailable until each member accepts.
-    // Accept first, then exchange the peer-targeted offers.
-    await respondToCall.run(call(firstUid, { callId, response: "accept" }));
-    await respondToCall.run(call(secondUid, { callId, response: "accept" }));
+    assert.deepEqual(started.participantUids, [callerUid]);
+    await requestRoomCallJoin.run(call(firstUid, { callId }));
+    await requestRoomCallJoin.run(call(secondUid, { callId }));
+    await assert.rejects(
+      () => sendCallSignal.run(call(callerUid, {
+        callId, toUid: firstUid,
+        signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
+      })),
+      (error) => error && error.code === "permission-denied",
+      "a pending requester must not receive signaling",
+    );
+    await respondToRoomCallJoinRequest.run(call(callerUid, {
+      callId, requesterUid: firstUid, decision: "approve",
+    }));
+    await respondToRoomCallJoinRequest.run(call(callerUid, {
+      callId, requesterUid: secondUid, decision: "approve",
+    }));
     await sendCallSignal.run(call(callerUid, {
       callId, toUid: firstUid,
       signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
@@ -232,7 +245,15 @@ test("audio group participant capacity follows rented-room capacity for 2, 4, 7 
       const started = await startCall.run(call(callerUid, {
         callId, scope: "room", targetId: roomId, mode: "audio",
       }));
-      assert.equal(started.participantUids.length, size);
+      assert.deepEqual(started.participantUids, [callerUid]);
+      for (const memberUid of memberUids.slice(1)) {
+        await requestRoomCallJoin.run(call(memberUid, { callId }));
+        await respondToRoomCallJoinRequest.run(call(callerUid, {
+          callId, requesterUid: memberUid, decision: "approve",
+        }));
+      }
+      const callSnapshot = await callRef.get();
+      assert.equal(callSnapshot.data()?.participantUids.length, size);
       await endCall.run(call(callerUid, { callId }));
     } finally {
       await Promise.all([
@@ -269,11 +290,24 @@ test("video group call rejects a fifth total participant", async () => {
       roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" })),
   ]);
   try {
+    const started = await startCall.run(call(callerUid, { callId, scope: "room", targetId: roomId, mode: "video" }));
+    assert.deepEqual(started.participantUids, [callerUid]);
+    for (const memberUid of memberUids.slice(1, 4)) {
+      await requestRoomCallJoin.run(call(memberUid, { callId }));
+      await respondToRoomCallJoinRequest.run(call(callerUid, {
+        callId, requesterUid: memberUid, decision: "approve",
+      }));
+    }
+    const fifthMember = memberUids[4];
+    await requestRoomCallJoin.run(call(fifthMember, { callId }));
     await assert.rejects(
-      () => startCall.run(call(callerUid, { callId, scope: "room", targetId: roomId, mode: "video" })),
-      (error) => error && error.code === "failed-precondition",
+      () => respondToRoomCallJoinRequest.run(call(callerUid, {
+        callId, requesterUid: fifthMember, decision: "approve",
+      })),
+      (error) => error && error.code === "resource-exhausted",
     );
-    assert.equal((await db.collection("callSessions").doc(callId).get()).exists, false);
+    assert.equal((await callRef.get()).data()?.participantUids.length, 4);
+    await endCall.run(call(callerUid, { callId }));
   } finally {
     await Promise.all([
       db.recursiveDelete(roomRef).catch(() => undefined),
