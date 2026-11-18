@@ -26,7 +26,7 @@ import {
   MEDIA_SIGNED_URL_TTL_MS,
 } from "./media-security";
 import { MEDIA_UPLOAD_CLEANUP_GRACE_MS, uploadIntentIsEligibleForCleanup } from "./media-cleanup";
-import { validateStickerMediaMetadata, validateStickerPackManifest, validateStickerSendRequest } from "./sticker-policy";
+import { validateStickerMediaMetadata, validateStickerPackManifest, validateStickerSendRequest, stickerMessageReplayMatches } from "./sticker-policy";
 import { isStoreEntitlementActive } from "./store-purchase";
 
 // Resolve Admin SDK services lazily. This module is re-exported by index.ts,
@@ -2369,7 +2369,9 @@ export const sendStickerMessage = onCall(async (request) => {
         tx.get(packRef), tx.get(assetRef),
       ]);
       if (existing.exists) {
-        if (existing.data()?.mediaId === mediaId && existing.data()?.senderUid === senderUid) {
+        if (stickerMessageReplayMatches(existing.data(), {
+          senderUid, mediaId, packId: input.packId, stickerId: input.stickerId,
+        })) {
           return { chatId, messageId, replayed: true };
         }
         throw new HttpsError("already-exists", "معرف الرسالة مستخدم.");
@@ -2451,7 +2453,9 @@ export const sendStickerMessage = onCall(async (request) => {
       tx.get(packRef), tx.get(assetRef),
     ]);
     if (existing.exists) {
-      if (existing.data()?.mediaId === mediaId && existing.data()?.senderUid === senderUid) {
+      if (stickerMessageReplayMatches(existing.data(), {
+        senderUid, mediaId, packId: input.packId, stickerId: input.stickerId,
+      })) {
         return { roomId, messageId, replayed: true };
       }
       throw new HttpsError("already-exists", "معرف الرسالة مستخدم.");
