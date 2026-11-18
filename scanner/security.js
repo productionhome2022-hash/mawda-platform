@@ -2,7 +2,7 @@ const { timingSafeEqual } = require("node:crypto");
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const GENERATION = /^\d{1,24}$/;
-const MEDIA_PURPOSES = new Set(["chat", "room", "profile_album", "avatar_cover", "story", "advertisement"]);
+const MEDIA_PURPOSES = new Set(["chat", "room", "profile_album", "avatar_cover", "story", "advertisement", "sticker"]);
 
 function equalSecret(actual, expected) {
   if (typeof actual !== "string" || typeof expected !== "string") return false;
@@ -41,9 +41,11 @@ function validateScanRequest(value, provider, bucketName, expectedCallbackUrl) {
   const isVideo = v.contentType === "video/mp4";
   const purposeAllowsContentType = v.purpose === "advertisement"
     ? isImage || isVideo
-    : v.purpose === "chat" || v.purpose === "room"
-      ? allowedTypes.has(v.contentType)
-      : isImage;
+    : v.purpose === "sticker"
+      ? ["image/png", "image/webp", "image/gif"].includes(v.contentType)
+      : v.purpose === "chat" || v.purpose === "room"
+        ? allowedTypes.has(v.contentType)
+        : isImage;
   if (url.protocol !== "https:" || !allowedHosts.has(url.hostname) ||
       url.username || url.password || url.hash ||
       decodedPath !== expectedPath ||
