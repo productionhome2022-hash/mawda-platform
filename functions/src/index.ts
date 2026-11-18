@@ -6347,19 +6347,23 @@ export const reconcileMemberWallet = onCall(async (request) => {
     const data = document.data();
     const createdAt = data.createdAt;
     const createdAtMs = createdAt instanceof Timestamp
-      ? createdAt.seconds * 1_000_000_000 + createdAt.nanoseconds
-      : typeof createdAt?.seconds === "number" && typeof createdAt?.nanoseconds === "number"
-        ? createdAt.seconds * 1_000_000_000 + createdAt.nanoseconds : null;
+      ? createdAt.toMillis()
+      : typeof createdAt?.toMillis === "function" ? createdAt.toMillis() : null;
+    const createdAtNanos = createdAt instanceof Timestamp
+      ? createdAt.nanoseconds
+      : typeof createdAt?.nanoseconds === "number" ? createdAt.nanoseconds : null;
     return {
       id: document.id,
       amount: data.amount,
       balanceBefore: data.balanceBefore,
       balanceAfter: data.balanceAfter,
       createdAtMs,
+      createdAtNanos,
     };
   }).sort((left, right) =>
     (left.createdAtMs ?? Number.MIN_SAFE_INTEGER) -
       (right.createdAtMs ?? Number.MIN_SAFE_INTEGER) ||
+    (left.createdAtNanos ?? 0) - (right.createdAtNanos ?? 0) ||
     left.id.localeCompare(right.id));
   let result;
   try {
