@@ -358,3 +358,41 @@ Commits:
 3. Continue PR #24/25 media work by semantic units, retaining the current scanner contract and refusing quota exemptions until recipient identity and conversation membership are proven server-side.
 4. Keep PR #22 call charging fail-closed until invitation approval, independent financial consent, entitlement, trusted participant intervals, scalable media topology and atomic idempotent ledger settlement are implemented together.
 5. Run the full required local suite on one immutable SHA and record actual output before any acceptance claim. No remote CI, production action, or main merge is part of this checkpoint.
+
+
+## Selective integration audit — PR #26, #27, #25 and #24 — 2026-11-18
+
+### PR #26 — test-account system and coverage matrix
+
+Decision: **no cherry-pick required; the safe assets are already present on the unified branch, with later/evolved versions in several files.** Compared source branch `codex/mawdda-test-account-system` with the unified branch:
+
+- Both test-account specifications and the operator runbook are byte-identical to the source PR.
+- The unified branch already has `functions/scripts/seed-test-accounts.cjs`, the emulator-only persona catalogue, coverage matrix, static tests, and the seeded-persona integration test. The unified persona/matrix test fixtures differ from the PR's older versions and include later guest-session and call-journey coverage; do not overwrite them with the older PR versions.
+- The unified `.gitignore` already excludes local test credentials and emulator data.
+- The unified `functions/package.json` already contains the seed and integration scripts and is on Node 22. The PR's workflow was deliberately excluded: it adds pull-request, push and manual-dispatch triggers and runs a broad matrix. No workflow was imported or triggered.
+- The PR's seeded-persona integration test mutates test wallet balances and platform transfer settings before restoring them in `finally`; it remains emulator-only and was not newly copied or executed in this pass.
+
+### PR #27 — profile and email-verification renewal
+
+Decision: **the email-renewal server lifecycle and integration test are already present; no source replacement is needed.** The 90-day renewal helper module and its integration test are byte-identical between PR head `ddf9594ea6029036512ace621f513d6edf58a068` and the unified branch. The `startEmailVerificationRenewal` server implementation segment is also identical. The unified branch has a more developed `profile_screen.dart` and a broader Node 22 package manifest; retain those rather than replacing them with the older PR versions. The package already defines `test:email-renewal-integration`.
+
+- The PR's `.github/workflows/validate.yml` change was not imported. Its workflow is not a local test and must not be triggered during this local-only validation phase.
+- The current emulator integration test exercises the 90-day eligible renewal, email-verification gate, 500-coin once-only reward and repeat denial, but does not by itself prove every concurrency, changed-email, expired-pending-cycle, provider-delivery and client-refresh failure mode. Those remain additional test cases before final acceptance.
+- No email-reward test was run in this environment. The configured reward amount is retained from the existing code and has not been altered by this audit.
+
+### PR #25 — media hardening
+
+Decision: **do not merge the branch or replace media files.** Its scanner contract file is identical to the unified branch, but the PR adds a separate older ClamAV gateway (`scanner/server.mjs`) with a 48-hour signature-age threshold, whereas the unified branch already has the newer scanner implementation and stricter contract. The PR changes `media.ts`, `media-security.ts`, quota and integration files; these overlap with the newer unified media/sticker lifecycle. The PR's workflow change is excluded. Any remaining unique fix must be reviewed as a narrow semantic patch against the current implementation, not copied as a file replacement.
+
+### PR #24 — featured ads, stickers, media and calls
+
+Decision: **no whole-PR merge.** The current unified branch has evolved versions of the featured-ad finance/reward/selector policies, media upload/security pipeline, sticker policy, UI and scanner. Exact source equality was confirmed for `functions/src/media-scanner.ts`, `scanner/server.js` and `scanner/processors.js` in the inspected source/head comparisons; other critical files differ and must remain on the unified versions until a focused diff proves a missing behavior. The PR also includes a distinct call-entitlement module and changes to call signaling; those require separate review against the approved entitlement and billing lifecycle before transfer. Its workflow and any change that relaxes owner-configured reward/campaign limits are not accepted implicitly.
+
+### Current execution result
+
+- PR #26 safe test assets: already integrated; no duplicate files written.
+- PR #27 email-renewal backend/test: already integrated; no stale files overwritten.
+- PR #25 and #24: whole-branch integration rejected due to overlap and older/divergent implementations; targeted review remains open.
+- PR #22: remains blocked from whole-branch merge because call entitlements, consent, trusted participant measurement/topology and atomic billing must be verified as one lifecycle.
+- No workflow was triggered, no CI was run, and no local Node/Flutter/Emulator test was executed. Source presence and static comparisons are not test passes.
+- No main/Firebase/production/billing/5,000-persona repository changes were made.
