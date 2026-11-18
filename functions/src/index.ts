@@ -11184,8 +11184,8 @@ export const endCall = onCall(async (request) => {
           acceptedUids: FieldValue.arrayRemove(uid),
           lastActivityAt: FieldValue.serverTimestamp(),
         });
-        if (lockSnapshots[call.participantUids.indexOf(uid)]?.data()?.callId === callId) {
-          transaction.delete(ACTIVE_CALL_MEMBER_LOCKS.doc(uid));
+        if (memberLockSnapshot.exists && memberLockSnapshot.data()?.callId === callId) {
+          transaction.delete(memberLockRef);
         }
         return { callId, status: "accepted", idempotentReplay: false };
       }
