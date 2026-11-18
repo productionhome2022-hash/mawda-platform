@@ -121,7 +121,8 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
     final coins = int.tryParse(_policyDailyCoins.text.trim());
     final campaignCap = int.tryParse(_policyCampaignCap.text.trim());
     if (reward == null || views == null || coins == null || campaignCap == null ||
-        reward < 0 || views < 0 || coins < reward || campaignCap < 1) {
+        reward < 0 || views < 0 || coins < reward || campaignCap < 1 ||
+        (_rewardEnabled && (reward < 1 || views < 1))) {
       setState(() => _error = 'قيم سياسة المكافآت غير صالحة؛ يجب أن يغطي الحد اليومي مكافأة مشاهدة واحدة على الأقل.');
       return;
     }
