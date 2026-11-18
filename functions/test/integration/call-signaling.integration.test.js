@@ -828,3 +828,41 @@ test("group call end charges every media-connected member an equal share, includ
     ]);
   }
 });
+
+
+test("ending a large audio room call clears more than 500 participant locks in bounded transactions", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const memberUids = Array.from({ length: 501 }, (_, i) => uid("large_room_member_" + i));
+  const [creatorUid] = memberUids;
+  const callId = uid("large_room_call");
+  const callRef = db.collection("callSessions").doc(callId);
+  const lockRefs = memberUids.map((memberUid) =>
+    db.collection("activeCallMemberLocks").doc(memberUid));
+  await callRef.set({
+    callId, scope: "room", targetId: uid("large_rented_room"), mode: "audio",
+    callerUid: creatorUid, participantUids: memberUids,
+    acceptedUids: [creatorUid], rejectedUids: [], leftUids: [],
+    status: "ringing", expiresAt: Timestamp.fromMillis(Date.now() + 60 * 60 * 1000),
+  });
+  for (let offset = 0; offset < lockRefs.length; offset += 400) {
+    const batch = db.batch();
+    lockRefs.slice(offset, offset + 400).forEach((ref) =>
+      batch.set(ref, { callId, status: "active" }));
+    await batch.commit();
+  }
+  try {
+    const result = await endCall.run(call(creatorUid, { callId }));
+    assert.equal(result.status, "cancelled");
+    for (let offset = 0; offset < lockRefs.length; offset += 100) {
+      const snapshots = await db.getAll(...lockRefs.slice(offset, offset + 100));
+      assert.equal(snapshots.filter((snapshot) => snapshot.exists).length, 0);
+    }
+  } finally {
+    await db.recursiveDelete(callRef).catch(() => undefined);
+    for (let offset = 0; offset < lockRefs.length; offset += 400) {
+      const batch = db.batch();
+      lockRefs.slice(offset, offset + 400).forEach((ref) => batch.delete(ref));
+      await batch.commit().catch(() => undefined);
+    }
+  }
+});
