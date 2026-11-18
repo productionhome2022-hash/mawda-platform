@@ -665,6 +665,9 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
     assert.equal(approved.status, "approved");
     const published = await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published" }));
     assert.equal(published.status, "published");
+    await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "paused" }));
+    assert.equal((await campaignRef.get()).data().ownerApproved, true);
+    await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published" }));
 
     await sessionRef.set({
       uid, campaignId, geography: "syria", creativeType: "image", status: "active",
@@ -692,6 +695,10 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
       foregroundVisible: true, rewardClaimed: false,
     });
     await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "withdrawn" }));
+    await assert.rejects(
+      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "paused" })),
+      (error) => error && error.code === "failed-precondition",
+    );
     const denied = await completeFeaturedAdViewingSession.run(memberRequest({ sessionId: secondSessionRef.id }));
     assert.equal(denied.rewarded, false);
     assert.equal((await userRef.get()).data().coins, 2);
