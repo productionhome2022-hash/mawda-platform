@@ -1208,9 +1208,10 @@ async function issueChatMediaDeliveryUrl(
       roomRef.get(), roomRef.collection("members").doc(viewerUid).get(),
       roomRef.collection("messages").doc(messageId).get(),
     ]);
-    const ownerSession = request.auth?.token.platformOwner === true &&
-      hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, viewerUid);
-    const viewerType = mediaUploaderTypeFromToken((request.auth?.token ?? {}) as Record<string, unknown>);
+    const authToken = request.auth?.token;
+    const ownerSession = authToken?.platformOwner === true &&
+      hasPlatformOwnerSession((authToken ?? {}) as Record<string, unknown>, undefined, viewerUid);
+    const viewerType = mediaUploaderTypeFromToken((authToken ?? {}) as Record<string, unknown>);
     if (!room.exists || (!member.exists && !ownerSession) || !msg.exists) {
       throw new HttpsError("permission-denied", "ليس لديك حق الوصول إلى مرفقات هذه الغرفة.");
     }
