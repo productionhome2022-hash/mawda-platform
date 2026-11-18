@@ -26,7 +26,7 @@ import {
   MEDIA_SIGNED_URL_TTL_MS,
 } from "./media-security";
 import { MEDIA_UPLOAD_CLEANUP_GRACE_MS, uploadIntentIsEligibleForCleanup } from "./media-cleanup";
-import { validateStickerMediaMetadata } from "./sticker-policy";
+import { validateStickerMediaMetadata, validateStickerSendRequest } from "./sticker-policy";
 
 // Resolve Admin SDK services lazily. This module is re-exported by index.ts,
 // whose static imports execute before initializeApp(); eager resolution here
@@ -2189,6 +2189,161 @@ export const ownerMediaPreview = onRequest(
   },
 );
 
+
+
+/**
+ * Atomically sends a reference to an approved shared sticker asset.
+ * Sticker bytes remain in the owner-managed media catalog and are not copied
+ * into a member upload or charged against the sender's media quota.
+ */
+export const sendStickerMessage = onCall(async (request) => {
+  const senderUid = requireUid(request.auth?.uid);
+  const token = (request.auth?.token ?? {}) as Record<string, unknown>;
+  if (mediaUploaderTypeFromToken(token) === "guest") {
+    throw new HttpsError("permission-denied", "إرسال الملصقات يتطلب حساب عضو موثق.");
+  }
+  let input;
+  try { input = validateStickerSendRequest(request.data); } catch (error) {
+    throw new HttpsError("invalid-argument", error instanceof Error ? error.message : "بيانات الملصق غير صالحة.");
+  }
+  if (input.scope === "direct" && input.targetId === senderUid) {
+    throw new HttpsError("invalid-argument", "لا يمكن إرسال ملصق إلى الحساب نفسه.");
+  }
+  const db = mediaDb();
+  const packSnapshot = await db.collection("stickerPacks").doc(input.packId).get();
+  const pack = packSnapshot.data();
+  if (!packSnapshot.exists || pack?.status !== "published" || pack.approved !== true ||
+      !Array.isArray(pack.stickers)) {
+    throw new HttpsError("failed-precondition", "حزمة الملصقات غير منشورة أو غير معتمدة.");
+  }
+  const rawSticker = pack.stickers.find((item: unknown) =>
+    Boolean(item && typeof item === "object" && (item as Record<string, unknown>).stickerId === input.stickerId));
+  if (!rawSticker || typeof rawSticker !== "object") {
+    throw new HttpsError("not-found", "الملصق غير موجود في الحزمة.");
+  }
+  const sticker = rawSticker as Record<string, unknown>;
+  const mediaId = typeof sticker.assetId === "string" ? sticker.assetId.trim() : "";
+  if (!/^[0-9a-f-]{36}$/i.test(mediaId) || sticker.scanStatus !== "clean") {
+    throw new HttpsError("failed-precondition", "أصل الملصق غير معتمد.");
+  }
+  const assetSnapshot = await db.collection("mediaAssets").doc(mediaId).get();
+  const asset = assetSnapshot.data();
+  if (!assetSnapshot.exists || asset?.uploaderRole !== "platform_owner" ||
+      asset.mediaPurpose !== "sticker" || asset.status !== "security_approved" ||
+      asset.scannerVerdict !== "clean") {
+    throw new HttpsError("failed-precondition", "أصل الملصق لم يجتز الفحص الأمني.");
+  }
+  let scannedMetadata;
+  try { scannedMetadata = validateStickerMediaMetadata(asset.stickerMetadata); } catch {
+    throw new HttpsError("failed-precondition", "بيانات الملصق المفحوص غير صالحة.");
+  }
+  if (sticker.kind !== scannedMetadata.kind ||
+      sticker.contentType !== scannedMetadata.contentType ||
+      sticker.width !== scannedMetadata.width || sticker.height !== scannedMetadata.height ||
+      sticker.sizeBytes !== scannedMetadata.sizeBytes ||
+      (scannedMetadata.kind === "animated" &&
+        (sticker.durationMs !== scannedMetadata.durationMs || sticker.frameCount !== scannedMetadata.frameCount))) {
+    throw new HttpsError("failed-precondition", "بيانات الحزمة لا تطابق أصل الملصق المفحوص.");
+  }
+
+  const messageId = createHash("sha256").update(senderUid + ":" + input.clientMessageId).digest("hex");
+  const now = FieldValue.serverTimestamp();
+  if (input.scope === "direct") {
+    const recipientUid = input.targetId;
+    const chatId = createDirectChatId(senderUid, recipientUid);
+    const chatRef = db.collection("directChats").doc(chatId);
+    const senderRef = db.collection("users").doc(senderUid);
+    const recipientRef = db.collection("users").doc(recipientUid);
+    const messageRef = chatRef.collection("messages").doc(messageId);
+    const notificationRef = recipientRef.collection("notifications").doc(messageId);
+    return db.runTransaction(async (tx) => {
+      const [sender, recipient, chat, existing] = await Promise.all([
+        tx.get(senderRef), tx.get(recipientRef), tx.get(chatRef), tx.get(messageRef),
+      ]);
+      if (existing.exists) {
+        if (existing.data()?.mediaId === mediaId && existing.data()?.senderUid === senderUid) {
+          return { chatId, messageId, replayed: true };
+        }
+        throw new HttpsError("already-exists", "معرف الرسالة مستخدم.");
+      }
+      if (!sender.exists || !recipient.exists ||
+          sender.data()?.profileCompleted !== true || recipient.data()?.profileCompleted !== true ||
+          sender.data()?.status === "suspended" || recipient.data()?.status === "suspended") {
+        throw new HttpsError("permission-denied", "حالة الحساب لا تسمح بإرسال الملصق.");
+      }
+      const senderData = sender.data() ?? {};
+      const recipientData = recipient.data() ?? {};
+      const senderBlocks = Array.isArray(senderData.blockedUids) ? senderData.blockedUids : [];
+      const recipientBlocks = Array.isArray(recipientData.blockedUids) ? recipientData.blockedUids : [];
+      const senderAge = senderData.age;
+      const recipientAge = recipientData.age;
+      if (senderBlocks.includes(recipientUid) || recipientBlocks.includes(senderUid) ||
+          !Number.isSafeInteger(senderAge) || !Number.isSafeInteger(recipientAge) ||
+          ((senderAge < 18) !== (recipientAge < 18))) {
+        throw new HttpsError("permission-denied", "سياسة الحظر أو العمر لا تسمح بإرسال الملصق.");
+      }
+      tx.set(chatRef, {
+        participantUids: [senderUid, recipientUid].sort(),
+        createdAt: chat.exists ? chat.data()?.createdAt ?? now : now,
+        lastMessageAt: now, lastMessageSenderUid: senderUid, lastMessagePreview: "ملصق",
+      }, { merge: true });
+      tx.create(messageRef, {
+        messageId, chatId, senderUid, recipientUid, type: "sticker",
+        mediaId, stickerPackId: input.packId, stickerId: input.stickerId,
+        attachmentStatus: "ready", createdAt: now,
+      });
+      tx.create(notificationRef, {
+        notificationId: messageId, type: "direct_message", senderUid, chatId, messageId,
+        title: "ملصق جديد", body: "لديك ملصق جديد في محادثة مودة.",
+        isRead: false, createdAt: now,
+      });
+      tx.create(db.collection("mediaAccessAudit").doc(), {
+        actorUid: senderUid, mediaId, action: "sticker_message_sent",
+        outcome: "success", scope: "direct", packId: input.packId,
+        stickerId: input.stickerId, messageId, createdAt: now,
+      });
+      return { chatId, messageId, replayed: false };
+    });
+  }
+
+  const roomId = input.targetId;
+  const roomRef = db.collection("rooms").doc(roomId);
+  const memberRef = roomRef.collection("members").doc(senderUid);
+  const userRef = db.collection("users").doc(senderUid);
+  const messageRef = roomRef.collection("messages").doc(messageId);
+  return db.runTransaction(async (tx) => {
+    const [room, member, user, existing] = await Promise.all([
+      tx.get(roomRef), tx.get(memberRef), tx.get(userRef), tx.get(messageRef),
+    ]);
+    if (existing.exists) {
+      if (existing.data()?.mediaId === mediaId && existing.data()?.senderUid === senderUid) {
+        return { roomId, messageId, replayed: true };
+      }
+      throw new HttpsError("already-exists", "معرف الرسالة مستخدم.");
+    }
+    if (!room.exists || room.data()?.status !== "active" || !member.exists ||
+        !user.exists || user.data()?.status === "suspended") {
+      throw new HttpsError("permission-denied", "يجب أن تكون عضواً نشطاً في الغرفة لإرسال الملصقات.");
+    }
+    const mutedUntil = member.data()?.mutedUntil;
+    if (!hasPlatformOwnerSession(token, undefined, senderUid) &&
+        mutedUntil instanceof Timestamp && mutedUntil.toMillis() > Date.now()) {
+      throw new HttpsError("permission-denied", "لا يمكنك إرسال الملصقات أثناء فترة الكتم.");
+    }
+    tx.create(messageRef, {
+      messageId, senderUid, senderDisplayName: user.data()?.displayName ?? "",
+      content: "", type: "sticker", mediaId,
+      stickerPackId: input.packId, stickerId: input.stickerId,
+      attachmentStatus: "ready", isDeleted: false, createdAt: now,
+    });
+    tx.create(db.collection("mediaAccessAudit").doc(), {
+      actorUid: senderUid, mediaId, action: "sticker_message_sent",
+      outcome: "success", scope: "room", roomId, packId: input.packId,
+      stickerId: input.stickerId, messageId, createdAt: now,
+    });
+    return { roomId, messageId, replayed: false };
+  });
+});
 
 /**
  * Issues a short-lived sticker derivative URL only when the referenced pack is
