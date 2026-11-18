@@ -27,7 +27,6 @@ import {
 } from "./media-security";
 import { MEDIA_UPLOAD_CLEANUP_GRACE_MS, uploadIntentIsEligibleForCleanup } from "./media-cleanup";
 import { validateStickerMediaMetadata, validateStickerPackManifest, validateStickerSendRequest } from "./sticker-policy";
-import { validateStickerMediaMetadata } from "./sticker-policy";
 import { isStoreEntitlementActive } from "./store-purchase";
 
 // Resolve Admin SDK services lazily. This module is re-exported by index.ts,
