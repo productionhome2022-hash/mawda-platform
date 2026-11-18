@@ -176,6 +176,15 @@ test("coin transfer atomically writes both wallet ledgers and platform commissio
     assert.equal((await senderRef.get()).data().coins, 4000);
     assert.equal((await recipientRef.get()).data().coins, 1000);
 
+    // A completed transfer must retain all three immutable financial ledger legs.
+    await platformLedgerRef.delete();
+    await assert.rejects(
+      () => transferCoins.run(request),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await senderRef.get()).data().coins, 4000);
+    assert.equal((await recipientRef.get()).data().coins, 1000);
+
     await assert.rejects(
       () => transferCoins.run(memberRequest(senderUid, {
         recipientUid, amount: 1000, requestId: `other_${tag}`, expectedCommissionBps: 1500,
