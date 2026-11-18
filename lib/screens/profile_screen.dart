@@ -792,7 +792,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _quoteAndConfirmCoinTransfer(amount);
   }
 
-  Future<void> _showGiftStoreItemDialog() async {
+  Future<void> _showGiftStoreItemDialog(String recipientName) async {
     if (_isGiftingStoreItem || widget.profileUserId == widget.currentUserId) return;
     setState(() => _isGiftingStoreItem = true);
     try {
@@ -804,8 +804,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .whereType<Map>()
           .map((item) => Map<String, dynamic>.from(item))
           .where((item) =>
-              item['isPurchasable'] == true &&
-              item['isPublished'] != false &&
+              item['purchaseEnabled'] == true &&
+              item['fulfillmentReady'] == true &&
               item['itemId'] is String &&
               (item['priceCoins'] as num?) != null &&
               (item['priceCoins'] as num).toInt() > 0)
@@ -864,9 +864,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final name = selected['name'] as String? ?? 'ميزة من متجر مودة';
       final price = (selected['priceCoins'] as num).toInt();
       final duration = (selected['durationDays'] as num?)?.toInt();
-      final recipientName = (_profileFuture != null)
-          ? 'هذا العضو'
-          : 'هذا العضو';
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -1620,7 +1617,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.card_giftcard_outlined),
                     label: Text(_isGiftingStoreItem ? 'جارٍ تحميل المتجر...' : 'إهداء ميزة من المتجر'),
-                    onPressed: _isGiftingStoreItem ? null : _showGiftStoreItemDialog,
+                    onPressed: _isGiftingStoreItem ? null : () => _showGiftStoreItemDialog(name),
                   ),
                 ),
               if (!isMyProfile)
