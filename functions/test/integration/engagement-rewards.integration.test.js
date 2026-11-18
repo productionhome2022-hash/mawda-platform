@@ -720,12 +720,12 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
     campaignRef = db.collection("featuredAdCampaigns").doc(campaignId);
     memberRef = db.collection("featuredAdCampaignMembers").doc(uid + "_" + campaignId);
     await assert.rejects(
-      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published" })),
+      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published", expectedVersion: 1 })),
       (error) => error && error.code === "failed-precondition",
     );
     await assert.rejects(
-      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "approved", paymentConfirmed: true })),
-      (error) => error && error.code === "failed-precondition",
+      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "approved", expectedVersion: 1, paymentConfirmed: true })),
+      (error) => error && error.code === "invalid-argument",
     );
     await assert.rejects(
       () => reviewFeaturedAdCreative.run(memberRequest({ campaignId, approved: true })),
