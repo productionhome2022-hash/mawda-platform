@@ -1,8 +1,8 @@
 export const FEATURED_AD_REWARD_DEFAULTS = {
   enabled: true,
   rewardCoinsPerView: 2,
-  maxRewardedViewsPerUtcDay: 10,
-  maxRewardCoinsPerUtcDay: 20,
+  maxRewardedViewsPerUtcDay: 100,
+  maxRewardCoinsPerUtcDay: 200,
   videoCompletionPercent: 90,
   imageContinuousVisibleMs: 10_000,
 } as const;
@@ -96,7 +96,7 @@ export function decideFeaturedAdReward(
   if (!Number.isSafeInteger(evidence.nowMs) || evidence.nowMs < 0 ||
       !Number.isSafeInteger(evidence.rewardedViewsToday) || evidence.rewardedViewsToday < 0 ||
       !Number.isSafeInteger(evidence.rewardCoinsToday) || evidence.rewardCoinsToday < 0 ||
-      !integerInRange(evidence.maxRewardedViewsForCampaign, 1, 100_000) ||
+      !integerInRange(evidence.maxRewardedViewsForCampaign, 1, Number.MAX_SAFE_INTEGER) ||
       !Number.isSafeInteger(evidence.rewardedViewsForCampaign) || evidence.rewardedViewsForCampaign < 0) {
     throw new Error("FEATURED_AD_REWARD_EVIDENCE_INVALID");
   }
