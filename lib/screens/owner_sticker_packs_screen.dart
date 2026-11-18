@@ -31,6 +31,10 @@ class _OwnerStickerPacksScreenState extends State<OwnerStickerPacksScreen> {
 
   Future<void> _pickSticker(String kind) async {
     if (_busy) return;
+    if (_stickers.length >= 120) {
+      _showMessage('بلغت الحزمة الحد الأقصى البالغ 120 ملصقاً.');
+      return;
+    }
     final picked = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: kind == 'animated'
