@@ -5,7 +5,7 @@ const { getAuth } = require("firebase-admin/auth");
 const {
   transferCoins, purchaseStoreItem, giftStoreEntitlement, getMyStoreGiftHistory, getOwnerStoreCatalog, setStoreCatalogItem, getOwnerEconomyPricing, getAvailableCoinPackages,
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
-  setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
+  setCoinPurchasePaymentInstructions, requestCoinPurchasePaymentVerification, approveCoinPurchaseRequest,
   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
   completeFeaturedAdViewingSession,
   recordOwnerFeaturedAdFinancialEvent,
@@ -843,6 +843,25 @@ test("manual coin package request issues no coins until owner verifies external 
         expectedInstructionsVersion: 0,
       })),
       (error) => error && error.code === "aborted",
+    );
+    const reported = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
+      requestId, expectedInstructionsVersion: 1,
+    }));
+    assert.equal(reported.status, "awaiting_payment_verification");
+    assert.equal(reported.idempotentReplay, false);
+    assert.equal((await requestDoc.get()).data().status, "awaiting_payment_verification");
+    assert.equal((await userRef.get()).data().coins, 40);
+    const reportReplay = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
+      requestId, expectedInstructionsVersion: 1,
+    }));
+    assert.equal(reportReplay.idempotentReplay, true);
+    await assert.rejects(
+      () => setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
+        requesterUid: uid, requestId, instructions: "لا يمكن تغيير الاتفاق بعد إبلاغ الدفع",
+        agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
+        expectedInstructionsVersion: 1,
+      })),
+      (error) => error && error.code === "failed-precondition",
     );
     assert.ok(instructionResult.chatId);
     const chatMessages = await db.collection("directChats").doc(instructionResult.chatId)
