@@ -67,11 +67,8 @@ class MemberMediaUploadService {
     final contentType = _imageContentType(file);
     await _validateFileLength(file, contentType);
     final Uint8List bytes = await file.readAsBytes();
-    if ((purpose == 'chat' || purpose == 'room') && contentType == 'image/gif') {
-      throw const FormatException(
-        'إرسال الصور المتحركة GIF سيفتح بعد تفعيل معالج GIF الآمن؛ أرسل صورة ثابتة حالياً.',
-      );
-    }
+    // GIF is routed through the same quarantined, server-scanned animation
+    // derivative pipeline as other chat media; do not block it client-side.
     final request = <String, dynamic>{
       'originalName': file.name,
       'contentType': contentType,
