@@ -1439,11 +1439,11 @@ export const finalizeMediaUpload = onCall(async (request) => {
   if (asset.ownerUid !== uid || asset.status !== "upload_authorized") {
     throw new HttpsError("permission-denied", "لا تملك صلاحية إكمال رفع هذا الملف.");
   }
-  if (asset.mediaPurpose === "advertisement") {
+  if (asset.mediaPurpose === "advertisement" || asset.mediaPurpose === "sticker") {
     const token = (request.auth?.token ?? {}) as Record<string, unknown>;
     if (token.platformOwner !== true || !hasPlatformOwnerSession(token, undefined, uid) ||
         asset.uploaderRole !== "platform_owner") {
-      throw new HttpsError("permission-denied", "إكمال رفع مواد الإعلانات مخصص لجلسة المالك الموثقة بـMFA.");
+      throw new HttpsError("permission-denied", "إكمال رفع مواد الإعلانات والملصقات مخصص لجلسة المالك الموثقة بـMFA.");
     }
   }
   if (asset.uploaderType === "guest") {
