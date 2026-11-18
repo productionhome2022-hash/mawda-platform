@@ -10126,8 +10126,17 @@ const CAPACITY_MEDIA_SETTINGS = db.doc("platformSettings/capacityMediaManagement
  */
 export const getOwnerCapacityMediaManagement = onCall(async (request) => {
   requireOwner(request);
-  const snapshot = await CAPACITY_MEDIA_SETTINGS.get();
+  const currentMonthUtc = new Date().toISOString().slice(0, 7);
+  const [snapshot, capacityMeter] = await Promise.all([
+    CAPACITY_MEDIA_SETTINGS.get(),
+    db.collection("platformCapacityMeters").doc(currentMonthUtc).get(),
+  ]);
   const data = snapshot.data() ?? {};
+  const meter = capacityMeter.data() ?? {};
+  const monthlyUploadBytes = Number.isSafeInteger(meter.monthlyUploadBytes) &&
+    meter.monthlyUploadBytes >= 0 ? meter.monthlyUploadBytes : 0;
+  const finalizedUploadCount = Number.isSafeInteger(meter.finalizedUploadCount) &&
+    meter.finalizedUploadCount >= 0 ? meter.finalizedUploadCount : 0;
   const rawQuotas = data.monthlyMediaQuotas;
   let monthlyMediaQuotas: CapacityMediaPolicy["monthlyMediaQuotas"] = { ...CAPACITY_MEDIA_DEFAULTS.monthlyMediaQuotas };
   if (rawQuotas && typeof rawQuotas === "object" && !Array.isArray(rawQuotas)) {
@@ -10144,10 +10153,15 @@ export const getOwnerCapacityMediaManagement = onCall(async (request) => {
       updatedAtMs: data.updatedAt instanceof Timestamp ? data.updatedAt.toMillis() : null,
     },
     measurement: {
-      status: "not_instrumented",
+      status: "partial",
+      monthUtc: currentMonthUtc,
+      // Counts validated, finalized source objects once, not raw network
+      // egress or storage billing. Other meters remain unavailable until their
+      // authoritative telemetry sources are integrated.
+      monthlyUploadBytes,
+      finalizedUploadCount,
       concurrentActiveMembers: null,
       capacityTierCount: null,
-      monthlyUploadBytes: null,
       monthlyDownloadBytes: null,
       retainedStorageBytes: null,
       processingMinutes: null,
