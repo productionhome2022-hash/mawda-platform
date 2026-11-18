@@ -904,7 +904,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تعذر تسجيل طلب الهدية. لم يتم إصدار أي كوينز.')),
+        const SnackBar(content: Text('تعذر تسجيل طلب الهدية. لم يتم إصدار أي BetaCoins.')),
       );
     } finally {
       if (mounted) setState(() => _isTransferringCoins = false);
