@@ -113,8 +113,7 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
       if (mounted) setState(() => _error = error.message ?? 'تعذر بدء مشاهدة الإعلان.');
     } catch (error) {
       if (sessionId != null) {
-        await FirebaseFunctions.instance.httpsCallable('cancelFeaturedAdSession')
-            .call({'sessionId': sessionId}).catchError((_) => null);
+        await _cancelSessionQuietly(sessionId);
       }
       if (mounted) setState(() => _error = error.toString().replaceFirst('Bad state: ', ''));
     } finally {
