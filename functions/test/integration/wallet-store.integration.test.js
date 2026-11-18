@@ -502,6 +502,10 @@ test("store entitlement gifting atomically debits giver, grants recipient, recor
     assert.equal((await recipientRef.get()).data().coins, 10);
     assert.equal((await giftRef.get()).data().status, "completed");
     assert.equal((await giverLedgerRef.get()).data().amount, -1250);
+    assert.equal((await giverLedgerRef.get()).data().balanceBefore, 3000);
+    assert.equal((await giverLedgerRef.get()).data().balanceAfter, 1750);
+    assert.equal((await giftRef.get()).data().balanceBefore, 3000);
+    assert.equal((await giftRef.get()).data().newBalance, 1750);
     assert.equal((await giverLedgerRef.get()).data().type, "store_gift");
     assert.equal((await recipientHistoryRef.get()).data().status, "received");
     assert.equal((await notificationRef.get()).data().type, "store_gift_received");
