@@ -1,5 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../services/member_media_upload_service.dart';
 
 class OwnerFeaturedAdsDashboardScreen extends StatefulWidget {
   const OwnerFeaturedAdsDashboardScreen({super.key});
@@ -9,6 +11,15 @@ class OwnerFeaturedAdsDashboardScreen extends StatefulWidget {
 
 class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashboardScreen> {
   final _functions = FirebaseFunctions.instance;
+  final _mediaUpload = MemberMediaUploadService();
+  final _picker = ImagePicker();
+  final _policyReward = TextEditingController(text: '2');
+  final _policyDailyViews = TextEditingController(text: '10');
+  final _policyDailyCoins = TextEditingController(text: '20');
+  final _policyCampaignCap = TextEditingController(text: '3');
+  bool _uploadingMedia = false;
+  bool _savingPolicy = false;
+  bool _rewardEnabled = true;
   final _title = TextEditingController();
   final _sponsor = TextEditingController();
   final _body = TextEditingController();
@@ -44,6 +55,8 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
   void dispose() {
     _title.dispose(); _sponsor.dispose(); _body.dispose();
     _budget.dispose(); _reward.dispose();
+    _policyReward.dispose(); _policyDailyViews.dispose();
+    _policyDailyCoins.dispose(); _policyCampaignCap.dispose();
     super.dispose();
   }
 
@@ -52,23 +65,87 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
     try {
       final results = await Future.wait([
         _functions.httpsCallable('getOwnerFeaturedAdCampaigns').call(),
-        _functions.httpsCallable('listOwnerMediaAssets').call({'status': 'security_approved', 'limit': 100}),
+        _functions.httpsCallable('listOwnerMediaAssets').call({'status': 'security_approved', 'limit': 50}),
+        _functions.httpsCallable('getOwnerFeaturedAdRewardPolicy').call(),
       ]);
       final data = Map<String, dynamic>.from(results[0].data as Map);
       final mediaData = Map<String, dynamic>.from(results[1].data as Map);
+      final policyData = Map<String, dynamic>.from(results[2].data as Map);
+      final policy = Map<String, dynamic>.from(policyData['policy'] as Map);
       final items = (data['campaigns'] as List<dynamic>? ?? const [])
           .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
       final media = (mediaData['assets'] as List<dynamic>? ?? const [])
           .whereType<Map>().map((e) => Map<String, dynamic>.from(e))
           .where((e) => e['mediaPurpose'] == 'advertisement' && e['status'] == 'security_approved')
           .toList();
-      if (mounted) setState(() { _campaigns = items; _approvedMedia = media; });
+      if (mounted) setState(() {
+        _campaigns = items; _approvedMedia = media;
+        _rewardEnabled = policy['enabled'] == true;
+        _policyReward.text = (policy['rewardCoinsPerView'] ?? 2).toString();
+        _policyDailyViews.text = (policy['maxRewardedViewsPerUtcDay'] ?? 10).toString();
+        _policyDailyCoins.text = (policy['maxRewardCoinsPerUtcDay'] ?? 20).toString();
+        _policyCampaignCap.text = (policy['maxRewardsPerCampaignRolling24h'] ?? 3).toString();
+        _reward.text = (policy['rewardCoinsPerView'] ?? 2).toString();
+      });
     } on FirebaseFunctionsException catch (e) {
       if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل الحملات.');
     } catch (_) {
       if (mounted) setState(() => _error = 'تعذر تحميل الحملات.');
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _uploadCreative() async {
+    try {
+      final file = await _picker.pickMedia();
+      if (file == null) return;
+      setState(() { _uploadingMedia = true; _error = null; });
+      final mediaId = await _mediaUpload.uploadAdvertisementCreative(file: file);
+      if (!mounted) return;
+      setState(() => _mediaId = mediaId);
+      await _load();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('اكتمل الرفع والفحص الأمني للمادة الإعلانية.')),
+      );
+    } catch (error) {
+      if (mounted) setState(() => _error = 'تعذر رفع المادة أو اعتماد مشتقها الآمن: $error');
+    } finally {
+      if (mounted) setState(() => _uploadingMedia = false);
+    }
+  }
+
+  Future<void> _saveRewardPolicy() async {
+    final reward = int.tryParse(_policyReward.text.trim());
+    final views = int.tryParse(_policyDailyViews.text.trim());
+    final coins = int.tryParse(_policyDailyCoins.text.trim());
+    final campaignCap = int.tryParse(_policyCampaignCap.text.trim());
+    if (reward == null || views == null || coins == null || campaignCap == null ||
+        reward < 0 || views < 0 || coins < reward || campaignCap < 1) {
+      setState(() => _error = 'قيم سياسة المكافآت غير صالحة؛ يجب أن يغطي الحد اليومي مكافأة مشاهدة واحدة على الأقل.');
+      return;
+    }
+    setState(() { _savingPolicy = true; _error = null; });
+    try {
+      final current = await _functions.httpsCallable('getOwnerFeaturedAdRewardPolicy').call();
+      final envelope = Map<String, dynamic>.from(current.data as Map);
+      final policy = Map<String, dynamic>.from(envelope['policy'] as Map);
+      policy.addAll({
+        'enabled': _rewardEnabled,
+        'rewardCoinsPerView': reward,
+        'maxRewardedViewsPerUtcDay': views,
+        'maxRewardCoinsPerUtcDay': coins,
+        'maxRewardsPerCampaignRolling24h': campaignCap,
+      });
+      await _functions.httpsCallable('setOwnerFeaturedAdRewardPolicy').call({'policy': policy});
+      _reward.text = reward.toString();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم حفظ سياسة المكافآت التجريبية بإصدار جديد.')),
+      );
+    } on FirebaseFunctionsException catch (e) {
+      if (mounted) setState(() => _error = e.message ?? 'تعذر حفظ سياسة المكافآت.');
+    } finally {
+      if (mounted) setState(() => _savingPolicy = false);
     }
   }
 
@@ -172,9 +249,22 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
                 onChanged: _saving ? null : (v) => setState(() => _placement = v ?? 'rotation'),
               ),
               Row(children: [
-                Expanded(child: TextField(controller: _budget, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'ميزانية مكافآت تجريبية'))),
+                Expanded(child: TextField(controller: _budget, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'ميزانية مكافآت الحملة'))),
                 const SizedBox(width: 12),
-                Expanded(child: TextField(controller: _reward, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'كوين/مشاهدة'))),
+                Expanded(child: InputDecorator(
+                  decoration: const InputDecoration(labelText: 'كوين/مشاهدة — السياسة العامة'),
+                  child: Text(_reward.text),
+                )),
+              ]),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(child: OutlinedButton.icon(
+                  onPressed: _uploadingMedia || _saving ? null : _uploadCreative,
+                  icon: _uploadingMedia
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.upload_file),
+                  label: Text(_uploadingMedia ? 'جارٍ الرفع والفحص...' : 'رفع مادة إعلانية آمنة'),
+                )),
               ]),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
@@ -197,6 +287,36 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
                 const SizedBox(width: 8),
                 if (_editingId != null) OutlinedButton(onPressed: _saving ? null : _clear, child: const Text('إلغاء')),
               ]),
+            ],
+          ))),
+          const SizedBox(height: 16),
+          Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('سياسة المكافآت التجريبية العامة', style: Theme.of(context).textTheme.titleLarge),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('تفعيل مكافآت الإعلانات المميزة'),
+                value: _rewardEnabled,
+                onChanged: _savingPolicy ? null : (v) => setState(() => _rewardEnabled = v),
+              ),
+              Row(children: [
+                Expanded(child: TextField(controller: _policyReward, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'كوين لكل مشاهدة'))),
+                const SizedBox(width: 10),
+                Expanded(child: TextField(controller: _policyDailyViews, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مشاهدات يومية UTC'))),
+              ]),
+              Row(children: [
+                Expanded(child: TextField(controller: _policyDailyCoins, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'كوين يومياً UTC'))),
+                const SizedBox(width: 10),
+                Expanded(child: TextField(controller: _policyCampaignCap, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'للحملة/24 ساعة'))),
+              ]),
+              const SizedBox(height: 10),
+              SizedBox(width: double.infinity, child: FilledButton(
+                onPressed: _savingPolicy ? null : _saveRewardPolicy,
+                child: Text(_savingPolicy ? 'جارٍ الحفظ...' : 'حفظ سياسة المكافآت'),
+              )),
+              const SizedBox(height: 4),
+              const Text('تُطبق السياسة خادمياً وبشكل ذري. القيم الافتراضية تجريبية ولا تمثل أسعاراً تجارية أو التزاماً دائماً.', style: TextStyle(fontSize: 12)),
             ],
           ))),
           const SizedBox(height: 16),
