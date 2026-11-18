@@ -70,3 +70,19 @@ Branch: `codex/featured-ads-secure-lifecycle-20261118`.
 ## Safety boundaries
 
 This branch is development-only. No production Firebase writes, deployment, paid resources, billing activation, live campaign publication, main-branch merge, data deletion, retention-policy activation or iOS identity changes are authorized by this task.
+
+
+## Follow-up implementation work — 2026-11-18
+
+The following development-branch changes were made after the gap review:
+
+- `8c70a1abec83d697b1dd2e4b069e29a60f041b9d`: enabled the domain-regression workflow on this feature branch; the workflow still requires an observed run on the exact head before tests can be called successful.
+- `82bad6b1ff5a687c1d265d457d52e9f7e9e967d7`: removed the arbitrary 100-view ceiling from timed-ad campaign validation. The owner-configured repeat count must be a positive safe integer; the campaign budget remains the financial ceiling.
+- `aa34b5c65368873789c82d9709985cca5dc11129`: added unit coverage for repeat counts above 100 and invalid values.
+- `270b96750d0c1e9c65bc850e24463d60da4bc11a`: aligned owner creative upload prechecks with the platform media ceilings (3 MiB images/GIF and 25 MiB original video) and removed the UI's 100-view restriction.
+- `9bb7d6d0396f348678e8bb354fc7d6ff41b0217e`: bound timed-ad completion to the exact published campaign version and schedule observed at session start. Paused, archived, rescheduled, or otherwise version-changed campaigns now cancel an in-flight session, release its reservation, and do not credit a wallet.
+- `349d4ab6efe6d577f99e28d09ef89e49b4ade479`: updated the successful timed-ad integration fixture and added an emulator regression for pausing a campaign during an active session.
+
+Verification status at this note: source files and blob SHAs were re-fetched from the feature branch after writes. No local Node/Flutter test execution occurred in this chat. The GitHub combined commit status endpoint returned no status checks for the latest integration-test commit, so these changes are **not yet test-verified**.
+
+Remaining featured-ad gates are unchanged: implement the independent featured campaign governance and member session/heartbeat/claim service, persist policy/campaign configuration with owner-only versioned audit, integrate the member player and history UI, and run emulator + Flutter regression on the exact branch head. Do not treat the timed-ad fixes above as completion of featured ads.
