@@ -6376,12 +6376,22 @@ export const giftStoreItem = onCall(async (request) => {
     const nowMs = Date.now();
     let expiresAtMs: number | null;
     try {
-      const durationBase = item.category === "boost"
-        ? {
-            ...prior,
-            expiresAt: prior.expiresAt ?? recipient.data()?.discoveryBoostExpiresAt ?? null,
+      let durationBase: Record<string, unknown> = prior;
+      if (item.category === "boost") {
+        const readExpiry = (value: unknown): number => {
+          if (value instanceof Timestamp) return value.toMillis();
+          if (value && typeof value === "object" &&
+              typeof (value as { toMillis?: unknown }).toMillis === "function") {
+            try { return (value as { toMillis: () => number }).toMillis(); } catch { return 0; }
           }
-        : prior;
+          return 0;
+        };
+        const baseExpiry = Math.max(
+          prior.status === "active" ? readExpiry(prior.expiresAt) : 0,
+          readExpiry(recipient.data()?.discoveryBoostExpiresAt),
+        );
+        durationBase = baseExpiry > 0 ? { status: "active", expiresAt: baseExpiry } : {};
+      }
       expiresAtMs = calculateStoreGiftExpiryMs(durationBase, item.durationDays, nowMs);
     } catch {
       throw new HttpsError("failed-precondition", "سجل استحقاق المستلم غير صالح؛ أوقفنا الإهداء.");
