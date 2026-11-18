@@ -216,6 +216,11 @@ test("finalize callable accepts a matching quarantined PNG and audits the result
   const objectPath = `quarantine/${uid}/${mediaId}`;
   const bytes = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
   await reserveFixtureQuota(uid, bytes.length);
+  const monthUtc = new Date().toISOString().slice(0, 7);
+  const meterRef = db.collection("platformCapacityMeters").doc(monthUtc);
+  const beforeMeter = await meterRef.get();
+  const beforeBytes = beforeMeter.data()?.monthlyUploadBytes ?? 0;
+  const beforeCount = beforeMeter.data()?.finalizedUploadCount ?? 0;
   await db.collection("mediaAssets").doc(mediaId).create({
     mediaId, ownerUid: uid, objectPath, uploaderType: "member", mediaPurpose: "profile_album",
     retentionPolicyStatus: "seven_day_profile_album",
@@ -239,6 +244,16 @@ test("finalize callable accepts a matching quarantined PNG and audits the result
   assert.ok(asset.data().retentionExpiresAt.toMillis() <= Date.now() + 7 * 24 * 60 * 60 * 1000 + 5000);
   assert.ok((await auditEvents(uid)).some((event) =>
     event.action === "media_upload_validation" && event.outcome === "pending_security_scan"));
+  const afterMeter = await meterRef.get();
+  assert.equal(afterMeter.data().monthlyUploadBytes - beforeBytes, bytes.length);
+  assert.equal(afterMeter.data().finalizedUploadCount - beforeCount, 1);
+  await assert.rejects(() => finalizeMediaUpload.run({
+    data: { mediaId },
+    auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+  }));
+  const afterReplay = await meterRef.get();
+  assert.equal(afterReplay.data().monthlyUploadBytes, afterMeter.data().monthlyUploadBytes);
+  assert.equal(afterReplay.data().finalizedUploadCount, afterMeter.data().finalizedUploadCount);
 });
 
 test("story upload requires and preserves its explicit expiry as the retention deadline", async () => {
