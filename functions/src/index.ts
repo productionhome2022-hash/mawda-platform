@@ -7772,7 +7772,8 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "لا يمكن تعديل طلب منتهٍ.");
     }
     if (prior.paymentChannel !== "manual_owner_contact" ||
-        prior.paymentPolicySnapshot?.manualEnabled !== true) {
+        (prior.paymentPolicySnapshot !== undefined &&
+         prior.paymentPolicySnapshot?.manualEnabled !== true)) {
       throw new HttpsError("failed-precondition", "مسار الدفع اليدوي غير مثبت في لقطة الطلب؛ لا يمكن تغيير مسار طلب قائم.");
     }
     const currentInstructionsVersion = Number.isSafeInteger(prior.instructionsVersion)
@@ -7820,6 +7821,10 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     transaction.update(ref, {
       status: "payment_instructions_sent", chatId, agreedCoins: input.agreedCoins,
       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
+      paymentPolicySnapshot: prior.paymentPolicySnapshot ?? {
+        manualEnabled: true, automatedEnabled: false, policyVersion: 0,
+        capturedAt: now, legacyRequestSnapshot: true,
+      },
       paymentInstructions: input.instructions, instructionsVersion: nextVersion,
       instructionsSetBy: actorUid, instructionsSetAt: now, updatedAt: now,
     });
