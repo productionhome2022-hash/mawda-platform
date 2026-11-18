@@ -132,9 +132,22 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       await _pollSignals();
     } catch (error) {
       _pollTimer?.cancel();
-      try {
-        await _functions.httpsCallable('endCall').call({'callId': widget.callId});
-      } catch (_) {}
+      if (widget.outgoing) {
+        try {
+          await _functions.httpsCallable('endCall').call({'callId': widget.callId});
+        } catch (_) {}
+      } else {
+        try {
+          await _functions.httpsCallable('respondToCall').call({
+            'callId': widget.callId,
+            'response': 'reject',
+          });
+        } catch (_) {
+          try {
+            await _functions.httpsCallable('endCall').call({'callId': widget.callId});
+          } catch (_) {}
+        }
+      }
       await _releaseMedia();
       if (!mounted) return;
       setState(() {
