@@ -574,6 +574,7 @@ test("owner-approved coin package gifts credit only the recipient with an immuta
     await setCoinPurchasePaymentInstructions.run(ownerRequest("store-catalog-owner", {
       requesterUid, requestId, instructions: "إتمام الدفع للاختبار المحلي",
       agreedCoins: packageSnapshot.coins, agreedPriceMinor: packageSnapshot.priceMinor, currency: "EUR",
+      expectedInstructionsVersion: 0,
     }));
     const approved = await approveCoinPurchaseRequest.run(ownerRequest("store-catalog-owner", {
       requesterUid, requestId, externalPaymentVerified: true,
@@ -752,8 +753,20 @@ test("manual coin package request issues no coins until owner verifies external 
     const instructionResult = await setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
       requesterUid: uid, requestId, instructions: "يرجى التواصل مع المالك لإتمام التحويل البنكي",
       agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
+      expectedInstructionsVersion: 0,
     }));
     assert.equal((await requestDoc.get()).data().status, "payment_instructions_sent");
+    assert.equal((await requestDoc.get()).data().instructionsVersion, 1);
+    assert.equal((await requestDoc.get()).data().paymentPolicySnapshot.manualEnabled, true);
+    assert.equal((await requestDoc.get()).data().paymentPolicySnapshot.automatedEnabled, false);
+    await assert.rejects(
+      () => setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
+        requesterUid: uid, requestId, instructions: "تعليمات قديمة يجب رفضها",
+        agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
+        expectedInstructionsVersion: 0,
+      })),
+      (error) => error && error.code === "aborted",
+    );
     assert.ok(instructionResult.chatId);
     const chatMessages = await db.collection("directChats").doc(instructionResult.chatId)
       .collection("messages").get();
