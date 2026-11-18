@@ -398,7 +398,23 @@ export const transferCoins = onCall(async (request) => {
         Number.isSafeInteger(recipientEntry.balanceAfter) &&
         recipientEntry.balanceBefore >= 0 &&
         recipientEntry.balanceAfter === recipientEntry.balanceBefore + prior.netAmount;
-      if (prior.status !== "completed" ||
+      const transferBalanceSnapshotValid =
+        prior.senderBalanceBefore === undefined && prior.senderBalanceAfter === undefined &&
+        prior.recipientBalanceBefore === undefined && prior.recipientBalanceAfter === undefined ||
+        Number.isSafeInteger(prior.senderBalanceBefore) &&
+        Number.isSafeInteger(prior.senderBalanceAfter) &&
+        Number.isSafeInteger(prior.recipientBalanceBefore) &&
+        Number.isSafeInteger(prior.recipientBalanceAfter) &&
+        prior.senderBalanceBefore >= 0 && prior.recipientBalanceBefore >= 0 &&
+        prior.senderBalanceAfter === prior.senderBalanceBefore - prior.grossAmount &&
+        prior.recipientBalanceAfter === prior.recipientBalanceBefore + prior.netAmount &&
+        (!senderBalanceSnapshotValid ||
+          senderEntry.balanceBefore === prior.senderBalanceBefore &&
+          senderEntry.balanceAfter === prior.senderBalanceAfter) &&
+        (!recipientBalanceSnapshotValid ||
+          recipientEntry.balanceBefore === prior.recipientBalanceBefore &&
+          recipientEntry.balanceAfter === prior.recipientBalanceAfter);
+      if (prior.status !== "completed" || !transferBalanceSnapshotValid ||
           prior.senderUid !== senderUid ||
           prior.grossAmount !== amount ||
           prior.commissionAmount !== expectedBreakdown.commissionAmount ||
@@ -6556,7 +6572,8 @@ export const purchaseStoreItem = onCall(async (request) => {
         Number.isSafeInteger(ledgerData.balanceAfter) &&
         ledgerData.balanceBefore >= 0 &&
         ledgerData.balanceAfter === ledgerData.balanceBefore - prior.priceCoins &&
-        ledgerData.balanceAfter === prior.newBalance;
+        ledgerData.balanceAfter === prior.newBalance &&
+        (prior.balanceBefore === undefined || prior.balanceBefore === ledgerData.balanceBefore);
       if (!priorLedger.exists || prior.status !== "completed" ||
           !Number.isSafeInteger(prior.priceCoins) || prior.priceCoins <= 0 ||
           !Number.isSafeInteger(prior.newBalance) || prior.newBalance < 0 ||
@@ -6787,7 +6804,8 @@ export const giftStoreEntitlement = onCall(async (request) => {
         Number.isSafeInteger(ledger.balanceAfter) &&
         ledger.balanceBefore >= 0 &&
         ledger.balanceAfter === ledger.balanceBefore - prior.priceCoins &&
-        ledger.balanceAfter === prior.newBalance;
+        ledger.balanceAfter === prior.newBalance &&
+        (prior.balanceBefore === undefined || prior.balanceBefore === ledger.balanceBefore);
       if (!priorLedger.exists || !priorHistory.exists || !priorNotification.exists ||
           !Number.isSafeInteger(prior.priceCoins) || prior.priceCoins <= 0 ||
           !Number.isSafeInteger(prior.newBalance) || prior.newBalance < 0 ||
