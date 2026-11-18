@@ -10511,7 +10511,8 @@ export const startCall = onCall(async (request) => {
     });
     const lockedCalls = await Promise.all(lockCallRefs.map((lockCallRef) =>
       lockCallRef ? transaction.get(lockCallRef) : Promise.resolve(null)));
-    await requireCallEntitlements(transaction, participantUids, input.mode, now);
+    const admissionEntitlementUids = input.scope === "room" ? [callerUid] : participantUids;
+    await requireCallEntitlements(transaction, admissionEntitlementUids, input.mode, now);
     for (let index = 0; index < memberLocks.length; index += 1) {
       const lock = memberLocks[index];
       const lockedCall = lockedCalls[index];
@@ -10620,7 +10621,22 @@ export const respondToCall = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "انتهت مهلة المكالمة أو لم تعد متاحة.");
     }
     if (response === "accept") {
-      await requireCallEntitlements(transaction, call.participantUids as string[], call.mode, Date.now());
+      const acceptedForEntitlement = Array.isArray(call.acceptedUids)
+        ? call.acceptedUids.filter((memberUid): memberUid is string => typeof memberUid === "string")
+        : [];
+      const rejectedForEntitlement = Array.isArray(call.rejectedUids)
+        ? call.rejectedUids.filter((memberUid): memberUid is string => typeof memberUid === "string")
+        : [];
+      const leftForEntitlement = Array.isArray(call.leftUids)
+        ? call.leftUids.filter((memberUid): memberUid is string => typeof memberUid === "string")
+        : [];
+      const entitlementParticipants = [...new Set([
+        ...(typeof call.callerUid === "string" ? [call.callerUid] : []),
+        ...acceptedForEntitlement,
+        uid,
+      ])].filter((memberUid) =>
+        !rejectedForEntitlement.includes(memberUid) && !leftForEntitlement.includes(memberUid));
+      await requireCallEntitlements(transaction, entitlementParticipants, call.mode, Date.now());
     }
     if (response === "reject" && call.status !== "ringing" && call.status !== "accepted") {
       throw new HttpsError("failed-precondition", "لا يمكن رفض المكالمة في حالتها الحالية.");
@@ -10688,7 +10704,12 @@ export const markCallConnected = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "لا يمكن تثبيت الاتصال قبل قبول المكالمة.");
     }
     if (!(call.maxDurationEndsAt instanceof Timestamp)) {
-      await requireCallEntitlements(transaction, participantUids, call.mode, Date.now());
+      const entitledParticipants = [...new Set([
+        ...(typeof call.callerUid === "string" ? [call.callerUid] : []),
+        ...acceptedUids,
+      ])].filter((memberUid) =>
+        !rejectedUids.includes(memberUid) && !leftUids.includes(memberUid));
+      await requireCallEntitlements(transaction, entitledParticipants, call.mode, Date.now());
     }
     if (call.maxDurationEndsAt instanceof Timestamp &&
         call.maxDurationEndsAt.toMillis() <= Date.now()) {
