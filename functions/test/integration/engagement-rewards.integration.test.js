@@ -601,8 +601,8 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
   const tag = suffix();
   const ownerUid = "featured-owner-" + tag;
   const uid = "featured-member-" + tag;
-  const campaignRef = db.collection("featuredAdCampaigns").doc();
   const sessionRef = db.collection("featuredAdViewingSessions").doc();
+  let campaignRef;
   const userRef = db.collection("users").doc(uid);
   const policyRef = db.doc("platformSettings/featuredAdRewardPolicy");
   const memberRef = db.collection("featuredAdCampaignMembers").doc(uid + "_" + campaignRef.id);
@@ -619,6 +619,7 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
     data,
     auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
   });
+  const previousPolicy = await policyRef.get();
   await userRef.set({ coins: 0, profileCompleted: true, accountStatus: "active" });
   await policyRef.set({
     policy: {
@@ -643,9 +644,14 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
     }));
     assert.equal(created.status, "draft");
     const campaignId = created.campaignId;
-    const campaign = db.collection("featuredAdCampaigns").doc(campaignId);
-    await campaign.update({ creativeApproved: true, paymentConfirmed: true });
-    const approved = await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "approved" }));
+    campaignRef = db.collection("featuredAdCampaigns").doc(campaignId);
+    const approved = await setFeaturedAdCampaignStatus.run(ownerRequest({
+      campaignId, status: "approved", paymentConfirmed: true,
+    }));
+    const approvedSnapshot = await campaignRef.get();
+    assert.equal(approvedSnapshot.data().ownerApproved, true);
+    assert.equal(approvedSnapshot.data().creativeApproved, true);
+    assert.equal(approvedSnapshot.data().paymentConfirmed, true);
     assert.equal(approved.status, "approved");
     const published = await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published" }));
     assert.equal(published.status, "published");
@@ -682,10 +688,12 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
   } finally {
     await Promise.all([
       sessionRef.delete().catch(() => undefined), userRef.delete().catch(() => undefined),
-      campaignRef.delete().catch(() => undefined), policyRef.delete().catch(() => undefined),
+      campaignRef?.delete().catch(() => undefined),
+      previousPolicy.exists ? policyRef.set(previousPolicy.data()) : policyRef.delete(),
       memberRef.delete().catch(() => undefined), dayRef.delete().catch(() => undefined),
+      db.collection("featuredAdViewingSessions").doc("unused_" + tag).delete().catch(() => undefined),
       db.collection("mediaAssets").doc("fixture-media-" + tag).delete().catch(() => undefined),
+      userRef.collection("walletLedger").doc("featured_ad_reward_" + sessionRef.id).delete().catch(() => undefined),
     ]);
-    await db.collection("users").doc(uid).collection("walletLedger").doc("featured_ad_reward_" + sessionRef.id).delete().catch(() => undefined);
   }
 });
