@@ -124,3 +124,16 @@ The inspected Flutter call screen reports connection and uses a five-minute disp
 ## Store fulfillment safety correction — Hide Coins SKU
 
 The server-side profile projection already withholds every member's Beta Coins balance from all non-owner viewers, regardless of whether the target member has purchased a Hide Coins entitlement. Therefore the current `hide_coins_30d` SKU would charge for no additional observable behavior under the approved privacy rule. Its fulfillment-ready allowlist entry has been removed and purchase validation now fails closed. The catalog item may remain unpublished/disabled for future redesign, but it must not be sold until a distinct, owner-approved behavior exists that does not weaken the baseline privacy rule.
+
+
+## Owner clarification: recurring store entitlements and gifting — 2026-11-18
+
+Approved behavior now recorded as ECON-007 in the decision traceability register:
+
+- Entitlements run for the selected catalog duration and expire server-side. Once expired, the same member may buy that item again for a fresh term; an expired record must not block repurchase.
+- A member may browse the relevant stores and gift any currently published, purchasable, fulfillment-ready item to another eligible member, regardless of whether the sender previously bought or owns that item. Gifting does not consume or transfer the sender's own entitlement.
+- Visitors/guest accounts are never valid gift recipients. Enforce eligibility on the server for both parties.
+- A gift is a distinct atomic transaction: price/catalog revalidation, sender debit, wallet ledger, gift record, recipient entitlement/history, and request idempotency. A new gift must not overwrite or shorten a recipient's active timed entitlement; stack from max(server-now, current expiry) unless a catalog-specific non-stackable policy is explicitly approved.
+- Owner free grants remain a separate privileged audited flow and do not fulfill member gifting.
+
+Current implementation gap: the existing backend exposes owner-only single/bulk grant functions, not member-to-member gifting. The store UI/backend still need gift purchase flow, recipient search/selection, guest exclusion, recipient history/notification, renewal and expiry integration tests, and cross-platform coverage. Do not mark gifting complete until those are implemented and tested.
