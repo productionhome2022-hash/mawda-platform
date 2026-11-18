@@ -1001,7 +1001,7 @@ export const sendChatImageAttachment = onCall(async (request) => {
     throw new HttpsError("permission-denied", "الزائر يستطيع إرسال ملفات صوتية فقط داخل الغرف العامة.");
   }
   if (asset.ownerUid !== senderUid || asset.mediaPurpose !== expectedPurpose || !artifact ||
-      (artifact.category === "document" && !ownerSession)) {
+      (artifact.category === "document" && !ownerSession && !verifiedOwnerRecipient)) {
     await auditMediaAccess({
       actorUid: senderUid, mediaId, action: "chat_media_message_link",
       outcome: "denied", scope, failureCode: "asset_not_safe_or_not_owned_or_owner_only_document",
@@ -1480,18 +1480,19 @@ export const finalizeMediaUpload = onCall(async (request) => {
     await mediaDb().runTransaction(async (transaction) => {
       const [latestAsset, quotaSnapshot] = await Promise.all([
         transaction.get(assetRef),
-        transaction.get(quotaRef),
+        asset.quotaExempt === true ? Promise.resolve(null) : transaction.get(quotaRef),
       ]);
       if (!latestAsset.exists || latestAsset.data()?.status !== "upload_authorized") {
         throw new HttpsError("failed-precondition", "تغيرت حالة طلب الرفع أثناء التحقق.");
       }
-      const reservation = releaseMediaQuota(quotaSnapshot.data(), Number(asset.declaredSizeBytes));
+      const reservation = asset.quotaExempt === true ? null :
+        releaseMediaQuota(quotaSnapshot?.data(), Number(asset.declaredSizeBytes));
       transaction.update(assetRef, {
         status: "rejected",
         rejectionCode: "CONTENT_TYPE_SIZE_OR_SIGNATURE_MISMATCH",
         updatedAt: FieldValue.serverTimestamp(),
       });
-      transaction.set(quotaRef, { ...reservation, updatedAt: FieldValue.serverTimestamp() });
+      if (reservation) transaction.set(quotaRef, { ...reservation, updatedAt: FieldValue.serverTimestamp() });
       transaction.create(mediaDb().collection("mediaAccessAudit").doc(), {
         actorUid: uid, mediaId, action: "media_upload_validation", outcome: "rejected",
         detectedContentType: detectedType, declaredContentType: asset.declaredContentType,
@@ -1857,7 +1858,7 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
           const recheckAt = data.cleanupMissingObjectRecheckAt as Timestamp | undefined;
           if (recheckAt && recheckAt.toMillis() > nowMs) return null;
           return { ownerUid: String(data.ownerUid), objectPath: String(data.objectPath),
-            reservedBytes: Number(data.declaredSizeBytes) };
+            reservedBytes: Number(data.declaredSizeBytes), quotaExempt: data.quotaExempt === true };
         }
         return null;
       });
