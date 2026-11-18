@@ -153,7 +153,9 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
               ((item['packageSnapshot'] is Map) ? item['packageSnapshot']['coins'] : null) ?? 'غير محدد';
           return Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(
             crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('العضو: ' + (item['requesterUid'] as String? ?? '')),
+              Text('المشتري: ' + (item['requesterUid'] as String? ?? '')),
+              if (item['giftRecipientUid'] is String)
+                Text('نوع الطلب: باقة Beta Coins هدية للمستلم ' + (item['giftRecipientUid'] as String)),
               Text('الطلب: ' + id),
               Text('الكمية: ' + amount.toString() + ' كوين'),
               Text('الحالة: ' + status),
