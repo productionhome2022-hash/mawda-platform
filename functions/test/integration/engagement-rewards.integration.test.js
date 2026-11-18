@@ -775,6 +775,12 @@ test("featured campaigns require owner approval and verified finance, then rewar
     }));
     paymentEventId = payment.eventId;
     assert.equal(payment.idempotentReplay, false);
+    await assert.rejects(
+      () => setFeaturedAdCampaignStatus.run(ownerRequest(ownerUid, {
+        campaignId: campaignRef.id, status: "published", expectedVersion: 2,
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
     const replay = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
       ...baseEvent, action: "payment_received", idempotencyKey: `payment_${tag}`,
       amountMinor: 10000, currency: "USD",
