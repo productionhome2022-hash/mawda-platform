@@ -251,3 +251,13 @@ Commit: `efb80d130793ba2f3f5c5d6a58ced11f4fb08736`.
 - `5e9f4d15c8f5f805713ba1ce0e6822aafdeab296` — catalog callable and public exports.
 - `a43a8db9e1b06bd125eb10a1cb401b1ae8452405`, `0b8b00a142cc4aaf5c87714face3bc90e03dcfb4`, `c3b48f9c8ae45a6f8fe63740a94d2b76a22fd6ed` — full sticker replay identity hardening.
 - `e9e3cb6e43e3a680f1de05f910e2583d8a158bd3` — import consolidation.
+
+
+### مراجعة أخيرة لمسار إرسال الملصقات
+
+- عولجت فجوة idempotency: إعادة الطلب لا تُقبل إلا إذا تطابقت هوية المرسل والأصل والحزمة والملصق، وليس mediaId وحده. الاختبارات تغطي تغيير الحزمة/الملصق/المرسل والنوع.
+- عُدلت أهلية الحساب في مسار الإرسال المباشر لتستخدم `isMemberAccountInGoodStanding` إلى جانب اكتمال الملف، بدلاً من فحص حالة التعليق وحدها.
+- عُدلت أهلية الغرفة لتطابق نموذج الرسائل المعتمد: وجود سجل عضوية الغرفة، رفض حساب الزائر، وفحص حساب العضو من مستند `users` عبر `isMemberAccountInGoodStanding`. يبقى فحص الكتم خادمياً.
+- آخر commit code موثق لهذه المراجعة: `7efd056aefc626151297d96735640c1666ea96d9`.
+- SHA الحالي للفرع يحتاج قراءة branch ref مباشرة؛ آخر commit مؤكد من سجل التنفيذ هو أعلاه. مقارنة الفرع مع `main` تُظهر 2791 commits ahead و0 behind، وقاعدة المقارنة ما زالت SHA `460a79a7dc2e16f4ad146af22aab58e152ad1e8c`. لم يتغير `main`.
+- طلبات الدمج #22 و#24 و#25 و#26 و#27 ما زالت مفتوحة؛ لا دمج تلقائي أو دمج إلى main.
