@@ -2226,7 +2226,7 @@ export const saveStickerPack = onCall(async (request) => {
       throw new HttpsError("invalid-argument", "معرف أصل الملصق غير صالح.");
     }
   }
-  let manifest;
+  let manifest: ReturnType<typeof validateStickerPackManifest>;
   try { manifest = validateStickerPackManifest(data); } catch (error) {
     throw new HttpsError("invalid-argument", error instanceof Error ? error.message : "بيانات الحزمة غير صالحة.");
   }
@@ -2239,7 +2239,7 @@ export const saveStickerPack = onCall(async (request) => {
   await mediaDb().runTransaction(async (transaction) => {
     const [packSnapshot, ...assetSnapshots] = await Promise.all([
       transaction.get(packRef),
-      ...assetRefs.map((ref: FirebaseFirestore.DocumentReference) => transaction.get(ref)),
+      ...assetRefs.map((ref) => transaction.get(ref)),
     ]);
     const persistedStickers = manifest.stickers.map((sticker, index) => {
       const assetSnapshot = assetSnapshots[index];
@@ -2250,7 +2250,7 @@ export const saveStickerPack = onCall(async (request) => {
           asset.scannerVerdict !== "clean") {
         throw new HttpsError("failed-precondition", "يوجد أصل ملصق لم يجتز الفحص أو لا يخص جلسة المالك.");
       }
-      let scanned;
+      let scanned: ReturnType<typeof validateStickerMediaMetadata>;
       try { scanned = validateStickerMediaMetadata(asset.stickerMetadata); } catch {
         throw new HttpsError("failed-precondition", "بيانات أصل الملصق المفحوص غير صالحة.");
       }
