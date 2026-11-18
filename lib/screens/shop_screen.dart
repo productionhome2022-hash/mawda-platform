@@ -41,11 +41,9 @@ class _ShopScreenState extends State<ShopScreen> {
     final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
     if (itemId == null || itemId.isEmpty || price <= 0 || _purchasingItemId != null) return;
     final category = item['category'] as String? ?? '';
-    final callPackageNotice = category == 'voice_call'
-        ? 'تمنحك الباقة 5 مكالمات صوتية عادية في كل 24 ساعة طوال مدة صلاحيتها. بعد استنفاد حصتك، يكون سعر المكالمة الصوتية المفتوحة 120 كوينز للدقيقة إجمالاً: 60 من كل طرف إذا استنفد الطرفان حصتيهما، أو 120 من المتصل وحده إذا كان المستقبل لا يزال يملك محاولات.'
-        : category == 'video_call'
-            ? 'تمنحك الباقة 3 مكالمات مرئية عادية في كل 24 ساعة طوال مدة صلاحيتها. بعد استنفاد حصتك، يكون سعر المكالمة المرئية المفتوحة 400 كوينز للدقيقة إجمالاً: 200 من كل طرف إذا استنفد الطرفان حصتيهما، أو 400 من المتصل وحده إذا كان المستقبل لا يزال يملك محاولات.'
-            : null;
+    final callPackageNotice = category == 'voice_call' || category == 'video_call'
+        ? 'تمنحك هذه الباقة استحقاق المكالمات من النوع المحدد للمدة المعروضة. يشترط سريان الاستحقاق لدى جميع المشاركين، وتُطبّق الحصص والحدود المالية التي يقررها الخادم حالياً.'
+        : null;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -59,7 +57,7 @@ class _ShopScreenState extends State<ShopScreen> {
               const SizedBox(height: 12),
               Text(callPackageNotice),
               const SizedBox(height: 8),
-              const Text('يشترط امتلاك الطرفين اشتراكاً سارياً من نوع المكالمة نفسه. هذه الأسعار هي الأسعار المعتمدة حالياً، ويجب عرض أي تغيير يقرره مالك المنصة من إعدادات الخادم قبل الشراء والاستخدام.'),
+              const Text('يشترط سريان الاستحقاق لدى المشاركين، ولا يعتمد التطبيق على أسعار أو حدود محلية ثابتة.'),
             ],
           ],
         ),
