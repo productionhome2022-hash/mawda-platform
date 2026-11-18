@@ -81,6 +81,15 @@ test("owner free grant is MFA-gated, audited, coin-neutral, idempotent and repea
     assert.equal(replay.expiresAt, first.expiresAt);
     assert.equal((await entitlementRef.get()).data().expiresAt.toMillis(), first.expiresAt);
 
+    // A prior grant is not a valid replay if either immutable audit evidence is missing.
+    await ledgerRef.delete();
+    await assert.rejects(
+      () => grantStoreEntitlement.run(ownerRequest(ownerUid, input)),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await memberRef.get()).data().coins, 4321);
+    assert.equal((await entitlementRef.get()).data().expiresAt.toMillis(), first.expiresAt);
+
     const second = await grantStoreEntitlement.run(ownerRequest(ownerUid, {
       ...input, requestId: secondRequestId, durationHours: 24,
     }));
