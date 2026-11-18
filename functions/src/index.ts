@@ -7,6 +7,7 @@ import { validateMemberProfile } from "./member-profile";
 import { isAllowedLegalPortalAppId } from "./legal-portal-access";
 import { FieldPath, FieldValue, Timestamp, getFirestore, type DocumentReference, type Transaction } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { onObjectFinalized } from "firebase-functions/v2/storage";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineString, defineSecret } from "firebase-functions/params";
 import { validateMediaLegalHoldInput } from "./media-legal-hold";
@@ -27,6 +28,14 @@ import { createDirectChatId } from "./direct-chat-id";
 import { encodeMemberMessagePageToken, validateMemberMessagePageRequest } from "./member-message-pagination";
 import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
 import { hasActiveBiometricVerification } from "./biometric-verification";
+import {
+  canSubmitBiometricRequest,
+  nextBiometricAttemptNumber,
+  decideBiometricRequest,
+  BIOMETRIC_REWARD_BETACOINS,
+} from "./biometric-review";
+import { readMp4DurationMs, assertBiometricVideoDurationAllowed } from "./biometric-media";
+import { assertPlatformRoleCapacity, type NumberedPlatformRole } from "./platform-role-identities";
 import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, isEmailVerificationCycleDue, canRewardEmailVerificationCycle } from "./email-verification-cycle";
 import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
 import { isMemberAccountInGoodStanding } from "./member-access";
@@ -2006,21 +2015,743 @@ export const reviewSafetyCase = onCall(async (request) => {
  * identity verification or hardware attestation.
  */
 /**
- * Fail-closed until a server-verifiable, device-bound biometric attestation
- * challenge is implemented. A client boolean and attempt ID are not proof:
- * a modified client can invoke this callable directly and mint the reward.
- *
- * Do not restore wallet credits here until Android Play Integrity / iOS
- * App Attest (or an equivalent cryptographic key attestation) is verified
- * server-side with a fresh challenge, nonce binding, replay protection and
- * one-time ledger idempotency.
+ * Legacy device-local biometric completion is deliberately disabled. The
+ * platform verification workflow is the separate owner-reviewed request flow.
  */
 export const completeBiometricVerificationCycle = onCall(async (request) => {
   requireAuthenticatedUid(request.auth?.uid);
   throw new HttpsError(
     "failed-precondition",
-    "مكافأة التوثيق البيومتري معلّقة مؤقتاً حتى اكتمال التحقق التشفيري المرتبط بالجهاز. نجاح نافذة النظام وحده لا يكفي لمنح الكوينز.",
+    "المصادقة المحلية للهاتف ليست توثيقاً بيومترياً في مودة. استخدم طلب التوثيق ومراجعة Super Owner.",
   );
+});
+
+const BIOMETRIC_REQUESTS = db.collection("biometricVerificationRequests");
+const BIOMETRIC_SETTINGS = db.doc("platformSettings/biometricVerification");
+
+function biometricSettingsOrThrow(value: Record<string, unknown>, requireEnabled = true) {
+  const maxAudioBytes = value.maxAudioBytes;
+  const maxVideoBytes = value.maxVideoBytes;
+  const uploadWindowMinutes = value.uploadWindowMinutes;
+  const mediaAccessTtlSeconds = value.mediaAccessTtlSeconds;
+  const phrases = value.phrases;
+  if ((requireEnabled && value.enabled !== true) ||
+      !Number.isSafeInteger(maxAudioBytes) || (maxAudioBytes as number) < 1 ||
+      !Number.isSafeInteger(maxVideoBytes) || (maxVideoBytes as number) < 1 ||
+      !Number.isSafeInteger(uploadWindowMinutes) ||
+      (uploadWindowMinutes as number) < 5 || (uploadWindowMinutes as number) > 60 ||
+      !Number.isSafeInteger(mediaAccessTtlSeconds) ||
+      (mediaAccessTtlSeconds as number) < 60 || (mediaAccessTtlSeconds as number) > 600 ||
+      !Array.isArray(phrases) || phrases.length < 1 || phrases.length > 100) {
+    throw new HttpsError(
+      "failed-precondition",
+      "إعدادات التوثيق البيومتري غير مكتملة أو غير مفعّلة من Super Owner.",
+    );
+  }
+  const normalizedPhrases = phrases.map((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      throw new HttpsError("failed-precondition", "قائمة جمل التوثيق غير صالحة.");
+    }
+    const phrase = item as Record<string, unknown>;
+    if (typeof phrase.id !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(phrase.id) ||
+        typeof phrase.text !== "string" || phrase.text.trim().length < 8 ||
+        phrase.text.trim().length > 180) {
+      throw new HttpsError("failed-precondition", "قائمة جمل التوثيق غير صالحة.");
+    }
+    return { id: phrase.id, text: phrase.text.trim() };
+  });
+  if (new Set(normalizedPhrases.map((phrase) => phrase.id)).size !== normalizedPhrases.length) {
+    throw new HttpsError("failed-precondition", "معرّفات جمل التوثيق مكررة.");
+  }
+  return {
+    maxAudioBytes: maxAudioBytes as number,
+    maxVideoBytes: maxVideoBytes as number,
+    uploadWindowMinutes: uploadWindowMinutes as number,
+    mediaAccessTtlSeconds: mediaAccessTtlSeconds as number,
+    phrases: normalizedPhrases,
+  };
+}
+
+function biometricTimestampMs(value: unknown): number | null {
+  if (value instanceof Timestamp) return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  return null;
+}
+
+async function deleteBiometricRequestObjects(
+  requestId: string,
+  audioObjectPath: string | null | undefined,
+  videoObjectPath: string | null | undefined,
+): Promise<boolean> {
+  if (typeof audioObjectPath !== "string" || !audioObjectPath ||
+      typeof videoObjectPath !== "string" || !videoObjectPath) {
+    await BIOMETRIC_REQUESTS.doc(requestId).update({
+      mediaDeletionStatus: "complete",
+      mediaDeletedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return true;
+  }
+  try {
+    const bucket = getStorage().bucket();
+    await Promise.all([
+      bucket.file(audioObjectPath).delete({ ignoreNotFound: true }),
+      bucket.file(videoObjectPath).delete({ ignoreNotFound: true }),
+    ]);
+    await BIOMETRIC_REQUESTS.doc(requestId).update({
+      mediaDeletionStatus: "complete",
+      mediaDeletedAt: FieldValue.serverTimestamp(),
+      mediaDeletionLastError: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return true;
+  } catch (error) {
+    logger.warn("Biometric evidence deletion will be retried", {
+      requestId,
+      errorCode: error instanceof Error ? error.name : "UNKNOWN",
+    });
+    await BIOMETRIC_REQUESTS.doc(requestId).update({
+      mediaDeletionStatus: "retry",
+      mediaDeletionLastAttemptAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }).catch(() => undefined);
+    return false;
+  }
+}
+
+async function failBiometricUpload(
+  requestId: string,
+  uid: string,
+  audioObjectPath: string,
+  videoObjectPath: string,
+  failureCode: string,
+): Promise<void> {
+  const requestRef = BIOMETRIC_REQUESTS.doc(requestId);
+  const userRef = db.collection("users").doc(uid);
+  await db.runTransaction(async (transaction) => {
+    const [requestSnapshot, userSnapshot] = await Promise.all([
+      transaction.get(requestRef), transaction.get(userRef),
+    ]);
+    if (!requestSnapshot.exists || requestSnapshot.data()?.status !== "uploading") return;
+    transaction.update(requestRef, {
+      status: "upload_failed",
+      uploadFailureCode: failureCode,
+      mediaDeletionStatus: "retry",
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    if (userSnapshot.exists && userSnapshot.data()?.biometricVerificationRequestId === requestId) {
+      transaction.update(userRef, {
+        biometricVerificationRequestId: FieldValue.delete(),
+        biometricVerificationRequestStatus: "upload_failed",
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+  });
+  await deleteBiometricRequestObjects(requestId, audioObjectPath, videoObjectPath);
+}
+
+export const getOwnerBiometricVerificationSettings = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "biometric_verification_settings_read");
+  const snapshot = await BIOMETRIC_SETTINGS.get();
+  if (!snapshot.exists) return { configured: false, settings: null };
+  const data = snapshot.data() ?? {};
+  return {
+    configured: true,
+    settings: {
+      enabled: data.enabled === true,
+      maxAudioBytes: data.maxAudioBytes ?? null,
+      maxVideoBytes: data.maxVideoBytes ?? null,
+      uploadWindowMinutes: data.uploadWindowMinutes ?? null,
+      mediaAccessTtlSeconds: data.mediaAccessTtlSeconds ?? null,
+      phrases: Array.isArray(data.phrases)
+        ? data.phrases.map((item: Record<string, unknown>) => ({
+          id: item.id, text: item.text,
+        }))
+        : [],
+      version: Number.isSafeInteger(data.version) ? data.version : 0,
+    },
+    actorUid,
+  };
+});
+
+export const setOwnerBiometricVerificationSettings = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "biometric_verification_settings_update");
+  const input = request.data ?? {};
+  const expectedVersion = input.expectedVersion;
+  const enabled = input.enabled;
+  const maxAudioBytes = input.maxAudioBytes;
+  const maxVideoBytes = input.maxVideoBytes;
+  const uploadWindowMinutes = input.uploadWindowMinutes;
+  const mediaAccessTtlSeconds = input.mediaAccessTtlSeconds;
+  const phrases = input.phrases;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0 ||
+      typeof enabled !== "boolean" ||
+      !Number.isSafeInteger(maxAudioBytes) || maxAudioBytes < 1 ||
+      !Number.isSafeInteger(maxVideoBytes) || maxVideoBytes < 1 ||
+      !Number.isSafeInteger(uploadWindowMinutes) || uploadWindowMinutes < 5 || uploadWindowMinutes > 60 ||
+      !Number.isSafeInteger(mediaAccessTtlSeconds) || mediaAccessTtlSeconds < 60 || mediaAccessTtlSeconds > 600 ||
+      !Array.isArray(phrases) || phrases.length < 1 || phrases.length > 100) {
+    throw new HttpsError("invalid-argument", "إعدادات التوثيق البيومتري غير صالحة.");
+  }
+  const normalizedPhrases = phrases.map((item: unknown) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      throw new HttpsError("invalid-argument", "قائمة جمل التوثيق غير صالحة.");
+    }
+    const phrase = item as Record<string, unknown>;
+    if (typeof phrase.id !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(phrase.id) ||
+        typeof phrase.text !== "string" || phrase.text.trim().length < 8 ||
+        phrase.text.trim().length > 180) {
+      throw new HttpsError("invalid-argument", "قائمة جمل التوثيق غير صالحة.");
+    }
+    return { id: phrase.id, text: phrase.text.trim() };
+  });
+  if (new Set(normalizedPhrases.map((item: { id: string }) => item.id)).size !== normalizedPhrases.length) {
+    throw new HttpsError("invalid-argument", "معرّفات جمل التوثيق مكررة.");
+  }
+  const result = await db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(BIOMETRIC_SETTINGS);
+    const version = previous.exists && Number.isSafeInteger(previous.data()?.version)
+      ? Number(previous.data()?.version) : 0;
+    if (version !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت إعدادات التوثيق؛ أعد تحميلها قبل الحفظ.");
+    }
+    const nextVersion = version + 1;
+    transaction.set(BIOMETRIC_SETTINGS, {
+      enabled,
+      maxAudioBytes,
+      maxVideoBytes,
+      uploadWindowMinutes,
+      mediaAccessTtlSeconds,
+      phrases: normalizedPhrases,
+      version: nextVersion,
+      updatedBy: actorUid,
+      updatedAt: FieldValue.serverTimestamp(),
+      createdAt: previous.data()?.createdAt ?? FieldValue.serverTimestamp(),
+    });
+    return { version: nextVersion, enabled, phraseCount: normalizedPhrases.length };
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "biometric_verification_settings_updated",
+    ...result,
+    outcome: "success",
+  });
+  return result;
+});
+
+export const startBiometricVerificationRequest = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const userRef = db.collection("users").doc(uid);
+  const requestId = randomUUID();
+  const requestRef = BIOMETRIC_REQUESTS.doc(requestId);
+  const nowMs = Date.now();
+
+  const result = await db.runTransaction(async (transaction) => {
+    const [userSnapshot, settingsSnapshot] = await Promise.all([
+      transaction.get(userRef), transaction.get(BIOMETRIC_SETTINGS),
+    ]);
+    if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(userSnapshot.data())) {
+      throw new HttpsError("failed-precondition", "الحساب غير مؤهل لطلب التوثيق البيومتري.");
+    }
+    const userData = userSnapshot.data()!;
+    if (hasActiveBiometricVerification(userData.biometricVerification, nowMs)) {
+      throw new HttpsError("failed-precondition", "التوثيق البيومتري ما زال سارياً ولم يحن موعد تجديده.");
+    }
+    const activeRequestId = userData.biometricVerificationRequestId;
+    if (["uploading", "pending_review"].includes(String(userData.biometricVerificationRequestStatus))) {
+      throw new HttpsError("already-exists", "لديك طلب توثيق بيومتري قيد الإجراء بالفعل.");
+    }
+    if (typeof activeRequestId === "string" && activeRequestId.length > 0) {
+      const activeRequest = await transaction.get(BIOMETRIC_REQUESTS.doc(activeRequestId));
+      if (activeRequest.exists &&
+          ["uploading", "pending_review"].includes(String(activeRequest.data()?.status))) {
+        throw new HttpsError("already-exists", "لديك طلب توثيق بيومتري قيد الإجراء بالفعل.");
+      }
+    }
+
+    const settings = biometricSettingsOrThrow(settingsSnapshot.data() ?? {});
+    const priorState = (userData.biometricReviewState ?? null) as
+      | { status: "pending_review" | "accepted" | "rejected" | "locked"; attemptNumber: number;
+          rewardGranted: boolean; lockoutUntilMs: number | null; nextRenewalAtMs?: number | null }
+      | null;
+    if (!canSubmitBiometricRequest(priorState, nowMs)) {
+      throw new HttpsError("failed-precondition", "لم يحن موعد التوثيق التالي أو ما زال الحظر سارياً.");
+    }
+    let attemptNumber: number;
+    try {
+      attemptNumber = nextBiometricAttemptNumber(priorState, nowMs);
+    } catch {
+      throw new HttpsError("failed-precondition", "لا يمكن بدء محاولة توثيق جديدة حالياً.");
+    }
+    const requestedPhraseId = request.data?.phraseId;
+    const phrase = typeof requestedPhraseId === "string"
+      ? settings.phrases.find((item) => item.id === requestedPhraseId)
+      : settings.phrases[Math.floor(Math.random() * settings.phrases.length)];
+    if (!phrase) throw new HttpsError("invalid-argument", "جملة التوثيق المختارة غير متاحة.");
+
+    const fullName = userData.fullName;
+    const username = userData.username;
+    const gender = userData.gender;
+    if (typeof fullName !== "string" || fullName.trim().length < 2 ||
+        typeof username !== "string" || username.trim().length < 2 ||
+        !["male", "female", "ذكر", "أنثى"].includes(String(gender))) {
+      throw new HttpsError("failed-precondition", "بيانات الهوية الأساسية في الملف الشخصي غير مكتملة.");
+    }
+
+    const audioObjectPath = `biometric-verification/${uid}/${requestId}/audio.mp4`;
+    const videoObjectPath = `biometric-verification/${uid}/${requestId}/video.mp4`;
+    const uploadExpiresAt = Timestamp.fromMillis(
+      nowMs + settings.uploadWindowMinutes * 60 * 1000,
+    );
+    transaction.create(requestRef, {
+      uid,
+      requestId,
+      fullName: fullName.trim(),
+      username: username.trim(),
+      gender,
+      attemptNumber,
+      phraseId: phrase.id,
+      phraseText: phrase.text,
+      status: "uploading",
+      requestVersion: 1,
+      audioObjectPath,
+      videoObjectPath,
+      uploadExpiresAt,
+      createdAt: Timestamp.fromMillis(nowMs),
+      updatedAt: FieldValue.serverTimestamp(),
+      mediaDeletionStatus: "not_required",
+    });
+    transaction.update(userRef, {
+      biometricVerificationRequestId: requestId,
+      biometricVerificationRequestStatus: "uploading",
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return {
+      requestId,
+      attemptNumber,
+      phraseId: phrase.id,
+      phraseText: phrase.text,
+      audioObjectPath,
+      videoObjectPath,
+      uploadExpiresAtMs: uploadExpiresAt.toMillis(),
+      maxAudioBytes: settings.maxAudioBytes,
+      maxVideoBytes: settings.maxVideoBytes,
+      requiredAudioContentType: "audio/mp4",
+      requiredVideoContentType: "video/mp4",
+    };
+  });
+  return result;
+});
+
+export const getMyBiometricVerificationStatus = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const userSnapshot = await db.collection("users").doc(uid).get();
+  if (!userSnapshot.exists) throw new HttpsError("not-found", "حساب العضو غير موجود.");
+  const data = userSnapshot.data() ?? {};
+  const state = data.biometricReviewState ?? null;
+  const expiry = data.biometricVerification?.expiresAt;
+  return {
+    requestStatus: data.biometricVerificationRequestStatus ?? null,
+    activeRequestId: data.biometricVerificationRequestId ?? null,
+    reviewState: state,
+    verified: hasActiveBiometricVerification(data.biometricVerification),
+    expiresAtMs: biometricTimestampMs(expiry),
+  };
+});
+
+export const getOwnerBiometricVerificationRequests = onCall(async (request) => {
+  await requireOwnerForReview(request, "biometric_verification_requests_read");
+  const snapshot = await BIOMETRIC_REQUESTS.where("status", "==", "pending_review")
+    .limit(100).get();
+  const orderedDocs = [...snapshot.docs].sort((a, b) =>
+    (biometricTimestampMs(a.data().submittedAt) ?? 0) -
+    (biometricTimestampMs(b.data().submittedAt) ?? 0));
+  return {
+    requests: orderedDocs.map((doc) => {
+      const data = doc.data();
+      return {
+        requestId: doc.id,
+        uid: data.uid,
+        fullName: data.fullName,
+        username: data.username,
+        gender: data.gender,
+        attemptNumber: data.attemptNumber,
+        submittedAtMs: biometricTimestampMs(data.submittedAt),
+        requestVersion: data.requestVersion,
+      };
+    }),
+  };
+});
+
+export const getOwnerBiometricVerificationMediaAccess = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "biometric_verification_media_access");
+  const requestId = request.data?.requestId;
+  if (typeof requestId !== "string" || !/^[0-9a-f-]{36}$/i.test(requestId)) {
+    throw new HttpsError("invalid-argument", "معرّف طلب التوثيق غير صالح.");
+  }
+  const [requestSnapshot, settingsSnapshot] = await Promise.all([
+    BIOMETRIC_REQUESTS.doc(requestId).get(), BIOMETRIC_SETTINGS.get(),
+  ]);
+  if (!requestSnapshot.exists || requestSnapshot.data()?.status !== "pending_review") {
+    throw new HttpsError("not-found", "طلب التوثيق غير متاح للمراجعة.");
+  }
+  const settings = biometricSettingsOrThrow(settingsSnapshot.data() ?? {}, false);
+  const data = requestSnapshot.data()!;
+  if (typeof data.audioObjectPath !== "string" || typeof data.videoObjectPath !== "string") {
+    throw new HttpsError("data-loss", "مسارات وسائط طلب التوثيق غير سليمة.");
+  }
+  const bucket = getStorage().bucket();
+  const expires = Date.now() + settings.mediaAccessTtlSeconds * 1000;
+  await db.collection("verificationAuditLogs").add({
+    action: "biometric_verification_media_access_issued",
+    actorUid,
+    targetUid: data.uid,
+    requestId,
+    mediaKinds: ["audio", "video"],
+    accessExpiresAt: Timestamp.fromMillis(expires),
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  const [audio, video] = await Promise.all([
+    bucket.file(data.audioObjectPath).getSignedUrl({ version: "v4", action: "read", expires }),
+    bucket.file(data.videoObjectPath).getSignedUrl({ version: "v4", action: "read", expires }),
+  ]);
+  return {
+    audioUrl: audio[0],
+    videoUrl: video[0],
+    expiresAtMs: expires,
+  };
+});
+
+export const decideBiometricVerificationRequest = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "biometric_verification_decision");
+  const requestId = request.data?.requestId;
+  const expectedVersion = request.data?.expectedVersion;
+  const decision = request.data?.decision;
+  const reason = request.data?.reason;
+  if (typeof requestId !== "string" || !/^[0-9a-f-]{36}$/i.test(requestId) ||
+      !Number.isSafeInteger(expectedVersion) || (expectedVersion as number) < 1 ||
+      !["accept", "reject"].includes(String(decision)) ||
+      (reason !== undefined && (typeof reason !== "string" || reason.trim().length > 500))) {
+    throw new HttpsError("invalid-argument", "بيانات قرار التوثيق غير صالحة.");
+  }
+
+  const requestRef = BIOMETRIC_REQUESTS.doc(requestId);
+  const auditRef = db.collection("verificationAuditLogs").doc("biometric_" + requestId);
+  const result = await db.runTransaction(async (transaction) => {
+    const initial = await transaction.get(requestRef);
+    if (!initial.exists) throw new HttpsError("not-found", "طلب التوثيق غير موجود.");
+    const initialData = initial.data()!;
+    const uid = initialData.uid;
+    if (typeof uid !== "string" || uid.length < 8) {
+      throw new HttpsError("data-loss", "بيانات صاحب طلب التوثيق غير سليمة.");
+    }
+    const userRef = db.collection("users").doc(uid);
+    const ledgerRef = userRef.collection("walletLedger").doc("biometric_verification_" + requestId);
+    const notificationRef = userRef.collection("notifications").doc("biometric_verification_" + requestId);
+    const [requestSnapshot, userSnapshot, ledgerSnapshot, notificationSnapshot, auditSnapshot] =
+      await Promise.all([
+        transaction.get(requestRef), transaction.get(userRef), transaction.get(ledgerRef),
+        transaction.get(notificationRef), transaction.get(auditRef),
+      ]);
+    if (!requestSnapshot.exists || !userSnapshot.exists) {
+      throw new HttpsError("not-found", "طلب التوثيق أو حساب العضو غير موجود.");
+    }
+    const data = requestSnapshot.data()!;
+    const user = userSnapshot.data()!;
+    if (data.status === (decision === "accept" ? "accepted" : "rejected") ||
+        (decision === "reject" && data.status === "locked")) {
+      if (decision === "accept" && !ledgerSnapshot.exists) {
+        throw new HttpsError("data-loss", "سجل مكافأة التوثيق المقبول غير موجود؛ يلزم تدقيق مالي.");
+      }
+      return {
+        requestId, status: data.status, rewardCoins: ledgerSnapshot.exists ? BIOMETRIC_REWARD_BETACOINS : 0,
+        idempotentReplay: true, uid, audioObjectPath: data.audioObjectPath,
+        videoObjectPath: data.videoObjectPath,
+      };
+    }
+    if (data.status !== "pending_review" || data.requestVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت حالة الطلب؛ أعد تحميله قبل اتخاذ القرار.");
+    }
+    if (!Number.isSafeInteger(data.attemptNumber) ||
+        data.attemptNumber < 1 || data.attemptNumber > 3 ||
+        user.profileCompleted !== true || !isMemberAccountInGoodStanding(user)) {
+      throw new HttpsError("failed-precondition", "لم يعد الحساب أو الطلب مؤهلاً لهذا القرار.");
+    }
+    if (ledgerSnapshot.exists || notificationSnapshot.exists || auditSnapshot.exists) {
+      throw new HttpsError("data-loss", "توجد سجلات سابقة متعارضة لهذا الطلب؛ أوقفت العملية.");
+    }
+    const policyDecision = decideBiometricRequest({
+      state: {
+        status: "pending_review",
+        attemptNumber: data.attemptNumber,
+        rewardGranted: false,
+        lockoutUntilMs: null,
+      },
+      decision: decision as "accept" | "reject",
+      actorIsSuperOwner: true,
+      nowMs: Date.now(),
+    });
+    const nowMs = Date.now();
+    const decidedAt = Timestamp.fromMillis(nowMs);
+    const storedBalance = user.coins;
+    if (policyDecision.rewardCoins > 0 &&
+        (!Number.isSafeInteger(storedBalance) || (storedBalance as number) < 0)) {
+      throw new HttpsError("data-loss", "رصيد العضو غير صالح؛ أوقفت مكافأة التوثيق لحماية المحفظة.");
+    }
+    const newBalance = Number.isSafeInteger(storedBalance) ? storedBalance as number : 0;
+    const balanceAfter = newBalance + policyDecision.rewardCoins;
+    if (!Number.isSafeInteger(balanceAfter) || balanceAfter < 0) {
+      throw new HttpsError("out-of-range", "الرصيد الناتج عن مكافأة التوثيق غير صالح.");
+    }
+    const nextState = {
+      status: policyDecision.status,
+      attemptNumber: data.attemptNumber,
+      rewardGranted: policyDecision.rewardCoins > 0,
+      lockoutUntilMs: policyDecision.lockoutUntilMs,
+      nextRenewalAtMs: policyDecision.nextRenewalAtMs,
+    };
+    transaction.update(requestRef, {
+      status: policyDecision.status,
+      requestVersion: (data.requestVersion as number) + 1,
+      decision,
+      decisionReason: typeof reason === "string" ? reason.trim().slice(0, 500) : null,
+      decidedBy: actorUid,
+      decidedAt,
+      rewardCoins: policyDecision.rewardCoins,
+      mediaDeletionStatus: "pending",
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.update(userRef, {
+      ...(policyDecision.rewardCoins > 0 ? { coins: balanceAfter } : {}),
+      ...(decision === "accept" ? {
+        biometricVerification: {
+          status: "verified",
+          verificationMethod: "owner_manual_review",
+          reviewedBySuperOwner: true,
+          reviewRequestId: requestId,
+          verifiedAt: decidedAt,
+          expiresAt: Timestamp.fromMillis(policyDecision.nextRenewalAtMs!),
+          revokedAt: null,
+        },
+      } : {}),
+      biometricReviewState: nextState,
+      biometricVerificationRequestId: FieldValue.delete(),
+      biometricVerificationRequestStatus: policyDecision.status,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    if (policyDecision.rewardCoins > 0) {
+      transaction.create(ledgerRef, {
+        type: "biometric_verification_reward",
+        direction: "credit",
+        amount: policyDecision.rewardCoins,
+        reason: "super_owner_accepted_biometric_review",
+        requestId,
+        attemptNumber: data.attemptNumber,
+        idempotencyKey: requestId,
+        balanceBefore: newBalance,
+        balanceAfter,
+        createdAt: decidedAt,
+      });
+    }
+    transaction.create(notificationRef, {
+      type: "biometric_verification_decision",
+      title: decision === "accept" ? "تم قبول التوثيق البيومتري" : "نتيجة طلب التوثيق البيومتري",
+      body: decision === "accept"
+        ? "تم توثيق حسابك بيومترياً وإضافة مكافأة 1500 كوينز."
+        : policyDecision.status === "locked"
+          ? "تم رفض المحاولة الثالثة؛ أُوقف التقديم للتوثيق البيومتري لمدة ثلاثة أشهر."
+          : `لم يتم قبول الطلب. المحاولات المتبقية: ${policyDecision.remainingAttempts}.`,
+      status: "unread",
+      requestId,
+      createdAt: decidedAt,
+    });
+    transaction.create(auditRef, {
+      action: "biometric_verification_" + policyDecision.status,
+      actorUid,
+      targetUid: uid,
+      requestId,
+      attemptNumber: data.attemptNumber,
+      rewardCoins: policyDecision.rewardCoins,
+      decisionReason: typeof reason === "string" ? reason.trim().slice(0, 500) : null,
+      createdAt: decidedAt,
+    });
+    return {
+      requestId,
+      status: policyDecision.status,
+      rewardCoins: policyDecision.rewardCoins,
+      remainingAttempts: policyDecision.remainingAttempts,
+      lockoutUntilMs: policyDecision.lockoutUntilMs,
+      nextRenewalAtMs: policyDecision.nextRenewalAtMs,
+      idempotentReplay: false,
+      uid,
+      audioObjectPath: data.audioObjectPath,
+      videoObjectPath: data.videoObjectPath,
+    };
+  });
+
+  await deleteBiometricRequestObjects(
+    requestId, result.audioObjectPath, result.videoObjectPath,
+  );
+  if (!result.idempotentReplay) {
+    await appendOwnerReviewAuditEvent({
+      actorUid,
+      action: "biometric_verification_decision",
+      targetUid: result.uid,
+      requestId,
+      status: result.status,
+      rewardCoins: result.rewardCoins,
+      outcome: "success",
+    }).catch((error) => logger.error("Biometric owner audit-chain append failed", {
+      requestId, errorCode: error instanceof Error ? error.name : "UNKNOWN",
+    }));
+    await sendPushToMember(
+      result.uid,
+      result.status === "accepted" ? "تم قبول التوثيق البيومتري" : "نتيجة طلب التوثيق البيومتري",
+      result.status === "accepted"
+        ? "تم توثيق حسابك وإضافة مكافأتك."
+        : result.status === "locked"
+          ? "تم استنفاد المحاولات؛ يمكنك إعادة التقديم بعد ثلاثة أشهر."
+          : "راجع إشعار حسابك لمعرفة المحاولات المتبقية.",
+      { type: "biometric_verification_decision", requestId, status: result.status },
+    );
+  }
+  return {
+    requestId,
+    status: result.status,
+    rewardCoins: result.rewardCoins,
+    idempotentReplay: result.idempotentReplay,
+  };
+});
+
+export const finalizeBiometricVerificationUpload = onObjectFinalized(async (event) => {
+  const object = event.data;
+  const name = object.name;
+  if (typeof name !== "string") return;
+  const match = /^biometric-verification\/([^/]+)\/([0-9a-f-]{36})\/(audio|video)\.mp4$/i.exec(name);
+  if (!match) return;
+  const uid = match[1];
+  const requestId = match[2];
+  const requestRef = BIOMETRIC_REQUESTS.doc(requestId);
+  const snapshot = await requestRef.get();
+  if (!snapshot.exists || snapshot.data()?.uid !== uid || snapshot.data()?.status !== "uploading") return;
+  const data = snapshot.data()!;
+  const audioObjectPath = data.audioObjectPath;
+  const videoObjectPath = data.videoObjectPath;
+  if (typeof audioObjectPath !== "string" || typeof videoObjectPath !== "string") return;
+  const bucket = getStorage().bucket(object.bucket);
+  const audioFile = bucket.file(audioObjectPath);
+  const videoFile = bucket.file(videoObjectPath);
+  const [[audioExists], [videoExists]] = await Promise.all([audioFile.exists(), videoFile.exists()]);
+  if (!audioExists || !videoExists) return;
+
+  try {
+    const [audioMetadataResult, videoMetadataResult, settingsSnapshot] = await Promise.all([
+      audioFile.getMetadata(), videoFile.getMetadata(), BIOMETRIC_SETTINGS.get(),
+    ]);
+    const audioMetadata = audioMetadataResult[0];
+    const videoMetadata = videoMetadataResult[0];
+    const settings = biometricSettingsOrThrow(settingsSnapshot.data() ?? {});
+    const audioBytes = Number(audioMetadata.size);
+    const videoBytes = Number(videoMetadata.size);
+    if (audioMetadata.contentType !== "audio/mp4" || !Number.isSafeInteger(audioBytes) ||
+        audioBytes < 1 || audioBytes > settings.maxAudioBytes ||
+        videoMetadata.contentType !== "video/mp4" || !Number.isSafeInteger(videoBytes) ||
+        videoBytes < 1 || videoBytes > settings.maxVideoBytes) {
+      throw new Error("BIOMETRIC_MEDIA_TYPE_OR_SIZE_INVALID");
+    }
+    const [videoBuffer] = await videoFile.download();
+    const videoDurationMs = readMp4DurationMs(videoBuffer);
+    assertBiometricVideoDurationAllowed(videoDurationMs);
+
+    const userRef = db.collection("users").doc(uid);
+    const notificationRef = userRef.collection("notifications").doc("biometric_review_" + requestId);
+    const finalized = await db.runTransaction(async (transaction) => {
+      const [currentRequest, userSnapshot] = await Promise.all([
+        transaction.get(requestRef), transaction.get(userRef),
+      ]);
+      if (!currentRequest.exists || currentRequest.data()?.status !== "uploading" ||
+          !userSnapshot.exists || userSnapshot.data()?.biometricVerificationRequestId !== requestId) {
+        return false;
+      }
+      const current = currentRequest.data()!;
+      const uploadExpiresAt = biometricTimestampMs(current.uploadExpiresAt);
+      if (uploadExpiresAt === null || uploadExpiresAt <= Date.now()) {
+        return false;
+      }
+      const submittedAt = Timestamp.now();
+      transaction.update(requestRef, {
+        status: "pending_review",
+        requestVersion: 2,
+        submittedAt,
+        mediaMetadata: {
+          audioContentType: audioMetadata.contentType,
+          audioSizeBytes: audioBytes,
+          videoContentType: videoMetadata.contentType,
+          videoSizeBytes: videoBytes,
+          videoDurationMs,
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.update(userRef, {
+        biometricReviewState: {
+          status: "pending_review",
+          attemptNumber: current.attemptNumber,
+          rewardGranted: false,
+          lockoutUntilMs: null,
+        },
+        biometricVerificationRequestStatus: "pending_review",
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.create(notificationRef, {
+        type: "biometric_verification_pending",
+        title: "طلب التوثيق البيومتري قيد المراجعة",
+        body: "تم استلام طلبك وسيبقى قيد المراجعة حتى يتخذ Super Owner القرار.",
+        status: "unread",
+        requestId,
+        createdAt: submittedAt,
+      });
+      return true;
+    });
+    if (finalized) {
+      await sendPushToMember(
+        uid,
+        "طلب التوثيق البيومتري قيد المراجعة",
+        "تم استلام طلبك وسيبقى قيد المراجعة حتى يتخذ Super Owner القرار.",
+        { type: "biometric_verification_pending", requestId },
+      );
+    }
+  } catch (error) {
+    const code = error instanceof Error && /^[A-Z0-9_]{3,80}$/.test(error.message)
+      ? error.message : "BIOMETRIC_MEDIA_VALIDATION_FAILED";
+    await failBiometricUpload(requestId, uid, audioObjectPath, videoObjectPath, code);
+  }
+});
+
+export const cleanupBiometricVerificationLifecycle = onSchedule("every 5 minutes", async () => {
+  const now = Timestamp.now();
+  const uploadingRequests = await BIOMETRIC_REQUESTS
+    .where("status", "==", "uploading").limit(100).get();
+  for (const doc of uploadingRequests.docs) {
+    const data = doc.data();
+    const uploadExpiresAt = biometricTimestampMs(data.uploadExpiresAt);
+    if (uploadExpiresAt === null || uploadExpiresAt > now.toMillis() ||
+        typeof data.uid !== "string" ||
+        typeof data.audioObjectPath !== "string" || typeof data.videoObjectPath !== "string") continue;
+    await failBiometricUpload(
+      doc.id, data.uid, data.audioObjectPath, data.videoObjectPath, "UPLOAD_WINDOW_EXPIRED",
+    );
+  }
+
+  const pendingDeletion = await BIOMETRIC_REQUESTS
+    .where("mediaDeletionStatus", "in", ["pending", "retry"])
+    .limit(100).get();
+  for (const doc of pendingDeletion.docs) {
+    const data = doc.data();
+    if (!["accepted", "rejected", "locked", "upload_failed", "upload_expired"].includes(String(data.status)) ||
+        typeof data.audioObjectPath !== "string" || typeof data.videoObjectPath !== "string") continue;
+    await deleteBiometricRequestObjects(doc.id, data.audioObjectPath, data.videoObjectPath);
+  }
 });
 
 /**
@@ -3127,7 +3858,7 @@ export const sendOwnerDirectChatMessage = onCall(async (request) => {
   }
   const labels = {
     platform_admin: "إدارة منصة مودة",
-    super_admin: "السوبر أدمن",
+    super_admin: "Super Owner — مالك المنصة",
     anonymous: "مجهول",
   } as const;
   const senderLabel = labels[input.mode];
@@ -8750,18 +9481,60 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
   }
   const grantId = specializedRoleGrantId(grant.uid, grant.role);
   const grantRef = SPECIALIZED_ROLE_GRANTS.doc(grantId);
+  const limitedRole: NumberedPlatformRole | null =
+    grant.role === "ad_general_supervisor" || grant.role === "production_general_supervisor"
+      ? grant.role
+      : null;
   const result = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(grantRef);
     const previousVersion = previous.exists ? Number(previous.data()?.version) : 0;
     if (!Number.isSafeInteger(previousVersion) || previousVersion !== expectedVersion) {
       throw new HttpsError("aborted", "تغيرت الصلاحية منذ آخر قراءة؛ أعد تحميلها قبل الحفظ.");
     }
+
+    // Capacity is checked against a transactional query so concurrent owner
+    // assignments cannot both take the fifth seat.
+    let roleSeatCounterRef: DocumentReference | null = null;
+    let roleSeatCountAfterWrite: number | null = null;
+    if (limitedRole !== null) {
+      roleSeatCounterRef = db.collection("specializedRoleSeatCounters").doc(limitedRole);
+      const [roleSnapshot] = await Promise.all([
+        transaction.get(SPECIALIZED_ROLE_GRANTS.where("role", "==", limitedRole)),
+        transaction.get(roleSeatCounterRef),
+      ]);
+      const nowMs = Date.now();
+      const otherActiveAssignments = roleSnapshot.docs.filter((doc) => {
+        if (doc.id === grantId) return false;
+        const data = doc.data();
+        return data.status === "active" &&
+          (data.endsAtMs == null || !Number.isSafeInteger(data.endsAtMs) || data.endsAtMs > nowMs);
+      }).length;
+      const targetConsumesSeat = grant.status === "active" &&
+        (grant.endsAtMs === null || grant.endsAtMs > nowMs);
+      roleSeatCountAfterWrite = otherActiveAssignments + (targetConsumesSeat ? 1 : 0);
+      try {
+        assertPlatformRoleCapacity(limitedRole, roleSeatCountAfterWrite);
+      } catch {
+        throw new HttpsError("resource-exhausted", "اكتمل العدد المسموح لهذه الفئة الإشرافية؛ الحد الأقصى خمسة.");
+      }
+    }
+
     const version = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(grantRef, {
       ...grant, version, assignedBy: actorUid, updatedBy: actorUid,
       createdAt: previous.data()?.createdAt ?? now, updatedAt: now,
     });
+    if (roleSeatCounterRef !== null && roleSeatCountAfterWrite !== null) {
+      // The shared counter document serializes concurrent seat claims. The
+      // authoritative count is rebuilt from grants inside the same transaction.
+      transaction.set(roleSeatCounterRef, {
+        role: limitedRole,
+        activeCount: roleSeatCountAfterWrite,
+        reconciledAt: now,
+        updatedAt: now,
+      });
+    }
     return { grantId, version, status: grant.status };
   });
   await appendOwnerReviewAuditEvent({
@@ -8790,6 +9563,31 @@ export const revokeOwnerAdvertisingRoleGrant = onCall(async (request) => {
     }
     if (data.status === "revoked") {
       return { grantId, version: data.version, revoked: true, idempotentReplay: true };
+    }
+    const limitedRole: NumberedPlatformRole | null =
+      data.role === "ad_general_supervisor" || data.role === "production_general_supervisor"
+        ? data.role
+        : null;
+    if (limitedRole !== null) {
+      const counterRef = db.collection("specializedRoleSeatCounters").doc(limitedRole);
+      const [roleSnapshot] = await Promise.all([
+        transaction.get(SPECIALIZED_ROLE_GRANTS.where("role", "==", limitedRole)),
+        transaction.get(counterRef),
+      ]);
+      const nowMs = Date.now();
+      const remainingActiveAssignments = roleSnapshot.docs.filter((doc) => {
+        if (doc.id === grantId) return false;
+        const roleData = doc.data();
+        return roleData.status === "active" &&
+          (roleData.endsAtMs == null || !Number.isSafeInteger(roleData.endsAtMs) || roleData.endsAtMs > nowMs);
+      }).length;
+      const now = FieldValue.serverTimestamp();
+      transaction.set(counterRef, {
+        role: limitedRole,
+        activeCount: remainingActiveAssignments,
+        reconciledAt: now,
+        updatedAt: now,
+      });
     }
     const version = data.version + 1;
     transaction.update(grantRef, {

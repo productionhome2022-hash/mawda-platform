@@ -27,6 +27,37 @@ test("specialized roles cannot contain platform, finance or owner override permi
   }), /SPECIALIZED_PERMISSION_FORBIDDEN/);
 });
 
+test("Admin Media and production supervisor permission boundaries cannot cross teams", () => {
+  const base = {
+    uid: "member_uid_0001",
+    resourceScopes: ["room:production_123"],
+    status: "active",
+    startsAtMs: 100,
+    endsAtMs: null,
+    version: 1,
+  };
+  assert.throws(() => validateSpecializedRoleGrant({
+    ...base, role: "ad_general_supervisor",
+    permissions: ["production.tasks.manage_assigned"],
+  }), /ROLE_PERMISSION_BOUNDARY/);
+  assert.throws(() => validateSpecializedRoleGrant({
+    ...base, role: "production_general_supervisor",
+    permissions: ["advertising.requests.review"],
+  }), /ROLE_PERMISSION_BOUNDARY/);
+  assert.throws(() => validateSpecializedRoleGrant({
+    ...base, role: "production_supervisor",
+    permissions: ["production.rooms.create"],
+  }), /ROLE_PERMISSION_BOUNDARY/);
+  assert.throws(() => validateSpecializedRoleGrant({
+    ...base, role: "production_supervisor",
+    permissions: ["production.tasks.manage_assigned", "advertising.requests.review"],
+  }), /ROLE_PERMISSION_BOUNDARY/);
+  assert.doesNotThrow(() => validateSpecializedRoleGrant({
+    ...base, role: "production_supervisor",
+    permissions: ["production.tasks.manage_assigned", "production.reviews.write"],
+  }));
+});
+
 test("permissions require exact UID, permission, active time and resource scope", () => {
   const grants = [activeGrant()];
   const base = { ownerVerified: false, grants, uid: "member_uid_0001",

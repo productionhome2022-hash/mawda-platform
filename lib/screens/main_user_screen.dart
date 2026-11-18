@@ -550,7 +550,7 @@ class _CompletedProfilePanel extends StatelessWidget {
                         }
                         return OutlinedButton.icon(
                           icon: const Icon(Icons.admin_panel_settings_outlined),
-                          label: const Text('لوحة السوبر أدمن'),
+                          label: const Text('لوحة Super Owner'),
                           onPressed: () => Navigator.of(context).push(
                             MaterialPageRoute(builder: (_) => const SuperAdminScreen()),
                           ),

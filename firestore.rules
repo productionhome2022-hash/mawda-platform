@@ -17,6 +17,15 @@ service cloud.firestore {
       }
     }
 
+    // Storage Rules may inspect only the active upload request owned by
+    // the same member. No listing, writes, or post-submission reads are allowed.
+    match /biometricVerificationRequests/{requestId} {
+      allow get: if signedIn() &&
+        resource.data.uid == request.auth.uid &&
+        resource.data.status == "uploading";
+      allow list, create, update, delete: if false;
+    }
+
     match /coinTransfers/{transferId} {
       allow get: if signedIn() &&
         (resource.data.senderUid == request.auth.uid ||
