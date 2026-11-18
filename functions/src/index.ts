@@ -117,6 +117,14 @@ import {
   defaultFeaturedAdRewardPolicy,
   validateFeaturedAdRewardPolicy,
 } from "./featured-ad-rewards";
+import { selectFeaturedAdShowcase } from "./featured-advertising";
+import {
+  applyFeaturedAdFinancialEvent,
+  defaultFeaturedAdFinancialSnapshot,
+  featuredAdFinancialIdempotencyId,
+  validateFeaturedAdFinancialEvent,
+  FeaturedAdFinancialValidationError,
+} from "./featured-ad-finance";
 import { CAPACITY_MEDIA_DEFAULTS, projectCapacityMediaPolicy, validateCapacityMediaQuotaInput, type CapacityMediaPolicy } from "./capacity-media-management";
 import { projectPublishedStickerPack } from "./sticker-catalog";
 
@@ -7564,6 +7572,286 @@ export { startGuestSession, getGuestSessionStatus, endGuestSession, listGuestPub
 
 const ATTENDANCE_REWARD_POLICY = db.doc("platformSettings/attendanceRewards");
 const FEATURED_AD_REWARD_POLICY = db.doc("platformSettings/featuredAdRewards");
+
+
+const FEATURED_AD_CAMPAIGNS = db.collection("featuredAdCampaigns");
+const FEATURED_AD_FINANCIAL_EVENTS = db.collection("featuredAdFinancialEvents");
+const FEATURED_AD_FINANCIAL_IDEMPOTENCY = db.collection("featuredAdFinancialIdempotency");
+const FEATURED_AD_GEOGRAPHIES = [
+  "all_arab_countries", "syria", "lebanon_palestine", "iraq_jordan", "gcc",
+  "egypt", "tunisia_libya_sudan", "algeria_morocco", "europe_turkey", "asia_middle_east",
+] as const;
+
+/** Owner creates or version-edits a featured campaign; no client field can mark payment or approval. */
+export const saveFeaturedAdCampaign = onCall({ enforceAppCheck: true }, async (request) => {
+  const actorUid = requireOwner(request);
+  const input = request.data ?? {};
+  const campaignId = input.campaignId;
+  const expectedVersion = input.expectedVersion;
+  if (campaignId !== undefined &&
+      (typeof campaignId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(campaignId) ||
+       !Number.isSafeInteger(expectedVersion) || expectedVersion < 1)) {
+    throw new HttpsError("invalid-argument", "معرف الحملة أو إصدارها غير صالح.");
+  }
+  const title = typeof input.title === "string" ? input.title.trim() : "";
+  const sponsorLabel = typeof input.sponsorLabel === "string" ? input.sponsorLabel.trim() : "";
+  const body = typeof input.body === "string" ? input.body.trim() : "";
+  const startsAtMs = input.startsAtMs;
+  const endsAtMs = input.endsAtMs;
+  const maxRewardedViewsPerMember = input.maxRewardedViewsPerMember;
+  const rewardBudgetCoins = input.rewardBudgetCoins;
+  const featuredPlacement = input.featuredPlacement;
+  const priorityOrder = input.priorityOrder ?? 0;
+  const geographicTargets = input.geographicTargets;
+  if (title.length < 3 || title.length > 80 || sponsorLabel.length < 2 || sponsorLabel.length > 60 ||
+      body.length < 10 || body.length > 1200 ||
+      !Number.isSafeInteger(startsAtMs) || startsAtMs < 0 ||
+      !Number.isSafeInteger(endsAtMs) || endsAtMs <= startsAtMs ||
+      !Number.isSafeInteger(maxRewardedViewsPerMember) || maxRewardedViewsPerMember < 1 ||
+      !Number.isSafeInteger(rewardBudgetCoins) || rewardBudgetCoins < 1 ||
+      (featuredPlacement !== "rotation" && featuredPlacement !== "priority") ||
+      !Number.isSafeInteger(priorityOrder) || priorityOrder < 0 ||
+      !Array.isArray(geographicTargets) || geographicTargets.length < 1 ||
+      geographicTargets.length > FEATURED_AD_GEOGRAPHIES.length ||
+      geographicTargets.some((value: unknown) => typeof value !== "string" ||
+        !(FEATURED_AD_GEOGRAPHIES as readonly string[]).includes(value)) ||
+      new Set(geographicTargets).size !== geographicTargets.length) {
+    throw new HttpsError("invalid-argument", "بيانات الحملة المميزة أو الاستهداف أو الميزانية غير صالحة.");
+  }
+  const mediaId = input.mediaId;
+  if (mediaId !== undefined && (typeof mediaId !== "string" || !/^[0-9a-f-]{36}$/i.test(mediaId))) {
+    throw new HttpsError("invalid-argument", "معرف المادة الإعلانية غير صالح.");
+  }
+  const ref = typeof campaignId === "string"
+    ? FEATURED_AD_CAMPAIGNS.doc(campaignId) : FEATURED_AD_CAMPAIGNS.doc(randomUUID());
+  const mediaRef = typeof mediaId === "string" ? db.collection("mediaAssets").doc(mediaId) : null;
+  const result = await db.runTransaction(async (transaction) => {
+    const [previous, media] = await Promise.all([
+      transaction.get(ref),
+      mediaRef ? transaction.get(mediaRef) : Promise.resolve(null),
+    ]);
+    const previousData = previous.data() ?? {};
+    const version = Number.isSafeInteger(previousData.version) ? previousData.version : 0;
+    if (campaignId !== undefined && version !== expectedVersion) {
+      throw new HttpsError("aborted", "تغير إصدار الحملة؛ حدّث القائمة قبل التعديل.");
+    }
+    if (previous.exists && !["draft", "paused"].includes(String(previousData.status))) {
+      throw new HttpsError("failed-precondition", "أوقف الحملة قبل تعديل بياناتها.");
+    }
+    if (previous.exists && Number(previousData.reservedRewardCoins ?? 0) > 0) {
+      throw new HttpsError("failed-precondition", "لا يمكن تعديل الحملة مع وجود جلسات مكافآت نشطة.");
+    }
+    let creativeApproved = mediaId === undefined;
+    let creativeType = "text";
+    if (mediaRef) {
+      const mediaData = media?.data();
+      if (!media?.exists || mediaData?.ownerUid !== actorUid ||
+          mediaData?.uploaderRole !== "platform_owner" ||
+          mediaData?.mediaPurpose !== "advertisement" ||
+          mediaData?.status !== "security_approved" ||
+          !["image", "video"].includes(String(mediaData?.mediaCategory))) {
+        throw new HttpsError("failed-precondition", "المادة يجب أن تكون مرفوعة من المالك واجتازت الفحص الأمني.");
+      }
+      creativeApproved = true;
+      creativeType = mediaData?.mediaCategory === "video" ? "video" :
+        mediaData?.detectedContentType === "image/gif" ? "gif" : "image";
+    }
+    const nextVersion = version + 1;
+    const now = FieldValue.serverTimestamp();
+    transaction.set(ref, {
+      campaignId: ref.id, title, sponsorLabel, body, startsAtMs, endsAtMs,
+      maxRewardedViewsPerMember, rewardBudgetCoins, featuredPlacement, priorityOrder,
+      geographicTargets, mediaId: mediaId ?? null, mediaOwnerUid: mediaId ? actorUid : null,
+      creativeType, creativeApproved,
+      status: previous.exists ? previousData.status : "draft",
+      ownerApproved: previousData.ownerApproved === true,
+      ownerWithdrawn: previousData.ownerWithdrawn === true,
+      paymentConfirmed: previousData.paymentConfirmed === true,
+      financialSnapshot: previousData.financialSnapshot ?? defaultFeaturedAdFinancialSnapshot(),
+      spentRewardCoins: previousData.spentRewardCoins ?? 0,
+      reservedRewardCoins: previousData.reservedRewardCoins ?? 0,
+      version: nextVersion, createdBy: previousData.createdBy ?? actorUid,
+      updatedBy: actorUid, createdAt: previousData.createdAt ?? now, updatedAt: now,
+    });
+    return { campaignId: ref.id, version: nextVersion, status: previousData.status ?? "draft" };
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid, action: "featured_ad_campaign_saved", ...result, outcome: "success",
+  });
+  return result;
+});
+
+export const getOwnerFeaturedAdCampaigns = onCall({ enforceAppCheck: true }, async (request) => {
+  requireOwner(request);
+  const snapshot = await FEATURED_AD_CAMPAIGNS.orderBy("updatedAt", "desc").limit(100).get();
+  return { campaigns: snapshot.docs.map((doc) => ({ ...doc.data(), campaignId: doc.id })) };
+});
+
+/** Owner approval and publication are distinct; publication rechecks every required gate. */
+export const setFeaturedAdCampaignStatus = onCall({ enforceAppCheck: true }, async (request) => {
+  const actorUid = requireOwner(request);
+  const campaignId = request.data?.campaignId;
+  const status = request.data?.status;
+  const expectedVersion = request.data?.expectedVersion;
+  if (typeof campaignId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(campaignId) ||
+      !["approved", "published", "paused", "withdrawn", "archived"].includes(status) ||
+      !Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+    throw new HttpsError("invalid-argument", "طلب حالة الحملة أو إصدارها غير صالح.");
+  }
+  const ref = FEATURED_AD_CAMPAIGNS.doc(campaignId);
+  const result = await db.runTransaction(async (transaction) => {
+    const campaign = await transaction.get(ref);
+    if (!campaign.exists) throw new HttpsError("not-found", "الحملة المميزة غير موجودة.");
+    const data = campaign.data()!;
+    if (data.version !== expectedVersion) {
+      throw new HttpsError("aborted", "تغير إصدار الحملة؛ أعد تحميل القائمة.");
+    }
+    if (data.status === "archived" || data.status === "withdrawn") {
+      throw new HttpsError("failed-precondition", "الحملة المسحوبة أو المؤرشفة لا تعاد إلى العرض.");
+    }
+    if (status === "approved" && data.creativeApproved !== true) {
+      throw new HttpsError("failed-precondition", "لا تعتمد حملة قبل اعتماد مادتها.");
+    }
+    if (status === "published") {
+      const policySnapshot = await transaction.get(FEATURED_AD_REWARD_POLICY);
+      const policy = policySnapshot.exists
+        ? validateFeaturedAdRewardPolicy(policySnapshot.data()?.policy)
+        : defaultFeaturedAdRewardPolicy();
+      if (data.ownerApproved !== true || data.paymentConfirmed !== true ||
+          data.creativeApproved !== true || data.endsAtMs <= Date.now() ||
+          data.startsAtMs > data.endsAtMs || !policy.enabled ||
+          data.spentRewardCoins + data.reservedRewardCoins + policy.rewardCoinsPerView >
+            data.rewardBudgetCoins || data.creativeType === "video") {
+        throw new HttpsError("failed-precondition",
+          "النشر يتطلب اعتماد المالك والقبض المالي والمادة الآمنة وسياسة مكافآت فعالة وميزانية كافية؛ الفيديو غير متاح حتى اكتمال المشغل.");
+      }
+    }
+    const ownerApproved = status === "approved" ? true : data.ownerApproved === true;
+    const ownerWithdrawn = status === "withdrawn" ? true : data.ownerWithdrawn === true;
+    transaction.update(ref, {
+      status, ownerApproved, ownerWithdrawn,
+      paymentConfirmed: status === "withdrawn" ? false : data.paymentConfirmed,
+      version: expectedVersion + 1, updatedBy: actorUid, updatedAt: FieldValue.serverTimestamp(),
+    });
+    return { campaignId, status, version: expectedVersion + 1 };
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid, action: "featured_ad_campaign_status_changed", ...result, outcome: "success",
+  });
+  return result;
+});
+
+/** Owner-only, append-only financial review. This records externally executed events; it never moves money. */
+export const recordFeaturedAdFinancialEvent = onCall({ enforceAppCheck: true }, async (request) => {
+  const actorUid = requireOwner(request);
+  let event;
+  try {
+    event = validateFeaturedAdFinancialEvent(request.data);
+  } catch (error) {
+    if (error instanceof FeaturedAdFinancialValidationError) {
+      throw new HttpsError("invalid-argument", error.code);
+    }
+    throw error;
+  }
+  const eventId = featuredAdFinancialIdempotencyId(event.campaignId, event.idempotencyKey);
+  const campaignRef = FEATURED_AD_CAMPAIGNS.doc(event.campaignId);
+  const eventRef = FEATURED_AD_FINANCIAL_EVENTS.doc(eventId);
+  const idempotencyRef = FEATURED_AD_FINANCIAL_IDEMPOTENCY.doc(eventId);
+  const payloadHash = createHash("sha256").update(JSON.stringify(event)).digest("hex");
+  const result = await db.runTransaction(async (transaction) => {
+    const [campaign, prior] = await Promise.all([
+      transaction.get(campaignRef), transaction.get(idempotencyRef),
+    ]);
+    if (!campaign.exists) throw new HttpsError("not-found", "الحملة المميزة غير موجودة.");
+    if (prior.exists) {
+      const priorData = prior.data()!;
+      if (priorData.payloadHash !== payloadHash) {
+        throw new HttpsError("already-exists", "مفتاح العملية المالية مستخدم مع بيانات مختلفة.");
+      }
+      return { eventId, idempotentReplay: true, snapshot: campaign.data()?.financialSnapshot };
+    }
+    const current = campaign.data()?.financialSnapshot ?? defaultFeaturedAdFinancialSnapshot();
+    let next;
+    try {
+      next = applyFeaturedAdFinancialEvent(current, event);
+    } catch (error) {
+      if (error instanceof FeaturedAdFinancialValidationError) {
+        throw new HttpsError("failed-precondition", error.code);
+      }
+      throw error;
+    }
+    const update: Record<string, unknown> = {
+      financialSnapshot: next, financialReviewStatus: next.reviewStatus,
+      paymentConfirmed: next.paymentStatus === "paid",
+      financialUpdatedAt: FieldValue.serverTimestamp(), financialUpdatedBy: actorUid,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    if (event.action === "refund_recorded") {
+      update.status = "paused";
+    }
+    transaction.update(campaignRef, update);
+    transaction.create(eventRef, {
+      ...event, eventId, campaignId: event.campaignId, actorUid, payloadHash,
+      moneyMovementExecuted: false, createdAt: FieldValue.serverTimestamp(),
+    });
+    transaction.create(idempotencyRef, {
+      eventId, campaignId: event.campaignId, payloadHash, actorUid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { eventId, idempotentReplay: false, snapshot: next };
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid, action: "featured_ad_financial_event_recorded",
+    campaignId: event.campaignId, eventId, financialAction: event.action,
+    outcome: "success",
+  }, "featured_ad_finance_" + eventId);
+  return result;
+});
+
+export const getOwnerFeaturedAdFinancialEvents = onCall({ enforceAppCheck: true }, async (request) => {
+  requireOwner(request);
+  const campaignId = request.data?.campaignId;
+  if (typeof campaignId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(campaignId)) {
+    throw new HttpsError("invalid-argument", "معرف الحملة غير صالح.");
+  }
+  const snapshot = await FEATURED_AD_FINANCIAL_EVENTS.where("campaignId", "==", campaignId)
+    .orderBy("createdAt", "desc").limit(100).get();
+  return { events: snapshot.docs.map((doc) => ({ ...doc.data(), eventId: doc.id })) };
+});
+
+/** Member discovery is a non-rewarding preview. Sessions must be started through a separate callable. */
+export const getFeaturedAdShowcase = onCall({ enforceAppCheck: true }, async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const geography = request.data?.geography;
+  if (typeof geography !== "string" ||
+      !(FEATURED_AD_GEOGRAPHIES as readonly string[]).includes(geography)) {
+    throw new HttpsError("invalid-argument", "النطاق الجغرافي المحدد غير صالح.");
+  }
+  const user = await db.collection("users").doc(uid).get();
+  if (!user.exists || user.data()?.profileCompleted !== true ||
+      !isMemberAccountInGoodStanding(user.data())) {
+    throw new HttpsError("permission-denied", "الإعلانات المميزة متاحة للأعضاء النشطين فقط.");
+  }
+  const now = Date.now();
+  const snapshot = await FEATURED_AD_CAMPAIGNS.where("status", "==", "published")
+    .where("startsAtMs", "<=", now).limit(100).get();
+  const candidates = snapshot.docs.map((doc) => ({ campaignId: doc.id, ...doc.data() }));
+  const selection = selectFeaturedAdShowcase({
+    campaigns: candidates as any, audienceGeography: geography, nowMs: now,
+  });
+  const byId = new Map(snapshot.docs.map((doc) => [doc.id, doc.data()]));
+  return {
+    ...selection,
+    campaigns: selection.campaignIds.map((id) => {
+      const data = byId.get(id)!;
+      return {
+        campaignId: id, title: data.title, sponsorLabel: data.sponsorLabel,
+        body: data.body, creativeType: data.creativeType,
+        mediaId: data.mediaId ?? null, featuredPlacement: data.featuredPlacement,
+      };
+    }),
+  };
+});
 
 /** Owner/MFA-only read and first-run seed for featured-ad reward controls. */
 export const getOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
