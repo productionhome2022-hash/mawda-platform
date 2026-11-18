@@ -6,11 +6,12 @@ const {
   grantStoreEntitlement,
   bulkGrantStoreEntitlements,
   getMyEntitlementGrantHistory,
+  purchaseStoreItem,
 } = require("../../lib/index");
 
 const db = getFirestore();
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-const memberRequest = (uid) => ({ data: {}, auth: { uid, token: { firebase: { sign_in_provider: "password" } } } });
+const memberRequest = (uid, data = {}) => ({ data, auth: { uid, token: { firebase: { sign_in_provider: "password" } } } });
 const ownerRequest = (uid, data) => ({
   data,
   auth: { uid, token: {
@@ -88,6 +89,32 @@ test("owner free grant is MFA-gated, audited, coin-neutral, idempotent and repea
     assert.ok(second.expiresAt >= first.expiresAt + 24 * 60 * 60 * 1000 - 1000);
     assert.equal((await memberRef.get()).data().coins, 4321);
 
+    // Expire the current grant and purchase the same item. Replaying the first
+    // grant must not overwrite the newer paid entitlement.
+    await entitlementRef.update({ expiresAt: new Date(Date.now() - 1000) });
+    await itemRef.update({ purchaseEnabled: true });
+    const purchaseRequestId = `purchase_after_grant_${tag}`;
+    const purchaseId = `${memberUid}_${purchaseRequestId}`;
+    const purchaseLedgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
+    const purchase = await purchaseStoreItem.run(memberRequest(memberUid, {
+      itemId, requestId: purchaseRequestId, expectedPriceCoins: 900,
+    }));
+    assert.equal(purchase.idempotentReplay, false);
+    assert.equal(purchase.newBalance, 3421);
+    assert.equal((await entitlementRef.get()).data().purchaseId, purchaseId);
+
+    const replayAfterPurchase = await grantStoreEntitlement.run(ownerRequest(ownerUid, input));
+    assert.equal(replayAfterPurchase.idempotentReplay, true);
+    assert.equal((await entitlementRef.get()).data().purchaseId, purchaseId);
+    assert.equal((await memberRef.get()).data().coins, 3421);
+
+    await auditRef.delete();
+    await assert.rejects(
+      () => grantStoreEntitlement.run(ownerRequest(ownerUid, input)),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await entitlementRef.get()).data().purchaseId, purchaseId);
+
     const history = await getMyEntitlementGrantHistory.run(memberRequest(memberUid));
     assert.equal(history.entries.length, 2);
     assert.ok(history.entries.every((entry) => entry.itemId === itemId));
@@ -99,6 +126,8 @@ test("owner free grant is MFA-gated, audited, coin-neutral, idempotent and repea
       grantRef.delete().catch(() => undefined),
       ledgerRef.delete().catch(() => undefined),
       auditRef.delete().catch(() => undefined),
+      db.collection("storePurchases").doc(`${memberUid}_purchase_after_grant_${tag}`).delete().catch(() => undefined),
+      memberRef.collection("walletLedger").doc(`store_${memberUid}_purchase_after_grant_${tag}`).delete().catch(() => undefined),
       secondGrantRef.delete().catch(() => undefined),
       secondLedgerRef.delete().catch(() => undefined),
       secondAuditRef.delete().catch(() => undefined),
