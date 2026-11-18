@@ -258,12 +258,13 @@ test("owner catalog seeds approved features as ready while keeping purchases dis
     ["profile_layout_30d", 3500], ["profile_pin_30d", 900],
     ["discovery_boost_7d", 1500], ["profile_theme_30d", 2000],
     ["visitor_greeting_30d", 1000], ["hide_coins_30d", 1000], ["ghost_mode_7d", 1800],
+    ["media_saver_7d", 200],
   ]);
   for (const [itemId, price] of expected) {
     const item = items.find((entry) => entry.itemId === itemId);
     assert.ok(item, `missing starter catalog item: ${itemId}`);
     assert.equal(item.priceCoins, price);
-    const implemented = !["hide_coins_30d", "ghost_mode_7d"].includes(itemId);
+    const implemented = !["hide_coins_30d", "media_saver_7d"].includes(itemId);
     assert.equal(item.active, implemented);
     assert.equal(item.purchaseEnabled, false);
     assert.equal(item.fulfillmentReady, implemented);
