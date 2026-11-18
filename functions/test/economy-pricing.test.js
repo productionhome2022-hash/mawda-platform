@@ -1,31 +1,42 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { DEFAULT_COIN_PACKAGES, DEFAULT_AD_PRICES, validateCoinPackages, validateAdPrices } = require("../lib/economy-pricing");
+const { validateCoinPackages, validateAdPrices } = require("../lib/economy-pricing");
 
-test("starter coin packages and ad prices are valid and currency-safe", () => {
-  assert.equal(validateCoinPackages(DEFAULT_COIN_PACKAGES).length, 5);
-  assert.equal(validateAdPrices(DEFAULT_AD_PRICES).length, 4);
-  assert.ok(DEFAULT_COIN_PACKAGES.every((item) => item.currency === "EUR" && item.priceMinor > 0));
-  assert.ok(DEFAULT_AD_PRICES.every((item) => item.currency === "EUR" && item.priceMinor > 0));
+// Test-only fixtures; production package prices and advertising prices are
+// supplied exclusively by the owner through the versioned settings callable.
+const coinPackageFixture = {
+  packageId: "test_coins_1000", name: "Test package",
+  coins: 1000, priceMinor: 100, currency: "EUR", active: true,
+};
+const adPriceFixture = {
+  placementId: "test_banner", name: "Test placement",
+  billingModel: "cpm", priceMinor: 200, currency: "EUR", active: true,
+};
+
+test("owner-authored coin packages and ad prices validate with EUR minor units", () => {
+  assert.equal(validateCoinPackages([coinPackageFixture]).length, 1);
+  assert.equal(validateAdPrices([adPriceFixture]).length, 1);
+  assert.equal(validateCoinPackages([coinPackageFixture])[0].currency, "EUR");
+  assert.equal(validateAdPrices([adPriceFixture])[0].priceMinor, 200);
 });
 
 test("coin package validation rejects duplicate IDs, fractional values and unsupported currency", () => {
   assert.throws(() => validateCoinPackages([
-    DEFAULT_COIN_PACKAGES[0], { ...DEFAULT_COIN_PACKAGES[0] },
+    coinPackageFixture, { ...coinPackageFixture },
   ]), /INVALID_COIN_PACKAGE_ID/);
   assert.throws(() => validateCoinPackages([
-    { ...DEFAULT_COIN_PACKAGES[0], coins: 2.5 },
+    { ...coinPackageFixture, coins: 2.5 },
   ]), /INVALID_COIN_PACKAGE_FIELDS/);
   assert.throws(() => validateCoinPackages([
-    { ...DEFAULT_COIN_PACKAGES[0], currency: "USD" },
+    { ...coinPackageFixture, currency: "USD" },
   ]), /INVALID_COIN_PACKAGE_FIELDS/);
 });
 
 test("advertising price validation rejects invalid billing models and prices", () => {
   assert.throws(() => validateAdPrices([
-    { ...DEFAULT_AD_PRICES[0], billingModel: "weekly" },
+    { ...adPriceFixture, billingModel: "weekly" },
   ]), /INVALID_AD_PRICE_FIELDS/);
   assert.throws(() => validateAdPrices([
-    { ...DEFAULT_AD_PRICES[0], priceMinor: 0 },
+    { ...adPriceFixture, priceMinor: 0 },
   ]), /INVALID_AD_PRICE_FIELDS/);
 });
