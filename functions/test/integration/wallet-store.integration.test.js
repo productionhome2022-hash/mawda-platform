@@ -544,39 +544,69 @@ test("owner catalog seeds approved features as ready while keeping purchases dis
 });
 
 
-test("owner economy prices seed safely and can be edited without enabling real-money checkout", async () => {
+test("owner economy pricing starts empty and only exposes owner-authored prices after explicit save", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const settingsRef = db.doc("platformSettings/economyPricing");
   const previous = await settingsRef.get();
   const previousData = previous.exists ? previous.data() : null;
   try {
-    const seeded = await getOwnerEconomyPricing.run(ownerRequest());
-    assert.equal(seeded.realMoneyCheckoutEnabled, false);
-    assert.equal(seeded.coinPackages.length, 5);
-    assert.equal(seeded.adPrices.length, 4);
-    assert.equal(seeded.coinPackages[0].priceMinor, 99);
-    const updatedPackages = seeded.coinPackages.map((p) =>
-      p.packageId === "coins_1000" ? { ...p, priceMinor: 109 } : p);
+    await settingsRef.delete();
+    const empty = await getOwnerEconomyPricing.run(ownerRequest());
+    assert.equal(empty.configured, false);
+    assert.equal(empty.version, 0);
+    assert.deepEqual(empty.coinPackages, []);
+    assert.deepEqual(empty.adPrices, []);
+    assert.equal(empty.manualCoinPurchasesEnabled, false);
+    assert.equal((await getAvailableCoinPackages.run({})).packages.length, 0);
+
+    const packages = [{
+      packageId: "test_coins_1000", name: "باقة اختبار", coins: 1000,
+      priceMinor: 100, currency: "EUR", active: true,
+    }];
+    const ads = [{
+      placementId: "test_banner", name: "موضع اختبار", billingModel: "cpm",
+      priceMinor: 200, currency: "EUR", active: true,
+    }];
     const saved = await setOwnerEconomyPricing.run(ownerRequest("store-catalog-owner", {
-      coinPackages: updatedPackages, adPrices: seeded.adPrices,
+      coinPackages: packages, adPrices: ads,
+      manualCoinPurchasesEnabled: false, expectedVersion: empty.version,
     }));
     assert.equal(saved.saved, true);
     assert.equal(saved.realMoneyCheckoutEnabled, false);
+    assert.equal((await getAvailableCoinPackages.run({})).packages.length, 0);
+
     const readback = await getOwnerEconomyPricing.run(ownerRequest());
     assert.equal(readback.version, saved.version);
-    assert.equal(readback.coinPackages.find((p) => p.packageId === "coins_1000").priceMinor, 109);
+    assert.equal(readback.coinPackages[0].priceMinor, 100);
+    assert.equal(readback.manualCoinPurchasesEnabled, false);
+
+    const enabled = await setOwnerEconomyPricing.run(ownerRequest("store-catalog-owner", {
+      coinPackages: [{ ...packages[0], priceMinor: 110 }],
+      adPrices: ads, manualCoinPurchasesEnabled: true,
+      expectedVersion: readback.version,
+    }));
+    assert.equal(enabled.version, readback.version + 1);
+    assert.equal((await getAvailableCoinPackages.run({})).packages[0].priceMinor, 110);
+
     await assert.rejects(
       () => setOwnerEconomyPricing.run(memberRequest("not_owner", {
-        coinPackages: updatedPackages, adPrices: seeded.adPrices,
+        coinPackages: packages, adPrices: ads,
+        manualCoinPurchasesEnabled: false, expectedVersion: enabled.version,
       })),
       (error) => error && error.code === "permission-denied",
+    );
+    await assert.rejects(
+      () => setOwnerEconomyPricing.run(ownerRequest("store-catalog-owner", {
+        coinPackages: packages, adPrices: ads,
+        manualCoinPurchasesEnabled: false, expectedVersion: readback.version,
+      })),
+      (error) => error && error.code === "aborted",
     );
   } finally {
     if (previousData) await settingsRef.set(previousData);
     else await settingsRef.delete().catch(() => undefined);
   }
 });
-
 
 test("owner authority is bound to the single canonical owner UID", async () => {
   const mismatched = ownerRequest("different-owner", {});
