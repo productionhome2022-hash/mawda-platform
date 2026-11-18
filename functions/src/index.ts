@@ -7892,9 +7892,10 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
     const giftRef = db.collection("coinPackageGifts").doc(`${requesterUid}_${input.requestId}`);
     const historyRef = userRef.collection("coinPackageGiftHistory").doc(input.requestId);
     const notificationRef = userRef.collection("notifications").doc(`coin_package_gift_${input.requestId}`);
-    const [user, ledger, guestProfile, guestSession] = await Promise.all([
+    const [user, ledger, approvalAudit, guestProfile, guestSession] = await Promise.all([
       transaction.get(userRef),
       transaction.get(ledgerRef),
+      transaction.get(auditRef),
       data.giftRecipientUid
         ? transaction.get(db.collection("guestProfiles").doc(targetUid))
         : Promise.resolve(null),
@@ -7905,12 +7906,26 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
     if (data.status === "approved") {
       const expectedLedgerType = data.giftRecipientUid
         ? "coin_package_gift_credit" : "coin_purchase_manual_credit";
-      if (!ledger.exists || ledger.data()?.type !== expectedLedgerType ||
-          ledger.data()?.amount !== data.creditedCoins ||
-          ledger.data()?.purchaseRequestId !== input.requestId ||
-          ledger.data()?.externalPaymentReference !== input.externalPaymentReference ||
+      const ledgerData = ledger.data() ?? {};
+      const auditData = approvalAudit.data() ?? {};
+      if (!ledger.exists || !approvalAudit.exists ||
+          ledgerData.type !== expectedLedgerType ||
+          ledgerData.amount !== data.creditedCoins ||
+          ledgerData.purchaseRequestId !== input.requestId ||
+          ledgerData.externalPaymentReference !== input.externalPaymentReference ||
+          !Number.isSafeInteger(ledgerData.balanceBefore) ||
+          !Number.isSafeInteger(ledgerData.balanceAfter) ||
+          ledgerData.balanceBefore < 0 ||
+          ledgerData.balanceAfter !== ledgerData.balanceBefore + ledgerData.amount ||
           data.externalPaymentReference !== input.externalPaymentReference ||
-          !Number.isSafeInteger(data.creditedCoins) || data.creditedCoins < 1) {
+          data.creditedToUid !== targetUid ||
+          !Number.isSafeInteger(data.creditedCoins) || data.creditedCoins < 1 ||
+          auditData.requestId !== input.requestId ||
+          auditData.purchaserUid !== requesterUid ||
+          auditData.targetUid !== targetUid ||
+          auditData.externalPaymentReference !== input.externalPaymentReference ||
+          auditData.creditedCoins !== data.creditedCoins ||
+          !String(auditData.action ?? "").includes("manually_verified_and_approved")) {
         throw new HttpsError("failed-precondition", "طلب الشراء المعتمد لا يطابق قيد المحفظة وإثبات الدفع؛ يلزم تدقيق السجل.");
       }
       return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null, creditedToUid: targetUid };
