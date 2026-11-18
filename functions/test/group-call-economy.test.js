@@ -37,6 +37,10 @@ test("owner can independently disable one call mode without inventing a price", 
   assert.throws(() => getGroupCallRate(policy, "unknown"), /INVALID_GROUP_CALL_MODE/);
 });
 
+test("unknown runtime call modes are rejected", () => {
+  assert.throws(() => getGroupCallRate(policy, "screen"), /INVALID_GROUP_CALL_MODE/);
+});
+
 test("integer allocation assigns all remainder to initiator and is deterministic", () => {
   const a = calculateGroupCallCoinShares(101, ["owner", "b", "c"], "owner");
   const b = calculateGroupCallCoinShares(101, ["c", "owner", "b"], "owner");
