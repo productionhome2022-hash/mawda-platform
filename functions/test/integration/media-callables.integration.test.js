@@ -1007,3 +1007,125 @@ test("member-to-verified-owner upload still fails when active reservation limits
     ]);
   }
 });
+
+test("member-to-verified-owner finalization releases active reservation without charging daily usage", async () => {
+  assert.ok(process.env.FIREBASE_AUTH_EMULATOR_HOST, "Auth emulator is required for owner recipient verification");
+  const senderUid = "member-owner-finalize-" + randomUUID();
+  const ownerUid = "verified-owner-finalize-" + randomUUID();
+  const auth = getAuth();
+  const ownerAccount = await auth.createUser({ uid: ownerUid, email: ownerUid + "@example.test" });
+  await auth.setCustomUserClaims(ownerAccount.uid, { platformOwner: true });
+  const quotaRef = db.collection("mediaUploadQuotas").doc(senderUid);
+  let objectPath = "";
+  let mediaId = "";
+  try {
+    const dailyWindow = new Date().toISOString().slice(0, 10);
+    const dailyBytes = 999999999;
+    const dailyUploads = 999999;
+    await quotaRef.set({
+      activeUploads: 0, activeBytes: 0, dailyBytes, dailyUploads, dailyWindow,
+    });
+    const intent = await createMediaUploadIntent.run({
+      data: {
+        originalName: "owner-finalize.png",
+        contentType: "image/png",
+        sizeBytes: 12,
+        purpose: "chat",
+        recipientUid: ownerUid,
+      },
+      auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+    });
+    mediaId = intent.mediaId;
+    const assetRef = db.collection("mediaAssets").doc(mediaId);
+    const asset = (await assetRef.get()).data();
+    objectPath = asset.objectPath;
+    assert.equal(asset.quotaExempt, false);
+    assert.equal((await quotaRef.get()).data().activeUploads, 1);
+    await getStorage().bucket().file(objectPath).save(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00]),
+      { metadata: { contentType: "image/png" } },
+    );
+
+    const finalized = await finalizeMediaUpload.run({
+      data: { mediaId },
+      auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+    });
+    assert.equal(finalized.status, "pending_security_scan");
+    const quota = (await quotaRef.get()).data();
+    assert.equal(quota.activeUploads, 0);
+    assert.equal(quota.activeBytes, 0);
+    assert.equal(quota.dailyBytes, dailyBytes);
+    assert.equal(quota.dailyUploads, dailyUploads);
+    const finalizedAsset = (await assetRef.get()).data();
+    assert.equal(finalizedAsset.intendedRecipientUid, ownerUid);
+    assert.equal(finalizedAsset.intendedRecipientIsPlatformOwner, true);
+  } finally {
+    await Promise.all([
+      ...(mediaId ? [db.collection("mediaAssets").doc(mediaId).delete().catch(() => undefined)] : []),
+      quotaRef.delete().catch(() => undefined),
+      ...(objectPath ? [getStorage().bucket().file(objectPath).delete({ ignoreNotFound: true }).catch(() => undefined)] : []),
+      auth.deleteUser(ownerUid).catch(() => undefined),
+    ]);
+  }
+});
+
+test("expired member-to-verified-owner intent cleanup releases active reservation but preserves daily usage", async () => {
+  assert.ok(process.env.FIREBASE_AUTH_EMULATOR_HOST, "Auth emulator is required for owner recipient verification");
+  const senderUid = "member-owner-cleanup-" + randomUUID();
+  const ownerUid = "verified-owner-cleanup-" + randomUUID();
+  const auth = getAuth();
+  const ownerAccount = await auth.createUser({ uid: ownerUid, email: ownerUid + "@example.test" });
+  await auth.setCustomUserClaims(ownerAccount.uid, { platformOwner: true });
+  const quotaRef = db.collection("mediaUploadQuotas").doc(senderUid);
+  let objectPath = "";
+  let mediaId = "";
+  try {
+    const dailyWindow = new Date().toISOString().slice(0, 10);
+    const dailyBytes = 4096;
+    const dailyUploads = 9;
+    await quotaRef.set({
+      activeUploads: 0, activeBytes: 0, dailyBytes, dailyUploads, dailyWindow,
+    });
+    const intent = await createMediaUploadIntent.run({
+      data: {
+        originalName: "owner-cleanup.png",
+        contentType: "image/png",
+        sizeBytes: 12,
+        purpose: "chat",
+        recipientUid: ownerUid,
+      },
+      auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+    });
+    mediaId = intent.mediaId;
+    const assetRef = db.collection("mediaAssets").doc(mediaId);
+    const asset = (await assetRef.get()).data();
+    objectPath = asset.objectPath;
+    await assetRef.update({
+      createdAt: Timestamp.fromMillis(Date.now() - 60 * 60 * 1000),
+      uploadUrlExpiresAt: new Date(Date.now() - 55 * 60 * 1000),
+    });
+    const file = getStorage().bucket().file(objectPath);
+    await file.save(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00]), {
+      metadata: { contentType: "image/png" },
+    });
+
+    await cleanupExpiredMediaUploadIntents.run();
+
+    const cleanedAsset = (await assetRef.get()).data();
+    assert.equal(cleanedAsset.status, "expired");
+    const [exists] = await file.exists();
+    assert.equal(exists, false);
+    const quota = (await quotaRef.get()).data();
+    assert.equal(quota.activeUploads, 0);
+    assert.equal(quota.activeBytes, 0);
+    assert.equal(quota.dailyBytes, dailyBytes);
+    assert.equal(quota.dailyUploads, dailyUploads);
+  } finally {
+    await Promise.all([
+      ...(mediaId ? [db.collection("mediaAssets").doc(mediaId).delete().catch(() => undefined)] : []),
+      quotaRef.delete().catch(() => undefined),
+      ...(objectPath ? [getStorage().bucket().file(objectPath).delete({ ignoreNotFound: true }).catch(() => undefined)] : []),
+      auth.deleteUser(ownerUid).catch(() => undefined),
+    ]);
+  }
+});
