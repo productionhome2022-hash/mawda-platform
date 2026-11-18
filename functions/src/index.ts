@@ -6549,13 +6549,23 @@ export const purchaseStoreItem = onCall(async (request) => {
       if (!isStorePurchaseReplayCompatible(prior, uid, itemId, expectedPriceCoins)) {
         throw new HttpsError("already-exists", "معرف طلب الشراء مستخدم لعملية أخرى أو ببيانات سعر مختلفة.");
       }
+      const ledgerData = priorLedger.data() ?? {};
+      const balanceSnapshotValid =
+        ledgerData.balanceBefore === undefined && ledgerData.balanceAfter === undefined ||
+        Number.isSafeInteger(ledgerData.balanceBefore) &&
+        Number.isSafeInteger(ledgerData.balanceAfter) &&
+        ledgerData.balanceBefore >= 0 &&
+        ledgerData.balanceAfter === ledgerData.balanceBefore - prior.priceCoins &&
+        ledgerData.balanceAfter === prior.newBalance;
       if (!priorLedger.exists || prior.status !== "completed" ||
-          priorLedger.data()?.type !== "store_purchase" ||
-          priorLedger.data()?.direction !== "debit" ||
-          priorLedger.data()?.amount !== -prior.priceCoins ||
-          priorLedger.data()?.purchaseId !== purchaseId ||
-          priorLedger.data()?.itemId !== itemId) {
-        throw new HttpsError("failed-precondition", "إيصال الشراء لا يطابق قيد الخصم المالي؛ يلزم تدقيق السجل قبل إعادة المحاولة.");
+          !Number.isSafeInteger(prior.priceCoins) || prior.priceCoins <= 0 ||
+          !Number.isSafeInteger(prior.newBalance) || prior.newBalance < 0 ||
+          ledgerData.type !== "store_purchase" ||
+          ledgerData.direction !== "debit" ||
+          ledgerData.amount !== -prior.priceCoins ||
+          ledgerData.purchaseId !== purchaseId ||
+          ledgerData.itemId !== itemId || !balanceSnapshotValid) {
+        throw new HttpsError("failed-precondition", "إيصال الشراء لا يطابق قيد الخصم المالي أو مطابقة الرصيد؛ يلزم تدقيق السجل قبل إعادة المحاولة.");
       }
       return {
         purchaseId,
@@ -6639,6 +6649,7 @@ export const purchaseStoreItem = onCall(async (request) => {
       category: item.category,
       priceCoins: item.priceCoins,
       durationDays: item.durationDays ?? null,
+      balanceBefore: currentBalance,
       newBalance,
       expiresAt,
       status: "completed",
@@ -6648,6 +6659,8 @@ export const purchaseStoreItem = onCall(async (request) => {
       type: "store_purchase",
       direction: "debit",
       amount: -item.priceCoins,
+      balanceBefore: currentBalance,
+      balanceAfter: newBalance,
       itemId,
       itemName: item.name,
       purchaseId,
