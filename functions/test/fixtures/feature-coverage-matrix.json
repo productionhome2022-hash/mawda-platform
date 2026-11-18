@@ -252,7 +252,10 @@
         "badges",
         "titles",
         "analytics",
-        "discovery-boost"
+        "discovery-boost",
+        "hide-coins-privacy-projection",
+        "ghost-mode",
+        "media-saver-entitlement-gate"
       ]
     },
     {
