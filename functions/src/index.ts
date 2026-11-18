@@ -8875,12 +8875,19 @@ export const setOwnerFeaturedAdCampaign = onCall(async (request) => {
   const data = (request.data ?? {}) as Record<string, unknown>;
   const input = validateFeaturedAdCampaignInput(data);
   const campaignId = typeof data.campaignId === "string" ? data.campaignId.trim() : "";
+  const expectedVersion = data.expectedVersion;
+  if (campaignId && (!Number.isSafeInteger(expectedVersion) || (expectedVersion as number) < 1)) {
+    throw new HttpsError("invalid-argument", "إصدار الحملة المتوقع مطلوب عند التعديل.");
+  }
   const ref = campaignId ? featuredAdCampaignRef(campaignId) : db.collection("featuredAdCampaigns").doc();
   const creative = await validateFeaturedAdCreativeForOwner(input.mediaId, actorUid);
   const result = await db.runTransaction(async (transaction) => {
     const current = await transaction.get(ref);
     if (current.exists) {
       const existing = current.data() ?? {};
+      if (existing.version !== expectedVersion) {
+        throw new HttpsError("aborted", "تغيرت الحملة منذ تحميلها؛ أعد تحميل البيانات قبل التعديل.");
+      }
       if (!["draft", "paused"].includes(String(existing.status))) {
         throw new HttpsError("failed-precondition", "لا يمكن تعديل حملة منشورة أو مسحوبة.");
       }
@@ -8911,14 +8918,20 @@ export const setFeaturedAdCampaignStatus = onCall(async (request) => {
   const actorUid = await requireOwnerForReview(request, "featured_ad_campaign_status_attempt");
   const campaignId = typeof request.data?.campaignId === "string" ? request.data.campaignId.trim() : "";
   const status = request.data?.status;
-  if (!campaignId || !FEATURED_AD_ALLOWED_STATUSES.includes(status as typeof FEATURED_AD_ALLOWED_STATUSES[number])) {
-    throw new HttpsError("invalid-argument", "معرف الحملة أو الحالة غير صالح.");
+  const expectedVersion = request.data?.expectedVersion;
+  if (!campaignId || !FEATURED_AD_ALLOWED_STATUSES.includes(status as typeof FEATURED_AD_ALLOWED_STATUSES[number]) ||
+      !Number.isSafeInteger(expectedVersion) || (expectedVersion as number) < 1 ||
+      request.data?.paymentConfirmed !== undefined) {
+    throw new HttpsError("invalid-argument", "معرف الحملة أو الحالة أو الإصدار غير صالح؛ إثبات الدفع لا يُقبل كقيمة مرسلة من العميل.");
   }
   const ref = featuredAdCampaignRef(campaignId);
   const result = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
     const current = snapshot.data() ?? {};
+    if (current.version !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت حالة الحملة منذ تحميلها؛ أعد تحميل القائمة.");
+    }
     const next = String(status);
     const previous = String(current.status);
     const allowedTransitions: Record<string, string[]> = {
@@ -8934,7 +8947,7 @@ export const setFeaturedAdCampaignStatus = onCall(async (request) => {
     if (request.data?.paymentConfirmed === true && next !== "approved") {
       throw new HttpsError("invalid-argument", "تأكيد الدفع يجب أن يتم ضمن خطوة اعتماد الحملة.");
     }
-    const paymentConfirmed = request.data?.paymentConfirmed === true || current.paymentConfirmed === true;
+    const paymentConfirmed = current.paymentConfirmed === true;
     if (next === "approved" || next === "published") {
       if (current.ownerWithdrawn === true || !paymentConfirmed || !current.mediaId ||
           current.creativeApproved !== true) {
@@ -8972,6 +8985,10 @@ export const reviewFeaturedAdCreative = onCall(async (request) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
     const campaign = snapshot.data() ?? {};
+    if (campaign.version !== request.data?.expectedVersion ||
+        !Number.isSafeInteger(request.data?.expectedVersion) || (request.data.expectedVersion as number) < 1) {
+      throw new HttpsError("aborted", "تغيرت الحملة منذ تحميلها؛ أعد تحميل القائمة قبل مراجعة المادة.");
+    }
     if (!["draft", "paused"].includes(String(campaign.status)) || campaign.ownerWithdrawn === true) {
       throw new HttpsError("failed-precondition", "لا يمكن مراجعة مادة حملة منشورة أو مسحوبة.");
     }
