@@ -55,6 +55,10 @@ test("timed-ad campaign validation bounds duration, rewards, dates and budget", 
     rewardBudgetCoins: 1000,
   };
   assert.equal(validateTimedAdCampaignInput(valid).rewardCoins, 10);
+  assert.equal(validateTimedAdCampaignInput({ ...valid, maxClaimsPerMember: 101 }).maxClaimsPerMember, 101);
+  assert.equal(validateTimedAdCampaignInput({ ...valid, maxClaimsPerMember: 1_000_000 }).maxClaimsPerMember, 1_000_000);
+  assert.throws(() => validateTimedAdCampaignInput({ ...valid, maxClaimsPerMember: 0 }));
+  assert.throws(() => validateTimedAdCampaignInput({ ...valid, maxClaimsPerMember: 1.5 }));
   assert.throws(() => validateTimedAdCampaignInput({ ...valid, durationSeconds: 5 }));
   assert.throws(() => validateTimedAdCampaignInput({ ...valid, rewardBudgetCoins: 9 }));
   assert.throws(() => validateTimedAdCampaignInput({ ...valid, endsAtMs: 1000 }));
