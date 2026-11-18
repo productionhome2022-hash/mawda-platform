@@ -32,15 +32,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
   final _dailyCoins = TextEditingController(text: '0');
   final _weeklyCoins = TextEditingController(text: '0');
   int _policyVersion = 0;
-  int _featuredPolicyVersion = 0;
-  bool _featuredRewardsEnabled = false;
-  final _featuredRewardCoins = TextEditingController(text: '0');
-  final _featuredMaxViews = TextEditingController(text: '0');
-  final _featuredMaxCoins = TextEditingController(text: '0');
-  final _featuredMaxCampaign = TextEditingController(text: '0');
-  final _featuredWindowMs = TextEditingController(text: '86400000');
-  final _featuredVideoCompletion = TextEditingController(text: '90');
-  final _featuredImageVisibleMs = TextEditingController(text: '10000');
+
   DateTime _startsAt = DateTime.now();
   DateTime _endsAt = DateTime.now().add(const Duration(days: 7));
   String? _error;
@@ -56,9 +48,6 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
     _title.dispose(); _sponsor.dispose(); _body.dispose();
     _duration.dispose(); _reward.dispose(); _budget.dispose(); _maxClaims.dispose();
     _hourlyCoins.dispose(); _dailyCoins.dispose(); _weeklyCoins.dispose();
-    _featuredRewardCoins.dispose(); _featuredMaxViews.dispose(); _featuredMaxCoins.dispose();
-    _featuredMaxCampaign.dispose(); _featuredWindowMs.dispose();
-    _featuredVideoCompletion.dispose(); _featuredImageVisibleMs.dispose();
     super.dispose();
   }
 
@@ -70,14 +59,11 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
         _functions.httpsCallable('getOwnerAttendanceRewardPolicy').call(),
         _functions.httpsCallable('getOwnerTimedAdCampaigns').call(),
         _functions.httpsCallable('listOwnerMediaAssets').call({'status': 'security_approved', 'uploaderType': 'all', 'limit': 50}),
-        _functions.httpsCallable('getOwnerFeaturedAdRewardPolicy').call(),
       ]);
       final policyData = Map<String, dynamic>.from(results[0].data as Map);
       final policy = Map<String, dynamic>.from(policyData['policy'] as Map);
       final campaignsData = Map<String, dynamic>.from(results[1].data as Map);
       final mediaData = Map<String, dynamic>.from(results[2].data as Map);
-      final featuredPolicyData = Map<String, dynamic>.from(results[3].data as Map);
-      final featuredPolicy = Map<String, dynamic>.from(featuredPolicyData['policy'] as Map);
       final campaigns = (campaignsData['campaigns'] as List<dynamic>? ?? const [])
           .whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList();
       final approvedCreatives = (mediaData['assets'] as List<dynamic>? ?? const [])
@@ -88,15 +74,6 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
       if (!mounted) return;
       setState(() {
         _policyVersion = (policyData['version'] as num?)?.toInt() ?? 0;
-        _featuredPolicyVersion = (featuredPolicyData['version'] as num?)?.toInt() ?? 0;
-        _featuredRewardsEnabled = featuredPolicy['enabled'] == true;
-        _featuredRewardCoins.text = '${featuredPolicy['rewardCoinsPerView'] ?? 0}';
-        _featuredMaxViews.text = '${featuredPolicy['maxRewardedViewsPerUtcDay'] ?? 0}';
-        _featuredMaxCoins.text = '${featuredPolicy['maxRewardCoinsPerUtcDay'] ?? 0}';
-        _featuredMaxCampaign.text = '${featuredPolicy['maxRewardsPerCampaignRolling24h'] ?? 0}';
-        _featuredWindowMs.text = '${featuredPolicy['sameCampaignWindowMs'] ?? 86400000}';
-        _featuredVideoCompletion.text = '${featuredPolicy['videoCompletionPercent'] ?? 90}';
-        _featuredImageVisibleMs.text = '${featuredPolicy['imageContinuousVisibleMs'] ?? 10000}';
         _hourlyEnabled = (policy['hourly'] as Map?)?['enabled'] == true;
         _dailyEnabled = (policy['daily'] as Map?)?['enabled'] == true;
         _weeklyEnabled = (policy['weekly'] as Map?)?['enabled'] == true;
@@ -149,51 +126,6 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
       );
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذر حفظ سياسة الحضور.');
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  Future<void> _saveFeaturedRewardPolicy() async {
-    int? read(TextEditingController controller, int min, int max) {
-      final value = int.tryParse(controller.text.trim());
-      return value != null && value >= min && value <= max ? value : null;
-    }
-    final reward = read(_featuredRewardCoins, 0, 100000);
-    final views = read(_featuredMaxViews, 0, 10000);
-    final dailyCoins = read(_featuredMaxCoins, 0, 1000000);
-    final campaignCap = read(_featuredMaxCampaign, 0, 1000);
-    final window = read(_featuredWindowMs, 1, 2678400000);
-    final completion = read(_featuredVideoCompletion, 1, 100);
-    final visible = read(_featuredImageVisibleMs, 1000, 3600000);
-    if ([reward, views, dailyCoins, campaignCap, window, completion, visible].any((v) => v == null) ||
-        (_featuredRewardsEnabled && (reward == 0 || views == 0 || dailyCoins! < reward! || campaignCap == 0))) {
-      setState(() => _error = 'راجع سياسة مكافآت الإعلانات: القيم يجب أن تكون أعداداً صحيحة ضمن الحدود، ومع التفعيل يجب أن تكفي الميزانية اليومية.');
-      return;
-    }
-    setState(() { _saving = true; _error = null; });
-    try {
-      final response = await _functions.httpsCallable('setOwnerFeaturedAdRewardPolicy').call({
-        'expectedVersion': _featuredPolicyVersion,
-        'policy': {
-          'enabled': _featuredRewardsEnabled,
-          'rewardCoinsPerView': reward,
-          'maxRewardedViewsPerUtcDay': views,
-          'maxRewardCoinsPerUtcDay': dailyCoins,
-          'maxRewardsPerCampaignRolling24h': campaignCap,
-          'sameCampaignWindowMs': window,
-          'videoCompletionPercent': completion,
-          'imageContinuousVisibleMs': visible,
-        },
-      });
-      final data = Map<String, dynamic>.from(response.data as Map);
-      if (!mounted) return;
-      setState(() => _featuredPolicyVersion = (data['version'] as num?)?.toInt() ?? _featuredPolicyVersion);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم حفظ سياسة مكافآت الإعلانات، الإصدار $_featuredPolicyVersion.')),
-      );
-    } on FirebaseFunctionsException catch (error) {
-      if (mounted) setState(() => _error = error.message ?? 'تعذر حفظ سياسة مكافآت الإعلانات.');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -412,31 +344,6 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
             FilledButton.icon(
               onPressed: _saving ? null : _saveAttendancePolicy,
               icon: const Icon(Icons.save_outlined), label: const Text('حفظ سياسة المكافآت')),
-          ],
-        ))),
-        Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('سياسة مكافآت مشاهدة الإعلانات المميزة • الإصدار $_featuredPolicyVersion',
-              style: Theme.of(context).textTheme.titleLarge),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('تفعيل مكافآت المشاهدة'),
-              subtitle: const Text('لن تُصرف المكافآت إلا بعد توفر أدلة مشاهدة موثوقة من الخادم.'),
-              value: _featuredRewardsEnabled,
-              onChanged: _saving ? null : (value) => setState(() => _featuredRewardsEnabled = value)),
-            _coinField('كوينز لكل مشاهدة مؤهلة', _featuredRewardCoins),
-            _numberField('أقصى مشاهدات مكافأة يومياً', _featuredMaxViews, 'مشاهدة'),
-            _coinField('أقصى كوينز مكافأة يومياً', _featuredMaxCoins),
-            _numberField('أقصى مكافآت للحملة خلال النافذة', _featuredMaxCampaign, 'مكافأة'),
-            _numberField('نافذة الحملة', _featuredWindowMs, 'ms'),
-            _numberField('نسبة إكمال الفيديو المطلوبة', _featuredVideoCompletion, '%'),
-            _numberField('زمن ظهور الصورة المتصل', _featuredImageVisibleMs, 'ms'),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _saving ? null : _saveFeaturedRewardPolicy,
-              icon: const Icon(Icons.save_outlined),
-              label: const Text('حفظ سياسة مكافآت الإعلانات'),
-            ),
           ],
         ))),
         Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
