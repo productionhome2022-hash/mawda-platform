@@ -288,7 +288,7 @@ test("audio group participant capacity follows rented-room capacity for 2, 4, 7 
   }
 });
 
-test("video group call rejects a fifth total participant", async () => {
+test("video group call enforces four total participants under concurrent creator approvals", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const callerUid = uid("video_capacity_caller");
   const roomId = uid("video_capacity_room");
@@ -313,20 +313,24 @@ test("video group call rejects a fifth total participant", async () => {
   try {
     const started = await startCall.run(call(callerUid, { callId, scope: "room", targetId: roomId, mode: "video" }));
     assert.deepEqual(started.participantUids, [callerUid]);
-    for (const memberUid of memberUids.slice(1, 4)) {
+    for (const memberUid of memberUids.slice(1, 3)) {
       await requestRoomCallJoin.run(call(memberUid, { callId }));
       await respondToRoomCallJoinRequest.run(call(callerUid, {
         callId, requesterUid: memberUid, decision: "approve",
       }));
     }
-    const fifthMember = memberUids[4];
-    await requestRoomCallJoin.run(call(fifthMember, { callId }));
-    await assert.rejects(
-      () => respondToRoomCallJoinRequest.run(call(callerUid, {
-        callId, requesterUid: fifthMember, decision: "approve",
-      })),
-      (error) => error && error.code === "resource-exhausted",
-    );
+    const competingMembers = memberUids.slice(3);
+    await Promise.all(competingMembers.map((memberUid) =>
+      requestRoomCallJoin.run(call(memberUid, { callId }))));
+    const competingApprovals = await Promise.allSettled(competingMembers.map((memberUid) =>
+      respondToRoomCallJoinRequest.run(call(callerUid, {
+        callId, requesterUid: memberUid, decision: "approve",
+      }))));
+    const approvedCount = competingApprovals.filter((result) => result.status === "fulfilled").length;
+    const rejectedResults = competingApprovals.filter((result) => result.status === "rejected");
+    assert.equal(approvedCount, 1, "only one concurrent approval may consume the final video slot");
+    assert.equal(rejectedResults.length, 1);
+    assert.equal(rejectedResults[0].reason.code, "resource-exhausted");
     assert.equal((await callRef.get()).data()?.participantUids.length, 4);
     await endCall.run(call(callerUid, { callId }));
   } finally {
@@ -785,8 +789,12 @@ test("group call end charges every media-connected member an equal share, includ
     }),
   ]);
   try {
-    const firstEnd = await endCall.run(call(creatorUid, { callId }));
+    const [firstEnd, concurrentEndReplay] = await Promise.all([
+      endCall.run(call(creatorUid, { callId })),
+      endCall.run(call(creatorUid, { callId })),
+    ]);
     assert.equal(firstEnd.status, "ended");
+    assert.equal(concurrentEndReplay.status, "ended");
     assert.equal(firstEnd.billingSettlementStatus, "pending",
       "the call ends but an insufficient member balance remains safely retryable");
     const afterFirst = await Promise.all(memberRefs.map((ref) => ref.get()));
