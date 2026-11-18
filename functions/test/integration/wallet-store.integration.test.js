@@ -182,6 +182,14 @@ test("owner featured-ad manual payment and refund events persist atomically and 
     assert.equal(outbox.data().status, "appended");
     assert.ok((await db.collection("adminAuditLogs")
       .doc("featured_ad_finance_chain_" + paymentEvent.id).get()).exists);
+    await db.collection("featuredAdFinancialAuditOutbox").doc(paymentEvent.id)
+      .update({ status: "pending" });
+    const recoveredReplay = await recordOwnerFeaturedAdFinancialEvent.run(ownerRequest("featured-finance-owner", {
+      ...paymentInput, idempotencyKey: `retry_outbox_recovery_${suffix()}`,
+    }));
+    assert.equal(recoveredReplay.idempotentReplay, true);
+    assert.equal((await db.collection("featuredAdFinancialAuditOutbox")
+      .doc(paymentEvent.id).get()).data().status, "appended");
     const immutableAuditRef = db.collection("adminAuditLogs")
       .doc("featured_ad_finance_" + paymentEvent.id);
     await immutableAuditRef.delete();
