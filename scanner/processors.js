@@ -131,7 +131,7 @@ async function probeGif(sourcePath) {
 }
 
 async function processGif({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
-  const { frames, durationMs } = await probeGif(sourcePath);
+  const { frames } = await probeGif(sourcePath);
   const output = path.join(tempDir, "safe-animation.gif");
   await execFileAsync("ffmpeg", [
     "-nostdin", "-v", "error", "-y", "-i", sourcePath,
