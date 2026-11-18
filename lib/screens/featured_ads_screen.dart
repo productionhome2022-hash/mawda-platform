@@ -412,6 +412,13 @@ class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> wi
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    final sessionId = _sessionId;
+    if (sessionId != null && !_completed) {
+      unawaited(FirebaseFunctions.instance
+          .httpsCallable('endFeaturedAdViewingSession')
+          .call({'sessionId': sessionId})
+          .catchError((Object _) => <String, Object?>{}));
+    }
     _heartbeatTimer?.cancel();
     _videoController?.removeListener(_watchVideo);
     _videoController?.dispose();
