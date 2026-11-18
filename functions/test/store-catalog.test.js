@@ -209,3 +209,25 @@ test("voice and video call plans are fully connected to call entitlement fulfill
     assert.equal(isStoreItemPurchasable(purchasable), true, itemId);
   }
 });
+
+
+test("owner-authored store entitlements accept flexible positive durations", () => {
+  const item = validateStoreCatalogItemInput({
+    itemId: "media_saver_7d", active: false, name: "Media Saver",
+    description: "Test fixture", category: "media_saver",
+    priceCoins: 200, durationDays: 43, sortOrder: 10,
+    purchaseEnabled: false,
+  });
+  assert.equal(item.durationDays, 43);
+});
+
+test("store entitlements reject non-positive or excessive durations", () => {
+  for (const durationDays of [0, -1, 3651, 1.5]) {
+    assert.throws(() => validateStoreCatalogItemInput({
+      itemId: "media_saver_7d", active: false, name: "Media Saver",
+      description: "Test fixture", category: "media_saver",
+      priceCoins: 200, durationDays, sortOrder: 10,
+      purchaseEnabled: false,
+    }), /INVALID_STORE_ITEM_FIELDS/);
+  }
+});
