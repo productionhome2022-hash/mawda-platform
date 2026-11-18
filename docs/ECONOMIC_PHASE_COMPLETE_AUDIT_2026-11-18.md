@@ -165,3 +165,14 @@ Historical gap recorded before the implementation sections below. This gap was p
 - Backend package requests bind giftRecipientUid to the open profile, reject self-gifting, verify recipient membership/Auth eligibility and guest exclusion, and include recipient identity in replay compatibility. Owner approval revalidates recipient eligibility and atomically credits the recipient (not the purchaser), writes the recipient wallet ledger, coinPackageGifts receipt, coinPackageGiftHistory and in-app notification, and records owner audit. Push delivery is best-effort after commit.
 - Received coin package gifts are included in the member gift history. Purchaser request history and owner approval queue identify the gift recipient. Regression tests were added for package recipient validation and disallowing custom package gifts through this request path.
 - Tests have NOT been executed. No real payment was processed and no coin package was credited in production.
+
+
+## Owner-approved group-call pricing and capacity amendment — 2026-11-18
+
+- Scope is limited to group calls inside active rented private rooms. Public rooms must reject audio and video calls.
+- Audio: 1,000 BetaCoins total per connected call-minute, divided equally among the members connected in that interval.
+- Video: 2,000 BetaCoins total per connected call-minute, divided equally among the members connected in that interval; maximum four members total including the initiator. The server must reject a fifth member.
+- Group audio participant count follows the active rented room's approved capacity; this amendment introduces no separate fixed audio cap.
+- Each participant, including the initiator, must pass server-side entitlement/open-subscription eligibility at join. Room membership does not itself grant call eligibility.
+- Metering starts only after connected state is established and must track each member's actual connected intervals. Ringing/unconnected time is excluded. Joins, leaves, reconnects, concurrent joins, insufficient balances, and retries require safe, auditable handling. Show each participant's share before consent; settle with atomic, idempotent server-side debits and wallet-ledger entries.
+- This is an approved policy amendment, not an implementation-complete claim. Current startCall code still accepts active rooms without verifying rented-private status, selects all room members, and applies a fixed two-to-five participant bound. The call path does not yet implement group-call metering, split allocation, or the approved video four-member rule. These are open engineering gaps; direct-call pricing is unchanged.
