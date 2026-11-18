@@ -692,6 +692,13 @@ test("featured-ad reward policy is owner/MFA managed, versioned and safely disab
     assert.equal(updated.saved, true);
     assert.equal(updated.version, 2);
     assert.equal(updated.policy.rewardCoinsPerView, 5);
+    await assert.rejects(
+      () => setOwnerFeaturedAdRewardPolicy.run(ownerRequest(ownerUid, {
+        expectedVersion: initial.version,
+        policy: initial.policy,
+      })),
+      (error) => error && error.code === "aborted",
+    );
 
     const reread = await getOwnerFeaturedAdRewardPolicy.run(ownerRequest(ownerUid));
     assert.equal(reread.version, 2);
@@ -773,6 +780,13 @@ test("featured campaigns require owner approval and verified finance, then rewar
       amountMinor: 10000, currency: "USD",
     }));
     assert.equal(replay.idempotentReplay, true);
+    await assert.rejects(
+      () => recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
+        ...baseEvent, action: "payment_received", idempotencyKey: `payment_conflict_${tag}`,
+        amountMinor: 9000, currency: "USD",
+      })),
+      (error) => error && error.code === "already-exists",
+    );
     const settlement = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
       ...baseEvent, action: "settlement_reconciled", idempotencyKey: `settlement_${tag}`,
       amountMinor: 10000, currency: "USD",
