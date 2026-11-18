@@ -31,6 +31,13 @@ class _OwnerFeaturedAdsScreenState extends State<OwnerFeaturedAdsScreen> {
   final _maxViews = TextEditingController(text: '10');
   final _budget = TextEditingController(text: '100');
   final _priority = TextEditingController(text: '0');
+  final _rewardCoins = TextEditingController(text: '0');
+  final _dailyViews = TextEditingController(text: '0');
+  final _dailyCoins = TextEditingController(text: '0');
+  final _imageMs = TextEditingController(text: '10000');
+  final _videoPercent = TextEditingController(text: '90');
+  bool _rewardEnabled = false;
+  int _rewardPolicyVersion = 0;
   List<Map<String, dynamic>> _campaigns = const [];
   List<Map<String, dynamic>> _assets = const [];
   String _region = 'all_arab_countries';
@@ -58,6 +65,11 @@ class _OwnerFeaturedAdsScreenState extends State<OwnerFeaturedAdsScreen> {
     _maxViews.dispose();
     _budget.dispose();
     _priority.dispose();
+    _rewardCoins.dispose();
+    _dailyViews.dispose();
+    _dailyCoins.dispose();
+    _imageMs.dispose();
+    _videoPercent.dispose();
     super.dispose();
   }
 
@@ -70,9 +82,12 @@ class _OwnerFeaturedAdsScreenState extends State<OwnerFeaturedAdsScreen> {
         _functions.httpsCallable('listOwnerMediaAssets').call({
           'status': 'security_approved', 'uploaderType': 'all', 'limit': 50,
         }),
+        _functions.httpsCallable('getOwnerFeaturedAdRewardPolicy').call(),
       ]);
       final campaignData = Map<String, dynamic>.from(results[0].data as Map);
       final mediaData = Map<String, dynamic>.from(results[1].data as Map);
+      final rewardData = Map<String, dynamic>.from(results[2].data as Map);
+      final rewardPolicy = Map<String, dynamic>.from(rewardData['policy'] as Map);
       final campaigns = (campaignData['campaigns'] as List<dynamic>? ?? const [])
           .whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList();
       final assets = (mediaData['assets'] as List<dynamic>? ?? const [])
@@ -84,6 +99,13 @@ class _OwnerFeaturedAdsScreenState extends State<OwnerFeaturedAdsScreen> {
       setState(() {
         _campaigns = campaigns;
         _assets = assets;
+        _rewardPolicyVersion = (rewardData['version'] as num?)?.toInt() ?? 0;
+        _rewardEnabled = rewardPolicy['enabled'] == true;
+        _rewardCoins.text = (rewardPolicy['rewardCoinsPerView'] ?? 0).toString();
+        _dailyViews.text = (rewardPolicy['maxRewardedViewsPerUtcDay'] ?? 0).toString();
+        _dailyCoins.text = (rewardPolicy['maxRewardCoinsPerUtcDay'] ?? 0).toString();
+        _imageMs.text = (rewardPolicy['imageContinuousVisibleMs'] ?? 10000).toString();
+        _videoPercent.text = (rewardPolicy['videoCompletionPercent'] ?? 90).toString();
         if (_mediaId != null && !assets.any((item) => item['mediaId'] == _mediaId)) {
           _mediaId = null;
         }
@@ -106,6 +128,42 @@ class _OwnerFeaturedAdsScreenState extends State<OwnerFeaturedAdsScreen> {
     );
     if (selected == null) return null;
     return DateTime(selected.year, selected.month, selected.day, 12);
+  }
+
+  Future<void> _saveRewardPolicy() async {
+    final coins = int.tryParse(_rewardCoins.text.trim());
+    final views = int.tryParse(_dailyViews.text.trim());
+    final dailyCoins = int.tryParse(_dailyCoins.text.trim());
+    final imageMs = int.tryParse(_imageMs.text.trim());
+    final videoPercent = int.tryParse(_videoPercent.text.trim());
+    if (coins == null || views == null || dailyCoins == null || imageMs == null ||
+        videoPercent == null || coins < 0 || views < 0 || dailyCoins < 0 ||
+        imageMs < 1000 || videoPercent < 1 || videoPercent > 100 ||
+        (_rewardEnabled && (coins < 1 || views < 1 || dailyCoins < coins))) {
+      setState(() => _error = 'قيم سياسة المكافآت غير صالحة؛ عند التفعيل يجب أن تغطي الميزانية اليومية مكافأة واحدة على الأقل.');
+      return;
+    }
+    setState(() { _saving = true; _error = null; });
+    try {
+      final response = await _functions.httpsCallable('setOwnerFeaturedAdRewardPolicy').call({
+        'expectedVersion': _rewardPolicyVersion,
+        'policy': {
+          'enabled': _rewardEnabled,
+          'rewardCoinsPerView': coins,
+          'maxRewardedViewsPerUtcDay': views,
+          'maxRewardCoinsPerUtcDay': dailyCoins,
+          'imageContinuousVisibleMs': imageMs,
+          'videoCompletionPercent': videoPercent,
+        },
+      });
+      final data = Map<String, dynamic>.from(response.data as Map);
+      if (mounted) setState(() => _rewardPolicyVersion = (data['version'] as num?)?.toInt() ?? _rewardPolicyVersion);
+      await _load();
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر حفظ سياسة المكافآت.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Future<void> _save() async {
@@ -331,6 +389,34 @@ class _OwnerFeaturedAdsScreenState extends State<OwnerFeaturedAdsScreen> {
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
           ),
+          Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('سياسة مكافآت الإعلانات • الإصدار $_rewardPolicyVersion',
+                  style: theme.textTheme.titleLarge),
+              const Text('القيم الافتراضية صفرية ومتوقفة. تفعيل السياسة قرار مالك ولا يفعّل دفعاً نقدياً. الفيديو يبقى محظور النشر حتى اكتمال مشغله واختبارات الأجهزة.'),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('تفعيل مكافآت المشاهدة'),
+                value: _rewardEnabled,
+                onChanged: _saving ? null : (value) => setState(() => _rewardEnabled = value),
+              ),
+              TextField(controller: _rewardCoins, enabled: !_saving, keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'كوين لكل مشاهدة مؤهلة')),
+              TextField(controller: _dailyViews, enabled: !_saving, keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'الحد اليومي للمشاهدات لكل عضو')),
+              TextField(controller: _dailyCoins, enabled: !_saving, keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'الحد اليومي للكوينز لكل عضو')),
+              TextField(controller: _imageMs, enabled: !_saving, keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'مدة ظهور الصورة بالميلي ثانية')),
+              TextField(controller: _videoPercent, enabled: !_saving, keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'نسبة إكمال الفيديو (موقوف حتى جاهزية المشغل)')),
+              const SizedBox(height: 8),
+              FilledButton.icon(onPressed: _saving ? null : _saveRewardPolicy,
+                  icon: const Icon(Icons.save_outlined), label: const Text('حفظ سياسة المكافآت')),
+            ],
+          ))),
+          const SizedBox(height: 12),
           Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
