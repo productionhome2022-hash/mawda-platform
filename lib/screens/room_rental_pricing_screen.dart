@@ -94,7 +94,7 @@ class _RoomRentalPricingScreenState extends State<RoomRentalPricingScreen> {
         ..._plans.map((p) => Card(child: ListTile(
           title: Text(p['name'] as String? ?? p['planId'] as String? ?? 'باقة'),
           subtitle: Text('${p['durationDays']} يوم • ${p['priceCoins']} BetaCoins • ${p['active'] == true ? 'متاحة' : 'متوقفة'}'),
-          trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
+          trailing: Wrap(children: [
             IconButton(onPressed: _saving ? null : () => _edit(p), icon: const Icon(Icons.edit_outlined)),
             IconButton(onPressed: _saving ? null : () => setState(() =>
               _plans = _plans.where((item) => item['planId'] != p['planId']).toList()),
