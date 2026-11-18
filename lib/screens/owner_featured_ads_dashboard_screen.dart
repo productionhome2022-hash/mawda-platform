@@ -225,7 +225,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
       _sponsor.text = item['sponsorLabel'] as String? ?? '';
       _body.text = item['body'] as String? ?? '';
       _budget.text = (item['rewardBudgetCoins'] ?? 20).toString();
-      _reward.text = (item['rewardCoinsPerView'] ?? 2).toString();
+      _reward.text = _policyReward.text;
       _placement = item['featuredPlacement'] == 'priority' ? 'priority' : 'rotation';
       final targets = item['geographicTargets'];
       _geography = targets is List && targets.isNotEmpty ? targets.first.toString() : 'all_arab_countries';
