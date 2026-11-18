@@ -895,3 +895,42 @@ test("an image attachment cannot be linked twice or use a forged owner role", as
   );
 });
 
+
+
+test("advertisement creative upload intents are owner-MFA-only and visible in the secure owner media queue", async () => {
+  const uid = "owner-ad-media-" + Date.now() + "-" + Math.random();
+  const requestData = {
+    originalName: "featured-ad.png",
+    contentType: "image/png",
+    sizeBytes: 128,
+    purpose: "advertisement",
+  };
+  await assert.rejects(
+    () => createMediaUploadIntent.run({ data: requestData, auth: memberRequest(uid).auth }),
+    (error) => error && error.code === "permission-denied",
+  );
+  let mediaId;
+  try {
+    const intent = await createMediaUploadIntent.run({
+      data: requestData,
+      auth: ownerRequest(uid).auth,
+    });
+    mediaId = intent.mediaId;
+    assert.equal(typeof mediaId, "string");
+    const asset = await db.collection("mediaAssets").doc(mediaId).get();
+    assert.equal(asset.data().ownerUid, uid);
+    assert.equal(asset.data().uploaderRole, "platform_owner");
+    assert.equal(asset.data().mediaPurpose, "advertisement");
+    assert.equal(asset.data().status, "upload_authorized");
+
+    const listed = await listOwnerMediaAssets.run(ownerRequest(uid, {
+      status: "upload_authorized",
+      uploaderType: "all",
+      limit: 50,
+    }));
+    assert.ok(listed.assets.some((item) => item.mediaId === mediaId));
+  } finally {
+    if (mediaId) await db.collection("mediaAssets").doc(mediaId).delete().catch(() => undefined);
+    await db.collection("mediaUploadQuotas").doc(uid).delete().catch(() => undefined);
+  }
+});
