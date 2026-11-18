@@ -14,6 +14,11 @@ class _CallUsagePolicyScreenState extends State<CallUsagePolicyScreen> {
   final _audioLimit = TextEditingController();
   final _videoLimit = TextEditingController();
   final _maxDurationMinutes = TextEditingController();
+  final _groupAudioCoins = TextEditingController();
+  final _groupVideoCoins = TextEditingController();
+  bool _groupPricingActive = false;
+  bool _groupPricingConfigured = false;
+  int _groupPricingVersion = 0;
   bool _active = false;
   bool _loading = true;
   bool _saving = false;
@@ -33,6 +38,8 @@ class _CallUsagePolicyScreenState extends State<CallUsagePolicyScreen> {
     _audioLimit.dispose();
     _videoLimit.dispose();
     _maxDurationMinutes.dispose();
+    _groupAudioCoins.dispose();
+    _groupVideoCoins.dispose();
     super.dispose();
   }
 
@@ -43,8 +50,19 @@ class _CallUsagePolicyScreenState extends State<CallUsagePolicyScreen> {
       final data = Map<String, dynamic>.from(response.data as Map);
       final policy = data['policy'] is Map
           ? Map<String, dynamic>.from(data['policy'] as Map) : <String, dynamic>{};
+      final groupPricingResponse = await _functions
+          .httpsCallable('getOwnerGroupCallPricingPolicy').call();
+      final groupPricingData = Map<String, dynamic>.from(groupPricingResponse.data as Map);
+      final groupPricing = groupPricingData['policy'] is Map
+          ? Map<String, dynamic>.from(groupPricingData['policy'] as Map)
+          : <String, dynamic>{};
       if (!mounted) return;
       setState(() {
+        _groupPricingConfigured = groupPricingData['configured'] == true;
+        _groupPricingVersion = (groupPricingData['version'] as num?)?.toInt() ?? 0;
+        _groupPricingActive = groupPricing['active'] == true;
+        _groupAudioCoins.text = groupPricing['audioCoinsPerMinute']?.toString() ?? '';
+        _groupVideoCoins.text = groupPricing['videoCoinsPerMinute']?.toString() ?? '';
         _configured = data['configured'] == true;
         _version = (data['version'] as num?)?.toInt() ?? 0;
         _active = policy['active'] == true;
@@ -104,6 +122,60 @@ class _CallUsagePolicyScreenState extends State<CallUsagePolicyScreen> {
     }
   }
 
+  Future<void> _saveGroupCallPricing() async {
+    if (_saving) return;
+    final audio = int.tryParse(_groupAudioCoins.text.trim());
+    final video = int.tryParse(_groupVideoCoins.text.trim());
+    if (audio == null || video == null || audio < 0 || video < 0 ||
+        audio > 1000000000 || video > 1000000000 ||
+        (_groupPricingActive && audio == 0 && video == 0)) {
+      setState(() => _error =
+          'أدخل سعراً صحيحاً لكل نمط؛ الصفر يعطّل فوترة ذلك النمط، ولا يمكن تفعيل السياسة والسعران صفر.');
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تأكيد سياسة تسعير المكالمات الجماعية'),
+        content: Text(
+          'سيتم حفظ إصدار جديد من سياسة المالك. الصوت: $audio كوين/دقيقة إجمالاً، '
+          'الفيديو: $video كوين/دقيقة إجمالاً. الحالة: '
+          '${_groupPricingActive ? "مفعّلة" : "متوقفة"}. '
+          'لن تتغير السياسات المحفوظة للمكالمات السابقة.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('مراجعة لاحقاً')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('تأكيد وحفظ الإصدار')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() { _saving = true; _error = null; });
+    try {
+      final response = await _functions.httpsCallable('setGroupCallPricingPolicy').call({
+        'audioCoinsPerMinute': audio,
+        'videoCoinsPerMinute': video,
+        'active': _groupPricingActive,
+      });
+      final result = Map<String, dynamic>.from(response.data as Map);
+      if (!mounted) return;
+      setState(() {
+        _groupPricingConfigured = true;
+        _groupPricingVersion = (result['version'] as num?)?.toInt() ?? _groupPricingVersion;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تم حفظ سياسة تسعير المكالمات الجماعية. الإصدار: $_groupPricingVersion')),
+      );
+      await _load();
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر حفظ سياسة تسعير المكالمات الجماعية.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -154,6 +226,59 @@ class _CallUsagePolicyScreenState extends State<CallUsagePolicyScreen> {
             labelText: 'أقصى مدة للمكالمة بالدقائق',
             helperText: 'فارغ = لا يفرض حد زمني من هذه السياسة.',
           )),
+        const Divider(height: 36),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('تسعير المكالمات الجماعية',
+                  style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Text(_groupPricingConfigured
+                    ? 'إصدار التسعير الحالي: $_groupPricingVersion'
+                    : 'لا توجد سياسة تسعير جماعي مهيأة. لن تُستخدم أسعار افتراضية.'),
+                const SizedBox(height: 8),
+                const Text(
+                  'يحدد المالك السعر الإجمالي لكل دقيقة. يُقسّم المبلغ بالتساوي على المشاركين الفعليين وفق السياسة المحفوظة للمكالمة. حفظ التعديل ينشئ إصداراً جديداً ولا يغيّر المكالمات السابقة.',
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _groupPricingActive,
+                  onChanged: _saving ? null : (value) =>
+                      setState(() => _groupPricingActive = value),
+                  title: const Text('تفعيل سياسة تسعير المكالمات الجماعية'),
+                ),
+                TextField(
+                  controller: _groupAudioCoins,
+                  enabled: !_saving,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'الصوت — كوينز لكل دقيقة إجمالاً',
+                    helperText: 'أدخل السعر الذي يعتمده المالك؛ الصفر يعطّل فوترة الصوت.',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _groupVideoCoins,
+                  enabled: !_saving,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'الفيديو — كوينز لكل دقيقة إجمالاً',
+                    helperText: 'أدخل السعر الذي يعتمده المالك؛ الصفر يعطّل فوترة الفيديو.',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: _saving ? null : _saveGroupCallPricing,
+                  icon: const Icon(Icons.price_change_outlined),
+                  label: Text(_saving ? 'جارٍ الحفظ…' : 'حفظ إصدار تسعير المكالمات'),
+                ),
+              ],
+            ),
+          ),
+        ),
         if (_error != null) Padding(
           padding: const EdgeInsets.only(top: 12),
           child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
