@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getFirestore } = require("firebase-admin/firestore");
-const { createRentedRoom, renewRoomRental, transferRoomOwnership, closeOwnedRoom, inviteMemberToRoom, getRoomRentalPlans, setRoomRentalPlans } = require("../../lib/index");
+const { createRentedRoom, renewRoomRental, transferRoomOwnership, closeOwnedRoom, inviteMemberToRoom, getRoomRentalPlans, getOwnerRoomRentalPlans, setRoomRentalPlans } = require("../../lib/index");
 
 const db = getFirestore();
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -18,14 +18,17 @@ test("room rental plans are editable only by MFA owner and expose versioned publ
   const uid = `room_pricing_owner_${suffix()}`;
   const plans = [
     { planId: "room_30d", name: "30 days", durationDays: 30, priceCoins: 1000, active: true },
-    { planId: "room_90d", name: "90 days", durationDays: 90, priceCoins: 2500, active: true },
+    { planId: "room_90d", name: "90 days", durationDays: 90, priceCoins: 2500, active: false },
   ];
   const result = await setRoomRentalPlans.run(ownerRequest(uid, { plans, expectedVersion: 0 }));
   assert.equal(result.saved, true);
   const published = await getRoomRentalPlans.run(memberRequest(uid, {}));
   assert.equal(published.version, result.version);
-  assert.equal(published.plans.length, 2);
-  assert.equal(published.plans[1].priceCoins, 2500);
+  assert.equal(published.plans.length, 1);
+  const ownerCatalog = await getOwnerRoomRentalPlans.run(ownerRequest(uid, {}));
+  assert.equal(ownerCatalog.plans.length, 2);
+  assert.equal(ownerCatalog.plans[1].active, false);
+  assert.equal(ownerCatalog.version, result.version);
   await assert.rejects(
     () => setRoomRentalPlans.run(ownerRequest(uid, { plans, expectedVersion: 0 })),
     (error) => error && error.code === "aborted",
@@ -39,6 +42,9 @@ test("room rental plans are editable only by MFA owner and expose versioned publ
     () => setRoomRentalPlans.run(ownerRequest(uid, { plans: [{ ...plans[0], priceCoins: -1 }], expectedVersion: result.version })),
     (error) => error && error.code === "invalid-argument",
   );
+  const disabled = await setRoomRentalPlans.run(ownerRequest(uid, { plans: [], expectedVersion: result.version }));
+  assert.equal(disabled.saved, true);
+  assert.deepEqual((await getRoomRentalPlans.run(memberRequest(uid, {}))).plans, []);
 });
 
 test("member room rental debits atomically, renews idempotently, transfers and closes with audit trail", async () => {
