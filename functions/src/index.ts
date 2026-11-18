@@ -7138,7 +7138,7 @@ export const getAvailableCoinPackages = onCall(async () => {
   const data = snapshot.data() ?? {};
   if (!snapshot.exists || data.manualCoinPurchasesEnabled !== true ||
       data.automatedCoinCheckoutEnabled === true || !Array.isArray(data.coinPackages)) {
-    return { packages: [], manualPurchasesEnabled: false, automatedCheckoutEnabled: false };
+    return { packages: [], manualPurchasesEnabled: false, automatedCheckoutEnabled: false, customCoinRequestBounds: null };
   }
   let packages;
   try { packages = validateCoinPackages(data.coinPackages); }
@@ -7147,6 +7147,7 @@ export const getAvailableCoinPackages = onCall(async () => {
     packages: packages.filter((item) => item.active),
     manualPurchasesEnabled: true,
     automatedCheckoutEnabled: false,
+    customCoinRequestBounds: data.customCoinRequestBounds ?? null,
   };
 });
 
@@ -7324,6 +7325,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     transaction.update(ref, {
       status: "payment_instructions_sent", chatId, agreedCoins: input.agreedCoins,
       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
+      currencyExponent: input.currencyExponent,
       paymentInstructions: input.instructions, instructionsVersion: nextVersion,
       paymentPolicySnapshot: prior.paymentPolicySnapshot,
       instructionsSetBy: actorUid, instructionsSetAt: now, updatedAt: now,
@@ -7333,6 +7335,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       actorUid, targetUid: requesterUid, action: "coin_purchase_payment_instructions_set",
       requestId: input.requestId, agreedCoins: input.agreedCoins,
       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
+      currencyExponent: input.currencyExponent,
       chatId, messageId, instructionsVersion: nextVersion, createdAt: now,
     });
   });
