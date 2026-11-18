@@ -87,7 +87,7 @@ import { validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance }
 import { isActiveRentedPrivateRoom } from "./room-call-policy";
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
-import { validateCoinPackages, validateAdPrices, validateBilateralCallTariffs } from "./economy-pricing";
+import { validateCoinPackages, validateAdPrices, validateBilateralCallTariffs, defaultEmailVerificationRewardPolicy, validateEmailVerificationRewardPolicy } from "./economy-pricing";
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
@@ -8373,18 +8373,21 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
     };
   }
   const data = snapshot.data() ?? {};
-  let coinPackages, adPrices, callTariffs;
+  let coinPackages, adPrices, callTariffs, emailVerificationReward;
   try {
     coinPackages = validateCoinPackages(data.coinPackages ?? []);
     adPrices = validateAdPrices(data.adPrices ?? []);
     callTariffs = validateBilateralCallTariffs(data.callTariffs ?? {
       audioTotalCoinsPerMinute: null, videoTotalCoinsPerMinute: null,
     });
+    emailVerificationReward = validateEmailVerificationRewardPolicy(
+      data.emailVerificationReward ?? defaultEmailVerificationRewardPolicy(),
+    );
   } catch {
     throw new HttpsError("failed-precondition", "إعدادات اقتصاد المنصة غير صالحة؛ راجع الدعم التقني.");
   }
   return {
-    coinPackages, adPrices, callTariffs,
+    coinPackages, adPrices, callTariffs, emailVerificationReward,
     version: Number.isSafeInteger(data.version) ? data.version : 0,
     configured: true,
     realMoneyCheckoutEnabled: false,
@@ -8397,12 +8400,15 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
 /** Owner/MFA-only economy price updates. This configures prices, not payment processing. */
 export const setOwnerEconomyPricing = onCall(async (request) => {
   const actorUid = requireOwner(request);
-  let coinPackages, adPrices, requestedCallTariffs;
+  let coinPackages, adPrices, requestedCallTariffs, requestedEmailVerificationReward;
   try {
     coinPackages = validateCoinPackages(request.data?.coinPackages);
     adPrices = validateAdPrices(request.data?.adPrices);
     if (request.data?.callTariffs !== undefined) {
       requestedCallTariffs = validateBilateralCallTariffs(request.data.callTariffs);
+    }
+    if (request.data?.emailVerificationReward !== undefined) {
+      requestedEmailVerificationReward = validateEmailVerificationRewardPolicy(request.data.emailVerificationReward);
     }
   } catch {
     throw new HttpsError("invalid-argument", "أسعار باقات الكوينز أو الإعلانات غير صالحة.");
@@ -8425,10 +8431,14 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
       audioTotalCoinsPerMinute: null, videoTotalCoinsPerMinute: null,
     });
     const callTariffs = requestedCallTariffs ?? previousCallTariffs;
+    const previousEmailVerificationReward = validateEmailVerificationRewardPolicy(
+      previous.data()?.emailVerificationReward ?? defaultEmailVerificationRewardPolicy(),
+    );
+    const emailVerificationReward = requestedEmailVerificationReward ?? previousEmailVerificationReward;
     const nextVersion = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(ECONOMY_PRICING_SETTINGS, {
-      coinPackages, adPrices, callTariffs, version: nextVersion,
+      coinPackages, adPrices, callTariffs, emailVerificationReward, version: nextVersion,
       manualCoinPurchasesEnabled,
       manualFeaturedAdsEnabled,
       automatedCoinCheckoutEnabled: false,
@@ -8452,6 +8462,7 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
   return {
     saved: true, version, realMoneyCheckoutEnabled: false,
     callTariffs: requestedCallTariffs ?? undefined,
+    emailVerificationReward: requestedEmailVerificationReward ?? undefined,
     manualCoinPurchasesEnabled, manualFeaturedAdsEnabled,
     automatedCheckoutEnabled: false,
   };
