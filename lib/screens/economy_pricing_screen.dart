@@ -21,6 +21,9 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
   bool _saving = false;
   bool _manualPurchasesEnabled = false;
   bool _manualFeaturedAdsEnabled = false;
+  bool _manualPublicAdsEnabled = false;
+  bool _manualInfluencerServicesEnabled = false;
+  bool _manualStoreEntitlementsEnabled = false;
   int _version = 0;
   String? _error;
 
@@ -54,6 +57,13 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
         _version = (data['version'] as num?)?.toInt() ?? 0;
         _manualPurchasesEnabled = data['manualCoinPurchasesEnabled'] == true;
         _manualFeaturedAdsEnabled = data['manualFeaturedAdsEnabled'] == true;
+        final paymentPolicy = Map<String, dynamic>.from(data['paymentPolicy'] as Map? ?? const {});
+        final publicAds = Map<String, dynamic>.from(paymentPolicy['public_ads'] as Map? ?? const {});
+        final influencers = Map<String, dynamic>.from(paymentPolicy['influencer_services'] as Map? ?? const {});
+        final store = Map<String, dynamic>.from(paymentPolicy['store_entitlements'] as Map? ?? const {});
+        _manualPublicAdsEnabled = publicAds['manualEnabled'] == true;
+        _manualInfluencerServicesEnabled = influencers['manualEnabled'] == true;
+        _manualStoreEntitlementsEnabled = store['manualEnabled'] == true;
         final tariffs = Map<String, dynamic>.from(data['callTariffs'] as Map? ?? const {});
         _audioCallTariff.text = tariffs['audioTotalCoinsPerMinute']?.toString() ?? '';
         _videoCallTariff.text = tariffs['videoTotalCoinsPerMinute']?.toString() ?? '';
@@ -101,6 +111,13 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
         },
         'manualCoinPurchasesEnabled': _manualPurchasesEnabled,
         'manualFeaturedAdsEnabled': _manualFeaturedAdsEnabled,
+        'paymentPolicy': {
+          'coin_purchases': {'manualEnabled': _manualPurchasesEnabled, 'automatedEnabled': false},
+          'featured_ads': {'manualEnabled': _manualFeaturedAdsEnabled, 'automatedEnabled': false},
+          'public_ads': {'manualEnabled': _manualPublicAdsEnabled, 'automatedEnabled': false},
+          'influencer_services': {'manualEnabled': _manualInfluencerServicesEnabled, 'automatedEnabled': false},
+          'store_entitlements': {'manualEnabled': _manualStoreEntitlementsEnabled, 'automatedEnabled': false},
+        },
         'expectedVersion': _version,
       });
       final data = Map<String, dynamic>.from(result.data as Map);
@@ -355,18 +372,35 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
                   onChanged: _saving ? null : (value) => setState(() => _manualFeaturedAdsEnabled = value),
                 ),
               ),
-              const Card(
-                child: ListTile(
-                  leading: Icon(Icons.lock_outline),
-                  title: Text('الدفع الإلكتروني الآلي'),
-                  subtitle: Text('مغلق حالياً لجميع الخدمات؛ لا يوجد مزود دفع معتمد أو تكامل خادمي موثّق. لن يظهر خيار تفعيله قبل اكتمال تكامل المزود والتحقق من جاهزيته.'),
+              Card(
+                child: SwitchListTile(
+                  title: const Text('الدفع اليدوي الخارجي للإعلانات العامة'),
+                  subtitle: const Text('تفعيل استقبال الطلبات اليدوية لهذه الخدمة فقط؛ لا يفعّل النشر أو التحصيل تلقائياً.'),
+                  value: _manualPublicAdsEnabled,
+                  onChanged: _saving ? null : (value) => setState(() => _manualPublicAdsEnabled = value),
+                ),
+              ),
+              Card(
+                child: SwitchListTile(
+                  title: const Text('الدفع اليدوي الخارجي لخدمات المؤثرين'),
+                  subtitle: const Text('تفعيل مسار الطلب والتفاوض اليدوي لهذه الخدمة فقط؛ العقود والموافقات تبقى إلزامية.'),
+                  value: _manualInfluencerServicesEnabled,
+                  onChanged: _saving ? null : (value) => setState(() => _manualInfluencerServicesEnabled = value),
+                ),
+              ),
+              Card(
+                child: SwitchListTile(
+                  title: const Text('الدفع اليدوي الخارجي لاستحقاقات المتجر'),
+                  subtitle: const Text('إعداد مستقل للطلبات النقدية؛ مشتريات الكوينز الداخلية لا تتأثر بهذا الخيار.'),
+                  value: _manualStoreEntitlementsEnabled,
+                  onChanged: _saving ? null : (value) => setState(() => _manualStoreEntitlementsEnabled = value),
                 ),
               ),
               const Card(
                 child: ListTile(
-                  leading: Icon(Icons.info_outline),
-                  title: Text('الإعلانات العامة وصُنّاع المحتوى والاشتراكات'),
-                  subtitle: Text('لا يمكن تفعيل تحصيل مالي لهذه الخدمات من هذه الشاشة حالياً. يلزم أولاً استكمال دورة الطلب/العقد/الاتفاق والتحقق من الدفع والتسوية والدفتر لكل خدمة على حدة. مشتريات المتجر واستئجار الغرف الحالية تتم بBetaCoins وليست دفعاً نقدياً خارجياً.'),
+                  leading: Icon(Icons.lock_outline),
+                  title: Text('الدفع الإلكتروني الآلي — مغلق'),
+                  subtitle: Text('مغلق لجميع الخدمات حتى اختيار مزود، ودمج إنشاء جلسة الدفع والتحقق من توقيع Webhook والمبلغ والعملة والطلب، ثم الاختبار وموافقة المالك. لا يمكن تفعيله من هذه اللوحة حالياً.'),
                 ),
               ),
               Text('باقات BetaCoins', style: Theme.of(context).textTheme.titleLarge),
