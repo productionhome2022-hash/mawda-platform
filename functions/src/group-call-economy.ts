@@ -129,8 +129,7 @@ export function calculateGroupCallFinalSettlement(
   maxDurationMs: number,
 ): { policyId: string; policyVersion: number; billableMinutes: number; totalAmount: number; shares: GroupCallCoinShare[] } {
   if (!Number.isSafeInteger(elapsedMs) || elapsedMs < 0 ||
-      !Number.isSafeInteger(maxDurationMs) || maxDurationMs < 1 ||
-      elapsedMs > maxDurationMs + 60000) {
+      !Number.isSafeInteger(maxDurationMs) || maxDurationMs < 1) {
     throw new Error("INVALID_GROUP_CALL_ELAPSED_DURATION");
   }
   const maxBillableMinutes = Math.ceil(maxDurationMs / 60000);
