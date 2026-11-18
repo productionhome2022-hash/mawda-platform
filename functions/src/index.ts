@@ -7406,15 +7406,39 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
   try { input = validateCoinPurchaseRequestInput(request.data); }
   catch { throw new HttpsError("invalid-argument", "بيانات طلب شراء الكوينز غير صالحة."); }
   const userRef = db.collection("users").doc(uid);
+  const giftRecipientUid = input.giftRecipientUid;
+  if (giftRecipientUid === uid) throw new HttpsError("failed-precondition", "لا يمكن إهداء باقة إلى حسابك نفسه.");
+  const recipientRef = giftRecipientUid ? db.collection("users").doc(giftRecipientUid) : null;
+  const guestProfileRef = giftRecipientUid ? db.collection("guestProfiles").doc(giftRecipientUid) : null;
+  const guestSessionRef = giftRecipientUid ? db.collection("guestSessions").doc(giftRecipientUid) : null;
   const settingsRef = db.doc("platformSettings/economyPricing");
   const requestRef = db.collection("coinPurchaseRequests").doc(`${uid}_${input.requestId}`);
   const result = await db.runTransaction(async (transaction) => {
-    const [user, settings, existing] = await Promise.all([
+    const [user, settings, existing, recipient, guestProfile, guestSession] = await Promise.all([
       transaction.get(userRef), transaction.get(settingsRef), transaction.get(requestRef),
+      ...(recipientRef ? [transaction.get(recipientRef)] : [Promise.resolve(null)]),
+      ...(guestProfileRef ? [transaction.get(guestProfileRef)] : [Promise.resolve(null)]),
+      ...(guestSessionRef ? [transaction.get(guestSessionRef)] : [Promise.resolve(null)]),
     ]);
     if (!user.exists || user.data()?.profileCompleted !== true ||
         !isMemberAccountInGoodStanding(user.data())) {
       throw new HttpsError("permission-denied", "يجب أن يكون حساب العضو مكتملاً ونشطاً.");
+    }
+    if (giftRecipientUid) {
+      const recipientData = recipient?.data();
+      if (!recipient?.exists || !isMemberAccountInGoodStanding(recipientData) ||
+          recipientData?.profileCompleted !== true ||
+          (recipientData?.uid !== giftRecipientUid && recipientData?.memberId !== giftRecipientUid) ||
+          guestProfile?.exists || guestSession?.exists) {
+        throw new HttpsError("permission-denied", "المستلم ليس عضواً مؤهلاً لاستلام باقة الكوينز.");
+      }
+      let recipientAuth: UserRecord;
+      try { recipientAuth = await getAuth().getUser(giftRecipientUid); }
+      catch { throw new HttpsError("permission-denied", "تعذر التحقق من حساب مستلم الباقة."); }
+      if (recipientAuth.disabled || !recipientAuth.providerData.length ||
+          recipientAuth.providerData.every((provider) => provider.providerId === "anonymous")) {
+        throw new HttpsError("permission-denied", "حساب الزائر لا يمكنه استلام باقة مهداة.");
+      }
     }
     const economy = settings.data() ?? {};
     if (economy.manualCoinPurchasesEnabled === false || economy.automatedCoinCheckoutEnabled === true) {
@@ -7437,7 +7461,8 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       const prior = existing.data() ?? {};
       if (prior.requesterUid !== uid || prior.kind !== input.kind ||
           prior.packageId !== (input.packageId ?? null) ||
-          prior.requestedCoins !== requestedCoins) {
+          prior.requestedCoins !== requestedCoins ||
+          (prior.giftRecipientUid ?? null) !== (giftRecipientUid ?? null)) {
         throw new HttpsError("already-exists", "معرف الطلب مستخدم لطلب مختلف.");
       }
       return { requestId: input.requestId, status: prior.status, idempotentReplay: true };
@@ -7445,6 +7470,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
     transaction.create(requestRef, {
       requestId: input.requestId, requesterUid: uid, kind: input.kind,
       packageId: input.packageId ?? null, packageSnapshot,
+      giftRecipientUid: giftRecipientUid ?? null,
       requestedCoins, status: "pending_owner_contact",
       paymentChannel: "manual_owner_contact", currency: "EUR",
       createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
