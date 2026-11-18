@@ -8773,7 +8773,7 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
         if (doc.id === grantId) return false;
         const data = doc.data();
         return data.status === "active" &&
-          (data.endsAtMs === null || (Number.isSafeInteger(data.endsAtMs) && data.endsAtMs > nowMs));
+          (data.endsAtMs == null || !Number.isSafeInteger(data.endsAtMs) || data.endsAtMs > nowMs);
       }).length;
       const targetConsumesSeat = grant.status === "active" &&
         (grant.endsAtMs === null || grant.endsAtMs > nowMs);
