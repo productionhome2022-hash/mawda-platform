@@ -15,6 +15,8 @@ const {
   heartbeatTimedAdvertisement,
   completeTimedAdvertisement,
   runExpiredTimedAdSessionSweep,
+  getOwnerFeaturedAdRewardPolicy,
+  setOwnerFeaturedAdRewardPolicy,
 } = require("../../lib/index");
 
 const db = getFirestore();
@@ -592,5 +594,50 @@ test("timed-ad completion cancels a session when its campaign is paused or versi
         db.collection("activeTimedAdSessions").doc(uid).delete().catch(() => undefined),
       ] : []),
     ]);
+  }
+});
+
+
+test("featured-ad reward policy is owner/MFA managed, versioned and defaults to the 100-view test cap", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const ownerUid = `featured_policy_owner_${tag}`;
+  const memberUid = `featured_policy_member_${tag}`;
+  const policyRef = db.doc("platformSettings/featuredAdRewards");
+  const previousPolicy = await policyRef.get();
+  try {
+    if (previousPolicy.exists) await policyRef.delete();
+    const initial = await getOwnerFeaturedAdRewardPolicy.run(ownerRequest(ownerUid));
+    assert.equal(initial.policy.rewardCoinsPerView, 2);
+    assert.equal(initial.policy.maxRewardedViewsPerUtcDay, 100);
+    assert.equal(initial.policy.maxRewardCoinsPerUtcDay, 200);
+    assert.equal(initial.version, 1);
+
+    const updated = await setOwnerFeaturedAdRewardPolicy.run(ownerRequest(ownerUid, {
+      policy: {
+        ...initial.policy,
+        rewardCoinsPerView: 5,
+        maxRewardedViewsPerUtcDay: 100,
+        maxRewardCoinsPerUtcDay: 500,
+      },
+    }));
+    assert.equal(updated.saved, true);
+    assert.equal(updated.version, 2);
+    assert.equal(updated.policy.rewardCoinsPerView, 5);
+
+    const reread = await getOwnerFeaturedAdRewardPolicy.run(ownerRequest(ownerUid));
+    assert.equal(reread.version, 2);
+    assert.equal(reread.policy.maxRewardCoinsPerUtcDay, 500);
+    await assert.rejects(
+      () => getOwnerFeaturedAdRewardPolicy.run(memberRequest(memberUid)),
+      (error) => error && error.code === "permission-denied",
+    );
+    await assert.rejects(
+      () => setOwnerFeaturedAdRewardPolicy.run(memberRequest(memberUid, { policy: initial.policy })),
+      (error) => error && error.code === "permission-denied",
+    );
+  } finally {
+    if (previousPolicy.exists) await policyRef.set(previousPolicy.data());
+    else await policyRef.delete();
   }
 });
