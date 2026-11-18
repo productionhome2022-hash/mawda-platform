@@ -47,30 +47,32 @@ Existing biometric/member link entitlements remain governed by server-side link 
 
 The labels **Owner** and **Super Admin** refer to one person and one canonical owner UID. There must not be a separate Super Admin account belonging to another person. Internal legacy claims may be normalized as aliases, but every privileged operation resolves to the same owner identity, with recent MFA/step-up and audit logging. Scoped moderators are not owners and cannot approve coin issuance or change owner-only payment settings.
 
-### 4B. Two configurable payment channels
+### 4B. One manual external-payment model for the entire economy
 
-The purchase experience must be designed for future owner-controlled channel selection:
+**Owner decision (2026-11-18):** every Mawdda economic flow that requires money to be paid outside the platform uses a manual, owner-administered process. This applies consistently to:
+- Direct coin top-ups, including custom quantities negotiated with a member.
+- Featured advertisements and every other advertising/creator/influencer placement.
+- Store or service orders that the owner designates as payable externally.
+- Any future economic item that explicitly requires external payment.
 
-- **Direct/manual contact (available default):** the owner enables this channel and members can request a published package or a custom quantity. The custom-quantity path always creates a request and opens/links the member's one-to-one conversation with the owner. The owner can negotiate the amount and send the agreed payment method/instructions directly in that conversation. The request remains pending until the owner records external payment verification and explicitly approves it.
-- **Automated checkout (future, disabled by default):** the owner may later configure one or more contracted payment providers and enable checkout for selected fixed packages. The architecture must use a provider adapter and server-to-server signed payment confirmation. Only verified, captured/settled payment events can trigger one idempotent coin-credit transaction. A browser success redirect or member-uploaded receipt is not proof of payment.
+There is no automated checkout, payment gateway, provider webhook, in-app collection, or automatic external-payment verification in this approved model. Do not design or enable a second automated payment channel unless the owner approves a separate, explicit product decision.
 
-The owner can configure channel availability and package availability independently. If automated checkout is unavailable or disabled, the UI must not show a dead payment button; it offers the manual owner-contact route instead. A member's custom quantity request is always manually negotiated unless the owner approves a separate future product amendment.
+### 4C. Shared manual-payment lifecycle
 
-Before enabling any automated provider, require owner-supplied provider/contract details, secure secret provisioning, webhook signature and replay tests, refund/chargeback handling, reconciliation, fraud/risk controls, tax and legal review, and explicit owner activation. Never store card or bank login credentials in Mawda. Never issue coins from an unverified client event.
+1. **Request:** the member/advertiser selects the relevant action (for example, “Request coin top-up” or “Request advertisement”). The server creates a uniquely identified pending request with the authenticated requester, target item, quantity/duration/placement details, the applicable owner-configured price snapshot where one exists, timestamps, and an idempotency key. Creating a request never credits coins, activates an advertisement, or grants an entitlement.
+2. **Contact and agreement:** the request opens or links to the appropriate administrative conversation. The member and the owner agree the final quantity, price, currency, schedule, placement, and external payment method through their own communication. For custom coin quantities, the final agreed coin amount is recorded explicitly before approval.
+3. **External payment:** the member pays the owner outside Mawdda using the method they agreed. Mawdda does not collect the money, connect to the payment provider, inspect bank/card accounts, or claim to verify the transfer automatically.
+4. **Owner's manual receipt confirmation:** after checking the owner's own external records, the canonical platform owner records the manual confirmation in the owner console. This is an explicit privileged attestation, not a client assertion. Record an internal note and an external reference when available; any uploaded or supplied receipt is supporting context only and is never independently trusted as proof.
+5. **Atomic fulfilment:** a server-only, owner-authorized operation verifies the pending request, actor authorization and recent MFA/step-up, expected request/campaign version, agreed amount and item details, and idempotency identity. In one Firestore transaction it records the manual confirmation, changes the request/payment state, performs the requested fulfilment (coin credit, ad activation, or entitlement/order fulfilment), writes the corresponding immutable wallet/financial ledger entries where applicable, and appends the audit event. If any required write or audit record cannot be committed, the entire operation fails without partial fulfilment.
+6. **No silent edits or duplicate fulfilment:** concurrent, stale, repeated, or altered requests must be rejected or return the exact previously committed result only when all immutable request, ledger, and audit evidence matches. A changed quantity, price, campaign, recipient, or target item requires a new explicitly agreed request/version and cannot reuse the prior approval.
+7. **Other outcomes:** the owner may reject/cancel a pending request with a reason; a member may withdraw a still-pending request where the flow permits it. Rejected, cancelled, withdrawn, pending, or awaiting-payment requests never fulfil the economic action.
 
+### 4D. Owner authority and pricing
 
+The labels **Owner** and **Super Admin** refer to the one canonical platform-owner identity defined in section 4A. The owner performs the off-platform receipt check and manually authorizes fulfilment in Mawdda. A separate moderator or ordinary administrator must not gain this authority from a client role flag; any future delegated approval authority requires a separate owner-approved permission decision.
 
-Real-money coin acquisition is a manual, owner-approved process; no payment gateway or automatic payment collection is enabled.
+Prices, coin packages, ad rates, quantities, limits, and quotas remain under owner control through the owner/Super Admin console. Existing seed values are illustrative/test values only, not final contractual prices. Do not invent, hard-code, or silently promote prices or quotas to final values. Do not enable purchases merely because a catalogue item or manual-payment request exists.
 
-1. A member submits either an owner-configured coin package or a custom positive integer quantity.
-2. The server creates a pending request with a unique request ID, member UID, quantity, selected package/price snapshot (if applicable), timestamps and idempotency key. Submission never credits coins.
-3. The owner sees the request in the owner console and contacts the member through the platform to agree the payment method/instructions.
-4. The owner records the agreed instructions and later marks the payment as externally verified based on the owner's own payment records. This is an explicit privileged action requiring recent MFA and an audit reason/reference; the platform does not assert it independently verified a bank/card transaction.
-5. Only the owner approval callable may atomically change the request to approved, credit the member balance, create the wallet ledger entry and immutable audit record. The same transaction enforces exactly-once issuance and rejects replay or a changed quantity.
-6. Owner may reject/cancel a pending request with a reason. A member may withdraw a still-pending request. Approved requests cannot be silently edited or re-approved.
-7. No coins are issued while pending, awaiting instructions, awaiting external verification, rejected, cancelled, or withdrawn.
-
-Prices and packages are owner-editable server configuration. Seed prices are illustrative defaults, not final contractual prices. Custom quantity requests must be subject to owner-configured minimum/maximum bounds and the owner must confirm the final agreed amount before issuance.
 
 ## 5. Logout
 
