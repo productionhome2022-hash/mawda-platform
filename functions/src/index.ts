@@ -8086,7 +8086,8 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       const packageSnapshot = prior.packageSnapshot as Record<string, unknown> | null;
       if (!packageSnapshot || input.agreedCoins !== packageSnapshot.coins ||
           input.agreedPriceMinor !== packageSnapshot.priceMinor ||
-          input.currency !== packageSnapshot.currency) {
+          input.currency !== packageSnapshot.currency ||
+          input.currencyExponent !== packageSnapshot.currencyExponent) {
         throw new HttpsError("failed-precondition", "لا يمكن تغيير كمية أو سعر الباقة المحددة كهدية؛ يجب اعتماد شروط الباقة التي اختارها المرسل.");
       }
     }
@@ -8127,7 +8128,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
         messageId, chatId, senderUid: actorUid, recipientUid: requesterUid,
         text: "تعليمات الدفع لطلب شراء الBetaCoins رقم " + input.requestId +
           "\nالكمية المتفق عليها: " + input.agreedCoins + " كوين" +
-          "\nالسعر: " + (input.agreedPriceMinor / 100).toFixed(2) + " EUR" +
+          "\nالسعر: " + input.agreedPriceMinor + " وحدة صغرى من " + input.currency + " (" + input.currencyExponent + " منازل عشرية)" +
           "\nالتعليمات: " + input.instructions,
         type: "text", isPlatformOwnerMessage: true,
         senderLabel: "إدارة منصة مودة", adminMessageType: "coin_purchase_payment_instructions",
@@ -8143,6 +8144,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     transaction.update(ref, {
       status: "payment_instructions_sent", chatId, agreedCoins: input.agreedCoins,
       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
+      agreedCurrencyExponent: input.currencyExponent,
       paymentPolicySnapshot: prior.paymentPolicySnapshot ?? {
         manualEnabled: true, automatedEnabled: false, policyVersion: 0,
         capturedAt: now, legacyRequestSnapshot: true,
@@ -8155,6 +8157,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       actorUid, targetUid: requesterUid, action: "coin_purchase_payment_instructions_set",
       requestId: input.requestId, agreedCoins: input.agreedCoins,
       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
+      currencyExponent: input.currencyExponent,
       chatId, messageId, instructionsVersion: nextVersion, createdAt: now,
     });
   });
