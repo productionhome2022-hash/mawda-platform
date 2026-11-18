@@ -7585,7 +7585,7 @@ export const getOwnerWalletReconciliation = onCall(async (request) => {
   const userSnapshot = await userRef.get();
   if (!userSnapshot.exists) throw new HttpsError("not-found", "حساب العضو غير موجود.");
   const ledgerSnapshot = await userRef.collection("walletLedger")
-    .orderBy("createdAt", "asc").limit(1001).get();
+    .orderBy(FieldPath.documentId()).limit(1001).get();
   const truncated = ledgerSnapshot.size > 1000;
   const entries = ledgerSnapshot.docs.slice(0, 1000).map((document) => {
     const data = document.data();
@@ -7597,17 +7597,36 @@ export const getOwnerWalletReconciliation = onCall(async (request) => {
       createdAtMs: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : null,
     };
   });
+  const chronologyIncomplete = entries.some((entry) => entry.createdAtMs === null);
   let reconciliation;
   try {
-    reconciliation = reconcileWalletLedger(userSnapshot.data()?.coins ?? 0, entries);
+    if (chronologyIncomplete) {
+      const currentBalance = userSnapshot.data()?.coins ?? 0;
+      if (!Number.isSafeInteger(currentBalance) || currentBalance < 0) {
+        throw new Error("INVALID_WALLET_BALANCE");
+      }
+      reconciliation = {
+        status: "incomplete" as const, currentBalance,
+        ledgerEntryCount: entries.length, netLedgerDelta: null,
+        openingBalance: null, computedBalance: null,
+        entriesMissingSnapshots: entries.filter((entry) =>
+          entry.balanceBefore === undefined || entry.balanceAfter === undefined).length,
+        anomalies: [],
+      };
+    } else {
+      entries.sort((a, b) => (a.createdAtMs ?? 0) - (b.createdAtMs ?? 0) || a.id.localeCompare(b.id));
+      reconciliation = reconcileWalletLedger(userSnapshot.data()?.coins ?? 0, entries);
+    }
   } catch {
     throw new HttpsError("failed-precondition", "رصيد المحفظة أو دفتر القيود يحتوي بيانات غير صالحة.");
   }
   return {
     targetUid,
     ...reconciliation,
-    status: truncated ? "incomplete" : reconciliation.status,
-    truncated,
+    status: truncated || chronologyIncomplete ? "incomplete" : reconciliation.status,
+    truncated, chronologyIncomplete,
+    unorderableEntryCount: chronologyIncomplete
+      ? entries.filter((entry) => entry.createdAtMs === null).length : 0,
     inspectedLimit: 1000,
   };
 });
