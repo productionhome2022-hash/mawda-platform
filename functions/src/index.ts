@@ -6489,19 +6489,38 @@ async function executeOwnerEntitlementGrant(
   const auditRef = db.collection("adminAuditLogs").doc(`owner_entitlement_grant_${grantId}`);
 
   return db.runTransaction(async (transaction) => {
-    const [member, itemSnapshot, priorGrant, priorEntitlement] = await Promise.all([
+    const [member, itemSnapshot, priorGrant, priorEntitlement, priorLedger, priorAudit] = await Promise.all([
       transaction.get(memberRef),
       transaction.get(itemRef),
       transaction.get(grantRef),
       transaction.get(entitlementRef),
+      transaction.get(ledgerRef),
+      transaction.get(auditRef),
     ]);
     if (priorGrant.exists) {
       const prior = priorGrant.data() ?? {};
-      if (prior.actorUid !== actorUid || prior.targetUid !== targetUid ||
-          prior.itemId !== itemId || prior.durationHours !== durationHours ||
-          prior.requestId !== requestId) {
-        throw new HttpsError("already-exists", "مفتاح طلب المنح مستخدم لعملية مختلفة.");
+      const ledger = priorLedger.data() ?? {};
+      const audit = priorAudit.data() ?? {};
+      const priorExpiryMs = prior.expiresAt instanceof Timestamp ? prior.expiresAt.toMillis() : null;
+      const ledgerExpiryMs = ledger.expiresAt instanceof Timestamp ? ledger.expiresAt.toMillis() : null;
+      const sameGrant = prior.actorUid === actorUid && prior.targetUid === targetUid &&
+        prior.itemId === itemId && prior.durationHours === durationHours &&
+        prior.requestId === requestId && prior.reason === reason && prior.status === "granted";
+      const sameLedger = priorLedger.exists && ledger.type === "owner_entitlement_grant" &&
+        ledger.grantId === grantId && ledger.requestId === requestId &&
+        ledger.actorUid === actorUid && ledger.targetUid === targetUid &&
+        ledger.itemId === itemId && ledger.durationHours === durationHours &&
+        ledger.reason === reason && ledgerExpiryMs === priorExpiryMs;
+      const sameAudit = priorAudit.exists && audit.action === "owner_entitlement_granted" &&
+        audit.grantId === grantId && audit.requestId === requestId &&
+        audit.actorUid === actorUid && audit.targetUid === targetUid &&
+        audit.itemId === itemId && audit.durationHours === durationHours &&
+        audit.reason === reason;
+      if (!sameGrant || !sameLedger || !sameAudit) {
+        throw new HttpsError("failed-precondition", "سجل المنح أو دفتره أو سجل التدقيق غير متطابق؛ يلزم تدقيق المالك.");
       }
+      // A later purchase or grant may supersede the current entitlement. Replays
+      // validate immutable grant evidence and never overwrite the newer state.
       return {
         grantId, targetUid, itemId, status: "granted",
         expiresAt: prior.expiresAt instanceof Timestamp ? prior.expiresAt.toMillis() : null,
