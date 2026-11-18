@@ -17,6 +17,15 @@ const {
   runExpiredTimedAdSessionSweep,
   getOwnerFeaturedAdRewardPolicy,
   setOwnerFeaturedAdRewardPolicy,
+  saveFeaturedAdCampaign,
+  getOwnerFeaturedAdCampaigns,
+  setFeaturedAdCampaignStatus,
+  recordFeaturedAdFinancialEvent,
+  getFeaturedAdShowcase,
+  startFeaturedAdSession,
+  heartbeatFeaturedAdSession,
+  completeFeaturedAdSession,
+  getFeaturedAdRewardHistory,
 } = require("../../lib/index");
 
 const db = getFirestore();
@@ -695,6 +704,153 @@ test("featured-ad reward policy is owner/MFA managed, versioned and safely disab
       (error) => error && error.code === "permission-denied",
     );
   } finally {
+    if (previousPolicy.exists) await policyRef.set(previousPolicy.data());
+    else await policyRef.delete();
+  }
+});
+
+
+test("featured campaigns require owner approval and verified finance, then reward an explicit view exactly once", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const ownerUid = `featured_owner_${tag}`;
+  const uid = `featured_member_${tag}`;
+  const userRef = db.collection("users").doc(uid);
+  const campaignRef = db.collection("featuredAdCampaigns").doc();
+  const mediaId = `00000000-0000-4000-8000-${tag.replace(/[^0-9]/g, "").padEnd(12, "1").slice(0, 12)}`;
+  const mediaRef = db.collection("mediaAssets").doc(mediaId);
+  const policyRef = db.doc("platformSettings/featuredAdRewards");
+  const previousPolicy = await policyRef.get();
+  let sessionId;
+  let paymentEventId;
+  let settlementEventId;
+  let refundEventId;
+  const baseEvent = {
+    campaignId: campaignRef.id,
+    note: "Synthetic financial event verified by emulator test.",
+    externalReference: `ci-reference-${tag}`,
+    evidenceReference: `emulator-evidence://${tag}`,
+  };
+  try {
+    await userRef.set({ coins: 0, profileCompleted: true, accountStatus: "active" });
+    await mediaRef.set({
+      ownerUid, uploaderRole: "platform_owner", mediaPurpose: "advertisement",
+      status: "security_approved", mediaCategory: "image",
+      detectedContentType: "image/webp",
+    });
+    await setOwnerFeaturedAdRewardPolicy.run(ownerRequest(ownerUid, { policy: {
+      enabled: true, rewardCoinsPerView: 5, maxRewardedViewsPerUtcDay: 10,
+      maxRewardCoinsPerUtcDay: 50, videoCompletionPercent: 90,
+      imageContinuousVisibleMs: 1000,
+    } }));
+    const saved = await saveFeaturedAdCampaign.run(ownerRequest(ownerUid, {
+      title: "Featured integration campaign", sponsorLabel: "Synthetic advertiser",
+      body: "A featured campaign used only by the isolated emulator integration suite.",
+      startsAtMs: Date.now() - 1000, endsAtMs: Date.now() + 3600000,
+      maxRewardedViewsPerMember: 2, rewardBudgetCoins: 100,
+      featuredPlacement: "rotation", priorityOrder: 0,
+      geographicTargets: ["syria"], mediaId,
+    }));
+    assert.equal(saved.status, "draft");
+    assert.equal(saved.version, 1);
+    const ownerCampaigns = await getOwnerFeaturedAdCampaigns.run(ownerRequest(ownerUid));
+    assert.equal(ownerCampaigns.campaigns.some((item) => item.campaignId === campaignRef.id), true);
+    await setFeaturedAdCampaignStatus.run(ownerRequest(ownerUid, {
+      campaignId: campaignRef.id, status: "approved", expectedVersion: 1,
+    }));
+    const payment = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
+      ...baseEvent, action: "payment_received", idempotencyKey: `payment_${tag}`,
+      amountMinor: 10000, currency: "USD",
+    }));
+    paymentEventId = payment.eventId;
+    assert.equal(payment.idempotentReplay, false);
+    const replay = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
+      ...baseEvent, action: "payment_received", idempotencyKey: `payment_${tag}`,
+      amountMinor: 10000, currency: "USD",
+    }));
+    assert.equal(replay.idempotentReplay, true);
+    const settlement = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
+      ...baseEvent, action: "settlement_reconciled", idempotencyKey: `settlement_${tag}`,
+      amountMinor: 10000, currency: "USD",
+    }));
+    settlementEventId = settlement.eventId;
+    assert.equal(settlement.snapshot.reviewStatus, "reconciled");
+    await setFeaturedAdCampaignStatus.run(ownerRequest(ownerUid, {
+      campaignId: campaignRef.id, status: "published", expectedVersion: 2,
+    }));
+    const showcase = await getFeaturedAdShowcase.run(memberRequest(uid, { geography: "syria" }));
+    assert.equal(showcase.rewardEligible, false);
+    assert.equal(showcase.campaigns.some((item) => item.campaignId === campaignRef.id), true);
+
+    const started = await startFeaturedAdSession.run(memberRequest(uid, {
+      campaignId: campaignRef.id, geography: "syria",
+    }));
+    sessionId = started.sessionId;
+    await heartbeatFeaturedAdSession.run(memberRequest(uid, {
+      sessionId, sequence: 1, foreground: true, visible: true,
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 1050));
+    const heartbeat = await heartbeatFeaturedAdSession.run(memberRequest(uid, {
+      sessionId, sequence: 2, foreground: true, visible: true,
+    }));
+    assert.ok(heartbeat.eligibleMs >= 1000);
+    const [completed, duplicate] = await Promise.all([
+      completeFeaturedAdSession.run(memberRequest(uid, { sessionId })),
+      completeFeaturedAdSession.run(memberRequest(uid, { sessionId })),
+    ]);
+    assert.equal(completed.completed, true);
+    assert.equal([completed, duplicate].filter((item) => item.idempotentReplay === false).length, 1);
+    assert.equal([completed, duplicate].filter((item) => item.idempotentReplay === true).length, 1);
+    const [user, ledger, history] = await Promise.all([
+      userRef.get(), userRef.collection("walletLedger").get(),
+      getFeaturedAdRewardHistory.run(memberRequest(uid)),
+    ]);
+    assert.equal(user.data().coins, 5);
+    assert.equal(ledger.docs.filter((doc) => doc.data().type === "featured_ad_reward").length, 1);
+    assert.equal(history.claims.length, 1);
+
+    const refund = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
+      ...baseEvent, action: "refund_recorded", idempotencyKey: `refund_${tag}`,
+      amountMinor: 1000, currency: "USD",
+    }));
+    refundEventId = refund.eventId;
+    assert.equal(refund.snapshot.paymentStatus, "partially_refunded");
+    assert.equal(refund.snapshot.reviewStatus, "needs_review");
+    const campaignAfterRefund = await campaignRef.get();
+    assert.equal(campaignAfterRefund.data().status, "paused");
+    assert.equal(campaignAfterRefund.data().paymentConfirmed, false);
+    await assert.rejects(
+      () => getOwnerFeaturedAdCampaigns.run(memberRequest(uid)),
+      (error) => error && error.code === "permission-denied",
+    );
+  } finally {
+    await Promise.all([
+      userRef.delete().catch(() => undefined),
+      campaignRef.delete().catch(() => undefined),
+      mediaRef.delete().catch(() => undefined),
+      ...(sessionId ? [
+        db.collection("featuredAdSessions").doc(sessionId).delete().catch(() => undefined),
+        db.collection("featuredAdRewardClaims").doc(sessionId).delete().catch(() => undefined),
+        db.collection("activeFeaturedAdSessions").doc(uid).delete().catch(() => undefined),
+        userRef.collection("walletLedger").doc(`featured_ad_${sessionId}`).delete().catch(() => undefined),
+      ] : []),
+      db.collection("featuredAdMemberCounters").where("uid", "==", uid).get()
+        .then((snap) => Promise.all(snap.docs.map((doc) => doc.ref.delete()))),
+      db.collection("featuredAdDailyCounters").where("uid", "==", uid).get()
+        .then((snap) => Promise.all(snap.docs.map((doc) => doc.ref.delete()))),
+      ...(paymentEventId ? [
+        db.collection("featuredAdFinancialEvents").doc(paymentEventId).delete().catch(() => undefined),
+        db.collection("featuredAdFinancialIdempotency").doc(paymentEventId).delete().catch(() => undefined),
+      ] : []),
+      ...(settlementEventId ? [
+        db.collection("featuredAdFinancialEvents").doc(settlementEventId).delete().catch(() => undefined),
+        db.collection("featuredAdFinancialIdempotency").doc(settlementEventId).delete().catch(() => undefined),
+      ] : []),
+      ...(refundEventId ? [
+        db.collection("featuredAdFinancialEvents").doc(refundEventId).delete().catch(() => undefined),
+        db.collection("featuredAdFinancialIdempotency").doc(refundEventId).delete().catch(() => undefined),
+      ] : []),
+    ]);
     if (previousPolicy.exists) await policyRef.set(previousPolicy.data());
     else await policyRef.delete();
   }
