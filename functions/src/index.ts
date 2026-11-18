@@ -2406,6 +2406,15 @@ export const completeEmailVerificationRenewal = onCall(async (request) => {
       throw new HttpsError("not-found", "دورة التحقق غير موجودة.");
     }
     const cycleData = cycleSnapshot.data()!;
+    let cycleRewardPolicy;
+    try {
+      cycleRewardPolicy = validateEmailVerificationRewardPolicy(
+        cycleData.rewardPolicySnapshot ?? defaultEmailVerificationRewardPolicy(),
+      );
+    } catch {
+      throw new HttpsError("failed-precondition", "لقطة سياسة مكافأة دورة البريد غير صالحة؛ لم تُمنح أي عملات.");
+    }
+    const rewardAmount = cycleRewardPolicy.enabled ? cycleRewardPolicy.rewardCoins : 0;
     const startedAtMs = cycleData.startedAt instanceof Timestamp
       ? cycleData.startedAt.toMillis()
       : Number(cycleData.startedAtMs);
@@ -2437,15 +2446,17 @@ export const completeEmailVerificationRenewal = onCall(async (request) => {
     }
 
     const balance = Number.isSafeInteger(userData.coins) ? userData.coins as number : 0;
-    const newBalance = balance + EMAIL_VERIFICATION_REWARD_COINS;
+    const newBalance = balance + rewardAmount;
     if (!Number.isSafeInteger(newBalance)) {
       throw new HttpsError("out-of-range", "الرصيد الناتج يتجاوز الحد الرقمي الآمن.");
     }
     const verifiedAt = Timestamp.fromMillis(nowMs);
     transaction.update(cycleRef, {
-      status: "rewarded",
+      status: rewardAmount > 0 ? "rewarded" : "verified",
+      rewardPolicySnapshot: cycleRewardPolicy,
+      rewardCoins: rewardAmount,
       verifiedAt,
-      rewardedAt: verifiedAt,
+      ...(rewardAmount > 0 ? { rewardedAt: verifiedAt } : {}),
       updatedAt: verifiedAt,
     });
     transaction.update(userRef, {
@@ -2460,29 +2471,32 @@ export const completeEmailVerificationRenewal = onCall(async (request) => {
       emailVerificationRenewalStartedAt: FieldValue.delete(),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    transaction.create(ledgerRef, {
-      type: "email_verification_reward",
-      direction: "credit",
-      amount: EMAIL_VERIFICATION_REWARD_COINS,
-      reason: "verified_email_renewal_cycle",
-      cycleId,
-      cycleSequence: cycle.sequence,
-      idempotencyKey: cycleId,
-      createdAt: verifiedAt,
-    });
+    if (rewardAmount > 0) {
+      transaction.create(ledgerRef, {
+        type: "email_verification_reward",
+        direction: "credit",
+        amount: rewardAmount,
+        reason: "verified_email_renewal_cycle",
+        cycleId,
+        cycleSequence: cycle.sequence,
+        idempotencyKey: cycleId,
+        createdAt: verifiedAt,
+      });
+    }
     transaction.create(db.collection("verificationAuditLogs").doc(ledgerRef.id), {
       actorUid: uid,
-      action: "email_verification_cycle_rewarded",
+      action: rewardAmount > 0 ? "email_verification_cycle_rewarded" : "email_verification_cycle_verified_without_reward",
       cycleId,
       cycleSequence: cycle.sequence,
-      rewardCoins: EMAIL_VERIFICATION_REWARD_COINS,
+      rewardCoins: rewardAmount,
+      rewardPolicySnapshot: cycleRewardPolicy,
       verifiedEmailHash: createHash("sha256").update(email).digest("hex"),
       createdAt: verifiedAt,
     });
     return {
       verified: true,
-      rewardGranted: true,
-      rewardAmount: EMAIL_VERIFICATION_REWARD_COINS,
+      rewardGranted: rewardAmount > 0,
+      rewardAmount,
       newBalance,
       cycleId,
       expiresAtMs,
