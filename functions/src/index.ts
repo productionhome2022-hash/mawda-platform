@@ -8378,6 +8378,15 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
       !Array.isArray(campaign.geographicTargets) || !campaign.geographicTargets.includes(geography)) {
     throw new HttpsError("failed-precondition", "الحملة غير مؤهلة للمشاهدة حالياً.");
   }
+  let rewardPolicy: FeaturedAdRewardPolicy;
+  try {
+    const policySnapshot = await FEATURED_AD_REWARD_POLICY.get();
+    rewardPolicy = policySnapshot.exists
+      ? validateFeaturedAdRewardPolicy(policySnapshot.data()?.policy)
+      : defaultFeaturedAdRewardPolicy();
+  } catch {
+    throw new HttpsError("failed-precondition", "تعذر قراءة شروط مكافآت الإعلان بأمان.");
+  }
   const sessionId = randomUUID();
   const sessionRef = db.collection("featuredAdViewingSessions").doc(sessionId);
   const creativeType = campaign.creativeType === "video" ? "video" : campaign.creativeType === "image" ? "image" : "text";
@@ -8425,7 +8434,14 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
   // Create the session only after all creative/storage checks succeed; a rejected
   // media object must not leave an active, rewardable orphan session.
   await sessionRef.create(sessionData);
-  return { sessionId, campaignId, creativeType, serverNonce: sessionData.serverNonce, ...media };
+  return {
+    sessionId, campaignId, creativeType, serverNonce: sessionData.serverNonce, ...media,
+    rewardRequirements: {
+      enabled: rewardPolicy.enabled,
+      videoCompletionPercent: rewardPolicy.videoCompletionPercent,
+      imageContinuousVisibleMs: rewardPolicy.imageContinuousVisibleMs,
+    },
+  };
 });
 export const heartbeatFeaturedAdViewingSession = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
