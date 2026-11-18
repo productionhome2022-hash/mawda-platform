@@ -49,7 +49,7 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Test the 500-coin verified-email reward for exactly-once behavior per successful eligible 90-day verification cycle.
 - [x] Complete Firestore-emulator integration tests for coin transfer quoting/fee calculation, stale quote rejection, concurrent requests, atomic sender/recipient/platform ledgers, idempotency, blocked/suspended accounts, and insufficient-balance rejection (run 43449287825, exact tested SHA `368c6ac0ab9db01c236a4f77a4bf66dadb80ade0`).
 - [ ] Complete and test direct-message UI, pagination, delivery/read state, push notifications, block/report, and media workflows.
-- [ ] Complete and test room invitations, moderator management, rental billing, room finance, and ordinary room behavior. Room discovery/join and owner room creation foundations are implemented. Voice/video call implementation remains in the engineering scope, but live call acceptance is tracked separately after Web launch.
+- [ ] Complete and test room invitations, moderator management, rental billing, room finance, ordinary room behavior, and live audio/video calling. Room discovery/join and owner room creation foundations are implemented. Audio/video call acceptance on supported real devices and browsers is a pre-launch release gate; it must not be deferred until after Web launch.
 - [x] Add owner-managed store catalog, atomic coin purchase transaction, immutable purchase ledger/receipt, entitlement record, idempotency and stale-price checks.
 - [ ] Implement and test entitlement consumers for each product before setting `purchaseEnabled` and `fulfillmentReady`; purchases remain fail-closed until then.
 - [ ] Implement real-money coin top-ups with verified provider receipts, refunds, chargebacks, and reward anti-abuse controls.
@@ -87,7 +87,7 @@ This checklist is a release gate, not a statement that the listed work is comple
 - [ ] Test touch, mouse, keyboard navigation, accessibility, screen readers, and reduced-motion settings.
 - [ ] Run performance, crash, network-failure, monitoring, backup, and recovery-drill checks.
 
-## 6.1. Audio/video calling — implementation now, live acceptance after Web launch
+## 6.1. Audio/video calling — implementation and live acceptance before launch
 
 The approved CALL-001/CALL-002 product requirements remain in the implementation scope. Deferring live call tests does **not** authorize omitting the feature's code, server-side authorization, entitlement checks, quota rules, billing safeguards, or fail-closed behavior.
 
@@ -103,6 +103,7 @@ The approved CALL-001/CALL-002 product requirements remain in the implementation
 
 **Post-launch validation (not a pre-launch release gate by owner direction):**
 - [ ] Validate incoming/outgoing audio and video calls on real supported browsers/devices, permissions, background/foreground, network transitions and TURN relay.
+- [ ] Complete the preceding live-call acceptance before approving the Web/PWA release candidate; record tested device/browser pairs, network conditions, call duration, entitlement outcomes, disconnect/reconnect behavior and evidence. CI signaling tests alone do not satisfy this gate.
 - [ ] Validate quota boundaries, rolling windows, accepted/rejected attempt counting, timeout, paid allocation, consent denial, insufficient funds, retries and concurrent billing against the live test environment.
 - [ ] Record defects from real usage, fix them on the development branch, and rerun the affected acceptance checks before enabling the relevant call capability.
 
