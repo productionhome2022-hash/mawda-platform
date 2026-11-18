@@ -761,7 +761,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final amount = await showDialog<int>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('تحويل بيتا بيتا كوينزز إلى العضو 🪙'),
+        title: const Text('تحويل بيتا كوينز إلى العضو 🪙'),
         content: TextField(
           controller: amountController,
           autofocus: true,
@@ -1475,7 +1475,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.monetization_on),
-                    label: Text(_isTransferringCoins ? 'جارٍ التحويل...' : 'إهداء بيتا بيتا كوينزز'),
+                    label: Text(_isTransferringCoins ? 'جارٍ التحويل...' : 'إهداء بيتا كوينز'),
                     onPressed: _isTransferringCoins ? null : _showGiftCoinsDialog,
                   ),
                 ),
