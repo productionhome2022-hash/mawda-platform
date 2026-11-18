@@ -602,7 +602,7 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
   const tag = suffix();
   const ownerUid = "featured-owner-" + tag;
   const uid = "featured-member-" + tag;
-  const sessionRef = db.collection("featuredAdViewingSessions").doc();
+  const sessionRef = db.collection("featuredAdViewingSessions").doc(require("node:crypto").randomUUID());
   let secondSessionRef;
   let campaignRef;
   const userRef = db.collection("users").doc(uid);
@@ -707,7 +707,7 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
     assert.equal(history.policy.maxRewardCoinsPerUtcDay, 20);
     assert.equal(history.policy.maxRewardsPerCampaignRolling24h, 3);
 
-    secondSessionRef = db.collection("featuredAdViewingSessions").doc();
+    secondSessionRef = db.collection("featuredAdViewingSessions").doc(require("node:crypto").randomUUID());
     await secondSessionRef.set({
       uid, campaignId, geography: "syria", creativeType: "image", status: "active",
       startedAtMs: Date.now() - 12000, lastHeartbeatAtMs: Date.now(),
@@ -779,7 +779,7 @@ test("featured session heartbeat is revoked on campaign withdrawal and close is 
   const tag = suffix();
   const uid = "featured-heartbeat-member-" + tag;
   const campaignRef = db.collection("featuredAdCampaigns").doc("featured_hb_" + tag);
-  const sessionRef = db.collection("featuredAdViewingSessions").doc();
+  const sessionRef = db.collection("featuredAdViewingSessions").doc(require("node:crypto").randomUUID());
   const userRef = db.collection("users").doc(uid);
   await userRef.set({ coins: 0, profileCompleted: true, accountStatus: "active" });
   await campaignRef.set({
@@ -803,7 +803,7 @@ test("featured session heartbeat is revoked on campaign withdrawal and close is 
     assert.equal(replay.ended, false);
     assert.equal((await sessionRef.get()).data().status, "abandoned");
 
-    const revokedSessionRef = db.collection("featuredAdViewingSessions").doc();
+    const revokedSessionRef = db.collection("featuredAdViewingSessions").doc(require("node:crypto").randomUUID());
     await revokedSessionRef.set({
       uid, campaignId: campaignRef.id, status: "active",
       startedAtMs: Date.now() - 1000, lastHeartbeatAtMs: Date.now() - 1000,
