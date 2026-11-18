@@ -248,3 +248,11 @@ For every economic price that is defined as one combined amount and divided equa
 - Owner coin-transfer commission edits now require the current policy version and reject stale updates. The transfer settings transaction increments the version and writes before/after commission and enablement audit data atomically; the Super Admin screen loads and sends the expected version.
 - Added emulator integration coverage for readback, version increment, stale-write rejection and audit row persistence. Not executed.
 - Commits: da5719c65ea10c832e0f08e2b365964395c4577a, 89db6168459ba5a5eaac9a8f5043417fb75f6377, b706a44a9f24358716ecaa3ce8188947d769345b, e2c0a887a4ee2b0e65464395c8a1226320ff9aa9.
+
+
+## Wallet ledger reconciliation added (2026-11-18)
+
+- Added a pure read-only reconciliation engine that checks signed ledger amounts, before/after arithmetic, continuity between consecutive snapshots, and the current wallet balance. Legacy rows without balance snapshots are explicitly reported as incomplete; malformed arithmetic/continuity is reported as corrupt; no balance is auto-corrected.
+- Added owner/MFA-only `reconcileMemberWallet` callable, a Super Admin action for the selected member, and a result panel. It reads up to 10,000 entries, reports truncation/missing timestamps as incomplete, records the reconciliation audit event, and never mutates wallet balance or ledger entries.
+- Added unit and emulator test source for consistent, incomplete, corrupt and read-only outcomes. Tests remain unexecuted. Full historical reconciliation across wallets and any >10,000-entry histories remains a final validation/recovery task; the callable does not claim full platform-wide reconciliation.
+- Commits: ee0b94791a2868a68995c9fe6ad22e19e08f3dba, baf59e9bd1a5146123bb1d85cf1be7fe7f31f24d, 1e6cb3e51650d6497b7b9b5d9547dd2bd7d8af47, 5c45d52a740339b6b382b65cf07abb419e091a2d, 10e993a1bb9e057871744d7a78dfa25082bacae1, 103e3b6f832cc75bb0faf2f86045423da42c892d, 020cd936a5fde108963bc05802c11e104d701cd4.
