@@ -8091,24 +8091,36 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
         ? "coin_package_gift_credit" : "coin_purchase_manual_credit";
       const ledgerData = ledger.data() ?? {};
       const auditData = approvalAudit.data() ?? {};
+      const expectedAuditAction = data.giftRecipientUid
+        ? "coin_package_gift_manually_verified_and_approved"
+        : "coin_purchase_manually_verified_and_approved";
       if (!ledger.exists || !approvalAudit.exists ||
           ledgerData.type !== expectedLedgerType ||
           ledgerData.amount !== data.creditedCoins ||
           ledgerData.purchaseRequestId !== input.requestId ||
           ledgerData.externalPaymentReference !== input.externalPaymentReference ||
+          ledgerData.priceMinor !== data.agreedPriceMinor ||
+          ledgerData.currency !== (data.currency ?? "EUR") ||
+          ledgerData.actorUid !== data.verifiedBy ||
+          ledgerData.purchaserUid !== requesterUid ||
+          ledgerData.giftedByUid !== (data.giftRecipientUid ? requesterUid : null) ||
           !Number.isSafeInteger(ledgerData.balanceBefore) ||
           !Number.isSafeInteger(ledgerData.balanceAfter) ||
           ledgerData.balanceBefore < 0 ||
           ledgerData.balanceAfter !== ledgerData.balanceBefore + ledgerData.amount ||
+          data.externalPaymentVerified !== true ||
           data.externalPaymentReference !== input.externalPaymentReference ||
           data.creditedToUid !== targetUid ||
           !Number.isSafeInteger(data.creditedCoins) || data.creditedCoins < 1 ||
+          auditData.action !== expectedAuditAction ||
+          auditData.actorUid !== data.verifiedBy ||
           auditData.requestId !== input.requestId ||
           auditData.purchaserUid !== requesterUid ||
           auditData.targetUid !== targetUid ||
           auditData.externalPaymentReference !== input.externalPaymentReference ||
           auditData.creditedCoins !== data.creditedCoins ||
-          !String(auditData.action ?? "").includes("manually_verified_and_approved")) {
+          auditData.priceMinor !== data.agreedPriceMinor ||
+          auditData.currency !== (data.currency ?? "EUR")) {
         throw new HttpsError("failed-precondition", "طلب الشراء المعتمد لا يطابق قيد المحفظة وإثبات الدفع؛ يلزم تدقيق السجل.");
       }
       return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null, creditedToUid: targetUid };
