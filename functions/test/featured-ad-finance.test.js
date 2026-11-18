@@ -80,6 +80,27 @@ test("records payment, partial refund and settlement without allowing over-refun
   assert.equal(reviewed.reviewStatus, "reconciled");
 });
 
+test("supports multiple owner-recorded receipts while keeping one currency", () => {
+  const first = applyFeaturedAdFinancialEvent(defaultFeaturedAdFinancialSnapshot(),
+    validateFeaturedAdFinancialEvent({
+      ...base, action: "payment_received", amountMinor: 10000, currency: "CHF",
+    }));
+  const second = applyFeaturedAdFinancialEvent(first,
+    validateFeaturedAdFinancialEvent({
+      ...base, idempotencyKey: "finance_operation_0100",
+      externalReference: "bank-ref-2026-002",
+      action: "payment_received", amountMinor: 5000, currency: "CHF",
+    }));
+  assert.equal(second.receivedMinor, 15000);
+  assert.equal(second.paymentStatus, "paid");
+  assert.throws(() => applyFeaturedAdFinancialEvent(second,
+    validateFeaturedAdFinancialEvent({
+      ...base, idempotencyKey: "finance_operation_0101",
+      externalReference: "bank-ref-2026-003",
+      action: "payment_received", amountMinor: 5000, currency: "EUR",
+    })), /payment_currency_conflict/);
+});
+
 test("reopens review after refund changes a previously reconciled balance", () => {
   const initial = { currency: "USD", receivedMinor: 5000, refundedMinor: 0, reconciledMinor: 5000,
     reviewStatus: "reconciled", paymentStatus: "paid" };
