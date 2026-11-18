@@ -10139,24 +10139,10 @@ export const startCall = onCall(async (request) => {
     if (members.size < 2 || members.size > roomCapacity) {
       throw new HttpsError("failed-precondition", "عدد أعضاء الغرفة يتجاوز سعتها أو لا يكفي لبدء المكالمة.");
     }
-    if (input.mode === "video" && members.size > 4) {
-      throw new HttpsError("failed-precondition", "المكالمة المرئية الجماعية محدودة بأربعة مشاركين إجمالاً بمن فيهم المنشئ.");
-    }
-    participantUids = members.docs.map((doc) => doc.id).sort();
-    recipientUids = participantUids.filter((uid) => uid !== callerUid);
-    const profiles = await db.getAll(...recipientUids.map((uid) => db.collection("users").doc(uid)));
-    const callerData = caller.data() ?? {};
-    if (profiles.some((profile) => {
-      const peerData = profile.data() ?? {};
-      return !profile.exists || peerData.profileCompleted !== true ||
-        !isMemberAccountInGoodStanding(peerData) ||
-        !Number.isSafeInteger(callerData.age) || !Number.isSafeInteger(peerData.age) ||
-        ((callerData.age < 18) !== (peerData.age < 18)) ||
-        (Array.isArray(callerData.blockedUids) && callerData.blockedUids.includes(profile.id)) ||
-        (Array.isArray(peerData.blockedUids) && peerData.blockedUids.includes(callerUid));
-    })) {
-      throw new HttpsError("permission-denied", "يوجد عضو غير مؤهل أو محظور ضمن المشاركين في المكالمة.");
-    }
+    // Room calls start with the creator only. Members must request entry and
+    // receive an explicit creator approval before they become participants.
+    participantUids = [callerUid];
+    recipientUids = [];
   }
 
   const now = Date.now();
@@ -10271,7 +10257,7 @@ export const startCall = onCall(async (request) => {
     });
     transaction.create(callRef, {
       callId: input.callId, scope: input.scope, targetId: input.targetId, mode: input.mode,
-      callerUid, participantUids, acceptedUids: [], rejectedUids: [], leftUids: [],
+      callerUid, participantUids, acceptedUids: input.scope === "room" ? [callerUid] : [], rejectedUids: [], leftUids: [],
       status: "ringing", signalCounts: {}, signalsCleanedAt: false,
       usagePolicySnapshot: usagePolicy,
       usagePolicyVersion: usagePolicySnapshot.data()!.version,
@@ -10311,7 +10297,7 @@ export const respondToCall = onCall(async (request) => {
     ]);
     if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
     const call = snapshot.data()!;
-    if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
+    if (call.scope === "room" || !Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
         uid === call.callerUid ||
         (Array.isArray(call.leftUids) && call.leftUids.includes(uid)) ||
         (Array.isArray(call.rejectedUids) && call.rejectedUids.includes(uid))) {
@@ -10353,6 +10339,169 @@ export const respondToCall = onCall(async (request) => {
     }
     return { callId, status: response === "accept" ? "accepted" : (allRejected ? "rejected" : call.status),
       idempotentReplay: prior.includes(uid) };
+  });
+});
+
+/**
+ * A room member requests entry independently; requesting does not grant
+ * signaling access, a member lock, or billing consent.
+ */
+export const requestRoomCallJoin = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId)) {
+    throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
+  }
+  const callRef = CALL_SESSIONS.doc(callId);
+  const requestRef = callRef.collection("joinRequests").doc(uid);
+  const result = await db.runTransaction(async (transaction) => {
+    const [callSnapshot, priorRequest] = await Promise.all([
+      transaction.get(callRef), transaction.get(requestRef),
+    ]);
+    if (!callSnapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
+    const call = callSnapshot.data() ?? {};
+    if (call.scope !== "room" || typeof call.targetId !== "string" ||
+        uid === call.callerUid ||
+        !Array.isArray(call.participantUids) || call.participantUids.includes(uid) ||
+        !["ringing", "accepted"].includes(String(call.status)) ||
+        (call.status === "ringing" &&
+          (!(call.expiresAt instanceof Timestamp) || call.expiresAt.toMillis() <= Date.now())) ||
+        (call.maxDurationEndsAt instanceof Timestamp && call.maxDurationEndsAt.toMillis() <= Date.now())) {
+      throw new HttpsError("failed-precondition", "المكالمة لا تقبل طلبات انضمام جديدة.");
+    }
+    if (priorRequest.exists) {
+      const prior = priorRequest.data() ?? {};
+      if (prior.status === "requested") return { requested: true, idempotentReplay: true };
+      if (prior.status === "approved") throw new HttpsError("already-exists", "أنت مشارك بالفعل في المكالمة.");
+      throw new HttpsError("failed-precondition", "سبق رفض طلب الانضمام لهذه المكالمة.");
+    }
+    const roomRef = db.collection("rooms").doc(call.targetId);
+    const rentalRef = db.collection("roomRentals").doc(String(call.rentalId ?? ""));
+    const memberRef = roomRef.collection("members").doc(uid);
+    const userRef = db.collection("users").doc(uid);
+    const creatorRef = db.collection("users").doc(String(call.callerUid ?? ""));
+    const lockRef = ACTIVE_CALL_MEMBER_LOCKS.doc(uid);
+    const [room, rental, member, user, creator, lock] = await Promise.all([
+      transaction.get(roomRef), transaction.get(rentalRef), transaction.get(memberRef),
+      transaction.get(userRef), transaction.get(creatorRef), transaction.get(lockRef),
+    ]);
+    if (!room.exists || !rental.exists ||
+        !isActiveRentedPrivateRoom(room.data(), rental.data(), Date.now()) ||
+        !member.exists || !user.exists || !creator.exists ||
+        user.data()?.profileCompleted !== true || !isMemberAccountInGoodStanding(user.data()) ||
+        !Number.isSafeInteger(user.data()?.age) || !Number.isSafeInteger(creator.data()?.age) ||
+        ((user.data()!.age < 18) !== (creator.data()!.age < 18)) ||
+        (Array.isArray(user.data()?.blockedUids) && user.data()!.blockedUids.includes(call.callerUid)) ||
+        (Array.isArray(creator.data()?.blockedUids) && creator.data()!.blockedUids.includes(uid))) {
+      throw new HttpsError("permission-denied", "لا تستوفي شروط الانضمام إلى هذه الغرفة أو المكالمة.");
+    }
+    if (lock.exists && lock.data()?.callId !== callId) {
+      throw new HttpsError("resource-exhausted", "لديك مكالمة أخرى نشطة بالفعل.");
+    }
+    transaction.create(requestRef, {
+      uid, callId, roomId: call.targetId, status: "requested",
+      requestedAt: FieldValue.serverTimestamp(),
+    });
+    return { requested: true, idempotentReplay: false };
+  });
+  if (!result.idempotentReplay) {
+    const callSnapshot = await callRef.get();
+    const creatorUid = callSnapshot.data()?.callerUid;
+    if (typeof creatorUid === "string") {
+      await sendPushToMember(creatorUid, "طلب انضمام إلى المكالمة",
+        "يوجد عضو يطلب الانضمام إلى مكالمتك الجماعية.",
+        { type: "room_call_join_request", callId, requesterUid: uid });
+    }
+  }
+  return result;
+});
+
+/** Only the room-call creator may approve or reject a pending join request. */
+export const respondToRoomCallJoinRequest = onCall(async (request) => {
+  const creatorUid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  const requesterUid = request.data?.requesterUid;
+  const decision = request.data?.decision;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId) ||
+      typeof requesterUid !== "string" || requesterUid.length < 1 || requesterUid.length > 128 ||
+      requesterUid === creatorUid || !["approve", "reject"].includes(decision)) {
+    throw new HttpsError("invalid-argument", "بيانات قرار طلب الانضمام غير صالحة.");
+  }
+  const callRef = CALL_SESSIONS.doc(callId);
+  const requestRef = callRef.collection("joinRequests").doc(requesterUid);
+  return db.runTransaction(async (transaction) => {
+    const callSnapshot = await transaction.get(callRef);
+    if (!callSnapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
+    const call = callSnapshot.data() ?? {};
+    if (call.scope !== "room" || call.callerUid !== creatorUid ||
+        !["ringing", "accepted"].includes(String(call.status)) ||
+        (call.status === "ringing" &&
+          (!(call.expiresAt instanceof Timestamp) || call.expiresAt.toMillis() <= Date.now())) ||
+        (call.maxDurationEndsAt instanceof Timestamp && call.maxDurationEndsAt.toMillis() <= Date.now())) {
+      throw new HttpsError("permission-denied", "قرار طلبات الانضمام مخصص لمنشئ مكالمة نشطة فقط.");
+    }
+    const roomRef = db.collection("rooms").doc(String(call.targetId ?? ""));
+    const rentalRef = db.collection("roomRentals").doc(String(call.rentalId ?? ""));
+    const memberRef = roomRef.collection("members").doc(requesterUid);
+    const userRef = db.collection("users").doc(requesterUid);
+    const creatorRef = db.collection("users").doc(creatorUid);
+    const lockRef = ACTIVE_CALL_MEMBER_LOCKS.doc(requesterUid);
+    const [joinRequest, room, rental, member, user, creator, lock] = await Promise.all([
+      transaction.get(requestRef), transaction.get(roomRef), transaction.get(rentalRef),
+      transaction.get(memberRef), transaction.get(userRef), transaction.get(creatorRef),
+      transaction.get(lockRef),
+    ]);
+    if (!joinRequest.exists || joinRequest.data()?.status !== "requested") {
+      if (joinRequest.exists && joinRequest.data()?.status === "approved" &&
+          Array.isArray(call.participantUids) && call.participantUids.includes(requesterUid)) {
+        return { approved: true, idempotentReplay: true };
+      }
+      throw new HttpsError("failed-precondition", "طلب الانضمام غير موجود أو تمت معالجته مسبقاً.");
+    }
+    if (decision === "reject") {
+      transaction.update(requestRef, {
+        status: "rejected", decidedBy: creatorUid,
+        decidedAt: FieldValue.serverTimestamp(),
+      });
+      return { approved: false, rejected: true, idempotentReplay: false };
+    }
+    const roomData = room.data() ?? {};
+    const capacity = roomData.capacity;
+    const participantUids = Array.isArray(call.participantUids)
+      ? call.participantUids.filter((value): value is string => typeof value === "string")
+      : [];
+    if (!room.exists || !rental.exists ||
+        !isActiveRentedPrivateRoom(roomData, rental.data(), Date.now()) ||
+        !Number.isSafeInteger(capacity) || capacity < 2 || capacity > 1000 ||
+        participantUids.length >= capacity ||
+        !member.exists || !user.exists || !creator.exists ||
+        user.data()?.profileCompleted !== true || !isMemberAccountInGoodStanding(user.data()) ||
+        !Number.isSafeInteger(user.data()?.age) || !Number.isSafeInteger(creator.data()?.age) ||
+        ((user.data()!.age < 18) !== (creator.data()!.age < 18)) ||
+        (Array.isArray(user.data()?.blockedUids) && user.data()!.blockedUids.includes(creatorUid)) ||
+        (Array.isArray(creator.data()?.blockedUids) && creator.data()!.blockedUids.includes(requesterUid))) {
+      throw new HttpsError("permission-denied", "لم يعد العضو أو الغرفة مؤهلاً للانضمام.");
+    }
+    if (call.mode === "video" && participantUids.length >= 4) {
+      throw new HttpsError("resource-exhausted", "المكالمة المرئية محدودة بأربعة مشاركين إجمالاً بمن فيهم المنشئ.");
+    }
+    if (lock.exists && lock.data()?.callId !== callId) {
+      throw new HttpsError("resource-exhausted", "لدى العضو مكالمة أخرى نشطة بالفعل.");
+    }
+    transaction.update(callRef, {
+      participantUids: FieldValue.arrayUnion(requesterUid),
+      acceptedUids: FieldValue.arrayUnion(requesterUid),
+      status: "accepted",
+      lastActivityAt: FieldValue.serverTimestamp(),
+    });
+    transaction.set(lockRef, {
+      callId, status: "active", updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.update(requestRef, {
+      status: "approved", decidedBy: creatorUid,
+      decidedAt: FieldValue.serverTimestamp(),
+    });
+    return { approved: true, idempotentReplay: false };
   });
 });
 
