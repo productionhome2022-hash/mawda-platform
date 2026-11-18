@@ -112,6 +112,121 @@ class _ShopScreenState extends State<ShopScreen> {
     }
   }
 
+  Future<void> _gift(Map<String, dynamic> item) async {
+    final itemId = item['itemId'] as String?;
+    final name = item['name'] as String? ?? 'ميزة من متجر مودة';
+    final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
+    if (itemId == null || itemId.isEmpty || price <= 0 || _purchasingItemId != null) return;
+
+    final usernameController = TextEditingController();
+    String? username;
+    try {
+      username = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('إهداء ميزة لعضو'),
+          content: TextField(
+            controller: usernameController,
+            autofocus: true,
+            textInputAction: TextInputAction.search,
+            autocorrect: false,
+            decoration: const InputDecoration(
+              labelText: 'اسم المستخدم',
+              hintText: 'أدخل اسم العضو كما يظهر في Mawdda',
+            ),
+            onSubmitted: (value) => Navigator.pop(dialogContext, value.trim()),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, usernameController.text.trim()),
+              child: const Text('متابعة'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      usernameController.dispose();
+    }
+    if (username == null || username.isEmpty || !mounted) return;
+
+    try {
+      final lookup = await FirebaseFunctions.instance
+          .httpsCallable('lookupStoreGiftRecipient')
+          .call({'username': username});
+      final recipient = Map<String, dynamic>.from(lookup.data as Map);
+      final recipientUid = recipient['uid'] as String?;
+      final confirmedUsername = recipient['username'] as String? ?? username;
+      if (recipientUid == null || recipientUid.isEmpty) {
+        throw StateError('STORE_GIFT_RECIPIENT_LOOKUP_INCOMPLETE');
+      }
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('تأكيد الهدية'),
+          content: Text(
+            'ستُهدي "$name" إلى @$confirmedUsername مقابل $price Beta Coins. '
+            'سيتم الخصم من محفظتك ومنح الاستحقاق للمستلم لمدة المنتج المحددة في الكتالوج. '
+            'لا يشترط أن تكون قد اشتريت هذه الميزة لنفسك.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('تأكيد الإهداء'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+
+      setState(() => _purchasingItemId = itemId);
+      final response = await FirebaseFunctions.instance
+          .httpsCallable('giftStoreItem')
+          .call({
+        'recipientUid': recipientUid,
+        'itemId': itemId,
+        'requestId': const Uuid().v4(),
+        'expectedPriceCoins': price,
+      });
+      final result = Map<String, dynamic>.from(response.data as Map);
+      final giftId = result['giftId'] as String?;
+      final resultRecipientUid = result['recipientUid'] as String?;
+      final balance = (result['newBalance'] as num?)?.toInt();
+      if (giftId == null || resultRecipientUid != recipientUid || balance == null) {
+        throw StateError('STORE_GIFT_RECEIPT_INCOMPLETE');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          'تم إهداء "$name" إلى @$confirmedUsername. رصيدك الجديد: $balance Beta Coins. رقم الهدية: $giftId',
+        )),
+      );
+      _refresh();
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر إتمام الإهداء.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر إتمام الإهداء؛ لم يتم تأكيد الخصم أو الاستحقاق.')),
+      );
+    } finally {
+      if (mounted && _purchasingItemId != null) {
+        setState(() => _purchasingItemId = null);
+      }
+    }
+  }
+
   String _categoryLabel(String category) => switch (category) {
     'avatar' || 'frame' => 'إطارات الصور',
     'username_style' => 'أنماط الأسماء',
@@ -318,6 +433,15 @@ class _ShopScreenState extends State<ShopScreen> {
                               Text('المدة: $duration يوماً'),
                             ],
                             const Spacer(),
+                            if (canPurchase)
+                              TextButton.icon(
+                                onPressed: _purchasingItemId == null
+                                    ? () => _gift(item)
+                                    : null,
+                                icon: const Icon(Icons.card_giftcard_outlined),
+                                label: const Text('إهداء'),
+                              ),
+                            const SizedBox(width: 6),
                             FilledButton(
                               onPressed: canPurchase && _purchasingItemId == null
                                   ? () => _purchase(item)
