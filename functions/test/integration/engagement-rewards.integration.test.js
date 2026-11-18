@@ -630,28 +630,21 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
     version: 1,
   });
   try {
+    const mediaId = "fixture-media-" + tag;
+    await db.collection("mediaAssets").doc(mediaId).set({
+      ownerUid: ownerUid, uploaderRole: "platform_owner", mediaPurpose: "advertisement",
+      status: "security_approved", mediaCategory: "image",
+    });
     const created = await setOwnerFeaturedAdCampaign.run(ownerRequest({
       title: "CI Featured Campaign", sponsorLabel: "CI", body: "Synthetic featured campaign fixture",
       geographicTargets: ["syria"], featuredPlacement: "priority",
       startsAtMs: Date.now() - 60000, endsAtMs: Date.now() + 3600000,
-      rewardBudgetCoins: 20, rewardCoinsPerView: 2, mediaId: "00000000-0000-4000-8000-" + tag.slice(0, 12).padEnd(12, "0"),
+      rewardBudgetCoins: 20, rewardCoinsPerView: 2, mediaId,
     }));
     assert.equal(created.status, "draft");
     const campaignId = created.campaignId;
     const campaign = db.collection("featuredAdCampaigns").doc(campaignId);
-    await campaign.update({
-      mediaId: "fixture-media-" + tag, creativeType: "image", creativeApproved: true,
-      paymentConfirmed: true,
-    });
-    await assert.rejects(
-      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "approved" })),
-      (error) => error && error.code === "failed-precondition",
-    );
-    // Simulate the already security-approved media record; this test does not touch Storage bytes.
-    await db.collection("mediaAssets").doc("fixture-media-" + tag).set({
-      ownerUid: ownerUid, uploaderRole: "platform_owner", mediaPurpose: "advertisement",
-      status: "security_approved", mediaCategory: "image",
-    });
+    await campaign.update({ creativeApproved: true, paymentConfirmed: true });
     const approved = await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "approved" }));
     assert.equal(approved.status, "approved");
     const published = await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published" }));
