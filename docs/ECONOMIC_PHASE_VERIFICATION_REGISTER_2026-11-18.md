@@ -289,3 +289,22 @@ For every economic price that is defined as one combined amount and divided equa
 - Manual coin purchase owner screen and owner pricing screen were rewritten as single clean widgets; duplicate trailing source fragments and stale EUR-only code were removed. Current file readback shows one widget/state class per screen and no repeated helper blocks.
 - Approval also validates the agreed minor-unit amount before crediting the wallet.
 - Commits: 216e74fbf39197cf7111d3ba7f7432dc199ada63, 8d3afe891e42be0a15c57edb994a34364319e662, 8ec46fd7bd4f3ca9f291c0aa86f5466d8ed13f41, dd99382cbdf29cb18d03d3879451655bf399cf1f, 46c3e307883cd0251973cb1a7aff5267b3cb0687, 369356ff94773bdb285ceb84240bb0d0e085386e, e3385ad5949a1f764628bb0cc9cee087a97ddc4c, 6c744a9bfbb2fe2bfd3475fd3eede3ad1527ac3c, c58f5c3affe3fba3821fbfb4af4dcc1c02861000, 66ef604e86016a789c78b256a5da0780b68e0dcc, 77ac9a2a51db5a0419f75e335e57a9c4d5508683, eebd741dc50910b059344aaa7da578dd070072d2, c27f99a93a8be192fde5a6177fe5e8ab055de513. Not executed.
+
+
+## GitHub verification evidence — economic and Flutter regression pass (2026-11-18)
+
+- Cloud Functions build and complete Node unit suite passed on commit `c36b728916188a5cff77439efc882f8dc45a9a35` (GitHub Actions run `44370983353`): TypeScript build succeeded and all 368 unit tests passed.
+- Firebase Emulator integration suites passed in the same run: wallet/store atomicity (including concurrent store gifting and canonical payment-policy precedence), owner entitlement grants/replay, featured-ad reward policy, store catalog, room-rental wallet/replay, email verification reward cycle, engagement/featured-ad reward lifecycle, call entitlement/signaling, and owner audit-chain export.
+- Flutter CI passed on commit `621cbeaf3c3c305b59c9694d3892c12768d2e3cd` (GitHub Actions run `44370728918`): `flutter pub get --enforce-lockfile`, `flutter analyze`, all 32 Flutter tests, and `flutter build web --release`.
+- The Flutter lock resolver refreshed `pubspec.lock` with the pinned Flutter SDK. No deployment or production Firebase operation occurred.
+- A further Firestore/Storage rules suite has been added to the economy CI gate and is pending its own result; do not treat the current passing domain suites as a substitute for that security-rules run.
+
+### Remaining economic closure gates — not complete
+
+- Manual external-payment request, owner negotiation/attestation, and service fulfilment are not yet end-to-end for `public_ads`, `influencer_services`, and `store_entitlements`. Their owner-facing payment switches remain disabled and server-side validation rejects activation until the complete workflows exist.
+- Automated payment is fail-closed for every service. No payment provider has been selected or integrated; no webhook, automated capture, refund, or reconciliation flow is enabled.
+- Voice/video per-minute wallet settlement and bilateral tariff debit/credit are not yet implemented as a production-ready economic transaction cycle. Call entitlement/signaling tests do not prove metered billing.
+- Wallet reconciliation remains a bounded, per-member diagnostic with explicit incomplete results for truncated/unverifiable history; it is not yet a complete platform-wide historical ledger reconciliation.
+- Prices and quotas remain owner-controlled. No final prices, free quotas, or provider fees are inferred from test fixtures or suggested catalog entries.
+
+These gates are intentionally fail-closed. They must be completed and verified before declaring the comprehensive economic phase closed.
