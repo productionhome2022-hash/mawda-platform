@@ -8176,6 +8176,10 @@ export const setTimedAdCampaign = onCall(async (request) => {
       (typeof requestedId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestedId))) {
     throw new HttpsError("invalid-argument", "معرف الحملة غير صالح.");
   }
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "إصدار الحملة الحالي غير صالح.");
+  }
   const mediaId = request.data?.mediaId;
   if (mediaId !== undefined &&
       (typeof mediaId !== "string" || !/^[0-9a-f-]{36}$/i.test(mediaId))) {
@@ -8190,6 +8194,11 @@ export const setTimedAdCampaign = onCall(async (request) => {
       transaction.get(campaignRef),
       mediaRef ? transaction.get(mediaRef) : Promise.resolve(null),
     ]);
+    const previousVersion = previous.exists && Number.isSafeInteger(previous.data()?.version)
+      ? previous.data()!.version : 0;
+    if (previousVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت الحملة منذ فتح لوحة المالك؛ حدّث البيانات ثم أعد المحاولة.");
+    }
     if (previous.exists && !["draft", "paused"].includes(String(previous.data()?.status))) {
       throw new HttpsError("failed-precondition", "أوقف الحملة قبل تعديل إعداداتها.");
     }
@@ -8211,8 +8220,7 @@ export const setTimedAdCampaign = onCall(async (request) => {
     } else if (mediaRef) {
       throw new HttpsError("not-found", "مادة الإعلان غير موجودة.");
     }
-    const version = (Number.isSafeInteger(previous.data()?.version)
-      ? previous.data()!.version : 0) + 1;
+    const version = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(campaignRef, {
       ...input, campaignId: campaignRef.id, creativeType,
