@@ -10534,9 +10534,11 @@ export const startCall = onCall(async (request) => {
   let recipientUids: string[] = [];
   let roomRefForCall: DocumentReference | null = null;
   let roomRentalRef: DocumentReference | null = null;
+  let directChatRef: DocumentReference | null = null;
 
   if (input.scope === "direct") {
     const chatRef = db.collection("directChats").doc(input.targetId);
+    directChatRef = chatRef;
     const [callerSnapshot, chat] = await Promise.all([callerRef.get(), chatRef.get()]);
     if (!callerSnapshot.exists || callerSnapshot.data()?.profileCompleted !== true ||
         !isMemberAccountInGoodStanding(callerSnapshot.data())) {
@@ -10649,6 +10651,33 @@ export const startCall = onCall(async (request) => {
       if (roomMemberships.some((membership) => !membership.exists)) {
         throw new HttpsError("failed-precondition", "تغيرت عضوية الغرفة أثناء بدء المكالمة؛ أعد المحاولة.");
       }
+    }
+    // Revalidate the complete participant set inside the same transaction as
+    // lock creation. Preflight reads alone are vulnerable to block/status/age
+    // changes between the initial lookup and the atomic admission decision.
+    if (input.scope === "direct") {
+      if (!directChatRef) throw new HttpsError("failed-precondition", "مرجع المحادثة غير متاح.");
+      const chatSnapshot = await transaction.get(directChatRef);
+      const currentParticipants = chatSnapshot.data()?.participantUids;
+      if (!chatSnapshot.exists || !Array.isArray(currentParticipants) ||
+          currentParticipants.length !== 2 || new Set(currentParticipants).size !== 2 ||
+          participantUids.some((memberUid) => !currentParticipants.includes(memberUid))) {
+        throw new HttpsError("permission-denied", "لم تعد عضوية المحادثة الثنائية صالحة لبدء المكالمة.");
+      }
+    }
+    const currentCallerData = caller.data() ?? {};
+    const currentRecipientProfiles = await Promise.all(recipientUids.map((memberUid) =>
+      transaction.get(db.collection("users").doc(memberUid))));
+    if (currentRecipientProfiles.some((profile) => {
+      const peerData = profile.data() ?? {};
+      return !profile.exists || peerData.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(peerData) ||
+        !Number.isSafeInteger(currentCallerData.age) || !Number.isSafeInteger(peerData.age) ||
+        ((currentCallerData.age < 18) !== (peerData.age < 18)) ||
+        (Array.isArray(currentCallerData.blockedUids) && currentCallerData.blockedUids.includes(profile.id)) ||
+        (Array.isArray(peerData.blockedUids) && peerData.blockedUids.includes(callerUid));
+    })) {
+      throw new HttpsError("permission-denied", "تغيرت أهلية أحد المشاركين أو إعدادات الحظر؛ تم رفض بدء المكالمة.");
     }
     const memberLockRefs = participantUids.map((memberUid) => ACTIVE_CALL_MEMBER_LOCKS.doc(memberUid));
     const memberLocks = await Promise.all(memberLockRefs.map((lockRef) => transaction.get(lockRef)));
