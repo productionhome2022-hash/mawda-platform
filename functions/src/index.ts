@@ -1176,6 +1176,54 @@ export const setMemberPinnedProfileSection = onCall(async (request) => {
  * Age-segmented public discovery. Active discovery boosts sort ahead of
  * unboosted profiles; blocked pairs and private profiles are never returned.
  */
+/** Paid ghost mode removes the member from age-segmented discovery while active. */
+export const setMemberGhostMode = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const enabled = request.data?.enabled;
+  if (typeof enabled !== "boolean") {
+    throw new HttpsError("invalid-argument", "حالة وضع التخفي غير صالحة.");
+  }
+  const userRef = db.collection("users").doc(uid);
+  const entitlementRef = userRef.collection("entitlements").doc("ghost_mode_7d");
+  const auditRef = db.collection("profileFeatureAuditLogs").doc();
+  const now = Date.now();
+  const result = await db.runTransaction(async (transaction) => {
+    const [userSnapshot, entitlementSnapshot] = await Promise.all([
+      transaction.get(userRef), transaction.get(entitlementRef),
+    ]);
+    if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(userSnapshot.data())) {
+      throw new HttpsError("permission-denied", "العضوية غير مؤهلة لتعديل وضع التخفي.");
+    }
+    if (!entitlementSnapshot.exists || !isStoreEntitlementActive(entitlementSnapshot.data(), now)) {
+      throw new HttpsError("failed-precondition", "شراء وضع التخفي الفعال مطلوب.");
+    }
+    const entitlement = entitlementSnapshot.data() ?? {};
+    const expiry = entitlement.expiresAt instanceof Timestamp
+      ? entitlement.expiresAt
+      : typeof entitlement.expiresAt?.toMillis === "function"
+        ? Timestamp.fromMillis(entitlement.expiresAt.toMillis())
+        : null;
+    if (!expiry) {
+      throw new HttpsError("failed-precondition", "تعذر إثبات مدة وضع التخفي بأمان.");
+    }
+    const next = enabled ? expiry : Timestamp.fromMillis(now);
+    transaction.update(userRef, {
+      ghostModeUntil: next,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.create(auditRef, {
+      actorUid: uid,
+      action: enabled ? "ghost_mode_enabled" : "ghost_mode_disabled",
+      entitlementItemId: "ghost_mode_7d",
+      expiresAt: next,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { enabled: enabled && next.toMillis() > now, expiresAtMs: next.toMillis() };
+  });
+  return result;
+});
+
 export const discoverMembers = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const viewerSnapshot = await db.collection("users").doc(uid).get();
@@ -1199,7 +1247,12 @@ export const discoverMembers = onCall(async (request) => {
   const members = snapshot.docs.flatMap((document) => {
     if (document.id === uid) return [];
     const data = document.data();
+    const ghostUntil = data.ghostModeUntil;
+    const ghostUntilMs = ghostUntil instanceof Timestamp
+      ? ghostUntil.toMillis()
+      : typeof ghostUntil?.toMillis === "function" ? ghostUntil.toMillis() : 0;
     if (data.profileVisibility !== "public" || !isMemberAccountInGoodStanding(data) ||
+        ghostUntilMs > nowMs ||
         !Number.isSafeInteger(data.age) || ((data.age as number) < 18) !== (viewerAge < 18) ||
         viewerBlocked.has(document.id)) return [];
     const blockedByCandidate = Array.isArray(data.blockedUids) && data.blockedUids.includes(uid);
