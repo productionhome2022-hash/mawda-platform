@@ -20,18 +20,23 @@ test("room rental plans are editable only by MFA owner and expose versioned publ
     { planId: "room_30d", name: "30 days", durationDays: 30, priceCoins: 1000, active: true },
     { planId: "room_90d", name: "90 days", durationDays: 90, priceCoins: 2500, active: true },
   ];
-  const result = await setRoomRentalPlans.run(ownerRequest(uid, { plans }));
+  const result = await setRoomRentalPlans.run(ownerRequest(uid, { plans, expectedVersion: 0 }));
   assert.equal(result.saved, true);
   const published = await getRoomRentalPlans.run(memberRequest(uid, {}));
   assert.equal(published.version, result.version);
   assert.equal(published.plans.length, 2);
   assert.equal(published.plans[1].priceCoins, 2500);
   await assert.rejects(
-    () => setRoomRentalPlans.run(memberRequest(uid, { plans })),
+    () => setRoomRentalPlans.run(ownerRequest(uid, { plans, expectedVersion: 0 })),
+    (error) => error && error.code === "aborted",
+    "stale owner updates must not overwrite newer rental policy",
+  );
+  await assert.rejects(
+    () => setRoomRentalPlans.run(memberRequest(uid, { plans, expectedVersion: result.version })),
     (error) => error && error.code === "permission-denied",
   );
   await assert.rejects(
-    () => setRoomRentalPlans.run(ownerRequest(uid, { plans: [{ ...plans[0], priceCoins: -1 }] })),
+    () => setRoomRentalPlans.run(ownerRequest(uid, { plans: [{ ...plans[0], priceCoins: -1 }], expectedVersion: result.version })),
     (error) => error && error.code === "invalid-argument",
   );
 });
