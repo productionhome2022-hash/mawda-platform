@@ -15,7 +15,7 @@ import { hasPlatformOwnerSession } from "./owner-access";
 import { isGuestSessionActive } from "./guest-sessions";
 import { createDirectChatId } from "./direct-chat-id";
 import { resolveChatMediaDeliveryArtifact } from "./chat-media-policy";
-import { reserveMediaQuota, releaseMediaQuota } from "./media-quota";
+import { reserveMediaQuota, releaseMediaQuota, mediaQuotaExemptForTransfer, mediaDailyQuotaExemptForTransfer } from "./media-quota";
 import {
   detectMediaSignature,
   mediaPolicyFor,
@@ -1321,6 +1321,20 @@ export const createMediaUploadIntent = onCall(async (request) => {
   if (!policy) throw new HttpsError("invalid-argument", "نوع الملف غير مسموح به.");
   const token = (request.auth?.token ?? {}) as Record<string, unknown>;
   const isPlatformOwner = token.platformOwner === true && hasPlatformOwnerSession(token, undefined, uid);
+  const requestedRecipientUid = typeof request.data?.recipientUid === "string" ? request.data.recipientUid.trim() : "";
+  let isVerifiedPlatformOwnerRecipient = false;
+  if (requestedRecipientUid) {
+    if (input.purpose !== "chat" || requestedRecipientUid.length > 128 ||
+        requestedRecipientUid === uid || requestedRecipientUid.includes("/")) {
+      throw new HttpsError("invalid-argument", "مستلم المرفق غير صالح.");
+    }
+    try {
+      const recipientAccount = await getAuth().getUser(requestedRecipientUid);
+      isVerifiedPlatformOwnerRecipient = recipientAccount.customClaims?.platformOwner === true;
+    } catch {
+      throw new HttpsError("not-found", "حساب مستلم المرفق غير موجود.");
+    }
+  }
   if (!mediaUploadAllowedForRole(input, isPlatformOwner)) {
     throw new HttpsError(
       "permission-denied",
@@ -1362,28 +1376,37 @@ export const createMediaUploadIntent = onCall(async (request) => {
 
   const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
   const quotaRef = mediaDb().collection("mediaUploadQuotas").doc(uid);
+  const quotaExempt = mediaQuotaExemptForTransfer(isPlatformOwner);
+  const dailyQuotaExempt = mediaDailyQuotaExemptForTransfer(isPlatformOwner, isVerifiedPlatformOwnerRecipient);
   await mediaDb().runTransaction(async (transaction) => {
     const [quotaSnapshot, existingAsset] = await Promise.all([
-      transaction.get(quotaRef),
+      quotaExempt ? Promise.resolve(null) : transaction.get(quotaRef),
       transaction.get(assetRef),
     ]);
     if (existingAsset.exists) {
       throw new HttpsError("already-exists", "معرف طلب الرفع مستخدم مسبقاً.");
     }
     let reservation;
-    try {
-      reservation = reserveMediaQuota(quotaSnapshot.data(), input.declaredSizeBytes);
-    } catch {
-      throw new HttpsError("resource-exhausted", "تم بلوغ حصة الرفع المؤقتة أو اليومية. حاول لاحقاً.");
+    if (!quotaExempt) {
+      try {
+        reservation = reserveMediaQuota(quotaSnapshot?.data(), input.declaredSizeBytes, Date.now(), dailyQuotaExempt);
+      } catch {
+        throw new HttpsError("resource-exhausted", "تم بلوغ حصة الرفع المؤقتة أو اليومية. حاول لاحقاً.");
+      }
     }
     const now = FieldValue.serverTimestamp();
-    transaction.set(quotaRef, { ...reservation, updatedAt: now });
+    if (reservation) transaction.set(quotaRef, { ...reservation, updatedAt: now });
     transaction.create(assetRef, {
       mediaId,
       ownerUid: uid,
       uploaderType,
       uploaderRole: isPlatformOwner ? "platform_owner" : uploaderType === "guest" ? "guest" : "member",
       mediaPurpose: input.purpose,
+      quotaExempt,
+      ...(isVerifiedPlatformOwnerRecipient ? {
+        intendedRecipientUid: requestedRecipientUid,
+        intendedRecipientIsPlatformOwner: true,
+      } : {}),
       objectPath,
       originalName: input.originalName,
       declaredContentType: input.contentType,
