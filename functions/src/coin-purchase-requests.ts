@@ -38,7 +38,8 @@ export function validateCoinPurchaseRequestInput(value: unknown): {
   throw new Error("INVALID_REQUEST_KIND");
 }
 export function validateOwnerPaymentInstructionInput(value: unknown): {
-  requestId: string; instructions: string; agreedCoins: number; agreedPriceMinor: number; currency: "EUR";
+  requestId: string; instructions: string; agreedCoins: number; agreedPriceMinor: number;
+  currency: "EUR"; expectedInstructionsVersion: number;
 } {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_INSTRUCTIONS");
   const data = value as Record<string, unknown>;
@@ -49,13 +50,15 @@ export function validateOwnerPaymentInstructionInput(value: unknown): {
       !Number.isSafeInteger(data.agreedCoins) || (data.agreedCoins as number) < 1 ||
       (data.agreedCoins as number) > 1000000000 ||
       !Number.isSafeInteger(data.agreedPriceMinor) || (data.agreedPriceMinor as number) < 1 ||
-      (data.agreedPriceMinor as number) > 100000000 || data.currency !== "EUR") {
+      (data.agreedPriceMinor as number) > 100000000 || data.currency !== "EUR" ||
+      !Number.isSafeInteger(data.expectedInstructionsVersion) ||
+      (data.expectedInstructionsVersion as number) < 0) {
     throw new Error("INVALID_INSTRUCTIONS");
   }
   return {
     requestId: data.requestId, instructions: data.instructions.trim(),
     agreedCoins: data.agreedCoins as number, agreedPriceMinor: data.agreedPriceMinor as number,
-    currency: "EUR",
+    currency: "EUR", expectedInstructionsVersion: data.expectedInstructionsVersion as number,
   };
 }
 
