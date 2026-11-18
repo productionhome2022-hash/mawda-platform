@@ -7164,7 +7164,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       throw new HttpsError("permission-denied", "يجب أن يكون حساب العضو مكتملاً ونشطاً.");
     }
     const economy = settings.data() ?? {};
-    if (economy.manualCoinPurchasesEnabled === false || economy.automatedCoinCheckoutEnabled === true) {
+    if (economy.manualCoinPurchasesEnabled === false) {
       throw new HttpsError("failed-precondition", "طلبات الشراء اليدوية غير متاحة حالياً.");
     }
     let packageSnapshot: Record<string, unknown> | null = null;
@@ -7194,6 +7194,11 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       packageId: input.packageId ?? null, packageSnapshot,
       requestedCoins, status: "pending_owner_contact",
       paymentChannel: "manual_owner_contact", currency: "EUR",
+      paymentPolicySnapshot: {
+        manualEnabled: true, automatedEnabled: false,
+        policyVersion: Number.isSafeInteger(economy.version) ? economy.version : 0,
+        capturedAt: FieldValue.serverTimestamp(),
+      },
       createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
     });
     return { requestId: input.requestId, status: "pending_owner_contact", idempotentReplay: false };
@@ -7214,7 +7219,7 @@ export const listOwnerCoinPurchaseRequests = onCall(async (request) => {
   requireOwner(request);
   const status = request.data?.status;
   const allowed = ["pending_owner_contact", "payment_instructions_sent",
-    "approved", "rejected", "withdrawn"];
+    "awaiting_payment_verification", "approved", "rejected", "withdrawn"];
   if (status !== undefined && !allowed.includes(status)) {
     throw new HttpsError("invalid-argument", "حالة الطلب غير صالحة.");
   }
@@ -7233,6 +7238,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     requestId: request.data?.requestId, instructions: request.data?.instructions,
     agreedCoins: request.data?.agreedCoins, agreedPriceMinor: request.data?.agreedPriceMinor,
     currency: request.data?.currency,
+    expectedInstructionsVersion: request.data?.expectedInstructionsVersion,
   }); }
   catch { throw new HttpsError("invalid-argument", "تعليمات الدفع أو الكمية أو السعر غير صالحة."); }
   const requesterUid = request.data?.requesterUid;
@@ -7250,10 +7256,20 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
     }
     const prior = snapshot.data()!;
-    if (["approved", "rejected", "withdrawn"].includes(String(prior.status))) {
-      throw new HttpsError("failed-precondition", "لا يمكن تعديل طلب منتهٍ.");
+    if (prior.status !== "pending_owner_contact") {
+      throw new HttpsError("failed-precondition", "تعليمات الدفع المرسلة لا تُعدّل؛ إذا لزم تصحيح الاتفاق فأغلق الطلب وافتح طلباً جديداً.");
     }
-    const nextVersion = (Number.isSafeInteger(prior.instructionsVersion) ? prior.instructionsVersion : 0) + 1;
+    if (prior.paymentChannel !== "manual_owner_contact" ||
+        (prior.paymentPolicySnapshot !== undefined &&
+         prior.paymentPolicySnapshot?.manualEnabled !== true)) {
+      throw new HttpsError("failed-precondition", "مسار الدفع اليدوي غير مثبت في لقطة الطلب.");
+    }
+    const currentInstructionsVersion = Number.isSafeInteger(prior.instructionsVersion)
+      ? prior.instructionsVersion : 0;
+    if (currentInstructionsVersion !== input.expectedInstructionsVersion) {
+      throw new HttpsError("aborted", "تغير إصدار الطلب؛ أعد تحميله قبل إصدار التعليمات.");
+    }
+    const nextVersion = currentInstructionsVersion + 1;
     messageId = createHash("sha256").update(`coin-purchase:${requesterUid}:${input.requestId}:${nextVersion}`).digest("hex");
     const messageRef = chatRef.collection("messages").doc(messageId);
     const [chatSnapshot, existingMessage] = await Promise.all([
@@ -7294,6 +7310,10 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       status: "payment_instructions_sent", chatId, agreedCoins: input.agreedCoins,
       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
       paymentInstructions: input.instructions, instructionsVersion: nextVersion,
+      paymentPolicySnapshot: prior.paymentPolicySnapshot ?? {
+        manualEnabled: true, automatedEnabled: false, policyVersion: 0,
+        legacyRequestSnapshot: true, capturedAt: now,
+      },
       instructionsSetBy: actorUid, instructionsSetAt: now, updatedAt: now,
     });
     const auditRef = db.collection("adminAuditLogs").doc();
@@ -7308,6 +7328,78 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     "أرسل مالك المنصة تعليمات الدفع لطلب الكوينز. افتح المحادثة للاطلاع عليها.",
     { type: "coin_purchase_payment_instructions", chatId, messageId });
   return { requestId: input.requestId, status: "payment_instructions_sent", chatId, messageId };
+});
+
+/**
+ * Member report that an external transfer was initiated. This is a claim-only
+ * workflow signal and never proves receipt or credits the wallet.
+ */
+export const requestCoinPurchasePaymentVerification = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const requestId = request.data?.requestId;
+  const expectedInstructionsVersion = request.data?.expectedInstructionsVersion;
+  if (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestId) ||
+      !Number.isSafeInteger(expectedInstructionsVersion) ||
+      (expectedInstructionsVersion as number) < 1) {
+    throw new HttpsError("invalid-argument", "معرف الطلب أو إصدار التعليمات غير صالح.");
+  }
+  const requestRef = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
+  const memberRef = db.collection("users").doc(uid);
+  const auditRef = db.collection("adminAuditLogs").doc(
+    `coin_purchase_payment_report_${uid}_${requestId}_${expectedInstructionsVersion}`,
+  );
+  return db.runTransaction(async (transaction) => {
+    const [purchase, member, audit] = await Promise.all([
+      transaction.get(requestRef), transaction.get(memberRef), transaction.get(auditRef),
+    ]);
+    if (!member.exists || member.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(member.data())) {
+      throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بتحديث طلب الدفع.");
+    }
+    if (!purchase.exists || purchase.data()?.requesterUid !== uid) {
+      throw new HttpsError("not-found", "طلب الشراء غير موجود.");
+    }
+    const data = purchase.data() ?? {};
+    if (data.paymentChannel !== "manual_owner_contact" ||
+        (data.paymentPolicySnapshot !== undefined && data.paymentPolicySnapshot?.manualEnabled !== true)) {
+      throw new HttpsError("failed-precondition", "هذا الطلب لا يستخدم مسار الدفع اليدوي.");
+    }
+    if (data.status === "awaiting_payment_verification" &&
+        data.instructionsVersion === expectedInstructionsVersion &&
+        data.paymentReportedInstructionVersion === expectedInstructionsVersion) {
+      if (!audit.exists) transaction.create(auditRef, {
+        actorUid: uid, targetUid: uid,
+        action: "coin_purchase_member_reported_external_payment",
+        requestId, instructionVersion: expectedInstructionsVersion,
+        authority: "member_claim_only_not_payment_proof",
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return { requestId, status: "awaiting_payment_verification", idempotentReplay: true };
+    }
+    if (data.status !== "payment_instructions_sent" ||
+        data.instructionsVersion !== expectedInstructionsVersion || audit.exists) {
+      throw new HttpsError("failed-precondition", "حالة الطلب أو إصدار التعليمات لا يسمح بالإبلاغ عن الدفع.");
+    }
+    transaction.update(requestRef, {
+      status: "awaiting_payment_verification",
+      paymentPolicySnapshot: data.paymentPolicySnapshot ?? {
+        manualEnabled: true, automatedEnabled: false, policyVersion: 0,
+        legacyRequestSnapshot: true, capturedAt: FieldValue.serverTimestamp(),
+      },
+      paymentReportedBy: uid,
+      paymentReportedAt: FieldValue.serverTimestamp(),
+      paymentReportedInstructionVersion: expectedInstructionsVersion,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.create(auditRef, {
+      actorUid: uid, targetUid: uid,
+      action: "coin_purchase_member_reported_external_payment",
+      requestId, instructionVersion: expectedInstructionsVersion,
+      authority: "member_claim_only_not_payment_proof",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { requestId, status: "awaiting_payment_verification", idempotentReplay: false };
+  });
 });
 
 /** Only the owner can attest to external receipt; approval atomically credits coins and ledger. */
@@ -7338,7 +7430,11 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
     }
     const data = purchase.data()!;
     if (data.status === "approved") return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null };
-    if (data.status !== "payment_instructions_sent") {
+    if (data.paymentChannel !== "manual_owner_contact" ||
+        (data.paymentPolicySnapshot !== undefined && data.paymentPolicySnapshot?.manualEnabled !== true)) {
+      throw new HttpsError("failed-precondition", "لقطة الطلب لا تسمح بالاعتماد اليدوي.");
+    }
+    if (!["payment_instructions_sent", "awaiting_payment_verification"].includes(String(data.status))) {
       throw new HttpsError("failed-precondition", "لا يمكن اعتماد الطلب قبل إرسال تعليمات الدفع.");
     }
     if (!user.exists || !isMemberAccountInGoodStanding(user.data())) {
@@ -7420,8 +7516,8 @@ export const withdrawCoinPurchaseRequest = onCall(async (request) => {
     if (!snapshot.exists || snapshot.data()?.requesterUid !== uid) {
       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
     }
-    if (["approved", "rejected"].includes(String(snapshot.data()?.status))) {
-      throw new HttpsError("failed-precondition", "لا يمكن سحب طلب منتهٍ.");
+    if (["payment_instructions_sent", "awaiting_payment_verification", "approved", "rejected"].includes(String(snapshot.data()?.status))) {
+      throw new HttpsError("failed-precondition", "لا يمكن سحب الطلب بعد إصدار تعليمات الدفع؛ تواصل مع المالك لإغلاق الاتفاق.");
     }
     if (snapshot.data()?.status === "withdrawn") return;
     transaction.update(ref, { status: "withdrawn", withdrawnAt: FieldValue.serverTimestamp(),
