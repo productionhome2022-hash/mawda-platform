@@ -6526,6 +6526,135 @@ export const purchaseStoreItem = onCall(async (request) => {
 
 
 /**
+ * Gifts a published store entitlement from one member to another.
+ * The giver pays Beta Coins; the recipient receives the entitlement.
+ * The entire debit + gift record + entitlement + ledgers are atomic and idempotent.
+ */
+export const giftStoreEntitlement = onCall(async (request) => {
+  const giverUid = requireAuthenticatedUid(request.auth?.uid);
+  const itemId = request.data?.itemId;
+  const recipientUid = request.data?.recipientUid;
+  const requestId = request.data?.requestId;
+  const expectedPriceCoins = request.data?.expectedPriceCoins;
+  if (typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
+      typeof recipientUid !== "string" || recipientUid.length < 1 || recipientUid.length > 128 ||
+      recipientUid === giverUid || recipientUid.includes("/") ||
+      typeof requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestId) ||
+      typeof expectedPriceCoins !== "number" || !Number.isSafeInteger(expectedPriceCoins) ||
+      expectedPriceCoins <= 0) {
+    throw new HttpsError("invalid-argument", "بيانات إهداء الميزة غير صالحة.");
+  }
+
+  const giverRef = db.collection("users").doc(giverUid);
+  const recipientRef = db.collection("users").doc(recipientUid);
+  const itemRef = db.collection("storeCatalog").doc(itemId);
+  const giftId = createHash("sha256").update(`mawdda-store-gift-v1:${giverUid}:${recipientUid}:${requestId}`).digest("hex");
+  const giftRef = db.collection("storeGifts").doc(giftId);
+  const giverLedgerRef = giverRef.collection("walletLedger").doc(`gift_${giftId}`);
+  const recipientLedgerRef = recipientRef.collection("entitlementGiftLedger").doc(giftId);
+  const entitlementRef = recipientRef.collection("entitlements").doc(itemId);
+
+  return db.runTransaction(async (transaction) => {
+    const [giver, recipient, itemSnapshot, priorGift, priorEntitlement] = await Promise.all([
+      transaction.get(giverRef),
+      transaction.get(recipientRef),
+      transaction.get(itemRef),
+      transaction.get(giftRef),
+      transaction.get(entitlementRef),
+    ]);
+
+    if (priorGift.exists) {
+      const prior = priorGift.data() ?? {};
+      if (prior.giverUid !== giverUid || prior.recipientUid !== recipientUid ||
+          prior.itemId !== itemId || prior.expectedPriceCoins !== expectedPriceCoins) {
+        throw new HttpsError("already-exists", "معرف الإهداء مستخدم لعملية أخرى.");
+      }
+      return {
+        giftId, itemId, recipientUid,
+        priceCoins: prior.priceCoins,
+        expiresAt: prior.expiresAt instanceof Timestamp ? prior.expiresAt.toMillis() : null,
+        idempotentReplay: true,
+      };
+    }
+
+    if (!giver.exists || giver.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(giver.data()) ||
+        !recipient.exists || recipient.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(recipient.data())) {
+      throw new HttpsError("permission-denied", "حالة أحد الحسابين لا تسمح بالإهداء.");
+    }
+    if (!itemSnapshot.exists) throw new HttpsError("not-found", "عنصر المتجر غير موجود.");
+    const item = projectStoreCatalogItem(itemId, itemSnapshot.data() ?? {});
+    if (!item || !isStoreItemPurchasable(item)) {
+      throw new HttpsError("failed-precondition", "هذا العنصر غير متاح للإهداء.");
+    }
+    if (!isStorePurchasePriceCurrent(expectedPriceCoins, item.priceCoins)) {
+      throw new HttpsError("failed-precondition", "تغير سعر العنصر؛ حدّث المتجر قبل تأكيد الإهداء.");
+    }
+
+    const recipientExisting = priorEntitlement.data() ?? {};
+    if (priorEntitlement.exists && isStoreEntitlementActive(recipientExisting)) {
+      const existingExpiry = recipientExisting.expiresAt;
+      const existingPermanent = existingExpiry === null || existingExpiry === undefined;
+      if (existingPermanent && !item.durationDays) {
+        throw new HttpsError("already-exists", "يمتلك المستفيد هذه الميزة الدائمة بالفعل.");
+      }
+    }
+
+    const giverBalance = giver.data()?.coins ?? 0;
+    const newGiverBalance = calculateStorePurchaseBalance(giverBalance, item.priceCoins);
+    if (newGiverBalance === null) {
+      throw new HttpsError("failed-precondition", "رصيد Beta Coins غير كافٍ للإهداء.");
+    }
+
+    const nowMs = Date.now();
+    const existingExpiry = recipientExisting.expiresAt;
+    const existingExpiryMs = existingExpiry instanceof Timestamp
+      ? existingExpiry.toMillis()
+      : typeof existingExpiry?.toMillis === "function" ? existingExpiry.toMillis() : 0;
+    const expiryBaseMs = Math.max(nowMs, existingExpiryMs);
+    const expiresAt = item.durationDays
+      ? Timestamp.fromMillis(expiryBaseMs + item.durationDays * 24 * 60 * 60 * 1000)
+      : null;
+    const createdAt = FieldValue.serverTimestamp();
+
+    transaction.update(giverRef, { coins: newGiverBalance, updatedAt: createdAt });
+    transaction.create(giftRef, {
+      giftId, requestId, giverUid, recipientUid, itemId,
+      itemName: item.name, category: item.category,
+      expectedPriceCoins, priceCoins: item.priceCoins,
+      durationDays: item.durationDays ?? null,
+      expiresAt, status: "completed", createdAt,
+    });
+    transaction.create(giverLedgerRef, {
+      type: "store_gift_sent", direction: "debit",
+      amount: -item.priceCoins, giftId, recipientUid, itemId,
+      itemName: item.name, createdAt,
+    });
+    transaction.create(recipientLedgerRef, {
+      type: "store_gift_received", direction: "credit",
+      amount: 0, giftId, giverUid, itemId,
+      itemName: item.name, durationDays: item.durationDays ?? null,
+      expiresAt, createdAt,
+    });
+    transaction.set(entitlementRef, {
+      itemId, itemName: item.name, category: item.category,
+      status: "active", grantSource: "member_gift",
+      giftId, giftedBy: giverUid, giftedAt: createdAt,
+      expiresAt,
+      updatedAt: createdAt,
+    });
+
+    return {
+      giftId, itemId, recipientUid, priceCoins: item.priceCoins,
+      newGiverBalance, expiresAt: expiresAt?.toMillis() ?? null,
+      idempotentReplay: false,
+    };
+  });
+});
+
+
+/**
  * Grants a free store entitlement to one member. Each target/request pair is
  * idempotent; a new request deliberately extends an existing timed entitlement.
  */
