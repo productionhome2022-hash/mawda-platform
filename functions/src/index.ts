@@ -89,6 +89,11 @@ import { validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance }
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
 import { validateCoinPackages, validateAdPrices } from "./economy-pricing";
+import { currencyExponentForCode } from "./economy-pricing";
+import {
+  validateFeaturedAdFinancialEvent, applyFeaturedAdFinancialEvent,
+  featuredAdFinancialIdempotencyId, defaultFeaturedAdFinancialSnapshot,
+} from "./featured-ad-finance";
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
@@ -8416,6 +8421,92 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     throw new HttpsError("permission-denied", "الحساب أو الحملة لم تعد مؤهلة؛ ألغيت الجلسة دون مكافأة.");
   }
   return result;
+});
+
+/** Owner-only advertiser receipt/refund/reconciliation ledger. This never credits member BetaCoins. */
+export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let event;
+  try {
+    event = validateFeaturedAdFinancialEvent(request.data);
+    if (event.currency !== null && currencyExponentForCode(event.currency) === null) {
+      throw new Error("UNSUPPORTED_CURRENCY");
+    }
+  } catch {
+    throw new HttpsError("invalid-argument", "بيانات الحركة المالية الإعلانية أو عملتها غير صالحة.");
+  }
+  const campaignRef = db.collection("timedAdCampaigns").doc(event.campaignId);
+  const financialRef = db.collection("featuredAdFinancials").doc(event.campaignId);
+  const eventId = featuredAdFinancialIdempotencyId(
+    event.campaignId, event.action, event.externalReference!,
+  );
+  const eventRef = financialRef.collection("events").doc(eventId);
+  const auditRef = db.collection("adminAuditLogs").doc(`featured_ad_finance_${eventId}`);
+  return db.runTransaction(async (transaction) => {
+    const [campaign, financial, priorEvent] = await Promise.all([
+      transaction.get(campaignRef), transaction.get(financialRef), transaction.get(eventRef),
+    ]);
+    if (!campaign.exists) throw new HttpsError("not-found", "الحملة الإعلانية غير موجودة.");
+    if (priorEvent.exists) {
+      const prior = priorEvent.data() ?? {};
+      const matches = prior.actorUid === actorUid &&
+        prior.idempotencyKey === event.idempotencyKey &&
+        prior.action === event.action && prior.amountMinor === event.amountMinor &&
+        prior.currency === event.currency && prior.externalReference === event.externalReference &&
+        prior.evidenceReference === event.evidenceReference && prior.note === event.note &&
+        prior.reviewOutcome === event.reviewOutcome;
+      if (!matches) throw new HttpsError("already-exists", "مرجع الحركة مستخدم ببيانات مالية مختلفة.");
+      return {
+        campaignId: event.campaignId, eventId,
+        snapshot: financial.data() ?? null, idempotentReplay: true,
+      };
+    }
+    const currentData = financial.data() ?? {};
+    if (financial.exists && (!Number.isSafeInteger(currentData.version) || currentData.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار السجل المالي الإعلاني غير صالح.");
+    }
+    const current = financial.exists
+      ? {
+          currency: currentData.currency,
+          receivedMinor: currentData.receivedMinor,
+          refundedMinor: currentData.refundedMinor,
+          reconciledMinor: currentData.reconciledMinor,
+          reviewStatus: currentData.reviewStatus,
+          paymentStatus: currentData.paymentStatus,
+        }
+      : defaultFeaturedAdFinancialSnapshot();
+    let next;
+    try { next = applyFeaturedAdFinancialEvent(current, event); }
+    catch { throw new HttpsError("failed-precondition", "لا تسمح حالة السجل المالي بتطبيق هذه الحركة."); }
+    const version = financial.exists ? currentData.version + 1 : 1;
+    if (!Number.isSafeInteger(version)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار مالي جديد.");
+    const now = FieldValue.serverTimestamp();
+    const versionRef = db.collection("featuredAdFinancialVersions").doc(event.campaignId)
+      .collection("versions").doc(String(version));
+    const currencyExponent = event.currency === null ? null : currencyExponentForCode(event.currency);
+    transaction.create(versionRef, {
+      campaignId: event.campaignId, ...next, version,
+      lastEventId: eventId, createdAt: now, createdBy: actorUid,
+    });
+    transaction.create(eventRef, {
+      ...event, currencyExponent, eventId, actorUid,
+      snapshotVersion: version, createdAt: now,
+    });
+    transaction.set(financialRef, {
+      campaignId: event.campaignId, ...next, version,
+      lastEventId: eventId, updatedAt: now, updatedBy: actorUid,
+      createdAt: currentData.createdAt ?? now,
+      currentVersionPath: versionRef.path,
+    });
+    transaction.create(auditRef, {
+      actorUid, action: "featured_ad_financial_event_recorded",
+      campaignId: event.campaignId, eventId, eventType: event.action,
+      amountMinor: event.amountMinor, currency: event.currency,
+      currencyExponent, externalReference: event.externalReference,
+      snapshotVersion: version, createdAt: now,
+    });
+    return { campaignId: event.campaignId, eventId, snapshot: next, version, idempotentReplay: false };
+  });
 });
 
 export const getRewardCenter = onCall(async (request) => {
