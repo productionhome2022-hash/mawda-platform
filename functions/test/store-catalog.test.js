@@ -125,6 +125,7 @@ test("only shipped premium profile consumers can be explicitly enabled for purch
     ["profile_theme_30d", "theme"],
     ["visitor_greeting_30d", "greeting"],
     ["ghost_mode_7d", "privacy"],
+    ["hide_coins_30d", "privacy"],
   ];
   for (const [itemId, category] of ready) {
     const item = validateStoreCatalogItemInput({
