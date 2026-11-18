@@ -8946,7 +8946,8 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
   if (campaign.status !== "published" || campaign.ownerWithdrawn === true || campaign.ownerApproved !== true ||
       campaign.paymentConfirmed !== true || campaign.creativeApproved !== true ||
       campaign.startsAtMs > now || campaign.endsAtMs <= now ||
-      !Array.isArray(campaign.geographicTargets) || !campaign.geographicTargets.includes(geography)) {
+      !Array.isArray(campaign.geographicTargets) ||
+      (!campaign.geographicTargets.includes(geography) && !campaign.geographicTargets.includes("all_arab_countries"))) {
     throw new HttpsError("failed-precondition", "الحملة غير مؤهلة للمشاهدة حالياً.");
   }
   let rewardPolicy: FeaturedAdRewardPolicy;
@@ -9138,7 +9139,10 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
       nowMs: now, campaignEligible: campaignRewardConfigured &&
         campaign.status === "published" && campaign.ownerWithdrawn !== true &&
         campaign.ownerApproved === true && campaign.paymentConfirmed === true && campaign.creativeApproved === true &&
-        now >= campaign.startsAtMs && now < campaign.endsAtMs,
+        now >= campaign.startsAtMs && now < campaign.endsAtMs &&
+        Array.isArray(campaign.geographicTargets) &&
+        (campaign.geographicTargets.includes(session.geography) ||
+          campaign.geographicTargets.includes("all_arab_countries")),
       rewardBudgetAvailable: campaignRewardConfigured &&
         Number.isSafeInteger(campaign.rewardBudgetCoins) &&
         Number.isSafeInteger(campaign.spentRewardCoins ?? 0) &&
