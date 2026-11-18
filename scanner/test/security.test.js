@@ -24,6 +24,9 @@ test("scan request accepts only exact quarantine path, UUID, generation and Goog
   };
   assert.deepEqual(validateScanRequest(valid, "clamav-mawadda-gateway", bucket, valid.callbackUrl), valid);
   assert.equal(validateScanRequest({ ...valid, purpose: "untrusted" }, "clamav-mawadda-gateway", bucket, valid.callbackUrl), null);
+  assert.deepEqual(validateScanRequest({ ...valid, purpose: "sticker", contentType: "image/png" }, valid.provider, bucket, valid.callbackUrl).purpose, "sticker");
+  assert.equal(validateScanRequest({ ...valid, purpose: "sticker", contentType: "image/jpeg" }, valid.provider, bucket, valid.callbackUrl), null);
+  assert.equal(validateScanRequest({ ...valid, purpose: "sticker", contentType: "audio/mpeg" }, valid.provider, bucket, valid.callbackUrl), null);
   assert.equal(validateScanRequest({ ...valid, purpose: "advertisement", contentType: "audio/mpeg" }, valid.provider, bucket, valid.callbackUrl), null);
   assert.equal(validateScanRequest({ ...valid, purpose: "story", contentType: "application/pdf" }, valid.provider, bucket, valid.callbackUrl), null);
   assert.equal(validateScanRequest({ ...valid, purpose: "profile_album", contentType: "audio/mpeg" }, valid.provider, bucket, valid.callbackUrl), null);
