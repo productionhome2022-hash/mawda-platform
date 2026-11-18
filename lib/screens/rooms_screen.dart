@@ -106,7 +106,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
       if (!mounted) return;
       final roomId = (result.data as Map)['roomId'] as String?;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم استئجار الغرفة وخصم الكوينز ذرياً.')),
+        const SnackBar(content: Text('تم استئجار الغرفة وخصم BetaCoins ذرياً.')),
       );
       _refresh();
       if (roomId != null) {
