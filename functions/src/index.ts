@@ -7222,9 +7222,19 @@ export const setStoreCatalogItem = onCall(async (request) => {
   } catch {
     throw new HttpsError("invalid-argument", "بيانات عنصر المتجر أو سعره أو تصنيفه غير صالحة.");
   }
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "إصدار عنصر المتجر الحالي مطلوب.");
+  }
   const itemRef = db.collection("storeCatalog").doc(item.itemId);
-  await db.runTransaction(async (transaction) => {
+  const version = await db.runTransaction(async (transaction) => {
     const previousSnapshot = await transaction.get(itemRef);
+    const previous = previousSnapshot.data() ?? {};
+    const previousVersion = Number.isSafeInteger(previous.version) ? previous.version : 0;
+    if (previousVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغير عنصر المتجر منذ فتح شاشة التعديل؛ حدّث البيانات ثم أعد المحاولة.");
+    }
+    const nextVersion = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(itemRef, {
       itemId: item.itemId,
@@ -7237,6 +7247,7 @@ export const setStoreCatalogItem = onCall(async (request) => {
       active: item.active,
       purchaseEnabled: item.purchaseEnabled,
       fulfillmentReady: item.fulfillmentReady,
+      version: nextVersion,
       createdAt: previousSnapshot.data()?.createdAt ?? now,
       updatedAt: now,
       updatedBy: actorUid,
@@ -7251,10 +7262,24 @@ export const setStoreCatalogItem = onCall(async (request) => {
       category: item.category,
       purchaseEnabled: item.purchaseEnabled,
       fulfillmentReady: item.fulfillmentReady,
+      previousVersion,
+      version: nextVersion,
+      previousValues: previousSnapshot.exists ? {
+        name: previous.name ?? null, description: previous.description ?? null,
+        category: previous.category ?? null, priceCoins: previous.priceCoins ?? null,
+        durationDays: previous.durationDays ?? null, active: previous.active === true,
+        purchaseEnabled: previous.purchaseEnabled === true,
+      } : null,
+      nextValues: {
+        name: item.name, description: item.description, category: item.category,
+        priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
+        active: item.active, purchaseEnabled: item.purchaseEnabled,
+      },
       createdAt: now,
     });
+    return nextVersion;
   });
-  return { itemId: item.itemId, active: item.active };
+  return { itemId: item.itemId, active: item.active, version };
 });
 
 /** Returns only display-safe catalog fields to the authenticated owner. */
@@ -7290,7 +7315,8 @@ export const getOwnerStoreCatalog = onCall(async (request) => {
     .map((document) => {
       const data = document.data();
       const projected = projectStoreCatalogItem(document.id, { ...data, active: true });
-      return projected ? { ...projected, active: data.active === true } : null;
+      return projected ? { ...projected, active: data.active === true,
+        version: Number.isSafeInteger(data.version) ? data.version : 0 } : null;
     })
     .filter((item): item is NonNullable<typeof item> => item !== null)
     .sort((left, right) => left.sortOrder - right.sortOrder || left.itemId.localeCompare(right.itemId));
