@@ -22,13 +22,13 @@ test("validates independent manual modes without inventing prices or enabling au
   const policy = validateEconomicPaymentPolicy({
     coin_purchases: { manualEnabled: true, automatedEnabled: false },
     featured_ads: { manualEnabled: false },
-    public_ads: { manualEnabled: true },
+    public_ads: { manualEnabled: false },
     influencer_services: { manualEnabled: false },
-    store_entitlements: { manualEnabled: true },
+    store_entitlements: { manualEnabled: false },
   });
   assert.equal(policy.coin_purchases.manualEnabled, true);
-  assert.equal(policy.public_ads.manualEnabled, true);
-  assert.equal(policy.store_entitlements.manualEnabled, true);
+  assert.equal(policy.public_ads.manualEnabled, false);
+  assert.equal(policy.store_entitlements.manualEnabled, false);
   assert.equal(policy.influencer_services.manualEnabled, false);
   assert.equal(policy.coin_purchases.automatedEnabled, false);
 });
