@@ -7409,6 +7409,11 @@ export const getAvailableCoinPackages = onCall(async () => {
 /** Member requests a fixed package or a negotiated custom coin quantity. No coins are issued here. */
 export const createCoinPurchaseRequest = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
+  const firebaseIdentity = request.auth?.token.firebase;
+  if (firebaseIdentity && typeof firebaseIdentity === "object" &&
+      (firebaseIdentity as Record<string, unknown>).sign_in_provider === "anonymous") {
+    throw new HttpsError("permission-denied", "شراء باقات Beta Coins وإهداؤها متاح للأعضاء المسجلين فقط.");
+  }
   let input;
   try { input = validateCoinPurchaseRequestInput(request.data); }
   catch { throw new HttpsError("invalid-argument", "بيانات طلب شراء الكوينز غير صالحة."); }
