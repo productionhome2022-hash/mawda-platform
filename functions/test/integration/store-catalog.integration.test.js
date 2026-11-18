@@ -31,6 +31,10 @@ test("store catalog owner edits are version-checked and atomically audited", asy
     assert.equal(saved.version, 1);
     assert.equal(saved.durationDays, 13);
     assert.equal(saved.active, false);
+    const seededSuggestion = ownerCatalog.items.find((entry) => entry.itemId === "vip_monthly");
+    assert.equal(seededSuggestion.active, false);
+    assert.equal(seededSuggestion.purchaseEnabled, false,
+      "seeded engineering price suggestions must not become member offers");
     await assert.rejects(
       () => setStoreCatalogItem.run(ownerRequest(uid, {
         ...input, priceCoins: 400, expectedVersion: 0,
