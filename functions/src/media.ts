@@ -1868,7 +1868,7 @@ export const cleanupExpiredMediaUploadIntents = onSchedule(
           const recheckAt = data.cleanupMissingObjectRecheckAt as Timestamp | undefined;
           if (recheckAt && recheckAt.toMillis() > nowMs) return null;
           return { ownerUid: String(data.ownerUid), objectPath: String(data.objectPath),
-            reservedBytes: Number(data.declaredSizeBytes), quotaExempt: data.quotaExempt === true };
+            reservedBytes: Number(data.declaredSizeBytes) };
         }
         return null;
       });
