@@ -35,4 +35,5 @@ export const DEFAULT_STORE_CATALOG: DefaultStoreCatalogEntry[] = [
   { itemId: "video_call_30d", name: "المكالمات المرئية — شهر", description: "استحقاق المكالمات المرئية لمدة 30 يوماً؛ يتطلب اشتراك الطرفين", category: "video_call", priceCoins: 3750, durationDays: 30, sortOrder: 162 },
   { itemId: "hide_coins_30d", name: "إخفاء رصيد الكوينز", description: "إخفاء رصيد الكوينز في الملف لمدة 30 يوماً", category: "privacy", priceCoins: 1000, durationDays: 30, sortOrder: 130 },
   { itemId: "ghost_mode_7d", name: "وضع التخفي", description: "إعداد خصوصية التخفي لمدة 7 أيام", category: "privacy", priceCoins: 1800, durationDays: 7, sortOrder: 140 },
+  { itemId: "media_saver_7d", name: "Mawdda Media Saver — أسبوع", description: "حفظ الوسائط المدعومة محلياً لمدة أسبوع؛ لا يمدد الاحتفاظ على الخادم", category: "media_saver", priceCoins: 200, durationDays: 7, sortOrder: 170 },
 ];
