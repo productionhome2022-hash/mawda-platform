@@ -115,6 +115,16 @@ for (const item of cases) {
       assert.equal(saved.metadata.metadata.processing, result.safeDerivative.pipelineVersion);
       assert.ok(Number(saved.metadata.size) > 0);
       if (item.category === "gif") {
+        assert.ok(result.safeDerivative.durationMs > 0 && result.safeDerivative.durationMs <= 20_000);
+        assert.ok(result.safeDerivative.frameCount > 0 && result.safeDerivative.frameCount <= 50);
+        assert.equal(saved.metadata.metadata.durationMs, String(result.safeDerivative.durationMs));
+        assert.equal(saved.metadata.metadata.frameCount, String(result.safeDerivative.frameCount));
+      }
+      if (item.category === "video") {
+        assert.ok(result.safeDerivative.durationMs > 0 && result.safeDerivative.durationMs <= 90_000);
+        assert.equal(saved.metadata.metadata.durationMs, String(result.safeDerivative.durationMs));
+      }
+      if (item.category === "gif") {
         const outputGif = path.join(tempDir, "saved-animation.gif");
         await fs.writeFile(outputGif, saved.data);
         const probe = await execFileAsync("ffprobe", [
