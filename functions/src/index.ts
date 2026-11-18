@@ -6835,7 +6835,8 @@ export const giftStoreEntitlement = onCall(async (request) => {
     }
 
     const senderData = sender.data() ?? {};
-    const newBalance = calculateStorePurchaseBalance(senderData.coins ?? 0, item.priceCoins);
+    const currentBalance = senderData.coins ?? 0;
+    const newBalance = calculateStorePurchaseBalance(currentBalance, item.priceCoins);
     if (newBalance === null) {
       throw new HttpsError("failed-precondition", "رصيد BetaCoins غير كافٍ أو غير صالح.");
     }
@@ -6870,11 +6871,11 @@ export const giftStoreEntitlement = onCall(async (request) => {
       giftId, requestId, senderUid, recipientUid, itemId,
       itemName: item.name, category: item.category,
       priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
-      balanceBefore: senderData.coins, newBalance, expiresAt, status: "completed", createdAt,
+      balanceBefore: currentBalance, newBalance, expiresAt, status: "completed", createdAt,
     });
     transaction.create(senderLedgerRef, {
       type: "store_gift", direction: "debit", amount: -item.priceCoins,
-      balanceBefore: senderData.coins, balanceAfter: newBalance,
+      balanceBefore: currentBalance, balanceAfter: newBalance,
       giftId, recipientUid, itemId, itemName: item.name, createdAt,
     });
     transaction.set(recipientEntitlementRef, {
