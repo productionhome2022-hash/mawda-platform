@@ -198,17 +198,21 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
   const purchaseRef = db.collection("storePurchases").doc(purchaseId);
   const ledgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
   const entitlementRef = memberRef.collection("entitlements").doc(itemId);
+  const catalogVersionRef = db.collection("storeCatalogVersions").doc(itemId).collection("versions").doc("1");
 
   await Promise.all([
     memberRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active" }),
     itemRef.set({
       name: "VIP test item", description: "Emulator-only entitlement test",
       category: "vip", priceCoins: 1250, durationDays: 30, sortOrder: 1,
-      active: true, purchaseEnabled: true, fulfillmentReady: true,
+      active: true, purchaseEnabled: true, fulfillmentReady: true, version: 1,
     }),
+    catalogVersionRef.set({ itemId, version: 1, priceCoins: 1250, durationDays: 30 }),
   ]);
   try {
-    const request = memberRequest(uid, { itemId, requestId, expectedPriceCoins: 1250 });
+    const request = memberRequest(uid, {
+      itemId, requestId, expectedPriceCoins: 1250, expectedCatalogVersion: 1,
+    });
     const result = await purchaseStoreItem.run(request);
     assert.equal(result.priceCoins, 1250);
     assert.equal(result.newBalance, 3750);
@@ -233,6 +237,7 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
     await assert.rejects(
       () => purchaseStoreItem.run(memberRequest(uid, {
         itemId, requestId: `another_${tag}`, expectedPriceCoins: 1000,
+        expectedCatalogVersion: 1,
       })),
       (error) => error && error.code === "failed-precondition",
     );
@@ -242,6 +247,7 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
       purchaseRef.delete().catch(() => undefined),
       entitlementRef.delete().catch(() => undefined),
       itemRef.delete().catch(() => undefined),
+      catalogVersionRef.delete().catch(() => undefined),
       memberRef.delete().catch(() => undefined),
     ]);
   }
