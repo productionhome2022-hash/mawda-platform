@@ -7393,8 +7393,9 @@ export const createRentedRoom = onCall(async (request) => {
   const ledgerRef = userRef.collection("walletLedger").doc(`room_${uid}_${requestId}`);
   const nowMs = Date.now();
   const result = await db.runTransaction(async (transaction) => {
-    const [user, settings, prior] = await Promise.all([
-      transaction.get(userRef), transaction.get(ROOM_RENTAL_SETTINGS), transaction.get(rentalRef),
+    const [user, settings, prior, priorLedger] = await Promise.all([
+      transaction.get(userRef), transaction.get(ROOM_RENTAL_SETTINGS),
+      transaction.get(rentalRef), transaction.get(ledgerRef),
     ]);
     if (prior.exists) {
       const data = prior.data()!;
@@ -7404,6 +7405,31 @@ export const createRentedRoom = onCall(async (request) => {
           typeof data.roomId !== "string" || !data.roomId ||
           !(data.expiresAt instanceof Timestamp)) {
         throw new HttpsError("already-exists", "معرف طلب الاستئجار مستخدم لعملية أخرى أو ببيانات مختلفة.");
+      }
+      const priorRoomRef = db.collection("rooms").doc(data.roomId);
+      const priorMemberRef = priorRoomRef.collection("members").doc(uid);
+      const [priorRoom, priorMember] = await Promise.all([
+        transaction.get(priorRoomRef), transaction.get(priorMemberRef),
+      ]);
+      const ledger = priorLedger.data() ?? {};
+      const balanceSnapshotValid =
+        ledger.balanceBefore === undefined && ledger.balanceAfter === undefined ||
+        Number.isSafeInteger(ledger.balanceBefore) &&
+        Number.isSafeInteger(ledger.balanceAfter) &&
+        ledger.balanceBefore >= 0 &&
+        ledger.balanceAfter === ledger.balanceBefore - data.priceCoins &&
+        ledger.balanceAfter === data.newBalance &&
+        (data.balanceBefore === undefined || data.balanceBefore === ledger.balanceBefore);
+      const roomData = priorRoom.data() ?? {};
+      if (!priorLedger.exists || !Number.isSafeInteger(data.priceCoins) || data.priceCoins <= 0 ||
+          !Number.isSafeInteger(data.newBalance) || data.newBalance < 0 ||
+          ledger.type !== "room_rental" || ledger.direction !== "debit" ||
+          ledger.amount !== -data.priceCoins || ledger.roomId !== data.roomId ||
+          ledger.rentalId !== rentalRef.id || ledger.planId !== planId ||
+          !balanceSnapshotValid || !priorRoom.exists || !priorMember.exists ||
+          roomData.roomId !== data.roomId || roomData.name !== name ||
+          roomData.capacity !== capacity || roomData.isRented !== true) {
+        throw new HttpsError("failed-precondition", "طلب الاستئجار لا يطابق الغرفة أو قيد الخصم؛ يلزم تدقيق مالي.");
       }
       return { roomId: data.roomId, rentalId: rentalRef.id, priceCoins: data.priceCoins,
         expiresAt: data.expiresAt.toMillis(), idempotentReplay: true };
@@ -7439,10 +7465,12 @@ export const createRentedRoom = onCall(async (request) => {
       rentalId: rentalRef.id, roomId: roomRef.id, ownerUid: uid, planId: plan.planId,
       priceCoins: plan.priceCoins, durationDays: plan.durationDays, status: "active",
       requestedName: name, requestedCapacity: capacity, requestedPriceCoins: expectedPriceCoins,
+      balanceBefore: userData.coins ?? 0, newBalance,
       startsAt: Timestamp.fromMillis(nowMs), expiresAt, createdAt: now,
     });
     transaction.create(ledgerRef, {
       type: "room_rental", direction: "debit", amount: -plan.priceCoins,
+      balanceBefore: userData.coins ?? 0, balanceAfter: newBalance,
       roomId: roomRef.id, rentalId: rentalRef.id, planId: plan.planId,
       durationDays: plan.durationDays, createdAt: now,
     });
@@ -7468,9 +7496,9 @@ export const renewRoomRental = onCall(async (request) => {
   const ledgerRef = userRef.collection("walletLedger").doc(`room_${uid}_${requestId}`);
   const nowMs = Date.now();
   return db.runTransaction(async (transaction) => {
-    const [room, user, settings, prior] = await Promise.all([
+    const [room, user, settings, prior, priorLedger] = await Promise.all([
       transaction.get(roomRef), transaction.get(userRef), transaction.get(ROOM_RENTAL_SETTINGS),
-      transaction.get(rentalRef),
+      transaction.get(rentalRef), transaction.get(ledgerRef),
     ]);
     if (prior.exists) {
       const data = prior.data()!;
@@ -7478,6 +7506,23 @@ export const renewRoomRental = onCall(async (request) => {
           data.planId !== planId || data.requestedPriceCoins !== expectedPriceCoins ||
           !(data.expiresAt instanceof Timestamp)) {
         throw new HttpsError("already-exists", "معرف طلب التجديد مستخدم لعملية أخرى أو ببيانات مختلفة.");
+      }
+      const ledger = priorLedger.data() ?? {};
+      const balanceSnapshotValid =
+        ledger.balanceBefore === undefined && ledger.balanceAfter === undefined ||
+        Number.isSafeInteger(ledger.balanceBefore) &&
+        Number.isSafeInteger(ledger.balanceAfter) &&
+        ledger.balanceBefore >= 0 &&
+        ledger.balanceAfter === ledger.balanceBefore - data.priceCoins &&
+        ledger.balanceAfter === data.newBalance &&
+        (data.balanceBefore === undefined || data.balanceBefore === ledger.balanceBefore);
+      if (!priorLedger.exists || !Number.isSafeInteger(data.priceCoins) || data.priceCoins <= 0 ||
+          !Number.isSafeInteger(data.newBalance) || data.newBalance < 0 ||
+          ledger.type !== "room_rental_renewal" || ledger.direction !== "debit" ||
+          ledger.amount !== -data.priceCoins || ledger.roomId !== roomId ||
+          ledger.rentalId !== rentalRef.id || ledger.planId !== planId ||
+          !balanceSnapshotValid) {
+        throw new HttpsError("failed-precondition", "طلب التجديد لا يطابق قيد الخصم؛ يلزم تدقيق مالي.");
       }
       return { renewed: true, expiresAt: data.expiresAt.toMillis(), idempotentReplay: true };
     }
@@ -7521,10 +7566,12 @@ export const renewRoomRental = onCall(async (request) => {
       rentalId: rentalRef.id, roomId, ownerUid: uid, planId: plan.planId,
       priceCoins: plan.priceCoins, durationDays: plan.durationDays, status: "active",
       requestedPriceCoins: expectedPriceCoins,
+      balanceBefore: user.data()?.coins ?? 0, newBalance: balance,
       startsAt: Timestamp.fromMillis(startMs), expiresAt, createdAt: now,
     });
     transaction.create(ledgerRef, {
       type: "room_rental_renewal", direction: "debit", amount: -plan.priceCoins,
+      balanceBefore: user.data()?.coins ?? 0, balanceAfter: balance,
       roomId, rentalId: rentalRef.id, planId: plan.planId,
       durationDays: plan.durationDays, createdAt: now,
     });
