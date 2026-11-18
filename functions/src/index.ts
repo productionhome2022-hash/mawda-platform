@@ -6587,6 +6587,9 @@ export const giftStoreEntitlement = onCall(async (request) => {
   const itemId = request.data?.itemId;
   const requestId = request.data?.requestId;
   const expectedPriceCoins = request.data?.expectedPriceCoins;
+  if (recipientUid === senderUid) {
+    throw new HttpsError("failed-precondition", "اختر عضواً آخر لإرسال الهدية.");
+  }
   if (typeof recipientUid !== "string" || recipientUid.length < 1 ||
       recipientUid.length > 128 || recipientUid.trim() !== recipientUid ||
       recipientUid.includes("/") ||
