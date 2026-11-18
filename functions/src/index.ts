@@ -5207,12 +5207,38 @@ export const getStickerCatalog = onCall(async (request) => {
   requireAuthenticatedUid(request.auth?.uid);
   const snapshot = await db.collection("stickerPacks")
     .where("status", "==", "published")
-    .limit(100)
+    .limit(20)
     .get();
-  const packs = snapshot.docs
+  const projected = snapshot.docs
     .map((document) => projectPublishedStickerPack(document.id, document.data()))
-    .filter((pack): pack is NonNullable<typeof pack> => pack !== null)
-    .sort((left, right) => left.sortOrder - right.sortOrder || left.packId.localeCompare(right.packId));
+    .filter((pack): pack is NonNullable<typeof pack> => pack !== null);
+  const assetIds = [...new Set(projected.flatMap((pack) => pack.stickers.map((sticker) => sticker.assetId)))];
+  const assetBatches: string[][] = [];
+  for (let index = 0; index < assetIds.length; index += 30) {
+    assetBatches.push(assetIds.slice(index, index + 30));
+  }
+  const assetSnapshots = await Promise.all(assetBatches.map((ids) =>
+    db.collection("mediaAssets").where(FieldPath.documentId(), "in", ids).get()));
+  const assets = new Map<string, FirebaseFirestore.DocumentData>();
+  for (const batch of assetSnapshots) {
+    for (const document of batch.docs) assets.set(document.id, document.data());
+  }
+  const packs = projected.filter((pack) => pack.stickers.every((sticker) => {
+    const asset = assets.get(sticker.assetId);
+    const metadata = asset?.stickerMetadata;
+    return asset?.uploaderRole === "platform_owner" &&
+      asset?.mediaPurpose === "sticker" &&
+      asset?.status === "security_approved" &&
+      asset?.scannerVerdict === "clean" &&
+      metadata && metadata.kind === sticker.kind &&
+      metadata.contentType === sticker.contentType &&
+      metadata.width === sticker.width &&
+      metadata.height === sticker.height &&
+      metadata.sizeBytes === sticker.sizeBytes &&
+      (sticker.kind !== "animated" ||
+        (metadata.durationMs === sticker.durationMs && metadata.frameCount === sticker.frameCount));
+  })).sort((left, right) =>
+    left.sortOrder - right.sortOrder || left.packId.localeCompare(right.packId));
   return { packs };
 });
 
