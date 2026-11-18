@@ -25,6 +25,20 @@ class _GiftCoinsScreenState extends State<GiftCoinsScreen> {
   bool _busy = false;
   String? _error;
   String? _requestId;
+  String? _requestIdentity;
+
+  String _requestFor(String identity) {
+    if (_requestId == null || _requestIdentity != identity) {
+      _requestId = const Uuid().v4().replaceAll('-', '_');
+      _requestIdentity = identity;
+    }
+    return _requestId!;
+  }
+
+  void _clearRequest() {
+    _requestId = null;
+    _requestIdentity = null;
+  }
 
   @override
   void initState() {
@@ -69,8 +83,7 @@ class _GiftCoinsScreenState extends State<GiftCoinsScreen> {
       return;
     }
     if (_busy) return;
-    final requestId = _requestId ?? const Uuid().v4().replaceAll('-', '_');
-    _requestId = requestId;
+    final requestId = _requestFor('package:$recipientUid:${package['packageId']}');
     setState(() { _busy = true; _error = null; });
     try {
       await _functions.httpsCallable('createCoinPurchaseRequest').call({
@@ -79,7 +92,7 @@ class _GiftCoinsScreenState extends State<GiftCoinsScreen> {
         'giftRecipientUid': recipientUid,
         'requestId': requestId,
       });
-      _requestId = null;
+      _clearRequest();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('سُجل طلب إهداء الباقة. لن تصل الكوينز إلا بعد تحقق المالك من الدفع واعتماده.'),
@@ -130,15 +143,14 @@ class _GiftCoinsScreenState extends State<GiftCoinsScreen> {
         ),
       );
       if (confirmed != true || !mounted) return;
-      final requestId = _requestId ?? const Uuid().v4().replaceAll('-', '_');
-      _requestId = requestId;
+      final requestId = _requestFor('balance:$recipientUid:$amount');
       final receipt = await _coinService.transferCoins(
         recipientUid: recipientUid,
         amount: amount,
         requestId: requestId,
         expectedCommissionBps: quote.commissionBps,
       );
-      _requestId = null;
+      _clearRequest();
       _amount.clear();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
