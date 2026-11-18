@@ -248,7 +248,6 @@ class _ShopScreenState extends State<ShopScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              const SizedBox(height: 12),
               if (visibleItems.isEmpty)
                 Padding(
                   padding: const EdgeInsets.all(24),
