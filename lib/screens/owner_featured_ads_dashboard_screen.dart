@@ -18,6 +18,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
   String _geography = 'all_arab_countries';
   String? _mediaId;
   List<Map<String, dynamic>> _campaigns = const [];
+  List<Map<String, dynamic>> _approvedMedia = const [];
   bool _loading = true;
   bool _saving = false;
   String? _editingId;
@@ -49,11 +50,19 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final response = await _functions.httpsCallable('getOwnerFeaturedAdCampaigns').call();
-      final data = Map<String, dynamic>.from(response.data as Map);
+      final results = await Future.wait([
+        _functions.httpsCallable('getOwnerFeaturedAdCampaigns').call(),
+        _functions.httpsCallable('listOwnerMediaAssets').call({'status': 'security_approved', 'limit': 100}),
+      ]);
+      final data = Map<String, dynamic>.from(results[0].data as Map);
+      final mediaData = Map<String, dynamic>.from(results[1].data as Map);
       final items = (data['campaigns'] as List<dynamic>? ?? const [])
           .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
-      if (mounted) setState(() => _campaigns = items);
+      final media = (mediaData['assets'] as List<dynamic>? ?? const [])
+          .whereType<Map>().map((e) => Map<String, dynamic>.from(e))
+          .where((e) => e['mediaPurpose'] == 'advertisement' && e['status'] == 'security_approved')
+          .toList();
+      if (mounted) setState(() { _campaigns = items; _approvedMedia = media; });
     } on FirebaseFunctionsException catch (e) {
       if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل الحملات.');
     } catch (_) {
@@ -167,8 +176,21 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
                 const SizedBox(width: 12),
                 Expanded(child: TextField(controller: _reward, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'كوين/مشاهدة'))),
               ]),
-              const SizedBox(height: 12),
-              const Text('المادة الآمنة تُربط عبر Media Workspace بعد اجتياز الفحص الأمني. لا يوجد اعتماد أو نشر لمادة غير آمنة.'),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _mediaId,
+                decoration: const InputDecoration(labelText: 'المادة الإعلانية الآمنة'),
+                items: [
+                  const DropdownMenuItem<String>(value: null, child: Text('بدون مادة — لا يمكن النشر حتى ربط مادة آمنة')),
+                  ..._approvedMedia.map((item) => DropdownMenuItem<String>(
+                    value: item['mediaId'] as String,
+                    child: Text((item['originalName'] ?? item['mediaId']).toString()),
+                  )),
+                ],
+                onChanged: _saving ? null : (v) => setState(() => _mediaId = v),
+              ),
+              const SizedBox(height: 8),
+              const Text('المادة الآمنة تُرفع وتُفحص في مخزن Mawdda الآمن قبل اعتمادها. لا يوجد نشر لمادة غير security_approved.'); بعد اجتياز الفحص الأمني. لا يوجد اعتماد أو نشر لمادة غير آمنة.'),
               const SizedBox(height: 12),
               Row(children: [
                 Expanded(child: FilledButton(onPressed: _saving ? null : _save, child: const Text('حفظ كمسودة'))),
