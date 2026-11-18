@@ -630,7 +630,7 @@ test("owner-approved coin package gifts credit only the recipient with an immuta
   const messageRef = chatRef.collection("messages").doc(messageId);
   const packageSnapshot = {
     packageId: "gift_test_1000", name: "اختبار باقة الهدية",
-    coins: 1000, priceMinor: 299, currency: "EUR", active: true,
+    coins: 1000, priceMinor: 2999, currency: "KWD", active: true,
   };
   await Promise.all([
     requesterRef.set({ coins: 25, profileCompleted: true, accountStatus: "active" }),
@@ -647,7 +647,7 @@ test("owner-approved coin package gifts credit only the recipient with an immuta
     assert.equal(created.status, "pending_owner_contact");
     await setCoinPurchasePaymentInstructions.run(ownerRequest("store-catalog-owner", {
       requesterUid, requestId, instructions: "إتمام الدفع للاختبار المحلي",
-      agreedCoins: packageSnapshot.coins, agreedPriceMinor: packageSnapshot.priceMinor, currency: "EUR",
+      agreedCoins: packageSnapshot.coins, agreedPriceMinor: packageSnapshot.priceMinor, currency: "KWD",
       expectedInstructionsVersion: 0,
     }));
     const approved = await approveCoinPurchaseRequest.run(ownerRequest("store-catalog-owner", {
@@ -660,6 +660,8 @@ test("owner-approved coin package gifts credit only the recipient with an immuta
     assert.equal((await requesterRef.get()).data().coins, 25);
     assert.equal((await recipientRef.get()).data().coins, 1100);
     assert.equal((await ledgerRef.get()).data().type, "coin_package_gift_credit");
+    assert.equal((await ledgerRef.get()).data().currency, "KWD");
+    assert.equal((await ledgerRef.get()).data().currencyExponent, 3);
     assert.equal((await giftRef.get()).data().status, "credited");
     assert.equal((await historyRef.get()).data().coins, 1000);
     assert.equal((await notificationRef.get()).data().type, "coin_package_gift_received");
