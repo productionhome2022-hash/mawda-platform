@@ -218,24 +218,29 @@ test("coin transfer rejects a suspended account and leaves both balances unchang
   }
 });
 
-test("coin transfer rejects an ineligible recipient and insufficient sender balance without partial writes", async () => {
+test("coin transfer rejects suspended, guest and insufficient-balance accounts without partial writes", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = suffix();
   const senderUid = `eligible_sender_${tag}`;
   const blockedRecipientUid = `blocked_recipient_${tag}`;
   const poorSenderUid = `poor_sender_${tag}`;
   const eligibleRecipientUid = `eligible_recipient_${tag}`;
+  const guestRecipientUid = `guest_recipient_${tag}`;
   const refs = [
     db.collection("users").doc(senderUid),
     db.collection("users").doc(blockedRecipientUid),
     db.collection("users").doc(poorSenderUid),
     db.collection("users").doc(eligibleRecipientUid),
+    db.collection("users").doc(guestRecipientUid),
   ];
+  const guestProfileRef = db.collection("guestProfiles").doc(guestRecipientUid);
   await Promise.all([
     refs[0].set({ coins: 1000, accountStatus: "active" }),
     refs[1].set({ coins: 100, accountStatus: "disabled" }),
     refs[2].set({ coins: 10, accountStatus: "active" }),
     refs[3].set({ coins: 50, accountStatus: "active" }),
+    refs[4].set({ coins: 25, accountStatus: "active" }),
+    guestProfileRef.set({ guestUid: guestRecipientUid }),
     db.doc("platformSettings/coinTransfers").set({ enabled: true, commissionBps: 1000 }),
   ]);
   try {
@@ -243,6 +248,13 @@ test("coin transfer rejects an ineligible recipient and insufficient sender bala
       () => transferCoins.run(memberRequest(senderUid, {
         recipientUid: blockedRecipientUid, amount: 100,
         requestId: `blocked_recipient_${tag}`, expectedCommissionBps: 1000,
+      })),
+      (error) => error && error.code === "permission-denied",
+    );
+    await assert.rejects(
+      () => transferCoins.run(memberRequest(senderUid, {
+        recipientUid: guestRecipientUid, amount: 100,
+        requestId: `guest_recipient_${tag}`, expectedCommissionBps: 1000,
       })),
       (error) => error && error.code === "permission-denied",
     );
@@ -257,12 +269,14 @@ test("coin transfer rejects an ineligible recipient and insufficient sender bala
     assert.equal((await refs[1].get()).data().coins, 100);
     assert.equal((await refs[2].get()).data().coins, 10);
     assert.equal((await refs[3].get()).data().coins, 50);
+    assert.equal((await refs[4].get()).data().coins, 25);
     const failedTransfers = await db.collection("coinTransfers")
       .where("senderUid", "in", [senderUid, poorSenderUid]).get();
     assert.equal(failedTransfers.empty, true);
   } finally {
     await Promise.all([
       ...refs.map((ref) => ref.delete().catch(() => undefined)),
+      guestProfileRef.delete().catch(() => undefined),
       db.doc("platformSettings/coinTransfers").set({ enabled: false, commissionBps: 0, version: 0 }),
     ]);
   }
