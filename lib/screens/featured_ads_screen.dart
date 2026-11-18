@@ -70,6 +70,28 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 720;
+          if (_selectedCampaign != null) {
+            final campaign = _selectedCampaign!;
+            final player = _FeaturedAdViewingSurface(
+              campaign: campaign,
+              geography: _selectedRegion,
+              onClosed: () => setState(() => _selectedCampaign = null),
+            );
+            final contextArea = _FeaturedAdContextArea(
+              campaign: campaign,
+              onClose: () => setState(() => _selectedCampaign = null),
+              geographyLabel: _featuredAdRegions[_selectedRegion]!,
+            );
+            return wide
+                ? Row(children: [
+                    Expanded(flex: 6, child: player),
+                    Expanded(flex: 4, child: contextArea),
+                  ])
+                : Column(children: [
+                    Expanded(flex: 6, child: player),
+                    Expanded(flex: 4, child: contextArea),
+                  ]);
+          }
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -199,14 +221,6 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
                   );
                 },
               ),
-              if (_selectedCampaign != null) ...[
-                const SizedBox(height: 18),
-                _FeaturedAdViewingSurface(
-                  campaign: _selectedCampaign!,
-                  geography: _selectedRegion,
-                  onClosed: () => setState(() => _selectedCampaign = null),
-                ),
-              ],
               const SizedBox(height: 18),
               Text('تصفح حسب النطاق الجغرافي', style: theme.textTheme.titleLarge),
               const SizedBox(height: 8),
@@ -253,78 +267,106 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
 
 
 class _FeaturedAdViewingSurface extends StatefulWidget {
-  const _FeaturedAdViewingSurface({required this.campaign, required this.geography, required this.onClosed});
+  const _FeaturedAdViewingSurface({
+    required this.campaign,
+    required this.geography,
+    required this.onClosed,
+  });
   final Map<String, dynamic> campaign;
   final String geography;
   final VoidCallback onClosed;
   @override
   State<_FeaturedAdViewingSurface> createState() => _FeaturedAdViewingSurfaceState();
 }
+
 class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> {
   String? _sessionId, _url, _contentType, _error;
-  bool _loading = true, _completed = false;
+  bool _loading = true, _completed = false, _heartbeatInFlight = false;
   Timer? _heartbeatTimer;
   VideoPlayerController? _videoController;
+
   @override
   void initState() { super.initState(); _start(); }
+
   Future<void> _start() async {
     try {
-      final result = await FirebaseFunctions.instance.httpsCallable('startFeaturedAdViewingSession').call({
-        'campaignId': widget.campaign['campaignId'], 'geography': widget.geography,
-      });
+      final result = await FirebaseFunctions.instance
+          .httpsCallable('startFeaturedAdViewingSession')
+          .call({'campaignId': widget.campaign['campaignId'], 'geography': widget.geography});
       final data = Map<String, dynamic>.from(result.data as Map);
       final sessionId = data['sessionId'] as String?;
       if (sessionId == null) throw StateError('جلسة الإعلان غير صالحة.');
       if (mounted) setState(() {
-        _sessionId = sessionId; _url = data['url'] as String?;
-        _contentType = data['contentType'] as String?; _loading = false;
+        _sessionId = sessionId;
+        _url = data['url'] as String?;
+        _contentType = data['contentType'] as String?;
+        _loading = false;
       });
-      _heartbeatTimer = Timer.periodic(const Duration(seconds: 5), (_) => _heartbeat());
       if (_contentType == 'video/mp4' && _url != null) {
         final controller = VideoPlayerController.networkUrl(Uri.parse(_url!));
         await controller.initialize();
         controller.addListener(_watchVideo);
-        await controller.play();
-        if (mounted) setState(() => _videoController = controller); else controller.dispose();
+        if (mounted) {
+          setState(() => _videoController = controller);
+          await controller.play();
+        } else {
+          await controller.dispose();
+        }
       }
+      _heartbeatTimer = Timer.periodic(const Duration(seconds: 5), (_) => _heartbeat());
     } on FirebaseFunctionsException catch (error) {
-      if (mounted) setState(() { _loading = false; _error = error.message ?? 'تعذر بدء جلسة المشاهدة.'; });
+      if (mounted) setState(() {
+        _loading = false;
+        _error = error.message ?? 'تعذر بدء جلسة المشاهدة.';
+      });
     } catch (error) {
       if (mounted) setState(() { _loading = false; _error = error.toString(); });
     }
   }
+
   void _watchVideo() {
     final controller = _videoController;
     if (controller == null || !controller.value.isInitialized || _completed) return;
-    final d = controller.value.duration.inMilliseconds;
-    final p = controller.value.position.inMilliseconds;
-    if (d > 0 && p * 100 >= d * 90) _complete();
+    final duration = controller.value.duration.inMilliseconds;
+    final position = controller.value.position.inMilliseconds;
+    if (duration > 0 && position * 100 >= duration * 90) _complete();
     if (mounted) setState(() {});
   }
+
   Future<void> _heartbeat() async {
     final sessionId = _sessionId;
-    if (sessionId == null || _completed) return;
+    if (sessionId == null || _completed || _heartbeatInFlight) return;
+    _heartbeatInFlight = true;
     final controller = _videoController;
     double progress = 0;
-    bool visible = mounted;
+    var visible = mounted;
     if (controller != null && controller.value.isInitialized) {
-      final d = controller.value.duration.inMilliseconds;
-      final p = controller.value.position.inMilliseconds;
-      progress = d > 0 ? (p * 100 / d).clamp(0, 100).toDouble() : 0;
-      visible = mounted && !controller.value.isBuffering;
+      final duration = controller.value.duration.inMilliseconds;
+      final position = controller.value.position.inMilliseconds;
+      progress = duration > 0 ? (position * 100 / duration).clamp(0, 100).toDouble() : 0;
+      visible = mounted && controller.value.isPlaying && !controller.value.isBuffering;
     }
     try {
       await FirebaseFunctions.instance.httpsCallable('heartbeatFeaturedAdViewingSession').call({
-        'sessionId': sessionId, 'foregroundVisible': visible, 'progressPercent': progress,
+        'sessionId': sessionId,
+        'foregroundVisible': visible,
+        'progressPercent': progress,
       });
-    } catch (_) {}
+    } catch (_) {
+      // A missed heartbeat cannot produce a reward; the server owns eligibility.
+    } finally {
+      _heartbeatInFlight = false;
+    }
   }
+
   Future<void> _complete() async {
     final sessionId = _sessionId;
     if (sessionId == null || _completed) return;
     setState(() => _completed = true);
     try {
-      final result = await FirebaseFunctions.instance.httpsCallable('completeFeaturedAdViewingSession').call({'sessionId': sessionId});
+      final result = await FirebaseFunctions.instance
+          .httpsCallable('completeFeaturedAdViewingSession')
+          .call({'sessionId': sessionId});
       final data = Map<String, dynamic>.from(result.data as Map);
       if (!mounted) return;
       final message = data['rewarded'] == true
@@ -335,6 +377,7 @@ class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> {
       if (mounted) setState(() => _completed = false);
     }
   }
+
   @override
   void dispose() {
     _heartbeatTimer?.cancel();
@@ -342,57 +385,120 @@ class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> {
     _videoController?.dispose();
     super.dispose();
   }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget content;
+    if (_loading) {
+      content = const Center(child: CircularProgressIndicator(color: Colors.white));
+    } else if (_error != null) {
+      content = Center(child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Text(_error!, style: const TextStyle(color: Colors.white), textAlign: TextAlign.center),
+      ));
+    } else if (_videoController != null && _videoController!.value.isInitialized) {
+      content = Center(child: AspectRatio(
+        aspectRatio: _videoController!.value.aspectRatio,
+        child: VideoPlayer(_videoController!),
+      ));
+    } else if (_url != null && (_contentType?.startsWith('image/') ?? false)) {
+      content = Image.network(_url!, fit: BoxFit.contain, width: double.infinity, height: double.infinity);
+    } else {
+      content = Center(child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Text(widget.campaign['body'] as String? ?? '',
+          style: const TextStyle(color: Colors.white, fontSize: 18),
+          textAlign: TextAlign.center),
+      ));
+    }
+    return ColoredBox(
+      color: Colors.black,
+      child: Stack(fit: StackFit.expand, children: [
+        content,
+        Positioned(
+          top: 8, right: 8,
+          child: SafeArea(child: IconButton(
+            tooltip: 'إغلاق المشغل',
+            onPressed: widget.onClosed,
+            style: IconButton.styleFrom(backgroundColor: Colors.black54, foregroundColor: Colors.white),
+            icon: const Icon(Icons.close),
+          )),
+        ),
+        if (_videoController != null && _videoController!.value.isInitialized)
+          Positioned(
+            bottom: 8, left: 8, right: 8,
+            child: SafeArea(child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              IconButton(
+                tooltip: _videoController!.value.isPlaying ? 'إيقاف مؤقت' : 'متابعة التشغيل',
+                onPressed: () {
+                  final controller = _videoController!;
+                  setState(() {
+                    controller.value.isPlaying ? controller.pause() : controller.play();
+                  });
+                },
+                color: Colors.white,
+                icon: Icon(_videoController!.value.isPlaying ? Icons.pause_circle : Icons.play_circle),
+              ),
+            ])),
+          ),
+      ]),
+    );
+  }
+}
+
+class _FeaturedAdContextArea extends StatelessWidget {
+  const _FeaturedAdContextArea({
+    required this.campaign,
+    required this.onClose,
+    required this.geographyLabel,
+  });
+  final Map<String, dynamic> campaign;
+  final VoidCallback onClose;
+  final String geographyLabel;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final title = widget.campaign['title'] as String? ?? 'إعلان مميز';
-    final sponsor = widget.campaign['sponsorLabel'] as String? ?? '';
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        height: MediaQuery.sizeOf(context).height * 0.72,
-        child: Column(children: [
-          Expanded(
-            flex: 6,
-            child: Container(
-              width: double.infinity, color: Colors.black,
-              child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                  ? Center(child: Padding(padding: const EdgeInsets.all(20), child: Text(_error!, style: const TextStyle(color: Colors.white))))
-                  : _videoController != null
-                    ? Center(child: AspectRatio(aspectRatio: _videoController!.value.aspectRatio, child: VideoPlayer(_videoController!)))
-                    : _url != null && (_contentType?.startsWith('image/') ?? false)
-                      ? Image.network(_url!, fit: BoxFit.contain)
-                      : Center(child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Text(widget.campaign['body'] as String? ?? '', style: const TextStyle(color: Colors.white, fontSize: 18), textAlign: TextAlign.center),
-                        )),
+    return Material(
+      color: theme.colorScheme.surface,
+      child: SafeArea(
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Row(children: [
+              const Icon(Icons.campaign_outlined),
+              const SizedBox(width: 8),
+              Expanded(child: Text('معلومات الإعلان', style: theme.textTheme.titleLarge)),
+            ]),
+            const SizedBox(height: 8),
+            Text(campaign['title'] as String? ?? 'إعلان مميز', style: theme.textTheme.titleMedium),
+            if ((campaign['sponsorLabel'] as String? ?? '').isNotEmpty)
+              Text(campaign['sponsorLabel'] as String, style: theme.textTheme.labelLarge),
+            const SizedBox(height: 8),
+            Text(campaign['body'] as String? ?? ''),
+            const Divider(height: 24),
+            Text('النطاق: ' + geographyLabel),
+            const SizedBox(height: 8),
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.verified_user_outlined),
+              title: Text('التحقق من المشاهدة خادمي'),
+              subtitle: Text('لا تُضاف الكوينز إلا بعد استيفاء شروط السياسة التجريبية والتحقق من الجلسة.'),
             ),
-          ),
-          Expanded(
-            flex: 4,
-            child: Container(
-              width: double.infinity, padding: const EdgeInsets.all(14),
-              color: theme.colorScheme.surface,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Expanded(child: Text(title, style: theme.textTheme.titleMedium)),
-                  IconButton(onPressed: widget.onClosed, icon: const Icon(Icons.close)),
-                ]),
-                if (sponsor.isNotEmpty) Text(sponsor, style: theme.textTheme.labelLarge),
-                const SizedBox(height: 6),
-                Expanded(child: SingleChildScrollView(child: Text(widget.campaign['body'] as String? ?? ''))),
-                Row(children: [
-                  const Icon(Icons.verified_user_outlined, size: 16),
-                  const SizedBox(width: 6),
-                  const Expanded(child: Text('المكافأة تُحتسب خادمياً فقط بعد تحقق المشاهدة.')),
-                  if (_sessionId != null && !_completed) TextButton(onPressed: _complete, child: const Text('إنهاء والتحقق')),
-                ]),
-              ]),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: onClose,
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('العودة إلى تصفح الحملات'),
             ),
-          ),
-        ]),
+            const SizedBox(height: 8),
+            const Text(
+              'هذه المساحة تبقى متاحة لمحتوى Mawdda والسياق النشط. تكامل تضمين المحادثة أو الغرفة الحالية داخلها يتطلب تمرير سياق الشاشة المضيفة، ولا يتم استبداله بواجهة وهمية.',
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
       ),
     );
   }
