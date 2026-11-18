@@ -10167,9 +10167,9 @@ export const startCall = onCall(async (request) => {
       ? db.collection("rooms").doc(input.targetId).collection("members").doc(callerUid) : null;
     const rentalRefForTransaction = rentalIdForCall
       ? db.collection("roomRentals").doc(rentalIdForCall) : null;
-    const [existing, caller, quotaSnapshot, usagePolicySnapshot, roomForCall, rentalForCall, roomMemberForCall] = await Promise.all([
+    const [existing, caller, quotaSnapshot, usagePolicySnapshot, groupPricingSnapshot, roomForCall, rentalForCall, roomMemberForCall] = await Promise.all([
       transaction.get(callRef), transaction.get(callerRef), transaction.get(quotaRef),
-      transaction.get(CALL_USAGE_POLICY),
+      transaction.get(CALL_USAGE_POLICY), transaction.get(GROUP_CALL_PRICING_SETTINGS),
       roomRefForTransaction ? transaction.get(roomRefForTransaction) : Promise.resolve(null),
       rentalRefForTransaction ? transaction.get(rentalRefForTransaction) : Promise.resolve(null),
       roomMemberRefForTransaction ? transaction.get(roomMemberRefForTransaction) : Promise.resolve(null),
@@ -10188,6 +10188,16 @@ export const startCall = onCall(async (request) => {
     catch { throw new HttpsError("failed-precondition", "سياسة استخدام المكالمات غير صالحة؛ تم إيقاف بدء المكالمة."); }
     if (!usagePolicy.active) {
       throw new HttpsError("failed-precondition", "المكالمات متوقفة حالياً بقرار المالك.");
+    }
+    let groupCallPricingSnapshot: ReturnType<typeof validateGroupCallPricingPolicy> | null = null;
+    if (input.scope === "room" && groupPricingSnapshot?.exists) {
+      try {
+        const candidate = validateGroupCallPricingPolicy(groupPricingSnapshot.data());
+        const rate = input.mode === "audio" ? candidate.audioCoinsPerMinute : candidate.videoCoinsPerMinute;
+        if (candidate.active && rate > 0) groupCallPricingSnapshot = candidate;
+      } catch {
+        throw new HttpsError("failed-precondition", "سياسة تسعير المكالمات الجماعية غير صالحة؛ تعذر بدء المكالمة.");
+      }
     }
     const modeLimit = callModeQuotaLimit(usagePolicy, input.mode);
     if (modeLimit === 0) {
@@ -10277,6 +10287,8 @@ export const startCall = onCall(async (request) => {
       status: "ringing", signalCounts: {}, signalsCleanedAt: false,
       usagePolicySnapshot: usagePolicy,
       usagePolicyVersion: usagePolicySnapshot.data()!.version,
+      groupCallPricingSnapshot: input.scope === "room" ? groupCallPricingSnapshot : null,
+      billingConsents: {},
       usagePolicyPath: `platformSettings/callUsagePolicyVersions/versions/${usagePolicySnapshot.data()!.version}`,
       createdAt: FieldValue.serverTimestamp(),
       expiresAt, lastActivityAt: FieldValue.serverTimestamp(),
@@ -10432,6 +10444,63 @@ export const requestRoomCallJoin = onCall(async (request) => {
   return result;
 });
 
+/**
+ * Explicit, independent consent to the owner-configured group-call price.
+ * No active owner price means no billing consent is required and no charge is made.
+ */
+export const consentToRoomCallBilling = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  const consent = request.data?.consent;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId) ||
+      consent !== true) {
+    throw new HttpsError("invalid-argument", "يجب تأكيد الموافقة المالية الصريحة للمكالمة.");
+  }
+  const callRef = CALL_SESSIONS.doc(callId);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(callRef);
+    if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
+    const call = snapshot.data() ?? {};
+    const participants = Array.isArray(call.participantUids) ? call.participantUids as string[] : [];
+    const accepted = Array.isArray(call.acceptedUids) ? call.acceptedUids as string[] : [];
+    if (call.scope !== "room" || !participants.includes(uid) ||
+        (uid !== call.callerUid && !accepted.includes(uid)) ||
+        !["ringing", "accepted"].includes(String(call.status))) {
+      throw new HttpsError("permission-denied", "الموافقة المالية متاحة لمنشئ المكالمة أو للمشارك المقبول فقط.");
+    }
+    const policy = call.groupCallPricingSnapshot;
+    if (!policy || policy.active !== true) {
+      return { required: false, consented: false, reason: "no_active_owner_price" };
+    }
+    const expectedRate = call.mode === "audio" ? policy.audioCoinsPerMinute : policy.videoCoinsPerMinute;
+    if (!Number.isSafeInteger(policy.version) || policy.version < 1 ||
+        typeof policy.policyId !== "string" || expectedRate < 1) {
+      throw new HttpsError("failed-precondition", "لقطة سعر المكالمة غير صالحة.");
+    }
+    const consents = call.billingConsents && typeof call.billingConsents === "object" &&
+      !Array.isArray(call.billingConsents)
+      ? call.billingConsents as Record<string, unknown> : {};
+    const prior = consents[uid];
+    if (prior && typeof prior === "object" &&
+        (prior as Record<string, unknown>).policyId === policy.policyId &&
+        (prior as Record<string, unknown>).policyVersion === policy.version &&
+        (prior as Record<string, unknown>).consented === true) {
+      return { required: true, consented: true, idempotentReplay: true, policyVersion: policy.version };
+    }
+    transaction.update(callRef, {
+      billingConsents: {
+        ...consents,
+        [uid]: {
+          consented: true, policyId: policy.policyId, policyVersion: policy.version,
+          consentedAt: FieldValue.serverTimestamp(),
+        },
+      },
+      lastActivityAt: FieldValue.serverTimestamp(),
+    });
+    return { required: true, consented: true, idempotentReplay: false, policyVersion: policy.version };
+  });
+});
+
 /** Only the room-call creator may approve or reject a pending join request. */
 export const respondToRoomCallJoinRequest = onCall(async (request) => {
   const creatorUid = requireAuthenticatedUid(request.auth?.uid);
@@ -10473,6 +10542,22 @@ export const respondToRoomCallJoinRequest = onCall(async (request) => {
         return { approved: true, idempotentReplay: true };
       }
       throw new HttpsError("failed-precondition", "طلب الانضمام غير موجود أو تمت معالجته مسبقاً.");
+    }
+    const pricingPolicy = call.groupCallPricingSnapshot;
+    if (decision === "approve" && pricingPolicy?.active === true) {
+      const consents = call.billingConsents && typeof call.billingConsents === "object" &&
+        !Array.isArray(call.billingConsents)
+        ? call.billingConsents as Record<string, unknown> : {};
+      const hasConsent = (memberUid: string) => {
+        const value = consents[memberUid];
+        return !!value && typeof value === "object" &&
+          (value as Record<string, unknown>).consented === true &&
+          (value as Record<string, unknown>).policyId === pricingPolicy.policyId &&
+          (value as Record<string, unknown>).policyVersion === pricingPolicy.version;
+      };
+      if (!hasConsent(creatorUid) || !hasConsent(requesterUid)) {
+        throw new HttpsError("failed-precondition", "تتطلب الموافقة على الانضمام موافقة مالية صريحة مستقلة من المنشئ والعضو على سعر هذه المكالمة.");
+      }
     }
     if (decision === "reject") {
       transaction.update(requestRef, {
