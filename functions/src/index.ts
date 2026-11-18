@@ -9060,6 +9060,7 @@ export const recordOwnerFeaturedAdFinancialEvent = onCall(async (request) => {
       ...event, actorUid, eventId, campaignId: event.campaignId,
       expectedVersion, resultingVersion: nextVersion,
       createdAt: now, source: "owner_manual_off_platform_attestation",
+      auditChainStatus: "pending",
     });
     transaction.create(auditRef, {
       actorUid, action: "featured_ad_financial_" + event.action,
@@ -9076,13 +9077,18 @@ export const recordOwnerFeaturedAdFinancialEvent = onCall(async (request) => {
       paymentConfirmed, status: nextStatus,
     };
   });
-  if (!result.idempotentReplay) {
-    await appendOwnerReviewAuditEvent({
-      actorUid, action: "featured_ad_financial_event_recorded",
-      campaignId: event.campaignId, eventId, financialAction: event.action,
-      resultingVersion: result.version, outcome: "success",
-    });
-  }
+  // Durable retry path: the financial transaction leaves a pending marker.
+  // The deterministic chain-event ID makes this append safe after timeout/crash;
+  // exact callable replays retry the append until the marker is completed.
+  await appendOwnerReviewAuditEvent({
+    actorUid, action: "featured_ad_financial_event_recorded",
+    campaignId: event.campaignId, eventId, financialAction: event.action,
+    resultingVersion: result.version, outcome: "success",
+  }, "featured_ad_finance_chain_" + eventId);
+  await eventRef.set({
+    auditChainStatus: "appended",
+    auditChainAppendedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
   return result;
 });
 
