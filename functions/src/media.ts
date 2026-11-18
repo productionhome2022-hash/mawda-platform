@@ -1311,7 +1311,7 @@ async function issueChatMediaDeliveryUrl(
     objectGeneration: artifact.generation,
   });
   return { url, expiresAt, contentType: artifact.contentType, category: artifact.category };
-});
+}
 
 export const getChatImageAttachmentUrl = onCall(async (request) => {
   const viewerUid = requireUid(request.auth?.uid);
