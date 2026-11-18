@@ -11,16 +11,17 @@ const NOW = 1_800_000_000_000;
 test("gift replay is bound to sender, recipient, item, price and completed state", () => {
   const prior = {
     senderUid: "sender-a", recipientUid: "recipient-b",
-    itemId: "vip_monthly", priceCoins: 2500, status: "completed",
+    itemId: "vip_monthly", priceCoins: 2500, catalogVersion: 3, status: "completed",
   };
   const identity = {
     senderUid: "sender-a", recipientUid: "recipient-b",
-    itemId: "vip_monthly", expectedPriceCoins: 2500,
+    itemId: "vip_monthly", expectedPriceCoins: 2500, expectedCatalogVersion: 3,
   };
   assert.equal(isStoreGiftReplayCompatible(prior, identity), true);
   assert.equal(isStoreGiftReplayCompatible(prior, { ...identity, recipientUid: "recipient-c" }), false);
   assert.equal(isStoreGiftReplayCompatible(prior, { ...identity, itemId: "other_item" }), false);
   assert.equal(isStoreGiftReplayCompatible(prior, { ...identity, expectedPriceCoins: 3000 }), false);
+  assert.equal(isStoreGiftReplayCompatible(prior, { ...identity, expectedCatalogVersion: 4 }), false);
   assert.equal(isStoreGiftReplayCompatible({ ...prior, status: "pending" }, identity), false);
   assert.equal(isStoreGiftReplayCompatible(null, identity), false);
 });
