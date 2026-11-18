@@ -7791,7 +7791,7 @@ export const recordFeaturedAdFinancialEvent = onCall({ enforceAppCheck: true }, 
       financialUpdatedAt: FieldValue.serverTimestamp(), financialUpdatedBy: actorUid,
       updatedAt: FieldValue.serverTimestamp(),
     };
-    if (event.action === "refund_recorded") {
+    if (event.action === "refund_recorded" && campaign.data()?.status === "published") {
       update.status = "paused";
     }
     transaction.update(campaignRef, update);
