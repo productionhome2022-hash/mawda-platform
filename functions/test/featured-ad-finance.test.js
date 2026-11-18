@@ -95,3 +95,26 @@ test("idempotency document identity is stable and opaque", () => {
   assert.equal(first, featuredAdFinancialIdempotencyId("featured_campaign_01", "payment_received", "bank-ref-2026-001"));
   assert.match(first, /^[a-f0-9]{64}$/);
 });
+
+
+test("revalidates runtime events at the transition boundary", () => {
+  const empty = defaultFeaturedAdFinancialSnapshot();
+  assert.throws(() => applyFeaturedAdFinancialEvent(empty, {
+    ...base, action: "payment_received", amountMinor: 1.25, currency: "USD",
+  }), /invalid_financial_amount/);
+  assert.throws(() => applyFeaturedAdFinancialEvent(empty, {
+    ...base, action: "payment_received", amountMinor: Number.MAX_SAFE_INTEGER + 1, currency: "USD",
+  }), /invalid_financial_amount/);
+});
+
+test("rejects corrupted snapshots before applying financial events", () => {
+  const corrupt = {
+    currency: "USD", receivedMinor: 1000, refundedMinor: 0, reconciledMinor: 0,
+    reviewStatus: "in_review", paymentStatus: "refunded",
+  };
+  const event = validateFeaturedAdFinancialEvent({
+    ...base, idempotencyKey: "finance_operation_0099", action: "refund_recorded",
+    amountMinor: 100, currency: "USD",
+  });
+  assert.throws(() => applyFeaturedAdFinancialEvent(corrupt, event), /financial_snapshot_corrupt/);
+});
