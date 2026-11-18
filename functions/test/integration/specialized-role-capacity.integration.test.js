@@ -24,7 +24,7 @@ const grantId = (uid, role) => createHash("sha256")
 const grant = (uid, role) => ({
   uid,
   role,
-  permissions: role === "production_supervisor"
+  permissions: role === "production_supervisor" || role === "production_general_supervisor"
     ? ["production.tasks.manage_assigned"]
     : ["advertising.requests.review"],
   resourceScopes: ["campaign:capacity-test"],
