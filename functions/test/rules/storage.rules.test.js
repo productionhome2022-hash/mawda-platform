@@ -32,6 +32,7 @@ test.after(async () => {
 
 test.beforeEach(async () => {
   await env.clearFirestore();
+  await env.clearStorage();
   await env.withSecurityRulesDisabled(async (context) => {
     const db = context.firestore();
     await setDoc(doc(db, "platformSettings/biometricVerification"), {
