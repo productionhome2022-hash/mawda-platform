@@ -7,6 +7,7 @@ const {
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
   setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
+  completeFeaturedAdViewingSession,
   sendOwnerLiveStream,
   deleteDirectMessageForEveryone, deleteRoomMessage, startCall, endCall,
 } = require("../../lib/index");
@@ -47,6 +48,62 @@ test("coin package offers and purchase requests fail closed without owner-config
     await Promise.all([
       userRef.delete().catch(() => undefined),
       priorSettings.exists ? settingsRef.set(priorSettings.data()) : Promise.resolve(),
+    ]);
+  }
+});
+
+test("client-reported featured-ad progress cannot mint wallet rewards without trusted server evidence", async () => {
+  const uid = `featured_reward_spoof_${suffix()}`;
+  const sessionId = `featured_session_${suffix()}`;
+  const campaignId = `featured_campaign_${suffix()}`;
+  const userRef = db.collection("users").doc(uid);
+  const sessionRef = db.collection("featuredAdViewingSessions").doc(sessionId);
+  const campaignRef = db.collection("featuredAdCampaigns").doc(campaignId);
+  const policyRef = db.doc("platformSettings/featuredAdRewardPolicy");
+  const priorPolicy = await policyRef.get();
+  await Promise.all([
+    userRef.set({ profileCompleted: true, accountStatus: "active", coins: 0 }),
+    campaignRef.set({
+      status: "published", ownerApproved: true, ownerWithdrawn: false,
+      paymentConfirmed: true, creativeApproved: true,
+      startsAtMs: Date.now() - 1000, endsAtMs: Date.now() + 60_000,
+      geographicTargets: ["syria"], rewardBudgetCoins: 100,
+      spentRewardCoins: 0, rewardCoinsPerView: 2,
+    }),
+    sessionRef.set({
+      uid, campaignId, geography: "syria", creativeType: "video",
+      status: "active", rewardClaimed: false,
+      // Forged client heartbeat telemetry must never authorize a wallet credit.
+      foregroundVisible: true, visibleMs: 120_000,
+      continuousVisibleMs: 120_000, progressPercent: 100,
+      serverValidatedVisibility: false, serverValidatedPlayback: false,
+      serverValidatedContinuousVisibleMs: 0, serverValidatedProgressPercent: 0,
+    }),
+    policyRef.set({
+      version: 1,
+      policy: {
+        enabled: true, rewardCoinsPerView: 2,
+        maxRewardedViewsPerUtcDay: 10, maxRewardCoinsPerUtcDay: 20,
+        maxRewardsPerCampaignRolling24h: 3,
+        sameCampaignWindowMs: 24 * 60 * 60 * 1000,
+        videoCompletionPercent: 90, imageContinuousVisibleMs: 10_000,
+      },
+    }),
+  ]);
+  try {
+    const result = await completeFeaturedAdViewingSession.run(memberRequest(uid, { sessionId }));
+    assert.equal(result.rewarded, false);
+    assert.equal(result.amountCoins, 0);
+    assert.equal(result.reason, "foreground_evidence_missing");
+    assert.equal((await userRef.get()).data().coins, 0);
+    assert.equal((await userRef.collection("walletLedger").get()).empty, true);
+    assert.equal((await sessionRef.get()).data().status, "completed_no_reward");
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(userRef).catch(() => undefined),
+      db.recursiveDelete(sessionRef).catch(() => undefined),
+      db.recursiveDelete(campaignRef).catch(() => undefined),
+      priorPolicy.exists ? policyRef.set(priorPolicy.data()) : policyRef.delete().catch(() => undefined),
     ]);
   }
 });
