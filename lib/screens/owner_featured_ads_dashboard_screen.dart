@@ -394,7 +394,14 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
           Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('سياسة المكافآت التجريبية العامة', style: Theme.of(context).textTheme.titleLarge),
+              Text('سياسة المكافآت العامة', style: Theme.of(context).textTheme.titleLarge),
+              const Padding(
+                padding: EdgeInsets.only(bottom: 10),
+                child: Text(
+                  'صرف المكافآت متوقف حالياً للحماية: لا يوجد حتى الآن مصدر خادمي موثوق يثبت ظهور الإعلان وتشغيله واكتماله. '
+                  'يمكن حفظ إعدادات المالك، لكن بيانات التقدم والظهور القادمة من التطبيق لا تمنح BetaCoins.',
+                ),
+              ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('تفعيل مكافآت الإعلانات المميزة'),
@@ -417,7 +424,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
                 child: Text(_savingPolicy ? 'جارٍ الحفظ...' : 'حفظ سياسة المكافآت'),
               )),
               const SizedBox(height: 4),
-              const Text('تُطبق السياسة خادمياً وبشكل ذري. القيم الافتراضية تجريبية ولا تمثل أسعاراً تجارية أو التزاماً دائماً.', style: TextStyle(fontSize: 12)),
+              const Text('تظل مكافآت المشاهدة غير قابلة للصرف حتى ربط إثبات تشغيل وظهور موثوق والتحقق منه خادمياً.', style: TextStyle(fontSize: 12)),
             ],
           ))),
           const SizedBox(height: 16),
