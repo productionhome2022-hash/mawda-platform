@@ -8175,7 +8175,13 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     const auditRef = db.collection("adminAuditLogs").doc();
     transaction.create(auditRef, {
       actorUid, targetUid: requesterUid, action: "coin_purchase_payment_instructions_set",
-      requestId: input.requestId, agreedCoins: input.agreedCoins,
+      requestId: input.requestId,
+      previousInstructionsVersion: currentInstructionsVersion,
+      previousAgreedCoins: prior.agreedCoins ?? null,
+      previousPriceMinor: prior.agreedPriceMinor ?? null,
+      previousCurrency: prior.currency ?? null,
+      previousCurrencyExponent: prior.agreedCurrencyExponent ?? null,
+      agreedCoins: input.agreedCoins,
       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
       currencyExponent: input.currencyExponent,
       chatId, messageId, instructionsVersion: nextVersion, createdAt: now,
