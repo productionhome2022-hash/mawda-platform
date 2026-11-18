@@ -8010,10 +8010,20 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
     const previousPaymentPolicy = projectEconomicPaymentPolicy(previousData.paymentPolicy, {
       manualCoinPurchasesEnabled: previousData.manualCoinPurchasesEnabled,
     });
-    const paymentPolicy = validateEconomicPaymentPolicy({
-      ...previousPaymentPolicy,
-      coin_purchases: { manualEnabled: manualCoinPurchasesEnabled, automatedEnabled: false },
-    });
+    let paymentPolicy;
+    try {
+      paymentPolicy = request.data?.paymentPolicy === undefined
+        ? validateEconomicPaymentPolicy({
+            ...previousPaymentPolicy,
+            coin_purchases: { manualEnabled: manualCoinPurchasesEnabled, automatedEnabled: false },
+          })
+        : validateEconomicPaymentPolicy(request.data.paymentPolicy);
+    } catch {
+      throw new HttpsError("invalid-argument", "سياسة وسائل الدفع غير صالحة أو تتضمن مساراً غير جاهز.");
+    }
+    if (paymentPolicy.coin_purchases.manualEnabled !== manualCoinPurchasesEnabled) {
+      throw new HttpsError("invalid-argument", "حالة الشراء اليدوي لا تطابق سياسة الدفع.");
+    }
     const now = FieldValue.serverTimestamp();
     const versionRef = db.collection("platformSettings").doc("economyPricingVersions")
       .collection("versions").doc(String(nextVersion));
