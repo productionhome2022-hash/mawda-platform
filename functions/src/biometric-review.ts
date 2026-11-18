@@ -1,5 +1,6 @@
 export const BIOMETRIC_MAX_ATTEMPTS = 3;
 export const BIOMETRIC_LOCKOUT_MS = 90 * 24 * 60 * 60 * 1000;
+export const BIOMETRIC_RENEWAL_INTERVAL_MONTHS = 1;
 export const BIOMETRIC_REWARD_BETACOINS = 1500;
 
 export type BiometricRequestStatus =
@@ -13,6 +14,8 @@ export interface BiometricReviewState {
   attemptNumber: number;
   rewardGranted: boolean;
   lockoutUntilMs: number | null;
+  /** Server-calculated next eligible renewal timestamp after acceptance. */
+  nextRenewalAtMs?: number | null;
 }
 
 export interface BiometricDecision {
@@ -21,6 +24,21 @@ export interface BiometricDecision {
   badgeGranted: boolean;
   remainingAttempts: number;
   lockoutUntilMs: number | null;
+  nextRenewalAtMs: number | null;
+}
+
+/** Adds one calendar month, clamping month-end dates (e.g. Jan 31 -> Feb 28/29). */
+export function addBiometricRenewalMonth(timestampMs: number): number {
+  if (!Number.isSafeInteger(timestampMs) || timestampMs < 0) {
+    throw new Error("BIOMETRIC_TIMESTAMP_INVALID");
+  }
+  const date = new Date(timestampMs);
+  const day = date.getDate();
+  date.setDate(1);
+  date.setMonth(date.getMonth() + BIOMETRIC_RENEWAL_INTERVAL_MONTHS);
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  date.setDate(Math.min(day, lastDay));
+  return date.getTime();
 }
 
 /** A pending request has no timeout: owner inactivity must never auto-reject it. */
@@ -30,7 +48,10 @@ export function canSubmitBiometricRequest(
 ): boolean {
   if (!Number.isSafeInteger(nowMs) || nowMs < 0) return false;
   if (state === null) return true;
-  if (state.status === "pending_review" || state.status === "accepted") return false;
+  if (state.status === "pending_review") return false;
+  if (state.status === "accepted") {
+    return state.nextRenewalAtMs != null && state.nextRenewalAtMs <= nowMs;
+  }
   if (state.status === "locked") {
     return state.lockoutUntilMs !== null && state.lockoutUntilMs <= nowMs;
   }
@@ -61,6 +82,7 @@ export function decideBiometricRequest(args: {
       badgeGranted: true,
       remainingAttempts: 0,
       lockoutUntilMs: null,
+      nextRenewalAtMs: addBiometricRenewalMonth(nowMs),
     };
   }
   if (decision !== "reject") throw new Error("BIOMETRIC_DECISION_INVALID");
@@ -72,6 +94,7 @@ export function decideBiometricRequest(args: {
       badgeGranted: false,
       remainingAttempts,
       lockoutUntilMs: null,
+      nextRenewalAtMs: null,
     };
   }
   return {
@@ -80,5 +103,6 @@ export function decideBiometricRequest(args: {
     badgeGranted: false,
     remainingAttempts: 0,
     lockoutUntilMs: nowMs + BIOMETRIC_LOCKOUT_MS,
+    nextRenewalAtMs: null,
   };
 }
