@@ -141,6 +141,9 @@ test("room call signaling is peer-targeted and one member leaving does not end t
   const roomId = uid("room_call");
   const callId = uid("room_call_session");
   const roomRef = db.collection("rooms").doc(roomId);
+  const rentalId = uid("room_call_rental");
+  const rentalRef = db.collection("roomRentals").doc(rentalId);
+  const rentalExpiry = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
   const memberRefs = [callerUid, firstUid, secondUid].map((memberUid) =>
     db.collection("users").doc(memberUid));
   const callRef = db.collection("callSessions").doc(callId);
@@ -150,8 +153,12 @@ test("room call signaling is peer-targeted and one member leaving does not end t
     })),
     roomRef.set({
       roomId, name: "غرفة اختبار المكالمات", ownerUid: callerUid,
-      kind: "public", audience: "adult", status: "active", capacity: 5,
+      kind: "private", isRented: true, rentalId, expiresAt: rentalExpiry,
+      audience: "adult", status: "active", capacity: 5,
       memberCount: 3,
+    }),
+    rentalRef.set({
+      rentalId, roomId, ownerUid: callerUid, status: "active", expiresAt: rentalExpiry,
     }),
     ...[callerUid, firstUid, secondUid].map((memberUid) =>
       roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" })),
@@ -204,6 +211,7 @@ test("room call signaling is peer-targeted and one member leaving does not end t
   } finally {
     await db.recursiveDelete(callRef).catch(() => undefined);
     await db.recursiveDelete(roomRef).catch(() => undefined);
+    await db.recursiveDelete(rentalRef).catch(() => undefined);
     await Promise.all([
       ...memberRefs,
       ...[callerUid, firstUid, secondUid].map((memberUid) =>
