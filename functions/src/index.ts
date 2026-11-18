@@ -9176,7 +9176,7 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
     transaction.create(sessionRef, sessionData);
   });
   return {
-    sessionId, campaignId, creativeType, serverNonce: sessionData.serverNonce, ...media,
+    sessionId, campaignId, serverNonce: sessionData.serverNonce, ...media, creativeType,
     rewardRequirements: {
       enabled: false,
       configuredByOwner: rewardPolicy.enabled,
