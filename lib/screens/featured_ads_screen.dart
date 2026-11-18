@@ -351,10 +351,7 @@ class _FeaturedAdPlayerScreenState extends State<FeaturedAdPlayerScreen>
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: const Text('مشاهدة الإعلان'),
-          actions: [
-            TextButton(onPressed: _canExit ? () => Navigator.pop(context) : null,
-                child: const Text('')),
-          ],
+          actions: const [],
         ),
         body: SafeArea(
           child: Padding(
