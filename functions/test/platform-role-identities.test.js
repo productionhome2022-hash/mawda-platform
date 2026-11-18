@@ -11,18 +11,18 @@ test("general Admin sequence is open-ended and monotonic", () => {
   assert.equal(platformRoleDisplayLabel("platform_admin", 2, "ar"), "أدمن ٢");
 });
 
-test("Media Admin and general production supervisor each have five independent seats", () => {
-  assert.equal(PLATFORM_ROLE_CAPACITY.media_admin, 5);
-  assert.equal(PLATFORM_ROLE_CAPACITY.general_production_supervisor, 5);
-  assert.equal(platformRoleDisplayLabel("media_admin", 1), "Admin Media 1");
-  assert.equal(platformRoleDisplayLabel("general_production_supervisor", 5, "ar"), "مشرف إنتاج عام ٥");
-  assert.throws(() => platformRoleDisplayLabel("media_admin", 6), /CAPACITY_EXCEEDED/);
+test("Admin Media and general production each have five independent seats", () => {
+  assert.equal(PLATFORM_ROLE_CAPACITY.ad_general_supervisor, 5);
+  assert.equal(PLATFORM_ROLE_CAPACITY.production_general_supervisor, 5);
+  assert.equal(platformRoleDisplayLabel("ad_general_supervisor", 1), "Admin Media 1");
+  assert.equal(platformRoleDisplayLabel("production_general_supervisor", 5, "ar"), "مشرف إنتاج عام ٥");
+  assert.throws(() => platformRoleDisplayLabel("ad_general_supervisor", 6), /CAPACITY_EXCEEDED/);
 });
 
 test("Team Production Supervisor is open-ended and distinct", () => {
-  assert.equal(PLATFORM_ROLE_CAPACITY.team_production_supervisor, null);
-  assert.equal(platformRoleDisplayLabel("team_production_supervisor", 12), "Team Production Supervisor 12");
-  assert.equal(platformRoleDisplayLabel("team_production_supervisor", 1, "ar"), "مشرف إنتاج الفريق ١");
+  assert.equal(PLATFORM_ROLE_CAPACITY.production_supervisor, null);
+  assert.equal(platformRoleDisplayLabel("production_supervisor", 12), "Team Production Supervisor 12");
+  assert.equal(platformRoleDisplayLabel("production_supervisor", 1, "ar"), "مشرف إنتاج الفريق ١");
 });
 
 test("sequence history rejects corrupt ordinals and never reuses removed slots", () => {
