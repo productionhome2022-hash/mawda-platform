@@ -11158,12 +11158,11 @@ export const endCall = onCall(async (request) => {
     if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid)) {
       throw new HttpsError("permission-denied", "لا تملك صلاحية إنهاء هذه المكالمة.");
     }
-    const lockRefs = call.participantUids.map((memberUid: string) => ACTIVE_CALL_MEMBER_LOCKS.doc(memberUid));
-    const lockSnapshots = await Promise.all(lockRefs.map((lockRef) =>
-      transaction.get(lockRef)));
     const leftUids = Array.isArray(call.leftUids) ? call.leftUids as string[] : [];
     if (leftUids.includes(uid)) return { callId, status: call.status, idempotentReplay: true };
     if (call.scope === "room" && uid !== call.callerUid) {
+      const memberLockRef = ACTIVE_CALL_MEMBER_LOCKS.doc(uid);
+      const memberLockSnapshot = await transaction.get(memberLockRef);
       if (call.status === "ringing") {
         const rejected = Array.isArray(call.rejectedUids) ? call.rejectedUids as string[] : [];
         const nextRejected = [...rejected, uid];
@@ -11174,8 +11173,8 @@ export const endCall = onCall(async (request) => {
           ...(allRejected ? { status: "rejected" } : {}),
           lastActivityAt: FieldValue.serverTimestamp(),
         });
-        if (lockSnapshots[call.participantUids.indexOf(uid)]?.data()?.callId === callId) {
-          transaction.delete(ACTIVE_CALL_MEMBER_LOCKS.doc(uid));
+        if (memberLockSnapshot.exists && memberLockSnapshot.data()?.callId === callId) {
+          transaction.delete(memberLockRef);
         }
         return { callId, status: allRejected ? "rejected" : "ringing", idempotentReplay: false };
       }
@@ -11202,11 +11201,16 @@ export const endCall = onCall(async (request) => {
       status: next, endedBy: uid, endedAt: FieldValue.serverTimestamp(),
       lastActivityAt: FieldValue.serverTimestamp(),
     });
-    lockRefs.forEach((lockRef, index) => {
-      if (lockSnapshots[index]?.data()?.callId === callId) transaction.delete(lockRef);
-    });
     return { callId, status: next, idempotentReplay: false };
   });
+  if (result.status === "ended" || result.status === "cancelled") {
+    try { await clearCallMemberLocks(ref); }
+    catch (error) {
+      logger.error("Call member lock cleanup deferred after call end", {
+        callId, error: String(error),
+      });
+    }
+  }
   if (result.status === "ended") {
     try {
       const billing = await processGroupCallBillingSettlement(ref);
