@@ -7945,21 +7945,29 @@ export const setTimedAdCampaign = onCall(async (request) => {
     } else if (mediaRef) {
       throw new HttpsError("not-found", "مادة الإعلان غير موجودة.");
     }
-    const version = (Number.isSafeInteger(previous.data()?.version)
-      ? previous.data()!.version : 0) + 1;
+    const previousData = previous.data() ?? {};
+    if (previous.exists && (!Number.isSafeInteger(previousData.version) || previousData.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار الحملة الحالية غير صالح؛ أوقفنا التعديل لحماية السجل.");
+    }
+    const version = previous.exists ? previousData.version + 1 : 1;
+    if (!Number.isSafeInteger(version)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد للحملة.");
     const now = FieldValue.serverTimestamp();
-    transaction.set(campaignRef, {
+    const nextCampaign = {
       ...input, campaignId: campaignRef.id, creativeType,
       mediaId: mediaId ?? null,
       mediaOwnerUid: mediaId ? actorUid : null,
       creativeContentType,
-      status: previous.exists ? previous.data()?.status : "draft",
-      version, spentRewardCoins: previous.data()?.spentRewardCoins ?? 0,
-      reservedRewardCoins: previous.data()?.reservedRewardCoins ?? 0,
-      createdAt: previous.data()?.createdAt ?? now,
-      createdBy: previous.data()?.createdBy ?? actorUid,
+      status: previous.exists ? previousData.status : "draft",
+      version, spentRewardCoins: previousData.spentRewardCoins ?? 0,
+      reservedRewardCoins: previousData.reservedRewardCoins ?? 0,
+      createdAt: previousData.createdAt ?? now,
+      createdBy: previousData.createdBy ?? actorUid,
       updatedAt: now, updatedBy: actorUid,
-    });
+    };
+    const versionRef = db.collection("timedAdCampaignVersions").doc(campaignRef.id)
+      .collection("versions").doc(String(version));
+    transaction.create(versionRef, { ...nextCampaign, version, createdAt: now, createdBy: actorUid });
+    transaction.set(campaignRef, nextCampaign);
     return { campaignId: campaignRef.id, version, status: previous.exists ? previous.data()?.status : "draft", creativeType };
   });
   await appendOwnerReviewAuditEvent({
@@ -8015,11 +8023,22 @@ export const setTimedAdCampaignStatus = onCall(async (request) => {
         throw new HttpsError("failed-precondition", "لا يمكن نشر الحملة قبل اعتماد مادة الإعلان أمنياً.");
       }
     }
-    transaction.update(campaignRef, {
-      status, updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
-      version: (Number.isSafeInteger(data.version) ? data.version : 0) + 1,
+    if (!Number.isSafeInteger(data.version) || data.version < 1) {
+      throw new HttpsError("failed-precondition", "إصدار الحملة غير صالح؛ أوقفنا تغيير الحالة.");
+    }
+    const nextVersion = data.version + 1;
+    if (!Number.isSafeInteger(nextVersion)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد للحملة.");
+    const now = FieldValue.serverTimestamp();
+    const versionRef = db.collection("timedAdCampaignVersions").doc(campaignId)
+      .collection("versions").doc(String(nextVersion));
+    transaction.create(versionRef, {
+      ...data, status, version: nextVersion, updatedAt: now, updatedBy: actorUid,
+      createdAt: now, createdBy: actorUid,
     });
-    return { campaignId, status };
+    transaction.update(campaignRef, {
+      status, updatedAt: now, updatedBy: actorUid, version: nextVersion,
+    });
+    return { campaignId, status, version: nextVersion };
   });
   await appendOwnerReviewAuditEvent({
     actorUid, action: "timed_ad_campaign_status_changed", ...result, outcome: "success",
@@ -8151,7 +8170,10 @@ export const startTimedAdvertisement = onCall(async (request) => {
     const expiresAtMs = Math.min(data.endsAtMs, nowMs + data.durationSeconds * 4000 + 60000);
     transaction.create(sessionRef, {
       sessionId, uid, campaignId, campaignVersion: data.version,
-      durationSeconds: data.durationSeconds, rewardCoins: data.rewardCoins,
+      campaignVersionPath: `timedAdCampaignVersions/${campaignId}/versions/${data.version}`,
+      placement: data.placement, durationSeconds: data.durationSeconds,
+      rewardCoins: data.rewardCoins, rewardBudgetCoins: data.rewardBudgetCoins,
+      maxClaimsPerMember: data.maxClaimsPerMember,
       eligibleMs: 0, heartbeatSequence: 0, lastHeartbeatAtMs: null,
       status: "active", startedAt: FieldValue.serverTimestamp(),
       startedAtMs: nowMs, expiresAtMs,
@@ -8359,13 +8381,17 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     transaction.update(userRef, { coins: balance + data.rewardCoins, walletUpdatedAt: now });
     transaction.create(claimRef, {
       uid, sessionId, campaignId: data.campaignId,
-      campaignVersion: data.campaignVersion, amountCoins: data.rewardCoins,
-      eligibleMs: data.eligibleMs, createdAt: now,
+      campaignVersion: data.campaignVersion,
+      campaignVersionPath: data.campaignVersionPath ?? null,
+      amountCoins: data.rewardCoins, eligibleMs: data.eligibleMs, createdAt: now,
     });
     transaction.create(userRef.collection("walletLedger").doc(`timed_ad_${sessionId}`), {
       type: "timed_ad_reward", direction: "credit", amount: data.rewardCoins,
       balanceBefore: balance, balanceAfter: balance + data.rewardCoins,
-      campaignId: data.campaignId, sessionId, createdAt: now,
+      campaignId: data.campaignId, sessionId,
+      campaignVersion: data.campaignVersion,
+      campaignVersionPath: data.campaignVersionPath ?? null,
+      createdAt: now,
     });
     transaction.update(campaignRef, {
       spentRewardCoins: spent + data.rewardCoins,
