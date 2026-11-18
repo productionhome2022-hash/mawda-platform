@@ -316,6 +316,42 @@ test("owner economy pricing never seeds commercial defaults and publishes immuta
   }
 });
 
+test("owner wallet reconciliation is read-only and verifies signed balance snapshots", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const uid = `wallet_reconcile_${tag}`;
+  const userRef = db.collection("users").doc(uid);
+  const ledger = userRef.collection("walletLedger");
+  await userRef.set({ coins: 125, profileCompleted: true, accountStatus: "active" });
+  await Promise.all([
+    ledger.doc("01_opening").set({
+      type: "test_credit", amount: 100, balanceBefore: 0, balanceAfter: 100,
+      createdAt: Timestamp.fromMillis(1000),
+    }),
+    ledger.doc("02_spend").set({
+      type: "test_debit", amount: -25, balanceBefore: 100, balanceAfter: 75,
+      createdAt: Timestamp.fromMillis(2000),
+    }),
+    ledger.doc("03_reward").set({
+      type: "test_credit", amount: 50, balanceBefore: 75, balanceAfter: 125,
+      createdAt: Timestamp.fromMillis(3000),
+    }),
+  ]);
+  try {
+    const result = await getOwnerWalletReconciliation.run(ownerRequest("wallet-owner", { targetUid: uid }));
+    assert.equal(result.status, "consistent");
+    assert.equal(result.computedBalance, 125);
+    assert.equal(result.netLedgerDelta, 125);
+    assert.equal(result.truncated, false);
+    assert.equal((await userRef.get()).data().coins, 125,
+      "reconciliation must never mutate the wallet");
+  } finally {
+    const rows = await ledger.get();
+    await Promise.all(rows.docs.map((doc) => doc.ref.delete()));
+    await userRef.delete().catch(() => undefined);
+  }
+});
+
 test("owner authority is bound to the single canonical owner UID", async () => {
   const mismatched = ownerRequest("different-owner", {});
   mismatched.auth.token.platformOwnerUid = "canonical-owner";
