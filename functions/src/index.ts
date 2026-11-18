@@ -9002,7 +9002,10 @@ export const setOwnerFeaturedAdCampaign = onCall(async (request) => {
   const ref = campaignId ? featuredAdCampaignRef(campaignId) : db.collection("featuredAdCampaigns").doc();
   const creative = await validateFeaturedAdCreativeForOwner(input.mediaId, actorUid);
   const result = await db.runTransaction(async (transaction) => {
-    const current = await transaction.get(ref);
+    const [current, economySettings] = await Promise.all([
+      transaction.get(ref), transaction.get(ECONOMY_PRICING_SETTINGS),
+    ]);
+    const economyPolicy = economySettings.data() ?? {};
     if (current.exists) {
       const existing = current.data() ?? {};
       if (existing.version !== expectedVersion) {
@@ -9014,6 +9017,10 @@ export const setOwnerFeaturedAdCampaign = onCall(async (request) => {
       transaction.update(ref, {
         ...input, creativeType: creative.creativeType, ownerApproved: false, creativeApproved: false,
         paymentConfirmed: existing.paymentConfirmed === true, status: "draft",
+        paymentPolicySnapshot: existing.paymentPolicySnapshot ?? {
+          manualEnabled: true, automatedEnabled: false, policyVersion: 0,
+          legacyRequestSnapshot: true,
+        },
         updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
         version: (Number.isSafeInteger(existing.version) ? existing.version : 0) + 1,
       });
@@ -9021,6 +9028,11 @@ export const setOwnerFeaturedAdCampaign = onCall(async (request) => {
       transaction.create(ref, {
         ...input, creativeType: creative.creativeType, ownerApproved: false, ownerWithdrawn: false,
         paymentConfirmed: false, creativeApproved: false, status: "draft",
+        paymentPolicySnapshot: {
+          manualEnabled: economyPolicy.manualFeaturedAdsEnabled === true,
+          automatedEnabled: false,
+          policyVersion: Number.isSafeInteger(economyPolicy.version) ? economyPolicy.version : 0,
+        },
         createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
         createdBy: actorUid, updatedBy: actorUid, version: 1,
         spentRewardCoins: 0, reservedRewardCoins: 0,
