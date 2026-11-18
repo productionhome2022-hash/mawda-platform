@@ -25,12 +25,21 @@ class _MawddaStickerPicker extends StatefulWidget {
 
 class _MawddaStickerPickerState extends State<_MawddaStickerPicker> {
   late Future<List<Map<String, dynamic>>> _catalogFuture;
+  final Map<String, Future<String>> _assetUrlFutures = {};
   String? _selectedPackId;
 
   @override
   void initState() {
     super.initState();
     _catalogFuture = widget.service.getStickerCatalog();
+  }
+
+  Future<String> _assetUrl(String packId, String stickerId) {
+    final key = '$packId:$stickerId';
+    return _assetUrlFutures.putIfAbsent(
+      key,
+      () => widget.service.getStickerAssetUrl(packId: packId, stickerId: stickerId),
+    );
   }
 
   @override
@@ -125,10 +134,7 @@ class _MawddaStickerPickerState extends State<_MawddaStickerPicker> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(6),
                                   child: FutureBuilder<String>(
-                                    future: widget.service.getStickerAssetUrl(
-                                      packId: packId,
-                                      stickerId: stickerId,
-                                    ),
+                                    future: _assetUrl(packId, stickerId),
                                     builder: (context, imageSnapshot) {
                                       if (imageSnapshot.connectionState == ConnectionState.waiting) {
                                         return const Center(
@@ -169,7 +175,7 @@ class _MawddaStickerPickerState extends State<_MawddaStickerPicker> {
   }
 }
 
-class MawddaStickerMessage extends StatelessWidget {
+class MawddaStickerMessage extends StatefulWidget {
   const MawddaStickerMessage({
     super.key,
     required this.service,
@@ -182,9 +188,34 @@ class MawddaStickerMessage extends StatelessWidget {
   final String stickerId;
 
   @override
+  State<MawddaStickerMessage> createState() => _MawddaStickerMessageState();
+}
+
+class _MawddaStickerMessageState extends State<MawddaStickerMessage> {
+  late Future<String> _urlFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _urlFuture = widget.service.getStickerAssetUrl(
+      packId: widget.packId, stickerId: widget.stickerId,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant MawddaStickerMessage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.packId != widget.packId || oldWidget.stickerId != widget.stickerId) {
+      _urlFuture = widget.service.getStickerAssetUrl(
+        packId: widget.packId, stickerId: widget.stickerId,
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<String>(
-      future: service.getStickerAssetUrl(packId: packId, stickerId: stickerId),
+      future: _urlFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SizedBox(
