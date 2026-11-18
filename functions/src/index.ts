@@ -10612,6 +10612,105 @@ export const respondToRoomCallJoinRequest = onCall(async (request) => {
   });
 });
 
+/** Find the current room call for a verified room member. */
+export const getActiveRoomCall = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = request.data?.roomId;
+  if (typeof roomId !== "string" || roomId.length < 1 || roomId.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId);
+  const [room, membership] = await Promise.all([
+    roomRef.get(), roomRef.collection("members").doc(uid).get(),
+  ]);
+  if (!room.exists || room.data()?.status !== "active" || !membership.exists) {
+    throw new HttpsError("permission-denied", "هذه الغرفة غير متاحة لحسابك.");
+  }
+  const candidates = await CALL_SESSIONS.where("targetId", "==", roomId).limit(25).get();
+  const now = Date.now();
+  const active = candidates.docs
+    .map((doc) => ({ id: doc.id, data: doc.data() }))
+    .filter(({ data }) => data.scope === "room" &&
+      ["ringing", "accepted"].includes(String(data.status)) &&
+      !(data.maxDurationEndsAt instanceof Timestamp && data.maxDurationEndsAt.toMillis() <= now) &&
+      !(data.status === "ringing" &&
+        (!(data.expiresAt instanceof Timestamp) || data.expiresAt.toMillis() <= now)))
+    .sort((a, b) => {
+      const aTime = a.data.createdAt instanceof Timestamp ? a.data.createdAt.toMillis() : 0;
+      const bTime = b.data.createdAt instanceof Timestamp ? b.data.createdAt.toMillis() : 0;
+      return bTime - aTime;
+    });
+  const selected = active[0];
+  if (!selected) return { active: false };
+  const call = selected.data;
+  const joinRequest = await CALL_SESSIONS.doc(selected.id).collection("joinRequests").doc(uid).get();
+  const billingPolicy = call.groupCallPricingSnapshot;
+  return {
+    active: true, callId: selected.id, roomId, mode: call.mode,
+    status: call.status, callerUid: call.callerUid,
+    isCreator: call.callerUid === uid,
+    participantUids: Array.isArray(call.participantUids) ? call.participantUids : [],
+    joinRequestStatus: joinRequest.data()?.status ?? null,
+    billingRequired: billingPolicy?.active === true,
+    billingRate: billingPolicy?.active === true
+      ? (call.mode === "audio" ? billingPolicy.audioCoinsPerMinute : billingPolicy.videoCoinsPerMinute)
+      : null,
+    pricingPolicyVersion: billingPolicy?.version ?? null,
+    connectedAtMs: call.connectedAt instanceof Timestamp ? call.connectedAt.toMillis() : null,
+    maxDurationEndsAtMs: call.maxDurationEndsAt instanceof Timestamp ? call.maxDurationEndsAt.toMillis() : null,
+  };
+});
+
+/** Creator-only list of pending join requests for the live room call. */
+export const listRoomCallJoinRequests = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId)) {
+    throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
+  }
+  const callRef = CALL_SESSIONS.doc(callId);
+  const snapshot = await callRef.get();
+  if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
+  const call = snapshot.data() ?? {};
+  if (call.scope !== "room" || call.callerUid !== uid ||
+      !["ringing", "accepted"].includes(String(call.status))) {
+    throw new HttpsError("permission-denied", "قائمة طلبات الانضمام متاحة لمنشئ المكالمة النشطة فقط.");
+  }
+  const requests = await callRef.collection("joinRequests").where("status", "==", "requested").limit(100).get();
+  return {
+    requests: requests.docs.map((doc) => ({
+      uid: doc.id,
+      requestedAtMs: doc.data().requestedAt instanceof Timestamp ? doc.data().requestedAt.toMillis() : null,
+    })),
+  };
+});
+
+/** A requester can inspect only their own request state. */
+export const getRoomCallJoinRequestStatus = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId)) {
+    throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
+  }
+  const callRef = CALL_SESSIONS.doc(callId);
+  const [callSnapshot, requestSnapshot] = await Promise.all([
+    callRef.get(), callRef.collection("joinRequests").doc(uid).get(),
+  ]);
+  if (!callSnapshot.exists || callSnapshot.data()?.scope !== "room" || !requestSnapshot.exists) {
+    throw new HttpsError("not-found", "طلب الانضمام غير موجود.");
+  }
+  const call = callSnapshot.data() ?? {};
+  const joinRequest = requestSnapshot.data() ?? {};
+  if (joinRequest.uid !== uid) throw new HttpsError("permission-denied", "لا يمكنك قراءة طلب عضو آخر.");
+  return {
+    status: joinRequest.status,
+    approved: joinRequest.status === "approved",
+    rejected: joinRequest.status === "rejected",
+    callStatus: call.status,
+    active: ["ringing", "accepted"].includes(String(call.status)),
+  };
+});
+
 /**
  * Each endpoint reports the local WebRTC connected state. The server starts
  * one immutable five-minute clock only after the caller and at least one
