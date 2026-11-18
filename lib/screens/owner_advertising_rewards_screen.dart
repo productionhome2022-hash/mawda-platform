@@ -286,18 +286,15 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
     return DateTime(date.year, date.month, date.day, 12);
   }
 
-  Widget _numberField(String label, TextEditingController controller, String suffix) => SizedBox(
-    width: 220,
+  Widget _coinField(String label, TextEditingController controller) => SizedBox(
+    width: 110,
     child: TextField(
       controller: controller,
       enabled: !_saving,
       keyboardType: TextInputType.number,
-      decoration: InputDecoration(labelText: label, suffixText: suffix),
+      decoration: InputDecoration(labelText: label, suffixText: 'كوين'),
     ),
   );
-
-  Widget _coinField(String label, TextEditingController controller) =>
-      _numberField(label, controller, 'كوين');
 
   String _statusLabel(Object? status) {
     switch (status) {
