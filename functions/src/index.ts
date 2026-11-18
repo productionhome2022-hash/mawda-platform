@@ -9313,8 +9313,9 @@ export const recordOwnerFeaturedAdFinancialEvent = onCall(async (request) => {
   const auditRef = db.collection("adminAuditLogs").doc("featured_ad_finance_" + eventId);
   const auditOutboxRef = db.collection("featuredAdFinancialAuditOutbox").doc(eventId);
   const result = await db.runTransaction(async (transaction) => {
-    const [campaignSnapshot, existingEvent, auditOutbox] = await Promise.all([
-      transaction.get(campaignRef), transaction.get(eventRef), transaction.get(auditOutboxRef),
+    const [campaignSnapshot, existingEvent, auditOutbox, auditRecord] = await Promise.all([
+      transaction.get(campaignRef), transaction.get(eventRef),
+      transaction.get(auditOutboxRef), transaction.get(auditRef),
     ]);
     if (!campaignSnapshot.exists) throw new HttpsError("not-found", "الحملة الإعلانية غير موجودة.");
     const campaign = campaignSnapshot.data() ?? {};
@@ -9329,6 +9330,17 @@ export const recordOwnerFeaturedAdFinancialEvent = onCall(async (request) => {
         prior.reviewOutcome === event.reviewOutcome && prior.actorUid === actorUid;
       if (!samePayload) {
         throw new HttpsError("already-exists", "مرجع الحركة المالية مستخدم لعملية مختلفة.");
+      }
+      if (!auditRecord.exists) {
+        throw new HttpsError("data-loss", "سجل التدقيق المالي الأصلي مفقود؛ أوقفنا إعادة التنفيذ.");
+      }
+      const auditData = auditRecord.data() ?? {};
+      if (auditData.actorUid !== actorUid ||
+          auditData.action !== "featured_ad_financial_" + event.action ||
+          auditData.campaignId !== event.campaignId || auditData.eventId !== eventId ||
+          auditData.externalReference !== event.externalReference ||
+          auditData.amountMinor !== event.amountMinor || auditData.currency !== event.currency) {
+        throw new HttpsError("data-loss", "سجل التدقيق المالي لا يطابق الحركة الأصلية.");
       }
       if (auditOutbox.exists) {
         const outbox = auditOutbox.data() ?? {};
