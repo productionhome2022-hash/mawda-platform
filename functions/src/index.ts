@@ -2080,9 +2080,18 @@ function biometricTimestampMs(value: unknown): number | null {
 
 async function deleteBiometricRequestObjects(
   requestId: string,
-  audioObjectPath: string,
-  videoObjectPath: string,
+  audioObjectPath: string | null | undefined,
+  videoObjectPath: string | null | undefined,
 ): Promise<boolean> {
+  if (typeof audioObjectPath !== "string" || !audioObjectPath ||
+      typeof videoObjectPath !== "string" || !videoObjectPath) {
+    await BIOMETRIC_REQUESTS.doc(requestId).update({
+      mediaDeletionStatus: "complete",
+      mediaDeletedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return true;
+  }
   try {
     const bucket = getStorage().bucket();
     await Promise.all([
@@ -2161,6 +2170,9 @@ export const startBiometricVerificationRequest = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "التوثيق البيومتري ما زال سارياً ولم يحن موعد تجديده.");
     }
     const activeRequestId = userData.biometricVerificationRequestId;
+    if (["uploading", "pending_review"].includes(String(userData.biometricVerificationRequestStatus))) {
+      throw new HttpsError("already-exists", "لديك طلب توثيق بيومتري قيد الإجراء بالفعل.");
+    }
     if (typeof activeRequestId === "string" && activeRequestId.length > 0) {
       const activeRequest = await transaction.get(BIOMETRIC_REQUESTS.doc(activeRequestId));
       if (activeRequest.exists &&
@@ -2297,6 +2309,9 @@ export const getOwnerBiometricVerificationMediaAccess = onCall(async (request) =
   }
   const settings = biometricSettingsOrThrow(settingsSnapshot.data() ?? {});
   const data = requestSnapshot.data()!;
+  if (typeof data.audioObjectPath !== "string" || typeof data.videoObjectPath !== "string") {
+    throw new HttpsError("data-loss", "مسارات وسائط طلب التوثيق غير سليمة.");
+  }
   const bucket = getStorage().bucket();
   const expires = Date.now() + settings.mediaAccessTtlSeconds * 1000;
   const [audio, video] = await Promise.all([
