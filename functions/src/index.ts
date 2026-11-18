@@ -9925,7 +9925,7 @@ const CALL_USAGE_POLICY = db.doc("platformSettings/callUsagePolicy");
  * network delivery; live device acceptance remains a separate release gate.
  */
 async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<string | null> {
-  return db.runTransaction(async (transaction) => {
+  const status = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(callRef);
     if (!snapshot.exists) return null;
     const call = snapshot.data() ?? {};
@@ -9953,6 +9953,15 @@ async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<
     });
     return "duration_expired";
   });
+  if (status === "duration_expired") {
+    try { await processGroupCallBillingSettlement(callRef); }
+    catch (error) {
+      logger.error("Group-call billing settlement deferred after duration expiry", {
+        callId: callRef.id, error: String(error),
+      });
+    }
+  }
+  return status;
 }
 
 
