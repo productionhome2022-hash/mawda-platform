@@ -8713,16 +8713,6 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
       transaction.get(ECONOMY_PRICING_SETTINGS),
     ]);
     if (!campaign.exists) throw new HttpsError("not-found", "الحملة الإعلانية غير موجودة.");
-    if (event.action === "payment_received") {
-      const settings = paymentSettings.data() ?? {};
-      const policy = projectEconomicPaymentPolicy(settings.paymentPolicy, {
-        manualCoinPurchasesEnabled: settings.manualCoinPurchasesEnabled,
-      });
-      if (policy.featured_ads.manualEnabled !== true ||
-          policy.featured_ads.automatedEnabled !== false) {
-        throw new HttpsError("failed-precondition", "استقبال دفعات الإعلانات اليدوي متوقف في سياسة المالك.");
-      }
-    }
     if (priorEvent.exists) {
       const prior = priorEvent.data() ?? {};
       const matches = prior.actorUid === actorUid &&
@@ -8736,6 +8726,16 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
         campaignId: event.campaignId, eventId,
         snapshot: financial.data() ?? null, idempotentReplay: true,
       };
+    }
+    if (event.action === "payment_received") {
+      const settings = paymentSettings.data() ?? {};
+      const policy = projectEconomicPaymentPolicy(settings.paymentPolicy, {
+        manualCoinPurchasesEnabled: settings.manualCoinPurchasesEnabled,
+      });
+      if (policy.featured_ads.manualEnabled !== true ||
+          policy.featured_ads.automatedEnabled !== false) {
+        throw new HttpsError("failed-precondition", "استقبال دفعات الإعلانات اليدوي متوقف في سياسة المالك.");
+      }
     }
     const currentData = financial.data() ?? {};
     if (financial.exists && (!Number.isSafeInteger(currentData.version) || currentData.version < 1)) {
