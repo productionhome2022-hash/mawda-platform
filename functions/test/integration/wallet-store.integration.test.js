@@ -188,7 +188,7 @@ test("owner featured-ad manual payment and refund events persist atomically and 
       await db.collection("featuredAdFinancialAuditOutbox").doc(doc.id).delete().catch(() => undefined);
       await doc.ref.delete().catch(() => undefined);
       await db.collection("adminAuditLogs").doc("featured_ad_finance_" + doc.id).delete().catch(() => undefined);
-      await db.collection("adminAuditLogs").doc("featured_ad_finance_chain_" + doc.id).delete().catch(() => undefined);
+      // Keep the immutable hash-chain entry: deleting it would invalidate the shared audit head.
     }));
     await campaignRef.delete().catch(() => undefined);
   }
