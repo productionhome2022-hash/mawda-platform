@@ -731,6 +731,8 @@ test("featured campaigns require owner approval and verified finance, then rewar
   const policyRef = db.doc("platformSettings/featuredAdRewards");
   const previousPolicy = await policyRef.get();
   let sessionId;
+  let abandonedSessionId;
+  let replacementSessionId;
   let paymentEventId;
   let settlementEventId;
   let refundEventId;
@@ -837,12 +839,14 @@ test("featured campaigns require owner approval and verified finance, then rewar
     const abandoned = await startFeaturedAdSession.run(memberRequest(uid, {
       campaignId: campaignRef.id, geography: "syria",
     }));
+    abandonedSessionId = abandoned.sessionId;
     await db.collection("featuredAdSessions").doc(abandoned.sessionId).update({
       expiresAtMs: Date.now() - 1,
     });
     const replacement = await startFeaturedAdSession.run(memberRequest(uid, {
       campaignId: campaignRef.id, geography: "syria",
     }));
+    replacementSessionId = replacement.sessionId;
     assert.notEqual(replacement.sessionId, abandoned.sessionId);
     assert.equal((await db.collection("featuredAdSessions").doc(abandoned.sessionId).get()).data().status, "expired");
     await cancelFeaturedAdSession.run(memberRequest(uid, { sessionId: replacement.sessionId }));
@@ -873,7 +877,7 @@ test("featured campaigns require owner approval and verified finance, then rewar
         db.collection("activeFeaturedAdSessions").doc(uid).delete().catch(() => undefined),
         userRef.collection("walletLedger").doc(`featured_ad_${sessionId}`).delete().catch(() => undefined),
       ] : []),
-      ...[abandoned?.sessionId, replacement?.sessionId].filter(Boolean)
+      ...[abandonedSessionId, replacementSessionId].filter(Boolean)
         .map((id) => db.collection("featuredAdSessions").doc(id).delete().catch(() => undefined)),
       db.collection("featuredAdMemberCounters").where("uid", "==", uid).get()
         .then((snap) => Promise.all(snap.docs.map((doc) => doc.ref.delete()))),
