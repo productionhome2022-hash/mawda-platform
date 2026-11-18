@@ -8764,7 +8764,7 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
 
     // Capacity is checked against a transactional query so concurrent owner
     // assignments cannot both take the fifth seat.
-    let roleSeatCounterRef: FirebaseFirestore.DocumentReference | null = null;
+    let roleSeatCounterRef: DocumentReference | null = null;
     let roleSeatCountAfterWrite: number | null = null;
     if (limitedRole !== null) {
       roleSeatCounterRef = db.collection("specializedRoleSeatCounters").doc(limitedRole);
