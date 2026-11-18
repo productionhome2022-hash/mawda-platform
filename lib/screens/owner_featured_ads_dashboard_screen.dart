@@ -557,6 +557,10 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
                   if (value == 'publish') await _status(id, 'published', (item['version'] as num?)?.toInt() ?? 0);
                   if (value == 'pause') await _status(id, 'paused', (item['version'] as num?)?.toInt() ?? 0);
                   if (value == 'withdraw') await _status(id, 'withdrawn', (item['version'] as num?)?.toInt() ?? 0);
+                  if (value == 'recordPayment') await _recordFinancialEvent(item, 'payment_received');
+                  if (value == 'recordRefund') await _recordFinancialEvent(item, 'refund_recorded');
+                  if (value == 'reconcile') await _recordFinancialEvent(item, 'settlement_reconciled');
+                  if (value == 'financialReview') await _recordFinancialEvent(item, 'review_completed');
                 },
                 itemBuilder: (_) => [
                   if (status == 'draft' || status == 'paused') const PopupMenuItem(value: 'edit', child: Text('تعديل')),
@@ -567,7 +571,13 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
                   if (status == 'draft' || status == 'paused') const PopupMenuItem(value: 'approve', child: Text('اعتماد الحملة بعد إثبات الدفع')),
                   if (status == 'approved' || status == 'paused') const PopupMenuItem(value: 'publish', child: Text('نشر')),
                   if (status == 'published') const PopupMenuItem(value: 'pause', child: Text('إيقاف مؤقت')),
-                  if (status != 'withdrawn') const PopupMenuItem(value: 'withdraw', child: Text('سحب فوري')),
+                  if (status != 'withdrawn') ...[
+                    const PopupMenuItem(value: 'recordPayment', child: Text('تسجيل استلام دفعة خارجية')),
+                    const PopupMenuItem(value: 'recordRefund', child: Text('تسجيل استرداد مالي')),
+                    const PopupMenuItem(value: 'reconcile', child: Text('تسجيل تسوية مالية')),
+                    const PopupMenuItem(value: 'financialReview', child: Text('إتمام المراجعة المالية')),
+                    const PopupMenuItem(value: 'withdraw', child: Text('سحب فوري')),
+                  ],
                 ],
               ),
             ));
