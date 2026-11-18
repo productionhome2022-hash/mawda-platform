@@ -53,7 +53,7 @@ test("featured-ad reward policy is owner-only, versioned, audited and rejects st
   await assert.rejects(
     () => setOwnerFeaturedAdRewardPolicy.run(ownerRequest(uid, {
       expectedVersion: saved.version,
-      policy: { ...policy, rewardCoinsPerView: 13 },
+      policy: { ...policy, rewardCoinsPerView: 13, maxRewardCoinsPerUtcDay: 12 },
     })),
     (error) => error && error.code === "invalid-argument",
     "daily cap below the per-view reward must be rejected",
