@@ -274,6 +274,13 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
                   subtitle: Text('مغلق حالياً لجميع الخدمات؛ لا يوجد مزود دفع معتمد أو تكامل خادمي موثّق. لن يظهر خيار تفعيله قبل اكتمال تكامل المزود والتحقق من جاهزيته.'),
                 ),
               ),
+              const Card(
+                child: ListTile(
+                  leading: Icon(Icons.pending_actions_outlined),
+                  title: Text('الإعلانات العامة وصُنّاع المحتوى والاشتراكات'),
+                  subtitle: Text('لا يمكن تفعيل تحصيل مالي لهذه الخدمات من هذه الشاشة حالياً. يلزم أولاً استكمال دورة الطلب/العقد/الاتفاق والتحقق من الدفع والتسوية والدفتر لكل خدمة على حدة. مشتريات المتجر واستئجار الغرف الحالية تتم بBetaCoins وليست دفعاً نقدياً خارجياً.'),
+                ),
+              ),
               Text('باقات BetaCoins', style: Theme.of(context).textTheme.titleLarge),
               Align(
                 alignment: Alignment.centerLeft,
