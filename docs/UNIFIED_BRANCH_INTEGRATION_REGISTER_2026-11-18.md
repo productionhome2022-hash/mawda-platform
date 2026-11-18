@@ -504,3 +504,10 @@ Decision: **no whole-PR merge.** The current unified branch has evolved versions
 - يلزم استكمال دورة إعلانات المميز والوسائط ومراجعة الفروقات الدلالية المتبقية في PR #24/#25، ثم استكمال الدورة الاقتصادية للمكالمات وفق بواباتها.
 - لا يُسمح بالدمج النهائي إلى `main` قبل اجتياز بوابات التحقق وموافقة المالك المستقلة. لا نشر ولا تعديل إنتاجي ضمن هذه الدفعة.
 
+### محاولة التحقق المحلية بعد هذه الدفعة
+
+- بيئة الحاوية توفر Node.js `v22.16.0` وnpm، لكنها لا تحتوي على checkout للمستودع أو `node_modules`.
+- أوامر اكتشاف الأدوات أكدت غياب Flutter وDart وFirebase CLI.
+- محاولة `git ls-remote` إلى GitHub فشلت بسبب تعذر DNS (`Could not resolve host: github.com`).
+- لذلك لم يبدأ `npm test` أو `tsc` أو أي Emulator/Flutter test. لا توجد نتائج اختبار محلية يمكن اعتمادها بعد؛ التغييرات أعلاه ما زالت في حالة source-updated / tests-authored فقط.
+
