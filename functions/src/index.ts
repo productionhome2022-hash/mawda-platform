@@ -8128,6 +8128,39 @@ export const completeFeaturedAdSession = onCall({ enforceAppCheck: true }, async
   return result;
 });
 
+export const cancelFeaturedAdSession = onCall({ enforceAppCheck: true }, async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const sessionId = request.data?.sessionId;
+  if (typeof sessionId !== "string" || !/^[0-9a-f-]{36}$/i.test(sessionId)) {
+    throw new HttpsError("invalid-argument", "معرف جلسة الإعلان غير صالح.");
+  }
+  const sessionRef = FEATURED_AD_SESSIONS.doc(sessionId);
+  return db.runTransaction(async (transaction) => {
+    const session = await transaction.get(sessionRef);
+    if (!session.exists || session.data()?.uid !== uid) {
+      throw new HttpsError("not-found", "جلسة الإعلان غير موجودة.");
+    }
+    const data = session.data()!;
+    if (data.status === "completed") return { cancelled: false, alreadyCompleted: true };
+    if (data.status !== "active") return { cancelled: true, idempotentReplay: true };
+    const campaignRef = FEATURED_AD_CAMPAIGNS.doc(String(data.campaignId));
+    const activeRef = FEATURED_AD_ACTIVE_SESSIONS.doc(uid);
+    const [campaign, active] = await Promise.all([
+      transaction.get(campaignRef), transaction.get(activeRef),
+    ]);
+    if (campaign.exists) {
+      const reserved = readSafeInteger(campaign.data()?.reservedRewardCoins ?? 0, "featuredReservedRewardCoins");
+      transaction.update(campaignRef, {
+        reservedRewardCoins: Math.max(0, reserved - readSafeInteger(data.rewardCoins, "featuredRewardCoins")),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    transaction.update(sessionRef, { status: "cancelled", cancelledAt: FieldValue.serverTimestamp() });
+    if (active.data()?.sessionId === sessionId) transaction.delete(activeRef);
+    return { cancelled: true, idempotentReplay: false };
+  });
+});
+
 export const getFeaturedAdRewardHistory = onCall({ enforceAppCheck: true }, async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const snapshot = await FEATURED_AD_REWARD_CLAIMS.where("uid", "==", uid)
