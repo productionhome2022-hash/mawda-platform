@@ -70,6 +70,14 @@ test("coin transfer atomically writes both wallet ledgers and platform commissio
     assert.equal(sender.data().coins, 4000);
     assert.equal(recipient.data().coins, 1000);
     assert.equal(senderLedger.data().amount, -1000);
+    assert.equal(senderLedger.data().balanceBefore, 5000);
+    assert.equal(senderLedger.data().balanceAfter, 4000);
+    assert.equal(recipientLedger.data().balanceBefore, 200);
+    assert.equal(recipientLedger.data().balanceAfter, 1000);
+    assert.equal(transfer.data().senderBalanceBefore, 5000);
+    assert.equal(transfer.data().senderBalanceAfter, 4000);
+    assert.equal(transfer.data().recipientBalanceBefore, 200);
+    assert.equal(transfer.data().recipientBalanceAfter, 1000);
     assert.equal(senderLedger.data().commissionAmount, 200);
     assert.equal(senderLedger.data().recipientUid, recipientUid);
     assert.equal(senderLedger.data().recipientNetAmount, 800);
@@ -82,6 +90,13 @@ test("coin transfer atomically writes both wallet ledgers and platform commissio
 
     const replay = await transferCoins.run(request);
     assert.equal(replay.idempotentReplay, true);
+    assert.equal((await senderRef.get()).data().coins, 4000);
+    assert.equal((await recipientRef.get()).data().coins, 1000);
+    await platformLedgerRef.delete();
+    await assert.rejects(
+      () => transferCoins.run(request),
+      (error) => error && error.code === "failed-precondition",
+    );
     assert.equal((await senderRef.get()).data().coins, 4000);
     assert.equal((await recipientRef.get()).data().coins, 1000);
 
