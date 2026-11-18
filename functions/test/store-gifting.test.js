@@ -63,3 +63,14 @@ test("permanent catalog items stay permanent and invalid durations fail closed",
   assert.throws(() => calculateStoreGiftExpiryMs({}, 0, NOW), /INVALID_GIFT_DURATION/);
   assert.throws(() => calculateStoreGiftExpiryMs({}, 7, -1), /INVALID_SERVER_TIME/);
 });
+
+test("malformed active entitlement expiry fails closed instead of granting guessed time", () => {
+  assert.throws(
+    () => calculateStoreGiftExpiryMs({ status: "active", expiresAt: "not-a-timestamp" }, 7, NOW),
+    /INVALID_CURRENT_ENTITLEMENT_EXPIRY/,
+  );
+  assert.throws(
+    () => calculateStoreGiftExpiryMs({ status: "active", expiresAt: { toMillis: () => Number.NaN } }, 7, NOW),
+    /INVALID_CURRENT_ENTITLEMENT_EXPIRY/,
+  );
+});
