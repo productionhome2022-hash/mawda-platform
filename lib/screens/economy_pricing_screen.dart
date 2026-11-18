@@ -369,7 +369,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
             spacing: 10, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               SizedBox(width: 145, child: Text(item['name'] as String? ?? item['packageId'] as String? ?? 'باقة')),
-              Text('\${item['coins']} كوين • ' + _formatMinor(
+              Text('${item['coins']} كوين • ' + _formatMinor(
                 (item['priceMinor'] as num?)?.toInt() ?? 0,
                 (item['currencyExponent'] as num?)?.toInt() ?? 2,
                 item['currency'] as String? ?? '—',
@@ -401,7 +401,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
             spacing: 10, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               SizedBox(width: 145, child: Text(item['name'] as String? ?? item['placementId'] as String? ?? 'موضع إعلاني')),
-              Text('\${item['billingModel']} • ' + _formatMinor(
+              Text('${item['billingModel']} • ' + _formatMinor(
                 (item['priceMinor'] as num?)?.toInt() ?? 0,
                 (item['currencyExponent'] as num?)?.toInt() ?? 2,
                 item['currency'] as String? ?? '—',
