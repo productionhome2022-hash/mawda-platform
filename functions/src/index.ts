@@ -8969,6 +8969,7 @@ export const setFeaturedAdCampaignStatus = onCall(async (request) => {
       ownerWithdrawn: next === "withdrawn",
       creativeApproved: current.creativeApproved === true,
       paymentConfirmed,
+      version: (Number(current.version) || 1) + 1,
       updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
       approvedAt: next === "approved" || next === "published" ? FieldValue.serverTimestamp() : current.approvedAt ?? null,
       withdrawnAt: next === "withdrawn" ? FieldValue.serverTimestamp() : current.withdrawnAt ?? null,
