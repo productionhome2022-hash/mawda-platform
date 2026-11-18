@@ -93,6 +93,7 @@ import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
 import { AD_INTAKE_GEOGRAPHIES, validateAdvertisingIntake, advertisingIntakeAuditEventId, advertisingIntakeReviewAuditEventId, AdvertisingIntakeValidationError } from "./advertising-intake";
 import { selectFeaturedAdShowcase, type FeaturedAdCampaignCandidate } from "./featured-advertising";
+import { CAPACITY_MEDIA_DEFAULTS, projectCapacityMediaPolicy, validateCapacityMediaQuotaInput, type CapacityMediaPolicy } from "./capacity-media-management";
 import { defaultFeaturedAdRewardPolicy, validateFeaturedAdRewardPolicy, decideFeaturedAdReward, featuredAdCampaignRewardPolicy, featuredAdRewardBudgetAvailable, type FeaturedAdRewardPolicy } from "./featured-ad-rewards";
 import { getMawddaMediaBucket } from "./media";
 import { validateProductionApplication, ProductionApplicationValidationError } from "./production-applications";
@@ -8670,6 +8671,7 @@ export const getFeaturedAdShowcase = onCall(async (request) => {
 
 
 const FEATURED_AD_REWARD_POLICY = db.doc("platformSettings/featuredAdRewardPolicy");
+const CAPACITY_MEDIA_SETTINGS = db.doc("platformSettings/capacityMediaPolicy");
 const FEATURED_AD_ALLOWED_STATUSES = ["draft", "approved", "published", "paused", "withdrawn"] as const;
 const FEATURED_AD_ALLOWED_PLACEMENTS = ["rotation", "priority"] as const;
 
@@ -8882,6 +8884,97 @@ export const getOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
   const policy = snapshot.exists ? validateFeaturedAdRewardPolicy(snapshot.data()?.policy) : defaultFeaturedAdRewardPolicy();
   return { policy, version: snapshot.exists ? snapshot.data()?.version ?? 0 : 0 };
 });
+export const getOwnerCapacityMediaManagement = onCall(async (request) => {
+  await requireOwnerForReview(request, "capacity_media_management_read");
+  const currentMonthUtc = new Date().toISOString().slice(0, 7);
+  const [snapshot, meterSnapshot] = await Promise.all([
+    CAPACITY_MEDIA_SETTINGS.get(),
+    db.collection("platformCapacityMeters").doc(currentMonthUtc).get(),
+  ]);
+  const data = snapshot.data() ?? {};
+  const meter = meterSnapshot.data() ?? {};
+  const monthlyUploadBytes = meterSnapshot.exists && Number.isSafeInteger(meter.monthlyUploadBytes) &&
+    meter.monthlyUploadBytes >= 0 ? meter.monthlyUploadBytes : null;
+  const finalizedUploadCount = meterSnapshot.exists && Number.isSafeInteger(meter.finalizedUploadCount) &&
+    meter.finalizedUploadCount >= 0 ? meter.finalizedUploadCount : null;
+  const rawQuotas = data.monthlyMediaQuotas;
+  let monthlyMediaQuotas: CapacityMediaPolicy["monthlyMediaQuotas"] = {
+    ...CAPACITY_MEDIA_DEFAULTS.monthlyMediaQuotas,
+  };
+  if (rawQuotas && typeof rawQuotas === "object" && !Array.isArray(rawQuotas)) {
+    try {
+      monthlyMediaQuotas = validateCapacityMediaQuotaInput(rawQuotas);
+    } catch {
+      // Corrupt settings fail back to unset quotas; they never activate limits.
+    }
+  }
+  return {
+    policy: {
+      ...projectCapacityMediaPolicy(monthlyMediaQuotas),
+      version: Number.isSafeInteger(data.version) && data.version >= 0 ? data.version : 0,
+      updatedAtMs: data.updatedAt instanceof Timestamp ? data.updatedAt.toMillis() : null,
+    },
+    measurement: {
+      status: meterSnapshot.exists ? "partial" : "not_started",
+      monthUtc: currentMonthUtc,
+      monthlyUploadBytes,
+      finalizedUploadCount,
+      concurrentActiveMembers: null,
+      capacityTierCount: null,
+      monthlyDownloadBytes: null,
+      retainedStorageBytes: null,
+      processingMinutes: null,
+    },
+    enforcement: {
+      status: "observe_only",
+      coreServicesExemptFromQuota: true,
+      productionBillingConnected: false,
+    },
+    generatedAtMs: Date.now(),
+  };
+});
+
+export const setOwnerCapacityMediaManagement = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "capacity_media_management_policy_update");
+  let monthlyMediaQuotas: CapacityMediaPolicy["monthlyMediaQuotas"];
+  try {
+    monthlyMediaQuotas = validateCapacityMediaQuotaInput(request.data?.monthlyMediaQuotas);
+  } catch {
+    throw new HttpsError("invalid-argument", "قيم حصص الوسائط الشهرية غير صالحة.");
+  }
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "إصدار إعدادات السعة غير صالح.");
+  }
+  const nextVersion = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(CAPACITY_MEDIA_SETTINGS);
+    const data = snapshot.data() ?? {};
+    const currentVersion = Number.isSafeInteger(data.version) && data.version >= 0 ? data.version : 0;
+    if (currentVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت الإعدادات منذ فتح اللوحة. حدّث البيانات ثم أعد المحاولة.");
+    }
+    const next = currentVersion + 1;
+    transaction.set(CAPACITY_MEDIA_SETTINGS, {
+      ...projectCapacityMediaPolicy(monthlyMediaQuotas),
+      version: next,
+      updatedBy: actorUid,
+      updatedAt: FieldValue.serverTimestamp(),
+      enforcementStatus: "observe_only",
+    });
+    return next;
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "capacity_media_management_policy_update",
+    outcome: "success",
+    policyVersion: nextVersion,
+    monthlyMediaQuotas,
+    enforcementStatus: "observe_only",
+    coreServicesExemptFromQuota: true,
+  });
+  return { saved: true, version: nextVersion, enforcementStatus: "observe_only" };
+});
+
 export const setOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
   const actorUid = await requireOwnerForReview(request, "featured_ad_reward_policy_update_attempt");
   const policy = validateFeaturedAdRewardPolicy(request.data?.policy);
