@@ -7428,7 +7428,6 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       const recipientData = recipient?.data();
       if (!recipient?.exists || !isMemberAccountInGoodStanding(recipientData) ||
           recipientData?.profileCompleted !== true ||
-          (recipientData?.uid !== giftRecipientUid && recipientData?.memberId !== giftRecipientUid) ||
           guestProfile?.exists || guestSession?.exists) {
         throw new HttpsError("permission-denied", "المستلم ليس عضواً مؤهلاً لاستلام باقة الكوينز.");
       }
