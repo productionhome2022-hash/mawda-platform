@@ -9115,7 +9115,8 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
     if (!latestCampaign.exists || latest.status !== "published" || latest.ownerWithdrawn === true ||
         latest.ownerApproved !== true || latest.paymentConfirmed !== true || latest.creativeApproved !== true ||
         sessionNow < latest.startsAtMs || sessionNow >= latest.endsAtMs ||
-        !Array.isArray(latest.geographicTargets) || !latest.geographicTargets.includes(geography) ||
+        !Array.isArray(latest.geographicTargets) ||
+        (!latest.geographicTargets.includes(geography) && !latest.geographicTargets.includes("all_arab_countries")) ||
         latest.mediaId !== campaign.mediaId) {
       throw new HttpsError("failed-precondition", "تم إيقاف الحملة أو تغيرت أثناء بدء جلسة المشاهدة.");
     }
