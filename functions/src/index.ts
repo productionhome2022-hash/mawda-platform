@@ -7960,7 +7960,8 @@ export const requestCoinPurchasePaymentVerification = onCall(async (request) => 
     }
     const data = purchase.data() ?? {};
     if (data.paymentChannel !== "manual_owner_contact" ||
-        data.paymentPolicySnapshot?.manualEnabled !== true) {
+        (data.paymentPolicySnapshot !== undefined &&
+         data.paymentPolicySnapshot?.manualEnabled !== true)) {
       throw new HttpsError("failed-precondition", "هذا الطلب لا يستخدم مسار الدفع اليدوي.");
     }
     if (data.status === "awaiting_payment_verification" &&
@@ -7994,6 +7995,10 @@ export const requestCoinPurchasePaymentVerification = onCall(async (request) => 
     }
     transaction.update(requestRef, {
       status: "awaiting_payment_verification",
+      paymentPolicySnapshot: data.paymentPolicySnapshot ?? {
+        manualEnabled: true, automatedEnabled: false, policyVersion: 0,
+        legacyRequestSnapshot: true, capturedAt: FieldValue.serverTimestamp(),
+      },
       paymentReportedBy: uid,
       paymentReportedAt: FieldValue.serverTimestamp(),
       paymentReportedInstructionVersion: expectedInstructionsVersion,
@@ -8071,6 +8076,11 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
         ? transaction.get(db.collection("guestSessions").doc(targetUid))
         : Promise.resolve(null),
     ]);
+    if (data.paymentChannel !== "manual_owner_contact" ||
+        (data.paymentPolicySnapshot !== undefined &&
+         data.paymentPolicySnapshot?.manualEnabled !== true)) {
+      throw new HttpsError("failed-precondition", "لقطة طلب الشراء لا تسمح بالاعتماد عبر المسار اليدوي.");
+    }
     if (data.status === "approved") {
       const expectedLedgerType = data.giftRecipientUid
         ? "coin_package_gift_credit" : "coin_purchase_manual_credit";
