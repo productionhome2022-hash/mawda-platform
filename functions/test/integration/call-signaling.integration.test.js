@@ -345,7 +345,7 @@ test("server starts a non-resettable five-minute call ceiling only after both en
   const callerLock = db.collection("activeCallMemberLocks").doc(callerUid);
   const calleeLock = db.collection("activeCallMemberLocks").doc(calleeUid);
   await callRef.set({
-    callId, scope: "direct", status: "accepted", callerUid,
+    callId, scope: "direct", mode: "audio", status: "accepted", callerUid,
     participantUids: [callerUid, calleeUid], acceptedUids: [calleeUid],
     rejectedUids: [], leftUids: [], connectedUids: [],
   });
