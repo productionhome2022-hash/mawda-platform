@@ -83,7 +83,7 @@ import {
 } from "./store-purchase";
 import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
 import { deleteMediaAssetForMessage } from "./media";
-import { validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
+import { validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance, type RoomRentalPlan } from "./room-rental";
 import { isActiveRentedPrivateRoom } from "./room-call-policy";
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
@@ -7711,7 +7711,7 @@ export const renewRoomRental = onCall(async (request) => {
     if (!user.exists || !isMemberAccountInGoodStanding(user.data())) {
       throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بالتجديد.");
     }
-    const plans = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : DEFAULT_ROOM_RENTAL_PLANS;
+    const plans: RoomRentalPlan[] = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : [];
     const plan = plans.find((entry) => entry.planId === planId && entry.active);
     if (!plan || plan.priceCoins !== expectedPriceCoins) {
       throw new HttpsError("failed-precondition", "تغير سعر التجديد؛ حدّث الأسعار قبل التأكيد.");
@@ -8582,7 +8582,10 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
 /** Owner/MFA-only economy price updates. This configures prices, not payment processing. */
 export const setOwnerEconomyPricing = onCall(async (request) => {
   const actorUid = requireOwner(request);
-  let coinPackages, adPrices, requestedCallTariffs, requestedEmailVerificationReward;
+  let coinPackages: ReturnType<typeof validateCoinPackages>;
+  let adPrices: ReturnType<typeof validateAdPrices>;
+  let requestedCallTariffs: ReturnType<typeof validateBilateralCallTariffs> | undefined;
+  let requestedEmailVerificationReward: ReturnType<typeof validateEmailVerificationRewardPolicy> | undefined;
   try {
     coinPackages = validateCoinPackages(request.data?.coinPackages);
     adPrices = validateAdPrices(request.data?.adPrices);
@@ -8597,7 +8600,7 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
   }
   const manualCoinPurchasesEnabled = request.data?.manualCoinPurchasesEnabled;
   const manualFeaturedAdsEnabled = request.data?.manualFeaturedAdsEnabled;
-  let requestedPaymentPolicy;
+  let requestedPaymentPolicy: ReturnType<typeof validateEconomicPaymentPolicy> | undefined;
   if (request.data?.paymentPolicy !== undefined) {
     try { requestedPaymentPolicy = validateEconomicPaymentPolicy(request.data.paymentPolicy); }
     catch { throw new HttpsError("invalid-argument", "سياسة طرق الدفع لكل خدمة غير صالحة؛ الدفع الآلي غير متاح قبل تكامل مزود موثوق."); }
@@ -8627,7 +8630,7 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
       previous.data()?.emailVerificationReward ?? defaultEmailVerificationRewardPolicy(),
     );
     const emailVerificationReward = requestedEmailVerificationReward ?? previousEmailVerificationReward;
-    let paymentPolicy;
+    let paymentPolicy: ReturnType<typeof projectEconomicPaymentPolicy>;
     try {
       paymentPolicy = requestedPaymentPolicy ?? projectEconomicPaymentPolicy(previous.data()?.paymentPolicy, {
         manualCoinPurchasesEnabled: previous.data()?.manualCoinPurchasesEnabled,
@@ -9941,27 +9944,6 @@ export const setOwnerCapacityMediaManagement = onCall(async (request) => {
   return { saved: true, version: nextVersion, enforcementStatus: "observe_only" };
 });
 
-export const setOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
-  const actorUid = await requireOwnerForReview(request, "featured_ad_reward_policy_update_attempt");
-  const policy = validateFeaturedAdRewardPolicy(request.data?.policy);
-  const expectedVersion = request.data?.expectedVersion;
-  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
-    throw new HttpsError("invalid-argument", "إصدار سياسة المكافآت غير صالح.");
-  }
-  const version = await db.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(FEATURED_AD_REWARD_POLICY);
-    const previous = snapshot.exists && Number.isSafeInteger(snapshot.data()?.version)
-      ? snapshot.data()!.version as number : 0;
-    if (previous !== expectedVersion) {
-      throw new HttpsError("aborted", "تغيرت سياسة المكافآت منذ فتح اللوحة؛ حدّث البيانات ثم أعد المحاولة.");
-    }
-    const next = previous + 1;
-    transaction.set(FEATURED_AD_REWARD_POLICY, { policy, version: next, updatedBy: actorUid, updatedAt: FieldValue.serverTimestamp() });
-    return next;
-  });
-  await appendOwnerReviewAuditEvent({ actorUid, action: "featured_ad_reward_policy_changed", version, outcome: "success" });
-  return { saved: true, version, policy };
-});
 export const getMyFeaturedAdRewardHistory = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const [snapshot, policySnapshot] = await Promise.all([
