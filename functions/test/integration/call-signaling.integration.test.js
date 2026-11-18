@@ -749,3 +749,74 @@ test("room call pricing is snapshotted and join approval requires separate finan
     ]);
   }
 });
+
+
+test("group call end charges every media-connected member an equal share, including late joiners, and retries insufficient balances idempotently", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const memberUids = Array.from({ length: 4 }, (_, i) => uid("settlement_member_" + i));
+  const [creatorUid, earlyUid, lateUid, lastSecondUid] = memberUids;
+  const callId = uid("group_settlement_call");
+  const callRef = db.collection("callSessions").doc(callId);
+  const memberRefs = memberUids.map((memberUid) => db.collection("users").doc(memberUid));
+  const connectedAt = Timestamp.fromMillis(Date.now() - 10 * 1000);
+  const endedAt = Timestamp.now();
+  const maxDurationEndsAt = Timestamp.fromMillis(connectedAt.toMillis() + 3 * 60 * 1000);
+  await Promise.all([
+    ...memberRefs.map((ref, index) => ref.set({
+      profileCompleted: true, accountStatus: "active", age: 30,
+      coins: index === 3 ? 0 : 1000,
+    })),
+    callRef.set({
+      callId, scope: "room", targetId: uid("settlement_room"), mode: "video",
+      callerUid: creatorUid, participantUids: memberUids,
+      acceptedUids: memberUids, rejectedUids: [], leftUids: [],
+      status: "accepted", connectedAt, maxDurationEndsAt,
+      mediaConnectedAt: {
+        [creatorUid]: connectedAt,
+        [earlyUid]: connectedAt,
+        [lateUid]: Timestamp.fromMillis(connectedAt.toMillis() + 8 * 1000),
+        [lastSecondUid]: Timestamp.fromMillis(connectedAt.toMillis() + 9999),
+      },
+      groupCallPricingSnapshot: {
+        policyId: "settlement_owner_policy", version: 9, active: true,
+        audioCoinsPerMinute: 1000, videoCoinsPerMinute: 2000,
+        updatedAtMs: Date.now(),
+      },
+    }),
+  ]);
+  try {
+    const firstEnd = await endCall.run(call(creatorUid, { callId }));
+    assert.equal(firstEnd.status, "ended");
+    assert.equal(firstEnd.billingSettlementStatus, "pending",
+      "the call ends but an insufficient member balance remains safely retryable");
+    const afterFirst = await Promise.all(memberRefs.map((ref) => ref.get()));
+    assert.deepEqual(afterFirst.map((snapshot) => snapshot.data().coins), [500, 500, 500, 0]);
+    for (const memberUid of memberUids.slice(0, 3)) {
+      const ledger = await db.collection("users").doc(memberUid)
+        .collection("walletLedger").doc("group_call_" + callId).get();
+      assert.equal(ledger.data()?.amount, -500);
+      assert.equal(ledger.data()?.equalShare, true);
+    }
+    const lateReceipt = await callRef.collection("billingSettlements").doc(lastSecondUid).get();
+    assert.equal(lateReceipt.data()?.status, "insufficient_funds");
+    assert.equal(lateReceipt.data()?.amount, 500);
+
+    await memberRefs[3].update({ coins: 1000 });
+    const replay = await endCall.run(call(creatorUid, { callId }));
+    assert.equal(replay.idempotentReplay, true);
+    assert.equal(replay.billingSettlementStatus, "settled");
+    const afterRetry = await Promise.all(memberRefs.map((ref) => ref.get()));
+    assert.deepEqual(afterRetry.map((snapshot) => snapshot.data().coins), [500, 500, 500, 500]);
+    const finalState = (await callRef.get()).data();
+    assert.equal(finalState.groupCallBillingState, "settled");
+    assert.equal(finalState.groupCallBillingSummary.totalAmount, 2000);
+    assert.equal(finalState.groupCallBillingSummary.billableMinutes, 1);
+    assert.equal(finalState.groupCallBillingSummary.participantCount, 4);
+    assert.deepEqual(finalState.groupCallBillingSummary.shares.map((item) => item.amount), [500, 500, 500, 500]);
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(callRef).catch(() => undefined),
+      ...memberRefs.map((ref) => db.recursiveDelete(ref).catch(() => undefined)),
+    ]);
+  }
+});
