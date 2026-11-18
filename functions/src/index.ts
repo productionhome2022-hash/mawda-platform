@@ -6677,7 +6677,7 @@ export const giftStoreItem = onCall(async (request) => {
     transaction.set(recipientEntitlementRef, {
       itemId, itemName: item.name, category: item.category,
       status: "active", giftId, giftedByUid: senderUid,
-      giftedAt: createdAt, expiresAt,
+      purchasedAt: createdAt, giftedAt: createdAt, expiresAt,
     });
     transaction.create(recipientHistoryRef, {
       giftId, senderUid, itemId, itemName: item.name,
