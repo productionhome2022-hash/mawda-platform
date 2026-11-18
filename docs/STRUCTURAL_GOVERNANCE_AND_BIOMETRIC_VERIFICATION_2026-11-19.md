@@ -65,7 +65,7 @@ Do not deploy, merge to `main`, change production Firebase resources, enable pai
 
 ## 3. Canonical owner title: Super Owner
 
-- Replace all user-visible owner-role labels and references to **Super Admin**, **Super Admin Owner**, or equivalent owner labels with the exact canonical English title **Super Owner**.
+- Replace all user-visible owner-role labels and references to **Super Owner**, **Super Owner**, or equivalent owner labels with the exact canonical English title **Super Owner**.
 - Apply consistently across Flutter screens, web/mobile surfaces, profile/role badges, navigation, dialogs, notifications, push copy, help text, audit-log display labels, and all supported locales (Arabic, English, French, Spanish).
 - Arabic display translation should be consistent with the product glossary for **Super Owner**; do not expose mixed legacy labels.
 - Keep stable internal authorization claims, database fields, callable names, collection names, and migration identifiers unchanged unless a separately reviewed compatibility migration is required. User-facing copy changes must never alter authority or security semantics.
@@ -131,3 +131,19 @@ Implementation must be incremental on a dedicated branch and must include:
 9. Flutter analyze/tests, Functions build/unit/emulator tests, and security-rules tests on the exact final commit.
 
 No merge to `main`, production deployment, production Firebase mutation, or production role migration until all gates pass and the owner explicitly approves release.
+
+## معيار المصطلحات والهوية الإدارية الموحد — إلزامي على مستوى المنصة والوثائق
+
+هذا القسم مرجع موحد ملزم، ويُقرأ مع بقية قرارات المنتج دون أن يغيّر مفاتيح الصلاحيات أو هويات البيانات الداخلية:
+
+- **Super Owner**: المسمى الإنجليزي الرسمي الوحيد لمالك المنصة في جميع النصوص والواجهات والوثائق. التسمية العربية التفسيرية الموحدة: **مالك المنصة**. لا تُعرض تسميات بديلة أو قديمة للمالك.
+- **Admin 1, Admin 2, Admin 3, ...**: فريق الإدارة العامة المفتوح العدد، بتسلسل دائم متزايد لا يعاد استخدامه ولا يعاد ترقيمه.
+- **Admin Media 1–5**: خمسة مقاعد مستقلة حصراً لإدارة الإعلام/الإعلانات وMedia Workspace.
+- **مشرف إنتاج عام 1–5**: خمسة مقاعد مستقلة للإشراف على الإنتاج العام.
+- **مشرف إنتاج الفريق** / **Team Production Supervisor**: فئة مستقلة مفتوحة العدد، ونطاقها الفريق/الغرفة المخصصة أو المستأجرة فقط.
+
+يجب تطبيق هذه المسميات حرفياً وباتساق في دستور المنتج، والرؤية الشاملة، وسجل القرارات، ومواصفات العلامة وتجربة المنتج، وخطط التنفيذ، ومصفوفات التتبع، وأدلة التشغيل والهندسة والاختبار، وREADME، وكل وثائق GitHub ذات الصلة. كما يجب أن تتطابق مع جميع واجهات Android وiOS وPWA والويب، والملفات الشخصية والشارات والقوائم والغرف والمحادثات وWorkspace والإعلانات ولوحات الإدارة، ورسائل النظام والإشعارات الفورية وسجلات العرض الموجهة للمستخدم.
+
+أي ذكر تاريخي لمسمى قديم داخل سجل ترحيل أو وصف توافق تقني يجب أن يكون موسوماً بوضوح بأنه legacy/internal-only، وألا يظهر كخيار أو لقب أو نص للمستخدم. تُحفظ مفاتيح التفويض والـclaims وأسماء المجموعات والحقول وواجهات callable القديمة عند الحاجة للتوافق، ولا يجوز استبدالها آلياً لمجرد تشابه الاسم.
+
+بوابة القبول: فحص شامل متعدد اللغات لكل ملفات الوثائق ومصادر النصوص والواجهات والإشعارات والرسائل، مع قائمة نتائج قابلة للمراجعة واختبارات تمنع إعادة إدخال المسميات القديمة في النصوص الظاهرة. يجب تدقيق مواضع الظهور الديناميكية ومخرجات الخادم وبيانات الإشعار، وليس ملفات Flutter وحدها. لا يُعلن اكتمال التوحيد ولا يُرفع طلب الدمج من Draft قبل إغلاق نتائج الفحص والاختبارات على SHA النهائي.
