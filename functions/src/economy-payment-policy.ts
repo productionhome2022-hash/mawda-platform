@@ -73,7 +73,7 @@ export function validateEconomicPaymentPolicy(value: unknown): EconomicPaymentPo
   return result;
 }
 
-/** Legacy fields remain authoritative for existing deployments during migration. */
+/** Legacy fields seed missing service modes only; explicit per-service policy always wins. */
 export function projectEconomicPaymentPolicy(
   stored: unknown,
   legacy: { manualCoinPurchasesEnabled?: unknown; manualFeaturedAdsEnabled?: unknown } = {},
