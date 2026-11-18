@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   validateGroupCallPricingPolicy, getGroupCallRate,
   calculateGroupCallCoinShares, calculateGroupCallBillingSlice,
+  calculateGroupCallMaximumReservation, calculateGroupCallFinalSettlement,
 } = require("../lib/group-call-economy.js");
 
 const policy = {
@@ -67,9 +68,29 @@ test("billing slice freezes owner policy version and charges actual active parti
   assert.equal(result.shares.reduce((sum, item) => sum + item.amount, 0), result.totalAmount);
 });
 
+test("integer allocation handles participant counts larger than whole-coin total deterministically", () => {
+  const shares = calculateGroupCallCoinShares(1, ["owner", "b", "c", "d"], "owner");
+  assert.deepEqual(shares.map((item) => item.amount), [1, 0, 0, 0]);
+  assert.equal(shares.reduce((sum, item) => sum + item.amount, 0), 1);
+});
+
+test("maximum reservation and final settlement charge late joiners equally", () => {
+  const reserve = calculateGroupCallMaximumReservation(policy, "video", 3 * 60 * 1000);
+  assert.equal(reserve.maxBillableMinutes, 3);
+  assert.equal(reserve.maxTotalAmount, 879);
+  assert.equal(reserve.perParticipantReserve, 440);
+  const result = calculateGroupCallFinalSettlement(
+    policy, "video", ["owner", "early", "late", "last-second"], "owner",
+    15 * 1000, 3 * 60 * 1000,
+  );
+  assert.equal(result.billableMinutes, 1);
+  assert.equal(result.totalAmount, 293);
+  assert.deepEqual(result.shares.map((item) => item.amount), [74, 73, 73, 73]);
+  assert.equal(result.shares.reduce((sum, item) => sum + item.amount, 0), 293);
+});
+
 test("invalid participant sets and invalid duration fail closed", () => {
   assert.throws(() => calculateGroupCallCoinShares(10, ["owner", "owner"], "owner"));
-  assert.throws(() => calculateGroupCallCoinShares(1, ["owner", "b"], "owner"));
   assert.throws(() => calculateGroupCallCoinShares(10, ["b", "c"], "owner"));
   assert.throws(() => calculateGroupCallBillingSlice(policy, "video", ["owner", "b"], "owner", 0));
   assert.throws(() => calculateGroupCallBillingSlice(policy, "video", ["owner", "b"], "owner", 1441));
