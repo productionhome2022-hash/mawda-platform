@@ -23,7 +23,7 @@ export type StoreCatalogItem = {
   name: string;
   description: string;
   category: string;
-  priceCoins: number;
+  priceCoins: number | null;
   durationDays?: number;
   sortOrder: number;
   purchaseEnabled: boolean;
@@ -44,11 +44,12 @@ export function projectStoreCatalogItem(
       !["feature", "avatar", "theme", "title", "vip", "analytics", "discovery", "badge", "frame", "username_style", "profile_layout", "boost", "greeting", "privacy", "voice_call", "video_call"].includes(data.category)) {
     return null;
   }
-  if (typeof data.priceCoins !== "number" ||
-      !Number.isSafeInteger(data.priceCoins) ||
-      data.priceCoins <= 0) {
+  const priceCoins = data.priceCoins ?? null;
+  if (priceCoins !== null &&
+      (typeof priceCoins !== "number" || !Number.isSafeInteger(priceCoins) || priceCoins <= 0)) {
     return null;
   }
+  if (data.purchaseEnabled === true && priceCoins === null) return null;
   const durationDays = data.durationDays;
   if (durationDays !== undefined &&
       (typeof durationDays !== "number" || !Number.isSafeInteger(durationDays) ||
@@ -66,7 +67,7 @@ export function projectStoreCatalogItem(
     name: data.name.trim(),
     description: data.description.trim(),
     category: data.category,
-    priceCoins: data.priceCoins,
+    priceCoins,
     ...(typeof durationDays === "number" ? { durationDays } : {}),
     sortOrder,
     purchaseEnabled: fulfillmentReady && data.purchaseEnabled === true,
@@ -105,6 +106,9 @@ export function validateStoreCatalogItemInput(input: unknown): ValidatedStoreCat
   // Privacy add-ons remain fail-closed until their visibility semantics are implemented.
   const fulfillmentReady = isStoreFulfillmentReady(projected.itemId, projected.category);
   const purchaseEnabled = value.purchaseEnabled === true;
+  if (purchaseEnabled && projected.priceCoins === null) {
+    throw new Error("STORE_PRICE_NOT_CONFIGURED");
+  }
   if (purchaseEnabled && !fulfillmentReady) {
     throw new Error("STORE_FULFILLMENT_NOT_READY");
   }
@@ -126,5 +130,8 @@ export function isStoreItemPurchasable(value: unknown): boolean {
     isStoreFulfillmentReady(item.itemId, String(item.category)) &&
     item.active === true &&
     item.purchaseEnabled === true &&
-    item.fulfillmentReady === true;
+    item.fulfillmentReady === true &&
+    typeof item.priceCoins === "number" &&
+    Number.isSafeInteger(item.priceCoins) &&
+    item.priceCoins > 0;
 }
