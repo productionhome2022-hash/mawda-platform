@@ -40,3 +40,87 @@ test("sticker packs have a bounded item count", () => {
   assert.equal(validateStickerPackSize(121), false);
   assert.equal(validateStickerPackSize(0), false);
 });
+
+
+import {
+  validateStickerPackManifest,
+  validateStickerSendRequest,
+} from "../src/sticker-policy.ts";
+
+test("sticker pack manifest validates unique bounded entries and strips untrusted asset fields", () => {
+  const pack = validateStickerPackManifest({
+    packId: "welcome_pack",
+    title: "Welcome",
+    description: "A small starter pack",
+    stickers: [{
+      stickerId: "hello",
+      kind: "static",
+      contentType: "image/png",
+      width: 256,
+      height: 256,
+      sizeBytes: 1024,
+      downloadUrl: "https://attacker.invalid/file",
+      storagePath: "users/attacker/private",
+    }],
+  });
+  assert.equal(pack.stickers.length, 1);
+  assert.equal("downloadUrl" in pack.stickers[0], false);
+  assert.equal("storagePath" in pack.stickers[0], false);
+});
+
+test("sticker pack manifest rejects duplicate identifiers and malformed metadata", () => {
+  const entry = {
+    stickerId: "same",
+    kind: "static",
+    contentType: "image/png",
+    width: 128,
+    height: 128,
+    sizeBytes: 1024,
+  };
+  assert.throws(() => validateStickerPackManifest({
+    packId: "pack",
+    title: "Pack",
+    stickers: [entry, entry],
+  }), /INVALID_STICKER_ID/);
+  assert.throws(() => validateStickerPackManifest({
+    packId: "../private",
+    title: "Pack",
+    stickers: [entry],
+  }), /INVALID_STICKER_PACK_ID/);
+  assert.throws(() => validateStickerPackManifest({
+    packId: "pack",
+    title: "Pack",
+    stickers: [{ ...entry, width: 0 }],
+  }), /INVALID_STICKER_DIMENSIONS/);
+});
+
+test("sticker send request accepts only bounded identifiers and explicit scope", () => {
+  assert.deepEqual(validateStickerSendRequest({
+    scope: "room",
+    targetId: "public-room-1",
+    packId: "welcome_pack",
+    stickerId: "hello",
+    clientMessageId: "sticker_msg_123",
+  }), {
+    scope: "room",
+    targetId: "public-room-1",
+    packId: "welcome_pack",
+    stickerId: "hello",
+    clientMessageId: "sticker_msg_123",
+  });
+  assert.throws(() => validateStickerSendRequest({
+    scope: "room",
+    targetId: "room",
+    packId: "pack",
+    stickerId: "hello",
+    clientMessageId: "short",
+  }), /INVALID_STICKER_MESSAGE_ID/);
+  assert.throws(() => validateStickerSendRequest({
+    scope: "direct",
+    targetId: "chat",
+    packId: "pack",
+    stickerId: "hello",
+    clientMessageId: "message_123",
+    downloadUrl: "https://attacker.invalid",
+  }), /UNSUPPORTED_STICKER_SEND_FIELDS/);
+});
