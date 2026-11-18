@@ -152,8 +152,8 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
       };
       if (contentType.isEmpty) throw StateError('صيغة الملف غير مدعومة.');
       final maximumBytes = contentType.startsWith('video/')
-          ? 100 * 1024 * 1024
-          : 5 * 1024 * 1024;
+          ? 25 * 1024 * 1024
+          : 3 * 1024 * 1024;
       if (bytes.length > maximumBytes) {
         throw StateError('حجم الملف يتجاوز الحد المسموح لهذا النوع.');
       }
@@ -194,7 +194,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
     if (_title.text.trim().length < 3 || _sponsor.text.trim().length < 2 ||
         _body.text.trim().length < 10 || duration == null || reward == null ||
         budget == null || duration < 15 || duration > 900 || reward < 0 ||
-        budget < reward || budget > 100000000 || maxClaims == null || maxClaims < 1 || maxClaims > 100 ||
+        budget < reward || budget > 100000000 || maxClaims == null || maxClaims < 1 || maxClaims > 9007199254740991 ||
         !_endsAt.isAfter(_startsAt)) {
       setState(() => _error = 'راجع عنوان الحملة والمعلن والنص والمدة والمكافأة والميزانية والتواريخ.');
       return;
