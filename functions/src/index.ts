@@ -9294,9 +9294,10 @@ export const setGroupCallPricingPolicy = onCall(async (request) => {
   const audioCoinsPerMinute = readSafeInteger(request.data?.audioCoinsPerMinute, "audioCoinsPerMinute");
   const videoCoinsPerMinute = readSafeInteger(request.data?.videoCoinsPerMinute, "videoCoinsPerMinute");
   const active = request.data?.active;
-  if (audioCoinsPerMinute < 1 || videoCoinsPerMinute < 1 ||
+  if (audioCoinsPerMinute < 0 || videoCoinsPerMinute < 0 ||
       audioCoinsPerMinute > 1000000000 || videoCoinsPerMinute > 1000000000 ||
-      typeof active !== "boolean") {
+      typeof active !== "boolean" ||
+      (active && audioCoinsPerMinute === 0 && videoCoinsPerMinute === 0)) {
     throw new HttpsError("invalid-argument", "إعدادات تسعير المكالمات غير صالحة.");
   }
   const now = Date.now();
@@ -9304,8 +9305,18 @@ export const setGroupCallPricingPolicy = onCall(async (request) => {
   const result = await db.runTransaction(async (transaction) => {
     const current = await transaction.get(GROUP_CALL_PRICING_SETTINGS);
     const previous = current.data() ?? {};
-    const version = (Number.isSafeInteger(previous.version) && previous.version > 0
-      ? previous.version : 0) + 1;
+    if (current.exists && (!Number.isSafeInteger(previous.version) || previous.version < 1 ||
+        typeof previous.policyId !== "string" || !/^[A-Za-z0-9_-]{8,100}$/.test(previous.policyId))) {
+      throw new HttpsError("failed-precondition", "سجل سياسة التسعير الحالية غير صالح؛ أوقف التحديث لحماية سجل الإصدارات.");
+    }
+    if (current.exists) {
+      try { validateGroupCallPricingPolicy(previous); }
+      catch { throw new HttpsError("failed-precondition", "سياسة التسعير الحالية تالفة؛ أوقف التحديث لحماية السجل."); }
+    }
+    const version = current.exists ? previous.version + 1 : 1;
+    if (!Number.isSafeInteger(version)) {
+      throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة التسعير.");
+    }
     const next = validateGroupCallPricingPolicy({
       policyId, version, active, audioCoinsPerMinute, videoCoinsPerMinute, updatedAtMs: now,
     });
@@ -9324,6 +9335,8 @@ export const setGroupCallPricingPolicy = onCall(async (request) => {
       previousPolicyId: typeof previous.policyId === "string" ? previous.policyId : null,
       previousVersion: Number.isSafeInteger(previous.version) ? previous.version : null,
       previousActive: typeof previous.active === "boolean" ? previous.active : null,
+      previousAudioCoinsPerMinute: Number.isSafeInteger(previous.audioCoinsPerMinute) ? previous.audioCoinsPerMinute : null,
+      previousVideoCoinsPerMinute: Number.isSafeInteger(previous.videoCoinsPerMinute) ? previous.videoCoinsPerMinute : null,
       createdAt: FieldValue.serverTimestamp(),
     });
     return next;
