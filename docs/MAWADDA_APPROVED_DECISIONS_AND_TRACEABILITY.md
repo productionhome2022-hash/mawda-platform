@@ -21,6 +21,13 @@
 6. [قائمة قبول الإطلاق](RELEASE_READINESS_CHECKLIST.md) — بوابات القبول.
 7. [حدود المختبر والمستودع الأساسي](DEVELOPMENT_AND_SIMULATION_BOUNDARY.md) — فصل اختبار 5000 شخصية.
 
+## Owner amendment — comprehensive economic phase (2026-11-18)
+
+- **ECON-004 — Beta Coins naming:** The product-facing currency name is Beta Coins / بيتا كوينز across Mawdda. Technical `coins` identifiers remain stable unless a separate migration is approved.
+- **ECON-005 — Coin privacy authority:** Owner and Super Admin are the same sole sovereign identity. The profile owner and sole Owner/Super Admin may see a balance; ordinary members, friends, non-friends and General Moderators must not receive the balance value. Hide Coins may render a lock instead.
+- **AD-002 — Featured player layout:** The responsive player/context split is 60% player and 40% contextual information. This supersedes older 75/25 wording.
+- **ECON-006 — Development commercial values:** The owner authorizes engineering to choose centrally configurable test/development prices, durations, quotas and billing units needed to exercise lifecycle paths. These values are not launch prices and must remain isolated from production configuration.
+
 ## سجل القرارات والميزات
 
 | المعرّف | المجال / القرار المعتمد | الحالة الحالية بحسب الأدلة المتاحة | بوابة الإغلاق |
