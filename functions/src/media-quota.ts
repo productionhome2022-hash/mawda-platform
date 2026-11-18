@@ -82,3 +82,12 @@ export function releaseMediaQuota(
     dailyWindow,
   };
 }
+
+/** Owner-originated media and direct transfers addressed to the verified platform owner
+ * are exempt from member admission quotas; file safety ceilings remain separate. */
+export function mediaQuotaExemptForTransfer(
+  isVerifiedPlatformOwnerSender: boolean,
+  isVerifiedPlatformOwnerRecipient: boolean,
+): boolean {
+  return isVerifiedPlatformOwnerSender || isVerifiedPlatformOwnerRecipient;
+}
