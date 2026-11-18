@@ -8032,6 +8032,18 @@ export const completeTimedAdvertisement = onCall(async (request) => {
       return cancelSession("ineligible");
     }
     const campaignData = campaign.data()!;
+    // A session is bound to the exact campaign version it started against.
+    // Pausing, withdrawing, rescheduling, or otherwise changing the campaign
+    // invalidates in-flight sessions and prevents stale rewards after governance changes.
+    const completionNowMs = Date.now();
+    if (campaignData.status !== "published" ||
+        campaignData.version !== data.campaignVersion ||
+        !Number.isSafeInteger(campaignData.startsAtMs) ||
+        !Number.isSafeInteger(campaignData.endsAtMs) ||
+        campaignData.startsAtMs > completionNowMs ||
+        campaignData.endsAtMs <= completionNowMs) {
+      return cancelSession("ineligible");
+    }
     if (typeof campaignMediaId === "string") {
       const mediaData = campaignMedia?.data();
       if (!campaignMedia?.exists || mediaData?.ownerUid !== campaignData.mediaOwnerUid ||
