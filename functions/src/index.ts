@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase-admin/app";
 import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
-import { getAuth } from "firebase-admin/auth";
+import { getAuth, type UserRecord } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
 import { getStorage } from "firebase-admin/storage";
 import { validateMemberProfile } from "./member-profile";
@@ -6545,13 +6545,13 @@ export const giftStoreItem = onCall(async (request) => {
 
   // Auth provider data is authoritative for distinguishing anonymous Firebase
   // identities from registered accounts; profile fields alone are not enough.
-  let recipientAuth;
+  let recipientAuth: UserRecord;
   try {
     recipientAuth = await getAuth().getUser(recipientUid);
   } catch {
     throw new HttpsError("not-found", "حساب المستلم غير موجود.");
   }
-  if (!Array.isArray(recipientAuth.providerData) ||
+  if (recipientAuth.disabled === true || !Array.isArray(recipientAuth.providerData) ||
       recipientAuth.providerData.length === 0 ||
       recipientAuth.providerData.every((provider) => provider.providerId === "anonymous")) {
     throw new HttpsError("permission-denied", "لا يمكن إهداء المزايا إلى حساب زائر.");
