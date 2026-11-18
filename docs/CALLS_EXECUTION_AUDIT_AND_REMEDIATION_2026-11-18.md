@@ -148,3 +148,12 @@ Confirmed implementation gaps (not fixed in this audit):
 Safety boundary: do not enable call charging or mark this path economically complete until invitation/approval, entitlement checks, explicit financial consent, trusted per-participant measurement, atomic settlement, and emulator tests are implemented together.
 
 Validation status: source review only. No local tests were run in this audit. The connected execution container does not contain a checked-out Mawdda repository; an attempted shallow clone could not resolve github.com. No CI/workflow was triggered, per the owner's local-only testing instruction.
+
+## Owner clarification — group audio capacity (2026-11-18)
+
+The owner explicitly confirmed that the existing group-audio participant cap must remain unchanged:
+- Group audio supports **2–5 people total, including the call initiator**.
+- Do not raise the audio cap above five.
+- Do not alter the existing 2–5 validation as part of the call-economy remediation.
+- This clarification concerns group audio only; the separately approved group-video maximum remains four people total, including the initiator.
+- Continue implementing the remaining call-economy lifecycle (individual join requests, initiator approval, entitlement and explicit financial consent, trusted participant-level connection measurement, and idempotent atomic settlement) without changing this audio capacity rule.
