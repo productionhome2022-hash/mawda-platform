@@ -1,6 +1,6 @@
 // ==========================================
 // الكود الشامل، النهائي، والكامل بامتياز لتطبيق مودة (mawda-app-2026)
-// (نسخة الجيت هاب النهائية: نظام التدمير الذاتي للوسائط خلال ساعتين، الحذف للجميع، سيادة السوبر أدمن، الخصوصية الذكية، قفل الكوينز، التحدث كمجهول، وإدارة الإعلانات)
+// (نسخة الجيت هاب النهائية: نظام التدمير الذاتي للوسائط خلال ساعتين، الحذف للجميع، سيادة السوبر أدمن، الخصوصية الذكية، قفل البيتا بيتا كوينز، التحدث كمجهول، وإدارة الإعلانات)
 // ==========================================
 
 // أ. نموذج صور معرض البروفايل (تدمير ذاتي تلقائي بعد 7 أيام)
@@ -32,7 +32,7 @@ class PhotoItemModel {
   }
 }
 
-// 1. نموذج المستخدم الشامل (مع البروفايل المتطور، الخلفيات، الموسيقى، قفل الكوينز، وقفل البروفايل)
+// 1. نموذج المستخدم الشامل (مع البروفايل المتطور، الخلفيات، الموسيقى، قفل البيتا بيتا كوينز، وقفل البروفايل)
 class UserModel {
   final String uid;
   final String username;              // المعرف الفريد (@username)
@@ -51,10 +51,10 @@ class UserModel {
   final String coverImageUrl;         // صورة الغلاف
   final String bio;                   // النبذة التعريفية (حتى 500 حرف)
   
-  final bool isEmailVerified;         // توثيق البريد (+500 كوينز)
-  final bool isBiometricVerified;    // التوثيق البيومتري (+1500 كوينز)
-  final int coins;                     // رصيد الكوينز
-  final bool isCoinBalanceLocked;     // ميزة سرية: إخفاء عداد الكوينز عن باقي الأعضاء بقفل سري
+  final bool isEmailVerified;         // توثيق البريد (+500 بيتا بيتا كوينز)
+  final bool isBiometricVerified;    // التوثيق البيومتري (+1500 بيتا بيتا كوينز)
+  final int coins;                     // رصيد البيتا بيتا كوينز
+  final bool isCoinBalanceLocked;     // ميزة سرية: إخفاء عداد البيتا بيتا كوينز عن باقي الأعضاء بقفل سري
   
   final List<String> badges;           
   final List<String> titles;           
@@ -331,19 +331,19 @@ class SupportTicketModel {
 
 // 4. نموذج الإعدادات المالية واقتصاد المنصة (التحكم بالمكافآت والعمولات)
 class PlatformFinancialConfigModel {
-  final int dailyRewardCoins;        // مكافأة الحضور اليومي
-  final int hourlyRewardCoins;       // مكافأة الحضور بالساعة
-  final int weeklyRewardCoins;       // مكافأة الحضور الأسبوعي المتواصل
-  final int adWatchRewardCoins;      // مكافأة مشاهدة الإعلانات
+  final int dailyRewardBeta Coins;        // مكافأة الحضور اليومي
+  final int hourlyRewardBeta Coins;       // مكافأة الحضور بالساعة
+  final int weeklyRewardBeta Coins;       // مكافأة الحضور الأسبوعي المتواصل
+  final int adWatchRewardBeta Coins;      // مكافأة مشاهدة الإعلانات
   final double transferCommissionPercentage; 
   final Map<String, dynamic> coinPackages; 
   final String customPurchaseContactUrl;  
 
   PlatformFinancialConfigModel({
-    this.dailyRewardCoins = 50,
-    this.hourlyRewardCoins = 10,
-    this.weeklyRewardCoins = 500,
-    this.adWatchRewardCoins = 20,
+    this.dailyRewardBeta Coins = 50,
+    this.hourlyRewardBeta Coins = 10,
+    this.weeklyRewardBeta Coins = 500,
+    this.adWatchRewardBeta Coins = 20,
     this.transferCommissionPercentage = 10.0,
     this.coinPackages = const {},
     this.customPurchaseContactUrl = 'https://wa.me/mawda_admin',
@@ -351,10 +351,10 @@ class PlatformFinancialConfigModel {
 
   Map<String, dynamic> toMap() {
     return {
-      'dailyRewardCoins': dailyRewardCoins,
-      'hourlyRewardCoins': hourlyRewardCoins,
-      'weeklyRewardCoins': weeklyRewardCoins,
-      'adWatchRewardCoins': adWatchRewardCoins,
+      'dailyRewardBeta Coins': dailyRewardBeta Coins,
+      'hourlyRewardBeta Coins': hourlyRewardBeta Coins,
+      'weeklyRewardBeta Coins': weeklyRewardBeta Coins,
+      'adWatchRewardBeta Coins': adWatchRewardBeta Coins,
       'transferCommissionPercentage': transferCommissionPercentage,
       'coinPackages': coinPackages,
       'customPurchaseContactUrl': customPurchaseContactUrl,
@@ -363,10 +363,10 @@ class PlatformFinancialConfigModel {
 
   factory PlatformFinancialConfigModel.fromMap(Map<String, dynamic> map) {
     return PlatformFinancialConfigModel(
-      dailyRewardCoins: map['dailyRewardCoins'] ?? 50,
-      hourlyRewardCoins: map['hourlyRewardCoins'] ?? 10,
-      weeklyRewardCoins: map['weeklyRewardCoins'] ?? 500,
-      adWatchRewardCoins: map['adWatchRewardCoins'] ?? 20,
+      dailyRewardBeta Coins: map['dailyRewardBeta Coins'] ?? 50,
+      hourlyRewardBeta Coins: map['hourlyRewardBeta Coins'] ?? 10,
+      weeklyRewardBeta Coins: map['weeklyRewardBeta Coins'] ?? 500,
+      adWatchRewardBeta Coins: map['adWatchRewardBeta Coins'] ?? 20,
       transferCommissionPercentage: (map['transferCommissionPercentage'] ?? 10.0).toDouble(),
       coinPackages: Map<String, dynamic>.from(map['coinPackages'] ?? {}),
       customPurchaseContactUrl: map['customPurchaseContactUrl'] ?? '',
@@ -464,7 +464,7 @@ class TransactionCancellationModel {
   }
 }
 
-// 7. نموذج تحويل الكوينز بين الأعضاء
+// 7. نموذج تحويل البيتا بيتا كوينز بين الأعضاء
 class CoinTransferTransactionModel {
   final String transactionId;
   final String senderId;
@@ -764,7 +764,7 @@ class NotificationModel {
   }
 }
 
-// 13. نموذج الهدايا وإهداء الكوينز والأوسمة
+// 13. نموذج الهدايا وإهداء البيتا بيتا كوينز والأوسمة
 class GiftTransactionModel {
   final String giftId;
   final String senderId;
@@ -943,7 +943,7 @@ class RoomModel {
   final String roomCoverUrl;       
   final String roomChatBackgroundUrl; 
   final int roomLevel;             
-  final int totalCoinsInvested;    
+  final int totalBeta CoinsInvested;    
   final List<String> invitedMembers;  
   final List<String> pendingRequests; 
   final List<String> approvedMembers; 
@@ -960,7 +960,7 @@ class RoomModel {
     this.roomCoverUrl = '',
     this.roomChatBackgroundUrl = '',
     this.roomLevel = 1,
-    this.totalCoinsInvested = 0,
+    this.totalBeta CoinsInvested = 0,
     this.invitedMembers = const [],
     this.pendingRequests = const [],
     this.approvedMembers = const [],
@@ -979,7 +979,7 @@ class RoomModel {
       'roomCoverUrl': roomCoverUrl,
       'roomChatBackgroundUrl': roomChatBackgroundUrl,
       'roomLevel': roomLevel,
-      'totalCoinsInvested': totalCoinsInvested,
+      'totalBeta CoinsInvested': totalBeta CoinsInvested,
       'invitedMembers': invitedMembers,
       'pendingRequests': pendingRequests,
       'approvedMembers': approvedMembers,
@@ -999,7 +999,7 @@ class RoomModel {
       roomCoverUrl: map['roomCoverUrl'] ?? '',
       roomChatBackgroundUrl: map['roomChatBackgroundUrl'] ?? '',
       roomLevel: map['roomLevel'] ?? 1,
-      totalCoinsInvested: map['totalCoinsInvested'] ?? 0,
+      totalBeta CoinsInvested: map['totalBeta CoinsInvested'] ?? 0,
       invitedMembers: List<String>.from(map['invitedMembers'] ?? []),
       pendingRequests: List<String>.from(map['pendingRequests'] ?? []),
       approvedMembers: List<String>.from(map['approvedMembers'] ?? []),
@@ -1019,7 +1019,7 @@ class AdminBroadcastAdModel {
   final String targetUrl;          
   final String broadcastType;      
   final bool isRewardable;         
-  final int rewardCoinsAmount;     // كمية الكوينز للمشاهدة (تحكم كامل من لوحتك)
+  final int rewardBeta CoinsAmount;     // كمية البيتا بيتا كوينز للمشاهدة (تحكم كامل من لوحتك)
   final bool isVisibleToUsers;     
   final String createdByAdminId;   
   final DateTime createdAt;
@@ -1034,7 +1034,7 @@ class AdminBroadcastAdModel {
     this.targetUrl = '',
     this.broadcastType = 'rewardable_ad',
     this.isRewardable = true,
-    this.rewardCoinsAmount = 20,
+    this.rewardBeta CoinsAmount = 20,
     this.isVisibleToUsers = true,
     required this.createdByAdminId,
     required this.createdAt,
@@ -1051,7 +1051,7 @@ class AdminBroadcastAdModel {
       'targetUrl': targetUrl,
       'broadcastType': broadcastType,
       'isRewardable': isRewardable,
-      'rewardCoinsAmount': rewardCoinsAmount,
+      'rewardBeta CoinsAmount': rewardBeta CoinsAmount,
       'isVisibleToUsers': isVisibleToUsers,
       'createdByAdminId': createdByAdminId,
       'createdAt': createdAt.toIso8601String(),
@@ -1069,7 +1069,7 @@ class AdminBroadcastAdModel {
       targetUrl: map['targetUrl'] ?? '',
       broadcastType: map['broadcastType'] ?? 'rewardable_ad',
       isRewardable: map['isRewardable'] ?? true,
-      rewardCoinsAmount: map['rewardCoinsAmount'] ?? 20,
+      rewardBeta CoinsAmount: map['rewardBeta CoinsAmount'] ?? 20,
       isVisibleToUsers: map['isVisibleToUsers'] ?? true,
       createdByAdminId: map['createdByAdminId'] ?? '',
       createdAt: DateTime.parse(map['createdAt']),
@@ -1084,7 +1084,7 @@ class BadgeItemModel {
   final String badgeName;       
   final String badgeIconUrl;    
   final String category;        
-  final int priceInCoins;       
+  final int priceInBeta Coins;       
   final bool isAnimated;        
   final String glowColor;       
   final bool isLimitedEdition;  
@@ -1095,7 +1095,7 @@ class BadgeItemModel {
     required this.badgeName,
     required this.badgeIconUrl,
     required this.category,
-    this.priceInCoins = 0,
+    this.priceInBeta Coins = 0,
     this.isAnimated = true,
     this.glowColor = '#FFD700',
     this.isLimitedEdition = false,
@@ -1108,7 +1108,7 @@ class BadgeItemModel {
       'badgeName': badgeName,
       'badgeIconUrl': badgeIconUrl,
       'category': category,
-      'priceInCoins': priceInCoins,
+      'priceInBeta Coins': priceInBeta Coins,
       'isAnimated': isAnimated,
       'glowColor': glowColor,
       'isLimitedEdition': isLimitedEdition,
@@ -1122,7 +1122,7 @@ class BadgeItemModel {
       badgeName: map['badgeName'] ?? '',
       badgeIconUrl: map['badgeIconUrl'] ?? '',
       category: map['category'] ?? 'general',
-      priceInCoins: map['priceInCoins'] ?? 0,
+      priceInBeta Coins: map['priceInBeta Coins'] ?? 0,
       isAnimated: map['isAnimated'] ?? true,
       glowColor: map['glowColor'] ?? '#FFD700',
       isLimitedEdition: map['isLimitedEdition'] ?? false,
@@ -1170,7 +1170,7 @@ class AdminStoreManagerModel {
   final String itemType;        
   final String itemName;        
   final String itemIconUrl;     
-  final int priceInCoins;       
+  final int priceInBeta Coins;       
   final bool isAvailable;       
   final String adminNotes;      
   final DateTime updatedAt;
@@ -1180,7 +1180,7 @@ class AdminStoreManagerModel {
     required this.itemType,
     required this.itemName,
     required this.itemIconUrl,
-    required this.priceInCoins,
+    required this.priceInBeta Coins,
     this.isAvailable = true,
     this.adminNotes = '',
     required this.updatedAt,
@@ -1192,7 +1192,7 @@ class AdminStoreManagerModel {
       'itemType': itemType,
       'itemName': itemName,
       'itemIconUrl': itemIconUrl,
-      'priceInCoins': priceInCoins,
+      'priceInBeta Coins': priceInBeta Coins,
       'isAvailable': isAvailable,
       'adminNotes': adminNotes,
       'updatedAt': updatedAt.toIso8601String(),
@@ -1205,7 +1205,7 @@ class AdminStoreManagerModel {
       itemType: map['itemType'] ?? 'badge',
       itemName: map['itemName'] ?? '',
       itemIconUrl: map['itemIconUrl'] ?? '',
-      priceInCoins: map['priceInCoins'] ?? 0,
+      priceInBeta Coins: map['priceInBeta Coins'] ?? 0,
       isAvailable: map['isAvailable'] ?? true,
       adminNotes: map['adminNotes'] ?? '',
       updatedAt: DateTime.parse(map['updatedAt']),
