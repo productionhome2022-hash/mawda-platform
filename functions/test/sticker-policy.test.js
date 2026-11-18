@@ -182,3 +182,19 @@ test("public sticker catalog rejects unpublished, unapproved and unscanned packs
     stickers: [{ ...base.stickers[0], assetId: "../private" }],
   }), null);
 });
+
+
+test("sticker message replay must match sender, media, pack and sticker identity", () => {
+  const { stickerMessageReplayMatches } = require("../lib/sticker-policy");
+  const expected = { senderUid: "sender", mediaId: "media-1", packId: "pack-1", stickerId: "sticker-1" };
+  const message = {
+    type: "sticker", senderUid: "sender", mediaId: "media-1",
+    stickerPackId: "pack-1", stickerId: "sticker-1",
+  };
+  assert.equal(stickerMessageReplayMatches(message, expected), true);
+  assert.equal(stickerMessageReplayMatches({ ...message, stickerId: "other" }, expected), false);
+  assert.equal(stickerMessageReplayMatches({ ...message, stickerPackId: "other" }, expected), false);
+  assert.equal(stickerMessageReplayMatches({ ...message, senderUid: "other" }, expected), false);
+  assert.equal(stickerMessageReplayMatches({ ...message, type: "attachment" }, expected), false);
+  assert.equal(stickerMessageReplayMatches(null, expected), false);
+});
