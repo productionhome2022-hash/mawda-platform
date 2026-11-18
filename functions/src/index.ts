@@ -7913,9 +7913,18 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
 export const getAvailableCoinPackages = onCall(async () => {
   const snapshot = await ECONOMY_PRICING_SETTINGS.get();
   const data = snapshot.data() ?? {};
+  let paymentPolicy;
+  try {
+    paymentPolicy = projectEconomicPaymentPolicy(data.paymentPolicy, {
+      manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled,
+      manualFeaturedAdsEnabled: data.manualFeaturedAdsEnabled,
+    });
+  } catch {
+    throw new HttpsError("failed-precondition", "سياسة الدفع غير صالحة؛ تم إيقاف عرض باقات الشراء.");
+  }
   // Package prices are exclusively owner-configured. Never expose starter
   // constants as live offers when the owner has not saved an approved catalogue.
-  if (!snapshot.exists || data.manualCoinPurchasesEnabled !== true ||
+  if (!snapshot.exists || paymentPolicy.coin_purchases.manualEnabled !== true ||
       !Array.isArray(data.coinPackages)) {
     return { packages: [], manualPurchasesEnabled: false, automatedCheckoutEnabled: false };
   }
@@ -8535,24 +8544,24 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
   } catch {
     throw new HttpsError("failed-precondition", "إعدادات اقتصاد المنصة غير صالحة؛ راجع الدعم التقني.");
   }
+  let paymentPolicy;
+  try {
+    paymentPolicy = projectEconomicPaymentPolicy(data.paymentPolicy, {
+      manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled,
+      manualFeaturedAdsEnabled: data.manualFeaturedAdsEnabled,
+    });
+  } catch {
+    throw new HttpsError("failed-precondition", "سياسة طرق الدفع الاقتصادية غير صالحة؛ تم إيقاف عرض خيارات الدفع.");
+  }
   return {
     coinPackages, adPrices, callTariffs, emailVerificationReward,
     version: Number.isSafeInteger(data.version) ? data.version : 0,
     configured: true,
     realMoneyCheckoutEnabled: false,
-    manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled === true,
-    manualFeaturedAdsEnabled: data.manualFeaturedAdsEnabled === true,
+    manualCoinPurchasesEnabled: paymentPolicy.coin_purchases.manualEnabled,
+    manualFeaturedAdsEnabled: paymentPolicy.featured_ads.manualEnabled,
     automatedCoinCheckoutEnabled: false,
-    paymentPolicy: (() => {
-      try {
-        return projectEconomicPaymentPolicy(data.paymentPolicy, {
-          manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled,
-          manualFeaturedAdsEnabled: data.manualFeaturedAdsEnabled,
-        });
-      } catch {
-        throw new HttpsError("failed-precondition", "سياسة طرق الدفع الاقتصادية غير صالحة؛ تم إيقاف عرض خيارات الدفع.");
-      }
-    })(),
+    paymentPolicy,
   };
 });
 
