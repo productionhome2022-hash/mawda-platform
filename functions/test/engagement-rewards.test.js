@@ -6,6 +6,9 @@ const {
   utcRewardPeriod,
   validateTimedAdCampaignInput,
   eligibleHeartbeatDelta,
+  TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER,
+  TIMED_AD_DAILY_MAX_REWARD_COINS_PER_MEMBER,
+  TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER,
 } = require("../lib/engagement-rewards");
 
 test("attendance policy defaults closed and rejects malformed or unsafe reward amounts", () => {
@@ -89,4 +92,19 @@ test("timed-ad counter identity rejects invalid member and campaign identifiers"
   assert.throws(() => timedAdMemberCounterId("", "campaign_123456"), /TIMED_AD_COUNTER_ID_INVALID/);
   assert.throws(() => timedAdMemberCounterId("member", "short"), /TIMED_AD_COUNTER_ID_INVALID/);
   assert.throws(() => timedAdMemberCounterId("x".repeat(129), "campaign_123456"), /TIMED_AD_COUNTER_ID_INVALID/);
+});
+
+
+test("experimental timed-ad reward caps are bounded", () => {
+  assert.equal(TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER, 10);
+  assert.equal(TIMED_AD_DAILY_MAX_REWARD_COINS_PER_MEMBER, 20);
+  assert.equal(TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER, 3);
+  const base = {
+    title: "Mawdda launch campaign", sponsorLabel: "Mawdda Partner",
+    body: "A test-only sponsored message for the reward center.",
+    placement: "reward_center", durationSeconds: 30, rewardCoins: 10,
+    startsAtMs: 1000, endsAtMs: 100000, maxClaimsPerMember: 3, rewardBudgetCoins: 1000,
+  };
+  assert.equal(validateTimedAdCampaignInput(base).maxClaimsPerMember, 3);
+  assert.throws(() => validateTimedAdCampaignInput({ ...base, maxClaimsPerMember: 4 }), /AD_CAMPAIGN_INVALID/);
 });
