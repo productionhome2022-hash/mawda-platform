@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   BIOMETRIC_MAX_ATTEMPTS, BIOMETRIC_LOCKOUT_MS,
-  canSubmitBiometricRequest, decideBiometricRequest,
+  addBiometricRenewalMonth, canSubmitBiometricRequest, decideBiometricRequest,
 } = require("../lib/biometric-review");
 
 const pending = (attemptNumber) => ({
@@ -13,16 +13,31 @@ test("owner delay leaves request pending and blocks duplicate submissions withou
   assert.equal(canSubmitBiometricRequest(pending(1), Date.now() + 365 * 86400000), false);
 });
 
-test("only Super Owner can decide and accepted request grants badge and one reward", () => {
+test("email and biometric renewal policies stay separate; biometric renewal is one calendar month", () => {
+  const jan31 = new Date("2026-01-31T12:00:00Z").getTime();
+  assert.equal(new Date(addBiometricRenewalMonth(jan31)).toISOString(), "2026-02-28T12:00:00.000Z");
+  const feb28 = new Date("2026-02-28T12:00:00Z").getTime();
+  assert.equal(new Date(addBiometricRenewalMonth(feb28)).toISOString(), "2026-03-28T12:00:00.000Z");
+  assert.equal(canSubmitBiometricRequest({
+    status: "accepted", attemptNumber: 1, rewardGranted: true, lockoutUntilMs: null,
+    nextRenewalAtMs: feb28,
+  }, feb28 - 1), false);
+  assert.equal(canSubmitBiometricRequest({
+    status: "accepted", attemptNumber: 1, rewardGranted: true, lockoutUntilMs: null,
+    nextRenewalAtMs: feb28,
+  }, feb28), true);
+});
+
+test("only Super Owner can decide and accepted request grants reward and schedules monthly renewal", () => {
   assert.throws(() => decideBiometricRequest({
     state: pending(1), decision: "accept", actorIsSuperOwner: false, nowMs: 10,
   }), /SUPER_OWNER_ONLY/);
-  assert.deepEqual(decideBiometricRequest({
-    state: pending(1), decision: "accept", actorIsSuperOwner: true, nowMs: 10,
-  }), {
-    status: "accepted", rewardCoins: 1500, badgeGranted: true,
-    remainingAttempts: 0, lockoutUntilMs: null,
+  const accepted = decideBiometricRequest({
+    state: pending(1), decision: "accept", actorIsSuperOwner: true, nowMs: Date.parse("2026-01-31T12:00:00Z"),
   });
+  assert.equal(accepted.rewardCoins, 1500);
+  assert.equal(accepted.badgeGranted, true);
+  assert.equal(accepted.nextRenewalAtMs, Date.parse("2026-02-28T12:00:00Z"));
 });
 
 test("rejections expose two, then one, then zero attempts and lock for three months", () => {
