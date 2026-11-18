@@ -27,17 +27,17 @@ test("projects only active catalog items with safe display fields", () => {
   });
 });
 
-test("store durations are limited to the approved 24-hour, 7-day and 30-day periods", () => {
+test("store durations are owner-configurable across the supported range", () => {
   const base = {
-    active: true, name: "مدة معتمدة", description: "اختبار مدد الاستحقاق.",
+    active: true, name: "مدة تجريبية", description: "اختبار مدد الاستحقاق.",
     category: "vip", priceCoins: 100,
   };
-  for (const durationDays of [1, 7, 30]) {
+  for (const durationDays of [1, 2, 7, 14, 30, 45, 365, 3650]) {
     assert.equal(projectStoreCatalogItem("valid_duration", {
       ...base, durationDays,
     }).durationDays, durationDays);
   }
-  for (const durationDays of [2, 14, 31, 365, 3650, 0, -1]) {
+  for (const durationDays of [0, -1, 3651, 1.5]) {
     assert.equal(projectStoreCatalogItem("invalid_duration", {
       ...base, durationDays,
     }), null, String(durationDays));
