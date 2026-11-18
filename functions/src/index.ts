@@ -807,28 +807,39 @@ export const completeMemberProfile = onCall(async (request) => {
   }
 
   const registrationSettingsRef = db.doc("platformSettings/registration");
+  const economyPricingRef = db.doc("platformSettings/economyPricing");
   const userRef = db.collection("users").doc(uid);
   const cycleStartMs = Date.now();
   const cycleStart = Timestamp.fromMillis(cycleStartMs);
-  const initialEmailCycle = createEmailVerificationCycle({
-    uid, email: authUser.email, sequence: 1, serverNowMs: cycleStartMs,
-  });
-  const emailCycleRef = db.collection("emailVerificationCycles")
-    .doc(uid + "_" + initialEmailCycle.cycleId);
-  const rewardLedgerRef = userRef.collection("walletLedger")
-    .doc(emailVerificationRewardLedgerId(initialEmailCycle.cycleId));
   const privacyAcknowledgementRef = db.collection("privacyAcknowledgements")
     .doc(`${uid}_${PRIVACY_POLICY_VERSION}`);
 
   return db.runTransaction(async (transaction) => {
-    // Read the registration gate in the same transaction as member creation.
-    // If the owner changes the policy concurrently, Firestore retries this
-    // transaction and the new policy is enforced before any profile/reward write.
-    const [userSnapshot, registrationSettings, privacyAcknowledgement] = await Promise.all([
+    // Registration, owner reward policy, profile, wallet and initial ledger
+    // are read/written as one transaction. Unconfigured rewards grant zero.
+    const [userSnapshot, registrationSettings, privacyAcknowledgement, economyPricingSnapshot] = await Promise.all([
       transaction.get(userRef),
       transaction.get(registrationSettingsRef),
       transaction.get(privacyAcknowledgementRef),
+      transaction.get(economyPricingRef),
     ]);
+    let emailRewardPolicy;
+    try {
+      emailRewardPolicy = validateEmailVerificationRewardPolicy(
+        economyPricingSnapshot.data()?.emailVerificationReward ?? defaultEmailVerificationRewardPolicy(),
+      );
+    } catch {
+      throw new HttpsError("failed-precondition", "سياسة مكافأة التحقق من البريد غير صالحة؛ لم تُمنح أي عملات.");
+    }
+    const rewardAmount = emailRewardPolicy.enabled ? emailRewardPolicy.rewardCoins : 0;
+    const initialEmailCycle = createEmailVerificationCycle({
+      uid, email: authUser.email!, sequence: 1, serverNowMs: cycleStartMs,
+      cycleDays: emailRewardPolicy.cycleDays,
+    });
+    const emailCycleRef = db.collection("emailVerificationCycles")
+      .doc(uid + "_" + initialEmailCycle.cycleId);
+    const rewardLedgerRef = userRef.collection("walletLedger")
+      .doc(emailVerificationRewardLedgerId(initialEmailCycle.cycleId));
     const privacyData = privacyAcknowledgement.data() ?? {};
     if (!privacyAcknowledgement.exists || privacyData.uid !== uid ||
         privacyData.actorType !== "member" || privacyData.policyHash !== PRIVACY_POLICY_HASH) {
@@ -921,7 +932,7 @@ export const completeMemberProfile = onCall(async (request) => {
       interests: profile.interests,
       goals: profile.goals,
       profileVisibility: "private",
-      coins: EMAIL_VERIFICATION_REWARD_COINS,
+      coins: rewardAmount,
       profileCompleted: true,
       createdAt,
       updatedAt: createdAt,
@@ -933,31 +944,35 @@ export const completeMemberProfile = onCall(async (request) => {
     });
     transaction.create(emailCycleRef, {
       ...initialEmailCycle,
-      status: "rewarded",
+      status: rewardAmount > 0 ? "rewarded" : "verified",
+      rewardPolicySnapshot: emailRewardPolicy,
+      rewardCoins: rewardAmount,
       startedAt: cycleStart,
       expiresAt: Timestamp.fromMillis(initialEmailCycle.expiresAtMs),
       verifiedAt: cycleStart,
-      rewardedAt: cycleStart,
+      ...(rewardAmount > 0 ? { rewardedAt: cycleStart } : {}),
       createdAt: cycleStart,
       updatedAt: cycleStart,
     });
-    transaction.create(rewardLedgerRef, {
-      type: "email_verification_reward",
-      direction: "credit",
-      amount: EMAIL_VERIFICATION_REWARD_COINS,
-      reason: "verified_email_initial_cycle",
-      cycleId: initialEmailCycle.cycleId,
-      cycleSequence: initialEmailCycle.sequence,
-      idempotencyKey: initialEmailCycle.cycleId,
-      createdAt: cycleStart,
-    });
+    if (rewardAmount > 0) {
+      transaction.create(rewardLedgerRef, {
+        type: "email_verification_reward",
+        direction: "credit",
+        amount: rewardAmount,
+        reason: "verified_email_initial_cycle",
+        cycleId: initialEmailCycle.cycleId,
+        cycleSequence: initialEmailCycle.sequence,
+        idempotencyKey: initialEmailCycle.cycleId,
+        createdAt: cycleStart,
+      });
+    }
 
     return {
       memberId: uid,
       username: profile.username,
       profileCompleted: true,
-      rewardGranted: true,
-      rewardAmount: 500,
+      rewardGranted: rewardAmount > 0,
+      rewardAmount,
       alreadyCompleted: false,
     };
   });
