@@ -60,8 +60,7 @@ export function validateFeaturedAdFinancialEvent(value: unknown): FeaturedAdFina
     throw new FeaturedAdFinancialValidationError("invalid_idempotency_key");
   }
   const note = requiredText(input.note, 5, 1500, "invalid_financial_note");
-  const externalReference = input.externalReference == null
-    ? null : requiredText(input.externalReference, 3, 160, "invalid_external_reference");
+  const externalReference = requiredText(input.externalReference, 3, 160, "invalid_external_reference");
   const evidenceReference = input.evidenceReference == null
     ? null : requiredText(input.evidenceReference, 3, 500, "invalid_evidence_reference");
   const amountMinor = input.amountMinor == null ? null : input.amountMinor;
@@ -164,12 +163,18 @@ export function applyFeaturedAdFinancialEvent(
 }
 
 /** Hash the caller key so arbitrary client text never becomes a Firestore document path. */
-export function featuredAdFinancialIdempotencyId(campaignId: string, idempotencyKey: string): string {
+export function featuredAdFinancialIdempotencyId(
+  campaignId: string,
+  action: FeaturedAdFinancialAction,
+  externalReference: string,
+): string {
   if (!/^[A-Za-z0-9_-]{8,80}$/.test(campaignId) ||
-      !/^[A-Za-z0-9_-]{16,100}$/.test(idempotencyKey)) {
+      !["payment_received", "refund_recorded", "settlement_reconciled", "review_completed"].includes(action) ||
+      typeof externalReference !== "string" || externalReference.length < 3 || externalReference.length > 160) {
     throw new FeaturedAdFinancialValidationError("invalid_idempotency_identity");
   }
-  return createHash("sha256").update(campaignId + ":" + idempotencyKey).digest("hex");
+  // The external statement/reference is stable across app retries and devices.
+  return createHash("sha256").update(campaignId + ":" + action + ":" + externalReference).digest("hex");
 }
 
 export function defaultFeaturedAdFinancialSnapshot(): FeaturedAdFinancialSnapshot {
