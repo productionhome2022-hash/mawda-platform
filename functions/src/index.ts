@@ -2241,15 +2241,27 @@ export const startEmailVerificationRenewal = onCall(async (request) => {
   }
   const email = authUser.email.trim().toLowerCase();
   const userRef = db.collection("users").doc(uid);
+  const economyPricingRef = db.doc("platformSettings/economyPricing");
   const nowMs = Date.now();
 
   const cycleResult = await db.runTransaction(async (transaction) => {
     let expiredPendingId: string | null = null;
-    const userSnapshot = await transaction.get(userRef);
+    const [userSnapshot, economyPricingSnapshot] = await Promise.all([
+      transaction.get(userRef),
+      transaction.get(economyPricingRef),
+    ]);
     if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true) {
       throw new HttpsError("failed-precondition", "يجب إكمال الملف الشخصي أولاً.");
     }
     const userData = userSnapshot.data()!;
+    let emailRewardPolicy;
+    try {
+      emailRewardPolicy = validateEmailVerificationRewardPolicy(
+        economyPricingSnapshot.data()?.emailVerificationReward ?? defaultEmailVerificationRewardPolicy(),
+      );
+    } catch {
+      throw new HttpsError("failed-precondition", "سياسة مكافأة التحقق من البريد غير صالحة؛ أوقفنا إصدار دورة جديدة.");
+    }
     const pendingId = userData.emailVerificationRenewalPendingCycleId;
     if (typeof pendingId === "string" && pendingId.length > 0) {
       const pendingRef = db.collection("emailVerificationCycles").doc(uid + "_" + pendingId);
@@ -2278,8 +2290,7 @@ export const startEmailVerificationRenewal = onCall(async (request) => {
       ? priorExpiry.toMillis()
       : typeof priorExpiry?.toMillis === "function" ? priorExpiry.toMillis() : null;
     if (expiredPendingId === null) {
-      if (!authUser.emailVerified || priorExpiryMs === null ||
-          !isEmailVerificationCycleDue(priorExpiryMs - 90 * 24 * 60 * 60 * 1000, nowMs)) {
+      if (!authUser.emailVerified || priorExpiryMs === null || nowMs < priorExpiryMs) {
         throw new HttpsError("failed-precondition", "لم يحن موعد دورة التحقق التالية بعد.");
       }
     }
@@ -2292,6 +2303,7 @@ export const startEmailVerificationRenewal = onCall(async (request) => {
       email,
       sequence,
       serverNowMs: nowMs,
+      cycleDays: emailRewardPolicy.cycleDays,
     });
     const cycleRef = db.collection("emailVerificationCycles").doc(uid + "_" + cycle.cycleId);
     const existingCycle = await transaction.get(cycleRef);
@@ -2309,6 +2321,8 @@ export const startEmailVerificationRenewal = onCall(async (request) => {
     transaction.create(cycleRef, {
       ...cycle,
       status: "pending",
+      rewardPolicySnapshot: emailRewardPolicy,
+      rewardCoins: emailRewardPolicy.enabled ? emailRewardPolicy.rewardCoins : 0,
       startedAt,
       expiresAt,
       authResetAt: null,
