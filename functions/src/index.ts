@@ -6501,10 +6501,10 @@ export const lookupStoreGiftRecipient = onCall(async (request) => {
       guestProfile.exists || guestSession.exists) {
     throw new HttpsError("not-found", "لم يتم العثور على عضو مؤهل بهذا الاسم.");
   }
-  let authUser;
+  let authUser: UserRecord;
   try { authUser = await getAuth().getUser(targetUid); }
   catch { throw new HttpsError("not-found", "لم يتم العثور على عضو مؤهل بهذا الاسم."); }
-  if (!Array.isArray(authUser.providerData) || authUser.providerData.length === 0 ||
+  if (authUser.disabled === true || !Array.isArray(authUser.providerData) || authUser.providerData.length === 0 ||
       authUser.providerData.every((provider) => provider.providerId === "anonymous")) {
     throw new HttpsError("not-found", "لم يتم العثور على عضو مؤهل بهذا الاسم.");
   }
