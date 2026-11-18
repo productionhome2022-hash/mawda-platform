@@ -4,6 +4,7 @@ const { getFirestore } = require("firebase-admin/firestore");
 const { getAuth } = require("firebase-admin/auth");
 const {
   transferCoins, purchaseStoreItem, giftStoreEntitlement, getMyStoreGiftHistory, getOwnerStoreCatalog, setStoreCatalogItem, getOwnerEconomyPricing, getAvailableCoinPackages,
+  setTransferCommission, getOwnerOperationsOverview,
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
   setCoinPurchasePaymentInstructions, requestCoinPurchasePaymentVerification, approveCoinPurchaseRequest,
   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
@@ -1320,5 +1321,38 @@ test("call entitlement SKUs can be purchased through the central store and immed
       db.recursiveDelete(db.collection("activeCallMemberLocks").doc(callerUid)).catch(() => undefined),
       db.recursiveDelete(db.collection("activeCallMemberLocks").doc(calleeUid)).catch(() => undefined),
     ]);
+  }
+});
+
+
+test("coin transfer commission policy is owner-versioned and stale writes are rejected", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const settingsRef = db.doc("platformSettings/coinTransfers");
+  const previous = await settingsRef.get();
+  const previousData = previous.exists ? previous.data() : null;
+  const ownerUid = `transfer_policy_owner_${suffix()}`;
+  const initialVersion = Number.isSafeInteger(previousData?.version) ? previousData.version : 0;
+  try {
+    const saved = await setTransferCommission.run(ownerRequest(ownerUid, {
+      commissionBps: 275, enabled: true, expectedVersion: initialVersion,
+    }));
+    assert.equal(saved.version, initialVersion + 1);
+    const overview = await getOwnerOperationsOverview.run(ownerRequest(ownerUid, {}));
+    assert.equal(overview.transferSettings.version, saved.version);
+    assert.equal(overview.transferSettings.commissionBps, 275);
+    await assert.rejects(
+      () => setTransferCommission.run(ownerRequest(ownerUid, {
+        commissionBps: 300, enabled: true, expectedVersion: initialVersion,
+      })),
+      (error) => error && error.code === "aborted",
+    );
+    const audit = await db.collection("adminAuditLogs")
+      .where("action", "==", "coin_transfer_commission_updated")
+      .where("version", "==", saved.version).get();
+    assert.equal(audit.size, 1);
+    assert.equal(audit.docs[0].data().previousVersion, initialVersion);
+  } finally {
+    if (previous.exists) await settingsRef.set(previousData);
+    else await settingsRef.delete();
   }
 });
