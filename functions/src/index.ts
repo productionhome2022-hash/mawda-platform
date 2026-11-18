@@ -8834,6 +8834,31 @@ export const revokeOwnerAdvertisingRoleGrant = onCall(async (request) => {
     if (data.status === "revoked") {
       return { grantId, version: data.version, revoked: true, idempotentReplay: true };
     }
+    const limitedRole: NumberedPlatformRole | null =
+      data.role === "ad_general_supervisor" || data.role === "production_general_supervisor"
+        ? data.role
+        : null;
+    if (limitedRole !== null) {
+      const counterRef = db.collection("specializedRoleSeatCounters").doc(limitedRole);
+      const [roleSnapshot] = await Promise.all([
+        transaction.get(SPECIALIZED_ROLE_GRANTS.where("role", "==", limitedRole)),
+        transaction.get(counterRef),
+      ]);
+      const nowMs = Date.now();
+      const remainingActiveAssignments = roleSnapshot.docs.filter((doc) => {
+        if (doc.id === grantId) return false;
+        const roleData = doc.data();
+        return roleData.status === "active" &&
+          (roleData.endsAtMs == null || !Number.isSafeInteger(roleData.endsAtMs) || roleData.endsAtMs > nowMs);
+      }).length;
+      const now = FieldValue.serverTimestamp();
+      transaction.set(counterRef, {
+        role: limitedRole,
+        activeCount: remainingActiveAssignments,
+        reconciledAt: now,
+        updatedAt: now,
+      });
+    }
     const version = data.version + 1;
     transaction.update(grantRef, {
       status: "revoked", version, revokedAt: FieldValue.serverTimestamp(),
