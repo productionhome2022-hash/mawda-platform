@@ -9,6 +9,8 @@ const {
   setTimedAdCampaignStatus,
   getActiveTimedAdCampaigns,
   getRewardCenter,
+  setOwnerFeaturedAdCampaign, setFeaturedAdCampaignStatus, setOwnerFeaturedAdRewardPolicy,
+  completeFeaturedAdViewingSession, getMyFeaturedAdRewardHistory,
   getFeaturedAdShowcase,
   startTimedAdvertisement,
   getActiveTimedAdSession,
@@ -590,5 +592,107 @@ test("featured-ad discovery is member-only, geography-scoped, and never grants r
       userRef.delete().catch(() => undefined),
       ...campaignIds.map((id) => campaignCollection.doc(id).delete().catch(() => undefined)),
     ]);
+  }
+});
+
+
+test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const ownerUid = "featured-owner-" + tag;
+  const uid = "featured-member-" + tag;
+  const campaignRef = db.collection("featuredAdCampaigns").doc();
+  const sessionRef = db.collection("featuredAdViewingSessions").doc();
+  const userRef = db.collection("users").doc(uid);
+  const policyRef = db.doc("platformSettings/featuredAdRewardPolicy");
+  const memberRef = db.collection("featuredAdCampaignMembers").doc(uid + "_" + campaignRef.id);
+  const dayRef = userRef.collection("featuredAdRewardDays").doc(new Date().toISOString().slice(0, 10));
+  const ownerRequest = (data) => ({
+    data,
+    auth: { uid: ownerUid, token: {
+      platformOwner: true, platformOwnerUid: ownerUid,
+      auth_time: Math.floor(Date.now() / 1000),
+      firebase: { sign_in_second_factor: "phone" },
+    } },
+  });
+  const memberRequest = (data) => ({
+    data,
+    auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+  });
+  await userRef.set({ coins: 0, profileCompleted: true, accountStatus: "active" });
+  await policyRef.set({
+    policy: {
+      enabled: true, rewardCoinsPerView: 2, maxRewardedViewsPerUtcDay: 10,
+      maxRewardCoinsPerUtcDay: 20, maxRewardsPerCampaignRolling24h: 3,
+      sameCampaignWindowMs: 86400000, videoCompletionPercent: 90,
+      imageContinuousVisibleMs: 10000,
+    },
+    version: 1,
+  });
+  try {
+    const created = await setOwnerFeaturedAdCampaign.run(ownerRequest({
+      title: "CI Featured Campaign", sponsorLabel: "CI", body: "Synthetic featured campaign fixture",
+      geographicTargets: ["syria"], featuredPlacement: "priority",
+      startsAtMs: Date.now() - 60000, endsAtMs: Date.now() + 3600000,
+      rewardBudgetCoins: 20, rewardCoinsPerView: 2, mediaId: "00000000-0000-4000-8000-" + tag.slice(0, 12).padEnd(12, "0"),
+    }));
+    assert.equal(created.status, "draft");
+    const campaignId = created.campaignId;
+    const campaign = db.collection("featuredAdCampaigns").doc(campaignId);
+    await campaign.update({
+      mediaId: "fixture-media-" + tag, creativeType: "image", creativeApproved: true,
+      paymentConfirmed: true,
+    });
+    await assert.rejects(
+      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "approved" })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    // Simulate the already security-approved media record; this test does not touch Storage bytes.
+    await db.collection("mediaAssets").doc("fixture-media-" + tag).set({
+      ownerUid: ownerUid, uploaderRole: "platform_owner", mediaPurpose: "advertisement",
+      status: "security_approved", mediaCategory: "image",
+    });
+    const approved = await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "approved" }));
+    assert.equal(approved.status, "approved");
+    const published = await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published" }));
+    assert.equal(published.status, "published");
+
+    await sessionRef.set({
+      uid, campaignId, geography: "syria", creativeType: "image", status: "active",
+      startedAtMs: Date.now() - 12000, lastHeartbeatAtMs: Date.now(),
+      visibleMs: 12000, continuousVisibleMs: 12000, progressPercent: 0,
+      foregroundVisible: true, rewardClaimed: false,
+    });
+    const results = await Promise.all([
+      completeFeaturedAdViewingSession.run(memberRequest({ sessionId: sessionRef.id })),
+      completeFeaturedAdViewingSession.run(memberRequest({ sessionId: sessionRef.id })),
+      completeFeaturedAdViewingSession.run(memberRequest({ sessionId: sessionRef.id })),
+    ]);
+    assert.equal(results.filter((r) => r.rewarded === true && r.idempotentReplay === false).length, 1);
+    assert.equal((await userRef.get()).data().coins, 2);
+    assert.equal((await userRef.collection("walletLedger").doc("featured_ad_reward_" + sessionRef.id).get()).data().type, "featured_ad_reward");
+
+    const history = await getMyFeaturedAdRewardHistory.run(memberRequest({}));
+    assert.equal(history.rewards.length, 1);
+
+    const secondSession = db.collection("featuredAdViewingSessions").doc();
+    await secondSession.set({
+      uid, campaignId, geography: "syria", creativeType: "image", status: "active",
+      startedAtMs: Date.now() - 12000, lastHeartbeatAtMs: Date.now(),
+      visibleMs: 12000, continuousVisibleMs: 12000, progressPercent: 0,
+      foregroundVisible: true, rewardClaimed: false,
+    });
+    await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "withdrawn" }));
+    const denied = await completeFeaturedAdViewingSession.run(memberRequest({ sessionId: secondSession.id }));
+    assert.equal(denied.rewarded, false);
+    assert.equal((await userRef.get()).data().coins, 2);
+  } finally {
+    await Promise.all([
+      sessionRef.delete().catch(() => undefined), userRef.delete().catch(() => undefined),
+      campaignRef.delete().catch(() => undefined), policyRef.delete().catch(() => undefined),
+      memberRef.delete().catch(() => undefined), dayRef.delete().catch(() => undefined),
+      db.collection("mediaAssets").doc("fixture-media-" + tag).delete().catch(() => undefined),
+    ]);
+    await db.collection("users").doc(uid).collection("walletLedger").doc("featured_ad_reward_" + sessionRef.id).delete().catch(() => undefined);
   }
 });
