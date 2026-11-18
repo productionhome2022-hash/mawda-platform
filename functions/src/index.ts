@@ -359,6 +359,7 @@ export const transferCoins = onCall(async (request) => {
     const [
       existing, settings, senderSnapshot, recipientSnapshot,
       senderGuestProfile, senderGuestSession, recipientGuestProfile, recipientGuestSession,
+      senderLedger, recipientLedger, platformLedger,
     ] = await Promise.all([
       transaction.get(transferRef),
       transaction.get(TRANSFER_SETTINGS),
@@ -368,10 +369,25 @@ export const transferCoins = onCall(async (request) => {
       transaction.get(senderGuestSessionRef),
       transaction.get(recipientGuestProfileRef),
       transaction.get(recipientGuestSessionRef),
+      transaction.get(senderLedgerRef),
+      transaction.get(recipientLedgerRef),
+      transaction.get(platformLedgerRef),
     ]);
 
     if (existing.exists) {
       const prior = existing.data()!;
+      if (prior.status !== "completed" ||
+          !senderLedger.exists || senderLedger.data()?.type !== "coin_transfer_sent" ||
+          senderLedger.data()?.direction !== "debit" || senderLedger.data()?.amount !== -prior.grossAmount ||
+          senderLedger.data()?.transferId !== transferId ||
+          !recipientLedger.exists || recipientLedger.data()?.type !== "coin_transfer_received" ||
+          recipientLedger.data()?.direction !== "credit" || recipientLedger.data()?.amount !== prior.netAmount ||
+          recipientLedger.data()?.transferId !== transferId ||
+          !platformLedger.exists || platformLedger.data()?.type !== "coin_transfer_commission" ||
+          platformLedger.data()?.direction !== "credit" || platformLedger.data()?.amount !== prior.commissionAmount ||
+          platformLedger.data()?.transferId !== transferId) {
+        throw new HttpsError("failed-precondition", "سجل التحويل لا يطابق قيود المحافظ ودفتر عمولة المنصة؛ يلزم تدقيق مالي.");
+      }
       if (prior.senderUid !== senderUid) {
         throw new HttpsError("permission-denied", "معرف التحويل مستخدم لعملية أخرى.");
       }
