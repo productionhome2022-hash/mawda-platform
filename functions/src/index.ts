@@ -8011,9 +8011,12 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     const activeRef = db.collection("activeTimedAdSessions").doc(uid);
     const counterRef = db.collection("timedAdMemberCounters").doc(timedAdMemberCounterId(uid, data.campaignId));
     const legacyCounterRef = db.collection("timedAdMemberCounters").doc(`${uid}_${data.campaignId}`);
-    const [claim, user, campaign, active, counter, legacyCounter] = await Promise.all([
+    const dailyPeriod = utcRewardPeriod("daily", Date.now());
+    const dailyCounterRef = db.collection("timedAdMemberDailyCounters").doc(`${uid}_${dailyPeriod}`);
+    const [claim, user, campaign, active, counter, legacyCounter, dailyCounter] = await Promise.all([
       transaction.get(claimRef), transaction.get(userRef), transaction.get(campaignRef),
       transaction.get(activeRef), transaction.get(counterRef), transaction.get(legacyCounterRef),
+      transaction.get(dailyCounterRef),
     ]);
     const campaignMediaId = campaign.data()?.mediaId;
     const campaignMedia = typeof campaignMediaId === "string"
