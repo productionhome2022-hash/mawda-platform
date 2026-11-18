@@ -305,7 +305,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       for (final item in pending) {
         final requesterUid = item['uid'];
         if (requesterUid is! String || requesterUid.isEmpty ||
-            !_handledJoinRequestUids.add(requesterUid) || !mounted || _ending) continue;
+            _handledJoinRequestUids.contains(requesterUid) || !mounted || _ending) continue;
         final approve = await showDialog<bool>(
           context: context,
           barrierDismissible: false,
@@ -388,6 +388,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
             'decision': 'reject',
           });
         }
+        _handledJoinRequestUids.add(requesterUid);
       }
     } catch (error) {
       if (mounted && !_ending) {
