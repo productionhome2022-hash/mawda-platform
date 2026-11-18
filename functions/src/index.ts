@@ -90,6 +90,8 @@ import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
 import { AD_INTAKE_GEOGRAPHIES, validateAdvertisingIntake, advertisingIntakeAuditEventId, advertisingIntakeReviewAuditEventId, AdvertisingIntakeValidationError } from "./advertising-intake";
 import { selectFeaturedAdShowcase, type FeaturedAdCampaignCandidate } from "./featured-advertising";
+import { defaultFeaturedAdRewardPolicy, validateFeaturedAdRewardPolicy, decideFeaturedAdReward, type FeaturedAdRewardPolicy } from "./featured-ad-rewards";
+import { getMawddaMediaBucket } from "./media";
 import { validateProductionApplication, ProductionApplicationValidationError } from "./production-applications";
 import {
   applyContractSignature,
@@ -8171,6 +8173,334 @@ export const getFeaturedAdShowcase = onCall(async (request) => {
       }];
     }),
   };
+});
+
+
+const FEATURED_AD_REWARD_POLICY = db.doc("platformSettings/featuredAdRewardPolicy");
+const FEATURED_AD_ALLOWED_STATUSES = ["draft", "approved", "published", "paused", "withdrawn"] as const;
+const FEATURED_AD_ALLOWED_PLACEMENTS = ["rotation", "priority"] as const;
+
+function featuredAdCampaignRef(campaignId: string) {
+  return db.collection("featuredAdCampaigns").doc(campaignId);
+}
+function featuredAdRewardDayKey(nowMs: number): string {
+  return new Date(nowMs).toISOString().slice(0, 10);
+}
+function validateFeaturedAdCampaignInput(data: Record<string, unknown>) {
+  const title = typeof data.title === "string" ? data.title.trim() : "";
+  const sponsorLabel = typeof data.sponsorLabel === "string" ? data.sponsorLabel.trim() : "";
+  const body = typeof data.body === "string" ? data.body.trim() : "";
+  const geography = Array.isArray(data.geographicTargets) ? data.geographicTargets : [];
+  const placement = data.featuredPlacement;
+  const startsAtMs = data.startsAtMs;
+  const endsAtMs = data.endsAtMs;
+  const rewardBudgetCoins = data.rewardBudgetCoins;
+  const rewardCoinsPerView = data.rewardCoinsPerView;
+  const mediaId = data.mediaId;
+  if (title.length < 3 || title.length > 180 || sponsorLabel.length < 2 || sponsorLabel.length > 180 ||
+      body.length < 10 || body.length > 5000 || geography.length < 1 ||
+      geography.length > AD_INTAKE_GEOGRAPHIES.length ||
+      geography.some((item) => typeof item !== "string" || !(AD_INTAKE_GEOGRAPHIES as readonly string[]).includes(item)) ||
+      new Set(geography).size !== geography.length ||
+      !FEATURED_AD_ALLOWED_PLACEMENTS.includes(placement as typeof FEATURED_AD_ALLOWED_PLACEMENTS[number]) ||
+      !Number.isSafeInteger(startsAtMs) || !Number.isSafeInteger(endsAtMs) ||
+      (startsAtMs as number) < 0 || (endsAtMs as number) <= (startsAtMs as number) ||
+      !Number.isSafeInteger(rewardBudgetCoins) || (rewardBudgetCoins as number) < 0 ||
+      !Number.isSafeInteger(rewardCoinsPerView) || (rewardCoinsPerView as number) < 0 ||
+      (rewardCoinsPerView as number) > (rewardBudgetCoins as number) ||
+      (mediaId !== undefined && mediaId !== null && typeof mediaId !== "string")) {
+    throw new HttpsError("invalid-argument", "بيانات الحملة المميزة غير صالحة.");
+  }
+  return {
+    title, sponsorLabel, body, geographicTargets: geography as string[],
+    featuredPlacement: placement as "rotation" | "priority",
+    startsAtMs: startsAtMs as number, endsAtMs: endsAtMs as number,
+    rewardBudgetCoins: rewardBudgetCoins as number, rewardCoinsPerView: rewardCoinsPerView as number,
+    mediaId: typeof mediaId === "string" && mediaId.trim() ? mediaId.trim() : null,
+  };
+}
+async function validateFeaturedAdCreativeForOwner(mediaId: string | null, ownerUid: string) {
+  if (!mediaId) return { creativeType: "text" as const };
+  const assetSnapshot = await db.collection("mediaAssets").doc(mediaId).get();
+  if (!assetSnapshot.exists) throw new HttpsError("not-found", "المادة الإعلانية غير موجودة.");
+  const asset = assetSnapshot.data() ?? {};
+  if (asset.ownerUid !== ownerUid || asset.uploaderRole !== "platform_owner" ||
+      asset.mediaPurpose !== "advertisement" || asset.status !== "security_approved" ||
+      !["image", "video"].includes(String(asset.mediaCategory))) {
+    throw new HttpsError("failed-precondition", "لا يمكن اعتماد مادة لم تجتز الفحص الأمني.");
+  }
+  return { creativeType: asset.mediaCategory === "video" ? "video" as const : "image" as const };
+}
+export const getOwnerFeaturedAdCampaigns = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await db.collection("featuredAdCampaigns").orderBy("updatedAt", "desc").limit(200).get();
+  return { campaigns: snapshot.docs.map((doc) => ({ campaignId: doc.id, ...doc.data() })) };
+});
+export const setOwnerFeaturedAdCampaign = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const input = validateFeaturedAdCampaignInput(data);
+  const campaignId = typeof data.campaignId === "string" ? data.campaignId.trim() : "";
+  const ref = campaignId ? featuredAdCampaignRef(campaignId) : db.collection("featuredAdCampaigns").doc();
+  const creative = await validateFeaturedAdCreativeForOwner(input.mediaId, actorUid);
+  const result = await db.runTransaction(async (transaction) => {
+    const current = await transaction.get(ref);
+    if (current.exists) {
+      const existing = current.data() ?? {};
+      if (!["draft", "paused"].includes(String(existing.status))) {
+        throw new HttpsError("failed-precondition", "لا يمكن تعديل حملة منشورة أو مسحوبة.");
+      }
+      transaction.update(ref, {
+        ...input, creativeType: creative.creativeType, ownerApproved: false, creativeApproved: false,
+        paymentConfirmed: existing.paymentConfirmed === true, status: "draft",
+        updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
+        version: (Number.isSafeInteger(existing.version) ? existing.version : 0) + 1,
+      });
+    } else {
+      transaction.create(ref, {
+        ...input, creativeType: creative.creativeType, ownerApproved: false, ownerWithdrawn: false,
+        paymentConfirmed: false, creativeApproved: false, status: "draft",
+        createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+        createdBy: actorUid, updatedBy: actorUid, version: 1,
+        spentRewardCoins: 0, reservedRewardCoins: 0,
+      });
+    }
+    return { campaignId: ref.id };
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid, action: campaignId ? "featured_ad_campaign_updated" : "featured_ad_campaign_created",
+    campaignId: result.campaignId, outcome: "success",
+  });
+  return { ...result, status: "draft" };
+});
+export const setFeaturedAdCampaignStatus = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const campaignId = typeof request.data?.campaignId === "string" ? request.data.campaignId.trim() : "";
+  const status = request.data?.status;
+  if (!campaignId || !FEATURED_AD_ALLOWED_STATUSES.includes(status as typeof FEATURED_AD_ALLOWED_STATUSES[number])) {
+    throw new HttpsError("invalid-argument", "معرف الحملة أو الحالة غير صالح.");
+  }
+  const ref = featuredAdCampaignRef(campaignId);
+  const result = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
+    const current = snapshot.data() ?? {};
+    const next = String(status);
+    if (next === "published" &&
+        (current.ownerApproved !== true || current.paymentConfirmed !== true ||
+         current.creativeApproved !== true || current.ownerWithdrawn === true ||
+         !["approved", "paused"].includes(String(current.status)))) {
+      throw new HttpsError("failed-precondition", "لا يمكن نشر الحملة قبل اكتمال الاعتماد والدفع والمادة الآمنة.");
+    }
+    if (next === "approved") {
+      if (current.ownerWithdrawn === true || current.paymentConfirmed !== true) {
+        throw new HttpsError("failed-precondition", "لا يمكن اعتماد الحملة قبل تأكيد الدفع.");
+      }
+      if (current.mediaId) await validateFeaturedAdCreativeForOwner(String(current.mediaId), actorUid);
+    }
+    transaction.update(ref, {
+      status: next, ownerApproved: next === "approved" || next === "published",
+      ownerWithdrawn: next === "withdrawn",
+      creativeApproved: next === "approved" || next === "published" ? true : current.creativeApproved === true,
+      paymentConfirmed: request.data?.paymentConfirmed === true ? true : current.paymentConfirmed === true,
+      updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
+      approvedAt: next === "approved" || next === "published" ? FieldValue.serverTimestamp() : current.approvedAt ?? null,
+      withdrawnAt: next === "withdrawn" ? FieldValue.serverTimestamp() : current.withdrawnAt ?? null,
+    });
+    return { version: (Number(current.version) || 1) + 1 };
+  });
+  await appendOwnerReviewAuditEvent({ actorUid, action: "featured_ad_campaign_status_changed", campaignId, status, outcome: "success" });
+  return { campaignId, status, ...result };
+});
+export const getOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await FEATURED_AD_REWARD_POLICY.get();
+  const policy = snapshot.exists ? validateFeaturedAdRewardPolicy(snapshot.data()?.policy) : defaultFeaturedAdRewardPolicy();
+  return { policy, version: snapshot.exists ? snapshot.data()?.version ?? 1 : 1 };
+});
+export const setOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const policy = validateFeaturedAdRewardPolicy(request.data?.policy);
+  const version = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(FEATURED_AD_REWARD_POLICY);
+    const previous = snapshot.exists ? Number(snapshot.data()?.version) : 0;
+    const next = Number.isSafeInteger(previous) ? previous + 1 : 1;
+    transaction.set(FEATURED_AD_REWARD_POLICY, { policy, version: next, updatedBy: actorUid, updatedAt: FieldValue.serverTimestamp() });
+    return next;
+  });
+  await appendOwnerReviewAuditEvent({ actorUid, action: "featured_ad_reward_policy_changed", version, outcome: "success" });
+  return { saved: true, version, policy };
+});
+export const getMyFeaturedAdRewardHistory = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const snapshot = await db.collection("users").doc(uid).collection("walletLedger")
+    .where("type", "==", "featured_ad_reward").orderBy("createdAt", "desc").limit(100).get();
+  return { rewards: snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return { ledgerId: doc.id, amount: data.amount, campaignId: data.campaignId ?? null, sessionId: data.sessionId ?? null, createdAt: data.createdAt ?? null };
+  }) };
+});
+export const startFeaturedAdViewingSession = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const campaignId = typeof request.data?.campaignId === "string" ? request.data.campaignId.trim() : "";
+  const geography = typeof request.data?.geography === "string" ? request.data.geography : "";
+  if (!campaignId || !(AD_INTAKE_GEOGRAPHIES as readonly string[]).includes(geography)) {
+    throw new HttpsError("invalid-argument", "بيانات مشاهدة الإعلان غير صالحة.");
+  }
+  const userSnapshot = await db.collection("users").doc(uid).get();
+  if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true || !isMemberAccountInGoodStanding(userSnapshot.data())) {
+    throw new HttpsError("permission-denied", "مشاهدة الإعلانات المميزة متاحة للأعضاء النشطين فقط.");
+  }
+  const campaignSnapshot = await featuredAdCampaignRef(campaignId).get();
+  if (!campaignSnapshot.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
+  const campaign = campaignSnapshot.data() ?? {};
+  const now = Date.now();
+  if (campaign.status !== "published" || campaign.ownerWithdrawn === true || campaign.ownerApproved !== true ||
+      campaign.paymentConfirmed !== true || campaign.creativeApproved !== true ||
+      campaign.startsAtMs > now || campaign.endsAtMs <= now ||
+      !Array.isArray(campaign.geographicTargets) || !campaign.geographicTargets.includes(geography)) {
+    throw new HttpsError("failed-precondition", "الحملة غير مؤهلة للمشاهدة حالياً.");
+  }
+  const sessionId = randomUUID();
+  const sessionRef = db.collection("featuredAdViewingSessions").doc(sessionId);
+  const creativeType = campaign.creativeType === "video" ? "video" : campaign.creativeType === "image" ? "image" : "text";
+  const sessionData = {
+    uid, campaignId, geography, creativeType, status: "active", startedAtMs: now, lastHeartbeatAtMs: now,
+    visibleMs: 0, progressPercent: 0, foregroundVisible: true, rewardClaimed: false,
+    serverNonce: createHash("sha256").update(uid + ":" + sessionId + ":" + now).digest("hex"),
+    createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+  };
+  await sessionRef.create(sessionData);
+  let media: { url: string | null; creativeType: string; contentType: string | null; expiresAt: number | null } =
+    { url: null, creativeType, contentType: null, expiresAt: null };
+  if (campaign.mediaId) {
+    const assetSnapshot = await db.collection("mediaAssets").doc(String(campaign.mediaId)).get();
+    if (!assetSnapshot.exists) throw new HttpsError("failed-precondition", "المادة الآمنة غير موجودة.");
+    const asset = assetSnapshot.data() ?? {};
+    if (asset.ownerUid !== campaign.createdBy || asset.mediaPurpose !== "advertisement" || asset.status !== "security_approved") {
+      throw new HttpsError("failed-precondition", "المادة الإعلانية غير آمنة.");
+    }
+    const isVideo = asset.mediaCategory === "video";
+    const isGif = asset.detectedContentType === "image/gif";
+    const path = isVideo ? asset.safeVideoPath : isGif ? asset.safeAnimationPath : asset.safePreviewPath;
+    const generation = isVideo ? asset.safeVideoGeneration : isGif ? asset.safeAnimationGeneration : asset.safePreviewGeneration;
+    const filename = isVideo ? "video.mp4" : isGif ? "animation.gif" : "preview.webp";
+    const expectedPath = "processed/" + asset.ownerUid + "/" + campaign.mediaId + "/" + filename;
+    const expectedType = isVideo ? "video/mp4" : isGif ? "image/gif" : "image/webp";
+    const maxBytes = isVideo ? 15 * 1024 * 1024 : 3 * 1024 * 1024;
+    if (path !== expectedPath || typeof generation !== "string" || Number(generation) <= 0) {
+      throw new HttpsError("failed-precondition", "النسخة الآمنة للإعلان غير مكتملة.");
+    }
+    const file = getMawddaMediaBucket().file(expectedPath, { generation: Number(generation) });
+    const [metadata] = await file.getMetadata();
+    const custom = metadata.metadata as Record<string, unknown> | undefined;
+    const hash = isVideo ? asset.safeVideoSha256 : isGif ? asset.safeAnimationSha256 : asset.safePreviewSha256;
+    const processing = isVideo ? "ffmpeg-video-transcode-v1" : isGif ? "gif-sanitize-preserve-animation-v1" : "sharp-decode-reencode-v1";
+    if (String(metadata.generation) !== generation || metadata.contentType !== expectedType ||
+        Number(metadata.size) > maxBytes || custom?.mediaId !== campaign.mediaId ||
+        custom?.sourceGeneration !== String(asset.storageGeneration) || custom?.sourceSha256 !== asset.scannerSha256 ||
+        custom?.processing !== processing || typeof hash !== "string") {
+      throw new HttpsError("failed-precondition", "تعذر إثبات سلامة النسخة الآمنة.");
+    }
+    const expiresAt = Date.now() + 2 * 60 * 1000;
+    const [url] = await file.getSignedUrl({ version: "v4", action: "read", expires: expiresAt, responseType: expectedType, responseDisposition: "inline" });
+    media = { url, creativeType: isVideo ? "video" : isGif ? "gif" : "image", contentType: expectedType, expiresAt };
+  }
+  return { sessionId, campaignId, creativeType, serverNonce: sessionData.serverNonce, ...media };
+});
+export const heartbeatFeaturedAdViewingSession = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const sessionId = typeof request.data?.sessionId === "string" ? request.data.sessionId : "";
+  const foregroundVisible = request.data?.foregroundVisible === true;
+  const progressPercent = typeof request.data?.progressPercent === "number" ? request.data.progressPercent : 0;
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId) || !Number.isFinite(progressPercent) || progressPercent < 0 || progressPercent > 100) {
+    throw new HttpsError("invalid-argument", "نبضة المشاهدة غير صالحة.");
+  }
+  const ref = db.collection("featuredAdViewingSessions").doc(sessionId);
+  const now = Date.now();
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists || snapshot.data()?.uid !== uid || snapshot.data()?.status !== "active") {
+      throw new HttpsError("permission-denied", "جلسة المشاهدة غير صالحة.");
+    }
+    const session = snapshot.data()!;
+    if (now - Number(session.startedAtMs) > 30 * 60 * 1000) {
+      transaction.update(ref, { status: "expired", updatedAt: FieldValue.serverTimestamp() });
+      throw new HttpsError("deadline-exceeded", "انتهت جلسة مشاهدة الإعلان.");
+    }
+    const last = Number(session.lastHeartbeatAtMs);
+    const elapsed = Math.max(0, Math.min(now - last, 15_000));
+    const visibleMs = Number(session.visibleMs) + (foregroundVisible ? elapsed : 0);
+    const maxProgress = Math.max(Number(session.progressPercent) || 0, progressPercent);
+    transaction.update(ref, { lastHeartbeatAtMs: now, visibleMs, progressPercent: maxProgress, foregroundVisible, updatedAt: FieldValue.serverTimestamp() });
+    return { visibleMs, progressPercent: maxProgress };
+  });
+});
+export const completeFeaturedAdViewingSession = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const sessionId = typeof request.data?.sessionId === "string" ? request.data.sessionId : "";
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId)) throw new HttpsError("invalid-argument", "معرف جلسة المشاهدة غير صالح.");
+  const sessionRef = db.collection("featuredAdViewingSessions").doc(sessionId);
+  const now = Date.now();
+  return db.runTransaction(async (transaction) => {
+    const sessionSnapshot = await transaction.get(sessionRef);
+    if (!sessionSnapshot.exists || sessionSnapshot.data()?.uid !== uid) throw new HttpsError("permission-denied", "جلسة المشاهدة غير موجودة.");
+    const session = sessionSnapshot.data()!;
+    if (session.rewardClaimed === true) return { rewarded: false, idempotentReplay: true, amountCoins: 0 };
+    if (session.status !== "active") throw new HttpsError("failed-precondition", "جلسة المشاهدة ليست نشطة.");
+    const campaignRef = featuredAdCampaignRef(String(session.campaignId));
+    const userRef = db.collection("users").doc(uid);
+    const dayRef = userRef.collection("featuredAdRewardDays").doc(featuredAdRewardDayKey(now));
+    const campaignMemberRef = db.collection("featuredAdCampaignMembers").doc(uid + "_" + String(session.campaignId));
+    const [campaignSnapshot, userSnapshot, policySnapshot, daySnapshot, campaignMemberSnapshot] = await Promise.all([
+      transaction.get(campaignRef), transaction.get(userRef), transaction.get(FEATURED_AD_REWARD_POLICY),
+      transaction.get(dayRef), transaction.get(campaignMemberRef),
+    ]);
+    if (!campaignSnapshot.exists || !userSnapshot.exists) throw new HttpsError("failed-precondition", "الحملة أو العضو غير موجود.");
+    const campaign = campaignSnapshot.data()!;
+    const user = userSnapshot.data()!;
+    const policy: FeaturedAdRewardPolicy = policySnapshot.exists ? validateFeaturedAdRewardPolicy(policySnapshot.data()?.policy) : defaultFeaturedAdRewardPolicy();
+    const daily = daySnapshot.data() ?? {};
+    const member = campaignMemberSnapshot.data() ?? {};
+    const decision = decideFeaturedAdReward(policy, {
+      nowMs: now, campaignEligible: campaign.status === "published" && campaign.ownerWithdrawn !== true &&
+        campaign.ownerApproved === true && campaign.paymentConfirmed === true && campaign.creativeApproved === true &&
+        now >= campaign.startsAtMs && now < campaign.endsAtMs,
+      rewardBudgetAvailable: Number(campaign.rewardBudgetCoins) - Number(campaign.spentRewardCoins || 0) >= policy.rewardCoinsPerView,
+      foregroundAndVisibilityValidated: session.foregroundVisible === true &&
+        Number(session.visibleMs) >= (session.creativeType === "image" ? policy.imageContinuousVisibleMs : 0),
+      creativeType: session.creativeType === "video" ? "video" : "image",
+      videoCompletionPercent: Number(session.progressPercent) || 0,
+      continuousVisibleMs: Number(session.visibleMs) || 0,
+      rewardedViewsToday: Number(daily.rewardedViews) || 0,
+      rewardCoinsToday: Number(daily.rewardCoins) || 0,
+      sameCampaignRewardsInWindow: Number(member.rewardedViews) || 0,
+    });
+    if (!decision.eligible) {
+      transaction.update(sessionRef, { status: "completed_no_reward", rewardReason: decision.reason, completedAtMs: now, updatedAt: FieldValue.serverTimestamp() });
+      return { rewarded: false, idempotentReplay: false, amountCoins: 0, reason: decision.reason };
+    }
+    const amount = decision.amountCoins;
+    const ledgerId = "featured_ad_reward_" + sessionId;
+    const ledgerRef = userRef.collection("walletLedger").doc(ledgerId);
+    const existingLedger = await transaction.get(ledgerRef);
+    if (existingLedger.exists) {
+      transaction.update(sessionRef, { rewardClaimed: true, status: "rewarded", updatedAt: FieldValue.serverTimestamp() });
+      return { rewarded: true, idempotentReplay: true, amountCoins: Number(existingLedger.data()?.amount) || amount };
+    }
+    const currentCoins = Number(user.coins) || 0;
+    transaction.set(userRef, { coins: currentCoins + amount }, { merge: true });
+    transaction.create(ledgerRef, {
+      type: "featured_ad_reward", source: "featured_ad", amount, campaignId: session.campaignId,
+      sessionId, policyVersion: policySnapshot.exists ? policySnapshot.data()?.version ?? 1 : 1,
+      createdAt: FieldValue.serverTimestamp(), balanceAfter: currentCoins + amount,
+    });
+    transaction.set(dayRef, { rewardedViews: (Number(daily.rewardedViews) || 0) + 1, rewardCoins: (Number(daily.rewardCoins) || 0) + amount, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    transaction.set(campaignMemberRef, { rewardedViews: (Number(member.rewardedViews) || 0) + 1, lastRewardAtMs: now, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    transaction.update(campaignRef, { spentRewardCoins: FieldValue.increment(amount), updatedAt: FieldValue.serverTimestamp() });
+    transaction.update(sessionRef, { rewardClaimed: true, status: "rewarded", rewardCoins: amount, rewardLedgerId: ledgerId, completedAtMs: now, updatedAt: FieldValue.serverTimestamp() });
+    return { rewarded: true, idempotentReplay: false, amountCoins: amount, ledgerId };
+  });
 });
 
 export const getRewardCenter = onCall(async (request) => {
