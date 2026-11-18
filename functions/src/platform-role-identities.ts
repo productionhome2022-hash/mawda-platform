@@ -1,22 +1,23 @@
 export const PLATFORM_ROLE_IDS = {
   superOwner: "super_owner",
   generalAdmin: "platform_admin",
-  mediaAdmin: "media_admin",
-  generalProductionSupervisor: "general_production_supervisor",
-  teamProductionSupervisor: "team_production_supervisor",
+  mediaAdmin: "ad_general_supervisor",
+  generalProductionSupervisor: "production_general_supervisor",
+  teamProductionSupervisor: "production_supervisor",
 } as const;
 
+/** Stable role IDs deliberately reuse the existing specialized-grant schema. */
 export type NumberedPlatformRole =
   | "platform_admin"
-  | "media_admin"
-  | "general_production_supervisor"
-  | "team_production_supervisor";
+  | "ad_general_supervisor"
+  | "production_general_supervisor"
+  | "production_supervisor";
 
 export const PLATFORM_ROLE_CAPACITY: Record<NumberedPlatformRole, number | null> = {
   platform_admin: null,
-  media_admin: 5,
-  general_production_supervisor: 5,
-  team_production_supervisor: null,
+  ad_general_supervisor: 5,
+  production_general_supervisor: 5,
+  production_supervisor: null,
 };
 
 export function platformRoleDisplayLabel(
@@ -33,12 +34,12 @@ export function platformRoleDisplayLabel(
   }
   const labels = {
     platform_admin: { ar: "أدمن", en: "Admin", fr: "Administrateur", es: "Administrador" },
-    media_admin: { ar: "أدمن ميديا", en: "Admin Media", fr: "Admin Média", es: "Admin Media" },
-    general_production_supervisor: {
+    ad_general_supervisor: { ar: "أدمن ميديا", en: "Admin Media", fr: "Admin Média", es: "Admin Media" },
+    production_general_supervisor: {
       ar: "مشرف إنتاج عام", en: "General Production Supervisor",
       fr: "Superviseur général de production", es: "Supervisor general de producción",
     },
-    team_production_supervisor: {
+    production_supervisor: {
       ar: "مشرف إنتاج الفريق", en: "Team Production Supervisor",
       fr: "Superviseur de production d’équipe", es: "Supervisor de producción del equipo",
     },
