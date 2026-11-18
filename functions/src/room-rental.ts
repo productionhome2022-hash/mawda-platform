@@ -6,15 +6,8 @@ export type RoomRentalPlan = {
   active: boolean;
 };
 
-export const DEFAULT_ROOM_RENTAL_PLANS: RoomRentalPlan[] = [
-  { planId: "room_30d", name: "استئجار غرفة 30 يوماً", durationDays: 30, priceCoins: 1000, active: true },
-  { planId: "room_90d", name: "استئجار غرفة 90 يوماً", durationDays: 90, priceCoins: 2700, active: true },
-  { planId: "room_180d", name: "استئجار غرفة 180 يوماً", durationDays: 180, priceCoins: 5000, active: true },
-  { planId: "room_365d", name: "استئجار غرفة 365 يوماً", durationDays: 365, priceCoins: 9000, active: true },
-];
-
 export function validateRoomRentalPlans(value: unknown): RoomRentalPlan[] {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 12) {
+  if (!Array.isArray(value) || value.length > 12) {
     throw new Error("INVALID_ROOM_RENTAL_PLANS");
   }
   const ids = new Set<string>();

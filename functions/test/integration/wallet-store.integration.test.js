@@ -1,11 +1,12 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { getFirestore } = require("firebase-admin/firestore");
+const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const {
   transferCoins, purchaseStoreItem, getOwnerStoreCatalog, setStoreCatalogItem, getOwnerEconomyPricing,
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
-  setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
-  rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
+  setCoinPurchasePaymentInstructions, requestCoinPurchasePaymentVerification,
+  approveCoinPurchaseRequest, rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest,
+  listOwnerCoinPurchaseRequests,
   sendOwnerLiveStream,
   deleteDirectMessageForEveryone, deleteRoomMessage,
 } = require("../../lib/index");
@@ -196,18 +197,25 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
   const itemRef = db.collection("storeCatalog").doc(itemId);
   const purchaseRef = db.collection("storePurchases").doc(purchaseId);
   const ledgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
+  const auditRef = db.collection("adminAuditLogs").doc(`store_purchase_${purchaseId}`);
   const entitlementRef = memberRef.collection("entitlements").doc(itemId);
+  const catalogVersionRef = db.collection("storeCatalogVersions").doc(itemId).collection("versions").doc("1");
+  const previousCatalog = await itemRef.get();
+  const previousCatalogVersions = await db.collection("storeCatalogVersions").doc(itemId).collection("versions").get();
 
   await Promise.all([
     memberRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active" }),
     itemRef.set({
       name: "VIP test item", description: "Emulator-only entitlement test",
       category: "vip", priceCoins: 1250, durationDays: 30, sortOrder: 1,
-      active: true, purchaseEnabled: true, fulfillmentReady: true,
+      active: true, purchaseEnabled: true, fulfillmentReady: true, version: 1,
     }),
+    catalogVersionRef.set({ itemId, version: 1, priceCoins: 1250, durationDays: 30 }),
   ]);
   try {
-    const request = memberRequest(uid, { itemId, requestId, expectedPriceCoins: 1250 });
+    const request = memberRequest(uid, {
+      itemId, requestId, expectedPriceCoins: 1250, expectedCatalogVersion: 1,
+    });
     const result = await purchaseStoreItem.run(request);
     assert.equal(result.priceCoins, 1250);
     assert.equal(result.newBalance, 3750);
@@ -232,6 +240,7 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
     await assert.rejects(
       () => purchaseStoreItem.run(memberRequest(uid, {
         itemId, requestId: `another_${tag}`, expectedPriceCoins: 1000,
+        expectedCatalogVersion: 1,
       })),
       (error) => error && error.code === "failed-precondition",
     );
@@ -240,70 +249,118 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
       ledgerRef.delete().catch(() => undefined),
       purchaseRef.delete().catch(() => undefined),
       entitlementRef.delete().catch(() => undefined),
-      itemRef.delete().catch(() => undefined),
+      (async () => {
+        await itemRef.delete().catch(() => undefined);
+        const currentVersions = await db.collection("storeCatalogVersions").doc(itemId).collection("versions").get();
+        await Promise.all(currentVersions.docs.map((doc) => doc.ref.delete()));
+        if (previousCatalog.exists) await itemRef.set(previousCatalog.data());
+        await Promise.all(previousCatalogVersions.docs.map((doc) => doc.ref.set(doc.data())));
+      })(),
       memberRef.delete().catch(() => undefined),
     ]);
   }
 });
 
 
-test("owner catalog seeds approved features as ready while keeping purchases disabled", async () => {
+test("owner catalog seeds product metadata without commercial prices or fixed durations", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const result = await getOwnerStoreCatalog.run(ownerRequest());
   const items = result.items;
-  const expected = new Map([
-    ["vip_monthly", 5000], ["title_custom", 800], ["badge_special", 1200],
-    ["avatar_frame_30d", 2500], ["username_color_30d", 1200],
-    ["username_animated_30d", 3000], ["profile_analytics_30d", 1800],
-    ["profile_layout_30d", 3500], ["profile_pin_30d", 900],
-    ["discovery_boost_7d", 1500], ["profile_theme_30d", 2000],
-    ["visitor_greeting_30d", 1000], ["hide_coins_30d", 1000], ["ghost_mode_7d", 1800],
-  ]);
-  for (const [itemId, price] of expected) {
+  const expected = [
+    "vip_monthly", "title_custom", "badge_special", "avatar_frame_30d",
+    "username_color_30d", "username_animated_30d", "profile_analytics_30d",
+    "profile_layout_30d", "profile_pin_30d", "discovery_boost_7d",
+    "profile_theme_30d", "visitor_greeting_30d", "hide_coins_30d", "ghost_mode_7d",
+  ];
+  for (const itemId of expected) {
     const item = items.find((entry) => entry.itemId === itemId);
     assert.ok(item, `missing starter catalog item: ${itemId}`);
-    assert.equal(item.priceCoins, price);
-    const implemented = !["hide_coins_30d", "ghost_mode_7d"].includes(itemId);
-    assert.equal(item.active, implemented);
+    assert.equal(item.priceCoins, null, `seed price must remain unset: ${itemId}`);
+    assert.equal(item.durationDays, undefined, `seed duration must remain unset: ${itemId}`);
     assert.equal(item.purchaseEnabled, false);
-    assert.equal(item.fulfillmentReady, implemented);
+    assert.ok(Number.isSafeInteger(item.version) && item.version >= 1);
   }
 });
 
-
-test("owner economy prices seed safely and can be edited without enabling real-money checkout", async () => {
+test("owner economy pricing never seeds commercial defaults and publishes immutable versions", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const settingsRef = db.doc("platformSettings/economyPricing");
   const previous = await settingsRef.get();
   const previousData = previous.exists ? previous.data() : null;
   try {
-    const seeded = await getOwnerEconomyPricing.run(ownerRequest());
-    assert.equal(seeded.realMoneyCheckoutEnabled, false);
-    assert.equal(seeded.coinPackages.length, 5);
-    assert.equal(seeded.adPrices.length, 4);
-    assert.equal(seeded.coinPackages[0].priceMinor, 99);
-    const updatedPackages = seeded.coinPackages.map((p) =>
-      p.packageId === "coins_1000" ? { ...p, priceMinor: 109 } : p);
+    await settingsRef.delete().catch(() => undefined);
+    const unconfigured = await getOwnerEconomyPricing.run(ownerRequest());
+    assert.equal(unconfigured.configured, false);
+    assert.equal(unconfigured.manualCoinPurchasesEnabled, false);
+    assert.deepEqual(unconfigured.coinPackages, []);
+    assert.deepEqual(unconfigured.adPrices, []);
+    const packages = [{ packageId: "owner_pack", name: "Owner package", coins: 1000,
+      priceMinor: 12500, currency: "CHF", active: true }];
+    const ads = [{ placementId: "owner_ad", name: "Owner ad", billingModel: "daily",
+      priceMinor: 1000, currency: "CHF", active: false }];
     const saved = await setOwnerEconomyPricing.run(ownerRequest("store-catalog-owner", {
-      coinPackages: updatedPackages, adPrices: seeded.adPrices,
+      coinPackages: packages, adPrices: ads,
+      manualCoinPurchasesEnabled: true,
+      customCoinRequestBounds: { minCoins: 100, maxCoins: 50000 },
     }));
-    assert.equal(saved.saved, true);
-    assert.equal(saved.realMoneyCheckoutEnabled, false);
+    assert.equal(saved.version, 1);
+    const versionRef = db.doc("platformSettings/economyPricingVersions/versions/1");
+    const versionSnapshot = await versionRef.get();
+    assert.equal(versionSnapshot.exists, true);
+    assert.equal(versionSnapshot.data().coinPackages[0].currency, "CHF");
     const readback = await getOwnerEconomyPricing.run(ownerRequest());
-    assert.equal(readback.version, saved.version);
-    assert.equal(readback.coinPackages.find((p) => p.packageId === "coins_1000").priceMinor, 109);
+    assert.equal(readback.configured, true);
+    assert.equal(readback.version, 1);
+    assert.equal(readback.coinPackages[0].priceMinor, 12500);
+    assert.deepEqual(readback.customCoinRequestBounds, { minCoins: 100, maxCoins: 50000 });
     await assert.rejects(
       () => setOwnerEconomyPricing.run(memberRequest("not_owner", {
-        coinPackages: updatedPackages, adPrices: seeded.adPrices,
+        coinPackages: packages, adPrices: ads, manualCoinPurchasesEnabled: true,
       })),
       (error) => error && error.code === "permission-denied",
     );
   } finally {
+    await db.doc("platformSettings/economyPricingVersions/versions/1").delete().catch(() => undefined);
     if (previousData) await settingsRef.set(previousData);
     else await settingsRef.delete().catch(() => undefined);
   }
 });
 
+test("owner wallet reconciliation is read-only and verifies signed balance snapshots", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const uid = `wallet_reconcile_${tag}`;
+  const userRef = db.collection("users").doc(uid);
+  const ledger = userRef.collection("walletLedger");
+  await userRef.set({ coins: 125, profileCompleted: true, accountStatus: "active" });
+  await Promise.all([
+    ledger.doc("01_opening").set({
+      type: "test_credit", amount: 100, balanceBefore: 0, balanceAfter: 100,
+      createdAt: Timestamp.fromMillis(1000),
+    }),
+    ledger.doc("02_spend").set({
+      type: "test_debit", amount: -25, balanceBefore: 100, balanceAfter: 75,
+      createdAt: Timestamp.fromMillis(2000),
+    }),
+    ledger.doc("03_reward").set({
+      type: "test_credit", amount: 50, balanceBefore: 75, balanceAfter: 125,
+      createdAt: Timestamp.fromMillis(3000),
+    }),
+  ]);
+  try {
+    const result = await getOwnerWalletReconciliation.run(ownerRequest("wallet-owner", { targetUid: uid }));
+    assert.equal(result.status, "consistent");
+    assert.equal(result.computedBalance, 125);
+    assert.equal(result.netLedgerDelta, 125);
+    assert.equal(result.truncated, false);
+    assert.equal((await userRef.get()).data().coins, 125,
+      "reconciliation must never mutate the wallet");
+  } finally {
+    const rows = await ledger.get();
+    await Promise.all(rows.docs.map((doc) => doc.ref.delete()));
+    await userRef.delete().catch(() => undefined);
+  }
+});
 
 test("owner authority is bound to the single canonical owner UID", async () => {
   const mismatched = ownerRequest("different-owner", {});
@@ -337,6 +394,7 @@ test("manual coin package request issues no coins until owner verifies external 
       adPrices: [{ placementId: "test_ad", name: "Test ad", billingModel: "daily",
         priceMinor: 100, currency: "EUR", active: true }],
       manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, version: 1,
+      customCoinRequestBounds: { minCoins: 100, maxCoins: 50000 },
     }),
   ]);
   try {
@@ -352,6 +410,7 @@ test("manual coin package request issues no coins until owner verifies external 
     const instructionResult = await setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
       requesterUid: uid, requestId, instructions: "يرجى التواصل مع المالك لإتمام التحويل البنكي",
       agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
+      expectedInstructionsVersion: 0,
     }));
     assert.equal((await requestDoc.get()).data().status, "payment_instructions_sent");
     assert.ok(instructionResult.chatId);
@@ -361,6 +420,21 @@ test("manual coin package request issues no coins until owner verifies external 
     assert.equal(chatMessages.docs[0].data().isPlatformOwnerMessage, true);
     assert.match(chatMessages.docs[0].data().text, /تعليمات الدفع/);
     assert.equal((await userRef.get()).data().coins, 40);
+    assert.equal((await requestDoc.get()).data().instructionsVersion, 1);
+
+    const reported = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
+      requestId, expectedInstructionsVersion: 1,
+    }));
+    assert.equal(reported.status, "awaiting_payment_verification");
+    assert.equal(reported.idempotentReplay, false);
+    assert.equal((await requestDoc.get()).data().status, "awaiting_payment_verification");
+    assert.equal((await userRef.get()).data().coins, 40,
+      "member payment report is a claim only and never credits BetaCoins");
+
+    const reportReplay = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
+      requestId, expectedInstructionsVersion: 1,
+    }));
+    assert.equal(reportReplay.idempotentReplay, true);
 
     const approvalInput = {
       requesterUid: uid, requestId, externalPaymentVerified: true,
@@ -410,6 +484,7 @@ test("custom coin request is negotiated manually and a withdrawn request cannot 
       adPrices: [{ placementId: "test_ad", name: "Test ad", billingModel: "daily",
         priceMinor: 100, currency: "EUR", active: true }],
       manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, version: 1,
+      customCoinRequestBounds: { minCoins: 100, maxCoins: 50000 },
     }),
   ]);
   try {
@@ -584,6 +659,15 @@ test("every shipped premium store category charges once and grants its matching 
   const ledgerRefs = [];
   const entitlementRefs = [];
   const catalogRefs = items.map(([itemId]) => db.collection("storeCatalog").doc(itemId));
+  const catalogVersions = new Map();
+  const privacyItemId = "hide_coins_30d";
+  const allCatalogIds = [...items.map(([itemId]) => itemId), privacyItemId];
+  const priorCatalogSnapshots = await Promise.all(allCatalogIds.map((itemId) =>
+    db.collection("storeCatalog").doc(itemId).get()));
+  const priorVersionSnapshots = await Promise.all(allCatalogIds.map(async (itemId) => ({
+    itemId,
+    docs: (await db.collection("storeCatalogVersions").doc(itemId).collection("versions").get()).docs,
+  })));
 
   await memberRef.set({
     coins: 10000,
@@ -592,8 +676,8 @@ test("every shipped premium store category charges once and grants its matching 
   });
 
   try {
-    await Promise.all(items.map(([itemId, category, durationDays], index) =>
-      setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
+    await Promise.all(items.map(async ([itemId, category, durationDays], index) => {
+      const saved = await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
         itemId,
         name: `ميزة ${itemId}`,
         description: "اختبار تكامل لاستحقاق متجر مميز.",
@@ -603,8 +687,9 @@ test("every shipped premium store category charges once and grants its matching 
         sortOrder: index + 1,
         active: true,
         purchaseEnabled: true,
-      })),
-    ));
+      }));
+      catalogVersions.set(itemId, saved.version);
+    }));
 
     for (const [index, [itemId]] of items.entries()) {
       const requestId = `premium_${tag}_${index}`;
@@ -620,6 +705,7 @@ test("every shipped premium store category charges once and grants its matching 
         itemId,
         requestId,
         expectedPriceCoins: priceCoins,
+        expectedCatalogVersion: catalogVersions.get(itemId),
       }));
       assert.equal(result.idempotentReplay, false, itemId);
       assert.equal(result.newBalance, 10000 - ((index + 1) * priceCoins), itemId);
@@ -638,6 +724,7 @@ test("every shipped premium store category charges once and grants its matching 
         itemId,
         requestId,
         expectedPriceCoins: priceCoins,
+        expectedCatalogVersion: catalogVersions.get(itemId),
       }));
       assert.equal(replay.idempotentReplay, true, itemId);
       assert.equal((await memberRef.get()).data().coins, 10000 - ((index + 1) * priceCoins), itemId);
@@ -673,7 +760,7 @@ test("every shipped premium store category charges once and grants its matching 
       })),
       (error) => error && error.code === "invalid-argument",
     );
-    await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
+    const privacySaved = await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
       itemId: "hide_coins_30d",
       name: "إخفاء الرصيد",
       description: "ميزة خصوصية غير مفعلة.",
@@ -689,6 +776,7 @@ test("every shipped premium store category charges once and grants its matching 
         itemId: "hide_coins_30d",
         requestId: `privacy_${tag}`,
         expectedPriceCoins: priceCoins,
+        expectedCatalogVersion: privacySaved.version,
       })),
       (error) => error && error.code === "failed-precondition",
     );
@@ -699,8 +787,16 @@ test("every shipped premium store category charges once and grants its matching 
       ...purchaseRefs.map((ref) => ref.delete().catch(() => undefined)),
       ...ledgerRefs.map((ref) => ref.delete().catch(() => undefined)),
       ...entitlementRefs.map((ref) => ref.delete().catch(() => undefined)),
-      ...catalogRefs.map((ref) => ref.delete().catch(() => undefined)),
-      db.collection("storeCatalog").doc("hide_coins_30d").delete().catch(() => undefined),
+      ...allCatalogIds.map(async (itemId) => {
+        const ref = db.collection("storeCatalog").doc(itemId);
+        await ref.delete().catch(() => undefined);
+        const versions = await db.collection("storeCatalogVersions").doc(itemId).collection("versions").get();
+        await Promise.all(versions.docs.map((doc) => doc.ref.delete()));
+        const previous = priorCatalogSnapshots[allCatalogIds.indexOf(itemId)];
+        if (previous.exists) await ref.set(previous.data());
+        const previousVersions = priorVersionSnapshots.find((entry) => entry.itemId === itemId)?.docs ?? [];
+        await Promise.all(previousVersions.map((doc) => doc.ref.set(doc.data())));
+      }),
       db.recursiveDelete(memberRef).catch(() => undefined),
     ]);
   }

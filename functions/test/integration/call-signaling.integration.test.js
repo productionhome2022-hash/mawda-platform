@@ -2,12 +2,33 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const {
-  startCall, respondToCall, markCallConnected, sendCallSignal, getCallSignals, endCall, getActiveCall, getCallIceConfiguration,
+  startCall, respondToCall, requestRoomCallJoin, respondToRoomCallJoinRequest,
+  consentToRoomCallBilling, getActiveRoomCall, listRoomCallJoinRequests,
+  getRoomCallJoinRequestStatus, markCallConnected, sendCallSignal, getCallSignals,
+  endCall, getActiveCall, getCallIceConfiguration,
 } = require("../../lib/index");
 
 const db = getFirestore();
 const call = (uid, data = {}) => ({ data, auth: { uid, token: {} } });
 const uid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+const callUsagePolicyRef = db.doc("platformSettings/callUsagePolicy");
+let previousCallUsagePolicy = null;
+test.before(async () => {
+  const snapshot = await callUsagePolicyRef.get();
+  previousCallUsagePolicy = snapshot.exists ? snapshot.data() : null;
+  await callUsagePolicyRef.set({
+    version: 1,
+    policy: {
+      active: true, quotaWindowMs: 24 * 60 * 60 * 1000,
+      audioCallsPerWindow: 5, videoCallsPerWindow: 3,
+      maxCallDurationMs: 5 * 60 * 1000,
+    },
+  });
+});
+test.after(async () => {
+  if (previousCallUsagePolicy) await callUsagePolicyRef.set(previousCallUsagePolicy);
+  else await callUsagePolicyRef.delete().catch(() => undefined);
+});
 
 test("direct call lifecycle enforces membership, callee acceptance, sequenced signaling and termination", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
@@ -111,6 +132,9 @@ test("room call signaling is peer-targeted and one member leaving does not end t
   const roomId = uid("room_call");
   const callId = uid("room_call_session");
   const roomRef = db.collection("rooms").doc(roomId);
+  const rentalId = `room_call_rental_${roomId}`;
+  const rentalRef = db.collection("roomRentals").doc(rentalId);
+  const expiresAt = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
   const memberRefs = [callerUid, firstUid, secondUid].map((memberUid) =>
     db.collection("users").doc(memberUid));
   const callRef = db.collection("callSessions").doc(callId);
@@ -120,9 +144,11 @@ test("room call signaling is peer-targeted and one member leaving does not end t
     })),
     roomRef.set({
       roomId, name: "غرفة اختبار المكالمات", ownerUid: callerUid,
-      kind: "public", audience: "adult", status: "active", capacity: 5,
+      kind: "private", isRented: true, rentalId, expiresAt,
+      audience: "adult", status: "active", capacity: 5,
       memberCount: 3,
     }),
+    rentalRef.set({ rentalId, roomId, ownerUid: callerUid, status: "active", expiresAt }),
     ...[callerUid, firstUid, secondUid].map((memberUid) =>
       roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" })),
   ]);
@@ -130,7 +156,41 @@ test("room call signaling is peer-targeted and one member leaving does not end t
     const started = await startCall.run(call(callerUid, {
       callId, scope: "room", targetId: roomId, mode: "video",
     }));
-    assert.equal(started.participantUids.length, 3);
+    assert.deepEqual(started.participantUids, [callerUid]);
+    await requestRoomCallJoin.run(call(firstUid, { callId }));
+    const replayRequest = await requestRoomCallJoin.run(call(firstUid, { callId }));
+    assert.equal(replayRequest.idempotentReplay, true);
+    await requestRoomCallJoin.run(call(secondUid, { callId }));
+    await assert.rejects(
+      () => respondToRoomCallJoinRequest.run(call(firstUid, {
+        callId, requesterUid: secondUid, decision: "approve",
+      })),
+      (error) => error && error.code === "permission-denied",
+      "only the creator may approve a room-call join request",
+    );
+    await assert.rejects(
+      () => respondToCall.run(call(firstUid, { callId, response: "accept" })),
+      (error) => error && error.code === "permission-denied",
+      "room participants cannot self-approve through the direct-call endpoint",
+    );
+    await assert.rejects(
+      () => sendCallSignal.run(call(callerUid, {
+        callId, toUid: firstUid,
+        signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
+      })),
+      (error) => error && error.code === "permission-denied",
+      "a pending requester must not receive signaling",
+    );
+    await respondToRoomCallJoinRequest.run(call(callerUid, {
+      callId, requesterUid: firstUid, decision: "approve",
+    }));
+    const replayApproval = await respondToRoomCallJoinRequest.run(call(callerUid, {
+      callId, requesterUid: firstUid, decision: "approve",
+    }));
+    assert.equal(replayApproval.idempotentReplay, true);
+    await respondToRoomCallJoinRequest.run(call(callerUid, {
+      callId, requesterUid: secondUid, decision: "approve",
+    }));
     await sendCallSignal.run(call(callerUid, {
       callId, toUid: firstUid,
       signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
@@ -139,8 +199,6 @@ test("room call signaling is peer-targeted and one member leaving does not end t
       callId, toUid: secondUid,
       signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
     }));
-    await respondToCall.run(call(firstUid, { callId, response: "accept" }));
-    await respondToCall.run(call(secondUid, { callId, response: "accept" }));
     const firstSignals = await getCallSignals.run(call(firstUid, { callId, afterSequence: -1 }));
     const secondSignals = await getCallSignals.run(call(secondUid, { callId, afterSequence: -1 }));
     assert.equal(firstSignals.signals.length, 1);
@@ -171,11 +229,118 @@ test("room call signaling is peer-targeted and one member leaving does not end t
   } finally {
     await db.recursiveDelete(callRef).catch(() => undefined);
     await db.recursiveDelete(roomRef).catch(() => undefined);
+    await db.recursiveDelete(rentalRef).catch(() => undefined);
     await Promise.all([
       ...memberRefs,
       ...[callerUid, firstUid, secondUid].map((memberUid) =>
         db.collection("activeCallMemberLocks").doc(memberUid)),
     ].map((ref) => db.recursiveDelete(ref).catch(() => undefined)));
+  }
+});
+
+test("audio group participant capacity follows rented-room capacity for 2, 4, 7 and 9 members", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  for (const size of [2, 4, 7, 9]) {
+    const callerUid = uid(`audio_capacity_${size}`);
+    const roomId = uid(`audio_room_${size}`);
+    const callId = uid(`audio_call_${size}`);
+    const rentalId = uid(`audio_rental_${size}`);
+    const roomRef = db.collection("rooms").doc(roomId);
+    const rentalRef = db.collection("roomRentals").doc(rentalId);
+    const callRef = db.collection("callSessions").doc(callId);
+    const memberUids = [callerUid, ...Array.from({ length: size - 1 }, (_, i) => uid(`audio_peer_${size}_${i}`))];
+    const memberRefs = memberUids.map((memberUid) => db.collection("users").doc(memberUid));
+    const expiresAt = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
+    await Promise.all([
+      ...memberRefs.map((ref) => ref.set({ profileCompleted: true, accountStatus: "active", age: 30 })),
+      roomRef.set({
+        roomId, ownerUid: callerUid, kind: "private", isRented: true,
+        rentalId, expiresAt, status: "active", capacity: size, memberCount: size,
+      }),
+      rentalRef.set({ rentalId, roomId, ownerUid: callerUid, status: "active", expiresAt }),
+      ...memberUids.map((memberUid) =>
+        roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: memberUid === callerUid ? "owner" : "member" })),
+    ]);
+    try {
+      const started = await startCall.run(call(callerUid, {
+        callId, scope: "room", targetId: roomId, mode: "audio",
+      }));
+      assert.deepEqual(started.participantUids, [callerUid]);
+      for (const memberUid of memberUids.slice(1)) {
+        await requestRoomCallJoin.run(call(memberUid, { callId }));
+        await respondToRoomCallJoinRequest.run(call(callerUid, {
+          callId, requesterUid: memberUid, decision: "approve",
+        }));
+      }
+      const callSnapshot = await callRef.get();
+      assert.equal(callSnapshot.data()?.participantUids.length, size);
+      await endCall.run(call(callerUid, { callId }));
+    } finally {
+      await Promise.all([
+        db.recursiveDelete(callRef).catch(() => undefined),
+        db.recursiveDelete(roomRef).catch(() => undefined),
+        db.recursiveDelete(rentalRef).catch(() => undefined),
+        ...memberRefs.map((ref) => db.recursiveDelete(ref).catch(() => undefined)),
+        ...memberUids.map((memberUid) =>
+          db.recursiveDelete(db.collection("activeCallMemberLocks").doc(memberUid)).catch(() => undefined)),
+      ]);
+    }
+  }
+});
+
+test("video group call enforces four total participants under concurrent creator approvals", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const callerUid = uid("video_capacity_caller");
+  const roomId = uid("video_capacity_room");
+  const callId = uid("video_capacity_call");
+  const rentalId = uid("video_capacity_rental");
+  const roomRef = db.collection("rooms").doc(roomId);
+  const rentalRef = db.collection("roomRentals").doc(rentalId);
+  const callRef = db.collection("callSessions").doc(callId);
+  const memberUids = [callerUid, ...Array.from({ length: 4 }, (_, i) => uid(`video_capacity_peer_${i}`))];
+  const memberRefs = memberUids.map((memberUid) => db.collection("users").doc(memberUid));
+  const expiresAt = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
+  await Promise.all([
+    ...memberRefs.map((ref) => ref.set({ profileCompleted: true, accountStatus: "active", age: 30 })),
+    roomRef.set({
+      roomId, ownerUid: callerUid, kind: "private", isRented: true,
+      rentalId, expiresAt, status: "active", capacity: 5, memberCount: 5,
+    }),
+    rentalRef.set({ rentalId, roomId, ownerUid: callerUid, status: "active", expiresAt }),
+    ...memberUids.map((memberUid) =>
+      roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" })),
+  ]);
+  try {
+    const started = await startCall.run(call(callerUid, { callId, scope: "room", targetId: roomId, mode: "video" }));
+    assert.deepEqual(started.participantUids, [callerUid]);
+    for (const memberUid of memberUids.slice(1, 3)) {
+      await requestRoomCallJoin.run(call(memberUid, { callId }));
+      await respondToRoomCallJoinRequest.run(call(callerUid, {
+        callId, requesterUid: memberUid, decision: "approve",
+      }));
+    }
+    const competingMembers = memberUids.slice(3);
+    await Promise.all(competingMembers.map((memberUid) =>
+      requestRoomCallJoin.run(call(memberUid, { callId }))));
+    const competingApprovals = await Promise.allSettled(competingMembers.map((memberUid) =>
+      respondToRoomCallJoinRequest.run(call(callerUid, {
+        callId, requesterUid: memberUid, decision: "approve",
+      }))));
+    const approvedCount = competingApprovals.filter((result) => result.status === "fulfilled").length;
+    const rejectedResults = competingApprovals.filter((result) => result.status === "rejected");
+    assert.equal(approvedCount, 1, "only one concurrent approval may consume the final video slot");
+    assert.equal(rejectedResults.length, 1);
+    assert.equal(rejectedResults[0].reason.code, "resource-exhausted");
+    assert.equal((await callRef.get()).data()?.participantUids.length, 4);
+    await endCall.run(call(callerUid, { callId }));
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(roomRef).catch(() => undefined),
+      db.recursiveDelete(rentalRef).catch(() => undefined),
+      ...memberRefs.map((ref) => db.recursiveDelete(ref).catch(() => undefined)),
+      ...memberUids.map((memberUid) =>
+        db.recursiveDelete(db.collection("activeCallMemberLocks").doc(memberUid)).catch(() => undefined)),
+    ]);
   }
 });
 
@@ -323,6 +488,12 @@ test("server starts a non-resettable five-minute call ceiling only after both en
     callId, scope: "direct", status: "accepted", callerUid,
     participantUids: [callerUid, calleeUid], acceptedUids: [calleeUid],
     rejectedUids: [], leftUids: [], connectedUids: [],
+    usagePolicyVersion: 1,
+    usagePolicySnapshot: {
+      active: true, quotaWindowMs: 24 * 60 * 60 * 1000,
+      audioCallsPerWindow: 5, videoCallsPerWindow: 3,
+      maxCallDurationMs: 5 * 60 * 1000,
+    },
   });
   await Promise.all([
     callerLock.set({ callId, status: "active" }),
@@ -361,6 +532,453 @@ test("server starts a non-resettable five-minute call ceiling only after both en
       db.recursiveDelete(callRef).catch(() => undefined),
       db.recursiveDelete(callerLock).catch(() => undefined),
       db.recursiveDelete(calleeLock).catch(() => undefined),
+    ]);
+  }
+});
+
+test("room group call records late media connections without resetting the shared deadline", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const callerUid = uid("room_timer_creator");
+  const firstUid = uid("room_timer_first");
+  const lateUid = uid("room_timer_late");
+  const callId = uid("room_timer_session");
+  const callRef = db.collection("callSessions").doc(callId);
+  const locks = [callerUid, firstUid, lateUid].map((memberUid) =>
+    db.collection("activeCallMemberLocks").doc(memberUid));
+  await callRef.set({
+    callId, scope: "room", targetId: uid("rented_room"), mode: "audio",
+    status: "accepted", callerUid,
+    participantUids: [callerUid, firstUid, lateUid],
+    acceptedUids: [firstUid, lateUid], rejectedUids: [], leftUids: [],
+    connectedUids: [],
+    usagePolicyVersion: 1,
+    usagePolicySnapshot: {
+      active: true, quotaWindowMs: 24 * 60 * 60 * 1000,
+      audioCallsPerWindow: 5, videoCallsPerWindow: 3,
+      maxCallDurationMs: 60 * 1000,
+    },
+  });
+  await Promise.all(locks.map((lock) => lock.set({ callId, status: "active" })));
+  try {
+    const creatorReport = await markCallConnected.run(call(callerUid, { callId }));
+    assert.equal(creatorReport.connected, false);
+    const firstParticipantReport = await markCallConnected.run(call(firstUid, { callId }));
+    assert.equal(firstParticipantReport.connected, true);
+    assert.equal(
+      firstParticipantReport.maxDurationEndsAtMs - firstParticipantReport.connectedAtMs,
+      5 * 60 * 1000,
+      "room audio uses the fixed shared five-minute ceiling",
+    );
+
+    const lateParticipantReport = await markCallConnected.run(call(lateUid, { callId }));
+    assert.equal(lateParticipantReport.connected, true);
+    assert.equal(lateParticipantReport.idempotentReplay, false);
+    assert.equal(lateParticipantReport.connectedAtMs, firstParticipantReport.connectedAtMs);
+    assert.equal(lateParticipantReport.maxDurationEndsAtMs, firstParticipantReport.maxDurationEndsAtMs);
+
+    const stored = (await callRef.get()).data();
+    assert.deepEqual(new Set(stored.connectedUids), new Set([callerUid, firstUid, lateUid]));
+    assert.ok(stored.mediaConnectedAt[callerUid] instanceof Timestamp);
+    assert.ok(stored.mediaConnectedAt[firstUid] instanceof Timestamp);
+    assert.ok(stored.mediaConnectedAt[lateUid] instanceof Timestamp);
+
+    const replay = await markCallConnected.run(call(lateUid, { callId }));
+    assert.equal(replay.idempotentReplay, true);
+    assert.equal(replay.maxDurationEndsAtMs, firstParticipantReport.maxDurationEndsAtMs);
+
+    await callRef.update({ maxDurationEndsAt: Timestamp.fromMillis(Date.now() - 1) });
+    await assert.rejects(
+      () => markCallConnected.run(call(lateUid, { callId })),
+      (error) => error && error.code === "deadline-exceeded",
+      "the shared deadline must end the call for every participant",
+    );
+    assert.equal((await callRef.get()).data()?.status, "ended");
+    for (const memberUid of [callerUid, firstUid, lateUid]) {
+      assert.equal((await getActiveCall.run(call(memberUid))).active, false);
+    }
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(callRef).catch(() => undefined),
+      ...locks.map((lock) => db.recursiveDelete(lock).catch(() => undefined)),
+    ]);
+  }
+});
+
+test("room participants cannot obtain ICE or signaling access before acceptance", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const creatorUid = uid("room_ice_creator");
+  const pendingUid = uid("room_ice_pending");
+  const callId = uid("room_ice_session");
+  const callRef = db.collection("callSessions").doc(callId);
+  await callRef.set({
+    callId, scope: "room", targetId: uid("room_ice_target"), mode: "audio",
+    status: "ringing", callerUid: creatorUid,
+    participantUids: [creatorUid, pendingUid],
+    acceptedUids: [], rejectedUids: [], leftUids: [],
+    expiresAt: Timestamp.fromMillis(Date.now() + 60_000),
+  });
+  try {
+    await assert.rejects(
+      () => getCallIceConfiguration.run(call(pendingUid, { callId })),
+      (error) => error && error.code === "permission-denied",
+      "a room invite alone must not grant ICE credentials",
+    );
+    await assert.rejects(
+      () => getCallSignals.run(call(pendingUid, { callId })),
+      (error) => error && error.code === "permission-denied",
+      "a room invite alone must not grant access to signaling inbox",
+    );
+    await assert.rejects(
+      () => sendCallSignal.run(call(creatorUid, {
+        callId, toUid: pendingUid,
+        signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
+      })),
+      (error) => error && error.code === "permission-denied",
+      "the creator must not exchange signaling with a participant before approval",
+    );
+
+    await callRef.update({ status: "accepted", acceptedUids: [pendingUid] });
+    const ice = await getCallIceConfiguration.run(call(pendingUid, { callId }));
+    assert.equal(ice.turnConfigured, false);
+    assert.ok(ice.iceServers.some((server) => server.urls.includes("stun:stun.l.google.com:19302")));
+  } finally {
+    await db.recursiveDelete(callRef).catch(() => undefined);
+  }
+});
+
+
+
+test("room call pricing is snapshotted and join approval requires separate financial consent", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const creatorUid = uid("priced_room_creator");
+  const memberUid = uid("priced_room_member");
+  const roomId = uid("priced_room");
+  const callId = uid("priced_room_call");
+  const rentalId = uid("priced_room_rental");
+  const roomRef = db.collection("rooms").doc(roomId);
+  const rentalRef = db.collection("roomRentals").doc(rentalId);
+  const callRef = db.collection("callSessions").doc(callId);
+  const pricingRef = db.doc("platformSettings/groupCallPricing");
+  const priorPricing = await pricingRef.get();
+  const priorPricingData = priorPricing.exists ? priorPricing.data() : null;
+  const expiresAt = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
+  await pricingRef.set({
+    policyId: uid("group_video_unpriced"), version: 6, active: true,
+    audioCoinsPerMinute: 1000, videoCoinsPerMinute: 0, updatedAtMs: Date.now(),
+  });
+  await Promise.all([
+    db.collection("users").doc(creatorUid).set({ profileCompleted: true, accountStatus: "active", age: 30 }),
+    db.collection("users").doc(memberUid).set({ profileCompleted: true, accountStatus: "active", age: 31 }),
+    roomRef.set({ roomId, ownerUid: creatorUid, kind: "private", isRented: true, rentalId, expiresAt, status: "active", capacity: 4 }),
+    rentalRef.set({ rentalId, roomId, ownerUid: creatorUid, status: "active", expiresAt }),
+    roomRef.collection("members").doc(creatorUid).set({ uid: creatorUid, role: "member" }),
+    roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" }),
+    pricingRef.set({
+      policyId: uid("group_price_policy"), version: 7, active: true,
+      audioCoinsPerMinute: 1000, videoCoinsPerMinute: 2000, updatedAtMs: Date.now(),
+    }),
+  ]);
+  try {
+    await pricingRef.set({
+      policyId: uid("group_video_unpriced"), version: 6, active: true,
+      audioCoinsPerMinute: 1000, videoCoinsPerMinute: 0, updatedAtMs: Date.now(),
+    });
+    await assert.rejects(
+      () => startCall.run(call(creatorUid, {
+        callId: uid("unpriced_video_call"), scope: "room", targetId: roomId, mode: "video",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "an active owner policy with no price for this mode must not silently allow free calls",
+    );
+    await pricingRef.set({
+      policyId: uid("group_price_policy"), version: 7, active: true,
+      audioCoinsPerMinute: 1000, videoCoinsPerMinute: 2000, updatedAtMs: Date.now(),
+    });
+    const started = await startCall.run(call(creatorUid, {
+      callId, scope: "room", targetId: roomId, mode: "video",
+    }));
+    assert.deepEqual(started.participantUids, [creatorUid]);
+    const snap = (await callRef.get()).data();
+    assert.equal(snap.groupCallPricingSnapshot.version, 7);
+    assert.equal(snap.groupCallPricingSnapshot.videoCoinsPerMinute, 2000);
+
+    await pricingRef.set({
+      policyId: uid("changed_group_policy"), version: 8, active: true,
+      audioCoinsPerMinute: 500, videoCoinsPerMinute: 9000, updatedAtMs: Date.now(),
+    });
+    assert.equal((await callRef.get()).data().groupCallPricingSnapshot.version, 7,
+      "an owner price change must not rewrite the call's accepted price snapshot");
+
+    const memberConsentBeforeRequest = await consentToRoomCallBilling.run(call(memberUid, {
+      callId, consent: true,
+    }));
+    assert.equal(memberConsentBeforeRequest.consented, true,
+      "financial consent is a separate decision and can be recorded before the join request");
+    await requestRoomCallJoin.run(call(memberUid, { callId }));
+    const roomCallState = await getActiveRoomCall.run(call(memberUid, { roomId }));
+    assert.equal(roomCallState.active, true);
+    assert.equal(roomCallState.callId, callId);
+    assert.equal(roomCallState.billingRequired, true);
+    assert.equal(roomCallState.billingRate, 2000);
+    const creatorPending = await listRoomCallJoinRequests.run(call(creatorUid, { callId }));
+    assert.deepEqual(creatorPending.requests.map((item) => item.uid), [memberUid]);
+    const requesterState = await getRoomCallJoinRequestStatus.run(call(memberUid, { callId }));
+    assert.equal(requesterState.status, "requested");
+    await assert.rejects(
+      () => respondToRoomCallJoinRequest.run(call(creatorUid, {
+        callId, requesterUid: memberUid, decision: "approve",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "creator and member must separately consent before approval",
+    );
+    await consentToRoomCallBilling.run(call(creatorUid, { callId, consent: true }));
+    const approved = await respondToRoomCallJoinRequest.run(call(creatorUid, {
+      callId, requesterUid: memberUid, decision: "approve",
+    }));
+    assert.equal(approved.approved, true);
+    const stored = (await callRef.get()).data();
+    assert.equal(stored.billingConsents[creatorUid].policyVersion, 7);
+    assert.equal(stored.billingConsents[memberUid].policyVersion, 7);
+  } finally {
+    if (priorPricingData) await pricingRef.set(priorPricingData);
+    else await pricingRef.delete().catch(() => undefined);
+    await Promise.all([
+      db.recursiveDelete(callRef).catch(() => undefined),
+      db.recursiveDelete(roomRef).catch(() => undefined),
+      db.recursiveDelete(rentalRef).catch(() => undefined),
+      db.recursiveDelete(db.collection("users").doc(creatorUid)).catch(() => undefined),
+      db.recursiveDelete(db.collection("users").doc(memberUid)).catch(() => undefined),
+      ...[creatorUid, memberUid].map((member) =>
+        db.recursiveDelete(db.collection("activeCallMemberLocks").doc(member)).catch(() => undefined)),
+    ]);
+  }
+});
+
+
+test("group call end charges every media-connected member an equal share, including late joiners, and retries insufficient balances idempotently", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const memberUids = Array.from({ length: 4 }, (_, i) => uid("settlement_member_" + i));
+  const [creatorUid, earlyUid, lateUid, lastSecondUid] = memberUids;
+  const callId = uid("group_settlement_call");
+  const callRef = db.collection("callSessions").doc(callId);
+  const memberRefs = memberUids.map((memberUid) => db.collection("users").doc(memberUid));
+  const connectedAt = Timestamp.fromMillis(Date.now() - 10 * 1000);
+  const endedAt = Timestamp.now();
+  const maxDurationEndsAt = Timestamp.fromMillis(connectedAt.toMillis() + 3 * 60 * 1000);
+  await Promise.all([
+    ...memberRefs.map((ref, index) => ref.set({
+      profileCompleted: true, accountStatus: "active", age: 30,
+      coins: index === 3 ? 0 : 1000,
+    })),
+    callRef.set({
+      callId, scope: "room", targetId: uid("settlement_room"), mode: "video",
+      callerUid: creatorUid, participantUids: memberUids,
+      acceptedUids: memberUids, rejectedUids: [], leftUids: [],
+      status: "accepted", connectedAt, maxDurationEndsAt,
+      mediaConnectedAt: {
+        [creatorUid]: connectedAt,
+        [earlyUid]: connectedAt,
+        [lateUid]: Timestamp.fromMillis(connectedAt.toMillis() + 8 * 1000),
+        [lastSecondUid]: Timestamp.fromMillis(connectedAt.toMillis() + 9999),
+      },
+      // Emulator fixture models provider-verified events; ordinary client
+      // markCallConnected reports alone must never authorize a debit.
+      mediaEvidenceVerifiedAt: {
+        [creatorUid]: connectedAt,
+        [earlyUid]: connectedAt,
+        [lateUid]: Timestamp.fromMillis(connectedAt.toMillis() + 8 * 1000),
+        [lastSecondUid]: Timestamp.fromMillis(connectedAt.toMillis() + 9999),
+      },
+      groupCallPricingSnapshot: {
+        policyId: "settlement_owner_policy", version: 9, active: true,
+        audioCoinsPerMinute: 1000, videoCoinsPerMinute: 2000,
+        updatedAtMs: Date.now(),
+      },
+      billingConsents: Object.fromEntries(memberUids.map((memberUid) => [memberUid, {
+        consented: true, policyId: "settlement_owner_policy", policyVersion: 9,
+        consentedAt: connectedAt,
+      }])),
+    }),
+  ]);
+  try {
+    const [firstEnd, concurrentEndReplay] = await Promise.all([
+      endCall.run(call(creatorUid, { callId })),
+      endCall.run(call(creatorUid, { callId })),
+    ]);
+    assert.equal(firstEnd.status, "ended");
+    assert.equal(concurrentEndReplay.status, "ended");
+    assert.equal(firstEnd.billingSettlementStatus, "pending",
+      "the call ends but an insufficient member balance remains safely retryable");
+    const afterFirst = await Promise.all(memberRefs.map((ref) => ref.get()));
+    assert.deepEqual(afterFirst.map((snapshot) => snapshot.data().coins), [500, 500, 500, 0]);
+    for (const memberUid of memberUids.slice(0, 3)) {
+      const ledger = await db.collection("users").doc(memberUid)
+        .collection("walletLedger").doc("group_call_" + callId).get();
+      assert.equal(ledger.data()?.amount, -500);
+      assert.equal(ledger.data()?.equalShare, true);
+    }
+    const lateReceipt = await callRef.collection("billingSettlements").doc(lastSecondUid).get();
+    assert.equal(lateReceipt.data()?.status, "insufficient_funds");
+    assert.equal(lateReceipt.data()?.amount, 500);
+
+    await memberRefs[3].update({ coins: 1000 });
+    const replay = await endCall.run(call(creatorUid, { callId }));
+    assert.equal(replay.idempotentReplay, true);
+    assert.equal(replay.billingSettlementStatus, "settled");
+    const afterRetry = await Promise.all(memberRefs.map((ref) => ref.get()));
+    assert.deepEqual(afterRetry.map((snapshot) => snapshot.data().coins), [500, 500, 500, 500]);
+    const finalState = (await callRef.get()).data();
+    assert.equal(finalState.groupCallBillingState, "settled");
+    assert.equal(finalState.groupCallBillingSummary.totalAmount, 2000);
+    assert.equal(finalState.groupCallBillingSummary.billableMinutes, 1);
+    assert.equal(finalState.groupCallBillingSummary.participantCount, 4);
+    assert.deepEqual(finalState.groupCallBillingSummary.shares.map((item) => item.amount), [500, 500, 500, 500]);
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(callRef).catch(() => undefined),
+      ...memberRefs.map((ref) => db.recursiveDelete(ref).catch(() => undefined)),
+    ]);
+  }
+});
+
+
+test("ending a large audio room call clears more than 500 participant locks in bounded transactions", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const memberUids = Array.from({ length: 501 }, (_, i) => uid("large_room_member_" + i));
+  const [creatorUid] = memberUids;
+  const callId = uid("large_room_call");
+  const callRef = db.collection("callSessions").doc(callId);
+  const lockRefs = memberUids.map((memberUid) =>
+    db.collection("activeCallMemberLocks").doc(memberUid));
+  await callRef.set({
+    callId, scope: "room", targetId: uid("large_rented_room"), mode: "audio",
+    callerUid: creatorUid, participantUids: memberUids,
+    acceptedUids: [creatorUid], rejectedUids: [], leftUids: [],
+    status: "ringing", expiresAt: Timestamp.fromMillis(Date.now() + 60 * 60 * 1000),
+  });
+  for (let offset = 0; offset < lockRefs.length; offset += 400) {
+    const batch = db.batch();
+    lockRefs.slice(offset, offset + 400).forEach((ref) =>
+      batch.set(ref, { callId, status: "active" }));
+    await batch.commit();
+  }
+  try {
+    const result = await endCall.run(call(creatorUid, { callId }));
+    assert.equal(result.status, "cancelled");
+    for (let offset = 0; offset < lockRefs.length; offset += 100) {
+      const snapshots = await db.getAll(...lockRefs.slice(offset, offset + 100));
+      assert.equal(snapshots.filter((snapshot) => snapshot.exists).length, 0);
+    }
+  } finally {
+    await db.recursiveDelete(callRef).catch(() => undefined);
+    for (let offset = 0; offset < lockRefs.length; offset += 400) {
+      const batch = db.batch();
+      lockRefs.slice(offset, offset + 400).forEach((ref) => batch.delete(ref));
+      await batch.commit().catch(() => undefined);
+    }
+  }
+});
+
+
+test("group-call settlement fails closed when client-reported media lacks trusted provider evidence", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const creatorUid = uid("unverified_creator");
+  const memberUid = uid("unverified_member");
+  const callId = uid("unverified_media_call");
+  const callRef = db.collection("callSessions").doc(callId);
+  const creatorRef = db.collection("users").doc(creatorUid);
+  const memberRef = db.collection("users").doc(memberUid);
+  const connectedAt = Timestamp.fromMillis(Date.now() - 5000);
+  const policyId = uid("unverified_policy");
+  await Promise.all([
+    creatorRef.set({ coins: 1000, profileCompleted: true, accountStatus: "active", age: 30 }),
+    memberRef.set({ coins: 1000, profileCompleted: true, accountStatus: "active", age: 30 }),
+    callRef.set({
+      callId, scope: "room", targetId: uid("unverified_room"), mode: "video",
+      callerUid: creatorUid, participantUids: [creatorUid, memberUid],
+      acceptedUids: [creatorUid, memberUid], rejectedUids: [], leftUids: [],
+      status: "ended", connectedAt, endedAt: Timestamp.now(),
+      maxDurationEndsAt: Timestamp.fromMillis(connectedAt.toMillis() + 180000),
+      mediaConnectedAt: { [creatorUid]: connectedAt, [memberUid]: connectedAt },
+      groupCallPricingSnapshot: {
+        policyId, version: 1, active: true,
+        audioCoinsPerMinute: 100, videoCoinsPerMinute: 200, updatedAtMs: Date.now(),
+      },
+      billingConsents: Object.fromEntries([creatorUid, memberUid].map((uid) => [uid, {
+        consented: true, policyId, policyVersion: 1, consentedAt: connectedAt,
+      }])),
+    }),
+  ]);
+  try {
+    const result = await endCall.run(call(creatorUid, { callId }));
+    assert.equal(result.billingSettlementStatus, "blocked_unverified_media");
+    const [creator, member, ledger, finalCall] = await Promise.all([
+      creatorRef.get(), memberRef.get(),
+      creatorRef.collection("walletLedger").doc("group_call_" + callId).get(),
+      callRef.get(),
+    ]);
+    assert.equal(creator.data()?.coins, 1000);
+    assert.equal(member.data()?.coins, 1000);
+    assert.equal(ledger.exists, false);
+    assert.equal(finalCall.data()?.groupCallBillingState, "blocked_unverified_media");
+    assert.equal(finalCall.data()?.groupCallBillingBlockReason,
+      "awaiting_server_verified_media_evidence");
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(callRef).catch(() => undefined),
+      db.recursiveDelete(creatorRef).catch(() => undefined),
+      db.recursiveDelete(memberRef).catch(() => undefined),
+    ]);
+  }
+});
+
+test("group-call settlement fails closed when a connected member lacks matching financial consent", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const creatorUid = uid("no_consent_creator");
+  const memberUid = uid("no_consent_member");
+  const callId = uid("no_consent_call");
+  const callRef = db.collection("callSessions").doc(callId);
+  const creatorRef = db.collection("users").doc(creatorUid);
+  const memberRef = db.collection("users").doc(memberUid);
+  const connectedAt = Timestamp.fromMillis(Date.now() - 5000);
+  const policyId = uid("no_consent_policy");
+  await Promise.all([
+    creatorRef.set({ coins: 1000 }),
+    memberRef.set({ coins: 1000 }),
+    callRef.set({
+      callId, scope: "room", targetId: uid("no_consent_room"), mode: "audio",
+      callerUid: creatorUid, participantUids: [creatorUid, memberUid],
+      acceptedUids: [creatorUid, memberUid], rejectedUids: [], leftUids: [],
+      status: "ended", connectedAt, endedAt: Timestamp.now(),
+      maxDurationEndsAt: Timestamp.fromMillis(connectedAt.toMillis() + 300000),
+      mediaConnectedAt: { [creatorUid]: connectedAt, [memberUid]: connectedAt },
+      mediaEvidenceVerifiedAt: { [creatorUid]: connectedAt, [memberUid]: connectedAt },
+      groupCallPricingSnapshot: {
+        policyId, version: 2, active: true,
+        audioCoinsPerMinute: 100, videoCoinsPerMinute: 200, updatedAtMs: Date.now(),
+      },
+      billingConsents: {
+        [creatorUid]: { consented: true, policyId, policyVersion: 2, consentedAt: connectedAt },
+      },
+    }),
+  ]);
+  try {
+    const result = await endCall.run(call(creatorUid, { callId }));
+    assert.equal(result.billingSettlementStatus, "blocked_missing_financial_consent");
+    const [creator, member, ledger, finalCall] = await Promise.all([
+      creatorRef.get(), memberRef.get(),
+      creatorRef.collection("walletLedger").doc("group_call_" + callId).get(),
+      callRef.get(),
+    ]);
+    assert.equal(creator.data()?.coins, 1000);
+    assert.equal(member.data()?.coins, 1000);
+    assert.equal(ledger.exists, false);
+    assert.equal(finalCall.data()?.groupCallBillingState, "blocked_missing_financial_consent");
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(callRef).catch(() => undefined),
+      db.recursiveDelete(creatorRef).catch(() => undefined),
+      db.recursiveDelete(memberRef).catch(() => undefined),
     ]);
   }
 });

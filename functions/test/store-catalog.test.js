@@ -11,6 +11,7 @@ test("projects only active catalog items with safe display fields", () => {
     priceCoins: 2500,
     durationDays: 30,
     sortOrder: 2,
+    version: null,
     internalCost: 999999,
     paymentSecret: "must-not-leak",
   }), {
@@ -22,6 +23,7 @@ test("projects only active catalog items with safe display fields", () => {
     priceCoins: 2500,
     durationDays: 30,
     sortOrder: 2,
+    version: null,
     purchaseEnabled: false,
     fulfillmentReady: false,
   });
@@ -64,6 +66,7 @@ test("owner catalog input requires safe identifiers, prices, category and public
     priceCoins: 2500,
     durationDays: 30,
     sortOrder: 3,
+    version: null,
     purchaseEnabled: false,
     fulfillmentReady: true,
     active: true,
@@ -92,13 +95,15 @@ test("store charging stays disabled until fulfillment is explicitly ready", () =
     active: true, purchaseEnabled: true, fulfillmentReady: false,
   }), false);
   assert.equal(isStoreItemPurchasable({
-    active: true, itemId: "vip_monthly", category: "vip", purchaseEnabled: true, fulfillmentReady: true,
+    active: true, version: 1, itemId: "vip_monthly", category: "vip", priceCoins: 500,
+    purchaseEnabled: true, fulfillmentReady: true,
   }), true);
   assert.equal(isStoreItemPurchasable({
     active: true, itemId: "profile_theme_30d", category: "theme", purchaseEnabled: true, fulfillmentReady: false,
   }), false);
   assert.equal(isStoreItemPurchasable({
-    active: true, itemId: "profile_theme_30d", category: "theme", purchaseEnabled: true, fulfillmentReady: true,
+    active: true, version: 1, itemId: "profile_theme_30d", category: "theme", priceCoins: 500,
+    purchaseEnabled: true, fulfillmentReady: true,
   }), true);
   assert.equal(isStoreItemPurchasable({
     active: true, itemId: "avatar_frame_30d", category: "vip", purchaseEnabled: true, fulfillmentReady: true,
@@ -131,6 +136,7 @@ test("only shipped premium profile consumers can be explicitly enabled for purch
       name: "عنصر مميز",
       description: "استحقاق ملف شخصي.",
       category,
+      version: 1,
       priceCoins: 500,
       durationDays: 30,
       sortOrder: 1,
@@ -185,4 +191,32 @@ test("voice and video call plans are valid catalog products but cannot be purcha
     assert.equal(item.purchaseEnabled, false, itemId);
     assert.equal(isStoreItemPurchasable(item), false, itemId);
   }
+});
+
+test("unpriced owner catalog drafts remain displayable but cannot be purchased", () => {
+  const { validateStoreCatalogItemInput, projectStoreCatalogItem, isStoreItemPurchasable } = require("../lib/store-catalog");
+  const draft = validateStoreCatalogItemInput({
+    itemId: "vip_monthly", name: "VIP", description: "امتيازات العضوية.",
+    category: "vip", priceCoins: null, sortOrder: 1, active: true, purchaseEnabled: false,
+  });
+  assert.equal(draft.priceCoins, null);
+  assert.equal(draft.purchaseEnabled, false);
+  assert.equal(isStoreItemPurchasable(draft), false);
+  assert.equal(projectStoreCatalogItem("vip_monthly", {
+    ...draft, purchaseEnabled: true, fulfillmentReady: true,
+  }), null);
+  assert.throws(() => validateStoreCatalogItemInput({
+    itemId: "vip_monthly", name: "VIP", description: "امتيازات العضوية.",
+    category: "vip", priceCoins: null, sortOrder: 1, active: true, purchaseEnabled: true,
+  }), /STORE_PRICE_NOT_CONFIGURED/);
+});
+
+test("store duration may be omitted or explicitly cleared by the owner", () => {
+  const { validateStoreCatalogItemInput } = require("../lib/store-catalog");
+  const item = validateStoreCatalogItemInput({
+    itemId: "vip_monthly", name: "VIP", description: "امتيازات العضوية.",
+    category: "vip", priceCoins: 500, durationDays: null,
+    sortOrder: 1, active: true, purchaseEnabled: false,
+  });
+  assert.equal(Object.hasOwn(item, "durationDays"), false);
 });

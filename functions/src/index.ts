@@ -1,5 +1,14 @@
 import { initializeApp } from "firebase-admin/app";
 import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
+import {
+  validateGroupCallPricingPolicy, calculateGroupCallFinalSettlement,
+} from "./group-call-economy";
+import { reconcileWalletLedger } from "./wallet-reconciliation";
+import {
+  isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, calculateStoreGiftExpiryMs,
+} from "./store-gifting";
+import { isActiveRentedPrivateRoom } from "./room-call-policy";
+import { validateCallUsagePolicy, callModeQuotaLimit, callMaxDurationEnd } from "./call-usage-policy";
 import { getAuth } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
 import { getStorage } from "firebase-admin/storage";
@@ -81,10 +90,16 @@ import {
 } from "./store-purchase";
 import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
 import { deleteMediaAssetForMessage } from "./media";
-import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
+import { validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
-import { DEFAULT_COIN_PACKAGES, DEFAULT_AD_PRICES, validateCoinPackages, validateAdPrices } from "./economy-pricing";
+import { validateCoinPackages, validateAdPrices } from "./economy-pricing";
+import { currencyExponentForCode } from "./economy-pricing";
+import { validateEconomicPaymentPolicy, projectEconomicPaymentPolicy } from "./economy-payment-policy";
+import {
+  validateFeaturedAdFinancialEvent, applyFeaturedAdFinancialEvent,
+  featuredAdFinancialIdempotencyId, defaultFeaturedAdFinancialSnapshot,
+} from "./featured-ad-finance";
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
@@ -6280,6 +6295,184 @@ export const listMemberRooms = onCall(async (request) => {
 
 
 /** Read-only published catalog. Purchase and entitlement changes remain separate trusted flows. */
+/** Gifts a configured store entitlement; sender debit, gift receipt and recipient grant are atomic. */
+export const giftStoreItem = onCall(async (request) => {
+  const senderUid = requireAuthenticatedUid(request.auth?.uid);
+  const rawRecipientUid = request.data?.recipientUid;
+  const recipientUsername = request.data?.recipientUsername;
+  const itemId = request.data?.itemId;
+  const requestId = request.data?.requestId;
+  const expectedPriceCoins = request.data?.expectedPriceCoins;
+  const expectedCatalogVersion = request.data?.expectedCatalogVersion;
+  let recipientUid = typeof rawRecipientUid === "string" ? rawRecipientUid : null;
+  let usernameRef: FirebaseFirestore.DocumentReference | null = null;
+  if (typeof recipientUsername === "string") {
+    const normalizedUsername = recipientUsername.trim();
+    if (normalizedUsername.length < 1 || normalizedUsername.length > 64 ||
+        normalizedUsername.includes("/") || /\s/.test(normalizedUsername)) {
+      throw new HttpsError("invalid-argument", "اسم المستلم غير صالح.");
+    }
+    usernameRef = db.collection("usernameRegistry").doc(normalizedUsername);
+    const usernameSnapshot = await usernameRef.get();
+    const registeredUid = usernameSnapshot.data()?.uid;
+    if (!usernameSnapshot.exists || typeof registeredUid !== "string") {
+      throw new HttpsError("not-found", "اسم المستخدم غير موجود.");
+    }
+    if (recipientUid !== null && recipientUid !== registeredUid) {
+      throw new HttpsError("invalid-argument", "معرف المستلم لا يطابق اسم المستخدم.");
+    }
+    recipientUid = registeredUid;
+  }
+  if (typeof recipientUid !== "string" || recipientUid.trim() !== recipientUid ||
+      recipientUid.length < 1 || recipientUid.length > 128 || recipientUid.includes("/") ||
+      recipientUid === senderUid || (usernameRef === null && typeof rawRecipientUid !== "string") ||
+      typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
+      typeof requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestId) ||
+      !Number.isSafeInteger(expectedPriceCoins) || expectedPriceCoins < 1 ||
+      !Number.isSafeInteger(expectedCatalogVersion) || expectedCatalogVersion < 1) {
+    throw new HttpsError("invalid-argument", "بيانات إهداء العنصر غير صالحة.");
+  }
+  const senderRef = db.collection("users").doc(senderUid);
+  const recipientRef = db.collection("users").doc(recipientUid);
+  const itemRef = db.collection("storeCatalog").doc(itemId);
+  const giftId = createHash("sha256").update(
+    `mawdda-store-gift-v1:${senderUid}:${requestId}`,
+  ).digest("hex");
+  const giftRef = db.collection("storeGifts").doc(giftId);
+  const ledgerRef = senderRef.collection("walletLedger").doc(`store_gift_${giftId}`);
+  const entitlementRef = recipientRef.collection("entitlements").doc(itemId);
+  const auditRef = db.collection("adminAuditLogs").doc(`store_gift_${giftId}`);
+  return db.runTransaction(async (transaction) => {
+    const [sender, recipient, itemSnapshot, priorGift, priorEntitlement, priorLedger, priorAudit, usernameSnapshot] = await Promise.all([
+      transaction.get(senderRef), transaction.get(recipientRef),
+      transaction.get(itemRef), transaction.get(giftRef), transaction.get(entitlementRef),
+      transaction.get(ledgerRef), transaction.get(auditRef),
+      usernameRef ? transaction.get(usernameRef) : Promise.resolve(null),
+    ]);
+    if (usernameRef && (!usernameSnapshot?.exists || usernameSnapshot.data()?.uid !== recipientUid)) {
+      throw new HttpsError("aborted", "تغير سجل اسم المستخدم؛ أعد المحاولة.");
+    }
+    if (priorGift.exists) {
+      const prior = priorGift.data() ?? {};
+      const ledger = priorLedger.data() ?? {};
+      const audit = priorAudit.data() ?? {};
+      if (!isStoreGiftReplayCompatible(prior, {
+        senderUid, recipientUid, itemId, expectedPriceCoins, expectedCatalogVersion,
+      })) {
+        throw new HttpsError("already-exists", "معرف طلب الإهداء مستخدم لعملية أو مستلم أو سعر مختلف.");
+      }
+      if (!priorLedger.exists || !priorAudit.exists ||
+          ledger.type !== "store_gift_purchase" || ledger.giftId !== giftId ||
+          ledger.amount !== -prior.priceCoins || ledger.recipientUid !== recipientUid ||
+          ledger.catalogVersion !== expectedCatalogVersion ||
+          !Number.isSafeInteger(ledger.balanceBefore) ||
+          !Number.isSafeInteger(ledger.balanceAfter) ||
+          ledger.balanceBefore - prior.priceCoins !== ledger.balanceAfter ||
+          audit.action !== "store_item_gifted" || audit.giftId !== giftId ||
+          audit.actorUid !== senderUid || audit.targetUid !== recipientUid) {
+        throw new HttpsError("data-loss", "إيصال الإهداء لا يطابق قيد المحفظة وسجل التدقيق.");
+      }
+      return {
+        giftId, itemId, recipientUid, priceCoins: prior.priceCoins,
+        newBalance: prior.newBalance,
+        expiresAt: prior.expiresAt instanceof Timestamp ? prior.expiresAt.toMillis() : null,
+        idempotentReplay: true,
+      };
+    }
+    if (!sender.exists || sender.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(sender.data())) {
+      throw new HttpsError("permission-denied", "حالة حساب المرسل لا تسمح بالإهداء.");
+    }
+    if (!recipient.exists || !isEligibleStoreGiftMemberRecord(recipient.data())) {
+      throw new HttpsError("failed-precondition", "المستلم غير مؤهل لاستلام هدية من المتجر.");
+    }
+    if (!itemSnapshot.exists) throw new HttpsError("not-found", "عنصر المتجر غير موجود.");
+    const item = projectStoreCatalogItem(itemId, itemSnapshot.data() ?? {});
+    if (!item || !isStoreItemPurchasable(item)) {
+      throw new HttpsError("failed-precondition", "هذا العنصر غير منشور أو أن استحقاقه غير جاهز للإهداء.");
+    }
+    if (item.version !== expectedCatalogVersion ||
+        !isStorePurchasePriceCurrent(expectedPriceCoins, item.priceCoins)) {
+      throw new HttpsError("failed-precondition", "تغير سعر العنصر أو إصداره؛ حدّث المتجر قبل الإهداء.");
+    }
+    const prior = priorEntitlement.data() ?? {};
+    if (prior.status === "active" &&
+        (prior.expiresAt === null || prior.expiresAt === undefined)) {
+      throw new HttpsError("already-exists", "يمتلك المستلم هذا الاستحقاق الدائم بالفعل.");
+    }
+    const nowMs = Date.now();
+    let expiresAtMs: number | null;
+    try {
+      let durationBase: Record<string, unknown> = prior;
+      if (item.category === "boost") {
+        const readExpiry = (value: unknown): number => {
+          if (value instanceof Timestamp) return value.toMillis();
+          if (value && typeof value === "object" &&
+              typeof (value as { toMillis?: unknown }).toMillis === "function") {
+            try { return (value as { toMillis: () => number }).toMillis(); } catch { return 0; }
+          }
+          return 0;
+        };
+        const baseExpiry = Math.max(
+          prior.status === "active" ? readExpiry(prior.expiresAt) : 0,
+          readExpiry(recipient.data()?.discoveryBoostExpiresAt),
+        );
+        durationBase = baseExpiry > 0 ? { status: "active", expiresAt: baseExpiry } : {};
+      }
+      expiresAtMs = calculateStoreGiftExpiryMs(durationBase, item.durationDays, nowMs);
+    } catch {
+      throw new HttpsError("failed-precondition", "سجل استحقاق المستلم غير صالح؛ أوقفنا الإهداء.");
+    }
+    const expiresAt = expiresAtMs === null ? null : Timestamp.fromMillis(expiresAtMs);
+    const senderBalance = readSafeInteger(sender.data()?.coins ?? 0, "coins");
+    const newBalance = calculateStorePurchaseBalance(senderBalance, item.priceCoins);
+    if (newBalance === null) throw new HttpsError("failed-precondition", "رصيد المرسل غير كافٍ أو غير صالح.");
+    const now = FieldValue.serverTimestamp();
+    transaction.update(senderRef, { coins: newBalance, walletUpdatedAt: now });
+    transaction.create(giftRef, {
+      giftId, senderUid, recipientUid, itemId, itemName: item.name,
+      category: item.category, priceCoins: item.priceCoins,
+      durationDays: item.durationDays ?? null, catalogVersion: item.version,
+      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
+      balanceBefore: senderBalance, newBalance, expiresAt, status: "completed", createdAt: now,
+    });
+    transaction.create(ledgerRef, {
+      type: "store_gift_purchase", direction: "debit", amount: -item.priceCoins,
+      giftId, recipientUid, itemId, itemName: item.name,
+      priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
+      catalogVersion: item.version,
+      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
+      balanceBefore: senderBalance, balanceAfter: newBalance, createdAt: now,
+    });
+    transaction.set(entitlementRef, {
+      itemId, itemName: item.name, category: item.category, status: "active",
+      giftId, giftedByUid: senderUid, catalogVersion: item.version,
+      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
+      purchasedAt: now, expiresAt,
+    });
+    const recipientUpdate: Record<string, unknown> = {};
+    if (item.category === "boost" && expiresAt) {
+      recipientUpdate.discoveryBoostExpiresAt = expiresAt;
+      recipientUpdate.discoveryBoostGiftId = giftId;
+    }
+    if (item.itemId === "profile_pin_30d" &&
+        typeof recipient.data()?.pinnedProfileSection !== "string") {
+      recipientUpdate.pinnedProfileSection = "interests";
+    }
+    if (Object.keys(recipientUpdate).length > 0) transaction.update(recipientRef, recipientUpdate);
+    transaction.create(auditRef, {
+      actorUid: senderUid, targetUid: recipientUid,
+      action: "store_item_gifted", giftId, itemId, itemName: item.name,
+      priceCoins: item.priceCoins, catalogVersion: item.version,
+      createdAt: now,
+    });
+    return {
+      giftId, itemId, recipientUid, priceCoins: item.priceCoins,
+      newBalance, expiresAt: expiresAtMs, idempotentReplay: false,
+    };
+  });
+});
+
 export const getStoreCatalog = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const member = await db.collection("users").doc(uid).get();
@@ -6307,11 +6500,13 @@ export const purchaseStoreItem = onCall(async (request) => {
   const itemId = request.data?.itemId;
   const requestId = request.data?.requestId;
   const expectedPriceCoins = request.data?.expectedPriceCoins;
+  const expectedCatalogVersion = request.data?.expectedCatalogVersion;
   if (typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
       typeof requestId !== "string" || requestId.length < 8 ||
       requestId.length > 80 || !/^[A-Za-z0-9_-]+$/.test(requestId) ||
       typeof expectedPriceCoins !== "number" || !Number.isSafeInteger(expectedPriceCoins) ||
-      expectedPriceCoins <= 0) {
+      expectedPriceCoins <= 0 || !Number.isSafeInteger(expectedCatalogVersion) ||
+      expectedCatalogVersion < 1) {
     throw new HttpsError("invalid-argument", "بيانات شراء العنصر غير صالحة.");
   }
 
@@ -6321,18 +6516,35 @@ export const purchaseStoreItem = onCall(async (request) => {
   const purchaseRef = db.collection("storePurchases").doc(purchaseId);
   const ledgerRef = userRef.collection("walletLedger").doc(`store_${purchaseId}`);
   const entitlementRef = userRef.collection("entitlements").doc(itemId);
+  const auditRef = db.collection("adminAuditLogs").doc(`store_purchase_${purchaseId}`);
 
   return db.runTransaction(async (transaction) => {
-    const [member, itemSnapshot, priorPurchase, priorEntitlement] = await Promise.all([
+    const [member, itemSnapshot, priorPurchase, priorEntitlement, priorLedger, priorAudit] = await Promise.all([
       transaction.get(userRef),
       transaction.get(itemRef),
       transaction.get(purchaseRef),
       transaction.get(entitlementRef),
+      transaction.get(ledgerRef),
+      transaction.get(auditRef),
     ]);
     if (priorPurchase.exists) {
       const prior = priorPurchase.data() ?? {};
-      if (!isStorePurchaseReplayCompatible(prior, uid, itemId, expectedPriceCoins)) {
+      const ledger = priorLedger.data() ?? {};
+      const audit = priorAudit.data() ?? {};
+      if (!isStorePurchaseReplayCompatible(prior, uid, itemId, expectedPriceCoins, expectedCatalogVersion)) {
         throw new HttpsError("already-exists", "معرف طلب الشراء مستخدم لعملية أخرى أو ببيانات سعر مختلفة.");
+      }
+      if (!priorLedger.exists || !priorAudit.exists ||
+          ledger.type !== "store_purchase" || ledger.purchaseId !== purchaseId ||
+          ledger.amount !== -prior.priceCoins || ledger.itemId !== itemId ||
+          ledger.catalogVersion !== expectedCatalogVersion ||
+          !Number.isSafeInteger(ledger.balanceBefore) ||
+          !Number.isSafeInteger(ledger.balanceAfter) ||
+          ledger.balanceBefore - prior.priceCoins !== ledger.balanceAfter ||
+          audit.action !== "store_item_purchased" || audit.purchaseId !== purchaseId ||
+          audit.actorUid !== uid || audit.itemId !== itemId ||
+          audit.catalogVersion !== expectedCatalogVersion || audit.priceCoins !== prior.priceCoins) {
+        throw new HttpsError("data-loss", "إيصال الشراء لا يطابق قيد المحفظة وسجل التدقيق.");
       }
       return {
         purchaseId,
@@ -6360,6 +6572,9 @@ export const purchaseStoreItem = onCall(async (request) => {
         "failed-precondition",
         "شراء هذا العنصر غير متاح حتى اكتمال تنفيذ استحقاقه والتحقق منه.",
       );
+    }
+    if (item.version !== expectedCatalogVersion) {
+      throw new HttpsError("failed-precondition", "تغير إصدار عنصر المتجر منذ تحميله. حدّث الصفحة وراجع الشروط قبل الشراء.");
     }
     if (!isStorePurchasePriceCurrent(expectedPriceCoins, item.priceCoins)) {
       throw new HttpsError(
@@ -6416,7 +6631,13 @@ export const purchaseStoreItem = onCall(async (request) => {
       category: item.category,
       priceCoins: item.priceCoins,
       durationDays: item.durationDays ?? null,
-      newBalance,
+      catalogVersion: item.version,
+      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
+      itemTermsSnapshot: {
+        name: item.name, description: item.description, category: item.category,
+        priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
+      },
+      balanceBefore: currentBalance, newBalance,
       expiresAt,
       status: "completed",
       createdAt,
@@ -6427,7 +6648,16 @@ export const purchaseStoreItem = onCall(async (request) => {
       amount: -item.priceCoins,
       itemId,
       itemName: item.name,
-      purchaseId,
+      purchaseId, catalogVersion: item.version,
+      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
+      priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
+      balanceBefore: currentBalance, balanceAfter: newBalance,
+      createdAt,
+    });
+    transaction.create(auditRef, {
+      actorUid: uid, action: "store_item_purchased", purchaseId, itemId,
+      itemName: item.name, priceCoins: item.priceCoins,
+      catalogVersion: item.version, durationDays: item.durationDays ?? null,
       createdAt,
     });
     transaction.set(entitlementRef, {
@@ -6436,6 +6666,8 @@ export const purchaseStoreItem = onCall(async (request) => {
       category: item.category,
       status: "active",
       purchaseId,
+      catalogVersion: item.version,
+      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
       purchasedAt: createdAt,
       expiresAt,
     });
@@ -6672,38 +6904,40 @@ export const setStoreCatalogItem = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "بيانات عنصر المتجر أو سعره أو تصنيفه غير صالحة.");
   }
   const itemRef = db.collection("storeCatalog").doc(item.itemId);
+  let savedVersion = 0;
   await db.runTransaction(async (transaction) => {
     const previousSnapshot = await transaction.get(itemRef);
+    const previous = previousSnapshot.data() ?? {};
+    if (previousSnapshot.exists && (!Number.isSafeInteger(previous.version) || previous.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار عنصر المتجر الحالي غير صالح؛ أوقفنا التحديث لحماية سجل الأسعار.");
+    }
+    savedVersion = previousSnapshot.exists ? previous.version + 1 : 1;
+    if (!Number.isSafeInteger(savedVersion)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لعنصر المتجر.");
     const now = FieldValue.serverTimestamp();
-    transaction.set(itemRef, {
-      itemId: item.itemId,
-      name: item.name,
-      description: item.description,
-      category: item.category,
-      priceCoins: item.priceCoins,
-      durationDays: item.durationDays ?? null,
-      sortOrder: item.sortOrder,
-      active: item.active,
-      purchaseEnabled: item.purchaseEnabled,
-      fulfillmentReady: item.fulfillmentReady,
-      createdAt: previousSnapshot.data()?.createdAt ?? now,
-      updatedAt: now,
-      updatedBy: actorUid,
-    });
+    const nextItem = {
+      itemId: item.itemId, name: item.name, description: item.description,
+      category: item.category, priceCoins: item.priceCoins,
+      durationDays: item.durationDays ?? null, sortOrder: item.sortOrder,
+      active: item.active, purchaseEnabled: item.purchaseEnabled,
+      fulfillmentReady: item.fulfillmentReady, version: savedVersion,
+      createdAt: previous.createdAt ?? now, updatedAt: now, updatedBy: actorUid,
+    };
+    const versionRef = db.collection("storeCatalogVersions").doc(item.itemId)
+      .collection("versions").doc(String(savedVersion));
+    transaction.create(versionRef, { ...nextItem, createdBy: actorUid });
+    transaction.set(itemRef, { ...nextItem, currentVersionPath: versionRef.path });
     const auditRef = db.collection("adminAuditLogs").doc();
     transaction.create(auditRef, {
       actorUid,
       action: previousSnapshot.exists ? "store_catalog_item_updated" : "store_catalog_item_created",
-      itemId: item.itemId,
-      active: item.active,
-      priceCoins: item.priceCoins,
-      category: item.category,
-      purchaseEnabled: item.purchaseEnabled,
-      fulfillmentReady: item.fulfillmentReady,
+      itemId: item.itemId, version: savedVersion,
+      active: item.active, priceCoins: item.priceCoins,
+      category: item.category, purchaseEnabled: item.purchaseEnabled,
+      fulfillmentReady: item.fulfillmentReady, durationDays: item.durationDays ?? null,
       createdAt: now,
     });
   });
-  return { itemId: item.itemId, active: item.active };
+  return { itemId: item.itemId, active: item.active, version: savedVersion };
 });
 
 /** Returns only display-safe catalog fields to the authenticated owner. */
@@ -6721,17 +6955,21 @@ export const getOwnerStoreCatalog = onCall(async (request) => {
         active: true,
         fulfillmentReady: true,
       })?.fulfillmentReady ?? false;
-      transaction.create(ref, {
+      const now = FieldValue.serverTimestamp();
+      const seeded = {
         ...item,
         // Publish approved, implemented profile features for discovery in the
         // shop, but leave charging disabled until the owner confirms prices.
         active: fulfillmentReady,
         purchaseEnabled: false,
         fulfillmentReady,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-        updatedBy: actorUid,
-      });
+        version: 1,
+        createdAt: now, updatedAt: now, updatedBy: actorUid,
+      };
+      const versionRef = db.collection("storeCatalogVersions").doc(item.itemId)
+        .collection("versions").doc("1");
+      transaction.create(versionRef, { ...seeded, createdBy: actorUid });
+      transaction.create(ref, { ...seeded, currentVersionPath: versionRef.path });
     });
   });
   const snapshot = await db.collection("storeCatalog").limit(100).get();
@@ -6778,7 +7016,7 @@ const ROOM_RENTAL_SETTINGS = db.doc("platformSettings/roomRentals");
 async function readRoomRentalPlans(): Promise<ReturnType<typeof validateRoomRentalPlans>> {
   const snapshot = await ROOM_RENTAL_SETTINGS.get();
   const raw = snapshot.data()?.plans;
-  if (raw === undefined) return DEFAULT_ROOM_RENTAL_PLANS;
+  if (raw === undefined) return [];
   try {
     return validateRoomRentalPlans(raw);
   } catch {
@@ -6790,9 +7028,12 @@ async function readRoomRentalPlans(): Promise<ReturnType<typeof validateRoomRent
 export const getRoomRentalPlans = onCall(async (request) => {
   requireAuthenticatedUid(request.auth?.uid);
   const snapshot = await ROOM_RENTAL_SETTINGS.get();
-  const plans = snapshot.exists ? await readRoomRentalPlans() : DEFAULT_ROOM_RENTAL_PLANS;
-  const version = Number.isSafeInteger(snapshot.data()?.version) ? snapshot.data()!.version : 0;
-  return { plans: plans.filter((plan) => plan.active), version };
+  const plans = await readRoomRentalPlans();
+  const version = snapshot.exists ? snapshot.data()?.version : 0;
+  if (snapshot.exists && (!Number.isSafeInteger(version) || version < 1)) {
+    throw new HttpsError("failed-precondition", "إصدار سياسة استئجار الغرف غير صالح.");
+  }
+  return { plans: plans.filter((plan) => plan.active), version: version ?? 0, configured: snapshot.exists };
 });
 
 /** Owner/MFA controls all room rental prices; every edit is versioned and audited. */
@@ -6806,9 +7047,20 @@ export const setRoomRentalPlans = onCall(async (request) => {
   }
   const result = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(ROOM_RENTAL_SETTINGS);
-    const version = (Number.isSafeInteger(previous.data()?.version) ? previous.data()!.version : 0) + 1;
+    const previousData = previous.data() ?? {};
+    if (previous.exists && (!Number.isSafeInteger(previousData.version) || previousData.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار سياسة استئجار الغرف الحالية غير صالح؛ أوقفنا التحديث لحماية السجل.");
+    }
+    const version = previous.exists ? previousData.version + 1 : 1;
+    if (!Number.isSafeInteger(version)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة استئجار الغرف.");
     const now = FieldValue.serverTimestamp();
-    transaction.set(ROOM_RENTAL_SETTINGS, { plans, version, updatedAt: now, updatedBy: actorUid });
+    const versionRef = db.collection("platformSettings").doc("roomRentalPricingVersions")
+      .collection("versions").doc(String(version));
+    transaction.create(versionRef, { plans, version, createdAt: now, createdBy: actorUid });
+    transaction.set(ROOM_RENTAL_SETTINGS, {
+      plans, version, updatedAt: now, updatedBy: actorUid,
+      createdAt: previousData.createdAt ?? now, currentVersionPath: versionRef.path,
+    });
     const auditRef = db.collection("adminAuditLogs").doc();
     transaction.create(auditRef, {
       actorUid, action: "room_rental_pricing_updated", version,
@@ -6859,7 +7111,13 @@ export const createRentedRoom = onCall(async (request) => {
         !isMemberAccountInGoodStanding(user.data())) {
       throw new HttpsError("permission-denied", "حالة العضوية لا تسمح باستئجار غرفة.");
     }
-    const plans = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : DEFAULT_ROOM_RENTAL_PLANS;
+    if (!settings.exists || !Number.isSafeInteger(settings.data()?.version) ||
+        settings.data()!.version < 1) {
+      throw new HttpsError("failed-precondition", "لم يحدد المالك سياسة استئجار غرف فعالة بعد.");
+    }
+    let plans;
+    try { plans = validateRoomRentalPlans(settings.data()?.plans); }
+    catch { throw new HttpsError("failed-precondition", "سياسة استئجار الغرف غير صالحة."); }
     const plan = plans.find((entry) => entry.planId === planId && entry.active);
     if (!plan || plan.priceCoins !== expectedPriceCoins) {
       throw new HttpsError("failed-precondition", "تغير سعر الخطة أو لم تعد متاحة؛ حدّث الأسعار قبل التأكيد.");
@@ -6878,20 +7136,28 @@ export const createRentedRoom = onCall(async (request) => {
       roomId: roomRef.id, name, kind: "private", capacity, audience, ownerUid: uid,
       memberCount: 1, status: "active", isRented: true, rentalId: rentalRef.id,
       rentalPlanId: plan.planId, rentalPriceCoins: plan.priceCoins,
-      rentalDurationDays: plan.durationDays, expiresAt, invitedUids: [],
+      rentalDurationDays: plan.durationDays,
+      rentalPricingPolicyVersion: settings.data()!.version,
+      rentalPricingPolicyPath: `platformSettings/roomRentalPricingVersions/versions/${settings.data()!.version}`,
+      expiresAt, invitedUids: [],
       createdAt: now, updatedAt: now,
     });
     transaction.create(memberRef, { uid, role: "owner", joinedAt: now });
     transaction.create(rentalRef, {
       rentalId: rentalRef.id, roomId: roomRef.id, ownerUid: uid, planId: plan.planId,
       priceCoins: plan.priceCoins, durationDays: plan.durationDays, status: "active",
+      pricingPolicyVersion: settings.data()!.version,
+      pricingPolicyPath: `platformSettings/roomRentalPricingVersions/versions/${settings.data()!.version}`,
       requestedName: name, requestedCapacity: capacity, requestedPriceCoins: expectedPriceCoins,
       startsAt: Timestamp.fromMillis(nowMs), expiresAt, createdAt: now,
     });
     transaction.create(ledgerRef, {
       type: "room_rental", direction: "debit", amount: -plan.priceCoins,
       roomId: roomRef.id, rentalId: rentalRef.id, planId: plan.planId,
-      durationDays: plan.durationDays, createdAt: now,
+      durationDays: plan.durationDays,
+      pricingPolicyVersion: settings.data()!.version,
+      pricingPolicyPath: `platformSettings/roomRentalPricingVersions/versions/${settings.data()!.version}`,
+      createdAt: now,
     });
     return { roomId: roomRef.id, rentalId: rentalRef.id, priceCoins: plan.priceCoins,
       expiresAt: expiresAtMs, newBalance, idempotentReplay: false };
@@ -6935,7 +7201,13 @@ export const renewRoomRental = onCall(async (request) => {
     if (!user.exists || !isMemberAccountInGoodStanding(user.data())) {
       throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بالتجديد.");
     }
-    const plans = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : DEFAULT_ROOM_RENTAL_PLANS;
+    if (!settings.exists || !Number.isSafeInteger(settings.data()?.version) ||
+        settings.data()!.version < 1) {
+      throw new HttpsError("failed-precondition", "لم يحدد المالك سياسة تجديد غرف فعالة بعد.");
+    }
+    let plans;
+    try { plans = validateRoomRentalPlans(settings.data()?.plans); }
+    catch { throw new HttpsError("failed-precondition", "سياسة استئجار الغرف غير صالحة."); }
     const plan = plans.find((entry) => entry.planId === planId && entry.active);
     if (!plan || plan.priceCoins !== expectedPriceCoins) {
       throw new HttpsError("failed-precondition", "تغير سعر التجديد؛ حدّث الأسعار قبل التأكيد.");
@@ -6973,7 +7245,10 @@ export const renewRoomRental = onCall(async (request) => {
     transaction.create(ledgerRef, {
       type: "room_rental_renewal", direction: "debit", amount: -plan.priceCoins,
       roomId, rentalId: rentalRef.id, planId: plan.planId,
-      durationDays: plan.durationDays, createdAt: now,
+      durationDays: plan.durationDays,
+      pricingPolicyVersion: settings.data()!.version,
+      pricingPolicyPath: `platformSettings/roomRentalPricingVersions/versions/${settings.data()!.version}`,
+      createdAt: now,
     });
     return { renewed: true, expiresAt: expiresAt.toMillis(), newBalance: balance, idempotentReplay: false };
   });
@@ -7135,14 +7410,28 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
 export const getAvailableCoinPackages = onCall(async () => {
   const snapshot = await ECONOMY_PRICING_SETTINGS.get();
   const data = snapshot.data() ?? {};
-  if (data.manualCoinPurchasesEnabled === false) return { packages: [], manualPurchasesEnabled: false };
+  const paymentPolicy = projectEconomicPaymentPolicy(data.paymentPolicy);
+  if (!snapshot.exists || paymentPolicy.coin_purchases.manualEnabled !== true ||
+      paymentPolicy.coin_purchases.automatedEnabled !== false ||
+      data.automatedCoinCheckoutEnabled === true || !Number.isSafeInteger(data.version) ||
+      data.version < 1 || !Array.isArray(data.coinPackages)) {
+    return { packages: [], manualPurchasesEnabled: false, automatedCheckoutEnabled: false, customCoinRequestBounds: null };
+  }
+  const bounds = data.customCoinRequestBounds ?? null;
+  if (bounds !== null && (!bounds || typeof bounds !== "object" ||
+      !Number.isSafeInteger(bounds.minCoins) || bounds.minCoins < 1 ||
+      !Number.isSafeInteger(bounds.maxCoins) || bounds.maxCoins < bounds.minCoins ||
+      bounds.maxCoins > 1000000000)) {
+    throw new HttpsError("failed-precondition", "حدود طلبات الكمية المخصصة غير صالحة؛ أوقفنا عرضها.");
+  }
   let packages;
-  try { packages = validateCoinPackages(data.coinPackages ?? DEFAULT_COIN_PACKAGES); }
-  catch { throw new HttpsError("failed-precondition", "قائمة باقات الكوينز غير صالحة."); }
+  try { packages = validateCoinPackages(data.coinPackages); }
+  catch { throw new HttpsError("failed-precondition", "قائمة باقات BetaCoins غير صالحة؛ أوقفنا عرض الأسعار."); }
   return {
     packages: packages.filter((item) => item.active),
     manualPurchasesEnabled: true,
     automatedCheckoutEnabled: false,
+    customCoinRequestBounds: bounds,
   };
 });
 
@@ -7164,21 +7453,34 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       throw new HttpsError("permission-denied", "يجب أن يكون حساب العضو مكتملاً ونشطاً.");
     }
     const economy = settings.data() ?? {};
-    if (economy.manualCoinPurchasesEnabled === false || economy.automatedCoinCheckoutEnabled === true) {
-      throw new HttpsError("failed-precondition", "طلبات الشراء اليدوية غير متاحة حالياً.");
+    const paymentPolicy = projectEconomicPaymentPolicy(economy.paymentPolicy);
+    if (!settings.exists || paymentPolicy.coin_purchases.manualEnabled !== true ||
+        paymentPolicy.coin_purchases.automatedEnabled !== false ||
+        economy.automatedCoinCheckoutEnabled === true || !Number.isSafeInteger(economy.version) ||
+        economy.version < 1) {
+      throw new HttpsError("failed-precondition", "سياسة الشراء اليدوي غير مهيأة أو غير فعالة؛ لم ننشئ طلباً مالياً.");
     }
     let packageSnapshot: Record<string, unknown> | null = null;
     let requestedCoins: number | null = null;
     if (input.kind === "package") {
       let packages;
-      try { packages = validateCoinPackages(economy.coinPackages ?? DEFAULT_COIN_PACKAGES); }
+      try { packages = validateCoinPackages(economy.coinPackages); }
       catch { throw new HttpsError("failed-precondition", "قائمة باقات الكوينز غير صالحة."); }
       const selected = packages.find((item) => item.packageId === input.packageId && item.active);
       if (!selected) throw new HttpsError("not-found", "الباقة غير متاحة حالياً.");
       packageSnapshot = { ...selected };
       requestedCoins = selected.coins;
     } else {
-      requestedCoins = input.requestedCoins ?? null;
+      const bounds = economy.customCoinRequestBounds;
+      if (!bounds || typeof bounds !== "object" ||
+          !Number.isSafeInteger(bounds.minCoins) || bounds.minCoins < 1 ||
+          !Number.isSafeInteger(bounds.maxCoins) || bounds.maxCoins < bounds.minCoins ||
+          bounds.maxCoins > 1000000000 ||
+          input.requestedCoins === undefined ||
+          input.requestedCoins < bounds.minCoins || input.requestedCoins > bounds.maxCoins) {
+        throw new HttpsError("failed-precondition", "طلبات الكمية المخصصة غير مفعلة أو خارج الحدود التي حددها المالك.");
+      }
+      requestedCoins = input.requestedCoins;
     }
     if (existing.exists) {
       const prior = existing.data() ?? {};
@@ -7192,8 +7494,17 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
     transaction.create(requestRef, {
       requestId: input.requestId, requesterUid: uid, kind: input.kind,
       packageId: input.packageId ?? null, packageSnapshot,
-      requestedCoins, status: "pending_owner_contact",
-      paymentChannel: "manual_owner_contact", currency: "EUR",
+      requestedCoins, pricingPolicyVersion: economy.version,
+      pricingPolicyPath: `platformSettings/economyPricingVersions/versions/${economy.version}`,
+      status: "pending_owner_contact",
+      paymentChannel: "manual_owner_contact", currency: packageSnapshot?.currency ?? economy.currency ?? null,
+      currencyExponent: packageSnapshot?.currencyExponent ?? null,
+      paymentPolicySnapshot: {
+        service: "coin_purchases",
+        manualEnabled: paymentPolicy.coin_purchases.manualEnabled,
+        automatedEnabled: paymentPolicy.coin_purchases.automatedEnabled,
+        policyVersion: economy.version, pricingPolicyVersion: economy.version,
+      },
       createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
     });
     return { requestId: input.requestId, status: "pending_owner_contact", idempotentReplay: false };
@@ -7214,7 +7525,7 @@ export const listOwnerCoinPurchaseRequests = onCall(async (request) => {
   requireOwner(request);
   const status = request.data?.status;
   const allowed = ["pending_owner_contact", "payment_instructions_sent",
-    "approved", "rejected", "withdrawn"];
+    "awaiting_payment_verification", "approved", "rejected", "withdrawn"];
   if (status !== undefined && !allowed.includes(status)) {
     throw new HttpsError("invalid-argument", "حالة الطلب غير صالحة.");
   }
@@ -7233,6 +7544,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     requestId: request.data?.requestId, instructions: request.data?.instructions,
     agreedCoins: request.data?.agreedCoins, agreedPriceMinor: request.data?.agreedPriceMinor,
     currency: request.data?.currency,
+    expectedInstructionsVersion: request.data?.expectedInstructionsVersion,
   }); }
   catch { throw new HttpsError("invalid-argument", "تعليمات الدفع أو الكمية أو السعر غير صالحة."); }
   const requesterUid = request.data?.requesterUid;
@@ -7250,10 +7562,19 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
     }
     const prior = snapshot.data()!;
-    if (["approved", "rejected", "withdrawn"].includes(String(prior.status))) {
-      throw new HttpsError("failed-precondition", "لا يمكن تعديل طلب منتهٍ.");
+    if (prior.status !== "pending_owner_contact") {
+      throw new HttpsError("failed-precondition", "تعليمات الدفع المرسلة لا تُعدّل؛ إذا لزم تصحيح الاتفاق فأغلق الطلب وافتح طلباً جديداً.");
     }
-    const nextVersion = (Number.isSafeInteger(prior.instructionsVersion) ? prior.instructionsVersion : 0) + 1;
+    if (prior.paymentChannel !== "manual_owner_contact" ||
+        prior.paymentPolicySnapshot?.manualEnabled !== true) {
+      throw new HttpsError("failed-precondition", "مسار الدفع اليدوي غير مثبت في لقطة الطلب.");
+    }
+    const currentInstructionsVersion = Number.isSafeInteger(prior.instructionsVersion)
+      ? prior.instructionsVersion : 0;
+    if (currentInstructionsVersion !== input.expectedInstructionsVersion) {
+      throw new HttpsError("aborted", "تغير إصدار الطلب؛ أعد تحميله قبل إصدار التعليمات.");
+    }
+    const nextVersion = currentInstructionsVersion + 1;
     messageId = createHash("sha256").update(`coin-purchase:${requesterUid}:${input.requestId}:${nextVersion}`).digest("hex");
     const messageRef = chatRef.collection("messages").doc(messageId);
     const [chatSnapshot, existingMessage] = await Promise.all([
@@ -7277,7 +7598,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
         messageId, chatId, senderUid: actorUid, recipientUid: requesterUid,
         text: "تعليمات الدفع لطلب شراء الكوينز رقم " + input.requestId +
           "\nالكمية المتفق عليها: " + input.agreedCoins + " كوين" +
-          "\nالسعر: " + (input.agreedPriceMinor / 100).toFixed(2) + " EUR" +
+          "\nالسعر: " + (input.agreedPriceMinor / Math.pow(10, input.currencyExponent)).toFixed(input.currencyExponent) + " " + input.currency +
           "\nالتعليمات: " + input.instructions,
         type: "text", isPlatformOwnerMessage: true,
         senderLabel: "إدارة منصة مودة", adminMessageType: "coin_purchase_payment_instructions",
@@ -7293,7 +7614,9 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     transaction.update(ref, {
       status: "payment_instructions_sent", chatId, agreedCoins: input.agreedCoins,
       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
+      currencyExponent: input.currencyExponent,
       paymentInstructions: input.instructions, instructionsVersion: nextVersion,
+      paymentPolicySnapshot: prior.paymentPolicySnapshot,
       instructionsSetBy: actorUid, instructionsSetAt: now, updatedAt: now,
     });
     const auditRef = db.collection("adminAuditLogs").doc();
@@ -7301,6 +7624,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       actorUid, targetUid: requesterUid, action: "coin_purchase_payment_instructions_set",
       requestId: input.requestId, agreedCoins: input.agreedCoins,
       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
+      currencyExponent: input.currencyExponent,
       chatId, messageId, instructionsVersion: nextVersion, createdAt: now,
     });
   });
@@ -7308,6 +7632,70 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     "أرسل مالك المنصة تعليمات الدفع لطلب الكوينز. افتح المحادثة للاطلاع عليها.",
     { type: "coin_purchase_payment_instructions", chatId, messageId });
   return { requestId: input.requestId, status: "payment_instructions_sent", chatId, messageId };
+});
+
+/** Member payment report is a claim-only signal; it never credits the wallet. */
+export const requestCoinPurchasePaymentVerification = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const requestId = request.data?.requestId;
+  const expectedInstructionsVersion = request.data?.expectedInstructionsVersion;
+  if (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestId) ||
+      !Number.isSafeInteger(expectedInstructionsVersion) ||
+      (expectedInstructionsVersion as number) < 1) {
+    throw new HttpsError("invalid-argument", "معرف الطلب أو إصدار التعليمات غير صالح.");
+  }
+  const requestRef = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
+  const memberRef = db.collection("users").doc(uid);
+  const auditRef = db.collection("adminAuditLogs").doc(
+    `coin_purchase_payment_report_${uid}_${requestId}_${expectedInstructionsVersion}`,
+  );
+  return db.runTransaction(async (transaction) => {
+    const [purchase, member, audit] = await Promise.all([
+      transaction.get(requestRef), transaction.get(memberRef), transaction.get(auditRef),
+    ]);
+    if (!member.exists || member.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(member.data())) {
+      throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بتحديث طلب الدفع.");
+    }
+    if (!purchase.exists || purchase.data()?.requesterUid !== uid) {
+      throw new HttpsError("not-found", "طلب الشراء غير موجود.");
+    }
+    const data = purchase.data() ?? {};
+    if (data.paymentChannel !== "manual_owner_contact" ||
+        data.paymentPolicySnapshot?.manualEnabled !== true) {
+      throw new HttpsError("failed-precondition", "هذا الطلب لا يستخدم مسار الدفع اليدوي.");
+    }
+    if (data.status === "awaiting_payment_verification" &&
+        data.instructionsVersion === expectedInstructionsVersion &&
+        data.paymentReportedInstructionVersion === expectedInstructionsVersion) {
+      if (!audit.exists) transaction.create(auditRef, {
+        actorUid: uid, targetUid: uid,
+        action: "coin_purchase_member_reported_external_payment",
+        requestId, instructionVersion: expectedInstructionsVersion,
+        authority: "member_claim_only_not_payment_proof",
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return { requestId, status: "awaiting_payment_verification", idempotentReplay: true };
+    }
+    if (data.status !== "payment_instructions_sent" ||
+        data.instructionsVersion !== expectedInstructionsVersion || audit.exists) {
+      throw new HttpsError("failed-precondition", "حالة الطلب أو إصدار التعليمات لا يسمح بالإبلاغ عن الدفع.");
+    }
+    transaction.update(requestRef, {
+      status: "awaiting_payment_verification",
+      paymentReportedBy: uid, paymentReportedAt: FieldValue.serverTimestamp(),
+      paymentReportedInstructionVersion: expectedInstructionsVersion,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.create(auditRef, {
+      actorUid: uid, targetUid: uid,
+      action: "coin_purchase_member_reported_external_payment",
+      requestId, instructionVersion: expectedInstructionsVersion,
+      authority: "member_claim_only_not_payment_proof",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { requestId, status: "awaiting_payment_verification", idempotentReplay: false };
+  });
 });
 
 /** Only the owner can attest to external receipt; approval atomically credits coins and ledger. */
@@ -7329,28 +7717,71 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
   const ledgerId = `coin_purchase_${input.requestId}`;
   const ledgerRef = userRef.collection("walletLedger").doc(ledgerId);
   const auditRef = db.collection("adminAuditLogs").doc(`coin_purchase_approval_${requesterUid}_${input.requestId}`);
-  const result = await db.runTransaction(async (transaction) => {
-    const [purchase, user, ledger] = await Promise.all([
+  return db.runTransaction(async (transaction) => {
+    const [purchase, user, ledger, approvalAudit] = await Promise.all([
       transaction.get(requestRef), transaction.get(userRef), transaction.get(ledgerRef),
+      transaction.get(auditRef),
     ]);
     if (!purchase.exists || purchase.data()?.requesterUid !== requesterUid) {
       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
     }
     const data = purchase.data()!;
-    if (data.status === "approved") return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null };
-    if (data.status !== "payment_instructions_sent") {
+    if (data.status === "approved") {
+      const ledgerData = ledger.data() ?? {};
+      const auditData = approvalAudit.data() ?? {};
+      if (!ledger.exists || !approvalAudit.exists ||
+          ledgerData.type !== "coin_purchase_manual_credit" ||
+          ledgerData.amount !== data.creditedCoins ||
+          ledgerData.purchaseRequestId !== input.requestId ||
+          ledgerData.externalPaymentReference !== input.externalPaymentReference ||
+          ledgerData.priceMinor !== data.agreedPriceMinor ||
+          ledgerData.currency !== data.currency ||
+          ledgerData.currencyExponent !== data.currencyExponent ||
+          ledgerData.actorUid !== data.verifiedBy ||
+          !Number.isSafeInteger(ledgerData.balanceBefore) ||
+          !Number.isSafeInteger(ledgerData.balanceAfter) ||
+          ledgerData.balanceBefore < 0 ||
+          ledgerData.balanceAfter !== ledgerData.balanceBefore + ledgerData.amount ||
+          data.externalPaymentVerified !== true ||
+          data.externalPaymentReference !== input.externalPaymentReference ||
+          !Number.isSafeInteger(data.creditedCoins) || data.creditedCoins < 1 ||
+          auditData.action !== "coin_purchase_manually_verified_and_approved" ||
+          auditData.actorUid !== data.verifiedBy ||
+          auditData.targetUid !== requesterUid ||
+          auditData.requestId !== input.requestId ||
+          auditData.externalPaymentReference !== input.externalPaymentReference ||
+          auditData.creditedCoins !== data.creditedCoins ||
+          auditData.priceMinor !== data.agreedPriceMinor ||
+          auditData.currency !== data.currency ||
+          auditData.currencyExponent !== data.currencyExponent) {
+        throw new HttpsError("failed-precondition", "طلب الشراء المعتمد لا يطابق قيد المحفظة وسجل المالك؛ يلزم تدقيق مالي.");
+      }
+      return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null };
+    }
+    if (data.paymentChannel !== "manual_owner_contact" ||
+        data.paymentPolicySnapshot?.manualEnabled !== true) {
+      throw new HttpsError("failed-precondition", "لقطة الطلب لا تسمح بالاعتماد اليدوي.");
+    }
+    if (!["payment_instructions_sent", "awaiting_payment_verification"].includes(String(data.status))) {
       throw new HttpsError("failed-precondition", "لا يمكن اعتماد الطلب قبل إرسال تعليمات الدفع.");
     }
     if (!user.exists || !isMemberAccountInGoodStanding(user.data())) {
-      throw new HttpsError("permission-denied", "حساب العضو غير مؤهل لاستلام الكوينز.");
+      throw new HttpsError("permission-denied", "حساب العضو غير مؤهل لاستلام BetaCoins.");
     }
-    if (ledger.exists) throw new HttpsError("already-exists", "يوجد سجل مالي سابق لهذا الطلب؛ يلزم تدقيقه.");
+    if (ledger.exists || approvalAudit.exists) {
+      throw new HttpsError("already-exists", "يوجد سجل مالي سابق لهذا الطلب؛ يلزم تدقيقه.");
+    }
     const coins = data.agreedCoins;
-    if (!Number.isSafeInteger(coins) || coins < 1 || coins > 1000000000) {
-      throw new HttpsError("failed-precondition", "الكمية المتفق عليها غير صالحة.");
+    if (!Number.isSafeInteger(coins) || coins < 1 || coins > 1000000000 ||
+        !Number.isSafeInteger(data.agreedPriceMinor) || data.agreedPriceMinor < 1 ||
+        typeof data.currency !== "string" || currencyExponentForCode(data.currency) === null ||
+        data.currencyExponent !== currencyExponentForCode(data.currency) ||
+        !Number.isSafeInteger(data.instructionsVersion) || data.instructionsVersion < 1) {
+      throw new HttpsError("failed-precondition", "الكمية أو السعر أو لقطة تعليمات الدفع غير صالحة.");
     }
     const oldBalance = user.data()?.coins ?? 0;
-    if (!Number.isSafeInteger(oldBalance) || oldBalance < 0 || oldBalance + coins > 2000000000) {
+    if (!Number.isSafeInteger(oldBalance) || oldBalance < 0 ||
+        oldBalance + coins > Number.MAX_SAFE_INTEGER) {
       throw new HttpsError("failed-precondition", "رصيد العضو لا يسمح بإتمام العملية.");
     }
     const now = FieldValue.serverTimestamp();
@@ -7359,7 +7790,8 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
       type: "coin_purchase_manual_credit", amount: coins, balanceBefore: oldBalance,
       balanceAfter: oldBalance + coins, purchaseRequestId: input.requestId,
       externalPaymentReference: input.externalPaymentReference,
-      priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR",
+      priceMinor: data.agreedPriceMinor, currency: data.currency,
+      currencyExponent: data.currencyExponent,
       actorUid, createdAt: now,
     });
     transaction.update(requestRef, {
@@ -7372,13 +7804,13 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
       actorUid, targetUid: requesterUid, action: "coin_purchase_manually_verified_and_approved",
       requestId: input.requestId, externalPaymentReference: input.externalPaymentReference,
       verificationNote: input.verificationNote, creditedCoins: coins,
-      priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR", createdAt: now,
+      priceMinor: data.agreedPriceMinor, currency: data.currency,
+      currencyExponent: data.currencyExponent,
+      instructionsVersion: data.instructionsVersion, createdAt: now,
     });
     return { status: "approved", idempotentReplay: false, newBalance: oldBalance + coins };
   });
-  return result;
 });
-
 /** Owner rejection requires a bounded reason and never modifies a wallet. */
 export const rejectCoinPurchaseRequest = onCall(async (request) => {
   const actorUid = requireOwner(request);
@@ -7420,8 +7852,8 @@ export const withdrawCoinPurchaseRequest = onCall(async (request) => {
     if (!snapshot.exists || snapshot.data()?.requesterUid !== uid) {
       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
     }
-    if (["approved", "rejected"].includes(String(snapshot.data()?.status))) {
-      throw new HttpsError("failed-precondition", "لا يمكن سحب طلب منتهٍ.");
+    if (["payment_instructions_sent", "awaiting_payment_verification", "approved", "rejected"].includes(String(snapshot.data()?.status))) {
+      throw new HttpsError("failed-precondition", "لا يمكن سحب الطلب بعد إصدار تعليمات الدفع؛ تواصل مع المالك لإغلاق الاتفاق.");
     }
     if (snapshot.data()?.status === "withdrawn") return;
     transaction.update(ref, { status: "withdrawn", withdrawnAt: FieldValue.serverTimestamp(),
@@ -7433,69 +7865,180 @@ export const withdrawCoinPurchaseRequest = onCall(async (request) => {
 const ECONOMY_PRICING_SETTINGS = db.doc("platformSettings/economyPricing");
 
 /** Owner-only view and safe first-run seeding for editable coin and advertising prices. */
+/** Owner-only read-only reconciliation of a member's current balance against walletLedger. */
+export const getOwnerWalletReconciliation = onCall(async (request) => {
+  requireOwner(request);
+  const targetUid = request.data?.targetUid;
+  if (typeof targetUid !== "string" || targetUid.trim() !== targetUid ||
+      targetUid.length < 1 || targetUid.length > 128 || targetUid.includes("/")) {
+    throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+  }
+  const userRef = db.collection("users").doc(targetUid);
+  const userSnapshot = await userRef.get();
+  if (!userSnapshot.exists) throw new HttpsError("not-found", "حساب العضو غير موجود.");
+  const ledgerSnapshot = await userRef.collection("walletLedger")
+    .orderBy(FieldPath.documentId()).limit(1001).get();
+  const truncated = ledgerSnapshot.size > 1000;
+  const entries = ledgerSnapshot.docs.slice(0, 1000).map((document) => {
+    const data = document.data();
+    return {
+      id: document.id,
+      amount: data.amount,
+      balanceBefore: data.balanceBefore,
+      balanceAfter: data.balanceAfter,
+      createdAtMs: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : null,
+    };
+  });
+  const chronologyIncomplete = entries.some((entry) => entry.createdAtMs === null);
+  let reconciliation;
+  try {
+    if (chronologyIncomplete) {
+      const currentBalance = userSnapshot.data()?.coins ?? 0;
+      if (!Number.isSafeInteger(currentBalance) || currentBalance < 0) {
+        throw new Error("INVALID_WALLET_BALANCE");
+      }
+      reconciliation = {
+        status: "incomplete" as const, currentBalance,
+        ledgerEntryCount: entries.length, netLedgerDelta: null,
+        openingBalance: null, computedBalance: null,
+        entriesMissingSnapshots: entries.filter((entry) =>
+          entry.balanceBefore === undefined || entry.balanceAfter === undefined).length,
+        anomalies: [],
+      };
+    } else {
+      entries.sort((a, b) => (a.createdAtMs ?? 0) - (b.createdAtMs ?? 0) || a.id.localeCompare(b.id));
+      reconciliation = reconcileWalletLedger(userSnapshot.data()?.coins ?? 0, entries);
+    }
+  } catch {
+    throw new HttpsError("failed-precondition", "رصيد المحفظة أو دفتر القيود يحتوي بيانات غير صالحة.");
+  }
+  return {
+    targetUid,
+    ...reconciliation,
+    status: truncated || chronologyIncomplete ? "incomplete" : reconciliation.status,
+    truncated, chronologyIncomplete,
+    unorderableEntryCount: chronologyIncomplete
+      ? entries.filter((entry) => entry.createdAtMs === null).length : 0,
+    inspectedLimit: 1000,
+  };
+});
+
 export const getOwnerEconomyPricing = onCall(async (request) => {
-  const actorUid = requireOwner(request);
+  requireOwner(request);
   const snapshot = await ECONOMY_PRICING_SETTINGS.get();
   if (!snapshot.exists) {
-    await db.runTransaction(async (transaction) => {
-      const current = await transaction.get(ECONOMY_PRICING_SETTINGS);
-      if (current.exists) return;
-      transaction.create(ECONOMY_PRICING_SETTINGS, {
-        coinPackages: DEFAULT_COIN_PACKAGES,
-        adPrices: DEFAULT_AD_PRICES,
-        version: 1,
-        realMoneyCheckoutEnabled: false,
-        manualCoinPurchasesEnabled: true,
-        automatedCoinCheckoutEnabled: false,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-        updatedBy: actorUid,
-      });
-    });
+    return {
+      coinPackages: [], adPrices: [], customCoinRequestBounds: null,
+      version: 0, realMoneyCheckoutEnabled: false,
+      manualCoinPurchasesEnabled: false, automatedCoinCheckoutEnabled: false,
+      configured: false,
+    };
   }
-  const data = (await ECONOMY_PRICING_SETTINGS.get()).data() ?? {};
-  let coinPackages, adPrices;
+  const data = snapshot.data() ?? {};
+  let coinPackages: ReturnType<typeof validateCoinPackages> = [];
+  let adPrices: ReturnType<typeof validateAdPrices> = [];
   try {
-    coinPackages = validateCoinPackages(data.coinPackages);
-    adPrices = validateAdPrices(data.adPrices);
+    if (data.coinPackages !== undefined) coinPackages = validateCoinPackages(data.coinPackages);
+    if (data.adPrices !== undefined) adPrices = validateAdPrices(data.adPrices);
   } catch {
     throw new HttpsError("failed-precondition", "إعدادات اقتصاد المنصة غير صالحة؛ راجع الدعم التقني.");
   }
+  const bounds = data.customCoinRequestBounds ?? null;
+  if (!Number.isSafeInteger(data.version) || data.version < 1) {
+    throw new HttpsError("failed-precondition", "إصدار سياسة الاقتصاد الحالية غير صالح.");
+  }
+  if (bounds !== null && (!bounds || typeof bounds !== "object" ||
+      !Number.isSafeInteger(bounds.minCoins) || bounds.minCoins < 1 ||
+      !Number.isSafeInteger(bounds.maxCoins) || bounds.maxCoins < bounds.minCoins ||
+      bounds.maxCoins > 1000000000)) {
+    throw new HttpsError("failed-precondition", "حدود طلبات الكمية المخصصة غير صالحة.");
+  }
   return {
-    coinPackages, adPrices,
-    version: Number.isSafeInteger(data.version) ? data.version : 0,
+    coinPackages, adPrices, customCoinRequestBounds: bounds,
+    version: data.version,
     realMoneyCheckoutEnabled: false,
-    manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled !== false,
+    manualCoinPurchasesEnabled: projectEconomicPaymentPolicy(data.paymentPolicy).coin_purchases.manualEnabled,
+    paymentPolicy: projectEconomicPaymentPolicy(data.paymentPolicy),
     automatedCoinCheckoutEnabled: false,
+    configured: true,
   };
 });
 
 /** Owner/MFA-only economy price updates. This configures prices, not payment processing. */
 export const setOwnerEconomyPricing = onCall(async (request) => {
   const actorUid = requireOwner(request);
-  let coinPackages, adPrices;
+  let coinPackages: ReturnType<typeof validateCoinPackages>;
+  let adPrices: ReturnType<typeof validateAdPrices>;
+  const manualCoinPurchasesEnabled = request.data?.manualCoinPurchasesEnabled;
+  const rawBounds = request.data?.customCoinRequestBounds ?? null;
+  if (typeof manualCoinPurchasesEnabled !== "boolean") {
+    throw new HttpsError("invalid-argument", "يجب تحديد حالة الشراء اليدوي صراحةً.");
+  }
+  let customCoinRequestBounds: { minCoins: number; maxCoins: number } | null = null;
+  if (rawBounds !== null) {
+    if (!rawBounds || typeof rawBounds !== "object" ||
+        !Number.isSafeInteger(rawBounds.minCoins) || rawBounds.minCoins < 1 ||
+        !Number.isSafeInteger(rawBounds.maxCoins) || rawBounds.maxCoins < rawBounds.minCoins ||
+        rawBounds.maxCoins > 1000000000) {
+      throw new HttpsError("invalid-argument", "حدود طلبات الكمية المخصصة غير صالحة.");
+    }
+    customCoinRequestBounds = { minCoins: rawBounds.minCoins, maxCoins: rawBounds.maxCoins };
+  }
   try {
     coinPackages = validateCoinPackages(request.data?.coinPackages);
     adPrices = validateAdPrices(request.data?.adPrices);
   } catch {
-    throw new HttpsError("invalid-argument", "أسعار باقات الكوينز أو الإعلانات غير صالحة.");
+    throw new HttpsError("invalid-argument", "أسعار باقات BetaCoins أو الإعلانات غير صالحة.");
   }
   const version = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(ECONOMY_PRICING_SETTINGS);
-    const nextVersion = (Number.isSafeInteger(previous.data()?.version) ? previous.data()!.version : 0) + 1;
+    const previousData = previous.data() ?? {};
+    if (previous.exists && (!Number.isSafeInteger(previousData.version) ||
+        previousData.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار سياسة الاقتصاد الحالية غير صالح؛ أوقفنا التحديث لحماية السجل.");
+    }
+    const nextVersion = previous.exists ? previousData.version + 1 : 1;
+    if (!Number.isSafeInteger(nextVersion)) {
+      throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة الاقتصاد.");
+    }
+    const previousPaymentPolicy = projectEconomicPaymentPolicy(previousData.paymentPolicy);
+    let paymentPolicy;
+    try {
+      paymentPolicy = request.data?.paymentPolicy === undefined
+        ? validateEconomicPaymentPolicy({
+            ...previousPaymentPolicy,
+            coin_purchases: { manualEnabled: manualCoinPurchasesEnabled, automatedEnabled: false },
+          })
+        : validateEconomicPaymentPolicy(request.data.paymentPolicy);
+    } catch {
+      throw new HttpsError("invalid-argument", "سياسة وسائل الدفع غير صالحة أو تتضمن مساراً غير جاهز.");
+    }
+    if (paymentPolicy.coin_purchases.manualEnabled !== manualCoinPurchasesEnabled) {
+      throw new HttpsError("invalid-argument", "حالة الشراء اليدوي لا تطابق سياسة الدفع.");
+    }
     const now = FieldValue.serverTimestamp();
+    const versionRef = db.collection("platformSettings").doc("economyPricingVersions")
+      .collection("versions").doc(String(nextVersion));
+    transaction.create(versionRef, {
+      coinPackages, adPrices, customCoinRequestBounds, paymentPolicy,
+      manualCoinPurchasesEnabled, automatedCoinCheckoutEnabled: false,
+      realMoneyCheckoutEnabled: false, version: nextVersion,
+      createdAt: now, createdBy: actorUid,
+    });
     transaction.set(ECONOMY_PRICING_SETTINGS, {
-      coinPackages, adPrices, version: nextVersion,
-      manualCoinPurchasesEnabled: request.data?.manualCoinPurchasesEnabled !== false,
+      coinPackages, adPrices, customCoinRequestBounds, paymentPolicy, version: nextVersion,
+      manualCoinPurchasesEnabled,
       automatedCoinCheckoutEnabled: false,
       realMoneyCheckoutEnabled: false,
       updatedAt: now, updatedBy: actorUid,
-      createdAt: previous.data()?.createdAt ?? now,
+      createdAt: previousData.createdAt ?? now,
+      currentVersionPath: versionRef.path,
     });
     const auditRef = db.collection("adminAuditLogs").doc();
     transaction.create(auditRef, {
       actorUid, action: "economy_pricing_updated", version: nextVersion,
       coinPackageCount: coinPackages.length, adPlacementCount: adPrices.length,
+      manualCoinPurchasesEnabled, customCoinRequestBounds,
       realMoneyCheckoutEnabled: false, createdAt: now,
     });
     return nextVersion;
@@ -7524,12 +8067,19 @@ export const setAttendanceRewardPolicy = onCall(async (request) => {
   }
   const version = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(ATTENDANCE_REWARD_POLICY);
-    const nextVersion = (Number.isSafeInteger(previous.data()?.version)
-      ? previous.data()!.version : 0) + 1;
+    const previousData = previous.data() ?? {};
+    if (previous.exists && (!Number.isSafeInteger(previousData.version) || previousData.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار سياسة المكافآت الحالية غير صالح؛ أوقفنا التحديث لحماية السجل.");
+    }
+    const nextVersion = previous.exists ? previousData.version + 1 : 1;
+    if (!Number.isSafeInteger(nextVersion)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة المكافآت.");
     const now = FieldValue.serverTimestamp();
+    const versionRef = db.collection("platformSettings").doc("attendanceRewardVersions")
+      .collection("versions").doc(String(nextVersion));
+    transaction.create(versionRef, { policy, version: nextVersion, createdAt: now, createdBy: actorUid });
     transaction.set(ATTENDANCE_REWARD_POLICY, {
       policy, version: nextVersion, updatedAt: now, updatedBy: actorUid,
-      createdAt: previous.data()?.createdAt ?? now,
+      createdAt: previousData.createdAt ?? now, currentVersionPath: versionRef.path,
     });
     return nextVersion;
   });
@@ -7577,6 +8127,10 @@ export const claimAttendanceReward = onCall(async (request) => {
     } catch {
       throw new HttpsError("failed-precondition", "سياسة مكافآت الحضور غير صالحة؛ تم إيقاف المطالبة.");
     }
+    if (policySnapshot.exists && (!Number.isSafeInteger(policySnapshot.data()?.version) ||
+        policySnapshot.data()!.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار سياسة المكافآت غير صالح؛ تم إيقاف المطالبة.");
+    }
     const rule = policy[type];
     if (!rule.enabled || rule.amountCoins < 1) {
       throw new HttpsError("failed-precondition", "مكافأة هذا النوع غير مفعّلة حالياً.");
@@ -7590,6 +8144,9 @@ export const claimAttendanceReward = onCall(async (request) => {
     transaction.create(claimRef, {
       uid, type, period, amountCoins: rule.amountCoins,
       policyVersion: policySnapshot.data()?.version ?? 0,
+      policyPath: policySnapshot.exists
+        ? `platformSettings/attendanceRewardVersions/versions/${policySnapshot.data()!.version}`
+        : null,
       createdAt: now,
     });
     transaction.create(ledgerRef, {
@@ -7650,21 +8207,29 @@ export const setTimedAdCampaign = onCall(async (request) => {
     } else if (mediaRef) {
       throw new HttpsError("not-found", "مادة الإعلان غير موجودة.");
     }
-    const version = (Number.isSafeInteger(previous.data()?.version)
-      ? previous.data()!.version : 0) + 1;
+    const previousData = previous.data() ?? {};
+    if (previous.exists && (!Number.isSafeInteger(previousData.version) || previousData.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار الحملة الحالية غير صالح؛ أوقفنا التعديل لحماية السجل.");
+    }
+    const version = previous.exists ? previousData.version + 1 : 1;
+    if (!Number.isSafeInteger(version)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد للحملة.");
     const now = FieldValue.serverTimestamp();
-    transaction.set(campaignRef, {
+    const nextCampaign = {
       ...input, campaignId: campaignRef.id, creativeType,
       mediaId: mediaId ?? null,
       mediaOwnerUid: mediaId ? actorUid : null,
       creativeContentType,
-      status: previous.exists ? previous.data()?.status : "draft",
-      version, spentRewardCoins: previous.data()?.spentRewardCoins ?? 0,
-      reservedRewardCoins: previous.data()?.reservedRewardCoins ?? 0,
-      createdAt: previous.data()?.createdAt ?? now,
-      createdBy: previous.data()?.createdBy ?? actorUid,
+      status: previous.exists ? previousData.status : "draft",
+      version, spentRewardCoins: previousData.spentRewardCoins ?? 0,
+      reservedRewardCoins: previousData.reservedRewardCoins ?? 0,
+      createdAt: previousData.createdAt ?? now,
+      createdBy: previousData.createdBy ?? actorUid,
       updatedAt: now, updatedBy: actorUid,
-    });
+    };
+    const versionRef = db.collection("timedAdCampaignVersions").doc(campaignRef.id)
+      .collection("versions").doc(String(version));
+    transaction.create(versionRef, { ...nextCampaign, version, createdAt: now, createdBy: actorUid });
+    transaction.set(campaignRef, nextCampaign);
     return { campaignId: campaignRef.id, version, status: previous.exists ? previous.data()?.status : "draft", creativeType };
   });
   await appendOwnerReviewAuditEvent({
@@ -7720,11 +8285,22 @@ export const setTimedAdCampaignStatus = onCall(async (request) => {
         throw new HttpsError("failed-precondition", "لا يمكن نشر الحملة قبل اعتماد مادة الإعلان أمنياً.");
       }
     }
-    transaction.update(campaignRef, {
-      status, updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
-      version: (Number.isSafeInteger(data.version) ? data.version : 0) + 1,
+    if (!Number.isSafeInteger(data.version) || data.version < 1) {
+      throw new HttpsError("failed-precondition", "إصدار الحملة غير صالح؛ أوقفنا تغيير الحالة.");
+    }
+    const nextVersion = data.version + 1;
+    if (!Number.isSafeInteger(nextVersion)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد للحملة.");
+    const now = FieldValue.serverTimestamp();
+    const versionRef = db.collection("timedAdCampaignVersions").doc(campaignId)
+      .collection("versions").doc(String(nextVersion));
+    transaction.create(versionRef, {
+      ...data, status, version: nextVersion, updatedAt: now, updatedBy: actorUid,
+      createdAt: now, createdBy: actorUid,
     });
-    return { campaignId, status };
+    transaction.update(campaignRef, {
+      status, updatedAt: now, updatedBy: actorUid, version: nextVersion,
+    });
+    return { campaignId, status, version: nextVersion };
   });
   await appendOwnerReviewAuditEvent({
     actorUid, action: "timed_ad_campaign_status_changed", ...result, outcome: "success",
@@ -7856,7 +8432,10 @@ export const startTimedAdvertisement = onCall(async (request) => {
     const expiresAtMs = Math.min(data.endsAtMs, nowMs + data.durationSeconds * 4000 + 60000);
     transaction.create(sessionRef, {
       sessionId, uid, campaignId, campaignVersion: data.version,
-      durationSeconds: data.durationSeconds, rewardCoins: data.rewardCoins,
+      campaignVersionPath: `timedAdCampaignVersions/${campaignId}/versions/${data.version}`,
+      placement: data.placement, durationSeconds: data.durationSeconds,
+      rewardCoins: data.rewardCoins, rewardBudgetCoins: data.rewardBudgetCoins,
+      maxClaimsPerMember: data.maxClaimsPerMember,
       eligibleMs: 0, heartbeatSequence: 0, lastHeartbeatAtMs: null,
       status: "active", startedAt: FieldValue.serverTimestamp(),
       startedAtMs: nowMs, expiresAtMs,
@@ -8064,13 +8643,17 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     transaction.update(userRef, { coins: balance + data.rewardCoins, walletUpdatedAt: now });
     transaction.create(claimRef, {
       uid, sessionId, campaignId: data.campaignId,
-      campaignVersion: data.campaignVersion, amountCoins: data.rewardCoins,
-      eligibleMs: data.eligibleMs, createdAt: now,
+      campaignVersion: data.campaignVersion,
+      campaignVersionPath: data.campaignVersionPath ?? null,
+      amountCoins: data.rewardCoins, eligibleMs: data.eligibleMs, createdAt: now,
     });
     transaction.create(userRef.collection("walletLedger").doc(`timed_ad_${sessionId}`), {
       type: "timed_ad_reward", direction: "credit", amount: data.rewardCoins,
       balanceBefore: balance, balanceAfter: balance + data.rewardCoins,
-      campaignId: data.campaignId, sessionId, createdAt: now,
+      campaignId: data.campaignId, sessionId,
+      campaignVersion: data.campaignVersion,
+      campaignVersionPath: data.campaignVersionPath ?? null,
+      createdAt: now,
     });
     transaction.update(campaignRef, {
       spentRewardCoins: spent + data.rewardCoins,
@@ -8095,6 +8678,101 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     throw new HttpsError("permission-denied", "الحساب أو الحملة لم تعد مؤهلة؛ ألغيت الجلسة دون مكافأة.");
   }
   return result;
+});
+
+/** Owner-only advertiser receipt/refund/reconciliation ledger. This never credits member BetaCoins. */
+export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let event;
+  try {
+    event = validateFeaturedAdFinancialEvent(request.data);
+    if (event.currency !== null && currencyExponentForCode(event.currency) === null) {
+      throw new Error("UNSUPPORTED_CURRENCY");
+    }
+  } catch {
+    throw new HttpsError("invalid-argument", "بيانات الحركة المالية الإعلانية أو عملتها غير صالحة.");
+  }
+  const campaignRef = db.collection("timedAdCampaigns").doc(event.campaignId);
+  const financialRef = db.collection("featuredAdFinancials").doc(event.campaignId);
+  const eventId = featuredAdFinancialIdempotencyId(
+    event.campaignId, event.action, event.externalReference!,
+  );
+  const eventRef = financialRef.collection("events").doc(eventId);
+  const auditRef = db.collection("adminAuditLogs").doc(`featured_ad_finance_${eventId}`);
+  return db.runTransaction(async (transaction) => {
+    const [campaign, financial, priorEvent, paymentSettings] = await Promise.all([
+      transaction.get(campaignRef), transaction.get(financialRef), transaction.get(eventRef),
+      transaction.get(ECONOMY_PRICING_SETTINGS),
+    ]);
+    if (!campaign.exists) throw new HttpsError("not-found", "الحملة الإعلانية غير موجودة.");
+    if (priorEvent.exists) {
+      const prior = priorEvent.data() ?? {};
+      const matches = prior.actorUid === actorUid &&
+        prior.idempotencyKey === event.idempotencyKey &&
+        prior.action === event.action && prior.amountMinor === event.amountMinor &&
+        prior.currency === event.currency && prior.externalReference === event.externalReference &&
+        prior.evidenceReference === event.evidenceReference && prior.note === event.note &&
+        prior.reviewOutcome === event.reviewOutcome;
+      if (!matches) throw new HttpsError("already-exists", "مرجع الحركة مستخدم ببيانات مالية مختلفة.");
+      return {
+        campaignId: event.campaignId, eventId,
+        snapshot: financial.data() ?? null, idempotentReplay: true,
+      };
+    }
+    if (event.action === "payment_received") {
+      const settings = paymentSettings.data() ?? {};
+      const policy = projectEconomicPaymentPolicy(settings.paymentPolicy);
+      if (policy.featured_ads.manualEnabled !== true ||
+          policy.featured_ads.automatedEnabled !== false) {
+        throw new HttpsError("failed-precondition", "استقبال دفعات الإعلانات اليدوي متوقف في سياسة المالك.");
+      }
+    }
+    const currentData = financial.data() ?? {};
+    if (financial.exists && (!Number.isSafeInteger(currentData.version) || currentData.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار السجل المالي الإعلاني غير صالح.");
+    }
+    const current = financial.exists
+      ? {
+          currency: currentData.currency,
+          receivedMinor: currentData.receivedMinor,
+          refundedMinor: currentData.refundedMinor,
+          reconciledMinor: currentData.reconciledMinor,
+          reviewStatus: currentData.reviewStatus,
+          paymentStatus: currentData.paymentStatus,
+        }
+      : defaultFeaturedAdFinancialSnapshot();
+    let next;
+    try { next = applyFeaturedAdFinancialEvent(current, event); }
+    catch { throw new HttpsError("failed-precondition", "لا تسمح حالة السجل المالي بتطبيق هذه الحركة."); }
+    const version = financial.exists ? currentData.version + 1 : 1;
+    if (!Number.isSafeInteger(version)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار مالي جديد.");
+    const now = FieldValue.serverTimestamp();
+    const versionRef = db.collection("featuredAdFinancialVersions").doc(event.campaignId)
+      .collection("versions").doc(String(version));
+    const currencyExponent = event.currency === null ? null : currencyExponentForCode(event.currency);
+    transaction.create(versionRef, {
+      campaignId: event.campaignId, ...next, version,
+      lastEventId: eventId, createdAt: now, createdBy: actorUid,
+    });
+    transaction.create(eventRef, {
+      ...event, currencyExponent, eventId, actorUid,
+      snapshotVersion: version, createdAt: now,
+    });
+    transaction.set(financialRef, {
+      campaignId: event.campaignId, ...next, version,
+      lastEventId: eventId, updatedAt: now, updatedBy: actorUid,
+      createdAt: currentData.createdAt ?? now,
+      currentVersionPath: versionRef.path,
+    });
+    transaction.create(auditRef, {
+      actorUid, action: "featured_ad_financial_event_recorded",
+      campaignId: event.campaignId, eventId, eventType: event.action,
+      amountMinor: event.amountMinor, currency: event.currency,
+      currencyExponent, externalReference: event.externalReference,
+      snapshotVersion: version, createdAt: now,
+    });
+    return { campaignId: event.campaignId, eventId, snapshot: next, version, idempotentReplay: false };
+  });
 });
 
 export const getRewardCenter = onCall(async (request) => {
@@ -9238,19 +9916,36 @@ export const listMyContracts = onCall(
 const CALL_SESSIONS = db.collection("callSessions");
 const ACTIVE_CALL_MEMBER_LOCKS = db.collection("activeCallMemberLocks");
 const CALL_QUOTA_WINDOWS = db.collection("callQuotaWindows");
-const CALL_QUOTA_WINDOW_MS = 24 * 60 * 60 * 1000;
-const CALL_AUDIO_ATTEMPT_LIMIT = 5;
-const CALL_VIDEO_ATTEMPT_LIMIT = 3;
-const CALL_MAX_DURATION_MS = 5 * 60 * 1000;
+const CALL_USAGE_POLICY = db.doc("platformSettings/callUsagePolicy");
 
 /**
- * Enforce the five-minute ceiling from the server timestamp created only
- * after both sides report an established RTCPeerConnection. This is a
- * server-recorded client connectivity signal, not cryptographic proof of
+ * Enforce the immutable owner-configured call duration from the server timestamp
+ * created only after both sides report an established RTCPeerConnection. This is
+ * a server-recorded client connectivity signal, not cryptographic proof of
  * network delivery; live device acceptance remains a separate release gate.
  */
+async function clearCallMemberLocks(callRef: DocumentReference): Promise<void> {
+  const snapshot = await callRef.get();
+  const participantUids = Array.isArray(snapshot.data()?.participantUids)
+    ? [...new Set((snapshot.data()!.participantUids as unknown[])
+        .filter((uid): uid is string => typeof uid === "string"))]
+    : [];
+  for (let offset = 0; offset < participantUids.length; offset += 100) {
+    const batchUids = participantUids.slice(offset, offset + 100);
+    await db.runTransaction(async (transaction) => {
+      const lockRefs = batchUids.map((uid) => ACTIVE_CALL_MEMBER_LOCKS.doc(uid));
+      const locks = await Promise.all(lockRefs.map((lockRef) => transaction.get(lockRef)));
+      lockRefs.forEach((lockRef, index) => {
+        if (locks[index].exists && locks[index].data()?.callId === callRef.id) {
+          transaction.delete(lockRef);
+        }
+      });
+    });
+  }
+}
+
 async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<string | null> {
-  return db.runTransaction(async (transaction) => {
+  const status = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(callRef);
     if (!snapshot.exists) return null;
     const call = snapshot.data() ?? {};
@@ -9259,11 +9954,6 @@ async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<
         call.maxDurationEndsAt.toMillis() > Date.now()) {
       return typeof call.status === "string" ? call.status : null;
     }
-    const participantUids = Array.isArray(call.participantUids)
-      ? call.participantUids.filter((uid): uid is string => typeof uid === "string")
-      : [];
-    const lockRefs = participantUids.map((uid) => ACTIVE_CALL_MEMBER_LOCKS.doc(uid));
-    const locks = await Promise.all(lockRefs.map((lockRef) => transaction.get(lockRef)));
     transaction.update(callRef, {
       status: "ended",
       endedBy: "system",
@@ -9271,14 +9961,358 @@ async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<
       endedAt: FieldValue.serverTimestamp(),
       lastActivityAt: FieldValue.serverTimestamp(),
     });
-    lockRefs.forEach((lockRef, index) => {
-      if (locks[index].exists && locks[index].data()?.callId === callRef.id) {
-        transaction.delete(lockRef);
-      }
-    });
     return "duration_expired";
   });
+  if (status === "duration_expired") {
+    try { await clearCallMemberLocks(callRef); }
+    catch (error) {
+      logger.error("Call member lock cleanup deferred after duration expiry", {
+        callId: callRef.id, error: String(error),
+      });
+    }
+    try { await processGroupCallBillingSettlement(callRef); }
+    catch (error) {
+      await callRef.set({
+        groupCallBillingState: "pending",
+        groupCallBillingLastAttemptAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      logger.error("Group-call billing settlement deferred after duration expiry", {
+        callId: callRef.id, error: String(error),
+      });
+    }
+  }
+  return status;
 }
+
+
+const GROUP_CALL_PRICING_SETTINGS = db.doc("platformSettings/groupCallPricing");
+/**
+ * Final group-call billing is idempotent per member. Each member's wallet
+ * debit, wallet ledger entry and settlement receipt are committed atomically.
+ * Insufficient balances remain pending for safe retry; coins never go negative.
+ */
+async function processGroupCallBillingSettlement(
+  callRef: DocumentReference,
+): Promise<{ status: string; totalAmount?: number; billableMinutes?: number }> {
+  const snapshot = await callRef.get();
+  if (!snapshot.exists) return { status: "missing" };
+  const call = snapshot.data() ?? {};
+  if (call.scope !== "room" || call.groupCallPricingSnapshot?.active !== true) {
+    await callRef.set({ groupCallBillingState: "not_applicable" }, { merge: true });
+    return { status: "not_applicable" };
+  }
+  if (call.status !== "ended") return { status: "pending" };
+  if (!(call.connectedAt instanceof Timestamp)) {
+    await callRef.set({ groupCallBillingState: "not_applicable" }, { merge: true });
+    return { status: "not_applicable" };
+  }
+  if (!(call.endedAt instanceof Timestamp) ||
+      !(call.maxDurationEndsAt instanceof Timestamp)) {
+    return { status: "pending" };
+  }
+  const policy = call.groupCallPricingSnapshot;
+  const mediaConnectedAt = call.mediaConnectedAt && typeof call.mediaConnectedAt === "object" &&
+      !Array.isArray(call.mediaConnectedAt)
+    ? call.mediaConnectedAt as Record<string, unknown> : {};
+  const claimedConnectedUids = Array.isArray(call.participantUids)
+    ? [...new Set(call.participantUids.filter((uid): uid is string =>
+        typeof uid === "string" && mediaConnectedAt[uid] instanceof Timestamp))]
+    : [];
+  if (claimedConnectedUids.length < 2 ||
+      !claimedConnectedUids.includes(String(call.callerUid))) {
+    await callRef.set({ groupCallBillingState: "not_applicable" }, { merge: true });
+    return { status: "not_applicable" };
+  }
+
+  // Client-reported WebRTC state is not proof that media actually flowed.
+  // Until a trusted SFU/provider event verifier is integrated, fail closed:
+  // no wallet debit may be based on markCallConnected alone.
+  const mediaEvidenceVerifiedAt = call.mediaEvidenceVerifiedAt &&
+      typeof call.mediaEvidenceVerifiedAt === "object" &&
+      !Array.isArray(call.mediaEvidenceVerifiedAt)
+    ? call.mediaEvidenceVerifiedAt as Record<string, unknown> : {};
+  const unverifiedMediaUids = claimedConnectedUids.filter((uid) =>
+    !(mediaEvidenceVerifiedAt[uid] instanceof Timestamp));
+  if (unverifiedMediaUids.length > 0) {
+    await callRef.set({
+      groupCallBillingState: "blocked_unverified_media",
+      groupCallBillingBlockReason: "awaiting_server_verified_media_evidence",
+      groupCallBillingBlockedUids: unverifiedMediaUids,
+      groupCallBillingLastAttemptAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return { status: "blocked_unverified_media" };
+  }
+
+  const consents = call.billingConsents && typeof call.billingConsents === "object" &&
+      !Array.isArray(call.billingConsents)
+    ? call.billingConsents as Record<string, unknown> : {};
+  const missingConsentUids = claimedConnectedUids.filter((uid) => {
+    const consent = consents[uid];
+    return !consent || typeof consent !== "object" ||
+      (consent as Record<string, unknown>).consented !== true ||
+      (consent as Record<string, unknown>).policyId !== policy.policyId ||
+      (consent as Record<string, unknown>).policyVersion !== policy.version;
+  });
+  if (missingConsentUids.length > 0) {
+    await callRef.set({
+      groupCallBillingState: "blocked_missing_financial_consent",
+      groupCallBillingBlockReason: "participant_financial_consent_missing_or_stale",
+      groupCallBillingBlockedUids: missingConsentUids,
+      groupCallBillingLastAttemptAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return { status: "blocked_missing_financial_consent" };
+  }
+
+  const participantUids = claimedConnectedUids;
+  const maxDurationMs = call.maxDurationEndsAt.toMillis() - call.connectedAt.toMillis();
+  if (!Number.isSafeInteger(maxDurationMs) || maxDurationMs < 1) {
+    throw new Error("GROUP_CALL_MAX_DURATION_SNAPSHOT_INVALID");
+  }
+  const settlement = calculateGroupCallFinalSettlement(
+    policy,
+    call.mode,
+    participantUids,
+    String(call.callerUid),
+    Math.max(0, call.endedAt.toMillis() - call.connectedAt.toMillis()),
+    maxDurationMs,
+  );
+  const settlementResults: string[] = [];
+  const settleShare = async (share: { uid: string; amount: number }): Promise<string> => {
+    const memberRef = db.collection("users").doc(share.uid);
+    const ledgerRef = memberRef.collection("walletLedger").doc("group_call_" + callRef.id);
+    const receiptRef = callRef.collection("billingSettlements").doc(share.uid);
+    const outcome = await db.runTransaction(async (transaction) => {
+      const [member, ledger, receipt] = await Promise.all([
+        transaction.get(memberRef), transaction.get(ledgerRef), transaction.get(receiptRef),
+      ]);
+      if (receipt.exists && receipt.data()?.status === "settled") {
+        if (!ledger.exists) throw new Error("GROUP_CALL_SETTLEMENT_RECEIPT_WITHOUT_LEDGER");
+        const settledLedger = ledger.data() ?? {};
+        if (settledLedger.callId !== callRef.id ||
+            settledLedger.amount !== -share.amount ||
+            settledLedger.policyId !== settlement.policyId ||
+            settledLedger.policyVersion !== settlement.policyVersion) {
+          throw new Error("GROUP_CALL_LEDGER_IDEMPOTENCY_CONFLICT");
+        }
+        return "settled";
+      }
+      if (ledger.exists) {
+        const priorLedger = ledger.data() ?? {};
+        if (priorLedger.callId !== callRef.id ||
+            priorLedger.amount !== -share.amount ||
+            priorLedger.policyId !== settlement.policyId ||
+            priorLedger.policyVersion !== settlement.policyVersion) {
+          throw new Error("GROUP_CALL_LEDGER_IDEMPOTENCY_CONFLICT");
+        }
+        transaction.set(receiptRef, {
+          uid: share.uid, status: "settled", amount: share.amount,
+          callId: callRef.id, policyId: settlement.policyId,
+          policyVersion: settlement.policyVersion,
+          billableMinutes: settlement.billableMinutes,
+          participantCount: settlement.shares.length,
+          settledAt: FieldValue.serverTimestamp(),
+        });
+        return "settled";
+      }
+      if (!member.exists) {
+        transaction.set(receiptRef, {
+          uid: share.uid, status: "account_missing", amount: share.amount,
+          callId: callRef.id, policyId: settlement.policyId,
+          policyVersion: settlement.policyVersion,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        return "account_missing";
+      }
+      const memberData = member.data() ?? {};
+      const balance = readSafeInteger(memberData.coins ?? 0, "groupCallMember.coins");
+      if (balance < 0) throw new Error("GROUP_CALL_MEMBER_BALANCE_INVALID");
+      if (balance < share.amount) {
+        transaction.set(receiptRef, {
+          uid: share.uid, status: "insufficient_funds", amount: share.amount,
+          availableBalance: balance, callId: callRef.id,
+          policyId: settlement.policyId, policyVersion: settlement.policyVersion,
+          billableMinutes: settlement.billableMinutes,
+          participantCount: settlement.shares.length,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        return "insufficient_funds";
+      }
+      transaction.update(memberRef, { coins: balance - share.amount });
+      transaction.create(ledgerRef, {
+        type: "group_call_charge", direction: "debit",
+        amount: -share.amount, currency: "coin",
+        callId: callRef.id, mode: call.mode,
+        totalCallAmount: settlement.totalAmount,
+        participantCount: settlement.shares.length,
+        billableMinutes: settlement.billableMinutes,
+        policyId: settlement.policyId,
+        policyVersion: settlement.policyVersion,
+        equalShare: true,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      transaction.set(receiptRef, {
+        uid: share.uid, status: "settled", amount: share.amount,
+        callId: callRef.id, policyId: settlement.policyId,
+        policyVersion: settlement.policyVersion,
+        billableMinutes: settlement.billableMinutes,
+        participantCount: settlement.shares.length,
+        settledAt: FieldValue.serverTimestamp(),
+      });
+      return "settled";
+    });
+    return outcome;
+  };
+  for (let offset = 0; offset < settlement.shares.length; offset += 25) {
+    const outcomes = await Promise.all(
+      settlement.shares.slice(offset, offset + 25).map(settleShare),
+    );
+    settlementResults.push(...outcomes);
+  }
+  const complete = settlementResults.every((status) => status === "settled");
+  await callRef.set({
+    groupCallBillingState: complete ? "settled" : "pending",
+    groupCallBillingSummary: {
+      totalAmount: settlement.totalAmount,
+      billableMinutes: settlement.billableMinutes,
+      participantCount: settlement.shares.length,
+      policyId: settlement.policyId,
+      policyVersion: settlement.policyVersion,
+      shares: settlement.shares,
+    },
+    groupCallBillingLastAttemptAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return {
+    status: complete ? "settled" : "pending",
+    totalAmount: settlement.totalAmount,
+    billableMinutes: settlement.billableMinutes,
+  };
+}
+
+
+/**
+ * Only the MFA-verified platform owner can publish a new immutable pricing
+ * version. There is deliberately no default price: missing policy means
+ * paid group-call billing is unavailable.
+ */
+export const setGroupCallPricingPolicy = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const audioCoinsPerMinute = readSafeInteger(request.data?.audioCoinsPerMinute, "audioCoinsPerMinute");
+  const videoCoinsPerMinute = readSafeInteger(request.data?.videoCoinsPerMinute, "videoCoinsPerMinute");
+  const active = request.data?.active;
+  if (audioCoinsPerMinute < 0 || videoCoinsPerMinute < 0 ||
+      audioCoinsPerMinute > 1000000000 || videoCoinsPerMinute > 1000000000 ||
+      typeof active !== "boolean" ||
+      (active && audioCoinsPerMinute === 0 && videoCoinsPerMinute === 0)) {
+    throw new HttpsError("invalid-argument", "إعدادات تسعير المكالمات غير صالحة.");
+  }
+  const now = Date.now();
+  const policyId = randomUUID();
+  const result = await db.runTransaction(async (transaction) => {
+    const current = await transaction.get(GROUP_CALL_PRICING_SETTINGS);
+    const previous = current.data() ?? {};
+    if (current.exists && (!Number.isSafeInteger(previous.version) || previous.version < 1 ||
+        typeof previous.policyId !== "string" || !/^[A-Za-z0-9_-]{8,100}$/.test(previous.policyId))) {
+      throw new HttpsError("failed-precondition", "سجل سياسة التسعير الحالية غير صالح؛ أوقف التحديث لحماية سجل الإصدارات.");
+    }
+    if (current.exists) {
+      try { validateGroupCallPricingPolicy(previous); }
+      catch { throw new HttpsError("failed-precondition", "سياسة التسعير الحالية تالفة؛ أوقف التحديث لحماية السجل."); }
+    }
+    const version = current.exists ? previous.version + 1 : 1;
+    if (!Number.isSafeInteger(version)) {
+      throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة التسعير.");
+    }
+    const next = validateGroupCallPricingPolicy({
+      policyId, version, active, audioCoinsPerMinute, videoCoinsPerMinute, updatedAtMs: now,
+    });
+    const immutableVersionRef = db.collection("platformSettings")
+      .doc("groupCallPricingVersions").collection("versions").doc(policyId);
+    transaction.create(immutableVersionRef, {
+      ...next,
+      createdBy: actorUid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    transaction.set(GROUP_CALL_PRICING_SETTINGS, {
+      ...next, updatedBy: actorUid, updatedAt: FieldValue.serverTimestamp(),
+      currentVersionRef: immutableVersionRef.path,
+    });
+    const auditRef = db.collection("adminAuditLogs").doc();
+    transaction.create(auditRef, {
+      actorUid,
+      action: "group_call_pricing_policy_updated",
+      policyId,
+      version,
+      active,
+      audioCoinsPerMinute,
+      videoCoinsPerMinute,
+      previousPolicyId: typeof previous.policyId === "string" ? previous.policyId : null,
+      previousVersion: Number.isSafeInteger(previous.version) ? previous.version : null,
+      previousActive: typeof previous.active === "boolean" ? previous.active : null,
+      previousAudioCoinsPerMinute: Number.isSafeInteger(previous.audioCoinsPerMinute) ? previous.audioCoinsPerMinute : null,
+      previousVideoCoinsPerMinute: Number.isSafeInteger(previous.videoCoinsPerMinute) ? previous.videoCoinsPerMinute : null,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return next;
+  });
+  return result;
+});
+
+/** Owner-only read of the current group-call price policy; no defaults are invented. */
+export const getOwnerGroupCallPricingPolicy = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await GROUP_CALL_PRICING_SETTINGS.get();
+  if (!snapshot.exists) return { configured: false, policy: null, version: 0 };
+  const data = snapshot.data() ?? {};
+  let policy;
+  try { policy = validateGroupCallPricingPolicy(data); }
+  catch { throw new HttpsError("failed-precondition", "سياسة تسعير المكالمات الجماعية غير صالحة."); }
+  return { configured: true, policy, version: policy.version };
+});
+
+export const getOwnerCallUsagePolicy = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await CALL_USAGE_POLICY.get();
+  if (!snapshot.exists) return { configured: false, policy: null, version: 0 };
+  const data = snapshot.data() ?? {};
+  if (!Number.isSafeInteger(data.version) || data.version < 1) {
+    throw new HttpsError("failed-precondition", "إصدار سياسة استخدام المكالمات غير صالح.");
+  }
+  let policy;
+  try { policy = validateCallUsagePolicy(data.policy); }
+  catch { throw new HttpsError("failed-precondition", "سياسة استخدام المكالمات غير صالحة."); }
+  return { configured: true, policy, version: data.version };
+});
+
+export const setOwnerCallUsagePolicy = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let policy;
+  try { policy = validateCallUsagePolicy(request.data?.policy); }
+  catch { throw new HttpsError("invalid-argument", "إعدادات حصص المكالمات ومددها غير صالحة."); }
+  const version = await db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(CALL_USAGE_POLICY);
+    const previousData = previous.data() ?? {};
+    if (previous.exists && (!Number.isSafeInteger(previousData.version) || previousData.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار سياسة المكالمات الحالية غير صالح؛ أوقفنا التحديث لحماية السجل.");
+    }
+    const nextVersion = previous.exists ? previousData.version + 1 : 1;
+    if (!Number.isSafeInteger(nextVersion)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة المكالمات.");
+    const now = FieldValue.serverTimestamp();
+    const versionRef = db.collection("platformSettings").doc("callUsagePolicyVersions")
+      .collection("versions").doc(String(nextVersion));
+    transaction.create(versionRef, { policy, version: nextVersion, createdAt: now, createdBy: actorUid });
+    transaction.set(CALL_USAGE_POLICY, {
+      policy, version: nextVersion, updatedAt: now, updatedBy: actorUid,
+      createdAt: previousData.createdAt ?? now, currentVersionPath: versionRef.path,
+    });
+    const auditRef = db.collection("adminAuditLogs").doc();
+    transaction.create(auditRef, {
+      actorUid, action: "call_usage_policy_updated", version: nextVersion,
+      policy, createdAt: now,
+    });
+    return nextVersion;
+  });
+  return { saved: true, version, policy };
+});
 
 export const startCall = onCall(async (request) => {
   const callerUid = requireAuthenticatedUid(request.auth?.uid);
@@ -9289,6 +10323,7 @@ export const startCall = onCall(async (request) => {
   const callRef = CALL_SESSIONS.doc(input.callId);
   let participantUids: string[] = [];
   let recipientUids: string[] = [];
+  let rentalIdForCall: string | null = null;
 
   if (input.scope === "direct") {
     const chatRef = db.collection("directChats").doc(input.targetId);
@@ -9332,34 +10367,78 @@ export const startCall = onCall(async (request) => {
         !room.exists || room.data()?.status !== "active" || !membership.exists) {
       throw new HttpsError("permission-denied", "يجب أن تكون عضواً في غرفة نشطة لإجراء مكالمة.");
     }
-    const members = await roomRef.collection("members").limit(6).get();
-    if (members.size < 2 || members.size > 5) {
-      throw new HttpsError("failed-precondition", "مكالمات الغرف تدعم حالياً من عضوين إلى خمسة أعضاء كحد أقصى.");
+    const roomData = room.data() ?? {};
+    rentalIdForCall = typeof roomData.rentalId === "string" ? roomData.rentalId : null;
+    if (!rentalIdForCall) {
+      throw new HttpsError("failed-precondition", "مكالمات الغرف تتطلب غرفة خاصة مستأجرة بسجل إيجار فعال.");
     }
-    participantUids = members.docs.map((doc) => doc.id).sort();
-    recipientUids = participantUids.filter((uid) => uid !== callerUid);
-    const profiles = await db.getAll(...recipientUids.map((uid) => db.collection("users").doc(uid)));
-    const callerData = caller.data() ?? {};
-    if (profiles.some((profile) => {
-      const peerData = profile.data() ?? {};
-      return !profile.exists || peerData.profileCompleted !== true ||
-        !isMemberAccountInGoodStanding(peerData) ||
-        !Number.isSafeInteger(callerData.age) || !Number.isSafeInteger(peerData.age) ||
-        ((callerData.age < 18) !== (peerData.age < 18)) ||
-        (Array.isArray(callerData.blockedUids) && callerData.blockedUids.includes(profile.id)) ||
-        (Array.isArray(peerData.blockedUids) && peerData.blockedUids.includes(callerUid));
-    })) {
-      throw new HttpsError("permission-denied", "يوجد عضو غير مؤهل أو محظور ضمن المشاركين في المكالمة.");
+    const rentalSnapshot = await db.collection("roomRentals").doc(rentalIdForCall).get();
+    if (!isActiveRentedPrivateRoom(roomData, rentalSnapshot.data(), Date.now())) {
+      throw new HttpsError("failed-precondition", "الغرفة أو سجل استئجارها غير فعال؛ تم إيقاف المكالمة.");
     }
+    const roomCapacity = roomData.capacity;
+    if (!Number.isSafeInteger(roomCapacity) || roomCapacity < 2 || roomCapacity > 1000) {
+      throw new HttpsError("failed-precondition", "سعة الغرفة المستأجرة غير صالحة؛ تعذر تحديد المشاركين.");
+    }
+    const members = await roomRef.collection("members").limit(roomCapacity + 1).get();
+    if (members.size < 2 || members.size > roomCapacity) {
+      throw new HttpsError("failed-precondition", "عدد أعضاء الغرفة يتجاوز سعتها أو لا يكفي لبدء المكالمة.");
+    }
+    // Room calls start with the creator only. Members must request entry and
+    // receive an explicit creator approval before they become participants.
+    participantUids = [callerUid];
+    recipientUids = [];
   }
 
   const now = Date.now();
   const expiresAt = Timestamp.fromMillis(now + CALL_RING_TIMEOUT_MS);
   const quotaRef = CALL_QUOTA_WINDOWS.doc(callerUid);
   const result = await db.runTransaction(async (transaction) => {
-    const [existing, caller, quotaSnapshot] = await Promise.all([
+    const roomRefForTransaction = input.scope === "room"
+      ? db.collection("rooms").doc(input.targetId) : null;
+    const roomMemberRefForTransaction = input.scope === "room"
+      ? db.collection("rooms").doc(input.targetId).collection("members").doc(callerUid) : null;
+    const rentalRefForTransaction = rentalIdForCall
+      ? db.collection("roomRentals").doc(rentalIdForCall) : null;
+    const [existing, caller, quotaSnapshot, usagePolicySnapshot, groupPricingSnapshot, roomForCall, rentalForCall, roomMemberForCall] = await Promise.all([
       transaction.get(callRef), transaction.get(callerRef), transaction.get(quotaRef),
+      transaction.get(CALL_USAGE_POLICY), transaction.get(GROUP_CALL_PRICING_SETTINGS),
+      roomRefForTransaction ? transaction.get(roomRefForTransaction) : Promise.resolve(null),
+      rentalRefForTransaction ? transaction.get(rentalRefForTransaction) : Promise.resolve(null),
+      roomMemberRefForTransaction ? transaction.get(roomMemberRefForTransaction) : Promise.resolve(null),
     ]);
+    if (input.scope === "room" &&
+        (!roomForCall?.exists || !rentalForCall?.exists || !roomMemberForCall?.exists ||
+         !isActiveRentedPrivateRoom(roomForCall.data(), rentalForCall.data(), now))) {
+      throw new HttpsError("failed-precondition", "انتهى استئجار الغرفة أو تغيرت حالته قبل بدء المكالمة.");
+    }
+    if (!usagePolicySnapshot.exists || !Number.isSafeInteger(usagePolicySnapshot.data()?.version) ||
+        usagePolicySnapshot.data()!.version < 1) {
+      throw new HttpsError("failed-precondition", "لم يحدد المالك سياسة استخدام مكالمات فعالة؛ لا يمكن بدء المكالمة.");
+    }
+    let usagePolicy;
+    try { usagePolicy = validateCallUsagePolicy(usagePolicySnapshot.data()?.policy); }
+    catch { throw new HttpsError("failed-precondition", "سياسة استخدام المكالمات غير صالحة؛ تم إيقاف بدء المكالمة."); }
+    if (!usagePolicy.active) {
+      throw new HttpsError("failed-precondition", "المكالمات متوقفة حالياً بقرار المالك.");
+    }
+    let groupCallPricingSnapshot: ReturnType<typeof validateGroupCallPricingPolicy> | null = null;
+    if (input.scope === "room" && groupPricingSnapshot?.exists) {
+      try {
+        const candidate = validateGroupCallPricingPolicy(groupPricingSnapshot.data());
+        const rate = input.mode === "audio" ? candidate.audioCoinsPerMinute : candidate.videoCoinsPerMinute;
+        if (candidate.active && rate < 1) {
+          throw new HttpsError("failed-precondition", "هذا النوع من المكالمات الجماعية غير مسعّر وموقوف بقرار المالك.");
+        }
+        if (candidate.active) groupCallPricingSnapshot = candidate;
+      } catch {
+        throw new HttpsError("failed-precondition", "سياسة تسعير المكالمات الجماعية غير صالحة؛ تعذر بدء المكالمة.");
+      }
+    }
+    const modeLimit = callModeQuotaLimit(usagePolicy, input.mode);
+    if (modeLimit === 0) {
+      throw new HttpsError("failed-precondition", "هذا النوع من المكالمات متوقف حالياً بقرار المالك.");
+    }
     if (existing.exists) {
       const prior = existing.data() ?? {};
       if (prior.callerUid === callerUid && prior.targetId === input.targetId &&
@@ -9425,25 +10504,28 @@ export const startCall = onCall(async (request) => {
     }
     const recentAttempts = (allAttempts as Array<{
       callId: string; mode: "audio" | "video"; startedAtMs: number;
-    }>).filter((attempt) => attempt.startedAtMs > quotaNow - CALL_QUOTA_WINDOW_MS);
+    }>).filter((attempt) => attempt.startedAtMs > quotaNow - usagePolicy.quotaWindowMs);
     const modeAttempts = recentAttempts.filter((attempt) => attempt.mode === input.mode).length;
-    const modeLimit = input.mode === "audio" ? CALL_AUDIO_ATTEMPT_LIMIT : CALL_VIDEO_ATTEMPT_LIMIT;
-    if (modeAttempts >= modeLimit) {
-      throw new HttpsError(
-        "resource-exhausted",
-        input.mode === "audio"
-          ? "وصلت إلى الحد المسموح لمحاولات المكالمات الصوتية خلال آخر 24 ساعة."
-          : "وصلت إلى الحد المسموح لمحاولات المكالمات المرئية خلال آخر 24 ساعة.",
-      );
+    if (modeLimit !== null && modeAttempts >= modeLimit) {
+      throw new HttpsError("resource-exhausted", "تم بلوغ الحصة التي حددها المالك لهذا النوع من المكالمات.");
     }
     transaction.set(quotaRef, {
-      attempts: [...recentAttempts, { callId: input.callId, mode: input.mode, startedAtMs: quotaNow }],
+      attempts: [...recentAttempts, {
+        callId: input.callId, mode: input.mode, startedAtMs: quotaNow,
+        policyVersion: usagePolicySnapshot.data()!.version,
+      }],
       updatedAt: FieldValue.serverTimestamp(),
     });
     transaction.create(callRef, {
       callId: input.callId, scope: input.scope, targetId: input.targetId, mode: input.mode,
-      callerUid, participantUids, acceptedUids: [], rejectedUids: [], leftUids: [],
+      rentalId: rentalIdForCall,
+      callerUid, participantUids, acceptedUids: input.scope === "room" ? [callerUid] : [], rejectedUids: [], leftUids: [],
       status: "ringing", signalCounts: {}, signalsCleanedAt: false,
+      usagePolicySnapshot: usagePolicy,
+      usagePolicyVersion: usagePolicySnapshot.data()!.version,
+      groupCallPricingSnapshot: input.scope === "room" ? groupCallPricingSnapshot : null,
+      billingConsents: {},
+      usagePolicyPath: `platformSettings/callUsagePolicyVersions/versions/${usagePolicySnapshot.data()!.version}`,
       createdAt: FieldValue.serverTimestamp(),
       expiresAt, lastActivityAt: FieldValue.serverTimestamp(),
     });
@@ -9479,7 +10561,7 @@ export const respondToCall = onCall(async (request) => {
     ]);
     if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
     const call = snapshot.data()!;
-    if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
+    if (call.scope === "room" || !Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
         uid === call.callerUid ||
         (Array.isArray(call.leftUids) && call.leftUids.includes(uid)) ||
         (Array.isArray(call.rejectedUids) && call.rejectedUids.includes(uid))) {
@@ -9525,6 +10607,351 @@ export const respondToCall = onCall(async (request) => {
 });
 
 /**
+ * A room member requests entry independently; requesting does not grant
+ * signaling access, a member lock, or billing consent.
+ */
+export const requestRoomCallJoin = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId)) {
+    throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
+  }
+  const callRef = CALL_SESSIONS.doc(callId);
+  const requestRef = callRef.collection("joinRequests").doc(uid);
+  const result = await db.runTransaction(async (transaction) => {
+    const [callSnapshot, priorRequest] = await Promise.all([
+      transaction.get(callRef), transaction.get(requestRef),
+    ]);
+    if (!callSnapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
+    const call = callSnapshot.data() ?? {};
+    if (call.scope !== "room" || typeof call.targetId !== "string" ||
+        uid === call.callerUid ||
+        !Array.isArray(call.participantUids) || call.participantUids.includes(uid) ||
+        !["ringing", "accepted"].includes(String(call.status)) ||
+        (call.status === "ringing" &&
+          (!(call.expiresAt instanceof Timestamp) || call.expiresAt.toMillis() <= Date.now())) ||
+        (call.maxDurationEndsAt instanceof Timestamp && call.maxDurationEndsAt.toMillis() <= Date.now())) {
+      throw new HttpsError("failed-precondition", "المكالمة لا تقبل طلبات انضمام جديدة.");
+    }
+    if (priorRequest.exists) {
+      const prior = priorRequest.data() ?? {};
+      if (prior.status === "requested") return { requested: true, idempotentReplay: true };
+      if (prior.status === "approved") throw new HttpsError("already-exists", "أنت مشارك بالفعل في المكالمة.");
+      throw new HttpsError("failed-precondition", "سبق رفض طلب الانضمام لهذه المكالمة.");
+    }
+    const roomRef = db.collection("rooms").doc(call.targetId);
+    const rentalRef = db.collection("roomRentals").doc(String(call.rentalId ?? ""));
+    const memberRef = roomRef.collection("members").doc(uid);
+    const userRef = db.collection("users").doc(uid);
+    const creatorRef = db.collection("users").doc(String(call.callerUid ?? ""));
+    const lockRef = ACTIVE_CALL_MEMBER_LOCKS.doc(uid);
+    const [room, rental, member, user, creator, lock] = await Promise.all([
+      transaction.get(roomRef), transaction.get(rentalRef), transaction.get(memberRef),
+      transaction.get(userRef), transaction.get(creatorRef), transaction.get(lockRef),
+    ]);
+    if (!room.exists || !rental.exists ||
+        !isActiveRentedPrivateRoom(room.data(), rental.data(), Date.now()) ||
+        !member.exists || !user.exists || !creator.exists ||
+        user.data()?.profileCompleted !== true || !isMemberAccountInGoodStanding(user.data()) ||
+        !Number.isSafeInteger(user.data()?.age) || !Number.isSafeInteger(creator.data()?.age) ||
+        ((user.data()!.age < 18) !== (creator.data()!.age < 18)) ||
+        (Array.isArray(user.data()?.blockedUids) && user.data()!.blockedUids.includes(call.callerUid)) ||
+        (Array.isArray(creator.data()?.blockedUids) && creator.data()!.blockedUids.includes(uid))) {
+      throw new HttpsError("permission-denied", "لا تستوفي شروط الانضمام إلى هذه الغرفة أو المكالمة.");
+    }
+    if (lock.exists && lock.data()?.callId !== callId) {
+      throw new HttpsError("resource-exhausted", "لديك مكالمة أخرى نشطة بالفعل.");
+    }
+    transaction.create(requestRef, {
+      uid, callId, roomId: call.targetId, status: "requested",
+      requestedAt: FieldValue.serverTimestamp(),
+    });
+    return { requested: true, idempotentReplay: false };
+  });
+  if (!result.idempotentReplay) {
+    const callSnapshot = await callRef.get();
+    const creatorUid = callSnapshot.data()?.callerUid;
+    if (typeof creatorUid === "string") {
+      await sendPushToMember(creatorUid, "طلب انضمام إلى المكالمة",
+        "يوجد عضو يطلب الانضمام إلى مكالمتك الجماعية.",
+        { type: "room_call_join_request", callId, requesterUid: uid });
+    }
+  }
+  return result;
+});
+
+/**
+ * Explicit, independent consent to the owner-configured group-call price.
+ * No active owner price means no billing consent is required and no charge is made.
+ */
+export const consentToRoomCallBilling = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  const consent = request.data?.consent;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId) ||
+      consent !== true) {
+    throw new HttpsError("invalid-argument", "يجب تأكيد الموافقة المالية الصريحة للمكالمة.");
+  }
+  const callRef = CALL_SESSIONS.doc(callId);
+  const joinRequestRef = callRef.collection("joinRequests").doc(uid);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(callRef);
+    if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
+    const call = snapshot.data() ?? {};
+    const participants = Array.isArray(call.participantUids) ? call.participantUids as string[] : [];
+    const accepted = Array.isArray(call.acceptedUids) ? call.acceptedUids as string[] : [];
+    const joinRequestSnapshot = await transaction.get(joinRequestRef);
+    const hasPendingJoinRequest = joinRequestSnapshot.exists &&
+      joinRequestSnapshot.data()?.status === "requested";
+    const roomMemberSnapshot = uid === call.callerUid ? null :
+      await transaction.get(db.collection("rooms").doc(String(call.targetId ?? ""))
+        .collection("members").doc(uid));
+    const isRoomMember = roomMemberSnapshot?.exists === true;
+    if (call.scope !== "room" ||
+        (uid !== call.callerUid && !accepted.includes(uid) && !hasPendingJoinRequest && !isRoomMember) ||
+        (uid === call.callerUid && !participants.includes(uid)) ||
+        !["ringing", "accepted"].includes(String(call.status))) {
+      throw new HttpsError("permission-denied", "الموافقة المالية متاحة لمنشئ المكالمة أو للمشارك المقبول فقط.");
+    }
+    const policy = call.groupCallPricingSnapshot;
+    if (!policy || policy.active !== true) {
+      return { required: false, consented: false, reason: "no_active_owner_price" };
+    }
+    const expectedRate = call.mode === "audio" ? policy.audioCoinsPerMinute : policy.videoCoinsPerMinute;
+    if (!Number.isSafeInteger(policy.version) || policy.version < 1 ||
+        typeof policy.policyId !== "string" || expectedRate < 1) {
+      throw new HttpsError("failed-precondition", "لقطة سعر المكالمة غير صالحة.");
+    }
+    const consents = call.billingConsents && typeof call.billingConsents === "object" &&
+      !Array.isArray(call.billingConsents)
+      ? call.billingConsents as Record<string, unknown> : {};
+    const prior = consents[uid];
+    if (prior && typeof prior === "object" &&
+        (prior as Record<string, unknown>).policyId === policy.policyId &&
+        (prior as Record<string, unknown>).policyVersion === policy.version &&
+        (prior as Record<string, unknown>).consented === true) {
+      return { required: true, consented: true, idempotentReplay: true, policyVersion: policy.version };
+    }
+    transaction.update(callRef, {
+      billingConsents: {
+        ...consents,
+        [uid]: {
+          consented: true, policyId: policy.policyId, policyVersion: policy.version,
+          consentedAt: FieldValue.serverTimestamp(),
+        },
+      },
+      lastActivityAt: FieldValue.serverTimestamp(),
+    });
+    return { required: true, consented: true, idempotentReplay: false, policyVersion: policy.version };
+  });
+});
+
+/** Only the room-call creator may approve or reject a pending join request. */
+export const respondToRoomCallJoinRequest = onCall(async (request) => {
+  const creatorUid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  const requesterUid = request.data?.requesterUid;
+  const decision = request.data?.decision;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId) ||
+      typeof requesterUid !== "string" || requesterUid.length < 1 || requesterUid.length > 128 ||
+      requesterUid === creatorUid || !["approve", "reject"].includes(decision)) {
+    throw new HttpsError("invalid-argument", "بيانات قرار طلب الانضمام غير صالحة.");
+  }
+  const callRef = CALL_SESSIONS.doc(callId);
+  const requestRef = callRef.collection("joinRequests").doc(requesterUid);
+  return db.runTransaction(async (transaction) => {
+    const callSnapshot = await transaction.get(callRef);
+    if (!callSnapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
+    const call = callSnapshot.data() ?? {};
+    if (call.scope !== "room" || call.callerUid !== creatorUid ||
+        !["ringing", "accepted"].includes(String(call.status)) ||
+        (call.status === "ringing" &&
+          (!(call.expiresAt instanceof Timestamp) || call.expiresAt.toMillis() <= Date.now())) ||
+        (call.maxDurationEndsAt instanceof Timestamp && call.maxDurationEndsAt.toMillis() <= Date.now())) {
+      throw new HttpsError("permission-denied", "قرار طلبات الانضمام مخصص لمنشئ مكالمة نشطة فقط.");
+    }
+    const roomRef = db.collection("rooms").doc(String(call.targetId ?? ""));
+    const rentalRef = db.collection("roomRentals").doc(String(call.rentalId ?? ""));
+    const memberRef = roomRef.collection("members").doc(requesterUid);
+    const userRef = db.collection("users").doc(requesterUid);
+    const creatorRef = db.collection("users").doc(creatorUid);
+    const lockRef = ACTIVE_CALL_MEMBER_LOCKS.doc(requesterUid);
+    const [joinRequest, room, rental, member, user, creator, lock] = await Promise.all([
+      transaction.get(requestRef), transaction.get(roomRef), transaction.get(rentalRef),
+      transaction.get(memberRef), transaction.get(userRef), transaction.get(creatorRef),
+      transaction.get(lockRef),
+    ]);
+    if (!joinRequest.exists || joinRequest.data()?.status !== "requested") {
+      if (joinRequest.exists && joinRequest.data()?.status === "approved" &&
+          Array.isArray(call.participantUids) && call.participantUids.includes(requesterUid)) {
+        return { approved: true, idempotentReplay: true };
+      }
+      throw new HttpsError("failed-precondition", "طلب الانضمام غير موجود أو تمت معالجته مسبقاً.");
+    }
+    const pricingPolicy = call.groupCallPricingSnapshot;
+    if (decision === "approve" && pricingPolicy?.active === true) {
+      const consents = call.billingConsents && typeof call.billingConsents === "object" &&
+        !Array.isArray(call.billingConsents)
+        ? call.billingConsents as Record<string, unknown> : {};
+      const hasConsent = (memberUid: string) => {
+        const value = consents[memberUid];
+        return !!value && typeof value === "object" &&
+          (value as Record<string, unknown>).consented === true &&
+          (value as Record<string, unknown>).policyId === pricingPolicy.policyId &&
+          (value as Record<string, unknown>).policyVersion === pricingPolicy.version;
+      };
+      if (!hasConsent(creatorUid) || !hasConsent(requesterUid)) {
+        throw new HttpsError("failed-precondition", "تتطلب الموافقة على الانضمام موافقة مالية صريحة مستقلة من المنشئ والعضو على سعر هذه المكالمة.");
+      }
+    }
+    if (decision === "reject") {
+      transaction.update(requestRef, {
+        status: "rejected", decidedBy: creatorUid,
+        decidedAt: FieldValue.serverTimestamp(),
+      });
+      return { approved: false, rejected: true, idempotentReplay: false };
+    }
+    const roomData = room.data() ?? {};
+    const capacity = roomData.capacity;
+    const participantUids = Array.isArray(call.participantUids)
+      ? call.participantUids.filter((value): value is string => typeof value === "string")
+      : [];
+    if (!room.exists || !rental.exists ||
+        !isActiveRentedPrivateRoom(roomData, rental.data(), Date.now()) ||
+        !Number.isSafeInteger(capacity) || capacity < 2 || capacity > 1000 ||
+        participantUids.length >= capacity ||
+        !member.exists || !user.exists || !creator.exists ||
+        user.data()?.profileCompleted !== true || !isMemberAccountInGoodStanding(user.data()) ||
+        !Number.isSafeInteger(user.data()?.age) || !Number.isSafeInteger(creator.data()?.age) ||
+        ((user.data()!.age < 18) !== (creator.data()!.age < 18)) ||
+        (Array.isArray(user.data()?.blockedUids) && user.data()!.blockedUids.includes(creatorUid)) ||
+        (Array.isArray(creator.data()?.blockedUids) && creator.data()!.blockedUids.includes(requesterUid))) {
+      throw new HttpsError("permission-denied", "لم يعد العضو أو الغرفة مؤهلاً للانضمام.");
+    }
+    if (call.mode === "video" && participantUids.length >= 4) {
+      throw new HttpsError("resource-exhausted", "المكالمة المرئية محدودة بأربعة مشاركين إجمالاً بمن فيهم المنشئ.");
+    }
+    if (lock.exists && lock.data()?.callId !== callId) {
+      throw new HttpsError("resource-exhausted", "لدى العضو مكالمة أخرى نشطة بالفعل.");
+    }
+    transaction.update(callRef, {
+      participantUids: FieldValue.arrayUnion(requesterUid),
+      acceptedUids: FieldValue.arrayUnion(requesterUid),
+      status: "accepted",
+      lastActivityAt: FieldValue.serverTimestamp(),
+    });
+    transaction.set(lockRef, {
+      callId, status: "active", updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.update(requestRef, {
+      status: "approved", decidedBy: creatorUid,
+      decidedAt: FieldValue.serverTimestamp(),
+    });
+    return { approved: true, idempotentReplay: false };
+  });
+});
+
+/** Find the current room call for a verified room member. */
+export const getActiveRoomCall = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = request.data?.roomId;
+  if (typeof roomId !== "string" || roomId.length < 1 || roomId.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId);
+  const [room, membership] = await Promise.all([
+    roomRef.get(), roomRef.collection("members").doc(uid).get(),
+  ]);
+  if (!room.exists || room.data()?.status !== "active" || !membership.exists) {
+    throw new HttpsError("permission-denied", "هذه الغرفة غير متاحة لحسابك.");
+  }
+  const candidates = await CALL_SESSIONS.where("targetId", "==", roomId)
+    .orderBy("createdAt", "desc").limit(25).get();
+  const now = Date.now();
+  const active = candidates.docs
+    .map((doc) => ({ id: doc.id, data: doc.data() }))
+    .filter(({ data }) => data.scope === "room" &&
+      ["ringing", "accepted"].includes(String(data.status)) &&
+      !(data.maxDurationEndsAt instanceof Timestamp && data.maxDurationEndsAt.toMillis() <= now) &&
+      !(data.status === "ringing" &&
+        (!(data.expiresAt instanceof Timestamp) || data.expiresAt.toMillis() <= now)))
+    .sort((a, b) => {
+      const aTime = a.data.createdAt instanceof Timestamp ? a.data.createdAt.toMillis() : 0;
+      const bTime = b.data.createdAt instanceof Timestamp ? b.data.createdAt.toMillis() : 0;
+      return bTime - aTime;
+    });
+  const selected = active[0];
+  if (!selected) return { active: false };
+  const call = selected.data;
+  const joinRequest = await CALL_SESSIONS.doc(selected.id).collection("joinRequests").doc(uid).get();
+  const billingPolicy = call.groupCallPricingSnapshot;
+  return {
+    active: true, callId: selected.id, roomId, mode: call.mode,
+    status: call.status, callerUid: call.callerUid,
+    isCreator: call.callerUid === uid,
+    participantUids: Array.isArray(call.participantUids) ? call.participantUids : [],
+    joinRequestStatus: joinRequest.data()?.status ?? null,
+    billingRequired: billingPolicy?.active === true,
+    billingRate: billingPolicy?.active === true
+      ? (call.mode === "audio" ? billingPolicy.audioCoinsPerMinute : billingPolicy.videoCoinsPerMinute)
+      : null,
+    pricingPolicyVersion: billingPolicy?.version ?? null,
+    connectedAtMs: call.connectedAt instanceof Timestamp ? call.connectedAt.toMillis() : null,
+    maxDurationEndsAtMs: call.maxDurationEndsAt instanceof Timestamp ? call.maxDurationEndsAt.toMillis() : null,
+  };
+});
+
+/** Creator-only list of pending join requests for the live room call. */
+export const listRoomCallJoinRequests = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId)) {
+    throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
+  }
+  const callRef = CALL_SESSIONS.doc(callId);
+  const snapshot = await callRef.get();
+  if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
+  const call = snapshot.data() ?? {};
+  if (call.scope !== "room" || call.callerUid !== uid ||
+      !["ringing", "accepted"].includes(String(call.status))) {
+    throw new HttpsError("permission-denied", "قائمة طلبات الانضمام متاحة لمنشئ المكالمة النشطة فقط.");
+  }
+  const requests = await callRef.collection("joinRequests").where("status", "==", "requested").limit(100).get();
+  return {
+    requests: requests.docs.map((doc) => ({
+      uid: doc.id,
+      requestedAtMs: doc.data().requestedAt instanceof Timestamp ? doc.data().requestedAt.toMillis() : null,
+    })),
+  };
+});
+
+/** A requester can inspect only their own request state. */
+export const getRoomCallJoinRequestStatus = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId)) {
+    throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
+  }
+  const callRef = CALL_SESSIONS.doc(callId);
+  const [callSnapshot, requestSnapshot] = await Promise.all([
+    callRef.get(), callRef.collection("joinRequests").doc(uid).get(),
+  ]);
+  if (!callSnapshot.exists || callSnapshot.data()?.scope !== "room" || !requestSnapshot.exists) {
+    throw new HttpsError("not-found", "طلب الانضمام غير موجود.");
+  }
+  const call = callSnapshot.data() ?? {};
+  const joinRequest = requestSnapshot.data() ?? {};
+  if (joinRequest.uid !== uid) throw new HttpsError("permission-denied", "لا يمكنك قراءة طلب عضو آخر.");
+  return {
+    status: joinRequest.status,
+    approved: joinRequest.status === "approved",
+    rejected: joinRequest.status === "rejected",
+    callStatus: call.status,
+    active: ["ringing", "accepted"].includes(String(call.status)),
+  };
+});
+
+/**
  * Each endpoint reports the local WebRTC connected state. The server starts
  * one immutable five-minute clock only after the caller and at least one
  * accepted recipient have both reported connected.
@@ -9559,39 +10986,75 @@ export const markCallConnected = onCall(async (request) => {
         call.maxDurationEndsAt.toMillis() <= Date.now()) {
       throw new HttpsError("deadline-exceeded", "انتهت مدة المكالمة القصوى.");
     }
-    if (call.maxDurationEndsAt instanceof Timestamp) {
+    const previouslyConnectedUids = Array.isArray(call.connectedUids)
+      ? call.connectedUids.filter((value): value is string => typeof value === "string")
+      : [];
+    const alreadyConnected = previouslyConnectedUids.includes(uid);
+    const connectedUids = alreadyConnected
+      ? previouslyConnectedUids
+      : [...new Set([...previouslyConnectedUids, uid])];
+    const priorMediaConnectedAt = call.mediaConnectedAt && typeof call.mediaConnectedAt === "object" &&
+        !Array.isArray(call.mediaConnectedAt)
+      ? call.mediaConnectedAt as Record<string, unknown>
+      : {};
+    const mediaConnectedAt = alreadyConnected && priorMediaConnectedAt[uid] instanceof Timestamp
+      ? priorMediaConnectedAt
+      : { ...priorMediaConnectedAt, [uid]: Timestamp.fromMillis(Date.now()) };
+    if (call.connectedAt instanceof Timestamp) {
+      if (!alreadyConnected || mediaConnectedAt !== priorMediaConnectedAt) {
+        transaction.update(ref, {
+          connectedUids,
+          mediaConnectedAt,
+          lastActivityAt: FieldValue.serverTimestamp(),
+        });
+      }
       return {
         callId, connected: true,
-        connectedAtMs: call.connectedAt instanceof Timestamp ? call.connectedAt.toMillis() : null,
-        maxDurationEndsAtMs: call.maxDurationEndsAt.toMillis(),
-        idempotentReplay: true,
+        connectedAtMs: call.connectedAt.toMillis(),
+        maxDurationEndsAtMs: call.maxDurationEndsAt instanceof Timestamp
+          ? call.maxDurationEndsAt.toMillis() : null,
+        idempotentReplay: alreadyConnected,
       };
     }
-    const connectedUids = [...new Set([
-      ...(Array.isArray(call.connectedUids) ? call.connectedUids.filter((value): value is string => typeof value === "string") : []),
-      uid,
-    ])];
+    let usagePolicy;
+    try {
+      if (!Number.isSafeInteger(call.usagePolicyVersion) || call.usagePolicyVersion < 1) {
+        throw new Error("CALL_USAGE_VERSION_MISSING");
+      }
+      usagePolicy = validateCallUsagePolicy(call.usagePolicySnapshot);
+    } catch {
+      throw new HttpsError("failed-precondition", "لقطة سياسة المكالمة غير صالحة؛ تعذر تثبيت الاتصال.");
+    }
+    // Keep each participant's media connection separate from the immutable
+    // call-wide timer; late room joins must never reset the original deadline.
+
     const hasCaller = connectedUids.includes(String(call.callerUid));
     const hasAcceptedRecipient = connectedUids.some((memberUid) =>
       memberUid !== call.callerUid && acceptedUids.includes(memberUid));
     if (hasCaller && hasAcceptedRecipient) {
       const nowMs = Date.now();
       const connectedAt = Timestamp.fromMillis(nowMs);
-      const maxDurationEndsAt = Timestamp.fromMillis(nowMs + CALL_MAX_DURATION_MS);
+      const maxDurationEndsAtMs = callMaxDurationEnd(
+        nowMs, usagePolicy, call.scope === "room" ? "room" : "direct", call.mode,
+      );
+      const maxDurationEndsAt = maxDurationEndsAtMs === null
+        ? null : Timestamp.fromMillis(maxDurationEndsAtMs);
       transaction.update(ref, {
         connectedUids,
+        mediaConnectedAt,
         connectedAt,
         maxDurationEndsAt,
         lastActivityAt: FieldValue.serverTimestamp(),
       });
       return {
         callId, connected: true, connectedAtMs: nowMs,
-        maxDurationEndsAtMs: maxDurationEndsAt.toMillis(),
+        maxDurationEndsAtMs,
         idempotentReplay: false,
       };
     }
     transaction.update(ref, {
       connectedUids,
+      mediaConnectedAt,
       lastActivityAt: FieldValue.serverTimestamp(),
     });
     return { callId, connected: false, idempotentReplay: false };
@@ -9622,6 +11085,9 @@ export const sendCallSignal = onCall(async (request) => {
     const call = snapshot.data()!;
     if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
         !call.participantUids.includes(toUid) ||
+        (call.scope === "room" &&
+          (uid !== call.callerUid && (!Array.isArray(call.acceptedUids) || !call.acceptedUids.includes(uid)) ||
+           toUid !== call.callerUid && (!Array.isArray(call.acceptedUids) || !call.acceptedUids.includes(toUid)))) ||
         (Array.isArray(call.leftUids) && call.leftUids.includes(uid)) ||
         (Array.isArray(call.leftUids) && call.leftUids.includes(toUid)) ||
         (Array.isArray(call.rejectedUids) && call.rejectedUids.includes(uid)) ||
@@ -9683,6 +11149,8 @@ export const getCallSignals = onCall(async (request) => {
   const call = await ref.get();
   if (!call.exists || !Array.isArray(call.data()?.participantUids) ||
       !call.data()!.participantUids.includes(uid) ||
+      (call.data()?.scope === "room" && uid !== call.data()?.callerUid &&
+        (!Array.isArray(call.data()?.acceptedUids) || !call.data()!.acceptedUids.includes(uid))) ||
       (Array.isArray(call.data()?.leftUids) && call.data()!.leftUids.includes(uid)) ||
       (Array.isArray(call.data()?.rejectedUids) && call.data()!.rejectedUids.includes(uid))) {
     throw new HttpsError("permission-denied", "لا تملك صلاحية قراءة إشارات هذه المكالمة.");
@@ -9742,19 +11210,18 @@ export const endCall = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
   }
   const ref = CALL_SESSIONS.doc(callId);
-  return db.runTransaction(async (transaction) => {
+  const result = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) return { callId, status: "ended", idempotentReplay: true };
     const call = snapshot.data()!;
     if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid)) {
       throw new HttpsError("permission-denied", "لا تملك صلاحية إنهاء هذه المكالمة.");
     }
-    const lockRefs = call.participantUids.map((memberUid: string) => ACTIVE_CALL_MEMBER_LOCKS.doc(memberUid));
-    const lockSnapshots = await Promise.all(lockRefs.map((lockRef) =>
-      transaction.get(lockRef)));
     const leftUids = Array.isArray(call.leftUids) ? call.leftUids as string[] : [];
     if (leftUids.includes(uid)) return { callId, status: call.status, idempotentReplay: true };
     if (call.scope === "room" && uid !== call.callerUid) {
+      const memberLockRef = ACTIVE_CALL_MEMBER_LOCKS.doc(uid);
+      const memberLockSnapshot = await transaction.get(memberLockRef);
       if (call.status === "ringing") {
         const rejected = Array.isArray(call.rejectedUids) ? call.rejectedUids as string[] : [];
         const nextRejected = [...rejected, uid];
@@ -9765,8 +11232,8 @@ export const endCall = onCall(async (request) => {
           ...(allRejected ? { status: "rejected" } : {}),
           lastActivityAt: FieldValue.serverTimestamp(),
         });
-        if (lockSnapshots[call.participantUids.indexOf(uid)]?.data()?.callId === callId) {
-          transaction.delete(ACTIVE_CALL_MEMBER_LOCKS.doc(uid));
+        if (memberLockSnapshot.exists && memberLockSnapshot.data()?.callId === callId) {
+          transaction.delete(memberLockRef);
         }
         return { callId, status: allRejected ? "rejected" : "ringing", idempotentReplay: false };
       }
@@ -9776,8 +11243,8 @@ export const endCall = onCall(async (request) => {
           acceptedUids: FieldValue.arrayRemove(uid),
           lastActivityAt: FieldValue.serverTimestamp(),
         });
-        if (lockSnapshots[call.participantUids.indexOf(uid)]?.data()?.callId === callId) {
-          transaction.delete(ACTIVE_CALL_MEMBER_LOCKS.doc(uid));
+        if (memberLockSnapshot.exists && memberLockSnapshot.data()?.callId === callId) {
+          transaction.delete(memberLockRef);
         }
         return { callId, status: "accepted", idempotentReplay: false };
       }
@@ -9793,11 +11260,32 @@ export const endCall = onCall(async (request) => {
       status: next, endedBy: uid, endedAt: FieldValue.serverTimestamp(),
       lastActivityAt: FieldValue.serverTimestamp(),
     });
-    lockRefs.forEach((lockRef, index) => {
-      if (lockSnapshots[index]?.data()?.callId === callId) transaction.delete(lockRef);
-    });
     return { callId, status: next, idempotentReplay: false };
   });
+  if (result.status === "ended" || result.status === "cancelled") {
+    try { await clearCallMemberLocks(ref); }
+    catch (error) {
+      logger.error("Call member lock cleanup deferred after call end", {
+        callId, error: String(error),
+      });
+    }
+  }
+  if (result.status === "ended") {
+    try {
+      const billing = await processGroupCallBillingSettlement(ref);
+      return { ...result, billingSettlementStatus: billing.status };
+    } catch (error) {
+      await ref.set({
+        groupCallBillingState: "pending",
+        groupCallBillingLastAttemptAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      logger.error("Group-call billing settlement deferred after call end", {
+        callId, error: String(error),
+      });
+      return { ...result, billingSettlementStatus: "pending" };
+    }
+  }
+  return result;
 });
 
 
@@ -9814,6 +11302,8 @@ export const getCallIceConfiguration = onCall(
     const call = await callRef.get();
     if (!call.exists || !Array.isArray(call.data()?.participantUids) ||
         !call.data()!.participantUids.includes(uid) ||
+        (call.data()?.scope === "room" && uid !== call.data()?.callerUid &&
+          (!Array.isArray(call.data()?.acceptedUids) || !call.data()!.acceptedUids.includes(uid))) ||
         (Array.isArray(call.data()?.leftUids) && call.data()!.leftUids.includes(uid)) ||
         (Array.isArray(call.data()?.rejectedUids) && call.data()!.rejectedUids.includes(uid)) ||
         !["ringing", "accepted"].includes(String(call.data()?.status))) {
@@ -9925,6 +11415,10 @@ export const cleanupExpiredCallSignals = onSchedule("every 5 minutes", async () 
         lastActivityAt: FieldValue.serverTimestamp(),
       });
     });
+    const current = await doc.ref.get();
+    if (current.data()?.status === "missed") {
+      await clearCallMemberLocks(doc.ref);
+    }
   }
   const durationExpiredCalls = await CALL_SESSIONS
     .where("maxDurationEndsAt", "<=", now)
@@ -9933,6 +11427,16 @@ export const cleanupExpiredCallSignals = onSchedule("every 5 minutes", async () 
     const deadline = doc.data().maxDurationEndsAt;
     if (deadline instanceof Timestamp && deadline.toMillis() <= Date.now()) {
       await expireCallIfDurationElapsed(doc.ref);
+    }
+  }
+  const pendingGroupCallSettlements = await CALL_SESSIONS
+    .where("groupCallBillingState", "==", "pending").limit(100).get();
+  for (const doc of pendingGroupCallSettlements.docs) {
+    try { await processGroupCallBillingSettlement(doc.ref); }
+    catch (error) {
+      logger.error("Scheduled group-call billing retry failed", {
+        callId: doc.id, error: String(error),
+      });
     }
   }
   const oldCalls = await CALL_SESSIONS.where("signalsCleanedAt", "==", false)

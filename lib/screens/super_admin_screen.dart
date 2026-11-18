@@ -12,6 +12,7 @@ import 'owner_entitlement_grants_screen.dart';
 import 'owner_room_live_stream_screen.dart';
 import 'safety_review_screen.dart';
 import 'room_rental_pricing_screen.dart';
+import 'call_usage_policy_screen.dart';
 import 'economy_pricing_screen.dart';
 import 'owner_advertising_rewards_screen.dart';
 import 'owner_contract_center_screen.dart';
@@ -591,7 +592,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     final nameController = TextEditingController(text: existing?['name'] as String? ?? '');
     final descriptionController = TextEditingController(text: existing?['description'] as String? ?? '');
     final priceController = TextEditingController(
-      text: existing?['priceCoins']?.toString() ?? '1000',
+      text: existing?['priceCoins']?.toString() ?? '',
     );
     final durationController = TextEditingController(
       text: existing?['durationDays']?.toString() ?? '',
@@ -1411,6 +1412,17 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     )),
                     icon: const Icon(Icons.price_change_outlined),
                     label: const Text('إدارة أسعار باقات استئجار الغرف'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const CallUsagePolicyScreen(),
+                    )),
+                    icon: const Icon(Icons.call_outlined),
+                    label: const Text('إدارة حصص ومدد المكالمات'),
                   ),
                 ),
                 const SizedBox(height: 8),

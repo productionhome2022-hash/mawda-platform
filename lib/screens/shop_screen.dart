@@ -39,13 +39,9 @@ class _ShopScreenState extends State<ShopScreen> {
     final itemId = item['itemId'] as String?;
     final name = item['name'] as String? ?? 'عنصر مودة';
     final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
-    if (itemId == null || itemId.isEmpty || price <= 0 || _purchasingItemId != null) return;
-    final category = item['category'] as String? ?? '';
-    final callPackageNotice = category == 'voice_call'
-        ? 'تمنحك الباقة 5 مكالمات صوتية عادية في كل 24 ساعة طوال مدة صلاحيتها. بعد استنفاد حصتك، يكون سعر المكالمة الصوتية المفتوحة 120 كوينز للدقيقة إجمالاً: 60 من كل طرف إذا استنفد الطرفان حصتيهما، أو 120 من المتصل وحده إذا كان المستقبل لا يزال يملك محاولات.'
-        : category == 'video_call'
-            ? 'تمنحك الباقة 3 مكالمات مرئية عادية في كل 24 ساعة طوال مدة صلاحيتها. بعد استنفاد حصتك، يكون سعر المكالمة المرئية المفتوحة 400 كوينز للدقيقة إجمالاً: 200 من كل طرف إذا استنفد الطرفان حصتيهما، أو 400 من المتصل وحده إذا كان المستقبل لا يزال يملك محاولات.'
-            : null;
+    final catalogVersion = (item['version'] as num?)?.toInt() ?? 0;
+    if (itemId == null || itemId.isEmpty || price <= 0 ||
+        catalogVersion < 1 || _purchasingItemId != null) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -54,13 +50,7 @@ class _ShopScreenState extends State<ShopScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('سيتم خصم $price كوين من محفظتك مقابل "$name"، ومنح الاستحقاق عبر الخادم.'),
-            if (callPackageNotice != null) ...[
-              const SizedBox(height: 12),
-              Text(callPackageNotice),
-              const SizedBox(height: 8),
-              const Text('يشترط امتلاك الطرفين اشتراكاً سارياً من نوع المكالمة نفسه. هذه الأسعار هي الأسعار المعتمدة حالياً، ويجب عرض أي تغيير يقرره مالك المنصة من إعدادات الخادم قبل الشراء والاستخدام.'),
-            ],
+            Text('سيتم خصم $price BetaCoins من محفظتك مقابل "$name"، ومنح الاستحقاق عبر الخادم.'),
           ],
         ),
         actions: [
@@ -82,6 +72,7 @@ class _ShopScreenState extends State<ShopScreen> {
         'itemId': itemId,
         'requestId': const Uuid().v4(),
         'expectedPriceCoins': price,
+        'expectedCatalogVersion': catalogVersion,
       });
       final result = Map<String, dynamic>.from(response.data as Map);
       final purchaseId = result['purchaseId'] as String?;
@@ -93,7 +84,7 @@ class _ShopScreenState extends State<ShopScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(
-          'تم تأكيد شراء "$name" ومنح استحقاقه. رصيدك الجديد: $balance كوين. رقم الإيصال: $purchaseId',
+          'تم تأكيد شراء "$name" ومنح استحقاقه. رصيدك الجديد: $balance BetaCoins. رقم الإيصال: $purchaseId',
         )),
       );
       _refresh();
@@ -106,6 +97,85 @@ class _ShopScreenState extends State<ShopScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تعذر إتمام الشراء؛ لم يتم تأكيد الخصم أو الاستحقاق.')),
+      );
+    } finally {
+      if (mounted) setState(() => _purchasingItemId = null);
+    }
+  }
+
+  Future<void> _gift(Map<String, dynamic> item) async {
+    final itemId = item['itemId'] as String?;
+    final name = item['name'] as String? ?? 'عنصر مودة';
+    final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
+    final catalogVersion = (item['version'] as num?)?.toInt() ?? 0;
+    if (itemId == null || itemId.isEmpty || price <= 0 ||
+        catalogVersion < 1 || _purchasingItemId != null) return;
+    final usernameController = TextEditingController();
+    final username = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('إهداء "$name"'),
+        content: TextField(
+          controller: usernameController,
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          decoration: const InputDecoration(
+            labelText: 'اسم المستخدم للمستلم',
+            helperText: 'أدخل اسم المستخدم المسجل كما هو.',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء')),
+          FilledButton(onPressed: () =>
+            Navigator.pop(dialogContext, usernameController.text.trim()),
+            child: const Text('متابعة')),
+        ],
+      ),
+    );
+    usernameController.dispose();
+    if (username == null || username.isEmpty || !mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تأكيد الإهداء'),
+        content: Text('سيتم خصم $price BetaCoins من محفظتك وإضافة "$name" إلى حساب @$username.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('تأكيد الإهداء')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _purchasingItemId = itemId);
+    try {
+      final response = await FirebaseFunctions.instance.httpsCallable('giftStoreItem').call({
+        'recipientUsername': username,
+        'itemId': itemId,
+        'requestId': const Uuid().v4(),
+        'expectedPriceCoins': price,
+        'expectedCatalogVersion': catalogVersion,
+      });
+      final result = Map<String, dynamic>.from(response.data as Map);
+      final giftId = result['giftId'] as String?;
+      final balance = (result['newBalance'] as num?)?.toInt();
+      if (giftId == null || balance == null) throw StateError('STORE_GIFT_RECEIPT_INCOMPLETE');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
+        'تم إهداء "$name" إلى @$username. رصيدك الجديد: $balance BetaCoins.',
+      )));
+      _refresh();
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'تعذر إتمام الإهداء.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر تأكيد الإهداء؛ لم يتم اعتماد العملية.')),
       );
     } finally {
       if (mounted) setState(() => _purchasingItemId = null);
@@ -260,23 +330,6 @@ class _ShopScreenState extends State<ShopScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('تنبيه أسعار المكالمات المفتوحة', style: TextStyle(fontWeight: FontWeight.bold)),
-                      SizedBox(height: 8),
-                      Text('الصوتية: 120 كوينز للدقيقة إجمالاً (60 من كل طرف إذا استنفد الطرفان حصتيهما).'),
-                      Text('المرئية: 400 كوينز للدقيقة إجمالاً (200 من كل طرف إذا استنفد الطرفان حصتيهما).'),
-                      SizedBox(height: 6),
-                      Text('إذا استنفد المتصل حصته وبقيت لدى المستقبل محاولات عادية، يتحمل المتصل السعر الإجمالي وحده، ولا يُخصم من المستقبل ولا تُستهلك محاولاته. تُتاح المكالمات المفتوحة بعد استنفاد حصة المتصل اليومية، ومع سريان اشتراك النوع نفسه لدى الطرفين.'),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
               if (visibleItems.isEmpty)
                 Padding(
                   padding: const EdgeInsets.all(24),
@@ -308,28 +361,39 @@ class _ShopScreenState extends State<ShopScreen> {
                           Text(description),
                         ],
                         const SizedBox(height: 12),
-                        Row(
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.monetization_on_outlined),
-                            const SizedBox(width: 6),
-                            Text('$price كوين'),
-                            if (duration != null) ...[
-                              const SizedBox(width: 12),
-                              Text('المدة: $duration يوماً'),
-                            ],
-                            const Spacer(),
-                            FilledButton(
-                              onPressed: canPurchase && _purchasingItemId == null
-                                  ? () => _purchase(item)
-                                  : null,
-                              child: _purchasingItemId == item['itemId']
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
-                                  : Text(canPurchase ? 'شراء' : 'غير متاح بعد'),
-                            ),
+                            Row(children: [
+                              const Icon(Icons.monetization_on_outlined),
+                              const SizedBox(width: 6),
+                              Flexible(child: Text(
+                                price > 0 ? '$price BetaCoins' : 'السعر والمدة يحددهما المالك',
+                              )),
+                              if (duration != null) ...[
+                                const SizedBox(width: 12),
+                                Text('المدة: $duration يوماً'),
+                              ],
+                            ]),
+                            const SizedBox(height: 8),
+                            Wrap(spacing: 8, runSpacing: 8, children: [
+                              FilledButton(
+                                onPressed: canPurchase && _purchasingItemId == null
+                                    ? () => _purchase(item) : null,
+                                child: _purchasingItemId == item['itemId']
+                                    ? const SizedBox(
+                                        width: 18, height: 18,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : Text(canPurchase ? 'شراء' : 'غير متاح بعد'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: canPurchase && _purchasingItemId == null
+                                    ? () => _gift(item) : null,
+                                icon: const Icon(Icons.card_giftcard_outlined),
+                                label: const Text('إهداء'),
+                              ),
+                            ]),
                           ],
                         ),
                       ],

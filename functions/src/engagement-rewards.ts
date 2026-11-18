@@ -23,10 +23,6 @@ export interface TimedAdCampaignInput {
   rewardBudgetCoins: number;
 }
 
-const MAX_REWARD_COINS = 100_000;
-const MAX_AD_DURATION_SECONDS = 15 * 60;
-const MAX_AD_BUDGET_COINS = 100_000_000;
-
 export function validateAttendanceRewardPolicy(value: unknown): AttendanceRewardPolicy {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("ATTENDANCE_POLICY_INVALID");
@@ -42,7 +38,7 @@ export function validateAttendanceRewardPolicy(value: unknown): AttendanceReward
     if (typeof candidate.enabled !== "boolean" ||
         typeof candidate.amountCoins !== "number" ||
         !Number.isSafeInteger(candidate.amountCoins) ||
-        candidate.amountCoins < 0 || candidate.amountCoins > MAX_REWARD_COINS ||
+        candidate.amountCoins < 0 ||
         (candidate.enabled && candidate.amountCoins < 1)) {
       throw new Error("ATTENDANCE_RULE_INVALID");
     }
@@ -105,15 +101,15 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
       body.length < 10 || body.length > 1200 ||
       (placement !== "reward_center" && placement !== "home") ||
       typeof durationSeconds !== "number" || !Number.isSafeInteger(durationSeconds) ||
-      durationSeconds < 15 || durationSeconds > MAX_AD_DURATION_SECONDS ||
+      durationSeconds < 1 ||
       typeof rewardCoins !== "number" || !Number.isSafeInteger(rewardCoins) ||
-      rewardCoins < 0 || rewardCoins > MAX_REWARD_COINS ||
+      rewardCoins < 0 ||
       typeof startsAtMs !== "number" || !Number.isSafeInteger(startsAtMs) || startsAtMs < 0 ||
       typeof endsAtMs !== "number" || !Number.isSafeInteger(endsAtMs) || endsAtMs <= startsAtMs ||
       typeof maxClaimsPerMember !== "number" || !Number.isSafeInteger(maxClaimsPerMember) ||
-      maxClaimsPerMember < 1 || maxClaimsPerMember > 100 ||
+      maxClaimsPerMember < 1 ||
       typeof rewardBudgetCoins !== "number" || !Number.isSafeInteger(rewardBudgetCoins) ||
-      rewardBudgetCoins < rewardCoins || rewardBudgetCoins > MAX_AD_BUDGET_COINS) {
+      rewardBudgetCoins < rewardCoins) {
     throw new Error("AD_CAMPAIGN_INVALID");
   }
   return {

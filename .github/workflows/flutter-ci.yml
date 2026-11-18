@@ -1,6 +1,24 @@
 name: Flutter CI
 
 on:
+  push:
+    branches:
+      - codex/economic-phase-completion-2026-11-18
+    paths:
+      - "lib/**"
+      - "test/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/flutter-ci.yml"
+  pull_request:
+    branches:
+      - codex/mawda-full-platform-implementation
+    paths:
+      - "lib/**"
+      - "test/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/flutter-ci.yml"
   workflow_dispatch:
 
 permissions:

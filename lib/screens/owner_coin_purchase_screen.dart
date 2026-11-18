@@ -37,6 +37,8 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
     final coins = TextEditingController(text: requested > 0 ? requested.toString() : '');
     final price = TextEditingController(text: item['packageSnapshot'] is Map
         ? ((item['packageSnapshot']['priceMinor'] ?? '').toString()) : '');
+    final currency = TextEditingController(text: item['currency'] as String? ??
+        (item['packageSnapshot'] is Map ? item['packageSnapshot']['currency'] as String? ?? '' : ''));
     final instructions = TextEditingController();
     final accepted = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
       title: const Text('تعليمات الدفع والاتفاق'),
@@ -45,7 +47,9 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
         TextField(controller: coins, keyboardType: TextInputType.number,
           decoration: const InputDecoration(labelText: 'الكمية المتفق عليها')),
         TextField(controller: price, keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'السعر بالسنت EUR')),
+          decoration: const InputDecoration(labelText: 'السعر بوحدات العملة الصغرى')),
+        TextField(controller: currency, textCapitalization: TextCapitalization.characters,
+          decoration: const InputDecoration(labelText: 'رمز العملة (ISO 4217)')),
         TextField(controller: instructions, minLines: 2, maxLines: 5,
           decoration: const InputDecoration(labelText: 'تعليمات الدفع اليدوي')),
       ])),
@@ -55,20 +59,25 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
       ],
     ));
     if (accepted != true || !mounted) {
-      coins.dispose(); price.dispose(); instructions.dispose(); return;
+      coins.dispose(); price.dispose(); currency.dispose(); instructions.dispose(); return;
     }
     final coinAmount = int.tryParse(coins.text.trim());
     final priceMinor = int.tryParse(price.text.trim());
-    if (coinAmount == null || priceMinor == null || instructions.text.trim().length < 5) {
-      setState(() => _error = 'أدخل كمية وسعراً وتعليمات صحيحة.');
-      coins.dispose(); price.dispose(); instructions.dispose(); return;
+    final currencyCode = currency.text.trim().toUpperCase();
+    final validCurrency = currencyCode.length == 3 &&
+        currencyCode.codeUnits.every((unit) => unit >= 65 && unit <= 90);
+    if (coinAmount == null || priceMinor == null || !validCurrency ||
+        instructions.text.trim().length < 5) {
+      setState(() => _error = 'أدخل كمية وسعراً ورمز عملة وتعليمات صحيحة.');
+      coins.dispose(); price.dispose(); currency.dispose(); instructions.dispose(); return;
     }
     await _runAction(() => _functions.httpsCallable('setCoinPurchasePaymentInstructions').call({
       'requesterUid': uid, 'requestId': id, 'agreedCoins': coinAmount,
-      'agreedPriceMinor': priceMinor, 'currency': 'EUR',
+      'agreedPriceMinor': priceMinor, 'currency': currencyCode,
+      'expectedInstructionsVersion': (item['instructionsVersion'] as num?)?.toInt() ?? 0,
       'instructions': instructions.text.trim(),
     }));
-    coins.dispose(); price.dispose(); instructions.dispose();
+    coins.dispose(); price.dispose(); currency.dispose(); instructions.dispose();
   }
 
   Future<void> _approve(Map<String, dynamic> item) async {
@@ -167,11 +176,12 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
                   icon: const Icon(Icons.chat_outlined),
                   label: const Text('فتح المحادثة الثنائية مع العضو'),
                 )),
-              if (status == 'pending_owner_contact' || status == 'payment_instructions_sent')
+              if (status == 'pending_owner_contact' || status == 'payment_instructions_sent' || status == 'awaiting_payment_verification')
                 Wrap(spacing: 8, children: [
-                  OutlinedButton(onPressed: _busy ? null : () => _instructions(item),
-                    child: const Text('إرسال/تعديل تعليمات الدفع')),
-                  if (status == 'payment_instructions_sent')
+                  if (status == 'pending_owner_contact')
+                    OutlinedButton(onPressed: _busy ? null : () => _instructions(item),
+                      child: const Text('إرسال تعليمات الدفع')),
+                  if (status == 'payment_instructions_sent' || status == 'awaiting_payment_verification')
                     FilledButton(onPressed: _busy ? null : () => _approve(item),
                       child: const Text('تحقق واعتمد')),
                   TextButton(onPressed: _busy ? null : () => _reject(item),

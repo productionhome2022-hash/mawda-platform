@@ -25,10 +25,32 @@ test("owner payment instructions require bounded negotiated terms", () => {
   assert.equal(validateOwnerPaymentInstructionInput({
     requestId: "request_123", instructions: "تواصل مع المالك لإتمام التحويل",
     agreedCoins: 1000, agreedPriceMinor: 999, currency: "EUR",
+    expectedInstructionsVersion: 0,
   }).agreedPriceMinor, 999);
+  assert.equal(validateOwnerPaymentInstructionInput({
+    requestId: "request_124", instructions: "Owner selected Swiss franc terms",
+    agreedCoins: 1000, agreedPriceMinor: 999, currency: "CHF",
+    expectedInstructionsVersion: 1,
+  }).currencyExponent, 2);
+  assert.equal(validateOwnerPaymentInstructionInput({
+    requestId: "request_125", instructions: "Owner selected zero-decimal terms",
+    agreedCoins: 1000, agreedPriceMinor: 999, currency: "JPY",
+    expectedInstructionsVersion: 0,
+  }).currencyExponent, 0);
   assert.throws(() => validateOwnerPaymentInstructionInput({
     requestId: "request_123", instructions: "ok",
     agreedCoins: 1000, agreedPriceMinor: 999, currency: "EUR",
+    expectedInstructionsVersion: 0,
+  }), /INVALID_INSTRUCTIONS/);
+  assert.throws(() => validateOwnerPaymentInstructionInput({
+    requestId: "request_123", instructions: "Valid enough instructions",
+    agreedCoins: 1000, agreedPriceMinor: 999, currency: "XXX",
+    expectedInstructionsVersion: 0,
+  }), /INVALID_INSTRUCTIONS/);
+  assert.throws(() => validateOwnerPaymentInstructionInput({
+    requestId: "request_123", instructions: "Valid enough instructions",
+    agreedCoins: 1000, agreedPriceMinor: 999, currency: "EUR",
+    expectedInstructionsVersion: -1,
   }), /INVALID_INSTRUCTIONS/);
 });
 
