@@ -87,7 +87,7 @@ test("reopens review after refund changes a previously reconciled balance", () =
 });
 
 test("idempotency document identity is stable and opaque", () => {
-  const first = featuredAdFinancialIdempotencyId("featured_campaign_01", "finance_operation_0001");
+  const first = featuredAdFinancialIdempotencyId("featured_campaign_01", "payment_received", "bank-ref-2026-001");
   assert.equal(first, featuredAdFinancialIdempotencyId("featured_campaign_01", "finance_operation_0001"));
   assert.match(first, /^[a-f0-9]{64}$/);
 });
