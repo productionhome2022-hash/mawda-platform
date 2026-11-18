@@ -347,6 +347,12 @@ test("server starts a non-resettable five-minute call ceiling only after both en
     callId, scope: "direct", status: "accepted", callerUid,
     participantUids: [callerUid, calleeUid], acceptedUids: [calleeUid],
     rejectedUids: [], leftUids: [], connectedUids: [],
+    usagePolicyVersion: 1,
+    usagePolicySnapshot: {
+      active: true, quotaWindowMs: 24 * 60 * 60 * 1000,
+      audioCallsPerWindow: 5, videoCallsPerWindow: 3,
+      maxCallDurationMs: 5 * 60 * 1000,
+    },
   });
   await Promise.all([
     callerLock.set({ callId, status: "active" }),
