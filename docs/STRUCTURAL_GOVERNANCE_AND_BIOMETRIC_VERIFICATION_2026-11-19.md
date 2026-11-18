@@ -109,6 +109,7 @@ These are three separate classes. Their labels, memberships, sequence spaces, pe
 ### 5.4 Separation requirements
 
 - Use distinct stable role IDs, e.g. `platform_admin`, `media_admin`, `general_production_supervisor`, and `team_production_supervisor`; role IDs are examples to reconcile with existing schema before migration.
+- The existing specialized grant implementation reuses `ad_general_supervisor`, `production_general_supervisor`, and `production_supervisor` for the three corresponding identities. Admin Media and General Production Supervisor seats are now guarded by a transactional five-seat check; Team Production Supervisor remains open-ended. Role validation rejects cross-team permission combinations, and Team Production Supervisor is restricted to assigned-team production actions.
 - Store scope/assignment records separately from presentation labels.
 - Permission checks must be deny-by-default and enforce scope server-side for every callable, Firestore rule, Storage rule, and relevant client route.
 - A member may hold multiple roles only if explicitly appointed; role combination must not silently merge permissions.
