@@ -7620,7 +7620,7 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
   }
   const preflightTargetUid = typeof preflightPurchase.data()?.giftRecipientUid === "string"
     ? preflightPurchase.data()!.giftRecipientUid as string : requesterUid;
-  if (preflightTargetUid !== requesterUid) {
+  if (preflightTargetUid !== requesterUid && preflightPurchase.data()?.status !== "approved") {
     let recipientAuth: UserRecord;
     try { recipientAuth = await getAuth().getUser(preflightTargetUid); }
     catch { throw new HttpsError("permission-denied", "تعذر التحقق من حساب مستلم الباقة."); }
