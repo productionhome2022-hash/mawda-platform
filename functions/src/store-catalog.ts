@@ -11,6 +11,7 @@ const FULFILLMENT_READY_ITEM_CATEGORIES: Record<string, string> = {
   discovery_boost_7d: "boost",
   profile_theme_30d: "theme",
   visitor_greeting_30d: "greeting",
+  hide_coins_30d: "privacy",
 };
 
 function isStoreFulfillmentReady(itemId: string, category: string): boolean {
