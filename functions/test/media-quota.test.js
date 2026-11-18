@@ -61,10 +61,10 @@ test("quota release decrements active reservations and fails closed on inconsist
 });
 
 test("only owner-originated uploads bypass all personal media admission quotas", () => {
-  assert.equal(mediaQuotaExemptForTransfer(true, false), true);
-  assert.equal(mediaQuotaExemptForTransfer(false, true), false);
-  assert.equal(mediaQuotaExemptForTransfer(true, true), true);
-  assert.equal(mediaQuotaExemptForTransfer(false, false), false);
+  assert.equal(mediaQuotaExemptForTransfer(true), true);
+  assert.equal(mediaQuotaExemptForTransfer(false), false);
+  assert.equal(mediaQuotaExemptForTransfer(true), true);
+  assert.equal(mediaQuotaExemptForTransfer(false), false);
 });
 
 test("member-to-owner transfers bypass daily usage accounting but retain active guards", () => {
