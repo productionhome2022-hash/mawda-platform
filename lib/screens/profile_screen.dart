@@ -782,7 +782,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final amount = await showDialog<int>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('تحويل كوينز إلى العضو 🪙'),
+        title: const Text('تحويل بيتا كوينز إلى العضو 🪙'),
         content: TextField(
           controller: amountController,
           autofocus: true,
@@ -1208,7 +1208,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         padding: EdgeInsets.only(top: 8),
                         child: Chip(
                           avatar: Icon(Icons.lock_outline, size: 18),
-                          label: Text('رصيد الكوينز مخفي'),
+                          label: Text('رصيد البيتا كوينز مخفي'),
                           visualDensity: VisualDensity.compact,
                         ),
                       )
@@ -1505,7 +1505,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.monetization_on),
-                    label: Text(_isTransferringCoins ? 'جارٍ التحويل...' : 'إهداء كوينز'),
+                    label: Text(_isTransferringCoins ? 'جارٍ التحويل...' : 'إهداء بيتا كوينز'),
                     onPressed: _isTransferringCoins ? null : _showGiftCoinsDialog,
                   ),
                 ),
