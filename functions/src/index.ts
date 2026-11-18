@@ -10035,7 +10035,7 @@ async function processGroupCallBillingSettlement(
     maxDurationMs,
   );
   const settlementResults: string[] = [];
-  for (const share of settlement.shares) {
+  const settleShare = async (share: { uid: string; amount: number }): Promise<string> => {
     const memberRef = db.collection("users").doc(share.uid);
     const ledgerRef = memberRef.collection("walletLedger").doc("group_call_" + callRef.id);
     const receiptRef = callRef.collection("billingSettlements").doc(share.uid);
@@ -10108,7 +10108,13 @@ async function processGroupCallBillingSettlement(
       });
       return "settled";
     });
-    settlementResults.push(outcome);
+    return outcome;
+  };
+  for (let offset = 0; offset < settlement.shares.length; offset += 25) {
+    const outcomes = await Promise.all(
+      settlement.shares.slice(offset, offset + 25).map(settleShare),
+    );
+    settlementResults.push(...outcomes);
   }
   const complete = settlementResults.every((status) => status === "settled");
   await callRef.set({
