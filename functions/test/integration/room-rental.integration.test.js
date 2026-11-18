@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getFirestore } = require("firebase-admin/firestore");
-const { createRentedRoom, renewRoomRental, transferRoomOwnership, closeOwnedRoom, inviteMemberToRoom, getRoomRentalPlans, setRoomRentalPlans } = require("../../lib/index");
+const { createRentedRoom, renewRoomRental, transferRoomOwnership, closeOwnedRoom, inviteMemberToRoom, getRoomRentalPlans, getOwnerRoomRentalPlans, setRoomRentalPlans } = require("../../lib/index");
 
 const db = getFirestore();
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -18,22 +18,33 @@ test("room rental plans are editable only by MFA owner and expose versioned publ
   const uid = `room_pricing_owner_${suffix()}`;
   const plans = [
     { planId: "room_30d", name: "30 days", durationDays: 30, priceCoins: 1000, active: true },
-    { planId: "room_90d", name: "90 days", durationDays: 90, priceCoins: 2500, active: true },
+    { planId: "room_90d", name: "90 days", durationDays: 90, priceCoins: 2500, active: false },
   ];
-  const result = await setRoomRentalPlans.run(ownerRequest(uid, { plans }));
+  const result = await setRoomRentalPlans.run(ownerRequest(uid, { plans, expectedVersion: 0 }));
   assert.equal(result.saved, true);
   const published = await getRoomRentalPlans.run(memberRequest(uid, {}));
   assert.equal(published.version, result.version);
-  assert.equal(published.plans.length, 2);
-  assert.equal(published.plans[1].priceCoins, 2500);
+  assert.equal(published.plans.length, 1);
+  const ownerCatalog = await getOwnerRoomRentalPlans.run(ownerRequest(uid, {}));
+  assert.equal(ownerCatalog.plans.length, 2);
+  assert.equal(ownerCatalog.plans[1].active, false);
+  assert.equal(ownerCatalog.version, result.version);
   await assert.rejects(
-    () => setRoomRentalPlans.run(memberRequest(uid, { plans })),
+    () => setRoomRentalPlans.run(ownerRequest(uid, { plans, expectedVersion: 0 })),
+    (error) => error && error.code === "aborted",
+    "stale owner updates must not overwrite newer rental policy",
+  );
+  await assert.rejects(
+    () => setRoomRentalPlans.run(memberRequest(uid, { plans, expectedVersion: result.version })),
     (error) => error && error.code === "permission-denied",
   );
   await assert.rejects(
-    () => setRoomRentalPlans.run(ownerRequest(uid, { plans: [{ ...plans[0], priceCoins: -1 }] })),
+    () => setRoomRentalPlans.run(ownerRequest(uid, { plans: [{ ...plans[0], priceCoins: -1 }], expectedVersion: result.version })),
     (error) => error && error.code === "invalid-argument",
   );
+  const disabled = await setRoomRentalPlans.run(ownerRequest(uid, { plans: [], expectedVersion: result.version }));
+  assert.equal(disabled.saved, true);
+  assert.deepEqual((await getRoomRentalPlans.run(memberRequest(uid, {}))).plans, []);
 });
 
 test("member room rental debits atomically, renews idempotently, transfers and closes with audit trail", async () => {
@@ -68,6 +79,16 @@ test("member room rental debits atomically, renews idempotently, transfers and c
     assert.equal(created.newBalance, 4000);
     assert.equal((await userRef.get()).data().coins, 4000);
     assert.equal((await db.collection("rooms").doc(roomId).get()).data().status, "active");
+    const createLedgerRef = userRef.collection("walletLedger").doc(`room_${ownerUid}_${requestId}`);
+    const createLedger = (await createLedgerRef.get()).data();
+    const createReceipt = (await db.collection("roomRentals").doc(`${ownerUid}_${requestId}`).get()).data();
+    assert.equal(createLedger.balanceBefore, 5000);
+    assert.equal(createLedger.balanceAfter, 4000);
+    assert.equal(createReceipt.balanceBefore, 5000);
+    assert.equal(createReceipt.newBalance, 4000);
+    const createReplay = await createRentedRoom.run(request);
+    assert.equal(createReplay.idempotentReplay, true);
+    assert.equal((await userRef.get()).data().coins, 4000);
     await assert.rejects(
       () => createRentedRoom.run(memberRequest(ownerUid, {
         ...request.data, capacity: 51,
@@ -86,8 +107,36 @@ test("member room rental debits atomically, renews idempotently, transfers and c
     });
     const renewed = await renewRoomRental.run(renewRequest);
     assert.equal(renewed.renewed, true);
+    const renewLedgerRef = userRef.collection("walletLedger").doc(`room_${ownerUid}_renew_${tag}`);
+    const renewLedger = (await renewLedgerRef.get()).data();
+    const renewReceipt = (await db.collection("roomRentals").doc(`${ownerUid}_renew_${tag}`).get()).data();
+    assert.equal(renewLedger.balanceBefore, 4000);
+    assert.equal(renewLedger.balanceAfter, 3000);
+    assert.equal(renewReceipt.balanceBefore, 4000);
+    assert.equal(renewReceipt.newBalance, 3000);
     const replay = await renewRoomRental.run(renewRequest);
     assert.equal(replay.idempotentReplay, true);
+    const createLedgerBeforeCorruption = (await createLedgerRef.get()).data();
+    const renewLedgerBeforeCorruption = (await renewLedgerRef.get()).data();
+    await createLedgerRef.delete();
+    await assert.rejects(
+      () => createRentedRoom.run(request),
+      (error) => error && error.code === "failed-precondition",
+      "creation replay must fail closed when its debit ledger is missing",
+    );
+    assert.equal((await userRef.get()).data().coins, 3000);
+    await renewLedgerRef.delete();
+    await assert.rejects(
+      () => renewRoomRental.run(renewRequest),
+      (error) => error && error.code === "failed-precondition",
+      "renewal replay must fail closed when its debit ledger is missing",
+    );
+    assert.equal((await userRef.get()).data().coins, 3000);
+    await Promise.all([
+      createLedgerRef.set(createLedgerBeforeCorruption),
+      renewLedgerRef.set(renewLedgerBeforeCorruption),
+    ]);
+
     await assert.rejects(
       () => renewRoomRental.run(memberRequest(ownerUid, {
         ...renewRequest.data, planId: "room_90d",

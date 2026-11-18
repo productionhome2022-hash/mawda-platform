@@ -127,7 +127,7 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'اكتشف الحملات المؤهلة حسب نطاقها الجغرافي. قد تحصل على بيتا بيتا كوينزز بعد إكمال مشاهدة مؤهلة والتحقق منها خادمياً.',
+                        'اكتشف الحملات المؤهلة حسب نطاقها الجغرافي. قد تحصل على بيتا كوينز بعد إكمال مشاهدة مؤهلة والتحقق منها خادمياً.',
                       ),
                       const SizedBox(height: 12),
                       const Row(
@@ -355,8 +355,6 @@ class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> wi
   void _watchVideo() {
     final controller = _videoController;
     if (controller == null || !controller.value.isInitialized || _completed) return;
-    final duration = controller.value.duration.inMilliseconds;
-    final position = controller.value.position.inMilliseconds;
     if (mounted) setState(() {});
   }
 
@@ -414,7 +412,7 @@ class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> wi
       final data = Map<String, dynamic>.from(result.data as Map);
       if (!mounted) return;
       final message = data['rewarded'] == true
-          ? 'تمت المشاهدة المؤهلة: +' + (data['amountBeta Coins'] ?? 0).toString() + ' بيتا كوينز'
+          ? 'تمت المشاهدة المؤهلة: +' + (data['amountCoins'] ?? 0).toString() + ' بيتا كوينز'
           : 'انتهت المشاهدة دون مكافأة: ' + (data['reason'] ?? 'غير مؤهل').toString();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } catch (_) {
@@ -555,7 +553,7 @@ class _FeaturedAdContextArea extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
               leading: Icon(Icons.verified_user_outlined),
               title: Text('التحقق من المشاهدة خادمي'),
-              subtitle: Text('لا تُضاف البيتا بيتا كوينزز إلا بعد استيفاء شروط السياسة التجريبية والتحقق من الجلسة.'),
+              subtitle: Text('لا تُضاف البيتا كوينز إلا بعد استيفاء شروط السياسة التجريبية والتحقق من الجلسة.'),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
@@ -603,16 +601,16 @@ class _FeaturedAdRewardsScreenState extends State<FeaturedAdRewardsScreen> {
               .whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList(growable: false);
           final policy = Map<String, dynamic>.from(payload['policy'] as Map? ?? const {});
           final enabled = policy['enabled'] == true;
-          final reward = policy['rewardBeta CoinsPerView'] ?? 0;
+          final reward = policy['rewardCoinsPerView'] ?? 0;
           final dailyViews = policy['maxRewardedViewsPerUtcDay'] ?? 0;
-          final dailyBeta Coins = policy['maxRewardBeta CoinsPerUtcDay'] ?? 0;
+          final dailyCoins = policy['maxRewardCoinsPerUtcDay'] ?? 0;
           final campaignCap = policy['maxRewardsPerCampaignRolling24h'] ?? 0;
           return ListView(padding: const EdgeInsets.all(16), children: [
             Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('حدود التجربة الحالية', style: theme.textTheme.titleLarge),
               const SizedBox(height: 8),
               Text(enabled
-                ? reward.toString() + ' بيتا كوينز لكل مشاهدة • حتى ' + dailyViews.toString() + ' مشاهدات / ' + dailyBeta Coins.toString() + ' بيتا كوينز يومياً UTC • الحملة نفسها حتى ' + campaignCap.toString() + ' مرات خلال نافذة متحركة.'
+                ? reward.toString() + ' بيتا كوينز لكل مشاهدة • حتى ' + dailyViews.toString() + ' مشاهدات / ' + dailyCoins.toString() + ' بيتا كوينز يومياً UTC • الحملة نفسها حتى ' + campaignCap.toString() + ' مرات خلال نافذة متحركة.'
                 : 'مكافآت الإعلانات المميزة متوقفة حالياً.'),
               const SizedBox(height: 6),
               const Text('هذه قيم تجريبية يضبطها المالك وليست وعداً بدخل أو سياسة إطلاق نهائية.', style: TextStyle(fontSize: 12)),

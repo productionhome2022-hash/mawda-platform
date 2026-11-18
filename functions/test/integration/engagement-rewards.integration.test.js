@@ -9,7 +9,8 @@ const {
   setTimedAdCampaignStatus,
   getActiveTimedAdCampaigns,
   getRewardCenter,
-  setOwnerFeaturedAdCampaign, setFeaturedAdCampaignStatus, reviewFeaturedAdCreative, setOwnerFeaturedAdRewardPolicy,
+  setOwnerFeaturedAdCampaign, setFeaturedAdCampaignStatus, reviewFeaturedAdCreative,
+  recordOwnerFeaturedAdFinancialEvent, setOwnerFeaturedAdRewardPolicy,
   completeFeaturedAdViewingSession, getMyFeaturedAdRewardHistory,
   getFeaturedAdShowcase, startFeaturedAdViewingSession,
   heartbeatFeaturedAdViewingSession, endFeaturedAdViewingSession,
@@ -46,13 +47,30 @@ test("attendance rewards are server-policy gated, UTC-period idempotent and ledg
   await userRef.set({ coins: 100, profileCompleted: true, accountStatus: "active" });
   const previousPolicy = await policyRef.get();
   try {
-    await setAttendanceRewardPolicy.run(ownerRequest(ownerUid, { policy: {
-      hourly: { enabled: false, amountCoins: 0 },
-      daily: { enabled: true, amountCoins: 12 },
-      weekly: { enabled: true, amountCoins: 40 },
-    } }));
+    const initialPolicy = await getOwnerAttendanceRewardPolicy.run(ownerRequest(ownerUid));
+    await setAttendanceRewardPolicy.run(ownerRequest(ownerUid, {
+      expectedVersion: initialPolicy.version,
+      policy: {
+        hourly: { enabled: false, amountCoins: 0 },
+        daily: { enabled: true, amountCoins: 12 },
+        weekly: { enabled: true, amountCoins: 40 },
+      },
+    }));
     const ownerPolicy = await getOwnerAttendanceRewardPolicy.run(ownerRequest(ownerUid));
     assert.equal(ownerPolicy.policy.daily.amountCoins, 12);
+    assert.equal(ownerPolicy.version, initialPolicy.version + 1);
+    await assert.rejects(
+      () => setAttendanceRewardPolicy.run(ownerRequest(ownerUid, {
+        expectedVersion: initialPolicy.version,
+        policy: {
+          hourly: { enabled: false, amountCoins: 0 },
+          daily: { enabled: true, amountCoins: 99 },
+          weekly: { enabled: true, amountCoins: 40 },
+        },
+      })),
+      (error) => error && error.code === "aborted",
+    );
+    assert.equal((await getOwnerAttendanceRewardPolicy.run(ownerRequest(ownerUid))).policy.daily.amountCoins, 12);
     const results = await Promise.all([
       claimAttendanceReward.run(memberRequest(uid, { type: "daily" })),
       claimAttendanceReward.run(memberRequest(uid, { type: "daily" })),
@@ -90,6 +108,52 @@ test("attendance rewards are server-policy gated, UTC-period idempotent and ledg
   }
 });
 
+test("timed ad campaign edits require the current version and reject stale overwrites", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const ownerUid = `ad_version_owner_${suffix()}`;
+  let campaignId;
+  const base = {
+    title: "Versioned test campaign",
+    sponsorLabel: "Mawdda test sponsor",
+    body: "Synthetic campaign for optimistic concurrency validation.",
+    placement: "reward_center",
+    durationSeconds: 15,
+    rewardCoins: 5,
+    startsAtMs: Date.now() - 1000,
+    endsAtMs: Date.now() + 60 * 60 * 1000,
+    maxClaimsPerMember: 1,
+    rewardBudgetCoins: 50,
+  };
+  try {
+    const created = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      ...base, expectedVersion: 0,
+    }));
+    campaignId = created.campaignId;
+    assert.equal(created.version, 1);
+
+    const updated = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      ...base, campaignId, expectedVersion: created.version,
+      title: "Updated versioned campaign",
+    }));
+    assert.equal(updated.version, 2);
+
+    await assert.rejects(
+      () => setTimedAdCampaign.run(ownerRequest(ownerUid, {
+        ...base, campaignId, expectedVersion: created.version,
+        title: "Stale campaign overwrite",
+      })),
+      (error) => error && error.code === "aborted",
+    );
+    const stored = await db.collection("timedAdCampaigns").doc(campaignId).get();
+    assert.equal(stored.data().title, "Updated versioned campaign");
+    assert.equal(stored.data().version, 2);
+  } finally {
+    if (campaignId) {
+      await db.collection("timedAdCampaigns").doc(campaignId).delete().catch(() => undefined);
+    }
+  }
+});
+
 test("timed advertisements require foreground heartbeat duration and pay once", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = suffix();
@@ -101,6 +165,7 @@ test("timed advertisements require foreground heartbeat duration and pay once", 
   let sessionId;
   try {
     const created = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      expectedVersion: 0,
       title: "Test campaign",
       sponsorLabel: "Mawdda test sponsor",
       body: "This is a synthetic test-only advertisement for CI validation.",
@@ -220,6 +285,7 @@ test("campaigns can bind only approved owner-uploaded advertisement media", asyn
   });
   try {
     const result = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      expectedVersion: 0,
       title: "Creative-bound campaign",
       sponsorLabel: "Verified sponsor",
       body: "A synthetic campaign with a verified animated creative attached.",
@@ -287,6 +353,7 @@ test("timed-ad reward is withheld if its approved creative is revoked before com
   });
   try {
     const campaign = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      expectedVersion: 0,
       title: "Revocation test campaign",
       sponsorLabel: "Verified sponsor",
       body: "This test verifies that revoked creative assets cannot earn rewards.",
@@ -357,6 +424,7 @@ test("abandoned expired ad sessions release their reserved campaign budget", asy
   ]);
   try {
     const campaign = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      expectedVersion: 0,
       title: "Reserved budget campaign",
       sponsorLabel: "Mawdda test sponsor",
       body: "Only one reward can be reserved for this synthetic campaign.",
@@ -430,6 +498,7 @@ test("concurrent members cannot reserve the same final ad reward budget", async 
   })));
   try {
     const campaign = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      expectedVersion: 0,
       title: "Concurrent reservation campaign",
       sponsorLabel: "Mawdda test sponsor",
       body: "Two simultaneous members compete for one reserved reward.",
@@ -607,6 +676,7 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
   let campaignRef;
   const userRef = db.collection("users").doc(uid);
   const policyRef = db.doc("platformSettings/featuredAdRewardPolicy");
+  const economySettingsRef = db.doc("platformSettings/economyPricing");
   let memberRef;
   const dayRef = userRef.collection("featuredAdRewardDays").doc(new Date().toISOString().slice(0, 10));
   const ownerRequest = (data) => ({
@@ -622,7 +692,19 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
     auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
   });
   const previousPolicy = await policyRef.get();
+  const previousEconomySettings = await economySettingsRef.get();
   await userRef.set({ coins: 0, profileCompleted: true, accountStatus: "active" });
+  await economySettingsRef.set({
+    manualCoinPurchasesEnabled: false,
+    manualFeaturedAdsEnabled: true,
+    paymentPolicy: {
+      coin_purchases: { manualEnabled: false, automatedEnabled: false },
+      featured_ads: { manualEnabled: true, automatedEnabled: false },
+      public_ads: { manualEnabled: false, automatedEnabled: false },
+      influencer_services: { manualEnabled: false, automatedEnabled: false },
+      store_entitlements: { manualEnabled: false, automatedEnabled: false },
+    },
+  }, { merge: true });
   await policyRef.set({
     policy: {
       enabled: true, rewardCoinsPerView: 2, maxRewardedViewsPerUtcDay: 10,
@@ -651,39 +733,64 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
     const campaignId = created.campaignId;
     campaignRef = db.collection("featuredAdCampaigns").doc(campaignId);
     memberRef = db.collection("featuredAdCampaignMembers").doc(uid + "_" + campaignId);
+    let campaignVersion = 1;
     await assert.rejects(
-      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published" })),
+      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published", expectedVersion: 1 })),
       (error) => error && error.code === "failed-precondition",
     );
     await assert.rejects(
-      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "approved", paymentConfirmed: true })),
-      (error) => error && error.code === "failed-precondition",
+      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "approved", expectedVersion: 1, paymentConfirmed: true })),
+      (error) => error && error.code === "invalid-argument",
     );
     await assert.rejects(
       () => reviewFeaturedAdCreative.run(memberRequest({ campaignId, approved: true })),
       (error) => error && error.code === "permission-denied",
     );
     const rejectedReview = await reviewFeaturedAdCreative.run(ownerRequest({
-      campaignId, approved: false, reviewNote: "يلزم تحسين وضوح المادة قبل النشر.",
+      campaignId, approved: false, expectedVersion: campaignVersion,
+      reviewNote: "يلزم تحسين وضوح المادة قبل النشر.",
     }));
     assert.equal(rejectedReview.approved, false);
+    campaignVersion = rejectedReview.version;
     const creativeReview = await reviewFeaturedAdCreative.run(ownerRequest({
-      campaignId, approved: true, reviewNote: "تم التحقق من المادة والمشتق الآمن.",
+      campaignId, approved: true, expectedVersion: campaignVersion,
+      reviewNote: "تم التحقق من المادة والمشتق الآمن.",
     }));
     assert.equal(creativeReview.approved, true);
-    const approved = await setFeaturedAdCampaignStatus.run(ownerRequest({
-      campaignId, status: "approved", paymentConfirmed: true,
+    campaignVersion = creativeReview.version;
+    const payment = await recordOwnerFeaturedAdFinancialEvent.run(ownerRequest({
+      campaignId, action: "payment_received", expectedVersion: campaignVersion,
+      idempotencyKey: `featured_payment_${tag}`,
+      amountMinor: 5000, currency: "EUR",
+      externalReference: `bank_${tag}`,
+      evidenceReference: `owner_statement_${tag}`,
+      note: "تحقق المالك من استلام الدفعة الخارجية.",
     }));
+    assert.equal(payment.paymentConfirmed, true);
+    campaignVersion = payment.version;
+    const approved = await setFeaturedAdCampaignStatus.run(ownerRequest({
+      campaignId, status: "approved", expectedVersion: campaignVersion,
+    }));
+    campaignVersion = approved.version;
     const approvedSnapshot = await campaignRef.get();
     assert.equal(approvedSnapshot.data().ownerApproved, true);
     assert.equal(approvedSnapshot.data().creativeApproved, true);
     assert.equal(approvedSnapshot.data().paymentConfirmed, true);
     assert.equal(approved.status, "approved");
-    const published = await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published" }));
+    const published = await setFeaturedAdCampaignStatus.run(ownerRequest({
+      campaignId, status: "published", expectedVersion: campaignVersion,
+    }));
+    campaignVersion = published.version;
     assert.equal(published.status, "published");
-    await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "paused" }));
+    const paused = await setFeaturedAdCampaignStatus.run(ownerRequest({
+      campaignId, status: "paused", expectedVersion: campaignVersion,
+    }));
+    campaignVersion = paused.version;
     assert.equal((await campaignRef.get()).data().ownerApproved, true);
-    await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published" }));
+    const republished = await setFeaturedAdCampaignStatus.run(ownerRequest({
+      campaignId, status: "published", expectedVersion: campaignVersion,
+    }));
+    campaignVersion = republished.version;
 
     await sessionRef.set({
       uid, campaignId, geography: "syria", creativeType: "image", status: "active",
@@ -718,9 +825,14 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
       visibleMs: 12000, continuousVisibleMs: 12000, progressPercent: 0,
       foregroundVisible: true, rewardClaimed: false,
     });
-    await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "withdrawn" }));
+    const withdrawn = await setFeaturedAdCampaignStatus.run(ownerRequest({
+      campaignId, status: "withdrawn", expectedVersion: campaignVersion,
+    }));
+    campaignVersion = withdrawn.version;
     await assert.rejects(
-      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "paused" })),
+      () => setFeaturedAdCampaignStatus.run(ownerRequest({
+        campaignId, status: "paused", expectedVersion: campaignVersion,
+      })),
       (error) => error && error.code === "failed-precondition",
     );
     const denied = await completeFeaturedAdViewingSession.run(memberRequest({ sessionId: secondSessionRef.id }));
@@ -734,6 +846,9 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
       userRef.delete().catch(() => undefined),
       campaignRef?.delete().catch(() => undefined),
       previousPolicy.exists ? policyRef.set(previousPolicy.data()) : policyRef.delete(),
+      previousEconomySettings.exists
+        ? economySettingsRef.set(previousEconomySettings.data())
+        : economySettingsRef.delete(),
       memberRef?.delete().catch(() => undefined), dayRef.delete().catch(() => undefined),
       db.collection("mediaAssets").doc("fixture-media-" + tag).delete().catch(() => undefined),
       userRef.collection("walletLedger").doc("featured_ad_reward_" + sessionRef.id).delete().catch(() => undefined),

@@ -63,6 +63,11 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
       callId, scope: "direct", targetId: chatId, mode: "audio",
     }));
     assert.equal(started.status, "ringing");
+    const createdCall = (await callRef.get()).data();
+    assert.equal(createdCall.economySnapshot.billingMode, "not_configured");
+    assert.equal(createdCall.economySnapshot.combinedTotalCoinsPerMinute, null);
+    assert.equal(createdCall.economySnapshot.collectionEnabled, false,
+      "a configured or missing tariff must never enable call collection before settlement exists");
     assert.equal((await getActiveCall.run(call(calleeUid))).active, true);
     const ice = await getCallIceConfiguration.run(call(callerUid, { callId }));
     assert.equal(ice.turnConfigured, false);

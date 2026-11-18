@@ -25,10 +25,16 @@ test("owner payment instructions require bounded negotiated terms", () => {
   assert.equal(validateOwnerPaymentInstructionInput({
     requestId: "request_123", instructions: "تواصل مع المالك لإتمام التحويل",
     agreedCoins: 1000, agreedPriceMinor: 999, currency: "EUR",
-  }).agreedPriceMinor, 999);
+    expectedInstructionsVersion: 0,
+  }).expectedInstructionsVersion, 0);
   assert.throws(() => validateOwnerPaymentInstructionInput({
     requestId: "request_123", instructions: "ok",
     agreedCoins: 1000, agreedPriceMinor: 999, currency: "EUR",
+  }), /INVALID_INSTRUCTIONS/);
+  assert.throws(() => validateOwnerPaymentInstructionInput({
+    requestId: "request_123", instructions: "تعليمات دفع صحيحة",
+    agreedCoins: 1000, agreedPriceMinor: 999, currency: "EUR",
+    expectedInstructionsVersion: -1,
   }), /INVALID_INSTRUCTIONS/);
 });
 
@@ -63,4 +69,26 @@ test("gifted coin packages accept only a bounded recipient UID on package reques
     requestId: "gift_request_4", kind: "package", packageId: "coins_1000",
     giftRecipientUid: "x".repeat(129),
   }), /INVALID_GIFT_RECIPIENT/);
+});
+
+
+test("manual coin quotes accept supported owner-selected currencies with their ISO minor-unit exponent", () => {
+  const kwd = validateOwnerPaymentInstructionInput({
+    requestId: "request_kwd_1", instructions: "تحويل إلى حساب المالك",
+    agreedCoins: 500, agreedPriceMinor: 1250, currency: "KWD",
+    expectedInstructionsVersion: 0,
+  });
+  assert.equal(kwd.currency, "KWD");
+  assert.equal(kwd.currencyExponent, 3);
+  const jpy = validateOwnerPaymentInstructionInput({
+    requestId: "request_jpy_1", instructions: "تحويل إلى حساب المالك",
+    agreedCoins: 500, agreedPriceMinor: 2500, currency: "JPY",
+    expectedInstructionsVersion: 0,
+  });
+  assert.equal(jpy.currencyExponent, 0);
+  assert.throws(() => validateOwnerPaymentInstructionInput({
+    requestId: "request_bad_currency", instructions: "تحويل إلى حساب المالك",
+    agreedCoins: 500, agreedPriceMinor: 2500, currency: "XYZ",
+    expectedInstructionsVersion: 0,
+  }), /INVALID_INSTRUCTIONS/);
 });

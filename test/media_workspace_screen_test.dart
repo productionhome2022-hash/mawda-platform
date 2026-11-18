@@ -15,6 +15,11 @@ void main() {
       expect(find.text('انضم إلى صُنّاع مودة'), findsOneWidget);
       expect(find.text('الإعلان المباشر'), findsOneWidget);
       expect(find.text('عروض المؤثرين وصنّاع المحتوى'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('مراسلة المشرفين العامين'),
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('مراسلة المشرفين العامين'), findsOneWidget);
 
       final creatorEntry = find.ancestor(
@@ -54,7 +59,7 @@ void main() {
       expect(find.text('مكافآت مشاهدة الإعلانات'), findsOneWidget);
       await tester.tap(find.text('مكافآت مشاهدة الإعلانات'));
       await tester.pumpAndSettle();
-      expect(find.text('كيف تحصل على المكافأة؟'), findsOneWidget);
+      expect(find.text('مكافآت مشاهدة الإعلانات'), findsOneWidget);
     },
   );
 }

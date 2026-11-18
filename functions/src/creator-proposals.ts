@@ -1,3 +1,4 @@
+import { isValidPositiveCurrencyAmount } from "./economy-pricing";
 import { isIP } from "node:net";
 
 export type CreatorProposalSourceType = "external_url" | "written_proposal";
@@ -127,15 +128,13 @@ export function validateCreatorProposalInput(input: unknown): CreatorProposalPay
       throw new CreatorProposalValidationError("quote_and_budget_are_mutually_exclusive");
     }
   } else {
-    if (typeof data.proposedBudgetAmount !== "string" ||
-        !/^(?:0|[1-9]\d{0,11})(?:\.\d{1,4})?$/.test(data.proposedBudgetAmount) ||
-        Number(data.proposedBudgetAmount) <= 0 ||
-        typeof data.currency !== "string" ||
-        !/^[A-Z]{3}$/.test(data.currency)) {
+    const proposedCurrency = data.currency;
+    if (typeof proposedCurrency !== "string" ||
+        !isValidPositiveCurrencyAmount(data.proposedBudgetAmount, proposedCurrency)) {
       throw new CreatorProposalValidationError("invalid_proposed_budget");
     }
-    proposedBudgetAmount = data.proposedBudgetAmount;
-    currency = data.currency;
+    proposedBudgetAmount = data.proposedBudgetAmount as string;
+    currency = proposedCurrency;
   }
 
   if (data.rightsConfirmed !== true) {

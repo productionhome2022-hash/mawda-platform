@@ -1,8 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
-  EMAIL_VERIFICATION_CYCLE_MS,
-  EMAIL_VERIFICATION_REWARD_COINS,
   createEmailVerificationCycle,
   isEmailVerificationCycleDue,
   canRewardEmailVerificationCycle,
@@ -11,33 +9,34 @@ const {
 
 const NOW = 1_800_000_000_000;
 
-test("creates deterministic server-clocked 90-day cycle bound to normalized email", () => {
-  const input = { uid: "member-1", email: " Member@Example.com ", sequence: 2, serverNowMs: NOW };
+test("creates deterministic owner-duration cycle bound to normalized email", () => {
+  const input = { uid: "member-1", email: " Member@Example.com ", sequence: 2, serverNowMs: NOW, cycleDays: 90 };
   const first = createEmailVerificationCycle(input);
   assert.deepEqual(first, createEmailVerificationCycle(input));
   assert.equal(first.email, "member@example.com");
   assert.equal(first.startedAtMs, NOW);
-  assert.equal(first.expiresAtMs, NOW + EMAIL_VERIFICATION_CYCLE_MS);
+  assert.equal(first.expiresAtMs, NOW + 90 * 86400000);
   assert.equal(first.status, "pending");
 });
 
 test("rejects invalid identity, email, sequence and server clock", () => {
   for (const input of [
-    { uid: "", email: "a@b.com", sequence: 1, serverNowMs: NOW },
-    { uid: "u", email: "not-an-email", sequence: 1, serverNowMs: NOW },
-    { uid: "u", email: "a@b.com", sequence: 0, serverNowMs: NOW },
-    { uid: "u", email: "a@b.com", sequence: 1, serverNowMs: -1 },
+    { uid: "", email: "a@b.com", sequence: 1, serverNowMs: NOW, cycleDays: 90 },
+    { uid: "u", email: "not-an-email", sequence: 1, serverNowMs: NOW, cycleDays: 90 },
+    { uid: "u", email: "a@b.com", sequence: 0, serverNowMs: NOW, cycleDays: 90 },
+    { uid: "u", email: "a@b.com", sequence: 1, serverNowMs: -1, cycleDays: 90 },
   ]) assert.throws(() => createEmailVerificationCycle(input));
 });
 
 test("renewal becomes due at exactly 90 days using server time", () => {
-  assert.equal(isEmailVerificationCycleDue(NOW, NOW + EMAIL_VERIFICATION_CYCLE_MS - 1), false);
-  assert.equal(isEmailVerificationCycleDue(NOW, NOW + EMAIL_VERIFICATION_CYCLE_MS), true);
+  assert.equal(isEmailVerificationCycleDue(NOW, NOW + 90 * 86400000 - 1, 90), false);
+  assert.equal(isEmailVerificationCycleDue(NOW, NOW + 90 * 86400000, 90), true);
+  assert.equal(isEmailVerificationCycleDue(NOW, NOW + 30 * 86400000, 30), true);
 });
 
 test("reward requires pending cycle, verified Auth state, unchanged email and unexpired cycle", () => {
   const cycle = createEmailVerificationCycle({
-    uid: "member-1", email: "member@example.com", sequence: 1, serverNowMs: NOW,
+    uid: "member-1", email: "member@example.com", sequence: 1, serverNowMs: NOW, cycleDays: 90,
   });
   const base = { cycle, currentEmail: "MEMBER@example.com", authEmailVerified: true, serverNowMs: NOW + 1 };
   assert.equal(canRewardEmailVerificationCycle(base), true);
@@ -50,9 +49,8 @@ test("reward requires pending cycle, verified Auth state, unchanged email and un
 
 test("cycle-specific ledger identity prevents reward collisions and validates ids", () => {
   const cycle = createEmailVerificationCycle({
-    uid: "member-1", email: "member@example.com", sequence: 1, serverNowMs: NOW,
+    uid: "member-1", email: "member@example.com", sequence: 1, serverNowMs: NOW, cycleDays: 90,
   });
   assert.equal(emailVerificationRewardLedgerId(cycle.cycleId), "email_verification_" + cycle.cycleId);
   assert.throws(() => emailVerificationRewardLedgerId("bad-id"));
-  assert.equal(EMAIL_VERIFICATION_REWARD_COINS, 500);
 });

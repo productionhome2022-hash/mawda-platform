@@ -7,7 +7,7 @@ import { getStorage } from "firebase-admin/storage";
 import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { defineSecret, defineString } from "firebase-functions/params";
-import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
+import { verifyScannerWebhook, validateScannerVerdict, type ScannerSafeDerivative } from "./media-scanner";
 import { expectedSafeDerivativeContract, safeDerivativePurposeAllowed } from "./media-derivative-contract";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
@@ -444,11 +444,7 @@ export const receiveMediaScanVerdict = onRequest(
       sizeBytes: Number(previewMetadata.size),
     };
   }
-  let safeNonImageDerivative: {
-    category: "gif" | "audio" | "video" | "document";
-    path: string; generation: string; sha256: string;
-    contentType: string; pipelineVersion: string; sizeBytes: number;
-  } | null = null;
+  let safeNonImageDerivative: (ScannerSafeDerivative & { sizeBytes: number }) | null = null;
   if (verdict.safeDerivative) {
     const derivative = verdict.safeDerivative;
     const expected = expectedSafeDerivativeContract(derivative.category);
@@ -482,7 +478,18 @@ export const receiveMediaScanVerdict = onRequest(
         custom?.sourceGeneration !== verdict.objectGeneration ||
         custom?.sourceSha256 !== verdict.sha256 ||
         custom?.scannerProvider !== verdict.provider ||
-        custom?.processing !== derivative.pipelineVersion) {
+        custom?.processing !== derivative.pipelineVersion ||
+        (derivative.category === "gif" &&
+          (Number(custom?.durationMs) !== derivative.durationMs ||
+           Number(custom?.frameCount) !== derivative.frameCount ||
+           !Number.isSafeInteger(derivative.durationMs) || derivative.durationMs! < 1 ||
+           derivative.durationMs! > 20_000 ||
+           !Number.isSafeInteger(derivative.frameCount) || derivative.frameCount! < 1 ||
+           derivative.frameCount! > 50)) ||
+        (derivative.category === "video" &&
+          (Number(custom?.durationMs) !== derivative.durationMs ||
+           !Number.isSafeInteger(derivative.durationMs) || derivative.durationMs! < 1 ||
+           derivative.durationMs! > 90_000))) {
       response.status(409).send("Safe media derivative metadata mismatch");
       return;
     }
@@ -534,6 +541,8 @@ export const receiveMediaScanVerdict = onRequest(
           safeAnimationGeneration: safeNonImageDerivative.generation,
           safeAnimationSha256: safeNonImageDerivative.sha256,
           safeAnimationContentType: safeNonImageDerivative.contentType,
+          safeAnimationDurationMs: safeNonImageDerivative.durationMs,
+          safeAnimationFrameCount: safeNonImageDerivative.frameCount,
           processingStatus: "safe_animation_derivative_ready",
         } : {}),
         ...(safeNonImageDerivative.category === "audio" ? {
@@ -548,6 +557,7 @@ export const receiveMediaScanVerdict = onRequest(
           safeVideoGeneration: safeNonImageDerivative.generation,
           safeVideoSha256: safeNonImageDerivative.sha256,
           safeVideoContentType: safeNonImageDerivative.contentType,
+          safeVideoDurationMs: safeNonImageDerivative.durationMs,
           processingStatus: "safe_video_derivative_ready",
         } : {}),
         ...(safeNonImageDerivative.category === "document" ? {

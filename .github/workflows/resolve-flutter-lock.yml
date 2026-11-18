@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - codex/mawda-full-platform-implementation
+      - codex/economy-recovery-2026-11-18
     paths:
       - pubspec.yaml
       - .github/workflows/resolve-flutter-lock.yml
@@ -51,3 +52,9 @@ jobs:
             echo "Branch moved during lockfile push; retrying from latest head."
           done
           exit 1
+      - name: Analyze Flutter
+        run: flutter analyze
+      - name: Run Flutter tests
+        run: flutter test
+      - name: Build Flutter web release
+        run: flutter build web --release

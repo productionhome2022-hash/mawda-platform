@@ -17,7 +17,7 @@ class _RoomRentalPricingScreenState extends State<RoomRentalPricingScreen> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final result = await _functions.httpsCallable('getRoomRentalPlans').call();
+      final result = await _functions.httpsCallable('getOwnerRoomRentalPlans').call();
       final data = Map<String, dynamic>.from(result.data as Map);
       if (!mounted) return;
       setState(() {
@@ -32,8 +32,8 @@ class _RoomRentalPricingScreenState extends State<RoomRentalPricingScreen> {
   Future<void> _edit([Map<String, dynamic>? current]) async {
     final id = TextEditingController(text: current?['planId'] as String? ?? '');
     final name = TextEditingController(text: current?['name'] as String? ?? '');
-    final days = TextEditingController(text: '${current?['durationDays'] ?? 30}');
-    final price = TextEditingController(text: '${current?['priceCoins'] ?? 1000}');
+    final days = TextEditingController(text: current == null ? '' : '${current['durationDays']}');
+    final price = TextEditingController(text: current == null ? '' : '${current['priceCoins']}');
     bool active = current?['active'] != false;
     final value = await showDialog<Map<String, dynamic>>(context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, update) => AlertDialog(
@@ -65,10 +65,10 @@ class _RoomRentalPricingScreenState extends State<RoomRentalPricingScreen> {
     });
   }
   Future<void> _save() async {
-    if (_saving || _plans.isEmpty) return;
+    if (_saving) return;
     setState(() { _saving = true; _error = null; });
     try {
-      final result = await _functions.httpsCallable('setRoomRentalPlans').call({'plans': _plans});
+      final result = await _functions.httpsCallable('setRoomRentalPlans').call({'plans': _plans, 'expectedVersion': _version});
       final data = Map<String, dynamic>.from(result.data as Map);
       if (!mounted) return;
       setState(() => _version = data['version'] as int? ?? _version);
@@ -94,7 +94,12 @@ class _RoomRentalPricingScreenState extends State<RoomRentalPricingScreen> {
         ..._plans.map((p) => Card(child: ListTile(
           title: Text(p['name'] as String? ?? p['planId'] as String? ?? 'باقة'),
           subtitle: Text('${p['durationDays']} يوم • ${p['priceCoins']} كوين • ${p['active'] == true ? 'متاحة' : 'متوقفة'}'),
-          trailing: IconButton(onPressed: _saving ? null : () => _edit(p), icon: const Icon(Icons.edit_outlined)),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            IconButton(onPressed: _saving ? null : () => _edit(p), icon: const Icon(Icons.edit_outlined)),
+            IconButton(onPressed: _saving ? null : () => setState(() =>
+              _plans = _plans.where((entry) => entry['planId'] != p['planId']).toList()),
+              icon: const Icon(Icons.delete_outline)),
+          ]),
         ))),
         OutlinedButton.icon(onPressed: _saving ? null : () => _edit(), icon: const Icon(Icons.add), label: const Text('إضافة باقة')),
         FilledButton.icon(onPressed: _saving ? null : _save, icon: const Icon(Icons.save_outlined), label: const Text('حفظ الأسعار في الخادم')),

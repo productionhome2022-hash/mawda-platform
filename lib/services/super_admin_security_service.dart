@@ -39,10 +39,19 @@ class SuperAdminSecurityService {
   Future<Map<String, dynamic>> setTransferCommission({
     required int commissionBps,
     required bool enabled,
+    required int expectedVersion,
   }) async {
     final result = await _functions.httpsCallable('setTransferCommission').call({
       'commissionBps': commissionBps,
       'enabled': enabled,
+      'expectedVersion': expectedVersion,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
+  Future<Map<String, dynamic>> reconcileMemberWallet(String memberUid) async {
+    final result = await _functions.httpsCallable('reconcileMemberWallet').call({
+      'memberUid': memberUid,
     });
     return Map<String, dynamic>.from(result.data as Map);
   }
@@ -66,6 +75,7 @@ class SuperAdminSecurityService {
     required int sortOrder,
     required bool active,
     required bool purchaseEnabled,
+    required int expectedVersion,
   }) async {
     await _functions.httpsCallable('setStoreCatalogItem').call({
       'itemId': itemId,
@@ -77,6 +87,7 @@ class SuperAdminSecurityService {
       'sortOrder': sortOrder,
       'active': active,
       'purchaseEnabled': purchaseEnabled,
+      'expectedVersion': expectedVersion,
     });
   }
 

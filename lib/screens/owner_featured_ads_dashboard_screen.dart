@@ -17,6 +17,10 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
   final _policyDailyViews = TextEditingController(text: '0');
   final _policyDailyCoins = TextEditingController(text: '0');
   final _policyCampaignCap = TextEditingController(text: '0');
+  final _policyWindowMs = TextEditingController(text: '86400000');
+  final _policyVideoCompletion = TextEditingController(text: '90');
+  final _policyImageVisibleMs = TextEditingController(text: '10000');
+  int _policyVersion = 0;
   bool _uploadingMedia = false;
   bool _savingPolicy = false;
   bool _rewardEnabled = false;
@@ -33,6 +37,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
   bool _loading = true;
   bool _saving = false;
   String? _editingId;
+  int _editingVersion = 0;
   String? _error;
   late DateTime _startsAt;
   late DateTime _endsAt;
@@ -64,6 +69,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
     _budget.dispose(); _reward.dispose();
     _policyReward.dispose(); _policyDailyViews.dispose();
     _policyDailyCoins.dispose(); _policyCampaignCap.dispose();
+    _policyWindowMs.dispose(); _policyVideoCompletion.dispose(); _policyImageVisibleMs.dispose();
     super.dispose();
   }
 
@@ -88,10 +94,14 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
       if (mounted) setState(() {
         _campaigns = items; _approvedMedia = media;
         _rewardEnabled = policy['enabled'] == true;
+        _policyVersion = (policyData['version'] as num?)?.toInt() ?? 0;
         _policyReward.text = (policy['rewardCoinsPerView'] ?? 0).toString();
         _policyDailyViews.text = (policy['maxRewardedViewsPerUtcDay'] ?? 0).toString();
         _policyDailyCoins.text = (policy['maxRewardCoinsPerUtcDay'] ?? 0).toString();
         _policyCampaignCap.text = (policy['maxRewardsPerCampaignRolling24h'] ?? 0).toString();
+        _policyWindowMs.text = (policy['sameCampaignWindowMs'] ?? 86400000).toString();
+        _policyVideoCompletion.text = (policy['videoCompletionPercent'] ?? 90).toString();
+        _policyImageVisibleMs.text = (policy['imageContinuousVisibleMs'] ?? 10000).toString();
         _reward.text = (policy['rewardCoinsPerView'] ?? 0).toString();
       });
     } on FirebaseFunctionsException catch (e) {
@@ -127,28 +137,41 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
     final views = int.tryParse(_policyDailyViews.text.trim());
     final coins = int.tryParse(_policyDailyCoins.text.trim());
     final campaignCap = int.tryParse(_policyCampaignCap.text.trim());
+    final windowMs = int.tryParse(_policyWindowMs.text.trim());
+    final videoCompletion = int.tryParse(_policyVideoCompletion.text.trim());
+    final imageVisibleMs = int.tryParse(_policyImageVisibleMs.text.trim());
     if (reward == null || views == null || coins == null || campaignCap == null ||
-        reward < 0 || views < 0 || coins < reward || campaignCap < 0 ||
+        windowMs == null || videoCompletion == null || imageVisibleMs == null ||
+        reward < 0 || reward > 100000 || views < 0 || views > 10000 ||
+        (_rewardEnabled && coins < reward) || coins < 0 || coins > 1000000 || campaignCap < 0 || campaignCap > 1000 ||
+        windowMs < 1 || windowMs > 2678400000 ||
+        videoCompletion < 1 || videoCompletion > 100 ||
+        imageVisibleMs < 1000 || imageVisibleMs > 3600000 ||
         (_rewardEnabled && (reward < 1 || views < 1 || campaignCap < 1))) {
-      setState(() => _error = 'قيم سياسة المكافآت غير صالحة؛ يجب أن يغطي الحد اليومي مكافأة مشاهدة واحدة على الأقل.');
+      setState(() => _error = 'قيم سياسة المكافآت غير صالحة؛ راجع المبالغ والحصص والنوافذ الزمنية وحدود إثبات المشاهدة.');
       return;
     }
     setState(() { _savingPolicy = true; _error = null; });
     try {
-      final current = await _functions.httpsCallable('getOwnerFeaturedAdRewardPolicy').call();
-      final envelope = Map<String, dynamic>.from(current.data as Map);
-      final policy = Map<String, dynamic>.from(envelope['policy'] as Map);
-      policy.addAll({
-        'enabled': _rewardEnabled,
-        'rewardCoinsPerView': reward,
-        'maxRewardedViewsPerUtcDay': views,
-        'maxRewardCoinsPerUtcDay': coins,
-        'maxRewardsPerCampaignRolling24h': campaignCap,
+      final response = await _functions.httpsCallable('setOwnerFeaturedAdRewardPolicy').call({
+        'expectedVersion': _policyVersion,
+        'policy': {
+          'enabled': _rewardEnabled,
+          'rewardCoinsPerView': reward,
+          'maxRewardedViewsPerUtcDay': views,
+          'maxRewardCoinsPerUtcDay': coins,
+          'maxRewardsPerCampaignRolling24h': campaignCap,
+          'sameCampaignWindowMs': windowMs,
+          'videoCompletionPercent': videoCompletion,
+          'imageContinuousVisibleMs': imageVisibleMs,
+        },
       });
-      await _functions.httpsCallable('setOwnerFeaturedAdRewardPolicy').call({'policy': policy, 'expectedVersion': envelope['version'] ?? 0});
+      final saved = Map<String, dynamic>.from(response.data as Map);
+      if (!mounted) return;
+      setState(() => _policyVersion = (saved['version'] as num?)?.toInt() ?? _policyVersion);
       _reward.text = reward.toString();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم حفظ سياسة المكافآت التجريبية بإصدار جديد.')),
+        SnackBar(content: Text('تم حفظ سياسة المكافآت بإصدار $_policyVersion.')),
       );
     } on FirebaseFunctionsException catch (e) {
       if (mounted) setState(() => _error = e.message ?? 'تعذر حفظ سياسة المكافآت.');
@@ -190,6 +213,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
     try {
       await _functions.httpsCallable('setOwnerFeaturedAdCampaign').call({
         if (_editingId != null) 'campaignId': _editingId,
+        if (_editingId != null) 'expectedVersion': _editingVersion,
         'title': title, 'sponsorLabel': sponsor, 'body': body,
         'geographicTargets': [_geography],
         'featuredPlacement': _placement,
@@ -221,6 +245,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
     if (!['draft', 'paused'].contains(item['status'])) return;
     setState(() {
       _editingId = item['campaignId'] as String?;
+      _editingVersion = (item['version'] as num?)?.toInt() ?? 0;
       _title.text = item['title'] as String? ?? '';
       _sponsor.text = item['sponsorLabel'] as String? ?? '';
       _body.text = item['body'] as String? ?? '';
@@ -259,7 +284,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
     return note;
   }
 
-  Future<void> _reviewCreative(String id, {required bool approved}) async {
+  Future<void> _reviewCreative(String id, int expectedVersion, {required bool approved}) async {
     String? note;
     if (!approved) {
       note = await _askCreativeReviewNote();
@@ -273,6 +298,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
     try {
       await _functions.httpsCallable('reviewFeaturedAdCreative').call({
         'campaignId': id,
+        'expectedVersion': expectedVersion,
         'approved': approved,
         if (note != null) 'reviewNote': note,
       });
@@ -284,15 +310,125 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
     }
   }
 
-  Future<void> _status(String id, String status, {bool paymentConfirmed = false}) async {
+  Future<void> _status(String id, String status, int expectedVersion) async {
     setState(() { _saving = true; _error = null; });
     try {
       await _functions.httpsCallable('setFeaturedAdCampaignStatus').call({
-        'campaignId': id, 'status': status, 'paymentConfirmed': paymentConfirmed,
+        'campaignId': id, 'status': status, 'expectedVersion': expectedVersion,
       });
       await _load();
     } on FirebaseFunctionsException catch (e) {
       if (mounted) setState(() => _error = e.message ?? 'تعذر تغيير حالة الحملة.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _recordFinancialEvent(Map<String, dynamic> item, String action) async {
+    final campaignId = item['campaignId'] as String? ?? '';
+    final expectedVersion = (item['version'] as num?)?.toInt() ?? 0;
+    if (campaignId.isEmpty || expectedVersion < 1) return;
+    final amount = TextEditingController();
+    final currency = TextEditingController();
+    final externalReference = TextEditingController();
+    final evidenceReference = TextEditingController();
+    final note = TextEditingController();
+    String reviewOutcome = 'needs_attention';
+    final isReview = action == 'review_completed';
+    final needsEvidence = action == 'payment_received' || action == 'refund_recorded';
+    final values = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          final amountValue = int.tryParse(amount.text.trim());
+          final currencyCode = currency.text.trim().toUpperCase();
+          final validCurrency = currencyCode.length == 3 &&
+              currencyCode.codeUnits.every((unit) => unit >= 65 && unit <= 90);
+          final validInput = externalReference.text.trim().length >= 3 &&
+              note.text.trim().length >= 5 &&
+              (isReview || (amountValue != null && amountValue > 0 && validCurrency)) &&
+              (!needsEvidence || evidenceReference.text.trim().length >= 3);
+          return AlertDialog(
+          title: Text(switch (action) {
+            'payment_received' => 'تسجيل استلام دفعة خارجية',
+            'refund_recorded' => 'تسجيل استرداد مالي',
+            'settlement_reconciled' => 'تسوية ومطابقة مالية',
+            _ => 'مراجعة مالية',
+          }),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('الحملة: $campaignId • الإصدار $expectedVersion'),
+              if (!isReview) ...[
+                TextField(controller: amount, keyboardType: TextInputType.number,
+                  onChanged: (_) => setDialogState(() {}),
+                  decoration: const InputDecoration(labelText: 'المبلغ بأصغر وحدة نقدية')),
+                TextField(controller: currency, textCapitalization: TextCapitalization.characters,
+                  onChanged: (_) => setDialogState(() {}),
+                  decoration: const InputDecoration(labelText: 'رمز العملة ISO 4217')),
+              ],
+              TextField(controller: externalReference,
+                onChanged: (_) => setDialogState(() {}),
+                decoration: InputDecoration(labelText: isReview ? 'مرجع المراجعة الداخلية' : 'مرجع الحركة في السجل الخارجي')),
+              if (needsEvidence)
+                TextField(controller: evidenceReference,
+                  onChanged: (_) => setDialogState(() {}),
+                  decoration: const InputDecoration(labelText: 'مرجع مستند/كشف التحقق')),
+              TextField(controller: note, minLines: 2, maxLines: 4,
+                onChanged: (_) => setDialogState(() {}),
+                decoration: const InputDecoration(labelText: 'ملاحظة المالك وأساس التحقق')),
+              if (isReview)
+                DropdownButtonFormField<String>(
+                  initialValue: reviewOutcome,
+                  decoration: const InputDecoration(labelText: 'نتيجة المراجعة'),
+                  items: const [
+                    DropdownMenuItem(value: 'needs_attention', child: Text('تحتاج إلى متابعة')),
+                    DropdownMenuItem(value: 'approved', child: Text('مقبولة')),
+                  ],
+                  onChanged: (value) => setDialogState(() => reviewOutcome = value ?? 'needs_attention'),
+                ),
+              const SizedBox(height: 8),
+              const Text(
+                'لا يُعد هذا إثباتاً آلياً للدفع. يسجل المالك ما تحقّق منه خارج المنصة، وتبقى الحركة خاضعة لسجل التدقيق.',
+                style: TextStyle(fontSize: 12),
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+            FilledButton(
+              onPressed: validInput ? () => Navigator.pop(dialogContext, {
+                'amountMinor': isReview ? null : amountValue,
+                'currency': isReview ? null : currencyCode,
+                'externalReference': externalReference.text.trim(),
+                'evidenceReference': needsEvidence ? evidenceReference.text.trim() : null,
+                'note': note.text.trim(),
+                'reviewOutcome': isReview ? reviewOutcome : null,
+              }) : null,
+              child: const Text('تسجيل الحركة'),
+            ),
+          ],
+          );
+        },
+      ),
+    );
+    amount.dispose();
+    currency.dispose();
+    externalReference.dispose();
+    evidenceReference.dispose();
+    note.dispose();
+    if (values == null || !mounted) return;
+    setState(() { _saving = true; _error = null; });
+    try {
+      await _functions.httpsCallable('recordOwnerFeaturedAdFinancialEvent').call({
+        'campaignId': campaignId,
+        'action': action,
+        'idempotencyKey': 'featured_finance_${DateTime.now().microsecondsSinceEpoch}',
+        ...values,
+        'expectedVersion': expectedVersion,
+      });
+      await _load();
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر تسجيل الحركة المالية.');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -416,8 +552,15 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
               Row(children: [
                 Expanded(child: TextField(controller: _policyDailyCoins, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'الحد الأقصى اليومي للكوين UTC'))),
                 const SizedBox(width: 10),
-                Expanded(child: TextField(controller: _policyCampaignCap, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مشاهدات العضو لكل حملة/24 ساعة'))),
+                Expanded(child: TextField(controller: _policyCampaignCap, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'أقصى مكافآت للحملة ضمن النافذة'))),
               ]),
+              Row(children: [
+                Expanded(child: TextField(controller: _policyWindowMs, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'نافذة الحملة بالميلي ثانية'))),
+                const SizedBox(width: 10),
+                Expanded(child: TextField(controller: _policyVideoCompletion, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'إكمال الفيديو %'))),
+              ]),
+              TextField(controller: _policyImageVisibleMs, keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'الظهور المتصل للصورة بالميلي ثانية')),
               const SizedBox(height: 10),
               SizedBox(width: double.infinity, child: FilledButton(
                 onPressed: _savingPolicy ? null : _saveRewardPolicy,
@@ -434,18 +577,22 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
             final status = item['status'];
             return Card(child: ListTile(
               title: Text(item['title'] as String? ?? id),
-              subtitle: Text('${item['status']} • ${item['featuredPlacement']} • ميزانية ${item['rewardBudgetCoins'] ?? 0} • مستخدم ${item['spentRewardCoins'] ?? 0}'),
+              subtitle: Text('${item['status']} • ${item['featuredPlacement']} • ميزانية ${item['rewardBudgetCoins'] ?? 0} • مستخدم ${item['spentRewardCoins'] ?? 0} • الدفع: ${item['financialSnapshot'] is Map ? (item['financialSnapshot']['paymentStatus'] ?? 'غير مسجل') : 'غير مسجل'} • اليدوي: ${item['paymentPolicySnapshot'] is Map ? (item['paymentPolicySnapshot']['manualEnabled'] == true ? 'مسموح' : 'مغلق') : 'قديم/يدوي'}'),
               isThreeLine: true,
               trailing: PopupMenuButton<String>(
                 enabled: !_saving,
                 onSelected: (value) async {
                   if (value == 'edit') _edit(item);
-                  if (value == 'approveCreative') await _reviewCreative(id, approved: true);
-                  if (value == 'rejectCreative') await _reviewCreative(id, approved: false);
-                  if (value == 'approve') await _status(id, 'approved', paymentConfirmed: true);
-                  if (value == 'publish') await _status(id, 'published');
-                  if (value == 'pause') await _status(id, 'paused');
-                  if (value == 'withdraw') await _status(id, 'withdrawn');
+                  if (value == 'approveCreative') await _reviewCreative(id, (item['version'] as num?)?.toInt() ?? 0, approved: true);
+                  if (value == 'rejectCreative') await _reviewCreative(id, (item['version'] as num?)?.toInt() ?? 0, approved: false);
+                  if (value == 'approve') await _status(id, 'approved', (item['version'] as num?)?.toInt() ?? 0);
+                  if (value == 'publish') await _status(id, 'published', (item['version'] as num?)?.toInt() ?? 0);
+                  if (value == 'pause') await _status(id, 'paused', (item['version'] as num?)?.toInt() ?? 0);
+                  if (value == 'withdraw') await _status(id, 'withdrawn', (item['version'] as num?)?.toInt() ?? 0);
+                  if (value == 'recordPayment') await _recordFinancialEvent(item, 'payment_received');
+                  if (value == 'recordRefund') await _recordFinancialEvent(item, 'refund_recorded');
+                  if (value == 'reconcile') await _recordFinancialEvent(item, 'settlement_reconciled');
+                  if (value == 'financialReview') await _recordFinancialEvent(item, 'review_completed');
                 },
                 itemBuilder: (_) => [
                   if (status == 'draft' || status == 'paused') const PopupMenuItem(value: 'edit', child: Text('تعديل')),
@@ -453,10 +600,16 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
                     const PopupMenuItem(value: 'approveCreative', child: Text('اعتماد المادة الإعلانية')),
                   if ((status == 'draft' || status == 'paused') && item['mediaId'] != null)
                     const PopupMenuItem(value: 'rejectCreative', child: Text('رفض المادة الإعلانية')),
-                  if (status == 'draft' || status == 'paused') const PopupMenuItem(value: 'approve', child: Text('اعتماد الحملة + تأكيد الدفع')),
+                  if (status == 'draft' || status == 'paused') const PopupMenuItem(value: 'approve', child: Text('اعتماد الحملة بعد إثبات الدفع')),
                   if (status == 'approved' || status == 'paused') const PopupMenuItem(value: 'publish', child: Text('نشر')),
                   if (status == 'published') const PopupMenuItem(value: 'pause', child: Text('إيقاف مؤقت')),
-                  if (status != 'withdrawn') const PopupMenuItem(value: 'withdraw', child: Text('سحب فوري')),
+                  if (status != 'withdrawn') ...[
+                    const PopupMenuItem(value: 'recordPayment', child: Text('تسجيل استلام دفعة خارجية')),
+                    const PopupMenuItem(value: 'recordRefund', child: Text('تسجيل استرداد مالي')),
+                    const PopupMenuItem(value: 'reconcile', child: Text('تسجيل تسوية مالية')),
+                    const PopupMenuItem(value: 'financialReview', child: Text('إتمام المراجعة المالية')),
+                    const PopupMenuItem(value: 'withdraw', child: Text('سحب فوري')),
+                  ],
                 ],
               ),
             ));

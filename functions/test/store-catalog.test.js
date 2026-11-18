@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { projectStoreCatalogItem } = require("../lib/store-catalog");
+const { projectStoreCatalogItem, validateStoreCatalogItemInput } = require("../lib/store-catalog");
 
 test("projects only active catalog items with safe display fields", () => {
   assert.deepEqual(projectStoreCatalogItem("vip-30", {
@@ -25,6 +25,24 @@ test("projects only active catalog items with safe display fields", () => {
     purchaseEnabled: false,
     fulfillmentReady: false,
   });
+});
+
+test("store durations are owner-configurable across the supported range", () => {
+  const base = {
+    active: true, name: "مدة تجريبية", description: "اختبار مدد الاستحقاق.",
+    category: "vip", priceCoins: 100,
+  };
+  for (const durationDays of [1, 2, 7, 14, 30, 45, 365, 3650]) {
+    assert.equal(projectStoreCatalogItem("valid_duration", {
+      ...base, durationDays,
+    }).durationDays, durationDays);
+  }
+  for (const durationDays of [0, -1, 3651, 1.5]) {
+    assert.equal(projectStoreCatalogItem("invalid_duration", {
+      ...base, durationDays,
+    }), null, String(durationDays));
+  }
+  assert.equal(projectStoreCatalogItem("permanent_item", base).durationDays, undefined);
 });
 
 test("rejects unpublished, malformed, and unsafe-price items", () => {
@@ -189,5 +207,27 @@ test("voice and video call plans are fully connected to call entitlement fulfill
     assert.equal(purchasable.fulfillmentReady, true, itemId);
     assert.equal(purchasable.purchaseEnabled, true, itemId);
     assert.equal(isStoreItemPurchasable(purchasable), true, itemId);
+  }
+});
+
+
+test("owner-authored store entitlements accept flexible positive durations", () => {
+  const item = validateStoreCatalogItemInput({
+    itemId: "media_saver_7d", active: false, name: "Media Saver",
+    description: "Test fixture", category: "media_saver",
+    priceCoins: 200, durationDays: 43, sortOrder: 10,
+    purchaseEnabled: false,
+  });
+  assert.equal(item.durationDays, 43);
+});
+
+test("store entitlements reject non-positive or excessive durations", () => {
+  for (const durationDays of [0, -1, 3651, 1.5]) {
+    assert.throws(() => validateStoreCatalogItemInput({
+      itemId: "media_saver_7d", active: false, name: "Media Saver",
+      description: "Test fixture", category: "media_saver",
+      priceCoins: 200, durationDays, sortOrder: 10,
+      purchaseEnabled: false,
+    }), /INVALID_STORE_ITEM_FIELDS/);
   }
 });

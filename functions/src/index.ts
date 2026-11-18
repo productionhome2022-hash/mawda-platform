@@ -28,7 +28,7 @@ import { createDirectChatId } from "./direct-chat-id";
 import { encodeMemberMessagePageToken, validateMemberMessagePageRequest } from "./member-message-pagination";
 import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
 import { hasActiveBiometricVerification } from "./biometric-verification";
-import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, isEmailVerificationCycleDue, canRewardEmailVerificationCycle } from "./email-verification-cycle";
+import { createEmailVerificationCycle, emailVerificationRewardLedgerId, canRewardEmailVerificationCycle } from "./email-verification-cycle";
 import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
 import { isMemberAccountInGoodStanding } from "./member-access";
 import {
@@ -83,11 +83,13 @@ import {
 } from "./store-purchase";
 import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
 import { deleteMediaAssetForMessage } from "./media";
-import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
+import { validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance, type RoomRentalPlan } from "./room-rental";
 import { isActiveRentedPrivateRoom } from "./room-call-policy";
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
-import { validateCoinPackages, validateAdPrices } from "./economy-pricing";
+import { validateCoinPackages, validateAdPrices, validateBilateralCallTariffs, defaultEmailVerificationRewardPolicy, validateEmailVerificationRewardPolicy, currencyExponentForCode } from "./economy-pricing";
+import { validateEconomicPaymentPolicy, projectEconomicPaymentPolicy } from "./economy-payment-policy";
+import { reconcileWalletLedger } from "./wallet-reconciliation";
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
@@ -95,6 +97,7 @@ import { AD_INTAKE_GEOGRAPHIES, validateAdvertisingIntake, advertisingIntakeAudi
 import { selectFeaturedAdShowcase, featuredAdTargetsGeography, type FeaturedAdCampaignCandidate } from "./featured-advertising";
 import { CAPACITY_MEDIA_DEFAULTS, projectCapacityMediaPolicy, validateCapacityMediaQuotaInput, type CapacityMediaPolicy } from "./capacity-media-management";
 import { defaultFeaturedAdRewardPolicy, validateFeaturedAdRewardPolicy, decideFeaturedAdReward, featuredAdCampaignRewardPolicy, featuredAdRewardBudgetAvailable, type FeaturedAdRewardPolicy } from "./featured-ad-rewards";
+import { defaultFeaturedAdFinancialSnapshot, validateFeaturedAdFinancialEvent, applyFeaturedAdFinancialEvent, featuredAdFinancialIdempotencyId } from "./featured-ad-finance";
 import { getMawddaMediaBucket } from "./media";
 import { validateProductionApplication, ProductionApplicationValidationError } from "./production-applications";
 import {
@@ -359,6 +362,7 @@ export const transferCoins = onCall(async (request) => {
     const [
       existing, settings, senderSnapshot, recipientSnapshot,
       senderGuestProfile, senderGuestSession, recipientGuestProfile, recipientGuestSession,
+      senderLedger, recipientLedger, platformLedger,
     ] = await Promise.all([
       transaction.get(transferRef),
       transaction.get(TRANSFER_SETTINGS),
@@ -368,10 +372,76 @@ export const transferCoins = onCall(async (request) => {
       transaction.get(senderGuestSessionRef),
       transaction.get(recipientGuestProfileRef),
       transaction.get(recipientGuestSessionRef),
+      transaction.get(senderLedgerRef),
+      transaction.get(recipientLedgerRef),
+      transaction.get(platformLedgerRef),
     ]);
 
     if (existing.exists) {
       const prior = existing.data()!;
+      let expectedBreakdown;
+      try {
+        expectedBreakdown = calculateTransferBreakdown(prior.grossAmount, prior.commissionBps);
+      } catch {
+        throw new HttpsError("failed-precondition", "بيانات التحويل التاريخية غير صالحة؛ يلزم تدقيق مالي.");
+      }
+      const senderEntry = senderLedger.data() ?? {};
+      const recipientEntry = recipientLedger.data() ?? {};
+      const platformEntry = platformLedger.data() ?? {};
+      const senderBalanceSnapshotValid =
+        senderEntry.balanceBefore === undefined && senderEntry.balanceAfter === undefined ||
+        Number.isSafeInteger(senderEntry.balanceBefore) &&
+        Number.isSafeInteger(senderEntry.balanceAfter) &&
+        senderEntry.balanceBefore >= 0 &&
+        senderEntry.balanceAfter === senderEntry.balanceBefore - prior.grossAmount;
+      const recipientBalanceSnapshotValid =
+        recipientEntry.balanceBefore === undefined && recipientEntry.balanceAfter === undefined ||
+        Number.isSafeInteger(recipientEntry.balanceBefore) &&
+        Number.isSafeInteger(recipientEntry.balanceAfter) &&
+        recipientEntry.balanceBefore >= 0 &&
+        recipientEntry.balanceAfter === recipientEntry.balanceBefore + prior.netAmount;
+      const transferBalanceSnapshotValid =
+        prior.senderBalanceBefore === undefined && prior.senderBalanceAfter === undefined &&
+        prior.recipientBalanceBefore === undefined && prior.recipientBalanceAfter === undefined ||
+        Number.isSafeInteger(prior.senderBalanceBefore) &&
+        Number.isSafeInteger(prior.senderBalanceAfter) &&
+        Number.isSafeInteger(prior.recipientBalanceBefore) &&
+        Number.isSafeInteger(prior.recipientBalanceAfter) &&
+        prior.senderBalanceBefore >= 0 && prior.recipientBalanceBefore >= 0 &&
+        prior.senderBalanceAfter === prior.senderBalanceBefore - prior.grossAmount &&
+        prior.recipientBalanceAfter === prior.recipientBalanceBefore + prior.netAmount &&
+        (!senderBalanceSnapshotValid ||
+          senderEntry.balanceBefore === prior.senderBalanceBefore &&
+          senderEntry.balanceAfter === prior.senderBalanceAfter) &&
+        (!recipientBalanceSnapshotValid ||
+          recipientEntry.balanceBefore === prior.recipientBalanceBefore &&
+          recipientEntry.balanceAfter === prior.recipientBalanceAfter);
+      if (prior.status !== "completed" || !transferBalanceSnapshotValid ||
+          prior.senderUid !== senderUid ||
+          prior.grossAmount !== amount ||
+          prior.commissionAmount !== expectedBreakdown.commissionAmount ||
+          prior.netAmount !== expectedBreakdown.netAmount ||
+          !senderLedger.exists || senderEntry.type !== "coin_transfer_sent" ||
+          senderEntry.direction !== "debit" || senderEntry.amount !== -prior.grossAmount ||
+          senderEntry.grossAmount !== prior.grossAmount ||
+          senderEntry.commissionAmount !== prior.commissionAmount ||
+          senderEntry.commissionBps !== prior.commissionBps ||
+          senderEntry.recipientUid !== prior.recipientUid ||
+          senderEntry.recipientNetAmount !== prior.netAmount ||
+          senderEntry.transferId !== transferId || !senderBalanceSnapshotValid ||
+          !recipientLedger.exists || recipientEntry.type !== "coin_transfer_received" ||
+          recipientEntry.direction !== "credit" || recipientEntry.amount !== prior.netAmount ||
+          recipientEntry.senderUid !== senderUid ||
+          recipientEntry.transferId !== transferId || !recipientBalanceSnapshotValid ||
+          !platformLedger.exists || platformEntry.type !== "coin_transfer_commission" ||
+          platformEntry.direction !== "credit" || platformEntry.amount !== prior.commissionAmount ||
+          platformEntry.grossAmount !== prior.grossAmount ||
+          platformEntry.commissionBps !== prior.commissionBps ||
+          platformEntry.senderUid !== senderUid ||
+          platformEntry.recipientUid !== prior.recipientUid ||
+          platformEntry.transferId !== transferId) {
+        throw new HttpsError("failed-precondition", "سجل التحويل لا يطابق قيود المحافظ ودفتر عمولة المنصة؛ يلزم تدقيق مالي.");
+      }
       if (prior.senderUid !== senderUid) {
         throw new HttpsError("permission-denied", "معرف التحويل مستخدم لعملية أخرى.");
       }
@@ -455,6 +525,10 @@ export const transferCoins = onCall(async (request) => {
       commissionPercent: commissionBps / 100,
       commissionAmount: fee,
       netAmount,
+      senderBalanceBefore: senderBalance,
+      senderBalanceAfter: senderBalance - amount,
+      recipientBalanceBefore: recipientBalance,
+      recipientBalanceAfter: recipientBalance + netAmount,
       status: "completed",
       createdAt,
     };
@@ -467,6 +541,8 @@ export const transferCoins = onCall(async (request) => {
       type: "coin_transfer_sent",
       direction: "debit",
       amount: -amount,
+      balanceBefore: senderBalance,
+      balanceAfter: senderBalance - amount,
       grossAmount: amount,
       commissionAmount: fee,
       commissionBps,
@@ -480,6 +556,8 @@ export const transferCoins = onCall(async (request) => {
       type: "coin_transfer_received",
       direction: "credit",
       amount: netAmount,
+      balanceBefore: recipientBalance,
+      balanceAfter: recipientBalance + netAmount,
       senderUid,
       transferId,
       createdAt,
@@ -594,11 +672,20 @@ export const setTransferCommission = onCall(async (request) => {
   if (enabled !== undefined && typeof enabled !== "boolean") {
     throw new HttpsError("invalid-argument", "قيمة تفعيل التحويلات غير صالحة.");
   }
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "إصدار إعدادات التحويل الحالي مطلوب.");
+  }
 
   const result = await db.runTransaction(async (transaction) => {
     const current = await transaction.get(TRANSFER_SETTINGS);
     const previous = current.data() ?? {};
+    const previousVersion = Number.isSafeInteger(previous.version) ? previous.version : 0;
+    if (previousVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت إعدادات التحويل منذ فتح اللوحة؛ حدّث البيانات ثم أعد المحاولة.");
+    }
     const nextEnabled = enabled === undefined ? previous.enabled !== false : enabled;
+    const nextVersion = previousVersion + 1;
 
     transaction.set(TRANSFER_SETTINGS, {
       commissionBps,
@@ -606,7 +693,7 @@ export const setTransferCommission = onCall(async (request) => {
       enabled: nextEnabled,
       updatedAt: FieldValue.serverTimestamp(),
       updatedBy: actorUid,
-      version: (typeof previous.version === "number" ? previous.version : 0) + 1,
+      version: nextVersion,
     }, { merge: true });
 
     const auditRef = db.collection("adminAuditLogs").doc();
@@ -617,10 +704,12 @@ export const setTransferCommission = onCall(async (request) => {
       commissionBps,
       previousEnabled: previous.enabled !== false,
       enabled: nextEnabled,
+      previousVersion,
+      version: nextVersion,
       createdAt: FieldValue.serverTimestamp(),
     });
 
-    return { commissionBps, commissionPercent: commissionBps / 100, enabled: nextEnabled };
+    return { commissionBps, commissionPercent: commissionBps / 100, enabled: nextEnabled, version: nextVersion };
   });
 
   logger.info("Transfer commission settings updated", { actorUid, ...result });
@@ -718,8 +807,8 @@ export const getPrivacyAcknowledgementStatus = onCall(async (request) => {
 
 /**
  * Completes a verified member's Mawda profile.
- * The profile, unique username reservation, 500-coin email reward and
- * immutable wallet ledger entry are created atomically by the trusted server.
+ * The profile, unique username reservation, owner-configured email reward (if
+ * explicitly enabled) and immutable wallet ledger entry are created atomically.
  * Registration is closed until the owner explicitly configures minimumAge at
  * platformSettings/registration; no age threshold is silently assumed.
  */
@@ -731,28 +820,39 @@ export const completeMemberProfile = onCall(async (request) => {
   }
 
   const registrationSettingsRef = db.doc("platformSettings/registration");
+  const economyPricingRef = db.doc("platformSettings/economyPricing");
   const userRef = db.collection("users").doc(uid);
   const cycleStartMs = Date.now();
   const cycleStart = Timestamp.fromMillis(cycleStartMs);
-  const initialEmailCycle = createEmailVerificationCycle({
-    uid, email: authUser.email, sequence: 1, serverNowMs: cycleStartMs,
-  });
-  const emailCycleRef = db.collection("emailVerificationCycles")
-    .doc(uid + "_" + initialEmailCycle.cycleId);
-  const rewardLedgerRef = userRef.collection("walletLedger")
-    .doc(emailVerificationRewardLedgerId(initialEmailCycle.cycleId));
   const privacyAcknowledgementRef = db.collection("privacyAcknowledgements")
     .doc(`${uid}_${PRIVACY_POLICY_VERSION}`);
 
   return db.runTransaction(async (transaction) => {
-    // Read the registration gate in the same transaction as member creation.
-    // If the owner changes the policy concurrently, Firestore retries this
-    // transaction and the new policy is enforced before any profile/reward write.
-    const [userSnapshot, registrationSettings, privacyAcknowledgement] = await Promise.all([
+    // Registration, owner reward policy, profile, wallet and initial ledger
+    // are read/written as one transaction. Unconfigured rewards grant zero.
+    const [userSnapshot, registrationSettings, privacyAcknowledgement, economyPricingSnapshot] = await Promise.all([
       transaction.get(userRef),
       transaction.get(registrationSettingsRef),
       transaction.get(privacyAcknowledgementRef),
+      transaction.get(economyPricingRef),
     ]);
+    let emailRewardPolicy;
+    try {
+      emailRewardPolicy = validateEmailVerificationRewardPolicy(
+        economyPricingSnapshot.data()?.emailVerificationReward ?? defaultEmailVerificationRewardPolicy(),
+      );
+    } catch {
+      throw new HttpsError("failed-precondition", "سياسة مكافأة التحقق من البريد غير صالحة؛ لم تُمنح أي عملات.");
+    }
+    const rewardAmount = emailRewardPolicy.enabled ? emailRewardPolicy.rewardCoins : 0;
+    const initialEmailCycle = createEmailVerificationCycle({
+      uid, email: authUser.email!, sequence: 1, serverNowMs: cycleStartMs,
+      cycleDays: emailRewardPolicy.cycleDays,
+    });
+    const emailCycleRef = db.collection("emailVerificationCycles")
+      .doc(uid + "_" + initialEmailCycle.cycleId);
+    const rewardLedgerRef = userRef.collection("walletLedger")
+      .doc(emailVerificationRewardLedgerId(initialEmailCycle.cycleId));
     const privacyData = privacyAcknowledgement.data() ?? {};
     if (!privacyAcknowledgement.exists || privacyData.uid !== uid ||
         privacyData.actorType !== "member" || privacyData.policyHash !== PRIVACY_POLICY_HASH) {
@@ -845,7 +945,7 @@ export const completeMemberProfile = onCall(async (request) => {
       interests: profile.interests,
       goals: profile.goals,
       profileVisibility: "private",
-      coins: EMAIL_VERIFICATION_REWARD_COINS,
+      coins: rewardAmount,
       profileCompleted: true,
       createdAt,
       updatedAt: createdAt,
@@ -857,31 +957,35 @@ export const completeMemberProfile = onCall(async (request) => {
     });
     transaction.create(emailCycleRef, {
       ...initialEmailCycle,
-      status: "rewarded",
+      status: rewardAmount > 0 ? "rewarded" : "verified",
+      rewardPolicySnapshot: emailRewardPolicy,
+      rewardCoins: rewardAmount,
       startedAt: cycleStart,
       expiresAt: Timestamp.fromMillis(initialEmailCycle.expiresAtMs),
       verifiedAt: cycleStart,
-      rewardedAt: cycleStart,
+      ...(rewardAmount > 0 ? { rewardedAt: cycleStart } : {}),
       createdAt: cycleStart,
       updatedAt: cycleStart,
     });
-    transaction.create(rewardLedgerRef, {
-      type: "email_verification_reward",
-      direction: "credit",
-      amount: EMAIL_VERIFICATION_REWARD_COINS,
-      reason: "verified_email_initial_cycle",
-      cycleId: initialEmailCycle.cycleId,
-      cycleSequence: initialEmailCycle.sequence,
-      idempotencyKey: initialEmailCycle.cycleId,
-      createdAt: cycleStart,
-    });
+    if (rewardAmount > 0) {
+      transaction.create(rewardLedgerRef, {
+        type: "email_verification_reward",
+        direction: "credit",
+        amount: rewardAmount,
+        reason: "verified_email_initial_cycle",
+        cycleId: initialEmailCycle.cycleId,
+        cycleSequence: initialEmailCycle.sequence,
+        idempotencyKey: initialEmailCycle.cycleId,
+        createdAt: cycleStart,
+      });
+    }
 
     return {
       memberId: uid,
       username: profile.username,
       profileCompleted: true,
-      rewardGranted: true,
-      rewardAmount: 500,
+      rewardGranted: rewardAmount > 0,
+      rewardAmount,
       alreadyCompleted: false,
     };
   });
@@ -2138,7 +2242,7 @@ export const completeBiometricVerificationCycle = onCall(async (request) => {
 });
 
 /**
- * Starts a fresh 90-day email ownership challenge when the current cycle is due.
+ * Starts a fresh owner-configured email ownership challenge when the current cycle is due.
  * Firebase Auth is temporarily marked unverified so the member must redeem a
  * fresh provider-issued email action link before the renewal reward is credited.
  */
@@ -2150,15 +2254,27 @@ export const startEmailVerificationRenewal = onCall(async (request) => {
   }
   const email = authUser.email.trim().toLowerCase();
   const userRef = db.collection("users").doc(uid);
+  const economyPricingRef = db.doc("platformSettings/economyPricing");
   const nowMs = Date.now();
 
   const cycleResult = await db.runTransaction(async (transaction) => {
     let expiredPendingId: string | null = null;
-    const userSnapshot = await transaction.get(userRef);
+    const [userSnapshot, economyPricingSnapshot] = await Promise.all([
+      transaction.get(userRef),
+      transaction.get(economyPricingRef),
+    ]);
     if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true) {
       throw new HttpsError("failed-precondition", "يجب إكمال الملف الشخصي أولاً.");
     }
     const userData = userSnapshot.data()!;
+    let emailRewardPolicy;
+    try {
+      emailRewardPolicy = validateEmailVerificationRewardPolicy(
+        economyPricingSnapshot.data()?.emailVerificationReward ?? defaultEmailVerificationRewardPolicy(),
+      );
+    } catch {
+      throw new HttpsError("failed-precondition", "سياسة مكافأة التحقق من البريد غير صالحة؛ أوقفنا إصدار دورة جديدة.");
+    }
     const pendingId = userData.emailVerificationRenewalPendingCycleId;
     if (typeof pendingId === "string" && pendingId.length > 0) {
       const pendingRef = db.collection("emailVerificationCycles").doc(uid + "_" + pendingId);
@@ -2187,8 +2303,7 @@ export const startEmailVerificationRenewal = onCall(async (request) => {
       ? priorExpiry.toMillis()
       : typeof priorExpiry?.toMillis === "function" ? priorExpiry.toMillis() : null;
     if (expiredPendingId === null) {
-      if (!authUser.emailVerified || priorExpiryMs === null ||
-          !isEmailVerificationCycleDue(priorExpiryMs - 90 * 24 * 60 * 60 * 1000, nowMs)) {
+      if (!authUser.emailVerified || priorExpiryMs === null || nowMs < priorExpiryMs) {
         throw new HttpsError("failed-precondition", "لم يحن موعد دورة التحقق التالية بعد.");
       }
     }
@@ -2201,6 +2316,7 @@ export const startEmailVerificationRenewal = onCall(async (request) => {
       email,
       sequence,
       serverNowMs: nowMs,
+      cycleDays: emailRewardPolicy.cycleDays,
     });
     const cycleRef = db.collection("emailVerificationCycles").doc(uid + "_" + cycle.cycleId);
     const existingCycle = await transaction.get(cycleRef);
@@ -2218,6 +2334,8 @@ export const startEmailVerificationRenewal = onCall(async (request) => {
     transaction.create(cycleRef, {
       ...cycle,
       status: "pending",
+      rewardPolicySnapshot: emailRewardPolicy,
+      rewardCoins: emailRewardPolicy.enabled ? emailRewardPolicy.rewardCoins : 0,
       startedAt,
       expiresAt,
       authResetAt: null,
@@ -2301,6 +2419,15 @@ export const completeEmailVerificationRenewal = onCall(async (request) => {
       throw new HttpsError("not-found", "دورة التحقق غير موجودة.");
     }
     const cycleData = cycleSnapshot.data()!;
+    let cycleRewardPolicy;
+    try {
+      cycleRewardPolicy = validateEmailVerificationRewardPolicy(
+        cycleData.rewardPolicySnapshot ?? defaultEmailVerificationRewardPolicy(),
+      );
+    } catch {
+      throw new HttpsError("failed-precondition", "لقطة سياسة مكافأة دورة البريد غير صالحة؛ لم تُمنح أي عملات.");
+    }
+    const rewardAmount = cycleRewardPolicy.enabled ? cycleRewardPolicy.rewardCoins : 0;
     const startedAtMs = cycleData.startedAt instanceof Timestamp
       ? cycleData.startedAt.toMillis()
       : Number(cycleData.startedAtMs);
@@ -2332,15 +2459,17 @@ export const completeEmailVerificationRenewal = onCall(async (request) => {
     }
 
     const balance = Number.isSafeInteger(userData.coins) ? userData.coins as number : 0;
-    const newBalance = balance + EMAIL_VERIFICATION_REWARD_COINS;
+    const newBalance = balance + rewardAmount;
     if (!Number.isSafeInteger(newBalance)) {
       throw new HttpsError("out-of-range", "الرصيد الناتج يتجاوز الحد الرقمي الآمن.");
     }
     const verifiedAt = Timestamp.fromMillis(nowMs);
     transaction.update(cycleRef, {
-      status: "rewarded",
+      status: rewardAmount > 0 ? "rewarded" : "verified",
+      rewardPolicySnapshot: cycleRewardPolicy,
+      rewardCoins: rewardAmount,
       verifiedAt,
-      rewardedAt: verifiedAt,
+      ...(rewardAmount > 0 ? { rewardedAt: verifiedAt } : {}),
       updatedAt: verifiedAt,
     });
     transaction.update(userRef, {
@@ -2355,29 +2484,32 @@ export const completeEmailVerificationRenewal = onCall(async (request) => {
       emailVerificationRenewalStartedAt: FieldValue.delete(),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    transaction.create(ledgerRef, {
-      type: "email_verification_reward",
-      direction: "credit",
-      amount: EMAIL_VERIFICATION_REWARD_COINS,
-      reason: "verified_email_renewal_cycle",
-      cycleId,
-      cycleSequence: cycle.sequence,
-      idempotencyKey: cycleId,
-      createdAt: verifiedAt,
-    });
+    if (rewardAmount > 0) {
+      transaction.create(ledgerRef, {
+        type: "email_verification_reward",
+        direction: "credit",
+        amount: rewardAmount,
+        reason: "verified_email_renewal_cycle",
+        cycleId,
+        cycleSequence: cycle.sequence,
+        idempotencyKey: cycleId,
+        createdAt: verifiedAt,
+      });
+    }
     transaction.create(db.collection("verificationAuditLogs").doc(ledgerRef.id), {
       actorUid: uid,
-      action: "email_verification_cycle_rewarded",
+      action: rewardAmount > 0 ? "email_verification_cycle_rewarded" : "email_verification_cycle_verified_without_reward",
       cycleId,
       cycleSequence: cycle.sequence,
-      rewardCoins: EMAIL_VERIFICATION_REWARD_COINS,
+      rewardCoins: rewardAmount,
+      rewardPolicySnapshot: cycleRewardPolicy,
       verifiedEmailHash: createHash("sha256").update(email).digest("hex"),
       createdAt: verifiedAt,
     });
     return {
       verified: true,
-      rewardGranted: true,
-      rewardAmount: EMAIL_VERIFICATION_REWARD_COINS,
+      rewardGranted: rewardAmount > 0,
+      rewardAmount,
       newBalance,
       cycleId,
       expiresAtMs,
@@ -6194,6 +6326,82 @@ export const listRoomMembers = onCall(async (request) => {
 });
 
 
+/**
+ * Owner-only read-only reconciliation of one member wallet against its
+ * immutable ledger. Legacy rows without snapshots remain explicitly incomplete.
+ */
+export const reconcileMemberWallet = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "wallet_reconciliation_attempt");
+  const memberUid = typeof request.data?.memberUid === "string"
+    ? request.data.memberUid.trim() : "";
+  if (!memberUid || memberUid.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+  }
+  const userRef = db.collection("users").doc(memberUid);
+  const [userSnapshot, ledgerSnapshot] = await Promise.all([
+    userRef.get(),
+    userRef.collection("walletLedger").limit(10001).get(),
+  ]);
+  if (!userSnapshot.exists) throw new HttpsError("not-found", "ملف المحفظة غير موجود.");
+  const userData = userSnapshot.data() ?? {};
+  const entries = ledgerSnapshot.docs.slice(0, 10000).map((document) => {
+    const data = document.data();
+    const createdAt = data.createdAt;
+    const createdAtMs = createdAt instanceof Timestamp
+      ? createdAt.toMillis()
+      : typeof createdAt?.toMillis === "function" ? createdAt.toMillis() : null;
+    const createdAtNanos = createdAt instanceof Timestamp
+      ? createdAt.nanoseconds
+      : typeof createdAt?.nanoseconds === "number" ? createdAt.nanoseconds : null;
+    return {
+      id: document.id,
+      amount: data.amount,
+      balanceBefore: data.balanceBefore,
+      balanceAfter: data.balanceAfter,
+      createdAtMs,
+      createdAtNanos,
+    };
+  }).sort((left, right) =>
+    (left.createdAtMs ?? Number.MIN_SAFE_INTEGER) -
+      (right.createdAtMs ?? Number.MIN_SAFE_INTEGER) ||
+    (left.createdAtNanos ?? 0) - (right.createdAtNanos ?? 0) ||
+    left.id.localeCompare(right.id));
+  let result;
+  try {
+    result = reconcileWalletLedger(userData.coins, entries);
+  } catch {
+    throw new HttpsError("data-loss", "بيانات المحفظة غير صالحة؛ تعذر إجراء المطابقة.");
+  }
+  const truncated = ledgerSnapshot.size > 10000;
+  const missingTimestamps = entries.filter((entry) => entry.createdAtMs === null).length;
+  const status = truncated || missingTimestamps > 0 ? "incomplete" : result.status;
+  await db.collection("adminAuditLogs").add({
+    actorUid,
+    action: "member_wallet_reconciliation",
+    memberUid,
+    status,
+    ledgerEntryCount: ledgerSnapshot.size,
+    inspectedEntryCount: entries.length,
+    truncated,
+    missingTimestamps,
+    currentBalance: result.currentBalance,
+    computedBalance: result.computedBalance,
+    anomalyCount: result.anomalies.length,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "member_wallet_reconciliation",
+    memberUid,
+    status,
+    ledgerEntryCount: ledgerSnapshot.size,
+    truncated,
+    missingTimestamps,
+    outcome: "success",
+  });
+  return { memberUid, ...result, status, truncated, missingTimestamps };
+});
+
 /** Owner operations overview: aggregate counts only, never member secrets. */
 export const getOwnerOperationsOverview = onCall(async (request) => {
   requireOwner(request);
@@ -6477,16 +6685,36 @@ export const purchaseStoreItem = onCall(async (request) => {
   const entitlementRef = userRef.collection("entitlements").doc(itemId);
 
   return db.runTransaction(async (transaction) => {
-    const [member, itemSnapshot, priorPurchase, priorEntitlement] = await Promise.all([
+    const [member, itemSnapshot, priorPurchase, priorEntitlement, priorLedger] = await Promise.all([
       transaction.get(userRef),
       transaction.get(itemRef),
       transaction.get(purchaseRef),
       transaction.get(entitlementRef),
+      transaction.get(ledgerRef),
     ]);
     if (priorPurchase.exists) {
       const prior = priorPurchase.data() ?? {};
       if (!isStorePurchaseReplayCompatible(prior, uid, itemId, expectedPriceCoins)) {
         throw new HttpsError("already-exists", "معرف طلب الشراء مستخدم لعملية أخرى أو ببيانات سعر مختلفة.");
+      }
+      const ledgerData = priorLedger.data() ?? {};
+      const balanceSnapshotValid =
+        ledgerData.balanceBefore === undefined && ledgerData.balanceAfter === undefined ||
+        Number.isSafeInteger(ledgerData.balanceBefore) &&
+        Number.isSafeInteger(ledgerData.balanceAfter) &&
+        ledgerData.balanceBefore >= 0 &&
+        ledgerData.balanceAfter === ledgerData.balanceBefore - prior.priceCoins &&
+        ledgerData.balanceAfter === prior.newBalance &&
+        (prior.balanceBefore === undefined || prior.balanceBefore === ledgerData.balanceBefore);
+      if (!priorLedger.exists || prior.status !== "completed" ||
+          !Number.isSafeInteger(prior.priceCoins) || prior.priceCoins <= 0 ||
+          !Number.isSafeInteger(prior.newBalance) || prior.newBalance < 0 ||
+          ledgerData.type !== "store_purchase" ||
+          ledgerData.direction !== "debit" ||
+          ledgerData.amount !== -prior.priceCoins ||
+          ledgerData.purchaseId !== purchaseId ||
+          ledgerData.itemId !== itemId || !balanceSnapshotValid) {
+        throw new HttpsError("failed-precondition", "إيصال الشراء لا يطابق قيد الخصم المالي أو مطابقة الرصيد؛ يلزم تدقيق السجل قبل إعادة المحاولة.");
       }
       return {
         purchaseId,
@@ -6570,6 +6798,7 @@ export const purchaseStoreItem = onCall(async (request) => {
       category: item.category,
       priceCoins: item.priceCoins,
       durationDays: item.durationDays ?? null,
+      balanceBefore: currentBalance,
       newBalance,
       expiresAt,
       status: "completed",
@@ -6579,6 +6808,8 @@ export const purchaseStoreItem = onCall(async (request) => {
       type: "store_purchase",
       direction: "debit",
       amount: -item.priceCoins,
+      balanceBefore: currentBalance,
+      balanceAfter: newBalance,
       itemId,
       itemName: item.name,
       purchaseId,
@@ -6674,20 +6905,20 @@ export const giftStoreEntitlement = onCall(async (request) => {
       sender, recipient, itemSnapshot, priorGift, priorLedger, priorEntitlement,
       priorHistory, priorNotification,
       senderGuestProfile, senderGuestSession, recipientGuestProfile, recipientGuestSession,
-    ] = await Promise.all([
-      transaction.get(senderRef),
-      transaction.get(recipientRef),
-      transaction.get(itemRef),
-      transaction.get(giftRef),
-      transaction.get(senderLedgerRef),
-      transaction.get(recipientEntitlementRef),
-      transaction.get(recipientHistoryRef),
-      transaction.get(recipientNotificationRef),
-      transaction.get(senderGuestProfileRef),
-      transaction.get(senderGuestSessionRef),
-      transaction.get(recipientGuestProfileRef),
-      transaction.get(recipientGuestSessionRef),
-    ]);
+    ] = await transaction.getAll(
+      senderRef,
+      recipientRef,
+      itemRef,
+      giftRef,
+      senderLedgerRef,
+      recipientEntitlementRef,
+      recipientHistoryRef,
+      recipientNotificationRef,
+      senderGuestProfileRef,
+      senderGuestSessionRef,
+      recipientGuestProfileRef,
+      recipientGuestSessionRef,
+    );
 
     if (priorGift.exists) {
       const prior = priorGift.data() ?? {};
@@ -6699,9 +6930,21 @@ export const giftStoreEntitlement = onCall(async (request) => {
       })) {
         throw new HttpsError("already-exists", "معرف طلب الإهداء مستخدم لعملية أخرى أو بسعر مختلف.");
       }
+      const balanceSnapshotValid =
+        ledger.balanceBefore === undefined && ledger.balanceAfter === undefined ||
+        Number.isSafeInteger(ledger.balanceBefore) &&
+        Number.isSafeInteger(ledger.balanceAfter) &&
+        ledger.balanceBefore >= 0 &&
+        ledger.balanceAfter === ledger.balanceBefore - prior.priceCoins &&
+        ledger.balanceAfter === prior.newBalance &&
+        (prior.balanceBefore === undefined || prior.balanceBefore === ledger.balanceBefore);
       if (!priorLedger.exists || !priorHistory.exists || !priorNotification.exists ||
-          ledger.type !== "store_gift" || ledger.amount !== -prior.priceCoins ||
-          ledger.giftId !== giftId || history.giftId !== giftId ||
+          !Number.isSafeInteger(prior.priceCoins) || prior.priceCoins <= 0 ||
+          !Number.isSafeInteger(prior.newBalance) || prior.newBalance < 0 ||
+          ledger.type !== "store_gift" || ledger.direction !== "debit" ||
+          ledger.amount !== -prior.priceCoins || !balanceSnapshotValid ||
+          ledger.giftId !== giftId || ledger.recipientUid !== recipientUid ||
+          ledger.itemId !== itemId || history.giftId !== giftId ||
           history.senderUid !== senderUid || history.itemId !== itemId ||
           notification.type !== "store_gift_received" || notification.giftId !== giftId) {
         throw new HttpsError("failed-precondition", "سجلات الإهداء غير متطابقة؛ أوقفنا إعادة الطلب للحماية.");
@@ -6742,7 +6985,8 @@ export const giftStoreEntitlement = onCall(async (request) => {
     }
 
     const senderData = sender.data() ?? {};
-    const newBalance = calculateStorePurchaseBalance(senderData.coins ?? 0, item.priceCoins);
+    const currentBalance = senderData.coins ?? 0;
+    const newBalance = calculateStorePurchaseBalance(currentBalance, item.priceCoins);
     if (newBalance === null) {
       throw new HttpsError("failed-precondition", "رصيد BetaCoins غير كافٍ أو غير صالح.");
     }
@@ -6777,10 +7021,11 @@ export const giftStoreEntitlement = onCall(async (request) => {
       giftId, requestId, senderUid, recipientUid, itemId,
       itemName: item.name, category: item.category,
       priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
-      newBalance, expiresAt, status: "completed", createdAt,
+      balanceBefore: currentBalance, newBalance, expiresAt, status: "completed", createdAt,
     });
     transaction.create(senderLedgerRef, {
       type: "store_gift", direction: "debit", amount: -item.priceCoins,
+      balanceBefore: currentBalance, balanceAfter: newBalance,
       giftId, recipientUid, itemId, itemName: item.name, createdAt,
     });
     transaction.set(recipientEntitlementRef, {
@@ -6890,18 +7135,38 @@ async function executeOwnerEntitlementGrant(
   const auditRef = db.collection("adminAuditLogs").doc(`owner_entitlement_grant_${grantId}`);
 
   return db.runTransaction(async (transaction) => {
-    const [member, itemSnapshot, priorGrant, priorEntitlement] = await Promise.all([
+    const [member, itemSnapshot, priorGrant, priorEntitlement, priorLedger, priorAudit] = await Promise.all([
       transaction.get(memberRef),
       transaction.get(itemRef),
       transaction.get(grantRef),
       transaction.get(entitlementRef),
+      transaction.get(ledgerRef),
+      transaction.get(auditRef),
     ]);
     if (priorGrant.exists) {
       const prior = priorGrant.data() ?? {};
-      if (prior.actorUid !== actorUid || prior.targetUid !== targetUid ||
-          prior.itemId !== itemId || prior.durationHours !== durationHours ||
-          prior.requestId !== requestId) {
-        throw new HttpsError("already-exists", "مفتاح طلب المنح مستخدم لعملية مختلفة.");
+      const ledger = priorLedger.data() ?? {};
+      const audit = priorAudit.data() ?? {};
+      const priorExpiryMs = prior.expiresAt instanceof Timestamp ? prior.expiresAt.toMillis() : null;
+      const ledgerExpiryMs = ledger.expiresAt instanceof Timestamp ? ledger.expiresAt.toMillis() : null;
+      const sameGrant = prior.actorUid === actorUid && prior.targetUid === targetUid &&
+        prior.itemId === itemId && prior.durationHours === durationHours &&
+        prior.requestId === requestId && prior.reason === reason &&
+        prior.status === "granted";
+      const sameLedger = priorLedger.exists && ledger.type === "owner_entitlement_grant" &&
+        ledger.grantId === grantId && ledger.requestId === requestId &&
+        ledger.actorUid === actorUid && ledger.targetUid === targetUid &&
+        ledger.itemId === itemId && ledger.durationHours === durationHours &&
+        ledger.reason === reason && ledgerExpiryMs === priorExpiryMs;
+      const sameAudit = priorAudit.exists && audit.action === "owner_entitlement_granted" &&
+        audit.grantId === grantId && audit.requestId === requestId &&
+        audit.actorUid === actorUid && audit.targetUid === targetUid &&
+        audit.itemId === itemId && audit.durationHours === durationHours &&
+        audit.reason === reason;
+      // The current entitlement may have expired or been superseded by a later
+      // purchase/grant. Replay validates immutable grant evidence, never rewrites it.
+      if (!sameGrant || !sameLedger || !sameAudit) {
+        throw new HttpsError("failed-precondition", "سجل المنح أو دفتره أو سجل التدقيق أو الاستحقاق غير متطابق؛ يلزم تدقيق المالك.");
       }
       return {
         grantId, targetUid, itemId, status: "granted",
@@ -7089,9 +7354,19 @@ export const setStoreCatalogItem = onCall(async (request) => {
   } catch {
     throw new HttpsError("invalid-argument", "بيانات عنصر المتجر أو سعره أو تصنيفه غير صالحة.");
   }
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "إصدار عنصر المتجر الحالي مطلوب.");
+  }
   const itemRef = db.collection("storeCatalog").doc(item.itemId);
-  await db.runTransaction(async (transaction) => {
+  const version = await db.runTransaction(async (transaction) => {
     const previousSnapshot = await transaction.get(itemRef);
+    const previous = previousSnapshot.data() ?? {};
+    const previousVersion = Number.isSafeInteger(previous.version) ? previous.version : 0;
+    if (previousVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغير عنصر المتجر منذ فتح شاشة التعديل؛ حدّث البيانات ثم أعد المحاولة.");
+    }
+    const nextVersion = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(itemRef, {
       itemId: item.itemId,
@@ -7104,6 +7379,7 @@ export const setStoreCatalogItem = onCall(async (request) => {
       active: item.active,
       purchaseEnabled: item.purchaseEnabled,
       fulfillmentReady: item.fulfillmentReady,
+      version: nextVersion,
       createdAt: previousSnapshot.data()?.createdAt ?? now,
       updatedAt: now,
       updatedBy: actorUid,
@@ -7118,10 +7394,24 @@ export const setStoreCatalogItem = onCall(async (request) => {
       category: item.category,
       purchaseEnabled: item.purchaseEnabled,
       fulfillmentReady: item.fulfillmentReady,
+      previousVersion,
+      version: nextVersion,
+      previousValues: previousSnapshot.exists ? {
+        name: previous.name ?? null, description: previous.description ?? null,
+        category: previous.category ?? null, priceCoins: previous.priceCoins ?? null,
+        durationDays: previous.durationDays ?? null, active: previous.active === true,
+        purchaseEnabled: previous.purchaseEnabled === true,
+      } : null,
+      nextValues: {
+        name: item.name, description: item.description, category: item.category,
+        priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
+        active: item.active, purchaseEnabled: item.purchaseEnabled,
+      },
       createdAt: now,
     });
+    return nextVersion;
   });
-  return { itemId: item.itemId, active: item.active };
+  return { itemId: item.itemId, active: item.active, version };
 });
 
 /** Returns only display-safe catalog fields to the authenticated owner. */
@@ -7141,9 +7431,9 @@ export const getOwnerStoreCatalog = onCall(async (request) => {
       })?.fulfillmentReady ?? false;
       transaction.create(ref, {
         ...item,
-        // Publish approved, implemented profile features for discovery in the
-        // shop, but leave charging disabled until the owner confirms prices.
-        active: fulfillmentReady,
+        // Seeded values are engineering suggestions only. Keep every item hidden
+        // until the owner explicitly reviews and publishes its policy.
+        active: false,
         purchaseEnabled: false,
         fulfillmentReady,
         createdAt: FieldValue.serverTimestamp(),
@@ -7157,7 +7447,8 @@ export const getOwnerStoreCatalog = onCall(async (request) => {
     .map((document) => {
       const data = document.data();
       const projected = projectStoreCatalogItem(document.id, { ...data, active: true });
-      return projected ? { ...projected, active: data.active === true } : null;
+      return projected ? { ...projected, active: data.active === true,
+        version: Number.isSafeInteger(data.version) ? data.version : 0 } : null;
     })
     .filter((item): item is NonNullable<typeof item> => item !== null)
     .sort((left, right) => left.sortOrder - right.sortOrder || left.itemId.localeCompare(right.itemId));
@@ -7198,7 +7489,7 @@ const ROOM_RENTAL_SETTINGS = db.doc("platformSettings/roomRentals");
 async function readRoomRentalPlans(): Promise<ReturnType<typeof validateRoomRentalPlans>> {
   const snapshot = await ROOM_RENTAL_SETTINGS.get();
   const raw = snapshot.data()?.plans;
-  if (raw === undefined) return DEFAULT_ROOM_RENTAL_PLANS;
+  if (raw === undefined) return [];
   try {
     return validateRoomRentalPlans(raw);
   } catch {
@@ -7206,11 +7497,20 @@ async function readRoomRentalPlans(): Promise<ReturnType<typeof validateRoomRent
   }
 }
 
+/** Owner-only catalog view includes inactive plans so the owner can restore or retire them. */
+export const getOwnerRoomRentalPlans = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await ROOM_RENTAL_SETTINGS.get();
+  const plans = await readRoomRentalPlans();
+  const version = Number.isSafeInteger(snapshot.data()?.version) ? snapshot.data()!.version : 0;
+  return { plans, version, configured: snapshot.exists };
+});
+
 /** Public plan list: published plan prices are server-authored and versioned. */
 export const getRoomRentalPlans = onCall(async (request) => {
   requireAuthenticatedUid(request.auth?.uid);
   const snapshot = await ROOM_RENTAL_SETTINGS.get();
-  const plans = snapshot.exists ? await readRoomRentalPlans() : DEFAULT_ROOM_RENTAL_PLANS;
+  const plans = await readRoomRentalPlans();
   const version = Number.isSafeInteger(snapshot.data()?.version) ? snapshot.data()!.version : 0;
   return { plans: plans.filter((plan) => plan.active), version };
 });
@@ -7224,14 +7524,25 @@ export const setRoomRentalPlans = onCall(async (request) => {
   } catch {
     throw new HttpsError("invalid-argument", "خطط الغرف أو الأسعار أو المدد غير صالحة.");
   }
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "إصدار إعدادات استئجار الغرف الحالي مطلوب.");
+  }
   const result = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(ROOM_RENTAL_SETTINGS);
-    const version = (Number.isSafeInteger(previous.data()?.version) ? previous.data()!.version : 0) + 1;
+    const previousVersion = Number.isSafeInteger(previous.data()?.version) ? previous.data()!.version : 0;
+    if (previousVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت خطط الاستئجار منذ فتح اللوحة؛ حدّث البيانات ثم أعد المحاولة.");
+    }
+    const version = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(ROOM_RENTAL_SETTINGS, { plans, version, updatedAt: now, updatedBy: actorUid });
     const auditRef = db.collection("adminAuditLogs").doc();
     transaction.create(auditRef, {
-      actorUid, action: "room_rental_pricing_updated", version,
+      actorUid, action: "room_rental_pricing_updated",
+      previousVersion,
+      version,
+      previousPlans: previous.data()?.plans ?? [],
       plans: plans.map((plan) => ({ ...plan })),
       createdAt: now,
     });
@@ -7260,8 +7571,9 @@ export const createRentedRoom = onCall(async (request) => {
   const ledgerRef = userRef.collection("walletLedger").doc(`room_${uid}_${requestId}`);
   const nowMs = Date.now();
   const result = await db.runTransaction(async (transaction) => {
-    const [user, settings, prior] = await Promise.all([
-      transaction.get(userRef), transaction.get(ROOM_RENTAL_SETTINGS), transaction.get(rentalRef),
+    const [user, settings, prior, priorLedger] = await Promise.all([
+      transaction.get(userRef), transaction.get(ROOM_RENTAL_SETTINGS),
+      transaction.get(rentalRef), transaction.get(ledgerRef),
     ]);
     if (prior.exists) {
       const data = prior.data()!;
@@ -7272,6 +7584,31 @@ export const createRentedRoom = onCall(async (request) => {
           !(data.expiresAt instanceof Timestamp)) {
         throw new HttpsError("already-exists", "معرف طلب الاستئجار مستخدم لعملية أخرى أو ببيانات مختلفة.");
       }
+      const priorRoomRef = db.collection("rooms").doc(data.roomId);
+      const priorMemberRef = priorRoomRef.collection("members").doc(uid);
+      const [priorRoom, priorMember] = await Promise.all([
+        transaction.get(priorRoomRef), transaction.get(priorMemberRef),
+      ]);
+      const ledger = priorLedger.data() ?? {};
+      const balanceSnapshotValid =
+        ledger.balanceBefore === undefined && ledger.balanceAfter === undefined ||
+        Number.isSafeInteger(ledger.balanceBefore) &&
+        Number.isSafeInteger(ledger.balanceAfter) &&
+        ledger.balanceBefore >= 0 &&
+        ledger.balanceAfter === ledger.balanceBefore - data.priceCoins &&
+        ledger.balanceAfter === data.newBalance &&
+        (data.balanceBefore === undefined || data.balanceBefore === ledger.balanceBefore);
+      const roomData = priorRoom.data() ?? {};
+      if (!priorLedger.exists || !Number.isSafeInteger(data.priceCoins) || data.priceCoins <= 0 ||
+          !Number.isSafeInteger(data.newBalance) || data.newBalance < 0 ||
+          ledger.type !== "room_rental" || ledger.direction !== "debit" ||
+          ledger.amount !== -data.priceCoins || ledger.roomId !== data.roomId ||
+          ledger.rentalId !== rentalRef.id || ledger.planId !== planId ||
+          !balanceSnapshotValid || !priorRoom.exists || !priorMember.exists ||
+          roomData.roomId !== data.roomId || roomData.name !== name ||
+          roomData.capacity !== capacity || roomData.isRented !== true) {
+        throw new HttpsError("failed-precondition", "طلب الاستئجار لا يطابق الغرفة أو قيد الخصم؛ يلزم تدقيق مالي.");
+      }
       return { roomId: data.roomId, rentalId: rentalRef.id, priceCoins: data.priceCoins,
         expiresAt: data.expiresAt.toMillis(), idempotentReplay: true };
     }
@@ -7279,7 +7616,7 @@ export const createRentedRoom = onCall(async (request) => {
         !isMemberAccountInGoodStanding(user.data())) {
       throw new HttpsError("permission-denied", "حالة العضوية لا تسمح باستئجار غرفة.");
     }
-    const plans = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : DEFAULT_ROOM_RENTAL_PLANS;
+    const plans = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : [];
     const plan = plans.find((entry) => entry.planId === planId && entry.active);
     if (!plan || plan.priceCoins !== expectedPriceCoins) {
       throw new HttpsError("failed-precondition", "تغير سعر الخطة أو لم تعد متاحة؛ حدّث الأسعار قبل التأكيد.");
@@ -7306,10 +7643,12 @@ export const createRentedRoom = onCall(async (request) => {
       rentalId: rentalRef.id, roomId: roomRef.id, ownerUid: uid, planId: plan.planId,
       priceCoins: plan.priceCoins, durationDays: plan.durationDays, status: "active",
       requestedName: name, requestedCapacity: capacity, requestedPriceCoins: expectedPriceCoins,
+      balanceBefore: userData.coins ?? 0, newBalance,
       startsAt: Timestamp.fromMillis(nowMs), expiresAt, createdAt: now,
     });
     transaction.create(ledgerRef, {
       type: "room_rental", direction: "debit", amount: -plan.priceCoins,
+      balanceBefore: userData.coins ?? 0, balanceAfter: newBalance,
       roomId: roomRef.id, rentalId: rentalRef.id, planId: plan.planId,
       durationDays: plan.durationDays, createdAt: now,
     });
@@ -7335,9 +7674,9 @@ export const renewRoomRental = onCall(async (request) => {
   const ledgerRef = userRef.collection("walletLedger").doc(`room_${uid}_${requestId}`);
   const nowMs = Date.now();
   return db.runTransaction(async (transaction) => {
-    const [room, user, settings, prior] = await Promise.all([
+    const [room, user, settings, prior, priorLedger] = await Promise.all([
       transaction.get(roomRef), transaction.get(userRef), transaction.get(ROOM_RENTAL_SETTINGS),
-      transaction.get(rentalRef),
+      transaction.get(rentalRef), transaction.get(ledgerRef),
     ]);
     if (prior.exists) {
       const data = prior.data()!;
@@ -7345,6 +7684,23 @@ export const renewRoomRental = onCall(async (request) => {
           data.planId !== planId || data.requestedPriceCoins !== expectedPriceCoins ||
           !(data.expiresAt instanceof Timestamp)) {
         throw new HttpsError("already-exists", "معرف طلب التجديد مستخدم لعملية أخرى أو ببيانات مختلفة.");
+      }
+      const ledger = priorLedger.data() ?? {};
+      const balanceSnapshotValid =
+        ledger.balanceBefore === undefined && ledger.balanceAfter === undefined ||
+        Number.isSafeInteger(ledger.balanceBefore) &&
+        Number.isSafeInteger(ledger.balanceAfter) &&
+        ledger.balanceBefore >= 0 &&
+        ledger.balanceAfter === ledger.balanceBefore - data.priceCoins &&
+        ledger.balanceAfter === data.newBalance &&
+        (data.balanceBefore === undefined || data.balanceBefore === ledger.balanceBefore);
+      if (!priorLedger.exists || !Number.isSafeInteger(data.priceCoins) || data.priceCoins <= 0 ||
+          !Number.isSafeInteger(data.newBalance) || data.newBalance < 0 ||
+          ledger.type !== "room_rental_renewal" || ledger.direction !== "debit" ||
+          ledger.amount !== -data.priceCoins || ledger.roomId !== roomId ||
+          ledger.rentalId !== rentalRef.id || ledger.planId !== planId ||
+          !balanceSnapshotValid) {
+        throw new HttpsError("failed-precondition", "طلب التجديد لا يطابق قيد الخصم؛ يلزم تدقيق مالي.");
       }
       return { renewed: true, expiresAt: data.expiresAt.toMillis(), idempotentReplay: true };
     }
@@ -7355,7 +7711,7 @@ export const renewRoomRental = onCall(async (request) => {
     if (!user.exists || !isMemberAccountInGoodStanding(user.data())) {
       throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بالتجديد.");
     }
-    const plans = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : DEFAULT_ROOM_RENTAL_PLANS;
+    const plans: RoomRentalPlan[] = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : [];
     const plan = plans.find((entry) => entry.planId === planId && entry.active);
     if (!plan || plan.priceCoins !== expectedPriceCoins) {
       throw new HttpsError("failed-precondition", "تغير سعر التجديد؛ حدّث الأسعار قبل التأكيد.");
@@ -7388,10 +7744,12 @@ export const renewRoomRental = onCall(async (request) => {
       rentalId: rentalRef.id, roomId, ownerUid: uid, planId: plan.planId,
       priceCoins: plan.priceCoins, durationDays: plan.durationDays, status: "active",
       requestedPriceCoins: expectedPriceCoins,
+      balanceBefore: user.data()?.coins ?? 0, newBalance: balance,
       startsAt: Timestamp.fromMillis(startMs), expiresAt, createdAt: now,
     });
     transaction.create(ledgerRef, {
       type: "room_rental_renewal", direction: "debit", amount: -plan.priceCoins,
+      balanceBefore: user.data()?.coins ?? 0, balanceAfter: balance,
       roomId, rentalId: rentalRef.id, planId: plan.planId,
       durationDays: plan.durationDays, createdAt: now,
     });
@@ -7555,9 +7913,18 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
 export const getAvailableCoinPackages = onCall(async () => {
   const snapshot = await ECONOMY_PRICING_SETTINGS.get();
   const data = snapshot.data() ?? {};
+  let paymentPolicy;
+  try {
+    paymentPolicy = projectEconomicPaymentPolicy(data.paymentPolicy, {
+      manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled,
+      manualFeaturedAdsEnabled: data.manualFeaturedAdsEnabled,
+    });
+  } catch {
+    throw new HttpsError("failed-precondition", "سياسة الدفع غير صالحة؛ تم إيقاف عرض باقات الشراء.");
+  }
   // Package prices are exclusively owner-configured. Never expose starter
   // constants as live offers when the owner has not saved an approved catalogue.
-  if (!snapshot.exists || data.manualCoinPurchasesEnabled !== true ||
+  if (!snapshot.exists || paymentPolicy.coin_purchases.manualEnabled !== true ||
       !Array.isArray(data.coinPackages)) {
     return { packages: [], manualPurchasesEnabled: false, automatedCheckoutEnabled: false };
   }
@@ -7590,7 +7957,9 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
   const guestSessionRef = giftRecipientUid ? db.collection("guestSessions").doc(giftRecipientUid) : null;
   const settingsRef = db.doc("platformSettings/economyPricing");
   const requestRef = db.collection("coinPurchaseRequests").doc(`${uid}_${input.requestId}`);
-  if (giftRecipientUid) {
+  // Existing request retries must not depend on the recipient's current Auth state.
+  const existingPreflight = await requestRef.get();
+  if (!existingPreflight.exists && giftRecipientUid) {
     let recipientAuth: UserRecord;
     try { recipientAuth = await getAuth().getUser(giftRecipientUid); }
     catch { throw new HttpsError("permission-denied", "تعذر التحقق من حساب مستلم الباقة."); }
@@ -7612,6 +7981,20 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
         !isMemberAccountInGoodStanding(user.data())) {
       throw new HttpsError("permission-denied", "يجب أن يكون حساب العضو مكتملاً ونشطاً.");
     }
+    if (existing.exists) {
+      const prior = existing.data() ?? {};
+      const sameRequest = prior.requesterUid === uid &&
+        prior.kind === input.kind &&
+        prior.packageId === (input.packageId ?? null) &&
+        (input.kind === "custom" ? prior.requestedCoins === input.requestedCoins : true) &&
+        (prior.giftRecipientUid ?? null) === (giftRecipientUid ?? null);
+      if (!sameRequest) {
+        throw new HttpsError("already-exists", "معرف الطلب مستخدم لطلب مختلف.");
+      }
+      // The request already owns its immutable package and payment-policy snapshot.
+      // A current catalogue/policy change must not invalidate an exact retry.
+      return { requestId: input.requestId, status: prior.status, idempotentReplay: true };
+    }
     if (giftRecipientUid) {
       const recipientData = recipient?.data();
       if (!recipient?.exists || !isMemberAccountInGoodStanding(recipientData) ||
@@ -7619,11 +8002,19 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
           guestProfile?.exists || guestSession?.exists) {
         throw new HttpsError("permission-denied", "المستلم ليس عضواً مؤهلاً لاستلام باقة الBetaCoins.");
       }
-
     }
     const economy = settings.data() ?? {};
-    if (!settings.exists || economy.manualCoinPurchasesEnabled !== true ||
-        economy.automatedCoinCheckoutEnabled === true || !Array.isArray(economy.coinPackages)) {
+    let paymentPolicy;
+    try {
+      paymentPolicy = projectEconomicPaymentPolicy(economy.paymentPolicy, {
+        manualCoinPurchasesEnabled: economy.manualCoinPurchasesEnabled,
+        manualFeaturedAdsEnabled: economy.manualFeaturedAdsEnabled,
+      });
+    } catch {
+      throw new HttpsError("failed-precondition", "سياسة الدفع الاقتصادي غير صالحة؛ أوقفنا إنشاء الطلب حتى مراجعتها.");
+    }
+    if (!settings.exists || paymentPolicy.coin_purchases.manualEnabled !== true ||
+        !Array.isArray(economy.coinPackages)) {
       throw new HttpsError("failed-precondition", "لم يعتمد المالك باقات الشراء اليدوي أو أن الطلبات متوقفة حالياً.");
     }
     let packageSnapshot: Record<string, unknown> | null = null;
@@ -7639,22 +8030,19 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
     } else {
       requestedCoins = input.requestedCoins ?? null;
     }
-    if (existing.exists) {
-      const prior = existing.data() ?? {};
-      if (prior.requesterUid !== uid || prior.kind !== input.kind ||
-          prior.packageId !== (input.packageId ?? null) ||
-          prior.requestedCoins !== requestedCoins ||
-          (prior.giftRecipientUid ?? null) !== (giftRecipientUid ?? null)) {
-        throw new HttpsError("already-exists", "معرف الطلب مستخدم لطلب مختلف.");
-      }
-      return { requestId: input.requestId, status: prior.status, idempotentReplay: true };
-    }
     transaction.create(requestRef, {
       requestId: input.requestId, requesterUid: uid, kind: input.kind,
       packageId: input.packageId ?? null, packageSnapshot,
       giftRecipientUid: giftRecipientUid ?? null,
       requestedCoins, status: "pending_owner_contact",
-      paymentChannel: "manual_owner_contact", currency: "EUR",
+      paymentChannel: "manual_owner_contact",
+      paymentPolicySnapshot: {
+        manualEnabled: paymentPolicy.coin_purchases.manualEnabled, automatedEnabled: false,
+        policyVersion: Number.isSafeInteger(economy.version) ? economy.version : 0,
+        capturedAt: FieldValue.serverTimestamp(),
+      },
+      currency: packageSnapshot?.currency ?? null,
+      currencyExponent: packageSnapshot?.currencyExponent ?? null,
       createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
     });
     return { requestId: input.requestId, status: "pending_owner_contact", idempotentReplay: false };
@@ -7676,7 +8064,7 @@ export const listOwnerCoinPurchaseRequests = onCall(async (request) => {
   requireOwner(request);
   const status = request.data?.status;
   const allowed = ["pending_owner_contact", "payment_instructions_sent",
-    "approved", "rejected", "withdrawn"];
+    "awaiting_payment_verification", "approved", "rejected", "withdrawn"];
   if (status !== undefined && !allowed.includes(status)) {
     throw new HttpsError("invalid-argument", "حالة الطلب غير صالحة.");
   }
@@ -7695,6 +8083,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     requestId: request.data?.requestId, instructions: request.data?.instructions,
     agreedCoins: request.data?.agreedCoins, agreedPriceMinor: request.data?.agreedPriceMinor,
     currency: request.data?.currency,
+    expectedInstructionsVersion: request.data?.expectedInstructionsVersion,
   }); }
   catch { throw new HttpsError("invalid-argument", "تعليمات الدفع أو الكمية أو السعر غير صالحة."); }
   const requesterUid = request.data?.requesterUid;
@@ -7716,14 +8105,25 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       const packageSnapshot = prior.packageSnapshot as Record<string, unknown> | null;
       if (!packageSnapshot || input.agreedCoins !== packageSnapshot.coins ||
           input.agreedPriceMinor !== packageSnapshot.priceMinor ||
-          input.currency !== (packageSnapshot.currency ?? "EUR")) {
+          input.currency !== packageSnapshot.currency ||
+          input.currencyExponent !== packageSnapshot.currencyExponent) {
         throw new HttpsError("failed-precondition", "لا يمكن تغيير كمية أو سعر الباقة المحددة كهدية؛ يجب اعتماد شروط الباقة التي اختارها المرسل.");
       }
     }
-    if (["approved", "rejected", "withdrawn"].includes(String(prior.status))) {
-      throw new HttpsError("failed-precondition", "لا يمكن تعديل طلب منتهٍ.");
+    if (prior.status !== "pending_owner_contact") {
+      throw new HttpsError("failed-precondition", "تعليمات الدفع المرسلة لا تُعدّل؛ إذا لزم تصحيح الاتفاق فأغلق الطلب وافتح طلباً جديداً.");
     }
-    const nextVersion = (Number.isSafeInteger(prior.instructionsVersion) ? prior.instructionsVersion : 0) + 1;
+    if (prior.paymentChannel !== "manual_owner_contact" ||
+        (prior.paymentPolicySnapshot !== undefined &&
+         prior.paymentPolicySnapshot?.manualEnabled !== true)) {
+      throw new HttpsError("failed-precondition", "مسار الدفع اليدوي غير مثبت في لقطة الطلب؛ لا يمكن تغيير مسار طلب قائم.");
+    }
+    const currentInstructionsVersion = Number.isSafeInteger(prior.instructionsVersion)
+      ? prior.instructionsVersion : 0;
+    if (currentInstructionsVersion !== input.expectedInstructionsVersion) {
+      throw new HttpsError("aborted", "تغيرت تعليمات الدفع أو الاتفاق؛ حدّث الطلب قبل إعادة الإرسال.");
+    }
+    const nextVersion = currentInstructionsVersion + 1;
     messageId = createHash("sha256").update(`coin-purchase:${requesterUid}:${input.requestId}:${nextVersion}`).digest("hex");
     const messageRef = chatRef.collection("messages").doc(messageId);
     const [chatSnapshot, existingMessage] = await Promise.all([
@@ -7747,7 +8147,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
         messageId, chatId, senderUid: actorUid, recipientUid: requesterUid,
         text: "تعليمات الدفع لطلب شراء الBetaCoins رقم " + input.requestId +
           "\nالكمية المتفق عليها: " + input.agreedCoins + " كوين" +
-          "\nالسعر: " + (input.agreedPriceMinor / 100).toFixed(2) + " EUR" +
+          "\nالسعر: " + input.agreedPriceMinor + " وحدة صغرى من " + input.currency + " (" + input.currencyExponent + " منازل عشرية)" +
           "\nالتعليمات: " + input.instructions,
         type: "text", isPlatformOwnerMessage: true,
         senderLabel: "إدارة منصة مودة", adminMessageType: "coin_purchase_payment_instructions",
@@ -7763,14 +8163,27 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     transaction.update(ref, {
       status: "payment_instructions_sent", chatId, agreedCoins: input.agreedCoins,
       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
+      agreedCurrency: input.currency,
+      agreedCurrencyExponent: input.currencyExponent,
+      paymentPolicySnapshot: prior.paymentPolicySnapshot ?? {
+        manualEnabled: true, automatedEnabled: false, policyVersion: 0,
+        capturedAt: now, legacyRequestSnapshot: true,
+      },
       paymentInstructions: input.instructions, instructionsVersion: nextVersion,
       instructionsSetBy: actorUid, instructionsSetAt: now, updatedAt: now,
     });
     const auditRef = db.collection("adminAuditLogs").doc();
     transaction.create(auditRef, {
       actorUid, targetUid: requesterUid, action: "coin_purchase_payment_instructions_set",
-      requestId: input.requestId, agreedCoins: input.agreedCoins,
+      requestId: input.requestId,
+      previousInstructionsVersion: currentInstructionsVersion,
+      previousAgreedCoins: prior.agreedCoins ?? null,
+      previousPriceMinor: prior.agreedPriceMinor ?? null,
+      previousCurrency: prior.currency ?? null,
+      previousCurrencyExponent: prior.agreedCurrencyExponent ?? null,
+      agreedCoins: input.agreedCoins,
       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
+      currencyExponent: input.currencyExponent,
       chatId, messageId, instructionsVersion: nextVersion, createdAt: now,
     });
   });
@@ -7778,6 +8191,92 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     "أرسل مالك المنصة تعليمات الدفع لطلب الBetaCoins. افتح المحادثة للاطلاع عليها.",
     { type: "coin_purchase_payment_instructions", chatId, messageId });
   return { requestId: input.requestId, status: "payment_instructions_sent", chatId, messageId };
+});
+
+/**
+ * A member may notify the owner that they initiated an external payment.
+ * This is only a workflow signal: it never verifies receipt or credits coins.
+ */
+export const requestCoinPurchasePaymentVerification = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const requestId = request.data?.requestId;
+  const expectedInstructionsVersion = request.data?.expectedInstructionsVersion;
+  if (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestId) ||
+      !Number.isSafeInteger(expectedInstructionsVersion) ||
+      (expectedInstructionsVersion as number) < 1) {
+    throw new HttpsError("invalid-argument", "معرف الطلب أو إصدار تعليمات الدفع غير صالح.");
+  }
+  const requestRef = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
+  const memberRef = db.collection("users").doc(uid);
+  const auditRef = db.collection("adminAuditLogs").doc(
+    `coin_purchase_payment_report_${uid}_${requestId}_${expectedInstructionsVersion}`,
+  );
+  return db.runTransaction(async (transaction) => {
+    const [purchase, audit, member] = await Promise.all([
+      transaction.get(requestRef), transaction.get(auditRef), transaction.get(memberRef),
+    ]);
+    if (!member.exists || member.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(member.data())) {
+      throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بتحديث طلب الدفع.");
+    }
+    if (!purchase.exists || purchase.data()?.requesterUid !== uid) {
+      throw new HttpsError("not-found", "طلب الشراء غير موجود.");
+    }
+    const data = purchase.data() ?? {};
+    if (data.paymentChannel !== "manual_owner_contact" ||
+        (data.paymentPolicySnapshot !== undefined &&
+         data.paymentPolicySnapshot?.manualEnabled !== true)) {
+      throw new HttpsError("failed-precondition", "هذا الطلب لا يستخدم مسار الدفع اليدوي.");
+    }
+    if (data.status === "awaiting_payment_verification" &&
+        data.instructionsVersion === expectedInstructionsVersion &&
+        data.paymentReportedInstructionVersion === expectedInstructionsVersion) {
+      if (audit.exists) {
+        const priorAudit = audit.data() ?? {};
+        if (priorAudit.action !== "coin_purchase_member_reported_external_payment" ||
+            priorAudit.actorUid !== uid || priorAudit.requestId !== requestId) {
+          throw new HttpsError("data-loss", "سجل الإبلاغ عن الدفع غير متطابق.");
+        }
+      } else {
+        transaction.create(auditRef, {
+          actorUid: uid, targetUid: uid,
+          action: "coin_purchase_member_reported_external_payment",
+          requestId, instructionVersion: expectedInstructionsVersion,
+          authority: "member_claim_only_not_payment_proof",
+          createdAt: FieldValue.serverTimestamp(),
+        });
+      }
+      return { requestId, status: "awaiting_payment_verification", idempotentReplay: true };
+    }
+    if (data.status !== "payment_instructions_sent") {
+      throw new HttpsError("failed-precondition", "لا يمكن الإبلاغ عن الدفع في الحالة الحالية للطلب.");
+    }
+    if (data.instructionsVersion !== expectedInstructionsVersion) {
+      throw new HttpsError("aborted", "تغيرت تعليمات الدفع؛ حدّث الطلب قبل الإبلاغ.");
+    }
+    if (audit.exists) {
+      throw new HttpsError("data-loss", "يوجد سجل إبلاغ سابق لا يطابق حالة الطلب.");
+    }
+    transaction.update(requestRef, {
+      status: "awaiting_payment_verification",
+      paymentPolicySnapshot: data.paymentPolicySnapshot ?? {
+        manualEnabled: true, automatedEnabled: false, policyVersion: 0,
+        legacyRequestSnapshot: true, capturedAt: FieldValue.serverTimestamp(),
+      },
+      paymentReportedBy: uid,
+      paymentReportedAt: FieldValue.serverTimestamp(),
+      paymentReportedInstructionVersion: expectedInstructionsVersion,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.create(auditRef, {
+      actorUid: uid, targetUid: uid,
+      action: "coin_purchase_member_reported_external_payment",
+      requestId, instructionVersion: expectedInstructionsVersion,
+      authority: "member_claim_only_not_payment_proof",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { requestId, status: "awaiting_payment_verification", idempotentReplay: false };
+  });
 });
 
 /** Only the owner can attest to external receipt; approval atomically credits coins and ledger. */
@@ -7830,9 +8329,10 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
     const giftRef = db.collection("coinPackageGifts").doc(`${requesterUid}_${input.requestId}`);
     const historyRef = userRef.collection("coinPackageGiftHistory").doc(input.requestId);
     const notificationRef = userRef.collection("notifications").doc(`coin_package_gift_${input.requestId}`);
-    const [user, ledger, guestProfile, guestSession] = await Promise.all([
+    const [user, ledger, approvalAudit, guestProfile, guestSession] = await Promise.all([
       transaction.get(userRef),
       transaction.get(ledgerRef),
+      transaction.get(auditRef),
       data.giftRecipientUid
         ? transaction.get(db.collection("guestProfiles").doc(targetUid))
         : Promise.resolve(null),
@@ -7840,10 +8340,53 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
         ? transaction.get(db.collection("guestSessions").doc(targetUid))
         : Promise.resolve(null),
     ]);
+    if (data.paymentChannel !== "manual_owner_contact" ||
+        (data.paymentPolicySnapshot !== undefined &&
+         data.paymentPolicySnapshot?.manualEnabled !== true)) {
+      throw new HttpsError("failed-precondition", "لقطة طلب الشراء لا تسمح بالاعتماد عبر المسار اليدوي.");
+    }
     if (data.status === "approved") {
+      const expectedLedgerType = data.giftRecipientUid
+        ? "coin_package_gift_credit" : "coin_purchase_manual_credit";
+      const ledgerData = ledger.data() ?? {};
+      const auditData = approvalAudit.data() ?? {};
+      const expectedAuditAction = data.giftRecipientUid
+        ? "coin_package_gift_manually_verified_and_approved"
+        : "coin_purchase_manually_verified_and_approved";
+      if (!ledger.exists || !approvalAudit.exists ||
+          ledgerData.type !== expectedLedgerType ||
+          ledgerData.amount !== data.creditedCoins ||
+          ledgerData.purchaseRequestId !== input.requestId ||
+          ledgerData.externalPaymentReference !== input.externalPaymentReference ||
+          ledgerData.priceMinor !== data.agreedPriceMinor ||
+          ledgerData.currency !== data.currency ||
+          ledgerData.currencyExponent !== data.agreedCurrencyExponent ||
+          ledgerData.actorUid !== data.verifiedBy ||
+          ledgerData.purchaserUid !== requesterUid ||
+          ledgerData.giftedByUid !== (data.giftRecipientUid ? requesterUid : null) ||
+          !Number.isSafeInteger(ledgerData.balanceBefore) ||
+          !Number.isSafeInteger(ledgerData.balanceAfter) ||
+          ledgerData.balanceBefore < 0 ||
+          ledgerData.balanceAfter !== ledgerData.balanceBefore + ledgerData.amount ||
+          data.externalPaymentVerified !== true ||
+          data.externalPaymentReference !== input.externalPaymentReference ||
+          data.creditedToUid !== targetUid ||
+          !Number.isSafeInteger(data.creditedCoins) || data.creditedCoins < 1 ||
+          auditData.action !== expectedAuditAction ||
+          auditData.actorUid !== data.verifiedBy ||
+          auditData.requestId !== input.requestId ||
+          auditData.purchaserUid !== requesterUid ||
+          auditData.targetUid !== targetUid ||
+          auditData.externalPaymentReference !== input.externalPaymentReference ||
+          auditData.creditedCoins !== data.creditedCoins ||
+          auditData.priceMinor !== data.agreedPriceMinor ||
+          auditData.currency !== data.currency ||
+          auditData.currencyExponent !== data.agreedCurrencyExponent) {
+        throw new HttpsError("failed-precondition", "طلب الشراء المعتمد لا يطابق قيد المحفظة وإثبات الدفع؛ يلزم تدقيق السجل.");
+      }
       return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null, creditedToUid: targetUid };
     }
-    if (data.status !== "payment_instructions_sent") {
+    if (!["payment_instructions_sent", "awaiting_payment_verification"].includes(String(data.status))) {
       throw new HttpsError("failed-precondition", "لا يمكن اعتماد الطلب قبل إرسال تعليمات الدفع.");
     }
     if (!user.exists || !isMemberAccountInGoodStanding(user.data()) ||
@@ -7857,8 +8400,15 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
     if (data.giftRecipientUid && (!data.packageSnapshot ||
         coins !== data.packageSnapshot.coins ||
         data.agreedPriceMinor !== data.packageSnapshot.priceMinor ||
-        (data.currency ?? "EUR") !== (data.packageSnapshot.currency ?? "EUR"))) {
+        data.currency !== data.packageSnapshot.currency ||
+        data.agreedCurrencyExponent !== data.packageSnapshot.currencyExponent)) {
       throw new HttpsError("failed-precondition", "شروط باقة الهدية تغيرت عن الباقة التي اختارها المرسل.");
+    }
+    if (!Number.isSafeInteger(data.agreedPriceMinor) || data.agreedPriceMinor < 1 ||
+        data.agreedPriceMinor > 100000000 ||
+        currencyExponentForCode(data.currency) === null ||
+        currencyExponentForCode(data.currency) !== data.agreedCurrencyExponent) {
+      throw new HttpsError("failed-precondition", "عملة الاتفاق أو دقتها غير صالحة؛ لم يتم اعتماد أي دفعة.");
     }
     if (!Number.isSafeInteger(coins) || coins < 1 || coins > 1000000000) {
       throw new HttpsError("failed-precondition", "الكمية المتفق عليها غير صالحة.");
@@ -7873,7 +8423,8 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
       type: data.giftRecipientUid ? "coin_package_gift_credit" : "coin_purchase_manual_credit",
       amount: coins, balanceBefore: oldBalance, balanceAfter: oldBalance + coins,
       purchaseRequestId: input.requestId, externalPaymentReference: input.externalPaymentReference,
-      priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR",
+      priceMinor: data.agreedPriceMinor, currency: data.currency,
+      currencyExponent: data.agreedCurrencyExponent,
       actorUid, purchaserUid: requesterUid, giftedByUid: data.giftRecipientUid ? requesterUid : null,
       createdAt: now,
     });
@@ -7889,20 +8440,23 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
         "coin_purchase_manually_verified_and_approved",
       requestId: input.requestId, externalPaymentReference: input.externalPaymentReference,
       verificationNote: input.verificationNote, creditedCoins: coins,
-      priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR", createdAt: now,
+      priceMinor: data.agreedPriceMinor, currency: data.currency,
+      currencyExponent: data.agreedCurrencyExponent, createdAt: now,
     });
     if (data.giftRecipientUid) {
       transaction.create(giftRef, {
         giftId: giftRef.id, senderUid: requesterUid, recipientUid: targetUid,
         packageId: data.packageId, packageSnapshot: data.packageSnapshot ?? null,
-        coins, priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR",
+        coins, priceMinor: data.agreedPriceMinor, currency: data.currency,
+        currencyExponent: data.agreedCurrencyExponent,
         purchaseRequestId: input.requestId, status: "credited",
         creditedByOwnerUid: actorUid, createdAt: now,
       });
       transaction.create(historyRef, {
         giftId: giftRef.id, senderUid: requesterUid, packageId: data.packageId,
         packageName: (data.packageSnapshot as Record<string, unknown> | null)?.name ?? "باقة BetaCoins",
-        coins, priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR",
+        coins, priceMinor: data.agreedPriceMinor, currency: data.currency,
+        currencyExponent: data.agreedCurrencyExponent,
         purchaseRequestId: input.requestId, createdAt: now,
       });
       transaction.create(notificationRef, {
@@ -7971,8 +8525,8 @@ export const withdrawCoinPurchaseRequest = onCall(async (request) => {
     if (!snapshot.exists || snapshot.data()?.requesterUid !== uid) {
       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
     }
-    if (["approved", "rejected"].includes(String(snapshot.data()?.status))) {
-      throw new HttpsError("failed-precondition", "لا يمكن سحب طلب منتهٍ.");
+    if (["payment_instructions_sent", "awaiting_payment_verification", "approved", "rejected"].includes(String(snapshot.data()?.status))) {
+      throw new HttpsError("failed-precondition", "لا يمكن سحب طلب بعد إصدار تعليمات الدفع؛ تواصل مع المالك لإلغاء الاتفاق أو معالجة أي تسوية لازمة.");
     }
     if (snapshot.data()?.status === "withdrawn") return;
     transaction.update(ref, { status: "withdrawn", withdrawnAt: FieldValue.serverTimestamp(),
@@ -7992,42 +8546,81 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
     return {
       coinPackages: [], adPrices: [], version: 0, configured: false,
       realMoneyCheckoutEnabled: false, manualCoinPurchasesEnabled: false,
-      automatedCoinCheckoutEnabled: false,
+      manualFeaturedAdsEnabled: false, automatedCoinCheckoutEnabled: false,
+      paymentPolicy: projectEconomicPaymentPolicy(undefined),
     };
   }
   const data = snapshot.data() ?? {};
-  let coinPackages, adPrices;
+  let coinPackages, adPrices, callTariffs, emailVerificationReward;
   try {
-    coinPackages = validateCoinPackages(data.coinPackages);
-    adPrices = validateAdPrices(data.adPrices);
+    coinPackages = validateCoinPackages(data.coinPackages ?? []);
+    adPrices = validateAdPrices(data.adPrices ?? []);
+    callTariffs = validateBilateralCallTariffs(data.callTariffs ?? {
+      audioTotalCoinsPerMinute: null, videoTotalCoinsPerMinute: null,
+    });
+    emailVerificationReward = validateEmailVerificationRewardPolicy(
+      data.emailVerificationReward ?? defaultEmailVerificationRewardPolicy(),
+    );
   } catch {
     throw new HttpsError("failed-precondition", "إعدادات اقتصاد المنصة غير صالحة؛ راجع الدعم التقني.");
   }
+  let paymentPolicy;
+  try {
+    paymentPolicy = projectEconomicPaymentPolicy(data.paymentPolicy, {
+      manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled,
+      manualFeaturedAdsEnabled: data.manualFeaturedAdsEnabled,
+    });
+  } catch {
+    throw new HttpsError("failed-precondition", "سياسة طرق الدفع الاقتصادية غير صالحة؛ تم إيقاف عرض خيارات الدفع.");
+  }
   return {
-    coinPackages, adPrices,
+    coinPackages, adPrices, callTariffs, emailVerificationReward,
     version: Number.isSafeInteger(data.version) ? data.version : 0,
     configured: true,
     realMoneyCheckoutEnabled: false,
-    manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled === true,
+    manualCoinPurchasesEnabled: paymentPolicy.coin_purchases.manualEnabled,
+    manualFeaturedAdsEnabled: paymentPolicy.featured_ads.manualEnabled,
     automatedCoinCheckoutEnabled: false,
+    paymentPolicy,
   };
 });
 
 /** Owner/MFA-only economy price updates. This configures prices, not payment processing. */
 export const setOwnerEconomyPricing = onCall(async (request) => {
   const actorUid = requireOwner(request);
-  let coinPackages, adPrices;
+  let coinPackages: ReturnType<typeof validateCoinPackages>;
+  let adPrices: ReturnType<typeof validateAdPrices>;
+  let requestedCallTariffs: ReturnType<typeof validateBilateralCallTariffs> | undefined;
+  let requestedEmailVerificationReward: ReturnType<typeof validateEmailVerificationRewardPolicy> | undefined;
   try {
     coinPackages = validateCoinPackages(request.data?.coinPackages);
     adPrices = validateAdPrices(request.data?.adPrices);
+    if (request.data?.callTariffs !== undefined) {
+      requestedCallTariffs = validateBilateralCallTariffs(request.data.callTariffs);
+    }
+    if (request.data?.emailVerificationReward !== undefined) {
+      requestedEmailVerificationReward = validateEmailVerificationRewardPolicy(request.data.emailVerificationReward);
+    }
   } catch {
     throw new HttpsError("invalid-argument", "أسعار باقات الكوينز أو الإعلانات غير صالحة.");
   }
   const manualCoinPurchasesEnabled = request.data?.manualCoinPurchasesEnabled;
+  const manualFeaturedAdsEnabled = request.data?.manualFeaturedAdsEnabled;
+  let requestedPaymentPolicy: ReturnType<typeof validateEconomicPaymentPolicy> | undefined;
+  if (request.data?.paymentPolicy !== undefined) {
+    try { requestedPaymentPolicy = validateEconomicPaymentPolicy(request.data.paymentPolicy); }
+    catch { throw new HttpsError("invalid-argument", "سياسة طرق الدفع لكل خدمة غير صالحة؛ الدفع الآلي غير متاح قبل تكامل مزود موثوق."); }
+  }
   const expectedVersion = request.data?.expectedVersion;
   if (typeof manualCoinPurchasesEnabled !== "boolean" ||
+      typeof manualFeaturedAdsEnabled !== "boolean" ||
       !Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
     throw new HttpsError("invalid-argument", "يجب تحديد حالة طلبات الشراء وإصدار إعدادات الاقتصاد الحالي.");
+  }
+  if (requestedPaymentPolicy &&
+      (requestedPaymentPolicy.coin_purchases.manualEnabled !== manualCoinPurchasesEnabled ||
+       requestedPaymentPolicy.featured_ads.manualEnabled !== manualFeaturedAdsEnabled)) {
+    throw new HttpsError("invalid-argument", "يجب أن تتطابق مفاتيح الدفع اليدوي القديمة مع سياسة الخدمات الجديدة.");
   }
   const version = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(ECONOMY_PRICING_SETTINGS);
@@ -8035,11 +8628,40 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
     if (previousVersion !== expectedVersion) {
       throw new HttpsError("aborted", "تغيرت إعدادات الاقتصاد منذ فتح اللوحة؛ حدّث البيانات ثم أعد المحاولة.");
     }
+    const previousCallTariffs = validateBilateralCallTariffs(previous.data()?.callTariffs ?? {
+      audioTotalCoinsPerMinute: null, videoTotalCoinsPerMinute: null,
+    });
+    const callTariffs = requestedCallTariffs ?? previousCallTariffs;
+    const previousEmailVerificationReward = validateEmailVerificationRewardPolicy(
+      previous.data()?.emailVerificationReward ?? defaultEmailVerificationRewardPolicy(),
+    );
+    const emailVerificationReward = requestedEmailVerificationReward ?? previousEmailVerificationReward;
+    let paymentPolicy: ReturnType<typeof projectEconomicPaymentPolicy>;
+    try {
+      paymentPolicy = requestedPaymentPolicy ?? projectEconomicPaymentPolicy(previous.data()?.paymentPolicy, {
+        manualCoinPurchasesEnabled: previous.data()?.manualCoinPurchasesEnabled,
+        manualFeaturedAdsEnabled: previous.data()?.manualFeaturedAdsEnabled,
+      });
+    } catch {
+      throw new HttpsError("failed-precondition", "سياسة طرق الدفع السابقة غير صالحة؛ أصلحها قبل حفظ إعدادات الاقتصاد.");
+    }
+    // Keep the two legacy flags synchronized while clients migrate to paymentPolicy.
+    paymentPolicy = {
+      ...paymentPolicy,
+      coin_purchases: requestedPaymentPolicy?.coin_purchases ?? {
+        manualEnabled: manualCoinPurchasesEnabled, automatedEnabled: false,
+      },
+      featured_ads: requestedPaymentPolicy?.featured_ads ?? {
+        manualEnabled: manualFeaturedAdsEnabled, automatedEnabled: false,
+      },
+    };
     const nextVersion = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(ECONOMY_PRICING_SETTINGS, {
-      coinPackages, adPrices, version: nextVersion,
-      manualCoinPurchasesEnabled,
+      coinPackages, adPrices, callTariffs, emailVerificationReward, version: nextVersion,
+      manualCoinPurchasesEnabled: paymentPolicy.coin_purchases.manualEnabled,
+      manualFeaturedAdsEnabled: paymentPolicy.featured_ads.manualEnabled,
+      paymentPolicy,
       automatedCoinCheckoutEnabled: false,
       realMoneyCheckoutEnabled: false,
       updatedAt: now, updatedBy: actorUid,
@@ -8048,12 +8670,33 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
     const auditRef = db.collection("adminAuditLogs").doc();
     transaction.create(auditRef, {
       actorUid, action: "economy_pricing_updated", version: nextVersion,
+      previousCoinPackages: previous.data()?.coinPackages ?? [],
+      coinPackages,
+      previousAdPrices: previous.data()?.adPrices ?? [],
+      adPrices,
       coinPackageCount: coinPackages.length, adPlacementCount: adPrices.length,
+      previousCallTariffs, callTariffs,
+      previousEmailVerificationReward, emailVerificationReward,
+      previousManualCoinPurchasesEnabled: previous.data()?.manualCoinPurchasesEnabled === true,
+      manualCoinPurchasesEnabled,
+      previousManualFeaturedAdsEnabled: previous.data()?.manualFeaturedAdsEnabled === true,
+      manualFeaturedAdsEnabled: paymentPolicy.featured_ads.manualEnabled,
+      previousPaymentPolicy: previous.data()?.paymentPolicy ?? null,
+      paymentPolicy,
+      automatedCheckoutEnabled: false,
       realMoneyCheckoutEnabled: false, createdAt: now,
     });
     return nextVersion;
   });
-  return { saved: true, version, realMoneyCheckoutEnabled: false };
+  return {
+    saved: true, version, realMoneyCheckoutEnabled: false,
+    callTariffs: requestedCallTariffs ?? undefined,
+    emailVerificationReward: requestedEmailVerificationReward ?? undefined,
+    manualCoinPurchasesEnabled: manualCoinPurchasesEnabled,
+    manualFeaturedAdsEnabled: manualFeaturedAdsEnabled,
+    paymentPolicy: requestedPaymentPolicy ?? undefined,
+    automatedCheckoutEnabled: false,
+  };
 });
 
 
@@ -8070,19 +8713,36 @@ const ATTENDANCE_REWARD_POLICY = db.doc("platformSettings/attendanceRewards");
 export const setAttendanceRewardPolicy = onCall(async (request) => {
   const actorUid = requireOwner(request);
   let policy;
+  const expectedVersion = request.data?.expectedVersion;
   try {
     policy = validateAttendanceRewardPolicy(request.data?.policy);
   } catch {
     throw new HttpsError("invalid-argument", "سياسة مكافآت الحضور غير صالحة.");
   }
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "يجب تحديد إصدار سياسة الحضور الحالي.");
+  }
   const version = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(ATTENDANCE_REWARD_POLICY);
-    const nextVersion = (Number.isSafeInteger(previous.data()?.version)
-      ? previous.data()!.version : 0) + 1;
+    const previousVersion = Number.isSafeInteger(previous.data()?.version)
+      ? previous.data()!.version : 0;
+    if (previousVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت سياسة الحضور منذ فتح اللوحة؛ حدّث البيانات ثم أعد المحاولة.");
+    }
+    const nextVersion = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(ATTENDANCE_REWARD_POLICY, {
       policy, version: nextVersion, updatedAt: now, updatedBy: actorUid,
       createdAt: previous.data()?.createdAt ?? now,
+    });
+    const auditRef = db.collection("adminAuditLogs").doc(`attendance_reward_policy_${nextVersion}`);
+    transaction.create(auditRef, {
+      actorUid,
+      action: "attendance_reward_policy_updated",
+      version: nextVersion,
+      previousPolicy: previous.data()?.policy ?? defaultAttendanceRewardPolicy(),
+      nextPolicy: policy,
+      createdAt: now,
     });
     return nextVersion;
   });
@@ -8168,6 +8828,10 @@ export const setTimedAdCampaign = onCall(async (request) => {
       (typeof requestedId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestedId))) {
     throw new HttpsError("invalid-argument", "معرف الحملة غير صالح.");
   }
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "إصدار الحملة الحالي غير صالح.");
+  }
   const mediaId = request.data?.mediaId;
   if (mediaId !== undefined &&
       (typeof mediaId !== "string" || !/^[0-9a-f-]{36}$/i.test(mediaId))) {
@@ -8182,6 +8846,11 @@ export const setTimedAdCampaign = onCall(async (request) => {
       transaction.get(campaignRef),
       mediaRef ? transaction.get(mediaRef) : Promise.resolve(null),
     ]);
+    const previousVersion = previous.exists && Number.isSafeInteger(previous.data()?.version)
+      ? previous.data()!.version : 0;
+    if (previousVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت الحملة منذ فتح لوحة المالك؛ حدّث البيانات ثم أعد المحاولة.");
+    }
     if (previous.exists && !["draft", "paused"].includes(String(previous.data()?.status))) {
       throw new HttpsError("failed-precondition", "أوقف الحملة قبل تعديل إعداداتها.");
     }
@@ -8203,8 +8872,7 @@ export const setTimedAdCampaign = onCall(async (request) => {
     } else if (mediaRef) {
       throw new HttpsError("not-found", "مادة الإعلان غير موجودة.");
     }
-    const version = (Number.isSafeInteger(previous.data()?.version)
-      ? previous.data()!.version : 0) + 1;
+    const version = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(campaignRef, {
       ...input, campaignId: campaignRef.id, creativeType,
@@ -8791,9 +9459,16 @@ async function validateFeaturedAdCreativeForOwner(mediaId: string | null, ownerU
   const expectedType = isVideo ? "video/mp4" : isGif ? "image/gif" : "image/webp";
   const processingStatus = isVideo ? "safe_video_derivative_ready" : isGif
     ? "safe_animation_derivative_ready" : "safe_raster_derivative_ready";
+  const measuredDurationMs = isVideo ? asset.safeVideoDurationMs : isGif ? asset.safeAnimationDurationMs : null;
+  const measuredFrameCount = isGif ? asset.safeAnimationFrameCount : null;
   if (path !== expectedPath || typeof generation !== "string" || !/^[1-9][0-9]*$/.test(generation) ||
       typeof sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(sha256) ||
-      contentType !== expectedType || asset.processingStatus !== processingStatus) {
+      contentType !== expectedType || asset.processingStatus !== processingStatus ||
+      (isGif && (!Number.isSafeInteger(measuredDurationMs) || measuredDurationMs < 1 ||
+        measuredDurationMs > 20_000 || !Number.isSafeInteger(measuredFrameCount) ||
+        measuredFrameCount < 1 || measuredFrameCount > 50)) ||
+      (isVideo && (!Number.isSafeInteger(measuredDurationMs) || measuredDurationMs < 1 ||
+        measuredDurationMs > 90_000))) {
     throw new HttpsError("failed-precondition", "المادة لم تنتج مشتقاً آمناً موثقاً وقابلاً للعرض.");
   }
   return { creativeType: isVideo ? "video" as const : "image" as const };
@@ -8808,18 +9483,41 @@ export const setOwnerFeaturedAdCampaign = onCall(async (request) => {
   const data = (request.data ?? {}) as Record<string, unknown>;
   const input = validateFeaturedAdCampaignInput(data);
   const campaignId = typeof data.campaignId === "string" ? data.campaignId.trim() : "";
+  const expectedVersion = data.expectedVersion;
+  if (campaignId && (!Number.isSafeInteger(expectedVersion) || (expectedVersion as number) < 1)) {
+    throw new HttpsError("invalid-argument", "إصدار الحملة المتوقع مطلوب عند التعديل.");
+  }
   const ref = campaignId ? featuredAdCampaignRef(campaignId) : db.collection("featuredAdCampaigns").doc();
   const creative = await validateFeaturedAdCreativeForOwner(input.mediaId, actorUid);
   const result = await db.runTransaction(async (transaction) => {
-    const current = await transaction.get(ref);
+    const [current, economySettings] = await Promise.all([
+      transaction.get(ref), transaction.get(ECONOMY_PRICING_SETTINGS),
+    ]);
+    const economyPolicy = economySettings.data() ?? {};
+    let paymentPolicy;
+    try {
+      paymentPolicy = projectEconomicPaymentPolicy(economyPolicy.paymentPolicy, {
+        manualCoinPurchasesEnabled: economyPolicy.manualCoinPurchasesEnabled,
+        manualFeaturedAdsEnabled: economyPolicy.manualFeaturedAdsEnabled,
+      });
+    } catch {
+      throw new HttpsError("failed-precondition", "سياسة الدفع الاقتصادي غير صالحة؛ تعذر إنشاء الحملة.");
+    }
     if (current.exists) {
       const existing = current.data() ?? {};
+      if (existing.version !== expectedVersion) {
+        throw new HttpsError("aborted", "تغيرت الحملة منذ تحميلها؛ أعد تحميل البيانات قبل التعديل.");
+      }
       if (!["draft", "paused"].includes(String(existing.status))) {
         throw new HttpsError("failed-precondition", "لا يمكن تعديل حملة منشورة أو مسحوبة.");
       }
       transaction.update(ref, {
         ...input, creativeType: creative.creativeType, ownerApproved: false, creativeApproved: false,
         paymentConfirmed: existing.paymentConfirmed === true, status: "draft",
+        paymentPolicySnapshot: existing.paymentPolicySnapshot ?? {
+          manualEnabled: true, automatedEnabled: false, policyVersion: 0,
+          legacyRequestSnapshot: true,
+        },
         updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
         version: (Number.isSafeInteger(existing.version) ? existing.version : 0) + 1,
       });
@@ -8827,6 +9525,11 @@ export const setOwnerFeaturedAdCampaign = onCall(async (request) => {
       transaction.create(ref, {
         ...input, creativeType: creative.creativeType, ownerApproved: false, ownerWithdrawn: false,
         paymentConfirmed: false, creativeApproved: false, status: "draft",
+        paymentPolicySnapshot: {
+          manualEnabled: paymentPolicy.featured_ads.manualEnabled,
+          automatedEnabled: false,
+          policyVersion: Number.isSafeInteger(economyPolicy.version) ? economyPolicy.version : 0,
+        },
         createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
         createdBy: actorUid, updatedBy: actorUid, version: 1,
         spentRewardCoins: 0, reservedRewardCoins: 0,
@@ -8844,14 +9547,20 @@ export const setFeaturedAdCampaignStatus = onCall(async (request) => {
   const actorUid = await requireOwnerForReview(request, "featured_ad_campaign_status_attempt");
   const campaignId = typeof request.data?.campaignId === "string" ? request.data.campaignId.trim() : "";
   const status = request.data?.status;
-  if (!campaignId || !FEATURED_AD_ALLOWED_STATUSES.includes(status as typeof FEATURED_AD_ALLOWED_STATUSES[number])) {
-    throw new HttpsError("invalid-argument", "معرف الحملة أو الحالة غير صالح.");
+  const expectedVersion = request.data?.expectedVersion;
+  if (!campaignId || !FEATURED_AD_ALLOWED_STATUSES.includes(status as typeof FEATURED_AD_ALLOWED_STATUSES[number]) ||
+      !Number.isSafeInteger(expectedVersion) || (expectedVersion as number) < 1 ||
+      request.data?.paymentConfirmed !== undefined) {
+    throw new HttpsError("invalid-argument", "معرف الحملة أو الحالة أو الإصدار غير صالح؛ إثبات الدفع لا يُقبل كقيمة مرسلة من العميل.");
   }
   const ref = featuredAdCampaignRef(campaignId);
   const result = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
     const current = snapshot.data() ?? {};
+    if (current.version !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت حالة الحملة منذ تحميلها؛ أعد تحميل القائمة.");
+    }
     const next = String(status);
     const previous = String(current.status);
     const allowedTransitions: Record<string, string[]> = {
@@ -8867,7 +9576,7 @@ export const setFeaturedAdCampaignStatus = onCall(async (request) => {
     if (request.data?.paymentConfirmed === true && next !== "approved") {
       throw new HttpsError("invalid-argument", "تأكيد الدفع يجب أن يتم ضمن خطوة اعتماد الحملة.");
     }
-    const paymentConfirmed = request.data?.paymentConfirmed === true || current.paymentConfirmed === true;
+    const paymentConfirmed = current.paymentConfirmed === true;
     if (next === "approved" || next === "published") {
       if (current.ownerWithdrawn === true || !paymentConfirmed || !current.mediaId ||
           current.creativeApproved !== true) {
@@ -8882,6 +9591,7 @@ export const setFeaturedAdCampaignStatus = onCall(async (request) => {
       ownerWithdrawn: next === "withdrawn",
       creativeApproved: current.creativeApproved === true,
       paymentConfirmed,
+      version: (Number(current.version) || 1) + 1,
       updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
       approvedAt: next === "approved" || next === "published" ? FieldValue.serverTimestamp() : current.approvedAt ?? null,
       withdrawnAt: next === "withdrawn" ? FieldValue.serverTimestamp() : current.withdrawnAt ?? null,
@@ -8891,6 +9601,177 @@ export const setFeaturedAdCampaignStatus = onCall(async (request) => {
   await appendOwnerReviewAuditEvent({ actorUid, action: "featured_ad_campaign_status_changed", campaignId, status, outcome: "success" });
   return { campaignId, status, ...result };
 });
+/**
+ * Owner-only manual financial attestation for featured ads.
+ * The owner verifies off-platform records; client screenshots/booleans are never authority.
+ * The event, immutable financial ledger row, campaign snapshot/version and audit row
+ * are committed atomically. No payment provider is assumed or enabled here.
+ */
+export const recordOwnerFeaturedAdFinancialEvent = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "featured_ad_financial_event_attempt");
+  let event;
+  try {
+    event = validateFeaturedAdFinancialEvent(request.data);
+  } catch {
+    throw new HttpsError("invalid-argument", "بيانات الحركة المالية للإعلان غير صالحة.");
+  }
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+    throw new HttpsError("invalid-argument", "إصدار الحملة المتوقع مطلوب لتسجيل الحركة المالية.");
+  }
+  const campaignRef = featuredAdCampaignRef(event.campaignId);
+  const eventId = featuredAdFinancialIdempotencyId(
+    event.campaignId, event.action, event.externalReference!,
+  );
+  const eventRef = campaignRef.collection("financialEvents").doc(eventId);
+  const auditRef = db.collection("adminAuditLogs").doc("featured_ad_finance_" + eventId);
+  const auditOutboxRef = db.collection("featuredAdFinancialAuditOutbox").doc(eventId);
+  const result = await db.runTransaction(async (transaction) => {
+    const [campaignSnapshot, existingEvent, auditOutbox, auditRecord] = await Promise.all([
+      transaction.get(campaignRef), transaction.get(eventRef),
+      transaction.get(auditOutboxRef), transaction.get(auditRef),
+    ]);
+    if (!campaignSnapshot.exists) throw new HttpsError("not-found", "الحملة الإعلانية غير موجودة.");
+    const campaign = campaignSnapshot.data() ?? {};
+    if (existingEvent.exists) {
+      const prior = existingEvent.data() ?? {};
+      // The stable event identity is derived from campaign/action/externalReference.
+      // Client attempt keys may change after a timeout, so they are not business-payload identity.
+      const samePayload = prior.action === event.action &&
+        prior.amountMinor === event.amountMinor && prior.currency === event.currency &&
+        prior.externalReference === event.externalReference &&
+        prior.evidenceReference === event.evidenceReference && prior.note === event.note &&
+        prior.reviewOutcome === event.reviewOutcome && prior.actorUid === actorUid;
+      if (!samePayload) {
+        throw new HttpsError("already-exists", "مرجع الحركة المالية مستخدم لعملية مختلفة.");
+      }
+      if (!auditRecord.exists) {
+        throw new HttpsError("data-loss", "سجل التدقيق المالي الأصلي مفقود؛ أوقفنا إعادة التنفيذ.");
+      }
+      const auditData = auditRecord.data() ?? {};
+      if (auditData.actorUid !== actorUid ||
+          auditData.action !== "featured_ad_financial_" + event.action ||
+          auditData.campaignId !== event.campaignId || auditData.eventId !== eventId ||
+          auditData.externalReference !== event.externalReference ||
+          auditData.amountMinor !== event.amountMinor || auditData.currency !== event.currency) {
+        throw new HttpsError("data-loss", "سجل التدقيق المالي لا يطابق الحركة الأصلية.");
+      }
+      if (auditOutbox.exists) {
+        const outbox = auditOutbox.data() ?? {};
+        if (outbox.eventId !== eventId || outbox.campaignId !== event.campaignId ||
+            outbox.actorUid !== actorUid || outbox.action !== event.action) {
+          throw new HttpsError("data-loss", "سجل ترحيل التدقيق لا يطابق الحركة المالية.");
+        }
+      } else {
+        transaction.create(auditOutboxRef, {
+          eventId, campaignId: event.campaignId, actorUid, action: event.action,
+          status: "pending", createdAt: FieldValue.serverTimestamp(),
+        });
+      }
+      if (!Number.isSafeInteger(prior.resultingVersion) || prior.resultingVersion < 1) {
+        throw new HttpsError("data-loss", "نسخة الحركة المالية الأصلية غير موجودة أو غير صالحة؛ أوقفنا إعادة التنفيذ.");
+      }
+      return {
+        campaignId: event.campaignId, eventId, idempotentReplay: true,
+        // Replay verifies the immutable event's original version, not the
+        // campaign's newer current version after later payments/refunds.
+        version: prior.resultingVersion,
+        financialSnapshot: campaign.financialSnapshot ?? defaultFeaturedAdFinancialSnapshot(),
+      };
+    }
+    const paymentPolicySnapshot = campaign.paymentPolicySnapshot;
+    if (paymentPolicySnapshot !== undefined && paymentPolicySnapshot?.manualEnabled !== true) {
+      throw new HttpsError("failed-precondition", "لقطة الحملة لا تسمح بالدفع اليدوي؛ لا يمكن تغيير مسار الدفع بعد إنشاء الطلب.");
+    }
+    if (campaign.version !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت الحملة منذ تحميلها؛ حدّث بياناتها ثم أعد تسجيل الحركة.");
+    }
+    if (campaign.ownerWithdrawn === true || campaign.status === "withdrawn") {
+      throw new HttpsError("failed-precondition", "لا يمكن تسجيل حركة مالية جديدة لحملة مسحوبة نهائياً.");
+    }
+    const currentSnapshot = campaign.financialSnapshot ?? defaultFeaturedAdFinancialSnapshot();
+    let nextSnapshot;
+    try {
+      nextSnapshot = applyFeaturedAdFinancialEvent(currentSnapshot, event);
+    } catch {
+      throw new HttpsError("failed-precondition", "تعارضت الحركة مع الحالة المالية الحالية أو أن السجل المالي غير متسق.");
+    }
+    const nextVersion = expectedVersion + 1;
+    const now = FieldValue.serverTimestamp();
+    const paymentConfirmed = event.action === "payment_received"
+      ? true
+      : event.action === "refund_recorded" ? false : campaign.paymentConfirmed === true;
+    const nextStatus = event.action === "refund_recorded" &&
+      ["approved", "published"].includes(String(campaign.status))
+      ? "paused" : campaign.status;
+    transaction.update(campaignRef, {
+      financialSnapshot: nextSnapshot,
+      paymentConfirmed,
+      status: nextStatus,
+      version: nextVersion,
+      updatedAt: now,
+      updatedBy: actorUid,
+      financialUpdatedAt: now,
+    });
+    transaction.create(eventRef, {
+      ...event, actorUid, eventId, campaignId: event.campaignId,
+      expectedVersion, resultingVersion: nextVersion,
+      createdAt: now, source: "owner_manual_off_platform_attestation",
+    });
+    transaction.create(auditOutboxRef, {
+      eventId, campaignId: event.campaignId, actorUid, action: event.action,
+      status: "pending", createdAt: now,
+    });
+    transaction.create(auditRef, {
+      actorUid, action: "featured_ad_financial_" + event.action,
+      campaignId: event.campaignId, eventId,
+      amountMinor: event.amountMinor, currency: event.currency,
+      externalReference: event.externalReference,
+      evidenceReference: event.evidenceReference,
+      note: event.note, reviewOutcome: event.reviewOutcome,
+      resultingVersion: nextVersion, createdAt: now,
+    });
+    return {
+      campaignId: event.campaignId, eventId, idempotentReplay: false,
+      version: nextVersion, financialSnapshot: nextSnapshot,
+      paymentConfirmed, status: nextStatus,
+    };
+  });
+  // Durable retry path: the financial transaction leaves a pending marker.
+  // The deterministic chain-event ID makes this append safe after timeout/crash;
+  // exact callable replays retry the append until the marker is completed.
+  const chainEventId = "featured_ad_finance_chain_" + eventId;
+  const chainEventRef = db.collection("adminAuditLogs").doc(chainEventId);
+  const [outboxState, existingChainEvent] = await Promise.all([
+    auditOutboxRef.get(), chainEventRef.get(),
+  ]);
+  if (outboxState.data()?.status === "appended" && !existingChainEvent.exists) {
+    throw new HttpsError("data-loss", "سجل التدقيق المتسلسل المشار إليه من صندوق الترحيل مفقود؛ يلزم تدقيق السلسلة.");
+  }
+  const chainAuditId = await appendOwnerReviewAuditEvent({
+    actorUid, action: "featured_ad_financial_event_recorded",
+    campaignId: event.campaignId, eventId, financialAction: event.action,
+    resultingVersion: result.version, outcome: "success",
+  }, chainEventId);
+  const chainAuditSnapshot = await db.collection("adminAuditLogs").doc(chainAuditId).get();
+  const chainAuditData = chainAuditSnapshot.data() ?? {};
+  if (!chainAuditSnapshot.exists || chainAuditData.auditChainId !== "owner-review-v1" ||
+      chainAuditData.actorUid !== actorUid ||
+      chainAuditData.action !== "featured_ad_financial_event_recorded" ||
+      chainAuditData.campaignId !== event.campaignId ||
+      chainAuditData.eventId !== eventId ||
+      chainAuditData.financialAction !== event.action ||
+      chainAuditData.resultingVersion !== result.version ||
+      chainAuditData.outcome !== "success") {
+    throw new HttpsError("data-loss", "تعذر التحقق من سجل التدقيق المتسلسل للحركة المالية.");
+  }
+  await auditOutboxRef.set({
+    status: "appended",
+    appendedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return result;
+});
+
 export const reviewFeaturedAdCreative = onCall(async (request) => {
   const actorUid = await requireOwnerForReview(request, "featured_ad_creative_review_attempt");
   const campaignId = typeof request.data?.campaignId === "string" ? request.data.campaignId.trim() : "";
@@ -8905,6 +9786,10 @@ export const reviewFeaturedAdCreative = onCall(async (request) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
     const campaign = snapshot.data() ?? {};
+    if (campaign.version !== request.data?.expectedVersion ||
+        !Number.isSafeInteger(request.data?.expectedVersion) || (request.data.expectedVersion as number) < 1) {
+      throw new HttpsError("aborted", "تغيرت الحملة منذ تحميلها؛ أعد تحميل القائمة قبل مراجعة المادة.");
+    }
     if (!["draft", "paused"].includes(String(campaign.status)) || campaign.ownerWithdrawn === true) {
       throw new HttpsError("failed-precondition", "لا يمكن مراجعة مادة حملة منشورة أو مسحوبة.");
     }
@@ -8939,6 +9824,45 @@ export const getOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
   const snapshot = await FEATURED_AD_REWARD_POLICY.get();
   const policy = snapshot.exists ? validateFeaturedAdRewardPolicy(snapshot.data()?.policy) : defaultFeaturedAdRewardPolicy();
   return { policy, version: snapshot.exists ? snapshot.data()?.version ?? 0 : 0 };
+});
+
+export const setOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "featured_ad_reward_policy_update_attempt");
+  let policy;
+  try {
+    policy = validateFeaturedAdRewardPolicy(request.data?.policy);
+  } catch {
+    throw new HttpsError("invalid-argument", "سياسة مكافآت الإعلانات المميزة غير صالحة.");
+  }
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "إصدار سياسة مكافآت الإعلانات مطلوب.");
+  }
+  const version = await db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(FEATURED_AD_REWARD_POLICY);
+    const previousVersion = Number.isSafeInteger(previous.data()?.version) ? previous.data()!.version : 0;
+    if (previousVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت سياسة مكافآت الإعلانات؛ حدّث البيانات ثم أعد المحاولة.");
+    }
+    const nextVersion = previousVersion + 1;
+    const now = FieldValue.serverTimestamp();
+    transaction.set(FEATURED_AD_REWARD_POLICY, {
+      policy, version: nextVersion, updatedAt: now, updatedBy: actorUid,
+      createdAt: previous.data()?.createdAt ?? now,
+    });
+    const auditRef = db.collection("adminAuditLogs").doc(`featured_ad_reward_policy_${nextVersion}`);
+    transaction.create(auditRef, {
+      actorUid, action: "featured_ad_reward_policy_updated", version: nextVersion,
+      previousPolicy: previous.data()?.policy ?? defaultFeaturedAdRewardPolicy(),
+      nextPolicy: policy, createdAt: now,
+    });
+    return nextVersion;
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid, action: "featured_ad_reward_policy_updated", version,
+    policy, outcome: "success",
+  });
+  return { saved: true, version, policy };
 });
 export const getOwnerCapacityMediaManagement = onCall(async (request) => {
   await requireOwnerForReview(request, "capacity_media_management_read");
@@ -9031,27 +9955,6 @@ export const setOwnerCapacityMediaManagement = onCall(async (request) => {
   return { saved: true, version: nextVersion, enforcementStatus: "observe_only" };
 });
 
-export const setOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
-  const actorUid = await requireOwnerForReview(request, "featured_ad_reward_policy_update_attempt");
-  const policy = validateFeaturedAdRewardPolicy(request.data?.policy);
-  const expectedVersion = request.data?.expectedVersion;
-  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
-    throw new HttpsError("invalid-argument", "إصدار سياسة المكافآت غير صالح.");
-  }
-  const version = await db.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(FEATURED_AD_REWARD_POLICY);
-    const previous = snapshot.exists && Number.isSafeInteger(snapshot.data()?.version)
-      ? snapshot.data()!.version as number : 0;
-    if (previous !== expectedVersion) {
-      throw new HttpsError("aborted", "تغيرت سياسة المكافآت منذ فتح اللوحة؛ حدّث البيانات ثم أعد المحاولة.");
-    }
-    const next = previous + 1;
-    transaction.set(FEATURED_AD_REWARD_POLICY, { policy, version: next, updatedBy: actorUid, updatedAt: FieldValue.serverTimestamp() });
-    return next;
-  });
-  await appendOwnerReviewAuditEvent({ actorUid, action: "featured_ad_reward_policy_changed", version, outcome: "success" });
-  return { saved: true, version, policy };
-});
 export const getMyFeaturedAdRewardHistory = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const [snapshot, policySnapshot] = await Promise.all([
@@ -10672,13 +11575,15 @@ export const startCall = onCall(async (request) => {
   const now = Date.now();
   const expiresAt = Timestamp.fromMillis(now + CALL_RING_TIMEOUT_MS);
   const quotaRef = CALL_QUOTA_WINDOWS.doc(callerUid);
+  const economyPricingRef = db.doc("platformSettings/economyPricing");
   const result = await db.runTransaction(async (transaction) => {
-    const [existing, caller, quotaSnapshot, roomSnapshot, rentalSnapshot] = await Promise.all([
+    const [existing, caller, quotaSnapshot, roomSnapshot, rentalSnapshot, economyPricingSnapshot] = await Promise.all([
       transaction.get(callRef),
       transaction.get(callerRef),
       transaction.get(quotaRef),
       roomRefForCall ? transaction.get(roomRefForCall) : Promise.resolve(null),
       roomRentalRef ? transaction.get(roomRentalRef) : Promise.resolve(null),
+      transaction.get(economyPricingRef),
     ]);
     if (existing.exists) {
       const prior = existing.data() ?? {};
@@ -10802,9 +11707,31 @@ export const startCall = onCall(async (request) => {
       attempts: [...recentAttempts, { callId: input.callId, mode: input.mode, startedAtMs: quotaNow }],
       updatedAt: FieldValue.serverTimestamp(),
     });
+    let callTariffs;
+    try {
+      callTariffs = validateBilateralCallTariffs(economyPricingSnapshot.data()?.callTariffs ?? {
+        audioTotalCoinsPerMinute: null, videoTotalCoinsPerMinute: null,
+      });
+    } catch {
+      throw new HttpsError("failed-precondition", "إعدادات تعرفة المكالمات غير صالحة؛ تم إيقاف بدء المكالمة لحماية الرصيد.");
+    }
+    const selectedDirectTariff = input.scope === "direct"
+      ? (input.mode === "audio" ? callTariffs.audioTotalCoinsPerMinute : callTariffs.videoTotalCoinsPerMinute)
+      : null;
+    const economySnapshot = {
+      policyVersion: Number.isSafeInteger(economyPricingSnapshot.data()?.version)
+        ? economyPricingSnapshot.data()!.version : 0,
+      billingMode: input.scope === "direct" && selectedDirectTariff !== null
+        ? "configured_not_yet_collectible" : "not_configured",
+      combinedTotalCoinsPerMinute: selectedDirectTariff,
+      participantAllocation: input.scope === "direct" ? "equal_50_50" : "not_applicable",
+      callerOnlyException: "caller_quota_exhausted_recipient_included_quota_remaining",
+      collectionEnabled: false,
+    };
     transaction.create(callRef, {
       callId: input.callId, scope: input.scope, targetId: input.targetId, mode: input.mode,
       callerUid, participantUids, acceptedUids: [], rejectedUids: [], leftUids: [],
+      economySnapshot,
       status: "ringing", signalCounts: {}, signalsCleanedAt: false,
       createdAt: FieldValue.serverTimestamp(),
       expiresAt, lastActivityAt: FieldValue.serverTimestamp(),

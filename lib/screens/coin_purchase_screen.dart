@@ -71,6 +71,29 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
     await _submitRequest({'kind': 'custom', 'requestedCoins': coins});
   }
 
+  Future<void> _reportPaymentSent(Map<String, dynamic> item) async {
+    if (_sending) return;
+    final requestId = item['requestId'] as String? ?? '';
+    final version = (item['instructionsVersion'] as num?)?.toInt() ?? 0;
+    if (requestId.isEmpty || version < 1) return;
+    setState(() { _sending = true; _error = null; });
+    try {
+      await _functions.httpsCallable('requestCoinPurchasePaymentVerification').call({
+        'requestId': requestId,
+        'expectedInstructionsVersion': version,
+      });
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(
+        'تم إبلاغ المالك. هذا الإبلاغ ليس إثباتاً لوصول المبلغ، ولن تُضاف الكوينز حتى يتحقق المالك ويعتمد الطلب.',
+      )));
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر إبلاغ المالك.');
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
   Future<void> _withdraw(String requestId) async {
     try {
       await _functions.httpsCallable('withdrawCoinPurchaseRequest').call({'requestId': requestId});
@@ -82,9 +105,15 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
     }
   }
 
+  String _formatMinorAmount(int amount, int exponent, String currency) {
+    final scale = exponent == 0 ? 1 : exponent == 1 ? 10 : exponent == 2 ? 100 : 1000;
+    return (amount / scale).toStringAsFixed(exponent) + ' ' + currency;
+  }
+
   String _status(String? value) => switch (value) {
     'pending_owner_contact' => 'بانتظار تواصل المالك',
     'payment_instructions_sent' => 'أُرسلت تعليمات الدفع - بانتظار التحقق',
+    'awaiting_payment_verification' => 'الدفع قيد التحقق من المالك',
     'approved' => 'تم الاعتماد وإضافة الكوينز',
     'rejected' => 'مرفوض',
     'withdrawn' => 'مسحوب',
@@ -106,7 +135,11 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
         ..._packages.map((item) => Card(child: ListTile(
           title: Text(item['name'] as String? ?? 'باقة كوينز'),
           subtitle: Text((item['coins'] ?? 0).toString() + ' كوين • ' +
-              (((item['priceMinor'] as num?) ?? 0).toDouble() / 100).toStringAsFixed(2) + ' EUR'),
+              _formatMinorAmount(
+                (item['priceMinor'] as num?)?.toInt() ?? 0,
+                (item['currencyExponent'] as num?)?.toInt() ?? 2,
+                item['currency'] as String? ?? '—',
+              )),
           trailing: FilledButton(
             onPressed: _sending ? null : () => _submitRequest({
               'kind': 'package', 'packageId': item['packageId'],
@@ -137,10 +170,22 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
               Text('الكمية: ' + coins.toString() + ' كوين'),
               Text(_status(status)),
               if (item['agreedPriceMinor'] is num)
-                Text('السعر المتفق عليه: ' +
-                    (((item['agreedPriceMinor'] as num).toDouble() / 100).toStringAsFixed(2)) + ' EUR'),
+                Text('السعر المتفق عليه: ' + _formatMinorAmount(
+                  (item['agreedPriceMinor'] as num).toInt(),
+                  (item['agreedCurrencyExponent'] as num?)?.toInt() ??
+                    ((item['packageSnapshot'] is Map)
+                      ? ((item['packageSnapshot']['currencyExponent'] as num?)?.toInt() ?? 2) : 2),
+                  item['agreedCurrency'] as String? ??
+                    item['currency'] as String? ??
+                    ((item['packageSnapshot'] is Map) ? (item['packageSnapshot']['currency'] as String? ?? '—') : '—'),
+                )),
               if (item['paymentInstructions'] is String)
                 SelectableText('تعليمات المالك: ' + (item['paymentInstructions'] as String)),
+              if (status == 'payment_instructions_sent')
+                Align(alignment: Alignment.centerLeft, child: FilledButton.tonal(
+                  onPressed: _sending ? null : () => _reportPaymentSent(item),
+                  child: const Text('أبلغت المالك بإرسال الدفعة'),
+                )),
               if (item['chatId'] is String && FirebaseAuth.instance.currentUser?.uid != null)
                 Align(alignment: Alignment.centerLeft, child: TextButton.icon(
                   onPressed: () => Navigator.of(context).push(MaterialPageRoute(
@@ -155,7 +200,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                 )),
               if (item['rejectionReason'] is String)
                 Text('سبب الرفض: ' + (item['rejectionReason'] as String)),
-              if (status == 'pending_owner_contact' || status == 'payment_instructions_sent')
+              if (status == 'pending_owner_contact')
                 Align(alignment: Alignment.centerLeft, child: TextButton(
                   onPressed: _sending ? null : () => _withdraw(id), child: const Text('سحب الطلب'),
                 )),

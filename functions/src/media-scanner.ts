@@ -8,6 +8,9 @@ export interface ScannerSafeDerivative {
   sha256: string;
   contentType: "image/gif" | "audio/mpeg" | "video/mp4" | "application/pdf";
   pipelineVersion: string;
+  /** Measured by the trusted decoder/transcoder, never supplied by the client. */
+  durationMs?: number;
+  frameCount?: number;
 }
 
 export interface ScannerVerdictPayload {
@@ -107,10 +110,24 @@ export function validateScannerVerdict(
         typeof d.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(d.sha256) ||
         v.verdict !== "clean" || hasAnyPreview ||
         v.processingStatus !== expectedProcessingStatus[category]) return null;
+    const durationMs = d.durationMs;
+    const frameCount = d.frameCount;
+    if (category === "gif" &&
+        (!Number.isSafeInteger(durationMs) || (durationMs as number) < 1 ||
+         (durationMs as number) > 20_000 ||
+         !Number.isSafeInteger(frameCount) || (frameCount as number) < 1 ||
+         (frameCount as number) > 50)) return null;
+    if (category === "video" &&
+        (!Number.isSafeInteger(durationMs) || (durationMs as number) < 1 ||
+         (durationMs as number) > 90_000)) return null;
+    if (category !== "gif" && category !== "video" &&
+        (durationMs !== undefined || frameCount !== undefined)) return null;
     safeDerivative = {
       category, path: d.path as string, generation: d.generation as string,
       sha256: d.sha256 as string, contentType: d.contentType as ScannerSafeDerivative["contentType"],
       pipelineVersion: d.pipelineVersion as string,
+      ...(typeof durationMs === "number" ? { durationMs } : {}),
+      ...(typeof frameCount === "number" ? { frameCount } : {}),
     };
   }
 

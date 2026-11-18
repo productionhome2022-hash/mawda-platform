@@ -4,10 +4,12 @@ const { getFirestore } = require("firebase-admin/firestore");
 const { getAuth } = require("firebase-admin/auth");
 const {
   transferCoins, purchaseStoreItem, giftStoreEntitlement, getMyStoreGiftHistory, getOwnerStoreCatalog, setStoreCatalogItem, getOwnerEconomyPricing, getAvailableCoinPackages,
+  setTransferCommission, getOwnerOperationsOverview, reconcileMemberWallet,
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
-  setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
+  setCoinPurchasePaymentInstructions, requestCoinPurchasePaymentVerification, approveCoinPurchaseRequest,
   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
   completeFeaturedAdViewingSession,
+  recordOwnerFeaturedAdFinancialEvent,
   sendOwnerLiveStream,
   deleteDirectMessageForEveryone, deleteRoomMessage, startCall, endCall,
 } = require("../../lib/index");
@@ -108,6 +110,141 @@ test("client-reported featured-ad progress cannot mint wallet rewards without tr
   }
 });
 
+test("owner featured-ad manual payment and refund events persist atomically and replay safely", async () => {
+  const campaignId = `featured_finance_${suffix()}`;
+  const campaignRef = db.collection("featuredAdCampaigns").doc(campaignId);
+  await campaignRef.set({
+    status: "draft", ownerApproved: false, ownerWithdrawn: false,
+    paymentConfirmed: false, creativeApproved: false, version: 1,
+  });
+  const paymentInput = {
+    campaignId, action: "payment_received",
+    idempotencyKey: `payment_operation_${suffix()}`,
+    amountMinor: 12500, currency: "EUR",
+    externalReference: `bank-reference-${suffix()}`,
+    evidenceReference: `owner-statement-${suffix()}`,
+    note: "Owner verified incoming transfer against external bank records",
+    reviewOutcome: null, expectedVersion: 1,
+  };
+  try {
+    const concurrentPayments = await Promise.all([
+      recordOwnerFeaturedAdFinancialEvent.run(ownerRequest("featured-finance-owner", paymentInput)),
+      recordOwnerFeaturedAdFinancialEvent.run(ownerRequest("featured-finance-owner", paymentInput)),
+    ]);
+    assert.equal(concurrentPayments.filter((value) => value.idempotentReplay === false).length, 1);
+    assert.equal(concurrentPayments.filter((value) => value.idempotentReplay === true).length, 1);
+    const payment = concurrentPayments.find((value) => value.idempotentReplay === false);
+    assert.equal(payment.paymentConfirmed, true);
+    assert.equal(payment.version, 2);
+    assert.equal(payment.financialSnapshot.receivedMinor, 12500);
+    assert.equal(payment.financialSnapshot.paymentStatus, "paid");
+
+    const replay = await recordOwnerFeaturedAdFinancialEvent.run(
+      ownerRequest("featured-finance-owner", {
+        ...paymentInput, idempotencyKey: `retry_after_timeout_${suffix()}`,
+      }),
+    );
+    assert.equal(replay.idempotentReplay, true);
+    assert.equal(replay.version, 2);
+
+    const refundInput = {
+      campaignId, action: "refund_recorded",
+      idempotencyKey: `refund_operation_${suffix()}`,
+      amountMinor: 2500, currency: "EUR",
+      externalReference: `refund-reference-${suffix()}`,
+      evidenceReference: `owner-refund-statement-${suffix()}`,
+      note: "Owner verified partial refund against external bank records",
+      reviewOutcome: null, expectedVersion: 2,
+    };
+    await assert.rejects(
+      () => recordOwnerFeaturedAdFinancialEvent.run(ownerRequest(
+        "featured-finance-owner", { ...refundInput, expectedVersion: 1 },
+      )),
+      (error) => error && error.code === "aborted",
+    );
+    const refund = await recordOwnerFeaturedAdFinancialEvent.run(
+      ownerRequest("featured-finance-owner", refundInput),
+    );
+    assert.equal(refund.idempotentReplay, false);
+    assert.equal(refund.paymentConfirmed, false);
+    assert.equal(refund.version, 3);
+    assert.equal(refund.financialSnapshot.refundedMinor, 2500);
+    assert.equal(refund.financialSnapshot.paymentStatus, "partially_refunded");
+
+    const campaign = (await campaignRef.get()).data();
+    assert.equal(campaign.version, 3);
+    assert.equal(campaign.paymentConfirmed, false);
+    assert.equal(campaign.financialSnapshot.reconciledMinor, 0);
+    const events = await campaignRef.collection("financialEvents").get();
+    assert.equal(events.size, 2);
+    assert.ok(events.docs.every((doc) => doc.data().auditChainStatus === undefined));
+    const paymentEvent = events.docs.find((doc) => doc.data().action === "payment_received");
+    const outbox = await db.collection("featuredAdFinancialAuditOutbox").doc(paymentEvent.id).get();
+    assert.equal(outbox.data().status, "appended");
+    assert.ok((await db.collection("adminAuditLogs")
+      .doc("featured_ad_finance_chain_" + paymentEvent.id).get()).exists);
+    await db.collection("featuredAdFinancialAuditOutbox").doc(paymentEvent.id)
+      .update({ status: "pending" });
+    const recoveredReplay = await recordOwnerFeaturedAdFinancialEvent.run(ownerRequest("featured-finance-owner", {
+      ...paymentInput, idempotencyKey: `retry_outbox_recovery_${suffix()}`,
+    }));
+    assert.equal(recoveredReplay.idempotentReplay, true);
+    assert.equal((await db.collection("featuredAdFinancialAuditOutbox")
+      .doc(paymentEvent.id).get()).data().status, "appended");
+    const immutableAuditRef = db.collection("adminAuditLogs")
+      .doc("featured_ad_finance_" + paymentEvent.id);
+    await immutableAuditRef.delete();
+    await assert.rejects(
+      () => recordOwnerFeaturedAdFinancialEvent.run(ownerRequest("featured-finance-owner", {
+        ...paymentInput, idempotencyKey: `retry_missing_audit_${suffix()}`,
+      })),
+      (error) => error && error.code === "data-loss",
+    );
+    assert.equal((await campaignRef.get()).data().version, 3);
+    assert.equal(events.docs.filter((doc) => doc.data().action === "payment_received").length, 1);
+    assert.equal(events.docs.filter((doc) => doc.data().action === "refund_recorded").length, 1);
+  } finally {
+    const events = await campaignRef.collection("financialEvents").get();
+    await Promise.all(events.docs.map(async (doc) => {
+      await db.collection("featuredAdFinancialAuditOutbox").doc(doc.id).delete().catch(() => undefined);
+      await doc.ref.delete().catch(() => undefined);
+      await db.collection("adminAuditLogs").doc("featured_ad_finance_" + doc.id).delete().catch(() => undefined);
+      // Keep the immutable hash-chain entry: deleting it would invalidate the shared audit head.
+    }));
+    await campaignRef.delete().catch(() => undefined);
+  }
+});
+
+test("featured-ad financial events respect the immutable payment-mode snapshot", async () => {
+  const campaignId = `featured_manual_disabled_${suffix()}`;
+  const campaignRef = db.collection("featuredAdCampaigns").doc(campaignId);
+  await campaignRef.set({
+    status: "draft", ownerApproved: false, ownerWithdrawn: false,
+    paymentConfirmed: false, creativeApproved: false, version: 1,
+    paymentPolicySnapshot: {
+      manualEnabled: false, automatedEnabled: false, policyVersion: 7,
+    },
+  });
+  try {
+    await assert.rejects(
+      () => recordOwnerFeaturedAdFinancialEvent.run(ownerRequest("featured-finance-owner", {
+        campaignId, action: "payment_received",
+        idempotencyKey: `payment_disabled_${suffix()}`,
+        amountMinor: 5000, currency: "EUR",
+        externalReference: `disabled-bank-ref-${suffix()}`,
+        evidenceReference: `disabled-evidence-${suffix()}`,
+        note: "Owner attempted manual payment while policy was disabled",
+        reviewOutcome: null, expectedVersion: 1,
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await campaignRef.get()).data().version, 1);
+    assert.equal((await campaignRef.collection("financialEvents").get()).size, 0);
+  } finally {
+    await db.recursiveDelete(campaignRef).catch(() => undefined);
+  }
+});
+
 test("coin transfer atomically writes both wallet ledgers and platform commission; retries are idempotent", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = suffix();
@@ -155,6 +292,10 @@ test("coin transfer atomically writes both wallet ledgers and platform commissio
     assert.equal(sender.data().coins, 4000);
     assert.equal(recipient.data().coins, 1000);
     assert.equal(senderLedger.data().amount, -1000);
+    assert.equal(senderLedger.data().balanceBefore, 5000);
+    assert.equal(senderLedger.data().balanceAfter, 4000);
+    assert.equal(recipientLedger.data().balanceBefore, 200);
+    assert.equal(recipientLedger.data().balanceAfter, 1000);
     assert.equal(senderLedger.data().commissionAmount, 200);
     assert.equal(senderLedger.data().recipientUid, recipientUid);
     assert.equal(senderLedger.data().recipientNetAmount, 800);
@@ -170,9 +311,22 @@ test("coin transfer atomically writes both wallet ledgers and platform commissio
     assert.equal(platformLedger.data().amount, 200);
     assert.equal(platformLedger.data().transferId, transferId);
     assert.equal(transfer.data().status, "completed");
+    assert.equal(transfer.data().senderBalanceBefore, 5000);
+    assert.equal(transfer.data().senderBalanceAfter, 4000);
+    assert.equal(transfer.data().recipientBalanceBefore, 200);
+    assert.equal(transfer.data().recipientBalanceAfter, 1000);
 
     const replay = await transferCoins.run(request);
     assert.equal(replay.idempotentReplay, true);
+    assert.equal((await senderRef.get()).data().coins, 4000);
+    assert.equal((await recipientRef.get()).data().coins, 1000);
+
+    // A completed transfer must retain all three immutable financial ledger legs.
+    await platformLedgerRef.delete();
+    await assert.rejects(
+      () => transferCoins.run(request),
+      (error) => error && error.code === "failed-precondition",
+    );
     assert.equal((await senderRef.get()).data().coins, 4000);
     assert.equal((await recipientRef.get()).data().coins, 1000);
 
@@ -327,6 +481,10 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
     assert.equal(purchase.data().status, "completed");
     assert.equal(purchase.data().priceCoins, 1250);
     assert.equal(ledger.data().amount, -1250);
+    assert.equal(ledger.data().balanceBefore, 5000);
+    assert.equal(ledger.data().balanceAfter, 3750);
+    assert.equal(purchase.data().balanceBefore, 5000);
+    assert.equal(purchase.data().newBalance, 3750);
     assert.equal(ledger.data().purchaseId, purchaseId);
     assert.equal(entitlement.data().status, "active");
     assert.equal(entitlement.data().category, "vip");
@@ -334,6 +492,15 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
 
     const replay = await purchaseStoreItem.run(request);
     assert.equal(replay.idempotentReplay, true);
+    assert.equal((await memberRef.get()).data().coins, 3750);
+
+    // A receipt without its immutable debit ledger is an integrity failure,
+    // not a successful idempotent replay.
+    await ledgerRef.delete();
+    await assert.rejects(
+      () => purchaseStoreItem.run(request),
+      (error) => error && error.code === "failed-precondition",
+    );
     assert.equal((await memberRef.get()).data().coins, 3750);
 
     await assert.rejects(
@@ -397,6 +564,10 @@ test("store entitlement gifting atomically debits giver, grants recipient, recor
     assert.equal((await recipientRef.get()).data().coins, 10);
     assert.equal((await giftRef.get()).data().status, "completed");
     assert.equal((await giverLedgerRef.get()).data().amount, -1250);
+    assert.equal((await giverLedgerRef.get()).data().balanceBefore, 3000);
+    assert.equal((await giverLedgerRef.get()).data().balanceAfter, 1750);
+    assert.equal((await giftRef.get()).data().balanceBefore, 3000);
+    assert.equal((await giftRef.get()).data().newBalance, 1750);
     assert.equal((await giverLedgerRef.get()).data().type, "store_gift");
     assert.equal((await recipientHistoryRef.get()).data().status, "received");
     assert.equal((await notificationRef.get()).data().type, "store_gift_received");
@@ -459,7 +630,7 @@ test("owner-approved coin package gifts credit only the recipient with an immuta
   const messageRef = chatRef.collection("messages").doc(messageId);
   const packageSnapshot = {
     packageId: "gift_test_1000", name: "اختبار باقة الهدية",
-    coins: 1000, priceMinor: 299, currency: "EUR", active: true,
+    coins: 1000, priceMinor: 2999, currency: "KWD", active: true,
   };
   await Promise.all([
     requesterRef.set({ coins: 25, profileCompleted: true, accountStatus: "active" }),
@@ -476,7 +647,8 @@ test("owner-approved coin package gifts credit only the recipient with an immuta
     assert.equal(created.status, "pending_owner_contact");
     await setCoinPurchasePaymentInstructions.run(ownerRequest("store-catalog-owner", {
       requesterUid, requestId, instructions: "إتمام الدفع للاختبار المحلي",
-      agreedCoins: packageSnapshot.coins, agreedPriceMinor: packageSnapshot.priceMinor, currency: "EUR",
+      agreedCoins: packageSnapshot.coins, agreedPriceMinor: packageSnapshot.priceMinor, currency: "KWD",
+      expectedInstructionsVersion: 0,
     }));
     const approved = await approveCoinPurchaseRequest.run(ownerRequest("store-catalog-owner", {
       requesterUid, requestId, externalPaymentVerified: true,
@@ -488,6 +660,8 @@ test("owner-approved coin package gifts credit only the recipient with an immuta
     assert.equal((await requesterRef.get()).data().coins, 25);
     assert.equal((await recipientRef.get()).data().coins, 1100);
     assert.equal((await ledgerRef.get()).data().type, "coin_package_gift_credit");
+    assert.equal((await ledgerRef.get()).data().currency, "KWD");
+    assert.equal((await ledgerRef.get()).data().currencyExponent, 3);
     assert.equal((await giftRef.get()).data().status, "credited");
     assert.equal((await historyRef.get()).data().coins, 1000);
     assert.equal((await notificationRef.get()).data().type, "coin_package_gift_received");
@@ -498,6 +672,16 @@ test("owner-approved coin package gifts credit only the recipient with an immuta
       verificationNote: "تم التحقق من عملية الدفع الاختبارية محلياً",
     }));
     assert.equal(replay.idempotentReplay, true);
+    assert.equal((await recipientRef.get()).data().coins, 1100);
+    await auditRef.delete();
+    await assert.rejects(
+      () => approveCoinPurchaseRequest.run(ownerRequest("store-catalog-owner", {
+        requesterUid, requestId, externalPaymentVerified: true,
+        externalPaymentReference: `emulator-payment-${tag}`,
+        verificationNote: "تم التحقق من عملية الدفع الاختبارية محلياً",
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
     assert.equal((await recipientRef.get()).data().coins, 1100);
     const history = await getMyStoreGiftHistory.run(memberRequest(recipientUid, {}));
     assert.equal(history.entries.some((entry) => entry.giftId === giftRef.id && entry.giftKind === "coin_package"), true);
@@ -536,10 +720,11 @@ test("owner catalog seeds approved features as ready while keeping purchases dis
     const item = items.find((entry) => entry.itemId === itemId);
     assert.ok(item, `missing starter catalog item: ${itemId}`);
     assert.equal(item.priceCoins, price);
-    const implemented = itemId !== "hide_coins_30d";
-    assert.equal(item.active, implemented);
+    const fulfillmentReady = itemId !== "hide_coins_30d";
+    // Seeded suggestions stay unpublished until the owner explicitly activates them.
+    assert.equal(item.active, false);
     assert.equal(item.purchaseEnabled, false);
-    assert.equal(item.fulfillmentReady, implemented);
+    assert.equal(item.fulfillmentReady, fulfillmentReady);
   }
 });
 
@@ -557,7 +742,19 @@ test("owner economy pricing starts empty and only exposes owner-authored prices 
     assert.deepEqual(empty.coinPackages, []);
     assert.deepEqual(empty.adPrices, []);
     assert.equal(empty.manualCoinPurchasesEnabled, false);
+    assert.equal(empty.manualFeaturedAdsEnabled, false);
     assert.equal((await getAvailableCoinPackages.run({})).packages.length, 0);
+
+    const featuredOnly = await setOwnerEconomyPricing.run(ownerRequest("store-catalog-owner", {
+      coinPackages: [], adPrices: [],
+      manualCoinPurchasesEnabled: false, manualFeaturedAdsEnabled: true,
+      expectedVersion: empty.version,
+    }));
+    assert.equal(featuredOnly.manualFeaturedAdsEnabled, true);
+    const featuredOnlyRead = await getOwnerEconomyPricing.run(ownerRequest());
+    assert.deepEqual(featuredOnlyRead.coinPackages, []);
+    assert.deepEqual(featuredOnlyRead.adPrices, []);
+    assert.equal(featuredOnlyRead.manualFeaturedAdsEnabled, true);
 
     const packages = [{
       packageId: "test_coins_1000", name: "باقة اختبار", coins: 1000,
@@ -569,7 +766,7 @@ test("owner economy pricing starts empty and only exposes owner-authored prices 
     }];
     const saved = await setOwnerEconomyPricing.run(ownerRequest("store-catalog-owner", {
       coinPackages: packages, adPrices: ads,
-      manualCoinPurchasesEnabled: false, expectedVersion: empty.version,
+      manualCoinPurchasesEnabled: false, manualFeaturedAdsEnabled: false, expectedVersion: featuredOnly.version,
     }));
     assert.equal(saved.saved, true);
     assert.equal(saved.realMoneyCheckoutEnabled, false);
@@ -579,32 +776,97 @@ test("owner economy pricing starts empty and only exposes owner-authored prices 
     assert.equal(readback.version, saved.version);
     assert.equal(readback.coinPackages[0].priceMinor, 100);
     assert.equal(readback.manualCoinPurchasesEnabled, false);
+    assert.equal(readback.manualFeaturedAdsEnabled, false);
 
     const enabled = await setOwnerEconomyPricing.run(ownerRequest("store-catalog-owner", {
       coinPackages: [{ ...packages[0], priceMinor: 110 }],
-      adPrices: ads, manualCoinPurchasesEnabled: true,
+      adPrices: ads, manualCoinPurchasesEnabled: true, manualFeaturedAdsEnabled: true,
       expectedVersion: readback.version,
     }));
     assert.equal(enabled.version, readback.version + 1);
+    assert.equal(enabled.manualFeaturedAdsEnabled, true);
     assert.equal((await getAvailableCoinPackages.run({})).packages[0].priceMinor, 110);
 
     await assert.rejects(
       () => setOwnerEconomyPricing.run(memberRequest("not_owner", {
         coinPackages: packages, adPrices: ads,
-        manualCoinPurchasesEnabled: false, expectedVersion: enabled.version,
+        manualCoinPurchasesEnabled: false, manualFeaturedAdsEnabled: false, expectedVersion: enabled.version,
       })),
       (error) => error && error.code === "permission-denied",
     );
     await assert.rejects(
       () => setOwnerEconomyPricing.run(ownerRequest("store-catalog-owner", {
         coinPackages: packages, adPrices: ads,
-        manualCoinPurchasesEnabled: false, expectedVersion: readback.version,
+        manualCoinPurchasesEnabled: false, manualFeaturedAdsEnabled: false, expectedVersion: readback.version,
       })),
       (error) => error && error.code === "aborted",
     );
   } finally {
     if (previousData) await settingsRef.set(previousData);
     else await settingsRef.delete().catch(() => undefined);
+  }
+});
+
+test("canonical service payment policy overrides stale legacy coin-purchase flags", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const uid = `payment_policy_member_${tag}`;
+  const requestId = `policy_${tag}`;
+  const userRef = db.collection("users").doc(uid);
+  const requestRef = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
+  const settingsRef = db.doc("platformSettings/economyPricing");
+  const previous = await settingsRef.get();
+  const previousData = previous.exists ? previous.data() : null;
+  await userRef.set({ profileCompleted: true, accountStatus: "active", coins: 0 });
+  const base = {
+    coinPackages: [{ packageId: "policy_pack", name: "Policy package", coins: 250,
+      priceMinor: 100, currency: "EUR", active: true }],
+    adPrices: [], version: 41,
+    manualCoinPurchasesEnabled: true,
+    manualFeaturedAdsEnabled: false,
+    paymentPolicy: {
+      coin_purchases: { manualEnabled: false, automatedEnabled: false },
+      featured_ads: { manualEnabled: false, automatedEnabled: false },
+      public_ads: { manualEnabled: false, automatedEnabled: false },
+      influencer_services: { manualEnabled: false, automatedEnabled: false },
+      store_entitlements: { manualEnabled: false, automatedEnabled: false },
+    },
+  };
+  try {
+    await settingsRef.set(base);
+    const disabled = await getOwnerEconomyPricing.run(ownerRequest());
+    assert.equal(disabled.manualCoinPurchasesEnabled, false);
+    assert.equal(disabled.paymentPolicy.coin_purchases.manualEnabled, false);
+    assert.deepEqual((await getAvailableCoinPackages.run({})).packages, []);
+    await assert.rejects(
+      () => createCoinPurchaseRequest.run(memberRequest(uid, {
+        requestId, kind: "package", packageId: "policy_pack",
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+
+    await settingsRef.set({
+      ...base,
+      manualCoinPurchasesEnabled: false,
+      paymentPolicy: {
+        ...base.paymentPolicy,
+        coin_purchases: { manualEnabled: true, automatedEnabled: false },
+      },
+    });
+    const enabled = await getOwnerEconomyPricing.run(ownerRequest());
+    assert.equal(enabled.manualCoinPurchasesEnabled, true);
+    assert.equal((await getAvailableCoinPackages.run({})).packages.length, 1);
+    const created = await createCoinPurchaseRequest.run(memberRequest(uid, {
+      requestId, kind: "package", packageId: "policy_pack",
+    }));
+    assert.equal(created.status, "pending_owner_contact");
+    assert.equal((await requestRef.get()).data().paymentPolicySnapshot.manualEnabled, true);
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(userRef).catch(() => undefined),
+      requestRef.delete().catch(() => undefined),
+      previousData ? settingsRef.set(previousData) : settingsRef.delete().catch(() => undefined),
+    ]);
   }
 });
 
@@ -631,6 +893,8 @@ test("manual coin package request issues no coins until owner verifies external 
   const requestDoc = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
   const userRef = db.collection("users").doc(uid);
   const ledgerRef = userRef.collection("walletLedger").doc(`coin_purchase_${requestId}`);
+  const paymentReportAuditRef = db.collection("adminAuditLogs")
+    .doc(`coin_purchase_payment_report_${uid}_${requestId}_1`);
   const settingsRef = db.doc("platformSettings/economyPricing");
   await Promise.all([
     userRef.set({ coins: 40, profileCompleted: true, accountStatus: "active" }),
@@ -646,6 +910,21 @@ test("manual coin package request issues no coins until owner verifies external 
     const member = memberRequest(uid, { requestId, kind: "package", packageId: "test_pack" });
     const created = await createCoinPurchaseRequest.run(member);
     assert.equal(created.status, "pending_owner_contact");
+
+    // Exact retries must resolve from the immutable request snapshot even
+    // after the owner disables the current manual channel and edits the catalogue.
+    const originalEconomySettings = (await settingsRef.get()).data();
+    await settingsRef.set({
+      ...originalEconomySettings,
+      manualCoinPurchasesEnabled: false,
+      coinPackages: [],
+      version: (originalEconomySettings.version ?? 0) + 1,
+    });
+    const policyChangedReplay = await createCoinPurchaseRequest.run(member);
+    assert.equal(policyChangedReplay.idempotentReplay, true);
+    assert.equal(policyChangedReplay.status, "pending_owner_contact");
+    await settingsRef.set(originalEconomySettings);
+
     const memberRequests = await getMyCoinPurchaseRequests.run(member);
     assert.equal(memberRequests.requests.length, 1);
     assert.equal(memberRequests.requests[0].requestId, requestId);
@@ -655,8 +934,49 @@ test("manual coin package request issues no coins until owner verifies external 
     const instructionResult = await setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
       requesterUid: uid, requestId, instructions: "يرجى التواصل مع المالك لإتمام التحويل البنكي",
       agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
+      expectedInstructionsVersion: 0,
     }));
     assert.equal((await requestDoc.get()).data().status, "payment_instructions_sent");
+    assert.equal((await requestDoc.get()).data().instructionsVersion, 1);
+    assert.equal((await requestDoc.get()).data().paymentPolicySnapshot.manualEnabled, true);
+    assert.equal((await requestDoc.get()).data().paymentPolicySnapshot.automatedEnabled, false);
+    await assert.rejects(
+      () => withdrawCoinPurchaseRequest.run(memberRequest(uid, { requestId })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await assert.rejects(
+      () => setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
+        requesterUid: uid, requestId, instructions: "تعليمات قديمة يجب رفضها",
+        agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
+        expectedInstructionsVersion: 0,
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    const reported = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
+      requestId, expectedInstructionsVersion: 1,
+    }));
+    assert.equal(reported.status, "awaiting_payment_verification");
+    assert.equal(reported.idempotentReplay, false);
+    assert.equal((await requestDoc.get()).data().status, "awaiting_payment_verification");
+    assert.equal((await userRef.get()).data().coins, 40);
+    assert.equal((await userRef.collection("walletLedger").get()).empty, true);
+    assert.equal((await paymentReportAuditRef.get()).data().authority, "member_claim_only_not_payment_proof");
+    const reportReplay = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
+      requestId, expectedInstructionsVersion: 1,
+    }));
+    assert.equal(reportReplay.idempotentReplay, true);
+    await assert.rejects(
+      () => withdrawCoinPurchaseRequest.run(memberRequest(uid, { requestId })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await assert.rejects(
+      () => setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
+        requesterUid: uid, requestId, instructions: "لا يمكن تغيير الاتفاق بعد إبلاغ الدفع",
+        agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
+        expectedInstructionsVersion: 1,
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
     assert.ok(instructionResult.chatId);
     const chatMessages = await db.collection("directChats").doc(instructionResult.chatId)
       .collection("messages").get();
@@ -679,6 +999,11 @@ test("manual coin package request issues no coins until owner verifies external 
     ]);
     assert.equal(user.data().coins, 940);
     assert.equal(ledger.data().amount, 900);
+    assert.equal(ledger.data().balanceBefore, 40);
+    assert.equal(ledger.data().balanceAfter, 940);
+    assert.equal(ledger.data().priceMinor, 500);
+    assert.equal(ledger.data().currency, "EUR");
+    assert.equal(ledger.data().actorUid, "manual-owner");
     assert.equal(ledger.data().type, "coin_purchase_manual_credit");
     assert.equal(ledger.data().externalPaymentReference, `verified-${tag}`);
     assert.equal(purchase.data().status, "approved");
@@ -688,9 +1013,17 @@ test("manual coin package request issues no coins until owner verifies external 
     assert.equal((await userRef.get()).data().coins, 940);
     assert.equal((await db.collection("adminAuditLogs")
       .doc(`coin_purchase_approval_${uid}_${requestId}`).get()).exists, true);
+
+    await ledgerRef.delete();
+    await assert.rejects(
+      () => approveCoinPurchaseRequest.run(ownerRequest("manual-owner", approvalInput)),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await userRef.get()).data().coins, 940);
   } finally {
     await Promise.all([
       ledgerRef.delete().catch(() => undefined),
+      paymentReportAuditRef.delete().catch(() => undefined),
       requestDoc.delete().catch(() => undefined),
       userRef.delete().catch(() => undefined),
       settingsRef.delete().catch(() => undefined),
@@ -906,6 +1239,7 @@ test("every shipped premium store category charges once and grants its matching 
         sortOrder: index + 1,
         active: true,
         purchaseEnabled: true,
+        expectedVersion: 0,
       })),
     ));
 
@@ -973,6 +1307,7 @@ test("every shipped premium store category charges once and grants its matching 
         sortOrder: 99,
         active: true,
         purchaseEnabled: true,
+        expectedVersion: 0,
       })),
       (error) => error && error.code === "invalid-argument",
     );
@@ -986,6 +1321,7 @@ test("every shipped premium store category charges once and grants its matching 
       sortOrder: 99,
       active: true,
       purchaseEnabled: false,
+      expectedVersion: 0,
     }));
     await assert.rejects(
       () => purchaseStoreItem.run(memberRequest(uid, {
@@ -1053,6 +1389,81 @@ test("call entitlement SKUs can be purchased through the central store and immed
       db.recursiveDelete(db.collection("callSessions").doc(callId)).catch(() => undefined),
       db.recursiveDelete(db.collection("activeCallMemberLocks").doc(callerUid)).catch(() => undefined),
       db.recursiveDelete(db.collection("activeCallMemberLocks").doc(calleeUid)).catch(() => undefined),
+    ]);
+  }
+});
+
+
+test("coin transfer commission policy is owner-versioned and stale writes are rejected", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const settingsRef = db.doc("platformSettings/coinTransfers");
+  const previous = await settingsRef.get();
+  const previousData = previous.exists ? previous.data() : null;
+  const ownerUid = `transfer_policy_owner_${suffix()}`;
+  const initialVersion = Number.isSafeInteger(previousData?.version) ? previousData.version : 0;
+  try {
+    const saved = await setTransferCommission.run(ownerRequest(ownerUid, {
+      commissionBps: 275, enabled: true, expectedVersion: initialVersion,
+    }));
+    assert.equal(saved.version, initialVersion + 1);
+    const overview = await getOwnerOperationsOverview.run(ownerRequest(ownerUid, {}));
+    assert.equal(overview.transferSettings.version, saved.version);
+    assert.equal(overview.transferSettings.commissionBps, 275);
+    await assert.rejects(
+      () => setTransferCommission.run(ownerRequest(ownerUid, {
+        commissionBps: 300, enabled: true, expectedVersion: initialVersion,
+      })),
+      (error) => error && error.code === "aborted",
+    );
+    const audit = await db.collection("adminAuditLogs")
+      .where("action", "==", "coin_transfer_commission_updated")
+      .where("version", "==", saved.version).get();
+    assert.equal(audit.size, 1);
+    assert.equal(audit.docs[0].data().previousVersion, initialVersion);
+  } finally {
+    if (previous.exists) await settingsRef.set(previousData);
+    else await settingsRef.delete();
+  }
+});
+
+
+test("owner wallet reconciliation is read-only and distinguishes consistent, incomplete and corrupt history", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const uid = `wallet_reconcile_${suffix()}`;
+  const ownerUid = `wallet_reconcile_owner_${suffix()}`;
+  const userRef = db.collection("users").doc(uid);
+  const ledger = userRef.collection("walletLedger");
+  const first = ledger.doc("opening_credit");
+  const second = ledger.doc("purchase_debit");
+  await userRef.set({ coins: 75, profileCompleted: true, accountStatus: "active" });
+  await Promise.all([
+    first.set({ amount: 100, balanceBefore: 0, balanceAfter: 100, createdAt: new Date(1000) }),
+    second.set({ amount: -25, balanceBefore: 100, balanceAfter: 75, createdAt: new Date(2000) }),
+  ]);
+  try {
+    const consistent = await reconcileMemberWallet.run(ownerRequest(ownerUid, { memberUid: uid }));
+    assert.equal(consistent.status, "consistent");
+    assert.equal(consistent.computedBalance, 75);
+    assert.equal((await userRef.get()).data().coins, 75, "reconciliation must never mutate wallet balance");
+
+    await second.update({ balanceBefore: require("firebase-admin/firestore").FieldValue.delete(),
+      balanceAfter: require("firebase-admin/firestore").FieldValue.delete() });
+    const incomplete = await reconcileMemberWallet.run(ownerRequest(ownerUid, { memberUid: uid }));
+    assert.equal(incomplete.status, "incomplete");
+    assert.equal(incomplete.entriesMissingSnapshots, 1);
+
+    await second.update({ balanceBefore: 90, balanceAfter: 65 });
+    const corrupt = await reconcileMemberWallet.run(ownerRequest(ownerUid, { memberUid: uid }));
+    assert.equal(corrupt.status, "corrupt");
+    assert.ok(corrupt.anomalies.length > 0);
+    assert.equal((await userRef.get()).data().coins, 75);
+  } finally {
+    const audit = await db.collection("adminAuditLogs")
+      .where("action", "==", "member_wallet_reconciliation")
+      .where("memberUid", "==", uid).get();
+    await Promise.all([
+      userRef.delete().catch(() => undefined),
+      ...audit.docs.map((doc) => doc.ref.delete().catch(() => undefined)),
     ]);
   }
 });
