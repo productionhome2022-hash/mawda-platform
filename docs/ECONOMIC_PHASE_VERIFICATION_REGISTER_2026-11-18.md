@@ -92,6 +92,7 @@ No source code was changed during this recheck. No local command, test suite, em
 - New coin transfers persist sender/recipient balance-before and balance-after snapshots in both transaction and wallet ledger records. Replay recomputes the commission/net breakdown and validates all ledger legs, identities and any present balance snapshots. Legacy rows without snapshots remain readable; partially populated or inconsistent snapshots fail closed.
 - New store purchases persist balance snapshots in the purchase receipt and immutable debit ledger. Replay validates the arithmetic and receipt/ledger relationship; legacy rows without snapshots remain compatible.
 - Store entitlement gifts now persist balance snapshots and verify the sender debit, recipient identity, gift receipt, history and notification on replay.
+- Owner free-grant replay now validates the immutable grant, grant ledger and audit evidence independently of the current entitlement document. An entitlement may have expired or been superseded by a later paid purchase; replay remains idempotent and never overwrites that newer entitlement.
 
 ### Internal tests added or expanded (not executed)
 
@@ -99,6 +100,7 @@ No source code was changed during this recheck. No local command, test suite, em
 - Wallet/store integration coverage includes stale instruction rejection, payment-policy snapshot preservation, missing approval-audit rejection, and transfer/store/gift balance snapshot assertions.
 - Featured-ad finance integration coverage includes concurrent exact replay, stale-version rejection, partial refund, immutable event/audit persistence, and rejection when the campaign's immutable payment snapshot disables manual payments.
 - Economy pricing tests allow empty owner price catalogs as an unconfigured state; integration coverage exercises featured-ad manual mode independently from coin/ad price lists.
+- Owner-grant integration coverage now exercises replay after expiry and a subsequent paid purchase, and checks that missing immutable audit evidence still fails closed.
 
 ### Still unimplemented / intentionally fail-closed
 
