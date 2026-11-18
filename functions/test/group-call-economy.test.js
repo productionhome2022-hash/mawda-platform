@@ -31,6 +31,10 @@ test("owner can independently disable one call mode without inventing a price", 
   const audioOnly = { ...policy, videoCoinsPerMinute: 0 };
   assert.equal(getGroupCallRate(audioOnly, "audio"), policy.audioCoinsPerMinute);
   assert.throws(() => getGroupCallRate(audioOnly, "video"), /MODE_DISABLED/);
+  const videoOnly = { ...policy, audioCoinsPerMinute: 0 };
+  assert.equal(getGroupCallRate(videoOnly, "video"), policy.videoCoinsPerMinute);
+  assert.throws(() => getGroupCallRate(videoOnly, "audio"), /MODE_DISABLED/);
+  assert.throws(() => getGroupCallRate(policy, "unknown"), /INVALID_GROUP_CALL_MODE/);
 });
 
 test("integer allocation assigns all remainder to initiator and is deterministic", () => {
