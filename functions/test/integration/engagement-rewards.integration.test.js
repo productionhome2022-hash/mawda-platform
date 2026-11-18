@@ -25,6 +25,7 @@ const {
   startFeaturedAdSession,
   heartbeatFeaturedAdSession,
   completeFeaturedAdSession,
+  cancelFeaturedAdSession,
   getFeaturedAdRewardHistory,
 } = require("../../lib/index");
 
@@ -833,6 +834,20 @@ test("featured campaigns require owner approval and verified finance, then rewar
     assert.equal(ledger.docs.filter((doc) => doc.data().type === "featured_ad_reward").length, 1);
     assert.equal(history.claims.length, 1);
 
+    const abandoned = await startFeaturedAdSession.run(memberRequest(uid, {
+      campaignId: campaignRef.id, geography: "syria",
+    }));
+    await db.collection("featuredAdSessions").doc(abandoned.sessionId).update({
+      expiresAtMs: Date.now() - 1,
+    });
+    const replacement = await startFeaturedAdSession.run(memberRequest(uid, {
+      campaignId: campaignRef.id, geography: "syria",
+    }));
+    assert.notEqual(replacement.sessionId, abandoned.sessionId);
+    assert.equal((await db.collection("featuredAdSessions").doc(abandoned.sessionId).get()).data().status, "expired");
+    await cancelFeaturedAdSession.run(memberRequest(uid, { sessionId: replacement.sessionId }));
+    assert.equal((await campaignRef.get()).data().reservedRewardCoins, 0);
+
     const refund = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
       ...baseEvent, action: "refund_recorded", idempotencyKey: `refund_${tag}`,
       amountMinor: 1000, currency: "USD",
@@ -858,6 +873,8 @@ test("featured campaigns require owner approval and verified finance, then rewar
         db.collection("activeFeaturedAdSessions").doc(uid).delete().catch(() => undefined),
         userRef.collection("walletLedger").doc(`featured_ad_${sessionId}`).delete().catch(() => undefined),
       ] : []),
+      ...[abandoned?.sessionId, replacement?.sessionId].filter(Boolean)
+        .map((id) => db.collection("featuredAdSessions").doc(id).delete().catch(() => undefined)),
       db.collection("featuredAdMemberCounters").where("uid", "==", uid).get()
         .then((snap) => Promise.all(snap.docs.map((doc) => doc.ref.delete()))),
       db.collection("featuredAdDailyCounters").where("uid", "==", uid).get()
