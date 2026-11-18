@@ -17,6 +17,7 @@ const FULFILLMENT_READY_ITEM_CATEGORIES: Record<string, string> = {
   video_call_24h: "video_call",
   video_call_7d: "video_call",
   video_call_30d: "video_call",
+  ghost_mode_7d: "privacy",
 };
 
 function isStoreFulfillmentReady(itemId: string, category: string): boolean {
