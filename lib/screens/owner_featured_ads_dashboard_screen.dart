@@ -209,7 +209,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
 
   void _clear() {
     _title.clear(); _sponsor.clear(); _body.clear();
-    _budget.text = '20'; _reward.text = '2';
+    _budget.text = '0'; _reward.text = '0';
     setState(() {
       _editingId = null; _mediaId = null;
       _startsAt = DateTime.now();
@@ -224,7 +224,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
       _title.text = item['title'] as String? ?? '';
       _sponsor.text = item['sponsorLabel'] as String? ?? '';
       _body.text = item['body'] as String? ?? '';
-      _budget.text = (item['rewardBudgetCoins'] ?? 20).toString();
+      _budget.text = (item['rewardBudgetCoins'] ?? 0).toString();
       _reward.text = _policyReward.text;
       _placement = item['featuredPlacement'] == 'priority' ? 'priority' : 'rotation';
       final targets = item['geographicTargets'];
@@ -353,7 +353,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
                 Expanded(child: TextField(controller: _budget, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'ميزانية مكافآت الحملة'))),
                 const SizedBox(width: 12),
                 Expanded(child: InputDecorator(
-                  decoration: const InputDecoration(labelText: 'كوين/مشاهدة — السياسة العامة'),
+                  decoration: const InputDecoration(labelText: 'مكافأة المشاهدة حسب سياسة المالك'),
                   child: Text(_reward.text),
                 )),
               ]),
@@ -402,14 +402,14 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
                 onChanged: _savingPolicy ? null : (v) => setState(() => _rewardEnabled = v),
               ),
               Row(children: [
-                Expanded(child: TextField(controller: _policyReward, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'كوين لكل مشاهدة'))),
+                Expanded(child: TextField(controller: _policyReward, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'الحد الأعلى لمكافأة المشاهدة الواحدة'))),
                 const SizedBox(width: 10),
                 Expanded(child: TextField(controller: _policyDailyViews, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مشاهدات يومية UTC'))),
               ]),
               Row(children: [
-                Expanded(child: TextField(controller: _policyDailyCoins, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'كوين يومياً UTC'))),
+                Expanded(child: TextField(controller: _policyDailyCoins, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'الحد الأقصى اليومي للكوين UTC'))),
                 const SizedBox(width: 10),
-                Expanded(child: TextField(controller: _policyCampaignCap, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'للحملة/24 ساعة'))),
+                Expanded(child: TextField(controller: _policyCampaignCap, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مشاهدات العضو لكل حملة/24 ساعة'))),
               ]),
               const SizedBox(height: 10),
               SizedBox(width: double.infinity, child: FilledButton(
