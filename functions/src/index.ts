@@ -11356,6 +11356,10 @@ export const cleanupExpiredCallSignals = onSchedule("every 5 minutes", async () 
         lastActivityAt: FieldValue.serverTimestamp(),
       });
     });
+    const current = await doc.ref.get();
+    if (current.data()?.status === "missed") {
+      await clearCallMemberLocks(doc.ref);
+    }
   }
   const durationExpiredCalls = await CALL_SESSIONS
     .where("maxDurationEndsAt", "<=", now)
