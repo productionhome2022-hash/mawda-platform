@@ -1,6 +1,6 @@
 # Economic phase verification register — 2026-11-18
 
-Target branch: `codex/mawdda-unified-test-2026-11-18`
+Target branch: `codex/economy-recovery-2026-11-18` (PR #28; base `codex/mawdda-unified-test-2026-11-18`).
 
 This is a source-level review register, not a claim that local tests or Firebase emulators were executed. The connected GitHub session can inspect and commit repository files, but it does not provide a checked-out working tree, Node/TypeScript/Flutter runtimes, Firebase emulators, or the scanner container runtime. No production Firebase operation, billing activation, deployment, merge to `main`, or 5,000-persona lab change was performed.
 
@@ -29,7 +29,7 @@ This is a source-level review register, not a claim that local tests or Firebase
 - Featured-ad sessions require a published, owner-approved, payment-confirmed campaign and approved creative.
 - The reward decision is fail-closed: the session currently records client heartbeat as untrusted telemetry and initializes server-validated visibility/playback evidence to false. Thus reward payout remains unavailable until a trusted attestation/evidence source is connected.
 - Campaign reward is constrained by owner policy and the campaign's remaining reward budget.
-- `featured-ad-finance.ts` contains a tested pure financial state machine for payment/refund/reconciliation/review. The inspected `index.ts` does not expose owner financial-event callables that persist this state machine as an audited Firestore ledger. Therefore this is **not** a completed live campaign-payment/refund/settlement workflow.
+- `featured-ad-finance.ts` is now wired to the owner-only `recordOwnerFeaturedAdFinancialEvent` callable. The callable records manual off-platform owner attestations only; it atomically persists the campaign financial snapshot/version, immutable financial event, and audit row, and uses a stable external-reference identity for replay protection. Payment receipt sets the server-side payment-confirmed flag; any refund clears it and pauses an approved/published campaign. This is a code-level implementation, **not yet emulator-verified**. No payment provider or automated checkout is connected.
 - The scanner path is connected through `receiveMediaScanVerdict` and `dispatchMediaSecurityScan`. The scanner requires a current ClamAV signature database and rejects configuration above the fixed 36-hour freshness ceiling. Scanner tests cover HMAC, exact source binding, derivative provenance and signature freshness.
 - The capacity policy remains observe-only; only finalized upload bytes/count are partially metered. It is not network-egress, retained-storage, processing-time, active-member or cost metering. Quotas remain unset and are not enforced.
 
@@ -46,7 +46,7 @@ No GitHub Actions run was returned for this branch at review time. This is not e
 3. Run Firebase Emulator integration suites for wallet/store, call signaling and media upload/scanner callback; verify wallet/ledger balances and idempotent replay.
 4. Run Flutter analyze and relevant widget/unit tests for the gift and owner screens.
 5. Connect and test trusted ad-view evidence before enabling any viewer reward.
-6. Implement and test persisted owner-only ad financial event callables before treating the finance state machine as live.
+6. Execute the new owner-only featured-ad finance integration test on the Firebase Emulator, including duplicate/replay and refund cases; add race/stale-version and audit-chain failure recovery coverage before economic acceptance.
 7. Obtain explicit owner approval of call tariff and settlement rules before implementing any metered call debit.
 8. Keep production billing, deployment, `main` merge and the separate 5,000-persona repository untouched until their independent gates and approvals.
 
@@ -66,3 +66,14 @@ The current `functions/src/index.ts` export inventory confirms:
 - Call start/connect/end callables exist, but the source review still found no metered wallet-debit or post-call settlement path. Do not infer a tariff or enable collection.
 
 No source code was changed during this recheck. No local command, test suite, emulator, Flutter analysis, scanner runtime or build was executed. The execution limitation and required gates above remain in force.
+
+
+## Follow-up implementation — 2026-11-18
+
+- Added `recordOwnerFeaturedAdFinancialEvent` to `functions/src/index.ts` and imported the existing `featured-ad-finance.ts` state machine.
+- The callable requires a recent MFA-backed platform-owner session and a caller-supplied expected campaign version. It rejects withdrawn campaigns, malformed/corrupt financial state, stale versions, and conflicting reuse of an external payment reference.
+- Each accepted event writes the updated campaign financial snapshot/version, a deterministic immutable event under `featuredAdCampaigns/{campaignId}/financialEvents`, and a corresponding `adminAuditLogs` record in one Firestore transaction.
+- A confirmed manual receipt enables the campaign's server-side `paymentConfirmed` flag. A refund clears that flag; an approved or published campaign is moved to `paused` so a refunded campaign cannot continue serving. This is deliberately manual-owner-only; no provider, webhook, checkout, or production payment configuration was added.
+- Added an emulator integration case to `functions/test/integration/wallet-store.integration.test.js` covering manual receipt, exact replay, partial refund, campaign version, and immutable event count.
+- GitHub writes completed on branch `codex/economy-recovery-2026-11-18`. The integration test and TypeScript build have **not** been executed in this session because the GitHub connector provides repository operations but no checked-out Node/Firebase Emulator runtime.
+- Remaining: run `npm run test:wallet-store-integration`, inspect the resulting emulator report, add explicit concurrent race and stale-version assertions, verify owner audit-chain recovery behavior, and continue the independent wallet historical reconciliation / entitlement expiry-renewal audit. Do not mark the economic phase complete until those gates pass.
