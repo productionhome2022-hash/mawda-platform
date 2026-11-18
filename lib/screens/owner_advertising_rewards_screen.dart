@@ -262,7 +262,8 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
   Future<void> _changeStatus(String campaignId, String status) async {
     setState(() { _saving = true; _error = null; });
     try {
-      final campaign = _campaigns.where((item) => item['campaignId'] == campaignId).firstOrNull;
+      final matchingCampaigns = _campaigns.where((item) => item['campaignId'] == campaignId).toList(growable: false);
+      final campaign = matchingCampaigns.isEmpty ? null : matchingCampaigns.first;
       final expectedVersion = (campaign?['version'] as num?)?.toInt();
       if (expectedVersion == null || expectedVersion < 1) {
         throw StateError('تعذر تحديد إصدار الحملة. حدّث القائمة ثم أعد المحاولة.');
