@@ -9,6 +9,7 @@ const {
   setTimedAdCampaignStatus,
   getActiveTimedAdCampaigns,
   getRewardCenter,
+  getFeaturedAdShowcase,
   startTimedAdvertisement,
   getActiveTimedAdSession,
   getTimedAdCreativeUrl,
@@ -526,6 +527,68 @@ test("active reward-ad discovery endpoints filter expired campaigns before apply
       userRef.delete().catch(() => undefined),
       ...expiredCampaigns.map((ref) => ref.delete().catch(() => undefined)),
       eligibleCampaign.delete().catch(() => undefined),
+    ]);
+  }
+});
+
+
+test("featured-ad discovery is member-only, geography-scoped, and never grants rewards", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const uid = `featured_member_${tag}`;
+  const userRef = db.collection("users").doc(uid);
+  const campaignCollection = db.collection("featuredAdCampaigns");
+  const campaignIds = [];
+  const now = Date.now();
+  await userRef.set({ coins: 17, profileCompleted: true, accountStatus: "active" });
+  const base = {
+    status: "published", ownerApproved: true, ownerWithdrawn: false,
+    paymentConfirmed: true, creativeApproved: true,
+    startsAtMs: now - 60_000, endsAtMs: now + 3_600_000,
+    geographicTargets: ["syria"], featuredPlacement: "rotation",
+    title: "Synthetic featured campaign", sponsorLabel: "CI fixture",
+    body: "Synthetic campaign data used only by the Firestore emulator regression.",
+  };
+  const fixtures = [
+    { ...base, featuredPlacement: "priority", priorityOrder: 2 },
+    { ...base, featuredPlacement: "priority", priorityOrder: 1 },
+    { ...base, ownerWithdrawn: true },
+    { ...base, paymentConfirmed: false },
+    { ...base, creativeApproved: false },
+    { ...base, geographicTargets: ["egypt"] },
+  ];
+  try {
+    for (const fixture of fixtures) {
+      const ref = campaignCollection.doc();
+      campaignIds.push(ref.id);
+      await ref.set(fixture);
+    }
+    const result = await getFeaturedAdShowcase.run(memberRequest(uid, { geography: "syria" }));
+    assert.equal(result.mode, "priority");
+    assert.equal(result.geography, "syria");
+    assert.equal(result.rewardEligible, false);
+    assert.deepEqual(result.campaigns.map((item) => item.campaignId), campaignIds.slice(0, 2).reverse());
+    assert.equal(result.campaigns.length, 2);
+    await assert.rejects(
+      () => getFeaturedAdShowcase.run(memberRequest(uid, { geography: "unknown_region" })),
+      (error) => error && error.code === "invalid-argument",
+    );
+    await assert.rejects(
+      () => getFeaturedAdShowcase.run(memberRequest(`missing_${uid}`, { geography: "syria" })),
+      (error) => error && error.code === "permission-denied",
+    );
+    const [user, ledger, claims] = await Promise.all([
+      userRef.get(),
+      userRef.collection("walletLedger").get(),
+      db.collection("featuredAdRewardClaims").where("uid", "==", uid).get(),
+    ]);
+    assert.equal(user.data().coins, 17);
+    assert.equal(ledger.size, 0);
+    assert.equal(claims.size, 0);
+  } finally {
+    await Promise.all([
+      userRef.delete().catch(() => undefined),
+      ...campaignIds.map((id) => campaignCollection.doc(id).delete().catch(() => undefined)),
     ]);
   }
 });
