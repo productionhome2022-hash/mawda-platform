@@ -10813,7 +10813,8 @@ export const getActiveRoomCall = onCall(async (request) => {
   if (!room.exists || room.data()?.status !== "active" || !membership.exists) {
     throw new HttpsError("permission-denied", "هذه الغرفة غير متاحة لحسابك.");
   }
-  const candidates = await CALL_SESSIONS.where("targetId", "==", roomId).limit(25).get();
+  const candidates = await CALL_SESSIONS.where("targetId", "==", roomId)
+    .orderBy("createdAt", "desc").limit(25).get();
   const now = Date.now();
   const active = candidates.docs
     .map((doc) => ({ id: doc.id, data: doc.data() }))
