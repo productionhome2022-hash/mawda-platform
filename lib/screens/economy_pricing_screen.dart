@@ -21,9 +21,6 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
   bool _saving = false;
   bool _manualPurchasesEnabled = false;
   bool _manualFeaturedAdsEnabled = false;
-  bool _manualPublicAdsEnabled = false;
-  bool _manualInfluencerServicesEnabled = false;
-  bool _manualStoreEntitlementsEnabled = false;
   int _version = 0;
   String? _error;
 
@@ -58,12 +55,6 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
         _manualPurchasesEnabled = data['manualCoinPurchasesEnabled'] == true;
         _manualFeaturedAdsEnabled = data['manualFeaturedAdsEnabled'] == true;
         final paymentPolicy = Map<String, dynamic>.from(data['paymentPolicy'] as Map? ?? const {});
-        final publicAds = Map<String, dynamic>.from(paymentPolicy['public_ads'] as Map? ?? const {});
-        final influencers = Map<String, dynamic>.from(paymentPolicy['influencer_services'] as Map? ?? const {});
-        final store = Map<String, dynamic>.from(paymentPolicy['store_entitlements'] as Map? ?? const {});
-        _manualPublicAdsEnabled = false;
-        _manualInfluencerServicesEnabled = false;
-        _manualStoreEntitlementsEnabled = false;
         final tariffs = Map<String, dynamic>.from(data['callTariffs'] as Map? ?? const {});
         _audioCallTariff.text = tariffs['audioTotalCoinsPerMinute']?.toString() ?? '';
         _videoCallTariff.text = tariffs['videoTotalCoinsPerMinute']?.toString() ?? '';
