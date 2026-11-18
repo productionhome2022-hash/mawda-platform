@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   DEFAULT_FEATURED_AD_ROTATION_INTERVAL_MS,
   selectFeaturedAdShowcase,
+  featuredAdTargetsGeography,
 } = require("../lib/featured-advertising");
 
 const base = {
@@ -124,4 +125,12 @@ test("all-Arab campaigns appear in regional feeds without widening regional camp
     nowMs: 500,
   });
   assert.deepEqual(allArab.campaignIds, ["all_arab"]);
+});
+ 
+test("shared geographic targeting accepts all-Arab campaigns without widening other regions", () => {
+  assert.equal(featuredAdTargetsGeography(["all_arab_countries"], "syria"), true);
+  assert.equal(featuredAdTargetsGeography(["syria"], "syria"), true);
+  assert.equal(featuredAdTargetsGeography(["syria"], "egypt"), false);
+  assert.equal(featuredAdTargetsGeography([], "syria"), false);
+  assert.equal(featuredAdTargetsGeography(["all_arab_countries"], ""), false);
 });
