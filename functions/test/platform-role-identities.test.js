@@ -1,0 +1,31 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const {
+  PLATFORM_ROLE_CAPACITY, platformRoleDisplayLabel, nextPermanentRoleOrdinal,
+} = require("../lib/platform-role-identities");
+
+test("general Admin sequence is open-ended and monotonic", () => {
+  assert.equal(PLATFORM_ROLE_CAPACITY.platform_admin, null);
+  assert.equal(nextPermanentRoleOrdinal([1, 2, 7]), 8);
+  assert.equal(platformRoleDisplayLabel("platform_admin", 8), "Admin 8");
+  assert.equal(platformRoleDisplayLabel("platform_admin", 2, "ar"), "أدمن ٢");
+});
+
+test("Media Admin and general production supervisor each have five independent seats", () => {
+  assert.equal(PLATFORM_ROLE_CAPACITY.media_admin, 5);
+  assert.equal(PLATFORM_ROLE_CAPACITY.general_production_supervisor, 5);
+  assert.equal(platformRoleDisplayLabel("media_admin", 1), "Admin Media 1");
+  assert.equal(platformRoleDisplayLabel("general_production_supervisor", 5, "ar"), "مشرف إنتاج عام ٥");
+  assert.throws(() => platformRoleDisplayLabel("media_admin", 6), /CAPACITY_EXCEEDED/);
+});
+
+test("Team Production Supervisor is open-ended and distinct", () => {
+  assert.equal(PLATFORM_ROLE_CAPACITY.team_production_supervisor, null);
+  assert.equal(platformRoleDisplayLabel("team_production_supervisor", 12), "Team Production Supervisor 12");
+  assert.equal(platformRoleDisplayLabel("team_production_supervisor", 1, "ar"), "مشرف إنتاج الفريق ١");
+});
+
+test("sequence history rejects corrupt ordinals and never reuses removed slots", () => {
+  assert.throws(() => nextPermanentRoleOrdinal([1, 0]), /HISTORY_INVALID/);
+  assert.equal(nextPermanentRoleOrdinal([1, 2, 4]), 5);
+});
