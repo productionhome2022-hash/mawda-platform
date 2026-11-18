@@ -29,7 +29,7 @@ const {
   getChatMediaAttachmentUrl,
 } = require("../../lib/media");
 
-const { createMemberStory, listMemberStories } = require("../../lib/index");
+const { createMemberStory, listMemberStories, getOwnerCapacityMediaManagement, setOwnerCapacityMediaManagement } = require("../../lib/index");
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
@@ -98,6 +98,61 @@ async function auditEvents(uid) {
   return snapshot.docs.map((doc) => doc.data());
 }
 
+
+test("owner capacity policy is versioned, observe-only and reports only measured upload bytes", async () => {
+  const ownerUid = `capacity-owner-${Date.now()}-${Math.random()}`;
+  const settingsRef = db.doc("platformSettings/capacityMediaPolicy");
+  const monthUtc = new Date().toISOString().slice(0, 7);
+  const meterRef = db.collection("platformCapacityMeters").doc(monthUtc);
+  const priorSettings = await settingsRef.get();
+  const priorMeter = await meterRef.get();
+  await meterRef.set({
+    monthUtc, monthlyUploadBytes: 1234, finalizedUploadCount: 2,
+  });
+  try {
+    const before = await getOwnerCapacityMediaManagement.run(ownerRequest(ownerUid, {}));
+    assert.equal(before.policy.enforcementMode, "observe_only");
+    assert.equal(before.policy.activeMemberBasis, "not_connected");
+    assert.equal(before.enforcement.productionBillingConnected, false);
+    assert.equal(before.measurement.monthlyUploadBytes, 1234);
+    assert.equal(before.measurement.finalizedUploadCount, 2);
+    assert.equal(before.measurement.monthlyDownloadBytes, null);
+    assert.equal(before.measurement.retainedStorageBytes, null);
+    const saved = await setOwnerCapacityMediaManagement.run(ownerRequest(ownerUid, {
+      expectedVersion: before.policy.version,
+      monthlyMediaQuotas: {
+        uploadBytesPerMember: 5_000_000,
+        downloadBytesPerMember: null,
+        storageBytesPerMember: null,
+        processingMinutesPerMember: null,
+      },
+    }));
+    assert.equal(saved.saved, true);
+    assert.equal(saved.version, before.policy.version + 1);
+    assert.equal(saved.enforcementStatus, "observe_only");
+    await assert.rejects(
+      () => setOwnerCapacityMediaManagement.run(ownerRequest(ownerUid, {
+        expectedVersion: before.policy.version,
+        monthlyMediaQuotas: {
+          uploadBytesPerMember: 9_000_000,
+          downloadBytesPerMember: null,
+          storageBytesPerMember: null,
+          processingMinutesPerMember: null,
+        },
+      })),
+      (error) => error && error.code === "aborted",
+    );
+    const after = await getOwnerCapacityMediaManagement.run(ownerRequest(ownerUid, {}));
+    assert.equal(after.policy.monthlyMediaQuotas.uploadBytesPerMember, 5_000_000);
+    assert.equal(after.policy.enforcementMode, "observe_only");
+    assert.equal(after.enforcement.productionBillingConnected, false);
+  } finally {
+    await Promise.all([
+      priorSettings.exists ? settingsRef.set(priorSettings.data()) : settingsRef.delete().catch(() => undefined),
+      priorMeter.exists ? meterRef.set(priorMeter.data()) : meterRef.delete().catch(() => undefined),
+    ]);
+  }
+});
 
 test("members cannot create PDF chat or room upload intents", async () => {
   for (const purpose of ["chat", "room"]) {
