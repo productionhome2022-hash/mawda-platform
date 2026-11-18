@@ -1020,6 +1020,16 @@ export const getMemberProfile = onCall(async (request) => {
     ? ghostModeUntil.toMillis()
     : typeof ghostModeUntil?.toMillis === "function" ? ghostModeUntil.toMillis() : 0;
   const ghostModeActive = ghostModeUntilMs > Date.now();
+  const hideCoinsEntitlement = activeItemIds.has("hide_coins_30d");
+  const isPlatformOwnerViewer = viewerUid !== targetUid && hasPlatformOwnerSession(
+    (request.auth?.token ?? {}) as Record<string, unknown>,
+    undefined,
+    viewerUid,
+  );
+  const canSeeCoinBalance = viewerUid === targetUid || isPlatformOwnerViewer || !hideCoinsEntitlement;
+  const coinBalance = Number.isSafeInteger(memberData.coins) && (memberData.coins as number) >= 0
+    ? memberData.coins as number
+    : 0;
   const premiumProfileData = {
     ...premiumFeatures,
     ...(customTitle ? { activeTitle: customTitle } : {}),
@@ -1028,6 +1038,8 @@ export const getMemberProfile = onCall(async (request) => {
     discoveryBoostActive,
     ghostModeActive,
     ...(profileAnalytics ? { profileAnalytics } : {}),
+    coinBalanceLocked: !canSeeCoinBalance,
+    ...(canSeeCoinBalance ? { coins: coinBalance } : {}),
   };
   const biometricLinksActive = canExposeMemberSocialLinks(
     memberData.profileCompleted === true,
