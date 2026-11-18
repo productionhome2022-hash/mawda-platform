@@ -275,7 +275,15 @@ async function handleScan(request, response) {
           contentType: scanRequest.contentType,
         });
       }
-      if (scanRequest.purpose === "sticker" && stickerMetadata.kind === "animated") {
+      // GIFs must always pass through the animation-preserving sanitizer.
+      // A raster preview alone would silently discard animation and bypass
+      // the measured duration/frame-count contract.
+      if (scanRequest.contentType === "image/gif") {
+        derivative = await processSafeDerivative({
+          sourcePath, tempDir, request: scanRequest, sourceSha256,
+          storage, bucketName: BUCKET_NAME, provider: PROVIDER,
+        });
+      } else if (scanRequest.purpose === "sticker" && stickerMetadata.kind === "animated") {
         derivative = await processSafeDerivative({
           sourcePath, tempDir, request: scanRequest, sourceSha256,
           storage, bucketName: BUCKET_NAME, provider: PROVIDER,
