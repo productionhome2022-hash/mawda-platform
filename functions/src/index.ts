@@ -33,7 +33,6 @@ import {
   nextBiometricAttemptNumber,
   decideBiometricRequest,
   BIOMETRIC_REWARD_BETACOINS,
-  BIOMETRIC_LOCKOUT_MS,
 } from "./biometric-review";
 import { readMp4DurationMs, assertBiometricVideoDurationAllowed } from "./biometric-media";
 import { assertPlatformRoleCapacity, type NumberedPlatformRole } from "./platform-role-identities";
@@ -2263,9 +2262,12 @@ export const getMyBiometricVerificationStatus = onCall(async (request) => {
 export const getOwnerBiometricVerificationRequests = onCall(async (request) => {
   await requireOwnerForReview(request, "biometric_verification_requests_read");
   const snapshot = await BIOMETRIC_REQUESTS.where("status", "==", "pending_review")
-    .orderBy("submittedAt", "asc").limit(100).get();
+    .limit(100).get();
+  const orderedDocs = [...snapshot.docs].sort((a, b) =>
+    (biometricTimestampMs(a.data().submittedAt) ?? 0) -
+    (biometricTimestampMs(b.data().submittedAt) ?? 0));
   return {
-    requests: snapshot.docs.map((doc) => {
+    requests: orderedDocs.map((doc) => {
       const data = doc.data();
       return {
         requestId: doc.id,
@@ -2403,7 +2405,7 @@ export const decideBiometricVerificationRequest = onCall(async (request) => {
       updatedAt: FieldValue.serverTimestamp(),
     });
     transaction.update(userRef, {
-      coins: balanceAfter,
+      ...(policyDecision.rewardCoins > 0 ? { coins: balanceAfter } : {}),
       ...(decision === "accept" ? {
         biometricVerification: {
           status: "verified",
@@ -2479,7 +2481,9 @@ export const decideBiometricVerificationRequest = onCall(async (request) => {
       status: result.status,
       rewardCoins: result.rewardCoins,
       outcome: "success",
-    });
+    }).catch((error) => logger.error("Biometric owner audit-chain append failed", {
+      requestId, errorCode: error instanceof Error ? error.name : "UNKNOWN",
+    }));
     await sendPushToMember(
       result.uid,
       result.status === "accepted" ? "تم قبول التوثيق البيومتري" : "نتيجة طلب التوثيق البيومتري",
@@ -2608,13 +2612,13 @@ export const finalizeBiometricVerificationUpload = onObjectFinalized(async (even
 
 export const cleanupBiometricVerificationLifecycle = onSchedule("every 5 minutes", async () => {
   const now = Timestamp.now();
-  const expiredUploads = await BIOMETRIC_REQUESTS
-    .where("status", "==", "uploading")
-    .where("uploadExpiresAt", "<=", now)
-    .limit(100).get();
-  for (const doc of expiredUploads.docs) {
+  const uploadingRequests = await BIOMETRIC_REQUESTS
+    .where("status", "==", "uploading").limit(100).get();
+  for (const doc of uploadingRequests.docs) {
     const data = doc.data();
-    if (typeof data.uid !== "string" ||
+    const uploadExpiresAt = biometricTimestampMs(data.uploadExpiresAt);
+    if (uploadExpiresAt === null || uploadExpiresAt > now.toMillis() ||
+        typeof data.uid !== "string" ||
         typeof data.audioObjectPath !== "string" || typeof data.videoObjectPath !== "string") continue;
     await failBiometricUpload(
       doc.id, data.uid, data.audioObjectPath, data.videoObjectPath, "UPLOAD_WINDOW_EXPIRED",
