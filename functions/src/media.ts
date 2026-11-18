@@ -1528,18 +1528,19 @@ export const finalizeMediaUpload = onCall(async (request) => {
     await mediaDb().runTransaction(async (transaction) => {
       const [latestAsset, quotaSnapshot] = await Promise.all([
         transaction.get(assetRef),
-        transaction.get(quotaRef),
+        asset.quotaExempt === true ? Promise.resolve(null) : transaction.get(quotaRef),
       ]);
       if (!latestAsset.exists || latestAsset.data()?.status !== "upload_authorized") {
         throw new HttpsError("failed-precondition", "تغيرت حالة طلب الرفع أثناء التحقق.");
       }
-      const reservation = releaseMediaQuota(quotaSnapshot.data(), Number(asset.declaredSizeBytes));
+      const reservation = asset.quotaExempt === true ? null :
+        releaseMediaQuota(quotaSnapshot?.data(), Number(asset.declaredSizeBytes));
       transaction.update(assetRef, {
         status: "rejected",
         rejectionCode: "CONTENT_TYPE_SIZE_OR_SIGNATURE_MISMATCH",
         updatedAt: FieldValue.serverTimestamp(),
       });
-      transaction.set(quotaRef, { ...reservation, updatedAt: FieldValue.serverTimestamp() });
+      if (reservation) transaction.set(quotaRef, { ...reservation, updatedAt: FieldValue.serverTimestamp() });
       transaction.create(mediaDb().collection("mediaAccessAudit").doc(), {
         actorUid: uid, mediaId, action: "media_upload_validation", outcome: "rejected",
         detectedContentType: detectedType, declaredContentType: asset.declaredContentType,
@@ -1554,12 +1555,13 @@ export const finalizeMediaUpload = onCall(async (request) => {
   await mediaDb().runTransaction(async (transaction) => {
     const [latestAsset, quotaSnapshot] = await Promise.all([
       transaction.get(assetRef),
-      transaction.get(quotaRef),
+      asset.quotaExempt === true ? Promise.resolve(null) : transaction.get(quotaRef),
     ]);
     if (!latestAsset.exists || latestAsset.data()?.status !== "upload_authorized") {
       throw new HttpsError("failed-precondition", "تمت معالجة طلب الرفع مسبقاً أو تغيرت حالته.");
     }
-    const reservation = releaseMediaQuota(quotaSnapshot.data(), Number(asset.declaredSizeBytes));
+    const reservation = asset.quotaExempt === true ? null :
+      releaseMediaQuota(quotaSnapshot?.data(), Number(asset.declaredSizeBytes));
     transaction.update(assetRef, {
       status: "pending_security_scan",
       detectedContentType: detectedType,
@@ -1581,7 +1583,7 @@ export const finalizeMediaUpload = onCall(async (request) => {
       } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    transaction.set(quotaRef, { ...reservation, updatedAt: FieldValue.serverTimestamp() });
+    if (reservation) transaction.set(quotaRef, { ...reservation, updatedAt: FieldValue.serverTimestamp() });
     transaction.create(mediaDb().collection("mediaAccessAudit").doc(), {
       actorUid: uid, mediaId, action: "media_upload_validation", outcome: "pending_security_scan",
       detectedContentType: detectedType, sizeBytes, storageGeneration: String(metadata.generation),
