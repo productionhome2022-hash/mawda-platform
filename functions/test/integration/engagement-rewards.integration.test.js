@@ -879,3 +879,37 @@ test("featured campaigns require owner approval and verified finance, then rewar
     else await policyRef.delete();
   }
 });
+
+
+test("featured showcase filters expired campaigns before its bounded result window", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const uid = `featured_discovery_member_${tag}`;
+  const userRef = db.collection("users").doc(uid);
+  const now = Date.now();
+  const expired = Array.from({ length: 101 }, (_, index) =>
+    db.collection("featuredAdCampaigns").doc(`featured_expired_${tag}_${String(index).padStart(3, "0")}`));
+  const active = db.collection("featuredAdCampaigns").doc(`featured_active_${tag}`);
+  const common = {
+    status: "published", ownerApproved: true, ownerWithdrawn: false,
+    paymentConfirmed: true, creativeApproved: true,
+    startsAtMs: now - 60_000, geographicTargets: ["syria"],
+    featuredPlacement: "rotation", priorityOrder: 0,
+  };
+  try {
+    await userRef.set({ coins: 0, profileCompleted: true, accountStatus: "active" });
+    await Promise.all([
+      ...expired.map((ref) => ref.set({ ...common, endsAtMs: now - 1 })),
+      active.set({ ...common, endsAtMs: now + 60_000 }),
+    ]);
+    const result = await getFeaturedAdShowcase.run(memberRequest(uid, { geography: "syria" }));
+    assert.equal(result.campaigns.some((item) => item.campaignId === active.id), true);
+    assert.equal(result.campaigns.some((item) => item.campaignId.startsWith("featured_expired_")), false);
+  } finally {
+    await Promise.all([
+      userRef.delete().catch(() => undefined),
+      ...expired.map((ref) => ref.delete().catch(() => undefined)),
+      active.delete().catch(() => undefined),
+    ]);
+  }
+});
