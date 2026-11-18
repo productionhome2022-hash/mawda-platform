@@ -9,7 +9,8 @@ const {
   setTimedAdCampaignStatus,
   getActiveTimedAdCampaigns,
   getRewardCenter,
-  setOwnerFeaturedAdCampaign, setFeaturedAdCampaignStatus, reviewFeaturedAdCreative, setOwnerFeaturedAdRewardPolicy,
+  setOwnerFeaturedAdCampaign, setFeaturedAdCampaignStatus, reviewFeaturedAdCreative,
+  recordOwnerFeaturedAdFinancialEvent, setOwnerFeaturedAdRewardPolicy,
   completeFeaturedAdViewingSession, getMyFeaturedAdRewardHistory,
   getFeaturedAdShowcase, startFeaturedAdViewingSession,
   heartbeatFeaturedAdViewingSession, endFeaturedAdViewingSession,
@@ -675,6 +676,7 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
   let campaignRef;
   const userRef = db.collection("users").doc(uid);
   const policyRef = db.doc("platformSettings/featuredAdRewardPolicy");
+  const economySettingsRef = db.doc("platformSettings/economyPricing");
   let memberRef;
   const dayRef = userRef.collection("featuredAdRewardDays").doc(new Date().toISOString().slice(0, 10));
   const ownerRequest = (data) => ({
@@ -690,7 +692,19 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
     auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
   });
   const previousPolicy = await policyRef.get();
+  const previousEconomySettings = await economySettingsRef.get();
   await userRef.set({ coins: 0, profileCompleted: true, accountStatus: "active" });
+  await economySettingsRef.set({
+    manualCoinPurchasesEnabled: false,
+    manualFeaturedAdsEnabled: true,
+    paymentPolicy: {
+      coin_purchases: { manualEnabled: false, automatedEnabled: false },
+      featured_ads: { manualEnabled: true, automatedEnabled: false },
+      public_ads: { manualEnabled: false, automatedEnabled: false },
+      influencer_services: { manualEnabled: false, automatedEnabled: false },
+      store_entitlements: { manualEnabled: false, automatedEnabled: false },
+    },
+  }, { merge: true });
   await policyRef.set({
     policy: {
       enabled: true, rewardCoinsPerView: 2, maxRewardedViewsPerUtcDay: 10,
@@ -719,6 +733,7 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
     const campaignId = created.campaignId;
     campaignRef = db.collection("featuredAdCampaigns").doc(campaignId);
     memberRef = db.collection("featuredAdCampaignMembers").doc(uid + "_" + campaignId);
+    let campaignVersion = 1;
     await assert.rejects(
       () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published", expectedVersion: 1 })),
       (error) => error && error.code === "failed-precondition",
@@ -732,26 +747,50 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
       (error) => error && error.code === "permission-denied",
     );
     const rejectedReview = await reviewFeaturedAdCreative.run(ownerRequest({
-      campaignId, approved: false, reviewNote: "يلزم تحسين وضوح المادة قبل النشر.",
+      campaignId, approved: false, expectedVersion: campaignVersion,
+      reviewNote: "يلزم تحسين وضوح المادة قبل النشر.",
     }));
     assert.equal(rejectedReview.approved, false);
+    campaignVersion = rejectedReview.version;
     const creativeReview = await reviewFeaturedAdCreative.run(ownerRequest({
-      campaignId, approved: true, reviewNote: "تم التحقق من المادة والمشتق الآمن.",
+      campaignId, approved: true, expectedVersion: campaignVersion,
+      reviewNote: "تم التحقق من المادة والمشتق الآمن.",
     }));
     assert.equal(creativeReview.approved, true);
-    const approved = await setFeaturedAdCampaignStatus.run(ownerRequest({
-      campaignId, status: "approved", paymentConfirmed: true,
+    campaignVersion = creativeReview.version;
+    const payment = await recordOwnerFeaturedAdFinancialEvent.run(ownerRequest({
+      campaignId, action: "payment_received", expectedVersion: campaignVersion,
+      idempotencyKey: `featured_payment_${tag}`,
+      amountMinor: 5000, currency: "EUR",
+      externalReference: `bank_${tag}`,
+      evidenceReference: `owner_statement_${tag}`,
+      note: "تحقق المالك من استلام الدفعة الخارجية.",
     }));
+    assert.equal(payment.paymentConfirmed, true);
+    campaignVersion = payment.version;
+    const approved = await setFeaturedAdCampaignStatus.run(ownerRequest({
+      campaignId, status: "approved", expectedVersion: campaignVersion,
+    }));
+    campaignVersion = approved.version;
     const approvedSnapshot = await campaignRef.get();
     assert.equal(approvedSnapshot.data().ownerApproved, true);
     assert.equal(approvedSnapshot.data().creativeApproved, true);
     assert.equal(approvedSnapshot.data().paymentConfirmed, true);
     assert.equal(approved.status, "approved");
-    const published = await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published" }));
+    const published = await setFeaturedAdCampaignStatus.run(ownerRequest({
+      campaignId, status: "published", expectedVersion: campaignVersion,
+    }));
+    campaignVersion = published.version;
     assert.equal(published.status, "published");
-    await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "paused" }));
+    const paused = await setFeaturedAdCampaignStatus.run(ownerRequest({
+      campaignId, status: "paused", expectedVersion: campaignVersion,
+    }));
+    campaignVersion = paused.version;
     assert.equal((await campaignRef.get()).data().ownerApproved, true);
-    await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "published" }));
+    const republished = await setFeaturedAdCampaignStatus.run(ownerRequest({
+      campaignId, status: "published", expectedVersion: campaignVersion,
+    }));
+    campaignVersion = republished.version;
 
     await sessionRef.set({
       uid, campaignId, geography: "syria", creativeType: "image", status: "active",
@@ -786,9 +825,14 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
       visibleMs: 12000, continuousVisibleMs: 12000, progressPercent: 0,
       foregroundVisible: true, rewardClaimed: false,
     });
-    await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "withdrawn" }));
+    const withdrawn = await setFeaturedAdCampaignStatus.run(ownerRequest({
+      campaignId, status: "withdrawn", expectedVersion: campaignVersion,
+    }));
+    campaignVersion = withdrawn.version;
     await assert.rejects(
-      () => setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "paused" })),
+      () => setFeaturedAdCampaignStatus.run(ownerRequest({
+        campaignId, status: "paused", expectedVersion: campaignVersion,
+      })),
       (error) => error && error.code === "failed-precondition",
     );
     const denied = await completeFeaturedAdViewingSession.run(memberRequest({ sessionId: secondSessionRef.id }));
@@ -802,6 +846,9 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
       userRef.delete().catch(() => undefined),
       campaignRef?.delete().catch(() => undefined),
       previousPolicy.exists ? policyRef.set(previousPolicy.data()) : policyRef.delete(),
+      previousEconomySettings.exists
+        ? economySettingsRef.set(previousEconomySettings.data())
+        : economySettingsRef.delete(),
       memberRef?.delete().catch(() => undefined), dayRef.delete().catch(() => undefined),
       db.collection("mediaAssets").doc("fixture-media-" + tag).delete().catch(() => undefined),
       userRef.collection("walletLedger").doc("featured_ad_reward_" + sessionRef.id).delete().catch(() => undefined),
