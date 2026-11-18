@@ -2189,6 +2189,111 @@ export const ownerMediaPreview = onRequest(
   },
 );
 
+
+/**
+ * Issues a short-lived sticker derivative URL only when the referenced pack is
+ * currently published and its exact media asset remains scanner-approved.
+ */
+export const getStickerAssetUrl = onCall(async (request) => {
+  const viewerUid = requireUid(request.auth?.uid);
+  const packId = typeof request.data?.packId === "string" ? request.data.packId.trim() : "";
+  const stickerId = typeof request.data?.stickerId === "string" ? request.data.stickerId.trim() : "";
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(packId) || !/^[A-Za-z0-9_-]{1,80}$/.test(stickerId)) {
+    throw new HttpsError("invalid-argument", "معرف الحزمة أو الملصق غير صالح.");
+  }
+  const packSnapshot = await mediaDb().collection("stickerPacks").doc(packId).get();
+  const pack = packSnapshot.data();
+  if (!packSnapshot.exists || pack?.status !== "published" || pack.approved !== true ||
+      !Array.isArray(pack.stickers)) {
+    throw new HttpsError("not-found", "حزمة الملصقات غير منشورة أو غير معتمدة.");
+  }
+  const entry = pack.stickers.find((item: unknown) =>
+    Boolean(item && typeof item === "object" && (item as Record<string, unknown>).stickerId === stickerId));
+  if (!entry || typeof entry !== "object") {
+    throw new HttpsError("not-found", "الملصق غير موجود في الحزمة المنشورة.");
+  }
+  const sticker = entry as Record<string, unknown>;
+  const mediaId = typeof sticker.assetId === "string" ? sticker.assetId.trim() : "";
+  if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
+    throw new HttpsError("failed-precondition", "معرف أصل الملصق غير صالح.");
+  }
+  const assetSnapshot = await mediaDb().collection("mediaAssets").doc(mediaId).get();
+  const asset = assetSnapshot.data();
+  if (!assetSnapshot.exists || asset?.ownerUid === undefined ||
+      asset.uploaderRole !== "platform_owner" || asset.mediaPurpose !== "sticker" ||
+      asset.status !== "security_approved" || asset.scannerVerdict !== "clean" ||
+      !asset.stickerMetadata || typeof asset.stickerMetadata !== "object") {
+    await auditMediaAccess({
+      actorUid: viewerUid, mediaId, action: "sticker_asset_delivery",
+      outcome: "denied", packId, stickerId, failureCode: "asset_not_scanner_approved",
+    });
+    throw new HttpsError("failed-precondition", "أصل الملصق لم يجتز الفحص أو لم يعد معتمداً.");
+  }
+  let metadata;
+  try {
+    metadata = validateStickerMediaMetadata(asset.stickerMetadata);
+  } catch {
+    throw new HttpsError("failed-precondition", "بيانات أصل الملصق غير سليمة.");
+  }
+  const manifestMatches = sticker.kind === metadata.kind &&
+    sticker.contentType === metadata.contentType &&
+    sticker.width === metadata.width && sticker.height === metadata.height &&
+    sticker.sizeBytes === metadata.sizeBytes &&
+    (metadata.kind !== "animated" ||
+      (sticker.durationMs === metadata.durationMs && sticker.frameCount === metadata.frameCount));
+  if (!manifestMatches || sticker.scanStatus !== "clean") {
+    throw new HttpsError("failed-precondition", "بيانات الملصق المنشورة لا تطابق الأصل المفحوص.");
+  }
+
+  const animated = metadata.kind === "animated";
+  const filename = animated ? "animation.gif" : "preview.webp";
+  const expectedPath = `processed/${asset.ownerUid}/${mediaId}/${filename}`;
+  const derivativePath = animated ? asset.safeAnimationPath : asset.safePreviewPath;
+  const derivativeGeneration = animated ? asset.safeAnimationGeneration : asset.safePreviewGeneration;
+  const derivativeSha256 = animated ? asset.safeAnimationSha256 : asset.safePreviewSha256;
+  const expectedContentType = animated ? "image/gif" : "image/webp";
+  const expectedPipeline = animated ? "gif-sanitize-preserve-animation-v1" : "sharp-decode-reencode-v1";
+  const maxBytes = animated ? 512 * 1024 : 256 * 1024;
+  if (derivativePath !== expectedPath || typeof derivativeGeneration !== "string" ||
+      !/^[1-9][0-9]*$/.test(derivativeGeneration) ||
+      typeof derivativeSha256 !== "string" || !/^[a-f0-9]{64}$/.test(derivativeSha256)) {
+    throw new HttpsError("failed-precondition", "النسخة الآمنة للملصق غير مكتملة.");
+  }
+  const file = mediaBucket().file(expectedPath, { generation: Number(derivativeGeneration) });
+  let objectMetadata;
+  try { [objectMetadata] = await file.getMetadata(); } catch {
+    throw new HttpsError("failed-precondition", "تعذر العثور على النسخة الآمنة للملصق.");
+  }
+  const custom = objectMetadata.metadata as Record<string, unknown> | undefined;
+  const actualHash = await sha256Object(file);
+  if (String(objectMetadata.generation) !== derivativeGeneration ||
+      objectMetadata.contentType !== expectedContentType ||
+      !Number.isSafeInteger(Number(objectMetadata.size)) ||
+      Number(objectMetadata.size) <= 0 || Number(objectMetadata.size) > maxBytes ||
+      actualHash !== derivativeSha256 ||
+      custom?.mediaId !== mediaId ||
+      custom?.sourceGeneration !== String(asset.storageGeneration) ||
+      custom?.sourceSha256 !== String(asset.scannerSha256) ||
+      custom?.scannerProvider !== String(asset.scannerProvider) ||
+      custom?.processing !== expectedPipeline) {
+    await auditMediaAccess({
+      actorUid: viewerUid, mediaId, action: "sticker_asset_delivery",
+      outcome: "denied", packId, stickerId, failureCode: "safe_derivative_integrity_mismatch",
+    });
+    throw new HttpsError("data-loss", "فشل التحقق من سلامة النسخة الآمنة للملصق.");
+  }
+  const expiresAt = Date.now() + 2 * 60 * 1000;
+  const [url] = await file.getSignedUrl({
+    version: "v4", action: "read", expires: expiresAt,
+    responseType: expectedContentType, responseDisposition: "inline",
+  });
+  await auditMediaAccess({
+    actorUid: viewerUid, mediaId, action: "sticker_asset_delivery",
+    outcome: "success", packId, stickerId, derivativeGeneration, expiresAt,
+  });
+  return { url, contentType: expectedContentType, expiresAt };
+});
+
 // Backward-compatible callable names; both routes enforce the same typed safe-derivative contract.
 export const sendChatMediaAttachment = sendChatImageAttachment;
 export const getChatMediaAttachmentUrl = getChatImageAttachmentUrl;
