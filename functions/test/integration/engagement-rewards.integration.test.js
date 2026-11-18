@@ -759,7 +759,7 @@ test("featured campaigns require owner approval and verified finance, then rewar
       campaignId: campaignRef.id, status: "approved", expectedVersion: 1,
     }));
     const payment = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
-      ...baseEvent, action: "payment_received", idempotencyKey: `payment_${tag}`,
+      ...baseEvent, action: "payment_received", idempotencyKey: `payment_retry_${tag}`,
       amountMinor: 10000, currency: "USD",
     }));
     paymentEventId = payment.eventId;
