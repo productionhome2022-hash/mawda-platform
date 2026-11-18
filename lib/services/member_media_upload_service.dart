@@ -55,9 +55,13 @@ class MemberMediaUploadService {
     required XFile file,
     required String purpose,
     int? storyExpiresAtMs,
+    String? recipientUid,
   }) async {
     if (!const {'avatar_cover', 'story', 'profile_album', 'chat', 'room'}.contains(purpose)) {
       throw ArgumentError.value(purpose, 'purpose');
+    }
+    if (recipientUid != null && (purpose != 'chat' || recipientUid.isEmpty)) {
+      throw ArgumentError('recipientUid is only valid for direct chat uploads.');
     }
     if (purpose == 'story' &&
         (storyExpiresAtMs == null ||
@@ -75,6 +79,7 @@ class MemberMediaUploadService {
       'sizeBytes': bytes.length,
       'purpose': purpose,
       if (purpose == 'story') 'storyExpiresAtMs': storyExpiresAtMs,
+      if (recipientUid != null) 'recipientUid': recipientUid,
     };
     final intentResponse =
         await _functions.httpsCallable('createMediaUploadIntent').call(request);
@@ -160,8 +165,8 @@ class MemberMediaUploadService {
     if (scope != 'direct' && scope != 'room') {
       throw ArgumentError.value(scope, 'scope');
     }
-    if (scope == 'direct' && recipientUid != null && recipientUid.isEmpty) {
-      throw ArgumentError('recipientUid must not be empty.');
+    if (scope == 'direct' && (recipientUid == null || recipientUid.isEmpty)) {
+      throw ArgumentError('recipientUid is required for direct chat uploads.');
     }
     if (scope == 'room' && recipientUid != null) {
       throw ArgumentError('recipientUid is only valid for direct messages.');
