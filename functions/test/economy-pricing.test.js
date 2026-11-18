@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { validateCoinPackages, validateAdPrices } = require("../lib/economy-pricing");
+const { validateCoinPackages, validateAdPrices, isValidPositiveCurrencyAmount } = require("../lib/economy-pricing");
 
 // Test-only fixtures; production package prices and advertising prices are
 // supplied exclusively by the owner through the versioned settings callable.
@@ -12,6 +12,17 @@ const adPriceFixture = {
   placementId: "test_banner", name: "Test placement",
   billingModel: "cpm", priceMinor: 200, currency: "EUR", active: true,
 };
+
+test("proposed money amounts obey supported currency minor-unit precision", () => {
+  assert.equal(isValidPositiveCurrencyAmount("125.00", "EUR"), true);
+  assert.equal(isValidPositiveCurrencyAmount("125.000", "KWD"), true);
+  assert.equal(isValidPositiveCurrencyAmount("125", "JPY"), true);
+  assert.equal(isValidPositiveCurrencyAmount("125.001", "EUR"), false);
+  assert.equal(isValidPositiveCurrencyAmount("125.0", "JPY"), false);
+  assert.equal(isValidPositiveCurrencyAmount("125.0001", "KWD"), false);
+  assert.equal(isValidPositiveCurrencyAmount("125.00", "XXX"), false);
+  assert.equal(isValidPositiveCurrencyAmount("0.00", "EUR"), false);
+});
 
 test("empty price catalogs remain valid until the owner explicitly configures offers", () => {
   assert.deepEqual(validateCoinPackages([]), []);
