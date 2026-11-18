@@ -16,7 +16,7 @@ export function validateCoinPurchaseRequestInput(value: unknown): {
   if (giftRecipientUid !== undefined &&
       (typeof giftRecipientUid !== "string" || giftRecipientUid.trim() !== giftRecipientUid ||
        giftRecipientUid.length < 1 || giftRecipientUid.length > 128 ||
-       giftRecipientUid.includes("/") || /[\\u0000-\\u001F\\u007F]/.test(giftRecipientUid))) {
+       giftRecipientUid.includes("/") || /[\u0000-\u001F\u007F]/.test(giftRecipientUid))) {
     throw new Error("INVALID_GIFT_RECIPIENT");
   }
   if (data.kind === "package") {
