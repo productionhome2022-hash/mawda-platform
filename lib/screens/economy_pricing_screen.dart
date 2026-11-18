@@ -276,7 +276,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
               ),
               const Card(
                 child: ListTile(
-                  leading: Icon(Icons.pending_actions_outlined),
+                  leading: Icon(Icons.info_outline),
                   title: Text('الإعلانات العامة وصُنّاع المحتوى والاشتراكات'),
                   subtitle: Text('لا يمكن تفعيل تحصيل مالي لهذه الخدمات من هذه الشاشة حالياً. يلزم أولاً استكمال دورة الطلب/العقد/الاتفاق والتحقق من الدفع والتسوية والدفتر لكل خدمة على حدة. مشتريات المتجر واستئجار الغرف الحالية تتم بBetaCoins وليست دفعاً نقدياً خارجياً.'),
                 ),
