@@ -68,6 +68,16 @@ test("member room rental debits atomically, renews idempotently, transfers and c
     assert.equal(created.newBalance, 4000);
     assert.equal((await userRef.get()).data().coins, 4000);
     assert.equal((await db.collection("rooms").doc(roomId).get()).data().status, "active");
+    const createLedgerRef = userRef.collection("walletLedger").doc(`room_${ownerUid}_${requestId}`);
+    const createLedger = (await createLedgerRef.get()).data();
+    const createReceipt = (await db.collection("roomRentals").doc(`${ownerUid}_${requestId}`).get()).data();
+    assert.equal(createLedger.balanceBefore, 5000);
+    assert.equal(createLedger.balanceAfter, 4000);
+    assert.equal(createReceipt.balanceBefore, 5000);
+    assert.equal(createReceipt.newBalance, 4000);
+    const createReplay = await createRentedRoom.run(request);
+    assert.equal(createReplay.idempotentReplay, true);
+    assert.equal((await userRef.get()).data().coins, 4000);
     await assert.rejects(
       () => createRentedRoom.run(memberRequest(ownerUid, {
         ...request.data, capacity: 51,
@@ -86,6 +96,13 @@ test("member room rental debits atomically, renews idempotently, transfers and c
     });
     const renewed = await renewRoomRental.run(renewRequest);
     assert.equal(renewed.renewed, true);
+    const renewLedgerRef = userRef.collection("walletLedger").doc(`room_${ownerUid}_renew_${tag}`);
+    const renewLedger = (await renewLedgerRef.get()).data();
+    const renewReceipt = (await db.collection("roomRentals").doc(`${ownerUid}_renew_${tag}`).get()).data();
+    assert.equal(renewLedger.balanceBefore, 4000);
+    assert.equal(renewLedger.balanceAfter, 3000);
+    assert.equal(renewReceipt.balanceBefore, 4000);
+    assert.equal(renewReceipt.newBalance, 3000);
     const replay = await renewRoomRental.run(renewRequest);
     assert.equal(replay.idempotentReplay, true);
     await assert.rejects(
@@ -120,6 +137,26 @@ test("member room rental debits atomically, renews idempotently, transfers and c
     assert.equal(closedReceipt.data().status, "closed_by_owner");
     const ledger = await db.collection("users").doc(ownerUid).collection("walletLedger").get();
     assert.equal(ledger.size, 2);
+    const createLedgerBeforeCorruption = (await createLedgerRef.get()).data();
+    const renewLedgerBeforeCorruption = (await renewLedgerRef.get()).data();
+    await createLedgerRef.delete();
+    await assert.rejects(
+      () => createRentedRoom.run(request),
+      (error) => error && error.code === "failed-precondition",
+      "creation replay must fail closed when its debit ledger is missing",
+    );
+    assert.equal((await userRef.get()).data().coins, 3000);
+    await renewLedgerRef.delete();
+    await assert.rejects(
+      () => renewRoomRental.run(renewRequest),
+      (error) => error && error.code === "failed-precondition",
+      "renewal replay must fail closed when its debit ledger is missing",
+    );
+    assert.equal((await userRef.get()).data().coins, 3000);
+    await Promise.all([
+      createLedgerRef.set(createLedgerBeforeCorruption),
+      renewLedgerRef.set(renewLedgerBeforeCorruption),
+    ]);
     const audit = await db.collection("roomAuditLogs").where("roomId", "==", roomId).get();
     assert.ok(audit.docs.some((doc) => doc.data().action === "room_ownership_transferred"));
     assert.ok(audit.docs.some((doc) => doc.data().action === "room_closed"));
