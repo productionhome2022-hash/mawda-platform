@@ -53,6 +53,7 @@ export function mediaPolicyFor(contentType: string): MediaPolicy | null {
 export function mediaUploadAllowedForRole(
   input: { contentType: string; purpose: MediaPurpose },
   isPlatformOwner: boolean,
+  isVerifiedPlatformOwnerRecipient = false,
 ): boolean {
   const policy = mediaPolicyFor(input.contentType);
   if (!policy) return false;
@@ -60,7 +61,8 @@ export function mediaUploadAllowedForRole(
     return isPlatformOwner && (policy.category === "image" || policy.category === "video");
   }
   if (input.purpose === "chat" || input.purpose === "room") {
-    return policy.category !== "document" || isPlatformOwner;
+    return policy.category !== "document" || isPlatformOwner ||
+      (input.purpose === "chat" && isVerifiedPlatformOwnerRecipient);
   }
   return policy.category === "image";
 }
