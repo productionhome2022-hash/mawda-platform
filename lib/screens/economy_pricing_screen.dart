@@ -128,7 +128,7 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
           TextField(controller: id, decoration: const InputDecoration(labelText: 'معرف الموضع (إنجليزي صغير)')),
           TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم الموضع')),
           DropdownButtonFormField<String>(
-            value: billingModel,
+            initialValue: billingModel,
             decoration: const InputDecoration(labelText: 'نموذج الفوترة'),
             items: const [
               DropdownMenuItem(value: 'daily', child: Text('يومي')),
