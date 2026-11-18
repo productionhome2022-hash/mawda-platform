@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase-admin/app";
 import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
-import { getAuth } from "firebase-admin/auth";
+import { getAuth, type UserRecord } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
 import { getStorage } from "firebase-admin/storage";
 import { validateMemberProfile } from "./member-profile";
@@ -73,6 +73,7 @@ import {
   projectStoreCatalogItem,
   validateStoreCatalogItemInput,
 } from "./store-catalog";
+import { isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, calculateStoreGiftExpiryMs } from "./store-gifting";
 import {
   calculateStorePurchaseBalance,
   isStoreEntitlementActive,
@@ -6572,133 +6573,240 @@ export const purchaseStoreItem = onCall(async (request) => {
  * The entire debit + gift record + entitlement + ledgers are atomic and idempotent.
  */
 export const giftStoreEntitlement = onCall(async (request) => {
-  const giverUid = requireAuthenticatedUid(request.auth?.uid);
-  const itemId = request.data?.itemId;
-  const recipientUid = request.data?.recipientUid;
-  const requestId = request.data?.requestId;
-  const expectedPriceCoins = request.data?.expectedPriceCoins;
-  if (typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
-      typeof recipientUid !== "string" || recipientUid.length < 1 || recipientUid.length > 128 ||
-      recipientUid === giverUid || recipientUid.includes("/") ||
-      typeof requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestId) ||
-      typeof expectedPriceCoins !== "number" || !Number.isSafeInteger(expectedPriceCoins) ||
-      expectedPriceCoins <= 0) {
-    throw new HttpsError("invalid-argument", "بيانات إهداء الميزة غير صالحة.");
+  const senderUid = requireAuthenticatedUid(request.auth?.uid);
+  const firebaseIdentity = request.auth?.token.firebase;
+  const signInProvider = firebaseIdentity && typeof firebaseIdentity === "object" &&
+      !Array.isArray(firebaseIdentity)
+    ? (firebaseIdentity as Record<string, unknown>).sign_in_provider
+    : undefined;
+  if (signInProvider === "anonymous") {
+    throw new HttpsError("permission-denied", "إهداء المتجر متاح للأعضاء المسجلين فقط.");
   }
 
-  const giverRef = db.collection("users").doc(giverUid);
+  const recipientUid = request.data?.recipientUid;
+  const itemId = request.data?.itemId;
+  const requestId = request.data?.requestId;
+  const expectedPriceCoins = request.data?.expectedPriceCoins;
+  if (typeof recipientUid !== "string" || recipientUid.length < 1 ||
+      recipientUid.length > 128 || recipientUid.trim() !== recipientUid ||
+      recipientUid.includes("/") ||
+      typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
+      typeof requestId !== "string" || requestId.length < 8 ||
+      requestId.length > 80 || !/^[A-Za-z0-9_-]+$/.test(requestId) ||
+      typeof expectedPriceCoins !== "number" || !Number.isSafeInteger(expectedPriceCoins) ||
+      expectedPriceCoins <= 0) {
+    throw new HttpsError("invalid-argument", "بيانات إهداء العنصر غير صالحة.");
+  }
+
+  // Auth provider data is authoritative for distinguishing anonymous Firebase
+  // identities from registered accounts; profile fields alone are not enough.
+  let recipientAuth: UserRecord;
+  try {
+    recipientAuth = await getAuth().getUser(recipientUid);
+  } catch {
+    throw new HttpsError("not-found", "حساب المستلم غير موجود.");
+  }
+  if (recipientAuth.disabled === true || !Array.isArray(recipientAuth.providerData) ||
+      recipientAuth.providerData.length === 0 ||
+      recipientAuth.providerData.every((provider) => provider.providerId === "anonymous")) {
+    throw new HttpsError("permission-denied", "لا يمكن إهداء المزايا إلى حساب زائر.");
+  }
+
+  const senderRef = db.collection("users").doc(senderUid);
   const recipientRef = db.collection("users").doc(recipientUid);
   const itemRef = db.collection("storeCatalog").doc(itemId);
-  const giftId = createHash("sha256").update(`mawdda-store-gift-v1:${giverUid}:${recipientUid}:${requestId}`).digest("hex");
+  const giftId = createHash("sha256")
+    .update("mawdda-store-gift-v1:" + senderUid + ":" + requestId)
+    .digest("hex");
   const giftRef = db.collection("storeGifts").doc(giftId);
-  const giverLedgerRef = giverRef.collection("walletLedger").doc(`gift_${giftId}`);
-  const recipientLedgerRef = recipientRef.collection("entitlementGiftLedger").doc(giftId);
-  const entitlementRef = recipientRef.collection("entitlements").doc(itemId);
+  const senderLedgerRef = senderRef.collection("walletLedger").doc("gift_" + giftId);
+  const recipientEntitlementRef = recipientRef.collection("entitlements").doc(itemId);
+  const recipientHistoryRef = recipientRef.collection("giftHistory").doc(giftId);
+  const recipientNotificationRef = recipientRef.collection("notifications").doc("gift_" + giftId);
+  const senderGuestProfileRef = db.collection("guestProfiles").doc(senderUid);
+  const senderGuestSessionRef = db.collection("guestSessions").doc(senderUid);
+  const recipientGuestProfileRef = db.collection("guestProfiles").doc(recipientUid);
+  const recipientGuestSessionRef = db.collection("guestSessions").doc(recipientUid);
 
   return db.runTransaction(async (transaction) => {
-    const [giver, recipient, itemSnapshot, priorGift, priorEntitlement] = await Promise.all([
-      transaction.get(giverRef),
+    const [
+      sender, recipient, itemSnapshot, priorGift, priorLedger, priorEntitlement,
+      senderGuestProfile, senderGuestSession, recipientGuestProfile, recipientGuestSession,
+    ] = await Promise.all([
+      transaction.get(senderRef),
       transaction.get(recipientRef),
       transaction.get(itemRef),
       transaction.get(giftRef),
-      transaction.get(entitlementRef),
+      transaction.get(senderLedgerRef),
+      transaction.get(recipientEntitlementRef),
+      transaction.get(senderGuestProfileRef),
+      transaction.get(senderGuestSessionRef),
+      transaction.get(recipientGuestProfileRef),
+      transaction.get(recipientGuestSessionRef),
     ]);
 
     if (priorGift.exists) {
       const prior = priorGift.data() ?? {};
-      if (prior.giverUid !== giverUid || prior.recipientUid !== recipientUid ||
-          prior.itemId !== itemId || prior.expectedPriceCoins !== expectedPriceCoins) {
-        throw new HttpsError("already-exists", "معرف الإهداء مستخدم لعملية أخرى.");
+      if (!isStoreGiftReplayCompatible(prior, {
+        senderUid, recipientUid, itemId, expectedPriceCoins,
+      })) {
+        throw new HttpsError("already-exists", "معرف طلب الإهداء مستخدم لعملية أخرى أو بسعر مختلف.");
       }
       return {
         giftId, itemId, recipientUid,
         priceCoins: prior.priceCoins,
+        newBalance: prior.newBalance,
         expiresAt: prior.expiresAt instanceof Timestamp ? prior.expiresAt.toMillis() : null,
         idempotentReplay: true,
       };
     }
-
-    if (!giver.exists || giver.data()?.profileCompleted !== true ||
-        !isMemberAccountInGoodStanding(giver.data()) ||
-        !recipient.exists || recipient.data()?.profileCompleted !== true ||
-        !isMemberAccountInGoodStanding(recipient.data())) {
-      throw new HttpsError("permission-denied", "حالة أحد الحسابين لا تسمح بالإهداء.");
+    if (priorLedger.exists) {
+      throw new HttpsError("failed-precondition", "تعارض سجل المحفظة مع طلب الإهداء؛ أوقفنا العملية للحماية.");
     }
-    if (!itemSnapshot.exists) throw new HttpsError("not-found", "عنصر المتجر غير موجود.");
+    if (senderUid === recipientUid) {
+      throw new HttpsError("failed-precondition", "اختر عضواً آخر لإرسال الهدية.");
+    }
+    if (!sender.exists || !isEligibleStoreGiftMemberRecord(sender.data()) ||
+        !isMemberAccountInGoodStanding(sender.data()) ||
+        senderGuestProfile.exists || senderGuestSession.exists) {
+      throw new HttpsError("permission-denied", "حساب المرسل غير مؤهل لإهداء المتجر.");
+    }
+    if (!recipient.exists || !isEligibleStoreGiftMemberRecord(recipient.data()) ||
+        !isMemberAccountInGoodStanding(recipient.data()) ||
+        recipientGuestProfile.exists || recipientGuestSession.exists) {
+      throw new HttpsError("permission-denied", "المستلم يجب أن يكون عضواً مسجلاً ومؤهلاً، ولا تقبل حسابات الزوار الهدايا.");
+    }
+    if (!itemSnapshot.exists) {
+      throw new HttpsError("not-found", "عنصر المتجر غير موجود.");
+    }
     const item = projectStoreCatalogItem(itemId, itemSnapshot.data() ?? {});
     if (!item || !isStoreItemPurchasable(item)) {
-      throw new HttpsError("failed-precondition", "هذا العنصر غير متاح للإهداء.");
+      throw new HttpsError("failed-precondition", "هذا العنصر غير منشور أو لم يكتمل تنفيذ استحقاقه.");
     }
     if (!isStorePurchasePriceCurrent(expectedPriceCoins, item.priceCoins)) {
-      throw new HttpsError("failed-precondition", "تغير سعر العنصر؛ حدّث المتجر قبل تأكيد الإهداء.");
+      throw new HttpsError("failed-precondition", "تغير سعر العنصر؛ حدّث المتجر وراجع السعر قبل الإهداء.");
     }
 
-    const recipientExisting = priorEntitlement.data() ?? {};
-    if (priorEntitlement.exists && isStoreEntitlementActive(recipientExisting)) {
-      const existingExpiry = recipientExisting.expiresAt;
-      const existingPermanent = existingExpiry === null || existingExpiry === undefined;
-      if (existingPermanent && !item.durationDays) {
-        throw new HttpsError("already-exists", "يمتلك المستفيد هذه الميزة الدائمة بالفعل.");
-      }
-    }
-
-    const giverBalance = giver.data()?.coins ?? 0;
-    const newGiverBalance = calculateStorePurchaseBalance(giverBalance, item.priceCoins);
-    if (newGiverBalance === null) {
-      throw new HttpsError("failed-precondition", "رصيد Beta Coins غير كافٍ للإهداء.");
+    const senderData = sender.data() ?? {};
+    const newBalance = calculateStorePurchaseBalance(senderData.coins ?? 0, item.priceCoins);
+    if (newBalance === null) {
+      throw new HttpsError("failed-precondition", "رصيد BetaCoins غير كافٍ أو غير صالح.");
     }
 
     const nowMs = Date.now();
-    const existingExpiry = recipientExisting.expiresAt;
-    const existingExpiryMs = existingExpiry instanceof Timestamp
-      ? existingExpiry.toMillis()
-      : typeof existingExpiry?.toMillis === "function" ? existingExpiry.toMillis() : 0;
-    const expiryBaseMs = Math.max(nowMs, existingExpiryMs);
-    const expiresAt = item.durationDays
-      ? Timestamp.fromMillis(expiryBaseMs + item.durationDays * 24 * 60 * 60 * 1000)
-      : null;
+    const currentEntitlement = priorEntitlement.data() ?? {};
+    let expirySource: Record<string, unknown> = currentEntitlement;
+    if (item.category === "boost") {
+      const recipientBoostExpiry = recipient.data()?.discoveryBoostExpiresAt;
+      const boostExpiryMs = recipientBoostExpiry instanceof Timestamp
+        ? recipientBoostExpiry.toMillis()
+        : typeof recipientBoostExpiry?.toMillis === "function"
+          ? recipientBoostExpiry.toMillis() : 0;
+      const entitlementExpiryMs = currentEntitlement.expiresAt instanceof Timestamp
+        ? currentEntitlement.expiresAt.toMillis()
+        : typeof currentEntitlement.expiresAt?.toMillis === "function"
+          ? currentEntitlement.expiresAt.toMillis() : 0;
+      expirySource = {
+        ...currentEntitlement,
+        status: currentEntitlement.status === "active" ? "active" :
+          boostExpiryMs > nowMs ? "active" : currentEntitlement.status,
+        expiresAt: boostExpiryMs > entitlementExpiryMs
+          ? Timestamp.fromMillis(boostExpiryMs) : currentEntitlement.expiresAt,
+      };
+    }
+    const expiresAtMs = calculateStoreGiftExpiryMs(expirySource, item.durationDays, nowMs);
+    const expiresAt = expiresAtMs === null ? null : Timestamp.fromMillis(expiresAtMs);
     const createdAt = FieldValue.serverTimestamp();
 
-    transaction.update(giverRef, { coins: newGiverBalance, updatedAt: createdAt });
+    transaction.update(senderRef, { coins: newBalance, updatedAt: createdAt });
     transaction.create(giftRef, {
-      giftId, requestId, giverUid, recipientUid, itemId,
+      giftId, requestId, senderUid, recipientUid, itemId,
       itemName: item.name, category: item.category,
-      expectedPriceCoins, priceCoins: item.priceCoins,
-      durationDays: item.durationDays ?? null,
-      expiresAt, status: "completed", createdAt,
+      priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
+      newBalance, expiresAt, status: "completed", createdAt,
     });
-    transaction.create(giverLedgerRef, {
-      type: "store_gift_sent", direction: "debit",
-      amount: -item.priceCoins, giftId, recipientUid, itemId,
-      itemName: item.name, createdAt,
+    transaction.create(senderLedgerRef, {
+      type: "store_gift", direction: "debit", amount: -item.priceCoins,
+      giftId, recipientUid, itemId, itemName: item.name, createdAt,
     });
-    transaction.create(recipientLedgerRef, {
-      type: "store_gift_received", direction: "credit",
-      amount: 0, giftId, giverUid, itemId,
-      itemName: item.name, durationDays: item.durationDays ?? null,
-      expiresAt, createdAt,
-    });
-    transaction.set(entitlementRef, {
+    transaction.set(recipientEntitlementRef, {
       itemId, itemName: item.name, category: item.category,
-      status: "active", grantSource: "member_gift",
-      giftId, giftedBy: giverUid, giftedAt: createdAt,
-      expiresAt,
-      updatedAt: createdAt,
+      status: "active", giftId, giftedByUid: senderUid,
+      purchasedAt: createdAt, giftedAt: createdAt, expiresAt,
+    }, { merge: true });
+    transaction.create(recipientHistoryRef, {
+      giftId, senderUid, itemId, itemName: item.name,
+      category: item.category, priceCoins: item.priceCoins,
+      durationDays: item.durationDays ?? null, expiresAt,
+      status: "received", createdAt,
     });
+    transaction.create(recipientNotificationRef, {
+      notificationId: "gift_" + giftId, type: "store_gift_received",
+      senderUid, giftId, itemId, itemName: item.name,
+      title: "وصلتك هدية من متجر مودة",
+      body: "أهداك أحد الأعضاء ميزة: " + item.name,
+      isRead: false, createdAt,
+    });
+    const recipientUpdate: Record<string, unknown> = { updatedAt: createdAt };
+    if (item.category === "boost" && expiresAt) {
+      recipientUpdate.discoveryBoostExpiresAt = expiresAt;
+      recipientUpdate.discoveryBoostGiftId = giftId;
+    }
+    if (Object.keys(recipientUpdate).length > 1) transaction.update(recipientRef, recipientUpdate);
 
     return {
       giftId, itemId, recipientUid, priceCoins: item.priceCoins,
-      newGiverBalance, expiresAt: expiresAt?.toMillis() ?? null,
+      newBalance, expiresAt: expiresAt?.toMillis() ?? null,
       idempotentReplay: false,
     };
   });
 });
 
+/** Members can read only the gift history delivered to their own account. */
+
+export const getMyStoreGiftHistory = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const member = await db.collection("users").doc(uid).get();
+  if (!member.exists || member.data()?.profileCompleted !== true ||
+      !isMemberAccountInGoodStanding(member.data())) {
+    throw new HttpsError("permission-denied", "سجل الهدايا متاح للأعضاء المسجلين فقط.");
+  }
+  const memberRef = db.collection("users").doc(uid);
+  const [storeGifts, coinPackageGifts] = await Promise.all([
+    memberRef.collection("giftHistory").orderBy("createdAt", "desc").limit(50).get(),
+    memberRef.collection("coinPackageGiftHistory").orderBy("createdAt", "desc").limit(50).get(),
+  ]);
+  const entries = [
+    ...storeGifts.docs.map((document) => {
+      const data = document.data();
+      return {
+        giftKind: "store_feature", giftId: data.giftId, senderUid: data.senderUid,
+        itemId: data.itemId, itemName: data.itemName, category: data.category,
+        priceCoins: data.priceCoins, durationDays: data.durationDays,
+        expiresAtMs: data.expiresAt instanceof Timestamp ? data.expiresAt.toMillis() : null,
+        createdAtMs: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : null,
+        status: data.status,
+      };
+    }),
+    ...coinPackageGifts.docs.map((document) => {
+      const data = document.data();
+      return {
+        giftKind: "coin_package", giftId: data.giftId, senderUid: data.senderUid,
+        itemName: data.packageName, coins: data.coins, priceMinor: data.priceMinor,
+        currency: data.currency, expiresAtMs: null,
+        createdAtMs: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : null,
+        status: "credited",
+      };
+    }),
+  ].sort((a, b) => (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0)).slice(0, 50);
+  return { entries };
+});
 
 /**
  * Grants a free store entitlement to one member. Each target/request pair is
  * idempotent; a new request deliberately extends an existing timed entitlement.
  */
+
 async function executeOwnerEntitlementGrant(
   actorUid: string,
   targetUid: string,
@@ -7395,19 +7503,52 @@ export const getAvailableCoinPackages = onCall(async () => {
 /** Member requests a fixed package or a negotiated custom coin quantity. No coins are issued here. */
 export const createCoinPurchaseRequest = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
+  const firebaseIdentity = request.auth?.token.firebase;
+  if (firebaseIdentity && typeof firebaseIdentity === "object" &&
+      (firebaseIdentity as Record<string, unknown>).sign_in_provider === "anonymous") {
+    throw new HttpsError("permission-denied", "شراء باقات BetaCoins وإهداؤها متاح للأعضاء المسجلين فقط.");
+  }
   let input;
   try { input = validateCoinPurchaseRequestInput(request.data); }
-  catch { throw new HttpsError("invalid-argument", "بيانات طلب شراء الكوينز غير صالحة."); }
+  catch { throw new HttpsError("invalid-argument", "بيانات طلب شراء الBetaCoins غير صالحة."); }
   const userRef = db.collection("users").doc(uid);
+  const giftRecipientUid = input.giftRecipientUid;
+  if (giftRecipientUid === uid) throw new HttpsError("failed-precondition", "لا يمكن إهداء باقة إلى حسابك نفسه.");
+  const recipientRef = giftRecipientUid ? db.collection("users").doc(giftRecipientUid) : null;
+  const guestProfileRef = giftRecipientUid ? db.collection("guestProfiles").doc(giftRecipientUid) : null;
+  const guestSessionRef = giftRecipientUid ? db.collection("guestSessions").doc(giftRecipientUid) : null;
   const settingsRef = db.doc("platformSettings/economyPricing");
   const requestRef = db.collection("coinPurchaseRequests").doc(`${uid}_${input.requestId}`);
+  if (giftRecipientUid) {
+    let recipientAuth: UserRecord;
+    try { recipientAuth = await getAuth().getUser(giftRecipientUid); }
+    catch { throw new HttpsError("permission-denied", "تعذر التحقق من حساب مستلم الباقة."); }
+    if (recipientAuth.disabled || !recipientAuth.providerData.length ||
+        recipientAuth.providerData.every((provider) => provider.providerId === "anonymous")) {
+      throw new HttpsError("permission-denied", "حساب الزائر لا يمكنه استلام باقة مهداة.");
+    }
+  }
   const result = await db.runTransaction(async (transaction) => {
-    const [user, settings, existing] = await Promise.all([
-      transaction.get(userRef), transaction.get(settingsRef), transaction.get(requestRef),
+    const [user, settings, existing, recipient, guestProfile, guestSession] = await Promise.all([
+      transaction.get(userRef),
+      transaction.get(settingsRef),
+      transaction.get(requestRef),
+      recipientRef ? transaction.get(recipientRef) : Promise.resolve(null),
+      guestProfileRef ? transaction.get(guestProfileRef) : Promise.resolve(null),
+      guestSessionRef ? transaction.get(guestSessionRef) : Promise.resolve(null),
     ]);
     if (!user.exists || user.data()?.profileCompleted !== true ||
         !isMemberAccountInGoodStanding(user.data())) {
       throw new HttpsError("permission-denied", "يجب أن يكون حساب العضو مكتملاً ونشطاً.");
+    }
+    if (giftRecipientUid) {
+      const recipientData = recipient?.data();
+      if (!recipient?.exists || !isMemberAccountInGoodStanding(recipientData) ||
+          recipientData?.profileCompleted !== true ||
+          guestProfile?.exists || guestSession?.exists) {
+        throw new HttpsError("permission-denied", "المستلم ليس عضواً مؤهلاً لاستلام باقة الBetaCoins.");
+      }
+
     }
     const economy = settings.data() ?? {};
     if (economy.manualCoinPurchasesEnabled === false || economy.automatedCoinCheckoutEnabled === true) {
@@ -7418,7 +7559,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
     if (input.kind === "package") {
       let packages;
       try { packages = validateCoinPackages(economy.coinPackages ?? DEFAULT_COIN_PACKAGES); }
-      catch { throw new HttpsError("failed-precondition", "قائمة باقات الكوينز غير صالحة."); }
+      catch { throw new HttpsError("failed-precondition", "قائمة باقات الBetaCoins غير صالحة."); }
       const selected = packages.find((item) => item.packageId === input.packageId && item.active);
       if (!selected) throw new HttpsError("not-found", "الباقة غير متاحة حالياً.");
       packageSnapshot = { ...selected };
@@ -7430,7 +7571,8 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       const prior = existing.data() ?? {};
       if (prior.requesterUid !== uid || prior.kind !== input.kind ||
           prior.packageId !== (input.packageId ?? null) ||
-          prior.requestedCoins !== requestedCoins) {
+          prior.requestedCoins !== requestedCoins ||
+          (prior.giftRecipientUid ?? null) !== (giftRecipientUid ?? null)) {
         throw new HttpsError("already-exists", "معرف الطلب مستخدم لطلب مختلف.");
       }
       return { requestId: input.requestId, status: prior.status, idempotentReplay: true };
@@ -7438,6 +7580,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
     transaction.create(requestRef, {
       requestId: input.requestId, requesterUid: uid, kind: input.kind,
       packageId: input.packageId ?? null, packageSnapshot,
+      giftRecipientUid: giftRecipientUid ?? null,
       requestedCoins, status: "pending_owner_contact",
       paymentChannel: "manual_owner_contact", currency: "EUR",
       createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
@@ -7448,6 +7591,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
 });
 
 /** Member can inspect only their own manual purchase requests. */
+
 export const getMyCoinPurchaseRequests = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const snapshot = await db.collection("coinPurchaseRequests")
@@ -7496,6 +7640,14 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
     }
     const prior = snapshot.data()!;
+    if (prior.giftRecipientUid) {
+      const packageSnapshot = prior.packageSnapshot as Record<string, unknown> | null;
+      if (!packageSnapshot || input.agreedCoins !== packageSnapshot.coins ||
+          input.agreedPriceMinor !== packageSnapshot.priceMinor ||
+          input.currency !== (packageSnapshot.currency ?? "EUR")) {
+        throw new HttpsError("failed-precondition", "لا يمكن تغيير كمية أو سعر الباقة المحددة كهدية؛ يجب اعتماد شروط الباقة التي اختارها المرسل.");
+      }
+    }
     if (["approved", "rejected", "withdrawn"].includes(String(prior.status))) {
       throw new HttpsError("failed-precondition", "لا يمكن تعديل طلب منتهٍ.");
     }
@@ -7516,12 +7668,12 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       participantUids: [actorUid, requesterUid].sort(),
       createdAt: chatSnapshot.exists ? chatSnapshot.data()?.createdAt ?? now : now,
       lastMessageAt: now, lastMessageId: messageId, lastMessageSenderUid: actorUid,
-      lastMessagePreview: "أرسل مالك المنصة تعليمات دفع طلب الكوينز.",
+      lastMessagePreview: "أرسل مالك المنصة تعليمات دفع طلب الBetaCoins.",
     }, { merge: true });
     if (!existingMessage.exists) {
       transaction.create(messageRef, {
         messageId, chatId, senderUid: actorUid, recipientUid: requesterUid,
-        text: "تعليمات الدفع لطلب شراء الكوينز رقم " + input.requestId +
+        text: "تعليمات الدفع لطلب شراء الBetaCoins رقم " + input.requestId +
           "\nالكمية المتفق عليها: " + input.agreedCoins + " كوين" +
           "\nالسعر: " + (input.agreedPriceMinor / 100).toFixed(2) + " EUR" +
           "\nالتعليمات: " + input.instructions,
@@ -7533,7 +7685,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     transaction.set(notificationRef, {
       notificationId, type: "coin_purchase_payment_instructions", senderUid: actorUid,
       chatId, messageId, title: "تعليمات دفع من مالك مودة",
-      body: "أرسل مالك المنصة تعليمات الدفع لطلب الكوينز. افتح المحادثة للاطلاع عليها.",
+      body: "أرسل مالك المنصة تعليمات الدفع لطلب الBetaCoins. افتح المحادثة للاطلاع عليها.",
       isRead: false, createdAt: now,
     });
     transaction.update(ref, {
@@ -7551,12 +7703,13 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     });
   });
   await sendPushToMember(requesterUid, "تعليمات دفع من مالك مودة",
-    "أرسل مالك المنصة تعليمات الدفع لطلب الكوينز. افتح المحادثة للاطلاع عليها.",
+    "أرسل مالك المنصة تعليمات الدفع لطلب الBetaCoins. افتح المحادثة للاطلاع عليها.",
     { type: "coin_purchase_payment_instructions", chatId, messageId });
   return { requestId: input.requestId, status: "payment_instructions_sent", chatId, messageId };
 });
 
 /** Only the owner can attest to external receipt; approval atomically credits coins and ledger. */
+
 export const approveCoinPurchaseRequest = onCall(async (request) => {
   const actorUid = requireOwner(request);
   let input;
@@ -7571,27 +7724,70 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
   if (typeof requesterUid !== "string" || requesterUid.length < 1 || requesterUid.length > 128 ||
       requesterUid === actorUid) throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
   const requestRef = db.collection("coinPurchaseRequests").doc(`${requesterUid}_${input.requestId}`);
-  const userRef = db.collection("users").doc(requesterUid);
-  const ledgerId = `coin_purchase_${input.requestId}`;
-  const ledgerRef = userRef.collection("walletLedger").doc(ledgerId);
   const auditRef = db.collection("adminAuditLogs").doc(`coin_purchase_approval_${requesterUid}_${input.requestId}`);
+  const preflightPurchase = await requestRef.get();
+  if (!preflightPurchase.exists || preflightPurchase.data()?.requesterUid !== requesterUid) {
+    throw new HttpsError("not-found", "طلب الشراء غير موجود.");
+  }
+  const preflightTargetUid = typeof preflightPurchase.data()?.giftRecipientUid === "string"
+    ? preflightPurchase.data()!.giftRecipientUid as string : requesterUid;
+  if (preflightTargetUid !== requesterUid && preflightPurchase.data()?.status !== "approved") {
+    let recipientAuth: UserRecord;
+    try { recipientAuth = await getAuth().getUser(preflightTargetUid); }
+    catch { throw new HttpsError("permission-denied", "تعذر التحقق من حساب مستلم الباقة."); }
+    if (recipientAuth.disabled || !recipientAuth.providerData.length ||
+        recipientAuth.providerData.every((provider) => provider.providerId === "anonymous")) {
+      throw new HttpsError("permission-denied", "حساب الزائر لا يمكنه استلام باقة مهداة.");
+    }
+  }
+  let notifyRecipientUid: string | null = null;
   const result = await db.runTransaction(async (transaction) => {
-    const [purchase, user, ledger] = await Promise.all([
-      transaction.get(requestRef), transaction.get(userRef), transaction.get(ledgerRef),
-    ]);
+    const purchase = await transaction.get(requestRef);
     if (!purchase.exists || purchase.data()?.requesterUid !== requesterUid) {
       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
     }
     const data = purchase.data()!;
-    if (data.status === "approved") return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null };
+    const targetUid = typeof data.giftRecipientUid === "string" ? data.giftRecipientUid : requesterUid;
+    if (targetUid !== preflightTargetUid) throw new HttpsError("aborted", "تغير مستلم طلب الباقة؛ أعد المحاولة.");
+    if (targetUid === actorUid || targetUid === requesterUid && data.giftRecipientUid) {
+      throw new HttpsError("failed-precondition", "مستلم باقة الهدية غير صالح.");
+    }
+    const userRef = db.collection("users").doc(targetUid);
+    const ledgerId = `coin_purchase_${input.requestId}`;
+    const ledgerRef = userRef.collection("walletLedger").doc(ledgerId);
+    const giftRef = db.collection("coinPackageGifts").doc(`${requesterUid}_${input.requestId}`);
+    const historyRef = userRef.collection("coinPackageGiftHistory").doc(input.requestId);
+    const notificationRef = userRef.collection("notifications").doc(`coin_package_gift_${input.requestId}`);
+    const [user, ledger, guestProfile, guestSession] = await Promise.all([
+      transaction.get(userRef),
+      transaction.get(ledgerRef),
+      data.giftRecipientUid
+        ? transaction.get(db.collection("guestProfiles").doc(targetUid))
+        : Promise.resolve(null),
+      data.giftRecipientUid
+        ? transaction.get(db.collection("guestSessions").doc(targetUid))
+        : Promise.resolve(null),
+    ]);
+    if (data.status === "approved") {
+      return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null, creditedToUid: targetUid };
+    }
     if (data.status !== "payment_instructions_sent") {
       throw new HttpsError("failed-precondition", "لا يمكن اعتماد الطلب قبل إرسال تعليمات الدفع.");
     }
-    if (!user.exists || !isMemberAccountInGoodStanding(user.data())) {
-      throw new HttpsError("permission-denied", "حساب العضو غير مؤهل لاستلام الكوينز.");
+    if (!user.exists || !isMemberAccountInGoodStanding(user.data()) ||
+        user.data()?.profileCompleted !== true ||
+        (data.giftRecipientUid && (guestProfile?.exists || guestSession?.exists))) {
+      throw new HttpsError("permission-denied", "حساب مستلم الBetaCoins غير مؤهل.");
     }
+
     if (ledger.exists) throw new HttpsError("already-exists", "يوجد سجل مالي سابق لهذا الطلب؛ يلزم تدقيقه.");
     const coins = data.agreedCoins;
+    if (data.giftRecipientUid && (!data.packageSnapshot ||
+        coins !== data.packageSnapshot.coins ||
+        data.agreedPriceMinor !== data.packageSnapshot.priceMinor ||
+        (data.currency ?? "EUR") !== (data.packageSnapshot.currency ?? "EUR"))) {
+      throw new HttpsError("failed-precondition", "شروط باقة الهدية تغيرت عن الباقة التي اختارها المرسل.");
+    }
     if (!Number.isSafeInteger(coins) || coins < 1 || coins > 1000000000) {
       throw new HttpsError("failed-precondition", "الكمية المتفق عليها غير صالحة.");
     }
@@ -7602,30 +7798,67 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
     const now = FieldValue.serverTimestamp();
     transaction.update(userRef, { coins: oldBalance + coins, walletUpdatedAt: now });
     transaction.create(ledgerRef, {
-      type: "coin_purchase_manual_credit", amount: coins, balanceBefore: oldBalance,
-      balanceAfter: oldBalance + coins, purchaseRequestId: input.requestId,
-      externalPaymentReference: input.externalPaymentReference,
+      type: data.giftRecipientUid ? "coin_package_gift_credit" : "coin_purchase_manual_credit",
+      amount: coins, balanceBefore: oldBalance, balanceAfter: oldBalance + coins,
+      purchaseRequestId: input.requestId, externalPaymentReference: input.externalPaymentReference,
       priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR",
-      actorUid, createdAt: now,
+      actorUid, purchaserUid: requesterUid, giftedByUid: data.giftRecipientUid ? requesterUid : null,
+      createdAt: now,
     });
     transaction.update(requestRef, {
       status: "approved", externalPaymentVerified: true,
       externalPaymentReference: input.externalPaymentReference,
       verificationNote: input.verificationNote, verifiedBy: actorUid,
-      verifiedAt: now, creditedCoins: coins, updatedAt: now,
+      verifiedAt: now, creditedCoins: coins, creditedToUid: targetUid, updatedAt: now,
     });
     transaction.create(auditRef, {
-      actorUid, targetUid: requesterUid, action: "coin_purchase_manually_verified_and_approved",
+      actorUid, targetUid, purchaserUid: requesterUid,
+      action: data.giftRecipientUid ? "coin_package_gift_manually_verified_and_approved" :
+        "coin_purchase_manually_verified_and_approved",
       requestId: input.requestId, externalPaymentReference: input.externalPaymentReference,
       verificationNote: input.verificationNote, creditedCoins: coins,
       priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR", createdAt: now,
     });
-    return { status: "approved", idempotentReplay: false, newBalance: oldBalance + coins };
+    if (data.giftRecipientUid) {
+      transaction.create(giftRef, {
+        giftId: giftRef.id, senderUid: requesterUid, recipientUid: targetUid,
+        packageId: data.packageId, packageSnapshot: data.packageSnapshot ?? null,
+        coins, priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR",
+        purchaseRequestId: input.requestId, status: "credited",
+        creditedByOwnerUid: actorUid, createdAt: now,
+      });
+      transaction.create(historyRef, {
+        giftId: giftRef.id, senderUid: requesterUid, packageId: data.packageId,
+        packageName: (data.packageSnapshot as Record<string, unknown> | null)?.name ?? "باقة BetaCoins",
+        coins, priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR",
+        purchaseRequestId: input.requestId, createdAt: now,
+      });
+      transaction.create(notificationRef, {
+        notificationId: notificationRef.id, type: "coin_package_gift_received",
+        senderUid: requesterUid, title: "وصلتك هدية BetaCoins",
+        body: `تمت إضافة ${coins} BetaCoins إلى محفظتك كهدية.`,
+        isRead: false, createdAt: now,
+      });
+      notifyRecipientUid = targetUid;
+    }
+    return { status: "approved", idempotentReplay: false, newBalance: oldBalance + coins, creditedToUid: targetUid };
   });
+  if (notifyRecipientUid && !result.idempotentReplay) {
+    try {
+      await sendPushToMember(notifyRecipientUid, "وصلتك هدية BetaCoins",
+        "تمت إضافة باقة BetaCoins إلى محفظتك كهدية.", { type: "coin_package_gift_received" });
+    } catch (error) {
+      logger.warn("Coin package gift push notification failed after committed settlement", {
+        recipientUid: notifyRecipientUid, requestId: input.requestId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
   return result;
 });
 
 /** Owner rejection requires a bounded reason and never modifies a wallet. */
+
 export const rejectCoinPurchaseRequest = onCall(async (request) => {
   const actorUid = requireOwner(request);
   const requesterUid = request.data?.requesterUid;
