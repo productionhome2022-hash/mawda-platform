@@ -27,9 +27,9 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
   bool _uploadingCreative = false;
   bool _loading = true, _saving = false;
   bool _hourlyEnabled = false, _dailyEnabled = false, _weeklyEnabled = false;
-  final _hourlyCoins = TextEditingController(text: '0');
-  final _dailyCoins = TextEditingController(text: '0');
-  final _weeklyCoins = TextEditingController(text: '0');
+  final _hourlyBeta Coins = TextEditingController(text: '0');
+  final _dailyBeta Coins = TextEditingController(text: '0');
+  final _weeklyBeta Coins = TextEditingController(text: '0');
   int _policyVersion = 0;
   DateTime _startsAt = DateTime.now();
   DateTime _endsAt = DateTime.now().add(const Duration(days: 7));
@@ -45,7 +45,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
   void dispose() {
     _title.dispose(); _sponsor.dispose(); _body.dispose();
     _duration.dispose(); _reward.dispose(); _budget.dispose(); _maxClaims.dispose();
-    _hourlyCoins.dispose(); _dailyCoins.dispose(); _weeklyCoins.dispose();
+    _hourlyBeta Coins.dispose(); _dailyBeta Coins.dispose(); _weeklyBeta Coins.dispose();
     super.dispose();
   }
 
@@ -75,9 +75,9 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
         _hourlyEnabled = (policy['hourly'] as Map?)?['enabled'] == true;
         _dailyEnabled = (policy['daily'] as Map?)?['enabled'] == true;
         _weeklyEnabled = (policy['weekly'] as Map?)?['enabled'] == true;
-        _hourlyCoins.text = ((policy['hourly'] as Map?)?['amountCoins'] ?? 0).toString();
-        _dailyCoins.text = ((policy['daily'] as Map?)?['amountCoins'] ?? 0).toString();
-        _weeklyCoins.text = ((policy['weekly'] as Map?)?['amountCoins'] ?? 0).toString();
+        _hourlyBeta Coins.text = ((policy['hourly'] as Map?)?['amountBeta Coins'] ?? 0).toString();
+        _dailyBeta Coins.text = ((policy['daily'] as Map?)?['amountBeta Coins'] ?? 0).toString();
+        _weeklyBeta Coins.text = ((policy['weekly'] as Map?)?['amountBeta Coins'] ?? 0).toString();
         _campaigns = campaigns;
         _approvedCreatives = approvedCreatives;
         if (_selectedMediaId != null && !approvedCreatives.any((item) => item['mediaId'] == _selectedMediaId)) {
@@ -99,7 +99,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
   }
 
   Future<void> _saveAttendancePolicy() async {
-    final hourly = _amount(_hourlyCoins), daily = _amount(_dailyCoins), weekly = _amount(_weeklyCoins);
+    final hourly = _amount(_hourlyBeta Coins), daily = _amount(_dailyBeta Coins), weekly = _amount(_weeklyBeta Coins);
     if (hourly == null || daily == null || weekly == null ||
         (_hourlyEnabled && hourly == 0) || (_dailyEnabled && daily == 0) ||
         (_weeklyEnabled && weekly == 0)) {
@@ -110,9 +110,9 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
     try {
       final response = await _functions.httpsCallable('setAttendanceRewardPolicy').call({
         'policy': {
-          'hourly': {'enabled': _hourlyEnabled, 'amountCoins': hourly},
-          'daily': {'enabled': _dailyEnabled, 'amountCoins': daily},
-          'weekly': {'enabled': _weeklyEnabled, 'amountCoins': weekly},
+          'hourly': {'enabled': _hourlyEnabled, 'amountBeta Coins': hourly},
+          'daily': {'enabled': _dailyEnabled, 'amountBeta Coins': daily},
+          'weekly': {'enabled': _weeklyEnabled, 'amountBeta Coins': weekly},
         },
       });
       final data = Map<String, dynamic>.from(response.data as Map);
@@ -208,11 +208,11 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
         'placement': _placement,
         if (_editingCampaignId != null) 'campaignId': _editingCampaignId,
         'durationSeconds': duration,
-        'rewardCoins': reward,
+        'rewardBeta Coins': reward,
         'startsAtMs': _startsAt.millisecondsSinceEpoch,
         'endsAtMs': _endsAt.millisecondsSinceEpoch,
         'maxClaimsPerMember': maxClaims,
-        'rewardBudgetCoins': budget,
+        'rewardBudgetBeta Coins': budget,
         if (_selectedMediaId != null) 'mediaId': _selectedMediaId,
       });
       final data = Map<String, dynamic>.from(response.data as Map);
@@ -242,8 +242,8 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
       _sponsor.text = campaign['sponsorLabel'] as String? ?? '';
       _body.text = campaign['body'] as String? ?? '';
       _duration.text = (campaign['durationSeconds'] ?? 30).toString();
-      _reward.text = (campaign['rewardCoins'] ?? 0).toString();
-      _budget.text = (campaign['rewardBudgetCoins'] ?? 0).toString();
+      _reward.text = (campaign['rewardBeta Coins'] ?? 0).toString();
+      _budget.text = (campaign['rewardBudgetBeta Coins'] ?? 0).toString();
       _maxClaims.text = (campaign['maxClaimsPerMember'] ?? 1).toString();
       _placement = campaign['placement'] == 'home' ? 'home' : 'reward_center';
       _selectedMediaId = campaign['mediaId'] as String?;
@@ -322,15 +322,15 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
             SwitchListTile(
               contentPadding: EdgeInsets.zero, title: const Text('تفعيل مكافأة الحضور الساعي'),
               value: _hourlyEnabled, onChanged: _saving ? null : (v) => setState(() => _hourlyEnabled = v)),
-            _coinField('مبلغ الساعة', _hourlyCoins),
+            _coinField('مبلغ الساعة', _hourlyBeta Coins),
             SwitchListTile(
               contentPadding: EdgeInsets.zero, title: const Text('تفعيل مكافأة الحضور اليومي'),
               value: _dailyEnabled, onChanged: _saving ? null : (v) => setState(() => _dailyEnabled = v)),
-            _coinField('مبلغ اليوم', _dailyCoins),
+            _coinField('مبلغ اليوم', _dailyBeta Coins),
             SwitchListTile(
               contentPadding: EdgeInsets.zero, title: const Text('تفعيل مكافأة الحضور الأسبوعي'),
               value: _weeklyEnabled, onChanged: _saving ? null : (v) => setState(() => _weeklyEnabled = v)),
-            _coinField('مبلغ الأسبوع', _weeklyCoins),
+            _coinField('مبلغ الأسبوع', _weeklyBeta Coins),
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: _saving ? null : _saveAttendancePolicy,
@@ -422,7 +422,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
           final status = campaign['status'];
           return Card(child: ListTile(
             title: Text(campaign['title'] as String? ?? id),
-            subtitle: Text('${_statusLabel(status)} • ${campaign['rewardCoins'] ?? 0} كوين • مستخدم ${campaign['spentRewardCoins'] ?? 0} • محجوز ${campaign['reservedRewardCoins'] ?? 0} • الميزانية ${campaign['rewardBudgetCoins'] ?? 0}'),
+            subtitle: Text('${_statusLabel(status)} • ${campaign['rewardBeta Coins'] ?? 0} بيتا كوينز • مستخدم ${campaign['spentRewardBeta Coins'] ?? 0} • محجوز ${campaign['reservedRewardBeta Coins'] ?? 0} • الميزانية ${campaign['rewardBudgetBeta Coins'] ?? 0}'),
             isThreeLine: true,
             trailing: PopupMenuButton<String>(
               enabled: !_saving && status != 'archived',
