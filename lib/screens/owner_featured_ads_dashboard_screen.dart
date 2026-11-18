@@ -334,7 +334,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
                   decoration: const InputDecoration(labelText: 'رمز العملة ISO 4217 مثل EUR')),
               ],
               TextField(controller: externalReference,
-                decoration: const InputDecoration(labelText: 'مرجع الحركة في السجل الخارجي')),
+                decoration: InputDecoration(labelText: isReview ? 'مرجع المراجعة الداخلية' : 'مرجع الحركة في السجل الخارجي')),
               if (needsEvidence)
                 TextField(controller: evidenceReference,
                   decoration: const InputDecoration(labelText: 'مرجع مستند/كشف التحقق')),
