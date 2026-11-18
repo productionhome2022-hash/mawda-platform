@@ -52,7 +52,7 @@ class _ShopScreenState extends State<ShopScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('سيتم خصم $price كوين من محفظتك مقابل "$name"، ومنح الاستحقاق عبر الخادم.'),
+            Text('سيتم خصم $price بيتا كوينز من محفظتك مقابل "$name"، ومنح الاستحقاق عبر الخادم.'),
             if (callPackageNotice != null) ...[
               const SizedBox(height: 12),
               Text(callPackageNotice),
@@ -312,7 +312,7 @@ class _ShopScreenState extends State<ShopScreen> {
                           children: [
                             const Icon(Icons.monetization_on_outlined),
                             const SizedBox(width: 6),
-                            Text('$price كوين'),
+                            Text('$price بيتا كوينز'),
                             if (duration != null) ...[
                               const SizedBox(width: 12),
                               Text('المدة: $duration يوماً'),
