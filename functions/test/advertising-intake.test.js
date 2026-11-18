@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   advertisingIntakeAuditEventId, advertisingIntakeReviewAuditEventId,
-  validateAdvertisingIntake, AdvertisingIntakeValidationError,
+  validateAdvertisingIntake,
 } = require("../lib/advertising-intake");
 
 const validDirectAdvertiserBudget = {
