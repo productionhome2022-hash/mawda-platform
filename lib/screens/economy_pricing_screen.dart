@@ -12,6 +12,9 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
   final _functions = FirebaseFunctions.instance;
   final _audioCallTariff = TextEditingController();
   final _videoCallTariff = TextEditingController();
+  final _emailRewardCoins = TextEditingController(text: '0');
+  final _emailRewardCycleDays = TextEditingController(text: '90');
+  bool _emailRewardEnabled = false;
   List<Map<String, dynamic>> _packages = [];
   List<Map<String, dynamic>> _ads = [];
   bool _loading = true;
@@ -25,6 +28,8 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
   void dispose() {
     _audioCallTariff.dispose();
     _videoCallTariff.dispose();
+    _emailRewardCoins.dispose();
+    _emailRewardCycleDays.dispose();
     super.dispose();
   }
 
@@ -52,6 +57,10 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
         final tariffs = Map<String, dynamic>.from(data['callTariffs'] as Map? ?? const {});
         _audioCallTariff.text = tariffs['audioTotalCoinsPerMinute']?.toString() ?? '';
         _videoCallTariff.text = tariffs['videoTotalCoinsPerMinute']?.toString() ?? '';
+        final emailReward = Map<String, dynamic>.from(data['emailVerificationReward'] as Map? ?? const {});
+        _emailRewardEnabled = emailReward['enabled'] == true;
+        _emailRewardCoins.text = emailReward['rewardCoins']?.toString() ?? '0';
+        _emailRewardCycleDays.text = emailReward['cycleDays']?.toString() ?? '90';
       });
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل إعدادات الاقتصاد.');
@@ -68,7 +77,11 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
     final videoTariff = _videoCallTariff.text.trim().isEmpty ? null : int.tryParse(_videoCallTariff.text.trim());
     final audioInputValid = _audioCallTariff.text.trim().isEmpty || (audioTariff != null && audioTariff > 0 && audioTariff.isEven);
     final videoInputValid = _videoCallTariff.text.trim().isEmpty || (videoTariff != null && videoTariff > 0 && videoTariff.isEven);
-    if (!audioInputValid || !videoInputValid) {
+    final emailReward = int.tryParse(_emailRewardCoins.text.trim());
+    final emailCycleDays = int.tryParse(_emailRewardCycleDays.text.trim());
+    if (!audioInputValid || !videoInputValid || emailReward == null || emailReward < 0 || emailReward > 1000000 ||
+        emailCycleDays == null || emailCycleDays < 1 || emailCycleDays > 3650 ||
+        (_emailRewardEnabled && emailReward < 1)) {
       setState(() => _error = 'تعرفة المكالمة يجب أن تكون رقماً صحيحاً موجباً يقبل القسمة على 2 دون باقٍ، أو اتركها فارغة لإيقاف التعرفة.');
       return;
     }
@@ -80,6 +93,11 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
         'callTariffs': {
           'audioTotalCoinsPerMinute': audioTariff,
           'videoTotalCoinsPerMinute': videoTariff,
+        },
+        'emailVerificationReward': {
+          'enabled': _emailRewardEnabled,
+          'rewardCoins': emailReward,
+          'cycleDays': emailCycleDays,
         },
         'manualCoinPurchasesEnabled': _manualPurchasesEnabled,
         'manualFeaturedAdsEnabled': _manualFeaturedAdsEnabled,
@@ -300,6 +318,25 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
                       const Text('شرط الحفظ: عدد صحيح موجب زوجي فقط؛ لا تقريب ولا كسور ولا توزيع للباقي.'),
                     ],
                   ),
+                ),
+              ),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('مكافأة التحقق من البريد', style: Theme.of(context).textTheme.titleMedium),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('تفعيل مكافأة البريد'),
+                      subtitle: const Text('لا تُمنح أي كوينز تلقائياً ما لم يفعّل المالك المكافأة ويحدد قيمتها.'),
+                      value: _emailRewardEnabled,
+                      onChanged: _saving ? null : (value) => setState(() => _emailRewardEnabled = value),
+                    ),
+                    TextField(controller: _emailRewardCoins, enabled: !_saving, keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'مبلغ المكافأة بالكوينز')),
+                    TextField(controller: _emailRewardCycleDays, enabled: !_saving, keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'مدة دورة التحقق بالأيام')),
+                  ]),
                 ),
               ),
               Card(
