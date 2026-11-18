@@ -10490,6 +10490,9 @@ export const sendCallSignal = onCall(async (request) => {
     const call = snapshot.data()!;
     if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
         !call.participantUids.includes(toUid) ||
+        (call.scope === "room" &&
+          (uid !== call.callerUid && (!Array.isArray(call.acceptedUids) || !call.acceptedUids.includes(uid)) ||
+           toUid !== call.callerUid && (!Array.isArray(call.acceptedUids) || !call.acceptedUids.includes(toUid)))) ||
         (Array.isArray(call.leftUids) && call.leftUids.includes(uid)) ||
         (Array.isArray(call.leftUids) && call.leftUids.includes(toUid)) ||
         (Array.isArray(call.rejectedUids) && call.rejectedUids.includes(uid)) ||
@@ -10551,6 +10554,8 @@ export const getCallSignals = onCall(async (request) => {
   const call = await ref.get();
   if (!call.exists || !Array.isArray(call.data()?.participantUids) ||
       !call.data()!.participantUids.includes(uid) ||
+      (call.data()?.scope === "room" && uid !== call.data()?.callerUid &&
+        (!Array.isArray(call.data()?.acceptedUids) || !call.data()!.acceptedUids.includes(uid))) ||
       (Array.isArray(call.data()?.leftUids) && call.data()!.leftUids.includes(uid)) ||
       (Array.isArray(call.data()?.rejectedUids) && call.data()!.rejectedUids.includes(uid))) {
     throw new HttpsError("permission-denied", "لا تملك صلاحية قراءة إشارات هذه المكالمة.");
@@ -10682,6 +10687,8 @@ export const getCallIceConfiguration = onCall(
     const call = await callRef.get();
     if (!call.exists || !Array.isArray(call.data()?.participantUids) ||
         !call.data()!.participantUids.includes(uid) ||
+        (call.data()?.scope === "room" && uid !== call.data()?.callerUid &&
+          (!Array.isArray(call.data()?.acceptedUids) || !call.data()!.acceptedUids.includes(uid))) ||
         (Array.isArray(call.data()?.leftUids) && call.data()!.leftUids.includes(uid)) ||
         (Array.isArray(call.data()?.rejectedUids) && call.data()!.rejectedUids.includes(uid)) ||
         !["ringing", "accepted"].includes(String(call.data()?.status))) {
