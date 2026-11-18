@@ -63,10 +63,12 @@ test("records payment, partial refund and settlement without allowing over-refun
   const reconciled = applyFeaturedAdFinancialEvent(partiallyRefunded, settlement);
   assert.equal(reconciled.reconciledMinor, 8000);
   assert.equal(reconciled.reviewStatus, "reconciled");
-  assert.throws(() => applyFeaturedAdFinancialEvent(reconciled, validateFeaturedAdFinancialEvent({
+  const laterRefund = applyFeaturedAdFinancialEvent(reconciled, validateFeaturedAdFinancialEvent({
     ...base, idempotencyKey: "finance_operation_0004", action: "refund_recorded",
     amountMinor: 1, currency: "USD",
-  })), /refund_exceeds_unrefunded_receipt|financial_snapshot_inconsistent/);
+  }));
+  assert.equal(laterRefund.reviewStatus, "needs_review");
+  assert.equal(laterRefund.reconciledMinor, 8000);
 });
 
 test("reopens review after refund changes a previously reconciled balance", () => {
