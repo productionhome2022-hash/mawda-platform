@@ -139,7 +139,9 @@ test("owner featured-ad manual payment and refund events persist atomically and 
     assert.equal(payment.financialSnapshot.paymentStatus, "paid");
 
     const replay = await recordOwnerFeaturedAdFinancialEvent.run(
-      ownerRequest("featured-finance-owner", paymentInput),
+      ownerRequest("featured-finance-owner", {
+        ...paymentInput, idempotencyKey: `retry_after_timeout_${suffix()}`,
+      }),
     );
     assert.equal(replay.idempotentReplay, true);
     assert.equal(replay.version, 2);
