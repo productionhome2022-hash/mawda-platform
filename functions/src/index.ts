@@ -7721,11 +7721,16 @@ export const setFeaturedAdCampaignStatus = onCall({ enforceAppCheck: true }, asy
       const policy = policySnapshot.exists
         ? validateFeaturedAdRewardPolicy(policySnapshot.data()?.policy)
         : defaultFeaturedAdRewardPolicy();
+      const financialSnapshot = data.financialSnapshot ?? defaultFeaturedAdFinancialSnapshot();
+      const spentCoins = readSafeInteger(data.spentRewardCoins ?? 0, "featuredSpentRewardCoins");
+      const reservedCoins = readSafeInteger(data.reservedRewardCoins ?? 0, "featuredReservedRewardCoins");
+      const rewardBudget = readSafeInteger(data.rewardBudgetCoins, "featuredRewardBudgetCoins");
       if (data.ownerApproved !== true || data.paymentConfirmed !== true ||
+          financialSnapshot.reviewStatus !== "reconciled" ||
           data.creativeApproved !== true || data.endsAtMs <= Date.now() ||
           data.startsAtMs > data.endsAtMs || !policy.enabled ||
-          data.spentRewardCoins + data.reservedRewardCoins + policy.rewardCoinsPerView >
-            data.rewardBudgetCoins || !["image", "gif"].includes(String(data.creativeType))) {
+          spentCoins + reservedCoins + policy.rewardCoinsPerView > rewardBudget ||
+          !["image", "gif"].includes(String(data.creativeType))) {
         throw new HttpsError("failed-precondition",
           "النشر يتطلب اعتماد المالك والقبض المالي والمادة الآمنة وسياسة مكافآت فعالة وميزانية كافية؛ الفيديو غير متاح حتى اكتمال المشغل.");
       }
