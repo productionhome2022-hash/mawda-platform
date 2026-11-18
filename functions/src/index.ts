@@ -10459,17 +10459,20 @@ export const consentToRoomCallBilling = onCall(async (request) => {
   const callRef = CALL_SESSIONS.doc(callId);
   const joinRequestRef = callRef.collection("joinRequests").doc(uid);
   return db.runTransaction(async (transaction) => {
-    const [snapshot, joinRequestSnapshot] = await Promise.all([
-      transaction.get(callRef), transaction.get(joinRequestRef),
-    ]);
+    const snapshot = await transaction.get(callRef);
     if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
     const call = snapshot.data() ?? {};
     const participants = Array.isArray(call.participantUids) ? call.participantUids as string[] : [];
     const accepted = Array.isArray(call.acceptedUids) ? call.acceptedUids as string[] : [];
+    const joinRequestSnapshot = await transaction.get(joinRequestRef);
     const hasPendingJoinRequest = joinRequestSnapshot.exists &&
       joinRequestSnapshot.data()?.status === "requested";
+    const roomMemberSnapshot = uid === call.callerUid ? null :
+      await transaction.get(db.collection("rooms").doc(String(call.targetId ?? ""))
+        .collection("members").doc(uid));
+    const isRoomMember = roomMemberSnapshot?.exists === true;
     if (call.scope !== "room" ||
-        (uid !== call.callerUid && !accepted.includes(uid) && !hasPendingJoinRequest) ||
+        (uid !== call.callerUid && !accepted.includes(uid) && !hasPendingJoinRequest && !isRoomMember) ||
         (uid === call.callerUid && !participants.includes(uid)) ||
         !["ringing", "accepted"].includes(String(call.status))) {
       throw new HttpsError("permission-denied", "الموافقة المالية متاحة لمنشئ المكالمة أو للمشارك المقبول فقط.");
