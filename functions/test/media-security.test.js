@@ -146,3 +146,20 @@ test("advertisement creatives are limited to owner-uploaded images, GIFs and vid
   assert.equal(mediaUploadAllowedForRole({ contentType: "video/mp4", purpose: "advertisement" }, true), true);
   assert.equal(mediaUploadAllowedForRole({ contentType: "audio/mpeg", purpose: "advertisement" }, true), false);
 });
+
+
+test("sticker uploads are owner-only and obey static/animated byte ceilings", () => {
+  const request = (contentType, sizeBytes) => ({
+    originalName: "sticker", contentType, sizeBytes, purpose: "sticker",
+  });
+  assert.equal(normalizeMediaRequest(request("image/png", 256 * 1024)).purpose, "sticker");
+  assert.equal(normalizeMediaRequest(request("image/webp", 256 * 1024)).purpose, "sticker");
+  assert.equal(normalizeMediaRequest(request("image/gif", 512 * 1024)).purpose, "sticker");
+  assert.throws(() => normalizeMediaRequest(request("image/png", 256 * 1024 + 1)));
+  assert.throws(() => normalizeMediaRequest(request("image/gif", 512 * 1024 + 1)));
+  assert.throws(() => normalizeMediaRequest(request("image/jpeg", 64 * 1024)));
+  assert.equal(mediaUploadAllowedForRole({ contentType: "image/png", purpose: "sticker" }, false), false);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "image/gif", purpose: "sticker" }, false), false);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "image/png", purpose: "sticker" }, true), true);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "image/gif", purpose: "sticker" }, true), true);
+});
