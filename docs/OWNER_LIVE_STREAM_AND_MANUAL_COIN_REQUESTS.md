@@ -166,3 +166,21 @@ For every economic price that is defined as one combined amount and divided equa
 - The caller-only exception continues to charge the caller the full configured combined amount when that exception's eligibility conditions are met; the tariff itself must still satisfy the even-integer validation rule.
 - This restriction is specifically for owner-defined combined prices that are split equally between two parties. It does not impose a blanket even-number restriction on unrelated single-recipient products, fees, rewards or prices.
 - Add positive and negative validation tests: even whole numbers accepted; odd whole numbers, fractional values, non-finite values and negative values rejected. No fractional coin arithmetic or remainder policy is needed for this bilateral split.
+
+
+## 5. Service-scoped manual payment policy (2026-11-18)
+
+The owner economy policy now carries independent manual-payment switches for:
+- `coin_purchases`
+- `featured_ads`
+- `public_ads`
+- `influencer_services`
+- `store_entitlements`
+
+The owner economy screen exposes these switches separately and persists them through the versioned `paymentPolicy` field. The legacy `manualCoinPurchasesEnabled` and `manualFeaturedAdsEnabled` fields remain synchronized for backwards compatibility with existing callable handlers and clients. A supplied service policy must agree with those legacy fields; mismatches are rejected rather than silently choosing one source.
+
+Automated payment remains fail-closed for every service. The policy validator rejects `automatedEnabled: true`; this is intentional until a selected provider has a server-side intent lifecycle, authenticated signed webhooks, amount/currency/order binding, idempotent atomic fulfilment, refund/reversal handling, reconciliation, security review, and explicit owner activation. No provider credentials, production payment activity, or live configuration are introduced by this change.
+
+The policy schema is a configuration foundation, not a claim that every service's end-to-end paid order workflow is complete. In particular, public-ad, influencer-service and store-entitlement manual requests still require their own domain lifecycle and fulfilment integration before their switches may be enabled operationally. Their default remains disabled.
+
+Regression coverage added in `functions/test/economy-payment-policy.test.js` covers legacy migration, independent service flags, unknown services, malformed values, and fail-closed automated checkout. The test is included by the existing `node --test test/*.test.js` command through `npm test`; execution is pending because this pass is limited to repository editing and does not have an available GitHub Actions dispatch/run facility.
