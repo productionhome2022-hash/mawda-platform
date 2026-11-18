@@ -124,12 +124,15 @@ export function applyFeaturedAdFinancialEvent(
       throw new FeaturedAdFinancialValidationError("refund_exceeds_unrefunded_receipt");
     }
     const nextRefunded = refundedMinor + event.amountMinor!;
+    const nextNetReceived = receivedMinor - nextRefunded;
     return {
       currency: current.currency,
       receivedMinor,
       refundedMinor: nextRefunded,
-      reconciledMinor,
-      reviewStatus: reconciledMinor > receivedMinor - nextRefunded ? "needs_review" : "in_review",
+      // Reconciliation is the currently matched net balance, not a cash transfer.
+      // A refund reduces that matched balance and forces a fresh owner review.
+      reconciledMinor: Math.min(reconciledMinor, nextNetReceived),
+      reviewStatus: "needs_review",
       paymentStatus: nextRefunded === receivedMinor ? "refunded" : "partially_refunded",
     };
   }
