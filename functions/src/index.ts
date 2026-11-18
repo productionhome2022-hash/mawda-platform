@@ -8461,7 +8461,15 @@ export const heartbeatFeaturedAdViewingSession = onCall(async (request) => {
     const session = snapshot.data()!;
     if (now - Number(session.startedAtMs) > 30 * 60 * 1000) {
       transaction.update(ref, { status: "expired", updatedAt: FieldValue.serverTimestamp() });
-      throw new HttpsError("deadline-exceeded", "انتهت جلسة مشاهدة الإعلان.");
+      return { expired: true, visibleMs: Number(session.visibleMs) || 0, continuousVisibleMs: 0, progressPercent: Number(session.progressPercent) || 0 };
+    }
+    const campaignRef = featuredAdCampaignRef(String(session.campaignId));
+    const campaignSnapshot = await transaction.get(campaignRef);
+    const campaign = campaignSnapshot.data() ?? {};
+    if (!campaignSnapshot.exists || campaign.status !== "published" || campaign.ownerWithdrawn === true ||
+        campaign.ownerApproved !== true || campaign.paymentConfirmed !== true || campaign.creativeApproved !== true) {
+      transaction.update(ref, { status: "campaign_revoked", updatedAt: FieldValue.serverTimestamp() });
+      return { revoked: true, visibleMs: Number(session.visibleMs) || 0, continuousVisibleMs: 0, progressPercent: Number(session.progressPercent) || 0 };
     }
     const last = Number(session.lastHeartbeatAtMs);
     const elapsed = Math.max(0, Math.min(now - last, 15_000));
@@ -8472,6 +8480,26 @@ export const heartbeatFeaturedAdViewingSession = onCall(async (request) => {
     return { visibleMs, continuousVisibleMs, progressPercent: maxProgress };
   });
 });
+export const endFeaturedAdViewingSession = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const sessionId = typeof request.data?.sessionId === "string" ? request.data.sessionId : "";
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId)) {
+    throw new HttpsError("invalid-argument", "معرف جلسة المشاهدة غير صالح.");
+  }
+  const ref = db.collection("featuredAdViewingSessions").doc(sessionId);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists || snapshot.data()?.uid !== uid) {
+      throw new HttpsError("permission-denied", "جلسة المشاهدة غير مملوكة لهذا العضو.");
+    }
+    if (snapshot.data()?.status === "active") {
+      transaction.update(ref, { status: "abandoned", endedAtMs: Date.now(), updatedAt: FieldValue.serverTimestamp() });
+      return { ended: true };
+    }
+    return { ended: false, status: snapshot.data()?.status ?? "unknown" };
+  });
+});
+
 export const completeFeaturedAdViewingSession = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const sessionId = typeof request.data?.sessionId === "string" ? request.data.sessionId : "";
