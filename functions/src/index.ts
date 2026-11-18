@@ -8144,7 +8144,7 @@ export const getFeaturedAdShowcase = onCall(async (request) => {
       startsAtMs: data.startsAtMs,
       endsAtMs: data.endsAtMs,
       geographicTargets: data.geographicTargets,
-      featuredPlacement: data.featuredPlacement,
+      featuredPlacement: data.featuredPlacement as "rotation" | "priority",
       ...(Number.isSafeInteger(data.priorityOrder) ? { priorityOrder: data.priorityOrder } : {}),
     }];
   });
