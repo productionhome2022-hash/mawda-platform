@@ -241,3 +241,10 @@ For every economic price that is defined as one combined amount and divided equa
 - Renewal completion credits only the amount captured in that cycle's snapshot; disabled snapshots verify the email without a wallet credit or credit ledger row. Verification/audit history records zero-reward completions as well.
 - Added owner controls in the economy pricing screen and unit/emulator regression source for configurable duration, configured reward and disabled/no-credit behavior. Existing email-renewal integration tests now temporarily configure a test policy and restore prior emulator settings. Tests remain unexecuted.
 - Commits: 94ffb0f6d3a18cf8e9f5ce6940dfd18ac1849973, 5a4e4fd47891990b7948e8d209173c6709e6d0cc, 44b429c2c806e71e6df0a5abe030bb8d8a5fddc8, 088a92c76b0d0a0fc2008fa7bc575f811418f94b, bde26a27cecddf7fab6539b59243e83aa1225c10, d8436a4da03345f1f1b8f7ec46449aa8176bf759, a715e98ba6d72e424a5ede26c2794a7a53344741, 2687bc5a59b39b141ec1c81b829dae499bc60e3b, 33d6fa3ffd9e858b2c482ae4539970da5c155454, 4d4d296200894053b10fd63b3b8cbe39e24a6359, b02500b0f2e638fde04a14c3b92ed1b217904310, 1071bb654161e5253a10a8722d885cb3f84c74a9, 3a154ae3348210cd447e78aedef114492234a0ff, 9843943e35f22e9fc99ab91b4b16e24698dd135c.
+
+
+## Coin transfer commission policy concurrency (2026-11-18)
+
+- Owner coin-transfer commission edits now require the current policy version and reject stale updates. The transfer settings transaction increments the version and writes before/after commission and enablement audit data atomically; the Super Admin screen loads and sends the expected version.
+- Added emulator integration coverage for readback, version increment, stale-write rejection and audit row persistence. Not executed.
+- Commits: da5719c65ea10c832e0f08e2b365964395c4577a, 89db6168459ba5a5eaac9a8f5043417fb75f6377, b706a44a9f24358716ecaa3ce8188947d769345b, e2c0a887a4ee2b0e65464395c8a1226320ff9aa9.
