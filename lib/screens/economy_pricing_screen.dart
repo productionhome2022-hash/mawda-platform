@@ -6,128 +6,268 @@ class EconomyPricingScreen extends StatefulWidget {
   @override
   State<EconomyPricingScreen> createState() => _EconomyPricingScreenState();
 }
+
 class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
   final _functions = FirebaseFunctions.instance;
+  final _customMin = TextEditingController();
+  final _customMax = TextEditingController();
   List<Map<String, dynamic>> _packages = [];
   List<Map<String, dynamic>> _ads = [];
-  bool _loading = true, _saving = false;
-  bool _manualPurchasesEnabled = true;
+  bool _loading = true, _saving = false, _manualPurchasesEnabled = false, _configured = false;
   int _version = 0;
   String? _error;
 
   @override
   void initState() { super.initState(); _load(); }
 
+  @override
+  void dispose() { _customMin.dispose(); _customMax.dispose(); super.dispose(); }
+
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
       final result = await _functions.httpsCallable('getOwnerEconomyPricing').call();
       final data = Map<String, dynamic>.from(result.data as Map);
+      final bounds = data['customCoinRequestBounds'] is Map
+          ? Map<String, dynamic>.from(data['customCoinRequestBounds'] as Map)
+          : <String, dynamic>{};
       if (!mounted) return;
       setState(() {
+        _configured = data['configured'] == true;
         _packages = (data['coinPackages'] as List<dynamic>? ?? const [])
             .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
         _ads = (data['adPrices'] as List<dynamic>? ?? const [])
             .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
-        _version = data['version'] as int? ?? 0;
-        _manualPurchasesEnabled = data['manualCoinPurchasesEnabled'] != false;
+        _version = (data['version'] as num?)?.toInt() ?? 0;
+        _manualPurchasesEnabled = data['manualCoinPurchasesEnabled'] == true;
+        _customMin.text = bounds['minCoins']?.toString() ?? '';
+        _customMax.text = bounds['maxCoins']?.toString() ?? '';
       });
-    } on FirebaseFunctionsException catch (e) {
-      if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل إعدادات الاقتصاد.');
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل إعدادات الاقتصاد.');
     } finally { if (mounted) setState(() => _loading = false); }
   }
 
+  Future<void> _editPackage({Map<String, dynamic>? existing, int? index}) async {
+    final id = TextEditingController(text: existing?['packageId']?.toString() ?? '');
+    final name = TextEditingController(text: existing?['name']?.toString() ?? '');
+    final coins = TextEditingController(text: existing?['coins']?.toString() ?? '');
+    final price = TextEditingController(text: existing?['priceMinor']?.toString() ?? '');
+    final currency = TextEditingController(text: existing?['currency']?.toString() ?? '');
+    bool active = existing?['active'] == true;
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(builder: (context, refresh) => AlertDialog(
+        title: Text(existing == null ? 'إضافة باقة BetaCoins' : 'تعديل باقة BetaCoins'),
+        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: id, decoration: const InputDecoration(labelText: 'معرف الباقة (إنجليزي صغير)')),
+          TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم الباقة')),
+          TextField(controller: coins, keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'كمية BetaCoins')),
+          TextField(controller: price, keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'السعر بأصغر وحدة للعملة')),
+          TextField(controller: currency, textCapitalization: TextCapitalization.characters,
+            decoration: const InputDecoration(labelText: 'رمز العملة (ISO 4217)',
+              helperText: 'تُحدد دقة الكسور تلقائياً وفق العملة.')),
+          SwitchListTile(contentPadding: EdgeInsets.zero, value: active,
+            onChanged: (value) => refresh(() => active = value),
+            title: const Text('تفعيل عرض هذه الباقة')),
+        ])),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, {
+            'packageId': id.text.trim().toLowerCase(), 'name': name.text.trim(),
+            'coins': int.tryParse(coins.text.trim()), 'priceMinor': int.tryParse(price.text.trim()),
+            'currency': currency.text.trim().toUpperCase(), 'active': active,
+          }), child: const Text('حفظ')),
+        ],
+      )),
+    );
+    id.dispose(); name.dispose(); coins.dispose(); price.dispose(); currency.dispose();
+    if (result == null || !mounted) return;
+    final packageId = result['packageId'] as String;
+    final packageName = result['name'] as String;
+    final coinAmount = result['coins'] as int?;
+    final priceMinor = result['priceMinor'] as int?;
+    final currencyCode = result['currency'] as String;
+    if (!RegExp(r'^[a-z0-9][a-z0-9_-]{2,40}$').hasMatch(packageId) ||
+        packageName.length < 3 || coinAmount == null || coinAmount < 1 ||
+        priceMinor == null || priceMinor < 1 ||
+        !RegExp(r'^[A-Z]{3}$').hasMatch(currencyCode)) {
+      setState(() => _error = 'بيانات الباقة غير مكتملة أو غير صالحة. لم تُحفظ.');
+      return;
+    }
+    setState(() {
+      final value = {...result};
+      if (index == null) {
+        if (_packages.any((item) => item['packageId'] == packageId)) {
+          _error = 'معرف الباقة مستخدم بالفعل.';
+        } else { _packages = [..._packages, value]; }
+      } else { _packages = [..._packages]..[index] = value; }
+    });
+  }
+
+  Future<void> _editAd({Map<String, dynamic>? existing, int? index}) async {
+    final id = TextEditingController(text: existing?['placementId']?.toString() ?? '');
+    final name = TextEditingController(text: existing?['name']?.toString() ?? '');
+    final price = TextEditingController(text: existing?['priceMinor']?.toString() ?? '');
+    final currency = TextEditingController(text: existing?['currency']?.toString() ?? '');
+    String billingModel = existing?['billingModel']?.toString() ?? 'daily';
+    bool active = existing?['active'] == true;
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(builder: (context, refresh) => AlertDialog(
+        title: Text(existing == null ? 'إضافة موضع إعلاني' : 'تعديل موضع إعلاني'),
+        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: id, decoration: const InputDecoration(labelText: 'معرف الموضع (إنجليزي صغير)')),
+          TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم الموضع')),
+          DropdownButtonFormField<String>(
+            value: billingModel,
+            decoration: const InputDecoration(labelText: 'نموذج الفوترة'),
+            items: const [
+              DropdownMenuItem(value: 'daily', child: Text('يومي')),
+              DropdownMenuItem(value: 'cpm', child: Text('لكل ألف ظهور')),
+              DropdownMenuItem(value: 'cpc', child: Text('لكل نقرة')),
+            ],
+            onChanged: (value) => refresh(() => billingModel = value ?? 'daily'),
+          ),
+          TextField(controller: price, keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'السعر بأصغر وحدة للعملة')),
+          TextField(controller: currency, textCapitalization: TextCapitalization.characters,
+            decoration: const InputDecoration(labelText: 'رمز العملة (ISO 4217)')),
+          SwitchListTile(contentPadding: EdgeInsets.zero, value: active,
+            onChanged: (value) => refresh(() => active = value),
+            title: const Text('تفعيل نموذج التسعير')),
+        ])),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, {
+            'placementId': id.text.trim().toLowerCase(), 'name': name.text.trim(),
+            'billingModel': billingModel, 'priceMinor': int.tryParse(price.text.trim()),
+            'currency': currency.text.trim().toUpperCase(), 'active': active,
+          }), child: const Text('حفظ')),
+        ],
+      )),
+    );
+    id.dispose(); name.dispose(); price.dispose(); currency.dispose();
+    if (result == null || !mounted) return;
+    final placementId = result['placementId'] as String;
+    final adName = result['name'] as String;
+    final priceMinor = result['priceMinor'] as int?;
+    final currencyCode = result['currency'] as String;
+    if (!RegExp(r'^[a-z0-9][a-z0-9_-]{2,40}$').hasMatch(placementId) ||
+        adName.length < 3 || priceMinor == null || priceMinor < 1 ||
+        !RegExp(r'^[A-Z]{3}$').hasMatch(currencyCode)) {
+      setState(() => _error = 'بيانات الموضع الإعلاني غير مكتملة أو غير صالحة. لم تُحفظ.');
+      return;
+    }
+    setState(() {
+      final value = {...result};
+      if (index == null) {
+        if (_ads.any((item) => item['placementId'] == placementId)) {
+          _error = 'معرف الموضع الإعلاني مستخدم بالفعل.';
+        } else { _ads = [..._ads, value]; }
+      } else { _ads = [..._ads]..[index] = value; }
+    });
+  }
+
   Future<void> _save() async {
-    if (_saving || _packages.isEmpty || _ads.isEmpty) return;
+    if (_saving) return;
+    final minText = _customMin.text.trim(), maxText = _customMax.text.trim();
+    Map<String, int>? bounds;
+    if (minText.isNotEmpty || maxText.isNotEmpty) {
+      final minimum = int.tryParse(minText), maximum = int.tryParse(maxText);
+      if (minimum == null || maximum == null || minimum < 1 || maximum < minimum) {
+        setState(() => _error = 'أدخل الحد الأدنى والأقصى للكمية المخصصة معاً، أو اتركهما فارغين لتعطيلها.');
+        return;
+      }
+      bounds = {'minCoins': minimum, 'maxCoins': maximum};
+    }
     setState(() { _saving = true; _error = null; });
     try {
       final result = await _functions.httpsCallable('setOwnerEconomyPricing').call({
         'coinPackages': _packages, 'adPrices': _ads,
         'manualCoinPurchasesEnabled': _manualPurchasesEnabled,
+        'customCoinRequestBounds': bounds,
       });
       final data = Map<String, dynamic>.from(result.data as Map);
       if (!mounted) return;
-      setState(() => _version = data['version'] as int? ?? _version);
+      setState(() => _version = (data['version'] as num?)?.toInt() ?? _version);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم حفظ الأسعار. إصدار السياسة: $_version')),
+        SnackBar(content: Text('تم حفظ سياسة الاقتصاد. الإصدار: $_version')),
       );
-    } on FirebaseFunctionsException catch (e) {
-      if (mounted) setState(() => _error = e.message ?? 'تعذر حفظ الأسعار.');
+      await _load();
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر حفظ سياسة الاقتصاد.');
     } finally { if (mounted) setState(() => _saving = false); }
   }
 
-  Widget _priceField({
-    required String label, required int value, required ValueChanged<int> onChanged,
-  }) => SizedBox(
-    width: 125,
-    child: TextFormField(
-      key: ValueKey(label),
-      initialValue: value.toString(),
-      enabled: !_saving,
-      keyboardType: TextInputType.number,
-      decoration: InputDecoration(labelText: label, suffixText: 'سنت'),
-      onChanged: (text) {
-        final parsed = int.tryParse(text);
-        if (parsed != null && parsed > 0 && parsed <= 100000000) onChanged(parsed);
-      },
-    ),
-  );
-
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('اقتصاد مودة والأسعار')),
+    appBar: AppBar(title: const Text('اقتصاد مودة والأسعار'),
+      actions: [IconButton(onPressed: _loading || _saving ? null : _load, icon: const Icon(Icons.refresh))]),
     body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
-      padding: const EdgeInsets.all(16), children: [
+      padding: const EdgeInsets.all(16),
+      children: [
         Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
           crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('إعدادات قابلة للتعديل • الإصدار $_version',
+            Text(_configured ? 'إصدار السياسة: $_version' : 'لم تُهيأ سياسة اقتصادية بعد',
               style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            const Text('الأسعار النقدية باليورو (السنت). هذه جداول تسعير فقط؛ الدفع النقدي وإصدار الكوينز مقابل الدفع معطلان حتى ربط مزود دفع مرخص واختباره.'),
-          ]))),
+            const Text('لا توجد أسعار أو كميات أو حدود افتراضية. يحدد المالك كل القيم بنفسه، ولا يبدأ الشراء عند غياب سياسة صالحة.'),
+          ],
+        ))),
         if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         Card(child: SwitchListTile(
-          title: const Text('تفعيل طلبات شراء الكوينز اليدوية'),
-          subtitle: const Text('عند الإيقاف لن يتمكن الأعضاء من إنشاء طلبات جديدة. لا يوجد دفع إلكتروني آلي؛ يبقى معطلاً دائماً.'),
+          title: const Text('تفعيل طلبات شراء BetaCoins اليدوية'),
+          subtitle: const Text('الإيقاف يمنع إنشاء طلبات جديدة. الدفع الإلكتروني الآلي غير مفعّل.'),
           value: _manualPurchasesEnabled,
           onChanged: _saving ? null : (value) => setState(() => _manualPurchasesEnabled = value),
         )),
-        Text('باقات الكوينز', style: Theme.of(context).textTheme.titleLarge),
+        Text('حدود طلب الكمية المخصصة', style: Theme.of(context).textTheme.titleLarge),
+        TextField(controller: _customMin, enabled: !_saving, keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'الحد الأدنى لـ BetaCoins')),
+        TextField(controller: _customMax, enabled: !_saving, keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'الحد الأقصى لـ BetaCoins',
+            helperText: 'اترك الحقلين فارغين لتعطيل الطلبات المخصصة.')),
+        const SizedBox(height: 16),
+        Row(children: [
+          Expanded(child: Text('باقات BetaCoins', style: Theme.of(context).textTheme.titleLarge)),
+          IconButton(onPressed: _saving ? null : () => _editPackage(), icon: const Icon(Icons.add_circle_outline)),
+        ]),
+        if (_packages.isEmpty) const Text('لا توجد باقات محددة.'),
         ..._packages.asMap().entries.map((entry) {
-          final i = entry.key, item = entry.value;
-          return Card(child: Padding(padding: const EdgeInsets.all(12), child: Row(
-            children: [
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(item['name'] as String? ?? item['packageId'] as String? ?? 'باقة'),
-                Text('${item['coins']} كوين • EUR'),
-              ])),
-              _priceField(label: 'السعر', value: item['priceMinor'] as int,
-                onChanged: (v) => setState(() => _packages[i] = {...item, 'priceMinor': v})),
-              Switch(value: item['active'] == true, onChanged: _saving ? null :
-                (v) => setState(() => _packages[i] = {...item, 'active': v})),
-            ],
-          )));
+          final index = entry.key, item = entry.value;
+          return Card(child: ListTile(
+            title: Text(item['name']?.toString() ?? item['packageId']?.toString() ?? 'باقة'),
+            subtitle: Text('\${item['coins']} BetaCoins • \${item['priceMinor']} \${item['currency']} (وحدات صغرى) • \${item['active'] == true ? 'مفعلة' : 'متوقفة'}'),
+            trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(onPressed: _saving ? null : () => _editPackage(existing: item, index: index), icon: const Icon(Icons.edit_outlined)),
+              IconButton(onPressed: _saving ? null : () => setState(() => _packages.removeAt(index)), icon: const Icon(Icons.delete_outline)),
+            ]),
+          ));
         }),
-        const SizedBox(height: 12),
-        Text('أسعار الإعلانات', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 16),
+        Row(children: [
+          Expanded(child: Text('تسعير المواضع الإعلانية', style: Theme.of(context).textTheme.titleLarge)),
+          IconButton(onPressed: _saving ? null : () => _editAd(), icon: const Icon(Icons.add_circle_outline)),
+        ]),
+        if (_ads.isEmpty) const Text('لا توجد مواضع إعلانية مسعّرة.'),
         ..._ads.asMap().entries.map((entry) {
-          final i = entry.key, item = entry.value;
-          return Card(child: Padding(padding: const EdgeInsets.all(12), child: Row(
-            children: [
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(item['name'] as String? ?? item['placementId'] as String? ?? 'موضع إعلاني'),
-                Text('نموذج الفوترة: ${item['billingModel']} • EUR'),
-              ])),
-              _priceField(label: 'السعر', value: item['priceMinor'] as int,
-                onChanged: (v) => setState(() => _ads[i] = {...item, 'priceMinor': v})),
-              Switch(value: item['active'] == true, onChanged: _saving ? null :
-                (v) => setState(() => _ads[i] = {...item, 'active': v})),
-            ],
-          )));
+          final index = entry.key, item = entry.value;
+          return Card(child: ListTile(
+            title: Text(item['name']?.toString() ?? item['placementId']?.toString() ?? 'موضع إعلاني'),
+            subtitle: Text('\${item['billingModel']} • \${item['priceMinor']} \${item['currency']} (وحدات صغرى) • \${item['active'] == true ? 'مفعل' : 'متوقف'}'),
+            trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(onPressed: _saving ? null : () => _editAd(existing: item, index: index), icon: const Icon(Icons.edit_outlined)),
+              IconButton(onPressed: _saving ? null : () => setState(() => _ads.removeAt(index)), icon: const Icon(Icons.delete_outline)),
+            ]),
+          ));
         }),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         FilledButton.icon(onPressed: _saving ? null : _save,
-          icon: const Icon(Icons.save_outlined), label: const Text('حفظ أسعار الاقتصاد')),
+          icon: const Icon(Icons.save_outlined),
+          label: Text(_saving ? 'جارٍ الحفظ…' : 'حفظ سياسة الاقتصاد')),
       ],
     ),
   );
