@@ -361,34 +361,39 @@ class _ShopScreenState extends State<ShopScreen> {
                           Text(description),
                         ],
                         const SizedBox(height: 12),
-                        Row(
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.monetization_on_outlined),
-                            const SizedBox(width: 6),
-                            Text(price > 0 ? '$price BetaCoins' : 'السعر والمدة يحددهما المالك'),
-                            if (duration != null) ...[
-                              const SizedBox(width: 12),
-                              Text('المدة: $duration يوماً'),
-                            ],
-                            const Spacer(),
-                            FilledButton(
-                              onPressed: canPurchase && _purchasingItemId == null
-                                  ? () => _purchase(item)
-                                  : null,
-                              child: _purchasingItemId == item['itemId']
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
-                                  : Text(canPurchase ? 'شراء' : 'غير متاح بعد'),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed: canPurchase && _purchasingItemId == null
-                                  ? () => _gift(item) : null,
-                              icon: const Icon(Icons.card_giftcard_outlined),
-                              label: const Text('إهداء'),
-                            ),
+                            Row(children: [
+                              const Icon(Icons.monetization_on_outlined),
+                              const SizedBox(width: 6),
+                              Flexible(child: Text(
+                                price > 0 ? '$price BetaCoins' : 'السعر والمدة يحددهما المالك',
+                              )),
+                              if (duration != null) ...[
+                                const SizedBox(width: 12),
+                                Text('المدة: $duration يوماً'),
+                              ],
+                            ]),
+                            const SizedBox(height: 8),
+                            Wrap(spacing: 8, runSpacing: 8, children: [
+                              FilledButton(
+                                onPressed: canPurchase && _purchasingItemId == null
+                                    ? () => _purchase(item) : null,
+                                child: _purchasingItemId == item['itemId']
+                                    ? const SizedBox(
+                                        width: 18, height: 18,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : Text(canPurchase ? 'شراء' : 'غير متاح بعد'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: canPurchase && _purchasingItemId == null
+                                    ? () => _gift(item) : null,
+                                icon: const Icon(Icons.card_giftcard_outlined),
+                                label: const Text('إهداء'),
+                              ),
+                            ]),
                           ],
                         ),
                       ],
