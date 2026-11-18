@@ -109,6 +109,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
     setState(() { _saving = true; _error = null; });
     try {
       final response = await _functions.httpsCallable('setAttendanceRewardPolicy').call({
+        'expectedVersion': _policyVersion,
         'policy': {
           'hourly': {'enabled': _hourlyEnabled, 'amountCoins': hourly},
           'daily': {'enabled': _dailyEnabled, 'amountCoins': daily},
