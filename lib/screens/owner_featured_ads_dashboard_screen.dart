@@ -281,7 +281,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
                 onChanged: _saving ? null : (v) => setState(() => _mediaId = v),
               ),
               const SizedBox(height: 8),
-              const Text('المادة الآمنة تُرفع وتُفحص في مخزن Mawdda الآمن قبل اعتمادها. لا يوجد نشر لمادة غير security_approved.'); بعد اجتياز الفحص الأمني. لا يوجد اعتماد أو نشر لمادة غير آمنة.'),
+              const Text('المادة تُرفع إلى مخزن Mawdda الآمن، وتبقى غير قابلة للنشر حتى اجتياز الفحص واعتماد المشتق الآمن.'),
               const SizedBox(height: 12),
               Row(children: [
                 Expanded(child: FilledButton(onPressed: _saving ? null : _save, child: const Text('حفظ كمسودة'))),
@@ -327,7 +327,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
             final status = item['status'];
             return Card(child: ListTile(
               title: Text(item['title'] as String? ?? id),
-              subtitle: Text('\${item['status']} • \${item['featuredPlacement']} • ميزانية \${item['rewardBudgetCoins'] ?? 0} • مستخدم \${item['spentRewardCoins'] ?? 0}'),
+              subtitle: Text('${item['status']} • ${item['featuredPlacement']} • ميزانية ${item['rewardBudgetCoins'] ?? 0} • مستخدم ${item['spentRewardCoins'] ?? 0}'),
               isThreeLine: true,
               trailing: PopupMenuButton<String>(
                 enabled: !_saving,
