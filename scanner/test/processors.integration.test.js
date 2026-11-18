@@ -7,7 +7,7 @@ const { Readable } = require("node:stream");
 const { createHash } = require("node:crypto");
 const { promisify } = require("node:util");
 const { execFile } = require("node:child_process");
-const { processSafeDerivative } = require("../processors");
+const { processSafeDerivative, inspectStickerMedia } = require("../processors");
 
 const execFileAsync = promisify(execFile);
 const mediaId = "123e4567-e89b-42d3-a456-426614174000";
@@ -136,6 +136,36 @@ for (const item of cases) {
     }
   });
 }
+
+test("sticker inspection derives actual GIF metadata and sanitized animation stays within the sticker ceiling", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "mawadda-sticker-test-"));
+  try {
+    const sourcePath = await makeFixture("gif", tempDir);
+    const stat = await fs.stat(sourcePath);
+    const metadata = await inspectStickerMedia({ sourcePath, contentType: "image/gif" });
+    assert.equal(metadata.kind, "animated");
+    assert.equal(metadata.contentType, "image/gif");
+    assert.equal(metadata.width, 32);
+    assert.equal(metadata.height, 32);
+    assert.equal(metadata.sizeBytes, stat.size);
+    assert.ok(metadata.durationMs > 0 && metadata.durationMs <= 5000);
+    assert.ok(metadata.frameCount > 1 && metadata.frameCount <= 50);
+    const sourceSha256 = createHash("sha256").update(await fs.readFile(sourcePath)).digest("hex");
+    const storage = fakeStorage();
+    const result = await processSafeDerivative({
+      sourcePath, tempDir,
+      request: {
+        mediaId, objectPath: `quarantine/member_1/${mediaId}`,
+        objectGeneration: "123456", contentType: "image/gif", purpose: "sticker",
+      },
+      sourceSha256, storage, bucketName: "mawdda-test", provider,
+    });
+    assert.equal(result.safeDerivative.category, "gif");
+    assert.ok(Number(storage.objects.get(result.safeDerivative.path).metadata.size) <= 512 * 1024);
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+});
 
 for (const purpose of ["chat", "room"]) {
   test(`real audio processor accepts a recording at the exact 60-second ceiling for ${purpose}`, async () => {
