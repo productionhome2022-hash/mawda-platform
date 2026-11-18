@@ -380,6 +380,17 @@ class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> wi
         'progressPercent': progress,
       });
       final data = Map<String, dynamic>.from(response.data as Map);
+      if (data['revoked'] == true || data['expired'] == true) {
+        _heartbeatTimer?.cancel();
+        await controller?.pause();
+        if (mounted) setState(() {
+          _serverForegroundVisible = false;
+          _error = data['revoked'] == true
+              ? 'تم سحب الحملة وإيقاف جلسة المشاهدة.'
+              : 'انتهت صلاحية جلسة المشاهدة.';
+        });
+        return;
+      }
       if (mounted) setState(() {
         _serverProgressPercent = (data['progressPercent'] as num?)?.toDouble() ?? _serverProgressPercent;
         _serverContinuousVisibleMs = (data['continuousVisibleMs'] as num?)?.toInt() ?? _serverContinuousVisibleMs;
