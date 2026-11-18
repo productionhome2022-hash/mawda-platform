@@ -60,7 +60,7 @@ export function projectStoreCatalogItem(
   const durationDays = data.durationDays;
   if (durationDays !== undefined &&
       (typeof durationDays !== "number" || !Number.isSafeInteger(durationDays) ||
-       ![1, 7, 30].includes(durationDays))) {
+       durationDays < 1 || durationDays > 3650)) {
     return null;
   }
   const sortOrder = typeof data.sortOrder === "number" &&
