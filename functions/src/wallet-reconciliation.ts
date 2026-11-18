@@ -56,6 +56,7 @@ export function reconcileWalletLedger(
     const hasAfter = entry.balanceAfter !== undefined && entry.balanceAfter !== null;
     if (!hasBefore && !hasAfter) {
       entriesMissingSnapshots += 1;
+      previousBalanceAfter = null;
       lastEntryHadSnapshot = false;
       continue;
     }
@@ -63,6 +64,7 @@ export function reconcileWalletLedger(
         !Number.isSafeInteger(entry.balanceBefore) || !Number.isSafeInteger(entry.balanceAfter) ||
         (entry.balanceBefore as number) < 0 || (entry.balanceAfter as number) < 0) {
       anomalies.push({ entryId: entry.id, code: "invalid_balance_snapshot" });
+      previousBalanceAfter = null;
       lastEntryHadSnapshot = false;
       continue;
     }
