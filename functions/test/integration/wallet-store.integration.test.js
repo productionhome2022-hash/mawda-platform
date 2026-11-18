@@ -187,6 +187,36 @@ test("owner featured-ad manual payment and refund events persist atomically and 
   }
 });
 
+test("featured-ad financial events respect the immutable payment-mode snapshot", async () => {
+  const campaignId = `featured_manual_disabled_${suffix()}`;
+  const campaignRef = db.collection("featuredAdCampaigns").doc(campaignId);
+  await campaignRef.set({
+    status: "draft", ownerApproved: false, ownerWithdrawn: false,
+    paymentConfirmed: false, creativeApproved: false, version: 1,
+    paymentPolicySnapshot: {
+      manualEnabled: false, automatedEnabled: false, policyVersion: 7,
+    },
+  });
+  try {
+    await assert.rejects(
+      () => recordOwnerFeaturedAdFinancialEvent.run(ownerRequest("featured-finance-owner", {
+        campaignId, action: "payment_received",
+        idempotencyKey: `payment_disabled_${suffix()}`,
+        amountMinor: 5000, currency: "EUR",
+        externalReference: `disabled-bank-ref-${suffix()}`,
+        evidenceReference: `disabled-evidence-${suffix()}`,
+        note: "Owner attempted manual payment while policy was disabled",
+        reviewOutcome: null, expectedVersion: 1,
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await campaignRef.get()).data().version, 1);
+    assert.equal((await campaignRef.collection("financialEvents").get()).size, 0);
+  } finally {
+    await db.recursiveDelete(campaignRef).catch(() => undefined);
+  }
+});
+
 test("coin transfer atomically writes both wallet ledgers and platform commission; retries are idempotent", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = suffix();
