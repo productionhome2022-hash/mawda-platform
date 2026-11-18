@@ -68,6 +68,19 @@ test("scanner verdict accepts a fully bound safe WebP derivative and rejects par
   assert.equal(validateScannerVerdict({ ...base, ...derivative, verdict: "malicious" }, base.provider, now), null);
 });
 
+test("scanner verdict accepts sticker assets while preserving signed purpose binding", () => {
+  const now = 1_800_000_000_000;
+  const payload = {
+    mediaId: "123e4567-e89b-12d3-a456-426614174000", purpose: "sticker",
+    provider: "clamav-mawadda-gateway", verdict: "clean", objectGeneration: "123456",
+    sha256: "a".repeat(64), scannedAtMs: now, scanEngine: "ClamAV",
+    engineVersion: "1.4.6", signatureDatabaseVersion: "28202",
+    signatureDatabaseAgeMs: 60 * 60 * 1000,
+  };
+  assert.equal(validateScannerVerdict(payload, payload.provider, now).purpose, "sticker");
+  assert.equal(validateScannerVerdict({ ...payload, purpose: "member_sticker" }, payload.provider, now), null);
+});
+
 test("scanner callback validates exact GIF, audio, video and flattened-PDF derivative contracts", () => {
   const now = 1_800_000_000_000;
   const base = {
