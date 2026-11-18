@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase-admin/app";
 import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
+import { CALL_ENTITLEMENT_ITEM_IDS, hasActiveCallEntitlement } from "./call-entitlements";
 import { getAuth } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
 import { getStorage } from "firebase-admin/storage";
@@ -9478,9 +9479,15 @@ export const startCall = onCall(async (request) => {
   const now = Date.now();
   const expiresAt = Timestamp.fromMillis(now + CALL_RING_TIMEOUT_MS);
   const quotaRef = CALL_QUOTA_WINDOWS.doc(callerUid);
+  const entitlementRefs = participantUids.flatMap((memberUid) =>
+    CALL_ENTITLEMENT_ITEM_IDS[input.mode].map((itemId) =>
+      db.collection("users").doc(memberUid).collection("entitlements").doc(itemId)));
   const result = await db.runTransaction(async (transaction) => {
-    const [existing, caller, quotaSnapshot] = await Promise.all([
-      transaction.get(callRef), transaction.get(callerRef), transaction.get(quotaRef),
+    const [existing, caller, quotaSnapshot, entitlementSnapshots] = await Promise.all([
+      transaction.get(callRef),
+      transaction.get(callerRef),
+      transaction.get(quotaRef),
+      Promise.all(entitlementRefs.map((ref) => transaction.get(ref))),
     ]);
     if (existing.exists) {
       const prior = existing.data() ?? {};
@@ -9491,6 +9498,21 @@ export const startCall = onCall(async (request) => {
         return { callId: input.callId, status: prior.status, participantUids: prior.participantUids ?? participantUids, idempotentReplay: true };
       }
       throw new HttpsError("already-exists", "معرف المكالمة مستخدم مسبقاً.");
+    }
+    const entitlementIdsPerMember = CALL_ENTITLEMENT_ITEM_IDS[input.mode].length;
+    const membersWithoutEntitlement = participantUids.filter((memberUid, index) => {
+      const offset = index * entitlementIdsPerMember;
+      const records = entitlementSnapshots.slice(offset, offset + entitlementIdsPerMember)
+        .map((snapshot) => ({ itemId: snapshot.id, data: snapshot.data() ?? {} }));
+      return !hasActiveCallEntitlement(input.mode, records);
+    });
+    if (membersWithoutEntitlement.length > 0) {
+      throw new HttpsError(
+        "failed-precondition",
+        input.mode === "audio"
+          ? "يجب أن يمتلك جميع المشاركين استحقاق المكالمات الصوتية فعالاً."
+          : "يجب أن يمتلك جميع المشاركين استحقاق المكالمات المرئية فعالاً.",
+      );
     }
     if (!caller.exists || caller.data()?.profileCompleted !== true ||
         !isMemberAccountInGoodStanding(caller.data())) {
