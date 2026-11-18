@@ -126,10 +126,13 @@ test("owner featured-ad manual payment and refund events persist atomically and 
     reviewOutcome: null, expectedVersion: 1,
   };
   try {
-    const payment = await recordOwnerFeaturedAdFinancialEvent.run(
-      ownerRequest("featured-finance-owner", paymentInput),
-    );
-    assert.equal(payment.idempotentReplay, false);
+    const concurrentPayments = await Promise.all([
+      recordOwnerFeaturedAdFinancialEvent.run(ownerRequest("featured-finance-owner", paymentInput)),
+      recordOwnerFeaturedAdFinancialEvent.run(ownerRequest("featured-finance-owner", paymentInput)),
+    ]);
+    assert.equal(concurrentPayments.filter((value) => value.idempotentReplay === false).length, 1);
+    assert.equal(concurrentPayments.filter((value) => value.idempotentReplay === true).length, 1);
+    const payment = concurrentPayments.find((value) => value.idempotentReplay === false);
     assert.equal(payment.paymentConfirmed, true);
     assert.equal(payment.version, 2);
     assert.equal(payment.financialSnapshot.receivedMinor, 12500);
@@ -150,6 +153,12 @@ test("owner featured-ad manual payment and refund events persist atomically and 
       note: "Owner verified partial refund against external bank records",
       reviewOutcome: null, expectedVersion: 2,
     };
+    await assert.rejects(
+      () => recordOwnerFeaturedAdFinancialEvent.run(ownerRequest(
+        "featured-finance-owner", { ...refundInput, expectedVersion: 1 },
+      )),
+      (error) => error && error.code === "aborted",
+    );
     const refund = await recordOwnerFeaturedAdFinancialEvent.run(
       ownerRequest("featured-finance-owner", refundInput),
     );
@@ -165,6 +174,10 @@ test("owner featured-ad manual payment and refund events persist atomically and 
     assert.equal(campaign.financialSnapshot.reconciledMinor, 0);
     const events = await campaignRef.collection("financialEvents").get();
     assert.equal(events.size, 2);
+    assert.ok(events.docs.every((doc) => doc.data().auditChainStatus === "appended"));
+    const paymentEvent = events.docs.find((doc) => doc.data().action === "payment_received");
+    assert.ok((await db.collection("adminAuditLogs")
+      .doc("featured_ad_finance_chain_" + paymentEvent.id).get()).exists);
     assert.equal(events.docs.filter((doc) => doc.data().action === "payment_received").length, 1);
     assert.equal(events.docs.filter((doc) => doc.data().action === "refund_recorded").length, 1);
   } finally {
