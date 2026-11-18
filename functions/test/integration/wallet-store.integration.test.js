@@ -290,6 +290,10 @@ test("coin transfer atomically writes both wallet ledgers and platform commissio
     assert.equal(platformLedger.data().amount, 200);
     assert.equal(platformLedger.data().transferId, transferId);
     assert.equal(transfer.data().status, "completed");
+    assert.equal(transfer.data().senderBalanceBefore, 5000);
+    assert.equal(transfer.data().senderBalanceAfter, 4000);
+    assert.equal(transfer.data().recipientBalanceBefore, 200);
+    assert.equal(transfer.data().recipientBalanceAfter, 1000);
 
     const replay = await transferCoins.run(request);
     assert.equal(replay.idempotentReplay, true);
