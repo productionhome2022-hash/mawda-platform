@@ -2382,13 +2382,23 @@ export const sendStickerMessage = onCall(async (request) => {
             Boolean(item && typeof item === "object" &&
               (item as Record<string, unknown>).stickerId === input.stickerId))
         : null;
+      const freshStickerData = freshSticker && typeof freshSticker === "object"
+        ? freshSticker as Record<string, unknown> : null;
+      const freshMetadata = freshAssetData?.stickerMetadata as Record<string, unknown> | undefined;
       if (!freshPack.exists || freshPackData?.status !== "published" || freshPackData.approved !== true ||
           !freshAsset.exists || freshAssetData?.status !== "security_approved" ||
           freshAssetData?.mediaPurpose !== "sticker" || freshAssetData?.uploaderRole !== "platform_owner" ||
           freshAssetData?.scannerVerdict !== "clean" ||
-          !freshSticker || typeof freshSticker !== "object" ||
-          (freshSticker as Record<string, unknown>).assetId !== mediaId ||
-          (freshSticker as Record<string, unknown>).scanStatus !== "clean") {
+          !freshStickerData || freshStickerData.assetId !== mediaId ||
+          freshStickerData.scanStatus !== "clean" ||
+          !freshMetadata || freshStickerData.kind !== freshMetadata.kind ||
+          freshStickerData.contentType !== freshMetadata.contentType ||
+          freshStickerData.width !== freshMetadata.width ||
+          freshStickerData.height !== freshMetadata.height ||
+          freshStickerData.sizeBytes !== freshMetadata.sizeBytes ||
+          (freshMetadata.kind === "animated" &&
+            (freshStickerData.durationMs !== freshMetadata.durationMs ||
+              freshStickerData.frameCount !== freshMetadata.frameCount))) {
         throw new HttpsError("failed-precondition", "تم إيقاف الحزمة أو أصل الملصق قبل الإرسال.");
       }
       if (!sender.exists || !recipient.exists ||
@@ -2454,13 +2464,23 @@ export const sendStickerMessage = onCall(async (request) => {
           Boolean(item && typeof item === "object" &&
             (item as Record<string, unknown>).stickerId === input.stickerId))
       : null;
+    const freshStickerData = freshSticker && typeof freshSticker === "object"
+      ? freshSticker as Record<string, unknown> : null;
+    const freshMetadata = freshAssetData?.stickerMetadata as Record<string, unknown> | undefined;
     if (!freshPack.exists || freshPackData?.status !== "published" || freshPackData.approved !== true ||
         !freshAsset.exists || freshAssetData?.status !== "security_approved" ||
         freshAssetData?.mediaPurpose !== "sticker" || freshAssetData?.uploaderRole !== "platform_owner" ||
         freshAssetData?.scannerVerdict !== "clean" ||
-        !freshSticker || typeof freshSticker !== "object" ||
-        (freshSticker as Record<string, unknown>).assetId !== mediaId ||
-        (freshSticker as Record<string, unknown>).scanStatus !== "clean") {
+        !freshStickerData || freshStickerData.assetId !== mediaId ||
+        freshStickerData.scanStatus !== "clean" ||
+        !freshMetadata || freshStickerData.kind !== freshMetadata.kind ||
+        freshStickerData.contentType !== freshMetadata.contentType ||
+        freshStickerData.width !== freshMetadata.width ||
+        freshStickerData.height !== freshMetadata.height ||
+        freshStickerData.sizeBytes !== freshMetadata.sizeBytes ||
+        (freshMetadata.kind === "animated" &&
+          (freshStickerData.durationMs !== freshMetadata.durationMs ||
+            freshStickerData.frameCount !== freshMetadata.frameCount))) {
       throw new HttpsError("failed-precondition", "تم إيقاف الحزمة أو أصل الملصق قبل الإرسال.");
     }
     if (!room.exists || room.data()?.status !== "active" || !member.exists ||
@@ -2551,7 +2571,10 @@ export const getStickerAssetUrl = onCall(async (request) => {
   const expectedContentType = animated ? "image/gif" : "image/webp";
   const expectedPipeline = animated ? "gif-sanitize-preserve-animation-v1" : "sharp-decode-reencode-v1";
   const maxBytes = animated ? 512 * 1024 : 256 * 1024;
-  if (derivativePath !== expectedPath || typeof derivativeGeneration !== "string" ||
+  const expectedProcessingStatus = animated
+    ? "safe_animation_derivative_ready" : "safe_raster_derivative_ready";
+  if (asset.processingStatus !== expectedProcessingStatus ||
+      derivativePath !== expectedPath || typeof derivativeGeneration !== "string" ||
       !/^[1-9][0-9]*$/.test(derivativeGeneration) ||
       typeof derivativeSha256 !== "string" || !/^[a-f0-9]{64}$/.test(derivativeSha256)) {
     throw new HttpsError("failed-precondition", "النسخة الآمنة للملصق غير مكتملة.");
