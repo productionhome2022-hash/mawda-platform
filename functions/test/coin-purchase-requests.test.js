@@ -42,3 +42,25 @@ test("coin approval requires owner-recorded external payment proof reference and
     externalPaymentReference: "bank-ref-123", verificationNote: "تحقق",
   }), /INVALID_VERIFICATION/);
 });
+
+test("gifted coin packages accept only a bounded recipient UID on package requests", () => {
+  assert.deepEqual(validateCoinPurchaseRequestInput({
+    requestId: "gift_request_1", kind: "package", packageId: "coins_1000",
+    giftRecipientUid: "member_recipient_123",
+  }), {
+    requestId: "gift_request_1", kind: "package", packageId: "coins_1000",
+    giftRecipientUid: "member_recipient_123",
+  });
+  assert.throws(() => validateCoinPurchaseRequestInput({
+    requestId: "gift_request_2", kind: "package", packageId: "coins_1000",
+    giftRecipientUid: " member_recipient_123 ",
+  }), /INVALID_GIFT_RECIPIENT/);
+  assert.throws(() => validateCoinPurchaseRequestInput({
+    requestId: "gift_request_3", kind: "custom", requestedCoins: 500,
+    giftRecipientUid: "member_recipient_123",
+  }), /CUSTOM_GIFT_NOT_SUPPORTED/);
+  assert.throws(() => validateCoinPurchaseRequestInput({
+    requestId: "gift_request_4", kind: "package", packageId: "coins_1000",
+    giftRecipientUid: "x".repeat(129),
+  }), /INVALID_GIFT_RECIPIENT/);
+});
