@@ -7274,9 +7274,9 @@ export const getOwnerStoreCatalog = onCall(async (request) => {
       })?.fulfillmentReady ?? false;
       transaction.create(ref, {
         ...item,
-        // Publish approved, implemented profile features for discovery in the
-        // shop, but leave charging disabled until the owner confirms prices.
-        active: fulfillmentReady,
+        // Seeded values are engineering suggestions only. Keep every item hidden
+        // until the owner explicitly reviews and publishes its policy.
+        active: false,
         purchaseEnabled: false,
         fulfillmentReady,
         createdAt: FieldValue.serverTimestamp(),
