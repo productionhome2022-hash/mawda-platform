@@ -23,6 +23,9 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
   const tag = suffix();
   const ownerUid = `ad_finance_owner_${tag}`;
   const campaignId = `ad_campaign_${tag}`;
+  const economyRef = db.doc("platformSettings/economyPricing");
+  const previousEconomy = await economyRef.get();
+  const previousEconomyData = previousEconomy.exists ? previousEconomy.data() : null;
   const campaignRef = db.collection("timedAdCampaigns").doc(campaignId);
   const financialRef = db.collection("featuredAdFinancials").doc(campaignId);
   const versionRef = db.collection("featuredAdFinancialVersions").doc(campaignId).collection("versions");
@@ -41,6 +44,20 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
     maxClaimsPerMember: 2,
     rewardBudgetCoins: 1000,
   };
+  await economyRef.set({
+    ...(previousEconomyData ?? {
+      coinPackages: [], adPrices: [], customCoinRequestBounds: null,
+      version: 1, manualCoinPurchasesEnabled: false,
+      automatedCoinCheckoutEnabled: false, realMoneyCheckoutEnabled: false,
+    }),
+    paymentPolicy: {
+      coin_purchases: { manualEnabled: false, automatedEnabled: false },
+      featured_ads: { manualEnabled: true, automatedEnabled: false },
+      public_ads: { manualEnabled: false, automatedEnabled: false },
+      influencer_services: { manualEnabled: false, automatedEnabled: false },
+      store_entitlements: { manualEnabled: false, automatedEnabled: false },
+    },
+  });
   await setTimedAdCampaign.run(ownerRequest(ownerUid, campaignInput));
   assert.equal((await campaignVersionRef.doc("1").get()).exists, true);
   const base = {
