@@ -8708,10 +8708,21 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
   const eventRef = financialRef.collection("events").doc(eventId);
   const auditRef = db.collection("adminAuditLogs").doc(`featured_ad_finance_${eventId}`);
   return db.runTransaction(async (transaction) => {
-    const [campaign, financial, priorEvent] = await Promise.all([
+    const [campaign, financial, priorEvent, paymentSettings] = await Promise.all([
       transaction.get(campaignRef), transaction.get(financialRef), transaction.get(eventRef),
+      transaction.get(ECONOMY_PRICING_SETTINGS),
     ]);
     if (!campaign.exists) throw new HttpsError("not-found", "الحملة الإعلانية غير موجودة.");
+    if (event.action === "payment_received") {
+      const settings = paymentSettings.data() ?? {};
+      const policy = projectEconomicPaymentPolicy(settings.paymentPolicy, {
+        manualCoinPurchasesEnabled: settings.manualCoinPurchasesEnabled,
+      });
+      if (policy.featured_ads.manualEnabled !== true ||
+          policy.featured_ads.automatedEnabled !== false) {
+        throw new HttpsError("failed-precondition", "استقبال دفعات الإعلانات اليدوي متوقف في سياسة المالك.");
+      }
+    }
     if (priorEvent.exists) {
       const prior = priorEvent.data() ?? {};
       const matches = prior.actorUid === actorUid &&
