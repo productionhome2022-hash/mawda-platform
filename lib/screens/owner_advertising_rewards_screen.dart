@@ -152,8 +152,8 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
       };
       if (contentType.isEmpty) throw StateError('صيغة الملف غير مدعومة.');
       final maximumBytes = contentType.startsWith('video/')
-          ? 100 * 1024 * 1024
-          : 5 * 1024 * 1024;
+          ? 25 * 1024 * 1024
+          : 3 * 1024 * 1024;
       if (bytes.length > maximumBytes) {
         throw StateError('حجم الملف يتجاوز الحد المسموح لهذا النوع.');
       }
