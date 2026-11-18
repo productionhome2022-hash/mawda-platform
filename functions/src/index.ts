@@ -7757,11 +7757,12 @@ export const recordFeaturedAdFinancialEvent = onCall({ enforceAppCheck: true }, 
     }
     throw error;
   }
-  const eventId = featuredAdFinancialIdempotencyId(event.campaignId, event.idempotencyKey);
+  const eventId = featuredAdFinancialIdempotencyId(event.campaignId, event.action, event.externalReference);
   const campaignRef = FEATURED_AD_CAMPAIGNS.doc(event.campaignId);
   const eventRef = FEATURED_AD_FINANCIAL_EVENTS.doc(eventId);
   const idempotencyRef = FEATURED_AD_FINANCIAL_IDEMPOTENCY.doc(eventId);
-  const payloadHash = createHash("sha256").update(JSON.stringify(event)).digest("hex");
+  const { idempotencyKey: _clientRetryKey, ...stableEventPayload } = event;
+  const payloadHash = createHash("sha256").update(JSON.stringify(stableEventPayload)).digest("hex");
   const result = await db.runTransaction(async (transaction) => {
     const [campaign, prior] = await Promise.all([
       transaction.get(campaignRef), transaction.get(idempotencyRef),
