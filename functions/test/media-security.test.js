@@ -34,6 +34,20 @@ test("upload request rejects unsafe names, unsupported types and invalid sizes",
   assert.throws(() => normalizeMediaRequest({ originalName: "audio.mp3", contentType: "audio/mpeg", sizeBytes: 1024, purpose: "avatar_cover" }));
 });
 
+test("sticker uploads are owner-only and obey static/animated byte ceilings", () => {
+  const request = (contentType, sizeBytes) => ({ originalName: "sticker", contentType, sizeBytes, purpose: "sticker" });
+  assert.equal(normalizeMediaRequest(request("image/png", 256 * 1024)).purpose, "sticker");
+  assert.equal(normalizeMediaRequest(request("image/webp", 256 * 1024)).purpose, "sticker");
+  assert.equal(normalizeMediaRequest(request("image/gif", 512 * 1024)).purpose, "sticker");
+  assert.throws(() => normalizeMediaRequest(request("image/png", 256 * 1024 + 1)));
+  assert.throws(() => normalizeMediaRequest(request("image/gif", 512 * 1024 + 1)));
+  assert.throws(() => normalizeMediaRequest(request("image/jpeg", 1024)));
+  assert.equal(mediaUploadAllowedForRole({ contentType: "image/png", purpose: "sticker" }, false), false);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "image/gif", purpose: "sticker" }, false), false);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "image/png", purpose: "sticker" }, true), true);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "image/gif", purpose: "sticker" }, true), true);
+});
+
 test("story media requires an explicit future expiry and rejects expiry metadata for other purposes", () => {
   const now = Date.now();
   const base = {
