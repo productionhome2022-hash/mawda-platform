@@ -1679,6 +1679,91 @@ export const getTimedAdCreativeUrl = onCall(async (request) => {
   };
 });
 
+
+/** Secure media delivery for an explicitly active featured-ad session only. */
+export const getFeaturedAdCreativeUrl = onCall(async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const campaignId = typeof request.data?.campaignId === "string" ? request.data.campaignId : "";
+  const sessionId = typeof request.data?.sessionId === "string" ? request.data.sessionId : "";
+  if (!/^[A-Za-z0-9_-]{8,80}$/.test(campaignId) || !/^[0-9a-f-]{36}$/i.test(sessionId)) {
+    throw new HttpsError("invalid-argument", "بيانات جلسة الإعلان المميز غير صالحة.");
+  }
+  const db = mediaDb();
+  const [campaign, session, active] = await Promise.all([
+    db.collection("featuredAdCampaigns").doc(campaignId).get(),
+    db.collection("featuredAdSessions").doc(sessionId).get(),
+    db.collection("activeFeaturedAdSessions").doc(uid).get(),
+  ]);
+  if (!campaign.exists || !session.exists || session.data()?.uid !== uid ||
+      session.data()?.campaignId !== campaignId || active.data()?.sessionId !== sessionId ||
+      session.data()?.status !== "active" || session.data()?.expiresAtMs <= Date.now() ||
+      campaign.data()?.status !== "published" ||
+      campaign.data()?.version !== session.data()?.campaignVersion ||
+      campaign.data()?.paymentConfirmed !== true ||
+      campaign.data()?.ownerApproved !== true) {
+    throw new HttpsError("permission-denied", "لا توجد جلسة عرض مميز صالحة لهذا العضو.");
+  }
+  const campaignData = campaign.data()!;
+  const mediaId = typeof campaignData.mediaId === "string" ? campaignData.mediaId : "";
+  if (!mediaId || !["image", "gif"].includes(String(campaignData.creativeType))) {
+    throw new HttpsError("failed-precondition", "نوع مادة الإعلان غير متاح في مشغل الإعلانات المميزة.");
+  }
+  const assetSnapshot = await db.collection("mediaAssets").doc(mediaId).get();
+  if (!assetSnapshot.exists) throw new HttpsError("not-found", "ملف الإعلان غير موجود.");
+  const asset = assetSnapshot.data()!;
+  if (asset.ownerUid !== campaignData.mediaOwnerUid ||
+      asset.uploaderRole !== "platform_owner" ||
+      asset.mediaPurpose !== "advertisement" ||
+      asset.status !== "security_approved" ||
+      !["image", "video"].includes(String(asset.mediaCategory))) {
+    throw new HttpsError("failed-precondition", "لم يعد ملف الإعلان معتمداً أمنياً.");
+  }
+  const isGif = asset.detectedContentType === "image/gif";
+  if (asset.mediaCategory === "video" || (campaignData.creativeType === "gif" && !isGif)) {
+    throw new HttpsError("failed-precondition", "مادة الإعلان لا تطابق نوع المشغل المعتمد.");
+  }
+  const derivativePath = isGif ? asset.safeAnimationPath : asset.safePreviewPath;
+  const derivativeGeneration = isGif ? asset.safeAnimationGeneration : asset.safePreviewGeneration;
+  const expectedPath = `processed/${asset.ownerUid}/${mediaId}/${isGif ? "animation.gif" : "preview.webp"}`;
+  const generation = Number(derivativeGeneration);
+  const expectedContentType = isGif ? "image/gif" : "image/webp";
+  if (derivativePath !== expectedPath || typeof derivativeGeneration !== "string" ||
+      !Number.isSafeInteger(generation) || generation <= 0) {
+    throw new HttpsError("failed-precondition", "النسخة الآمنة للإعلان المميز غير مكتملة.");
+  }
+  const file = mediaBucket().file(expectedPath, { generation });
+  let metadata;
+  try { [metadata] = await file.getMetadata(); } catch {
+    throw new HttpsError("failed-precondition", "تعذر التحقق من النسخة الآمنة للإعلان.");
+  }
+  const custom = metadata.metadata as Record<string, unknown> | undefined;
+  const derivativeSha256 = isGif ? asset.safeAnimationSha256 : asset.safePreviewSha256;
+  const processingPipeline = isGif ? "gif-sanitize-preserve-animation-v1" : "sharp-decode-reencode-v1";
+  const maximumBytes = 3 * 1024 * 1024;
+  if (String(metadata.generation) !== derivativeGeneration ||
+      metadata.contentType !== expectedContentType ||
+      !Number.isSafeInteger(Number(metadata.size)) || Number(metadata.size) <= 0 ||
+      Number(metadata.size) > maximumBytes || typeof derivativeSha256 !== "string" ||
+      custom?.mediaId !== mediaId ||
+      custom?.sourceGeneration !== String(asset.storageGeneration) ||
+      custom?.sourceSha256 !== asset.scannerSha256 ||
+      custom?.scannerProvider !== asset.scannerProvider ||
+      custom?.processing !== processingPipeline) {
+    throw new HttpsError("failed-precondition", "تغيرت النسخة الآمنة أو تعذر إثبات مصدرها.");
+  }
+  const expiresAt = Date.now() + 2 * 60 * 1000;
+  const [url] = await file.getSignedUrl({
+    version: "v4", action: "read", expires: expiresAt,
+    responseType: expectedContentType, responseDisposition: "inline",
+  });
+  await auditMediaAccess({
+    actorUid: uid, mediaId, campaignId, sessionId,
+    action: "featured_ad_creative_delivery", outcome: "success",
+    derivativeGeneration, expiresAt,
+  });
+  return { creativeType: isGif ? "gif" : "image", url, contentType: expectedContentType, expiresAt };
+});
+
 /** Lists bounded metadata only; file bytes and download URLs are never returned here. */
 export const listOwnerMediaAssets = onCall(async (request) => {
   const actorUid = await requireSoleOwnerForMediaReview(request, "owner_media_asset_list_attempt");
