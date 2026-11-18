@@ -2029,13 +2029,13 @@ export const completeBiometricVerificationCycle = onCall(async (request) => {
 const BIOMETRIC_REQUESTS = db.collection("biometricVerificationRequests");
 const BIOMETRIC_SETTINGS = db.doc("platformSettings/biometricVerification");
 
-function biometricSettingsOrThrow(value: Record<string, unknown>) {
+function biometricSettingsOrThrow(value: Record<string, unknown>, requireEnabled = true) {
   const maxAudioBytes = value.maxAudioBytes;
   const maxVideoBytes = value.maxVideoBytes;
   const uploadWindowMinutes = value.uploadWindowMinutes;
   const mediaAccessTtlSeconds = value.mediaAccessTtlSeconds;
   const phrases = value.phrases;
-  if (value.enabled !== true ||
+  if ((requireEnabled && value.enabled !== true) ||
       !Number.isSafeInteger(maxAudioBytes) || (maxAudioBytes as number) < 1 ||
       !Number.isSafeInteger(maxVideoBytes) || (maxVideoBytes as number) < 1 ||
       !Number.isSafeInteger(uploadWindowMinutes) ||
@@ -2396,7 +2396,7 @@ export const getOwnerBiometricVerificationMediaAccess = onCall(async (request) =
   if (!requestSnapshot.exists || requestSnapshot.data()?.status !== "pending_review") {
     throw new HttpsError("not-found", "طلب التوثيق غير متاح للمراجعة.");
   }
-  const settings = biometricSettingsOrThrow(settingsSnapshot.data() ?? {});
+  const settings = biometricSettingsOrThrow(settingsSnapshot.data() ?? {}, false);
   const data = requestSnapshot.data()!;
   if (typeof data.audioObjectPath !== "string" || typeof data.videoObjectPath !== "string") {
     throw new HttpsError("data-loss", "مسارات وسائط طلب التوثيق غير سليمة.");
