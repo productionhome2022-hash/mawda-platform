@@ -64,10 +64,14 @@ export function validateScannerVerdict(
 
   let stickerMetadata: StickerMediaMetadata | undefined;
   if (v.purpose === "sticker") {
-    try {
-      stickerMetadata = validateStickerMediaMetadata(v.stickerMetadata);
-    } catch {
-      return null;
+    // Clean verdicts must carry measured sticker metadata. Malware verdicts
+    // must still be accepted even when parsing the untrusted payload is unsafe.
+    if (v.verdict === "clean" || v.stickerMetadata !== undefined) {
+      try {
+        stickerMetadata = validateStickerMediaMetadata(v.stickerMetadata);
+      } catch {
+        return null;
+      }
     }
   } else if (v.stickerMetadata !== undefined) {
     return null;
