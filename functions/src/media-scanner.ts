@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { validateStickerMediaMetadata, type StickerMediaMetadata } from "./sticker-policy";
 
 export interface ScannerSafeDerivative {
   category: "gif" | "audio" | "video" | "document";
@@ -11,7 +12,8 @@ export interface ScannerSafeDerivative {
 
 export interface ScannerVerdictPayload {
   mediaId: string;
-  purpose: "chat" | "room" | "profile_album" | "avatar_cover" | "story" | "advertisement";
+  purpose: "chat" | "room" | "profile_album" | "avatar_cover" | "story" | "advertisement" | "sticker";
+  stickerMetadata?: StickerMediaMetadata;
   provider: string;
   verdict: "clean" | "malicious" | "error";
   objectGeneration: string;
@@ -60,6 +62,21 @@ export function validateScannerVerdict(
     previewParts[2] === v.mediaId &&
     previewParts[3] === "preview.webp";
 
+  let stickerMetadata: StickerMediaMetadata | undefined;
+  if (v.purpose === "sticker") {
+    // Clean verdicts must carry measured sticker metadata. Malware verdicts
+    // must still be accepted even when parsing the untrusted payload is unsafe.
+    if (v.verdict === "clean" || v.stickerMetadata !== undefined) {
+      try {
+        stickerMetadata = validateStickerMediaMetadata(v.stickerMetadata);
+      } catch {
+        return null;
+      }
+    }
+  } else if (v.stickerMetadata !== undefined) {
+    return null;
+  }
+
   let safeDerivative: ScannerSafeDerivative | undefined;
   if (v.safeDerivative !== undefined) {
     if (!v.safeDerivative || typeof v.safeDerivative !== "object" || Array.isArray(v.safeDerivative)) return null;
@@ -98,7 +115,7 @@ export function validateScannerVerdict(
   }
 
   if (typeof v.mediaId !== "string" || !/^[0-9a-f-]{36}$/i.test(v.mediaId) ||
-      typeof v.purpose !== "string" || !["chat", "room", "profile_album", "avatar_cover", "story", "advertisement"].includes(v.purpose) ||
+      typeof v.purpose !== "string" || !["chat", "room", "profile_album", "avatar_cover", "story", "advertisement", "sticker"].includes(v.purpose) ||
       v.provider !== expectedProvider ||
       !["clean", "malicious", "error"].includes(String(v.verdict)) ||
       typeof v.objectGeneration !== "string" || !/^\d+$/.test(v.objectGeneration) ||
@@ -119,5 +136,5 @@ export function validateScannerVerdict(
         v.safePreviewContentType !== "image/webp" || v.verdict !== "clean"
       )) ||
       (v.verdict !== "clean" && (hasAnyPreview || safeDerivative !== undefined))) return null;
-  return v as unknown as ScannerVerdictPayload;
+  return { ...v, ...(stickerMetadata ? { stickerMetadata } : {}) } as unknown as ScannerVerdictPayload;
 }
