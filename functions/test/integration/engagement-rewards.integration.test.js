@@ -118,6 +118,7 @@ test("timed advertisements require foreground heartbeat duration and pay once", 
   let sessionId;
   try {
     const created = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      expectedVersion: 0,
       title: "Test campaign",
       sponsorLabel: "Mawdda test sponsor",
       body: "This is a synthetic test-only advertisement for CI validation.",
@@ -237,6 +238,7 @@ test("campaigns can bind only approved owner-uploaded advertisement media", asyn
   });
   try {
     const result = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      expectedVersion: 0,
       title: "Creative-bound campaign",
       sponsorLabel: "Verified sponsor",
       body: "A synthetic campaign with a verified animated creative attached.",
@@ -304,6 +306,7 @@ test("timed-ad reward is withheld if its approved creative is revoked before com
   });
   try {
     const campaign = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      expectedVersion: 0,
       title: "Revocation test campaign",
       sponsorLabel: "Verified sponsor",
       body: "This test verifies that revoked creative assets cannot earn rewards.",
@@ -374,6 +377,7 @@ test("abandoned expired ad sessions release their reserved campaign budget", asy
   ]);
   try {
     const campaign = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      expectedVersion: 0,
       title: "Reserved budget campaign",
       sponsorLabel: "Mawdda test sponsor",
       body: "Only one reward can be reserved for this synthetic campaign.",
@@ -447,6 +451,7 @@ test("concurrent members cannot reserve the same final ad reward budget", async 
   })));
   try {
     const campaign = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      expectedVersion: 0,
       title: "Concurrent reservation campaign",
       sponsorLabel: "Mawdda test sponsor",
       body: "Two simultaneous members compete for one reserved reward.",
