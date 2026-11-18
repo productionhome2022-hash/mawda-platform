@@ -301,6 +301,11 @@ test("store entitlement gifting atomically debits giver, grants recipient, recor
     assert.equal((await giverRef.get()).data().coins, 1750);
     const history = await getMyStoreGiftHistory.run(memberRequest(recipientUid, {}));
     assert.equal(history.entries.some((entry) => entry.giftId === giftId && entry.giftKind === "store_feature"), true);
+    await giverLedgerRef.update({ amount: -1 });
+    await assert.rejects(
+      () => giftStoreEntitlement.run(request),
+      (error) => error && error.code === "failed-precondition",
+    );
     await assert.rejects(
       () => giftStoreEntitlement.run(memberRequest(giverUid, {
         itemId, recipientUid: giverUid, requestId: `self_${tag}`, expectedPriceCoins: 1250,
