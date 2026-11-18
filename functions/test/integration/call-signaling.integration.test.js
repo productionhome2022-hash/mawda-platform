@@ -8,6 +8,24 @@ const {
 const db = getFirestore();
 const call = (uid, data = {}) => ({ data, auth: { uid, token: {} } });
 const uid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+const callUsagePolicyRef = db.doc("platformSettings/callUsagePolicy");
+let previousCallUsagePolicy = null;
+test.before(async () => {
+  const snapshot = await callUsagePolicyRef.get();
+  previousCallUsagePolicy = snapshot.exists ? snapshot.data() : null;
+  await callUsagePolicyRef.set({
+    version: 1,
+    policy: {
+      active: true, quotaWindowMs: 24 * 60 * 60 * 1000,
+      audioCallsPerWindow: 5, videoCallsPerWindow: 3,
+      maxCallDurationMs: 5 * 60 * 1000,
+    },
+  });
+});
+test.after(async () => {
+  if (previousCallUsagePolicy) await callUsagePolicyRef.set(previousCallUsagePolicy);
+  else await callUsagePolicyRef.delete().catch(() => undefined);
+});
 
 test("direct call lifecycle enforces membership, callee acceptance, sequenced signaling and termination", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
@@ -111,6 +129,9 @@ test("room call signaling is peer-targeted and one member leaving does not end t
   const roomId = uid("room_call");
   const callId = uid("room_call_session");
   const roomRef = db.collection("rooms").doc(roomId);
+  const rentalId = `room_call_rental_${roomId}`;
+  const rentalRef = db.collection("roomRentals").doc(rentalId);
+  const expiresAt = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
   const memberRefs = [callerUid, firstUid, secondUid].map((memberUid) =>
     db.collection("users").doc(memberUid));
   const callRef = db.collection("callSessions").doc(callId);
@@ -120,9 +141,11 @@ test("room call signaling is peer-targeted and one member leaving does not end t
     })),
     roomRef.set({
       roomId, name: "غرفة اختبار المكالمات", ownerUid: callerUid,
-      kind: "public", audience: "adult", status: "active", capacity: 5,
+      kind: "private", isRented: true, rentalId, expiresAt,
+      audience: "adult", status: "active", capacity: 5,
       memberCount: 3,
     }),
+    rentalRef.set({ rentalId, roomId, ownerUid: callerUid, status: "active", expiresAt }),
     ...[callerUid, firstUid, secondUid].map((memberUid) =>
       roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" })),
   ]);
@@ -171,6 +194,7 @@ test("room call signaling is peer-targeted and one member leaving does not end t
   } finally {
     await db.recursiveDelete(callRef).catch(() => undefined);
     await db.recursiveDelete(roomRef).catch(() => undefined);
+    await db.recursiveDelete(rentalRef).catch(() => undefined);
     await Promise.all([
       ...memberRefs,
       ...[callerUid, firstUid, secondUid].map((memberUid) =>
