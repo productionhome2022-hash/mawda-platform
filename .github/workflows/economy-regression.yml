@@ -73,3 +73,13 @@ jobs:
         run: npm run test:featured-ad-reward-policy-integration
       - name: Run store catalog regressions
         run: npm run test:store-catalog-integration
+      - name: Run room-rental wallet and replay regressions
+        run: npm run test:room-rental-integration
+      - name: Run email verification reward-cycle regressions
+        run: npm run test:email-renewal-integration
+      - name: Run engagement reward regressions
+        run: npm run test:engagement-rewards-integration
+      - name: Run call entitlement and lifecycle regressions
+        run: npm run test:call-signaling-integration
+      - name: Run owner audit-chain export regressions
+        run: npm run test:owner-audit-export-integration
