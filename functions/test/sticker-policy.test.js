@@ -126,7 +126,7 @@ test("sticker send request accepts only bounded identifiers and explicit scope",
 });
 
 
-import { projectPublishedStickerPack } from "../src/sticker-catalog.ts";
+import { projectPublishedStickerPack } from "../lib/sticker-catalog.js";
 
 test("public sticker catalog exposes only clean published assets and no storage paths", () => {
   const projected = projectPublishedStickerPack("starter", {
