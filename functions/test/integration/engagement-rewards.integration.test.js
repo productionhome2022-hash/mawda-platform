@@ -602,6 +602,7 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
   const ownerUid = "featured-owner-" + tag;
   const uid = "featured-member-" + tag;
   const sessionRef = db.collection("featuredAdViewingSessions").doc();
+  let secondSessionRef;
   let campaignRef;
   const userRef = db.collection("users").doc(uid);
   const policyRef = db.doc("platformSettings/featuredAdRewardPolicy");
@@ -678,27 +679,26 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
     const history = await getMyFeaturedAdRewardHistory.run(memberRequest({}));
     assert.equal(history.rewards.length, 1);
 
-    const secondSession = db.collection("featuredAdViewingSessions").doc();
-    await secondSession.set({
+    secondSessionRef = db.collection("featuredAdViewingSessions").doc();
+    await secondSessionRef.set({
       uid, campaignId, geography: "syria", creativeType: "image", status: "active",
       startedAtMs: Date.now() - 12000, lastHeartbeatAtMs: Date.now(),
       visibleMs: 12000, continuousVisibleMs: 12000, progressPercent: 0,
       foregroundVisible: true, rewardClaimed: false,
     });
     await setFeaturedAdCampaignStatus.run(ownerRequest({ campaignId, status: "withdrawn" }));
-    const denied = await completeFeaturedAdViewingSession.run(memberRequest({ sessionId: secondSession.id }));
+    const denied = await completeFeaturedAdViewingSession.run(memberRequest({ sessionId: secondSessionRef.id }));
     assert.equal(denied.rewarded, false);
     assert.equal((await userRef.get()).data().coins, 2);
   } finally {
     await Promise.all([
       sessionRef.delete().catch(() => undefined),
-      db.collection("featuredAdViewingSessions").doc("unused_" + tag).delete().catch(() => undefined),
+      secondSessionRef?.delete().catch(() => undefined),
       userRef.collection("featuredAdRewardDays").doc(new Date().toISOString().slice(0, 10)).delete().catch(() => undefined),
       userRef.delete().catch(() => undefined),
       campaignRef?.delete().catch(() => undefined),
       previousPolicy.exists ? policyRef.set(previousPolicy.data()) : policyRef.delete(),
       memberRef?.delete().catch(() => undefined), dayRef.delete().catch(() => undefined),
-      db.collection("featuredAdViewingSessions").doc("unused_" + tag).delete().catch(() => undefined),
       db.collection("mediaAssets").doc("fixture-media-" + tag).delete().catch(() => undefined),
       userRef.collection("walletLedger").doc("featured_ad_reward_" + sessionRef.id).delete().catch(() => undefined),
     ]);
