@@ -220,6 +220,10 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
     assert.equal(purchase.data().status, "completed");
     assert.equal(purchase.data().priceCoins, 1250);
     assert.equal(ledger.data().amount, -1250);
+    assert.equal(ledger.data().balanceBefore, 5000);
+    assert.equal(ledger.data().balanceAfter, 3750);
+    assert.equal(purchase.data().balanceBefore, 5000);
+    assert.equal(purchase.data().newBalance, 3750);
     assert.equal(ledger.data().purchaseId, purchaseId);
     assert.equal(entitlement.data().status, "active");
     assert.equal(entitlement.data().category, "vip");
@@ -227,6 +231,12 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
 
     const replay = await purchaseStoreItem.run(request);
     assert.equal(replay.idempotentReplay, true);
+    assert.equal((await memberRef.get()).data().coins, 3750);
+    await ledgerRef.delete();
+    await assert.rejects(
+      () => purchaseStoreItem.run(request),
+      (error) => error && error.code === "failed-precondition",
+    );
     assert.equal((await memberRef.get()).data().coins, 3750);
 
     await assert.rejects(
