@@ -10014,14 +10014,56 @@ async function processGroupCallBillingSettlement(
   const mediaConnectedAt = call.mediaConnectedAt && typeof call.mediaConnectedAt === "object" &&
       !Array.isArray(call.mediaConnectedAt)
     ? call.mediaConnectedAt as Record<string, unknown> : {};
-  const participantUids = Array.isArray(call.participantUids)
+  const claimedConnectedUids = Array.isArray(call.participantUids)
     ? [...new Set(call.participantUids.filter((uid): uid is string =>
         typeof uid === "string" && mediaConnectedAt[uid] instanceof Timestamp))]
     : [];
-  if (participantUids.length < 2 || !participantUids.includes(String(call.callerUid))) {
+  if (claimedConnectedUids.length < 2 ||
+      !claimedConnectedUids.includes(String(call.callerUid))) {
     await callRef.set({ groupCallBillingState: "not_applicable" }, { merge: true });
     return { status: "not_applicable" };
   }
+
+  // Client-reported WebRTC state is not proof that media actually flowed.
+  // Until a trusted SFU/provider event verifier is integrated, fail closed:
+  // no wallet debit may be based on markCallConnected alone.
+  const mediaEvidenceVerifiedAt = call.mediaEvidenceVerifiedAt &&
+      typeof call.mediaEvidenceVerifiedAt === "object" &&
+      !Array.isArray(call.mediaEvidenceVerifiedAt)
+    ? call.mediaEvidenceVerifiedAt as Record<string, unknown> : {};
+  const unverifiedMediaUids = claimedConnectedUids.filter((uid) =>
+    !(mediaEvidenceVerifiedAt[uid] instanceof Timestamp));
+  if (unverifiedMediaUids.length > 0) {
+    await callRef.set({
+      groupCallBillingState: "blocked_unverified_media",
+      groupCallBillingBlockReason: "awaiting_server_verified_media_evidence",
+      groupCallBillingBlockedUids: unverifiedMediaUids,
+      groupCallBillingLastAttemptAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return { status: "blocked_unverified_media" };
+  }
+
+  const consents = call.billingConsents && typeof call.billingConsents === "object" &&
+      !Array.isArray(call.billingConsents)
+    ? call.billingConsents as Record<string, unknown> : {};
+  const missingConsentUids = claimedConnectedUids.filter((uid) => {
+    const consent = consents[uid];
+    return !consent || typeof consent !== "object" ||
+      (consent as Record<string, unknown>).consented !== true ||
+      (consent as Record<string, unknown>).policyId !== policy.policyId ||
+      (consent as Record<string, unknown>).policyVersion !== policy.version;
+  });
+  if (missingConsentUids.length > 0) {
+    await callRef.set({
+      groupCallBillingState: "blocked_missing_financial_consent",
+      groupCallBillingBlockReason: "participant_financial_consent_missing_or_stale",
+      groupCallBillingBlockedUids: missingConsentUids,
+      groupCallBillingLastAttemptAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return { status: "blocked_missing_financial_consent" };
+  }
+
+  const participantUids = claimedConnectedUids;
   const maxDurationMs = call.maxDurationEndsAt.toMillis() - call.connectedAt.toMillis();
   if (!Number.isSafeInteger(maxDurationMs) || maxDurationMs < 1) {
     throw new Error("GROUP_CALL_MAX_DURATION_SNAPSHOT_INVALID");
