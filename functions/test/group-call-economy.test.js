@@ -32,9 +32,10 @@ test("video group allocation supports the four-person maximum", () => {
 });
 
 test("initiator remainder is deterministic and independent of input order", () => {
-  const first = calculateGroupCallCoinShares(1000, ["owner", "b", "c", "d", "e", "f", "g"], "owner");
-  const second = calculateGroupCallCoinShares(1000, ["g", "e", "c", "owner", "f", "d", "b"], "owner");
+  const first = calculateGroupCallCoinShares(1003, ["owner", "b", "c", "d", "e"], "owner");
+  const second = calculateGroupCallCoinShares(1003, ["e", "c", "owner", "d", "b"], "owner");
   assert.deepEqual(first, second);
+  assert.equal(first.find((share) => share.uid === "owner").amount, 203);
 });
 
 test("invalid totals, missing initiator, duplicate members and zero-sized shares fail closed", () => {
