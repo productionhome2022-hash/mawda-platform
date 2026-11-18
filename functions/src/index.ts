@@ -7896,6 +7896,11 @@ export const startFeaturedAdSession = onCall({ enforceAppCheck: true }, async (r
       typeof geography !== "string" || !(FEATURED_AD_GEOGRAPHIES as readonly string[]).includes(geography)) {
     throw new HttpsError("invalid-argument", "الحملة أو النطاق الجغرافي غير صالح.");
   }
+  const firebaseIdentity = request.auth?.token.firebase;
+  if (firebaseIdentity && typeof firebaseIdentity === "object" &&
+      (firebaseIdentity as Record<string, unknown>).sign_in_provider === "anonymous") {
+    throw new HttpsError("permission-denied", "مشاهدة الإعلانات المكافأة مخصصة للأعضاء.");
+  }
   const sessionId = randomUUID();
   const now = Date.now();
   const userRef = db.collection("users").doc(uid);
@@ -7914,7 +7919,34 @@ export const startFeaturedAdSession = onCall({ enforceAppCheck: true }, async (r
       throw new HttpsError("permission-denied", "مشاهدة الإعلانات المكافأة متاحة للأعضاء النشطين فقط.");
     }
     if (active.exists) {
-      throw new HttpsError("resource-exhausted", "لديك جلسة مشاهدة مميزة قائمة؛ أكملها أو انتظر انتهاءها.");
+      const previousSessionId = active.data()?.sessionId;
+      if (typeof previousSessionId !== "string" || !/^[0-9a-f-]{36}$/i.test(previousSessionId)) {
+        throw new HttpsError("data-loss", "قفل جلسة المشاهدة السابقة غير سليم.");
+      }
+      const previousSessionRef = FEATURED_AD_SESSIONS.doc(previousSessionId);
+      const previousSession = await transaction.get(previousSessionRef);
+      if (previousSession.exists && previousSession.data()?.status === "active") {
+        const previousExpiry = previousSession.data()?.expiresAtMs;
+        if (!Number.isSafeInteger(previousExpiry)) {
+          throw new HttpsError("data-loss", "موعد انتهاء الجلسة السابقة غير سليم.");
+        }
+        if (previousExpiry > now) {
+          throw new HttpsError("resource-exhausted", "لديك جلسة مشاهدة مميزة قائمة؛ أكملها أو ألغها أولاً.");
+        }
+        const previousCampaignRef = FEATURED_AD_CAMPAIGNS.doc(String(previousSession.data()?.campaignId));
+        const previousCampaign = await transaction.get(previousCampaignRef);
+        if (previousCampaign.exists) {
+          const previousReserved = readSafeInteger(previousCampaign.data()?.reservedRewardCoins ?? 0, "featuredPreviousReservedCoins");
+          const previousReward = readSafeInteger(previousSession.data()?.rewardCoins, "featuredPreviousRewardCoins");
+          transaction.update(previousCampaignRef, {
+            reservedRewardCoins: Math.max(0, previousReserved - previousReward),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+        transaction.update(previousSessionRef, {
+          status: "expired", expiredAt: FieldValue.serverTimestamp(),
+        });
+      }
     }
     if (!campaign.exists) throw new HttpsError("not-found", "الحملة المميزة غير موجودة.");
     const data = campaign.data()!;
@@ -7995,15 +8027,17 @@ export const heartbeatFeaturedAdSession = onCall({ enforceAppCheck: true }, asyn
     const data = session.data()!;
     const campaignRef = FEATURED_AD_CAMPAIGNS.doc(data.campaignId);
     const activeRef = FEATURED_AD_ACTIVE_SESSIONS.doc(uid);
-    const [campaign, active] = await Promise.all([
+    const [campaign, active, policySnapshot] = await Promise.all([
       transaction.get(campaignRef), transaction.get(activeRef),
+      transaction.get(FEATURED_AD_REWARD_POLICY),
     ]);
     if (data.status !== "active" || active.data()?.sessionId !== sessionId) {
       throw new HttpsError("failed-precondition", "جلسة الإعلان ليست نشطة.");
     }
     if (data.expiresAtMs <= Date.now() || !campaign.exists ||
         campaign.data()?.status !== "published" || campaign.data()?.version !== data.campaignVersion ||
-        campaign.data()?.paymentConfirmed !== true || campaign.data()?.ownerWithdrawn === true) {
+        campaign.data()?.paymentConfirmed !== true || campaign.data()?.ownerWithdrawn === true ||
+        !policySnapshot.exists || (policySnapshot.data()?.version ?? 1) !== data.policyVersion) {
       const reserved = campaign.exists
         ? readSafeInteger(campaign.data()?.reservedRewardCoins ?? 0, "featuredReservedRewardCoins") : 0;
       if (campaign.exists) transaction.update(campaignRef, {
