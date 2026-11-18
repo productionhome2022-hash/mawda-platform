@@ -23,6 +23,17 @@ test("reports historical ledgers without balance snapshots as incomplete, not ve
   assert.equal(result.entriesMissingSnapshots, 1);
 });
 
+test("does not compare balance snapshots across legacy rows with unknown deltas", () => {
+  const result = reconcileWalletLedger(85, [
+    { id: "a", amount: 100, balanceBefore: 0, balanceAfter: 100 },
+    { id: "legacy", amount: -20 },
+    { id: "b", amount: 5, balanceBefore: 80, balanceAfter: 85 },
+  ]);
+  assert.equal(result.status, "incomplete");
+  assert.equal(result.anomalies.length, 0);
+  assert.equal(result.computedBalance, 85);
+});
+
 test("detects balance arithmetic, continuity and current-balance mismatches", () => {
   const arithmetic = reconcileWalletLedger(90, [
     { id: "a", amount: 100, balanceBefore: 0, balanceAfter: 90 },
