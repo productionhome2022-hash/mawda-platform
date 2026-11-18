@@ -83,7 +83,8 @@ function isSafeDerivativeMetadata(metadata, expected) {
 
 function isSignatureDatabaseFresh(lastUpdatedMs, nowMs = Date.now(), maxAgeMs = 36 * 60 * 60 * 1000) {
   return Number.isFinite(lastUpdatedMs) && Number.isFinite(nowMs) &&
-    Number.isFinite(maxAgeMs) && maxAgeMs > 0 &&
+    Number.isSafeInteger(maxAgeMs) && maxAgeMs > 0 &&
+    maxAgeMs <= 36 * 60 * 60 * 1000 &&
     lastUpdatedMs <= nowMs + 5 * 60 * 1000 &&
     nowMs - lastUpdatedMs <= maxAgeMs;
 }
