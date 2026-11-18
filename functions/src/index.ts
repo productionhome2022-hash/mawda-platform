@@ -9062,7 +9062,12 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
   const creativeType = campaign.creativeType === "video" ? "video" : campaign.creativeType === "image" ? "image" : "text";
   const sessionData = {
     uid, campaignId, geography, creativeType, status: "active", startedAtMs: now, lastHeartbeatAtMs: now,
-    visibleMs: 0, continuousVisibleMs: 0, progressPercent: 0, foregroundVisible: true, rewardClaimed: false,
+    // Client heartbeat data is telemetry only. No trusted playback/visibility
+    // attestation provider is connected, so settlement must remain fail-closed.
+    visibleMs: 0, continuousVisibleMs: 0, progressPercent: 0, foregroundVisible: true,
+    serverValidatedVisibility: false, serverValidatedPlayback: false,
+    serverValidatedContinuousVisibleMs: 0, serverValidatedProgressPercent: 0,
+    rewardClaimed: false,
     serverNonce: createHash("sha256").update(uid + ":" + sessionId + ":" + now).digest("hex"),
     createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
   };
@@ -9123,7 +9128,9 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
   return {
     sessionId, campaignId, creativeType, serverNonce: sessionData.serverNonce, ...media,
     rewardRequirements: {
-      enabled: rewardPolicy.enabled,
+      enabled: false,
+      configuredByOwner: rewardPolicy.enabled,
+      evidenceReady: false,
       videoCompletionPercent: rewardPolicy.videoCompletionPercent,
       imageContinuousVisibleMs: rewardPolicy.imageContinuousVisibleMs,
     },
@@ -9241,11 +9248,12 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
           campaign.spentRewardCoins ?? 0,
           campaignRewardCoins,
         ),
-      foregroundAndVisibilityValidated: session.foregroundVisible === true &&
-        Number(session.continuousVisibleMs) >= (session.creativeType === "image" ? policy.imageContinuousVisibleMs : 0),
+      foregroundAndVisibilityValidated: session.serverValidatedVisibility === true &&
+        (session.creativeType !== "video" || session.serverValidatedPlayback === true),
       creativeType: session.creativeType === "video" ? "video" : "image",
-      videoCompletionPercent: Number(session.progressPercent) || 0,
-      continuousVisibleMs: Number(session.visibleMs) || 0,
+      // Never use client-reported heartbeat progress or visibility for wallet credit.
+      videoCompletionPercent: Number(session.serverValidatedProgressPercent) || 0,
+      continuousVisibleMs: Number(session.serverValidatedContinuousVisibleMs) || 0,
       rewardedViewsToday: Number(daily.rewardedViews) || 0,
       rewardCoinsToday: Number(daily.rewardCoins) || 0,
       sameCampaignRewardsInWindow: rewardTimestamps.length,
