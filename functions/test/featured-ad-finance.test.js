@@ -56,6 +56,10 @@ test("records payment, partial refund and settlement without allowing over-refun
   const partiallyRefunded = applyFeaturedAdFinancialEvent(paid, refund);
   assert.equal(partiallyRefunded.refundedMinor, 2000);
   assert.equal(partiallyRefunded.paymentStatus, "partially_refunded");
+  assert.throws(() => applyFeaturedAdFinancialEvent(partiallyRefunded, validateFeaturedAdFinancialEvent({
+    ...base, idempotencyKey: "finance_operation_0006", action: "refund_recorded",
+    amountMinor: 8001, currency: "USD",
+  })), /refund_exceeds_unrefunded_receipt/);
   const settlement = validateFeaturedAdFinancialEvent({
     ...base, idempotencyKey: "finance_operation_0003", action: "settlement_reconciled",
     amountMinor: 8000, currency: "USD",
