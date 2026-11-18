@@ -88,6 +88,7 @@ import { isActiveRentedPrivateRoom } from "./room-call-policy";
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
 import { validateCoinPackages, validateAdPrices, validateBilateralCallTariffs, defaultEmailVerificationRewardPolicy, validateEmailVerificationRewardPolicy } from "./economy-pricing";
+import { validateEconomicPaymentPolicy, projectEconomicPaymentPolicy } from "./economy-payment-policy";
 import { reconcileWalletLedger } from "./wallet-reconciliation";
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
@@ -8504,6 +8505,7 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
       coinPackages: [], adPrices: [], version: 0, configured: false,
       realMoneyCheckoutEnabled: false, manualCoinPurchasesEnabled: false,
       manualFeaturedAdsEnabled: false, automatedCoinCheckoutEnabled: false,
+      paymentPolicy: projectEconomicPaymentPolicy(undefined),
     };
   }
   const data = snapshot.data() ?? {};
@@ -8528,6 +8530,16 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
     manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled === true,
     manualFeaturedAdsEnabled: data.manualFeaturedAdsEnabled === true,
     automatedCoinCheckoutEnabled: false,
+    paymentPolicy: (() => {
+      try {
+        return projectEconomicPaymentPolicy(data.paymentPolicy, {
+          manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled,
+          manualFeaturedAdsEnabled: data.manualFeaturedAdsEnabled,
+        });
+      } catch {
+        throw new HttpsError("failed-precondition", "سياسة طرق الدفع الاقتصادية غير صالحة؛ تم إيقاف عرض خيارات الدفع.");
+      }
+    })(),
   };
 });
 
@@ -8549,6 +8561,11 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
   }
   const manualCoinPurchasesEnabled = request.data?.manualCoinPurchasesEnabled;
   const manualFeaturedAdsEnabled = request.data?.manualFeaturedAdsEnabled;
+  let requestedPaymentPolicy;
+  if (request.data?.paymentPolicy !== undefined) {
+    try { requestedPaymentPolicy = validateEconomicPaymentPolicy(request.data.paymentPolicy); }
+    catch { throw new HttpsError("invalid-argument", "سياسة طرق الدفع لكل خدمة غير صالحة؛ الدفع الآلي غير متاح قبل تكامل مزود موثوق."); }
+  }
   const expectedVersion = request.data?.expectedVersion;
   if (typeof manualCoinPurchasesEnabled !== "boolean" ||
       typeof manualFeaturedAdsEnabled !== "boolean" ||
@@ -8569,12 +8586,32 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
       previous.data()?.emailVerificationReward ?? defaultEmailVerificationRewardPolicy(),
     );
     const emailVerificationReward = requestedEmailVerificationReward ?? previousEmailVerificationReward;
+    let paymentPolicy;
+    try {
+      paymentPolicy = requestedPaymentPolicy ?? projectEconomicPaymentPolicy(previous.data()?.paymentPolicy, {
+        manualCoinPurchasesEnabled: previous.data()?.manualCoinPurchasesEnabled,
+        manualFeaturedAdsEnabled: previous.data()?.manualFeaturedAdsEnabled,
+      });
+    } catch {
+      throw new HttpsError("failed-precondition", "سياسة طرق الدفع السابقة غير صالحة؛ أصلحها قبل حفظ إعدادات الاقتصاد.");
+    }
+    // Keep the two legacy flags synchronized while clients migrate to paymentPolicy.
+    paymentPolicy = {
+      ...paymentPolicy,
+      coin_purchases: requestedPaymentPolicy?.coin_purchases ?? {
+        manualEnabled: manualCoinPurchasesEnabled, automatedEnabled: false,
+      },
+      featured_ads: requestedPaymentPolicy?.featured_ads ?? {
+        manualEnabled: manualFeaturedAdsEnabled, automatedEnabled: false,
+      },
+    };
     const nextVersion = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(ECONOMY_PRICING_SETTINGS, {
       coinPackages, adPrices, callTariffs, emailVerificationReward, version: nextVersion,
-      manualCoinPurchasesEnabled,
-      manualFeaturedAdsEnabled,
+      manualCoinPurchasesEnabled: paymentPolicy.coin_purchases.manualEnabled,
+      manualFeaturedAdsEnabled: paymentPolicy.featured_ads.manualEnabled,
+      paymentPolicy,
       automatedCoinCheckoutEnabled: false,
       realMoneyCheckoutEnabled: false,
       updatedAt: now, updatedBy: actorUid,
@@ -8593,7 +8630,9 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
       previousManualCoinPurchasesEnabled: previous.data()?.manualCoinPurchasesEnabled === true,
       manualCoinPurchasesEnabled,
       previousManualFeaturedAdsEnabled: previous.data()?.manualFeaturedAdsEnabled === true,
-      manualFeaturedAdsEnabled,
+      manualFeaturedAdsEnabled: paymentPolicy.featured_ads.manualEnabled,
+      previousPaymentPolicy: previous.data()?.paymentPolicy ?? null,
+      paymentPolicy,
       automatedCheckoutEnabled: false,
       realMoneyCheckoutEnabled: false, createdAt: now,
     });
@@ -8603,7 +8642,9 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
     saved: true, version, realMoneyCheckoutEnabled: false,
     callTariffs: requestedCallTariffs ?? undefined,
     emailVerificationReward: requestedEmailVerificationReward ?? undefined,
-    manualCoinPurchasesEnabled, manualFeaturedAdsEnabled,
+    manualCoinPurchasesEnabled: manualCoinPurchasesEnabled,
+    manualFeaturedAdsEnabled: manualFeaturedAdsEnabled,
+    paymentPolicy: requestedPaymentPolicy ?? undefined,
     automatedCheckoutEnabled: false,
   };
 });
