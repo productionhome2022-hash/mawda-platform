@@ -38,6 +38,7 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
   const calleeRef = db.collection("users").doc(calleeUid);
   const outsiderRef = db.collection("users").doc(outsiderUid);
   const chatRef = db.collection("directChats").doc(chatId);
+  const missingEntitlementChatRef = db.collection("directChats").doc(uid("call_missing_entitlement_chat"));
   const callRef = db.collection("callSessions").doc(callId);
 
   await Promise.all([
@@ -45,10 +46,19 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
     calleeRef.set({ profileCompleted: true, accountStatus: "active", age: 31 }),
     outsiderRef.set({ profileCompleted: true, accountStatus: "active", age: 28 }),
     chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
+    missingEntitlementChatRef.set({ participantUids: [callerUid, outsiderUid].sort() }),
     seedCallEntitlements(callerUid, ["audio"]),
     seedCallEntitlements(calleeUid, ["audio"]),
   ]);
   try {
+    await assert.rejects(
+      () => startCall.run(call(callerUid, {
+        callId: uid("call_without_peer_entitlement"),
+        scope: "direct", targetId: missingEntitlementChatRef.id, mode: "audio",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "both direct-call participants must hold the matching active entitlement",
+    );
     const started = await startCall.run(call(callerUid, {
       callId, scope: "direct", targetId: chatId, mode: "audio",
     }));
@@ -115,7 +125,7 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
   } finally {
     await db.recursiveDelete(callRef).catch(() => undefined);
     await Promise.all([
-      callerRef, calleeRef, outsiderRef, chatRef,
+      callerRef, calleeRef, outsiderRef, chatRef, missingEntitlementChatRef,
       db.collection("activeCallMemberLocks").doc(callerUid),
       db.collection("activeCallMemberLocks").doc(calleeUid),
     ].map((ref) => db.recursiveDelete(ref).catch(() => undefined)));
