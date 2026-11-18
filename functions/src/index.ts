@@ -10502,6 +10502,14 @@ export const startCall = onCall(async (request) => {
           !isActiveRentedPrivateRoom(roomSnapshot.data(), rentalSnapshot.data(), now))) {
       throw new HttpsError("failed-precondition", "الغرفة أو استئجارها لم يعد نشطاً؛ تم رفض بدء المكالمة.");
     }
+    if (input.scope === "room" && roomRefForCall) {
+      const roomMembershipRefs = participantUids.map((memberUid) =>
+        roomRefForCall!.collection("members").doc(memberUid));
+      const roomMemberships = await Promise.all(roomMembershipRefs.map((ref) => transaction.get(ref)));
+      if (roomMemberships.some((membership) => !membership.exists)) {
+        throw new HttpsError("failed-precondition", "تغيرت عضوية الغرفة أثناء بدء المكالمة؛ أعد المحاولة.");
+      }
+    }
     const memberLockRefs = participantUids.map((memberUid) => ACTIVE_CALL_MEMBER_LOCKS.doc(memberUid));
     const memberLocks = await Promise.all(memberLockRefs.map((lockRef) => transaction.get(lockRef)));
     const lockCallRefs = memberLocks.map((lock) => {
@@ -10619,6 +10627,25 @@ export const respondToCall = onCall(async (request) => {
         (call.status === "ringing" &&
           (!(call.expiresAt instanceof Timestamp) || call.expiresAt.toMillis() <= Date.now()))) {
       throw new HttpsError("failed-precondition", "انتهت مهلة المكالمة أو لم تعد متاحة.");
+    }
+    if (response === "accept" && call.scope === "room") {
+      if (typeof call.targetId !== "string" || !call.targetId) {
+        throw new HttpsError("failed-precondition", "مرجع الغرفة غير صالح؛ تعذر قبول المكالمة.");
+      }
+      const roomRef = db.collection("rooms").doc(call.targetId);
+      const [roomSnapshot, membershipSnapshot] = await Promise.all([
+        transaction.get(roomRef),
+        transaction.get(roomRef.collection("members").doc(uid)),
+      ]);
+      const roomData = roomSnapshot.data() ?? {};
+      if (!roomSnapshot.exists || !membershipSnapshot.exists ||
+          typeof roomData.rentalId !== "string" || !roomData.rentalId) {
+        throw new HttpsError("permission-denied", "لم تعد عضويتك أو صلاحية استئجار الغرفة صالحة لقبول المكالمة.");
+      }
+      const rentalSnapshot = await transaction.get(db.collection("roomRentals").doc(roomData.rentalId));
+      if (!rentalSnapshot.exists || !isActiveRentedPrivateRoom(roomData, rentalSnapshot.data(), Date.now())) {
+        throw new HttpsError("failed-precondition", "انتهى استئجار الغرفة أو لم يعد نشطاً؛ تعذر قبول المكالمة.");
+      }
     }
     if (response === "accept") {
       const acceptedForEntitlement = Array.isArray(call.acceptedUids)
