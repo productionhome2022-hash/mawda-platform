@@ -17,7 +17,7 @@ export type CoinPackage = {
 };
 export type AdPrice = {
   placementId: string; name: string; billingModel: "cpm" | "cpc" | "daily";
-  priceMinor: number; currency: string; active: boolean;
+  priceMinor: number; currency: string; currencyExponent: number; active: boolean;
 };
 export function validateCoinPackages(value: unknown): CoinPackage[] {
   if (!Array.isArray(value) || value.length > 30) throw new Error("INVALID_COIN_PACKAGES");
@@ -47,9 +47,10 @@ export function validateAdPrices(value: unknown): AdPrice[] {
     if (typeof p.name !== "string" || p.name.trim().length < 3 || p.name.trim().length > 80 ||
         !["cpm", "cpc", "daily"].includes(String(p.billingModel)) ||
         !Number.isSafeInteger(p.priceMinor) || (p.priceMinor as number) < 1 || (p.priceMinor as number) > 100000000 ||
-        typeof p.currency !== "string" || !/^[A-Z]{3}$/.test(p.currency) || typeof p.active !== "boolean") throw new Error("INVALID_AD_PRICE_FIELDS");
+        currencyExponentForCode(p.currency) === null || typeof p.active !== "boolean") throw new Error("INVALID_AD_PRICE_FIELDS");
     return { placementId: p.placementId, name: p.name.trim(), billingModel: p.billingModel as AdPrice["billingModel"],
-      priceMinor: p.priceMinor as number, currency: p.currency, active: p.active };
+      priceMinor: p.priceMinor as number, currency: p.currency as string,
+      currencyExponent: currencyExponentForCode(p.currency) as number, active: p.active };
   });
 }
 
