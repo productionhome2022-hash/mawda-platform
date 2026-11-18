@@ -8461,12 +8461,15 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
   }
   // Re-read the campaign and create the session atomically after all media
   // checks. A concurrent owner withdrawal must win before a new session exists.
+  const sessionNow = Date.now();
+  sessionData.startedAtMs = sessionNow;
+  sessionData.lastHeartbeatAtMs = sessionNow;
   await db.runTransaction(async (transaction) => {
     const latestCampaign = await transaction.get(featuredAdCampaignRef(campaignId));
     const latest = latestCampaign.data() ?? {};
     if (!latestCampaign.exists || latest.status !== "published" || latest.ownerWithdrawn === true ||
         latest.ownerApproved !== true || latest.paymentConfirmed !== true || latest.creativeApproved !== true ||
-        now < latest.startsAtMs || now >= latest.endsAtMs ||
+        sessionNow < latest.startsAtMs || sessionNow >= latest.endsAtMs ||
         !Array.isArray(latest.geographicTargets) || !latest.geographicTargets.includes(geography) ||
         latest.mediaId !== campaign.mediaId) {
       throw new HttpsError("failed-precondition", "تم إيقاف الحملة أو تغيرت أثناء بدء جلسة المشاهدة.");
