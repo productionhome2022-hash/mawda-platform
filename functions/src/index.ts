@@ -8236,8 +8236,8 @@ export const withdrawCoinPurchaseRequest = onCall(async (request) => {
     if (!snapshot.exists || snapshot.data()?.requesterUid !== uid) {
       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
     }
-    if (["approved", "rejected"].includes(String(snapshot.data()?.status))) {
-      throw new HttpsError("failed-precondition", "لا يمكن سحب طلب منتهٍ.");
+    if (["approved", "rejected", "awaiting_payment_verification"].includes(String(snapshot.data()?.status))) {
+      throw new HttpsError("failed-precondition", "لا يمكن سحب طلب بعد إبلاغ المالك بإرسال الدفعة أو بعد انتهاء الطلب؛ تواصل مع المالك لمعالجة أي تسوية لازمة.");
     }
     if (snapshot.data()?.status === "withdrawn") return;
     transaction.update(ref, { status: "withdrawn", withdrawnAt: FieldValue.serverTimestamp(),
