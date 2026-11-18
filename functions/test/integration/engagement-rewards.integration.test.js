@@ -605,7 +605,7 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
   let campaignRef;
   const userRef = db.collection("users").doc(uid);
   const policyRef = db.doc("platformSettings/featuredAdRewardPolicy");
-  const memberRef = db.collection("featuredAdCampaignMembers").doc(uid + "_" + campaignRef.id);
+  let memberRef;
   const dayRef = userRef.collection("featuredAdRewardDays").doc(new Date().toISOString().slice(0, 10));
   const ownerRequest = (data) => ({
     data,
@@ -645,6 +645,7 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
     assert.equal(created.status, "draft");
     const campaignId = created.campaignId;
     campaignRef = db.collection("featuredAdCampaigns").doc(campaignId);
+    memberRef = db.collection("featuredAdCampaignMembers").doc(uid + "_" + campaignId);
     const approved = await setFeaturedAdCampaignStatus.run(ownerRequest({
       campaignId, status: "approved", paymentConfirmed: true,
     }));
@@ -687,10 +688,13 @@ test("featured ad owner lifecycle, atomic reward, replay and withdrawal gates", 
     assert.equal((await userRef.get()).data().coins, 2);
   } finally {
     await Promise.all([
-      sessionRef.delete().catch(() => undefined), userRef.delete().catch(() => undefined),
+      sessionRef.delete().catch(() => undefined),
+      db.collection("featuredAdViewingSessions").doc("unused_" + tag).delete().catch(() => undefined),
+      userRef.collection("featuredAdRewardDays").doc(new Date().toISOString().slice(0, 10)).delete().catch(() => undefined),
+      userRef.delete().catch(() => undefined),
       campaignRef?.delete().catch(() => undefined),
       previousPolicy.exists ? policyRef.set(previousPolicy.data()) : policyRef.delete(),
-      memberRef.delete().catch(() => undefined), dayRef.delete().catch(() => undefined),
+      memberRef?.delete().catch(() => undefined), dayRef.delete().catch(() => undefined),
       db.collection("featuredAdViewingSessions").doc("unused_" + tag).delete().catch(() => undefined),
       db.collection("mediaAssets").doc("fixture-media-" + tag).delete().catch(() => undefined),
       userRef.collection("walletLedger").doc("featured_ad_reward_" + sessionRef.id).delete().catch(() => undefined),
