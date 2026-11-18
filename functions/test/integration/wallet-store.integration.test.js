@@ -4,7 +4,7 @@ const { getFirestore } = require("firebase-admin/firestore");
 const { getAuth } = require("firebase-admin/auth");
 const {
   transferCoins, purchaseStoreItem, giftStoreEntitlement, getMyStoreGiftHistory, getOwnerStoreCatalog, setStoreCatalogItem, getOwnerEconomyPricing, getAvailableCoinPackages,
-  setTransferCommission, getOwnerOperationsOverview,
+  setTransferCommission, getOwnerOperationsOverview, reconcileMemberWallet,
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
   setCoinPurchasePaymentInstructions, requestCoinPurchasePaymentVerification, approveCoinPurchaseRequest,
   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
@@ -1354,5 +1354,47 @@ test("coin transfer commission policy is owner-versioned and stale writes are re
   } finally {
     if (previous.exists) await settingsRef.set(previousData);
     else await settingsRef.delete();
+  }
+});
+
+
+test("owner wallet reconciliation is read-only and distinguishes consistent, incomplete and corrupt history", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const uid = `wallet_reconcile_${suffix()}`;
+  const ownerUid = `wallet_reconcile_owner_${suffix()}`;
+  const userRef = db.collection("users").doc(uid);
+  const ledger = userRef.collection("walletLedger");
+  const first = ledger.doc("opening_credit");
+  const second = ledger.doc("purchase_debit");
+  await userRef.set({ coins: 75, profileCompleted: true, accountStatus: "active" });
+  await Promise.all([
+    first.set({ amount: 100, balanceBefore: 0, balanceAfter: 100, createdAt: new Date(1000) }),
+    second.set({ amount: -25, balanceBefore: 100, balanceAfter: 75, createdAt: new Date(2000) }),
+  ]);
+  try {
+    const consistent = await reconcileMemberWallet.run(ownerRequest(ownerUid, { memberUid: uid }));
+    assert.equal(consistent.status, "consistent");
+    assert.equal(consistent.computedBalance, 75);
+    assert.equal((await userRef.get()).data().coins, 75, "reconciliation must never mutate wallet balance");
+
+    await second.update({ balanceBefore: require("firebase-admin/firestore").FieldValue.delete(),
+      balanceAfter: require("firebase-admin/firestore").FieldValue.delete() });
+    const incomplete = await reconcileMemberWallet.run(ownerRequest(ownerUid, { memberUid: uid }));
+    assert.equal(incomplete.status, "incomplete");
+    assert.equal(incomplete.entriesMissingSnapshots, 1);
+
+    await second.update({ balanceBefore: 90, balanceAfter: 65 });
+    const corrupt = await reconcileMemberWallet.run(ownerRequest(ownerUid, { memberUid: uid }));
+    assert.equal(corrupt.status, "corrupt");
+    assert.ok(corrupt.anomalies.length > 0);
+    assert.equal((await userRef.get()).data().coins, 75);
+  } finally {
+    const audit = await db.collection("adminAuditLogs")
+      .where("action", "==", "member_wallet_reconciliation")
+      .where("memberUid", "==", uid).get();
+    await Promise.all([
+      userRef.delete().catch(() => undefined),
+      ...audit.docs.map((doc) => doc.ref.delete().catch(() => undefined)),
+    ]);
   }
 });
