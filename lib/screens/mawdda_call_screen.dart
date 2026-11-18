@@ -371,8 +371,10 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
         final senderUid = signal['senderUid'] as String? ?? '';
         final kind = signal['kind'];
         final payloadText = signal['payload'];
-        if (signalId.isEmpty || senderUid.isEmpty || !_seenSignals.add(signalId) ||
-            payloadText is! String || !_remoteUids.contains(senderUid)) continue;
+        if (signalId.isEmpty || senderUid.isEmpty || payloadText is! String ||
+            !_allParticipantUids.contains(senderUid)) continue;
+        if (!_remoteUids.contains(senderUid)) await _syncCallParticipants();
+        if (!_remoteUids.contains(senderUid) || !_seenSignals.add(signalId)) continue;
         final payload = Map<String, dynamic>.from(jsonDecode(payloadText) as Map);
         final peer = _peers[senderUid] ?? await _createPeer(senderUid, _iceServers);
         if (kind == 'offer' && !_remoteDescriptionsReady.contains(senderUid)) {
@@ -488,6 +490,7 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   void dispose() {
     _pollTimer?.cancel();
     _iceRefreshTimer?.cancel();
+    _participantSyncTimer?.cancel();
     _durationTimer?.cancel();
     if (!_ending) {
       _ending = true;
