@@ -101,6 +101,8 @@ test("role-aware attachment policy reserves documents for the verified platform 
   }
   assert.equal(member("application/pdf", "chat"), false);
   assert.equal(member("application/pdf", "room"), false);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "application/pdf", purpose: "chat" }, false, true), true);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "application/pdf", purpose: "room" }, false, true), false);
   assert.equal(owner("application/pdf", "chat"), true);
   assert.equal(owner("application/pdf", "room"), true);
   assert.equal(owner("application/pdf", "profile_album"), false);
