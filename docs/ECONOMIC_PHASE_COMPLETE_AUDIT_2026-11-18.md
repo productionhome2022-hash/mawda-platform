@@ -146,3 +146,12 @@ Current implementation gap: the existing backend exposes owner-only single/bulk 
 - Request IDs are bound to sender, recipient, item and confirmed price. Replaying the same request returns the original result; a distinct request ID remains a distinct gift.
 - Timed entitlements stack from the later of server time and current expiry. An active permanent entitlement is not shortened by a timed gift. Discovery boost expiry is also considered when applying a boost gift.
 - Added pure domain tests for eligibility, replay compatibility, expiry stacking, permanent entitlement preservation and malformed durations. Tests are committed but have NOT been executed. UI integration, emulator transaction tests and platform acceptance remain open.
+
+
+## Recipient-profile-only feature gifting UX — 2026-11-18
+
+- Updated the Flutter member profile so a visitor to another member's profile sees two distinct actions: gifting Beta Coins and gifting a store feature. The feature flow loads the server catalog, shows only purchase-enabled and fulfillment-ready items, displays price/duration, asks for confirmation, and sends the already-open profile UID directly to giftStoreItem.
+- This works for friends and non-friends and avoids ambiguous username search. Recipient identity is anchored to the profile being viewed, not user-entered text.
+- Removed the gift action and username search flow from the store screen. The store remains for browsing and self-purchase. Removed the now-unneeded username lookup callable.
+- Backend eligibility and guest checks remain authoritative. No client-side state is trusted for settlement.
+- Static source review only; Flutter analysis/tests and Functions/Firestore Emulator tests have not been run.
