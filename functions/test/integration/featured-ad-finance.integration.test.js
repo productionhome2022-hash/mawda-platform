@@ -1,0 +1,109 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { getFirestore } = require("firebase-admin/firestore");
+const {
+  setTimedAdCampaign, recordFeaturedAdFinancialEvent,
+} = require("../../lib/index");
+
+const db = getFirestore();
+const ownerRequest = (uid, data) => ({
+  data, auth: { uid, token: {
+    platformOwner: true, platformOwnerUid: uid,
+    auth_time: Math.floor(Date.now() / 1000),
+    firebase: { sign_in_second_factor: "phone" },
+  } },
+});
+const memberRequest = (uid, data) => ({
+  data, auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+});
+const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+test("advertiser financial events are owner-only, immutable, multi-receipt and idempotent", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const ownerUid = `ad_finance_owner_${tag}`;
+  const campaignId = `ad_campaign_${tag}`;
+  const campaignRef = db.collection("timedAdCampaigns").doc(campaignId);
+  const financialRef = db.collection("featuredAdFinancials").doc(campaignId);
+  const versionRef = db.collection("featuredAdFinancialVersions").doc(campaignId).collection("versions");
+  const eventRef = financialRef.collection("events");
+  const campaignInput = {
+    campaignId,
+    title: "Test sponsored campaign",
+    sponsorLabel: "Test advertiser",
+    body: "Test-only campaign description.",
+    placement: "reward_center",
+    durationSeconds: 30,
+    rewardCoins: 10,
+    startsAtMs: Date.now() - 1000,
+    endsAtMs: Date.now() + 24 * 60 * 60 * 1000,
+    maxClaimsPerMember: 2,
+    rewardBudgetCoins: 1000,
+  };
+  await setTimedAdCampaign.run(ownerRequest(ownerUid, campaignInput));
+  const base = {
+    campaignId, note: "Verified against advertiser statement.",
+    evidenceReference: "workspace-evidence://approved/receipt-01",
+  };
+  try {
+    const payment = {
+      ...base, action: "payment_received",
+      idempotencyKey: `payment_key_${tag}`,
+      externalReference: `bank_receipt_1_${tag}`,
+      amountMinor: 10000, currency: "CHF",
+    };
+    const first = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment));
+    assert.equal(first.idempotentReplay, false);
+    assert.equal(first.snapshot.receivedMinor, 10000);
+    const replay = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment));
+    assert.equal(replay.idempotentReplay, true);
+
+    const secondPayment = {
+      ...payment, idempotencyKey: `payment_key_2_${tag}`,
+      externalReference: `bank_receipt_2_${tag}`, amountMinor: 5000,
+    };
+    const second = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, secondPayment));
+    assert.equal(second.snapshot.receivedMinor, 15000);
+    assert.equal(second.version, 2);
+
+    await assert.rejects(
+      () => recordFeaturedAdFinancialEvent.run(memberRequest(`member_${tag}`, payment)),
+      (error) => error && error.code === "permission-denied",
+    );
+
+    const refund = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
+      ...base, action: "refund_recorded",
+      idempotencyKey: `refund_key_${tag}`,
+      externalReference: `bank_refund_${tag}`,
+      amountMinor: 1000, currency: "CHF",
+    }));
+    assert.equal(refund.snapshot.refundedMinor, 1000);
+    const settlement = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
+      ...base, action: "settlement_reconciled",
+      idempotencyKey: `settlement_key_${tag}`,
+      externalReference: `bank_settlement_${tag}`,
+      amountMinor: 14000, currency: "CHF",
+    }));
+    assert.equal(settlement.snapshot.reconciledMinor, 14000);
+    assert.equal(settlement.snapshot.reviewStatus, "reconciled");
+
+    const snapshot = await financialRef.get();
+    assert.equal(snapshot.data().receivedMinor, 15000);
+    assert.equal(snapshot.data().refundedMinor, 1000);
+    assert.equal(snapshot.data().version, 4);
+    assert.equal((await versionRef.get()).size, 4);
+  } finally {
+    const [events, versions, audits] = await Promise.all([
+      eventRef.get(), versionRef.get(),
+      db.collection("adminAuditLogs").where("campaignId", "==", campaignId).get(),
+    ]);
+    await Promise.all([
+      ...events.docs.map((doc) => doc.ref.delete()),
+      ...versions.docs.map((doc) => doc.ref.delete()),
+      ...audits.docs.map((doc) => doc.ref.delete()),
+      financialRef.delete().catch(() => undefined),
+      campaignRef.delete().catch(() => undefined),
+      db.doc(`timedAdCampaignVersions/${campaignId}/versions/1`).delete().catch(() => undefined),
+    ]);
+  }
+});
