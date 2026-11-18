@@ -6489,6 +6489,14 @@ export const purchaseStoreItem = onCall(async (request) => {
       if (!isStorePurchaseReplayCompatible(prior, uid, itemId, expectedPriceCoins)) {
         throw new HttpsError("already-exists", "معرف طلب الشراء مستخدم لعملية أخرى أو ببيانات سعر مختلفة.");
       }
+      if (!priorLedger.exists || prior.status !== "completed" ||
+          priorLedger.data()?.type !== "store_purchase" ||
+          priorLedger.data()?.direction !== "debit" ||
+          priorLedger.data()?.amount !== -prior.priceCoins ||
+          priorLedger.data()?.purchaseId !== purchaseId ||
+          priorLedger.data()?.itemId !== itemId) {
+        throw new HttpsError("failed-precondition", "إيصال الشراء لا يطابق قيد الخصم المالي؛ يلزم تدقيق السجل قبل إعادة المحاولة.");
+      }
       return {
         purchaseId,
         itemId,
