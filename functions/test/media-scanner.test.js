@@ -67,6 +67,8 @@ test("sticker scanner verdict requires validated dimensions, duration, frame cou
   assert.equal(validateScannerVerdict({ ...base, stickerMetadata: staticMetadata }, base.provider, now).stickerMetadata.kind, "static");
   assert.equal(validateScannerVerdict({ ...base, stickerMetadata: animatedMetadata }, base.provider, now).stickerMetadata.frameCount, 50);
   assert.equal(validateScannerVerdict(base, base.provider, now), null);
+  assert.equal(validateScannerVerdict({ ...base, verdict: "malicious" }, base.provider, now).verdict, "malicious");
+  assert.equal(validateScannerVerdict({ ...base, verdict: "malicious", stickerMetadata: { kind: "static", contentType: "image/webp", width: 512, height: 512, sizeBytes: 256 * 1024 } }, base.provider, now).verdict, "malicious");
   assert.equal(validateScannerVerdict({ ...base, stickerMetadata: { ...animatedMetadata, frameCount: 51 } }, base.provider, now), null);
   assert.equal(validateScannerVerdict({ ...base, stickerMetadata: { ...staticMetadata, sizeBytes: 256 * 1024 + 1 } }, base.provider, now), null);
 });
