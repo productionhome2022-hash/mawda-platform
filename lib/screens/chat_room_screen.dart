@@ -83,10 +83,23 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       final callId = call['callId'] as String?;
       if (callId == null || callId.isEmpty || _promptedIncomingCallId == callId) return;
       final priorRequestStatus = call['joinRequestStatus'];
-      if (priorRequestStatus == 'requested') return;
+      final mode = call['mode'] == 'video' ? 'video' : 'audio';
+      if (priorRequestStatus == 'requested' || priorRequestStatus == 'rejected') return;
+      if (priorRequestStatus == 'approved') {
+        await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => MawddaCallScreen(
+            callId: callId,
+            scope: 'room',
+            targetId: widget.chatId,
+            mode: mode,
+            currentUserId: widget.currentUserId,
+            outgoing: false,
+          ),
+        ));
+        return;
+      }
       _promptedIncomingCallId = callId;
       _showingIncomingCall = true;
-      final mode = call['mode'] == 'video' ? 'video' : 'audio';
       final accepted = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
