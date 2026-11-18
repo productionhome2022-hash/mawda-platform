@@ -409,15 +409,21 @@ class _FeaturedAdViewingSurfaceState extends State<_FeaturedAdViewingSurface> wi
     }
   }
 
+  Future<void> _endSession(String sessionId) async {
+    try {
+      await FirebaseFunctions.instance.httpsCallable('endFeaturedAdViewingSession')
+          .call({'sessionId': sessionId});
+    } catch (_) {
+      // Expiry/revocation on the server remains the fallback.
+    }
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     final sessionId = _sessionId;
     if (sessionId != null && !_completed) {
-      unawaited(FirebaseFunctions.instance
-          .httpsCallable('endFeaturedAdViewingSession')
-          .call({'sessionId': sessionId})
-          .catchError((Object _) => <String, Object?>{}));
+      unawaited(_endSession(sessionId));
     }
     _heartbeatTimer?.cancel();
     _videoController?.removeListener(_watchVideo);
