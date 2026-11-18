@@ -234,6 +234,10 @@ test("coin transfer atomically writes both wallet ledgers and platform commissio
     assert.equal(sender.data().coins, 4000);
     assert.equal(recipient.data().coins, 1000);
     assert.equal(senderLedger.data().amount, -1000);
+    assert.equal(senderLedger.data().balanceBefore, 5000);
+    assert.equal(senderLedger.data().balanceAfter, 4000);
+    assert.equal(recipientLedger.data().balanceBefore, 200);
+    assert.equal(recipientLedger.data().balanceAfter, 1000);
     assert.equal(senderLedger.data().commissionAmount, 200);
     assert.equal(senderLedger.data().recipientUid, recipientUid);
     assert.equal(senderLedger.data().recipientNetAmount, 800);
@@ -415,6 +419,10 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
     assert.equal(purchase.data().status, "completed");
     assert.equal(purchase.data().priceCoins, 1250);
     assert.equal(ledger.data().amount, -1250);
+    assert.equal(ledger.data().balanceBefore, 5000);
+    assert.equal(ledger.data().balanceAfter, 3750);
+    assert.equal(purchase.data().balanceBefore, 5000);
+    assert.equal(purchase.data().newBalance, 3750);
     assert.equal(ledger.data().purchaseId, purchaseId);
     assert.equal(entitlement.data().status, "active");
     assert.equal(entitlement.data().category, "vip");
