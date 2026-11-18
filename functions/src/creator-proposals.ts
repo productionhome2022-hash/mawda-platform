@@ -128,12 +128,13 @@ export function validateCreatorProposalInput(input: unknown): CreatorProposalPay
       throw new CreatorProposalValidationError("quote_and_budget_are_mutually_exclusive");
     }
   } else {
-    if (typeof data.currency !== "string" ||
-        !isValidPositiveCurrencyAmount(data.proposedBudgetAmount, data.currency)) {
+    const proposedCurrency = data.currency;
+    if (typeof proposedCurrency !== "string" ||
+        !isValidPositiveCurrencyAmount(data.proposedBudgetAmount, proposedCurrency)) {
       throw new CreatorProposalValidationError("invalid_proposed_budget");
     }
-    proposedBudgetAmount = data.proposedBudgetAmount;
-    currency = data.currency;
+    proposedBudgetAmount = data.proposedBudgetAmount as string;
+    currency = proposedCurrency;
   }
 
   if (data.rightsConfirmed !== true) {
