@@ -23,7 +23,7 @@ test("owner policy is versioned and rates are read from policy, never hard-coded
 test("missing, inactive, malformed or zero active rates fail closed", () => {
   assert.throws(() => validateGroupCallPricingPolicy(null));
   assert.throws(() => getGroupCallRate({ ...policy, active: false }, "audio"), /DISABLED/);
-  assert.throws(() => validateGroupCallPricingPolicy({ ...policy, audioCoinsPerMinute: 0 }));
+  assert.throws(() => validateGroupCallPricingPolicy({ ...policy, audioCoinsPerMinute: 0, videoCoinsPerMinute: 0 }));
   assert.throws(() => validateGroupCallPricingPolicy({ ...policy, version: 0 }));
 });
 
