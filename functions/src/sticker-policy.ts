@@ -64,7 +64,8 @@ export function validateStickerMediaMetadata(value: unknown): StickerMediaMetada
   }
   return {
     kind,
-    contentType,
+    // The preceding kind-specific guards prove this is one of the supported media types.
+    contentType: contentType as StickerMediaType,
     width: width as number,
     height: height as number,
     sizeBytes: sizeBytes as number,
