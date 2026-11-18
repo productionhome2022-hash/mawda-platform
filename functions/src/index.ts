@@ -1015,12 +1015,18 @@ export const getMemberProfile = onCall(async (request) => {
       typeof memberData.customTitle === "string"
     ? memberData.customTitle.trim().slice(0, 40)
     : "";
+  const ghostModeUntil = memberData.ghostModeUntil;
+  const ghostModeUntilMs = ghostModeUntil instanceof Timestamp
+    ? ghostModeUntil.toMillis()
+    : typeof ghostModeUntil?.toMillis === "function" ? ghostModeUntil.toMillis() : 0;
+  const ghostModeActive = ghostModeUntilMs > Date.now();
   const premiumProfileData = {
     ...premiumFeatures,
     ...(customTitle ? { activeTitle: customTitle } : {}),
     ...(greeting ? { visitorGreeting: greeting } : {}),
     ...(pinnedProfileSection ? { pinnedProfileSection } : {}),
     discoveryBoostActive,
+    ghostModeActive,
     ...(profileAnalytics ? { profileAnalytics } : {}),
   };
   const biometricLinksActive = canExposeMemberSocialLinks(
