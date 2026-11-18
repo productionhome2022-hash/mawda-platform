@@ -328,6 +328,8 @@ test("manual coin package request issues no coins until owner verifies external 
   const requestDoc = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
   const userRef = db.collection("users").doc(uid);
   const ledgerRef = userRef.collection("walletLedger").doc(`coin_purchase_${requestId}`);
+  const approvalAuditRef = db.collection("adminAuditLogs")
+    .doc(`coin_purchase_approval_${uid}_${requestId}`);
   const settingsRef = db.doc("platformSettings/economyPricing");
   await Promise.all([
     userRef.set({ coins: 40, profileCompleted: true, accountStatus: "active" }),
@@ -407,11 +409,17 @@ test("manual coin package request issues no coins until owner verifies external 
     const replay = await approveCoinPurchaseRequest.run(ownerRequest("manual-owner", approvalInput));
     assert.equal(replay.idempotentReplay, true);
     assert.equal((await userRef.get()).data().coins, 940);
-    assert.equal((await db.collection("adminAuditLogs")
-      .doc(`coin_purchase_approval_${uid}_${requestId}`).get()).exists, true);
+    assert.equal((await approvalAuditRef.get()).exists, true);
+    await approvalAuditRef.delete();
+    await assert.rejects(
+      () => approveCoinPurchaseRequest.run(ownerRequest("manual-owner", approvalInput)),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await userRef.get()).data().coins, 940);
   } finally {
     await Promise.all([
       ledgerRef.delete().catch(() => undefined),
+      approvalAuditRef.delete().catch(() => undefined),
       requestDoc.delete().catch(() => undefined),
       userRef.delete().catch(() => undefined),
       settingsRef.delete().catch(() => undefined),
