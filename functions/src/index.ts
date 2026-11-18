@@ -37,6 +37,7 @@ import {
 } from "./link-policy";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { audienceForAge, canJoinRoom, canJoinGuestRoom, normalizeModeratorPermissions } from "./room-policy";
+import { isActiveRentedPrivateRoom } from "./room-call-policy";
 import { isGuestSessionActive } from "./guest-sessions";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
@@ -9689,6 +9690,8 @@ export const startCall = onCall(async (request) => {
   const callRef = CALL_SESSIONS.doc(input.callId);
   let participantUids: string[] = [];
   let recipientUids: string[] = [];
+  let roomRefForCall: DocumentReference | null = null;
+  let roomRentalRef: DocumentReference | null = null;
 
   if (input.scope === "direct") {
     const chatRef = db.collection("directChats").doc(input.targetId);
@@ -9723,6 +9726,7 @@ export const startCall = onCall(async (request) => {
     recipientUids = [peerUid];
   } else {
     const roomRef = db.collection("rooms").doc(input.targetId);
+    roomRefForCall = roomRef;
     const [caller, room, membership] = await Promise.all([
       callerRef.get(), roomRef.get(),
       roomRef.collection("members").doc(callerUid).get(),
@@ -9732,9 +9736,22 @@ export const startCall = onCall(async (request) => {
         !room.exists || room.data()?.status !== "active" || !membership.exists) {
       throw new HttpsError("permission-denied", "يجب أن تكون عضواً في غرفة نشطة لإجراء مكالمة.");
     }
+    const roomData = room.data() ?? {};
+    if (roomData.kind !== "private" || roomData.isRented !== true ||
+        typeof roomData.rentalId !== "string" || !roomData.rentalId) {
+      throw new HttpsError("failed-precondition", "المكالمات الجماعية متاحة حصراً في الغرف الخاصة المستأجرة.");
+    }
+    roomRentalRef = db.collection("roomRentals").doc(roomData.rentalId);
+    const rental = await roomRentalRef.get();
+    if (!isActiveRentedPrivateRoom(roomData, rental.data(), Date.now())) {
+      throw new HttpsError("failed-precondition", "استئجار الغرفة غير نشط أو انتهت مدته؛ تعذر بدء المكالمة.");
+    }
     const members = await roomRef.collection("members").limit(6).get();
     if (members.size < 2 || members.size > 5) {
-      throw new HttpsError("failed-precondition", "مكالمات الغرف تدعم حالياً من عضوين إلى خمسة أعضاء كحد أقصى.");
+      throw new HttpsError("failed-precondition", "تعذر بدء المكالمة بسبب عدد المشاركين الحالي؛ يجب اختيار المشاركين ضمن سعة الغرفة.");
+    }
+    if (input.mode === "video" && members.size > 4) {
+      throw new HttpsError("resource-exhausted", "المكالمة المرئية الجماعية تسمح بأربعة مشاركين إجمالاً كحد أقصى.");
     }
     participantUids = members.docs.map((doc) => doc.id).sort();
     recipientUids = participantUids.filter((uid) => uid !== callerUid);
@@ -9757,8 +9774,12 @@ export const startCall = onCall(async (request) => {
   const expiresAt = Timestamp.fromMillis(now + CALL_RING_TIMEOUT_MS);
   const quotaRef = CALL_QUOTA_WINDOWS.doc(callerUid);
   const result = await db.runTransaction(async (transaction) => {
-    const [existing, caller, quotaSnapshot] = await Promise.all([
-      transaction.get(callRef), transaction.get(callerRef), transaction.get(quotaRef),
+    const [existing, caller, quotaSnapshot, roomSnapshot, rentalSnapshot] = await Promise.all([
+      transaction.get(callRef),
+      transaction.get(callerRef),
+      transaction.get(quotaRef),
+      roomRefForCall ? transaction.get(roomRefForCall) : Promise.resolve(null),
+      roomRentalRef ? transaction.get(roomRentalRef) : Promise.resolve(null),
     ]);
     if (existing.exists) {
       const prior = existing.data() ?? {};
@@ -9773,6 +9794,11 @@ export const startCall = onCall(async (request) => {
     if (!caller.exists || caller.data()?.profileCompleted !== true ||
         !isMemberAccountInGoodStanding(caller.data())) {
       throw new HttpsError("permission-denied", "حالة الحساب لا تسمح ببدء المكالمة.");
+    }
+    if (input.scope === "room" &&
+        (!roomSnapshot?.exists || !rentalSnapshot?.exists ||
+          !isActiveRentedPrivateRoom(roomSnapshot.data(), rentalSnapshot.data(), now))) {
+      throw new HttpsError("failed-precondition", "الغرفة أو استئجارها لم يعد نشطاً؛ تم رفض بدء المكالمة.");
     }
     const memberLockRefs = participantUids.map((memberUid) => ACTIVE_CALL_MEMBER_LOCKS.doc(memberUid));
     const memberLocks = await Promise.all(memberLockRefs.map((lockRef) => transaction.get(lockRef)));
