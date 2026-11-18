@@ -8398,7 +8398,9 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
         data.agreedCurrencyExponent !== data.packageSnapshot.currencyExponent)) {
       throw new HttpsError("failed-precondition", "شروط باقة الهدية تغيرت عن الباقة التي اختارها المرسل.");
     }
-    if (currencyExponentForCode(data.currency) === null ||
+    if (!Number.isSafeInteger(data.agreedPriceMinor) || data.agreedPriceMinor < 1 ||
+        data.agreedPriceMinor > 100000000 ||
+        currencyExponentForCode(data.currency) === null ||
         currencyExponentForCode(data.currency) !== data.agreedCurrencyExponent) {
       throw new HttpsError("failed-precondition", "عملة الاتفاق أو دقتها غير صالحة؛ لم يتم اعتماد أي دفعة.");
     }
