@@ -41,6 +41,38 @@ test("scanner verdict binds provider, object generation, hash and freshness", ()
 });
 
 
+test("sticker scanner verdict requires validated dimensions, duration, frame count and byte metadata", () => {
+  const now = 1_800_000_000_000;
+  const base = {
+    mediaId: "123e4567-e89b-12d3-a456-426614174000",
+    purpose: "sticker",
+    provider: "clamav-mawadda-gateway",
+    verdict: "clean",
+    objectGeneration: "123456",
+    sha256: "a".repeat(64),
+    scannedAtMs: now,
+    scanEngine: "ClamAV",
+    engineVersion: "1.4.6",
+    signatureDatabaseVersion: "28202",
+    signatureDatabaseAgeMs: 60 * 60 * 1000,
+  };
+  const staticMetadata = {
+    kind: "static", contentType: "image/webp", width: 512, height: 512,
+    sizeBytes: 256 * 1024,
+  };
+  const animatedMetadata = {
+    kind: "animated", contentType: "image/gif", width: 512, height: 512,
+    sizeBytes: 512 * 1024, durationMs: 5000, frameCount: 50,
+  };
+  assert.equal(validateScannerVerdict({ ...base, stickerMetadata: staticMetadata }, base.provider, now).stickerMetadata.kind, "static");
+  assert.equal(validateScannerVerdict({ ...base, stickerMetadata: animatedMetadata }, base.provider, now).stickerMetadata.frameCount, 50);
+  assert.equal(validateScannerVerdict(base, base.provider, now), null);
+  assert.equal(validateScannerVerdict({ ...base, verdict: "malicious" }, base.provider, now).verdict, "malicious");
+  assert.equal(validateScannerVerdict({ ...base, verdict: "malicious", stickerMetadata: { kind: "static", contentType: "image/webp", width: 512, height: 512, sizeBytes: 256 * 1024 } }, base.provider, now).verdict, "malicious");
+  assert.equal(validateScannerVerdict({ ...base, stickerMetadata: { ...animatedMetadata, frameCount: 51 } }, base.provider, now), null);
+  assert.equal(validateScannerVerdict({ ...base, stickerMetadata: { ...staticMetadata, sizeBytes: 256 * 1024 + 1 } }, base.provider, now), null);
+});
+
 test("scanner verdict accepts a fully bound safe WebP derivative and rejects partial or unsafe paths", () => {
   const now = 1_800_000_000_000;
   const base = {
@@ -66,6 +98,23 @@ test("scanner verdict accepts a fully bound safe WebP derivative and rejects par
   assert.equal(validateScannerVerdict({ ...base, safePreviewPath: derivative.safePreviewPath }, base.provider, now), null);
   assert.equal(validateScannerVerdict({ ...base, ...derivative, safePreviewPath: "processed/other/another-id/preview.webp" }, base.provider, now), null);
   assert.equal(validateScannerVerdict({ ...base, ...derivative, verdict: "malicious" }, base.provider, now), null);
+});
+
+test("scanner verdict accepts sticker assets while preserving signed purpose binding", () => {
+  const now = 1_800_000_000_000;
+  const payload = {
+    mediaId: "123e4567-e89b-12d3-a456-426614174000", purpose: "sticker",
+    provider: "clamav-mawadda-gateway", verdict: "clean", objectGeneration: "123456",
+    sha256: "a".repeat(64), scannedAtMs: now, scanEngine: "ClamAV",
+    engineVersion: "1.4.6", signatureDatabaseVersion: "28202",
+    signatureDatabaseAgeMs: 60 * 60 * 1000,
+    stickerMetadata: {
+      kind: "static", contentType: "image/webp", width: 512, height: 512,
+      sizeBytes: 256 * 1024,
+    },
+  };
+  assert.equal(validateScannerVerdict(payload, payload.provider, now).purpose, "sticker");
+  assert.equal(validateScannerVerdict({ ...payload, purpose: "member_sticker" }, payload.provider, now), null);
 });
 
 test("scanner callback validates exact GIF, audio, video and flattened-PDF derivative contracts", () => {
