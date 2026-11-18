@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase-admin/app";
 import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
+import { validateGroupCallPricingPolicy } from "./group-call-economy";
 import { getAuth } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
 import { getStorage } from "firebase-admin/storage";
@@ -9279,6 +9280,56 @@ async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<
     return "duration_expired";
   });
 }
+
+
+const GROUP_CALL_PRICING_SETTINGS = db.doc("platformSettings/groupCallPricing");
+
+/**
+ * Only the MFA-verified platform owner can publish a new immutable pricing
+ * version. There is deliberately no default price: missing policy means
+ * paid group-call billing is unavailable.
+ */
+export const setGroupCallPricingPolicy = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const audioCoinsPerMinute = readSafeInteger(request.data?.audioCoinsPerMinute, "audioCoinsPerMinute");
+  const videoCoinsPerMinute = readSafeInteger(request.data?.videoCoinsPerMinute, "videoCoinsPerMinute");
+  const active = request.data?.active;
+  if (audioCoinsPerMinute < 1 || videoCoinsPerMinute < 1 ||
+      audioCoinsPerMinute > 1000000000 || videoCoinsPerMinute > 1000000000 ||
+      typeof active !== "boolean") {
+    throw new HttpsError("invalid-argument", "إعدادات تسعير المكالمات غير صالحة.");
+  }
+  const now = Date.now();
+  const policyId = randomUUID();
+  const result = await db.runTransaction(async (transaction) => {
+    const current = await transaction.get(GROUP_CALL_PRICING_SETTINGS);
+    const previous = current.data() ?? {};
+    const version = (Number.isSafeInteger(previous.version) && previous.version > 0
+      ? previous.version : 0) + 1;
+    const next = validateGroupCallPricingPolicy({
+      policyId, version, active, audioCoinsPerMinute, videoCoinsPerMinute, updatedAtMs: now,
+    });
+    transaction.set(GROUP_CALL_PRICING_SETTINGS, {
+      ...next, updatedBy: actorUid, updatedAt: FieldValue.serverTimestamp(),
+    });
+    const auditRef = db.collection("adminAuditLogs").doc();
+    transaction.create(auditRef, {
+      actorUid,
+      action: "group_call_pricing_policy_updated",
+      policyId,
+      version,
+      active,
+      audioCoinsPerMinute,
+      videoCoinsPerMinute,
+      previousPolicyId: typeof previous.policyId === "string" ? previous.policyId : null,
+      previousVersion: Number.isSafeInteger(previous.version) ? previous.version : null,
+      previousActive: typeof previous.active === "boolean" ? previous.active : null,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return next;
+  });
+  return result;
+});
 
 export const startCall = onCall(async (request) => {
   const callerUid = requireAuthenticatedUid(request.auth?.uid);
