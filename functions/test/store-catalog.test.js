@@ -166,9 +166,9 @@ test("only shipped premium profile consumers can be explicitly enabled for purch
 });
 
 
-test("Hide Coins is purchasable only through its explicit server fulfillment contract", () => {
+test("Hide Coins remains non-purchasable while non-owner balances are already hidden by default", () => {
   const { validateStoreCatalogItemInput, isStoreItemPurchasable } = require("../lib/store-catalog");
-  const item = validateStoreCatalogItemInput({
+  assert.throws(() => validateStoreCatalogItemInput({
     itemId: "hide_coins_30d",
     name: "إخفاء رصيد Beta Coins",
     description: "إخفاء الرصيد في الملف عن الأعضاء الآخرين.",
@@ -178,9 +178,20 @@ test("Hide Coins is purchasable only through its explicit server fulfillment con
     sortOrder: 130,
     active: true,
     purchaseEnabled: true,
+  }), /STORE_FULFILLMENT_NOT_READY/);
+  const item = validateStoreCatalogItemInput({
+    itemId: "hide_coins_30d",
+    name: "إخفاء رصيد Beta Coins",
+    description: "عنصر مؤجل حتى تتحدد له فائدة خصوصية مستقلة.",
+    category: "privacy",
+    priceCoins: 1000,
+    durationDays: 30,
+    sortOrder: 130,
+    active: false,
+    purchaseEnabled: false,
   });
-  assert.equal(item.fulfillmentReady, true);
-  assert.equal(isStoreItemPurchasable(item), true);
+  assert.equal(item.fulfillmentReady, false);
+  assert.equal(isStoreItemPurchasable(item), false);
 });
 
 test("voice and video call plans are valid catalog products but cannot be purchased before call fulfillment ships", () => {
