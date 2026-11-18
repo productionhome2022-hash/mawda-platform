@@ -34,6 +34,8 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
   bool _saving = false;
   String? _editingId;
   String? _error;
+  late DateTime _startsAt;
+  late DateTime _endsAt;
 
   static const _geographies = <String, String>{
     'all_arab_countries': 'جميع الدول العربية',
@@ -49,7 +51,12 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
   };
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    _startsAt = DateTime.now();
+    _endsAt = _startsAt.add(const Duration(days: 7));
+    _load();
+  }
 
   @override
   void dispose() {
@@ -150,6 +157,23 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
     }
   }
 
+  Future<DateTime?> _pickDateTime(DateTime initial) async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initial.isBefore(now) ? now : initial,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: DateTime(now.year + 2),
+    );
+    if (date == null || !mounted) return null;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    if (time == null) return null;
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
   Future<void> _save() async {
     final title = _title.text.trim();
     final sponsor = _sponsor.text.trim();
@@ -157,7 +181,8 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
     final budget = int.tryParse(_budget.text.trim());
     final reward = int.tryParse(_reward.text.trim());
     if (title.length < 3 || sponsor.length < 2 || body.length < 10 ||
-        budget == null || reward == null || budget < reward || reward < 0) {
+        budget == null || reward == null || budget < reward || reward < 0 ||
+        !_endsAt.isAfter(_startsAt) || _endsAt.isBefore(DateTime.now())) {
       setState(() => _error = 'راجع بيانات الحملة والميزانية والمكافأة.');
       return;
     }
@@ -168,8 +193,8 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
         'title': title, 'sponsorLabel': sponsor, 'body': body,
         'geographicTargets': [_geography],
         'featuredPlacement': _placement,
-        'startsAtMs': DateTime.now().millisecondsSinceEpoch,
-        'endsAtMs': DateTime.now().add(const Duration(days: 7)).millisecondsSinceEpoch,
+        'startsAtMs': _startsAt.millisecondsSinceEpoch,
+        'endsAtMs': _endsAt.millisecondsSinceEpoch,
         'rewardBudgetCoins': budget, 'rewardCoinsPerView': reward,
         if (_mediaId != null) 'mediaId': _mediaId,
       });
@@ -185,7 +210,11 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
   void _clear() {
     _title.clear(); _sponsor.clear(); _body.clear();
     _budget.text = '20'; _reward.text = '2';
-    setState(() { _editingId = null; _mediaId = null; });
+    setState(() {
+      _editingId = null; _mediaId = null;
+      _startsAt = DateTime.now();
+      _endsAt = _startsAt.add(const Duration(days: 7));
+    });
   }
 
   void _edit(Map<String, dynamic> item) {
@@ -201,6 +230,10 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
       final targets = item['geographicTargets'];
       _geography = targets is List && targets.isNotEmpty ? targets.first.toString() : 'all_arab_countries';
       _mediaId = item['mediaId'] as String?;
+      final starts = item['startsAtMs'];
+      final ends = item['endsAtMs'];
+      _startsAt = starts is num ? DateTime.fromMillisecondsSinceEpoch(starts.toInt()) : DateTime.now();
+      _endsAt = ends is num ? DateTime.fromMillisecondsSinceEpoch(ends.toInt()) : _startsAt.add(const Duration(days: 7));
     });
   }
 
@@ -296,6 +329,26 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
                 ],
                 onChanged: _saving ? null : (v) => setState(() => _placement = v ?? 'rotation'),
               ),
+              Row(children: [
+                Expanded(child: OutlinedButton.icon(
+                  onPressed: _saving ? null : () async {
+                    final value = await _pickDateTime(_startsAt);
+                    if (value != null) setState(() => _startsAt = value);
+                  },
+                  icon: const Icon(Icons.event_available),
+                  label: Text('البداية: ' + _startsAt.toLocal().toString().substring(0, 16)),
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: OutlinedButton.icon(
+                  onPressed: _saving ? null : () async {
+                    final value = await _pickDateTime(_endsAt);
+                    if (value != null) setState(() => _endsAt = value);
+                  },
+                  icon: const Icon(Icons.event_busy),
+                  label: Text('النهاية: ' + _endsAt.toLocal().toString().substring(0, 16)),
+                )),
+              ]),
+              const SizedBox(height: 8),
               Row(children: [
                 Expanded(child: TextField(controller: _budget, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'ميزانية مكافآت الحملة'))),
                 const SizedBox(width: 12),
