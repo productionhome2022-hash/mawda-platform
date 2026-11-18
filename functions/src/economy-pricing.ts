@@ -1,10 +1,10 @@
 export type CoinPackage = {
   packageId: string; name: string; coins: number; priceMinor: number;
-  currency: "EUR"; active: boolean;
+  currency: string; active: boolean;
 };
 export type AdPrice = {
   placementId: string; name: string; billingModel: "cpm" | "cpc" | "daily";
-  priceMinor: number; currency: "EUR"; active: boolean;
+  priceMinor: number; currency: string; active: boolean;
 };
 export function validateCoinPackages(value: unknown): CoinPackage[] {
   if (!Array.isArray(value) || value.length > 30) throw new Error("INVALID_COIN_PACKAGES");
@@ -17,9 +17,9 @@ export function validateCoinPackages(value: unknown): CoinPackage[] {
     if (typeof p.name !== "string" || p.name.trim().length < 3 || p.name.trim().length > 80 ||
         !Number.isSafeInteger(p.coins) || (p.coins as number) < 1 || (p.coins as number) > 1000000000 ||
         !Number.isSafeInteger(p.priceMinor) || (p.priceMinor as number) < 1 || (p.priceMinor as number) > 100000000 ||
-        p.currency !== "EUR" || typeof p.active !== "boolean") throw new Error("INVALID_COIN_PACKAGE_FIELDS");
+        typeof p.currency !== "string" || !/^[A-Z]{3}$/.test(p.currency) || typeof p.active !== "boolean") throw new Error("INVALID_COIN_PACKAGE_FIELDS");
     return { packageId: p.packageId, name: p.name.trim(), coins: p.coins as number,
-      priceMinor: p.priceMinor as number, currency: "EUR", active: p.active };
+      priceMinor: p.priceMinor as number, currency: p.currency, active: p.active };
   });
 }
 export function validateAdPrices(value: unknown): AdPrice[] {
@@ -33,9 +33,9 @@ export function validateAdPrices(value: unknown): AdPrice[] {
     if (typeof p.name !== "string" || p.name.trim().length < 3 || p.name.trim().length > 80 ||
         !["cpm", "cpc", "daily"].includes(String(p.billingModel)) ||
         !Number.isSafeInteger(p.priceMinor) || (p.priceMinor as number) < 1 || (p.priceMinor as number) > 100000000 ||
-        p.currency !== "EUR" || typeof p.active !== "boolean") throw new Error("INVALID_AD_PRICE_FIELDS");
+        typeof p.currency !== "string" || !/^[A-Z]{3}$/.test(p.currency) || typeof p.active !== "boolean") throw new Error("INVALID_AD_PRICE_FIELDS");
     return { placementId: p.placementId, name: p.name.trim(), billingModel: p.billingModel as AdPrice["billingModel"],
-      priceMinor: p.priceMinor as number, currency: "EUR", active: p.active };
+      priceMinor: p.priceMinor as number, currency: p.currency, active: p.active };
   });
 }
 
