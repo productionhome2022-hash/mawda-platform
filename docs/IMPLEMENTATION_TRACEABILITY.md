@@ -394,7 +394,15 @@ Source of truth: [Master Development Charter](MAWADDA_MASTER_DEVELOPMENT_CHARTER
 | OWNER-002 | Grant center UI, owner-only callable, audience snapshot, batch/idempotent grant worker, recipient history, wallet/entitlement integration | single UID, selected group, live public-room snapshot, room collective prize, partial retry, duplicate request, unauthorized moderator/member, audit and ledger | Partial: owner/MFA-only single and bulk free store-entitlement grants are implemented with 24h/7d/30d durations, additive expiry extension, per-target idempotency, immutable grant ledger/audit, partial failure reporting and an owner-console UID-based grant screen. Per-call batches are 500 targets with no overall account/lifetime grant cap. Emulator integration tests added; exact-head CI pending. Still open: free coin grants, group/room audience snapshots and collective rewards, recipient grant history, recipient notifications and full preview/confirmation of dynamic room/group recipients |
 | GOV-002 | Shared commercial configuration and new-product integration interface | CI contract test for SKU registration, no client hardcoded price/duration, owner enable/disable, expiry | Every future product must integrate before release |
 
-### Implementation invariants
+### Owner-approved economic naming and UI corrections — 2026-11-18
+
+- The visible commercial currency name is **Beta Coins / بيتا كوينز** across the product. Existing technical field names such as `coins` remain unchanged until a separately justified data migration.
+- «الإدارة» in economic/privacy contexts means the single Owner/Super Admin identity only; General Moderators are not included.
+- Coin balance visibility is server-authorized: profile owner and sole Owner/Super Admin may see the number; other members and moderators receive no balance field and may see a lock state when Hide Coins is active.
+- Featured-ad player/context layout is **60% player / 40% contextual information**, adaptive to the screen. Older 75/25 wording is superseded.
+- Test/development prices, durations and limits may be selected centrally for engineering validation under owner authorization; they are not launch prices and must not be treated as production policy.
+
+## Implementation invariants
 - Money and entitlement changes are server-side transactions; use idempotency keys and immutable receipts/audit records.
 - A batch grant records intended recipients and final per-recipient result; retries must not duplicate successful grants.
 - Presence-targeted room grants use a server-generated membership snapshot at a defined execution timestamp, not a client-provided UID list.
@@ -624,7 +632,7 @@ Status: **implemented in source; automated validation pending; device/network ac
 - Rechecked `functions/src/featured-advertising.ts` and `functions/src/featured-ad-rewards.ts`: they contain pure selection/reward-decision helpers and unit tests.
 - The current `functions/src/index.ts` has no exported featured-ad campaign feed/session/heartbeat/completion/history callables; its timed-ad callables operate on the separate `timedAdCampaigns` flow and must not be relabelled as featured advertising.
 - `lib/screens/featured_ads_screen.dart` still renders a static empty campaign state, local-only region chips and placeholder reward-history text.
-- Therefore AD-001 remains **partially implemented**. Required work: separate featured campaign persistence and owner controls; owner approval/payment confirmation/creative safety/withdrawal; explicit geography mapping; dedicated feed/player sessions and trusted visibility evidence; UTC daily and rolling campaign limits; atomic distinct `featured_ad_reward` wallet ledger entries; member history; responsive 75/25 player/context UI; emulator, replay, concurrency, revocation and UI tests.
+- Therefore AD-001 remains **partially implemented**. Required work: separate featured campaign persistence and owner controls; owner approval/payment confirmation/creative safety/withdrawal; explicit geography mapping; dedicated feed/player sessions and trusted visibility evidence; UTC daily and rolling campaign limits; atomic distinct `featured_ad_reward` wallet ledger entries; member history; responsive 60/40 player/context UI; emulator, replay, concurrency, revocation and UI tests.
 - Keep the owner-configurable reward policy versioned. The approved experimental defaults are not a hard-coded commercial promise; production enablement remains under owner control.
 
 ### Calls — CALL-001 / CALL-002 status
