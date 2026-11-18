@@ -10391,13 +10391,34 @@ export const markCallConnected = onCall(async (request) => {
         call.maxDurationEndsAt.toMillis() <= Date.now()) {
       throw new HttpsError("deadline-exceeded", "انتهت مدة المكالمة القصوى.");
     }
+    const previouslyConnectedUids = Array.isArray(call.connectedUids)
+      ? call.connectedUids.filter((value): value is string => typeof value === "string")
+      : [];
+    const alreadyConnected = previouslyConnectedUids.includes(uid);
+    const connectedUids = alreadyConnected
+      ? previouslyConnectedUids
+      : [...new Set([...previouslyConnectedUids, uid])];
+    const priorMediaConnectedAt = call.mediaConnectedAt && typeof call.mediaConnectedAt === "object" &&
+        !Array.isArray(call.mediaConnectedAt)
+      ? call.mediaConnectedAt as Record<string, unknown>
+      : {};
+    const mediaConnectedAt = alreadyConnected && priorMediaConnectedAt[uid] instanceof Timestamp
+      ? priorMediaConnectedAt
+      : { ...priorMediaConnectedAt, [uid]: Timestamp.fromMillis(Date.now()) };
     if (call.connectedAt instanceof Timestamp) {
+      if (!alreadyConnected || mediaConnectedAt !== priorMediaConnectedAt) {
+        transaction.update(ref, {
+          connectedUids,
+          mediaConnectedAt,
+          lastActivityAt: FieldValue.serverTimestamp(),
+        });
+      }
       return {
         callId, connected: true,
         connectedAtMs: call.connectedAt.toMillis(),
         maxDurationEndsAtMs: call.maxDurationEndsAt instanceof Timestamp
           ? call.maxDurationEndsAt.toMillis() : null,
-        idempotentReplay: true,
+        idempotentReplay: alreadyConnected,
       };
     }
     let usagePolicy;
@@ -10409,10 +10430,9 @@ export const markCallConnected = onCall(async (request) => {
     } catch {
       throw new HttpsError("failed-precondition", "لقطة سياسة المكالمة غير صالحة؛ تعذر تثبيت الاتصال.");
     }
-    const connectedUids = [...new Set([
-      ...(Array.isArray(call.connectedUids) ? call.connectedUids.filter((value): value is string => typeof value === "string") : []),
-      uid,
-    ])];
+    // Keep each participant's media connection separate from the immutable
+    // call-wide timer; late room joins must never reset the original deadline.
+
     const hasCaller = connectedUids.includes(String(call.callerUid));
     const hasAcceptedRecipient = connectedUids.some((memberUid) =>
       memberUid !== call.callerUid && acceptedUids.includes(memberUid));
@@ -10426,6 +10446,7 @@ export const markCallConnected = onCall(async (request) => {
         ? null : Timestamp.fromMillis(maxDurationEndsAtMs);
       transaction.update(ref, {
         connectedUids,
+        mediaConnectedAt,
         connectedAt,
         maxDurationEndsAt,
         lastActivityAt: FieldValue.serverTimestamp(),
@@ -10438,6 +10459,7 @@ export const markCallConnected = onCall(async (request) => {
     }
     transaction.update(ref, {
       connectedUids,
+      mediaConnectedAt,
       lastActivityAt: FieldValue.serverTimestamp(),
     });
     return { callId, connected: false, idempotentReplay: false };
