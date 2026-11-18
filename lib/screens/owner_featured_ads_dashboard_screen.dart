@@ -550,7 +550,7 @@ class _OwnerFeaturedAdsDashboardScreenState extends State<OwnerFeaturedAdsDashbo
             final status = item['status'];
             return Card(child: ListTile(
               title: Text(item['title'] as String? ?? id),
-              subtitle: Text('${item['status']} • ${item['featuredPlacement']} • ميزانية ${item['rewardBudgetCoins'] ?? 0} • مستخدم ${item['spentRewardCoins'] ?? 0}'),
+              subtitle: Text('${item['status']} • ${item['featuredPlacement']} • ميزانية ${item['rewardBudgetCoins'] ?? 0} • مستخدم ${item['spentRewardCoins'] ?? 0} • الدفع: ${item['financialSnapshot'] is Map ? (item['financialSnapshot']['paymentStatus'] ?? 'غير مسجل') : 'غير مسجل'} • اليدوي: ${item['paymentPolicySnapshot'] is Map ? (item['paymentPolicySnapshot']['manualEnabled'] == true ? 'مسموح' : 'مغلق') : 'قديم/يدوي'}'),
               isThreeLine: true,
               trailing: PopupMenuButton<String>(
                 enabled: !_saving,
