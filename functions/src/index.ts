@@ -6323,24 +6323,38 @@ export const purchaseStoreItem = onCall(async (request) => {
   const entitlementRef = userRef.collection("entitlements").doc(itemId);
 
   return db.runTransaction(async (transaction) => {
-    const [member, itemSnapshot, priorPurchase, priorEntitlement] = await Promise.all([
+    const [member, itemSnapshot, priorPurchase, priorEntitlement, priorLedger] = await Promise.all([
       transaction.get(userRef),
       transaction.get(itemRef),
       transaction.get(purchaseRef),
       transaction.get(entitlementRef),
+      transaction.get(ledgerRef),
     ]);
     if (priorPurchase.exists) {
       const prior = priorPurchase.data() ?? {};
       if (!isStorePurchaseReplayCompatible(prior, uid, itemId, expectedPriceCoins)) {
         throw new HttpsError("already-exists", "معرف طلب الشراء مستخدم لعملية أخرى أو ببيانات سعر مختلفة.");
       }
+      const ledger = priorLedger.data() ?? {};
+      const balanceSnapshotValid =
+        ledger.balanceBefore === undefined && ledger.balanceAfter === undefined ||
+        Number.isSafeInteger(ledger.balanceBefore) &&
+        Number.isSafeInteger(ledger.balanceAfter) &&
+        ledger.balanceBefore >= 0 &&
+        ledger.balanceAfter === ledger.balanceBefore - prior.priceCoins &&
+        ledger.balanceAfter === prior.newBalance &&
+        (prior.balanceBefore === undefined || prior.balanceBefore === ledger.balanceBefore);
+      if (!priorLedger.exists || prior.status !== "completed" ||
+          !Number.isSafeInteger(prior.priceCoins) || prior.priceCoins <= 0 ||
+          !Number.isSafeInteger(prior.newBalance) || prior.newBalance < 0 ||
+          ledger.type !== "store_purchase" || ledger.direction !== "debit" ||
+          ledger.amount !== -prior.priceCoins || ledger.purchaseId !== purchaseId ||
+          ledger.itemId !== itemId || !balanceSnapshotValid) {
+        throw new HttpsError("failed-precondition", "إيصال الشراء لا يطابق قيد الخصم أو مطابقة الرصيد؛ يلزم تدقيق السجل.");
+      }
       return {
-        purchaseId,
-        itemId,
-        priceCoins: prior.priceCoins,
-        newBalance: prior.newBalance,
-        expiresAt: prior.expiresAt?.toMillis?.() ?? null,
-        idempotentReplay: true,
+        purchaseId, itemId, priceCoins: prior.priceCoins, newBalance: prior.newBalance,
+        expiresAt: prior.expiresAt?.toMillis?.() ?? null, idempotentReplay: true,
       };
     }
     if (!member.exists || member.data()?.profileCompleted !== true ||
@@ -6416,6 +6430,7 @@ export const purchaseStoreItem = onCall(async (request) => {
       category: item.category,
       priceCoins: item.priceCoins,
       durationDays: item.durationDays ?? null,
+      balanceBefore: currentBalance,
       newBalance,
       expiresAt,
       status: "completed",
@@ -6425,6 +6440,8 @@ export const purchaseStoreItem = onCall(async (request) => {
       type: "store_purchase",
       direction: "debit",
       amount: -item.priceCoins,
+      balanceBefore: currentBalance,
+      balanceAfter: newBalance,
       itemId,
       itemName: item.name,
       purchaseId,
