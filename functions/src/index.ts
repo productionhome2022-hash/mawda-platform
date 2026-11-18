@@ -95,6 +95,7 @@ import { AD_INTAKE_GEOGRAPHIES, validateAdvertisingIntake, advertisingIntakeAudi
 import { selectFeaturedAdShowcase, featuredAdTargetsGeography, type FeaturedAdCampaignCandidate } from "./featured-advertising";
 import { CAPACITY_MEDIA_DEFAULTS, projectCapacityMediaPolicy, validateCapacityMediaQuotaInput, type CapacityMediaPolicy } from "./capacity-media-management";
 import { defaultFeaturedAdRewardPolicy, validateFeaturedAdRewardPolicy, decideFeaturedAdReward, featuredAdCampaignRewardPolicy, featuredAdRewardBudgetAvailable, type FeaturedAdRewardPolicy } from "./featured-ad-rewards";
+import { defaultFeaturedAdFinancialSnapshot, validateFeaturedAdFinancialEvent, applyFeaturedAdFinancialEvent, featuredAdFinancialIdempotencyId } from "./featured-ad-finance";
 import { getMawddaMediaBucket } from "./media";
 import { validateProductionApplication, ProductionApplicationValidationError } from "./production-applications";
 import {
@@ -8978,6 +8979,113 @@ export const setFeaturedAdCampaignStatus = onCall(async (request) => {
   await appendOwnerReviewAuditEvent({ actorUid, action: "featured_ad_campaign_status_changed", campaignId, status, outcome: "success" });
   return { campaignId, status, ...result };
 });
+/**
+ * Owner-only manual financial attestation for featured ads.
+ * The owner verifies off-platform records; client screenshots/booleans are never authority.
+ * The event, immutable financial ledger row, campaign snapshot/version and audit row
+ * are committed atomically. No payment provider is assumed or enabled here.
+ */
+export const recordOwnerFeaturedAdFinancialEvent = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "featured_ad_financial_event_attempt");
+  let event;
+  try {
+    event = validateFeaturedAdFinancialEvent(request.data);
+  } catch {
+    throw new HttpsError("invalid-argument", "بيانات الحركة المالية للإعلان غير صالحة.");
+  }
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+    throw new HttpsError("invalid-argument", "إصدار الحملة المتوقع مطلوب لتسجيل الحركة المالية.");
+  }
+  const campaignRef = featuredAdCampaignRef(event.campaignId);
+  const eventId = featuredAdFinancialIdempotencyId(
+    event.campaignId, event.action, event.externalReference!,
+  );
+  const eventRef = campaignRef.collection("financialEvents").doc(eventId);
+  const auditRef = db.collection("adminAuditLogs").doc("featured_ad_finance_" + eventId);
+  const result = await db.runTransaction(async (transaction) => {
+    const [campaignSnapshot, existingEvent] = await Promise.all([
+      transaction.get(campaignRef), transaction.get(eventRef),
+    ]);
+    if (!campaignSnapshot.exists) throw new HttpsError("not-found", "الحملة الإعلانية غير موجودة.");
+    const campaign = campaignSnapshot.data() ?? {};
+    if (existingEvent.exists) {
+      const prior = existingEvent.data() ?? {};
+      const samePayload = prior.action === event.action &&
+        prior.idempotencyKey === event.idempotencyKey &&
+        prior.amountMinor === event.amountMinor && prior.currency === event.currency &&
+        prior.externalReference === event.externalReference &&
+        prior.evidenceReference === event.evidenceReference && prior.note === event.note &&
+        prior.reviewOutcome === event.reviewOutcome && prior.actorUid === actorUid;
+      if (!samePayload) {
+        throw new HttpsError("already-exists", "مرجع الحركة المالية مستخدم لعملية مختلفة.");
+      }
+      return {
+        campaignId: event.campaignId, eventId, idempotentReplay: true,
+        version: Number.isSafeInteger(campaign.version) ? campaign.version : null,
+        financialSnapshot: campaign.financialSnapshot ?? defaultFeaturedAdFinancialSnapshot(),
+      };
+    }
+    if (campaign.version !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت الحملة منذ تحميلها؛ حدّث بياناتها ثم أعد تسجيل الحركة.");
+    }
+    if (campaign.ownerWithdrawn === true || campaign.status === "withdrawn") {
+      throw new HttpsError("failed-precondition", "لا يمكن تسجيل حركة مالية جديدة لحملة مسحوبة نهائياً.");
+    }
+    const currentSnapshot = campaign.financialSnapshot ?? defaultFeaturedAdFinancialSnapshot();
+    let nextSnapshot;
+    try {
+      nextSnapshot = applyFeaturedAdFinancialEvent(currentSnapshot, event);
+    } catch {
+      throw new HttpsError("failed-precondition", "تعارضت الحركة مع الحالة المالية الحالية أو أن السجل المالي غير متسق.");
+    }
+    const nextVersion = expectedVersion + 1;
+    const now = FieldValue.serverTimestamp();
+    const paymentConfirmed = event.action === "payment_received"
+      ? true
+      : event.action === "refund_recorded" ? false : campaign.paymentConfirmed === true;
+    const nextStatus = event.action === "refund_recorded" &&
+      ["approved", "published"].includes(String(campaign.status))
+      ? "paused" : campaign.status;
+    transaction.update(campaignRef, {
+      financialSnapshot: nextSnapshot,
+      paymentConfirmed,
+      status: nextStatus,
+      version: nextVersion,
+      updatedAt: now,
+      updatedBy: actorUid,
+      financialUpdatedAt: now,
+    });
+    transaction.create(eventRef, {
+      ...event, actorUid, eventId, campaignId: event.campaignId,
+      expectedVersion, resultingVersion: nextVersion,
+      createdAt: now, source: "owner_manual_off_platform_attestation",
+    });
+    transaction.create(auditRef, {
+      actorUid, action: "featured_ad_financial_" + event.action,
+      campaignId: event.campaignId, eventId,
+      amountMinor: event.amountMinor, currency: event.currency,
+      externalReference: event.externalReference,
+      evidenceReference: event.evidenceReference,
+      note: event.note, reviewOutcome: event.reviewOutcome,
+      resultingVersion: nextVersion, createdAt: now,
+    });
+    return {
+      campaignId: event.campaignId, eventId, idempotentReplay: false,
+      version: nextVersion, financialSnapshot: nextSnapshot,
+      paymentConfirmed, status: nextStatus,
+    };
+  });
+  if (!result.idempotentReplay) {
+    await appendOwnerReviewAuditEvent({
+      actorUid, action: "featured_ad_financial_event_recorded",
+      campaignId: event.campaignId, eventId, financialAction: event.action,
+      resultingVersion: result.version, outcome: "success",
+    });
+  }
+  return result;
+});
+
 export const reviewFeaturedAdCreative = onCall(async (request) => {
   const actorUid = await requireOwnerForReview(request, "featured_ad_creative_review_attempt");
   const campaignId = typeof request.data?.campaignId === "string" ? request.data.campaignId.trim() : "";
