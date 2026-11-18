@@ -651,6 +651,15 @@ test("every shipped premium store category charges once and grants its matching 
   const ledgerRefs = [];
   const entitlementRefs = [];
   const catalogRefs = items.map(([itemId]) => db.collection("storeCatalog").doc(itemId));
+  const catalogVersions = new Map();
+  const privacyItemId = "hide_coins_30d";
+  const allCatalogIds = [...items.map(([itemId]) => itemId), privacyItemId];
+  const priorCatalogSnapshots = await Promise.all(allCatalogIds.map((itemId) =>
+    db.collection("storeCatalog").doc(itemId).get()));
+  const priorVersionSnapshots = await Promise.all(allCatalogIds.map(async (itemId) => ({
+    itemId,
+    docs: (await db.collection("storeCatalogVersions").doc(itemId).collection("versions").get()).docs,
+  })));
 
   await memberRef.set({
     coins: 10000,
@@ -659,8 +668,8 @@ test("every shipped premium store category charges once and grants its matching 
   });
 
   try {
-    await Promise.all(items.map(([itemId, category, durationDays], index) =>
-      setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
+    await Promise.all(items.map(async ([itemId, category, durationDays], index) => {
+      const saved = await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
         itemId,
         name: `ميزة ${itemId}`,
         description: "اختبار تكامل لاستحقاق متجر مميز.",
@@ -670,8 +679,9 @@ test("every shipped premium store category charges once and grants its matching 
         sortOrder: index + 1,
         active: true,
         purchaseEnabled: true,
-      })),
-    ));
+      }));
+      catalogVersions.set(itemId, saved.version);
+    }));
 
     for (const [index, [itemId]] of items.entries()) {
       const requestId = `premium_${tag}_${index}`;
@@ -687,6 +697,7 @@ test("every shipped premium store category charges once and grants its matching 
         itemId,
         requestId,
         expectedPriceCoins: priceCoins,
+        expectedCatalogVersion: catalogVersions.get(itemId),
       }));
       assert.equal(result.idempotentReplay, false, itemId);
       assert.equal(result.newBalance, 10000 - ((index + 1) * priceCoins), itemId);
@@ -705,6 +716,7 @@ test("every shipped premium store category charges once and grants its matching 
         itemId,
         requestId,
         expectedPriceCoins: priceCoins,
+        expectedCatalogVersion: catalogVersions.get(itemId),
       }));
       assert.equal(replay.idempotentReplay, true, itemId);
       assert.equal((await memberRef.get()).data().coins, 10000 - ((index + 1) * priceCoins), itemId);
@@ -740,7 +752,7 @@ test("every shipped premium store category charges once and grants its matching 
       })),
       (error) => error && error.code === "invalid-argument",
     );
-    await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
+    const privacySaved = await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
       itemId: "hide_coins_30d",
       name: "إخفاء الرصيد",
       description: "ميزة خصوصية غير مفعلة.",
@@ -756,6 +768,7 @@ test("every shipped premium store category charges once and grants its matching 
         itemId: "hide_coins_30d",
         requestId: `privacy_${tag}`,
         expectedPriceCoins: priceCoins,
+        expectedCatalogVersion: privacySaved.version,
       })),
       (error) => error && error.code === "failed-precondition",
     );
@@ -766,8 +779,16 @@ test("every shipped premium store category charges once and grants its matching 
       ...purchaseRefs.map((ref) => ref.delete().catch(() => undefined)),
       ...ledgerRefs.map((ref) => ref.delete().catch(() => undefined)),
       ...entitlementRefs.map((ref) => ref.delete().catch(() => undefined)),
-      ...catalogRefs.map((ref) => ref.delete().catch(() => undefined)),
-      db.collection("storeCatalog").doc("hide_coins_30d").delete().catch(() => undefined),
+      ...allCatalogIds.map(async (itemId) => {
+        const ref = db.collection("storeCatalog").doc(itemId);
+        await ref.delete().catch(() => undefined);
+        const versions = await db.collection("storeCatalogVersions").doc(itemId).collection("versions").get();
+        await Promise.all(versions.docs.map((doc) => doc.ref.delete()));
+        const previous = priorCatalogSnapshots[allCatalogIds.indexOf(itemId)];
+        if (previous.exists) await ref.set(previous.data());
+        const previousVersions = priorVersionSnapshots.find((entry) => entry.itemId === itemId)?.docs ?? [];
+        await Promise.all(previousVersions.map((doc) => doc.ref.set(doc.data())));
+      }),
       db.recursiveDelete(memberRef).catch(() => undefined),
     ]);
   }
