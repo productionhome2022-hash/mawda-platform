@@ -98,3 +98,16 @@
 - Timed-ad reward caps are now enforced server-side for the development environment: maximum 10 rewarded ad claims per member per UTC day, maximum 20 Beta Coins from rewarded ads per member per UTC day, and maximum 3 rewarded claims per member per campaign.
 - The daily cap is stored in a dedicated per-member/per-UTC-day counter inside the same transaction as the wallet credit and reward claim, preventing concurrent requests from bypassing the cap.
 - Campaign validation rejects a per-member campaign limit above the experimental maximum.
+
+## Source audit findings — call economy and Media Saver (2026-11-18)
+
+### Calls
+The current call backend implements authenticated WebRTC signaling, participant locks, rolling 24-hour attempt counters (5 audio / 3 video), and a server-recorded five-minute maximum beginning after connection confirmation. The Flutter call screen invokes signaling/connection functions and displays the five-minute ceiling.
+
+The inspected call lifecycle does **not** yet implement economic entitlement checks, explicit per-party billing consent, a metered connected-duration ledger, atomic Beta Coins debit/refund, or an idempotent call-settlement record. The existing 5/3 quota counts attempts, not billable completed calls. Do not represent it as a free-call entitlement or a paid-call billing system. Multi-party room-call settlement also requires a deliberate policy before implementation.
+
+### Media Saver
+The development branch tree inspected in this pass contains no dedicated Media Saver client service/screen or end-to-end local-save workflow. The secure media gateway and entitlement/store infrastructure exist separately, but their presence does not prove local save fulfillment. Keep Media Saver purchase fulfillment disabled until the client-side secure download/save, per-operation server entitlement verification, platform permission handling, and tests are implemented.
+
+### Call UI lifecycle audit
+The inspected Flutter call screen reports connection and uses a five-minute display, but it does not show a billing-consent step or billing status. This is a concrete integration gap, not a cosmetic issue. The next call-economy implementation must fail closed when entitlement/consent/settlement state is missing and must not infer consent from accepting a call.
