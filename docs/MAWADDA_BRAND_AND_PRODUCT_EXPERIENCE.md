@@ -206,10 +206,10 @@ Show a compact, accessible social-links row directly beneath the Production Home
 - WhatsApp
 - X (formerly Twitter)
 
-The links are intentionally unconfigured and must not point to guessed, placeholder, personal or unofficial destinations. Until the platform owner supplies and publishes the verified official URLs, render the entries as disabled/hidden (never as misleading active links). The owner can set, edit, disable and publish each destination independently from the Super Admin brand-management section. Validate allowed URL schemes and expected hostnames per provider; reject javascript:, data:, malformed URLs and unrelated domains. For WhatsApp, accept an official wa.me or approved WhatsApp destination format. Open external destinations safely and accessibly, with clear labels and screen-reader semantics. Social destinations are public content and must not expose private admin data.
+The links are intentionally unconfigured and must not point to guessed, placeholder, personal or unofficial destinations. Until the platform owner supplies and publishes the verified official URLs, render the entries as disabled/hidden (never as misleading active links). The owner can set, edit, disable and publish each destination independently from the Super Owner brand-management section. Validate allowed URL schemes and expected hostnames per provider; reject javascript:, data:, malformed URLs and unrelated domains. For WhatsApp, accept an official wa.me or approved WhatsApp destination format. Open external destinations safely and accessibly, with clear labels and screen-reader semantics. Social destinations are public content and must not expose private admin data.
 
-### 17.2 Super Admin brand and content management
-Add a dedicated section within the existing Super Admin console named “إدارة هوية ومحتوى المنصة” (Brand & Platform Content). It must allow the authenticated platform owner to manage, preview and publish:
+### 17.2 Super Owner brand and content management
+Add a dedicated section within the existing Super Owner console named “إدارة هوية ومحتوى المنصة” (Brand & Platform Content). It must allow the authenticated platform owner to manage, preview and publish:
 - Arabic and English brand descriptions/bios for the platform and app, with French and Spanish localization fields as the localization workflow supports them.
 - Short bio, full platform/app description, landing-page introductory copy, supporting tagline and selected editable public-facing text blocks.
 - Brand logo assets and logo variants (symbol-only, Arabic wordmark, Latin wordmark), including replacing the current logo when a new approved identity is ready.
@@ -243,3 +243,20 @@ Extend the Brand & Platform Content section so the platform owner can manage the
 - No arbitrary remote image URLs or client-side Storage/Firestore writes to publish backgrounds. Use a trusted upload and validation pipeline.
 
 This requirement covers shared platform/app surfaces only. Existing special-purpose backgrounds for one-to-one chats and rented rooms remain independently governed. Background management is a product requirement, not evidence that its UI, upload pipeline, delivery configuration or tests have already been implemented.
+
+
+## معيار المصطلحات والهوية الإدارية الموحد — إلزامي على مستوى المنصة والوثائق
+
+هذا القسم مرجع موحد ملزم، ويُقرأ مع بقية قرارات المنتج دون أن يغيّر مفاتيح الصلاحيات أو هويات البيانات الداخلية:
+
+- **Super Owner**: المسمى الإنجليزي الرسمي الوحيد لمالك المنصة في جميع النصوص والواجهات والوثائق. التسمية العربية التفسيرية الموحدة: **مالك المنصة**. لا تُعرض تسميات بديلة أو قديمة للمالك.
+- **Admin 1, Admin 2, Admin 3, ...**: فريق الإدارة العامة المفتوح العدد، بتسلسل دائم متزايد لا يعاد استخدامه ولا يعاد ترقيمه.
+- **Admin Media 1–5**: خمسة مقاعد مستقلة حصراً لإدارة الإعلام/الإعلانات وMedia Workspace.
+- **مشرف إنتاج عام 1–5**: خمسة مقاعد مستقلة للإشراف على الإنتاج العام.
+- **مشرف إنتاج الفريق** / **Team Production Supervisor**: فئة مستقلة مفتوحة العدد، ونطاقها الفريق/الغرفة المخصصة أو المستأجرة فقط.
+
+يجب تطبيق هذه المسميات حرفياً وباتساق في دستور المنتج، والرؤية الشاملة، وسجل القرارات، ومواصفات العلامة وتجربة المنتج، وخطط التنفيذ، ومصفوفات التتبع، وأدلة التشغيل والهندسة والاختبار، وREADME، وكل وثائق GitHub ذات الصلة. كما يجب أن تتطابق مع جميع واجهات Android وiOS وPWA والويب، والملفات الشخصية والشارات والقوائم والغرف والمحادثات وWorkspace والإعلانات ولوحات الإدارة، ورسائل النظام والإشعارات الفورية وسجلات العرض الموجهة للمستخدم.
+
+أي ذكر تاريخي لمسمى قديم داخل سجل ترحيل أو وصف توافق تقني يجب أن يكون موسوماً بوضوح بأنه legacy/internal-only، وألا يظهر كخيار أو لقب أو نص للمستخدم. تُحفظ مفاتيح التفويض والـclaims وأسماء المجموعات والحقول وواجهات callable القديمة عند الحاجة للتوافق، ولا يجوز استبدالها آلياً لمجرد تشابه الاسم.
+
+بوابة القبول: فحص شامل متعدد اللغات لكل ملفات الوثائق ومصادر النصوص والواجهات والإشعارات والرسائل، مع قائمة نتائج قابلة للمراجعة واختبارات تمنع إعادة إدخال المسميات القديمة في النصوص الظاهرة. يجب تدقيق مواضع الظهور الديناميكية ومخرجات الخادم وبيانات الإشعار، وليس ملفات Flutter وحدها. لا يُعلن اكتمال التوحيد ولا يُرفع طلب الدمج من Draft قبل إغلاق نتائج الفحص والاختبارات على SHA النهائي.
