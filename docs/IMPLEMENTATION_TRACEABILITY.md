@@ -672,3 +672,10 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 - Selected-ad player UI is implemented as an explicit responsive **60% player / 40% remaining Mawdda context** split using flex 6:4. This supersedes the stale 75/25 wording previously present in the advertising workspace specification; the specification has been corrected on this branch.
 - Owner dashboard UI added at `lib/screens/owner_featured_ads_dashboard_screen.dart`.
 - Integration coverage added for owner lifecycle, security-approved creative gate, reward replay/concurrency and withdrawal. Exact-head CI still required before this work is considered tested/complete.
+
+
+### Current AD-001 implementation head
+- Current branch head after this implementation pass: `ac43615f1115c9e6f0a2571646f83b2542b8704e`.
+- Included: owner campaign control plane, secure creative gate/storage delivery, dedicated viewing session/heartbeat/completion, atomic wallet reward ledger, rolling campaign cap, daily UTC cap, member history, owner dashboard, selected-ad 60/40 player UI, and related indexes/tests.
+- CI status at the time of this record: GitHub reports the commit status as **pending** with zero check runs currently exposed. Therefore this implementation is **implemented but not yet test-verified**.
+- No merge to `main`, production deployment, production Firebase mutation or paid-resource activation was performed.
