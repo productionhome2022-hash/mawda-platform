@@ -34,6 +34,14 @@ const ownerRequest = (uid, data = {}) => ({
   } },
 });
 
+async function setCampaignStatus(ownerUid, campaignId, status) {
+  const snapshot = await db.collection("timedAdCampaigns").doc(campaignId).get();
+  if (!snapshot.exists) throw new Error("TEST_CAMPAIGN_MISSING");
+  return setTimedAdCampaignStatus.run(ownerRequest(ownerUid, {
+    campaignId, status, expectedVersion: snapshot.data().version,
+  }));
+}
+
 test("attendance rewards are server-policy gated, UTC-period idempotent and ledger-atomic", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = suffix();
@@ -113,20 +121,18 @@ test("timed advertisements require foreground heartbeat duration and pay once", 
     campaignId = created.campaignId;
     await db.collection("timedAdCampaigns").doc(campaignId).update({ placement: "home" });
     await assert.rejects(
-      () => setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "published" })),
+      () => setCampaignStatus(ownerUid, campaignId, "published"),
       (error) => error && error.code === "failed-precondition",
     );
     await db.collection("timedAdCampaigns").doc(campaignId).update({
       placement: "reward_center", creativeType: "video",
     });
     await assert.rejects(
-      () => setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "published" })),
+      () => setCampaignStatus(ownerUid, campaignId, "published"),
       (error) => error && error.code === "failed-precondition",
     );
     await db.collection("timedAdCampaigns").doc(campaignId).update({ creativeType: "text" });
-    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, {
-      campaignId, status: "published",
-    }));
+    await setCampaignStatus(ownerUid, campaignId, "published");
     const active = await getActiveTimedAdCampaigns.run(memberRequest(uid));
     assert.equal(active.campaigns.some((item) => item.campaignId === campaignId), true);
 
@@ -236,11 +242,11 @@ test("campaigns can bind only approved owner-uploaded advertisement media", asyn
     assert.equal(campaign.data().mediaOwnerUid, ownerUid);
     await mediaRef.update({ status: "pending_security_scan" });
     await assert.rejects(
-      () => setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "published" })),
+      () => setCampaignStatus(ownerUid, campaignId, "published"),
       (error) => error && error.code === "failed-precondition",
     );
     await mediaRef.update({ status: "security_approved" });
-    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "published" }));
+    await setCampaignStatus(ownerUid, campaignId, "published");
     await assert.rejects(
       () => setTimedAdCampaign.run(memberRequest(ownerUid, {
         title: "Unauthorized creative",
@@ -297,7 +303,7 @@ test("timed-ad reward is withheld if its approved creative is revoked before com
       mediaId,
     }));
     campaignId = campaign.campaignId;
-    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "published" }));
+    await setCampaignStatus(ownerUid, campaignId, "published");
     const started = await startTimedAdvertisement.run(memberRequest(uid, { campaignId }));
     sessionId = started.sessionId;
     await db.collection("timedAdSessions").doc(sessionId).update({
@@ -366,7 +372,7 @@ test("abandoned expired ad sessions release their reserved campaign budget", asy
       rewardBudgetCoins: 10,
     }));
     campaignId = campaign.campaignId;
-    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "published" }));
+    await setCampaignStatus(ownerUid, campaignId, "published");
     const first = await startTimedAdvertisement.run(memberRequest(firstUid, { campaignId }));
     firstSessionId = first.sessionId;
     let storedCampaign = await db.collection("timedAdCampaigns").doc(campaignId).get();
@@ -439,7 +445,7 @@ test("concurrent members cannot reserve the same final ad reward budget", async 
       rewardBudgetCoins: 10,
     }));
     campaignId = campaign.campaignId;
-    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "published" }));
+    await setCampaignStatus(ownerUid, campaignId, "published");
     const results = await Promise.allSettled(memberUids.map((uid) =>
       startTimedAdvertisement.run(memberRequest(uid, { campaignId }))));
     const winners = results.map((result, index) => ({ result, index }))
@@ -555,7 +561,7 @@ test("timed-ad completion cancels a session when its campaign is paused or versi
       rewardBudgetCoins: 900,
     }));
     campaignId = campaign.campaignId;
-    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "published" }));
+    await setCampaignStatus(ownerUid, campaignId, "published");
     const started = await startTimedAdvertisement.run(memberRequest(uid, { campaignId }));
     sessionId = started.sessionId;
     await db.collection("timedAdSessions").doc(sessionId).update({
@@ -566,7 +572,7 @@ test("timed-ad completion cancels a session when its campaign is paused or versi
     await heartbeatTimedAdvertisement.run(memberRequest(uid, {
       sessionId, sequence: 1, foreground: true, visible: true,
     }));
-    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "paused" }));
+    await setCampaignStatus(ownerUid, campaignId, "paused");
     await assert.rejects(
       () => completeTimedAdvertisement.run(memberRequest(uid, { sessionId })),
       (error) => error && error.code === "permission-denied",
@@ -597,6 +603,56 @@ test("timed-ad completion cancels a session when its campaign is paused or versi
   }
 });
 
+
+test("timed-ad campaign edits and status changes reject stale versions", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const ownerUid = `ad_version_owner_${tag}`;
+  let campaignId;
+  try {
+    const created = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      title: "Versioned campaign", sponsorLabel: "Synthetic CI sponsor",
+      body: "A synthetic campaign for optimistic concurrency regression testing.",
+      placement: "reward_center", durationSeconds: 15, rewardCoins: 1,
+      startsAtMs: Date.now() - 1000, endsAtMs: Date.now() + 3600000,
+      maxClaimsPerMember: 2, rewardBudgetCoins: 10,
+    }));
+    campaignId = created.campaignId;
+    assert.equal(created.version, 1);
+    const firstEdit = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      campaignId, expectedVersion: 1,
+      title: "Versioned campaign updated", sponsorLabel: "Synthetic CI sponsor",
+      body: "A synthetic campaign for optimistic concurrency regression testing.",
+      placement: "reward_center", durationSeconds: 15, rewardCoins: 1,
+      startsAtMs: Date.now() - 1000, endsAtMs: Date.now() + 3600000,
+      maxClaimsPerMember: 2, rewardBudgetCoins: 10,
+    }));
+    assert.equal(firstEdit.version, 2);
+    await assert.rejects(
+      () => setTimedAdCampaign.run(ownerRequest(ownerUid, {
+        campaignId, expectedVersion: 1,
+        title: "Stale overwrite", sponsorLabel: "Synthetic CI sponsor",
+        body: "This stale edit must never overwrite the latest campaign version.",
+        placement: "reward_center", durationSeconds: 15, rewardCoins: 1,
+        startsAtMs: Date.now() - 1000, endsAtMs: Date.now() + 3600000,
+        maxClaimsPerMember: 2, rewardBudgetCoins: 10,
+      })),
+      (error) => error && error.code === "aborted",
+    );
+    await setCampaignStatus(ownerUid, campaignId, "published");
+    const current = await db.collection("timedAdCampaigns").doc(campaignId).get();
+    assert.equal(current.data().version, 3);
+    await assert.rejects(
+      () => setTimedAdCampaignStatus.run(ownerRequest(ownerUid, {
+        campaignId, status: "paused", expectedVersion: 2,
+      })),
+      (error) => error && error.code === "aborted",
+    );
+    assert.equal((await db.collection("timedAdCampaigns").doc(campaignId).get()).data().status, "published");
+  } finally {
+    if (campaignId) await db.collection("timedAdCampaigns").doc(campaignId).delete().catch(() => undefined);
+  }
+});
 
 test("featured-ad reward policy is owner/MFA managed, versioned and safely disabled until configured", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
