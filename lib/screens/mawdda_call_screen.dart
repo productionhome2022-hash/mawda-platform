@@ -295,6 +295,12 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
     if (_ending || _syncingRoomCall || widget.scope != 'room' || !widget.outgoing) return;
     _syncingRoomCall = true;
     try {
+      final activeResponse = await _functions.httpsCallable('getActiveCall').call();
+      final activeData = Map<String, dynamic>.from(activeResponse.data as Map);
+      if (activeData['active'] != true || activeData['callId'] != widget.callId) {
+        await _finish(notifyServer: false);
+        return;
+      }
       final pendingResponse = await _functions.httpsCallable('listRoomCallJoinRequests')
           .call({'callId': widget.callId});
       final pendingData = Map<String, dynamic>.from(pendingResponse.data as Map);
