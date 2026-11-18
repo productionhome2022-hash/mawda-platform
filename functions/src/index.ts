@@ -7507,9 +7507,14 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
 export const getAvailableCoinPackages = onCall(async () => {
   const snapshot = await ECONOMY_PRICING_SETTINGS.get();
   const data = snapshot.data() ?? {};
-  if (data.manualCoinPurchasesEnabled === false) return { packages: [], manualPurchasesEnabled: false };
+  // Package prices are exclusively owner-configured. Never expose starter
+  // constants as live offers when the owner has not saved an approved catalogue.
+  if (!snapshot.exists || data.manualCoinPurchasesEnabled !== true ||
+      !Array.isArray(data.coinPackages)) {
+    return { packages: [], manualPurchasesEnabled: false, automatedCheckoutEnabled: false };
+  }
   let packages;
-  try { packages = validateCoinPackages(data.coinPackages ?? DEFAULT_COIN_PACKAGES); }
+  try { packages = validateCoinPackages(data.coinPackages); }
   catch { throw new HttpsError("failed-precondition", "قائمة باقات الكوينز غير صالحة."); }
   return {
     packages: packages.filter((item) => item.active),
@@ -7569,14 +7574,15 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
 
     }
     const economy = settings.data() ?? {};
-    if (economy.manualCoinPurchasesEnabled === false || economy.automatedCoinCheckoutEnabled === true) {
-      throw new HttpsError("failed-precondition", "طلبات الشراء اليدوية غير متاحة حالياً.");
+    if (!settings.exists || economy.manualCoinPurchasesEnabled !== true ||
+        economy.automatedCoinCheckoutEnabled === true || !Array.isArray(economy.coinPackages)) {
+      throw new HttpsError("failed-precondition", "لم يعتمد المالك باقات الشراء اليدوي أو أن الطلبات متوقفة حالياً.");
     }
     let packageSnapshot: Record<string, unknown> | null = null;
     let requestedCoins: number | null = null;
     if (input.kind === "package") {
       let packages;
-      try { packages = validateCoinPackages(economy.coinPackages ?? DEFAULT_COIN_PACKAGES); }
+      try { packages = validateCoinPackages(economy.coinPackages); }
       catch { throw new HttpsError("failed-precondition", "قائمة باقات الBetaCoins غير صالحة."); }
       const selected = packages.find((item) => item.packageId === input.packageId && item.active);
       if (!selected) throw new HttpsError("not-found", "الباقة غير متاحة حالياً.");
