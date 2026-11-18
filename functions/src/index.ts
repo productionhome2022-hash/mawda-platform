@@ -7431,10 +7431,12 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
   }
   const result = await db.runTransaction(async (transaction) => {
     const [user, settings, existing, recipient, guestProfile, guestSession] = await Promise.all([
-      transaction.get(userRef), transaction.get(settingsRef), transaction.get(requestRef),
-      ...(recipientRef ? [transaction.get(recipientRef)] : [Promise.resolve(null)]),
-      ...(guestProfileRef ? [transaction.get(guestProfileRef)] : [Promise.resolve(null)]),
-      ...(guestSessionRef ? [transaction.get(guestSessionRef)] : [Promise.resolve(null)]),
+      transaction.get(userRef),
+      transaction.get(settingsRef),
+      transaction.get(requestRef),
+      recipientRef ? transaction.get(recipientRef) : Promise.resolve(null),
+      guestProfileRef ? transaction.get(guestProfileRef) : Promise.resolve(null),
+      guestSessionRef ? transaction.get(guestSessionRef) : Promise.resolve(null),
     ]);
     if (!user.exists || user.data()?.profileCompleted !== true ||
         !isMemberAccountInGoodStanding(user.data())) {
@@ -7656,11 +7658,14 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
     const historyRef = userRef.collection("coinPackageGiftHistory").doc(input.requestId);
     const notificationRef = userRef.collection("notifications").doc(`coin_package_gift_${input.requestId}`);
     const [user, ledger, guestProfile, guestSession] = await Promise.all([
-      transaction.get(userRef), transaction.get(ledgerRef),
-      ...(data.giftRecipientUid ? [
-        transaction.get(db.collection("guestProfiles").doc(targetUid)),
-        transaction.get(db.collection("guestSessions").doc(targetUid)),
-      ] : [Promise.resolve(null), Promise.resolve(null)]),
+      transaction.get(userRef),
+      transaction.get(ledgerRef),
+      data.giftRecipientUid
+        ? transaction.get(db.collection("guestProfiles").doc(targetUid))
+        : Promise.resolve(null),
+      data.giftRecipientUid
+        ? transaction.get(db.collection("guestSessions").doc(targetUid))
+        : Promise.resolve(null),
     ]);
     if (data.status === "approved") {
       return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null, creditedToUid: targetUid };
