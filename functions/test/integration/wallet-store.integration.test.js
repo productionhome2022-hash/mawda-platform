@@ -4,7 +4,7 @@ const { getFirestore } = require("firebase-admin/firestore");
 const {
   transferCoins, purchaseStoreItem, getOwnerStoreCatalog, setStoreCatalogItem, getOwnerEconomyPricing,
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
-  setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
+  setCoinPurchasePaymentInstructions, requestCoinPurchasePaymentVerification, approveCoinPurchaseRequest,
   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
   sendOwnerLiveStream,
   deleteDirectMessageForEveryone, deleteRoomMessage,
@@ -352,8 +352,32 @@ test("manual coin package request issues no coins until owner verifies external 
     const instructionResult = await setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
       requesterUid: uid, requestId, instructions: "يرجى التواصل مع المالك لإتمام التحويل البنكي",
       agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
+      expectedInstructionsVersion: 0,
     }));
     assert.equal((await requestDoc.get()).data().status, "payment_instructions_sent");
+    assert.equal((await requestDoc.get()).data().paymentPolicySnapshot.manualEnabled, true);
+    await assert.rejects(
+      () => withdrawCoinPurchaseRequest.run(memberRequest(uid, { requestId })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await assert.rejects(
+      () => setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
+        requesterUid: uid, requestId, instructions: "تعديل ممنوع بعد الإصدار",
+        agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
+        expectedInstructionsVersion: 0,
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    const reported = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
+      requestId, expectedInstructionsVersion: 1,
+    }));
+    assert.equal(reported.status, "awaiting_payment_verification");
+    assert.equal(reported.idempotentReplay, false);
+    assert.equal((await userRef.get()).data().coins, 40);
+    const reportReplay = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
+      requestId, expectedInstructionsVersion: 1,
+    }));
+    assert.equal(reportReplay.idempotentReplay, true);
     assert.ok(instructionResult.chatId);
     const chatMessages = await db.collection("directChats").doc(instructionResult.chatId)
       .collection("messages").get();
