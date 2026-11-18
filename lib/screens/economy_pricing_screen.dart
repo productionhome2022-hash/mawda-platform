@@ -298,6 +298,11 @@ class _EconomyPricingScreenState extends State<EconomyPricingScreen> {
                 onChanged: (v) => setState(() => _ads[i] = {...item, 'priceMinor': v})),
               Switch(value: item['active'] == true, onChanged: _saving ? null :
                 (v) => setState(() => _ads[i] = {...item, 'active': v})),
+              IconButton(
+                tooltip: 'حذف السعر',
+                onPressed: _saving ? null : () => setState(() => _ads.removeAt(i)),
+                icon: const Icon(Icons.delete_outline),
+              ),
             ],
           )));
         }),
