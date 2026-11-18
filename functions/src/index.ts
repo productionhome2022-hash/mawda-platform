@@ -8428,8 +8428,10 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
     const assetSnapshot = await db.collection("mediaAssets").doc(String(campaign.mediaId)).get();
     if (!assetSnapshot.exists) throw new HttpsError("failed-precondition", "المادة الآمنة غير موجودة.");
     const asset = assetSnapshot.data() ?? {};
-    if (asset.ownerUid !== campaign.createdBy || asset.mediaPurpose !== "advertisement" || asset.status !== "security_approved") {
-      throw new HttpsError("failed-precondition", "المادة الإعلانية غير آمنة.");
+    if (asset.ownerUid !== campaign.createdBy || asset.uploaderRole !== "platform_owner" ||
+        asset.mediaPurpose !== "advertisement" || asset.status !== "security_approved" ||
+        asset.mediaCategory !== campaign.creativeType) {
+      throw new HttpsError("failed-precondition", "المادة الإعلانية غير آمنة أو لا تطابق نوع الحملة.");
     }
     const isVideo = asset.mediaCategory === "video";
     const isGif = asset.detectedContentType === "image/gif";
@@ -8457,9 +8459,20 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
     const [url] = await file.getSignedUrl({ version: "v4", action: "read", expires: expiresAt, responseType: expectedType, responseDisposition: "inline" });
     media = { url, creativeType: isVideo ? "video" : isGif ? "gif" : "image", contentType: expectedType, expiresAt };
   }
-  // Create the session only after all creative/storage checks succeed; a rejected
-  // media object must not leave an active, rewardable orphan session.
-  await sessionRef.create(sessionData);
+  // Re-read the campaign and create the session atomically after all media
+  // checks. A concurrent owner withdrawal must win before a new session exists.
+  await db.runTransaction(async (transaction) => {
+    const latestCampaign = await transaction.get(featuredAdCampaignRef(campaignId));
+    const latest = latestCampaign.data() ?? {};
+    if (!latestCampaign.exists || latest.status !== "published" || latest.ownerWithdrawn === true ||
+        latest.ownerApproved !== true || latest.paymentConfirmed !== true || latest.creativeApproved !== true ||
+        now < latest.startsAtMs || now >= latest.endsAtMs ||
+        !Array.isArray(latest.geographicTargets) || !latest.geographicTargets.includes(geography) ||
+        latest.mediaId !== campaign.mediaId) {
+      throw new HttpsError("failed-precondition", "تم إيقاف الحملة أو تغيرت أثناء بدء جلسة المشاهدة.");
+    }
+    transaction.create(sessionRef, sessionData);
+  });
   return {
     sessionId, campaignId, creativeType, serverNonce: sessionData.serverNonce, ...media,
     rewardRequirements: {
