@@ -155,3 +155,14 @@ Every setting must be independently configurable where the business rule require
 ### Release gate
 
 No economic parameter is considered final or ready for real users merely because it appears in code, a test, a sample catalog, a demo screen or a documentation example. The owner must explicitly review and activate the production values. Before the economic phase is declared complete, audit all economic domains for hard-coded commercial values, missing owner controls, inconsistent UI/backend contracts, missing policy snapshots, unsafe fallback behavior, and test-to-production configuration leakage. Record each gap and its disposition in the economic verification register.
+
+## Owner rule — bilateral prices must split into whole coins — 2026-11-18
+
+For every economic price that is defined as one combined amount and divided equally between exactly two participants (including bilateral voice/video calls), the owner will enter only a **non-negative whole-number amount divisible by 2**. The owner will not configure an odd amount that produces fractional participant shares. Therefore:
+
+- Validate the configured combined amount as an integer and require `amount % 2 === 0` before saving or activating the bilateral tariff.
+- Reject invalid values in the Super Admin UI and independently on the server; do not round, truncate, redistribute a remainder, or silently adjust the entered amount.
+- Each participant receives an exact whole-coin half of the configured combined amount under standard 50/50 bilateral billing.
+- The caller-only exception continues to charge the caller the full configured combined amount when that exception's eligibility conditions are met; the tariff itself must still satisfy the even-integer validation rule.
+- This restriction is specifically for owner-defined combined prices that are split equally between two parties. It does not impose a blanket even-number restriction on unrelated single-recipient products, fees, rewards or prices.
+- Add positive and negative validation tests: even whole numbers accepted; odd whole numbers, fractional values, non-finite values and negative values rejected. No fractional coin arithmetic or remainder policy is needed for this bilateral split.
