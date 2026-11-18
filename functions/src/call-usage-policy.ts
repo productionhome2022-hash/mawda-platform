@@ -6,6 +6,10 @@ export interface CallUsagePolicy {
   maxCallDurationMs: number | null;
 }
 
+/** Fixed group-call durations for the current release; pricing never changes these. */
+export const GROUP_AUDIO_CALL_DURATION_MS = 5 * 60 * 1000;
+export const GROUP_VIDEO_CALL_DURATION_MS = 3 * 60 * 1000;
+
 export function validateCallUsagePolicy(value: unknown): CallUsagePolicy {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("CALL_USAGE_POLICY_INVALID");
@@ -43,7 +47,23 @@ export function callModeQuotaLimit(policy: CallUsagePolicy, mode: "audio" | "vid
   return mode === "audio" ? policy.audioCallsPerWindow : policy.videoCallsPerWindow;
 }
 
-export function callMaxDurationEnd(nowMs: number, policy: CallUsagePolicy): number | null {
+/**
+ * Direct calls retain their existing owner-configured duration policy.
+ * Group-room calls use immutable release constants: audio 5m, video 3m.
+ * No pricing policy field is consulted when calculating the deadline.
+ */
+export function callMaxDurationEnd(
+  nowMs: number,
+  policy: CallUsagePolicy,
+  scope: "direct" | "room" = "direct",
+  mode?: "audio" | "video",
+): number | null {
   if (!Number.isSafeInteger(nowMs) || nowMs < 0) throw new Error("CALL_TIME_INVALID");
+  if (scope === "room") {
+    if (mode === "audio") return nowMs + GROUP_AUDIO_CALL_DURATION_MS;
+    if (mode === "video") return nowMs + GROUP_VIDEO_CALL_DURATION_MS;
+    throw new Error("CALL_MODE_INVALID");
+  }
+  if (scope !== "direct") throw new Error("CALL_SCOPE_INVALID");
   return policy.maxCallDurationMs === null ? null : nowMs + policy.maxCallDurationMs;
 }
