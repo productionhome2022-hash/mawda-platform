@@ -496,7 +496,9 @@ class _OwnerFeaturedAdsScreenState extends State<OwnerFeaturedAdsScreen> {
                   TextButton(onPressed: _saving ? null : () => _edit(item), child: const Text('تعديل')),
                 if (item['status'] == 'draft' || item['status'] == 'paused')
                   TextButton(onPressed: _saving ? null : () => _changeStatus(item, 'approved'), child: const Text('اعتماد المالك')),
-                if (item['status'] == 'approved' || item['status'] == 'paused')
+                if ((item['status'] == 'approved' || item['status'] == 'paused') &&
+                    item['paymentConfirmed'] == true &&
+                    item['financialSnapshot']?['reviewStatus'] == 'reconciled')
                   TextButton(onPressed: _saving ? null : () => _changeStatus(item, 'published'), child: const Text('نشر')),
                 if (item['status'] == 'published')
                   TextButton(onPressed: _saving ? null : () => _changeStatus(item, 'paused'), child: const Text('إيقاف')),
