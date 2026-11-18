@@ -3,7 +3,8 @@ const assert = require("node:assert/strict");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const {
   startCall, respondToCall, requestRoomCallJoin, respondToRoomCallJoinRequest,
-  markCallConnected, sendCallSignal, getCallSignals, endCall, getActiveCall, getCallIceConfiguration,
+  consentToRoomCallBilling, markCallConnected, sendCallSignal, getCallSignals,
+  endCall, getActiveCall, getCallIceConfiguration,
 } = require("../../lib/index");
 
 const db = getFirestore();
@@ -640,3 +641,85 @@ test("room participants cannot obtain ICE or signaling access before acceptance"
   }
 });
 
+
+
+test("room call pricing is snapshotted and join approval requires separate financial consent", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const creatorUid = uid("priced_room_creator");
+  const memberUid = uid("priced_room_member");
+  const roomId = uid("priced_room");
+  const callId = uid("priced_room_call");
+  const rentalId = uid("priced_room_rental");
+  const roomRef = db.collection("rooms").doc(roomId);
+  const rentalRef = db.collection("roomRentals").doc(rentalId);
+  const callRef = db.collection("callSessions").doc(callId);
+  const pricingRef = db.doc("platformSettings/groupCallPricing");
+  const priorPricing = await pricingRef.get();
+  const priorPricingData = priorPricing.exists ? priorPricing.data() : null;
+  const expiresAt = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
+  await Promise.all([
+    db.collection("users").doc(creatorUid).set({ profileCompleted: true, accountStatus: "active", age: 30 }),
+    db.collection("users").doc(memberUid).set({ profileCompleted: true, accountStatus: "active", age: 31 }),
+    roomRef.set({ roomId, ownerUid: creatorUid, kind: "private", isRented: true, rentalId, expiresAt, status: "active", capacity: 4 }),
+    rentalRef.set({ rentalId, roomId, ownerUid: creatorUid, status: "active", expiresAt }),
+    roomRef.collection("members").doc(creatorUid).set({ uid: creatorUid, role: "member" }),
+    roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" }),
+    pricingRef.set({
+      policyId: uid("group_price_policy"), version: 7, active: true,
+      audioCoinsPerMinute: 1000, videoCoinsPerMinute: 2000, updatedAtMs: Date.now(),
+    }),
+  ]);
+  try {
+    const started = await startCall.run(call(creatorUid, {
+      callId, scope: "room", targetId: roomId, mode: "video",
+    }));
+    assert.deepEqual(started.participantUids, [creatorUid]);
+    const snap = (await callRef.get()).data();
+    assert.equal(snap.groupCallPricingSnapshot.version, 7);
+    assert.equal(snap.groupCallPricingSnapshot.videoCoinsPerMinute, 2000);
+
+    await pricingRef.set({
+      policyId: uid("changed_group_policy"), version: 8, active: true,
+      audioCoinsPerMinute: 500, videoCoinsPerMinute: 9000, updatedAtMs: Date.now(),
+    });
+    assert.equal((await callRef.get()).data().groupCallPricingSnapshot.version, 7,
+      "an owner price change must not rewrite the call's accepted price snapshot");
+
+    await requestRoomCallJoin.run(call(memberUid, { callId }));
+    await assert.rejects(
+      () => respondToRoomCallJoinRequest.run(call(creatorUid, {
+        callId, requesterUid: memberUid, decision: "approve",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "creator and member must separately consent before approval",
+    );
+    await consentToRoomCallBilling.run(call(creatorUid, { callId, consent: true }));
+    await assert.rejects(
+      () => respondToRoomCallJoinRequest.run(call(creatorUid, {
+        callId, requesterUid: memberUid, decision: "approve",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "member consent remains independent from creator consent",
+    );
+    await consentToRoomCallBilling.run(call(memberUid, { callId, consent: true }));
+    const approved = await respondToRoomCallJoinRequest.run(call(creatorUid, {
+      callId, requesterUid: memberUid, decision: "approve",
+    }));
+    assert.equal(approved.approved, true);
+    const stored = (await callRef.get()).data();
+    assert.equal(stored.billingConsents[creatorUid].policyVersion, 7);
+    assert.equal(stored.billingConsents[memberUid].policyVersion, 7);
+  } finally {
+    if (priorPricingData) await pricingRef.set(priorPricingData);
+    else await pricingRef.delete().catch(() => undefined);
+    await Promise.all([
+      db.recursiveDelete(callRef).catch(() => undefined),
+      db.recursiveDelete(roomRef).catch(() => undefined),
+      db.recursiveDelete(rentalRef).catch(() => undefined),
+      db.recursiveDelete(db.collection("users").doc(creatorUid)).catch(() => undefined),
+      db.recursiveDelete(db.collection("users").doc(memberUid)).catch(() => undefined),
+      ...[creatorUid, memberUid].map((member) =>
+        db.recursiveDelete(db.collection("activeCallMemberLocks").doc(member)).catch(() => undefined)),
+    ]);
+  }
+});
