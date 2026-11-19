@@ -47,7 +47,11 @@ export function roomRentalExpiry(nowMs: number, durationDays: number): number {
       !Number.isSafeInteger(durationDays) || durationDays < 1 || durationDays > 3650) {
     throw new Error("INVALID_ROOM_RENTAL_EXPIRY");
   }
-  return nowMs + durationDays * 24 * 60 * 60 * 1000;
+  const expiryMs = nowMs + durationDays * 24 * 60 * 60 * 1000;
+  if (!Number.isSafeInteger(expiryMs)) {
+    throw new Error("INVALID_ROOM_RENTAL_EXPIRY");
+  }
+  return expiryMs;
 }
 
 export function calculateRoomRentalBalance(balance: unknown, priceCoins: number): number | null {
