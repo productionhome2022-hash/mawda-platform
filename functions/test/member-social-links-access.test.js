@@ -8,6 +8,9 @@ const {
 const NOW = 1_800_000_000_000;
 const active = {
   status: "verified",
+  verificationMethod: "owner_manual_review",
+  reviewedBySuperOwner: true,
+  reviewRequestId: "review-request-member-a",
   expiresAt: { toMillis: () => NOW + 60_000 },
 };
 
