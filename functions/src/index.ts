@@ -7894,17 +7894,26 @@ export const getOwnerStoreCatalog = onCall(async (request) => {
         active: true,
         fulfillmentReady: true,
       })?.fulfillmentReady ?? false;
-      transaction.create(ref, {
+      const versionedItem = {
         ...item,
+        version: 1,
         // Publish approved, implemented profile features for discovery in the
         // shop, but leave charging disabled until the owner confirms prices.
         active: fulfillmentReady,
         purchaseEnabled: false,
         fulfillmentReady,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
+      };
+      const now = FieldValue.serverTimestamp();
+      transaction.create(ref, {
+        ...versionedItem,
+        createdAt: now,
+        updatedAt: now,
         updatedBy: actorUid,
       });
+      transaction.create(
+        db.collection("storeCatalogVersions").doc(item.itemId).collection("versions").doc("1"),
+        { ...versionedItem, createdAt: now, createdBy: actorUid },
+      );
     });
   });
   const snapshot = await db.collection("storeCatalog").limit(100).get();
