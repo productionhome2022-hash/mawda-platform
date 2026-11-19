@@ -8,7 +8,15 @@ const rawStorageEmulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? "12
 const storageEmulatorHost = rawStorageEmulatorHost.replace("https://", "").replace("http://", "");
 process.env.STORAGE_EMULATOR_HOST = `http://${storageEmulatorHost}`;
 const testScannerSecret = "scanner-callback-test-secret-".padEnd(48, "x");
+const testScannerProvider = "clamav-mawadda-gateway";
+// defineString defaults are deployment configuration; explicitly seed the
+// emulator test process so the callback exercises the same provider identity.
 process.env.MAWDA_MEDIA_SCANNER_HMAC_SECRET = testScannerSecret;
+process.env.MAWDA_MEDIA_SCANNER_PROVIDER = testScannerProvider;
+if (process.env.MAWDA_MEDIA_SCANNER_HMAC_SECRET !== testScannerSecret ||
+    process.env.MAWDA_MEDIA_SCANNER_PROVIDER !== testScannerProvider) {
+  throw new Error("SCANNER_CALLBACK_TEST_CONFIGURATION_MISSING");
+}
 const { EventEmitter } = require("node:events");
 const fs = require("node:fs");
 const os = require("node:os");
@@ -980,7 +988,7 @@ test("scanner error callback returns retryable 503 without changing quarantined 
     const payload = {
       mediaId,
       purpose: "chat",
-      provider: "clamav-mawadda-gateway",
+      provider: testScannerProvider,
       verdict: "error",
       objectGeneration: initial.storageGeneration,
       sha256: "a".repeat(64),
