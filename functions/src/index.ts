@@ -7076,11 +7076,18 @@ export const setStoreCatalogItem = onCall(async (request) => {
   await db.runTransaction(async (transaction) => {
     const previousSnapshot = await transaction.get(itemRef);
     const previous = previousSnapshot.data() ?? {};
-    if (previousSnapshot.exists && (!Number.isSafeInteger(previous.version) || previous.version < 1)) {
+    // Legacy catalog rows without a version are upgraded to version 1 on the
+    // first owner publication. Malformed non-null versions fail closed.
+    const rawPreviousVersion = previous.version;
+    const previousVersion = rawPreviousVersion === null || rawPreviousVersion === undefined
+      ? 0 : rawPreviousVersion;
+    if (!Number.isSafeInteger(previousVersion) || previousVersion < 0) {
       throw new HttpsError("failed-precondition", "إصدار عنصر المتجر الحالي غير صالح؛ أوقفنا التحديث لحماية سجل الأسعار.");
     }
-    savedVersion = previousSnapshot.exists ? previous.version + 1 : 1;
-    if (!Number.isSafeInteger(savedVersion)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لعنصر المتجر.");
+    if (previousVersion >= Number.MAX_SAFE_INTEGER) {
+      throw new HttpsError("resource-exhausted", "بلغ عنصر المتجر الحد الآمن للإصدارات؛ أوقفنا التحديث.");
+    }
+    savedVersion = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
     const nextItem = {
       itemId: item.itemId, name: item.name, description: item.description,
