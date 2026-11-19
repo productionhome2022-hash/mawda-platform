@@ -32,6 +32,12 @@ import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-s
 import { isMemberAccountInGoodStanding } from "./member-access";
 import { projectEconomicPaymentPolicy, validateEconomicPaymentPolicy } from "./economy-payment-policy";
 import {
+  validateFeaturedAdFinancialEvent,
+  applyFeaturedAdFinancialEvent,
+  featuredAdFinancialIdempotencyId,
+  defaultFeaturedAdFinancialSnapshot,
+} from "./featured-ad-finance";
+import {
   assertMessageLinksAllowed,
   BIOMETRIC_APPROVED_HOSTS,
   canSendApprovedPlatformLinks,
@@ -8033,6 +8039,185 @@ export const setTimedAdCampaign = onCall(async (request) => {
     actorUid, action: "timed_ad_campaign_saved", ...result, outcome: "success",
   });
   return result;
+});
+
+/**
+ * Owner-recorded featured-ad finance events. This records receipts/refunds/
+ * reconciliation only; it never publishes or activates an advertising campaign.
+ */
+export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let event;
+  try {
+    event = validateFeaturedAdFinancialEvent(request.data);
+    if (event.currency !== null && currencyExponentForCode(event.currency) === null) {
+      throw new Error("UNSUPPORTED_CURRENCY");
+    }
+  } catch {
+    throw new HttpsError("invalid-argument", "بيانات الحركة المالية الإعلانية أو عملتها غير صالحة.");
+  }
+  const campaignRef = db.collection("timedAdCampaigns").doc(event.campaignId);
+  const financialRef = db.collection("featuredAdFinancials").doc(event.campaignId);
+  const eventId = featuredAdFinancialIdempotencyId(
+    event.campaignId, event.action, event.externalReference!,
+  );
+  const eventRef = financialRef.collection("events").doc(eventId);
+  const auditRef = db.collection("adminAuditLogs").doc("featured_ad_finance_" + eventId);
+
+  return db.runTransaction(async (transaction) => {
+    const [campaign, financial, priorEvent, audit, paymentSettings] = await Promise.all([
+      transaction.get(campaignRef), transaction.get(financialRef),
+      transaction.get(eventRef), transaction.get(auditRef),
+      transaction.get(ECONOMY_PRICING_SETTINGS),
+    ]);
+    if (!campaign.exists) throw new HttpsError("not-found", "الحملة الإعلانية غير موجودة.");
+
+    const currentData = financial.data() ?? {};
+    const currentVersion = financial.exists ? currentData.version : 0;
+    let currentVersionRef: DocumentReference | null = null;
+    let currentVersionSnapshot = null;
+    if (financial.exists) {
+      if (!Number.isSafeInteger(currentVersion) || currentVersion < 1 ||
+          typeof currentData.lastEventId !== "string" ||
+          typeof currentData.currentVersionPath !== "string") {
+        throw new HttpsError("failed-precondition", "مؤشر السجل المالي الإعلاني غير صالح.");
+      }
+      currentVersionRef = db.collection("featuredAdFinancialVersions").doc(event.campaignId)
+        .collection("versions").doc(String(currentVersion));
+      currentVersionSnapshot = await transaction.get(currentVersionRef);
+      const currentVersionData = currentVersionSnapshot.data() ?? {};
+      if (!currentVersionSnapshot.exists ||
+          currentData.currentVersionPath !== currentVersionRef.path ||
+          currentVersionData.version !== currentVersion ||
+          currentVersionData.lastEventId !== currentData.lastEventId ||
+          currentVersionData.currency !== currentData.currency ||
+          currentVersionData.receivedMinor !== currentData.receivedMinor ||
+          currentVersionData.refundedMinor !== currentData.refundedMinor ||
+          currentVersionData.reconciledMinor !== currentData.reconciledMinor ||
+          currentVersionData.reviewStatus !== currentData.reviewStatus ||
+          currentVersionData.paymentStatus !== currentData.paymentStatus) {
+        throw new HttpsError("failed-precondition", "لقطة السجل المالي لا تطابق إصدارها المحفوظ.");
+      }
+    }
+
+    if (priorEvent.exists) {
+      const prior = priorEvent.data() ?? {};
+      const matches = prior.actorUid === actorUid &&
+        prior.idempotencyKey === event.idempotencyKey &&
+        prior.action === event.action && prior.amountMinor === event.amountMinor &&
+        prior.currency === event.currency && prior.externalReference === event.externalReference &&
+        prior.evidenceReference === event.evidenceReference && prior.note === event.note &&
+        prior.reviewOutcome === event.reviewOutcome;
+      if (!matches || !financial.exists || !audit.exists ||
+          !Number.isSafeInteger(prior.snapshotVersion) || prior.snapshotVersion < 1 ||
+          currentVersion < prior.snapshotVersion) {
+        throw new HttpsError("failed-precondition", "الحركة المالية السابقة تفتقد أدلة الإصدار أو سجل التدقيق.");
+      }
+      const priorVersionRef = db.collection("featuredAdFinancialVersions").doc(event.campaignId)
+        .collection("versions").doc(String(prior.snapshotVersion));
+      const priorVersionSnapshot = await transaction.get(priorVersionRef);
+      const priorVersion = priorVersionSnapshot.data() ?? {};
+      const auditData = audit.data() ?? {};
+      const priorExponent = prior.currency === null ? null : currencyExponentForCode(prior.currency);
+      if (!priorVersionSnapshot.exists ||
+          priorVersion.version !== prior.snapshotVersion ||
+          priorVersion.lastEventId !== eventId ||
+          priorVersion.currency !== prior.currency ||
+          priorVersion.receivedMinor !== prior.receivedMinor ||
+          priorVersion.refundedMinor !== prior.refundedMinor ||
+          priorVersion.reconciledMinor !== prior.reconciledMinor ||
+          priorVersion.reviewStatus !== prior.reviewStatus ||
+          priorVersion.paymentStatus !== prior.paymentStatus ||
+          prior.currencyExponent !== priorExponent ||
+          auditData.actorUid !== actorUid ||
+          auditData.action !== "featured_ad_financial_event_recorded" ||
+          auditData.campaignId !== event.campaignId ||
+          auditData.eventId !== eventId ||
+          auditData.eventType !== event.action ||
+          auditData.amountMinor !== event.amountMinor ||
+          auditData.currency !== event.currency ||
+          auditData.currencyExponent !== priorExponent ||
+          auditData.externalReference !== event.externalReference ||
+          auditData.snapshotVersion !== prior.snapshotVersion) {
+        throw new HttpsError("failed-precondition", "الحركة المالية لا تطابق نسخة السجل وسجل التدقيق.");
+      }
+      return {
+        campaignId: event.campaignId, eventId,
+        snapshot: currentData, version: currentVersion, idempotentReplay: true,
+      };
+    }
+
+    if (audit.exists) {
+      throw new HttpsError("failed-precondition", "يوجد سجل تدقيق مالي دون حركة مقابلة؛ يلزم التدقيق.");
+    }
+    let paymentPolicySnapshot: Record<string, unknown> | null = null;
+    if (event.action === "payment_received") {
+      const settings = paymentSettings.data() ?? {};
+      const paymentPolicy = projectEconomicPaymentPolicy(settings.paymentPolicy, {
+        manualCoinPurchasesEnabled: settings.manualCoinPurchasesEnabled,
+        manualFeaturedAdsEnabled: settings.manualFeaturedAdsEnabled,
+      });
+      if (!paymentSettings.exists || paymentPolicy.featured_ads.manualEnabled !== true ||
+          paymentPolicy.featured_ads.automatedEnabled !== false ||
+          settings.automatedCoinCheckoutEnabled === true ||
+          !Number.isSafeInteger(settings.version) || settings.version < 1) {
+        throw new HttpsError("failed-precondition", "استقبال دفعات الإعلانات اليدوي متوقف أو غير مهيأ في سياسة المالك.");
+      }
+      paymentPolicySnapshot = {
+        service: "featured_ads", manualEnabled: true, automatedEnabled: false,
+        policyVersion: settings.version,
+      };
+    }
+
+    const current = financial.exists
+      ? {
+          currency: currentData.currency,
+          receivedMinor: currentData.receivedMinor,
+          refundedMinor: currentData.refundedMinor,
+          reconciledMinor: currentData.reconciledMinor,
+          reviewStatus: currentData.reviewStatus,
+          paymentStatus: currentData.paymentStatus,
+        }
+      : defaultFeaturedAdFinancialSnapshot();
+    let next;
+    try { next = applyFeaturedAdFinancialEvent(current, event); }
+    catch { throw new HttpsError("failed-precondition", "لا تسمح حالة السجل المالي بتطبيق هذه الحركة."); }
+    const version = financial.exists ? currentVersion + 1 : 1;
+    if (!Number.isSafeInteger(version)) {
+      throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار مالي جديد.");
+    }
+    const versionRef = db.collection("featuredAdFinancialVersions").doc(event.campaignId)
+      .collection("versions").doc(String(version));
+    const nextVersionSnapshot = await transaction.get(versionRef);
+    if (nextVersionSnapshot.exists) {
+      throw new HttpsError("failed-precondition", "إصدار مالي موجود دون مؤشر حالي؛ يلزم التدقيق.");
+    }
+    const now = FieldValue.serverTimestamp();
+    const currencyExponent = event.currency === null ? null : currencyExponentForCode(event.currency);
+    transaction.create(versionRef, {
+      campaignId: event.campaignId, ...next, version,
+      lastEventId: eventId, currencyExponent, paymentPolicySnapshot,
+      createdAt: now, createdBy: actorUid,
+    });
+    transaction.create(eventRef, {
+      ...event, currencyExponent, paymentPolicySnapshot,
+      eventId, actorUid, snapshotVersion: version, createdAt: now,
+    });
+    transaction.set(financialRef, {
+      campaignId: event.campaignId, ...next, version,
+      lastEventId: eventId, updatedAt: now, updatedBy: actorUid,
+      createdAt: currentData.createdAt ?? now,
+      currentVersionPath: versionRef.path,
+    });
+    transaction.create(auditRef, {
+      actorUid, action: "featured_ad_financial_event_recorded",
+      campaignId: event.campaignId, eventId, eventType: event.action,
+      amountMinor: event.amountMinor, currency: event.currency,
+      currencyExponent, externalReference: event.externalReference,
+      paymentPolicySnapshot, snapshotVersion: version, createdAt: now,
+    });
+    return { campaignId: event.campaignId, eventId, snapshot: next, version, idempotentReplay: false };
+  });
 });
 
 export const getOwnerTimedAdCampaigns = onCall(async (request) => {
