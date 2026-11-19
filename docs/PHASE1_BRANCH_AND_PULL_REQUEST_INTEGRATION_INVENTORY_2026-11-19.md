@@ -88,3 +88,23 @@ These results apply only to the baseline SHA. They do not certify PR #35, #38, #
 - No production prices or entitlements inferred from test fixtures.
 - Keep group-call economy disabled/fail-closed until its P0 evidence gates are closed.
 - Preserve branch history and source attribution for every ported batch.
+
+
+## Mandatory duplicate/similar-file deep-review gate (owner-approved instruction, 2026-11-19)
+
+This gate applies to every candidate duplicate or similar file across all project branches and pull requests. Similar filenames or paths are discovery signals only; they are never proof of equivalent content.
+
+Before consolidating, moving, deleting, renaming, or selecting a canonical copy:
+
+1. Retrieve the complete contents of every candidate at the exact branch/commit SHA. Do not rely solely on PR summaries, changed-line excerpts, filenames, or hashes.
+2. Compare the full files, including declarations, exported/public APIs, data models, business rules, validation, error handling, comments that encode decisions, configuration, and generated-code boundaries.
+3. Trace imports, callers, runtime registration, dependency injection, Firebase/Firestore/Storage rules, indexes, workflows, build scripts, and platform-specific references.
+4. Compare tests and fixtures, including positive, negative, boundary, concurrency, replay/idempotency, authorization, migration and rollback cases.
+5. Inspect each file's branch provenance and commit history to identify unique changes, intended ownership, and whether either copy contains later approved decisions.
+6. Produce a semantic comparison: identical portions, non-identical portions, unique behavior, risk, references that must be updated, and the proposed canonical destination under the approved integration plan.
+7. If fully identical in content and behavior, preserve the canonical path selected by the integration plan, update and verify every reference, and remove the redundant copy only in the same reviewed batch after confirming no active references remain.
+8. If not identical, do not discard either version. Reconcile unique changes into the canonical destination, preserve source attribution, add or update regression tests, and retain the original branch history.
+9. Run targeted tests and the relevant repository workflows against the exact resulting commit SHA. A successful check on another branch or older SHA is not evidence for this batch.
+10. Record the comparison outcome and reviewer decision in the PR before the consolidation is eligible for merge.
+
+**Safety rule:** no file is moved or deleted merely because it appears duplicated. When equivalence, ownership, references, or behavior is uncertain, preserve both and escalate the conflict for review. This gate does not authorize merging to `main`, production changes, or destructive production operations.
