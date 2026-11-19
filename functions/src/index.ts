@@ -2144,6 +2144,19 @@ export const completeBiometricVerificationCycle = onCall(async (request) => {
 const BIOMETRIC_REQUESTS = db.collection("biometricVerificationRequests");
 const BIOMETRIC_SETTINGS = db.doc("platformSettings/biometricVerification");
 
+// REWARD-002 requires challenge-bound cryptographic server proof.
+// Manual audio/video review is not approved for evidence collection, rewards,
+// badges, or privileges. All proposed manual-review entry points stay closed.
+const MANUAL_BIOMETRIC_REVIEW_APPROVED = false;
+function requireManualBiometricReviewApproval(): void {
+  if (!MANUAL_BIOMETRIC_REVIEW_APPROVED) {
+    throw new HttpsError(
+      "failed-precondition",
+      "مسار المراجعة البيومترية اليدوية غير معتمد؛ يلزم إثبات خادمي تشفيري وفق REWARD-002.",
+    );
+  }
+}
+
 function biometricSettingsOrThrow(value: Record<string, unknown>, requireEnabled = true) {
   const maxAudioBytes = value.maxAudioBytes;
   const maxVideoBytes = value.maxVideoBytes;
@@ -2311,6 +2324,7 @@ export const setOwnerBiometricVerificationSettings = onCall(async (request) => {
   const uploadWindowMinutes = input.uploadWindowMinutes;
   const mediaAccessTtlSeconds = input.mediaAccessTtlSeconds;
   const phrases = input.phrases;
+  if (enabled === true) requireManualBiometricReviewApproval();
   if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0 ||
       typeof enabled !== "boolean" ||
       !Number.isSafeInteger(maxAudioBytes) || maxAudioBytes < 1 ||
@@ -2367,6 +2381,7 @@ export const setOwnerBiometricVerificationSettings = onCall(async (request) => {
 });
 
 export const startBiometricVerificationRequest = onCall(async (request) => {
+  requireManualBiometricReviewApproval();
   const uid = requireAuthenticatedUid(request.auth?.uid);
   if (request.data?.consent !== true) {
     throw new HttpsError("failed-precondition", "يجب الموافقة الصريحة على شروط مراجعة الأدلة قبل بدء الطلب.");
@@ -2477,6 +2492,7 @@ export const startBiometricVerificationRequest = onCall(async (request) => {
 });
 
 export const getMyBiometricVerificationUploadAccess = onCall(async (request) => {
+  requireManualBiometricReviewApproval();
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const requestId = request.data?.requestId;
   if (typeof requestId !== "string" || !/^[0-9a-f-]{36}$/i.test(requestId)) {
@@ -2540,6 +2556,7 @@ export const getMyBiometricVerificationStatus = onCall(async (request) => {
 
 export const getOwnerBiometricVerificationRequests = onCall(async (request) => {
   await requireOwnerForReview(request, "biometric_verification_requests_read");
+  requireManualBiometricReviewApproval();
   const snapshot = await BIOMETRIC_REQUESTS.where("status", "==", "pending_review")
     .limit(100).get();
   const orderedDocs = [...snapshot.docs].sort((a, b) =>
@@ -2564,6 +2581,7 @@ export const getOwnerBiometricVerificationRequests = onCall(async (request) => {
 
 export const getOwnerBiometricVerificationMediaAccess = onCall(async (request) => {
   const actorUid = await requireOwnerForReview(request, "biometric_verification_media_access");
+  requireManualBiometricReviewApproval();
   const requestId = request.data?.requestId;
   if (typeof requestId !== "string" || !/^[0-9a-f-]{36}$/i.test(requestId)) {
     throw new HttpsError("invalid-argument", "معرّف طلب التوثيق غير صالح.");
@@ -2603,6 +2621,7 @@ export const getOwnerBiometricVerificationMediaAccess = onCall(async (request) =
 
 export const decideBiometricVerificationRequest = onCall(async (request) => {
   const actorUid = await requireOwnerForReview(request, "biometric_verification_decision");
+  requireManualBiometricReviewApproval();
   const requestId = request.data?.requestId;
   const expectedVersion = request.data?.expectedVersion;
   const decision = request.data?.decision;
@@ -2808,6 +2827,13 @@ export const finalizeBiometricVerificationUpload = onObjectFinalized(async (even
   if (typeof name !== "string") return;
   const match = /^biometric-verification\/([^/]+)\/([0-9a-f-]{36})\/(audio|video)\.mp4$/i.exec(name);
   if (!match) return;
+  if (!MANUAL_BIOMETRIC_REVIEW_APPROVED) {
+    await getStorage().bucket(object.bucket).file(name).delete({ ignoreNotFound: true }).catch((error) => {
+      logger.error("Unapproved biometric evidence cleanup failed", { name, error });
+    });
+    logger.warn("Rejected unapproved manual biometric evidence upload", { name });
+    return;
+  }
   const uid = match[1];
   const requestId = match[2];
   const requestRef = BIOMETRIC_REQUESTS.doc(requestId);
