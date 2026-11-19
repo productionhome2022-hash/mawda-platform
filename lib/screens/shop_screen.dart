@@ -39,7 +39,9 @@ class _ShopScreenState extends State<ShopScreen> {
     final itemId = item['itemId'] as String?;
     final name = item['name'] as String? ?? 'عنصر مودة';
     final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
-    if (itemId == null || itemId.isEmpty || price <= 0 || _purchasingItemId != null) return;
+    final catalogVersion = (item['version'] as num?)?.toInt();
+    if (itemId == null || itemId.isEmpty || price <= 0 || catalogVersion == null ||
+        catalogVersion < 1 || _purchasingItemId != null) return;
     final category = item['category'] as String? ?? '';
     final callPackageNotice = category == 'voice_call'
         ? 'تمنحك الباقة 5 مكالمات صوتية عادية في كل 24 ساعة طوال مدة صلاحيتها. بعد استنفاد حصتك، يكون سعر المكالمة الصوتية المفتوحة 120 كوينز للدقيقة إجمالاً: 60 من كل طرف إذا استنفد الطرفان حصتيهما، أو 120 من المتصل وحده إذا كان المستقبل لا يزال يملك محاولات.'
@@ -82,6 +84,7 @@ class _ShopScreenState extends State<ShopScreen> {
         'itemId': itemId,
         'requestId': const Uuid().v4(),
         'expectedPriceCoins': price,
+        'expectedCatalogVersion': catalogVersion,
       });
       final result = Map<String, dynamic>.from(response.data as Map);
       final purchaseId = result['purchaseId'] as String?;
@@ -291,8 +294,9 @@ class _ShopScreenState extends State<ShopScreen> {
                 final category = item['category'] as String? ?? 'feature';
                 final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
                 final duration = (item['durationDays'] as num?)?.toInt();
+                final catalogVersion = (item['version'] as num?)?.toInt();
                 final canPurchase = item['purchaseEnabled'] == true &&
-                    item['fulfillmentReady'] == true;
+                    item['fulfillmentReady'] == true && catalogVersion != null && catalogVersion > 0;
                 return Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
