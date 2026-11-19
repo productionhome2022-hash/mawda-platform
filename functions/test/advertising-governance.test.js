@@ -9,7 +9,7 @@ const {
 const activeGrant = () => validateSpecializedRoleGrant({
   uid: "member_uid_0001",
   role: "ad_general_supervisor",
-  permissions: ["advertising.requests.review", "advertising.rooms.observe_assigned"],
+  permissions: ["advertising.requests.view_assigned", "advertising.workspace.message_representatives"],
   resourceScopes: ["campaign:campaign_123", "room:room_123"],
   status: "active", startsAtMs: 100, endsAtMs: 1000, version: 1,
 });
@@ -30,18 +30,18 @@ test("specialized roles cannot contain platform, finance or owner override permi
 test("permissions require exact UID, permission, active time and resource scope", () => {
   const grants = [activeGrant()];
   const base = { ownerVerified: false, grants, uid: "member_uid_0001",
-    permission: "advertising.requests.review", resourceScope: "campaign:campaign_123", nowMs: 200 };
+    permission: "advertising.requests.view_assigned", resourceScope: "campaign:campaign_123", nowMs: 200 };
   assert.equal(hasAdvertisingPermission(base), true);
   assert.equal(hasAdvertisingPermission({ ...base, resourceScope: "campaign:other" }), false);
   assert.equal(hasAdvertisingPermission({ ...base, uid: "other_uid_0001" }), false);
   assert.equal(hasAdvertisingPermission({ ...base, nowMs: 1000 }), false);
-  assert.equal(hasAdvertisingPermission({ ...base, permission: "advertising.campaigns.publish" }), false);
+  assert.equal(hasAdvertisingPermission({ ...base, permission: "advertising.campaign.publish" }), false);
 });
 
 test("owner verified authority is distinct from specialized grants", () => {
   assert.equal(hasAdvertisingPermission({
     ownerVerified: true, grants: [], uid: "owner_uid_0001",
-    permission: "advertising.campaigns.publish", resourceScope: "campaign:x", nowMs: 200,
+    permission: "advertising.campaign.publish", resourceScope: "campaign:x", nowMs: 200,
   }), true);
 });
 
@@ -103,7 +103,7 @@ test("specialized role grants cannot be saved with an empty permission list", ()
 test("specialized grant rejects unknown permissions, wildcard scopes and duplicate values", () => {
   const valid = {
     uid: "member_uid_0001", role: "ad_general_supervisor",
-    permissions: ["advertising.requests.review"],
+    permissions: ["advertising.requests.view_assigned"],
     resourceScopes: ["campaign:campaign_123"],
     status: "active", startsAtMs: 100, endsAtMs: 1000, version: 1,
   };
@@ -114,7 +114,7 @@ test("specialized grant rejects unknown permissions, wildcard scopes and duplica
     ...valid, resourceScopes: ["*"],
   }), /SPECIALIZED_SCOPE_INVALID/);
   assert.throws(() => validateSpecializedRoleGrant({
-    ...valid, permissions: ["advertising.requests.review", "advertising.requests.review"],
+    ...valid, permissions: ["advertising.requests.view_assigned", "advertising.requests.view_assigned"],
   }), /SPECIALIZED_PERMISSION_DUPLICATE/);
   assert.throws(() => validateSpecializedRoleGrant({
     ...valid, resourceScopes: ["campaign:campaign_123", "campaign:campaign_123"],
@@ -125,7 +125,7 @@ test("specialized grant scope checks are exact and inactive grants fail closed",
   const grant = activeGrant();
   const base = {
     ownerVerified: false, grants: [grant], uid: "member_uid_0001",
-    permission: "advertising.requests.review", resourceScope: "campaign:campaign_123", nowMs: 200,
+    permission: "advertising.requests.view_assigned", resourceScope: "campaign:campaign_123", nowMs: 200,
   };
   assert.equal(hasAdvertisingPermission({ ...base, resourceScope: "campaign:campaign_123:child" }), false);
   assert.equal(hasAdvertisingPermission({ ...base, grants: [{ ...grant, status: "suspended" }] }), false);
@@ -135,7 +135,7 @@ test("specialized grant scope checks are exact and inactive grants fail closed",
 test("specialized grant rejects non-canonical and control-character resource scopes", () => {
   const valid = {
     uid: "member_uid_0001", role: "ad_general_supervisor",
-    permissions: ["advertising.requests.review"],
+    permissions: ["advertising.requests.view_assigned"],
     resourceScopes: ["campaign:campaign_123"],
     status: "active", startsAtMs: 100, endsAtMs: 1000, version: 1,
   };
@@ -154,7 +154,7 @@ test("resource scopes reject surrounding whitespace and control characters", () 
   const base = {
     uid: "member_uid_0001",
     role: "ad_general_supervisor",
-    permissions: ["advertising.requests.review"],
+    permissions: ["advertising.requests.view_assigned"],
     status: "active",
     startsAtMs: 100,
     endsAtMs: 1000,
@@ -173,10 +173,10 @@ test("owner permission delta adds and partially revokes only selected capabiliti
   const grant = activeGrant();
   const changed = applySpecializedPermissionDelta(grant, {
     add: ["advertising.requests.assign"],
-    remove: ["advertising.requests.review"],
+    remove: ["advertising.requests.view_assigned"],
   });
   assert.deepEqual(changed.permissions, [
-    "advertising.rooms.observe_assigned",
+    "advertising.workspace.message_representatives",
     "advertising.requests.assign",
   ]);
   assert.deepEqual(changed.resourceScopes, grant.resourceScopes);
@@ -196,10 +196,10 @@ test("owner permission delta rejects escalation, duplicates and removal of the f
     add: ["advertising.requests.assign", "advertising.requests.assign"],
   }), /SPECIALIZED_PERMISSION_ADD_INVALID/);
   assert.throws(() => applySpecializedPermissionDelta(grant, {
-    remove: ["advertising.requests.review", "advertising.rooms.observe_assigned"],
+    remove: ["advertising.requests.view_assigned", "advertising.workspace.message_representatives"],
   }), /SPECIALIZED_PERMISSION_EMPTY_GRANT/);
   assert.throws(() => applySpecializedPermissionDelta(grant, {
-    remove: ["advertising.campaigns.publish"],
+    remove: ["advertising.campaign.publish"],
   }), /SPECIALIZED_PERMISSION_REMOVE_INVALID/);
 });
 
@@ -209,7 +209,7 @@ test("permission evaluator fails closed for malformed persisted grants", () => {
   const base = {
     ownerVerified: false,
     uid: "member_uid_0001",
-    permission: "advertising.requests.review",
+    permission: "advertising.requests.view_assigned",
     resourceScope: "campaign:campaign_123",
     nowMs: 200,
   };
@@ -240,6 +240,48 @@ test("permission evaluator fails closed for malformed persisted grants", () => {
 });
 
 
+
+
+test("specialized roles cannot receive permissions from another role family", () => {
+  const base = {
+    uid: "member_uid_0001",
+    resourceScopes: ["resource:assigned_001"],
+    status: "active",
+    startsAtMs: 100,
+    endsAtMs: 1000,
+    version: 1,
+  };
+  assert.throws(() => validateSpecializedRoleGrant({
+    ...base, role: "ad_general_supervisor", permissions: ["production.tasks.manage_assigned"],
+  }), /SPECIALIZED_PERMISSION_ROLE_MISMATCH/);
+  assert.throws(() => validateSpecializedRoleGrant({
+    ...base, role: "production_supervisor", permissions: ["advertising.requests.view_assigned"],
+  }), /SPECIALIZED_PERMISSION_ROLE_MISMATCH/);
+  assert.throws(() => validateSpecializedRoleGrant({
+    ...base, role: "production_quality_reviewer", permissions: ["production.rooms.create"],
+  }), /SPECIALIZED_PERMISSION_ROLE_MISMATCH/);
+  assert.doesNotThrow(() => validateSpecializedRoleGrant({
+    ...base, role: "legal_administrative_supervisor",
+    permissions: ["contracts.drafts.review", "contracts.route_to_owner", "contracts.archive.read"],
+  }));
+  assert.throws(() => validateSpecializedRoleGrant({
+    ...base, role: "legal_administrative_supervisor", permissions: ["contracts.sign_delegated"],
+  }), /SPECIALIZED_PERMISSION_FORBIDDEN/);
+  assert.throws(() => validateSpecializedRoleGrant({
+    ...base, role: "legal_administrative_supervisor", permissions: ["contracts.drafts.create"],
+  }), /SPECIALIZED_PERMISSION_FORBIDDEN/);
+  assert.throws(() => validateSpecializedRoleGrant({
+    ...base, role: "ad_representative", permissions: ["advertising.requests.view_assigned"],
+  }), /SPECIALIZED_GRANT_INVALID/);
+});
+
+test("permission deltas cannot cross the assigned role's capability family", () => {
+  const { applySpecializedPermissionDelta } = require("../lib/advertising-governance");
+  assert.throws(() => applySpecializedPermissionDelta(activeGrant(), {
+    add: ["production.tasks.manage_assigned"],
+  }), /SPECIALIZED_PERMISSION_ROLE_MISMATCH/);
+});
+
 test("delegated signing fails closed for malformed persisted delegation records", () => {
   const valid = {
     delegateUid: "legal_uid_0001", contractTypes: ["advertiser_direct"],
@@ -266,7 +308,7 @@ test("permission evaluator rejects malformed owner flags and malformed context b
     ownerVerified: true,
     grants: [],
     uid: "owner_uid_0001",
-    permission: "advertising.campaigns.publish",
+    permission: "advertising.campaign.publish",
     resourceScope: "campaign:campaign_123",
     nowMs: 200,
   };
