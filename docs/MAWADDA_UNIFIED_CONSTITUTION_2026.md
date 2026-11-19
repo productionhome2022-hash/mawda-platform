@@ -215,3 +215,16 @@ Mawdda Media Saver منتج موحد لحفظ الوسائط محلياً في �
 - يحدّث الدستور والرؤية وسجل القرارات ومصفوفة التتبع في commit واحد قدر الإمكان؛ لا يُسمح بانحراف النسخ.
 - التغيير الذي يخص سياسة أو مالاً أو خصوصية أو عقداً أو حذفاً يحتاج موافقة المالك المناسبة؛ لا يعتمد تلقائياً لمجرد دخوله في وثيقة.
 - **حالة هذه النسخة:** تجميع مرجعي أولي على فرع التطوير، بانتظار مراجعة المالك واعتماده. لا يغير هذا المستند أي مورد إنتاجي أو عقد موقع.
+
+
+## Owner-approved execution amendment — comprehensive economic integration (19 November 2026)
+
+The comprehensive economic phase is governed as one controlled integration program, not as disconnected feature tasks. All wallet, ledger, pricing, purchases, store entitlements, gifting, rewards, advertising, calls, room rentals/events, media-saving, cost-control, owner-operations, security, governance and legal-document dependencies must be reconciled and tested together in a dependency-ordered sequence.
+
+The engineering process must inventory all source branches and pull requests, preserve their history, and selectively port verified unique changes into an isolated integration branch. No divergent branch may be merged wholesale merely because GitHub reports it mergeable. Every batch must identify its source and target commits, changed contracts/data/rules/interfaces, tests, exact-head workflow evidence and remaining risks.
+
+The documentation master index, approved decision register, implementation traceability, contract/governance register, privacy notice, retention operations and release checklist must remain synchronized. Historical documents are preserved and clearly marked as current, specialist, historical or superseded; signed records are never overwritten. Draft contracts and privacy notices remain non-final until legal review, verified company information, applicable jurisdiction and required signatures are established.
+
+GitHub Actions and Firebase Emulator tests are used for the local/isolated validation that the repository supports; device and live non-production acceptance must be reported separately and never inferred from CI. No merge to `main`, production deployment, live Firebase mutation, billing activation, paid infrastructure or real-money collection is authorized by this amendment. Each requires separate explicit owner approval.
+
+The controlling execution procedure is `docs/ECONOMIC_PHASE_EXECUTION_AND_INTEGRATION_PLAN_2026-11-19.md`; legal/governance document control is tracked in `docs/LEGAL_GOVERNANCE_DOCUMENT_CONTROL_AUDIT_2026-11-19.md`. Approval of this procedure does not certify any feature as complete or close the economic phase.
