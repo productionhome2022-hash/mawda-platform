@@ -587,8 +587,16 @@ export function createMediaScanVerdictHandler(
     });
   }
   response.status(200).json({ mediaId: verdict.mediaId, status: nextStatus });
-  },
-);
+  };
+}
+
+export const receiveMediaScanVerdict = onRequest(
+  { secrets: [mediaScannerHmacSecret] },
+  createMediaScanVerdictHandler(
+    () => mediaScannerHmacSecret.value(),
+    () => mediaScannerProvider.value(),
+  ),
+);;
 
 
 /** Queue a single scan job whenever an asset enters the quarantined scan state. */
@@ -753,16 +761,7 @@ export const getMyMediaUploadStatus = onCall(async (request) => {
         "safe_document_derivative_ready"].includes(String(asset.processingStatus)),
     rejectionCode: asset.status === "rejected" ? asset.rejectionCode ?? "MEDIA_REJECTED" : null,
   };
-  };
-}
-
-export const receiveMediaScanVerdict = onRequest(
-  { secrets: [mediaScannerHmacSecret] },
-  createMediaScanVerdictHandler(
-    () => mediaScannerHmacSecret.value(),
-    () => mediaScannerProvider.value(),
-  ),
-);
+});
 
 export const getMemberProfileMediaUrl = onCall(async (request) => {
   const viewerUid = requireUid(request.auth?.uid);
