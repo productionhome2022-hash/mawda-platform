@@ -294,3 +294,6 @@ This amendment records policy approval only. It does not establish that code, te
 - يجب أن يحقن workflow ملف `google-services.json` الإنتاجي من سر `MAWDDA_PRODUCTION_GOOGLE_SERVICES_JSON_B64`، ثم يطابق project ID ورقم المشروع وApp ID واسم الحزمة ومفتاح API وStorage bucket مع FlutterFire production options.
 - أُضيف تحقق آلي لهويات Android وiOS الإنتاجية في `functions/scripts/validate-firebase-config.cjs` واختبارات لها. غياب ملف Google Services الإنتاجي أو عدم التطابق يمنع بناء الإصدار.
 - لم يُقدّم المالك بعد سر ملف Google Services الإنتاجي في هذه المراجعة، ولذلك لم يُشغّل workflow الموقّع ولم تُنتج حزم Release.
+
+
+**سجل المطابقة التفصيلي:** [مطابقة القرارات والعقود ومصالحة التغييرات 19 نوفمبر 2026](MAWADDA_MASTER_DECISION_CONTRACT_TRACEABILITY_2026-11-19.md). يحدد مصدر كل نموذج، حالة الاعتماد، التعارضات المفتوحة، وحدود التنفيذ والاختبار.
