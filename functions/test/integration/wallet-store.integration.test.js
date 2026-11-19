@@ -4,7 +4,7 @@ const { getFirestore } = require("firebase-admin/firestore");
 const {
   transferCoins, purchaseStoreItem, getOwnerStoreCatalog, setStoreCatalogItem, getOwnerEconomyPricing,
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
-  setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
+  setCoinPurchasePaymentInstructions, requestCoinPurchasePaymentVerification, approveCoinPurchaseRequest,
   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
   sendOwnerLiveStream,
   deleteDirectMessageForEveryone, deleteRoomMessage,
@@ -70,6 +70,14 @@ test("coin transfer atomically writes both wallet ledgers and platform commissio
     assert.equal(sender.data().coins, 4000);
     assert.equal(recipient.data().coins, 1000);
     assert.equal(senderLedger.data().amount, -1000);
+    assert.equal(senderLedger.data().balanceBefore, 5000);
+    assert.equal(senderLedger.data().balanceAfter, 4000);
+    assert.equal(recipientLedger.data().balanceBefore, 200);
+    assert.equal(recipientLedger.data().balanceAfter, 1000);
+    assert.equal(transfer.data().senderBalanceBefore, 5000);
+    assert.equal(transfer.data().senderBalanceAfter, 4000);
+    assert.equal(transfer.data().recipientBalanceBefore, 200);
+    assert.equal(transfer.data().recipientBalanceAfter, 1000);
     assert.equal(senderLedger.data().commissionAmount, 200);
     assert.equal(senderLedger.data().recipientUid, recipientUid);
     assert.equal(senderLedger.data().recipientNetAmount, 800);
@@ -82,6 +90,13 @@ test("coin transfer atomically writes both wallet ledgers and platform commissio
 
     const replay = await transferCoins.run(request);
     assert.equal(replay.idempotentReplay, true);
+    assert.equal((await senderRef.get()).data().coins, 4000);
+    assert.equal((await recipientRef.get()).data().coins, 1000);
+    await platformLedgerRef.delete();
+    await assert.rejects(
+      () => transferCoins.run(request),
+      (error) => error && error.code === "failed-precondition",
+    );
     assert.equal((await senderRef.get()).data().coins, 4000);
     assert.equal((await recipientRef.get()).data().coins, 1000);
 
@@ -220,6 +235,10 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
     assert.equal(purchase.data().status, "completed");
     assert.equal(purchase.data().priceCoins, 1250);
     assert.equal(ledger.data().amount, -1250);
+    assert.equal(ledger.data().balanceBefore, 5000);
+    assert.equal(ledger.data().balanceAfter, 3750);
+    assert.equal(purchase.data().balanceBefore, 5000);
+    assert.equal(purchase.data().newBalance, 3750);
     assert.equal(ledger.data().purchaseId, purchaseId);
     assert.equal(entitlement.data().status, "active");
     assert.equal(entitlement.data().category, "vip");
@@ -227,6 +246,12 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
 
     const replay = await purchaseStoreItem.run(request);
     assert.equal(replay.idempotentReplay, true);
+    assert.equal((await memberRef.get()).data().coins, 3750);
+    await ledgerRef.delete();
+    await assert.rejects(
+      () => purchaseStoreItem.run(request),
+      (error) => error && error.code === "failed-precondition",
+    );
     assert.equal((await memberRef.get()).data().coins, 3750);
 
     await assert.rejects(
@@ -328,6 +353,8 @@ test("manual coin package request issues no coins until owner verifies external 
   const requestDoc = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
   const userRef = db.collection("users").doc(uid);
   const ledgerRef = userRef.collection("walletLedger").doc(`coin_purchase_${requestId}`);
+  const approvalAuditRef = db.collection("adminAuditLogs")
+    .doc(`coin_purchase_approval_${uid}_${requestId}`);
   const settingsRef = db.doc("platformSettings/economyPricing");
   await Promise.all([
     userRef.set({ coins: 40, profileCompleted: true, accountStatus: "active" }),
@@ -352,8 +379,32 @@ test("manual coin package request issues no coins until owner verifies external 
     const instructionResult = await setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
       requesterUid: uid, requestId, instructions: "يرجى التواصل مع المالك لإتمام التحويل البنكي",
       agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
+      expectedInstructionsVersion: 0,
     }));
     assert.equal((await requestDoc.get()).data().status, "payment_instructions_sent");
+    assert.equal((await requestDoc.get()).data().paymentPolicySnapshot.manualEnabled, true);
+    await assert.rejects(
+      () => withdrawCoinPurchaseRequest.run(memberRequest(uid, { requestId })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await assert.rejects(
+      () => setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
+        requesterUid: uid, requestId, instructions: "تعديل ممنوع بعد الإصدار",
+        agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
+        expectedInstructionsVersion: 0,
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    const reported = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
+      requestId, expectedInstructionsVersion: 1,
+    }));
+    assert.equal(reported.status, "awaiting_payment_verification");
+    assert.equal(reported.idempotentReplay, false);
+    assert.equal((await userRef.get()).data().coins, 40);
+    const reportReplay = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
+      requestId, expectedInstructionsVersion: 1,
+    }));
+    assert.equal(reportReplay.idempotentReplay, true);
     assert.ok(instructionResult.chatId);
     const chatMessages = await db.collection("directChats").doc(instructionResult.chatId)
       .collection("messages").get();
@@ -383,11 +434,17 @@ test("manual coin package request issues no coins until owner verifies external 
     const replay = await approveCoinPurchaseRequest.run(ownerRequest("manual-owner", approvalInput));
     assert.equal(replay.idempotentReplay, true);
     assert.equal((await userRef.get()).data().coins, 940);
-    assert.equal((await db.collection("adminAuditLogs")
-      .doc(`coin_purchase_approval_${uid}_${requestId}`).get()).exists, true);
+    assert.equal((await approvalAuditRef.get()).exists, true);
+    await approvalAuditRef.delete();
+    await assert.rejects(
+      () => approveCoinPurchaseRequest.run(ownerRequest("manual-owner", approvalInput)),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await userRef.get()).data().coins, 940);
   } finally {
     await Promise.all([
       ledgerRef.delete().catch(() => undefined),
+      approvalAuditRef.delete().catch(() => undefined),
       requestDoc.delete().catch(() => undefined),
       userRef.delete().catch(() => undefined),
       settingsRef.delete().catch(() => undefined),
