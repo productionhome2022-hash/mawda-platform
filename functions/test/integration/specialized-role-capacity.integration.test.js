@@ -26,7 +26,7 @@ const grant = (uid, role) => ({
   role,
   permissions: role === "production_supervisor" || role === "production_general_supervisor"
     ? ["production.tasks.manage_assigned"]
-    : ["advertising.requests.view_all"],
+    : ["advertising.requests.review"],
   resourceScopes: ["campaign:capacity-test"],
   status: "active",
   startsAtMs: now - 1000,
