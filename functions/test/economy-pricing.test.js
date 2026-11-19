@@ -15,10 +15,14 @@ const adPriceFixture = {
 
 test("proposed money amounts obey supported currency minor-unit precision", () => {
   assert.equal(isValidPositiveCurrencyAmount("125.00", "EUR"), true);
-  for (const currency of ["EUR", "USD", "EGP", "SAR", "SYP"]) {
+  for (const currency of ["EUR", "USD", "EGP", "SAR", "SYP", "JOD", "IQD", "AED", "DZD"]) {
     assert.equal(isValidPositiveCurrencyAmount("125.00", currency), true, currency);
   }
   assert.equal(isValidPositiveCurrencyAmount("125.000", "KWD"), false);
+  assert.equal(isValidPositiveCurrencyAmount("125.125", "JOD"), true);
+  assert.equal(isValidPositiveCurrencyAmount("125.125", "IQD"), true);
+  assert.equal(isValidPositiveCurrencyAmount("125.125", "AED"), false);
+  assert.equal(isValidPositiveCurrencyAmount("125.125", "DZD"), false);
   assert.equal(isValidPositiveCurrencyAmount("125", "JPY"), false);
   assert.equal(isValidPositiveCurrencyAmount("125.001", "EUR"), false);
   assert.equal(isValidPositiveCurrencyAmount("125.0", "JPY"), false);
@@ -117,14 +121,18 @@ test("owner pricing catalogs accept owner-selected ISO 4217 currencies", () => {
     { ...coinPackageFixture, packageId: "coins_sar", currency: "SAR" },
     { ...coinPackageFixture, packageId: "coins_syp", currency: "SYP" },
     { ...coinPackageFixture, packageId: "coins_eur", currency: "EUR" },
+    { ...coinPackageFixture, packageId: "coins_jod", currency: "JOD" },
+    { ...coinPackageFixture, packageId: "coins_iqd", currency: "IQD" },
+    { ...coinPackageFixture, packageId: "coins_aed", currency: "AED" },
+    { ...coinPackageFixture, packageId: "coins_dzd", currency: "DZD" },
   ]);
-  assert.deepEqual(packages.map((item) => item.currency), ["USD", "EGP", "SAR", "SYP", "EUR"]);
-  assert.deepEqual(packages.map((item) => item.currencyExponent), [2, 2, 2, 2, 2]);
+  assert.deepEqual(packages.map((item) => item.currency), ["USD", "EGP", "SAR", "SYP", "EUR", "JOD", "IQD", "AED", "DZD"]);
+  assert.deepEqual(packages.map((item) => item.currencyExponent), [2, 2, 2, 2, 2, 3, 3, 2, 2]);
   const ads = validateAdPrices([
     { ...adPriceFixture, placementId: "ad_syp", currency: "SYP" },
   ]);
   assert.equal(ads[0].currency, "SYP");
-  for (const currency of ["CHF", "KWD", "JPY", "AED", "eur", "US", "USDD", "1US"]) {
+  for (const currency of ["CHF", "KWD", "JPY", "eur", "US", "USDD", "1US"]) {
     assert.throws(() => validateCoinPackages([
       { ...coinPackageFixture, currency },
     ]), /INVALID_COIN_PACKAGE_FIELDS/);
