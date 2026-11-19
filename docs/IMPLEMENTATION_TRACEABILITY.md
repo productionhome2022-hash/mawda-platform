@@ -674,3 +674,12 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 - Added the pure read-only `reconcileWalletLedger` helper and unit tests. It distinguishes `consistent`, `mismatch`, `incomplete`, and `corrupt`; legacy rows without balance snapshots remain `incomplete`, and malformed arithmetic/continuity is reported rather than auto-corrected.
 - This is a calculation foundation only. No owner-facing paginated reconciliation callable/UI, cross-domain ledger scan, historical repair, balance mutation, or automatic correction has been implemented. Historical records are not rewritten.
 - Validation status: test source is committed, but the exact current development SHA has not yet been built or tested in this execution.
+
+
+## 2026-11-19 — owner-scoped payment policy and featured-ad financial records
+
+- Added the per-service payment-policy validator and owner UI. Manual mode can be configured only for coin purchases and featured-ad financial recording; public ads, influencer services and paid store entitlements remain disabled until their complete request/fulfilment/refund paths are implemented. Automated checkout remains hard-disabled until a verified provider, signed webhooks, reconciliation and owner approval exist.
+- Owner economy pricing is now versioned and audited. An unconfigured economy returns empty catalogues instead of silently seeding commercial prices. The owner explicitly configures packages, ad prices, supported ISO currency codes and custom coin-request bounds. Currency minor-unit precision is derived server-side; it is never trusted from the client.
+- Added owner-only featured-ad financial event recording for external payment receipts, refunds, settlement and review. Events, immutable snapshots and audit evidence are idempotent and versioned; replay fails closed when event, snapshot or audit evidence is missing or inconsistent. Recording a receipt does not publish or activate a campaign and does not claim to move external money.
+- Added unit and Firestore-emulator integration tests for payment-policy validation, CHF/JPY currency precision, owner policy versioning, empty unconfigured pricing, featured-ad event replay integrity, payment gating and non-activation.
+- Validation status: all changes are committed to the official development branch, but no exact-HEAD Functions build, emulator run, Flutter analysis or CI conclusion has been verified in this execution.
