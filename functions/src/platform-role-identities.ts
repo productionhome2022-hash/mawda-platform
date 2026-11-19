@@ -67,8 +67,14 @@ function toArabicDigits(value: number): string {
   return String(value).replace(/[0-9]/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[Number(digit)]);
 }
 
-/** Allocate the next permanent ordinal; callers must run this inside a transaction. */
-export function nextPermanentRoleOrdinal(existingOrdinals: unknown[]): number {
+/** Admin N is the only role with an approved permanent, never-reused sequence. */
+export function nextPermanentRoleOrdinal(
+  role: NumberedPlatformRole,
+  existingOrdinals: unknown[],
+): number {
+  if (role !== "platform_admin") {
+    throw new Error("PLATFORM_ROLE_SEQUENCE_POLICY_NOT_APPROVED");
+  }
   let max = 0;
   for (const value of existingOrdinals) {
     if (!Number.isSafeInteger(value) || (value as number) < 1) {
