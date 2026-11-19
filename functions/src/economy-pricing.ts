@@ -1,6 +1,6 @@
 /** The platform's owner-approved settlement and pricing currencies. */
 export const OFFICIAL_ECONOMY_CURRENCIES = [
-  "EUR", "USD", "EGP", "SAR", "SYP", "JOD", "IQD", "AED", "DZD",
+  "EUR", "USD", "EGP", "SAR", "SYP", "JOD", "IQD", "AED", "DZD", "MAD", "TRY",
 ] as const;
 
 export const CURRENCY_MINOR_UNIT_EXPONENTS: Readonly<Record<string, number>> = {
@@ -13,6 +13,8 @@ export const CURRENCY_MINOR_UNIT_EXPONENTS: Readonly<Record<string, number>> = {
   IQD: 3,
   AED: 2,
   DZD: 2,
+  MAD: 2,
+  TRY: 2,
 };
 
 export function currencyExponentForCode(value: unknown): number | null {
