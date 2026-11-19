@@ -681,3 +681,12 @@ Still open:
 - Non-production device validation of microphone/camera capture, signed upload and playback/deletion.
 
 No production Firebase changes, live member-data changes, deployment, billing activation or merge to `main` are included.
+
+
+## 2026-11-19 — specialized role permission boundary remediation
+
+- Restored an explicit server-side permission boundary in `functions/src/advertising-governance.ts`: Admin Media grants are restricted to the approved advertising/contracts permission families; General Production Supervisor grants are restricted to production permissions; Team Production Supervisor grants are restricted to the four assigned-team operational permissions already present in the permission catalogue.
+- Added unit tests rejecting Admin Media-to-production, General Production-to-advertising, and Team Production cross-scope grants, while accepting the existing assigned-team operational permissions.
+- Updated the remaining legacy owner wording found in `lib/models/app_models.dart` comments to `Super Owner (مالك المنصة)`. This was a source-file match cleanup, not proof of a repository-wide label audit.
+- Still open: Admin N appointment/revocation and permission delegation; a complete Admin N permission catalogue; use of permanent ordinal allocation in the live assignment transaction; exact seat-number reuse policy for the five-seat classes; end-to-end role badges and localization across all identity surfaces.
+- **Validation status:** source and unit-test changes are committed, but no test/build/CI result has been verified for the current exact branch head. Do not mark this remediation closed until exact-head Functions tests and authorization regressions pass.
