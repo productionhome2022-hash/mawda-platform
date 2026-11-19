@@ -5,6 +5,7 @@
 **الفرع الذي أُنشئت عليه هذه النسخة:** `codex/mawda-full-platform-implementation`
 
 ## الملفات المركزية الجديدة
+- [سجل العقود والحوكمة الموحد](MAWADDA_CONTRACTS_AND_GOVERNANCE_REGISTER_2026.md)
 - [دستور مودة الموحد](MAWADDA_UNIFIED_CONSTITUTION_2026.md)
 - [الرؤية الشاملة الموحدة](MAWADDA_UNIFIED_PLATFORM_VISION_2026.md)
 - [سجل القرارات والتتبع](MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md) — يبقى سجل الحالة الرسمي.
