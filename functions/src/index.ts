@@ -2075,14 +2075,22 @@ async function deleteBiometricRequestObjects(
   audioObjectPath: string | null | undefined,
   videoObjectPath: string | null | undefined,
 ): Promise<boolean> {
-  if (typeof audioObjectPath !== "string" || !audioObjectPath ||
-      typeof videoObjectPath !== "string" || !videoObjectPath) {
+  // Missing or malformed object paths are a deletion failure, never proof
+  // that the evidence is absent. Keep the request retryable for owner review.
+  const validAudioPath = typeof audioObjectPath === "string" &&
+    /^biometric-verification\\/[^/]+\\/[0-9a-f-]{36}\\/audio\\.mp4$/i.test(audioObjectPath) &&
+    audioObjectPath.includes("/" + requestId + "/");
+  const validVideoPath = typeof videoObjectPath === "string" &&
+    /^biometric-verification\\/[^/]+\\/[0-9a-f-]{36}\\/video\\.mp4$/i.test(videoObjectPath) &&
+    videoObjectPath.includes("/" + requestId + "/");
+  if (!validAudioPath || !validVideoPath) {
+    logger.error("Biometric evidence deletion blocked by invalid object paths", { requestId });
     await BIOMETRIC_REQUESTS.doc(requestId).update({
-      mediaDeletionStatus: "complete",
-      mediaDeletedAt: FieldValue.serverTimestamp(),
+      mediaDeletionStatus: "retry",
+      mediaDeletionLastAttemptAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
-    });
-    return true;
+    }).catch(() => undefined);
+    return false;
   }
   try {
     const bucket = getStorage().bucket();
