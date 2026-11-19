@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { validateCoinPackages, validateAdPrices, isValidPositiveCurrencyAmount } = require("../lib/economy-pricing");
+const { validateCoinPackages, validateAdPrices, isValidPositiveCurrencyAmount, currencyExponentForCode, OFFICIAL_ECONOMY_CURRENCIES } = require("../lib/economy-pricing");
 
 // Test-only fixtures; production package prices and advertising prices are
 // supplied exclusively by the owner through the versioned settings callable.
@@ -12,6 +12,20 @@ const adPriceFixture = {
   placementId: "test_banner", name: "Test placement",
   billingModel: "cpm", priceMinor: 200, currency: "EUR", active: true,
 };
+
+
+test("official economy currency allowlist and minor-unit precision are exact", () => {
+  assert.deepEqual(OFFICIAL_ECONOMY_CURRENCIES, [
+    "EUR", "USD", "EGP", "SAR", "SYP", "JOD", "IQD", "AED", "DZD",
+  ]);
+  for (const currency of ["EUR", "USD", "EGP", "SAR", "SYP", "AED", "DZD"]) {
+    assert.equal(currencyExponentForCode(currency), 2, currency);
+  }
+  for (const currency of ["JOD", "IQD"]) {
+    assert.equal(currencyExponentForCode(currency), 3, currency);
+  }
+  assert.equal(currencyExponentForCode("CHF"), null);
+});
 
 test("proposed money amounts obey supported currency minor-unit precision", () => {
   assert.equal(isValidPositiveCurrencyAmount("125.00", "EUR"), true);
