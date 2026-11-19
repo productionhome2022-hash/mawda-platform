@@ -67,12 +67,12 @@
 - سياسة الاقتصاد الإعلامي: لا تُعامل حدود الرفع الخام كحدود نشر. كل ملف يمر بحجز حصة ذرّي قبل الرفع، ثم فحص المحتوى والتحقق من الحجم/المدة/الأبعاد، ثم اشتقاق نسخة آمنة مضغوطة/معاد ترميزها، ثم تسليم النسخة المشتقة فقط. تُحسب الحصص على الحجم الفعلي والحجم النشط وعدد الملفات والتزامن والحد اليومي، وتُحرر الحصة عند رفض الملف أو انتهاء الرفع/الحذف. الاحتفاظ بوسائط المحادثات والغرف 4 ساعات، ولا يمدد التنزيل المحلي هذا المؤقت.
 - الحدود التقنية المعتمدة من المالك: الصور حتى 3MB؛ GIF حتى 3MB و20 ثانية و50 إطاراً (مع إبقاء سقف تعقيد البكسلات الحالي 40MP)؛ الصوت المرفوع للمحادثات والغرف حتى 5MB و60 ثانية؛ الفيديو الأصلي المرفوع حتى 25MB والمشتق الآمن حتى 15MB وبحد مدة 90 ثانية؛ وPDF حتى 20MB للمالك المثبت فقط. التسجيل الصوتي المباشر بالميكروفون يبقى 60 ثانية كحد أقصى في المحادثات الخاصة والعامة والغرف العامة والمستأجرة. حد 5MB للصوت سقف رفض أعلى وليس الحجم المستهدف؛ يستخدم الترميز المضغوط المناسب للصوت. هذه حدود تقنية وليست حصصاً تجارية نهائية؛ تبقى الحصص اليومية/الشهرية والامتيازات والتسعير قابلة للتحكم مركزياً من المالك بعد احتساب التخزين والنقل والمعالجة والاحتفاظ. لا تمدد ميزة Media Saver مدة الاحتفاظ على الخادم.
 
-- الاستثناء الوحيد: المالك/Super Admin المثبت خادمياً وبجلسة MFA حديثة، ويمكنه إرسال واستقبال المستندات والوسائط وفق صلاحياته.
+- الاستثناء الوحيد: المالك/Super Owner المثبت خادمياً وبجلسة MFA حديثة، ويمكنه إرسال واستقبال المستندات والوسائط وفق صلاحياته.
 - التسجيل الصوتي المباشر بالميكروفون في المحادثات الخاصة والعامة والغرف العامة والغرف المستأجرة الخاصة حدّه الأقصى 60 ثانية لكل تسجيل، بلا استثناء للعضوية أو نوع الغرفة؛ يوقفه العميل عند 60 ثانية ويرفضه الخادم/الماسح إذا تجاوزها. الملفات الصوتية المرفوعة للمحادثات والغرف تخضع أيضاً لسقف 5MB و60 ثانية. لا تخلط الرسائل الصوتية بالمكالمات الصوتية الحية، فهي منتج منفصل. الصور 3MB؛ GIF ‏3MB/20 ثانية/50 إطاراً/40MP؛ الفيديو 25MB للأصل و15MB للمشتق الآمن وبحد معالجة 90 ثانية. PDF حتى 20MB للمالك المثبت فقط.
 - لا يُتاح ملف قبل الفحص والمعالجة الآمنة. مسار الرفع والتنزيل خادمي ومقيّد، وليس كتابة Storage مباشرة من العميل.
 - وسائط المحادثات والغرف ذاتية التدمير بعد أربع ساعات وفق سياسة الخادم، ويشمل الحذف الأصل والنسخ المشتقة والـ thumbnails والمراجع والنسخ السحابية القابلة للحذف والكاش حيث يمكن. لا نعد بحذف نسخة نزّلها شخص أو نسخها خارج المنصة.
 - القصص 24 ساعة، وصور الألبومات/الملف 7 أيام، والصورة الرمزية/الغلاف 30 يوماً وفق السياسة الحالية في الدستور؛ أي تغيير لاحق يحتاج قراراً صريحاً وتقييماً قانونياً.
-- مراجعة المالك للمحادثات قراءة فقط افتراضياً، وتشمل المحادثات النشطة والمنتهية ضمن الصلاحيات. في الوضع الصامت لا تتغير إيصالات القراءة أو مؤشرات الكتابة أو الإشعارات. خيارات الاسم الظاهر للعضو: «إدارة منصة مودة» أو «السوبر أدمن» أو «مجهول»؛ وخيار «مجهول» يخفي الاسم عن العضو فقط ولا يخفي هوية المالك عن سجلات الخادم. يجب الإفصاح القانوني وحفظ سجلات الوصول.
+- مراجعة المالك للمحادثات قراءة فقط افتراضياً، وتشمل المحادثات النشطة والمنتهية ضمن الصلاحيات. في الوضع الصامت لا تتغير إيصالات القراءة أو مؤشرات الكتابة أو الإشعارات. خيارات الاسم الظاهر للعضو: «إدارة منصة مودة» أو «Super Owner» أو «مجهول»؛ وخيار «مجهول» يخفي الاسم عن العضو فقط ولا يخفي هوية المالك عن سجلات الخادم. يجب الإفصاح القانوني وحفظ سجلات الوصول.
 
 ## 6. الغرف والمجتمعات والفعاليات
 
@@ -161,7 +161,7 @@
 
 ## 11. لوحة المالك ومركز العمليات السيادي
 
-المالك شخص واحد بهوية UID canonical واحدة؛ Owner وSuper Admin اسمان لهوية واحدة، ولا يحق للعميل تعيين نفسه أو إرسال علم صلاحية.
+المالك شخص واحد بهوية UID canonical واحدة؛ Owner وSuper Owner اسمان لهوية واحدة، ولا يحق للعميل تعيين نفسه أو إرسال علم صلاحية.
 
 تشمل لوحة المالك:
 - إدارة الأعضاء: البحث، الملف، التعليق، الحظر، الرفع، الاستئناف، الحالة والأجهزة.
@@ -273,10 +273,10 @@ A single paid entitlement allows saving received normal images, GIFs, videos and
 The owner configures daily, hourly and weekly attendance rewards, including schedules, eligibility, values, quantities, limits and activation. Ad rewards require completion of the owner-defined viewing duration and server-side evidence of actual foreground viewing/heartbeats; merely opening an ad or running a client timer is not sufficient. The owner can upload ads directly and may integrate third-party providers in the future. Campaigns, views and grants are audited and idempotent.
 
 ### 18.5 Owner grants and group rewards
-The Super Admin console includes a dedicated grant center. The owner can grant coins, store products, paid features, memberships, titles, badges, medals, VIP and other eligible items free of charge to one UID, a selected group, all users connected to a selected public room at execution time, or a room/group as a collective recipient. Collective rewards include coin contribution/support chests. Each grant has owner-selected value/quantity, duration where applicable, reason/message, recipient preview, confirmation, server authorization, idempotency, audit history and recipient-level records. Free grants do not debit recipients and are not purchase transactions.
+The Super Owner console includes a dedicated grant center. The owner can grant coins, store products, paid features, memberships, titles, badges, medals, VIP and other eligible items free of charge to one UID, a selected group, all users connected to a selected public room at execution time, or a room/group as a collective recipient. Collective rewards include coin contribution/support chests. Each grant has owner-selected value/quantity, duration where applicable, reason/message, recipient preview, confirmation, server authorization, idempotency, audit history and recipient-level records. Free grants do not debit recipients and are not purchase transactions.
 
 ### 18.6 One owner control plane
-The same Super Admin control plane governs all store and feature prices, durations, quantities, purchase limits, rewards, ad campaigns, coin grants, room rewards and enable/disable controls. New features introduced in later updates must integrate with these shared systems rather than introducing isolated hardcoded commercial logic.
+The same Super Owner control plane governs all store and feature prices, durations, quantities, purchase limits, rewards, ad campaigns, coin grants, room rewards and enable/disable controls. New features introduced in later updates must integrate with these shared systems rather than introducing isolated hardcoded commercial logic.
 
 
 ## 18.7 Owner-approved policy clarifications (15 November 2026)
