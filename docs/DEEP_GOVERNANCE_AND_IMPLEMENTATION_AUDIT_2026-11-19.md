@@ -263,3 +263,13 @@ Rechecking the simulation repository's actual Actions history confirms that the 
 - A separate earlier full simulation run `43691324361` also failed. No full 5,000/5,000 successful run has been found in the current Actions history.
 
 **Disposition:** the lab is not accepted. The 851/5,000 result is the verified latest full-run snapshot, not a completed workload. Retry/lock-contention changes must be tested in a new full run pinned to the exact current platform SHA, with a complete machine-readable report and no false success threshold that counts partial lifecycle stages as completed personas.
+## 16. Follow-up validation diagnosis and repair branches
+
+On PR #35's earlier candidate head `4cf8c090bd4aef72ff0e87891b645f914d02c46b`, the broader Validate Mawda workflow completed with failure after Flutter analysis/tests, web release builds, scanner tests/image build, backend compilation/unit tests, chat retention and several other integration suites passed. The failure log identified three concrete issues:
+- Wallet/store purchase integration fixture omitted the catalog `itemId` and `version`, so the otherwise enabled/fulfillment-ready test SKU failed the server's purchasability guard. The fixture now includes both fields; the guard is unchanged.
+- Manual custom-coin request integration fixture omitted owner-configured `customCoinRequestBounds`, so the server correctly rejected the request. The fixture now supplies explicit bounded values.
+- Featured-ad finance integration expected an immutable timed-ad campaign version document, but `setTimedAdCampaign` only wrote the mutable campaign document. The server now creates an append-only version snapshot in the same Firestore transaction as the campaign write.
+
+These changes are isolated on PR #35, head `032a66b35b8d31caaa92c50ad7b7dc18317da7b9`. Its domain regression run `44475451605` passed. The latest full Validate Mawda run `44475449966` for this exact head was queued/pending at the time of this update; the fixes are not accepted until that exact run completes successfully.
+
+In the separate lab repository, PR #4 now carries forward the complete PR #3 harness/runtime changes and adds a bounded retry only for transient RSVP transaction-abort/lock-timeout errors. It records retry counts and runs the full emulator-only simulation against the pinned platform candidate SHA `4cf8c090bd4aef72ff0e87891b645f914d02c46b`. Exact-head run `44475336848` is in progress. No 5,000/5,000 success is claimed yet.
