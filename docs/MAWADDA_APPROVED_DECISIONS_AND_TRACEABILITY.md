@@ -297,3 +297,21 @@ This amendment records policy approval only. It does not establish that code, te
 
 
 **سجل المطابقة التفصيلي:** [مطابقة القرارات والعقود ومصالحة التغييرات 19 نوفمبر 2026](MAWADDA_MASTER_DECISION_CONTRACT_TRACEABILITY_2026-11-19.md). يحدد مصدر كل نموذج، حالة الاعتماد، التعارضات المفتوحة، وحدود التنفيذ والاختبار.
+
+
+## Reconciliation addendum — 19 November 2026
+
+**Purpose:** reconcile the current approved decision register with the governance/biometric and economic draft branches. This addendum records status and conflicts; it does not create new owner approvals.
+
+- **GOV-001 / Super Owner:** user-facing terminology is Super Owner / مالك المنصة. Preserve stable internal authorization claims and legacy IDs such as `super_admin` unless a separately reviewed compatibility migration is approved. PR #32's `super_owner` internal identifier is not adopted.
+- **ADS-GOV-001 / PROD-ROOM-001 / CONTRACT-001:** Admin N, Admin Media 1–5, General Production Supervisor 1–5, Team Production Supervisor, and the four contract-administration seats remain separate scopes. Appointment, revocation, numbering persistence and end-to-end UI projection remain implementation/acceptance gates.
+- **REWARD-002 — biometric reward:** the approved rule still requires challenge-bound cryptographic server proof. Local OS authentication or a client claim is insufficient. The manual audio/video review workflow in PR #32/#33 is recorded as a proposed implementation pending explicit owner amendment; it does not authorize a new reward, badge, privilege, or sensitive evidence collection. No biometric reward or privilege may be granted through that proposal until the decision is explicitly amended and privacy/legal gates pass.
+- **REWARD-001 — email renewal:** 90-day email verification renewal and the 500 BetaCoins reward remain independent of biometric verification. The integration test source and callable implementation must be validated on the final SHA; no exact-head pass is asserted here.
+- **CALL-001 / CALL-002:** group-call policy modules and draft join/consent workflow do not close metering or settlement. Keep paid/open group calling disabled until participant-specific connection evidence, consent bound to price version, trusted duration metering, atomic ledger debit/allocation, insufficient-balance handling, replay protection, reconciliation and integration tests are complete.
+- **Room rental catalogue:** no owner-configured plan means no purchasable plan. The development branch removes hardcoded fallback plans; an empty catalogue is valid and fails closed for purchase/renewal.
+- **LAUNCH-PAY-001:** phase-one manual payment remains owner-verified. PR #30's EUR-only branch is not adopted because it removes the existing multi-currency precision support. Preserve currency exponent validation and owner-set service policy.
+- **Store gifting:** the approved recipient-selection flow begins from the recipient's open profile. The PR #31 callable that resolves `recipientUsername` through username search is not adopted without a compatible change; do not bypass the approved profile-origin flow.
+- **RET-004:** retention selection authority and bilateral consent remain unresolved. No destructive production deletion is enabled by this addendum.
+- **CI and acceptance:** tests on PR #28 or any other previous SHA do not validate this branch. Only a completed workflow on the final branch SHA can update implementation status.
+
+The detailed per-contract mapping and branch-by-branch decision is maintained in [the master decision/contract traceability register](MAWADDA_MASTER_DECISION_CONTRACT_TRACEABILITY_2026-11-19.md).
