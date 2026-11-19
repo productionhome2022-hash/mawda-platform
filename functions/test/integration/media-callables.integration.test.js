@@ -997,16 +997,18 @@ test("scanner error callback returns retryable 503 without changing quarantined 
       rawBody,
       get: (name) => name.toLowerCase() === "x-mawadda-scanner-signature" ? signature : undefined,
     };
-    const response = {
+    const response = new EventEmitter();
+    Object.assign(response, {
       statusCode: 200,
       headers: {},
       body: undefined,
       status(code) { this.statusCode = code; return this; },
       set(name, value) { this.headers[name.toLowerCase()] = value; return this; },
-      send(value) { this.body = value; return this; },
-      json(value) { this.body = value; return this; },
-    };
-    await receiveMediaScanVerdict.run(request, response);
+      send(value) { this.body = value; this.emit("finish"); return this; },
+      json(value) { this.body = value; this.emit("finish"); return this; },
+    });
+    // onRequest exports an Express-style handler, not a callable-function .run wrapper.
+    await receiveMediaScanVerdict(request, response);
     assert.equal(response.statusCode, 503);
     assert.match(String(response.body), /retry required/i);
     const after = await assetRef.get();
