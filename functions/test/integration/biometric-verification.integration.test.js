@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { randomUUID } = require("node:crypto");
 const { getFirestore } = require("firebase-admin/firestore");
+const { getStorage } = require("firebase-admin/storage");
 const {
   completeBiometricVerificationCycle,
   startBiometricVerificationRequest,
@@ -171,12 +172,24 @@ test("biometric upload URLs are denied outside the member's own active upload re
 
 test("Super Owner acceptance credits 1500 once, sets monthly expiry and deletes evidence", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
   const uid = `biometric_accept_${suffix()}`;
   const requestId = randomUUID();
+  const audioObjectPath = `biometric-verification/${uid}/${requestId}/audio.mp4`;
+  const videoObjectPath = `biometric-verification/${uid}/${requestId}/video.mp4`;
+  const bucket = getStorage().bucket();
   const userRef = db.collection("users").doc(uid);
   const requestRef = db.collection("biometricVerificationRequests").doc(requestId);
   const ledgerRef = userRef.collection("walletLedger").doc("biometric_verification_" + requestId);
   const notificationRef = userRef.collection("notifications").doc("biometric_verification_" + requestId);
+  await Promise.all([
+    bucket.file(audioObjectPath).save(Buffer.from("Mawdda biometric audio emulator fixture"), {
+      metadata: { contentType: "audio/mp4" },
+    }),
+    bucket.file(videoObjectPath).save(Buffer.from("Mawdda biometric video emulator fixture"), {
+      metadata: { contentType: "video/mp4" },
+    }),
+  ]);
   await userRef.set({
     uid, fullName: "Accepted Member", username: "accepted_member", gender: "male",
     profileCompleted: true, accountStatus: "active", coins: 100,
@@ -184,7 +197,7 @@ test("Super Owner acceptance credits 1500 once, sets monthly expiry and deletes 
   await requestRef.set({
     uid, requestId, fullName: "Accepted Member", username: "accepted_member", gender: "male",
     attemptNumber: 1, status: "pending_review", requestVersion: 2,
-    audioObjectPath: "", videoObjectPath: "", mediaDeletionStatus: "pending",
+    audioObjectPath, videoObjectPath, mediaDeletionStatus: "pending",
   });
   try {
     const input = { requestId, expectedVersion: 2, decision: "accept" };
@@ -200,6 +213,12 @@ test("Super Owner acceptance credits 1500 once, sets monthly expiry and deletes 
     assert.equal(ledger.data().type, "biometric_verification_reward");
     assert.equal(notification.exists, true);
     assert.equal(savedRequest.data().mediaDeletionStatus, "complete");
+    const [audioExists, videoExists] = await Promise.all([
+      bucket.file(audioObjectPath).exists(),
+      bucket.file(videoObjectPath).exists(),
+    ]);
+    assert.equal(audioExists[0], false, "audio evidence must be deleted from Storage Emulator");
+    assert.equal(videoExists[0], false, "video evidence must be deleted from Storage Emulator");
     assert.equal(user.data().biometricVerification.verificationMethod, "owner_manual_review");
     assert.equal(user.data().biometricVerification.reviewedBySuperOwner, true);
     assert.equal(user.data().biometricVerification.reviewRequestId, requestId);
@@ -212,7 +231,11 @@ test("Super Owner acceptance credits 1500 once, sets monthly expiry and deletes 
     assert.equal((await userRef.get()).data().coins, 1600);
     assert.equal((await userRef.collection("walletLedger").get()).size, 1);
   } finally {
-    await db.recursiveDelete(userRef).catch(() => undefined);
-    await requestRef.delete().catch(() => undefined);
+    await Promise.all([
+      bucket.file(audioObjectPath).delete({ ignoreNotFound: true }).catch(() => undefined),
+      bucket.file(videoObjectPath).delete({ ignoreNotFound: true }).catch(() => undefined),
+      db.recursiveDelete(userRef).catch(() => undefined),
+      requestRef.delete().catch(() => undefined),
+    ]);
   }
 });
