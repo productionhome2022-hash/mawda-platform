@@ -9656,6 +9656,15 @@ export const reviewOwnerAdvertisingIntake = onCall(
 const SPECIALIZED_ROLE_GRANTS = db.collection("specializedRoleGrants");
 const SPECIALIZED_ROLE_CAPACITY_SETTINGS = db.doc("platformSettings/specializedRoleCapacity");
 
+type CapacityLimitedPlatformRole = Exclude<NumberedPlatformRole, "platform_admin" | "production_supervisor">;
+
+function isCapacityLimitedPlatformRole(role: string): role is CapacityLimitedPlatformRole {
+  return role === "ad_general_supervisor" ||
+    role === "production_general_supervisor" ||
+    role === "production_quality_reviewer" ||
+    role === "legal_administrative_supervisor";
+}
+
 export const getOwnerAdvertisingRoleGrants = onCall(async (request) => {
   requireOwner(request);
   const snapshot = await SPECIALIZED_ROLE_GRANTS.orderBy("updatedAt", "desc").limit(500).get();
@@ -9668,14 +9677,16 @@ export const getOwnerSpecializedRoleCapacity = onCall(async (request) => {
   const snapshot = await SPECIALIZED_ROLE_CAPACITY_SETTINGS.get();
   const data = snapshot.data() ?? {};
   const version = snapshot.exists ? data.version : 0;
+  const defaultCapacity = PLATFORM_ROLE_CAPACITY.production_general_supervisor;
+  if (defaultCapacity === null) {
+    throw new HttpsError("failed-precondition", "لم تُعرّف السعة الافتراضية لمشرفي الإنتاج.");
+  }
   const configuredCapacity = data.productionGeneralSupervisorCapacity;
   const productionGeneralSupervisorCapacity =
-    configuredCapacity === undefined
-      ? PLATFORM_ROLE_CAPACITY.production_general_supervisor
-      : configuredCapacity;
+    configuredCapacity === undefined ? defaultCapacity : configuredCapacity;
   if (!Number.isSafeInteger(version) || version < 0 ||
       !Number.isSafeInteger(productionGeneralSupervisorCapacity) ||
-      productionGeneralSupervisorCapacity < PLATFORM_ROLE_CAPACITY.production_general_supervisor) {
+      productionGeneralSupervisorCapacity < defaultCapacity) {
     throw new HttpsError("failed-precondition", "إعداد سعة مشرفي الإنتاج غير صالح؛ أوقفنا التعيين.");
   }
   return {
@@ -9698,6 +9709,9 @@ export const setOwnerSpecializedRoleCapacity = onCall(async (request) => {
   const capacity = request.data?.capacity;
   const role = "production_general_supervisor";
   const defaultCapacity = PLATFORM_ROLE_CAPACITY.production_general_supervisor;
+  if (defaultCapacity === null) {
+    throw new HttpsError("failed-precondition", "لم تُعرّف السعة الافتراضية لمشرفي الإنتاج.");
+  }
   if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0 ||
       !Number.isSafeInteger(capacity) || capacity < defaultCapacity) {
     throw new HttpsError("invalid-argument", "إصدار السعة أو عدد المقاعد غير صالح.");
@@ -9773,13 +9787,9 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
   }
   const grantId = specializedRoleGrantId(grant.uid, grant.role);
   const grantRef = SPECIALIZED_ROLE_GRANTS.doc(grantId);
-  const limitedRole: NumberedPlatformRole | null =
-    grant.role === "ad_general_supervisor" ||
-    grant.role === "production_general_supervisor" ||
-    grant.role === "production_quality_reviewer" ||
-    grant.role === "legal_administrative_supervisor"
-      ? grant.role
-      : null;
+  const limitedRole: CapacityLimitedPlatformRole | null =
+    isCapacityLimitedPlatformRole(grant.role) ? grant.role : null;
+  let roleCapacityOverride: number | undefined;
   const result = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(grantRef);
     const previousVersion = previous.exists ? Number(previous.data()?.version) : 0;
@@ -9807,7 +9817,7 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
            configuredCapacity < PLATFORM_ROLE_CAPACITY.production_general_supervisor)) {
         throw new HttpsError("failed-precondition", "إعداد سعة مشرفي الإنتاج غير صالح؛ أوقفنا التعيين.");
       }
-      const capacityOverride = configuredCapacity === undefined ? undefined : configuredCapacity;
+      roleCapacityOverride = configuredCapacity === undefined ? undefined : configuredCapacity;
       const nowMs = Date.now();
       const otherActiveAssignments = roleSnapshot.docs.filter((doc) => {
         if (doc.id === grantId) return false;
@@ -9819,7 +9829,7 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
         (grant.endsAtMs === null || grant.endsAtMs > nowMs);
       roleSeatCountAfterWrite = otherActiveAssignments + (targetConsumesSeat ? 1 : 0);
       try {
-        assertPlatformRoleCapacity(limitedRole, roleSeatCountAfterWrite, capacityOverride);
+        assertPlatformRoleCapacity(limitedRole, roleSeatCountAfterWrite, roleCapacityOverride);
       } catch {
         throw new HttpsError("resource-exhausted", "اكتمل العدد المسموح لهذه الفئة الإشرافية؛ الحد الأقصى خمسة.");
       }
@@ -9840,7 +9850,7 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
       transaction.set(roleSeatCounterRef, {
         role: limitedRole,
         activeCount: roleSeatCountAfterWrite,
-        capacity: platformRoleCapacity(limitedRole, capacityOverride),
+        capacity: platformRoleCapacity(limitedRole, roleCapacityOverride),
         reconciledAt: now,
         updatedAt: now,
       });
