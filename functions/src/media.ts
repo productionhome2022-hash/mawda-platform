@@ -596,7 +596,7 @@ export const receiveMediaScanVerdict = onRequest(
     () => mediaScannerHmacSecret.value(),
     () => mediaScannerProvider.value(),
   ),
-);;
+);
 
 
 /** Queue a single scan job whenever an asset enters the quarantined scan state. */
