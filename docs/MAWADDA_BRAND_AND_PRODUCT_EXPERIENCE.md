@@ -206,10 +206,10 @@ Show a compact, accessible social-links row directly beneath the Production Home
 - WhatsApp
 - X (formerly Twitter)
 
-The links are intentionally unconfigured and must not point to guessed, placeholder, personal or unofficial destinations. Until the platform owner supplies and publishes the verified official URLs, render the entries as disabled/hidden (never as misleading active links). The owner can set, edit, disable and publish each destination independently from the Super Admin brand-management section. Validate allowed URL schemes and expected hostnames per provider; reject javascript:, data:, malformed URLs and unrelated domains. For WhatsApp, accept an official wa.me or approved WhatsApp destination format. Open external destinations safely and accessibly, with clear labels and screen-reader semantics. Social destinations are public content and must not expose private admin data.
+The links are intentionally unconfigured and must not point to guessed, placeholder, personal or unofficial destinations. Until the platform owner supplies and publishes the verified official URLs, render the entries as disabled/hidden (never as misleading active links). The owner can set, edit, disable and publish each destination independently from the Super Owner brand-management section. Validate allowed URL schemes and expected hostnames per provider; reject javascript:, data:, malformed URLs and unrelated domains. For WhatsApp, accept an official wa.me or approved WhatsApp destination format. Open external destinations safely and accessibly, with clear labels and screen-reader semantics. Social destinations are public content and must not expose private admin data.
 
-### 17.2 Super Admin brand and content management
-Add a dedicated section within the existing Super Admin console named “إدارة هوية ومحتوى المنصة” (Brand & Platform Content). It must allow the authenticated platform owner to manage, preview and publish:
+### 17.2 Super Owner brand and content management
+Add a dedicated section within the existing Super Owner console named “إدارة هوية ومحتوى المنصة” (Brand & Platform Content). It must allow the authenticated platform owner to manage, preview and publish:
 - Arabic and English brand descriptions/bios for the platform and app, with French and Spanish localization fields as the localization workflow supports them.
 - Short bio, full platform/app description, landing-page introductory copy, supporting tagline and selected editable public-facing text blocks.
 - Brand logo assets and logo variants (symbol-only, Arabic wordmark, Latin wordmark), including replacing the current logo when a new approved identity is ready.
