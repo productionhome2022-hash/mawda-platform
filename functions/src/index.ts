@@ -8131,6 +8131,9 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
           priorVersion.reconciledMinor !== prior.reconciledMinor ||
           priorVersion.reviewStatus !== prior.reviewStatus ||
           priorVersion.paymentStatus !== prior.paymentStatus ||
+          priorVersion.currencyExponent !== priorExponent ||
+          JSON.stringify(priorVersion.paymentPolicySnapshot ?? null) !==
+            JSON.stringify(prior.paymentPolicySnapshot ?? null) ||
           prior.currencyExponent !== priorExponent ||
           auditData.actorUid !== actorUid ||
           auditData.action !== "featured_ad_financial_event_recorded" ||
