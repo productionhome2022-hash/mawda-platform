@@ -9,7 +9,7 @@
 | Platform owner | **Super Owner**; Arabic explanatory label **مالك المنصة** | One | Entire platform, subject to owner authentication |
 | General administration | **Admin 1, Admin 2, Admin 3…**; Arabic **أدمن ١، أدمن ٢…** | Open-ended | Only explicitly delegated platform administration |
 | Media administration | **Admin Media 1–5**; Arabic **أدمن ميديا ١–٥** | Exactly five | Advertising Department and general Media Workspace |
-| General production supervision | **مشرف إنتاج عام 1–5** / **General Production Supervisor 1–5** | Exactly five | General production system |
+| General production supervision | **مشرف إنتاج عام 1–5** | Exactly five | General production system |
 | Team production supervision | **مشرف إنتاج الفريق** / **Team Production Supervisor** | Open-ended | Assigned team and its specific assigned/rented room only |
 
 ## Separation and authorization
