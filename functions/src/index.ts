@@ -7924,7 +7924,7 @@ export const renewRoomRental = onCall(async (request) => {
     if (!user.exists || !isMemberAccountInGoodStanding(user.data())) {
       throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بالتجديد.");
     }
-    const plans = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : DEFAULT_ROOM_RENTAL_PLANS;
+    const plans = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : [];
     const plan = plans.find((entry) => entry.planId === planId && entry.active);
     if (!plan || plan.priceCoins !== expectedPriceCoins) {
       throw new HttpsError("failed-precondition", "تغير سعر التجديد؛ حدّث الأسعار قبل التأكيد.");
