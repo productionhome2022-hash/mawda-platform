@@ -102,3 +102,49 @@ GitHub branch metadata reports `main` at `460a79a7dc2e16f4ad146af22aab58e152ad1e
 - No claim of complete Step 1 until every required source delta is integrated, tests pass on one immutable SHA, and external/device-dependent gates are explicitly separated and accepted.
 
 **Current result:** integration branch created; CI triggers prepared; source reconciliation and remediation remain in progress. Step 1 remains OPEN.
+
+
+## 8. Exact-file comparison addendum — PR #42 and PR #43
+
+The candidate files were fetched from both the exact source branches and the unified baseline. Blob SHA equality was used only to identify byte-identical files; differing files were then compared semantically.
+
+### PR #43 — store gifting
+
+- `functions/src/store-gifting.ts`: byte-identical to the unified baseline.
+- `functions/test/store-gifting.test.js`: byte-identical.
+- `lib/screens/shop_screen.dart`: byte-identical.
+- `functions/test/integration/store-gifting.integration.test.js`: not byte-identical. The unified version contains additional catalog-version snapshot assertions and a distinct second-recipient mismatch test, while retaining cleanup/restoration of seeded catalog and username data. The source PR test uses a generated unique SKU and has fewer assertions; neither version is copied over the other without a complete review.
+- `functions/src/index.ts` and `functions/package.json`: differ because the unified baseline has additional later changes. The baseline already exports `giftStoreItem` and defines/runs `test:store-gifting-integration` and includes the integration test. Do not re-port the gifting implementation or replace the larger current files.
+
+**Decision:** the unique store-gifting feature is already present on the unified baseline in a later integrated form. PR #43 is not merged wholesale. Retain the current baseline implementation and its stronger catalog snapshot test; keep the source PR as provenance.
+
+### PR #42 — specialized role capacity
+
+- `functions/src/platform-role-identities.ts`: byte-identical to the unified baseline.
+- `functions/src/advertising-governance.ts`: not byte-identical. The unified baseline has stronger Firestore-boundary validation (object/array shape, UID syntax, role and permission allowlists, duplicate checks, bounded canonical scopes, safe timestamps/version, and per-candidate grant validation). The PR #42 branch contains a shorter evaluator that trusts more of the typed input and does not independently validate each stored grant.
+- `functions/test/integration/specialized-role-capacity.integration.test.js`: the unified baseline contains the PR capacity cases plus an additional safe-integer grant-version overflow test.
+- `functions/test/advertising-governance.test.js`: the unified baseline has additional malformed-scope, control-character, and permission-delta coverage.
+- `functions/package.json`: the unified baseline has both specialized-role and store-gifting emulator scripts; the PR #42 branch predates the complete combined set.
+- `functions/src/index.ts`: both branches contain role capacity/grant management, but the files differ substantially due to the newer unified baseline.
+
+**Decision:** retain the unified baseline's hardened helper, capacity implementation, and expanded tests. Do not port the older PR #42 copies. The separate P0 gap remains: `hasAdvertisingPermission` is not wired into protected specialist operation call sites.
+
+### PR #35 — retention and catalog versioning
+
+Relative to the unified baseline, PR #35 is 17 commits ahead and 143 behind, touching 10 files. The unified baseline's `setStoreCatalogItem` is more advanced than the PR #35 version: it creates immutable `storeCatalogVersions/{itemId}/versions/{version}` snapshots, records the version path, rejects malformed/overflow versions and preserves owner audit data. The PR #35 version increments the version and writes the catalog/audit but does not create the same immutable catalog-version snapshot. Do not replace the current implementation with the older function.
+
+The owner-confirmed 30-day important-chat text policy is already reflected in the unified baseline documentation and retention code. PR #35's remaining workflow, documentation and regression-test deltas still require file-by-file comparison; no blanket merge is authorized.
+
+## 9. First exact-head workflow evidence
+
+The unified branch head `b0767d99450147a22aa1db93a994508822c652a1` produced:
+- Mawdda domain regression run **44583891695** — completed successfully. Both jobs passed: Flutter UI analysis/widget tests; retention and room reservation emulator regression. The backend job passed unit tests, retention, room event reservations, owner grants, specialized-role capacity, store gifting, call signaling and timed-ad reward integration tests.
+- Validate Mawda run **44583891823** — remained pending with no jobs returned at the last read. It is not a pass and does not certify Flutter Web build, full Functions/rules suites, or scanner jobs.
+
+The domain regression success applies only to SHA `b0767d99450147a22aa1db93a994508822c652a1`. Any later commit requires new exact-head evidence.
+
+## 10. Main branch protection read-back
+
+GitHub branch metadata for `main` returned `protected: false` and `protection.enabled: false`; the rulesets endpoint returned an empty list. The branch protection detail endpoint itself returned HTTP 403 to this integration, so no administrative protection change was attempted. This is a confirmed governance risk and remains outside this integration branch's write scope.
+
+**Updated decision:** preserve the current source-of-truth baseline, port no duplicate/stale PR #42/#43 code, keep PR #35 selective-only, and continue the P0 specialist-authorization and media-save acceptance work. Step 1 remains OPEN.
