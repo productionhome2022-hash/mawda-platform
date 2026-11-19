@@ -7352,7 +7352,7 @@ export const listOwnerCoinPurchaseRequests = onCall(async (request) => {
   requireOwner(request);
   const status = request.data?.status;
   const allowed = ["pending_owner_contact", "payment_instructions_sent",
-    "approved", "rejected", "withdrawn"];
+    "awaiting_payment_verification", "approved", "rejected", "withdrawn"];
   if (status !== undefined && !allowed.includes(status)) {
     throw new HttpsError("invalid-argument", "حالة الطلب غير صالحة.");
   }
@@ -7500,13 +7500,15 @@ export const requestCoinPurchasePaymentVerification = onCall(async (request) => 
     if (data.status === "awaiting_payment_verification" &&
         data.instructionsVersion === expectedInstructionsVersion &&
         data.paymentReportedInstructionVersion === expectedInstructionsVersion) {
-      if (!audit.exists) transaction.create(auditRef, {
-        actorUid: uid, targetUid: uid,
-        action: "coin_purchase_member_reported_external_payment",
-        requestId, instructionVersion: expectedInstructionsVersion,
-        authority: "member_claim_only_not_payment_proof",
-        createdAt: FieldValue.serverTimestamp(),
-      });
+      const auditData = audit.data() ?? {};
+      if (!audit.exists ||
+          auditData.actorUid !== uid || auditData.targetUid !== uid ||
+          auditData.action !== "coin_purchase_member_reported_external_payment" ||
+          auditData.requestId !== requestId ||
+          auditData.instructionVersion !== expectedInstructionsVersion ||
+          auditData.authority !== "member_claim_only_not_payment_proof") {
+        throw new HttpsError("failed-precondition", "بلاغ الدفع لا يطابق سجل التدقيق؛ يلزم مراجعة المالك.");
+      }
       return { requestId, status: "awaiting_payment_verification", idempotentReplay: true };
     }
     if (data.status !== "payment_instructions_sent" ||
