@@ -7617,6 +7617,9 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
           ledgerData.priceMinor !== data.agreedPriceMinor ||
           ledgerData.currency !== data.currency ||
           ledgerData.currencyExponent !== data.currencyExponent ||
+          ledgerData.paymentPolicyVersion !== data.paymentPolicySnapshot?.policyVersion ||
+          ledgerData.pricingPolicyVersion !== data.pricingPolicyVersion ||
+          ledgerData.instructionsVersion !== data.instructionsVersion ||
           ledgerData.actorUid !== data.verifiedBy ||
           !Number.isSafeInteger(ledgerData.balanceBefore) ||
           !Number.isSafeInteger(ledgerData.balanceAfter) ||
@@ -7634,6 +7637,9 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
           auditData.priceMinor !== data.agreedPriceMinor ||
           auditData.currency !== data.currency ||
           auditData.currencyExponent !== data.currencyExponent ||
+          auditData.paymentPolicyVersion !== data.paymentPolicySnapshot?.policyVersion ||
+          auditData.pricingPolicyVersion !== data.pricingPolicyVersion ||
+          auditData.instructionsVersion !== data.instructionsVersion ||
           auditData.verificationNote !== data.verificationNote) {
         throw new HttpsError("failed-precondition", "طلب الشراء المعتمد لا يطابق قيد المحفظة وسجل المالك؛ يلزم تدقيق مالي.");
       }
@@ -7676,6 +7682,9 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
       externalPaymentReference: input.externalPaymentReference,
       priceMinor: data.agreedPriceMinor, currency: data.currency,
       currencyExponent: data.currencyExponent,
+      paymentPolicyVersion: data.paymentPolicySnapshot.policyVersion,
+      pricingPolicyVersion: data.pricingPolicyVersion,
+      instructionsVersion: data.instructionsVersion,
       actorUid, createdAt: now,
     });
     transaction.update(requestRef, {
@@ -7690,6 +7699,8 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
       verificationNote: input.verificationNote, creditedCoins: coins,
       priceMinor: data.agreedPriceMinor, currency: data.currency,
       currencyExponent: data.currencyExponent,
+      paymentPolicyVersion: data.paymentPolicySnapshot.policyVersion,
+      pricingPolicyVersion: data.pricingPolicyVersion,
       instructionsVersion: data.instructionsVersion, createdAt: now,
     });
     return { status: "approved", idempotentReplay: false, newBalance: oldBalance + coins };
