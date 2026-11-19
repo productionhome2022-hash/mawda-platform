@@ -48,6 +48,36 @@ const FORBIDDEN_SPECIALIZED_PERMISSIONS = new Set([
   "contracts.delegation.create",
 ]);
 
+/**
+ * Enforce the approved separation between the advertising and production
+ * supervisor families. Team production supervisors receive only assigned-team
+ * operational permissions; they cannot acquire general production or
+ * advertising authority through a crafted owner grant.
+ */
+function assertRolePermissionBoundary(
+  role: AdvertisingSpecializedRole,
+  permissions: AdvertisingPermission[],
+): void {
+  const allowed = permissions.every((permission) => {
+    if (role === "ad_general_supervisor") {
+      return permission.startsWith("advertising.") || permission.startsWith("contracts.");
+    }
+    if (role === "production_general_supervisor") {
+      return permission.startsWith("production.");
+    }
+    if (role === "production_supervisor") {
+      return new Set<AdvertisingPermission>([
+        "production.rooms.manage_assigned",
+        "production.tasks.manage_assigned",
+        "production.reviews.write",
+        "production.achievements.nominate",
+      ]).has(permission);
+    }
+    return true;
+  });
+  if (!allowed) throw new Error("SPECIALIZED_ROLE_PERMISSION_BOUNDARY_VIOLATION");
+}
+
 /** Stable document identity: changing permissions or resource scopes updates the same grant. */
 export function specializedRoleGrantId(uid: string, role: AdvertisingSpecializedRole): string {
   if (typeof uid !== "string" || !/^[A-Za-z0-9._:@-]{8,128}$/.test(uid) ||
@@ -92,6 +122,7 @@ export function validateSpecializedRoleGrant(value: unknown): SpecializedRoleGra
   if (new Set(permissions).size !== permissions.length) {
     throw new Error("SPECIALIZED_PERMISSION_DUPLICATE");
   }
+  assertRolePermissionBoundary(input.role as AdvertisingSpecializedRole, permissions as AdvertisingPermission[]);
   const scopes = input.resourceScopes as unknown[];
   if (scopes.length < 1 || scopes.length > 200 ||
       scopes.some((scope) => typeof scope !== "string" ||
