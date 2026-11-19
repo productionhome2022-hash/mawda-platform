@@ -906,3 +906,26 @@ test("an image attachment cannot be linked twice or use a forged owner role", as
   );
 });
 
+test("expired chat media retention blocks issuing a fresh signed delivery URL", async () => {
+  const senderUid = `expired-media-sender-${randomUUID()}`;
+  const recipientUid = `expired-media-recipient-${randomUUID()}`;
+  await db.collection("users").doc(senderUid).set({ profileCompleted: true, age: 30, blockedUids: [] });
+  await db.collection("users").doc(recipientUid).set({ profileCompleted: true, age: 28, blockedUids: [] });
+  const mediaId = await createReadyChatImage({ uid: senderUid });
+  const clientMessageId = `expired_${randomUUID().replace(/-/g, "")}`;
+  const sent = await sendChatImageAttachment.run({
+    data: { scope: "direct", recipientUid, mediaId, clientMessageId },
+    auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+  });
+  const messageId = createHash("sha256").update(senderUid + ":" + clientMessageId).digest("hex");
+  await db.collection("mediaAssets").doc(mediaId).update({
+    retentionExpiresAt: Timestamp.fromMillis(Date.now() - 1),
+  });
+  await assert.rejects(
+    () => getChatImageAttachmentUrl.run({
+      data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+      auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+    }),
+    (error) => error && error.code === "failed-precondition",
+  );
+});
