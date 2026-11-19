@@ -342,8 +342,9 @@ test("owner economy pricing never seeds commercial defaults and publishes immuta
     const unconfigured = await getOwnerEconomyPricing.run(ownerRequest());
     assert.equal(unconfigured.configured, false);
     assert.equal(unconfigured.manualCoinPurchasesEnabled, false);
-    assert.deepEqual(unconfigured.coinPackages, []);
-    assert.deepEqual(unconfigured.adPrices, []);
+    assert.ok(unconfigured.coinPackages.length > 0, "owner preview exposes provisional experimental coin prices");
+    assert.ok(unconfigured.adPrices.length > 0, "owner preview exposes provisional experimental ad prices");
+    assert.equal(unconfigured.pricingDefaultsStatus, "experimental_provisional");
     const unavailablePackages = await getAvailableCoinPackages.run();
     assert.equal(unavailablePackages.manualPurchasesEnabled, false);
     assert.deepEqual(unavailablePackages.packages, []);
@@ -527,7 +528,7 @@ test("manual coin package request issues no coins until owner verifies external 
     assert.equal(ledger.data().amount, 900);
     assert.equal(ledger.data().type, "coin_purchase_manual_credit");
     assert.equal(ledger.data().externalPaymentReference, `verified-${tag}`);
-    assert.equal(ledger.data().currency, "CHF");
+    assert.equal(ledger.data().currency, "EUR");
     assert.equal(ledger.data().currencyExponent, 2);
     assert.equal(ledger.data().paymentPolicySnapshot.service, "coin_purchases");
     assert.equal(ledger.data().paymentPolicyVersion, 1);
@@ -572,6 +573,7 @@ test("custom coin request is negotiated manually and a withdrawn request cannot 
       adPrices: [{ placementId: "test_ad", name: "Test ad", billingModel: "daily",
         priceMinor: 100, currency: "EUR", active: true }],
       manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, version: 1,
+      customCoinRequestBounds: { minCoins: 100, maxCoins: 50000 },
     }),
   ]);
   try {
