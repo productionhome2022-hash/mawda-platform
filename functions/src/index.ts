@@ -9333,20 +9333,27 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
       const priorVersionSnapshot = await transaction.get(priorVersionRef);
       const priorVersion = priorVersionSnapshot.data() ?? {};
       const auditData = audit.data() ?? {};
+      const priorSnapshot = prior.financialSnapshot ?? {};
       const priorExponent = prior.currency === null ? null : currencyExponentForCode(prior.currency);
       if (!priorVersionSnapshot.exists ||
           priorVersion.version !== prior.snapshotVersion ||
           priorVersion.lastEventId !== eventId ||
-          priorVersion.currency !== prior.currency ||
-          priorVersion.receivedMinor !== prior.receivedMinor ||
-          priorVersion.refundedMinor !== prior.refundedMinor ||
-          priorVersion.reconciledMinor !== prior.reconciledMinor ||
-          priorVersion.reviewStatus !== prior.reviewStatus ||
-          priorVersion.paymentStatus !== prior.paymentStatus ||
+          priorSnapshot.version !== prior.snapshotVersion ||
+          priorVersion.currency !== priorSnapshot.currency ||
+          priorVersion.receivedMinor !== priorSnapshot.receivedMinor ||
+          priorVersion.refundedMinor !== priorSnapshot.refundedMinor ||
+          priorVersion.reconciledMinor !== priorSnapshot.reconciledMinor ||
+          priorVersion.reviewStatus !== priorSnapshot.reviewStatus ||
+          priorVersion.paymentStatus !== priorSnapshot.paymentStatus ||
           priorVersion.campaignVersion !== campaignVersion ||
           priorVersion.campaignVersionPath !== campaignVersionPath ||
+          priorSnapshot.campaignVersion !== campaignVersion ||
+          priorSnapshot.campaignVersionPath !== campaignVersionPath ||
           priorVersion.currencyExponent !== priorExponent ||
+          priorSnapshot.currencyExponent !== priorExponent ||
           JSON.stringify(priorVersion.paymentPolicySnapshot ?? null) !==
+            JSON.stringify(priorSnapshot.paymentPolicySnapshot ?? null) ||
+          JSON.stringify(priorSnapshot.paymentPolicySnapshot ?? null) !==
             JSON.stringify(prior.paymentPolicySnapshot ?? null) ||
           prior.currencyExponent !== priorExponent ||
           auditData.actorUid !== actorUid ||
@@ -9426,7 +9433,21 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
     transaction.create(eventRef, {
       ...event, currencyExponent, paymentPolicySnapshot,
       campaignVersion, campaignVersionPath,
-      eventId, actorUid, snapshotVersion: version, createdAt: now,
+      eventId, actorUid, snapshotVersion: version,
+      financialSnapshot: {
+        currency: next.currency,
+        receivedMinor: next.receivedMinor,
+        refundedMinor: next.refundedMinor,
+        reconciledMinor: next.reconciledMinor,
+        reviewStatus: next.reviewStatus,
+        paymentStatus: next.paymentStatus,
+        version,
+        currencyExponent,
+        paymentPolicySnapshot,
+        campaignVersion,
+        campaignVersionPath,
+      },
+      createdAt: now,
     });
     transaction.set(financialRef, {
       campaignId: event.campaignId, ...next, version,
