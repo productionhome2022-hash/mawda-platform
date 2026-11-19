@@ -130,3 +130,21 @@ test("specialized grant scope checks are exact and inactive grants fail closed",
   assert.equal(hasAdvertisingPermission({ ...base, grants: [{ ...grant, status: "suspended" }] }), false);
   assert.equal(hasAdvertisingPermission({ ...base, grants: [{ ...grant, startsAtMs: 201 }] }), false);
 });
+
+test("specialized grant rejects non-canonical and control-character resource scopes", () => {
+  const valid = {
+    uid: "member_uid_0001", role: "ad_general_supervisor",
+    permissions: ["advertising.requests.review"],
+    resourceScopes: ["campaign:campaign_123"],
+    status: "active", startsAtMs: 100, endsAtMs: 1000, version: 1,
+  };
+  assert.throws(() => validateSpecializedRoleGrant({
+    ...valid, resourceScopes: [" campaign:campaign_123"],
+  }), /SPECIALIZED_SCOPE_INVALID/);
+  assert.throws(() => validateSpecializedRoleGrant({
+    ...valid, resourceScopes: ["campaign:campaign_123 "],
+  }), /SPECIALIZED_SCOPE_INVALID/);
+  assert.throws(() => validateSpecializedRoleGrant({
+    ...valid, resourceScopes: ["campaign:campaign_123\\u0000"],
+  }), /SPECIALIZED_SCOPE_INVALID/);
+});
