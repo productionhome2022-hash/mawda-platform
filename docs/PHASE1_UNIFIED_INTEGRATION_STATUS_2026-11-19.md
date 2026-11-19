@@ -327,3 +327,16 @@ The latest integration-branch head at this checkpoint is `79d495303725ca8266c27d
 - Stage 1 (branch inventory and reconciliation) remains OPEN. Exact-head platform CI is green, but the 5,000-persona exact-head rerun and callable-level delegated-authorization inventory/enforcement remain blocking acceptance gates.
 - Do not begin Stage 2 as a completed stage until Stage 1's acceptance gates are satisfied.
 - No `main` merge, production deployment, live Firebase mutation, billing activation, or live retention-policy change was performed.
+
+
+## Execution directive update — 2026-11-19
+
+### Deferred external simulation and acceptance
+- The separate 5,000-persona simulation lab and all external/live-service acceptance runs are explicitly deferred until general platform development, cross-branch source reconciliation, UI completion, and internal GitHub validation are complete.
+- They are not active work items or current-stage execution gates. Do not dispatch or trigger the separate simulation repository during this development interval.
+- Continue only repository-contained GitHub Actions, unit/widget tests, Firebase Emulator suites, static/security/code checks, dependency checks and non-deploying builds.
+- This deferral does not authorize production Firebase changes, paid services, live retention changes or deployment.
+
+### PR workflow trigger
+- `.github/workflows/validate.yml` now declares `pull_request` events for the development and unified integration branches, in addition to push and manual dispatch.
+- GitHub only loads a PR workflow from the PR base branch. Because PR #47 targets the development branch and this workflow change is currently on the PR head, this trigger cannot guarantee a run for PR #47 until the workflow definition is present on its base branch. Push-based exact-head validation remains the active evidence for this PR.
