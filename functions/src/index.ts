@@ -8095,7 +8095,9 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
           currentVersionData.refundedMinor !== currentData.refundedMinor ||
           currentVersionData.reconciledMinor !== currentData.reconciledMinor ||
           currentVersionData.reviewStatus !== currentData.reviewStatus ||
-          currentVersionData.paymentStatus !== currentData.paymentStatus) {
+          currentVersionData.paymentStatus !== currentData.paymentStatus ||
+          currentVersionData.currencyExponent !== (currentData.currency === null
+            ? null : currencyExponentForCode(currentData.currency))) {
         throw new HttpsError("failed-precondition", "لقطة السجل المالي لا تطابق إصدارها المحفوظ.");
       }
     }
@@ -8104,6 +8106,7 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
       const prior = priorEvent.data() ?? {};
       const matches = prior.actorUid === actorUid &&
         prior.idempotencyKey === event.idempotencyKey &&
+        prior.campaignId === event.campaignId && prior.eventId === eventId &&
         prior.action === event.action && prior.amountMinor === event.amountMinor &&
         prior.currency === event.currency && prior.externalReference === event.externalReference &&
         prior.evidenceReference === event.evidenceReference && prior.note === event.note &&
@@ -8138,7 +8141,9 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
           auditData.currency !== event.currency ||
           auditData.currencyExponent !== priorExponent ||
           auditData.externalReference !== event.externalReference ||
-          auditData.snapshotVersion !== prior.snapshotVersion) {
+          auditData.snapshotVersion !== prior.snapshotVersion ||
+          JSON.stringify(auditData.paymentPolicySnapshot ?? null) !==
+            JSON.stringify(prior.paymentPolicySnapshot ?? null)) {
         throw new HttpsError("failed-precondition", "الحركة المالية لا تطابق نسخة السجل وسجل التدقيق.");
       }
       return {
@@ -8159,7 +8164,6 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
       });
       if (!paymentSettings.exists || paymentPolicy.featured_ads.manualEnabled !== true ||
           paymentPolicy.featured_ads.automatedEnabled !== false ||
-          settings.automatedCoinCheckoutEnabled === true ||
           !Number.isSafeInteger(settings.version) || settings.version < 1) {
         throw new HttpsError("failed-precondition", "استقبال دفعات الإعلانات اليدوي متوقف أو غير مهيأ في سياسة المالك.");
       }
