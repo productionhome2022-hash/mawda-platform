@@ -370,3 +370,10 @@ https://github.com/productionhome2022-hash/mawda-platform/issues/52
 - Issue #51: branch governance and required PR validation plan.
 - Issue #52: selective extraction of unique changes across divergent branches.
 PR #47 remains Draft. No merge to `main`, deployment, production Firebase mutation, paid-resource activation, or live retention-policy activation was performed.
+
+### Additional executable test batch — specialist seat lifecycle
+- Added two Firestore Emulator integration tests to `functions/test/integration/specialized-role-capacity.integration.test.js`:
+  1. An expired active grant does not consume a seat; reactivating it is counted in the same capacity guard and blocks a sixth active Admin Media assignment.
+  2. Suspended and revoked grants do not consume active seats; five active assignments succeed and the next assignment is rejected.
+- Commit: `4fd3f11b166e2f8af6b3d4dd64d519d867eea333`.
+- Validation on this exact SHA has been queued by GitHub Actions. At documentation time all five reported checks were queued; no test success is claimed yet.
