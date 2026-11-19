@@ -9,6 +9,7 @@ const {
   assertAdvertisingSupervisorCapacity,
   isOwnerOnlyAdvertisingAction,
   canPerformAdvertisingAction,
+  canActivateAdvertisingRepresentative,
   canPublishAdvertisingCampaign,
   canOwnerEmergencyWithdrawAdvertisingCampaign,
 } = require("../lib/advertising-permissions");
@@ -112,4 +113,36 @@ test("delegated permission catalogue exactly matches the approved specification"
   assert.equal(new Set(approved).size, approved.length, "specification must not duplicate permission keys");
   assert.equal(new Set(implemented).size, implemented.length, "implementation must not duplicate permission keys");
   assert.deepEqual(implemented, approved);
+});
+
+
+test("representative activation always requires Owner countersignature", () => {
+  assert.equal(canActivateAdvertisingRepresentative({
+    actorRole: "owner",
+    ownerCountersignaturePresent: false,
+  }), false);
+  assert.equal(canActivateAdvertisingRepresentative({
+    actorRole: "owner",
+    ownerCountersignaturePresent: true,
+  }), true);
+  assert.equal(canActivateAdvertisingRepresentative({
+    actorRole: "general_supervisor",
+    supervisorPermissions: ["advertising.representatives.activate"],
+    ownerCountersignaturePresent: false,
+  }), false);
+  assert.equal(canActivateAdvertisingRepresentative({
+    actorRole: "general_supervisor",
+    supervisorPermissions: ["advertising.representatives.activate"],
+    ownerCountersignaturePresent: true,
+  }), true);
+  assert.equal(canActivateAdvertisingRepresentative({
+    actorRole: "general_supervisor",
+    supervisorPermissions: [],
+    ownerCountersignaturePresent: true,
+  }), false);
+  assert.equal(canActivateAdvertisingRepresentative({
+    actorRole: "representative",
+    supervisorPermissions: ["advertising.representatives.activate"],
+    ownerCountersignaturePresent: true,
+  }), false);
 });
