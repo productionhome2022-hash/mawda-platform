@@ -9180,17 +9180,24 @@ export const setTimedAdCampaign = onCall(async (request) => {
     const version = (Number.isSafeInteger(previous.data()?.version)
       ? previous.data()!.version : 0) + 1;
     const now = FieldValue.serverTimestamp();
-    transaction.set(campaignRef, {
+    const versionedCampaign = {
       ...input, campaignId: campaignRef.id, creativeType,
       mediaId: mediaId ?? null,
       mediaOwnerUid: mediaId ? actorUid : null,
       creativeContentType,
       status: previous.exists ? previous.data()?.status : "draft",
-      version, spentRewardCoins: previous.data()?.spentRewardCoins ?? 0,
-      reservedRewardCoins: previous.data()?.reservedRewardCoins ?? 0,
+      version,
       createdAt: previous.data()?.createdAt ?? now,
       createdBy: previous.data()?.createdBy ?? actorUid,
       updatedAt: now, updatedBy: actorUid,
+    };
+    const campaignVersionRef = db.collection("timedAdCampaignVersions").doc(campaignRef.id)
+      .collection("versions").doc(String(version));
+    transaction.create(campaignVersionRef, versionedCampaign);
+    transaction.set(campaignRef, {
+      ...versionedCampaign,
+      spentRewardCoins: previous.data()?.spentRewardCoins ?? 0,
+      reservedRewardCoins: previous.data()?.reservedRewardCoins ?? 0,
     });
     return { campaignId: campaignRef.id, version, status: previous.exists ? previous.data()?.status : "draft", creativeType };
   });
