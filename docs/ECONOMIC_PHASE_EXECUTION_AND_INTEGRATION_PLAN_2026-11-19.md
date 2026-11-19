@@ -259,3 +259,63 @@
 - تبين أن معظم الفروع القديمة متشعبة بدرجات كبيرة، لذلك لا تصلح للدمج المباشر.
 - PR #35 و#38 متقدمان فقط على فرع التطوير الحالي دون commits خلفية حسب مقارنة GitHub، لكنهما ما زالا Draft ويحتاجان exact-head CI ناجحاً.
 - لا يُعلن اكتمال أي بند من هذه الخطة في هذه النسخة.
+
+
+## 11. تنفيذ التدقيق الأولي ونتائج الاختبار — 19 نوفمبر 2026
+
+### 11.1 نجاح مثبت في مختبر 5,000 شخصية
+
+- Workflow run: `44476167496` — [تشغيل المحاكاة](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/actions/runs/44476167496).
+- Lab branch SHA: `fdc25b2893b832ec34de6ab2eb10cab73e3d764e`.
+- Exact platform source SHA checked out by the lab: `63916ade25d9c6d5db640204637053042415fa06` (commit subject: return server catalog version from transactional publish).
+- Result: 8/8 test cases passed; `completedRows=5000`; all 13 reported lifecycle counters reached 5000.
+- Covered stages: premium entitlement provisioning, store purchase, receipt/ledger verification, greeting and pinned section, peer profile view, profile analytics, discovery, boosted discovery, block/unblock, push-token lifecycle, room join, event listing, event RSVP.
+- A machine-readable report artifact was uploaded: `mawdda-5000-simulation-44476167496`, artifact ID `14507784453`, SHA-256 `dc8292bd38b0c273c5eca28c6200d97058ab98ba6f667e52621c8a33b3cecf8c`.
+- **Scope limitation:** this run does not establish 5,000-persona call billing, group-call media, Media Saver/local downloads, full media scanner throughput, manual payment, featured-ad financial settlement, or every economic lifecycle. It is a successful 5,000-persona member/store/profile/discovery/room/event scenario only. It does not close the economic phase.
+
+### 11.2 Exact-head CI findings on PR #35
+
+- Exact tested head before fixture repair: `9d0cadc4b460b0b540a56503846977593f7994b7`.
+- Domain regression run `44476789499`: success.
+- Full Validate run `44476789455`: failure.
+- Passed on that run: Functions compile/unit suite; media authorization; retention (including 30-day important text); direct-message deletion; owner grants; wallet/store transactional integration; room rental; room events; call signaling; FCM; biometric reward-cycle boundary; attendance/timed-ad rewards; email renewal; safety/appeals; privacy; test personas; owner audit export; legal holds; avatar/cover; message legal holds; Firestore/Storage rules; Flutter analysis/tests/Web build; scanner image/security tests.
+- Failed suites:
+  1. `featured-ad-finance.integration.test.js`: replay rejected because the immutable financial version/event/audit evidence comparison failed with `failed-precondition`.
+  2. `premium-profile.integration.test.js`: direct test fixtures seeded store catalog entries without the server-required positive catalog `version`, so purchases correctly failed closed.
+- Fixture correction committed on PR #35 branch: `b93279acbea5b5cd72b88fa5923f3ffeae0cac49`; it adds explicit version 1 to directly seeded catalog test fixtures. Exact-head reruns `44494473904` (Validate) and `44494473967` (domain regression) were started and must be read to completion before acceptance.
+
+### 11.3 Exact-head CI findings on PR #38
+
+- Exact tested head before fixture repair: `297e456fd68814886cbcf53b6a3b645a91d54608`.
+- Full Validate run `44477211137`: failure. Flutter analysis/tests/Web build, backend compile/unit tests, media scanner and rules tests passed; the same featured-ad finance replay mismatch and premium-profile catalog fixture version omission failed.
+- Domain regression run `44477211283`: failure. Retention, room reservation/cancellation, owner grant and Flutter widget suites passed; specialized role-capacity integration failed because its Admin Media fixture used the unsupported permission `advertising.requests.view_all` rather than the canonical allowed `advertising.requests.review`. The concurrency test then observed zero successful assignments because the same invalid fixture was rejected.
+- Corrections committed on PR #38 branch: `5f9fded3a3cc298b2201ea5f575c55f20100c87a` (catalog version fixture) and `8175a8aaa7fcf9e6275d9c934eb6a3541037f3f7` (canonical Admin Media permission).
+- Exact-head reruns `44494510348` (Validate) and `44494510469` (domain regression) were started; acceptance is pending their final results.
+
+### 11.4 Cross-branch source audit findings
+
+- PR #31 and PR #22 both modify the same high-conflict economic surfaces: `functions/src/index.ts`, coin purchase requests, engagement rewards, call signaling, store/catalog and Flutter economy/profile screens. PR #31 also adds the broader economic payment policy, featured-ad finance, group-call economy and read-only wallet reconciliation. PR #22 contains distinct call/phase closeout audits, gifting, profile projection and additional UI. They must be reconciled together by symbols and data contracts, not merged as whole branches.
+- PR #24 overlaps PR #31 on featured-ad finance/rewards, `index.ts`, `media.ts`, `media-scanner.ts`, quotas, Firestore indexes, sticker systems and Flutter featured-ad screens. Treat PR #24 as a source for media/featured-ad/sticker deltas only after semantic comparison with PR #31.
+- PR #28 is a 105-file recovery aggregation touching economy, media, ads, stickers, gifting, scanner, indexes, package manifests and many Flutter screens. It is not a safe merge unit; use it as a reference map and extract only independently verified unique changes.
+- PR #25 is based on a much older source line (over 2,000 commits behind current development in the comparison). Review only unique media-security hardening; do not rebase/merge its whole branch.
+- PR #26 and #27 are likewise old-line deltas. Extract safe test-center fixtures/scripts and email/profile behavior only after checking current coverage and anti-abuse semantics.
+- Existing role-capacity code is separate governance work; its five-seat checks must not be conflated with economic entitlements or general owner permissions.
+
+### 11.5 Newly confirmed blocking details
+
+1. **Featured-ad finance replay mismatch:** still unresolved. Preserve fail-closed behavior. Before changing production logic, add targeted diagnostic assertions for the immutable event, version snapshot and audit row fields; identify the exact mismatching field; then fix the canonical write/read contract and test missing-row, tampered-row, replay, multi-receipt and concurrency paths.
+2. **Group-call economy is P0 blocked:** PR #31's own engineering audit confirms no trusted provider-side media proof, incomplete participant-to-participant topology, no SFU for unrestricted audio scale, no complete entitlement check for every participant, no trusted per-participant media intervals, no all-participant reservation/settlement, and incomplete video layout acceptance. Keep group-call charging disabled.
+3. **Media Saver is not end-to-end complete:** entitlement/store infrastructure does not prove secure local-save workflows, per-save server authorization, expiry handling, local platform permissions and no-retention-extension semantics.
+4. **Manual payment remains owner-attested only:** member claim/receipt is not proof and must never credit coins; owner approval and replay-safe financial ledger are required. Automated checkout stays disabled.
+5. **Governance/legal records remain draft:** the unified constitution and contract register explicitly do not constitute signed agreements or legal advice. The next legal audit must verify source versions, signatory authority, legal entity data, jurisdiction, privacy/retention disclosures, electronic signature, contract version/hash and records retention; no missing legal fact may be invented.
+
+### 11.6 Immediate next actions
+
+1. Complete the in-progress exact-head reruns for PR #35 and #38; inspect job logs and confirm the two known fixture failures are gone.
+2. Diagnose the featured-ad replay mismatch with field-level test assertions and correct the canonical event/version/audit contract.
+3. Re-run the featured-ad integration suite and the full Validate workflow on the resulting exact SHA.
+4. Reconcile PR #30 manual-payment/wallet replay deltas against current development in small commits.
+5. Review PR #31 and #22 together by function and schema, beginning with wallet reconciliation, pricing/payment policy, gifting and rewards; isolate group-call P0 work as a separately gated substream.
+6. Review PR #24 featured-ad/media/sticker changes against the same symbols in PR #31; do not merge duplicate modules or duplicate callable names.
+7. Perform the legal/governance source audit and create a document-to-decision-to-implementation register without replacing original agreements.
+8. Only after source integration stabilizes, run the full exact-head Validate, then the appropriately scoped 5,000-persona scenarios and device/non-production acceptance.
