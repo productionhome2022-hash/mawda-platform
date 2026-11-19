@@ -7,7 +7,7 @@ const {
 test("general Admin sequence is open-ended and monotonic", () => {
   assert.equal(PLATFORM_ROLE_IDS.superOwner, "super_admin");
   assert.equal(PLATFORM_ROLE_CAPACITY.platform_admin, null);
-  assert.equal(nextPermanentRoleOrdinal([1, 2, 7]), 8);
+  assert.equal(nextPermanentRoleOrdinal("platform_admin", [1, 2, 7]), 8);
   assert.equal(platformRoleDisplayLabel("platform_admin", 8), "Admin 8");
   assert.equal(platformRoleDisplayLabel("platform_admin", 2, "ar"), "أدمن ٢");
 });
@@ -36,7 +36,15 @@ test("role seat capacity guard blocks a sixth Admin Media or general production 
   assert.throws(() => assertPlatformRoleCapacity("platform_admin", -1), /ACTIVE_COUNT_INVALID/);
 });
 
-test("sequence history rejects corrupt ordinals and never reuses removed slots", () => {
-  assert.throws(() => nextPermanentRoleOrdinal([1, 0]), /HISTORY_INVALID/);
-  assert.equal(nextPermanentRoleOrdinal([1, 2, 4]), 5);
+test("Admin N sequence is permanent while fixed five-seat numbering reuse remains unresolved", () => {
+  assert.throws(() => nextPermanentRoleOrdinal("platform_admin", [1, 0]), /HISTORY_INVALID/);
+  assert.equal(nextPermanentRoleOrdinal("platform_admin", [1, 2, 4]), 5);
+  assert.throws(
+    () => nextPermanentRoleOrdinal("ad_general_supervisor", [1, 2]),
+    /SEQUENCE_POLICY_NOT_APPROVED/,
+  );
+  assert.throws(
+    () => nextPermanentRoleOrdinal("production_general_supervisor", [1, 2]),
+    /SEQUENCE_POLICY_NOT_APPROVED/,
+  );
 });
