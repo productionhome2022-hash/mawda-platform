@@ -45,7 +45,7 @@ Latest working-branch commit at the time of this document: `202346f8341766d87bb5
 ## Explicitly incomplete — do not enable billing
 The new group-call policy callable is not yet connected to the group-call admission and settlement lifecycle. The current call path still requires the remaining work: individual join requests, initiator accept/reject decisions, entitlement validation, independent explicit financial consent bound to a policy version, trusted participant-level media connection intervals, atomic/idempotent wallet and ledger settlement, and media topology verification. No group-call charge may be collected until those parts are integrated and tested together.
 
-The current changes do not complete manual/automated payment providers, advertising finance and Media Workspace integration, store lifecycle completion, Media Saver, Super Admin economic controls, or full wallet reconciliation. Those remain in the execution register and must be handled in the approved order.
+The current changes do not complete manual/automated payment providers, advertising finance and Media Workspace integration, store lifecycle completion, Media Saver, Super Owner economic controls, or full wallet reconciliation. Those remain in the execution register and must be handled in the approved order.
 
 ## Validation state
 - GitHub source/PR/branch metadata inspection: performed.
