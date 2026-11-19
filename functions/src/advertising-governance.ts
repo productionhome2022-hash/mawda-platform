@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { ADVERTISING_SUPERVISOR_PERMISSIONS } from "./advertising-permissions";
 
 export const ADVERTISING_SPECIALIZED_ROLES = [
   "ad_general_supervisor",
@@ -10,42 +11,8 @@ export const ADVERTISING_SPECIALIZED_ROLES = [
 
 export type AdvertisingSpecializedRole = typeof ADVERTISING_SPECIALIZED_ROLES[number];
 
-export const ADMIN_MEDIA_PERMISSIONS = [
-  "advertising.applicants.view",
-  "advertising.applicants.review_profile",
-  "advertising.applicants.request_information",
-  "advertising.applicants.discuss",
-  "advertising.agreements.prepare_and_send",
-  "advertising.agreements.view_status",
-  "advertising.agreements.route_to_owner",
-  "advertising.representatives.activate",
-  "advertising.representatives.suspend",
-  "advertising.requests.view_assigned",
-  "advertising.requests.view_all",
-  "advertising.requests.assign",
-  "advertising.requests.return_for_correction",
-  "advertising.requests.reject_with_reason",
-  "advertising.requests.review_description",
-  "advertising.requests.review_media",
-  "advertising.requests.preview_external_link",
-  "advertising.requests.validate_geographic_target",
-  "advertising.requests.accept_preliminary",
-  "advertising.requests.route_to_owner",
-  "advertising.campaign.edit_nonfinancial_metadata",
-  "advertising.campaign.propose_schedule",
-  "advertising.campaign.schedule_within_owner_limits",
-  "advertising.campaign.pause_operationally",
-  "advertising.campaign.resume_if_not_owner_blocked",
-  "advertising.campaign.view_delivery_status",
-  "advertising.campaign.view_aggregate_performance",
-  "advertising.campaign.publish",
-  "advertising.campaign.unpublish_operationally",
-  "advertising.workspace.message_representatives",
-  "advertising.workspace.message_advertisers",
-  "advertising.notifications.send_approved_templates",
-  "advertising.reports.view_requests",
-  "advertising.reports.export_nonfinancial",
-] as const;
+export const ADMIN_MEDIA_PERMISSIONS = ADVERTISING_SUPERVISOR_PERMISSIONS;
+
 
 const PRODUCTION_PERMISSIONS = [
   "production.rooms.create",
