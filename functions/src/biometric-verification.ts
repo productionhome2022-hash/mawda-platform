@@ -1,45 +1,15 @@
 /**
  * Server-owned biometric verification eligibility.
  *
- * A bare "verified" status is insufficient: the record must carry a valid,
- * future expiresAt timestamp and must not have been revoked.
+ * REWARD-002 requires challenge-bound cryptographic key proof/attestation,
+ * nonce validation, replay protection and revocation. The current manual
+ * audio/video review prototype does not satisfy that proof contract. Keep all
+ * biometric privileges fail-closed until the cryptographic verifier writes
+ * and validates a dedicated server-owned proof record.
  */
 export function hasActiveBiometricVerification(
-  value: unknown,
-  nowMs = Date.now(),
+  _value: unknown,
+  _nowMs = Date.now(),
 ): boolean {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    return false;
-  }
-
-  const verification = value as Record<string, unknown>;
-  if (
-    verification.status !== "verified" ||
-    verification.revokedAt != null ||
-    verification.verificationMethod === "local_os_biometric_prompt" ||
-    verification.trustModel === "client_claim_after_local_os_prompt"
-  ) {
-    return false;
-  }
-
-  const expiry = verification.expiresAt;
-  let expiresAtMs: number;
-
-  if (expiry instanceof Date) {
-    expiresAtMs = expiry.getTime();
-  } else if (
-    expiry !== null &&
-    typeof expiry === "object" &&
-    typeof (expiry as { toMillis?: unknown }).toMillis === "function"
-  ) {
-    try {
-      expiresAtMs = (expiry as { toMillis: () => number }).toMillis();
-    } catch {
-      return false;
-    }
-  } else {
-    return false;
-  }
-
-  return Number.isFinite(expiresAtMs) && expiresAtMs > nowMs;
+  return false;
 }
