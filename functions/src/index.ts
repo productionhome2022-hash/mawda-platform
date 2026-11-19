@@ -93,7 +93,7 @@ import {
 } from "./store-purchase";
 import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
 import { deleteMediaAssetForMessage } from "./media";
-import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
+import { validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
 import { validateCoinPackages, validateAdPrices, currencyExponentForCode } from "./economy-pricing";
@@ -7722,7 +7722,7 @@ const ROOM_RENTAL_SETTINGS = db.doc("platformSettings/roomRentals");
 async function readRoomRentalPlans(): Promise<ReturnType<typeof validateRoomRentalPlans>> {
   const snapshot = await ROOM_RENTAL_SETTINGS.get();
   const raw = snapshot.data()?.plans;
-  if (raw === undefined) return DEFAULT_ROOM_RENTAL_PLANS;
+  if (raw === undefined) return [];
   try {
     return validateRoomRentalPlans(raw);
   } catch {
@@ -7734,7 +7734,7 @@ async function readRoomRentalPlans(): Promise<ReturnType<typeof validateRoomRent
 export const getRoomRentalPlans = onCall(async (request) => {
   requireAuthenticatedUid(request.auth?.uid);
   const snapshot = await ROOM_RENTAL_SETTINGS.get();
-  const plans = snapshot.exists ? await readRoomRentalPlans() : DEFAULT_ROOM_RENTAL_PLANS;
+  const plans = snapshot.exists ? await readRoomRentalPlans() : [];
   const version = Number.isSafeInteger(snapshot.data()?.version) ? snapshot.data()!.version : 0;
   return { plans: plans.filter((plan) => plan.active), version };
 });
@@ -7829,7 +7829,7 @@ export const createRentedRoom = onCall(async (request) => {
         !isMemberAccountInGoodStanding(user.data())) {
       throw new HttpsError("permission-denied", "حالة العضوية لا تسمح باستئجار غرفة.");
     }
-    const plans = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : DEFAULT_ROOM_RENTAL_PLANS;
+    const plans = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : [];
     const plan = plans.find((entry) => entry.planId === planId && entry.active);
     if (!plan || plan.priceCoins !== expectedPriceCoins) {
       throw new HttpsError("failed-precondition", "تغير سعر الخطة أو لم تعد متاحة؛ حدّث الأسعار قبل التأكيد.");
