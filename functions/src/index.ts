@@ -86,6 +86,11 @@ import {
   validateStoreCatalogItemInput,
 } from "./store-catalog";
 import {
+  isStoreGiftReplayCompatible,
+  isEligibleStoreGiftMemberRecord,
+  calculateStoreGiftExpiryMs,
+} from "./store-gifting";
+import {
   calculateStorePurchaseBalance,
   isStoreEntitlementActive,
   isStorePurchasePriceCurrent,
@@ -7634,6 +7639,180 @@ export const getMyEntitlementGrantHistory = onCall(async (request) => {
 });
 
 /** Owner/MFA-only catalog publishing; client writes to storeCatalog remain denied. */
+/**
+ * Gifts a published store entitlement to the member whose profile is open.
+ * Recipient identity is UID-only: username search/lookup is intentionally not
+ * supported. Wallet debit, immutable gift receipt, entitlement, notification,
+ * and audit evidence commit atomically.
+ */
+export const giftStoreItem = onCall(async (request) => {
+  const senderUid = requireAuthenticatedUid(request.auth?.uid);
+  const recipientUid = request.data?.recipientUid;
+  const itemId = request.data?.itemId;
+  const requestId = request.data?.requestId;
+  const expectedPriceCoins = request.data?.expectedPriceCoins;
+  const expectedCatalogVersion = request.data?.expectedCatalogVersion;
+  if (typeof recipientUid !== "string" || recipientUid.trim() !== recipientUid ||
+      recipientUid.length < 1 || recipientUid.length > 128 || recipientUid.includes("/") ||
+      recipientUid === senderUid ||
+      Object.keys(request.data ?? {}).some((key) =>
+        !["recipientUid", "itemId", "requestId", "expectedPriceCoins", "expectedCatalogVersion"].includes(key)) ||
+      typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
+      typeof requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestId) ||
+      !Number.isSafeInteger(expectedPriceCoins) || expectedPriceCoins < 1 ||
+      !Number.isSafeInteger(expectedCatalogVersion) || expectedCatalogVersion < 1) {
+    throw new HttpsError("invalid-argument", "بيانات إهداء العنصر غير صالحة.");
+  }
+
+  const senderRef = db.collection("users").doc(senderUid);
+  const recipientRef = db.collection("users").doc(recipientUid);
+  const itemRef = db.collection("storeCatalog").doc(itemId);
+  const giftId = createHash("sha256")
+    .update(`mawdda-store-gift-v1:${senderUid}:${requestId}`).digest("hex");
+  const giftRef = db.collection("storeGifts").doc(giftId);
+  const ledgerRef = senderRef.collection("walletLedger").doc(`store_gift_${giftId}`);
+  const entitlementRef = recipientRef.collection("entitlements").doc(itemId);
+  const auditRef = db.collection("adminAuditLogs").doc(`store_gift_${giftId}`);
+  const notificationRef = recipientRef.collection("notifications").doc(`store_gift_${giftId}`);
+
+  return db.runTransaction(async (transaction) => {
+    const [sender, recipient, itemSnapshot, priorGift, priorEntitlement,
+      priorLedger, priorAudit] = await Promise.all([
+      transaction.get(senderRef), transaction.get(recipientRef), transaction.get(itemRef),
+      transaction.get(giftRef), transaction.get(entitlementRef),
+      transaction.get(ledgerRef), transaction.get(auditRef),
+    ]);
+
+    if (priorGift.exists) {
+      const prior = priorGift.data() ?? {};
+      const ledger = priorLedger.data() ?? {};
+      const audit = priorAudit.data() ?? {};
+      if (!isStoreGiftReplayCompatible(prior, {
+        senderUid, recipientUid, itemId, expectedPriceCoins, expectedCatalogVersion,
+      })) {
+        throw new HttpsError("already-exists", "معرف طلب الإهداء مستخدم لعملية أو مستلم أو سعر مختلف.");
+      }
+      if (!priorLedger.exists || !priorAudit.exists ||
+          ledger.type !== "store_gift_purchase" || ledger.giftId !== giftId ||
+          ledger.amount !== -prior.priceCoins || ledger.recipientUid !== recipientUid ||
+          ledger.catalogVersion !== expectedCatalogVersion ||
+          !Number.isSafeInteger(ledger.balanceBefore) ||
+          !Number.isSafeInteger(ledger.balanceAfter) ||
+          ledger.balanceBefore - prior.priceCoins !== ledger.balanceAfter ||
+          audit.action !== "store_item_gifted" || audit.giftId !== giftId ||
+          audit.actorUid !== senderUid || audit.targetUid !== recipientUid) {
+        throw new HttpsError("data-loss", "إيصال الإهداء لا يطابق قيد المحفظة وسجل التدقيق.");
+      }
+      return {
+        giftId, itemId, recipientUid, priceCoins: prior.priceCoins,
+        newBalance: prior.newBalance,
+        expiresAt: prior.expiresAt instanceof Timestamp ? prior.expiresAt.toMillis() : null,
+        idempotentReplay: true,
+      };
+    }
+
+    if (!sender.exists || sender.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(sender.data())) {
+      throw new HttpsError("permission-denied", "حالة حساب المرسل لا تسمح بالإهداء.");
+    }
+    if (!recipient.exists || !isEligibleStoreGiftMemberRecord(recipient.data())) {
+      throw new HttpsError("failed-precondition", "المستلم غير مؤهل لاستلام هدية من المتجر.");
+    }
+    if (!itemSnapshot.exists) throw new HttpsError("not-found", "عنصر المتجر غير موجود.");
+    const item = projectStoreCatalogItem(itemId, itemSnapshot.data() ?? {});
+    if (!item || !isStoreItemPurchasable(item)) {
+      throw new HttpsError("failed-precondition", "هذا العنصر غير منشور أو أن استحقاقه غير جاهز للإهداء.");
+    }
+    if (item.version !== expectedCatalogVersion ||
+        !isStorePurchasePriceCurrent(expectedPriceCoins, item.priceCoins)) {
+      throw new HttpsError("failed-precondition", "تغير سعر العنصر أو إصداره؛ حدّث المتجر قبل الإهداء.");
+    }
+
+    const prior = priorEntitlement.data() ?? {};
+    if (prior.status === "active" &&
+        (prior.expiresAt === null || prior.expiresAt === undefined)) {
+      throw new HttpsError("already-exists", "يمتلك المستلم هذا الاستحقاق الدائم بالفعل.");
+    }
+    const nowMs = Date.now();
+    let expiresAtMs: number | null;
+    try {
+      let durationBase: Record<string, unknown> = prior;
+      if (item.category === "boost") {
+        const readExpiry = (value: unknown): number => {
+          if (value instanceof Timestamp) return value.toMillis();
+          if (value && typeof value === "object" &&
+              typeof (value as { toMillis?: unknown }).toMillis === "function") {
+            try { return (value as { toMillis: () => number }).toMillis(); } catch { return 0; }
+          }
+          return 0;
+        };
+        const baseExpiry = Math.max(
+          prior.status === "active" ? readExpiry(prior.expiresAt) : 0,
+          readExpiry(recipient.data()?.discoveryBoostExpiresAt),
+        );
+        durationBase = baseExpiry > 0 ? { status: "active", expiresAt: baseExpiry } : {};
+      }
+      expiresAtMs = calculateStoreGiftExpiryMs(durationBase, item.durationDays, nowMs);
+    } catch {
+      throw new HttpsError("failed-precondition", "سجل استحقاق المستلم غير صالح؛ أوقفنا الإهداء.");
+    }
+    const expiresAt = expiresAtMs === null ? null : Timestamp.fromMillis(expiresAtMs);
+    const senderBalance = readSafeInteger(sender.data()?.coins ?? 0, "coins");
+    const newBalance = calculateStorePurchaseBalance(senderBalance, item.priceCoins);
+    if (newBalance === null) {
+      throw new HttpsError("failed-precondition", "رصيد المرسل غير كافٍ أو غير صالح.");
+    }
+
+    const now = FieldValue.serverTimestamp();
+    transaction.update(senderRef, { coins: newBalance, walletUpdatedAt: now });
+    transaction.create(giftRef, {
+      giftId, senderUid, recipientUid, itemId, itemName: item.name,
+      category: item.category, priceCoins: item.priceCoins,
+      durationDays: item.durationDays ?? null, catalogVersion: item.version,
+      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
+      balanceBefore: senderBalance, newBalance, expiresAt,
+      status: "completed", createdAt: now,
+    });
+    transaction.create(ledgerRef, {
+      type: "store_gift_purchase", direction: "debit", amount: -item.priceCoins,
+      giftId, recipientUid, itemId, itemName: item.name,
+      priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
+      catalogVersion: item.version,
+      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
+      balanceBefore: senderBalance, balanceAfter: newBalance, createdAt: now,
+    });
+    transaction.set(entitlementRef, {
+      itemId, itemName: item.name, category: item.category, status: "active",
+      giftId, giftedByUid: senderUid, catalogVersion: item.version,
+      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
+      purchasedAt: now, expiresAt,
+    });
+    const recipientUpdate: Record<string, unknown> = {};
+    if (item.category === "boost" && expiresAt) {
+      recipientUpdate.discoveryBoostExpiresAt = expiresAt;
+      recipientUpdate.discoveryBoostGiftId = giftId;
+    }
+    if (item.itemId === "profile_pin_30d" &&
+        typeof recipient.data()?.pinnedProfileSection !== "string") {
+      recipientUpdate.pinnedProfileSection = "interests";
+    }
+    if (Object.keys(recipientUpdate).length > 0) transaction.update(recipientRef, recipientUpdate);
+    transaction.create(auditRef, {
+      actorUid: senderUid, targetUid: recipientUid,
+      action: "store_item_gifted", giftId, itemId, itemName: item.name,
+      priceCoins: item.priceCoins, catalogVersion: item.version, createdAt: now,
+    });
+    transaction.create(notificationRef, {
+      type: "store_item_gifted", giftId, senderUid, itemId,
+      itemName: item.name, createdAt: now, readAt: null,
+    });
+    return {
+      giftId, itemId, recipientUid, priceCoins: item.priceCoins,
+      newBalance, expiresAt: expiresAtMs, idempotentReplay: false,
+    };
+  });
+});
+
 export const setStoreCatalogItem = onCall(async (request) => {
   const actorUid = requireOwner(request);
   let item;
