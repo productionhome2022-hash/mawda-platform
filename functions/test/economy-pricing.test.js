@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { validateCoinPackages, validateAdPrices, isValidPositiveCurrencyAmount, currencyExponentForCode, OFFICIAL_ECONOMY_CURRENCIES } = require("../lib/economy-pricing");
+const { validateCoinPackages, validateAdPrices, isValidPositiveCurrencyAmount, currencyExponentForCode, OFFICIAL_ECONOMY_CURRENCIES, EXPERIMENTAL_DEFAULT_COIN_PACKAGES, EXPERIMENTAL_DEFAULT_AD_PRICES } = require("../lib/economy-pricing");
 
 // Test-only fixtures; production package prices and advertising prices are
 // supplied exclusively by the owner through the versioned settings callable.
@@ -159,4 +159,16 @@ test("owner pricing catalogs accept owner-selected ISO 4217 currencies", () => {
       { ...adPriceFixture, currency },
     ]), /INVALID_AD_PRICE_FIELDS/);
   }
+});
+
+
+test("experimental coin and advertising price catalogs are complete, valid, and provisional", () => {
+  assert.equal(EXPERIMENTAL_DEFAULT_COIN_PACKAGES.length, 5);
+  assert.equal(EXPERIMENTAL_DEFAULT_AD_PRICES.length, 4);
+  assert.equal(validateCoinPackages(EXPERIMENTAL_DEFAULT_COIN_PACKAGES).length, 5);
+  assert.equal(validateAdPrices(EXPERIMENTAL_DEFAULT_AD_PRICES).length, 4);
+  assert.ok(EXPERIMENTAL_DEFAULT_COIN_PACKAGES.every((item) =>
+    item.currency === "USD" && item.active === true));
+  assert.ok(EXPERIMENTAL_DEFAULT_AD_PRICES.every((item) =>
+    item.currency === "USD" && item.active === true));
 });
