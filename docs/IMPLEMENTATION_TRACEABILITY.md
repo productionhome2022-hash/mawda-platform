@@ -705,3 +705,10 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 - Updated the integration fixture to seed `version: 1`, preserving the production guard and making the fixture match a published/versioned catalog item.
 - The same workflow's retention emulator cases (4/4), room-event lifecycle test (1/1), and Flutter UI analysis/widget tests passed on that run. The overall domain regression remained failed solely because of the fixture failure above.
 - **Validation pending:** the fixture correction is committed, but the new exact-head emulator and full validation workflows must pass before closure. No production catalog record or live entitlement was changed.
+
+## 2026-11-19 — versioned owner store-catalog publication
+
+- Follow-up source inspection after the entitlement regression exposed a second, production-path defect: `setStoreCatalogItem` persisted no `version`, although `purchaseStoreItem` correctly requires a positive catalog version. Owner-published purchasable items could therefore be rejected at checkout.
+- Fixed the owner/MFA-only publishing transaction to assign a monotonic positive version (1 for a new/legacy unversioned item, then previous version + 1), reject corrupt/overflowed prior versions fail-closed, and write the version into the immutable owner audit event. The callable now returns the assigned version.
+- Extended the Firestore-emulator store integration to assert initial version 1 and republish version 2 before purchase flows. The earlier owner-grant fixture also now includes a versioned catalog record.
+- **Validation pending:** exact-head Functions compile/unit/emulator tests and domain regression must pass. No production catalog documents were modified.
