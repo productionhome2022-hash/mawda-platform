@@ -265,3 +265,16 @@ This requirement covers shared platform/app surfaces only. Existing special-purp
 - This section-specific corporate identity decision does not authorize a redesign of the overall MAWADDA app, its global backgrounds, general color system, buttons or logo. Those remain subject to the owner's separately scheduled visual-design phase and approval.
 
 **Status:** Owner-approved design requirement; official company logo asset verification, visual implementation, responsive/accessibility review and UI tests remain open. This entry records the requirement only and is not evidence that the visual changes are implemented or tested.
+
+
+## معيار المصطلحات والهوية الإدارية الموحد
+
+**Status:** Approved naming standard. This document governs display terminology; it does not itself grant permissions or authorize a role migration.
+
+- **Super Owner** — التسمية الإنجليزية الرسمية لمالك المنصة، والشرح العربي الموحد: **مالك المنصة**.
+- **Admin N** — فريق الإدارة العامة المفتوح العدد بتسلسل دائم.
+- **Admin Media 1–5** — خمسة مقاعد مستقلة لإدارة الإعلانات وMedia Workspace.
+- **مشرف إنتاج عام 1–5** — خمسة مقاعد مستقلة للإشراف العام للإنتاج.
+- **مشرف إنتاج الفريق** — فئة مفتوحة العدد محصورة بفريقها وغرفتها المخصصة أو المستأجرة.
+
+تُحفظ معرفات الصلاحيات والـclaims والحقول الداخلية للتوافق؛ تغيير المسمى الظاهر لا يغيّر الصلاحيات. لا يُعد هذا القسم دليلاً على اكتمال تطبيق المسميات في كل الواجهات.
