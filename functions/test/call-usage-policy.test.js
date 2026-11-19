@@ -27,7 +27,7 @@ test("owner can disable a call mode or leave its quota unlimited", () => {
   });
   assert.equal(callModeQuotaLimit(configured, "audio"), 0);
   assert.equal(callModeQuotaLimit(configured, "video"), null);
-  assert.equal(callMaxDurationEnd(1000, configured), null);
+  assert.equal(callMaxDurationEnd(1000, configured), 301000);
   assert.throws(() => callModeQuotaLimit(configured, "other"));
 });
 
@@ -54,7 +54,7 @@ test("group video duration is fixed at five minutes regardless of owner duration
   }), "room", "video"), 301000);
   assert.equal(callMaxDurationEnd(1000, validateCallUsagePolicy({
     ...policy, maxCallDurationMs: null,
-  }), "room", "video"), 181000);
+  }), "room", "video"), 301000);
 });
 
 test("group-call duration rejects an unknown mode and scope", () => {
