@@ -119,7 +119,7 @@ test("member request uses canonical profile identity, one pending upload, and co
     assert.equal(started.requiredVideoContentType, "video/mp4");
     assert.match(started.audioObjectPath, new RegExp(uid));
     await assert.rejects(
-      () => startBiometricVerificationRequest.run(request(uid, {})),
+      () => startBiometricVerificationRequest.run(request(uid, { consent: true })),
       (error) => error && error.code === "already-exists",
     );
     const saved = (await db.collection("biometricVerificationRequests").doc(createdRequestId).get()).data();
