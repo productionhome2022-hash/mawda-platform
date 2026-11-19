@@ -7,6 +7,8 @@ const assert = require("node:assert/strict");
 const rawStorageEmulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? "127.0.0.1:9199";
 const storageEmulatorHost = rawStorageEmulatorHost.replace("https://", "").replace("http://", "");
 process.env.STORAGE_EMULATOR_HOST = `http://${storageEmulatorHost}`;
+const testScannerSecret = "scanner-callback-test-secret-".padEnd(48, "x");
+process.env.MAWDA_MEDIA_SCANNER_HMAC_SECRET = testScannerSecret;
 const { EventEmitter } = require("node:events");
 const fs = require("node:fs");
 const os = require("node:os");
@@ -963,8 +965,6 @@ test("active legal hold blocks permanent media deletion", async () => {
 
 
 test("scanner error callback returns retryable 503 without changing quarantined asset", async () => {
-  const secret = "scanner-callback-test-secret-".padEnd(48, "x");
-  process.env.MAWDA_MEDIA_SCANNER_HMAC_SECRET = secret;
   const mediaId = randomUUID();
   const assetRef = db.collection("mediaAssets").doc(mediaId);
   const initial = {
@@ -991,7 +991,7 @@ test("scanner error callback returns retryable 503 without changing quarantined 
       signatureDatabaseAgeMs: 60 * 60 * 1000,
     };
     const rawBody = Buffer.from(JSON.stringify(payload));
-    const signature = createHmac("sha256", secret).update(rawBody).digest("hex");
+    const signature = createHmac("sha256", testScannerSecret).update(rawBody).digest("hex");
     const request = {
       method: "POST",
       rawBody,
@@ -1015,6 +1015,5 @@ test("scanner error callback returns retryable 503 without changing quarantined 
     assert.deepEqual(after.data(), initial);
   } finally {
     await assetRef.delete().catch(() => undefined);
-    delete process.env.MAWDA_MEDIA_SCANNER_HMAC_SECRET;
   }
 });
