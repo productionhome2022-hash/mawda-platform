@@ -13,6 +13,7 @@ import 'shop_screen.dart';
 import 'wallet_screen.dart';
 import 'rooms_screen.dart';
 import 'super_admin_screen.dart';
+import 'biometric_verification_screen.dart';
 import 'safety_center_screen.dart';
 import 'notification_center_screen.dart';
 import 'conversations_screen.dart';
@@ -541,6 +542,13 @@ class _CompletedProfilePanel extends StatelessWidget {
                           builder: (_) => RoomsScreen(userId: userId),
                         ),
                       ),
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.fingerprint_outlined),
+                      label: const Text('التوثيق البيومتري'),
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => const BiometricVerificationScreen(),
+                      )),
                     ),
                     FutureBuilder<IdTokenResult>(
                       future: user.getIdTokenResult(),
