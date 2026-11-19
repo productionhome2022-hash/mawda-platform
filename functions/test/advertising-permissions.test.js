@@ -106,7 +106,7 @@ test("delegated permission catalogue exactly matches the approved specification"
   const specification = fs.readFileSync(specificationPath, "utf8");
   const section = specification.split("## 3. Delegated permission catalogue")[1]?.split("## 4.")[0];
   assert.ok(section, "approved delegated permission catalogue section must exist");
-  const approved = [...section.matchAll(/^\\s*-\\s+(advertising\\.[a-z_.]+)(?:\\s+.*)?$/gm)]
+  const approved = [...section.matchAll(/^\s*-\s+(advertising\.[a-z_.]+)(?:\s+.*)?$/gm)]
     .map((match) => match[1]).sort();
   const implemented = [...ADVERTISING_SUPERVISOR_PERMISSIONS].sort();
   assert.equal(new Set(approved).size, approved.length, "specification must not duplicate permission keys");
