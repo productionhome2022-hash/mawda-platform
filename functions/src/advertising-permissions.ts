@@ -104,6 +104,23 @@ export function canPerformAdvertisingAction(args: {
     SUPERVISOR_PERMISSION_SET.has(args.action);
 }
 
+/** Activation is impossible until the Owner has countersigned the representative agreement. */
+export function canActivateAdvertisingRepresentative(args: {
+  actorRole: AdvertisingActorRole;
+  supervisorPermissions?: unknown;
+  ownerCountersignaturePresent: boolean;
+}): boolean {
+  if (!args || typeof args !== "object" || args.ownerCountersignaturePresent !== true) {
+    return false;
+  }
+  return args.actorRole === "owner" ||
+    canPerformAdvertisingAction({
+      actorRole: args.actorRole,
+      action: "advertising.representatives.activate",
+      supervisorPermissions: args.supervisorPermissions,
+    });
+}
+
 export function canPublishAdvertisingCampaign(args: {
   actorRole: AdvertisingActorRole;
   supervisorPermissions?: unknown;
