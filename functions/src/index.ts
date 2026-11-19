@@ -7247,35 +7247,43 @@ export const purchaseStoreItem = onCall(async (request) => {
   const itemId = request.data?.itemId;
   const requestId = request.data?.requestId;
   const expectedPriceCoins = request.data?.expectedPriceCoins;
+  const expectedCatalogVersion = request.data?.expectedCatalogVersion;
   if (typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
       typeof requestId !== "string" || requestId.length < 8 ||
       requestId.length > 80 || !/^[A-Za-z0-9_-]+$/.test(requestId) ||
       typeof expectedPriceCoins !== "number" || !Number.isSafeInteger(expectedPriceCoins) ||
-      expectedPriceCoins <= 0) {
+      expectedPriceCoins <= 0 || !Number.isSafeInteger(expectedCatalogVersion) || expectedCatalogVersion < 1) {
     throw new HttpsError("invalid-argument", "بيانات شراء العنصر غير صالحة.");
   }
 
   const userRef = db.collection("users").doc(uid);
   const itemRef = db.collection("storeCatalog").doc(itemId);
+  const catalogVersionPath = `storeCatalogVersions/${itemId}/versions/${expectedCatalogVersion}`;
+  const catalogVersionRef = db.collection("storeCatalogVersions").doc(itemId)
+    .collection("versions").doc(String(expectedCatalogVersion));
   const purchaseId = `${uid}_${requestId}`;
   const purchaseRef = db.collection("storePurchases").doc(purchaseId);
   const ledgerRef = userRef.collection("walletLedger").doc(`store_${purchaseId}`);
   const entitlementRef = userRef.collection("entitlements").doc(itemId);
 
   return db.runTransaction(async (transaction) => {
-    const [member, itemSnapshot, priorPurchase, priorEntitlement, priorLedger] = await Promise.all([
+    const [member, itemSnapshot, priorPurchase, priorEntitlement, priorLedger, versionSnapshot] = await Promise.all([
       transaction.get(userRef),
       transaction.get(itemRef),
       transaction.get(purchaseRef),
       transaction.get(entitlementRef),
       transaction.get(ledgerRef),
+      transaction.get(catalogVersionRef),
     ]);
     if (priorPurchase.exists) {
       const prior = priorPurchase.data() ?? {};
-      if (!isStorePurchaseReplayCompatible(prior, uid, itemId, expectedPriceCoins)) {
+      if (!isStorePurchaseReplayCompatible(prior, uid, itemId, expectedPriceCoins, expectedCatalogVersion)) {
         throw new HttpsError("already-exists", "معرف طلب الشراء مستخدم لعملية أخرى أو ببيانات سعر مختلفة.");
       }
       const ledger = priorLedger.data() ?? {};
+      const versionData = versionSnapshot.data() ?? {};
+      const versionSnapshotValid = versionSnapshot.exists && versionData.itemId === itemId &&
+        versionData.version === expectedCatalogVersion && versionData.priceCoins === prior.priceCoins;
       const balanceSnapshotValid =
         ledger.balanceBefore === undefined && ledger.balanceAfter === undefined ||
         Number.isSafeInteger(ledger.balanceBefore) &&
@@ -7289,7 +7297,10 @@ export const purchaseStoreItem = onCall(async (request) => {
           !Number.isSafeInteger(prior.newBalance) || prior.newBalance < 0 ||
           ledger.type !== "store_purchase" || ledger.direction !== "debit" ||
           ledger.amount !== -prior.priceCoins || ledger.purchaseId !== purchaseId ||
-          ledger.itemId !== itemId || !balanceSnapshotValid) {
+          ledger.itemId !== itemId || prior.catalogVersion !== expectedCatalogVersion ||
+          prior.catalogVersionPath !== catalogVersionPath ||
+          ledger.catalogVersion !== expectedCatalogVersion || ledger.catalogVersionPath !== catalogVersionPath ||
+          !versionSnapshotValid || !balanceSnapshotValid) {
         throw new HttpsError("failed-precondition", "إيصال الشراء لا يطابق قيد الخصم أو مطابقة الرصيد؛ يلزم تدقيق السجل.");
       }
       return {
@@ -7305,11 +7316,18 @@ export const purchaseStoreItem = onCall(async (request) => {
       throw new HttpsError("not-found", "عنصر المتجر غير موجود.");
     }
     const itemData = itemSnapshot.data() ?? {};
+    const versionData = versionSnapshot.data() ?? {};
     const item = projectStoreCatalogItem(itemId, itemData);
     if (!item) {
       throw new HttpsError("failed-precondition", "هذا العنصر غير منشور أو أن بيانات سعره غير صالحة.");
     }
-    if (!isStoreItemPurchasable(item)) {
+    if (!isStoreItemPurchasable(item) || item.version !== expectedCatalogVersion ||
+        !versionSnapshot.exists || versionData.itemId !== itemId ||
+        versionData.version !== expectedCatalogVersion || versionData.name !== item.name ||
+        versionData.category !== item.category || versionData.priceCoins !== item.priceCoins ||
+        versionData.durationDays !== (item.durationDays ?? null) ||
+        versionData.active !== true || versionData.purchaseEnabled !== true ||
+        versionData.fulfillmentReady !== true) {
       throw new HttpsError(
         "failed-precondition",
         "شراء هذا العنصر غير متاح حتى اكتمال تنفيذ استحقاقه والتحقق منه.",
@@ -7370,6 +7388,8 @@ export const purchaseStoreItem = onCall(async (request) => {
       category: item.category,
       priceCoins: item.priceCoins,
       durationDays: item.durationDays ?? null,
+      catalogVersion: item.version,
+      catalogVersionPath,
       balanceBefore: currentBalance,
       newBalance,
       expiresAt,
@@ -7384,6 +7404,8 @@ export const purchaseStoreItem = onCall(async (request) => {
       balanceAfter: newBalance,
       itemId,
       itemName: item.name,
+      catalogVersion: item.version,
+      catalogVersionPath,
       purchaseId,
       createdAt,
     });
@@ -7393,6 +7415,8 @@ export const purchaseStoreItem = onCall(async (request) => {
       category: item.category,
       status: "active",
       purchaseId,
+      catalogVersion: item.version,
+      catalogVersionPath,
       purchasedAt: createdAt,
       expiresAt,
     });
