@@ -22,8 +22,8 @@ test("Admin Media and general production each have five independent seats", () =
 
 test("Team Production Supervisor is open-ended and distinct", () => {
   assert.equal(PLATFORM_ROLE_CAPACITY.production_supervisor, null);
-  assert.equal(platformRoleDisplayLabel("production_supervisor", 12), "Team Production Supervisor 12");
-  assert.equal(platformRoleDisplayLabel("production_supervisor", 1, "ar"), "مشرف إنتاج الفريق ١");
+  assert.equal(platformRoleDisplayLabel("production_supervisor", 12), "Team Production Supervisor");
+  assert.equal(platformRoleDisplayLabel("production_supervisor", 1, "ar"), "مشرف إنتاج الفريق");
 });
 
 test("role seat capacity guard blocks a sixth Admin Media or general production supervisor", () => {
