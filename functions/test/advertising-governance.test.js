@@ -115,3 +115,39 @@ test("resource scopes reject surrounding whitespace and control characters", () 
     }), /SPECIALIZED_SCOPE_INVALID/);
   }
 });
+
+
+test("owner permission delta adds and partially revokes only selected capabilities", () => {
+  const { applySpecializedPermissionDelta } = require("../lib/advertising-governance");
+  const grant = activeGrant();
+  const changed = applySpecializedPermissionDelta(grant, {
+    add: ["advertising.requests.assign"],
+    remove: ["advertising.requests.review"],
+  });
+  assert.deepEqual(changed.permissions, [
+    "advertising.rooms.observe_assigned",
+    "advertising.requests.assign",
+  ]);
+  assert.deepEqual(changed.resourceScopes, grant.resourceScopes);
+  assert.equal(changed.uid, grant.uid);
+  assert.equal(changed.role, grant.role);
+  assert.equal(changed.version, grant.version);
+  assert.equal(changed.status, grant.status);
+});
+
+test("owner permission delta rejects escalation, duplicates and removal of the final permission", () => {
+  const { applySpecializedPermissionDelta } = require("../lib/advertising-governance");
+  const grant = activeGrant();
+  assert.throws(() => applySpecializedPermissionDelta(grant, {
+    add: ["platform.owner"],
+  }), /SPECIALIZED_PERMISSION_ADD_INVALID/);
+  assert.throws(() => applySpecializedPermissionDelta(grant, {
+    add: ["advertising.requests.assign", "advertising.requests.assign"],
+  }), /SPECIALIZED_PERMISSION_ADD_INVALID/);
+  assert.throws(() => applySpecializedPermissionDelta(grant, {
+    remove: ["advertising.requests.review", "advertising.rooms.observe_assigned"],
+  }), /SPECIALIZED_PERMISSION_EMPTY_GRANT/);
+  assert.throws(() => applySpecializedPermissionDelta(grant, {
+    remove: ["advertising.campaigns.publish"],
+  }), /SPECIALIZED_PERMISSION_REMOVE_INVALID/);
+});
