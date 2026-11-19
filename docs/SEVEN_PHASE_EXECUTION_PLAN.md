@@ -44,7 +44,7 @@
 - الحظر والإبلاغ والاستئناف وقيود العمر والتعليق/الكتم في الخادم.
 - إشعارات FCM مع تسجيل/إبطال الرموز والتفضيلات.
 - أعضاء المحادثات والغرف يرسلون الصور وGIF والصوت والفيديو فقط.
-- يُمنع على الأعضاء إرسال أو استقبال PDF أو أي مستند في المحادثات والغرف. الاستثناء الوحيد المالك/Super Admin الموثق خادمياً وبجلسة MFA حديثة، وله إرسال واستقبال المستندات.
+- يُمنع على الأعضاء إرسال أو استقبال PDF أو أي مستند في المحادثات والغرف. الاستثناء الوحيد المالك/Super Owner الموثق خادمياً وبجلسة MFA حديثة، وله إرسال واستقبال المستندات.
 - لا يُتاح أي أصل غير مفحوص أو غير معالج إلى المستلمين. الماسح والنسخ المشتقة الآمنة والاحتفاظ تُختبر من طرف إلى طرف.
 - البث المباشر لا يتجاوز قيود المصدر أو DRM أو تسجيل الدخول؛ تشغيل مضمّن رسمي فقط عند السماح به.
 
@@ -61,7 +61,7 @@
 
 **الحالة:** التحويلات الذرية ودفتر المحفظة وأساس المتجر وطلبات الشراء اليدوية وموافقة المالك موجودة واختباراتها الموثقة ناجحة؛ الدفع الحقيقي الآلي والاسترداد والمصالحة الكاملة وبقية مستهلكات المزايا المميزة مفتوحة.
 
-## المرحلة 5 — السوبر أدمن وغرفة العمليات السيادية
+## المرحلة 5 — Super Owner وغرفة العمليات السيادية
 **النطاق:** لوحة المالك، إدارة الأعضاء، الغرف، إعدادات التسجيل، الكتالوج والاقتصاد، المراجعة، الأمان، التدقيق، الحوادث.
 
 **المخرجات المطلوبة:**
@@ -123,7 +123,7 @@ The [Master Development Charter](MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md) is 
 - **Phase 2 — identity/profile/guest:** preserve the existing verified email, privacy acknowledgement, profile and guest restrictions. Do not let the new rewards system bypass age, privacy, identity or guest capability rules.
 - **Phase 3 — messaging/rooms/media:** implement the three chat-retention modes (temporary 4h inactivity, normal media 4h/text 7d, important media 4h/text 30d), participant notices, server activity timestamps and complete deletion. Implement the paid Media Saver entitlement check and local-save UX without extending server retention. Preserve the member/guest/owner media allowlists.
 - **Phase 4 — wallet/store/rewards:** extend the shared commercial engine to 24h/7d/30d owner-priced durations, separate prices, quantities, limits and permanent items; implement daily/hourly/weekly attendance rewards and ad completion verification; connect grants and room prizes to the wallet ledger and entitlement service. Do not activate any SKU before fulfillment and tests pass.
-- **Phase 5 — owner operations:** add Super Admin controls for duration prices, quantities, limits, reward schedules, campaigns, free grants, selected UID/group/public-room recipients, room collective rewards, preview/confirmation, audit and reports.
+- **Phase 5 — owner operations:** add Super Owner controls for duration prices, quantities, limits, reward schedules, campaigns, free grants, selected UID/group/public-room recipients, room collective rewards, preview/confirmation, audit and reports.
 - **Phase 6 — advanced verification/AI:** retain fail-closed biometric reward rules and AI safety/age/privacy/budget boundaries. New rewards cannot use client-reported verification as trusted evidence.
 - **Phase 7 — release:** add exact-head end-to-end tests for purchase, grant, expiry, deletion, attendance, ad completion, room presence snapshots, concurrency, retry and reconciliation; complete security/legal/device/non-production acceptance before release approval.
 
@@ -133,7 +133,7 @@ The phase status remains evidence-based. This amendment does not mark any new fe
 ## خطة التسريع التنفيذية — نافذة 48 ساعة (اعتماد توجيه المالك 2026-11-16)
 
 ### الهدف والحدود
-الهدف هو إنهاء أكبر قدر ممكن من أعمال البناء والتطوير البرمجي والاختبارات داخل مستودع المنصة ومختبر المحاكاة خلال نافذة تنفيذ مكثفة مدتها 48 ساعة تبدأ من اعتماد هذا التوجيه. النطاق يشمل الرؤية المعتمدة كاملة: الحسابات والهوية والملفات، المحادثات والرسائل والغرف والأحداث والحجوزات، الوسائط والاحتفاظ، المحفظة والكوينز والمتجر والاستحقاقات والمكافآت، السوبر أدمن والسلامة، البيومتري وفق شرط الإثبات الخادمي، الذكاء الاصطناعي المعتمد، وكل واجهات Android/Web/iOS/المنصات المستهدفة بحسب قرارات المنتج.
+الهدف هو إنهاء أكبر قدر ممكن من أعمال البناء والتطوير البرمجي والاختبارات داخل مستودع المنصة ومختبر المحاكاة خلال نافذة تنفيذ مكثفة مدتها 48 ساعة تبدأ من اعتماد هذا التوجيه. النطاق يشمل الرؤية المعتمدة كاملة: الحسابات والهوية والملفات، المحادثات والرسائل والغرف والأحداث والحجوزات، الوسائط والاحتفاظ، المحفظة والكوينز والمتجر والاستحقاقات والمكافآت، Super Owner والسلامة، البيومتري وفق شرط الإثبات الخادمي، الذكاء الاصطناعي المعتمد، وكل واجهات Android/Web/iOS/المنصات المستهدفة بحسب قرارات المنتج.
 
 هذه الخطة لا تغيّر الدستور أو الأسعار أو السياسات، ولا تخفض شروط الأمان والقبول. لا تُعتبر كل الرؤية مكتملة لمجرد انتهاء 48 ساعة. كل عنصر لا يملك كوداً واختبارات وأدلة يظل مفتوحاً ومعلناً كعائق؛ لا يُخفى ولا يُحوّل إلى "مكتمل" شكلياً.
 
@@ -203,7 +203,7 @@ The phase status remains evidence-based. This amendment does not mark any new fe
 - الصفحة الرئيسية والتنقل العام والبحث والاكتشاف والملفات والرسائل والمحادثات والغرف والأحداث.
 - المحفظة والكوينز وسجل الحركات والمتجر والمنتجات والاشتراكات والاستحقاقات والمكافآت.
 - لوحة العضو وكل أدواته وإعداداته وإشعاراته وحالاته.
-- لوحات المشرفين بحسب الصلاحيات، ولوحة Super Admin/Owner بكل أقسام الإدارة والتدقيق والاقتصاد والسلامة والمحتوى.
+- لوحات المشرفين بحسب الصلاحيات، ولوحة Super Owner/Owner بكل أقسام الإدارة والتدقيق والاقتصاد والسلامة والمحتوى.
 - حالات التحميل والفراغ والخطأ وانقطاع الشبكة وإعادة المحاولة وانتهاء الجلسة/الاستحقاق والمنع والصلاحيات، لا المسار المثالي فقط.
 
 ### 2. معايير القبول البصري والتفاعلي
@@ -261,7 +261,7 @@ The phase status remains evidence-based. This amendment does not mark any new fe
 **النطاق الإلزامي:**
 - مراجعة الرؤية الشاملة والدستور بجميع تعديلاتهما والميثاق والقرارات المعتمدة والاقتراحات التي أقرها المالك، ومصفوفة التتبع؛ لا تسقط أي ميزة أو قسم أو رحلة مستخدم.
 - بناء واستكمال جميع وظائف دورة حياة العضو الحقيقي، بما فيها التسجيل والتحقق والملف الشخصي والخصوصية والضيوف والاكتشاف والرسائل والمحادثات والغرف والأحداث والحجوزات والاستئجار والإلغاء والاسترداد والوسائط والاحتفاظ والإشعارات.
-- استكمال المحرك الاقتصادي المركزي والمحفظة والكوينز والمتجر والمنتجات والاشتراكات والاستحقاقات والمكافآت والمنح، ولوحات العضو والمشرف وSuper Admin والمالك، وفق الأسعار والسياسات التي يحددها المالك فقط.
+- استكمال المحرك الاقتصادي المركزي والمحفظة والكوينز والمتجر والمنتجات والاشتراكات والاستحقاقات والمكافآت والمنح، ولوحات العضو والمشرف وSuper Owner والمالك، وفق الأسعار والسياسات التي يحددها المالك فقط.
 - استكمال كل الشاشات والواجهات والتنقل والأزرار والنماذج وحالات التحميل والفراغ والخطأ والمنع وانقطاع الشبكة، مع ربط كل تفاعل بوظيفة حقيقية، ومراجعة RTL/LTR والاستجابة وإمكانية الوصول.
 - استكمال كود المزامنة والعقود والنماذج والخدمات وتهيئة فصل البيئات وتوافق Flutter/Functions/Firestore/Storage، وإعداد البنية البرمجية اللازمة لتكون جاهزة للربط السحابي؛ دون تنفيذ مزامنة إنتاجية أو إنشاء/تعديل موارد إنتاجية.
 - استكشاف الأخطاء وإصلاحها ومعالجة الفجوات الأمنية والمعمارية والوظيفية واختبارات الوحدة والتكامل والمحاكيات داخل مستودع المنصة، مع تحديث مصفوفة التتبع وسجل الأدلة.
