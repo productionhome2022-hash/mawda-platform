@@ -272,6 +272,33 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
 });
 
 
+test("owner catalog publication fails closed on a corrupt prior version", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const itemId = `version_corrupt_${tag}`;
+  const itemRef = db.collection("storeCatalog").doc(itemId);
+  await itemRef.set({
+    itemId, version: "not-a-version", name: "Version fixture",
+    description: "Corrupt version must not be overwritten.",
+    category: "vip", priceCoins: 100, durationDays: 30,
+    sortOrder: 1, active: true, purchaseEnabled: false, fulfillmentReady: true,
+  });
+  try {
+    await assert.rejects(
+      () => setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
+        itemId, name: "Version fixture", description: "Corrupt version must not be overwritten.",
+        category: "vip", priceCoins: 100, durationDays: 30,
+        sortOrder: 1, active: true, purchaseEnabled: true,
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await itemRef.get()).data().version, "not-a-version");
+  } finally {
+    await itemRef.delete().catch(() => undefined);
+  }
+});
+
+
 test("owner catalog seeds approved features as ready while keeping purchases disabled", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const result = await getOwnerStoreCatalog.run(ownerRequest());
