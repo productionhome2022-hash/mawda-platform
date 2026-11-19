@@ -204,7 +204,7 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = suffix();
   const uid = `store_member_${tag}`;
-  const itemId = "vip_monthly";
+  const itemId = `vip_store_${tag}`;
   const requestId = `purchase_${tag}`;
   const purchaseId = `${uid}_${requestId}`;
   const memberRef = db.collection("users").doc(uid);
@@ -212,17 +212,27 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
   const purchaseRef = db.collection("storePurchases").doc(purchaseId);
   const ledgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
   const entitlementRef = memberRef.collection("entitlements").doc(itemId);
+  const versionsRef = db.collection("storeCatalogVersions").doc(itemId).collection("versions");
+  const previousItem = await itemRef.get();
+  const previousVersions = await versionsRef.get();
 
-  await Promise.all([
-    memberRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active" }),
-    itemRef.set({
-      itemId, version: 1,
-      name: "VIP test item", description: "Emulator-only entitlement test",
+  await memberRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active" });
+  try {
+    const firstPublish = await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
+      itemId, name: "VIP test item", description: "Emulator-only entitlement test",
       category: "vip", priceCoins: 1250, durationDays: 30, sortOrder: 1,
       active: true, purchaseEnabled: true, fulfillmentReady: true,
-    }),
-  ]);
-  try {
+    }));
+    assert.equal(firstPublish.version, 1);
+    const secondPublish = await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
+      itemId, name: "VIP test item", description: "Emulator-only entitlement test",
+      category: "vip", priceCoins: 1250, durationDays: 30, sortOrder: 1,
+      active: true, purchaseEnabled: true, fulfillmentReady: true,
+    }));
+    assert.equal(secondPublish.version, 2);
+    assert.equal((await itemRef.get()).data().version, 2);
+    assert.equal((await versionsRef.doc("1").get()).data().version, 1);
+    assert.equal((await versionsRef.doc("2").get()).data().version, 2);
     const request = memberRequest(uid, { itemId, requestId, expectedPriceCoins: 1250 });
     const result = await purchaseStoreItem.run(request);
     assert.equal(result.priceCoins, 1250);
@@ -266,7 +276,13 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
       ledgerRef.delete().catch(() => undefined),
       purchaseRef.delete().catch(() => undefined),
       entitlementRef.delete().catch(() => undefined),
-      itemRef.delete().catch(() => undefined),
+      (async () => {
+        await itemRef.delete().catch(() => undefined);
+        const versions = await versionsRef.get();
+        await Promise.all(versions.docs.map((doc) => doc.ref.delete()));
+        if (previousItem.exists) await itemRef.set(previousItem.data());
+        await Promise.all(previousVersions.docs.map((doc) => doc.ref.set(doc.data())));
+      })(),
       memberRef.delete().catch(() => undefined),
     ]);
   }
