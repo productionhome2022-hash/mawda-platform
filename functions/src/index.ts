@@ -6568,12 +6568,20 @@ export const giftStoreItem = onCall(async (request) => {
       let durationBase: Record<string, unknown> = prior;
       if (item.category === "boost") {
         const readExpiry = (value: unknown): number => {
-          if (value instanceof Timestamp) return value.toMillis();
-          if (value && typeof value === "object" &&
+          if (value === null || value === undefined) return 0;
+          let result: unknown;
+          if (value instanceof Timestamp) result = value.toMillis();
+          else if (value !== null && typeof value === "object" &&
               typeof (value as { toMillis?: unknown }).toMillis === "function") {
-            try { return (value as { toMillis: () => number }).toMillis(); } catch { return 0; }
+            try { result = (value as { toMillis: () => number }).toMillis(); }
+            catch { throw new Error("INVALID_BOOST_EXPIRY"); }
+          } else {
+            throw new Error("INVALID_BOOST_EXPIRY");
           }
-          return 0;
+          if (typeof result !== "number" || !Number.isSafeInteger(result) || result < 0) {
+            throw new Error("INVALID_BOOST_EXPIRY");
+          }
+          return result;
         };
         const baseExpiry = Math.max(
           prior.status === "active" ? readExpiry(prior.expiresAt) : 0,
