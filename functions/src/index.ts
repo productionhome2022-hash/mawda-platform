@@ -9426,6 +9426,9 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
     if (!Number.isSafeInteger(previousVersion) || previousVersion !== expectedVersion) {
       throw new HttpsError("aborted", "تغيرت الصلاحية منذ آخر قراءة؛ أعد تحميلها قبل الحفظ.");
     }
+    if (previousVersion >= Number.MAX_SAFE_INTEGER) {
+      throw new HttpsError("failed-precondition", "بلغ إصدار التكليف الحد الآمن؛ أوقفنا التحديث.");
+    }
 
     // Capacity is checked against a transactional query so concurrent owner
     // assignments cannot both take the fifth seat.
