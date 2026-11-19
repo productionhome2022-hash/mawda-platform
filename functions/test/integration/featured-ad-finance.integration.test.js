@@ -44,27 +44,28 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
     maxClaimsPerMember: 2,
     rewardBudgetCoins: 1000,
   };
-  await economyRef.set({
-    ...(previousEconomyData ?? {
-      coinPackages: [], adPrices: [], customCoinRequestBounds: null,
-      version: 1, manualCoinPurchasesEnabled: false,
-      automatedCoinCheckoutEnabled: false, realMoneyCheckoutEnabled: false,
-    }),
-    paymentPolicy: {
-      coin_purchases: { manualEnabled: false, automatedEnabled: false },
-      featured_ads: { manualEnabled: true, automatedEnabled: false },
-      public_ads: { manualEnabled: false, automatedEnabled: false },
-      influencer_services: { manualEnabled: false, automatedEnabled: false },
-      store_entitlements: { manualEnabled: false, automatedEnabled: false },
-    },
-  });
-  await setTimedAdCampaign.run(ownerRequest(ownerUid, campaignInput));
-  assert.equal((await campaignVersionRef.doc("1").get()).exists, true);
   const base = {
     campaignId, note: "Verified against advertiser statement.",
     evidenceReference: "workspace-evidence://approved/receipt-01",
   };
+  const paymentPolicy = {
+    coin_purchases: { manualEnabled: false, automatedEnabled: false },
+    featured_ads: { manualEnabled: true, automatedEnabled: false },
+    public_ads: { manualEnabled: false, automatedEnabled: false },
+    influencer_services: { manualEnabled: false, automatedEnabled: false },
+    store_entitlements: { manualEnabled: false, automatedEnabled: false },
+  };
   try {
+    await economyRef.set({
+      ...(previousEconomyData ?? {
+        coinPackages: [], adPrices: [], customCoinRequestBounds: null,
+        version: 1, manualCoinPurchasesEnabled: false,
+        automatedCoinCheckoutEnabled: false, realMoneyCheckoutEnabled: false,
+      }),
+      paymentPolicy,
+    });
+    await setTimedAdCampaign.run(ownerRequest(ownerUid, campaignInput));
+    assert.equal((await campaignVersionRef.doc("1").get()).exists, true);
     const payment = {
       ...base, action: "payment_received",
       idempotencyKey: `payment_key_${tag}`,
@@ -76,6 +77,23 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
     assert.equal(first.snapshot.receivedMinor, 10000);
     const replay = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment));
     assert.equal(replay.idempotentReplay, true);
+    assert.equal((await campaignRef.get()).data().status, "draft");
+    const paymentAuditRef = db.collection("adminAuditLogs").doc(`featured_ad_finance_${first.eventId}`);
+    const paymentVersionRef = versionRef.doc(String(first.version));
+    const savedPaymentAudit = (await paymentAuditRef.get()).data();
+    const savedPaymentVersion = (await paymentVersionRef.get()).data();
+    await paymentAuditRef.delete();
+    await assert.rejects(
+      () => recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment)),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await paymentAuditRef.set(savedPaymentAudit);
+    await paymentVersionRef.delete();
+    await assert.rejects(
+      () => recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment)),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await paymentVersionRef.set(savedPaymentVersion);
 
     const secondPayment = {
       ...payment, idempotencyKey: `payment_key_2_${tag}`,
@@ -111,6 +129,20 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
     assert.equal(snapshot.data().refundedMinor, 1000);
     assert.equal(snapshot.data().version, 4);
     assert.equal((await versionRef.get()).size, 4);
+    assert.equal((await campaignRef.get()).data().status, "draft");
+    await economyRef.set({ ...((await economyRef.get()).data() ?? {}), paymentPolicy: {
+      ...paymentPolicy,
+      featured_ads: { manualEnabled: false, automatedEnabled: false },
+    } });
+    await assert.rejects(
+      () => recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
+        ...base, action: "payment_received",
+        idempotencyKey: `disabled_payment_${tag}`,
+        externalReference: `disabled_receipt_${tag}`,
+        amountMinor: 100, currency: "CHF",
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
   } finally {
     const [events, versions, audits] = await Promise.all([
       eventRef.get(), versionRef.get(),
@@ -125,5 +157,7 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
       campaignRef.delete().catch(() => undefined),
       campaignVersionRef.doc("1").delete().catch(() => undefined),
     ]);
+    if (previousEconomyData) await economyRef.set(previousEconomyData);
+    else await economyRef.delete().catch(() => undefined);
   }
 });
