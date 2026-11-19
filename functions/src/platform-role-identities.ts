@@ -1,5 +1,5 @@
 export const PLATFORM_ROLE_IDS = {
-  superOwner: "super_owner",
+  superOwner: "super_admin",
   generalAdmin: "platform_admin",
   mediaAdmin: "ad_general_supervisor",
   generalProductionSupervisor: "production_general_supervisor",
