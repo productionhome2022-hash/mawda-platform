@@ -11,7 +11,7 @@ test("biometric reward callable fails closed without server-verifiable device at
   assert.notEqual(end, -1, "biometric reward callable boundary must remain identifiable");
   const callable = source.slice(start, end);
   assert.match(callable, /failed-precondition/);
-  assert.match(callable, /التحقق التشفيري المرتبط بالجهاز/);
+  assert.match(callable, /المصادقة المحلية للهاتف ليست توثيقاً بيومترياً/);
   assert.doesNotMatch(callable, /runTransaction|walletLedger|rewardCoins|transaction\.update|transaction\.create/);
 });
 
