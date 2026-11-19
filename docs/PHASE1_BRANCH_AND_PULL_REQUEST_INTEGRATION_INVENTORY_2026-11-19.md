@@ -149,3 +149,16 @@ These are path intersections only, not proof of duplicate content or semantic eq
 5. **Mergeability:** #40 was reported mergeable at the metadata snapshot, but it has no exact-head status evidence here and remains a draft. Mergeability alone is not approval or a test pass.
 
 **Current phase status:** Step 1 remains open. No source PR was merged, no file was deleted or moved, no production resource was changed, and the 5,000-person simulation remains deferred.
+
+
+### Workflow trigger inspection — root cause of missing PR check visibility
+
+The workflow YAML was fetched from the exact #35 and #38 heads.
+
+- Both `validate.yml` and `mawdda-domain-regression.yml` use **push** branch filters plus `workflow_dispatch`; they do not declare a `pull_request` trigger.
+- The #35 workflow revision includes push filters for the official development branch, the governance branch (#33), and the retention branch (#35).
+- The #38 workflow revision additionally includes the role-capacity branch (#38).
+- The inspected revisions do not include branch filters for #30, #31, #39 or #40. Therefore those branch pushes are not covered by these two workflow definitions as inspected.
+- The commit-workflow-runs connector query is explicitly limited to pull-request-triggered runs. Its empty result cannot be used to conclude that no push-triggered run exists. The combined status query returned no status entries for the inspected heads, so no exact-head pass/fail evidence was available from that endpoint either.
+
+**Required workflow repair:** consolidate workflow trigger coverage for the approved development branches without adding unsafe production triggers. Prefer a controlled `pull_request` trigger targeting the official development branch (with least-privilege permissions and path filters where appropriate), or explicitly include the intended source branches in push filters. Then query the actual branch runs and inspect each job result on the exact SHA. Do not dispatch or rerun workflows until the repository's available Actions controls and exact run IDs are verified.
