@@ -21,13 +21,18 @@ const ownerRequest = (data) => ({
 });
 const grantId = (uid, role) => createHash("sha256")
   .update("specialized-role-v1|" + uid + "|" + role).digest("hex");
+const permissionForRole = {
+  ad_general_supervisor: "advertising.requests.view_assigned",
+  production_supervisor: "production.tasks.manage_assigned",
+  production_general_supervisor: "production.tasks.manage_assigned",
+  production_quality_reviewer: "production.reviews.write",
+  legal_administrative_supervisor: "contracts.archive.read",
+};
 const grant = (uid, role) => ({
   uid,
   role,
-  permissions: role === "production_supervisor" || role === "production_general_supervisor"
-    ? ["production.tasks.manage_assigned"]
-    : ["advertising.requests.review"],
-  resourceScopes: ["campaign:capacity-test"],
+  permissions: [permissionForRole[role]],
+  resourceScopes: ["resource:capacity-test"],
   status: "active",
   startsAtMs: now - 1000,
   endsAtMs: null,
@@ -43,31 +48,36 @@ const assign = (uid, role) => setOwnerAdvertisingRoleGrant.run(ownerRequest({
   grant: { ...grant(uid, role), version: undefined },
 }));
 
-test("Admin Media and general production supervisor assignments enforce five seats independently", async () => {
+test("all fixed specialist teams enforce their independent seat limits", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-  const roles = ["ad_general_supervisor", "production_general_supervisor"];
+  const roles = [
+    { role: "ad_general_supervisor", limit: 5 },
+    { role: "production_general_supervisor", limit: 5 },
+    { role: "production_quality_reviewer", limit: 5 },
+    { role: "legal_administrative_supervisor", limit: 4 },
+  ];
   const seeded = [];
   const attempted = [];
   try {
-    for (const role of roles) {
-      for (let i = 1; i <= 5; i += 1) {
+    for (const { role, limit } of roles) {
+      for (let i = 1; i <= limit; i += 1) {
         seeded.push(await seed("member_" + role + "_" + tag + "_" + i, role));
       }
-      const uid = "member_" + role + "_" + tag + "_sixth";
+      const uid = "member_" + role + "_" + tag + "_over_limit";
       await assert.rejects(
         () => assign(uid, role),
         (error) => error && error.code === "resource-exhausted",
       );
       attempted.push(grantId(uid, role));
       assert.equal((await db.collection("specializedRoleGrants")
-        .where("role", "==", role).where("status", "==", "active").get()).size, 5);
+        .where("role", "==", role).where("status", "==", "active").get()).size, limit);
     }
   } finally {
     await Promise.all([
       ...[...seeded, ...attempted].map((id) =>
         db.collection("specializedRoleGrants").doc(id).delete().catch(() => undefined)),
-      ...roles.map((role) =>
+      ...roles.map(({ role }) =>
         db.collection("specializedRoleSeatCounters").doc(role).delete().catch(() => undefined)),
     ]);
   }
