@@ -19,7 +19,7 @@
 - General Production Supervisors do not inherit Admin Media authority or team-room authority.
 - Team Production Supervisor is scoped to the assigned team/room and cannot act across other teams.
 - Each role is deny-by-default and server-authorized. Display labels must never be parsed to make authorization decisions.
-- Numbered seats use permanent, monotonically increasing ordinals. Revocation does not free or renumber a historical ordinal.
+- Admin N sequence numbers are permanent and must never be reused. The reappointment/number-reuse rule for the fixed five-seat Admin Media and General Production groups remains unresolved; do not infer or implement a reuse policy until the owner explicitly approves it.
 - Super Owner authority remains the existing trusted owner identity and must not be obtainable through any administrator appointment.
 
 ## Compatibility
