@@ -1,3 +1,4 @@
+const { DEFAULT_STORE_CATALOG } = require("../lib/default-store-catalog");
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { projectStoreCatalogItem } = require("../lib/store-catalog");
@@ -253,4 +254,19 @@ test("Super Owner may configure custom product durations within the safe ten-yea
   };
   assert.equal(validateStoreCatalogItemInput({ ...base, durationDays: 3650 }).durationDays, 3650);
   assert.throws(() => validateStoreCatalogItemInput({ ...base, durationDays: 3651 }), /INVALID_STORE_ITEM_FIELDS/);
+});
+
+
+test("every seeded shop item has a provisional price and any temporary term is bounded", () => {
+  assert.ok(DEFAULT_STORE_CATALOG.length > 0);
+  const ids = new Set();
+  for (const item of DEFAULT_STORE_CATALOG) {
+    assert.ok(!ids.has(item.itemId), item.itemId);
+    ids.add(item.itemId);
+    assert.ok(Number.isSafeInteger(item.priceCoins) && item.priceCoins > 0, item.itemId);
+    if (item.durationDays !== undefined) {
+      assert.ok(Number.isSafeInteger(item.durationDays), item.itemId);
+      assert.ok(item.durationDays >= 1 && item.durationDays <= 3650, item.itemId);
+    }
+  }
 });
