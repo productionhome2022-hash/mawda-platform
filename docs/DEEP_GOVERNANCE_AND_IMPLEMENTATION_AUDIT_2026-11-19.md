@@ -217,3 +217,19 @@ The audit PR #34 was opened against the development branch at SHA `8a1c8d0b93ed4
 This confirms that PR #32 and #33 must be rebased/reconstructed from the current development line before their code or test evidence can be considered for integration. Do not merge either stale draft directly. The comparison is a graph-level divergence check, not a semantic proof that every unique change is present or absent; preserve and reconcile unique commits/file changes individually.
 
 The combined-status query for the observed development base SHA returned no status entries. No CI pass is inferred from an empty status response. PR #34 is a documentation-only Draft and is not merged.
+
+
+## 13. Owner resolution and follow-up evidence — 19 November 2026
+
+The owner has now explicitly confirmed that important-chat text retention is **30 days (720 hours)** and rejected the 90-day alternative. This supersedes the unresolved 30-vs-90-day conflict described in §5.1. The canonical constitution and RET-003 already specified 30 days; the decision register now records this explicit confirmation as RET-005, and the unified vision and implementation traceability have been aligned. Important-chat media remains four hours. This does **not** resolve the separate RET-004 questions about who selects a mode/participant consent, server activity writes, or complete temporary-chat deletion.
+
+A review of the exact development-head workflow run `44467678163` on SHA `8a1c8d0b93ed43570c523ab2d8c2598648ddac0e` found:
+- Flutter UI analysis and widget tests: passed.
+- Backend compile/unit tests: passed.
+- Mode-aware chat-retention integration suite: passed (4/4).
+- Room-event reservation integration suite: passed (1/1).
+- Owner entitlement grant integration suite: failed (2/3). The failing case calls a member purchase after granting the entitlement, but its fixture explicitly seeds `purchaseEnabled: false`; the purchase callable correctly rejects that disabled catalog item. The fixture is internally contradictory, not evidence that the purchase guard should be weakened.
+
+A focused isolated-branch correction now sets the test fixture to a valid published/purchasable item (`version: 1`, `purchaseEnabled: true`, `fulfillmentReady: true`) while preserving the production guard. This correction has been committed on `codex/mawdda-retention-approval-ci-repair-2026-11-19`; its CI result must be checked before treating the failure as closed.
+
+**Updated disposition:** the retention-period decision conflict is resolved. The integration gate remains blocked by outstanding retention lifecycle requirements, role/biometric work, CI repair and exact-head validation, stale governance PR reconciliation, the 5,000-persona full run, and the unsafe legacy `main` baseline. No production deployment, billing activation, destructive retention action, or merge to `main` was performed.
