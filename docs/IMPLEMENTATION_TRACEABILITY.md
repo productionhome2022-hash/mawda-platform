@@ -656,3 +656,28 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 - Featured-ad finance/serving/rewards and complete wallet/platform-wide reconciliation remain open. Reconciliation must remain read-only and must report incomplete/corrupt legacy history without auto-correcting balances.
 - No code was ported from the divergent draft branches in this audit. No tests or builds were run on this documentation commit. Exact-head CI must be run after each subsequent source integration.
 - **Economic phase status: OPEN.** Follow the controlled order and closure criteria in the linked audit. No merge to `main`, deployment, production mutation, billing activation or paid-resource activation is authorized.
+
+
+## GOV-BIO-2026-11-19 — Biometric review and canonical administrative identities
+
+**Current integration branch:** `codex/governance-biometric-integration-2026-11-19`  
+**Draft PR:** [#33](https://github.com/productionhome2022-hash/mawda-platform/pull/33)  
+**Current inspected PR head:** `0d1d229096d8026750a2565f49c57dfb046d4b40`  
+**Status:** Partial implementation; not accepted for merge or release.
+
+Implemented on the isolated branch:
+- Owner-reviewed biometric request lifecycle callables, server-owned attempt state, consent recording, one-month calendar renewal and three-calendar-month lockout.
+- Member-owned, short-lived upload authorization; server-side file metadata and MP4 duration checks; private evidence access; owner decision, idempotent reward ledger and retryable deletion.
+- Member recording/submission/status screen and Super Owner review inbox/decision screen.
+- Storage and Firestore rules for the dedicated evidence workflow.
+- Canonical terminology glossary, core documentation updates and initial Super Owner UI/server-copy replacements.
+- Role identity/capacity helper and tests for the five-seat Admin Media and General Production Supervisor classes.
+
+Still open:
+- Admin N appointment/revocation and permission delegation lifecycle, including permanent ordinal allocation in the live server authorization model.
+- End-to-end role badges and canonical display labels across every profile, room, chat, Workspace, notification, email and supported locale.
+- Owner biometric settings/configuration UI and final policy review of the evidence limits/phrase catalogue.
+- Full emulator, Flutter analyze/test/build and security-rules results on this exact head. No test success is claimed; the available workflow-run lookup returned no PR-triggered runs.
+- Non-production device validation of microphone/camera capture, signed upload and playback/deletion.
+
+No production Firebase changes, live member-data changes, deployment, billing activation or merge to `main` are included.
