@@ -697,3 +697,18 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 - The official development branch currently exposes one-to-one call signaling callables (`startCall`, `respondToCall`, `markCallConnected`, `sendCallSignal`, `getCallSignals`, `endCall`, `getCallIceConfiguration`, `getActiveCall`). It has no integrated group-call economic start/join/settlement/charging callables.
 - Do not activate or port group-call billing from the isolated economic branch as a complete feature. The P0 evidence gaps remain: trusted media-provider participant/usage evidence, complete participant lifecycle and reconnect accounting, server-side entitlement checks for every participant, reservation and atomic partial settlement, large-room SFU architecture/cost/security review, UI acceptance, and 5,000-person simulation.
 - Group-call billing must remain absent/fail-closed until the full evidence chain and concurrency/replay tests are implemented and accepted. No call prices or charging durations are inferred here.
+
+
+## ROLE-001 — Administrative role capacity and lifecycle (19 November 2026)
+
+- **Policy:** one Super Owner; open-ended permanent Admin N ordinals; exactly five Admin Media seats; exactly five General Production Supervisor seats; open-ended Team Production Supervisor scoped to its assigned team/room. No cross-family permission inheritance. Fixed-seat number reuse after revocation remains unresolved and fail-closed.
+- **Implemented on PR #42:** canonical role identity/display-label helper; transactional capacity guard for Admin Media and General Production Supervisor; shared seat-counter transaction conflict point; safe grant-version overflow rejection; unit and emulator integration test sources for fifth/sixth seat, concurrent Admin Media claims, and open-ended Team Production Supervisor assignments.
+- **Security gap:** the inspected index.ts exposes owner-only grant read/write/revoke callables but does not invoke hasAdvertisingPermission for protected advertising/production operations. The pure helper and its unit tests do not establish authorization enforcement at those operations. Do not enable specialized staff access until each protected callable loads authoritative assignment and resource ownership server-side, checks permission + active window + exact scope, and denies by default.
+- **Still open:** persistent Admin N ordinal allocation and immutable appointment/revocation history; fixed-seat lifecycle after revocation; delegated permission lifecycle; role-specific permission matrix; resource-scoped enforcement at every protected operation; localized role projections across all clients. Exact-head CI and emulator execution remain unverified.
+- **Validation:** source and tests were added; no successful exact-head build/test result is claimed. No production deployment before owner release approval.
+
+## AUTHZ-AD-001 — Protected-operation enforcement audit (19 November 2026)
+
+- Source inspection confirms the owner-only specialized grant management callables. It does not establish that hasAdvertisingPermission is called by protected operations.
+- Do not infer team/room ownership from caller-supplied scope strings or invent role-permission assignments. Inventory protected callables and authoritative resource models, then add callable-level allow/deny emulator tests.
+- This is a confirmed integration gap from source inspection, not a claim that every related surface is unprotected.
