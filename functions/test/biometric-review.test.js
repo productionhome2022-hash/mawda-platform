@@ -61,16 +61,13 @@ test("malformed attempt counters and renewal timestamps fail closed", () => {
   }, Date.now()), /ATTEMPT_STATE_INVALID/);
 });
 
-test("only Super Owner can decide and accepted request grants reward and schedules monthly renewal", () => {
+test("manual owner review cannot grant biometric verification or reward without cryptographic proof", () => {
   assert.throws(() => decideBiometricRequest({
     state: pending(1), decision: "accept", actorIsSuperOwner: false, nowMs: 10,
   }), /SUPER_OWNER_ONLY/);
-  const accepted = decideBiometricRequest({
+  assert.throws(() => decideBiometricRequest({
     state: pending(1), decision: "accept", actorIsSuperOwner: true, nowMs: Date.parse("2026-01-31T12:00:00Z"),
-  });
-  assert.equal(accepted.rewardCoins, 1500);
-  assert.equal(accepted.badgeGranted, true);
-  assert.equal(accepted.nextRenewalAtMs, Date.parse("2026-02-28T12:00:00Z"));
+  }), /BIOMETRIC_CRYPTOGRAPHIC_PROOF_REQUIRED/);
 });
 
 test("rejections expose two, then one, then zero attempts and lock for three months", () => {
