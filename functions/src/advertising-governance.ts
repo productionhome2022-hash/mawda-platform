@@ -54,26 +54,47 @@ const FORBIDDEN_SPECIALIZED_PERMISSIONS = new Set([
  * operational permissions; they cannot acquire general production or
  * advertising authority through a crafted owner grant.
  */
+const TEAM_PRODUCTION_SUPERVISOR_PERMISSIONS = new Set<AdvertisingPermission>([
+  "production.rooms.manage_assigned",
+  "production.tasks.manage_assigned",
+  "production.reviews.write",
+  "production.achievements.nominate",
+]);
+
+const ADMIN_MEDIA_CONTRACT_PERMISSIONS = new Set<AdvertisingPermission>([
+  "contracts.drafts.create",
+  "contracts.drafts.review",
+  "contracts.send",
+  "contracts.archive.read",
+]);
+
+const ROLES_WITHOUT_APPROVED_SPECIALIZED_GRANT_MATRIX = new Set<AdvertisingSpecializedRole>([
+  // Representatives use their own request/agreement lifecycle, not supervisor grants.
+  "ad_representative",
+  // These roles require separate owner-approved permission matrices before activation.
+  "production_quality_reviewer",
+  "legal_administrative_supervisor",
+]);
+
 function assertRolePermissionBoundary(
   role: AdvertisingSpecializedRole,
   permissions: AdvertisingPermission[],
 ): void {
+  if (ROLES_WITHOUT_APPROVED_SPECIALIZED_GRANT_MATRIX.has(role)) {
+    throw new Error("SPECIALIZED_ROLE_PERMISSION_MATRIX_NOT_CONFIGURED");
+  }
   const allowed = permissions.every((permission) => {
     if (role === "ad_general_supervisor") {
-      return permission.startsWith("advertising.") || permission.startsWith("contracts.");
+      return permission.startsWith("advertising.") ||
+        ADMIN_MEDIA_CONTRACT_PERMISSIONS.has(permission);
     }
     if (role === "production_general_supervisor") {
       return permission.startsWith("production.");
     }
     if (role === "production_supervisor") {
-      return new Set<AdvertisingPermission>([
-        "production.rooms.manage_assigned",
-        "production.tasks.manage_assigned",
-        "production.reviews.write",
-        "production.achievements.nominate",
-      ]).has(permission);
+      return TEAM_PRODUCTION_SUPERVISOR_PERMISSIONS.has(permission);
     }
-    return true;
+    return false;
   });
   if (!allowed) throw new Error("SPECIALIZED_ROLE_PERMISSION_BOUNDARY_VIOLATION");
 }
