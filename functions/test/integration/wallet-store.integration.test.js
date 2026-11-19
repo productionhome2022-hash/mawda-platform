@@ -216,8 +216,8 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
   await Promise.all([
     memberRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active" }),
     itemRef.set({
-      name: "VIP test item", description: "Emulator-only entitlement test",
-      category: "vip", priceCoins: 1250, durationDays: 30, sortOrder: 1,
+      itemId, name: "VIP test item", description: "Emulator-only entitlement test",
+      category: "vip", priceCoins: 1250, durationDays: 30, version: 1, sortOrder: 1,
       active: true, purchaseEnabled: true, fulfillmentReady: true,
     }),
   ]);
@@ -416,7 +416,8 @@ test("manual coin package request issues no coins until owner verifies external 
         priceMinor: 500, currency: "CHF", active: true }],
       adPrices: [{ placementId: "test_ad", name: "Test ad", billingModel: "daily",
         priceMinor: 100, currency: "CHF", active: true }],
-      manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, version: 1,
+      manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false,
+      customCoinRequestBounds: { minCoins: 100, maxCoins: 100000 }, version: 1,
     }),
   ]);
   try {
