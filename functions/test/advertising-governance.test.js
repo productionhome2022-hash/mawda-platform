@@ -208,3 +208,20 @@ test("delegated signing fails closed for malformed persisted delegation records"
   assert.equal(canSignUnderDelegation({ ...base, delegation: { ...valid, ownerCoSignatureRequired: true } }), false);
   assert.equal(canSignUnderDelegation({ ...base, commitmentMinor: Number.MAX_SAFE_INTEGER + 1 }), false);
 });
+
+
+test("permission evaluator rejects malformed owner flags and malformed context before owner bypass", () => {
+  const validOwnerContext = {
+    ownerVerified: true,
+    grants: [],
+    uid: "owner_uid_0001",
+    permission: "advertising.campaigns.publish",
+    resourceScope: "campaign:campaign_123",
+    nowMs: 200,
+  };
+  assert.equal(hasAdvertisingPermission(validOwnerContext), true);
+  assert.equal(hasAdvertisingPermission({ ...validOwnerContext, ownerVerified: "true" }), false);
+  assert.equal(hasAdvertisingPermission({ ...validOwnerContext, permission: "platform.root" }), false);
+  assert.equal(hasAdvertisingPermission({ ...validOwnerContext, resourceScope: " campaign:campaign_123" }), false);
+  assert.equal(hasAdvertisingPermission({ ...validOwnerContext, uid: "short" }), false);
+});
