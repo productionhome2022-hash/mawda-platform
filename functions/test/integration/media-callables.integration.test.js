@@ -39,6 +39,7 @@ const {
   getChatMediaAttachmentUrl,
   deleteMediaAssetForMessage,
   receiveMediaScanVerdict,
+  createMediaScanVerdictHandler,
 } = require("../../lib/media");
 
 const { createMemberStory, listMemberStories } = require("../../lib/index");
@@ -1016,7 +1017,10 @@ test("scanner error callback returns retryable 503 without changing quarantined 
       json(value) { this.body = value; this.emit("finish"); return this; },
     });
     // onRequest exports an Express-style handler, not a callable-function .run wrapper.
-    await receiveMediaScanVerdict(request, response);
+    // Inject test-only config into the same callback core; SecretParam values are
+    // supplied by the Functions runtime and are not emulated by this direct call.
+    const handler = createMediaScanVerdictHandler(() => testScannerSecret, () => testScannerProvider);
+    await handler(request, response);
     assert.equal(response.statusCode, 503);
     assert.match(String(response.body), /retry required/i);
     const after = await assetRef.get();
