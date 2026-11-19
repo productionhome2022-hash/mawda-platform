@@ -204,7 +204,8 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = suffix();
   const uid = `store_member_${tag}`;
-  const itemId = `vip_store_${tag}`;
+  // Use a server-approved purchasable SKU; arbitrary dynamic IDs must fail fulfillment validation.
+  const itemId = "vip_monthly";
   const requestId = `purchase_${tag}`;
   const purchaseId = `${uid}_${requestId}`;
   const memberRef = db.collection("users").doc(uid);
@@ -953,8 +954,13 @@ test("owner wallet reconciliation is read-only and reports unorderable history a
 
 test("store catalog version refuses increment beyond the safe integer boundary", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
-  const itemId = `version_boundary_${suffix()}`;
+  // The version boundary must be tested on a real server-approved SKU so the
+  // catalog validator reaches the version guard instead of rejecting the fixture ID.
+  const itemId = "vip_monthly";
   const itemRef = db.collection("storeCatalog").doc(itemId);
+  const versionsRef = db.collection("storeCatalogVersions").doc(itemId).collection("versions");
+  const previousItem = await itemRef.get();
+  const previousVersions = await versionsRef.get();
   await itemRef.set({
     itemId, name: "Boundary fixture", description: "Emulator-only",
     category: "vip", priceCoins: 1, durationDays: 30, version: Number.MAX_SAFE_INTEGER,
@@ -967,10 +973,14 @@ test("store catalog version refuses increment beyond the safe integer boundary",
         category: "vip", priceCoins: 1, durationDays: 30,
         sortOrder: 1, active: true, purchaseEnabled: true, fulfillmentReady: true,
       })),
-      (error) => error && error.code === "failed-precondition",
+      (error) => error && error.code === "resource-exhausted",
     );
     assert.equal((await itemRef.get()).data().version, Number.MAX_SAFE_INTEGER);
   } finally {
-    await itemRef.delete();
+    await itemRef.delete().catch(() => undefined);
+    const currentVersions = await versionsRef.get();
+    await Promise.all(currentVersions.docs.map((doc) => doc.ref.delete()));
+    if (previousItem.exists) await itemRef.set(previousItem.data());
+    await Promise.all(previousVersions.docs.map((doc) => doc.ref.set(doc.data())));
   }
 });
