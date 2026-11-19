@@ -27,6 +27,30 @@ test("specialized roles cannot contain platform, finance or owner override permi
   }), /SPECIALIZED_PERMISSION_FORBIDDEN/);
 });
 
+test("Admin Media cannot receive delegated contract-signing authority", () => {
+  assert.throws(() => validateSpecializedRoleGrant({
+    uid: "member_uid_0001", role: "ad_general_supervisor",
+    permissions: ["contracts.sign_delegated"],
+    resourceScopes: ["contract:contract_123"],
+    status: "active", startsAtMs: 100, endsAtMs: 1000, version: 1,
+  }), /SPECIALIZED_ROLE_PERMISSION_BOUNDARY_VIOLATION/);
+});
+
+test("representative, quality-review and legal-supervisor grants fail closed until their own matrices are approved", () => {
+  for (const role of [
+    "ad_representative",
+    "production_quality_reviewer",
+    "legal_administrative_supervisor",
+  ]) {
+    assert.throws(() => validateSpecializedRoleGrant({
+      uid: "member_uid_0001", role,
+      permissions: ["advertising.requests.review"],
+      resourceScopes: ["campaign:campaign_123"],
+      status: "active", startsAtMs: 100, endsAtMs: 1000, version: 1,
+    }), /SPECIALIZED_ROLE_PERMISSION_MATRIX_NOT_CONFIGURED/);
+  }
+});
+
 test("Admin Media cannot receive production permissions", () => {
   assert.throws(() => validateSpecializedRoleGrant({
     uid: "member_uid_0001", role: "ad_general_supervisor",
