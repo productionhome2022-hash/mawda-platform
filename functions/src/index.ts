@@ -7815,18 +7815,31 @@ export const giftStoreItem = onCall(async (request) => {
 
 export const setStoreCatalogItem = onCall(async (request) => {
   const actorUid = requireOwner(request);
+  const expectedVersion = request.data?.expectedVersion;
   let item;
   try {
     item = validateStoreCatalogItemInput(request.data);
   } catch {
     throw new HttpsError("invalid-argument", "بيانات عنصر المتجر أو سعره أو تصنيفه غير صالحة.");
   }
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "إصدار الكتالوج المتوقع مطلوب لحماية التحديثات المتزامنة.");
+  }
   const itemRef = db.collection("storeCatalog").doc(item.itemId);
-  await db.runTransaction(async (transaction) => {
+  const versionResult = await db.runTransaction(async (transaction) => {
     const previousSnapshot = await transaction.get(itemRef);
+    const previousVersion = Number.isSafeInteger(previousSnapshot.data()?.version)
+      ? previousSnapshot.data()!.version : 0;
+    if (expectedVersion !== previousVersion) {
+      throw new HttpsError("failed-precondition", "تغير إصدار عنصر المتجر؛ أعد تحميل الكتالوج قبل الحفظ.");
+    }
+    const version = previousVersion + 1;
+    const versionRef = db.collection("storeCatalogVersions").doc(item.itemId)
+      .collection("versions").doc(String(version));
     const now = FieldValue.serverTimestamp();
-    transaction.set(itemRef, {
+    const versionedItem = {
       itemId: item.itemId,
+      version,
       name: item.name,
       description: item.description,
       category: item.category,
@@ -7836,15 +7849,24 @@ export const setStoreCatalogItem = onCall(async (request) => {
       active: item.active,
       purchaseEnabled: item.purchaseEnabled,
       fulfillmentReady: item.fulfillmentReady,
+    };
+    transaction.set(itemRef, {
+      ...versionedItem,
       createdAt: previousSnapshot.data()?.createdAt ?? now,
       updatedAt: now,
       updatedBy: actorUid,
+    });
+    transaction.create(versionRef, {
+      ...versionedItem,
+      createdBy: actorUid,
+      createdAt: now,
     });
     const auditRef = db.collection("adminAuditLogs").doc();
     transaction.create(auditRef, {
       actorUid,
       action: previousSnapshot.exists ? "store_catalog_item_updated" : "store_catalog_item_created",
       itemId: item.itemId,
+      version,
       active: item.active,
       priceCoins: item.priceCoins,
       category: item.category,
@@ -7852,8 +7874,9 @@ export const setStoreCatalogItem = onCall(async (request) => {
       fulfillmentReady: item.fulfillmentReady,
       createdAt: now,
     });
+    return version;
   });
-  return { itemId: item.itemId, active: item.active };
+  return { itemId: item.itemId, active: item.active, version: versionResult };
 });
 
 /** Returns only display-safe catalog fields to the authenticated owner. */
