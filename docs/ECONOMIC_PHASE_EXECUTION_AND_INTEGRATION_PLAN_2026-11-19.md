@@ -355,3 +355,8 @@ Source inspection of the official development branch found two issues that must 
 3. Call SKUs and privacy add-ons appear in the default catalogue but are not in the current fulfillment-ready allowlist. They must remain non-purchasable until entitlement consumers and lifecycle tests exist; a catalogue row is not proof of a product.
 
 No production or user data was changed. This is a source-audit finding to be addressed in a dedicated migration-safe code/test batch after the current exact-head CI gate.
+
+
+## شرط الفحص المرحلي الشامل — اعتماد المالك ECON-PHASE-003
+
+تُعد بوابات الفحص والإغلاق الواردة في `ECONOMIC_PHASE_EXECUTION_CHECKLIST_AND_STAGE_CLOSURE_2026-11-19.md` شرطاً حاكماً لهذه الخطة. لا يجوز الانتقال بين المراحل الأربع عشرة دون إغلاق موثق للمرحلة السابقة بعد مراجعة عميقة وتشغيل جميع الاختبارات والفحوصات المتاحة والملائمة في GitHub وبيئات الاختبار. يجب معالجة الثغرات والعيوب الحرجة والعالية وإعادة الاختبارات على SHA نهائي ثابت. الفحص غير المتاح أو غير المنطبق يوثق مع السبب ولا يدعى نجاحه. بوابة المرحلة 0 تأسيسية وليست مرحلة إضافية ضمن المراحل الأربع عشرة.
