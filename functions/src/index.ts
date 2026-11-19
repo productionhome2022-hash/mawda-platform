@@ -92,7 +92,7 @@ import { deleteMediaAssetForMessage } from "./media";
 import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
-import { validateCoinPackages, validateAdPrices, currencyExponentForCode } from "./economy-pricing";
+import { validateCoinPackages, validateAdPrices, currencyExponentForCode, EXPERIMENTAL_DEFAULT_COIN_PACKAGES, EXPERIMENTAL_DEFAULT_AD_PRICES } from "./economy-pricing";
 import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
@@ -7884,18 +7884,22 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
   const snapshot = await ECONOMY_PRICING_SETTINGS.get();
   if (!snapshot.exists) {
     return {
-      coinPackages: [], adPrices: [], customCoinRequestBounds: null,
+      coinPackages: EXPERIMENTAL_DEFAULT_COIN_PACKAGES,
+      adPrices: EXPERIMENTAL_DEFAULT_AD_PRICES,
+      customCoinRequestBounds: null,
       version: 0, realMoneyCheckoutEnabled: false,
       manualCoinPurchasesEnabled: false, automatedCoinCheckoutEnabled: false,
-      configured: false,
+      configured: false, pricingDefaultsStatus: "experimental_provisional",
     };
   }
   const data = snapshot.data() ?? {};
   let coinPackages: ReturnType<typeof validateCoinPackages> = [];
   let adPrices: ReturnType<typeof validateAdPrices> = [];
   try {
-    if (data.coinPackages !== undefined) coinPackages = validateCoinPackages(data.coinPackages);
-    if (data.adPrices !== undefined) adPrices = validateAdPrices(data.adPrices);
+    coinPackages = data.coinPackages === undefined
+      ? EXPERIMENTAL_DEFAULT_COIN_PACKAGES : validateCoinPackages(data.coinPackages);
+    adPrices = data.adPrices === undefined
+      ? EXPERIMENTAL_DEFAULT_AD_PRICES : validateAdPrices(data.adPrices);
   } catch {
     throw new HttpsError("failed-precondition", "إعدادات اقتصاد المنصة غير صالحة؛ راجع الدعم التقني.");
   }
@@ -7921,6 +7925,7 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
     paymentPolicy,
     automatedCoinCheckoutEnabled: false,
     configured: true,
+    pricingDefaultsStatus: "owner_configured",
   };
 });
 
