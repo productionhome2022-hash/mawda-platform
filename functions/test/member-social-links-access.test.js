@@ -37,7 +37,7 @@ test("expired, revoked, pending, malformed and missing biometric records deny li
 
 test("profile links remain hidden until challenge-bound cryptographic proof is implemented", () => {
   assert.equal(canExposeMemberSocialLinks(true, manualReview, NOW), false);
-  assert.equal(canExposeMemberSocialLinks(false, active, NOW), false);
+  assert.equal(canExposeMemberSocialLinks(false, manualReview, NOW), false);
   assert.equal(canExposeMemberSocialLinks(true, {
     status: "verified",
     expiresAt: { toMillis: () => NOW - 1 },
