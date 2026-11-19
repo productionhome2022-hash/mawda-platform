@@ -206,3 +206,77 @@ test("specialized role grant version refuses increment beyond the safe integer b
     await ref.delete();
   }
 });
+
+test("expired active assignments do not consume seats and reactivation is counted atomically", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const role = "ad_general_supervisor";
+  const tag = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const activeIds = [];
+  const expiredUid = "member_expired_reactivate_" + tag;
+  const expiredId = grantId(expiredUid, role);
+  const candidateUid = "member_after_reactivate_" + tag;
+  const candidateId = grantId(candidateUid, role);
+  try {
+    for (let i = 1; i <= 4; i += 1) {
+      activeIds.push(await seed("member_active_reactivate_" + tag + "_" + i, role));
+    }
+    await db.collection("specializedRoleGrants").doc(expiredId).set({
+      ...grant(expiredUid, role),
+      endsAtMs: now - 10_000,
+    });
+
+    const reactivated = await setOwnerAdvertisingRoleGrant.run(ownerRequest({
+      expectedVersion: 1,
+      grant: grant(expiredUid, role),
+    }));
+    assert.equal(reactivated.status, "active");
+    assert.equal(reactivated.version, 2);
+
+    await assert.rejects(
+      () => assign(candidateUid, role),
+      (error) => error && error.code === "resource-exhausted",
+    );
+    assert.equal((await db.collection("specializedRoleGrants")
+      .where("role", "==", role).where("status", "==", "active").get()).size, 5);
+  } finally {
+    await Promise.all([...activeIds, expiredId, candidateId].map((id) =>
+      db.collection("specializedRoleGrants").doc(id).delete().catch(() => undefined)));
+    await db.collection("specializedRoleSeatCounters").doc(role).delete().catch(() => undefined);
+  }
+});
+
+test("suspended and revoked specialist grants do not consume active seats", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const role = "ad_general_supervisor";
+  const tag = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const ids = [];
+  try {
+    for (const status of ["suspended", "revoked"]) {
+      const uid = "member_" + status + "_seat_" + tag;
+      const id = grantId(uid, role);
+      ids.push(id);
+      await db.collection("specializedRoleGrants").doc(id).set({
+        ...grant(uid, role),
+        status,
+      });
+    }
+    for (let i = 1; i <= 5; i += 1) {
+      const uid = "member_live_after_inactive_" + tag + "_" + i;
+      const result = await assign(uid, role);
+      assert.equal(result.status, "active");
+      ids.push(grantId(uid, role));
+    }
+    const extraUid = "member_over_limit_after_inactive_" + tag;
+    await assert.rejects(
+      () => assign(extraUid, role),
+      (error) => error && error.code === "resource-exhausted",
+    );
+    ids.push(grantId(extraUid, role));
+    assert.equal((await db.collection("specializedRoleGrants")
+      .where("role", "==", role).where("status", "==", "active").get()).size, 5);
+  } finally {
+    await Promise.all(ids.map((id) =>
+      db.collection("specializedRoleGrants").doc(id).delete().catch(() => undefined)));
+    await db.collection("specializedRoleSeatCounters").doc(role).delete().catch(() => undefined);
+  }
+});
