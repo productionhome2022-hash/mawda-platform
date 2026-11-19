@@ -292,3 +292,38 @@ The latest integration-branch head at this checkpoint is `79d495303725ca8266c27d
 - The earlier domain regression success on `b0767d99450147a22aa1db93a994508822c652a1` is retained as historical evidence only, not as a substitute for the current head.
 
 **Current disposition:** the branch inventory now covers all 51 refs and all 38 PRs; selective comparisons have identified stale/duplicate candidates and high-divergence branches. Stage 1 remains OPEN until the remaining changed-file semantic matrix, permission/media remediation, and full Validate exact-head gate are complete.
+
+
+---
+
+## Execution addendum — 19 November 2026 (latest verified checkpoint)
+
+### Unified branch and exact-head validation
+- Unified branch: `codex/mawdda-phase1-unified-2026-11-19`.
+- Verified head before this documentation addendum: `825e9489b5dcb351998229fc062d71ce0489044b`.
+- Compared with `codex/mawda-full-platform-implementation`: 16 commits ahead, 0 behind; no ancestry divergence.
+- Exact-head Validate Mawda run [44588230937](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/44588230937): all three jobs completed successfully. Flutter analysis/tests and both Web release builds passed; Cloud Functions compile/unit plus Firestore/Storage emulator integration and rules tests passed; isolated ClamAV build, media sanitization and EICAR checks passed.
+- Exact-head domain regression run [44588230887](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/44588230887): both jobs completed successfully, including specialized role capacity/concurrency and store-gifting integration.
+- These are CI/emulator/build results only; they are not production deployment, physical-device acceptance, or non-production live-service acceptance.
+
+### Selective branch reconciliation
+- PR #42 specialized-role candidate `ea6b05253ab702e773611ec48d31518a50943acd` is 32 commits ahead and 156 behind the unified head; merge base `8a1c8d0b93ed43570c523ab2d8c2598648ddac0e`. Do not merge or cherry-pick wholesale. Its role-capacity changes need file-level comparison; its own notes identify missing callable-level delegated authorization.
+- PR #43 store-gifting candidate `7d93d4c097f2079668b1dc25b0a4fb1fc1afb8d0` is 10 commits ahead and 72 behind; merge base `946ead61208f5007299802c5293f31c329b7c2d2`. The unified head already contains the store-gifting backend module, emulator test, and Shop UI action; PR #43 must not be merged wholesale or duplicated.
+- The open PR inventory remains under review. No branch was deleted, force-pushed, merged to `main`, or deployed.
+
+### Confirmed delegated-authorization blocker
+- A full source read of unified `functions/src/index.ts` found no call site for `hasAdvertisingPermission`; the helper is defined in `functions/src/advertising-governance.ts`.
+- Owner-only management callables do not constitute enforcement of delegated specialist permissions at protected operations. The approved permission vocabulary and authoritative resource scopes must be reconciled before enabling any delegated staff access.
+- Tracking issue: [#48 — enforce specialized-role permissions at protected callables](https://github.com/productionhome2022-hash/mawda-platform/issues/48).
+- Keep the affected specialist paths fail-closed. Do not infer permissions, scopes, or resource ownership from client input or role display labels.
+
+### 5,000-persona simulation evidence and exact-head gap
+- Lab run [44476167496](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/actions/runs/44476167496) completed successfully in Firebase Emulator-only mode. Its report records 5,000 provisioned personas, 5,000/5,000 persona coverage, 5,000/5,000 lifecycle completions, and all 13 lifecycle stages at 5,000. Wallet/message scenario errors were zero.
+- That successful run tested platform SHA `63916ade25d9c6d5db640204637053042415fa06`, not the current unified SHA `825e9489b5dcb351998229fc062d71ce0489044b`; it is strong historical simulation evidence but does not close the exact-head gate.
+- The lab PR #4 workflow default was updated on its isolated branch to pin the unified SHA. Lab commit: `380b35c3eb0d7700d4dc4cbeaa526abeddbde838`.
+- The push did not produce a new simulation run. A manual `workflow_dispatch` with `platform_ref=825e9489b5dcb351998229fc062d71ce0489044b` remains required. Keep lab PR #4 Draft until that exact-head run produces and verifies a 5,000/5,000 report.
+
+### Current stage disposition
+- Stage 1 (branch inventory and reconciliation) remains OPEN. Exact-head platform CI is green, but the 5,000-persona exact-head rerun and callable-level delegated-authorization inventory/enforcement remain blocking acceptance gates.
+- Do not begin Stage 2 as a completed stage until Stage 1's acceptance gates are satisfied.
+- No `main` merge, production deployment, live Firebase mutation, billing activation, or live retention-policy change was performed.
