@@ -697,3 +697,11 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 - The official development branch currently exposes one-to-one call signaling callables (`startCall`, `respondToCall`, `markCallConnected`, `sendCallSignal`, `getCallSignals`, `endCall`, `getCallIceConfiguration`, `getActiveCall`). It has no integrated group-call economic start/join/settlement/charging callables.
 - Do not activate or port group-call billing from the isolated economic branch as a complete feature. The P0 evidence gaps remain: trusted media-provider participant/usage evidence, complete participant lifecycle and reconnect accounting, server-side entitlement checks for every participant, reservation and atomic partial settlement, large-room SFU architecture/cost/security review, UI acceptance, and 5,000-person simulation.
 - Group-call billing must remain absent/fail-closed until the full evidence chain and concurrency/replay tests are implemented and accepted. No call prices or charging durations are inferred here.
+
+## 2026-11-19 — owner entitlement purchase regression fixture correction
+
+- Exact-head CI on `7fa84ad0786fc9237f6bdec626de0fab3f9c24af` showed the room/retention regression job failing only in the owner entitlement grant integration test's paid-purchase continuation.
+- Root cause: the test seeded a `storeCatalog/vip_monthly` record without its required positive catalog `version`. The purchase path intentionally rejects unversioned catalog records through `isStoreItemPurchasable`; this is a safety contract, not a production purchase defect.
+- Updated the integration fixture to seed `version: 1`, preserving the production guard and making the fixture match a published/versioned catalog item.
+- The same workflow's retention emulator cases (4/4), room-event lifecycle test (1/1), and Flutter UI analysis/widget tests passed on that run. The overall domain regression remained failed solely because of the fixture failure above.
+- **Validation pending:** the fixture correction is committed, but the new exact-head emulator and full validation workflows must pass before closure. No production catalog record or live entitlement was changed.
