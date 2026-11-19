@@ -145,6 +145,6 @@ test("specialized grant rejects non-canonical and control-character resource sco
     ...valid, resourceScopes: ["campaign:campaign_123 "],
   }), /SPECIALIZED_SCOPE_INVALID/);
   assert.throws(() => validateSpecializedRoleGrant({
-    ...valid, resourceScopes: ["campaign:campaign_123\\u0000"],
+    ...valid, resourceScopes: ["campaign:campaign_123\x00"],
   }), /SPECIALIZED_SCOPE_INVALID/);
 });
