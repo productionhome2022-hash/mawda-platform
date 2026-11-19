@@ -98,3 +98,35 @@ test("specialized role grants cannot be saved with an empty permission list", ()
     startsAtMs: 100, endsAtMs: 1000, version: 1,
   }), /SPECIALIZED_GRANT_INVALID/);
 });
+
+test("specialized grant rejects unknown permissions, wildcard scopes and duplicate values", () => {
+  const valid = {
+    uid: "member_uid_0001", role: "ad_general_supervisor",
+    permissions: ["advertising.requests.review"],
+    resourceScopes: ["campaign:campaign_123"],
+    status: "active", startsAtMs: 100, endsAtMs: 1000, version: 1,
+  };
+  assert.throws(() => validateSpecializedRoleGrant({
+    ...valid, permissions: ["advertising.not_a_real_permission"],
+  }), /SPECIALIZED_PERMISSION_FORBIDDEN/);
+  assert.throws(() => validateSpecializedRoleGrant({
+    ...valid, resourceScopes: ["*"],
+  }), /SPECIALIZED_SCOPE_INVALID/);
+  assert.throws(() => validateSpecializedRoleGrant({
+    ...valid, permissions: ["advertising.requests.review", "advertising.requests.review"],
+  }), /SPECIALIZED_PERMISSION_DUPLICATE/);
+  assert.throws(() => validateSpecializedRoleGrant({
+    ...valid, resourceScopes: ["campaign:campaign_123", "campaign:campaign_123"],
+  }), /SPECIALIZED_SCOPE_DUPLICATE/);
+});
+
+test("specialized grant scope checks are exact and inactive grants fail closed", () => {
+  const grant = activeGrant();
+  const base = {
+    ownerVerified: false, grants: [grant], uid: "member_uid_0001",
+    permission: "advertising.requests.review", resourceScope: "campaign:campaign_123", nowMs: 200,
+  };
+  assert.equal(hasAdvertisingPermission({ ...base, resourceScope: "campaign:campaign_123:child" }), false);
+  assert.equal(hasAdvertisingPermission({ ...base, grants: [{ ...grant, status: "suspended" }] }), false);
+  assert.equal(hasAdvertisingPermission({ ...base, grants: [{ ...grant, startsAtMs: 201 }] }), false);
+});
