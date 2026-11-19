@@ -186,7 +186,7 @@ test("real store purchases flow into the member profile and disappear when their
   try {
     await Promise.all(items.map(([itemId, category, durationDays], index) =>
       catalogRefs[index].set({
-        itemId,
+        itemId, version: 1,
         name: `ميزة ${itemId}`,
         description: "اختبار شراء واستحقاق الملف الشخصي",
         category,
@@ -196,6 +196,11 @@ test("real store purchases flow into the member profile and disappear when their
         active: true,
         purchaseEnabled: true,
         fulfillmentReady: true,
+      }),
+      db.collection("storeCatalogVersions").doc(itemId).collection("versions").doc("1").set({
+        itemId, version: 1, name: `ميزة ${itemId}`,
+        category, priceCoins, durationDays, active: true,
+        purchaseEnabled: true, fulfillmentReady: true,
       }),
     ));
 
@@ -210,7 +215,7 @@ test("real store purchases flow into the member profile and disappear when their
       entitlementRefs.push(entitlementRef);
 
       const result = await purchaseStoreItem.run(call(memberUid, {
-        itemId, requestId, expectedPriceCoins: priceCoins,
+        itemId, requestId, expectedPriceCoins: priceCoins, expectedCatalogVersion: 1,
       }));
       assert.equal(result.idempotentReplay, false, itemId);
       assert.equal(result.newBalance, 5000 - (index + 1) * priceCoins, itemId);
@@ -253,6 +258,8 @@ test("real store purchases flow into the member profile and disappear when their
       ...ledgerRefs.map((ref) => ref.delete().catch(() => undefined)),
       ...entitlementRefs.map((ref) => ref.delete().catch(() => undefined)),
       ...catalogRefs.map((ref) => ref.delete().catch(() => undefined)),
+      ...items.map(([itemId]) => db.collection("storeCatalogVersions").doc(itemId)
+        .collection("versions").doc("1").delete().catch(() => undefined)),
       db.recursiveDelete(memberRef).catch(() => undefined),
     ]);
   }
@@ -274,12 +281,17 @@ test("concurrent retries of the same store purchase debit the wallet only once",
     itemRef.set({
       itemId: "vip_monthly", name: "VIP", description: "Concurrent purchase test",
       category: "vip", priceCoins: 600, durationDays: 30, sortOrder: 1,
-      active: true, purchaseEnabled: true, fulfillmentReady: true,
+      version: 1, active: true, purchaseEnabled: true, fulfillmentReady: true,
+    }),
+    db.collection("storeCatalogVersions").doc("vip_monthly").collection("versions").doc("1").set({
+      itemId: "vip_monthly", version: 1, name: "VIP", category: "vip",
+      priceCoins: 600, durationDays: 30, active: true,
+      purchaseEnabled: true, fulfillmentReady: true,
     }),
   ]);
   try {
     const request = call(memberUid, {
-      itemId: "vip_monthly", requestId, expectedPriceCoins: 600,
+      itemId: "vip_monthly", requestId, expectedPriceCoins: 600, expectedCatalogVersion: 1,
     });
     const results = await Promise.all([
       purchaseStoreItem.run(request),
@@ -297,6 +309,8 @@ test("concurrent retries of the same store purchase debit the wallet only once",
       ledgerRef.delete().catch(() => undefined),
       entitlementRef.delete().catch(() => undefined),
       itemRef.delete().catch(() => undefined),
+      db.collection("storeCatalogVersions").doc("vip_monthly").collection("versions").doc("1")
+        .delete().catch(() => undefined),
       db.recursiveDelete(memberRef).catch(() => undefined),
     ]);
   }
