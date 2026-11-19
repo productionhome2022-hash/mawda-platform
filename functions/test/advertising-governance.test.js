@@ -225,3 +225,32 @@ test("permission evaluator rejects malformed owner flags and malformed context b
   assert.equal(hasAdvertisingPermission({ ...validOwnerContext, resourceScope: " campaign:campaign_123" }), false);
   assert.equal(hasAdvertisingPermission({ ...validOwnerContext, uid: "short" }), false);
 });
+
+
+test("delegated signing rejects null or malformed argument containers without throwing", () => {
+  assert.equal(canSignUnderDelegation(null), false);
+  assert.equal(canSignUnderDelegation(undefined), false);
+  assert.equal(canSignUnderDelegation({ delegation: [] }), false);
+});
+
+test("production roster rejects padded, control-character and malformed member identifiers", () => {
+  for (const uid of [" member_000001", "member_000001 ", "member_0000\\n1", "member/000001"]) {
+    assert.throws(() => validateProductionRoomRoster({
+      teamMemberUids: [uid],
+      privilegedObserverUids: [],
+    }), /PRODUCTION_ROSTER_INVALID/);
+  }
+});
+
+test("public achievement approval fails closed for null and non-boolean approval evidence", () => {
+  assert.equal(canPublishProductionAchievement(null), false);
+  assert.equal(canPublishProductionAchievement(undefined), false);
+  const valid = {
+    ownerVerified: true,
+    ownerApprovalRecorded: true,
+    rightsCleared: true,
+    participantDisclosureCleared: true,
+  };
+  assert.equal(canPublishProductionAchievement({ ...valid, ownerVerified: "true" }), false);
+  assert.equal(canPublishProductionAchievement({ ...valid, rightsCleared: 1 }), false);
+});
