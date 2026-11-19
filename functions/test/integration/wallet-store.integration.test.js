@@ -303,9 +303,10 @@ test("owner economy pricing never seeds commercial defaults and publishes immuta
   const previous = await settingsRef.get();
   const previousData = previous.exists ? previous.data() : null;
   const previousVersions = await versionCollection.get();
-  const previousAudit = await db.collection("adminAuditLogs")
-    .where("action", "==", "economy_pricing_updated")
+  const previousAuditQuery = await db.collection("adminAuditLogs")
     .where("actorUid", "==", "store-catalog-owner").get();
+  const previousAudit = previousAuditQuery.docs.filter((doc) =>
+    doc.data().action === "economy_pricing_updated");
   try {
     await settingsRef.delete().catch(() => undefined);
     const oldVersions = await versionCollection.get();
@@ -371,11 +372,12 @@ test("owner economy pricing never seeds commercial defaults and publishes immuta
     const currentVersions = await versionCollection.get();
     await Promise.all(currentVersions.docs.map((doc) => doc.ref.delete()));
     await Promise.all(previousVersions.docs.map((doc) => doc.ref.set(doc.data())));
-    const currentAudit = await db.collection("adminAuditLogs")
-      .where("action", "==", "economy_pricing_updated")
+    const currentAuditQuery = await db.collection("adminAuditLogs")
       .where("actorUid", "==", "store-catalog-owner").get();
-    const priorIds = new Set(previousAudit.docs.map((doc) => doc.id));
-    await Promise.all(currentAudit.docs.filter((doc) => !priorIds.has(doc.id)).map((doc) => doc.ref.delete()));
+    const currentAudit = currentAuditQuery.docs.filter((doc) =>
+      doc.data().action === "economy_pricing_updated");
+    const priorIds = new Set(previousAudit.map((doc) => doc.id));
+    await Promise.all(currentAudit.filter((doc) => !priorIds.has(doc.id)).map((doc) => doc.ref.delete()));
     if (previousData) await settingsRef.set(previousData);
     else await settingsRef.delete().catch(() => undefined);
   }
