@@ -672,7 +672,7 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 ## 2026-11-19 — read-only wallet reconciliation foundation
 
 - Added the pure read-only `reconcileWalletLedger` helper and unit tests. It distinguishes `consistent`, `mismatch`, `incomplete`, and `corrupt`; legacy rows without balance snapshots remain `incomplete`, and malformed arithmetic/continuity is reported rather than auto-corrected.
-- This is a calculation foundation only. No owner-facing paginated reconciliation callable/UI, cross-domain ledger scan, historical repair, balance mutation, or automatic correction has been implemented. Historical records are not rewritten.
+- Added owner-only `getOwnerWalletReconciliation`, a read-only diagnostic for one member's `walletLedger`. It inspects at most 1,000 entries and explicitly reports truncated or unorderable history as `incomplete`; it does not auto-correct or rewrite historical rows. There is not yet pagination beyond that cap, an owner UI, or a cross-domain scan across transfer/platform/store/room/advertising ledgers. Historical balances are never mutated.
 - Validation status: test source is committed, but the exact current development SHA has not yet been built or tested in this execution.
 
 
