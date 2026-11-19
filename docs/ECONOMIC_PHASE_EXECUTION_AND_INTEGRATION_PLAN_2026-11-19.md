@@ -319,3 +319,28 @@
 6. Review PR #24 featured-ad/media/sticker changes against the same symbols in PR #31; do not merge duplicate modules or duplicate callable names.
 7. Perform the legal/governance source audit and create a document-to-decision-to-implementation register without replacing original agreements.
 8. Only after source integration stabilizes, run the full exact-head Validate, then the appropriately scoped 5,000-persona scenarios and device/non-production acceptance.
+
+
+### 11.7 PR #30 manual-payment source comparison
+
+A direct source comparison of all seven non-document PR #30 files against the current official development branch found:
+- `functions/src/coin-purchase-requests.ts` on PR #30 hardcodes EUR and omits currency exponent support. The current official development version already supports validated ISO currencies and minor-unit exponents; do not port the EUR-only version over it.
+- `functions/test/integration/owner-entitlement-grants.integration.test.js` and `room-rental.integration.test.js` are byte-identical to the current development files; no code port is needed from these files.
+- PR #30's wallet/store integration test is an older, shorter fixture set. Current development has additional owner-configured pricing, no-default-price fail-closed tests, payment policy versioning and wallet reconciliation coverage. Port only genuinely unique cases after comparing their assertions.
+- PR #30's Flutter member/owner coin purchase screens are older and hardcode EUR; current development screens already use owner-configured currency and exponent data. Do not replace current screens with those older versions.
+- The PR #30 branch remains useful as a source reference for manual payment workflow/replay semantics, but its currency implementation is stale relative to current development. No PR #30 source was merged or copied in this audit.
+
+### 11.8 Featured-ad replay root cause and correction
+
+The exact-head integration failure was traced to a schema mismatch in `recordFeaturedAdFinancialEvent`: the immutable event document stored the input event and metadata, but omitted the resulting financial snapshot fields (`receivedMinor`, `refundedMinor`, `reconciledMinor`, `reviewStatus`, `paymentStatus`). The replay validator compared those fields from the version snapshot against the prior event document, so a legitimate replay failed closed with `failed-precondition`.
+
+Correction applied on both current PR branches:
+- Add the derived `...next` financial snapshot to the immutable event document.
+- Add integration assertions that the event contains the resulting snapshot values.
+- PR #35 commits: `c9d0f68aa11c59a4fe9e20b6129d65f0b23c9965` and `6fb0091d2d8e59e48e58fbf7ce6d414e87e2d8f2`.
+- PR #38 commits: `aae62fc3a63398ebfeeaef652b651993013f3500` and `1fd56b4e967072aa322f5791d8c35ea995479d35`.
+- Exact-head Validate and domain regression workflows were started for the corrected heads; their final conclusions must be inspected before marking the defect resolved.
+
+### 11.9 Role-capacity test fixture correction
+
+The first PR #38 domain regression failed because the test fixture supplied `advertising.requests.view_all`, which is not in the canonical permission allowlist. The accepted Admin Media permission is `advertising.requests.review`. The invalid fixture also caused the concurrency case to observe no successful assignment. The fixture was corrected and the subsequent domain regression on SHA `8175a8aaa7fcf9e6275d9c934eb6a3541037f3f7` passed; a later exact-head run on SHA `1fd56b4e967072aa322f5791d8c35ea995479d35` is in progress. This validates the tested five-seat role path only, not the full Admin N permanent-number lifecycle.
