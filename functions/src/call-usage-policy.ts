@@ -8,7 +8,7 @@ export interface CallUsagePolicy {
 
 /** Fixed group-call durations for the current release; pricing never changes these. */
 export const GROUP_AUDIO_CALL_DURATION_MS = 5 * 60 * 1000;
-export const GROUP_VIDEO_CALL_DURATION_MS = 3 * 60 * 1000;
+export const GROUP_VIDEO_CALL_DURATION_MS = 5 * 60 * 1000;
 
 export function validateCallUsagePolicy(value: unknown): CallUsagePolicy {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -48,9 +48,8 @@ export function callModeQuotaLimit(policy: CallUsagePolicy, mode: "audio" | "vid
 }
 
 /**
- * Direct calls retain their existing owner-configured duration policy.
- * Group-room calls use immutable release constants: audio 5m, video 3m.
- * No pricing policy field is consulted when calculating the deadline.
+ * The approved maximum for every direct/room audio/video call is five minutes.
+ * Pricing and quota policy never change this fixed session ceiling.
  */
 export function callMaxDurationEnd(
   nowMs: number,
@@ -59,11 +58,8 @@ export function callMaxDurationEnd(
   mode?: "audio" | "video",
 ): number | null {
   if (!Number.isSafeInteger(nowMs) || nowMs < 0) throw new Error("CALL_TIME_INVALID");
-  if (scope === "room") {
-    if (mode === "audio") return nowMs + GROUP_AUDIO_CALL_DURATION_MS;
-    if (mode === "video") return nowMs + GROUP_VIDEO_CALL_DURATION_MS;
-    throw new Error("CALL_MODE_INVALID");
-  }
-  if (scope !== "direct") throw new Error("CALL_SCOPE_INVALID");
-  return policy.maxCallDurationMs === null ? null : nowMs + policy.maxCallDurationMs;
+  if (scope !== "direct" && scope !== "room") throw new Error("CALL_SCOPE_INVALID");
+  if (mode !== undefined && mode !== "audio" && mode !== "video") throw new Error("CALL_MODE_INVALID");
+  return nowMs + (scope === "room" && mode === "video"
+    ? GROUP_VIDEO_CALL_DURATION_MS : GROUP_AUDIO_CALL_DURATION_MS);
 }
