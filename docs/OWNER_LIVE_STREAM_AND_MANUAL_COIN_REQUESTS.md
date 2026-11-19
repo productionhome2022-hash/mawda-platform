@@ -106,3 +106,12 @@ The separate port branch `codex/economy-official-port-2026-11-18` is based on `c
 - Room rental creation and renewal records/ledgers now capture balance-before/after values. Creation replay validates the original room/member and debit ledger; renewal replay validates the immutable renewal receipt and ledger. Missing or inconsistent financial evidence fails closed.
 - Owner entitlement grant replay verifies the grant, grant-ledger and audit evidence, and does not overwrite a newer paid entitlement after the original grant has expired or been superseded.
 - Unit and emulator test source has been updated. No build, test, emulator or Flutter analysis was run; final validation remains deferred until internal implementation is complete.
+
+
+## 2026-11-19 payment policy and currency controls
+
+- The owner payment policy is service-scoped. Manual coin purchases and owner-recorded featured-ad financial events are the only currently permitted manual paths. Public advertising, influencer services and paid store entitlements remain disabled until their complete request, fulfilment, refund and audit paths are implemented.
+- Automated checkout is disabled for every service. Enabling it requires a verified payment provider, signed webhook validation, amount/currency/order matching, idempotent fulfilment, refund/reversal and reconciliation coverage, plus separate owner approval.
+- Owner pricing has no implicit commercial defaults. The owner must configure coin packages, advertising prices, supported currency codes and custom coin-request bounds. The server derives the currency minor-unit exponent; client input cannot choose it.
+- Coin purchase requests capture immutable pricing/payment-policy versions. Payment instructions are versioned and cannot be silently edited after issue. A member payment report is only a claim and never credits coins. The owner must verify the external payment and approve the request; approval atomically updates the wallet, ledger and audit records.
+- Featured-ad finance events record external receipts, refunds, settlement and review only. They do not activate or publish a campaign, and they do not represent movement of external funds by Mawdda.
