@@ -360,3 +360,16 @@ No production or user data was changed. This is a source-audit finding to be add
 ## شرط الفحص المرحلي الشامل — اعتماد المالك ECON-PHASE-003
 
 تُعد بوابات الفحص والإغلاق الواردة في `ECONOMIC_PHASE_EXECUTION_CHECKLIST_AND_STAGE_CLOSURE_2026-11-19.md` شرطاً حاكماً لهذه الخطة. لا يجوز الانتقال بين المراحل الأربع عشرة دون إغلاق موثق للمرحلة السابقة بعد مراجعة عميقة وتشغيل جميع الاختبارات والفحوصات المتاحة والملائمة في GitHub وبيئات الاختبار. يجب معالجة الثغرات والعيوب الحرجة والعالية وإعادة الاختبارات على SHA نهائي ثابت. الفحص غير المتاح أو غير المنطبق يوثق مع السبب ولا يدعى نجاحه. بوابة المرحلة 0 تأسيسية وليست مرحلة إضافية ضمن المراحل الأربع عشرة.
+
+
+### 11.11 Manual coin-purchase port — currency-contract incompatibility
+
+A fresh source comparison between PR #30 (`codex/economy-official-port-2026-11-18`, head `d5db16e3700abafa95ea5f114bfbe3c0be8c3b7c`) and its current official-development base identified a contract mismatch in `functions/src/coin-purchase-requests.ts`:
+
+- The official-development base imports `currencyExponentForCode` from `./economy-pricing`, while the PR #30 version does not.
+- The PR #30 instruction validator fixes the currency contract to `EUR`; the current base is integrated with the central currency-pricing abstraction.
+- Therefore, porting the PR #30 file wholesale would regress the current currency contract and could make manual coin-purchase instructions inconsistent with owner-configured currency settings.
+
+**Required treatment:** retain the PR #30 state-machine and replay-hardening changes only after a semantic port onto the current currency abstraction. Keep the currency code and minor-unit validation derived from the central pricing contract; do not add EUR as a new platform-wide assumption. Add tests for the configured currency exponent, malformed/unsupported currency, and immutable instruction-version replay before accepting the port.
+
+**Status:** OPEN — source-level incompatibility confirmed by comparing the two branch versions; no code was changed in PR #30 or the official development branch, and no payment behavior was activated.
