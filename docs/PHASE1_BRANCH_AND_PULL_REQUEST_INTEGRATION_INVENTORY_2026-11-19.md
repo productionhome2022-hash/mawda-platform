@@ -108,3 +108,44 @@ Before consolidating, moving, deleting, renaming, or selecting a canonical copy:
 10. Record the comparison outcome and reviewer decision in the PR before the consolidation is eligible for merge.
 
 **Safety rule:** no file is moved or deleted merely because it appears duplicated. When equivalence, ownership, references, or behavior is uncertain, preserve both and escalate the conflict for review. This gate does not authorize merging to `main`, production changes, or destructive production operations.
+
+
+## Follow-up parallel audit — exact changed-path intersections (19 November 2026)
+
+The following PR heads and changed-file lists were re-read from GitHub during the follow-up audit:
+
+| PR | Head SHA | Changed files | Workflow runs found for head | Combined status entries |
+|---|---|---:|---:|---:|
+| #30 | `d5db16e3700abafa95ea5f114bfbe3c0be8c3b7c` | 9 | 0 | 0 |
+| #31 | `0914885232ff8bcfb64536c6655e7bff01b78361` | 45 | 0 | 0 |
+| #33 | `619eab643e2d5849b3b2c055461d53ba2be01753` | 39 | 0 | 0 |
+| #35 | `6fb0091d2d8e59e48e58fbf7ce6d414e87e2d8f2` | 10 | 0 | 0 |
+| #38 | `a54737916c09cb92ef8d5ec97bd559b496bbf7c0` | 13 | 0 | 0 |
+| #39 | `beec6e424ccdb1f1df24d44b2893212983508f7e` | 8 | 0 | 0 |
+| #40 | `64ccc7b20445e7be15d6ec4d0be0e329f0250f11` | 4 | 0 | 0 |
+| #41 | `8c3025ff1eb4486d49c5388957c29697372b0682` | 1 | 0 | 0 |
+
+**Interpretation:** these connector queries returned no PR-triggered workflow runs and no combined status entries for the listed exact heads. This is not a successful test result; exact-head CI evidence is absent in this observation. Baseline workflow success above remains limited to the baseline SHA.
+
+### Newly computed changed-path intersections
+
+| PR pair | Shared changed paths |
+|---|---|
+| #30 ↔ #31 | `functions/src/coin-purchase-requests.ts`, `functions/src/index.ts`, `functions/test/coin-purchase-requests.test.js`, `functions/test/integration/wallet-store.integration.test.js`, `lib/screens/coin_purchase_screen.dart`, `lib/screens/owner_coin_purchase_screen.dart` |
+| #30 ↔ #33 | `functions/src/index.ts` |
+| #31 ↔ #33 | `functions/src/index.ts`, `lib/screens/super_admin_screen.dart` |
+| #33 ↔ #39 | `docs/IMPLEMENTATION_TRACEABILITY.md`, `docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md` |
+| #33 ↔ #40 | `docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md`, `docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md` |
+| #39 ↔ #40 | `docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md` |
+
+These are path intersections only, not proof of duplicate content or semantic equivalence. The mandatory deep-review gate above still requires complete exact-SHA content retrieval, reference tracing and tests before any file consolidation.
+
+### Updated execution decisions
+
+1. **Economic path:** #30 is a focused candidate, while #31 is a broad 45-file proposal. Keep both unmerged. Review the six shared paths as one combined change set, then isolate #30's unique wallet/payment hardening only if its contracts and tests remain compatible with the selected #31/base implementation.
+2. **Governance path:** #33, #39 and #40 converge on decision/traceability documentation. Reconcile owner-approved role terminology and legal-document access policy in documentation first; then inspect #33's backend authorization and Firestore/Storage rules as a single security boundary.
+3. **Cross-domain code:** #30/#33 and #31/#33 both intersect at `functions/src/index.ts`; no whole-file replacement is permitted. Extract function-level deltas and validate exports, callable registration, authorization and tests.
+4. **Workflow gate:** no exact-head Actions evidence was returned for these PR heads in this audit. Do not infer that workflows ran or passed. Investigate trigger/branch filters and repository Actions availability before considering a rerun or manual dispatch.
+5. **Mergeability:** #40 was reported mergeable at the metadata snapshot, but it has no exact-head status evidence here and remains a draft. Mergeability alone is not approval or a test pass.
+
+**Current phase status:** Step 1 remains open. No source PR was merged, no file was deleted or moved, no production resource was changed, and the 5,000-person simulation remains deferred.
