@@ -28,13 +28,14 @@ const {
   sendChatMediaAttachment,
   getChatMediaAttachmentUrl,
   deleteMediaAssetForMessage,
+  receiveMediaScanVerdict,
 } = require("../../lib/media");
 
 const { createMemberStory, listMemberStories } = require("../../lib/index");
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
-const { randomUUID, createHash } = require("node:crypto");
+const { randomUUID, createHash, createHmac } = require("node:crypto");
 
 // Signed URL generation needs a signer even when the target is the Storage Emulator.
 // Generate an ephemeral, test-only service account key; never use production credentials.
@@ -957,5 +958,61 @@ test("active legal hold blocks permanent media deletion", async () => {
       assetRef.delete().catch(() => undefined),
       objectFile.delete().catch(() => undefined),
     ]);
+  }
+});
+
+
+test("scanner error callback returns retryable 503 without changing quarantined asset", async () => {
+  const secret = "scanner-callback-test-secret-".padEnd(48, "x");
+  process.env.MAWDA_MEDIA_SCANNER_HMAC_SECRET = secret;
+  const mediaId = randomUUID();
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const initial = {
+    mediaId,
+    ownerUid: `scanner-error-owner-${randomUUID()}`,
+    mediaPurpose: "chat",
+    status: "pending_security_scan",
+    storageGeneration: "1740000000000000",
+    objectPath: `quarantine/scanner-error-owner/${mediaId}`,
+  };
+  await assetRef.set(initial);
+  try {
+    const payload = {
+      mediaId,
+      purpose: "chat",
+      provider: "clamav-mawadda-gateway",
+      verdict: "error",
+      objectGeneration: initial.storageGeneration,
+      sha256: "a".repeat(64),
+      scannedAtMs: Date.now(),
+      scanEngine: "ClamAV",
+      engineVersion: "1.4.6",
+      signatureDatabaseVersion: "28202",
+      signatureDatabaseAgeMs: 60 * 60 * 1000,
+    };
+    const rawBody = Buffer.from(JSON.stringify(payload));
+    const signature = createHmac("sha256", secret).update(rawBody).digest("hex");
+    const request = {
+      method: "POST",
+      rawBody,
+      get: (name) => name.toLowerCase() === "x-mawadda-scanner-signature" ? signature : undefined,
+    };
+    const response = {
+      statusCode: 200,
+      headers: {},
+      body: undefined,
+      status(code) { this.statusCode = code; return this; },
+      set(name, value) { this.headers[name.toLowerCase()] = value; return this; },
+      send(value) { this.body = value; return this; },
+      json(value) { this.body = value; return this; },
+    };
+    await receiveMediaScanVerdict.run(request, response);
+    assert.equal(response.statusCode, 503);
+    assert.match(String(response.body), /retry required/i);
+    const after = await assetRef.get();
+    assert.deepEqual(after.data(), initial);
+  } finally {
+    await assetRef.delete().catch(() => undefined);
+    delete process.env.MAWDA_MEDIA_SCANNER_HMAC_SECRET;
   }
 });
