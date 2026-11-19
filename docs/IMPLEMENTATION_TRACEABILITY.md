@@ -712,3 +712,11 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 - Fixed the owner/MFA-only publishing transaction to assign a monotonic positive version (1 for a new/legacy unversioned item, then previous version + 1), reject corrupt/overflowed prior versions fail-closed, and write the version into the immutable owner audit event. The callable now returns the assigned version.
 - Extended the Firestore-emulator store integration to assert initial version 1 and republish version 2 before purchase flows. The earlier owner-grant fixture also now includes a versioned catalog record.
 - **Validation pending:** exact-head Functions compile/unit/emulator tests and domain regression must pass. No production catalog documents were modified.
+
+## 2026-11-19 — featured-ad immutable snapshots and currency fixture alignment
+
+- The featured-ad finance integration contract expects a versioned campaign snapshot and a self-contained event snapshot. The development callable previously wrote only the mutable campaign head and omitted the resulting financial state from each immutable event record.
+- Updated timed-ad campaign publishing to create `timedAdCampaignVersions/{campaignId}/versions/{version}` atomically with the campaign head, with monotonic versioning and fail-closed handling of corrupt/overflowed prior versions.
+- Updated financial event creation to persist the post-transition financial snapshot (`...next`) in the immutable event record alongside the existing version snapshot and audit record. Campaign/event/audit writes remain in the same Firestore transaction.
+- Updated the emulator fixture from CHF to EUR because the official platform currency allowlist is now explicitly limited to nine owner-approved currencies. Added assertions for event-level received/refunded/reconciled totals and payment/review status.
+- **Validation pending:** exact-head Functions compile/unit/emulator and domain regression workflows must pass. No live advertising campaign, payment, or external funds were changed.
