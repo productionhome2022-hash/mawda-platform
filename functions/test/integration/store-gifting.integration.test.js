@@ -23,6 +23,8 @@ test("store gift debits sender and grants recipient once with immutable terms", 
   const senderUid = `gift_sender_${tag}`;
   const recipientUid = `gift_recipient_${tag}`;
   const recipientUsername = `giftuser_${tag}`;
+  const otherRecipientUid = `gift_other_recipient_${tag}`;
+  const otherRecipientUsername = `giftother_${tag}`;
   const itemId = "vip_monthly";
   const requestId = `gift_req_${tag}`;
   const itemRef = db.collection("storeCatalog").doc(itemId);
@@ -31,6 +33,8 @@ test("store gift debits sender and grants recipient once with immutable terms", 
   const previousVersions = await versionsRef.get();
   const usernameRef = db.collection("usernameRegistry").doc(recipientUsername);
   const previousUsername = await usernameRef.get();
+  const otherUsernameRef = db.collection("usernameRegistry").doc(otherRecipientUsername);
+  const previousOtherUsername = await otherUsernameRef.get();
   const senderRef = db.collection("users").doc(senderUid);
   const recipientRef = db.collection("users").doc(recipientUid);
   const entitlementRef = recipientRef.collection("entitlements").doc(itemId);
@@ -47,6 +51,7 @@ test("store gift debits sender and grants recipient once with immutable terms", 
       profileCompleted: true, accountStatus: "active", username: recipientUsername, coins: 300,
     }),
     usernameRef.set({ uid: recipientUid, username: recipientUsername }),
+    otherUsernameRef.set({ uid: otherRecipientUid, username: otherRecipientUsername }),
   ]);
   try {
     const saved = await setStoreCatalogItem.run(ownerRequest("gift-catalog-owner", {
@@ -82,7 +87,7 @@ test("store gift debits sender and grants recipient once with immutable terms", 
     assert.equal((await senderRef.get()).data().coins, 1500);
     await assert.rejects(
       () => giftStoreItem.run(memberRequest(senderUid, {
-        ...giftInput, recipientUsername: "different_username",
+        ...giftInput, recipientUsername: otherRecipientUsername,
       })),
       (error) => error && error.code === "already-exists",
     );
@@ -102,8 +107,9 @@ test("store gift debits sender and grants recipient once with immutable terms", 
         await Promise.all(previousVersions.docs.map((doc) => doc.ref.set(doc.data())));
       })(),
       (async () => {
-        await usernameRef.delete().catch(() => undefined);
+        await Promise.all([usernameRef.delete().catch(() => undefined), otherUsernameRef.delete().catch(() => undefined)]);
         if (previousUsername.exists) await usernameRef.set(previousUsername.data());
+        if (previousOtherUsername.exists) await otherUsernameRef.set(previousOtherUsername.data());
       })(),
     ]);
   }
