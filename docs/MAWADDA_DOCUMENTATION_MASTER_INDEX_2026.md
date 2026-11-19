@@ -66,6 +66,12 @@
 
 تم إدراج المتطلبات الموثقة من وثائق الفرعين في الدستور والرؤية وسجل المصادر، لكن **هذا لا يعني نقل كل تغييرات الكود أو اختبارات الفرعين**. يلزم دمج انتقائي لاحق مع مراجعة تعارضات واختبارات على SHA موحد. لا تنفذ عملية الدمج إلى `main` ولا تغيّر الإنتاج.
 
+
+## Canonical administrative terminology appendix
+
+- MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md is the specialist terminology appendix for role names, capacity boundaries, separation of authority, and unresolved fixed-seat numbering policy governed by the unified constitution.
+- The unified constitution remains the canonical policy authority; this appendix is an implementation and localization reference, not a competing source of policy.
+
 ## مرجع حوكمة العقود ودورة حياة الوثائق — تحديث 19 نوفمبر 2026
 
 - [الحوكمة الأمنية لدورة العقود والوثائق القانونية](LEGAL_CONTRACT_ACCESS_AND_LIFECYCLE_GOVERNANCE_2026.md) — المرجع التفصيلي لصلاحيات الوثائق الفارغة والمكتملة، المشرفين القانونيين الأربعة، المفوض بالتوقيع، التوزيع بعد اكتمال التوقيعات، تعديلات السوبر أونر، الإصدارات والأرشفة والاختبارات.
