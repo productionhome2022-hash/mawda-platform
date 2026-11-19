@@ -47,7 +47,7 @@ export function platformRoleDisplayLabel(
     platform_admin: { ar: "أدمن", en: "Admin", fr: "Administrateur", es: "Administrador" },
     ad_general_supervisor: { ar: "أدمن ميديا", en: "Admin Media", fr: "Admin Média", es: "Admin Media" },
     production_general_supervisor: {
-      ar: "مشرف إنتاج عام", en: "General Production Supervisor",
+      ar: "المشرف العام للإنتاج", en: "General Production Supervisor",
       fr: "Superviseur général de production", es: "Supervisor general de producción",
     },
     production_supervisor: {
