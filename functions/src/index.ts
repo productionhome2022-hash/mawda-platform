@@ -6540,12 +6540,17 @@ export const giftStoreItem = onCall(async (request) => {
       }
       if (!priorLedger.exists || !priorAudit.exists ||
           ledger.type !== "store_gift_purchase" || ledger.giftId !== giftId ||
+          ledger.itemId !== itemId || ledger.priceCoins !== prior.priceCoins ||
           ledger.amount !== -prior.priceCoins || ledger.recipientUid !== recipientUid ||
           ledger.catalogVersion !== expectedCatalogVersion ||
+          ledger.catalogVersionPath !== catalogVersionRef.path ||
           !Number.isSafeInteger(ledger.balanceBefore) ||
           !Number.isSafeInteger(ledger.balanceAfter) ||
           ledger.balanceBefore - prior.priceCoins !== ledger.balanceAfter ||
+          ledger.balanceAfter !== prior.newBalance ||
           audit.action !== "store_item_gifted" || audit.giftId !== giftId ||
+          audit.itemId !== itemId || audit.priceCoins !== prior.priceCoins ||
+          audit.catalogVersion !== expectedCatalogVersion ||
           audit.actorUid !== senderUid || audit.targetUid !== recipientUid) {
         throw new HttpsError("data-loss", "إيصال الإهداء لا يطابق قيد المحفظة وسجل التدقيق.");
       }
