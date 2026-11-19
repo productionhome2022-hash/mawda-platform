@@ -198,3 +198,52 @@ export function canPublishProductionAchievement(args: {
   return args.ownerVerified && args.ownerApprovalRecorded &&
     args.rightsCleared && args.participantDisclosureCleared;
 }
+
+
+/**
+ * Applies an owner-requested additive/partial permission change without
+ * replacing unrelated role scope, dates, status, or grant identity.
+ * Full revocation remains a separate owner-only lifecycle operation.
+ */
+export function applySpecializedPermissionDelta(
+  value: unknown,
+  delta: { add?: unknown; remove?: unknown },
+): SpecializedRoleGrant {
+  const grant = validateSpecializedRoleGrant(value);
+  if (!delta || typeof delta !== "object" || Array.isArray(delta)) {
+    throw new Error("SPECIALIZED_PERMISSION_DELTA_INVALID");
+  }
+  const add = delta.add === undefined ? [] : delta.add;
+  const remove = delta.remove === undefined ? [] : delta.remove;
+  if (!Array.isArray(add) || !Array.isArray(remove)) {
+    throw new Error("SPECIALIZED_PERMISSION_DELTA_INVALID");
+  }
+  const allowed = new Set<string>(ADVERTISING_PERMISSIONS);
+  const current = new Set<string>(grant.permissions);
+  const additions = new Set<string>();
+  const removals = new Set<string>();
+  for (const permission of add) {
+    if (typeof permission !== "string" || !allowed.has(permission) ||
+        FORBIDDEN_SPECIALIZED_PERMISSIONS.has(permission) ||
+        current.has(permission) || additions.has(permission)) {
+      throw new Error("SPECIALIZED_PERMISSION_ADD_INVALID");
+    }
+    additions.add(permission);
+  }
+  for (const permission of remove) {
+    if (typeof permission !== "string" || !current.has(permission) ||
+        removals.has(permission)) {
+      throw new Error("SPECIALIZED_PERMISSION_REMOVE_INVALID");
+    }
+    removals.add(permission);
+  }
+  for (const permission of additions) current.add(permission);
+  for (const permission of removals) current.delete(permission);
+  if (current.size < 1) {
+    throw new Error("SPECIALIZED_PERMISSION_EMPTY_GRANT");
+  }
+  return validateSpecializedRoleGrant({
+    ...grant,
+    permissions: [...current],
+  });
+}
