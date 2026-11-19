@@ -458,3 +458,17 @@ All runs below used `6c8b963576fd98055328a68297e873509c9d2cb5` and completed suc
 - Issue #52 remains open: candidate-only biometric/sticker policy modules remain blocked where they encode unapproved reward/limit policy; matching call-usage/group-call modules are already integrated and were not copied again.
 - Step 1/14 remains **OPEN**. CI is green on this exact SHA, but Phase 1 source reconciliation and all acceptance gates are not complete.
 - No merge to `main`, deployment, production Firebase mutation, billing/Blaze activation, live retention-policy change, iOS identity change, or production data operation was performed.
+
+
+## Additional exact-head verification — 2026-11-20 (PR #54)
+
+- CI coverage change: PR #54 adds the existing specialized role-capacity/seat-lifecycle and store-gifting/replay emulator suites to `.github/workflows/validate.yml`.
+- PR: https://github.com/productionhome2022-hash/mawda-platform/pull/54
+- Branch: `codex/phase1-ci-coverage-role-store-2026-11-20`
+- Exact tested SHA: `d46cd7095915bf98480ef38574356c62d72e6a95`
+- Workflow: Validate Mawda run `44620178339` — completed successfully.
+- All three jobs passed: Flutter analysis/tests/web release and production-configured candidate builds (no deployment); isolated ClamAV scanner tests/container and EICAR detection; Cloud Functions compile/unit tests and emulator integration suites.
+- Newly wired steps both passed: `test:specialized-role-capacity-integration` and `test:store-gifting-integration`.
+- The Functions job also passed the existing media, retention, deletion, entitlement, wallet/store, featured-ad, room, call-signaling, FCM, biometric, safety/privacy, guest, audit, legal-hold, profile-media and Firestore/Storage rules suites.
+- PR #54 remains Draft and unmerged. This CI result validates the workflow-only addition; it does not close the underlying business/security issues or complete Step 1/14.
+- No production code, Firebase production resources, live retention settings, billing, deployment, main merge, or 5,000-persona simulation was changed or run.
