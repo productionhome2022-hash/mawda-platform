@@ -1,3 +1,6 @@
+import {
+  isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, calculateStoreGiftExpiryMs,
+} from "./store-gifting";
 import { initializeApp } from "firebase-admin/app";
 import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
 import { getAuth } from "firebase-admin/auth";
@@ -6454,6 +6457,183 @@ export const getStoreCatalog = onCall(async (request) => {
  * Balance debit, immutable ledger entry, purchase receipt, and entitlement
  * are committed atomically. Real-money top-ups are a separate unimplemented flow.
  */
+export const giftStoreItem = onCall(async (request) => {
+  const senderUid = requireAuthenticatedUid(request.auth?.uid);
+  const rawRecipientUid = request.data?.recipientUid;
+  const recipientUsername = request.data?.recipientUsername;
+  const itemId = request.data?.itemId;
+  const requestId = request.data?.requestId;
+  const expectedPriceCoins = request.data?.expectedPriceCoins;
+  const expectedCatalogVersion = request.data?.expectedCatalogVersion;
+  let recipientUid = typeof rawRecipientUid === "string" ? rawRecipientUid : null;
+  let usernameRef: FirebaseFirestore.DocumentReference | null = null;
+  if (typeof recipientUsername === "string") {
+    const normalizedUsername = recipientUsername.trim();
+    if (normalizedUsername.length < 1 || normalizedUsername.length > 64 ||
+        normalizedUsername.includes("/") || /\s/.test(normalizedUsername)) {
+      throw new HttpsError("invalid-argument", "اسم المستلم غير صالح.");
+    }
+    usernameRef = db.collection("usernameRegistry").doc(normalizedUsername);
+    const usernameSnapshot = await usernameRef.get();
+    const registeredUid = usernameSnapshot.data()?.uid;
+    if (!usernameSnapshot.exists || typeof registeredUid !== "string") {
+      throw new HttpsError("not-found", "اسم المستخدم غير موجود.");
+    }
+    if (recipientUid !== null && recipientUid !== registeredUid) {
+      throw new HttpsError("invalid-argument", "معرف المستلم لا يطابق اسم المستخدم.");
+    }
+    recipientUid = registeredUid;
+  }
+  if (typeof recipientUid !== "string" || recipientUid.trim() !== recipientUid ||
+      recipientUid.length < 1 || recipientUid.length > 128 || recipientUid.includes("/") ||
+      recipientUid === senderUid || (usernameRef === null && typeof rawRecipientUid !== "string") ||
+      typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
+      typeof requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestId) ||
+      !Number.isSafeInteger(expectedPriceCoins) || expectedPriceCoins < 1 ||
+      !Number.isSafeInteger(expectedCatalogVersion) || expectedCatalogVersion < 1) {
+    throw new HttpsError("invalid-argument", "بيانات إهداء العنصر غير صالحة.");
+  }
+  const senderRef = db.collection("users").doc(senderUid);
+  const recipientRef = db.collection("users").doc(recipientUid);
+  const itemRef = db.collection("storeCatalog").doc(itemId);
+  const giftId = createHash("sha256").update(
+    `mawdda-store-gift-v1:${senderUid}:${requestId}`,
+  ).digest("hex");
+  const giftRef = db.collection("storeGifts").doc(giftId);
+  const ledgerRef = senderRef.collection("walletLedger").doc(`store_gift_${giftId}`);
+  const entitlementRef = recipientRef.collection("entitlements").doc(itemId);
+  const auditRef = db.collection("adminAuditLogs").doc(`store_gift_${giftId}`);
+  return db.runTransaction(async (transaction) => {
+    const [sender, recipient, itemSnapshot, priorGift, priorEntitlement, priorLedger, priorAudit, usernameSnapshot] = await Promise.all([
+      transaction.get(senderRef), transaction.get(recipientRef),
+      transaction.get(itemRef), transaction.get(giftRef), transaction.get(entitlementRef),
+      transaction.get(ledgerRef), transaction.get(auditRef),
+      usernameRef ? transaction.get(usernameRef) : Promise.resolve(null),
+    ]);
+    if (usernameRef && (!usernameSnapshot?.exists || usernameSnapshot.data()?.uid !== recipientUid)) {
+      throw new HttpsError("aborted", "تغير سجل اسم المستخدم؛ أعد المحاولة.");
+    }
+    if (priorGift.exists) {
+      const prior = priorGift.data() ?? {};
+      const ledger = priorLedger.data() ?? {};
+      const audit = priorAudit.data() ?? {};
+      if (!isStoreGiftReplayCompatible(prior, {
+        senderUid, recipientUid, itemId, expectedPriceCoins, expectedCatalogVersion,
+      })) {
+        throw new HttpsError("already-exists", "معرف طلب الإهداء مستخدم لعملية أو مستلم أو سعر مختلف.");
+      }
+      if (!priorLedger.exists || !priorAudit.exists ||
+          ledger.type !== "store_gift_purchase" || ledger.giftId !== giftId ||
+          ledger.amount !== -prior.priceCoins || ledger.recipientUid !== recipientUid ||
+          ledger.catalogVersion !== expectedCatalogVersion ||
+          !Number.isSafeInteger(ledger.balanceBefore) ||
+          !Number.isSafeInteger(ledger.balanceAfter) ||
+          ledger.balanceBefore - prior.priceCoins !== ledger.balanceAfter ||
+          audit.action !== "store_item_gifted" || audit.giftId !== giftId ||
+          audit.actorUid !== senderUid || audit.targetUid !== recipientUid) {
+        throw new HttpsError("data-loss", "إيصال الإهداء لا يطابق قيد المحفظة وسجل التدقيق.");
+      }
+      return {
+        giftId, itemId, recipientUid, priceCoins: prior.priceCoins,
+        newBalance: prior.newBalance,
+        expiresAt: prior.expiresAt instanceof Timestamp ? prior.expiresAt.toMillis() : null,
+        idempotentReplay: true,
+      };
+    }
+    if (!sender.exists || sender.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(sender.data())) {
+      throw new HttpsError("permission-denied", "حالة حساب المرسل لا تسمح بالإهداء.");
+    }
+    if (!recipient.exists || !isEligibleStoreGiftMemberRecord(recipient.data())) {
+      throw new HttpsError("failed-precondition", "المستلم غير مؤهل لاستلام هدية من المتجر.");
+    }
+    if (!itemSnapshot.exists) throw new HttpsError("not-found", "عنصر المتجر غير موجود.");
+    const item = projectStoreCatalogItem(itemId, itemSnapshot.data() ?? {});
+    if (!item || !isStoreItemPurchasable(item)) {
+      throw new HttpsError("failed-precondition", "هذا العنصر غير منشور أو أن استحقاقه غير جاهز للإهداء.");
+    }
+    if (item.version !== expectedCatalogVersion ||
+        !isStorePurchasePriceCurrent(expectedPriceCoins, item.priceCoins)) {
+      throw new HttpsError("failed-precondition", "تغير سعر العنصر أو إصداره؛ حدّث المتجر قبل الإهداء.");
+    }
+    const prior = priorEntitlement.data() ?? {};
+    if (prior.status === "active" &&
+        (prior.expiresAt === null || prior.expiresAt === undefined)) {
+      throw new HttpsError("already-exists", "يمتلك المستلم هذا الاستحقاق الدائم بالفعل.");
+    }
+    const nowMs = Date.now();
+    let expiresAtMs: number | null;
+    try {
+      let durationBase: Record<string, unknown> = prior;
+      if (item.category === "boost") {
+        const readExpiry = (value: unknown): number => {
+          if (value instanceof Timestamp) return value.toMillis();
+          if (value && typeof value === "object" &&
+              typeof (value as { toMillis?: unknown }).toMillis === "function") {
+            try { return (value as { toMillis: () => number }).toMillis(); } catch { return 0; }
+          }
+          return 0;
+        };
+        const baseExpiry = Math.max(
+          prior.status === "active" ? readExpiry(prior.expiresAt) : 0,
+          readExpiry(recipient.data()?.discoveryBoostExpiresAt),
+        );
+        durationBase = baseExpiry > 0 ? { status: "active", expiresAt: baseExpiry } : {};
+      }
+      expiresAtMs = calculateStoreGiftExpiryMs(durationBase, item.durationDays, nowMs);
+    } catch {
+      throw new HttpsError("failed-precondition", "سجل استحقاق المستلم غير صالح؛ أوقفنا الإهداء.");
+    }
+    const expiresAt = expiresAtMs === null ? null : Timestamp.fromMillis(expiresAtMs);
+    const senderBalance = readSafeInteger(sender.data()?.coins ?? 0, "coins");
+    const newBalance = calculateStorePurchaseBalance(senderBalance, item.priceCoins);
+    if (newBalance === null) throw new HttpsError("failed-precondition", "رصيد المرسل غير كافٍ أو غير صالح.");
+    const now = FieldValue.serverTimestamp();
+    transaction.update(senderRef, { coins: newBalance, walletUpdatedAt: now });
+    transaction.create(giftRef, {
+      giftId, senderUid, recipientUid, itemId, itemName: item.name,
+      category: item.category, priceCoins: item.priceCoins,
+      durationDays: item.durationDays ?? null, catalogVersion: item.version,
+      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
+      balanceBefore: senderBalance, newBalance, expiresAt, status: "completed", createdAt: now,
+    });
+    transaction.create(ledgerRef, {
+      type: "store_gift_purchase", direction: "debit", amount: -item.priceCoins,
+      giftId, recipientUid, itemId, itemName: item.name,
+      priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
+      catalogVersion: item.version,
+      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
+      balanceBefore: senderBalance, balanceAfter: newBalance, createdAt: now,
+    });
+    transaction.set(entitlementRef, {
+      itemId, itemName: item.name, category: item.category, status: "active",
+      giftId, giftedByUid: senderUid, catalogVersion: item.version,
+      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
+      purchasedAt: now, expiresAt,
+    });
+    const recipientUpdate: Record<string, unknown> = {};
+    if (item.category === "boost" && expiresAt) {
+      recipientUpdate.discoveryBoostExpiresAt = expiresAt;
+      recipientUpdate.discoveryBoostGiftId = giftId;
+    }
+    if (item.itemId === "profile_pin_30d" &&
+        typeof recipient.data()?.pinnedProfileSection !== "string") {
+      recipientUpdate.pinnedProfileSection = "interests";
+    }
+    if (Object.keys(recipientUpdate).length > 0) transaction.update(recipientRef, recipientUpdate);
+    transaction.create(auditRef, {
+      actorUid: senderUid, targetUid: recipientUid,
+      action: "store_item_gifted", giftId, itemId, itemName: item.name,
+      priceCoins: item.priceCoins, catalogVersion: item.version,
+      createdAt: now,
+    });
+    return {
+      giftId, itemId, recipientUid, priceCoins: item.priceCoins,
+      newBalance, expiresAt: expiresAtMs, idempotentReplay: false,
+    };
+  });
+});
+
 export const purchaseStoreItem = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const itemId = request.data?.itemId;
@@ -6860,49 +7040,40 @@ export const setStoreCatalogItem = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "بيانات عنصر المتجر أو سعره أو تصنيفه غير صالحة.");
   }
   const itemRef = db.collection("storeCatalog").doc(item.itemId);
-  const result = await db.runTransaction(async (transaction) => {
+  let savedVersion = 0;
+  await db.runTransaction(async (transaction) => {
     const previousSnapshot = await transaction.get(itemRef);
-    const previousVersion = previousSnapshot.exists
-      ? (previousSnapshot.data()?.version ?? 0)
-      : 0;
-    if (!Number.isSafeInteger(previousVersion) || previousVersion < 0 ||
-        previousVersion >= Number.MAX_SAFE_INTEGER) {
-      throw new HttpsError("failed-precondition", "إصدار عنصر المتجر السابق غير صالح؛ أوقفنا التحديث.");
+    const previous = previousSnapshot.data() ?? {};
+    if (previousSnapshot.exists && (!Number.isSafeInteger(previous.version) || previous.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار عنصر المتجر الحالي غير صالح؛ أوقفنا التحديث لحماية سجل الأسعار.");
     }
-    const version = previousVersion + 1;
+    savedVersion = previousSnapshot.exists ? previous.version + 1 : 1;
+    if (!Number.isSafeInteger(savedVersion)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لعنصر المتجر.");
     const now = FieldValue.serverTimestamp();
-    transaction.set(itemRef, {
-      itemId: item.itemId,
-      version,
-      name: item.name,
-      description: item.description,
-      category: item.category,
-      priceCoins: item.priceCoins,
-      durationDays: item.durationDays ?? null,
-      sortOrder: item.sortOrder,
-      active: item.active,
-      purchaseEnabled: item.purchaseEnabled,
-      fulfillmentReady: item.fulfillmentReady,
-      createdAt: previousSnapshot.data()?.createdAt ?? now,
-      updatedAt: now,
-      updatedBy: actorUid,
-    });
+    const nextItem = {
+      itemId: item.itemId, name: item.name, description: item.description,
+      category: item.category, priceCoins: item.priceCoins,
+      durationDays: item.durationDays ?? null, sortOrder: item.sortOrder,
+      active: item.active, purchaseEnabled: item.purchaseEnabled,
+      fulfillmentReady: item.fulfillmentReady, version: savedVersion,
+      createdAt: previous.createdAt ?? now, updatedAt: now, updatedBy: actorUid,
+    };
+    const versionRef = db.collection("storeCatalogVersions").doc(item.itemId)
+      .collection("versions").doc(String(savedVersion));
+    transaction.create(versionRef, { ...nextItem, createdBy: actorUid });
+    transaction.set(itemRef, { ...nextItem, currentVersionPath: versionRef.path });
     const auditRef = db.collection("adminAuditLogs").doc();
     transaction.create(auditRef, {
       actorUid,
       action: previousSnapshot.exists ? "store_catalog_item_updated" : "store_catalog_item_created",
-      itemId: item.itemId,
-      version,
-      active: item.active,
-      priceCoins: item.priceCoins,
-      category: item.category,
-      purchaseEnabled: item.purchaseEnabled,
-      fulfillmentReady: item.fulfillmentReady,
+      itemId: item.itemId, version: savedVersion,
+      active: item.active, priceCoins: item.priceCoins,
+      category: item.category, purchaseEnabled: item.purchaseEnabled,
+      fulfillmentReady: item.fulfillmentReady, durationDays: item.durationDays ?? null,
       createdAt: now,
     });
-    return { version };
   });
-  return { itemId: item.itemId, version: result.version, active: item.active };
+  return { itemId: item.itemId, active: item.active, version: savedVersion };
 });
 
 /** Returns only display-safe catalog fields to the authenticated owner. */
