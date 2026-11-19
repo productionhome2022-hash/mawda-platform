@@ -257,6 +257,58 @@ test("expired ringing calls never expose stored signaling or ICE configuration",
 });
 
 
+test("room calls enforce five audio and four video participants including the initiator", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = uid("room_caps");
+  const participantUids = Array.from({ length: 5 }, (_, index) => uid(`room_cap_${index}`));
+  const roomId = uid("room_cap_room");
+  const videoCallId = uid("room_cap_video");
+  const audioCallId = uid("room_cap_audio");
+  const roomRef = db.collection("rooms").doc(roomId);
+  const callRefs = [videoCallId, audioCallId].map((id) => db.collection("callSessions").doc(id));
+  const userRefs = participantUids.map((memberUid) => db.collection("users").doc(memberUid));
+  await Promise.all([
+    ...userRefs.map((ref) => ref.set({
+      profileCompleted: true, accountStatus: "active", age: 30,
+    })),
+    roomRef.set({
+      roomId, name: "غرفة اختبار حدود المشاركين", ownerUid: participantUids[0],
+      kind: "public", audience: "adult", status: "active", capacity: 5,
+      memberCount: 5,
+    }),
+    ...participantUids.map((memberUid) =>
+      roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" })),
+    ...participantUids.flatMap((memberUid) => [
+      seedCallEntitlement(memberUid, "audio"),
+      seedCallEntitlement(memberUid, "video"),
+    ]),
+  ]);
+  try {
+    await assert.rejects(
+      () => startCall.run(call(participantUids[0], {
+        callId: videoCallId, scope: "room", targetId: roomId, mode: "video",
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    const audio = await startCall.run(call(participantUids[0], {
+      callId: audioCallId, scope: "room", targetId: roomId, mode: "audio",
+    }));
+    assert.equal(audio.participantUids.length, 5);
+    assert.deepEqual(new Set(audio.participantUids), new Set(participantUids));
+  } finally {
+    await Promise.all([
+      ...callRefs.map((ref) => db.recursiveDelete(ref).catch(() => undefined)),
+      db.recursiveDelete(roomRef).catch(() => undefined),
+      ...userRefs.map((ref) => db.recursiveDelete(ref).catch(() => undefined)),
+      ...participantUids.map((memberUid) => db.collection("activeCallMemberLocks").doc(memberUid).delete().catch(() => undefined)),
+      ...participantUids.map((memberUid) => db.collection("callQuotaWindows").doc(memberUid).delete().catch(() => undefined)),
+      ...participantUids.flatMap((memberUid) => ["audio", "video"].map((mode) =>
+        db.collection("users").doc(memberUid).collection("entitlements")
+          .doc(mode === "audio" ? "voice_call_24h" : "video_call_24h").delete().catch(() => undefined))),
+    ]);
+  }
+});
+
 test("server enforces rolling audio and video attempt quotas without charging retries", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const callerUid = uid("call_quota_caller");
