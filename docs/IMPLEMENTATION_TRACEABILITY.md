@@ -713,3 +713,12 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 - **Implemented in PR #37:** canonical role identity/display-label helper; server-side transactional capacity guard for Admin Media and General Production Supervisor; shared seat-counter transaction conflict point; unit tests for role identities/capacity/labels; emulator integration coverage for fifth/sixth seat and concurrent claims.
 - **Still open:** persistent Admin N sequence allocation and immutable appointment/revocation history; full fixed-seat lifecycle after removal; delegated permission lifecycle; resource-scoped access matrix; consistent localized role projections in every Flutter/web/room/chat/Workspace/notification/email surface; owner review of any numbering-reuse policy.
 - **Acceptance:** exact-head Validate Mawda + domain regression green; concurrency tests prove a sixth active assignment cannot be created; all role projections and authorization-denial tests pass; no production deployment before owner release approval.
+
+
+## AUTHZ-AD-001 — Protected-operation enforcement audit (19 November 2026)
+
+- Repository source inspection of `functions/src/index.ts` found the specialized grant read/write/revoke callables (`getOwnerAdvertisingRoleGrants`, `setOwnerAdvertisingRoleGrant`, `revokeOwnerAdvertisingRoleGrant`) and their owner-session gate.
+- The inspected `index.ts` imports `validateSpecializedRoleGrant` and `specializedRoleGrantId`, but does not import or call `hasAdvertisingPermission`. A source-wide literal search in the inspected file returned no call sites for that helper. Therefore the helper-level unit tests do not establish authorization enforcement on advertising/production protected operations.
+- Do not add guessed role-permission assignments or derive resource ownership from caller-provided scope strings. Before enabling specialized staff access to protected operations, each callable must load the authoritative assignment/resource relationship server-side, verify role + permission + active window + exact resource scope, and deny by default.
+- This is a confirmed integration gap, not proof that every related UI or other backend surface is unprotected. The next implementation pass must inventory actual protected callables and their authoritative resource models, then add callable-level denial/allow tests using the emulator.
+- Validation: static source inspection only; no test result is claimed by this record.
