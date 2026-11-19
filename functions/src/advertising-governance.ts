@@ -122,12 +122,17 @@ export function hasAdvertisingPermission(args: {
   resourceScope: string;
   nowMs: number;
 }): boolean {
-  if (args.ownerVerified) return true;
-  if (!ADVERTISING_PERMISSIONS.includes(args.permission) ||
-      typeof args.uid !== "string" || !args.uid ||
+  if (!args || typeof args !== "object" ||
+      typeof args.ownerVerified !== "boolean" ||
+      !ADVERTISING_PERMISSIONS.includes(args.permission) ||
+      typeof args.uid !== "string" || !/^[A-Za-z0-9._:@-]{8,128}$/.test(args.uid) ||
       typeof args.resourceScope !== "string" || !args.resourceScope ||
-      !Number.isSafeInteger(args.nowMs) || args.nowMs < 0 ||
-      !Array.isArray(args.grants)) return false;
+      args.resourceScope.trim() !== args.resourceScope ||
+      !Number.isSafeInteger(args.nowMs) || args.nowMs < 0) return false;
+  // Owner bypass is explicit, but never turns malformed permission names or
+  // malformed request context into an authorization success.
+  if (args.ownerVerified === true) return true;
+  if (!Array.isArray(args.grants)) return false;
 
   // Firestore is an untyped boundary: never trust a TypeScript annotation
   // when grant documents are loaded from persistence. Validate each candidate
