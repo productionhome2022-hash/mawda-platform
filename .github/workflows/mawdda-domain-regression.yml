@@ -6,6 +6,7 @@ on:
       - codex/mawda-full-platform-implementation
       - codex/governance-biometric-integration-2026-11-19
       - codex/mawda-unified-constitution-vision-2026-11-19
+      - codex/mawda-unified-constitution-vision-2026-11-19
 
 permissions:
   contents: read
