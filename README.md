@@ -34,6 +34,8 @@ npm test
 
 ## Canonical product documents
 
+- [Structural governance and biometric verification requirements](docs/STRUCTURAL_GOVERNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md)
+
 - [Canonical administrative terminology and role glossary](docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md)
 
 - [Comprehensive Mawdda Platform 2026 vision](docs/MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md)
