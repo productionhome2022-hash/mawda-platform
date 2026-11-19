@@ -18,7 +18,7 @@ Both workflows remain build/test-only. No production deployment trigger was adde
 
 ## 2. Branch inventory snapshot
 
-GitHub branch search returned 50 refs at the time of this audit:
+GitHub branch search returned 51 refs at the time of this audit:
 
 - Archives: `archive/development-pre-unification-2026-11-15`, `archive/main-pre-unification-2026-11-15`, `codex/mawdda-audit-archive`, `codex/mawdda-audit-archive-full`, `codex/mawdda-final-archive-v2`.
 - Main development baseline: `codex/mawda-full-platform-implementation`.
@@ -148,3 +148,147 @@ The domain regression success applies only to SHA `b0767d99450147a22aa1db93a9945
 GitHub branch metadata for `main` returned `protected: false` and `protection.enabled: false`; the rulesets endpoint returned an empty list. The branch protection detail endpoint itself returned HTTP 403 to this integration, so no administrative protection change was attempted. This is a confirmed governance risk and remains outside this integration branch's write scope.
 
 **Updated decision:** preserve the current source-of-truth baseline, port no duplicate/stale PR #42/#43 code, keep PR #35 selective-only, and continue the P0 specialist-authorization and media-save acceptance work. Step 1 remains OPEN.
+
+
+## 11. Complete GitHub inventory — 19 November 2026
+
+The authoritative branch search returns **51 branches** (including the new integration branch and `main`), not 50. Exact refs:
+
+```text
+archive/development-pre-unification-2026-11-15
+archive/main-pre-unification-2026-11-15
+codex/canonical-role-terminology-owner-confirmation-2026-11-19
+codex/economic-phase1-closeout-2026-11-18
+codex/economic-phase-completion-2026-11-18
+codex/economic-phase-controlled-integration-2026-11-19
+codex/economy-official-port-2026-11-18
+codex/economy-recovery-2026-11-18
+codex/featured-ads-secure-lifecycle-20261118
+codex/featured-ads-serving-foundation
+codex/governance-biometric-integration-2026-11-19
+codex/mawda-full-platform-implementation
+codex/mawda-phase2-hardening
+codex/mawda-unified-constitution-vision-2026-11-19
+codex/mawdda-audit-archive
+codex/mawdda-audit-archive-full
+codex/mawdda-deep-audit-profile-store
+codex/mawdda-deep-governance-audit-2026-11-19
+codex/mawdda-economy-selective-port-2026-11-19
+codex/mawdda-final-archive-v2
+codex/mawdda-member-inbox
+codex/mawdda-member-inbox-rebased
+codex/mawdda-mfa-signin
+codex/mawdda-native-platform-scaffold
+codex/mawdda-phase1-phase2-hardening
+codex/mawdda-phase1-unified-2026-11-19
+codex/mawdda-pr3-port
+codex/mawdda-premium-effects
+codex/mawdda-premium-features
+codex/mawdda-retention-approval-ci-repair-2026-11-19
+codex/mawdda-role-capacity-after-retention-2026-11-19
+codex/mawdda-role-capacity-consolidation-2026-11-19
+codex/mawdda-role-capacity-final-2026-11-19
+codex/mawdda-room-audio-duration-enforcement
+codex/mawdda-room-events
+codex/mawdda-safety-ui
+codex/mawdda-step1-role-reconcile-2026-11-19
+codex/mawdda-store-entitlement-coverage
+codex/mawdda-store-entitlement-hardening
+codex/mawdda-store-entitlement-hardening-v2
+codex/mawdda-store-wallet-entitlement-closure
+codex/mawdda-test-account-system
+codex/mawdda-unified-final
+codex/mawdda-unified-final-v2
+codex/mawdda-unified-final-v3
+codex/mawdda-unified-release
+codex/mawdda-unified-test-2026-11-18
+codex/phase1-integration-batch-01-inventory-2026-11-19
+codex/production-readiness-tests
+codex/structural-governance-biometric-roles-2026-11-19
+main
+```
+
+### Complete pull-request inventory
+
+GitHub returned **38 PRs**: 17 open (all Draft), 21 closed, of which 8 are merged and 13 are closed without merge. Open Draft PRs: #2, #22, #24, #25, #26, #27, #28, #30, #31, #32, #33, #34, #35, #39, #40, #42 and #43. Closed/merged: #1, #10, #11, #12, #14, #18, #21 and #41. Closed without merge: #3, #6, #7, #8, #9, #13, #15, #16, #17, #29, #36, #37 and #38. No PR or branch was deleted or force-pushed.
+
+### Additional ancestry comparisons against the unified development baseline
+
+| Candidate | Ahead | Behind | Changed paths | Disposition |
+|---|---:|---:|---:|---|
+| `codex/economy-recovery-2026-11-18` | 618 | 236 | 105 | Very broad historical candidate; review file-by-file, never wholesale merge |
+| `codex/mawdda-unified-test-2026-11-18` | 311 | 236 | 77 | Broad historical integration candidate; split into source families before any port |
+| `codex/mawda-unified-constitution-vision-2026-11-19` | 142 | 144 | 64 | Divergent constitution/traceability candidate; reconcile approved decisions, not whole branch |
+| `codex/featured-ads-serving-foundation` | 139 | 236 | 31 | Historical serving/media candidate; compare against current secure media pipeline |
+| `codex/structural-governance-biometric-roles-2026-11-19` | 79 | 236 | 35 | Divergent governance/biometric candidate; security and proof-model review required |
+| `codex/mawdda-test-account-system` | 37 | 1268 | 11 | Stale test harness; separate repository and current emulator coverage take precedence |
+| `codex/mawdda-role-capacity-after-retention-2026-11-19` | 22 | 144 | 12 | Stacked role/capacity history; current baseline already contains stronger capacity implementation |
+| `codex/mawdda-role-capacity-consolidation-2026-11-19` | 6 | 144 | 6 | Historical role/capacity candidate; no wholesale port |
+| `codex/mawdda-room-events` | 5 | 1316 | 4 | Stale audit-archive delta; unrelated to room events by current changed paths |
+| `codex/mawdda-audit-archive` | 14 | 1352 | 6 | Stale archive implementation; compare with current audit export/archive contract |
+| `codex/mawdda-member-inbox` | 5 | 1271 | 5 | Stale inbox/privacy delta; compare against current direct-message authorization |
+| `codex/mawdda-member-inbox-rebased` | 7 | 1270 | 7 | Rebased inbox delta; compare only missing deletion/media changes |
+| `codex/mawdda-premium-effects` | 5 | 1350 | 4 | Stale presentation branch; no backend entitlement authority |
+| `codex/mawdda-unified-final` | 17 | 1393 | 5 | Stale profile/email delta; verify if current profile flow supersedes |
+| `codex/mawdda-unified-release` | 4 | 1400 | 4 | Stale biometric-cycle delta; keep reward fail-closed pending cryptographic proof |
+| `codex/mawdda-store-entitlement-coverage` | 2 | 1315 | 2 | Stale tests/UI delta; current integration suite is newer |
+| `codex/mawdda-store-entitlement-hardening` | 2 | 1321 | 2 | Stale room/store fixture delta |
+| `codex/mawdda-store-entitlement-hardening-v2` | 1 | 1316 | 1 | Stale test-only delta |
+| `codex/mawdda-phase1-phase2-hardening` | 1 | 1352 | 1 | Closure matrix only; retain as historical reference |
+| `codex/mawdda-final-archive-v2` | 3 | 1305 | 0 | No changed paths in compare; archive/history only |
+| `codex/mawdda-deep-audit-profile-store` | 0 | 1293 | 0 | Ancestor-only/stale; no unique commits ahead |
+| `codex/mawdda-mfa-signin` | 0 | 1279 | 0 | Ancestor-only/stale; no unique commits ahead |
+| `codex/mawdda-native-platform-scaffold` | 0 | 1290 | 0 | Ancestor-only/stale; no unique commits ahead |
+| `codex/mawdda-pr3-port` | 0 | 1373 | 0 | Ancestor-only/stale; no unique commits ahead |
+| `codex/mawdda-premium-features` | 0 | 1349 | 0 | Ancestor-only/stale; no unique commits ahead |
+| `codex/mawdda-safety-ui` | 0 | 1371 | 0 | Ancestor-only/stale; no unique commits ahead |
+| `codex/mawdda-unified-final-v2` | 0 | 1378 | 0 | Ancestor-only/stale; no unique commits ahead |
+| `codex/mawdda-unified-final-v3` | 0 | 1338 | 0 | Ancestor-only/stale; no unique commits ahead |
+| `codex/mawdda-audit-archive-full` | 0 | 1307 | 0 | Ancestor-only/stale; no unique commits ahead |
+| `archive/development-pre-unification-2026-11-15` | 0 | 628 | 0 | Historical archive; retain |
+| `archive/main-pre-unification-2026-11-15` | 0 | 2828 | 0 | Historical archive; retain |
+| `codex/phase1-integration-batch-01-inventory-2026-11-19` | 0 | 51 | 0 | PR #41 already merged into development; docs-only provenance |
+| `main` | 0 | 2828 | 0 | Older production line; not an integration base |
+
+The remaining compared branches and their dispositions are recorded in §3 above. The ancestry comparisons do not authorize merges: each changed path still requires semantic/API/rules/test review.
+
+## 12. Fourteen-stage execution sequence — canonical reference
+
+The approved 14-stage sequence is in `docs/ECONOMIC_PHASE_EXECUTION_CHECKLIST_AND_STAGE_CLOSURE_2026-11-19.md`. Stage 0 is governance setup and is not counted among the fourteen:
+
+1. Branch inventory and reconciliation.
+2. Constitution, decisions and documents.
+3. Baseline completion and integration.
+4. Wallet, coin ledger and transfers.
+5. Purchase requests and payment.
+6. Commercial engine, store, gifts and entitlements.
+7. Rewards and advertising.
+8. Individual/group calls, rooms, rentals and events.
+9. Media, Media Saver, retention and deletion.
+10. Owner dashboard, costs and protection.
+11. UI integration and complete user journeys.
+12. Comprehensive verification and separate 5,000-persona lab.
+13. Non-production and device acceptance.
+14. Release readiness and final decision.
+
+Each stage remains open until its own exact-SHA acceptance gate passes. Stage 1 is the current work; no transition to Stage 2 is authorized.
+
+## 13. Further permission and media gap evidence
+
+- The approved Admin Media permission catalogue in `docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md` contains granular capabilities such as `advertising.requests.view_assigned`, `advertising.requests.view_all`, `advertising.requests.return_for_correction`, `advertising.campaign.pause_operationally`, and `advertising.workspace.message_representatives`. The current code's `ADVERTISING_PERMISSIONS` vocabulary does not fully match this approved catalogue. This is a schema/decision reconciliation gap, not a reason to broaden access.
+- The current backend exports Owner-only advertising intake/review, production application review, role-grant management and contract management callables. No evidence was found that `hasAdvertisingPermission` gates the specialist operations. This currently fails closed for specialists but does not deliver the approved delegated workflows.
+- The current production workflow requires explicit Owner permission for production-room creation. The generic room callable remains Owner-only; scoped team-room authority must not be inferred from a role label or a UI button.
+- The legal contract centre exposes Owner contract management and counterparty-specific retrieval; the approved four legal-supervisor read/download/send-to-owner scope is not yet implemented as a separate server-checked path.
+- `functions/src/media.ts` contains secure quarantine uploads, signed participant viewing, generation-pinned URLs and scanner callbacks. `storage.rules` intentionally denies direct client access. The media subsystem is not simply absent; it is fail-closed and uses backend capabilities.
+- No Media Saver callable/authorization flow or Save UI was found in the inspected direct-chat, public-room and guest-room screens or `functions/src/media.ts`. The paid local-save feature is therefore not complete. It must be built as a separate, per-save entitlement check for direct/public/rented rooms, using safe approved derivatives and never extending server retention.
+- `functions/src/media-quota.ts` currently contains hard-coded technical quota constants (including five active uploads and 100 daily uploads). Reconcile these with the owner-controlled capacity/cost policy before claiming that all limits are dynamically configurable.
+- PR #33 introduces additional biometric request collections, manual-review/media modules and direct Storage upload rules. These files are absent from the unified baseline and must not be ported wholesale: the source rules add a separate biometric upload path, while the approved reward gate still requires trusted cryptographic proof. Keep biometric rewards and unreviewed direct media paths disabled pending a threat-model and rules-emulator review.
+
+## 14. Latest exact-head CI read-back
+
+The latest integration-branch head at this checkpoint is `79d495303725ca8266c27dbd4bf08a6be2570148`:
+- Domain regression run **44584545444** — success; both Flutter UI/widget and retention/room reservation emulator jobs passed.
+- Validate Mawda run **44584545469** — still pending, with no jobs returned at the last read. It is not a pass.
+- The earlier domain regression success on `b0767d99450147a22aa1db93a994508822c652a1` is retained as historical evidence only, not as a substitute for the current head.
+
+**Current disposition:** the branch inventory now covers all 51 refs and all 38 PRs; selective comparisons have identified stale/duplicate candidates and high-divergence branches. Stage 1 remains OPEN until the remaining changed-file semantic matrix, permission/media remediation, and full Validate exact-head gate are complete.
