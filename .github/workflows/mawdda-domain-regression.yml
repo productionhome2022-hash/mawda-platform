@@ -45,7 +45,7 @@ jobs:
       - name: Run owner entitlement grant and bulk replay integration tests
         run: npm run test:owner-entitlement-grants-integration
       - name: Run specialized role seat-capacity integration tests
-        run: firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-role-capacity "node --test test/integration/specialized-role-capacity.integration.test.js"
+        run: npx firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-role-capacity "node --test test/integration/specialized-role-capacity.integration.test.js"
       - name: Run voice and video call lifecycle integration tests
         run: npm run test:call-signaling-integration
       - name: Run timed advertising and reward ledger integration tests
