@@ -178,6 +178,9 @@ jobs:
       - name: Run 30-day biometric reward cycle integration tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:biometric-integration
+      - name: Run specialized role capacity Firestore emulator integration tests
+        if: ${{ always() && steps.install_functions.outcome == 'success' }}
+        run: npm run test:role-capacity-integration
       - name: Run attendance and timed-ad reward integration tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:engagement-rewards-integration
