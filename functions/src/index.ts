@@ -7903,6 +7903,8 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
   } catch {
     throw new HttpsError("failed-precondition", "إعدادات اقتصاد المنصة غير صالحة؛ راجع الدعم التقني.");
   }
+  const usesExperimentalPricingDefaults =
+    data.coinPackages === undefined || data.adPrices === undefined;
   const bounds = data.customCoinRequestBounds ?? null;
   if (!Number.isSafeInteger(data.version) || data.version < 1) {
     throw new HttpsError("failed-precondition", "إصدار سياسة الاقتصاد الحالية غير صالح.");
@@ -7925,7 +7927,8 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
     paymentPolicy,
     automatedCoinCheckoutEnabled: false,
     configured: true,
-    pricingDefaultsStatus: "owner_configured",
+    pricingDefaultsStatus: usesExperimentalPricingDefaults
+      ? "experimental_provisional" : "owner_configured",
   };
 });
 
