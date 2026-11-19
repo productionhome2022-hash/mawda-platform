@@ -58,7 +58,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
     setState(() { _busy = true; _message = null; });
     try {
       final result = await FirebaseFunctions.instance
-          .httpsCallable('startBiometricVerificationRequest').call();
+          .httpsCallable('startBiometricVerificationRequest').call({'consent': true});
       final data = Map<String, dynamic>.from(result.data as Map);
       if (!mounted) return;
       setState(() {
