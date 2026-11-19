@@ -235,3 +235,14 @@ test("store duration may be omitted or explicitly cleared by the owner", () => {
   });
   assert.equal(Object.hasOwn(item, "durationDays"), false);
 });
+
+
+test("Super Owner may configure custom product durations within the safe ten-year ceiling", () => {
+  const { validateStoreCatalogItemInput } = require("../lib/store-catalog");
+  const base = {
+    itemId: "vip_monthly", name: "VIP مخصص", description: "مدة قابلة للتعديل من المالك.",
+    category: "vip", priceCoins: 900, sortOrder: 1, active: true, purchaseEnabled: false,
+  };
+  assert.equal(validateStoreCatalogItemInput({ ...base, durationDays: 3650 }).durationDays, 3650);
+  assert.throws(() => validateStoreCatalogItemInput({ ...base, durationDays: 3651 }), /INVALID_STORE_ITEM_FIELDS/);
+});
