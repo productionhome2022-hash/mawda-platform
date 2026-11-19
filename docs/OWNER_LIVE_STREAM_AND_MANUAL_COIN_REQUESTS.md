@@ -45,7 +45,7 @@ Existing biometric/member link entitlements remain governed by server-side link 
 
 ### 4A. One owner identity
 
-The labels **Owner** and **Super Admin** refer to one person and one canonical owner UID. There must not be a separate Super Admin account belonging to another person. Internal legacy claims may be normalized as aliases, but every privileged operation resolves to the same owner identity, with recent MFA/step-up and audit logging. Scoped moderators are not owners and cannot approve coin issuance or change owner-only payment settings.
+The labels **Owner** and **Super Owner** refer to one person and one canonical owner UID. There must not be a separate Super Owner account belonging to another person. Internal legacy claims may be normalized as aliases, but every privileged operation resolves to the same owner identity, with recent MFA/step-up and audit logging. Scoped moderators are not owners and cannot approve coin issuance or change owner-only payment settings.
 
 ### 4B. Two configurable payment channels
 
