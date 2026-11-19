@@ -9,6 +9,22 @@ const db = getFirestore();
 const call = (uid, data = {}) => ({ data, auth: { uid, token: {} } });
 const uid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
+async function seedCallEntitlement(memberUid, mode) {
+  const ids = mode === "audio"
+    ? ["voice_call_24h", "voice_call_7d", "voice_call_30d"]
+    : ["video_call_24h", "video_call_7d", "video_call_30d"];
+  const itemId = ids[0];
+  await db.collection("users").doc(memberUid).collection("entitlements").doc(itemId).set({
+    itemId,
+    itemName: itemId,
+    category: mode === "audio" ? "voice_call" : "video_call",
+    status: "active",
+    purchaseId: "synthetic-call-test-entitlement",
+    purchasedAt: Timestamp.now(),
+    expiresAt: Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000),
+  });
+}
+
 test("direct call lifecycle enforces membership, callee acceptance, sequenced signaling and termination", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const callerUid = uid("call_caller");
@@ -29,6 +45,17 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
     chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
   ]);
   try {
+    await assert.rejects(
+      () => startCall.run(call(callerUid, {
+        callId, scope: "direct", targetId: chatId, mode: "audio",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "both direct-call participants must hold an active audio entitlement",
+    );
+    await Promise.all([
+      seedCallEntitlement(callerUid, "audio"),
+      seedCallEntitlement(calleeUid, "audio"),
+    ]);
     const started = await startCall.run(call(callerUid, {
       callId, scope: "direct", targetId: chatId, mode: "audio",
     }));
@@ -127,6 +154,8 @@ test("room call signaling is peer-targeted and one member leaving does not end t
       roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" })),
   ]);
   try {
+    await Promise.all([callerUid, firstUid, secondUid].map((memberUid) =>
+      seedCallEntitlement(memberUid, "video")));
     const started = await startCall.run(call(callerUid, {
       callId, scope: "room", targetId: roomId, mode: "video",
     }));
@@ -267,6 +296,12 @@ test("server enforces rolling audio and video attempt quotas without charging re
   ]);
 
   try {
+    await Promise.all([
+      seedCallEntitlement(callerUid, "audio"),
+      seedCallEntitlement(calleeUid, "audio"),
+      seedCallEntitlement(callerUid, "video"),
+      seedCallEntitlement(calleeUid, "video"),
+    ]);
     const started = await startCall.run(call(callerUid, {
       callId: firstCallId, scope: "direct", targetId: chatId, mode: "audio",
     }));
