@@ -154,6 +154,9 @@ jobs:
       - name: Run coin transfer and store purchase transactional integration tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:wallet-store-integration
+      - name: Run featured-ad financial event and replay integration tests
+        if: ${{ always() && steps.install_functions.outcome == 'success' }}
+        run: npm run test:featured-ad-finance-integration
       - name: Run room rental pricing and lifecycle integration tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:room-rental-integration
