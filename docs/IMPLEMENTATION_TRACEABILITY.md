@@ -697,3 +697,15 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 - The official development branch currently exposes one-to-one call signaling callables (`startCall`, `respondToCall`, `markCallConnected`, `sendCallSignal`, `getCallSignals`, `endCall`, `getCallIceConfiguration`, `getActiveCall`). It has no integrated group-call economic start/join/settlement/charging callables.
 - Do not activate or port group-call billing from the isolated economic branch as a complete feature. The P0 evidence gaps remain: trusted media-provider participant/usage evidence, complete participant lifecycle and reconnect accounting, server-side entitlement checks for every participant, reservation and atomic partial settlement, large-room SFU architecture/cost/security review, UI acceptance, and 5,000-person simulation.
 - Group-call billing must remain absent/fail-closed until the full evidence chain and concurrency/replay tests are implemented and accepted. No call prices or charging durations are inferred here.
+
+
+## ECON-PHASE-001 — controlled comprehensive economic integration (owner approved 19 November 2026)
+
+- **Requirement:** treat the comprehensive economic phase as one end-to-end integration program across all economic engines, their member/owner interfaces, server callables, data contracts, Firestore rules/indexes, tests, operations, governance and legal records.
+- **Execution control:** inventory every relevant branch/PR/commit; reconcile source changes semantically; port in small dependency-ordered batches to an isolated integration branch; preserve all unique source history; never blind-merge divergent branches.
+- **Acceptance evidence:** each batch has a decision ID, source and target SHA, affected files/contracts, tests, workflow run IDs, result, and unresolved-risk disposition. Exact-head CI must pass on one SHA before a batch is accepted.
+- **Scope:** wallet/ledger/transfers, manual coin purchase, pricing/payment policy, store/gifts/entitlements, rewards, timed and featured ads, calls/group calls, rooms/rentals/events, Media Saver/media retention, cost controls, owner operations, security, legal and governance records.
+- **Legal/governance control:** source documents remain preserved and indexed; signed agreements are never overwritten; drafts remain drafts until legal review and correct signatures; no company facts or legal terms are invented.
+- **Safety boundary:** no merge to `main`, production deployment, live Firebase mutation, billing activation, paid provider provisioning or real-money collection without separate explicit owner approval.
+- **Current plan:** `docs/ECONOMIC_PHASE_EXECUTION_AND_INTEGRATION_PLAN_2026-11-19.md`. **Current legal-document audit:** `docs/LEGAL_GOVERNANCE_DOCUMENT_CONTROL_AUDIT_2026-11-19.md`.
+- **Status:** approved execution program; implementation and acceptance remain open.
