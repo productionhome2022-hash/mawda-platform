@@ -11085,9 +11085,15 @@ export const startCall = onCall(async (request) => {
         !room.exists || room.data()?.status !== "active" || !membership.exists) {
       throw new HttpsError("permission-denied", "يجب أن تكون عضواً في غرفة نشطة لإجراء مكالمة.");
     }
-    const members = await roomRef.collection("members").limit(6).get();
-    if (members.size < 2 || members.size > 5) {
-      throw new HttpsError("failed-precondition", "مكالمات الغرف تدعم حالياً من عضوين إلى خمسة أعضاء كحد أقصى.");
+    const maxParticipants = input.mode === "audio" ? 5 : 4;
+    const members = await roomRef.collection("members").limit(maxParticipants + 1).get();
+    if (members.size < 2 || members.size > maxParticipants) {
+      throw new HttpsError(
+        "failed-precondition",
+        input.mode === "audio"
+          ? "المكالمة الصوتية في الغرفة تدعم من عضوين إلى خمسة أعضاء إجمالاً بمن فيهم المنشئ."
+          : "المكالمة المرئية في الغرفة تدعم من عضوين إلى أربعة أعضاء إجمالاً بمن فيهم المنشئ.",
+      );
     }
     participantUids = members.docs.map((doc) => doc.id).sort();
     recipientUids = participantUids.filter((uid) => uid !== callerUid);
