@@ -1,5 +1,7 @@
 /** The platform's owner-approved settlement and pricing currencies. */
-export const OFFICIAL_ECONOMY_CURRENCIES = ["EUR", "USD", "EGP", "SAR", "SYP"] as const;
+export const OFFICIAL_ECONOMY_CURRENCIES = [
+  "EUR", "USD", "EGP", "SAR", "SYP", "JOD", "IQD", "AED", "DZD",
+] as const;
 
 export const CURRENCY_MINOR_UNIT_EXPONENTS: Readonly<Record<string, number>> = {
   EUR: 2,
@@ -7,6 +9,10 @@ export const CURRENCY_MINOR_UNIT_EXPONENTS: Readonly<Record<string, number>> = {
   EGP: 2,
   SAR: 2,
   SYP: 2,
+  JOD: 3,
+  IQD: 3,
+  AED: 2,
+  DZD: 2,
 };
 
 export function currencyExponentForCode(value: unknown): number | null {
