@@ -29,24 +29,26 @@ export function validateCoinPurchaseRequestInput(value: unknown): {
 }
 
 export function validateOwnerPaymentInstructionInput(value: unknown): {
-  requestId: string; instructions: string; agreedCoins: number; agreedPriceMinor: number; currency: "EUR";
+  requestId: string; instructions: string; agreedCoins: number; agreedPriceMinor: number; currency: "EUR"; expectedInstructionsVersion: number;
 } {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_INSTRUCTIONS");
   const data = value as Record<string, unknown>;
-  if (Object.keys(data).some((key) => !["requestId", "instructions", "agreedCoins", "agreedPriceMinor", "currency"].includes(key))) throw new Error("INVALID_INSTRUCTIONS");
+  if (Object.keys(data).some((key) => !["requestId", "instructions", "agreedCoins", "agreedPriceMinor", "currency", "expectedInstructionsVersion"].includes(key))) throw new Error("INVALID_INSTRUCTIONS");
   if (typeof data.requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(data.requestId) ||
       typeof data.instructions !== "string" || data.instructions.trim().length < 5 ||
       data.instructions.trim().length > 2000 ||
       !Number.isSafeInteger(data.agreedCoins) || (data.agreedCoins as number) < 1 ||
       (data.agreedCoins as number) > 1000000000 ||
       !Number.isSafeInteger(data.agreedPriceMinor) || (data.agreedPriceMinor as number) < 1 ||
-      (data.agreedPriceMinor as number) > 100000000 || data.currency !== "EUR") {
+      (data.agreedPriceMinor as number) > 100000000 || data.currency !== "EUR" ||
+      !Number.isSafeInteger(data.expectedInstructionsVersion) ||
+      (data.expectedInstructionsVersion as number) < 0) {
     throw new Error("INVALID_INSTRUCTIONS");
   }
   return {
     requestId: data.requestId, instructions: data.instructions.trim(),
     agreedCoins: data.agreedCoins as number, agreedPriceMinor: data.agreedPriceMinor as number,
-    currency: "EUR",
+    currency: "EUR", expectedInstructionsVersion: data.expectedInstructionsVersion as number,
   };
 }
 
