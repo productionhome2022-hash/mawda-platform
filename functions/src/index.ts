@@ -138,6 +138,39 @@ const mawddaTurnSharedSecret = defineSecret("MAWDDA_TURN_SHARED_SECRET");
  * serializes head updates so concurrent review requests cannot fork sequence.
  * The head is maintained separately from the event documents.
  */
+async function createOwnerReviewAuditEventInTransaction(
+  transaction: FirebaseFirestore.Transaction,
+  event: Record<string, unknown>,
+): Promise<string> {
+  const auditRef = db.collection("adminAuditLogs").doc();
+  const headSnapshot = await transaction.get(OWNER_REVIEW_AUDIT_HEAD);
+  const head = headSnapshot.data() ?? {};
+  const previousSequence = headSnapshot.exists ? head.sequence : 0;
+  const previousHash = headSnapshot.exists ? head.eventHash : "GENESIS";
+  if (!Number.isSafeInteger(previousSequence) || previousSequence < 0 ||
+      typeof previousHash !== "string" ||
+      !(previousHash === "GENESIS" || /^[a-f0-9]{64}$/.test(previousHash))) {
+    throw new Error("OWNER_AUDIT_CHAIN_HEAD_INVALID");
+  }
+  const sequence = previousSequence + 1;
+  const eventHash = calculateOwnerAuditHash(event, sequence, previousHash);
+  transaction.create(auditRef, {
+    ...event,
+    auditEvent: event,
+    auditChainId: "owner-review-v1",
+    auditSequence: sequence,
+    previousAuditHash: previousHash,
+    auditHash: eventHash,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  transaction.set(OWNER_REVIEW_AUDIT_HEAD, {
+    sequence,
+    eventHash,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  return auditRef.id;
+}
+
 async function appendOwnerReviewAuditEvent(
   event: Record<string, unknown>,
   eventId?: string,
@@ -9427,21 +9460,21 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
     }
     const version = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
+    const auditLogId = await createOwnerReviewAuditEventInTransaction(transaction, {
+      actorUid, action: "specialized_advertising_role_grant_saved",
+      grantId, version, status: grant.status, targetUid: grant.uid,
+      role: grant.role, permissions: grant.permissions,
+      resourceScopes: grant.resourceScopes, outcome: "success",
+    });
     transaction.set(grantRef, {
       ...grant, version, assignedBy: actorUid, updatedBy: actorUid,
       createdAt: previous.data()?.createdAt ?? now, updatedAt: now,
     });
-    return { grantId, version, status: grant.status };
-  });
-  await appendOwnerReviewAuditEvent({
-    actorUid, action: "specialized_advertising_role_grant_saved", ...result,
-    targetUid: grant.uid, role: grant.role, permissions: grant.permissions,
-    resourceScopes: grant.resourceScopes, outcome: "success",
+    return { grantId, version, status: grant.status, auditLogId };
   });
   return result;
 });
 
-/** Owner-only additive/partial permission editor; preserves grant scope and lifecycle metadata. */
 export const updateOwnerAdvertisingRoleGrantPermissions = onCall(async (request) => {
   const actorUid = requireOwner(request);
   const grantId = request.data?.grantId;
@@ -9473,19 +9506,18 @@ export const updateOwnerAdvertisingRoleGrantPermissions = onCall(async (request)
       throw new HttpsError("invalid-argument", "لا يمكن إضافة أو سحب مجموعة الصلاحيات المطلوبة.");
     }
     const version = data.version + 1;
+    const auditLogId = await createOwnerReviewAuditEventInTransaction(transaction, {
+      actorUid, action: "specialized_advertising_role_permissions_updated",
+      grantId, version, status: data.status, permissions: changed.permissions,
+      targetUid: data.uid, role: data.role, outcome: "success",
+    });
     transaction.update(grantRef, {
       permissions: changed.permissions,
       version,
       updatedAt: FieldValue.serverTimestamp(),
       updatedBy: actorUid,
     });
-    return { grantId, version, status: data.status, permissions: changed.permissions };
-  });
-  await appendOwnerReviewAuditEvent({
-    actorUid,
-    action: "specialized_advertising_role_permissions_updated",
-    ...result,
-    outcome: "success",
+    return { grantId, version, status: data.status, permissions: changed.permissions, auditLogId };
   });
   return result;
 });
@@ -9510,14 +9542,16 @@ export const revokeOwnerAdvertisingRoleGrant = onCall(async (request) => {
       return { grantId, version: data.version, revoked: true, idempotentReplay: true };
     }
     const version = data.version + 1;
+    const auditLogId = await createOwnerReviewAuditEventInTransaction(transaction, {
+      actorUid, action: "specialized_advertising_role_grant_revoked",
+      grantId, version, targetUid: data.uid, role: data.role,
+      status: "revoked", outcome: "success",
+    });
     transaction.update(grantRef, {
       status: "revoked", version, revokedAt: FieldValue.serverTimestamp(),
       revokedBy: actorUid, updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
     });
-    return { grantId, version, revoked: true, idempotentReplay: false };
-  });
-  await appendOwnerReviewAuditEvent({
-    actorUid, action: "specialized_advertising_role_grant_revoked", ...result, outcome: "success",
+    return { grantId, version, revoked: true, idempotentReplay: false, auditLogId };
   });
   return result;
 });
