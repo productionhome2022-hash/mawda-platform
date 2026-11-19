@@ -95,7 +95,7 @@ export function validateSpecializedRoleGrant(value: unknown): SpecializedRoleGra
   const scopes = input.resourceScopes as unknown[];
   if (scopes.length < 1 || scopes.length > 200 ||
       scopes.some((scope) => typeof scope !== "string" ||
-        scope.trim().length < 1 || scope !== scope.trim() || /[\\u0000-\\u001f\\u007f]/.test(scope) ||
+        scope.trim().length < 1 || scope !== scope.trim() || /[\x00-\x1f\x7f]/.test(scope) ||
         scope.length > 160 || scope === "*")) {
     throw new Error("SPECIALIZED_SCOPE_INVALID");
   }
