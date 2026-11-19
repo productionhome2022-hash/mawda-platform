@@ -7,6 +7,7 @@ const {
   bulkGrantStoreEntitlements,
   getMyEntitlementGrantHistory,
   purchaseStoreItem,
+  setStoreCatalogItem,
 } = require("../../lib/index");
 
 const db = getFirestore();
@@ -44,16 +45,15 @@ test("owner free grant is MFA-gated, audited, coin-neutral, idempotent and repea
   const secondLedgerRef = memberRef.collection("entitlementGrantLedger").doc(secondGrantId);
   const secondAuditRef = db.collection("adminAuditLogs").doc(`owner_entitlement_grant_${secondGrantId}`);
 
-  await Promise.all([
-    memberRef.set({ uid: memberUid, profileCompleted: true, accountStatus: "active", coins: 4321 }),
-    itemRef.set({
-      itemId, version: 1, name: "VIP", description: "Owner free-grant integration fixture",
-      category: "vip", priceCoins: 900, durationDays: 30, sortOrder: 1, version: 1,
-      active: true, purchaseEnabled: false, fulfillmentReady: true,
-    }),
-  ]);
+  await memberRef.set({ uid: memberUid, profileCompleted: true, accountStatus: "active", coins: 4321 });
 
   try {
+    const initialCatalog = await setStoreCatalogItem.run(ownerRequest(ownerUid, {
+      expectedVersion: 0, itemId, name: "VIP",
+      description: "Owner free-grant integration fixture",
+      category: "vip", priceCoins: 900, durationDays: 30, sortOrder: 1,
+      active: true, purchaseEnabled: false,
+    }));
     const before = Date.now();
     const input = {
       memberUid, itemId, requestId, durationHours: 24,
@@ -92,12 +92,18 @@ test("owner free grant is MFA-gated, audited, coin-neutral, idempotent and repea
     // Expire the current grant and purchase the same item. Replaying the first
     // grant must not overwrite the newer paid entitlement.
     await entitlementRef.update({ expiresAt: new Date(Date.now() - 1000) });
-    await itemRef.update({ purchaseEnabled: true });
+    const purchasableCatalog = await setStoreCatalogItem.run(ownerRequest(ownerUid, {
+      expectedVersion: initialCatalog.version,
+      itemId, name: "VIP", description: "Owner free-grant integration fixture",
+      category: "vip", priceCoins: 900, durationDays: 30, sortOrder: 1,
+      active: true, purchaseEnabled: true,
+    }));
     const purchaseRequestId = `purchase_after_grant_${tag}`;
     const purchaseId = `${memberUid}_${purchaseRequestId}`;
     const purchaseLedgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
     const purchase = await purchaseStoreItem.run(memberRequest(memberUid, {
       itemId, requestId: purchaseRequestId, expectedPriceCoins: 900,
+      expectedCatalogVersion: purchasableCatalog.version,
     }));
     assert.equal(purchase.idempotentReplay, false);
     assert.equal(purchase.newBalance, 3421);
@@ -123,6 +129,8 @@ test("owner free grant is MFA-gated, audited, coin-neutral, idempotent and repea
     await Promise.all([
       db.recursiveDelete(memberRef).catch(() => undefined),
       itemRef.delete().catch(() => undefined),
+      db.collection("storeCatalogVersions").doc(itemId).collection("versions").get()
+        .then((snapshot) => Promise.all(snapshot.docs.map((doc) => doc.ref.delete()))),
       grantRef.delete().catch(() => undefined),
       ledgerRef.delete().catch(() => undefined),
       auditRef.delete().catch(() => undefined),
