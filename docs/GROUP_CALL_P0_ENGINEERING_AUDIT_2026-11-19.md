@@ -52,3 +52,10 @@ New fail-closed settlement guard and regression tests were committed on SHA `c09
 ## Current decision
 
 **P0 remains BLOCKING.** The code and CI have materially advanced, but group calls are not ready for paid activation or phase transition. Keep PR #31 draft and Issue #23 open. No production changes.
+
+
+## Addendum — selective port to the canonical development branch (19 November 2026)
+
+The pure, owner-configured policy and deterministic settlement calculation modules `functions/src/call-usage-policy.ts` and `functions/src/group-call-economy.ts`, together with their unit tests, were selectively ported to `codex/mawda-full-platform-implementation`. They are not wired to a callable, wallet debit, reservation, or production billing path.
+
+The P0 blockers above remain in force. No group-call charge may be activated until trusted provider-side media evidence, participant-specific lifecycle accounting, per-participant entitlement validation, secure SFU topology, atomic reservation/settlement semantics, complete UI acceptance, and the separate load/device acceptance gates are implemented and tested. All rates remain owner-configured; no commercial rate was introduced by this port.
