@@ -7499,6 +7499,8 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       requestId: input.requestId, agreedCoins: input.agreedCoins,
       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
       currencyExponent: input.currencyExponent,
+      paymentPolicyVersion: prior.paymentPolicySnapshot.policyVersion,
+      pricingPolicyVersion: prior.pricingPolicyVersion,
       chatId, messageId, instructionsVersion: nextVersion, createdAt: now,
     });
   });
