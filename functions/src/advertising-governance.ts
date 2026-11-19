@@ -1,4 +1,8 @@
 import { createHash } from "node:crypto";
+import {
+  ADVERTISING_SUPERVISOR_PERMISSIONS,
+  normalizeAdvertisingSupervisorPermissions,
+} from "./advertising-permissions";
 
 export const ADVERTISING_SPECIALIZED_ROLES = [
   "ad_representative",
@@ -11,27 +15,17 @@ export const ADVERTISING_SPECIALIZED_ROLES = [
 
 export type AdvertisingSpecializedRole = typeof ADVERTISING_SPECIALIZED_ROLES[number];
 
-export const ADVERTISING_PERMISSIONS = [
-  "advertising.requests.review",
-  "advertising.requests.assign",
-  "advertising.creatives.review",
-  "advertising.campaigns.schedule",
-  "advertising.campaigns.pause_operational",
-  "advertising.campaigns.publish",
-  "advertising.representatives.message",
-  "advertising.reports.read",
-  "advertising.rooms.observe_assigned",
-  "advertising.tasks.assign",
+const PRODUCTION_PERMISSIONS = [
   "production.rooms.create",
   "production.rooms.manage_assigned",
   "production.tasks.manage_assigned",
   "production.reviews.write",
   "production.achievements.nominate",
-  "contracts.drafts.create",
-  "contracts.drafts.review",
-  "contracts.send",
-  "contracts.sign_delegated",
-  "contracts.archive.read",
+] as const;
+
+export const ADVERTISING_PERMISSIONS = [
+  ...ADVERTISING_SUPERVISOR_PERMISSIONS,
+  ...PRODUCTION_PERMISSIONS,
 ] as const;
 
 export type AdvertisingPermission = typeof ADVERTISING_PERMISSIONS[number];
@@ -47,6 +41,56 @@ const FORBIDDEN_SPECIALIZED_PERMISSIONS = new Set([
   "owner.audit.delete",
   "contracts.delegation.create",
 ]);
+
+/**
+ * Enforce the approved separation between the advertising and production
+ * supervisor families. Team production supervisors receive only assigned-team
+ * operational permissions; they cannot acquire general production or
+ * advertising authority through a crafted owner grant.
+ */
+const TEAM_PRODUCTION_SUPERVISOR_PERMISSIONS = new Set<AdvertisingPermission>([
+  "production.rooms.manage_assigned",
+  "production.tasks.manage_assigned",
+  "production.reviews.write",
+  "production.achievements.nominate",
+]);
+
+
+
+const ROLES_WITHOUT_APPROVED_SPECIALIZED_GRANT_MATRIX = new Set<AdvertisingSpecializedRole>([
+  // Representatives use their own request/agreement lifecycle, not supervisor grants.
+  "ad_representative",
+  // These roles require separate owner-approved permission matrices before activation.
+  "production_quality_reviewer",
+  "legal_administrative_supervisor",
+]);
+
+function assertRolePermissionBoundary(
+  role: AdvertisingSpecializedRole,
+  permissions: AdvertisingPermission[],
+): void {
+  if (ROLES_WITHOUT_APPROVED_SPECIALIZED_GRANT_MATRIX.has(role)) {
+    throw new Error("SPECIALIZED_ROLE_PERMISSION_MATRIX_NOT_CONFIGURED");
+  }
+  const allowed = permissions.every((permission) => {
+    if (role === "ad_general_supervisor") {
+      try {
+        normalizeAdvertisingSupervisorPermissions(permissions);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    if (role === "production_general_supervisor") {
+      return permission.startsWith("production.");
+    }
+    if (role === "production_supervisor") {
+      return TEAM_PRODUCTION_SUPERVISOR_PERMISSIONS.has(permission);
+    }
+    return false;
+  });
+  if (!allowed) throw new Error("SPECIALIZED_ROLE_PERMISSION_BOUNDARY_VIOLATION");
+}
 
 /** Stable document identity: changing permissions or resource scopes updates the same grant. */
 export function specializedRoleGrantId(uid: string, role: AdvertisingSpecializedRole): string {
@@ -92,6 +136,7 @@ export function validateSpecializedRoleGrant(value: unknown): SpecializedRoleGra
   if (new Set(permissions).size !== permissions.length) {
     throw new Error("SPECIALIZED_PERMISSION_DUPLICATE");
   }
+  assertRolePermissionBoundary(input.role as AdvertisingSpecializedRole, permissions as AdvertisingPermission[]);
   const scopes = input.resourceScopes as unknown[];
   if (scopes.length < 1 || scopes.length > 200 ||
       scopes.some((scope) => typeof scope !== "string" ||
