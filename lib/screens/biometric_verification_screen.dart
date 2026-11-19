@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_functions/cloud_functions.dart';
@@ -24,6 +25,9 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
   bool _recording = false;
   bool _busy = false;
   bool _consent = false;
+  int? _maxAudioBytes;
+  int? _maxVideoBytes;
+  Timer? _audioLimitTimer;
   Map<String, dynamic>? _status;
   String? _message;
 
@@ -35,8 +39,17 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
 
   @override
   void dispose() {
-    _recorder.dispose();
+    _audioLimitTimer?.cancel();
+    unawaited(_recorder.dispose());
+    unawaited(_deleteLocalEvidence());
     super.dispose();
+  }
+
+  Future<void> _deleteLocalEvidence() async {
+    final paths = <String>[_audioPath ?? '', _video?.path ?? ''].where((path) => path.isNotEmpty);
+    for (final path in paths) {
+      try { await File(path).delete(); } catch (_) { /* Best-effort local temporary-file cleanup. */ }
+    }
   }
 
   Future<void> _refreshStatus() async {
@@ -64,6 +77,8 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
       setState(() {
         _requestId = data['requestId'] as String;
         _phrase = data['phraseText'] as String;
+        _maxAudioBytes = (data['maxAudioBytes'] as num?)?.toInt();
+        _maxVideoBytes = (data['maxVideoBytes'] as num?)?.toInt();
         _audioPath = null;
         _video = null;
         _message = 'اقرأ العبارة الظاهرة بصوت واضح، ثم سجّل مقطع فيديو حياً مدته من 3 إلى 5 ثوانٍ.';
@@ -83,6 +98,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
       if (_recording) {
         final path = await _recorder.stop();
         if (!mounted) return;
+        _audioLimitTimer?.cancel();
         setState(() { _recording = false; _audioPath = path; });
         return;
       }
@@ -96,7 +112,13 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
         const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 44100, bitRate: 128000),
         path: path,
       );
-      if (mounted) setState(() { _recording = true; _audioPath = null; });
+      if (mounted) {
+        setState(() { _recording = true; _audioPath = null; });
+        _audioLimitTimer?.cancel();
+        _audioLimitTimer = Timer(const Duration(seconds: 60), () {
+          if (mounted && _recording) _toggleAudio();
+        });
+      }
     } catch (_) {
       if (mounted) setState(() { _recording = false; _message = 'تعذر تسجيل الصوت. تحقق من إذن الميكروفون.'; });
     }
@@ -106,7 +128,14 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
     if (_busy) return;
     try {
       final file = await _picker.pickVideo(source: ImageSource.camera, maxDuration: const Duration(seconds: 5));
-      if (file != null && mounted) setState(() => _video = file);
+      if (file != null && mounted) {
+        setState(() => _video = file);
+        final maxBytes = _maxVideoBytes;
+        if (maxBytes != null && await file.length() > maxBytes) {
+          setState(() { _video = null; _message = 'حجم الفيديو يتجاوز الحد الذي حدده المالك. أعد التسجيل بمقطع أقصر.'; });
+          try { await File(file.path).delete(); } catch (_) {}
+        }
+      }
     } catch (_) {
       if (mounted) setState(() => _message = 'تعذر تشغيل الكاميرا أو تسجيل الفيديو.');
     }
@@ -120,8 +149,16 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
           .httpsCallable('getMyBiometricVerificationUploadAccess')
           .call({'requestId': _requestId});
       final data = Map<String, dynamic>.from(access.data as Map);
-      final audioBytes = await File(_audioPath!).readAsBytes();
-      final videoBytes = await _video!.readAsBytes();
+      final audioFile = File(_audioPath!);
+      final videoFile = File(_video!.path);
+      final audioLength = await audioFile.length();
+      final videoLength = await videoFile.length();
+      if ((_maxAudioBytes != null && audioLength > _maxAudioBytes!) ||
+          (_maxVideoBytes != null && videoLength > _maxVideoBytes!)) {
+        throw Exception('BIOMETRIC_MEDIA_SIZE_EXCEEDED');
+      }
+      final audioBytes = await audioFile.readAsBytes();
+      final videoBytes = await videoFile.readAsBytes();
       final audioResponse = await http.put(
         Uri.parse(data['audioUploadUrl'] as String),
         headers: const {'Content-Type': 'audio/mp4'},
@@ -139,6 +176,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
         throw Exception('VIDEO_UPLOAD_FAILED');
       }
       await _refreshStatus();
+      await _deleteLocalEvidence();
       if (mounted) {
         setState(() {
           _message = 'تم رفع الأدلة. سيظهر الطلب قيد المراجعة بعد اكتمال التحقق الخادمي من الملفين.';
