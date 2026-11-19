@@ -777,3 +777,15 @@ This is a source reconciliation and implementation instruction, not evidence tha
 - Security controls (verified owner identity, MFA/step-up, recent authentication as required, immutable audit evidence, fail-closed authorization and backend enforcement) protect the exercise of owner authority; this governance decision does not authorize silent evidence deletion or production changes.
 - **Implementation status:** approved and documented only. Owner-facing UI, full role catalogues, complete server enforcement and authorization tests remain engineering work and must not be represented as complete until evidenced on an exact SHA.
 - This approval does not authorize merge to `main`, deployment, production Firebase mutation, billing/paid-resource activation or live policy changes.
+
+
+## Owner permission editor foundation — 19 November 2026
+
+- Added the pure server-side helper `applySpecializedPermissionDelta` in `functions/src/advertising-governance.ts`. It applies additive grants and selected partial revocations while preserving the existing role identity, status, version, dates and resource scopes.
+- The helper rejects unknown/forbidden capabilities, duplicate additions/removals, attempts to remove capabilities not currently granted, and a partial change that would leave an empty grant. Full revocation remains a distinct lifecycle operation.
+- Added unit-test cases for additive + partial removal, preservation of scope and grant metadata, forbidden owner/platform escalation, duplicate additions, invalid removals and final-permission removal.
+- Source/test commits: `1a8e2d5e594863497714c66e5ae846b22a684564` and `935480b90c77c138018f946914ec3c31dce3452d`.
+- **Status: foundation only; not yet wired to an owner callable or UI.** The existing specialized-grant save/revoke callables remain owner-only, and source inspection still finds no call-site use of `hasAdvertisingPermission` in `index.ts`. Therefore this helper does not establish server enforcement of specialist operations, nor complete the requested owner permission editor.
+- Exact-head CI on the then-current code SHA is pending; no local Functions build or unit test was run in this execution. Do not treat this item as tested or closed until the final documentation SHA's workflows complete successfully.
+- Related audit findings: the current `advertising-permissions.ts` contains the approved Admin Media capability identifiers but models a single `general_supervisor` actor; `advertising-governance.ts` contains a second, smaller specialist permission vocabulary. These two vocabularies must be reconciled against the approved source catalogue before protected-operation enforcement is wired. Admin N's full catalogue remains unlocated in the inspected sources.
+- No room-rental refund policy, rental pricing, live retention policy, Firebase production resource, `main`, deployment, or billing configuration was changed.
