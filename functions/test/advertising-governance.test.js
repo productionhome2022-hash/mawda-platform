@@ -234,7 +234,7 @@ test("delegated signing rejects null or malformed argument containers without th
 });
 
 test("production roster rejects padded, control-character and malformed member identifiers", () => {
-  for (const uid of [" member_000001", "member_000001 ", "member_0000\\n1", "member/000001"]) {
+  for (const uid of [" member_000001", "member_000001 ", "member_0000\n1", "member/000001"]) {
     assert.throws(() => validateProductionRoomRoster({
       teamMemberUids: [uid],
       privilegedObserverUids: [],
