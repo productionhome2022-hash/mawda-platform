@@ -683,3 +683,10 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 - Added owner-only featured-ad financial event recording for external payment receipts, refunds, settlement and review. Events, immutable snapshots and audit evidence are idempotent and versioned; replay fails closed when event, snapshot or audit evidence is missing or inconsistent. Recording a receipt does not publish or activate a campaign and does not claim to move external money.
 - Added unit and Firestore-emulator integration tests for payment-policy validation, CHF/JPY currency precision, owner policy versioning, empty unconfigured pricing, featured-ad event replay integrity, payment gating and non-activation.
 - Validation status: all changes are committed to the official development branch, but no exact-HEAD Functions build, emulator run, Flutter analysis or CI conclusion has been verified in this execution.
+
+
+## 2026-11-19 — terminology audit scope and main-branch boundary
+
+- The current official development branch has had the legacy visible labels found in its inspected Flutter screens, model comments, economic/advertising documents and server-generated role text updated. The PR #33 governance branch has separately received the canonical role names and the relevant source/comment cleanups.
+- A repository search against the default `main` branch still finds old visible strings in legacy files including `lib/screens/super_admin_screen.dart`, `lib/screens/chat_room_screen.dart`, `lib/screens/landing_page.dart`, and `lib/services/room_billing_service.dart`; some of those files are absent from the current development branch. These are not silently changed on `main` because the owner has reserved merge and production authority.
+- Therefore, do not claim that every branch and every historical file is globally clean yet. The remaining `main`-branch labels must be resolved through an owner-approved integration/merge, followed by a full-tree audit on the resulting development SHA.
