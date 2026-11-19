@@ -44,7 +44,7 @@
 - الحظر والإبلاغ والاستئناف وقيود العمر والتعليق/الكتم في الخادم.
 - إشعارات FCM مع تسجيل/إبطال الرموز والتفضيلات.
 - أعضاء المحادثات والغرف يرسلون الصور وGIF والصوت والفيديو فقط.
-- يُمنع على الأعضاء إرسال أو استقبال PDF أو أي مستند في المحادثات والغرف. الاستثناء الوحيد المالك/Super Admin الموثق خادمياً وبجلسة MFA حديثة، وله إرسال واستقبال المستندات.
+- يُمنع على الأعضاء إرسال أو استقبال PDF أو أي مستند في المحادثات والغرف. الاستثناء الوحيد المالك/Super Owner الموثق خادمياً وبجلسة MFA حديثة، وله إرسال واستقبال المستندات.
 - لا يُتاح أي أصل غير مفحوص أو غير معالج إلى المستلمين. الماسح والنسخ المشتقة الآمنة والاحتفاظ تُختبر من طرف إلى طرف.
 - البث المباشر لا يتجاوز قيود المصدر أو DRM أو تسجيل الدخول؛ تشغيل مضمّن رسمي فقط عند السماح به.
 
@@ -123,7 +123,7 @@ The [Master Development Charter](MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md) is 
 - **Phase 2 — identity/profile/guest:** preserve the existing verified email, privacy acknowledgement, profile and guest restrictions. Do not let the new rewards system bypass age, privacy, identity or guest capability rules.
 - **Phase 3 — messaging/rooms/media:** implement the three chat-retention modes (temporary 4h inactivity, normal media 4h/text 7d, important media 4h/text 30d), participant notices, server activity timestamps and complete deletion. Implement the paid Media Saver entitlement check and local-save UX without extending server retention. Preserve the member/guest/owner media allowlists.
 - **Phase 4 — wallet/store/rewards:** extend the shared commercial engine to 24h/7d/30d owner-priced durations, separate prices, quantities, limits and permanent items; implement daily/hourly/weekly attendance rewards and ad completion verification; connect grants and room prizes to the wallet ledger and entitlement service. Do not activate any SKU before fulfillment and tests pass.
-- **Phase 5 — owner operations:** add Super Admin controls for duration prices, quantities, limits, reward schedules, campaigns, free grants, selected UID/group/public-room recipients, room collective rewards, preview/confirmation, audit and reports.
+- **Phase 5 — owner operations:** add Super Owner controls for duration prices, quantities, limits, reward schedules, campaigns, free grants, selected UID/group/public-room recipients, room collective rewards, preview/confirmation, audit and reports.
 - **Phase 6 — advanced verification/AI:** retain fail-closed biometric reward rules and AI safety/age/privacy/budget boundaries. New rewards cannot use client-reported verification as trusted evidence.
 - **Phase 7 — release:** add exact-head end-to-end tests for purchase, grant, expiry, deletion, attendance, ad completion, room presence snapshots, concurrency, retry and reconciliation; complete security/legal/device/non-production acceptance before release approval.
 
@@ -203,7 +203,7 @@ The phase status remains evidence-based. This amendment does not mark any new fe
 - الصفحة الرئيسية والتنقل العام والبحث والاكتشاف والملفات والرسائل والمحادثات والغرف والأحداث.
 - المحفظة والكوينز وسجل الحركات والمتجر والمنتجات والاشتراكات والاستحقاقات والمكافآت.
 - لوحة العضو وكل أدواته وإعداداته وإشعاراته وحالاته.
-- لوحات المشرفين بحسب الصلاحيات، ولوحة Super Admin/Owner بكل أقسام الإدارة والتدقيق والاقتصاد والسلامة والمحتوى.
+- لوحات المشرفين بحسب الصلاحيات، ولوحة Super Owner بكل أقسام الإدارة والتدقيق والاقتصاد والسلامة والمحتوى.
 - حالات التحميل والفراغ والخطأ وانقطاع الشبكة وإعادة المحاولة وانتهاء الجلسة/الاستحقاق والمنع والصلاحيات، لا المسار المثالي فقط.
 
 ### 2. معايير القبول البصري والتفاعلي
@@ -321,3 +321,20 @@ The phase status remains evidence-based. This amendment does not mark any new fe
 - تظل إعدادات Firebase غير الإنتاجية هي الافتراضية لبناء Debug والمحاكيات.
 - يجب أن تستخدم APK وAAB الإنتاجية `MAWDDA_FIREBASE_ENV=production` وأن تحقن `google-services.json` الإنتاجي من سر المالك وتتحقق من تطابقه مع FlutterFire options ومعرّف الحزمة قبل أي بناء.
 - لا تُعتبر حزمة Android جاهزة للإطلاق إذا كانت تشير إلى مشروع غير الإنتاج أو إذا لم تتوفر أدلة مطابقة هوية Android الإنتاجية.
+
+
+## معيار المصطلحات والهوية الإدارية الموحد — إلزامي على مستوى المنصة والوثائق
+
+هذا القسم مرجع موحد ملزم، ويُقرأ مع بقية قرارات المنتج دون أن يغيّر مفاتيح الصلاحيات أو هويات البيانات الداخلية:
+
+- **Super Owner**: المسمى الإنجليزي الرسمي الوحيد لمالك المنصة في جميع النصوص والواجهات والوثائق. التسمية العربية التفسيرية الموحدة: **مالك المنصة**. لا تُعرض تسميات بديلة أو قديمة للمالك.
+- **Admin 1, Admin 2, Admin 3, ...**: فريق الإدارة العامة المفتوح العدد، بتسلسل دائم متزايد لا يعاد استخدامه ولا يعاد ترقيمه.
+- **Admin Media 1–5**: خمسة مقاعد مستقلة حصراً لإدارة الإعلام/الإعلانات وMedia Workspace.
+- **مشرف إنتاج عام 1–5**: خمسة مقاعد مستقلة للإشراف على الإنتاج العام.
+- **مشرف إنتاج الفريق** / **Team Production Supervisor**: فئة مستقلة مفتوحة العدد، ونطاقها الفريق/الغرفة المخصصة أو المستأجرة فقط.
+
+يجب تطبيق هذه المسميات حرفياً وباتساق في دستور المنتج، والرؤية الشاملة، وسجل القرارات، ومواصفات العلامة وتجربة المنتج، وخطط التنفيذ، ومصفوفات التتبع، وأدلة التشغيل والهندسة والاختبار، وREADME، وكل وثائق GitHub ذات الصلة. كما يجب أن تتطابق مع جميع واجهات Android وiOS وPWA والويب، والملفات الشخصية والشارات والقوائم والغرف والمحادثات وWorkspace والإعلانات ولوحات الإدارة، ورسائل النظام والإشعارات الفورية وسجلات العرض الموجهة للمستخدم.
+
+أي ذكر تاريخي لمسمى قديم داخل سجل ترحيل أو وصف توافق تقني يجب أن يكون موسوماً بوضوح بأنه legacy/internal-only، وألا يظهر كخيار أو لقب أو نص للمستخدم. تُحفظ مفاتيح التفويض والـclaims وأسماء المجموعات والحقول وواجهات callable القديمة عند الحاجة للتوافق، ولا يجوز استبدالها آلياً لمجرد تشابه الاسم.
+
+بوابة القبول: فحص شامل متعدد اللغات لكل ملفات الوثائق ومصادر النصوص والواجهات والإشعارات والرسائل، مع قائمة نتائج قابلة للمراجعة واختبارات تمنع إعادة إدخال المسميات القديمة في النصوص الظاهرة. يجب تدقيق مواضع الظهور الديناميكية ومخرجات الخادم وبيانات الإشعار، وليس ملفات Flutter وحدها. لا يُعلن اكتمال التوحيد ولا يُرفع طلب الدمج من Draft قبل إغلاق نتائج الفحص والاختبارات على SHA النهائي.
