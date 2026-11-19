@@ -54,6 +54,11 @@ test("store gift debits sender and grants recipient once with immutable terms", 
       category: "vip", priceCoins: 500, durationDays: 7,
       sortOrder: 1, active: true, purchaseEnabled: true,
     }));
+    const catalogSnapshot = await versionsRef.doc(String(saved.version)).get();
+    assert.equal(catalogSnapshot.exists, true);
+    assert.equal(catalogSnapshot.data().itemId, itemId);
+    assert.equal(catalogSnapshot.data().priceCoins, 500);
+    assert.equal(catalogSnapshot.data().version, saved.version);
     const giftInput = {
       recipientUsername, itemId, requestId,
       expectedPriceCoins: 500, expectedCatalogVersion: saved.version,
