@@ -29,7 +29,7 @@ test("official economy currency allowlist and minor-unit precision are exact", (
 
 test("proposed money amounts obey supported currency minor-unit precision", () => {
   assert.equal(isValidPositiveCurrencyAmount("125.00", "EUR"), true);
-  for (const currency of ["EUR", "USD", "EGP", "SAR", "SYP", "JOD", "IQD", "AED", "DZD"]) {
+  for (const currency of ["EUR", "USD", "EGP", "SAR", "SYP", "JOD", "IQD", "AED", "DZD", "MAD", "TRY"]) {
     assert.equal(isValidPositiveCurrencyAmount("125.00", currency), true, currency);
   }
   assert.equal(isValidPositiveCurrencyAmount("125.000", "KWD"), false);
@@ -146,8 +146,11 @@ test("owner pricing catalogs accept owner-selected ISO 4217 currencies", () => {
   assert.deepEqual(packages.map((item) => item.currencyExponent), [2, 2, 2, 2, 2, 3, 3, 2, 2, 2, 2]);
   const ads = validateAdPrices([
     { ...adPriceFixture, placementId: "ad_syp", currency: "SYP" },
+    { ...adPriceFixture, placementId: "ad_mad", currency: "MAD" },
+    { ...adPriceFixture, placementId: "ad_try", currency: "TRY" },
   ]);
-  assert.equal(ads[0].currency, "SYP");
+  assert.deepEqual(ads.map((item) => item.currency), ["SYP", "MAD", "TRY"]);
+  assert.deepEqual(ads.map((item) => item.currencyExponent), [2, 2, 2]);
   for (const currency of ["CHF", "KWD", "JPY", "eur", "US", "USDD", "1US"]) {
     assert.throws(() => validateCoinPackages([
       { ...coinPackageFixture, currency },
