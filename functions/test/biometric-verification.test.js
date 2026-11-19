@@ -3,69 +3,37 @@ const assert = require("node:assert/strict");
 const { hasActiveBiometricVerification } = require("../lib/biometric-verification");
 
 const NOW = 1_800_000_000_000;
-const futureTimestamp = { toMillis: () => NOW + 60_000 };
 
-test("verified biometric record with future expiry is eligible", () => {
+test("manual owner review and local OS prompts are not challenge-bound cryptographic proof", () => {
   assert.equal(hasActiveBiometricVerification({
     status: "verified",
-    expiresAt: futureTimestamp,
-  }, NOW), true);
-});
-
-test("expired, revoked, pending, and failed biometric records are ineligible", () => {
-  assert.equal(hasActiveBiometricVerification({
-    status: "verified",
-    expiresAt: { toMillis: () => NOW - 1 },
+    verificationMethod: "owner_manual_review",
+    reviewedBySuperOwner: true,
+    reviewRequestId: "review_request_123",
+    expiresAt: { toMillis: () => NOW + 60_000 },
   }, NOW), false);
-  assert.equal(hasActiveBiometricVerification({
-    status: "verified",
-    expiresAt: futureTimestamp,
-    revokedAt: { toMillis: () => NOW - 100 },
-  }, NOW), false);
-  assert.equal(hasActiveBiometricVerification({
-    status: "pending",
-    expiresAt: futureTimestamp,
-  }, NOW), false);
-  assert.equal(hasActiveBiometricVerification({
-    status: "failed",
-    expiresAt: futureTimestamp,
-  }, NOW), false);
-});
-
-test("client-asserted local OS prompt is not trusted as biometric verification", () => {
   assert.equal(hasActiveBiometricVerification({
     status: "verified",
     verificationMethod: "local_os_biometric_prompt",
-    expiresAt: futureTimestamp,
-  }, NOW), false);
-  assert.equal(hasActiveBiometricVerification({
-    status: "verified",
-    trustModel: "client_claim_after_local_os_prompt",
-    expiresAt: futureTimestamp,
+    expiresAt: { toMillis: () => NOW + 60_000 },
   }, NOW), false);
 });
 
-test("bare verified status or missing/invalid expiry fails closed", () => {
-  assert.equal(hasActiveBiometricVerification({ status: "verified" }, NOW), false);
-  assert.equal(hasActiveBiometricVerification({
-    status: "verified",
-    expiresAt: "2099-01-01",
-  }, NOW), false);
-  assert.equal(hasActiveBiometricVerification(null, NOW), false);
-  assert.equal(hasActiveBiometricVerification("verified", NOW), false);
-});
-
-test("Date and Firestore-like Timestamp expiry are supported", () => {
+test("all biometric privileges remain fail-closed until the cryptographic verifier is implemented", () => {
   assert.equal(hasActiveBiometricVerification({
     status: "verified",
     expiresAt: new Date(NOW + 60_000),
-  }, NOW), true);
-  assert.equal(hasActiveBiometricVerification({
-    status: "verified",
-    expiresAt: { toMillis: () => Number.NaN },
   }, NOW), false);
   assert.equal(hasActiveBiometricVerification({
     status: "verified",
-    expiresAt: { toMillis: () => { throw new Error("invalid timestamp"); } },
+    verificationMethod: "challenge_bound_key_attestation",
+    proofVerifiedByServer: true,
+    challengeId: "challenge_12345678",
+    deviceKeyId: "device_key_12345678",
+    attestationDigest: "a".repeat(64),
+    expiresAt: { toMillis: () => NOW + 60_000 },
   }, NOW), false);
+  assert.equal(hasActiveBiometricVerification({ status: "verified" }, NOW), false);
+  assert.equal(hasActiveBiometricVerification(null, NOW), false);
+  assert.equal(hasActiveBiometricVerification("verified", NOW), false);
 });
