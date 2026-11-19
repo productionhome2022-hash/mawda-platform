@@ -344,3 +344,14 @@ Correction applied on both current PR branches:
 ### 11.9 Role-capacity test fixture correction
 
 The first PR #38 domain regression failed because the test fixture supplied `advertising.requests.view_all`, which is not in the canonical permission allowlist. The accepted Admin Media permission is `advertising.requests.review`. The invalid fixture also caused the concurrency case to observe no successful assignment. The fixture was corrected and the subsequent domain regression on SHA `8175a8aaa7fcf9e6275d9c934eb6a3541037f3f7` passed; a later exact-head run on SHA `1fd56b4e967072aa322f5791d8c35ea995479d35` is in progress. This validates the tested five-seat role path only, not the full Admin N permanent-number lifecycle.
+
+
+### 11.10 Store catalogue defaults and duration-policy gap
+
+Source inspection of the official development branch found two issues that must be reconciled before the commercial engine is accepted:
+
+1. `functions/src/default-store-catalog.ts` contains hardcoded positive `priceCoins` values (for example VIP, titles, badges, frames and boosts). `getOwnerStoreCatalog` seeds these values into Firestore as initial editable suggestions while leaving `purchaseEnabled: false`. This is fail-closed against charging, but it still persists and projects sample prices into the owner/member catalogue. The approved economic policy requires owner-set prices and no default commercial pricing. Decide the safe migration: remove sample price values or store them as explicitly non-commercial suggestions that cannot be displayed as payable prices; never activate them automatically.
+2. `functions/src/store-catalog.ts` accepts any integer `durationDays` from 1 to 3650. The owner-approved commercial durations are 24 hours, 7 days, 30 days (one month under the current commercial term), plus permanent items where permitted. The owner editor and server validator need a shared duration enum/SKU contract; arbitrary day counts must not silently become purchasable.
+3. Call SKUs and privacy add-ons appear in the default catalogue but are not in the current fulfillment-ready allowlist. They must remain non-purchasable until entitlement consumers and lifecycle tests exist; a catalogue row is not proof of a product.
+
+No production or user data was changed. This is a source-audit finding to be addressed in a dedicated migration-safe code/test batch after the current exact-head CI gate.
