@@ -8317,7 +8317,7 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
       createdAt: now, createdBy: actorUid,
     });
     transaction.create(eventRef, {
-      ...event, currencyExponent, paymentPolicySnapshot,
+      ...event, ...next, currencyExponent, paymentPolicySnapshot,
       eventId, actorUid, snapshotVersion: version, createdAt: now,
     });
     transaction.set(financialRef, {
