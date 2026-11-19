@@ -405,6 +405,21 @@ test("manual coin package request issues no coins until owner verifies external 
       requestId, expectedInstructionsVersion: 1,
     }));
     assert.equal(reportReplay.idempotentReplay, true);
+    const reportAuditRef = db.collection("adminAuditLogs")
+      .doc(`coin_purchase_payment_report_${uid}_${requestId}_1`);
+    const reportAudit = (await reportAuditRef.get()).data();
+    await reportAuditRef.delete();
+    await assert.rejects(
+      () => requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
+        requestId, expectedInstructionsVersion: 1,
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await reportAuditRef.set(reportAudit);
+    const ownerVerificationQueue = await listOwnerCoinPurchaseRequests.run(ownerRequest("manual-owner", {
+      status: "awaiting_payment_verification",
+    }));
+    assert.ok(ownerVerificationQueue.requests.some((entry) => entry.requestId === requestId));
     assert.ok(instructionResult.chatId);
     const chatMessages = await db.collection("directChats").doc(instructionResult.chatId)
       .collection("messages").get();
