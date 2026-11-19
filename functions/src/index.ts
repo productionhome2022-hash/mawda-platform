@@ -110,7 +110,7 @@ import {
   type ContractSigningState,
   type ContractStatus,
 } from "./contracts-workflow";
-import { validateSpecializedRoleGrant, specializedRoleGrantId } from "./advertising-governance";
+import { validateSpecializedRoleGrant, specializedRoleGrantId, applySpecializedPermissionDelta } from "./advertising-governance";
 import {
   defaultAttendanceRewardPolicy,
   validateAttendanceRewardPolicy,
@@ -9437,6 +9437,55 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
     actorUid, action: "specialized_advertising_role_grant_saved", ...result,
     targetUid: grant.uid, role: grant.role, permissions: grant.permissions,
     resourceScopes: grant.resourceScopes, outcome: "success",
+  });
+  return result;
+});
+
+/** Owner-only additive/partial permission editor; preserves grant scope and lifecycle metadata. */
+export const updateOwnerAdvertisingRoleGrantPermissions = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const grantId = request.data?.grantId;
+  const expectedVersion = request.data?.expectedVersion;
+  if (typeof grantId !== "string" || !/^[a-f0-9]{64}$/.test(grantId) ||
+      !Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+    throw new HttpsError("invalid-argument", "معرف الصلاحية أو إصدارها غير صالح.");
+  }
+  const delta = request.data?.delta;
+  if (!delta || typeof delta !== "object" || Array.isArray(delta) ||
+      Object.keys(delta).some((key) => !["add", "remove"].includes(key))) {
+    throw new HttpsError("invalid-argument", "تعديل الصلاحيات غير صالح.");
+  }
+  const grantRef = SPECIALIZED_ROLE_GRANTS.doc(grantId);
+  const result = await db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(grantRef);
+    if (!previous.exists) throw new HttpsError("not-found", "تكليف الصلاحية غير موجود.");
+    const data = previous.data()!;
+    if (data.version !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت الصلاحية؛ أعد تحميلها قبل التعديل.");
+    }
+    if (data.status !== "active" && data.status !== "suspended") {
+      throw new HttpsError("failed-precondition", "لا يمكن تعديل تكليف ملغى.");
+    }
+    let changed;
+    try {
+      changed = applySpecializedPermissionDelta(data, delta);
+    } catch {
+      throw new HttpsError("invalid-argument", "لا يمكن إضافة أو سحب مجموعة الصلاحيات المطلوبة.");
+    }
+    const version = data.version + 1;
+    transaction.update(grantRef, {
+      permissions: changed.permissions,
+      version,
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: actorUid,
+    });
+    return { grantId, version, status: data.status, permissions: changed.permissions };
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "specialized_advertising_role_permissions_updated",
+    ...result,
+    outcome: "success",
   });
   return result;
 });
