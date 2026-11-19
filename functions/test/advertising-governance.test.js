@@ -27,6 +27,45 @@ test("specialized roles cannot contain platform, finance or owner override permi
   }), /SPECIALIZED_PERMISSION_FORBIDDEN/);
 });
 
+test("Admin Media cannot receive production permissions", () => {
+  assert.throws(() => validateSpecializedRoleGrant({
+    uid: "member_uid_0001", role: "ad_general_supervisor",
+    permissions: ["production.tasks.manage_assigned"],
+    resourceScopes: ["room:room_123"],
+    status: "active", startsAtMs: 100, endsAtMs: 1000, version: 1,
+  }), /SPECIALIZED_ROLE_PERMISSION_BOUNDARY_VIOLATION/);
+});
+
+test("general production supervisors cannot receive advertising permissions", () => {
+  assert.throws(() => validateSpecializedRoleGrant({
+    uid: "member_uid_0001", role: "production_general_supervisor",
+    permissions: ["advertising.requests.review"],
+    resourceScopes: ["campaign:campaign_123"],
+    status: "active", startsAtMs: 100, endsAtMs: 1000, version: 1,
+  }), /SPECIALIZED_ROLE_PERMISSION_BOUNDARY_VIOLATION/);
+});
+
+test("Team Production Supervisor is limited to assigned-team operational permissions", () => {
+  assert.doesNotThrow(() => validateSpecializedRoleGrant({
+    uid: "member_uid_0001", role: "production_supervisor",
+    permissions: ["production.tasks.manage_assigned", "production.reviews.write"],
+    resourceScopes: ["team:team_123", "room:room_123"],
+    status: "active", startsAtMs: 100, endsAtMs: 1000, version: 1,
+  }));
+  assert.throws(() => validateSpecializedRoleGrant({
+    uid: "member_uid_0001", role: "production_supervisor",
+    permissions: ["production.rooms.create"],
+    resourceScopes: ["team:team_123"],
+    status: "active", startsAtMs: 100, endsAtMs: 1000, version: 1,
+  }), /SPECIALIZED_ROLE_PERMISSION_BOUNDARY_VIOLATION/);
+  assert.throws(() => validateSpecializedRoleGrant({
+    uid: "member_uid_0001", role: "production_supervisor",
+    permissions: ["advertising.requests.review"],
+    resourceScopes: ["campaign:campaign_123"],
+    status: "active", startsAtMs: 100, endsAtMs: 1000, version: 1,
+  }), /SPECIALIZED_ROLE_PERMISSION_BOUNDARY_VIOLATION/);
+});
+
 test("permissions require exact UID, permission, active time and resource scope", () => {
   const grants = [activeGrant()];
   const base = { ownerVerified: false, grants, uid: "member_uid_0001",

@@ -8,6 +8,9 @@ const futureTimestamp = { toMillis: () => NOW + 60_000 };
 test("verified biometric record with future expiry is eligible", () => {
   assert.equal(hasActiveBiometricVerification({
     status: "verified",
+    verificationMethod: "owner_manual_review",
+    reviewedBySuperOwner: true,
+    reviewRequestId: "owner-review-request-123",
     expiresAt: futureTimestamp,
   }, NOW), true);
 });
@@ -15,6 +18,7 @@ test("verified biometric record with future expiry is eligible", () => {
 test("expired, revoked, pending, and failed biometric records are ineligible", () => {
   assert.equal(hasActiveBiometricVerification({
     status: "verified",
+    verificationMethod: "owner_manual_review", reviewedBySuperOwner: true, reviewRequestId: "owner-review-request-123",
     expiresAt: { toMillis: () => NOW - 1 },
   }, NOW), false);
   assert.equal(hasActiveBiometricVerification({
@@ -58,14 +62,17 @@ test("bare verified status or missing/invalid expiry fails closed", () => {
 test("Date and Firestore-like Timestamp expiry are supported", () => {
   assert.equal(hasActiveBiometricVerification({
     status: "verified",
+    verificationMethod: "owner_manual_review", reviewedBySuperOwner: true, reviewRequestId: "owner-review-request-123",
     expiresAt: new Date(NOW + 60_000),
   }, NOW), true);
   assert.equal(hasActiveBiometricVerification({
     status: "verified",
+    verificationMethod: "owner_manual_review", reviewedBySuperOwner: true, reviewRequestId: "owner-review-request-123",
     expiresAt: { toMillis: () => Number.NaN },
   }, NOW), false);
   assert.equal(hasActiveBiometricVerification({
     status: "verified",
+    verificationMethod: "owner_manual_review", reviewedBySuperOwner: true, reviewRequestId: "owner-review-request-123",
     expiresAt: { toMillis: () => { throw new Error("invalid timestamp"); } },
   }, NOW), false);
 });

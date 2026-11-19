@@ -16,7 +16,10 @@ export function hasActiveBiometricVerification(
   if (
     verification.status !== "verified" ||
     verification.revokedAt != null ||
-    verification.verificationMethod === "local_os_biometric_prompt" ||
+    verification.verificationMethod !== "owner_manual_review" ||
+    verification.reviewedBySuperOwner !== true ||
+    typeof verification.reviewRequestId !== "string" ||
+    verification.reviewRequestId.length < 8 ||
     verification.trustModel === "client_claim_after_local_os_prompt"
   ) {
     return false;
