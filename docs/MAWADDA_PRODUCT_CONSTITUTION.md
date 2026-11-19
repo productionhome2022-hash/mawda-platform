@@ -1,5 +1,8 @@
 # دستور مودة | MAWADDA Product Constitution
 
+**Unified reference (19 Nov 2026):** [Unified Constitution](MAWADDA_UNIFIED_CONSTITUTION_2026.md) · [Unified Platform Vision](MAWADDA_UNIFIED_PLATFORM_VISION_2026.md) · [Documentation Master Index](MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md). The original source documents remain preserved; the unified files are consolidation drafts pending explicit Owner review and do not supersede signed agreements or unresolved decisions.
+
+
 **Status:** Approved product baseline; implementation and release readiness are tracked separately.
 **Product name:** مودة | MAWADDA
 **Primary tagline:** حين تلتقي القلوب… تبدأ الحكايات.
