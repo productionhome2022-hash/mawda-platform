@@ -44,6 +44,21 @@ test("rejects unpublished, malformed, and unsafe-price items", () => {
     active: true, name: "ميزة", description: "", category: "feature",
     priceCoins: 100, durationDays: 0,
   }), null);
+  assert.equal(projectStoreCatalogItem("unsupported-duration", {
+    active: true, name: "ميزة", description: "", category: "feature",
+    priceCoins: 100, durationDays: 2,
+  }), null);
+  assert.equal(projectStoreCatalogItem("legacy-long-duration", {
+    active: true, name: "ميزة", description: "", category: "feature",
+    priceCoins: 100, durationDays: 3650,
+  }), null);
+  const { validateStoreCatalogItemInput } = require("../lib/store-catalog");
+  for (const durationDays of [2, 14, 365, 3650]) {
+    assert.throws(() => validateStoreCatalogItemInput({
+      itemId: "vip_monthly", name: "عنصر", description: "عنصر تجريبي.",
+      category: "vip", priceCoins: 100, durationDays, active: true,
+    }), /INVALID_STORE_ITEM_FIELDS/);
+  }
 });
 
 
