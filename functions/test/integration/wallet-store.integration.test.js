@@ -368,7 +368,7 @@ test("owner economy pricing never seeds commercial defaults and publishes immuta
     const versionRef = versionCollection.doc("1");
     const versionSnapshot = await versionRef.get();
     assert.equal(versionSnapshot.exists, true);
-    assert.equal(versionSnapshot.data().coinPackages[0].currency, "CHF");
+    assert.equal(versionSnapshot.data().coinPackages[0].currency, "EUR");
     assert.equal(versionSnapshot.data().paymentPolicy.featured_ads.manualEnabled, true);
 
     const readback = await getOwnerEconomyPricing.run(ownerRequest());
