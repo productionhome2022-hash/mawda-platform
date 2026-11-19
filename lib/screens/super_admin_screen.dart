@@ -1329,7 +1329,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('غرفة عمليات مالك مودة'),
+      title: const Text('Super Owner | غرفة عمليات المالك'),
       actions: [
         IconButton(
           tooltip: 'تسجيل خروج المالك',
@@ -1991,7 +1991,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
           ),
         ],
         const Divider(height: 32),
-        Text('ضوابط المالك', style: Theme.of(context).textTheme.titleMedium),
+        Text('ضوابط Super Owner', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
