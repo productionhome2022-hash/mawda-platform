@@ -8,6 +8,7 @@ const {
   getMyBiometricVerificationStatus,
   getMyBiometricVerificationUploadAccess,
   decideBiometricVerificationRequest,
+  setOwnerBiometricVerificationSettings,
 } = require("../../lib/index");
 
 const db = getFirestore();
