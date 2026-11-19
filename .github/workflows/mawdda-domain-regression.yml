@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - codex/mawda-full-platform-implementation
-      - codex/governance-biometric-integration-2026-11-19
 
 permissions:
   contents: read
@@ -42,6 +41,10 @@ jobs:
         run: npm run test:room-events-integration
       - name: Run owner entitlement grant and bulk replay integration tests
         run: npm run test:owner-entitlement-grants-integration
+      - name: Run specialized role capacity and concurrency integration tests
+        run: npm run test:specialized-role-capacity-integration
+      - name: Run store gifting wallet and entitlement integration tests
+        run: npm run test:store-gifting-integration
       - name: Run voice and video call lifecycle integration tests
         run: npm run test:call-signaling-integration
       - name: Run timed advertising and reward ledger integration tests
