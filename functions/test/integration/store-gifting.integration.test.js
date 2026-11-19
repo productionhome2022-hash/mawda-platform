@@ -73,6 +73,12 @@ test("store gift debits sender and grants recipient once with immutable terms", 
     assert.equal((await senderRef.get()).data().coins, 1500);
     await assert.rejects(
       () => giftStoreItem.run(memberRequest(senderUid, {
+        ...giftInput, recipientUsername: "username_lookup_is_not_supported",
+      })),
+      (error) => error && error.code === "invalid-argument",
+    );
+    await assert.rejects(
+      () => giftStoreItem.run(memberRequest(senderUid, {
         ...giftInput, recipientUid: `different_${recipientUid}`,
       })),
       (error) => error && error.code === "already-exists",
