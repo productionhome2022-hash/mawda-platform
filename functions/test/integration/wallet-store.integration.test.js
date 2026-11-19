@@ -731,9 +731,14 @@ test("every shipped premium store category charges once and grants its matching 
   });
 
   try {
+    const existingCatalog = await Promise.all(items.map(([itemId]) =>
+      db.collection("storeCatalog").doc(itemId).get()));
+    const expectedVersions = new Map(items.map(([itemId], index) =>
+      [itemId, Number.isSafeInteger(existingCatalog[index].data()?.version)
+        ? existingCatalog[index].data().version : 0]));
     const catalogResults = await Promise.all(items.map(([itemId, category, durationDays], index) =>
       setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
-        expectedVersion: 0,
+        expectedVersion: expectedVersions.get(itemId),
         itemId,
         name: `ميزة ${itemId}`,
         description: "اختبار تكامل لاستحقاق متجر مميز.",
@@ -803,9 +808,11 @@ test("every shipped premium store category charges once and grants its matching 
     assert.ok(member.discoveryBoostExpiresAt.toMillis() > Date.now());
 
     const disabledPrivacyItem = db.collection("storeCatalog").doc("hide_coins_30d");
+    const privacyExpectedVersion = Number.isSafeInteger((await disabledPrivacyItem.get()).data()?.version)
+      ? (await disabledPrivacyItem.get()).data().version : 0;
     await assert.rejects(
       () => setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
-        expectedVersion: 0,
+        expectedVersion: privacyExpectedVersion,
         itemId: "hide_coins_30d",
         name: "إخفاء الرصيد",
         description: "ميزة خصوصية غير مفعلة.",
@@ -819,7 +826,7 @@ test("every shipped premium store category charges once and grants its matching 
       (error) => error && error.code === "invalid-argument",
     );
     const privacyCatalog = await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
-      expectedVersion: 0,
+      expectedVersion: privacyExpectedVersion,
       itemId: "hide_coins_30d",
       name: "إخفاء الرصيد",
       description: "ميزة خصوصية غير مفعلة.",
