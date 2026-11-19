@@ -13,6 +13,7 @@ import { validateMediaLegalHoldInput } from "./media-legal-hold";
 import { validateMessageLegalHoldInput } from "./message-legal-hold";
 import { logger } from "firebase-functions";
 import { calculateTransferBreakdown } from "./coin-math";
+import { reconcileWalletLedger } from "./wallet-reconciliation";
 import { validateRegistrationPolicy } from "./registration-policy";
 import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
 import { validateMemberProfileUpdate } from "./member-profile-update";
@@ -566,6 +567,67 @@ export const transferCoins = onCall(async (request) => {
  * يجب منح custom claim platformOwner من بيئة موثوقة فقط.
  */
 /** Returns a server-calculated quote so the client can show the fee before confirmation. */
+/**
+ * Read-only owner diagnostic for one member's wallet ledger.
+ * A truncated or unorderable history is explicitly reported as incomplete.
+ */
+export const getOwnerWalletReconciliation = onCall(async (request) => {
+  requireOwner(request);
+  const targetUid = request.data?.targetUid;
+  if (typeof targetUid !== "string" || targetUid.trim() !== targetUid ||
+      targetUid.length < 1 || targetUid.length > 128 || targetUid.includes("/")) {
+    throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+  }
+  const userRef = db.collection("users").doc(targetUid);
+  const userSnapshot = await userRef.get();
+  if (!userSnapshot.exists) throw new HttpsError("not-found", "حساب العضو غير موجود.");
+  const ledgerSnapshot = await userRef.collection("walletLedger")
+    .orderBy(FieldPath.documentId()).limit(1001).get();
+  const truncated = ledgerSnapshot.size > 1000;
+  const entries = ledgerSnapshot.docs.slice(0, 1000).map((document) => {
+    const data = document.data();
+    return {
+      id: document.id,
+      amount: data.amount,
+      balanceBefore: data.balanceBefore,
+      balanceAfter: data.balanceAfter,
+      createdAtMs: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : null,
+    };
+  });
+  const chronologyIncomplete = entries.some((entry) => entry.createdAtMs === null);
+  let reconciliation;
+  try {
+    if (chronologyIncomplete) {
+      const currentBalance = userSnapshot.data()?.coins ?? 0;
+      if (!Number.isSafeInteger(currentBalance) || currentBalance < 0) {
+        throw new Error("INVALID_WALLET_BALANCE");
+      }
+      reconciliation = {
+        status: "incomplete" as const, currentBalance,
+        ledgerEntryCount: entries.length, netLedgerDelta: null,
+        openingBalance: null, computedBalance: null,
+        entriesMissingSnapshots: entries.filter((entry) =>
+          entry.balanceBefore === undefined || entry.balanceAfter === undefined).length,
+        anomalies: [],
+      };
+    } else {
+      entries.sort((a, b) => (a.createdAtMs ?? 0) - (b.createdAtMs ?? 0) || a.id.localeCompare(b.id));
+      reconciliation = reconcileWalletLedger(userSnapshot.data()?.coins ?? 0, entries);
+    }
+  } catch {
+    throw new HttpsError("failed-precondition", "رصيد المحفظة أو دفتر القيود يحتوي بيانات غير صالحة.");
+  }
+  return {
+    targetUid, readOnly: true, scope: "walletLedger",
+    ...reconciliation,
+    status: truncated || chronologyIncomplete ? "incomplete" : reconciliation.status,
+    truncated, chronologyIncomplete,
+    unorderableEntryCount: chronologyIncomplete
+      ? entries.filter((entry) => entry.createdAtMs === null).length : 0,
+    inspectedLimit: 1000,
+  };
+});
+
 export const getTransferQuote = onCall(async (request) => {
   requireAuthenticatedUid(request.auth?.uid);
   const amount = readSafeInteger(request.data?.amount, "amount");
