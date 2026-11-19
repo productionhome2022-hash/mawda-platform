@@ -140,7 +140,7 @@ By the owner's current delivery instruction, the 5,000-persona load simulation a
 - [ ] Social/romantic character access requires approved 18+ age assurance; confirmed under-18 accounts are blocked from social characters while technical support/reporting remains available.
 - [ ] Private-message access is purpose-bound, case-scoped, least-privilege, disclosed, legally reviewed, and logged; no blanket private-chat training.
 - [ ] Adult character interactions pass safety review for coercion, dependency, emotional manipulation, purchase pressure, and prohibited sexual content.
-- [ ] Link permissions are enforced server-side by role and verified status: unverified ordinary members are blocked; biometrically verified members receive the free YouTube, Facebook, Instagram, and X/Twitter entitlement in DMs and public/rented-private room chats; room owners/moderators retain their room-scoped allowlist; Super Admin retains the separately gated any-domain HTTP/HTTPS exception.
+- [ ] Link permissions are enforced server-side by role and verified status: unverified ordinary members are blocked; biometrically verified members receive the free YouTube, Facebook, Instagram, and X/Twitter entitlement in DMs and public/rented-private room chats; room owners/moderators retain their room-scoped allowlist; Super Owner retains the separately gated any-domain HTTP/HTTPS exception.
 - [ ] One-to-one private chats accept direct YouTube, Facebook, Instagram, and X/Twitter links only from biometrically verified members; unverified members are blocked. Shortener (including t.co), redirect, lookalike, obfuscation, and bypass tests pass.
 - [ ] AI cannot bypass moderation, age, privacy, wallet, or link controls.
 - [ ] Global, per-module, and per-character kill switches are tested, including active-session shutdown.
@@ -157,14 +157,14 @@ By the owner's current delivery instruction, the 5,000-persona load simulation a
 - [ ] AI activity, followers, reactions, and popularity are separately labeled and never counted as human-member activity.
 - [ ] Members without successful biometric verification cannot post links in any chat or room. Biometrically verified members receive the free YouTube, Facebook, Instagram, and X/Twitter entitlement across DMs and public/rented-private room chats.
 - [ ] Authenticated room owners and authorized moderators can post only verified YouTube, Instagram/Reels, and Facebook URLs in public/private rented rooms; authorization is server-side and moderator revocation takes effect immediately.
-- [ ] One-to-one private messages allow YouTube, Facebook, Instagram, and X/Twitter URLs only for members whose biometric status is server-confirmed as verified; the platform Super Admin exception remains separately gated.
+- [ ] One-to-one private messages allow YouTube, Facebook, Instagram, and X/Twitter URLs only for members whose biometric status is server-confirmed as verified; the platform Super Owner exception remains separately gated.
 - [ ] URL tests cover redirects, shorteners, lookalikes, IDN/punycode, deceptive subdomains, credentials, unsafe schemes, obfuscation, embedded URLs, rich previews, and authorization bypass.
 - [ ] Global/module/character shutdown stops active generation promptly and revokes AI tool permissions.
 
 
-### Super Admin link exception and AI badge presentation
+### Super Owner link exception and AI badge presentation
 
-- [ ] Platform Super Admin, verified server-side by platformOwner claim and fresh MFA/step-up session, can send ordinary HTTP/HTTPS links to any domain in direct chats, public rooms, and rented private rooms.
+- [ ] Platform Super Owner, verified server-side by platformOwner claim and fresh MFA/step-up session, can send ordinary HTTP/HTTPS links to any domain in direct chats, public rooms, and rented private rooms.
 - [ ] Dangerous executable schemes, malformed links, and credential-bearing URLs remain blocked; safe-preview and phishing/malware controls are tested.
 - [ ] Unverified ordinary members remain blocked from all links. Biometrically verified members receive free YouTube, Facebook, Instagram, and X/Twitter links across DMs and public/rented-private room chats; room owners/moderators retain their room-scoped YouTube, Instagram/Reels, and Facebook allowlist.
 - [ ] AI badge appears as a small visual AI marker on avatar or cover only; no explanatory pop-up and no AI announcements inside direct chats or rooms.
@@ -189,7 +189,7 @@ By the owner's current delivery instruction, the 5,000-persona load simulation a
 - [ ] Expired/revoked biometric verification immediately hides published links and blocks publishing/editing; clients cannot forge verification state or bypass profile read authorization.
 - [ ] Cross-account, privacy, expiry, revocation, and URL-validation tests pass.
 
-### Super Admin financial freeze and coin adjustments
+### Super Owner financial freeze and coin adjustments
 - [ ] Owner-only global and per-operation switches pause/resume top-ups/purchases, coin crediting, transfers, refunds/redemptions/withdrawals where supported, rewards, and administrative adjustments.
 - [ ] Member-level restrictions independently control sending, receiving, top-ups, and refunds/redemptions; enforcement is server-side across all callable/transaction paths and open sessions.
 - [ ] In-flight transfers and payment-provider callbacks are safely frozen/reconciled; no duplicate credit or silent loss occurs when resuming.
@@ -262,7 +262,7 @@ By the owner's current delivery instruction, the 5,000-persona load simulation a
 - [ ] Verify backups and complete restore drills; use quarantine/soft-delete where appropriate and clearly identify irreversible provider/CDN deletion boundaries.
 - [ ] Immutable audit covers requester, MFA freshness, reason, preview hash, exact scope, exclusions, job/batch IDs, counts/bytes, timestamps, retries, denials, cancellations, outcome and recovery status.
 - [ ] Production/test environment separation, budget alerts, anomaly detection, legal-hold enforcement, emergency stop, and documented operator runbook pass independent security review.
-- [ ] Super Admin UI distinguishes available, preview-only, and disabled/not implemented operations; no destructive control is enabled before backend and recovery gates pass.
+- [ ] Super Owner UI distinguishes available, preview-only, and disabled/not implemented operations; no destructive control is enabled before backend and recovery gates pass.
 
 ## Sole-owner content review and mandatory privacy acknowledgement release gates
 
