@@ -726,7 +726,7 @@ test("every shipped premium store category charges once and grants its matching 
   });
 
   try {
-    await Promise.all(items.map(([itemId, category, durationDays], index) =>
+    const publishedItems = await Promise.all(items.map(([itemId, category, durationDays], index) =>
       setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
         itemId,
         name: `ميزة ${itemId}`,
@@ -739,6 +739,21 @@ test("every shipped premium store category charges once and grants its matching 
         purchaseEnabled: true,
       })),
     ));
+    assert.deepEqual(publishedItems.map((item) => item.version), items.map(() => 1));
+
+    const vipRepublished = await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
+      itemId: "vip_monthly",
+      name: "ميزة vip_monthly",
+      description: "اختبار تكامل لاستحقاق متجر مميز.",
+      category: "vip",
+      priceCoins,
+      durationDays: 30,
+      sortOrder: 1,
+      active: true,
+      purchaseEnabled: true,
+    }));
+    assert.equal(vipRepublished.version, 2);
+    assert.equal((await db.collection("storeCatalog").doc("vip_monthly").get()).data().version, 2);
 
     for (const [index, [itemId]] of items.entries()) {
       const requestId = `premium_${tag}_${index}`;
