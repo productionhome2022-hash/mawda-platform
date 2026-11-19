@@ -16,7 +16,7 @@ test("Admin Media and general production each have five independent seats", () =
   assert.equal(PLATFORM_ROLE_CAPACITY.ad_general_supervisor, 5);
   assert.equal(PLATFORM_ROLE_CAPACITY.production_general_supervisor, 5);
   assert.equal(platformRoleDisplayLabel("ad_general_supervisor", 1), "Admin Media 1");
-  assert.equal(platformRoleDisplayLabel("production_general_supervisor", 5, "ar"), "مشرف إنتاج عام ٥");
+  assert.equal(platformRoleDisplayLabel("production_general_supervisor", 5, "ar"), "المشرف العام للإنتاج ٥");
   assert.throws(() => platformRoleDisplayLabel("ad_general_supervisor", 6), /CAPACITY_EXCEEDED/);
 });
 
