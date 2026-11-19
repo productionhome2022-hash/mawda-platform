@@ -720,3 +720,10 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 - Updated financial event creation to persist the post-transition financial snapshot (`...next`) in the immutable event record alongside the existing version snapshot and audit record. Campaign/event/audit writes remain in the same Firestore transaction.
 - Updated the emulator fixture from CHF to EUR because the official platform currency allowlist is now explicitly limited to nine owner-approved currencies. Added assertions for event-level received/refunded/reconciled totals and payment/review status.
 - **Validation pending:** exact-head Functions compile/unit/emulator and domain regression workflows must pass. No live advertising campaign, payment, or external funds were changed.
+
+## Economy currency allowlist — 2026-11-19
+
+- The official settlement/pricing currency allowlist contains EUR, USD, EGP, SAR, SYP, JOD, IQD, AED, DZD, MAD (Moroccan dirham), and TRY (Turkish lira).
+- MAD and TRY use two minor-unit decimal places; JOD and IQD use three; the other listed currencies use two.
+- This is currency-code and precision support only. It does not define exchange rates, coin package prices, ad prices, fees, quotas, payment channels, or activate any checkout flow. Those remain owner-controlled and fail closed when unconfigured.
+- Regression coverage includes the allowlist, decimal validation, coin catalog, ad catalog, and owner-negotiated payment instructions. CI evidence must be attached to the exact commit containing the final tests.
