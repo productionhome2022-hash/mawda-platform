@@ -282,3 +282,14 @@ Root cause found in the primary platform source: `setStoreCatalogItem` wrote the
 Fix committed on PR #35: the owner catalog callable now increments a monotonic server-owned version within the same Firestore transaction, includes that version in its audit event, and returns it. The wallet/store integration test now exercises the actual owner callable, verifies version 1 then version 2 on update, and performs a purchase using the published catalog record. This also gives the 5,000-persona lab a valid owner-published SKU without weakening the server guard.
 
 Latest platform candidate head: `63916ade25d9c6d5db640204637053042415fa06`. Its domain regression run `44476138547` is in progress; full Validate Mawda run `44476138506` is queued/pending. Latest full 5,000-persona run `44476167496` is in progress against this corrected platform SHA with the bounded RSVP retry enabled. No result is claimed until both workflows complete.
+## 18. Role-capacity transfer and dependency-safe PR stacking
+
+A focused role-capacity port was created from the tested governance reference. It adds the platform role identity/label helper, transactional five-seat guards for Admin Media and General Production Supervisor, and unit/emulator tests for capacity and concurrent assignment.
+
+The first attempt, PR #36, was based directly on the development head and its domain regression exposed the known owner-entitlement test fixture issue in that older base. Rather than weaken tests or duplicate unrelated fixes, PR #36 was closed as superseded. Its complete role code and tests were carried forward into PR #37, stacked on top of PR #35's retention/store-catalog repair branch. PR #37 head is `51e207c39900bb21a9e4882147b9469114f28112`; exact-head domain and full validation workflows `44476343031` and `44476343070` are in progress.
+
+PR #37 intentionally leaves persistent Admin N appointment/revocation/permanent-number allocation and fixed-seat numbering reuse policy unresolved; it does not claim those lifecycles complete. The manual biometric-review workflow remains unported pending owner confirmation of its product semantics.
+
+PR #35's latest candidate head is `63916ade25d9c6d5db640204637053042415fa06`. The domain regression run `44476138547` is in progress and full validation run `44476138506` is queued/pending.
+
+The lab PR #4 carries the room-join and RSVP retry changes. Its earlier full run failed before RSVP due to the store-catalog version defect. The corrected full simulation run `44476167496` is now in progress against platform SHA `63916ade25d9c6d5db640204637053042415fa06`. PR #3 was closed as superseded by PR #4; its changes are preserved.
