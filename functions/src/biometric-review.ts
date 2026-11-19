@@ -1,5 +1,5 @@
 export const BIOMETRIC_MAX_ATTEMPTS = 3;
-export const BIOMETRIC_LOCKOUT_MS = 90 * 24 * 60 * 60 * 1000;
+export const BIOMETRIC_LOCKOUT_MONTHS = 3;
 export const BIOMETRIC_RENEWAL_INTERVAL_MONTHS = 1;
 export const BIOMETRIC_REWARD_BETACOINS = 1500;
 
@@ -27,18 +27,24 @@ export interface BiometricDecision {
   nextRenewalAtMs: number | null;
 }
 
-/** Adds one calendar month, clamping month-end dates (e.g. Jan 31 -> Feb 28/29). */
-export function addBiometricRenewalMonth(timestampMs: number): number {
-  if (!Number.isSafeInteger(timestampMs) || timestampMs < 0) {
+/** Adds calendar months in UTC and clamps month-end dates (Jan 31 + 1 month -> Feb 28/29). */
+export function addBiometricCalendarMonths(timestampMs: number, months: number): number {
+  if (!Number.isSafeInteger(timestampMs) || timestampMs < 0 ||
+      !Number.isSafeInteger(months) || months < 1 || months > 12) {
     throw new Error("BIOMETRIC_TIMESTAMP_INVALID");
   }
   const date = new Date(timestampMs);
   const day = date.getUTCDate();
   date.setUTCDate(1);
-  date.setUTCMonth(date.getUTCMonth() + BIOMETRIC_RENEWAL_INTERVAL_MONTHS);
+  date.setUTCMonth(date.getUTCMonth() + months);
   const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
   date.setUTCDate(Math.min(day, lastDay));
   return date.getTime();
+}
+
+/** Biometric renewal is one calendar month after owner approval. */
+export function addBiometricRenewalMonth(timestampMs: number): number {
+  return addBiometricCalendarMonths(timestampMs, BIOMETRIC_RENEWAL_INTERVAL_MONTHS);
 }
 
 /** A pending request has no timeout: owner inactivity must never auto-reject it. */
@@ -142,7 +148,7 @@ export function decideBiometricRequest(args: {
     rewardCoins: 0,
     badgeGranted: false,
     remainingAttempts: 0,
-    lockoutUntilMs: nowMs + BIOMETRIC_LOCKOUT_MS,
+    lockoutUntilMs: addBiometricCalendarMonths(nowMs, BIOMETRIC_LOCKOUT_MONTHS),
     nextRenewalAtMs: null,
   };
 }
