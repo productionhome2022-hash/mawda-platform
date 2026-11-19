@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { roomRentalExpiry, calculateRoomRentalBalance, validateRoomRentalPlans } = require("../lib/room-rental");
+const { DEFAULT_ROOM_RENTAL_PLANS, roomRentalExpiry, calculateRoomRentalBalance, validateRoomRentalPlans } = require("../lib/room-rental");
 
 test("room rental expiry returns an exact safe millisecond timestamp", () => {
   const now = 1_800_000_000_000;
@@ -27,4 +27,19 @@ test("room rental plan validation rejects duplicate identifiers and unsafe price
   assert.throws(() => validateRoomRentalPlans([{ ...plan, priceCoins: Number.MAX_SAFE_INTEGER + 1 }]), {
     message: "INVALID_ROOM_RENTAL_PLAN_FIELDS",
   });
+});
+
+test("experimental room rental prices remain bounded, unique, and explicitly provisional", () => {
+  assert.deepEqual(
+    DEFAULT_ROOM_RENTAL_PLANS.map(({ planId, durationDays, priceCoins, active }) => ({
+      planId, durationDays, priceCoins, active,
+    })),
+    [
+      { planId: "room_30d", durationDays: 30, priceCoins: 1000, active: true },
+      { planId: "room_90d", durationDays: 90, priceCoins: 2700, active: true },
+      { planId: "room_180d", durationDays: 180, priceCoins: 5000, active: true },
+      { planId: "room_365d", durationDays: 365, priceCoins: 9000, active: true },
+    ],
+  );
+  assert.equal(validateRoomRentalPlans(DEFAULT_ROOM_RENTAL_PLANS).length, 4);
 });
