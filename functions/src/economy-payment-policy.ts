@@ -8,9 +8,10 @@ export const ECONOMIC_PAYMENT_SERVICES = [
 
 export type EconomicPaymentService = typeof ECONOMIC_PAYMENT_SERVICES[number];
 
-// These are the only manual-payment flows whose request, owner-attestation,
-// ledger/fulfilment and audit paths currently exist end-to-end. Keep the
-// remaining service switches fail-closed until their workflows are integrated.
+// These are the only manual financial-recording flows with owner-attestation
+// and audit paths currently implemented. Featured-ad records do not activate
+// campaigns; campaign fulfilment/serving remains a separate owner-controlled step.
+// Keep the remaining service switches fail-closed until their full workflows exist.
 export const MANUAL_PAYMENT_READY_SERVICES = [
   "coin_purchases",
   "featured_ads",
