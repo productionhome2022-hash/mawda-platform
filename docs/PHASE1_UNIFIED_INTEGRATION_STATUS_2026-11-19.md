@@ -340,3 +340,33 @@ The latest integration-branch head at this checkpoint is `79d495303725ca8266c27d
 ### PR workflow trigger
 - `.github/workflows/validate.yml` now declares `pull_request` events for the development and unified integration branches, in addition to push and manual dispatch.
 - GitHub only loads a PR workflow from the PR base branch. Because PR #47 targets the development branch and this workflow change is currently on the PR head, this trigger cannot guarantee a run for PR #47 until the workflow definition is present on its base branch. Push-based exact-head validation remains the active evidence for this PR.
+
+
+## Branch and workflow continuation audit — 2026-11-19 (latest pass)
+
+### GitHub Actions evidence
+The following previously running executions have now completed. All listed jobs and steps returned `completed / success`:
+- Validate Mawda: run `44597517337` — Flutter analysis/tests, web builds (including production-configured candidate without deployment), Cloud Functions compile/unit tests, Firestore/Storage Emulator integration and rules tests, isolated scanner image tests.
+- Mawdda Domain Regression: run `44597499592` — retention/room reservation Emulator regression and Flutter UI analysis/widget tests.
+- Validate Mawda: run `44597499646` — same validation suite as above.
+These are validation results for their recorded commit only; they do not close the source-branch extraction or server authorization gaps. Existing workflows include isolated scanner-image tests; no 5000-person simulation or external production E2E was initiated in this pass.
+
+### Branch inventory and selective comparison
+A live inventory returned 51 branches. Content-level/commit comparisons were performed for economy, featured advertising/media, governance/biometric, specialized-role, store, room-audio, member-inbox and premium-feature candidates against this unified branch. Important findings:
+- Several source branches are deeply divergent; examples: `economy-recovery` 618 ahead / 251 behind; `economic-phase-completion` 181 ahead / 251 behind; `featured-ads-secure-lifecycle` 199 ahead / 252 behind; `structural-governance-biometric-roles` 79 ahead / 251 behind.
+- Do not merge these branches wholesale. Their file sets overlap, and the same file versions differ.
+- The unified specialized-role integration test is materially broader than the version on `mawdda-role-capacity-final`; the older source test must not replace it.
+- `coin-purchase-requests.ts`, `wallet-reconciliation.ts`, and `group-call-economy.ts` match the unified branch on the compared economic-completion source. `economy-pricing.ts` and store-gifting integration coverage differ and require semantic, dependency and test review before any port.
+- Some compared branches are already behind with no unique commits (including safety-ui, mfa-signin and premium-features at this comparison point).
+
+### Tracked continuation
+Created Issue #52 to track file-by-file selective extraction of the remaining divergent economy, media and governance changes, with explicit acceptance criteria and guardrails:
+https://github.com/productionhome2022-hash/mawda-platform/issues/52
+
+### Still open / blocking
+- Issue #48: server-side enforcement for specialized advertising roles.
+- Issue #49: secure media delivery lifecycle and Emulator coverage.
+- Issue #50: reconcile Admin Media permission catalogue with implementation vocabulary.
+- Issue #51: branch governance and required PR validation plan.
+- Issue #52: selective extraction of unique changes across divergent branches.
+PR #47 remains Draft. No merge to `main`, deployment, production Firebase mutation, paid-resource activation, or live retention-policy activation was performed.
