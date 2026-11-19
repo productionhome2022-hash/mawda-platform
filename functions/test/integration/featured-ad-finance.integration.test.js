@@ -64,8 +64,18 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
       }),
       paymentPolicy,
     });
-    await setTimedAdCampaign.run(ownerRequest(ownerUid, campaignInput));
-    assert.equal((await campaignVersionRef.doc("1").get()).exists, true);
+    const firstCampaign = await setTimedAdCampaign.run(ownerRequest(ownerUid, campaignInput));
+    assert.equal(firstCampaign.version, 1);
+    const firstCampaignSnapshot = await campaignVersionRef.doc("1").get();
+    assert.equal(firstCampaignSnapshot.exists, true);
+    const secondCampaign = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      ...campaignInput, title: "Updated sponsored campaign",
+    }));
+    assert.equal(secondCampaign.version, 2);
+    const secondCampaignSnapshot = await campaignVersionRef.doc("2").get();
+    assert.equal(secondCampaignSnapshot.exists, true);
+    assert.equal(secondCampaignSnapshot.data().title, "Updated sponsored campaign");
+    assert.equal((await campaignVersionRef.doc("1").get()).data().title, campaignInput.title);
     const payment = {
       ...base, action: "payment_received",
       idempotencyKey: `payment_key_${tag}`,
