@@ -67,7 +67,8 @@ Real-money coin acquisition is a manual, owner-approved process; no payment gate
 3. The owner sees the request in the owner console and contacts the member through the platform to agree the payment method/instructions.
 4. The owner records the agreed instructions and later marks the payment as externally verified based on the owner's own payment records. This is an explicit privileged action requiring recent MFA and an audit reason/reference; the platform does not assert it independently verified a bank/card transaction.
 5. Only the owner approval callable may atomically change the request to approved, credit the member balance, create the wallet ledger entry and immutable audit record. The same transaction enforces exactly-once issuance and rejects replay or a changed quantity.
-6. Owner may reject/cancel a pending request with a reason. A member may withdraw a still-pending request. Approved requests cannot be silently edited or re-approved.
+6. Owner may reject/cancel a request with a reason while it is awaiting owner action. A member may withdraw only before the owner issues payment instructions. Once instructions are issued, the agreed terms are immutable and the member cannot withdraw directly; the owner must close/reject the request if correction or cancellation is needed. Approved requests cannot be silently edited or re-approved.
+7. A member may report that an external transfer was initiated. This only moves the request to `awaiting_payment_verification`; it is a claim-only signal, not proof of receipt, and creates no coin credit. Owner approval remains the only issuance authority. Repeated reports for the same instruction version are idempotent.
 7. No coins are issued while pending, awaiting instructions, awaiting external verification, rejected, cancelled, or withdrawn.
 
 Prices and packages are owner-editable server configuration. Seed prices are illustrative defaults, not final contractual prices. Custom quantity requests must be subject to owner-configured minimum/maximum bounds and the owner must confirm the final agreed amount before issuance.
@@ -85,9 +86,23 @@ A visible sign-out action must be reachable for ordinary members and the platfor
 - Direct and room message reads preserve message type, canonical URL, sender and audit metadata.
 - Flutter player panel uses approximately the top 50% of the available conversation viewport; chat remains visible below; close restores the full conversation.
 - Provider-specific embedding success and failure are tested; blocked embedding always offers original-link fallback and never bypasses provider restrictions.
-- Manual coin request tests cover package/custom requests, duplicate submission, pending/no-credit, owner instructions, external-verification state, owner approval, atomic balance+ledger, concurrent/replayed approval, changed quantity, reject, member withdrawal, audit failure and unauthorized callers.
+- Manual coin request tests cover package/custom requests, duplicate submission, pending/no-credit, versioned owner instructions, member claim-only payment report, no-credit until owner approval, instruction immutability, withdrawal lock after instructions, owner approval, atomic balance+ledger, replay/audit integrity, changed quantity, reject, pre-instruction member withdrawal and unauthorized callers.
 - Logout tests cover member and owner Firebase sign-out, token-unregister failure, auth-gate transition and clearing privileged state.
 
 ## 7. Current implementation boundary
 
 The repository already has an owner link allowance in text-message policy and a Firebase sign-out service/action in the main member shell. That is not the requested integrated live-stream player, room-wide owner broadcast path, or manual coin-request lifecycle. Those remain implementation work and must not be represented as complete until the acceptance tests above pass on an exact CI-tested commit.
+
+
+## 8. Official development branch follow-up — 2026-11-18
+
+The separate port branch `codex/economy-official-port-2026-11-18` is based on `codex/mawda-full-platform-implementation`, not the unified test branch. The following source changes have been ported independently against that branch's current code:
+
+- Coin purchase requests snapshot the manual channel and policy version; the manual path is not disabled solely because a future automated path may be enabled independently.
+- Owner instruction issuance is version-checked and terms are immutable after first issuance.
+- Member payment reporting is a claim-only transition to `awaiting_payment_verification`; it does not credit coins. Member withdrawal is locked after instructions issue. Owner approval is accepted from either instructions-sent or awaiting-verification state.
+- Owner approval replay now requires the corresponding immutable audit record and checks wallet-ledger balance arithmetic and key owner/payment fields.
+- Store purchase records and ledgers now capture balance-before/after values; replay validates receipt/ledger arithmetic and fails closed if the ledger is missing.
+- Room rental creation and renewal records/ledgers now capture balance-before/after values. Creation replay validates the original room/member and debit ledger; renewal replay validates the immutable renewal receipt and ledger. Missing or inconsistent financial evidence fails closed.
+- Owner entitlement grant replay verifies the grant, grant-ledger and audit evidence, and does not overwrite a newer paid entitlement after the original grant has expired or been superseded.
+- Unit and emulator test source has been updated. No build, test, emulator or Flutter analysis was run; final validation remains deferred until internal implementation is complete.
