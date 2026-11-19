@@ -8115,7 +8115,7 @@ export const setTimedAdCampaign = onCall(async (request) => {
     const version = (Number.isSafeInteger(previous.data()?.version)
       ? previous.data()!.version : 0) + 1;
     const now = FieldValue.serverTimestamp();
-    transaction.set(campaignRef, {
+    const campaignSnapshot = {
       ...input, campaignId: campaignRef.id, creativeType,
       mediaId: mediaId ?? null,
       mediaOwnerUid: mediaId ? actorUid : null,
@@ -8126,8 +8126,16 @@ export const setTimedAdCampaign = onCall(async (request) => {
       createdAt: previous.data()?.createdAt ?? now,
       createdBy: previous.data()?.createdBy ?? actorUid,
       updatedAt: now, updatedBy: actorUid,
+    };
+    transaction.set(campaignRef, campaignSnapshot);
+    const campaignVersionRef = db.collection("timedAdCampaignVersions")
+      .doc(campaignRef.id).collection("versions").doc(String(version));
+    transaction.create(campaignVersionRef, {
+      ...campaignSnapshot,
+      snapshotAt: now,
+      snapshotBy: actorUid,
     });
-    return { campaignId: campaignRef.id, version, status: previous.exists ? previous.data()?.status : "draft", creativeType };
+    return { campaignId: campaignRef.id, version, status: campaignSnapshot.status, creativeType };
   });
   await appendOwnerReviewAuditEvent({
     actorUid, action: "timed_ad_campaign_saved", ...result, outcome: "success",
