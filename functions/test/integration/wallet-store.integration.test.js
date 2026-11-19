@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getFirestore } = require("firebase-admin/firestore");
 const {
-  transferCoins, purchaseStoreItem, getOwnerStoreCatalog, setStoreCatalogItem, getOwnerEconomyPricing,
+  transferCoins, purchaseStoreItem, getOwnerStoreCatalog, setStoreCatalogItem, getAvailableCoinPackages, getOwnerEconomyPricing,
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
   setCoinPurchasePaymentInstructions, requestCoinPurchasePaymentVerification, approveCoinPurchaseRequest,
   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
@@ -296,39 +296,90 @@ test("owner catalog seeds approved features as ready while keeping purchases dis
 });
 
 
-test("owner economy prices seed safely and can be edited without enabling real-money checkout", async () => {
+test("owner economy pricing never seeds commercial defaults and publishes immutable per-service policy versions", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const settingsRef = db.doc("platformSettings/economyPricing");
+  const versionCollection = db.collection("platformSettings").doc("economyPricingVersions").collection("versions");
   const previous = await settingsRef.get();
   const previousData = previous.exists ? previous.data() : null;
+  const previousVersions = await versionCollection.get();
+  const previousAudit = await db.collection("adminAuditLogs")
+    .where("action", "==", "economy_pricing_updated")
+    .where("actorUid", "==", "store-catalog-owner").get();
   try {
-    const seeded = await getOwnerEconomyPricing.run(ownerRequest());
-    assert.equal(seeded.realMoneyCheckoutEnabled, false);
-    assert.equal(seeded.coinPackages.length, 5);
-    assert.equal(seeded.adPrices.length, 4);
-    assert.equal(seeded.coinPackages[0].priceMinor, 99);
-    const updatedPackages = seeded.coinPackages.map((p) =>
-      p.packageId === "coins_1000" ? { ...p, priceMinor: 109 } : p);
+    await settingsRef.delete().catch(() => undefined);
+    const oldVersions = await versionCollection.get();
+    await Promise.all(oldVersions.docs.map((doc) => doc.ref.delete()));
+    const unconfigured = await getOwnerEconomyPricing.run(ownerRequest());
+    assert.equal(unconfigured.configured, false);
+    assert.equal(unconfigured.manualCoinPurchasesEnabled, false);
+    assert.deepEqual(unconfigured.coinPackages, []);
+    assert.deepEqual(unconfigured.adPrices, []);
+    const unavailablePackages = await getAvailableCoinPackages.run();
+    assert.equal(unavailablePackages.manualPurchasesEnabled, false);
+    assert.deepEqual(unavailablePackages.packages, []);
+
+    const packages = [{ packageId: "owner_pack", name: "Owner package", coins: 1000,
+      priceMinor: 12500, currency: "CHF", active: true }];
+    const ads = [{ placementId: "owner_ad", name: "Owner ad", billingModel: "daily",
+      priceMinor: 1000, currency: "CHF", active: false }];
+    const paymentPolicy = {
+      coin_purchases: { manualEnabled: true, automatedEnabled: false },
+      featured_ads: { manualEnabled: true, automatedEnabled: false },
+      public_ads: { manualEnabled: false, automatedEnabled: false },
+      influencer_services: { manualEnabled: false, automatedEnabled: false },
+      store_entitlements: { manualEnabled: false, automatedEnabled: false },
+    };
     const saved = await setOwnerEconomyPricing.run(ownerRequest("store-catalog-owner", {
-      coinPackages: updatedPackages, adPrices: seeded.adPrices,
+      coinPackages: packages, adPrices: ads, manualCoinPurchasesEnabled: true,
+      paymentPolicy, customCoinRequestBounds: { minCoins: 100, maxCoins: 50000 },
     }));
-    assert.equal(saved.saved, true);
-    assert.equal(saved.realMoneyCheckoutEnabled, false);
+    assert.equal(saved.version, 1);
+    const versionRef = versionCollection.doc("1");
+    const versionSnapshot = await versionRef.get();
+    assert.equal(versionSnapshot.exists, true);
+    assert.equal(versionSnapshot.data().coinPackages[0].currency, "CHF");
+    assert.equal(versionSnapshot.data().paymentPolicy.featured_ads.manualEnabled, true);
+
     const readback = await getOwnerEconomyPricing.run(ownerRequest());
-    assert.equal(readback.version, saved.version);
-    assert.equal(readback.coinPackages.find((p) => p.packageId === "coins_1000").priceMinor, 109);
+    assert.equal(readback.configured, true);
+    assert.equal(readback.version, 1);
+    assert.equal(readback.coinPackages[0].priceMinor, 12500);
+    assert.equal(readback.coinPackages[0].currencyExponent, 2);
+    assert.deepEqual(readback.customCoinRequestBounds, { minCoins: 100, maxCoins: 50000 });
+    assert.equal(readback.paymentPolicy.coin_purchases.manualEnabled, true);
+    assert.equal(readback.paymentPolicy.featured_ads.manualEnabled, true);
+    assert.equal(readback.paymentPolicy.public_ads.manualEnabled, false);
+    assert.equal(readback.paymentPolicy.influencer_services.manualEnabled, false);
+    assert.equal(readback.paymentPolicy.store_entitlements.manualEnabled, false);
+    assert.equal(readback.paymentPolicy.coin_purchases.automatedEnabled, false);
+
+    const available = await getAvailableCoinPackages.run();
+    assert.equal(available.manualPurchasesEnabled, true);
+    assert.equal(available.automatedCheckoutEnabled, false);
+    assert.equal(available.packages.length, 1);
+    assert.equal(available.customCoinRequestBounds.maxCoins, 50000);
+
     await assert.rejects(
       () => setOwnerEconomyPricing.run(memberRequest("not_owner", {
-        coinPackages: updatedPackages, adPrices: seeded.adPrices,
+        coinPackages: packages, adPrices: ads, manualCoinPurchasesEnabled: true,
+        paymentPolicy,
       })),
       (error) => error && error.code === "permission-denied",
     );
   } finally {
+    const currentVersions = await versionCollection.get();
+    await Promise.all(currentVersions.docs.map((doc) => doc.ref.delete()));
+    await Promise.all(previousVersions.docs.map((doc) => doc.ref.set(doc.data())));
+    const currentAudit = await db.collection("adminAuditLogs")
+      .where("action", "==", "economy_pricing_updated")
+      .where("actorUid", "==", "store-catalog-owner").get();
+    const priorIds = new Set(previousAudit.docs.map((doc) => doc.id));
+    await Promise.all(currentAudit.docs.filter((doc) => !priorIds.has(doc.id)).map((doc) => doc.ref.delete()));
     if (previousData) await settingsRef.set(previousData);
     else await settingsRef.delete().catch(() => undefined);
   }
 });
-
 
 test("owner authority is bound to the single canonical owner UID", async () => {
   const mismatched = ownerRequest("different-owner", {});
