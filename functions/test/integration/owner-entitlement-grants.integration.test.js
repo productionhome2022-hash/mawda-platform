@@ -48,7 +48,7 @@ test("owner free grant is MFA-gated, audited, coin-neutral, idempotent and repea
     memberRef.set({ uid: memberUid, profileCompleted: true, accountStatus: "active", coins: 4321 }),
     itemRef.set({
       itemId, name: "VIP", description: "Owner free-grant integration fixture",
-      category: "vip", priceCoins: 900, durationDays: 30, sortOrder: 1,
+      category: "vip", priceCoins: 900, durationDays: 30, sortOrder: 1, version: 1,
       active: true, purchaseEnabled: false, fulfillmentReady: true,
     }),
   ]);
