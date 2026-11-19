@@ -49,6 +49,16 @@ test.beforeEach(async () => {
       enabled: true,
       minimumAge: 18,
     });
+    await setDoc(doc(db, "biometricVerificationRequests/request-alice"), {
+      uid: "alice",
+      status: "uploading",
+      requestId: "request-alice",
+    });
+    await setDoc(doc(db, "biometricVerificationRequests/request-bob-pending"), {
+      uid: "bob",
+      status: "pending_review",
+      requestId: "request-bob-pending",
+    });
   });
 });
 
@@ -93,6 +103,19 @@ test("a member can read their own wallet ledger but cannot write it", async () =
       amount: 999999,
     }),
   );
+});
+
+test("a member may read only their own biometric request during its upload phase", async () => {
+  const alice = env.authenticatedContext("alice").firestore();
+  const bob = env.authenticatedContext("bob").firestore();
+  await assertSucceeds(getDoc(doc(alice, "biometricVerificationRequests/request-alice")));
+  await assertFails(getDoc(doc(bob, "biometricVerificationRequests/request-alice")));
+  await assertFails(getDoc(doc(alice, "biometricVerificationRequests/request-bob-pending")));
+  await assertFails(getDocs(collection(alice, "biometricVerificationRequests")));
+  await assertFails(setDoc(doc(alice, "biometricVerificationRequests/forged"), {
+    uid: "alice",
+    status: "uploading",
+  }));
 });
 
 test("only a sender or recipient can read a transfer document", async () => {
