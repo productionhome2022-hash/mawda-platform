@@ -151,3 +151,39 @@ test("owner permission delta rejects escalation, duplicates and removal of the f
     remove: ["advertising.campaigns.publish"],
   }), /SPECIALIZED_PERMISSION_REMOVE_INVALID/);
 });
+
+
+test("permission evaluator fails closed for malformed persisted grants", () => {
+  const valid = activeGrant();
+  const base = {
+    ownerVerified: false,
+    uid: "member_uid_0001",
+    permission: "advertising.requests.review",
+    resourceScope: "campaign:campaign_123",
+    nowMs: 200,
+  };
+  assert.equal(hasAdvertisingPermission({
+    ...base,
+    grants: [{ ...valid, status: "active", permissions: ["platform.owner"] }],
+  }), false);
+  assert.equal(hasAdvertisingPermission({
+    ...base,
+    grants: [{ ...valid, uid: "attacker_uid_0001" }],
+  }), false);
+  assert.equal(hasAdvertisingPermission({
+    ...base,
+    grants: [{ ...valid, resourceScopes: ["*"] }],
+  }), false);
+  assert.equal(hasAdvertisingPermission({
+    ...base,
+    grants: [{ ...valid, status: "revoked" }],
+  }), false);
+  assert.equal(hasAdvertisingPermission({
+    ...base,
+    grants: [null, {}, valid],
+  }), true);
+  assert.equal(hasAdvertisingPermission({
+    ...base,
+    grants: valid,
+  }), false);
+});
