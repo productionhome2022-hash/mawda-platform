@@ -34,7 +34,7 @@ New fail-closed settlement guard and regression tests were committed on SHA `c09
 5. **Participant-specific media lifecycle is incomplete.** There is no trusted server-side record of each participant's media start, stop, reconnect, and billable intervals. A single `mediaConnectedAt` timestamp cannot prove continuous or actual media participation.
 6. **Insufficient-balance semantics need a safe complete design.** Current settlement is atomic per member, not a single all-participant reservation/settlement. One member can remain pending while others have settled. Reservation/hold semantics and wallet available-balance integration are not yet implemented or owner-approved.
 7. **Video UI acceptance is incomplete.** Current rendering is a generic remote-renderer grid with local picture-in-picture. It does not yet prove the required 2/3/4 participant layouts or multi-party media delivery.
-8. **Owner pricing UI and end-to-end acceptance need verification.** Backend versioned pricing exists, but the Super Admin owner workflow must be reviewed for editing, activation, audit history, MFA, and the full member consent/price display path.
+8. **Owner pricing UI and end-to-end acceptance need verification.** Backend versioned pricing exists, but the Super Owner owner workflow must be reviewed for editing, activation, audit history, MFA, and the full member consent/price display path.
 9. **No 5,000-persona group-call load run has been completed.** Unit/emulator tests and CI are not a substitute for the separate simulation lab or real-device acceptance.
 
 ## Required next engineering sequence
