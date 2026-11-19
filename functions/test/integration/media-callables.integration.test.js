@@ -27,6 +27,7 @@ const {
   getChatImageAttachmentUrl,
   sendChatMediaAttachment,
   getChatMediaAttachmentUrl,
+  deleteMediaAssetForMessage,
 } = require("../../lib/media");
 
 const { createMemberStory, listMemberStories } = require("../../lib/index");
@@ -928,4 +929,33 @@ test("expired chat media retention blocks issuing a fresh signed delivery URL", 
     }),
     (error) => error && error.code === "failed-precondition",
   );
+});
+
+
+test("active legal hold blocks permanent media deletion", async () => {
+  const uid = `legal-hold-owner-${randomUUID()}`;
+  const mediaId = await createReadyChatImage({ uid, purpose: "chat" });
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const assetBefore = (await assetRef.get()).data();
+  const objectPath = assetBefore.safePreviewPath;
+  const objectFile = getStorage().bucket().file(objectPath);
+
+  await assetRef.update({ legalHoldStatus: "active" });
+  try {
+    await assert.rejects(
+      () => deleteMediaAssetForMessage(mediaId, uid, "chat"),
+      (error) => error && error.code === "failed-precondition",
+    );
+    const retainedAsset = await assetRef.get();
+    assert.equal(retainedAsset.exists, true);
+    assert.equal(retainedAsset.data().legalHoldStatus, "active");
+    assert.equal(retainedAsset.data().status, "security_approved");
+    const [objectExists] = await objectFile.exists();
+    assert.equal(objectExists, true);
+  } finally {
+    await Promise.all([
+      assetRef.delete().catch(() => undefined),
+      objectFile.delete().catch(() => undefined),
+    ]);
+  }
 });
