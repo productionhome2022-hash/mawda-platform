@@ -187,6 +187,7 @@ test("real store purchases flow into the member profile and disappear when their
     await Promise.all(items.map(([itemId, category, durationDays], index) =>
       catalogRefs[index].set({
         itemId,
+        version: 1,
         name: `ميزة ${itemId}`,
         description: "اختبار شراء واستحقاق الملف الشخصي",
         category,
@@ -272,7 +273,7 @@ test("concurrent retries of the same store purchase debit the wallet only once",
   await Promise.all([
     memberRef.set(profile(30, { coins: 1000 })),
     itemRef.set({
-      itemId: "vip_monthly", name: "VIP", description: "Concurrent purchase test",
+      itemId: "vip_monthly", version: 1, name: "VIP", description: "Concurrent purchase test",
       category: "vip", priceCoins: 600, durationDays: 30, sortOrder: 1,
       active: true, purchaseEnabled: true, fulfillmentReady: true,
     }),
