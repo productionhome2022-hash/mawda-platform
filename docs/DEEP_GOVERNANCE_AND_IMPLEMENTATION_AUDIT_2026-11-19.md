@@ -233,3 +233,25 @@ A review of the exact development-head workflow run `44467678163` on SHA `8a1c8d
 A focused isolated-branch correction now sets the test fixture to a valid published/purchasable item (`version: 1`, `purchaseEnabled: true`, `fulfillmentReady: true`) while preserving the production guard. This correction has been committed on `codex/mawdda-retention-approval-ci-repair-2026-11-19`; its CI result must be checked before treating the failure as closed.
 
 **Updated disposition:** the retention-period decision conflict is resolved. The integration gate remains blocked by outstanding retention lifecycle requirements, role/biometric work, CI repair and exact-head validation, stale governance PR reconciliation, the 5,000-persona full run, and the unsafe legacy `main` baseline. No production deployment, billing activation, destructive retention action, or merge to `main` was performed.
+
+## 14. Governance-branch exact-head CI and file-level reconciliation
+
+The previous statement that PR #33's exact-head CI was unverified is now superseded by retrieved GitHub Actions evidence:
+
+- PR #33 head `619eab643e2d5849b3b2c055461d53ba2be01753`:
+  - Validate Mawda run `44466032043`: **success** — Flutter analysis/tests/web build, isolated ClamAV scanner gateway tests/image build, and Cloud Functions compile/unit tests all succeeded.
+  - Domain regression run `44466032143`: **success** — retention/room-reservation emulator regression and Flutter UI/widget tests both succeeded.
+  - This is strong exact-head automated CI evidence for that PR head, but it does not provide physical Android/iOS capture/device acceptance, live non-production upload/playback/deletion acceptance, or resolve graph divergence from the current development head.
+- PR #32 head `e71f3eb559e7f86edecd97fb366ad9c69b5817c5`:
+  - Domain regression run `44420075581`: **success**.
+  - Validate Mawda run `44420075589`: **failure**. Its Storage rules suite failed the positive member upload case because the Storage rule evaluated a null Firestore setting (`storage.rules` line 11); 10/11 Storage tests passed. PR #33's later Storage rules version passed its exact-head CI, but it still must be reconciled to current development source rather than merged wholesale.
+
+A tree/blob comparison against the current development head confirms that neither governance PR is a simple fast-forward:
+- 34 of 35 PR #32 changed paths overlap PR #33; PR #32 alone has `functions/test/platform-terminology-docs.test.js`.
+- PR #33 has five paths not present in PR #32: `docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md`, `docs/IMPLEMENTATION_TRACEABILITY.md`, `lib/models/app_models.dart`, `lib/screens/biometric_verification_screen.dart`, and `lib/screens/owner_biometric_review_screen.dart`.
+- Both PRs contain materially different versions of the same shared files, including Firestore/Storage rules, Functions entrypoint, role grants, biometric verification, documentation and UI projections.
+- Relative to the current development tree, the PR branches introduce files absent from development, including biometric media/review modules, platform role identity helpers, specialized-role capacity tests and (in PR #33) member/owner biometric screens. Existing shared files also differ by blob SHA.
+
+**Reconciliation recommendation:** use PR #33 as the stronger tested reference snapshot, preserve PR #32's unique terminology-doc test, and reconstruct one fresh governance change set from the current development head. This is a prioritization recommendation, not a claim that PR #33 is a semantic superset or safe to merge. Review every shared-file diff, preserve unrelated newer development work, rerun exact-head CI, and retain the physical-device acceptance gate.
+
+For the focused retention/entitlement repair PR #35, the domain-regression run `44474795068` on head `4cf8c090bd4aef72ff0e87891b645f914d02c46b` completed successfully. Its backend compile/unit tests, chat-retention integration, room-event integration, owner-entitlement grant integration, call-signaling integration, and timed-ad reward integration steps all passed; Flutter UI/widget tests also passed. The broader Validate Mawda run `44474795061` on the same head was still in progress at the time of this update, so no full-validation pass is claimed.
