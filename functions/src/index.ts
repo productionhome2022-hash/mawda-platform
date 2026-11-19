@@ -7691,6 +7691,9 @@ export const giftStoreItem = onCall(async (request) => {
   const senderRef = db.collection("users").doc(senderUid);
   const recipientRef = db.collection("users").doc(recipientUid);
   const itemRef = db.collection("storeCatalog").doc(itemId);
+  const catalogVersionPath = `storeCatalogVersions/${itemId}/versions/${expectedCatalogVersion}`;
+  const catalogVersionRef = db.collection("storeCatalogVersions").doc(itemId)
+    .collection("versions").doc(String(expectedCatalogVersion));
   const giftId = createHash("sha256")
     .update(`mawdda-store-gift-v1:${senderUid}:${requestId}`).digest("hex");
   const giftRef = db.collection("storeGifts").doc(giftId);
@@ -7701,25 +7704,29 @@ export const giftStoreItem = onCall(async (request) => {
 
   return db.runTransaction(async (transaction) => {
     const [sender, recipient, itemSnapshot, priorGift, priorEntitlement,
-      priorLedger, priorAudit] = await Promise.all([
+      priorLedger, priorAudit, versionSnapshot] = await Promise.all([
       transaction.get(senderRef), transaction.get(recipientRef), transaction.get(itemRef),
       transaction.get(giftRef), transaction.get(entitlementRef),
-      transaction.get(ledgerRef), transaction.get(auditRef),
+      transaction.get(ledgerRef), transaction.get(auditRef), transaction.get(catalogVersionRef),
     ]);
 
     if (priorGift.exists) {
       const prior = priorGift.data() ?? {};
       const ledger = priorLedger.data() ?? {};
       const audit = priorAudit.data() ?? {};
+      const versionData = versionSnapshot.data() ?? {};
       if (!isStoreGiftReplayCompatible(prior, {
         senderUid, recipientUid, itemId, expectedPriceCoins, expectedCatalogVersion,
       })) {
         throw new HttpsError("already-exists", "معرف طلب الإهداء مستخدم لعملية أو مستلم أو سعر مختلف.");
       }
-      if (!priorLedger.exists || !priorAudit.exists ||
+      if (!versionSnapshot.exists || versionData.itemId !== itemId ||
+          versionData.version !== expectedCatalogVersion || versionData.priceCoins !== prior.priceCoins ||
+          prior.catalogVersion !== expectedCatalogVersion || prior.catalogVersionPath !== catalogVersionPath ||
+          !priorLedger.exists || !priorAudit.exists ||
           ledger.type !== "store_gift_purchase" || ledger.giftId !== giftId ||
           ledger.amount !== -prior.priceCoins || ledger.recipientUid !== recipientUid ||
-          ledger.catalogVersion !== expectedCatalogVersion ||
+          ledger.catalogVersion !== expectedCatalogVersion || ledger.catalogVersionPath !== catalogVersionPath ||
           !Number.isSafeInteger(ledger.balanceBefore) ||
           !Number.isSafeInteger(ledger.balanceAfter) ||
           ledger.balanceBefore - prior.priceCoins !== ledger.balanceAfter ||
@@ -7744,7 +7751,14 @@ export const giftStoreItem = onCall(async (request) => {
     }
     if (!itemSnapshot.exists) throw new HttpsError("not-found", "عنصر المتجر غير موجود.");
     const item = projectStoreCatalogItem(itemId, itemSnapshot.data() ?? {});
-    if (!item || !isStoreItemPurchasable(item)) {
+    const versionData = versionSnapshot.data() ?? {};
+    if (!item || !isStoreItemPurchasable(item) || item.version !== expectedCatalogVersion ||
+        !versionSnapshot.exists || versionData.itemId !== itemId ||
+        versionData.version !== expectedCatalogVersion || versionData.name !== item.name ||
+        versionData.category !== item.category || versionData.priceCoins !== item.priceCoins ||
+        versionData.durationDays !== (item.durationDays ?? null) ||
+        versionData.active !== true || versionData.purchaseEnabled !== true ||
+        versionData.fulfillmentReady !== true) {
       throw new HttpsError("failed-precondition", "هذا العنصر غير منشور أو أن استحقاقه غير جاهز للإهداء.");
     }
     if (item.version !== expectedCatalogVersion ||
@@ -7793,7 +7807,7 @@ export const giftStoreItem = onCall(async (request) => {
       giftId, senderUid, recipientUid, itemId, itemName: item.name,
       category: item.category, priceCoins: item.priceCoins,
       durationDays: item.durationDays ?? null, catalogVersion: item.version,
-      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
+      catalogVersionPath,
       balanceBefore: senderBalance, newBalance, expiresAt,
       status: "completed", createdAt: now,
     });
@@ -7802,7 +7816,7 @@ export const giftStoreItem = onCall(async (request) => {
       giftId, recipientUid, itemId, itemName: item.name,
       priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
       catalogVersion: item.version,
-      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
+      catalogVersionPath,
       balanceBefore: senderBalance, balanceAfter: newBalance, createdAt: now,
     });
     transaction.set(entitlementRef, {
