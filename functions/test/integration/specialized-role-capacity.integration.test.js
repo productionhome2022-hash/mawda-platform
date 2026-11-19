@@ -118,3 +118,25 @@ test("Team Production Supervisor remains open-ended", async () => {
       db.collection("specializedRoleGrants").doc(id).delete().catch(() => undefined)));
   }
 });
+
+
+test("specialized role grant version refuses increment beyond the safe integer boundary", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const role = "production_supervisor";
+  const uid = "member_version_boundary_" + Date.now().toString(36);
+  const id = grantId(uid, role);
+  const ref = db.collection("specializedRoleGrants").doc(id);
+  await ref.set({ ...grant(uid, role), version: Number.MAX_SAFE_INTEGER });
+  try {
+    await assert.rejects(
+      () => setOwnerAdvertisingRoleGrant.run(ownerRequest({
+        expectedVersion: Number.MAX_SAFE_INTEGER,
+        grant: { ...grant(uid, role), version: undefined },
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await ref.get()).data().version, Number.MAX_SAFE_INTEGER);
+  } finally {
+    await ref.delete();
+  }
+});
