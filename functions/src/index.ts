@@ -8106,17 +8106,15 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
 
     const currentData = financial.data() ?? {};
     const currentVersion = financial.exists ? currentData.version : 0;
-    let currentVersionRef: DocumentReference | null = null;
-    let currentVersionSnapshot = null;
     if (financial.exists) {
       if (!Number.isSafeInteger(currentVersion) || currentVersion < 1 ||
           typeof currentData.lastEventId !== "string" ||
           typeof currentData.currentVersionPath !== "string") {
         throw new HttpsError("failed-precondition", "مؤشر السجل المالي الإعلاني غير صالح.");
       }
-      currentVersionRef = db.collection("featuredAdFinancialVersions").doc(event.campaignId)
+      const currentVersionRef = db.collection("featuredAdFinancialVersions").doc(event.campaignId)
         .collection("versions").doc(String(currentVersion));
-      currentVersionSnapshot = await transaction.get(currentVersionRef);
+      const currentVersionSnapshot = await transaction.get(currentVersionRef);
       const currentVersionData = currentVersionSnapshot.data() ?? {};
       if (!currentVersionSnapshot.exists ||
           currentData.currentVersionPath !== currentVersionRef.path ||
