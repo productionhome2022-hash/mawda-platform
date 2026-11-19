@@ -459,6 +459,8 @@ test("manual coin package request issues no coins until owner verifies external 
     const reportAuditRef = db.collection("adminAuditLogs")
       .doc(`coin_purchase_payment_report_${uid}_${requestId}_1`);
     const reportAudit = (await reportAuditRef.get()).data();
+    assert.equal(reportAudit.paymentPolicySnapshot.service, "coin_purchases");
+    assert.equal(reportAudit.paymentPolicyVersion, 1);
     await reportAuditRef.delete();
     await assert.rejects(
       () => requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
@@ -497,12 +499,17 @@ test("manual coin package request issues no coins until owner verifies external 
     assert.equal(ledger.data().externalPaymentReference, `verified-${tag}`);
     assert.equal(ledger.data().currency, "CHF");
     assert.equal(ledger.data().currencyExponent, 2);
+    assert.equal(ledger.data().paymentPolicySnapshot.service, "coin_purchases");
+    assert.equal(ledger.data().paymentPolicyVersion, 1);
     assert.equal(purchase.data().status, "approved");
 
     const replay = await approveCoinPurchaseRequest.run(ownerRequest("manual-owner", approvalInput));
     assert.equal(replay.idempotentReplay, true);
     assert.equal((await userRef.get()).data().coins, 940);
-    assert.equal((await approvalAuditRef.get()).exists, true);
+    const approvalAudit = (await approvalAuditRef.get()).data();
+    assert.equal(approvalAudit.paymentPolicySnapshot.service, "coin_purchases");
+    assert.equal(approvalAudit.paymentPolicyVersion, 1);
+    assert.equal(approvalAudit.instructionsVersion, 1);
     await approvalAuditRef.delete();
     await assert.rejects(
       () => approveCoinPurchaseRequest.run(ownerRequest("manual-owner", approvalInput)),
