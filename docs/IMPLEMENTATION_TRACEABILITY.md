@@ -690,3 +690,10 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 - The current official development branch has had the legacy visible labels found in its inspected Flutter screens, model comments, economic/advertising documents and server-generated role text updated. The PR #33 governance branch has separately received the canonical role names and the relevant source/comment cleanups.
 - A repository search against the default `main` branch still finds old visible strings in legacy files including `lib/screens/super_admin_screen.dart`, `lib/screens/chat_room_screen.dart`, `lib/screens/landing_page.dart`, and `lib/services/room_billing_service.dart`; some of those files are absent from the current development branch. These are not silently changed on `main` because the owner has reserved merge and production authority.
 - Therefore, do not claim that every branch and every historical file is globally clean yet. The remaining `main`-branch labels must be resolved through an owner-approved integration/merge, followed by a full-tree audit on the resulting development SHA.
+
+
+## 2026-11-19 — group-call economic P0 gate
+
+- The official development branch currently exposes one-to-one call signaling callables (`startCall`, `respondToCall`, `markCallConnected`, `sendCallSignal`, `getCallSignals`, `endCall`, `getCallIceConfiguration`, `getActiveCall`). It has no integrated group-call economic start/join/settlement/charging callables.
+- Do not activate or port group-call billing from the isolated economic branch as a complete feature. The P0 evidence gaps remain: trusted media-provider participant/usage evidence, complete participant lifecycle and reconnect accounting, server-side entitlement checks for every participant, reservation and atomic partial settlement, large-room SFU architecture/cost/security review, UI acceptance, and 5,000-person simulation.
+- Group-call billing must remain absent/fail-closed until the full evidence chain and concurrency/replay tests are implemented and accepted. No call prices or charging durations are inferred here.
