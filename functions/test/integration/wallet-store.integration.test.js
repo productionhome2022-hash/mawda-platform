@@ -259,6 +259,7 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
     await assert.rejects(
       () => purchaseStoreItem.run(memberRequest(uid, {
         itemId, requestId: `another_${tag}`, expectedPriceCoins: 1000,
+        expectedCatalogVersion: catalog.version,
       })),
       (error) => error && error.code === "failed-precondition",
     );
@@ -780,6 +781,7 @@ test("every shipped premium store category charges once and grants its matching 
         itemId,
         requestId,
         expectedPriceCoins: priceCoins,
+        expectedCatalogVersion: catalogVersions.get(itemId),
       }));
       assert.equal(replay.idempotentReplay, true, itemId);
       assert.equal((await memberRef.get()).data().coins, 10000 - ((index + 1) * priceCoins), itemId);
