@@ -727,3 +727,13 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 - MAD and TRY use two minor-unit decimal places; JOD and IQD use three; the other listed currencies use two.
 - This is currency-code and precision support only. It does not define exchange rates, coin package prices, ad prices, fees, quotas, payment channels, or activate any checkout flow. Those remain owner-controlled and fail closed when unconfigured.
 - Regression coverage includes the allowlist, decimal validation, coin catalog, ad catalog, and owner-negotiated payment instructions. CI evidence must be attached to the exact commit containing the final tests.
+
+
+## 2026-11-19 — exact-head integration checkpoint and 5,000-person simulation hold
+
+- Development branch checkpoint: `20efef2b34bf45d626defc2293d690680945c775`.
+- The `Mawdda domain regression` workflow completed successfully on this exact SHA (run `44506966587`): Flutter UI analysis/widget tests and retention/room-reservation emulator regression both passed.
+- The `Validate Mawda` workflow is still in progress on the same SHA (run `44506966701`). At the checkpoint, Cloud Functions compile/unit tests and media callable authorization/audit integration had passed; mode-aware retention integration, Flutter tests/web build, and isolated scanner image/sanitization checks were still running. This is not a full validation pass until every job completes successfully.
+- No 5,000-person simulation workflow is to be run during the current implementation/integration stage. Defer the dedicated simulation lab and load/scale scenarios until the owner explicitly resumes that later acceptance phase. Ordinary targeted unit, Flutter, emulator, security and CI checks remain in scope.
+- Current tracked blockers remain: specialized advertising permission grants are not yet enforced by the protected operation callables; Media Saver entitlement-gated save flow is not end-to-end; room cancellation/refund remains blocked on owner-approved policy; full featured-ad serving/reward path and cross-domain wallet reconciliation remain incomplete. Do not enable paid or production behavior to bypass these gaps.
+- This checkpoint changes documentation only; it does not represent completion of the listed blockers, device acceptance, production approval, deployment or merge to `main`.
