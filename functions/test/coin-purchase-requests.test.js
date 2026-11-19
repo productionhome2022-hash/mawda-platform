@@ -42,7 +42,7 @@ test("owner payment instructions require bounded negotiated terms", () => {
     agreedCoins: 1000, agreedPriceMinor: 999, currency: "EUR",
     expectedInstructionsVersion: 0,
   }), /INVALID_INSTRUCTIONS/);
-  for (const currency of ["EUR", "USD", "EGP", "SAR", "SYP", "AED", "DZD"]) {
+  for (const currency of ["EUR", "USD", "EGP", "SAR", "SYP", "AED", "DZD", "MAD", "TRY"]) {
     assert.equal(validateOwnerPaymentInstructionInput({
       requestId: "request_126", instructions: "Owner selected official currency",
       agreedCoins: 1000, agreedPriceMinor: 999, currency,
