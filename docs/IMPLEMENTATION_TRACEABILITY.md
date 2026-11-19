@@ -656,3 +656,14 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 - Featured-ad finance/serving/rewards and complete wallet/platform-wide reconciliation remain open. Reconciliation must remain read-only and must report incomplete/corrupt legacy history without auto-correcting balances.
 - No code was ported from the divergent draft branches in this audit. No tests or builds were run on this documentation commit. Exact-head CI must be run after each subsequent source integration.
 - **Economic phase status: OPEN.** Follow the controlled order and closure criteria in the linked audit. No merge to `main`, deployment, production mutation, billing activation or paid-resource activation is authorized.
+
+
+## 2026-11-19 — manual coin payment and financial replay hardening
+
+- Ported the compatible payment/wallet hardening from the isolated economic port branch into the official development branch in small source/test changes; no wholesale branch merge was performed.
+- Manual coin purchase instructions now require an expected instruction version and are immutable after issuance. The member may report an external transfer only as a claim; the server creates an audited `awaiting_payment_verification` state without crediting coins.
+- Owner approval accepts only the permitted manual-payment states and validates the existing wallet ledger plus immutable owner-audit evidence on replay. Missing or inconsistent evidence fails closed.
+- Replayed coin transfers, store purchases, owner entitlement grants, rented-room creation and room-rental renewal now validate their related ledger/receipt/audit evidence rather than returning success solely because an idempotency document exists. New wallet debits/credits record balance snapshots where applicable.
+- Added/updated unit and Firestore-emulator integration test sources for instruction versioning, claim-only payment reporting, audit integrity, ledger arithmetic and replay behavior.
+- **Validation status:** source and test files are committed, but no local build, unit test, emulator run, Flutter analysis or exact-HEAD CI result has been verified in this execution. Do not treat the work as tested or closed until the exact current SHA passes the configured workflows.
+- No payment provider, automated checkout, production Firebase resource, production wallet, paid service, deployment or `main` merge was changed. Existing owner-controlled prices and payment-mode selection remain authoritative.
