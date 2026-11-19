@@ -75,6 +75,12 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
     const first = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment));
     assert.equal(first.idempotentReplay, false);
     assert.equal(first.snapshot.receivedMinor, 10000);
+    const firstEvent = (await eventRef.doc(first.eventId).get()).data();
+    assert.equal(firstEvent.receivedMinor, 10000);
+    assert.equal(firstEvent.refundedMinor, 0);
+    assert.equal(firstEvent.reconciledMinor, 0);
+    assert.equal(firstEvent.reviewStatus, "in_review");
+    assert.equal(firstEvent.paymentStatus, "paid");
     const replay = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment));
     assert.equal(replay.idempotentReplay, true);
     assert.equal((await campaignRef.get()).data().status, "draft");
