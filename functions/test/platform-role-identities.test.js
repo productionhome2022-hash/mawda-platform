@@ -1,10 +1,11 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
-  PLATFORM_ROLE_CAPACITY, platformRoleDisplayLabel, nextPermanentRoleOrdinal, assertPlatformRoleCapacity,
+  PLATFORM_ROLE_IDS, PLATFORM_ROLE_CAPACITY, platformRoleDisplayLabel, nextPermanentRoleOrdinal, assertPlatformRoleCapacity,
 } = require("../lib/platform-role-identities");
 
 test("general Admin sequence is open-ended and monotonic", () => {
+  assert.equal(PLATFORM_ROLE_IDS.superOwner, "super_admin");
   assert.equal(PLATFORM_ROLE_CAPACITY.platform_admin, null);
   assert.equal(nextPermanentRoleOrdinal([1, 2, 7]), 8);
   assert.equal(platformRoleDisplayLabel("platform_admin", 8), "Admin 8");
