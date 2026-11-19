@@ -9433,7 +9433,8 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
     if (limitedRole !== null) {
       roleSeatCounterRef = db.collection("specializedRoleSeatCounters").doc(limitedRole);
       const [roleSnapshot] = await Promise.all([
-        transaction.get(SPECIALIZED_ROLE_GRANTS.where("role", "==", limitedRole)),
+        transaction.get(SPECIALIZED_ROLE_GRANTS.where("role", "==", limitedRole)
+          .where("status", "==", "active").limit(6)),
         transaction.get(roleSeatCounterRef),
       ]);
       const nowMs = Date.now();
