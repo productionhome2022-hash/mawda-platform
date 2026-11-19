@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
-  BIOMETRIC_MAX_ATTEMPTS, BIOMETRIC_LOCKOUT_MS,
+  BIOMETRIC_MAX_ATTEMPTS, BIOMETRIC_LOCKOUT_MONTHS, addBiometricCalendarMonths,
   addBiometricRenewalMonth, canSubmitBiometricRequest, nextBiometricAttemptNumber, decideBiometricRequest,
 } = require("../lib/biometric-review");
 
@@ -78,9 +78,11 @@ test("rejections expose two, then one, then zero attempts and lock for three mon
   assert.equal(first.remainingAttempts, 2);
   const second = decideBiometricRequest({ state: pending(2), decision: "reject", actorIsSuperOwner: true, nowMs: 1000 });
   assert.equal(second.remainingAttempts, 1);
-  const third = decideBiometricRequest({ state: pending(3), decision: "reject", actorIsSuperOwner: true, nowMs: 1000 });
+  const lockoutStart = Date.parse("2026-01-31T12:00:00Z");
+  const third = decideBiometricRequest({ state: pending(3), decision: "reject", actorIsSuperOwner: true, nowMs: lockoutStart });
   assert.equal(third.status, "locked");
-  assert.equal(third.lockoutUntilMs, 1000 + BIOMETRIC_LOCKOUT_MS);
+  assert.equal(new Date(third.lockoutUntilMs).toISOString(), "2026-04-30T12:00:00.000Z");
+  assert.equal(addBiometricCalendarMonths(lockoutStart, BIOMETRIC_LOCKOUT_MONTHS), third.lockoutUntilMs);
   assert.equal(BIOMETRIC_MAX_ATTEMPTS, 3);
 });
 
