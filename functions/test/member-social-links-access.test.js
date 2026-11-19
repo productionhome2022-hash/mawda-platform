@@ -25,8 +25,8 @@ test("only the same authenticated member with a completed profile can clear link
 test("expired, revoked, pending, malformed and missing biometric records deny link editing", () => {
   const denied = [
     { status: "verified", expiresAt: { toMillis: () => NOW - 1 } },
-    { status: "verified", expiresAt: active.expiresAt, revokedAt: { toMillis: () => NOW - 1 } },
-    { status: "pending", expiresAt: active.expiresAt },
+    { status: "verified", expiresAt: manualReview.expiresAt, revokedAt: { toMillis: () => NOW - 1 } },
+    { status: "pending", expiresAt: manualReview.expiresAt },
     { status: "verified" },
     null,
   ];
@@ -44,7 +44,7 @@ test("profile links remain hidden until challenge-bound cryptographic proof is i
   }, NOW), false);
   assert.equal(canExposeMemberSocialLinks(true, {
     status: "verified",
-    expiresAt: active.expiresAt,
+    expiresAt: manualReview.expiresAt,
     revokedAt: new Date(NOW - 1),
   }, NOW), false);
 });
