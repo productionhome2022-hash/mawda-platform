@@ -896,3 +896,28 @@ test("owner wallet reconciliation is read-only and reports unorderable history a
   }
 });
 
+
+
+test("store catalog version refuses increment beyond the safe integer boundary", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const itemId = `version_boundary_${suffix()}`;
+  const itemRef = db.collection("storeCatalog").doc(itemId);
+  await itemRef.set({
+    itemId, name: "Boundary fixture", description: "Emulator-only",
+    category: "vip", priceCoins: 1, durationDays: 30, version: Number.MAX_SAFE_INTEGER,
+    sortOrder: 1, active: true, purchaseEnabled: true, fulfillmentReady: true,
+  });
+  try {
+    await assert.rejects(
+      () => setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
+        itemId, name: "Boundary fixture", description: "Emulator-only",
+        category: "vip", priceCoins: 1, durationDays: 30,
+        sortOrder: 1, active: true, purchaseEnabled: true, fulfillmentReady: true,
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await itemRef.get()).data().version, Number.MAX_SAFE_INTEGER);
+  } finally {
+    await itemRef.delete();
+  }
+});
