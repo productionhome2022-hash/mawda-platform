@@ -293,3 +293,8 @@ PR #37 intentionally leaves persistent Admin N appointment/revocation/permanent-
 PR #35's latest candidate head is `63916ade25d9c6d5db640204637053042415fa06`. The domain regression run `44476138547` is in progress and full validation run `44476138506` is queued/pending.
 
 The lab PR #4 carries the room-join and RSVP retry changes. Its earlier full run failed before RSVP due to the store-catalog version defect. The corrected full simulation run `44476167496` is now in progress against platform SHA `63916ade25d9c6d5db640204637053042415fa06`. PR #3 was closed as superseded by PR #4; its changes are preserved.
+## 19. Role-capacity test harness correction
+
+PR #37's first emulator integration attempt was not a role-capacity product failure. The workflow initially invoked the Node test without starting Firestore Emulator, so the test correctly failed its emulator-required guard. After wrapping it with `firebase emulators:exec`, the runner then reported `firebase: command not found` because the CLI is installed as a local dependency under npm. The workflow was corrected to invoke `npx firebase emulators:exec`, which resolves the locked local Firebase CLI.
+
+Latest exact-head domain run `44476873545` on PR #37 head `5110cb59f9d9a6edae4bbc7bc8418043f0a1eb51` is now running. The latest full validation run `44476873277` is queued. No role-capacity test pass is claimed until the corrected emulator step itself completes successfully.
