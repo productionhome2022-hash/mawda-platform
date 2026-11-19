@@ -65,3 +65,9 @@
 - `codex/governance-biometric-integration-2026-11-19`: متقدم بـ89 commit ومتأخر بـ85 commit وقت المقارنة؛ الفروقات تشمل تدفق التوثيق اليدوي، المسميات والأدوار، قواعد Firestore/Storage، الواجهات والاختبارات والوثائق. لم يُدمج هذا الفرع.
 
 تم إدراج المتطلبات الموثقة من وثائق الفرعين في الدستور والرؤية وسجل المصادر، لكن **هذا لا يعني نقل كل تغييرات الكود أو اختبارات الفرعين**. يلزم دمج انتقائي لاحق مع مراجعة تعارضات واختبارات على SHA موحد. لا تنفذ عملية الدمج إلى `main` ولا تغيّر الإنتاج.
+
+
+## Canonical administrative terminology appendix
+
+- MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md is the specialist terminology appendix for role names, capacity boundaries, separation of authority, and unresolved fixed-seat numbering policy governed by the unified constitution.
+- The unified constitution remains the canonical policy authority; this appendix is an implementation and localization reference, not a competing source of policy.
