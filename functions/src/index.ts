@@ -30,6 +30,7 @@ import { hasActiveBiometricVerification } from "./biometric-verification";
 import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, isEmailVerificationCycleDue, canRewardEmailVerificationCycle } from "./email-verification-cycle";
 import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
 import { isMemberAccountInGoodStanding } from "./member-access";
+import { projectEconomicPaymentPolicy, validateEconomicPaymentPolicy } from "./economy-payment-policy";
 import {
   assertMessageLinksAllowed,
   BIOMETRIC_APPROVED_HOSTS,
@@ -7268,14 +7269,28 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
 export const getAvailableCoinPackages = onCall(async () => {
   const snapshot = await ECONOMY_PRICING_SETTINGS.get();
   const data = snapshot.data() ?? {};
-  if (data.manualCoinPurchasesEnabled === false) return { packages: [], manualPurchasesEnabled: false };
+  const paymentPolicy = projectEconomicPaymentPolicy(data.paymentPolicy);
+  if (!snapshot.exists || paymentPolicy.coin_purchases.manualEnabled !== true ||
+      paymentPolicy.coin_purchases.automatedEnabled !== false ||
+      data.automatedCoinCheckoutEnabled === true || !Number.isSafeInteger(data.version) ||
+      data.version < 1 || !Array.isArray(data.coinPackages)) {
+    return { packages: [], manualPurchasesEnabled: false, automatedCheckoutEnabled: false, customCoinRequestBounds: null };
+  }
+  const bounds = data.customCoinRequestBounds ?? null;
+  if (bounds !== null && (!bounds || typeof bounds !== "object" ||
+      !Number.isSafeInteger(bounds.minCoins) || bounds.minCoins < 1 ||
+      !Number.isSafeInteger(bounds.maxCoins) || bounds.maxCoins < bounds.minCoins ||
+      bounds.maxCoins > 1000000000)) {
+    throw new HttpsError("failed-precondition", "حدود طلبات الكمية المخصصة غير صالحة؛ أوقفنا عرضها.");
+  }
   let packages;
-  try { packages = validateCoinPackages(data.coinPackages ?? DEFAULT_COIN_PACKAGES); }
-  catch { throw new HttpsError("failed-precondition", "قائمة باقات الكوينز غير صالحة."); }
+  try { packages = validateCoinPackages(data.coinPackages); }
+  catch { throw new HttpsError("failed-precondition", "قائمة باقات BetaCoins غير صالحة؛ أوقفنا عرض الأسعار."); }
   return {
     packages: packages.filter((item) => item.active),
     manualPurchasesEnabled: true,
     automatedCheckoutEnabled: false,
+    customCoinRequestBounds: bounds,
   };
 });
 
@@ -7297,21 +7312,34 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       throw new HttpsError("permission-denied", "يجب أن يكون حساب العضو مكتملاً ونشطاً.");
     }
     const economy = settings.data() ?? {};
-    if (economy.manualCoinPurchasesEnabled === false || economy.automatedCoinCheckoutEnabled === true) {
-      throw new HttpsError("failed-precondition", "طلبات الشراء اليدوية غير متاحة حالياً.");
+    const paymentPolicy = projectEconomicPaymentPolicy(economy.paymentPolicy);
+    if (!settings.exists || paymentPolicy.coin_purchases.manualEnabled !== true ||
+        paymentPolicy.coin_purchases.automatedEnabled !== false ||
+        economy.automatedCoinCheckoutEnabled === true || !Number.isSafeInteger(economy.version) ||
+        economy.version < 1) {
+      throw new HttpsError("failed-precondition", "سياسة الشراء اليدوي غير مهيأة أو غير فعالة؛ لم ننشئ طلباً مالياً.");
     }
     let packageSnapshot: Record<string, unknown> | null = null;
     let requestedCoins: number | null = null;
     if (input.kind === "package") {
       let packages;
-      try { packages = validateCoinPackages(economy.coinPackages ?? DEFAULT_COIN_PACKAGES); }
+      try { packages = validateCoinPackages(economy.coinPackages); }
       catch { throw new HttpsError("failed-precondition", "قائمة باقات الكوينز غير صالحة."); }
       const selected = packages.find((item) => item.packageId === input.packageId && item.active);
       if (!selected) throw new HttpsError("not-found", "الباقة غير متاحة حالياً.");
       packageSnapshot = { ...selected };
       requestedCoins = selected.coins;
     } else {
-      requestedCoins = input.requestedCoins ?? null;
+      const bounds = economy.customCoinRequestBounds;
+      if (!bounds || typeof bounds !== "object" ||
+          !Number.isSafeInteger(bounds.minCoins) || bounds.minCoins < 1 ||
+          !Number.isSafeInteger(bounds.maxCoins) || bounds.maxCoins < bounds.minCoins ||
+          bounds.maxCoins > 1000000000 ||
+          input.requestedCoins === undefined ||
+          input.requestedCoins < bounds.minCoins || input.requestedCoins > bounds.maxCoins) {
+        throw new HttpsError("failed-precondition", "طلبات الكمية المخصصة غير مفعلة أو خارج الحدود التي حددها المالك.");
+      }
+      requestedCoins = input.requestedCoins;
     }
     if (existing.exists) {
       const prior = existing.data() ?? {};
@@ -7325,12 +7353,16 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
     transaction.create(requestRef, {
       requestId: input.requestId, requesterUid: uid, kind: input.kind,
       packageId: input.packageId ?? null, packageSnapshot,
-      requestedCoins, status: "pending_owner_contact",
-      paymentChannel: "manual_owner_contact", currency: "EUR",
+      requestedCoins, pricingPolicyVersion: economy.version,
+      pricingPolicyPath: `platformSettings/economyPricingVersions/versions/${economy.version}`,
+      status: "pending_owner_contact",
+      paymentChannel: "manual_owner_contact", currency: packageSnapshot?.currency ?? economy.currency ?? null,
+      currencyExponent: packageSnapshot?.currencyExponent ?? null,
       paymentPolicySnapshot: {
-        manualEnabled: true, automatedEnabled: false,
-        policyVersion: Number.isSafeInteger(economy.version) ? economy.version : 0,
-        capturedAt: FieldValue.serverTimestamp(),
+        service: "coin_purchases",
+        manualEnabled: paymentPolicy.coin_purchases.manualEnabled,
+        automatedEnabled: paymentPolicy.coin_purchases.automatedEnabled,
+        policyVersion: economy.version, pricingPolicyVersion: economy.version,
       },
       createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
     });
@@ -7695,68 +7727,121 @@ const ECONOMY_PRICING_SETTINGS = db.doc("platformSettings/economyPricing");
 
 /** Owner-only view and safe first-run seeding for editable coin and advertising prices. */
 export const getOwnerEconomyPricing = onCall(async (request) => {
-  const actorUid = requireOwner(request);
+  requireOwner(request);
   const snapshot = await ECONOMY_PRICING_SETTINGS.get();
   if (!snapshot.exists) {
-    await db.runTransaction(async (transaction) => {
-      const current = await transaction.get(ECONOMY_PRICING_SETTINGS);
-      if (current.exists) return;
-      transaction.create(ECONOMY_PRICING_SETTINGS, {
-        coinPackages: DEFAULT_COIN_PACKAGES,
-        adPrices: DEFAULT_AD_PRICES,
-        version: 1,
-        realMoneyCheckoutEnabled: false,
-        manualCoinPurchasesEnabled: true,
-        automatedCoinCheckoutEnabled: false,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-        updatedBy: actorUid,
-      });
-    });
+    return {
+      coinPackages: [], adPrices: [], customCoinRequestBounds: null,
+      version: 0, realMoneyCheckoutEnabled: false,
+      manualCoinPurchasesEnabled: false, automatedCoinCheckoutEnabled: false,
+      configured: false,
+    };
   }
-  const data = (await ECONOMY_PRICING_SETTINGS.get()).data() ?? {};
-  let coinPackages, adPrices;
+  const data = snapshot.data() ?? {};
+  let coinPackages: ReturnType<typeof validateCoinPackages> = [];
+  let adPrices: ReturnType<typeof validateAdPrices> = [];
   try {
-    coinPackages = validateCoinPackages(data.coinPackages);
-    adPrices = validateAdPrices(data.adPrices);
+    if (data.coinPackages !== undefined) coinPackages = validateCoinPackages(data.coinPackages);
+    if (data.adPrices !== undefined) adPrices = validateAdPrices(data.adPrices);
   } catch {
     throw new HttpsError("failed-precondition", "إعدادات اقتصاد المنصة غير صالحة؛ راجع الدعم التقني.");
   }
+  const bounds = data.customCoinRequestBounds ?? null;
+  if (!Number.isSafeInteger(data.version) || data.version < 1) {
+    throw new HttpsError("failed-precondition", "إصدار سياسة الاقتصاد الحالية غير صالح.");
+  }
+  if (bounds !== null && (!bounds || typeof bounds !== "object" ||
+      !Number.isSafeInteger(bounds.minCoins) || bounds.minCoins < 1 ||
+      !Number.isSafeInteger(bounds.maxCoins) || bounds.maxCoins < bounds.minCoins ||
+      bounds.maxCoins > 1000000000)) {
+    throw new HttpsError("failed-precondition", "حدود طلبات الكمية المخصصة غير صالحة.");
+  }
   return {
-    coinPackages, adPrices,
-    version: Number.isSafeInteger(data.version) ? data.version : 0,
+    coinPackages, adPrices, customCoinRequestBounds: bounds,
+    version: data.version,
     realMoneyCheckoutEnabled: false,
-    manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled !== false,
+    manualCoinPurchasesEnabled: projectEconomicPaymentPolicy(data.paymentPolicy).coin_purchases.manualEnabled,
+    paymentPolicy: projectEconomicPaymentPolicy(data.paymentPolicy),
     automatedCoinCheckoutEnabled: false,
+    configured: true,
   };
 });
 
 /** Owner/MFA-only economy price updates. This configures prices, not payment processing. */
 export const setOwnerEconomyPricing = onCall(async (request) => {
   const actorUid = requireOwner(request);
-  let coinPackages, adPrices;
+  let coinPackages: ReturnType<typeof validateCoinPackages>;
+  let adPrices: ReturnType<typeof validateAdPrices>;
+  const manualCoinPurchasesEnabled = request.data?.manualCoinPurchasesEnabled;
+  const rawBounds = request.data?.customCoinRequestBounds ?? null;
+  if (typeof manualCoinPurchasesEnabled !== "boolean") {
+    throw new HttpsError("invalid-argument", "يجب تحديد حالة الشراء اليدوي صراحةً.");
+  }
+  let customCoinRequestBounds: { minCoins: number; maxCoins: number } | null = null;
+  if (rawBounds !== null) {
+    if (!rawBounds || typeof rawBounds !== "object" ||
+        !Number.isSafeInteger(rawBounds.minCoins) || rawBounds.minCoins < 1 ||
+        !Number.isSafeInteger(rawBounds.maxCoins) || rawBounds.maxCoins < rawBounds.minCoins ||
+        rawBounds.maxCoins > 1000000000) {
+      throw new HttpsError("invalid-argument", "حدود طلبات الكمية المخصصة غير صالحة.");
+    }
+    customCoinRequestBounds = { minCoins: rawBounds.minCoins, maxCoins: rawBounds.maxCoins };
+  }
   try {
     coinPackages = validateCoinPackages(request.data?.coinPackages);
     adPrices = validateAdPrices(request.data?.adPrices);
   } catch {
-    throw new HttpsError("invalid-argument", "أسعار باقات الكوينز أو الإعلانات غير صالحة.");
+    throw new HttpsError("invalid-argument", "أسعار باقات BetaCoins أو الإعلانات غير صالحة.");
   }
   const version = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(ECONOMY_PRICING_SETTINGS);
-    const nextVersion = (Number.isSafeInteger(previous.data()?.version) ? previous.data()!.version : 0) + 1;
+    const previousData = previous.data() ?? {};
+    if (previous.exists && (!Number.isSafeInteger(previousData.version) ||
+        previousData.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار سياسة الاقتصاد الحالية غير صالح؛ أوقفنا التحديث لحماية السجل.");
+    }
+    const nextVersion = previous.exists ? previousData.version + 1 : 1;
+    if (!Number.isSafeInteger(nextVersion)) {
+      throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة الاقتصاد.");
+    }
+    const previousPaymentPolicy = projectEconomicPaymentPolicy(previousData.paymentPolicy);
+    let paymentPolicy;
+    try {
+      paymentPolicy = request.data?.paymentPolicy === undefined
+        ? validateEconomicPaymentPolicy({
+            ...previousPaymentPolicy,
+            coin_purchases: { manualEnabled: manualCoinPurchasesEnabled, automatedEnabled: false },
+          })
+        : validateEconomicPaymentPolicy(request.data.paymentPolicy);
+    } catch {
+      throw new HttpsError("invalid-argument", "سياسة وسائل الدفع غير صالحة أو تتضمن مساراً غير جاهز.");
+    }
+    if (paymentPolicy.coin_purchases.manualEnabled !== manualCoinPurchasesEnabled) {
+      throw new HttpsError("invalid-argument", "حالة الشراء اليدوي لا تطابق سياسة الدفع.");
+    }
     const now = FieldValue.serverTimestamp();
+    const versionRef = db.collection("platformSettings").doc("economyPricingVersions")
+      .collection("versions").doc(String(nextVersion));
+    transaction.create(versionRef, {
+      coinPackages, adPrices, customCoinRequestBounds, paymentPolicy,
+      manualCoinPurchasesEnabled, automatedCoinCheckoutEnabled: false,
+      realMoneyCheckoutEnabled: false, version: nextVersion,
+      createdAt: now, createdBy: actorUid,
+    });
     transaction.set(ECONOMY_PRICING_SETTINGS, {
-      coinPackages, adPrices, version: nextVersion,
-      manualCoinPurchasesEnabled: request.data?.manualCoinPurchasesEnabled !== false,
+      coinPackages, adPrices, customCoinRequestBounds, paymentPolicy, version: nextVersion,
+      manualCoinPurchasesEnabled,
       automatedCoinCheckoutEnabled: false,
       realMoneyCheckoutEnabled: false,
       updatedAt: now, updatedBy: actorUid,
-      createdAt: previous.data()?.createdAt ?? now,
+      createdAt: previousData.createdAt ?? now,
+      currentVersionPath: versionRef.path,
     });
     const auditRef = db.collection("adminAuditLogs").doc();
     transaction.create(auditRef, {
       actorUid, action: "economy_pricing_updated", version: nextVersion,
       coinPackageCount: coinPackages.length, adPlacementCount: adPrices.length,
+      manualCoinPurchasesEnabled, customCoinRequestBounds,
       realMoneyCheckoutEnabled: false, createdAt: now,
     });
     return nextVersion;
