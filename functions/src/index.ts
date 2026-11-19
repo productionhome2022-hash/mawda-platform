@@ -1,7 +1,12 @@
 import {
   isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, calculateStoreGiftExpiryMs,
 } from "./store-gifting";
-import { assertPlatformRoleCapacity, type NumberedPlatformRole } from "./platform-role-identities";
+import {
+  assertPlatformRoleCapacity,
+  platformRoleCapacity,
+  PLATFORM_ROLE_CAPACITY,
+  type NumberedPlatformRole,
+} from "./platform-role-identities";
 import { initializeApp } from "firebase-admin/app";
 import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
 import { getAuth } from "firebase-admin/auth";
@@ -9649,11 +9654,109 @@ export const reviewOwnerAdvertisingIntake = onCall(
 // Owner-controlled specialized advertising/production/legal role grants.
 // These grants are separate from general platform administration.
 const SPECIALIZED_ROLE_GRANTS = db.collection("specializedRoleGrants");
+const SPECIALIZED_ROLE_CAPACITY_SETTINGS = db.doc("platformSettings/specializedRoleCapacity");
 
 export const getOwnerAdvertisingRoleGrants = onCall(async (request) => {
   requireOwner(request);
   const snapshot = await SPECIALIZED_ROLE_GRANTS.orderBy("updatedAt", "desc").limit(500).get();
   return { grants: snapshot.docs.map((doc) => ({ grantId: doc.id, ...doc.data() })) };
+});
+
+/** The only expandable numbered specialist team is General Production Supervisor. */
+export const getOwnerSpecializedRoleCapacity = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await SPECIALIZED_ROLE_CAPACITY_SETTINGS.get();
+  const data = snapshot.data() ?? {};
+  const version = snapshot.exists ? data.version : 0;
+  const configuredCapacity = data.productionGeneralSupervisorCapacity;
+  const productionGeneralSupervisorCapacity =
+    configuredCapacity === undefined
+      ? PLATFORM_ROLE_CAPACITY.production_general_supervisor
+      : configuredCapacity;
+  if (!Number.isSafeInteger(version) || version < 0 ||
+      !Number.isSafeInteger(productionGeneralSupervisorCapacity) ||
+      productionGeneralSupervisorCapacity < PLATFORM_ROLE_CAPACITY.production_general_supervisor) {
+    throw new HttpsError("failed-precondition", "إعداد سعة مشرفي الإنتاج غير صالح؛ أوقفنا التعيين.");
+  }
+  return {
+    version,
+    capacities: {
+      platform_admin: PLATFORM_ROLE_CAPACITY.platform_admin,
+      ad_general_supervisor: PLATFORM_ROLE_CAPACITY.ad_general_supervisor,
+      production_general_supervisor: productionGeneralSupervisorCapacity,
+      production_supervisor: PLATFORM_ROLE_CAPACITY.production_supervisor,
+      production_quality_reviewer: PLATFORM_ROLE_CAPACITY.production_quality_reviewer,
+      legal_administrative_supervisor: PLATFORM_ROLE_CAPACITY.legal_administrative_supervisor,
+    },
+  };
+});
+
+/** Owner may raise/lower the General Production Supervisor capacity, never below its default or active seats. */
+export const setOwnerSpecializedRoleCapacity = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const expectedVersion = request.data?.expectedVersion;
+  const capacity = request.data?.capacity;
+  const role = "production_general_supervisor";
+  const defaultCapacity = PLATFORM_ROLE_CAPACITY.production_general_supervisor;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0 ||
+      !Number.isSafeInteger(capacity) || capacity < defaultCapacity) {
+    throw new HttpsError("invalid-argument", "إصدار السعة أو عدد المقاعد غير صالح.");
+  }
+  return db.runTransaction(async (transaction) => {
+    const [settingsSnapshot, grantsSnapshot] = await Promise.all([
+      transaction.get(SPECIALIZED_ROLE_CAPACITY_SETTINGS),
+      transaction.get(SPECIALIZED_ROLE_GRANTS.where("role", "==", role).where("status", "==", "active")),
+    ]);
+    const data = settingsSnapshot.data() ?? {};
+    const previousVersion = settingsSnapshot.exists ? data.version : 0;
+    const previousCapacity = settingsSnapshot.exists
+      ? data.productionGeneralSupervisorCapacity ?? defaultCapacity
+      : defaultCapacity;
+    if (!Number.isSafeInteger(previousVersion) || previousVersion !== expectedVersion) {
+      throw new HttpsError("aborted", "تغير إعداد السعة منذ آخر قراءة؛ أعد تحميله قبل الحفظ.");
+    }
+    if (previousVersion >= Number.MAX_SAFE_INTEGER) {
+      throw new HttpsError("failed-precondition", "بلغ إصدار إعداد السعة الحد الآمن.");
+    }
+    if (!Number.isSafeInteger(previousCapacity) || previousCapacity < defaultCapacity) {
+      throw new HttpsError("failed-precondition", "قيمة السعة المحفوظة غير صالحة.");
+    }
+    const nowMs = Date.now();
+    const activeCount = grantsSnapshot.docs.filter((doc) => {
+      const grant = doc.data();
+      return grant.status === "active" &&
+        (grant.endsAtMs == null || !Number.isSafeInteger(grant.endsAtMs) || grant.endsAtMs > nowMs);
+    }).length;
+    if (capacity < activeCount) {
+      throw new HttpsError("failed-precondition", "لا يمكن خفض السعة إلى أقل من عدد المشرفين النشطين.");
+    }
+    const version = previousVersion + 1;
+    const auditLogId = await createOwnerReviewAuditEventInTransaction(transaction, {
+      actorUid,
+      action: "specialized_role_capacity_updated",
+      role,
+      previousCapacity,
+      capacity,
+      activeCount,
+      version,
+      outcome: "success",
+    });
+    const now = FieldValue.serverTimestamp();
+    transaction.set(SPECIALIZED_ROLE_CAPACITY_SETTINGS, {
+      productionGeneralSupervisorCapacity: capacity,
+      version,
+      updatedBy: actorUid,
+      updatedAt: now,
+    });
+    transaction.set(db.collection("specializedRoleSeatCounters").doc(role), {
+      role,
+      activeCount,
+      capacity,
+      reconciledAt: now,
+      updatedAt: now,
+    });
+    return { role, capacity, activeCount, version, auditLogId };
+  });
 });
 
 export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
@@ -9671,7 +9774,10 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
   const grantId = specializedRoleGrantId(grant.uid, grant.role);
   const grantRef = SPECIALIZED_ROLE_GRANTS.doc(grantId);
   const limitedRole: NumberedPlatformRole | null =
-    grant.role === "ad_general_supervisor" || grant.role === "production_general_supervisor"
+    grant.role === "ad_general_supervisor" ||
+    grant.role === "production_general_supervisor" ||
+    grant.role === "production_quality_reviewer" ||
+    grant.role === "legal_administrative_supervisor"
       ? grant.role
       : null;
   const result = await db.runTransaction(async (transaction) => {
@@ -9692,6 +9798,16 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
           .where("status", "==", "active")),
         transaction.get(roleSeatCounterRef),
       ]);
+      const capacitySnapshot = limitedRole === "production_general_supervisor"
+        ? await transaction.get(SPECIALIZED_ROLE_CAPACITY_SETTINGS)
+        : null;
+      const configuredCapacity = capacitySnapshot?.data()?.productionGeneralSupervisorCapacity;
+      if (configuredCapacity !== undefined &&
+          (!Number.isSafeInteger(configuredCapacity) ||
+           configuredCapacity < PLATFORM_ROLE_CAPACITY.production_general_supervisor)) {
+        throw new HttpsError("failed-precondition", "إعداد سعة مشرفي الإنتاج غير صالح؛ أوقفنا التعيين.");
+      }
+      const capacityOverride = configuredCapacity === undefined ? undefined : configuredCapacity;
       const nowMs = Date.now();
       const otherActiveAssignments = roleSnapshot.docs.filter((doc) => {
         if (doc.id === grantId) return false;
@@ -9703,7 +9819,7 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
         (grant.endsAtMs === null || grant.endsAtMs > nowMs);
       roleSeatCountAfterWrite = otherActiveAssignments + (targetConsumesSeat ? 1 : 0);
       try {
-        assertPlatformRoleCapacity(limitedRole, roleSeatCountAfterWrite);
+        assertPlatformRoleCapacity(limitedRole, roleSeatCountAfterWrite, capacityOverride);
       } catch {
         throw new HttpsError("resource-exhausted", "اكتمل العدد المسموح لهذه الفئة الإشرافية؛ الحد الأقصى خمسة.");
       }
@@ -9724,6 +9840,7 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
       transaction.set(roleSeatCounterRef, {
         role: limitedRole,
         activeCount: roleSeatCountAfterWrite,
+        capacity: platformRoleCapacity(limitedRole, capacityOverride),
         reconciledAt: now,
         updatedAt: now,
       });
