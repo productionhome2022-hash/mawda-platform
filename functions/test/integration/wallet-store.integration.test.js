@@ -429,7 +429,7 @@ test("manual coin package request issues no coins until owner verifies external 
 
     const instructionResult = await setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
       requesterUid: uid, requestId, instructions: "يرجى التواصل مع المالك لإتمام التحويل البنكي",
-      agreedCoins: 900, agreedPriceMinor: 500, currency: "CHF", currencyExponent: 2,
+      agreedCoins: 900, agreedPriceMinor: 500, currency: "CHF",
       expectedInstructionsVersion: 0,
     }));
     assert.equal((await requestDoc.get()).data().status, "payment_instructions_sent");
@@ -441,7 +441,7 @@ test("manual coin package request issues no coins until owner verifies external 
     await assert.rejects(
       () => setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
         requesterUid: uid, requestId, instructions: "تعديل ممنوع بعد الإصدار",
-        agreedCoins: 900, agreedPriceMinor: 500, currency: "CHF", currencyExponent: 2,
+        agreedCoins: 900, agreedPriceMinor: 500, currency: "CHF",
         expectedInstructionsVersion: 0,
       })),
       (error) => error && error.code === "failed-precondition",
