@@ -7499,6 +7499,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       requestId: input.requestId, agreedCoins: input.agreedCoins,
       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
       currencyExponent: input.currencyExponent,
+      paymentPolicySnapshot: prior.paymentPolicySnapshot,
       paymentPolicyVersion: prior.paymentPolicySnapshot.policyVersion,
       pricingPolicyVersion: prior.pricingPolicyVersion,
       chatId, messageId, instructionsVersion: nextVersion, createdAt: now,
@@ -7553,6 +7554,7 @@ export const requestCoinPurchasePaymentVerification = onCall(async (request) => 
           auditData.action !== "coin_purchase_member_reported_external_payment" ||
           auditData.requestId !== requestId ||
           auditData.instructionVersion !== expectedInstructionsVersion ||
+          JSON.stringify(auditData.paymentPolicySnapshot ?? null) !== JSON.stringify(data.paymentPolicySnapshot ?? null) ||
           auditData.paymentPolicyVersion !== data.paymentPolicySnapshot.policyVersion ||
           auditData.pricingPolicyVersion !== data.pricingPolicyVersion ||
           auditData.authority !== "member_claim_only_not_payment_proof") {
@@ -7575,6 +7577,7 @@ export const requestCoinPurchasePaymentVerification = onCall(async (request) => 
       actorUid: uid, targetUid: uid,
       action: "coin_purchase_member_reported_external_payment",
       requestId, instructionVersion: expectedInstructionsVersion,
+      paymentPolicySnapshot: data.paymentPolicySnapshot,
       paymentPolicyVersion: data.paymentPolicySnapshot.policyVersion,
       pricingPolicyVersion: data.pricingPolicyVersion,
       authority: "member_claim_only_not_payment_proof",
