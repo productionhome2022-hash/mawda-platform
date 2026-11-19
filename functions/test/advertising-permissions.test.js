@@ -1,7 +1,10 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const {
   ADVERTISING_GENERAL_SUPERVISOR_LIMIT,
+  ADVERTISING_SUPERVISOR_PERMISSIONS,
   normalizeAdvertisingSupervisorPermissions,
   assertAdvertisingSupervisorCapacity,
   isOwnerOnlyAdvertisingAction,
@@ -95,4 +98,18 @@ test("representatives and ordinary members cannot perform supervisor actions", (
       supervisorPermissions: ["advertising.requests.view_all"],
     }), false);
   }
+});
+
+
+test("delegated permission catalogue exactly matches the approved specification", () => {
+  const specificationPath = path.resolve(__dirname, "../../docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md");
+  const specification = fs.readFileSync(specificationPath, "utf8");
+  const section = specification.split("## 3. Delegated permission catalogue")[1]?.split("## 4.")[0];
+  assert.ok(section, "approved delegated permission catalogue section must exist");
+  const approved = [...section.matchAll(/^\\s*-\\s+(advertising\\.[a-z_.]+)\\s*$/gm)]
+    .map((match) => match[1]).sort();
+  const implemented = [...ADVERTISING_SUPERVISOR_PERMISSIONS].sort();
+  assert.equal(new Set(approved).size, approved.length, "specification must not duplicate permission keys");
+  assert.equal(new Set(implemented).size, implemented.length, "implementation must not duplicate permission keys");
+  assert.deepEqual(implemented, approved);
 });
