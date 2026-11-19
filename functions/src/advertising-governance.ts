@@ -170,12 +170,25 @@ export function canSignUnderDelegation(args: {
   ownerCoSignaturePresent: boolean;
 }): boolean {
   const d = args.delegation;
-  if (!d || !d.active || d.delegateUid !== args.delegateUid ||
-      !d.contractTypes.includes(args.contractType) ||
+  if (!d || typeof d !== "object" ||
+      typeof d.active !== "boolean" || !d.active ||
+      typeof d.delegateUid !== "string" || !/^[A-Za-z0-9._:@-]{8,128}$/.test(d.delegateUid) ||
+      typeof args.delegateUid !== "string" || d.delegateUid !== args.delegateUid ||
+      !Array.isArray(d.contractTypes) || d.contractTypes.length < 1 ||
+      d.contractTypes.length > 100 ||
+      d.contractTypes.some((type) => typeof type !== "string" || !/^[a-z][a-z0-9_-]{1,63}$/.test(type)) ||
+      new Set(d.contractTypes).size !== d.contractTypes.length ||
+      typeof args.contractType !== "string" || !d.contractTypes.includes(args.contractType) ||
+      !Number.isSafeInteger(d.maxCommitmentMinor) || d.maxCommitmentMinor < 0 ||
       !Number.isSafeInteger(args.commitmentMinor) || args.commitmentMinor < 0 ||
       args.commitmentMinor > d.maxCommitmentMinor ||
+      typeof d.currency !== "string" || !/^[A-Z]{3}$/.test(d.currency) ||
       args.currency !== d.currency ||
-      args.nowMs < d.startsAtMs || args.nowMs >= d.endsAtMs ||
+      !Number.isSafeInteger(d.startsAtMs) || d.startsAtMs < 0 ||
+      !Number.isSafeInteger(d.endsAtMs) || d.endsAtMs <= d.startsAtMs ||
+      !Number.isSafeInteger(args.nowMs) || args.nowMs < d.startsAtMs || args.nowMs >= d.endsAtMs ||
+      typeof d.ownerCoSignatureRequired !== "boolean" ||
+      typeof args.ownerCoSignaturePresent !== "boolean" ||
       !Number.isSafeInteger(d.delegationVersion) || d.delegationVersion < 1) return false;
   return !d.ownerCoSignatureRequired || args.ownerCoSignaturePresent;
 }
