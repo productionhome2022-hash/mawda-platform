@@ -98,3 +98,20 @@ test("specialized role grants cannot be saved with an empty permission list", ()
     startsAtMs: 100, endsAtMs: 1000, version: 1,
   }), /SPECIALIZED_GRANT_INVALID/);
 });
+
+test("resource scopes reject surrounding whitespace and control characters", () => {
+  const base = {
+    uid: "member_uid_0001",
+    role: "ad_general_supervisor",
+    permissions: ["advertising.requests.review"],
+    status: "active",
+    startsAtMs: 100,
+    endsAtMs: 1000,
+    version: 1,
+  };
+  for (const resourceScope of [" campaign:campaign_123", "campaign:campaign_123 ", "campaign:\\u0000x", "campaign:\\nroom"]) {
+    assert.throws(() => validateSpecializedRoleGrant({
+      ...base, resourceScopes: [resourceScope],
+    }), /SPECIALIZED_SCOPE_INVALID/);
+  }
+});
