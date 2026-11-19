@@ -44,21 +44,29 @@ test("rejects unpublished, malformed, and unsafe-price items", () => {
     active: true, name: "ميزة", description: "", category: "feature",
     priceCoins: 100, durationDays: 0,
   }), null);
-  assert.equal(projectStoreCatalogItem("unsupported-duration", {
+  assert.equal(projectStoreCatalogItem("custom-duration", {
     active: true, name: "ميزة", description: "", category: "feature",
     priceCoins: 100, durationDays: 2,
-  }), null);
-  assert.equal(projectStoreCatalogItem("legacy-long-duration", {
+  }).durationDays, 2);
+  assert.equal(projectStoreCatalogItem("maximum-duration", {
     active: true, name: "ميزة", description: "", category: "feature",
     priceCoins: 100, durationDays: 3650,
+  }).durationDays, 3650);
+  assert.equal(projectStoreCatalogItem("too-long-duration", {
+    active: true, name: "ميزة", description: "", category: "feature",
+    priceCoins: 100, durationDays: 3651,
   }), null);
   const { validateStoreCatalogItemInput } = require("../lib/store-catalog");
   for (const durationDays of [2, 14, 365, 3650]) {
-    assert.throws(() => validateStoreCatalogItemInput({
+    assert.equal(validateStoreCatalogItemInput({
       itemId: "vip_monthly", name: "عنصر", description: "عنصر تجريبي.",
       category: "vip", priceCoins: 100, durationDays, active: true,
-    }), /INVALID_STORE_ITEM_FIELDS/);
+    }).durationDays, durationDays);
   }
+  assert.throws(() => validateStoreCatalogItemInput({
+    itemId: "vip_monthly", name: "عنصر", description: "عنصر تجريبي.",
+    category: "vip", priceCoins: 100, durationDays: 3651, active: true,
+  }), /INVALID_STORE_ITEM_FIELDS/);
 });
 
 
