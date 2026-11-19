@@ -16,9 +16,9 @@ const adPriceFixture = {
 
 test("official economy currency allowlist and minor-unit precision are exact", () => {
   assert.deepEqual(OFFICIAL_ECONOMY_CURRENCIES, [
-    "EUR", "USD", "EGP", "SAR", "SYP", "JOD", "IQD", "AED", "DZD",
+    "EUR", "USD", "EGP", "SAR", "SYP", "JOD", "IQD", "AED", "DZD", "MAD", "TRY",
   ]);
-  for (const currency of ["EUR", "USD", "EGP", "SAR", "SYP", "AED", "DZD"]) {
+  for (const currency of ["EUR", "USD", "EGP", "SAR", "SYP", "AED", "DZD", "MAD", "TRY"]) {
     assert.equal(currencyExponentForCode(currency), 2, currency);
   }
   for (const currency of ["JOD", "IQD"]) {
@@ -141,7 +141,7 @@ test("owner pricing catalogs accept owner-selected ISO 4217 currencies", () => {
     { ...coinPackageFixture, packageId: "coins_dzd", currency: "DZD" },
   ]);
   assert.deepEqual(packages.map((item) => item.currency), ["USD", "EGP", "SAR", "SYP", "EUR", "JOD", "IQD", "AED", "DZD"]);
-  assert.deepEqual(packages.map((item) => item.currencyExponent), [2, 2, 2, 2, 2, 3, 3, 2, 2]);
+  assert.deepEqual(packages.map((item) => item.currencyExponent), [2, 2, 2, 2, 2, 3, 3, 2, 2, 2, 2]);
   const ads = validateAdPrices([
     { ...adPriceFixture, placementId: "ad_syp", currency: "SYP" },
   ]);
