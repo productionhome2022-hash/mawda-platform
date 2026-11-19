@@ -60,18 +60,25 @@ test("expired or revoked members may clear links but cannot publish links", () =
   assert.equal(canUpdateMemberSocialLinks(links, revoked, 1_800_000_000_000), false);
   assert.equal(canUpdateMemberSocialLinks(links, {
     status: "verified",
+    verificationMethod: "owner_manual_review",
+    reviewedBySuperOwner: true,
+    reviewRequestId: "review_request_123",
     expiresAt: { toMillis: () => 1_900_000_000_000 },
-  }, 1_800_000_000_000), true);
+  }, 1_800_000_000_000), false);
 });
 
 
 test("a member may hide a link after verification expires, but revealing it requires an active lease", () => {
   const expired = { status: "verified", expiresAt: { toMillis: () => 1_700_000_000_000 } };
-  const active = { status: "verified", expiresAt: { toMillis: () => 1_900_000_000_000 } };
+  const active = {
+    status: "verified", verificationMethod: "owner_manual_review",
+    reviewedBySuperOwner: true, reviewRequestId: "review_request_123",
+    expiresAt: { toMillis: () => 1_900_000_000_000 },
+  };
   const now = 1_800_000_000_000;
   assert.equal(canChangeMemberSocialLinkVisibility(true, expired, now), true);
   assert.equal(canChangeMemberSocialLinkVisibility(true, null, now), true);
   assert.equal(canChangeMemberSocialLinkVisibility(false, expired, now), false);
   assert.equal(canChangeMemberSocialLinkVisibility(false, null, now), false);
-  assert.equal(canChangeMemberSocialLinkVisibility(false, active, now), true);
+  assert.equal(canChangeMemberSocialLinkVisibility(false, active, now), false);
 });
