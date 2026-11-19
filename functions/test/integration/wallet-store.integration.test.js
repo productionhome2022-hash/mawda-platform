@@ -213,14 +213,20 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
   const ledgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
   const entitlementRef = memberRef.collection("entitlements").doc(itemId);
 
-  await Promise.all([
-    memberRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active" }),
-    itemRef.set({
-      itemId, name: "VIP test item", description: "Emulator-only entitlement test",
-      category: "vip", priceCoins: 1250, durationDays: 30, version: 1, sortOrder: 1,
-      active: true, purchaseEnabled: true, fulfillmentReady: true,
-    }),
-  ]);
+  await memberRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active" });
+  const firstPublish = await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
+    itemId, name: "VIP test item", description: "Emulator-only entitlement test",
+    category: "vip", priceCoins: 1250, durationDays: 30, sortOrder: 1,
+    active: true, purchaseEnabled: true, fulfillmentReady: true,
+  }));
+  assert.equal(firstPublish.version, 1);
+  const secondPublish = await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
+    itemId, name: "VIP test item", description: "Emulator-only entitlement test",
+    category: "vip", priceCoins: 1250, durationDays: 30, sortOrder: 1,
+    active: true, purchaseEnabled: true, fulfillmentReady: true,
+  }));
+  assert.equal(secondPublish.version, 2);
+  assert.equal((await itemRef.get()).data().version, 2);
   try {
     const request = memberRequest(uid, { itemId, requestId, expectedPriceCoins: 1250 });
     const result = await purchaseStoreItem.run(request);
