@@ -23,7 +23,7 @@ test("store gift debits sender and grants recipient once with immutable terms", 
   const senderUid = `gift_sender_${tag}`;
   const recipientUid = `gift_recipient_${tag}`;
   const recipientUsername = `giftuser_${tag}`;
-  const itemId = "vip_monthly";
+  const itemId = `vip_gift_${tag}`;
   const requestId = `gift_req_${tag}`;
   const itemRef = db.collection("storeCatalog").doc(itemId);
   const versionsRef = db.collection("storeCatalogVersions").doc(itemId).collection("versions");
