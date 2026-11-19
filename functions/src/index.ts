@@ -6497,6 +6497,8 @@ export const giftStoreItem = onCall(async (request) => {
   const senderRef = db.collection("users").doc(senderUid);
   const recipientRef = db.collection("users").doc(recipientUid);
   const itemRef = db.collection("storeCatalog").doc(itemId);
+  const catalogVersionRef = db.collection("storeCatalogVersions").doc(itemId)
+    .collection("versions").doc(String(expectedCatalogVersion));
   const giftId = createHash("sha256").update(
     `mawdda-store-gift-v1:${senderUid}:${requestId}`,
   ).digest("hex");
@@ -6505,12 +6507,22 @@ export const giftStoreItem = onCall(async (request) => {
   const entitlementRef = recipientRef.collection("entitlements").doc(itemId);
   const auditRef = db.collection("adminAuditLogs").doc(`store_gift_${giftId}`);
   return db.runTransaction(async (transaction) => {
-    const [sender, recipient, itemSnapshot, priorGift, priorEntitlement, priorLedger, priorAudit, usernameSnapshot] = await Promise.all([
+    const [sender, recipient, itemSnapshot, catalogVersionSnapshot, priorGift, priorEntitlement, priorLedger, priorAudit, usernameSnapshot] = await Promise.all([
       transaction.get(senderRef), transaction.get(recipientRef),
-      transaction.get(itemRef), transaction.get(giftRef), transaction.get(entitlementRef),
+      transaction.get(itemRef), transaction.get(catalogVersionRef), transaction.get(giftRef), transaction.get(entitlementRef),
       transaction.get(ledgerRef), transaction.get(auditRef),
       usernameRef ? transaction.get(usernameRef) : Promise.resolve(null),
     ]);
+    const catalogTerms = catalogVersionSnapshot.data() ?? {};
+    const catalogVersionValid = catalogVersionSnapshot.exists &&
+      catalogTerms.itemId === itemId &&
+      catalogTerms.version === expectedCatalogVersion &&
+      Number.isSafeInteger(catalogTerms.priceCoins) && catalogTerms.priceCoins > 0 &&
+      catalogTerms.active === true && catalogTerms.purchaseEnabled === true &&
+      catalogTerms.fulfillmentReady === true;
+    if (!catalogVersionValid) {
+      throw new HttpsError("failed-precondition", "نسخة الكتالوج المطلوبة غير موجودة أو غير صالحة؛ أوقفنا الإهداء.");
+    }
     if (usernameRef && (!usernameSnapshot?.exists || usernameSnapshot.data()?.uid !== recipientUid)) {
       throw new HttpsError("aborted", "تغير سجل اسم المستخدم؛ أعد المحاولة.");
     }
@@ -6520,7 +6532,10 @@ export const giftStoreItem = onCall(async (request) => {
       const audit = priorAudit.data() ?? {};
       if (!isStoreGiftReplayCompatible(prior, {
         senderUid, recipientUid, itemId, expectedPriceCoins, expectedCatalogVersion,
-      })) {
+      }) || prior.catalogVersionPath !== catalogVersionRef.path ||
+          prior.itemName !== catalogTerms.name || prior.category !== catalogTerms.category ||
+          prior.priceCoins !== catalogTerms.priceCoins ||
+          (prior.durationDays ?? null) !== (catalogTerms.durationDays ?? null)) {
         throw new HttpsError("already-exists", "معرف طلب الإهداء مستخدم لعملية أو مستلم أو سعر مختلف.");
       }
       if (!priorLedger.exists || !priorAudit.exists ||
@@ -6554,6 +6569,9 @@ export const giftStoreItem = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "هذا العنصر غير منشور أو أن استحقاقه غير جاهز للإهداء.");
     }
     if (item.version !== expectedCatalogVersion ||
+        catalogTerms.name !== item.name || catalogTerms.category !== item.category ||
+        catalogTerms.priceCoins !== item.priceCoins ||
+        (catalogTerms.durationDays ?? null) !== (item.durationDays ?? null) ||
         !isStorePurchasePriceCurrent(expectedPriceCoins, item.priceCoins)) {
       throw new HttpsError("failed-precondition", "تغير سعر العنصر أو إصداره؛ حدّث المتجر قبل الإهداء.");
     }
