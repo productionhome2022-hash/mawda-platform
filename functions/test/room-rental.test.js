@@ -43,3 +43,18 @@ test("experimental room rental prices remain bounded, unique, and explicitly pro
   );
   assert.equal(validateRoomRentalPlans(DEFAULT_ROOM_RENTAL_PLANS).length, 4);
 });
+
+
+test("owner-configured room rental prices and durations accept safe custom terms", () => {
+  const custom = [
+    { planId: "room_trial_2d", name: "تجربة يومين", durationDays: 2, priceCoins: 125, active: true },
+    { planId: "room_long_10y", name: "خطة طويلة", durationDays: 3650, priceCoins: 250000, active: false },
+  ];
+  assert.deepEqual(validateRoomRentalPlans(custom), custom);
+  assert.throws(() => validateRoomRentalPlans([
+    { ...custom[0], durationDays: 3651 },
+  ]), { message: "INVALID_ROOM_RENTAL_PLAN_FIELDS" });
+  assert.throws(() => validateRoomRentalPlans([
+    { ...custom[0], priceCoins: 0 },
+  ]), { message: "INVALID_ROOM_RENTAL_PLAN_FIELDS" });
+});
