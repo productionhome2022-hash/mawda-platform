@@ -2077,12 +2077,16 @@ async function deleteBiometricRequestObjects(
 ): Promise<boolean> {
   // Missing or malformed object paths are a deletion failure, never proof
   // that the evidence is absent. Keep the request retryable for owner review.
+  const requestSnapshot = await BIOMETRIC_REQUESTS.doc(requestId).get();
+  const requestUid = requestSnapshot.exists ? requestSnapshot.data()?.uid : null;
+  const expectedAudioPath = typeof requestUid === "string"
+    ? `biometric-verification/${requestUid}/${requestId}/audio.mp4` : null;
+  const expectedVideoPath = typeof requestUid === "string"
+    ? `biometric-verification/${requestUid}/${requestId}/video.mp4` : null;
   const validAudioPath = typeof audioObjectPath === "string" &&
-    /^biometric-verification\/[^/]+\/[0-9a-f-]{36}\/audio\.mp4$/i.test(audioObjectPath) &&
-    audioObjectPath.includes("/" + requestId + "/");
+    audioObjectPath === expectedAudioPath;
   const validVideoPath = typeof videoObjectPath === "string" &&
-    /^biometric-verification\/[^/]+\/[0-9a-f-]{36}\/video\.mp4$/i.test(videoObjectPath) &&
-    videoObjectPath.includes("/" + requestId + "/");
+    videoObjectPath === expectedVideoPath;
   if (!validAudioPath || !validVideoPath) {
     logger.error("Biometric evidence deletion blocked by invalid object paths", { requestId });
     await BIOMETRIC_REQUESTS.doc(requestId).update({
@@ -2241,6 +2245,9 @@ export const setOwnerBiometricVerificationSettings = onCall(async (request) => {
 
 export const startBiometricVerificationRequest = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
+  if (request.data?.consent !== true) {
+    throw new HttpsError("failed-precondition", "يجب الموافقة الصريحة على شروط مراجعة الأدلة قبل بدء الطلب.");
+  }
   const userRef = db.collection("users").doc(uid);
   const requestId = randomUUID();
   const requestRef = BIOMETRIC_REQUESTS.doc(requestId);
@@ -2315,6 +2322,8 @@ export const startBiometricVerificationRequest = onCall(async (request) => {
       phraseText: phrase.text,
       status: "uploading",
       requestVersion: 1,
+      consentVersion: "biometric-review-v1",
+      consentedAt: Timestamp.fromMillis(nowMs),
       audioObjectPath,
       videoObjectPath,
       uploadExpiresAt,
