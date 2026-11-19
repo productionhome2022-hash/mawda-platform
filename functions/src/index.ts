@@ -2344,6 +2344,52 @@ export const startBiometricVerificationRequest = onCall(async (request) => {
   return result;
 });
 
+export const getMyBiometricVerificationUploadAccess = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const requestId = request.data?.requestId;
+  if (typeof requestId !== "string" || !/^[0-9a-f-]{36}$/i.test(requestId)) {
+    throw new HttpsError("invalid-argument", "معرّف طلب التوثيق غير صالح.");
+  }
+  const requestRef = BIOMETRIC_REQUESTS.doc(requestId);
+  const [requestSnapshot, userSnapshot, settingsSnapshot] = await Promise.all([
+    requestRef.get(),
+    db.collection("users").doc(uid).get(),
+    BIOMETRIC_SETTINGS.get(),
+  ]);
+  if (!requestSnapshot.exists || !userSnapshot.exists ||
+      requestSnapshot.data()?.uid !== uid ||
+      userSnapshot.data()?.biometricVerificationRequestId !== requestId ||
+      requestSnapshot.data()?.status !== "uploading") {
+    throw new HttpsError("permission-denied", "لا تملك صلاحية رفع أدلة هذا الطلب.");
+  }
+  const data = requestSnapshot.data()!;
+  const settings = biometricSettingsOrThrow(settingsSnapshot.data() ?? {});
+  const uploadExpiresAtMs = biometricTimestampMs(data.uploadExpiresAt);
+  const expectedAudioPath = `biometric-verification/${uid}/${requestId}/audio.mp4`;
+  const expectedVideoPath = `biometric-verification/${uid}/${requestId}/video.mp4`;
+  if (uploadExpiresAtMs === null || uploadExpiresAtMs <= Date.now() ||
+      data.audioObjectPath !== expectedAudioPath || data.videoObjectPath !== expectedVideoPath) {
+    throw new HttpsError("failed-precondition", "انتهت صلاحية الرفع أو أن مسارات الأدلة غير سليمة.");
+  }
+  const expires = Math.min(uploadExpiresAtMs, Date.now() + 5 * 60 * 1000);
+  const bucket = getStorage().bucket();
+  const [audio, video] = await Promise.all([
+    bucket.file(expectedAudioPath).getSignedUrl({
+      version: "v4", action: "write", expires, contentType: "audio/mp4",
+    }),
+    bucket.file(expectedVideoPath).getSignedUrl({
+      version: "v4", action: "write", expires, contentType: "video/mp4",
+    }),
+  ]);
+  return {
+    audioUploadUrl: audio[0],
+    videoUploadUrl: video[0],
+    expiresAtMs: expires,
+    maxAudioBytes: settings.maxAudioBytes,
+    maxVideoBytes: settings.maxVideoBytes,
+  };
+});
+
 export const getMyBiometricVerificationStatus = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const userSnapshot = await db.collection("users").doc(uid).get();
