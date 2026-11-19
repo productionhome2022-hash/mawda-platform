@@ -184,25 +184,21 @@ test("real store purchases flow into the member profile and disappear when their
 
   await memberRef.set(profile(30, { coins: 5000 }));
   try {
-    await Promise.all(items.map(([itemId, category, durationDays], index) =>
-      catalogRefs[index].set({
+    await Promise.all(items.map(async ([itemId, category, durationDays], index) => {
+      const versionedItem = {
         itemId, version: 1,
         name: `ميزة ${itemId}`,
         description: "اختبار شراء واستحقاق الملف الشخصي",
-        category,
-        priceCoins,
-        durationDays,
-        sortOrder: index + 1,
-        active: true,
-        purchaseEnabled: true,
-        fulfillmentReady: true,
-      }),
-      db.collection("storeCatalogVersions").doc(itemId).collection("versions").doc("1").set({
-        itemId, version: 1, name: `ميزة ${itemId}`,
-        category, priceCoins, durationDays, active: true,
-        purchaseEnabled: true, fulfillmentReady: true,
-      }),
-    ));
+        category, priceCoins, durationDays, sortOrder: index + 1,
+        active: true, purchaseEnabled: true, fulfillmentReady: true,
+      };
+      await Promise.all([
+        catalogRefs[index].set(versionedItem),
+        db.collection("storeCatalogVersions").doc(itemId).collection("versions").doc("1").set({
+          ...versionedItem,
+        }),
+      ]);
+    }));
 
     for (const [index, [itemId, category]] of items.entries()) {
       const requestId = `profile_purchase_${memberUid}_${index}`;
