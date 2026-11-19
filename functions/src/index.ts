@@ -3142,7 +3142,7 @@ export const sendOwnerDirectChatMessage = onCall(async (request) => {
   }
   const labels = {
     platform_admin: "إدارة منصة مودة",
-    super_admin: "السوبر أدمن",
+    super_admin: "Super Owner (مالك المنصة)",
     anonymous: "مجهول",
   } as const;
   const senderLabel = labels[input.mode];
