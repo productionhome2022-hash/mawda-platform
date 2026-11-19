@@ -783,6 +783,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     'sortOrder': sortOrder,
                     'active': active,
                     'purchaseEnabled': purchaseEnabled,
+                    'expectedVersion': existing?['version'] is num ? (existing?['version'] as num).toInt() : 0,
                   });
                 }
               },
@@ -812,6 +813,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
         sortOrder: values['sortOrder'] as int,
         active: values['active'] as bool,
         purchaseEnabled: values['purchaseEnabled'] as bool,
+        expectedVersion: values['expectedVersion'] as int,
       );
       await _loadCatalog();
       if (!mounted) return;
