@@ -204,7 +204,7 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = suffix();
   const uid = `store_member_${tag}`;
-  const itemId = `vip_store_${tag}`;
+  const itemId = "vip_monthly";
   const requestId = `purchase_${tag}`;
   const purchaseId = `${uid}_${requestId}`;
   const memberRef = db.collection("users").doc(uid);
