@@ -304,3 +304,13 @@ This amendment records policy approval only. It does not establish that code, te
 - This entry resolves any earlier documentation conflict between 30 and 90 days for important-chat text. The unified constitution, vision, decision register, implementation traceability, backend policy constants, scheduled worker and boundary tests must all remain aligned to 30 days.
 - **Implementation status:** policy value is already represented as 30 days in the inspected constitution, RET-003, backend constant and unit/integration boundary tests. This approval does not certify full temporary-chat deletion, production activation, exact-head CI success, or release readiness.
 - **Authority:** explicit owner confirmation in the project conversation dated 19 November 2026.
+
+
+## ROLE-001 — Canonical administrative role separation and fixed-seat limits (19 November 2026)
+
+- One Super Owner identity; Admin N is an open-ended general-administration sequence with permanent, never-reused ordinals.
+- Admin Media is exactly five seats; General Production Supervisor is exactly five independent seats; Team Production Supervisor is open-ended and scoped only to its assigned team/room.
+- Role families are mutually separate; no role inherits another family's permissions or owner authority.
+- Fixed-seat ordinal reuse after revocation/removal remains unresolved and must fail closed; no reuse/renumbering policy is inferred.
+- Implementation status: canonical terminology and pure capacity helpers exist in the role integration branch; transactional seat-capacity enforcement and concurrency emulator tests are added in PR #37 and await exact-head CI. Persistent Admin N appointment/revocation/ordinal allocation and complete role projections/localization across every client remain open.
+- Source of authority: §4 and §5 of MAWADDA_UNIFIED_CONSTITUTION_2026.md and the canonical terminology appendix.
