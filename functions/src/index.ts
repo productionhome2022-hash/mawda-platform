@@ -7269,7 +7269,10 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
 export const getAvailableCoinPackages = onCall(async () => {
   const snapshot = await ECONOMY_PRICING_SETTINGS.get();
   const data = snapshot.data() ?? {};
-  const paymentPolicy = projectEconomicPaymentPolicy(data.paymentPolicy);
+  const paymentPolicy = projectEconomicPaymentPolicy(data.paymentPolicy, {
+    manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled,
+    manualFeaturedAdsEnabled: data.manualFeaturedAdsEnabled,
+  });
   if (!snapshot.exists || paymentPolicy.coin_purchases.manualEnabled !== true ||
       paymentPolicy.coin_purchases.automatedEnabled !== false ||
       data.automatedCoinCheckoutEnabled === true || !Number.isSafeInteger(data.version) ||
@@ -7312,7 +7315,10 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       throw new HttpsError("permission-denied", "يجب أن يكون حساب العضو مكتملاً ونشطاً.");
     }
     const economy = settings.data() ?? {};
-    const paymentPolicy = projectEconomicPaymentPolicy(economy.paymentPolicy);
+    const paymentPolicy = projectEconomicPaymentPolicy(economy.paymentPolicy, {
+      manualCoinPurchasesEnabled: economy.manualCoinPurchasesEnabled,
+      manualFeaturedAdsEnabled: economy.manualFeaturedAdsEnabled,
+    });
     if (!settings.exists || paymentPolicy.coin_purchases.manualEnabled !== true ||
         paymentPolicy.coin_purchases.automatedEnabled !== false ||
         economy.automatedCoinCheckoutEnabled === true || !Number.isSafeInteger(economy.version) ||
@@ -7759,12 +7765,16 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
       bounds.maxCoins > 1000000000)) {
     throw new HttpsError("failed-precondition", "حدود طلبات الكمية المخصصة غير صالحة.");
   }
+  const paymentPolicy = projectEconomicPaymentPolicy(data.paymentPolicy, {
+    manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled,
+    manualFeaturedAdsEnabled: data.manualFeaturedAdsEnabled,
+  });
   return {
     coinPackages, adPrices, customCoinRequestBounds: bounds,
     version: data.version,
     realMoneyCheckoutEnabled: false,
-    manualCoinPurchasesEnabled: projectEconomicPaymentPolicy(data.paymentPolicy).coin_purchases.manualEnabled,
-    paymentPolicy: projectEconomicPaymentPolicy(data.paymentPolicy),
+    manualCoinPurchasesEnabled: paymentPolicy.coin_purchases.manualEnabled,
+    paymentPolicy,
     automatedCoinCheckoutEnabled: false,
     configured: true,
   };
@@ -7807,7 +7817,10 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
     if (!Number.isSafeInteger(nextVersion)) {
       throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة الاقتصاد.");
     }
-    const previousPaymentPolicy = projectEconomicPaymentPolicy(previousData.paymentPolicy);
+    const previousPaymentPolicy = projectEconomicPaymentPolicy(previousData.paymentPolicy, {
+      manualCoinPurchasesEnabled: previousData.manualCoinPurchasesEnabled,
+      manualFeaturedAdsEnabled: previousData.manualFeaturedAdsEnabled,
+    });
     let paymentPolicy;
     try {
       paymentPolicy = request.data?.paymentPolicy === undefined
