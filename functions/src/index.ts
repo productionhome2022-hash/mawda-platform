@@ -7623,6 +7623,7 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
           ledgerData.priceMinor !== data.agreedPriceMinor ||
           ledgerData.currency !== data.currency ||
           ledgerData.currencyExponent !== data.currencyExponent ||
+          JSON.stringify(ledgerData.paymentPolicySnapshot ?? null) !== JSON.stringify(data.paymentPolicySnapshot ?? null) ||
           ledgerData.paymentPolicyVersion !== data.paymentPolicySnapshot?.policyVersion ||
           ledgerData.pricingPolicyVersion !== data.pricingPolicyVersion ||
           ledgerData.instructionsVersion !== data.instructionsVersion ||
@@ -7643,6 +7644,7 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
           auditData.priceMinor !== data.agreedPriceMinor ||
           auditData.currency !== data.currency ||
           auditData.currencyExponent !== data.currencyExponent ||
+          JSON.stringify(auditData.paymentPolicySnapshot ?? null) !== JSON.stringify(data.paymentPolicySnapshot ?? null) ||
           auditData.paymentPolicyVersion !== data.paymentPolicySnapshot?.policyVersion ||
           auditData.pricingPolicyVersion !== data.pricingPolicyVersion ||
           auditData.instructionsVersion !== data.instructionsVersion ||
@@ -7688,6 +7690,7 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
       externalPaymentReference: input.externalPaymentReference,
       priceMinor: data.agreedPriceMinor, currency: data.currency,
       currencyExponent: data.currencyExponent,
+      paymentPolicySnapshot: data.paymentPolicySnapshot,
       paymentPolicyVersion: data.paymentPolicySnapshot.policyVersion,
       pricingPolicyVersion: data.pricingPolicyVersion,
       instructionsVersion: data.instructionsVersion,
@@ -7705,6 +7708,7 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
       verificationNote: input.verificationNote, creditedCoins: coins,
       priceMinor: data.agreedPriceMinor, currency: data.currency,
       currencyExponent: data.currencyExponent,
+      paymentPolicySnapshot: data.paymentPolicySnapshot,
       paymentPolicyVersion: data.paymentPolicySnapshot.policyVersion,
       pricingPolicyVersion: data.pricingPolicyVersion,
       instructionsVersion: data.instructionsVersion, createdAt: now,
