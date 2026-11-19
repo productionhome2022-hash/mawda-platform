@@ -6,6 +6,11 @@ export type RoomRentalPlan = {
   active: boolean;
 };
 
+/**
+ * Experimental baseline prices for development and integration validation only.
+ * These are provisional coin values, not approved commercial pricing.
+ * Owner-saved platformSettings/roomRentals plans override this baseline.
+ */
 export const DEFAULT_ROOM_RENTAL_PLANS: RoomRentalPlan[] = [
   { planId: "room_30d", name: "استئجار غرفة 30 يوماً", durationDays: 30, priceCoins: 1000, active: true },
   { planId: "room_90d", name: "استئجار غرفة 90 يوماً", durationDays: 90, priceCoins: 2700, active: true },
