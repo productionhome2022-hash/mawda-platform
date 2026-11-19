@@ -7551,6 +7551,8 @@ export const requestCoinPurchasePaymentVerification = onCall(async (request) => 
           auditData.action !== "coin_purchase_member_reported_external_payment" ||
           auditData.requestId !== requestId ||
           auditData.instructionVersion !== expectedInstructionsVersion ||
+          auditData.paymentPolicyVersion !== data.paymentPolicySnapshot.policyVersion ||
+          auditData.pricingPolicyVersion !== data.pricingPolicyVersion ||
           auditData.authority !== "member_claim_only_not_payment_proof") {
         throw new HttpsError("failed-precondition", "بلاغ الدفع لا يطابق سجل التدقيق؛ يلزم مراجعة المالك.");
       }
@@ -7571,6 +7573,8 @@ export const requestCoinPurchasePaymentVerification = onCall(async (request) => 
       actorUid: uid, targetUid: uid,
       action: "coin_purchase_member_reported_external_payment",
       requestId, instructionVersion: expectedInstructionsVersion,
+      paymentPolicyVersion: data.paymentPolicySnapshot.policyVersion,
+      pricingPolicyVersion: data.pricingPolicyVersion,
       authority: "member_claim_only_not_payment_proof",
       createdAt: FieldValue.serverTimestamp(),
     });
