@@ -6,6 +6,7 @@ const {
   completeBiometricVerificationCycle,
   startBiometricVerificationRequest,
   getMyBiometricVerificationStatus,
+  getMyBiometricVerificationUploadAccess,
   decideBiometricVerificationRequest,
 } = require("../../lib/index");
 
@@ -136,6 +137,35 @@ test("member request uses canonical profile identity, one pending upload, and co
         : Promise.resolve(),
       settingsRef.delete().catch(() => undefined),
     ]);
+  }
+});
+
+test("biometric upload URLs are denied outside the member's own active upload request", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const uid = `biometric_upload_access_${suffix()}`;
+  const requestId = randomUUID();
+  const userRef = db.collection("users").doc(uid);
+  const requestRef = db.collection("biometricVerificationRequests").doc(requestId);
+  await userRef.set({
+    uid, profileCompleted: true, accountStatus: "active",
+    biometricVerificationRequestId: requestId,
+  });
+  await requestRef.set({
+    uid, requestId, status: "pending_review",
+    audioObjectPath: `biometric-verification/${uid}/${requestId}/audio.mp4`,
+    videoObjectPath: `biometric-verification/${uid}/${requestId}/video.mp4`,
+  });
+  try {
+    await assert.rejects(
+      () => getMyBiometricVerificationUploadAccess.run(request(uid, { requestId })),
+      (error) => error && error.code === "permission-denied",
+    );
+    await assert.rejects(
+      () => getMyBiometricVerificationUploadAccess.run(request(`other_${uid}`, { requestId })),
+      (error) => error && error.code === "permission-denied",
+    );
+  } finally {
+    await Promise.all([userRef.delete(), requestRef.delete()]);
   }
 });
 
