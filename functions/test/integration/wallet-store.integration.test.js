@@ -411,9 +411,9 @@ test("manual coin package request issues no coins until owner verifies external 
     userRef.set({ coins: 40, profileCompleted: true, accountStatus: "active" }),
     settingsRef.set({
       coinPackages: [{ packageId: "test_pack", name: "Test package", coins: 900,
-        priceMinor: 500, currency: "EUR", active: true }],
+        priceMinor: 500, currency: "CHF", active: true }],
       adPrices: [{ placementId: "test_ad", name: "Test ad", billingModel: "daily",
-        priceMinor: 100, currency: "EUR", active: true }],
+        priceMinor: 100, currency: "CHF", active: true }],
       manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, version: 1,
     }),
   ]);
@@ -429,7 +429,7 @@ test("manual coin package request issues no coins until owner verifies external 
 
     const instructionResult = await setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
       requesterUid: uid, requestId, instructions: "يرجى التواصل مع المالك لإتمام التحويل البنكي",
-      agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
+      agreedCoins: 900, agreedPriceMinor: 500, currency: "CHF", currencyExponent: 2,
       expectedInstructionsVersion: 0,
     }));
     assert.equal((await requestDoc.get()).data().status, "payment_instructions_sent");
@@ -441,7 +441,7 @@ test("manual coin package request issues no coins until owner verifies external 
     await assert.rejects(
       () => setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
         requesterUid: uid, requestId, instructions: "تعديل ممنوع بعد الإصدار",
-        agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
+        agreedCoins: 900, agreedPriceMinor: 500, currency: "CHF", currencyExponent: 2,
         expectedInstructionsVersion: 0,
       })),
       (error) => error && error.code === "failed-precondition",
@@ -495,6 +495,8 @@ test("manual coin package request issues no coins until owner verifies external 
     assert.equal(ledger.data().amount, 900);
     assert.equal(ledger.data().type, "coin_purchase_manual_credit");
     assert.equal(ledger.data().externalPaymentReference, `verified-${tag}`);
+    assert.equal(ledger.data().currency, "CHF");
+    assert.equal(ledger.data().currencyExponent, 2);
     assert.equal(purchase.data().status, "approved");
 
     const replay = await approveCoinPurchaseRequest.run(ownerRequest("manual-owner", approvalInput));
