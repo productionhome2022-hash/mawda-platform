@@ -9787,9 +9787,14 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
   }
   const grantId = specializedRoleGrantId(grant.uid, grant.role);
   const grantRef = SPECIALIZED_ROLE_GRANTS.doc(grantId);
+  const defaultProductionCapacity = PLATFORM_ROLE_CAPACITY.production_general_supervisor;
+  if (defaultProductionCapacity === null) {
+    throw new HttpsError("failed-precondition", "لم تُعرّف السعة الافتراضية لمشرفي الإنتاج.");
+  }
   const limitedRole: CapacityLimitedPlatformRole | null =
     isCapacityLimitedPlatformRole(grant.role) ? grant.role : null;
   let roleCapacityOverride: number | undefined;
+  let roleSeatRole: CapacityLimitedPlatformRole | null = null;
   const result = await db.runTransaction(async (transaction) => {
     const previous = await transaction.get(grantRef);
     const previousVersion = previous.exists ? Number(previous.data()?.version) : 0;
@@ -9814,9 +9819,10 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
       const configuredCapacity = capacitySnapshot?.data()?.productionGeneralSupervisorCapacity;
       if (configuredCapacity !== undefined &&
           (!Number.isSafeInteger(configuredCapacity) ||
-           configuredCapacity < PLATFORM_ROLE_CAPACITY.production_general_supervisor)) {
+           configuredCapacity < defaultProductionCapacity)) {
         throw new HttpsError("failed-precondition", "إعداد سعة مشرفي الإنتاج غير صالح؛ أوقفنا التعيين.");
       }
+      roleSeatRole = limitedRole;
       roleCapacityOverride = configuredCapacity === undefined ? undefined : configuredCapacity;
       const nowMs = Date.now();
       const otherActiveAssignments = roleSnapshot.docs.filter((doc) => {
@@ -9846,11 +9852,11 @@ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
       ...grant, version, assignedBy: actorUid, updatedBy: actorUid,
       createdAt: previous.data()?.createdAt ?? now, updatedAt: now,
     });
-    if (roleSeatCounterRef !== null && roleSeatCountAfterWrite !== null) {
+    if (roleSeatCounterRef !== null && roleSeatCountAfterWrite !== null && roleSeatRole !== null) {
       transaction.set(roleSeatCounterRef, {
-        role: limitedRole,
+        role: roleSeatRole,
         activeCount: roleSeatCountAfterWrite,
-        capacity: platformRoleCapacity(limitedRole, roleCapacityOverride),
+        capacity: platformRoleCapacity(roleSeatRole, roleCapacityOverride),
         reconciledAt: now,
         updatedAt: now,
       });
