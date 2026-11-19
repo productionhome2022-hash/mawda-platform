@@ -162,3 +162,16 @@ The workflow YAML was fetched from the exact #35 and #38 heads.
 - The commit-workflow-runs connector query is explicitly limited to pull-request-triggered runs. Its empty result cannot be used to conclude that no push-triggered run exists. The combined status query returned no status entries for the inspected heads, so no exact-head pass/fail evidence was available from that endpoint either.
 
 **Required workflow repair:** consolidate workflow trigger coverage for the approved development branches without adding unsafe production triggers. Prefer a controlled `pull_request` trigger targeting the official development branch (with least-privilege permissions and path filters where appropriate), or explicitly include the intended source branches in push filters. Then query the actual branch runs and inspect each job result on the exact SHA. Do not dispatch or rerun workflows until the repository's available Actions controls and exact run IDs are verified.
+
+
+## Batch A — focused boundary correction in PR #35
+
+A targeted review of the complete `setStoreCatalogItem` transaction found that the previous version was checked with `Number.isSafeInteger`, but the increment result was not protected. At `Number.MAX_SAFE_INTEGER`, adding one would produce an unsafe integer and persist an invalid next version.
+
+**Correction committed to the existing PR #35 branch (not merged):**
+- Reject catalog updates when the previous version is invalid, negative, or already at/above `Number.MAX_SAFE_INTEGER`.
+- Add an emulator integration test that seeds the maximum safe version, expects `failed-precondition`, and verifies the stored version remains unchanged.
+- Source commit: `15f14733eb71aafbdae0c97a966906efd3d22826`.
+- Test commit / current observed PR #35 head: `179ba95fa582082c7ed32c3f3016b899b414b0ca`.
+
+**Verification:** GitHub read-back confirmed the guard is present at the branch head and the PR head advanced to the test commit. The combined status endpoint returned no check entries for that SHA. The test has been added but has **not** been executed in this environment; do not mark it passed until the branch's push-triggered Actions run is inspected.
