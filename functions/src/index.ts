@@ -9238,6 +9238,36 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
     ]);
     if (!campaign.exists) throw new HttpsError("not-found", "الحملة الإعلانية غير موجودة.");
 
+    const campaignData = campaign.data() ?? {};
+    const priorEventData = priorEvent.data() ?? {};
+    const campaignVersion = priorEvent.exists
+      ? priorEventData.campaignVersion : campaignData.version;
+    if (!Number.isSafeInteger(campaignVersion) || campaignVersion < 1) {
+      throw new HttpsError("failed-precondition", "إصدار الحملة الإعلانية غير صالح؛ أوقفنا الحركة المالية.");
+    }
+    const campaignVersionPath = `timedAdCampaignVersions/${event.campaignId}/versions/${campaignVersion}`;
+    const campaignVersionRef = db.collection("timedAdCampaignVersions").doc(event.campaignId)
+      .collection("versions").doc(String(campaignVersion));
+    const campaignVersionSnapshot = await transaction.get(campaignVersionRef);
+    const campaignVersionData = campaignVersionSnapshot.data() ?? {};
+    if (!campaignVersionSnapshot.exists ||
+        campaignVersionData.campaignId !== event.campaignId ||
+        campaignVersionData.version !== campaignVersion) {
+      throw new HttpsError("failed-precondition", "لقطة إصدار الحملة الإعلانية غير موجودة أو غير مطابقة.");
+    }
+    if (!priorEvent.exists &&
+        (campaignVersion !== campaignData.version ||
+         campaignVersionData.title !== campaignData.title ||
+         campaignVersionData.sponsorLabel !== campaignData.sponsorLabel ||
+         campaignVersionData.placement !== campaignData.placement ||
+         campaignVersionData.durationSeconds !== campaignData.durationSeconds ||
+         campaignVersionData.rewardCoins !== campaignData.rewardCoins ||
+         campaignVersionData.rewardBudgetCoins !== campaignData.rewardBudgetCoins ||
+         campaignVersionData.creativeType !== campaignData.creativeType ||
+         campaignVersionData.mediaId !== campaignData.mediaId)) {
+      throw new HttpsError("failed-precondition", "إعدادات الحملة لا تطابق لقطة الإصدار الحالية.");
+    }
+
     const currentData = financial.data() ?? {};
     const currentVersion = financial.exists ? currentData.version : 0;
     if (financial.exists) {
@@ -9260,6 +9290,8 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
           currentVersionData.reconciledMinor !== currentData.reconciledMinor ||
           currentVersionData.reviewStatus !== currentData.reviewStatus ||
           currentVersionData.paymentStatus !== currentData.paymentStatus ||
+          currentVersionData.campaignVersion !== currentData.campaignVersion ||
+          currentVersionData.campaignVersionPath !== currentData.campaignVersionPath ||
           currentVersionData.currencyExponent !== (currentData.currency === null
             ? null : currencyExponentForCode(currentData.currency))) {
         throw new HttpsError("failed-precondition", "لقطة السجل المالي لا تطابق إصدارها المحفوظ.");
@@ -9274,7 +9306,8 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
         prior.action === event.action && prior.amountMinor === event.amountMinor &&
         prior.currency === event.currency && prior.externalReference === event.externalReference &&
         prior.evidenceReference === event.evidenceReference && prior.note === event.note &&
-        prior.reviewOutcome === event.reviewOutcome;
+        prior.reviewOutcome === event.reviewOutcome &&
+        prior.campaignVersion === campaignVersion && prior.campaignVersionPath === campaignVersionPath;
       if (!matches || !financial.exists || !audit.exists ||
           !Number.isSafeInteger(prior.snapshotVersion) || prior.snapshotVersion < 1 ||
           currentVersion < prior.snapshotVersion) {
@@ -9295,6 +9328,8 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
           priorVersion.reconciledMinor !== prior.reconciledMinor ||
           priorVersion.reviewStatus !== prior.reviewStatus ||
           priorVersion.paymentStatus !== prior.paymentStatus ||
+          priorVersion.campaignVersion !== campaignVersion ||
+          priorVersion.campaignVersionPath !== campaignVersionPath ||
           priorVersion.currencyExponent !== priorExponent ||
           JSON.stringify(priorVersion.paymentPolicySnapshot ?? null) !==
             JSON.stringify(prior.paymentPolicySnapshot ?? null) ||
@@ -9309,6 +9344,8 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
           auditData.currencyExponent !== priorExponent ||
           auditData.externalReference !== event.externalReference ||
           auditData.snapshotVersion !== prior.snapshotVersion ||
+          auditData.campaignVersion !== campaignVersion ||
+          auditData.campaignVersionPath !== campaignVersionPath ||
           JSON.stringify(auditData.paymentPolicySnapshot ?? null) !==
             JSON.stringify(prior.paymentPolicySnapshot ?? null)) {
         throw new HttpsError("failed-precondition", "الحركة المالية لا تطابق نسخة السجل وسجل التدقيق.");
@@ -9368,15 +9405,18 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
     transaction.create(versionRef, {
       campaignId: event.campaignId, ...next, version,
       lastEventId: eventId, currencyExponent, paymentPolicySnapshot,
+      campaignVersion, campaignVersionPath,
       createdAt: now, createdBy: actorUid,
     });
     transaction.create(eventRef, {
       ...event, currencyExponent, paymentPolicySnapshot,
+      campaignVersion, campaignVersionPath,
       eventId, actorUid, snapshotVersion: version, createdAt: now,
     });
     transaction.set(financialRef, {
       campaignId: event.campaignId, ...next, version,
-      lastEventId: eventId, updatedAt: now, updatedBy: actorUid,
+      lastEventId: eventId, campaignVersion, campaignVersionPath,
+      updatedAt: now, updatedBy: actorUid,
       createdAt: currentData.createdAt ?? now,
       currentVersionPath: versionRef.path,
     });
@@ -9385,7 +9425,8 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
       campaignId: event.campaignId, eventId, eventType: event.action,
       amountMinor: event.amountMinor, currency: event.currency,
       currencyExponent, externalReference: event.externalReference,
-      paymentPolicySnapshot, snapshotVersion: version, createdAt: now,
+      paymentPolicySnapshot, snapshotVersion: version,
+      campaignVersion, campaignVersionPath, createdAt: now,
     });
     return { campaignId: event.campaignId, eventId, snapshot: next, version, idempotentReplay: false };
   });
