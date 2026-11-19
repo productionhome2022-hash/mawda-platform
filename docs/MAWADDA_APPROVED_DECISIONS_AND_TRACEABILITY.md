@@ -294,3 +294,13 @@ This amendment records policy approval only. It does not establish that code, te
 - يجب أن يحقن workflow ملف `google-services.json` الإنتاجي من سر `MAWDDA_PRODUCTION_GOOGLE_SERVICES_JSON_B64`، ثم يطابق project ID ورقم المشروع وApp ID واسم الحزمة ومفتاح API وStorage bucket مع FlutterFire production options.
 - أُضيف تحقق آلي لهويات Android وiOS الإنتاجية في `functions/scripts/validate-firebase-config.cjs` واختبارات لها. غياب ملف Google Services الإنتاجي أو عدم التطابق يمنع بناء الإصدار.
 - لم يُقدّم المالك بعد سر ملف Google Services الإنتاجي في هذه المراجعة، ولذلك لم يُشغّل workflow الموقّع ولم تُنتج حزم Release.
+
+
+## RET-005 — Owner confirmation of important-chat text retention (19 November 2026)
+
+- **Owner decision:** important-chat text retention is exactly **30 days (720 hours)** from the server-authoritative message creation timestamp. The 90-day alternative is rejected for this policy.
+- Important-chat media remains subject to the existing four-hour media-retention rule; this decision changes text retention only.
+- Normal-chat text remains seven days; normal/important chat media remains four hours; temporary direct-chat mode remains a full-conversation deletion after four hours of server-recorded inactivity, subject to the unresolved selection/consent and complete lifecycle gates in RET-004.
+- This entry resolves any earlier documentation conflict between 30 and 90 days for important-chat text. The unified constitution, vision, decision register, implementation traceability, backend policy constants, scheduled worker and boundary tests must all remain aligned to 30 days.
+- **Implementation status:** policy value is already represented as 30 days in the inspected constitution, RET-003, backend constant and unit/integration boundary tests. This approval does not certify full temporary-chat deletion, production activation, exact-head CI success, or release readiness.
+- **Authority:** explicit owner confirmation in the project conversation dated 19 November 2026.
