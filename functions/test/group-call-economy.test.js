@@ -51,7 +51,7 @@ test("integer allocation is balanced and assigns the rounding remainder to the i
   assert.equal(a.find((item) => item.uid === "owner").amount, 35);
 });
 
-test("late and early connected members receive the same share based only on final participant count", () => {
+test("participant shares depend on final participant count and initiator bears the remainder", () => {
   const four = calculateGroupCallCoinShares(2000, ["owner", "early", "late", "last-second"], "owner");
   assert.deepEqual(four.map((item) => item.amount), [500, 500, 500, 500]);
   const three = calculateGroupCallCoinShares(2000, ["owner", "early", "late"], "owner");
@@ -85,7 +85,7 @@ test("maximum reservation and final settlement charge late joiners equally", () 
   );
   assert.equal(result.billableMinutes, 1);
   assert.equal(result.totalAmount, 293);
-  assert.deepEqual(result.shares.map((item) => item.amount), [74, 73, 73, 73]);
+  assert.deepEqual(result.shares.map((item) => item.amount), [73, 73, 73, 74]);
   assert.equal(result.shares.reduce((sum, item) => sum + item.amount, 0), 293);
 });
 
