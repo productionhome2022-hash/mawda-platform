@@ -121,15 +121,7 @@ export function decideBiometricRequest(args: {
     throw new Error("BIOMETRIC_REQUEST_NOT_REVIEWABLE");
   }
   if (decision === "accept") {
-    if (state.rewardGranted) throw new Error("BIOMETRIC_REWARD_ALREADY_GRANTED");
-    return {
-      status: "accepted",
-      rewardCoins: BIOMETRIC_REWARD_BETACOINS,
-      badgeGranted: true,
-      remainingAttempts: 0,
-      lockoutUntilMs: null,
-      nextRenewalAtMs: addBiometricRenewalMonth(nowMs),
-    };
+    throw new Error("BIOMETRIC_CRYPTOGRAPHIC_PROOF_REQUIRED");
   }
   if (decision !== "reject") throw new Error("BIOMETRIC_DECISION_INVALID");
   const remainingAttempts = BIOMETRIC_MAX_ATTEMPTS - state.attemptNumber;
