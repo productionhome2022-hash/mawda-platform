@@ -5,6 +5,7 @@ on:
     branches:
       - codex/mawda-full-platform-implementation
       - codex/governance-biometric-integration-2026-11-19
+      - codex/mawdda-retention-approval-ci-repair-2026-11-19
 
 permissions:
   contents: read
