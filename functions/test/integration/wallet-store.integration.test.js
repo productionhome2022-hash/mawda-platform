@@ -213,16 +213,18 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
   const ledgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
   const entitlementRef = memberRef.collection("entitlements").doc(itemId);
 
-  await Promise.all([
-    memberRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active" }),
-    itemRef.set({
-      name: "VIP test item", description: "Emulator-only entitlement test",
-      category: "vip", priceCoins: 1250, durationDays: 30, sortOrder: 1,
-      active: true, purchaseEnabled: true, fulfillmentReady: true,
-    }),
-  ]);
+  await memberRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active" });
   try {
-    const request = memberRequest(uid, { itemId, requestId, expectedPriceCoins: 1250 });
+    const catalog = await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
+      expectedVersion: 0, itemId, name: "VIP test item",
+      description: "Emulator-only entitlement test",
+      category: "vip", priceCoins: 1250, durationDays: 30, sortOrder: 1,
+      active: true, purchaseEnabled: true,
+    }));
+    const request = memberRequest(uid, {
+      itemId, requestId, expectedPriceCoins: 1250,
+      expectedCatalogVersion: catalog.version,
+    });
     const result = await purchaseStoreItem.run(request);
     assert.equal(result.priceCoins, 1250);
     assert.equal(result.newBalance, 3750);
@@ -266,6 +268,8 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
       purchaseRef.delete().catch(() => undefined),
       entitlementRef.delete().catch(() => undefined),
       itemRef.delete().catch(() => undefined),
+      db.collection("storeCatalogVersions").doc(itemId).collection("versions").get()
+        .then((snapshot) => Promise.all(snapshot.docs.map((doc) => doc.ref.delete()))),
       memberRef.delete().catch(() => undefined),
     ]);
   }
@@ -726,8 +730,9 @@ test("every shipped premium store category charges once and grants its matching 
   });
 
   try {
-    await Promise.all(items.map(([itemId, category, durationDays], index) =>
+    const catalogResults = await Promise.all(items.map(([itemId, category, durationDays], index) =>
       setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
+        expectedVersion: 0,
         itemId,
         name: `ميزة ${itemId}`,
         description: "اختبار تكامل لاستحقاق متجر مميز.",
@@ -739,6 +744,8 @@ test("every shipped premium store category charges once and grants its matching 
         purchaseEnabled: true,
       })),
     ));
+    const catalogVersions = new Map(items.map(([itemId], index) =>
+      [itemId, catalogResults[index].version]));
 
     for (const [index, [itemId]] of items.entries()) {
       const requestId = `premium_${tag}_${index}`;
@@ -754,6 +761,7 @@ test("every shipped premium store category charges once and grants its matching 
         itemId,
         requestId,
         expectedPriceCoins: priceCoins,
+        expectedCatalogVersion: catalogVersions.get(itemId),
       }));
       assert.equal(result.idempotentReplay, false, itemId);
       assert.equal(result.newBalance, 10000 - ((index + 1) * priceCoins), itemId);
@@ -795,6 +803,7 @@ test("every shipped premium store category charges once and grants its matching 
     const disabledPrivacyItem = db.collection("storeCatalog").doc("hide_coins_30d");
     await assert.rejects(
       () => setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
+        expectedVersion: 0,
         itemId: "hide_coins_30d",
         name: "إخفاء الرصيد",
         description: "ميزة خصوصية غير مفعلة.",
@@ -807,7 +816,8 @@ test("every shipped premium store category charges once and grants its matching 
       })),
       (error) => error && error.code === "invalid-argument",
     );
-    await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
+    const privacyCatalog = await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
+      expectedVersion: 0,
       itemId: "hide_coins_30d",
       name: "إخفاء الرصيد",
       description: "ميزة خصوصية غير مفعلة.",
@@ -823,6 +833,7 @@ test("every shipped premium store category charges once and grants its matching 
         itemId: "hide_coins_30d",
         requestId: `privacy_${tag}`,
         expectedPriceCoins: priceCoins,
+        expectedCatalogVersion: privacyCatalog.version,
       })),
       (error) => error && error.code === "failed-precondition",
     );
@@ -834,7 +845,11 @@ test("every shipped premium store category charges once and grants its matching 
       ...ledgerRefs.map((ref) => ref.delete().catch(() => undefined)),
       ...entitlementRefs.map((ref) => ref.delete().catch(() => undefined)),
       ...catalogRefs.map((ref) => ref.delete().catch(() => undefined)),
+      ...catalogRefs.map((ref) => ref.collection("versions").get()
+        .then((snapshot) => Promise.all(snapshot.docs.map((doc) => doc.ref.delete())))),
       db.collection("storeCatalog").doc("hide_coins_30d").delete().catch(() => undefined),
+      db.collection("storeCatalogVersions").doc("hide_coins_30d").collection("versions").get()
+        .then((snapshot) => Promise.all(snapshot.docs.map((doc) => doc.ref.delete()))),
       db.recursiveDelete(memberRef).catch(() => undefined),
     ]);
   }
