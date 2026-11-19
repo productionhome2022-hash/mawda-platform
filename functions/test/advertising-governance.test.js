@@ -36,7 +36,7 @@ test("Admin Media cannot receive delegated contract-signing authority", () => {
   }), /SPECIALIZED_PERMISSION_FORBIDDEN/);
 });
 
-test("representative, quality-review/ and legal-supervisor grants fail closed until their own matrices are approved", () => {
+test("representative, quality-review and legal-supervisor grants fail closed until their own matrices are approved", () => {
   for (const role of [
     "ad_representative",
     "production_quality_reviewer",
