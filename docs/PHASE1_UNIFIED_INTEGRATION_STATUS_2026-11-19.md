@@ -424,3 +424,37 @@ This addendum supersedes older SHA/run-state references above where they differ.
 - The separate 5,000-persona lab and external/live-service acceptance remain deferred under the current execution directive. No 5,000-persona run was initiated in this pass.
 - Step 1/14 remains **OPEN**. Exact-head CI is green, but source reconciliation and security/lifecycle acceptance are not complete.
 - No merge to `main`, deployment, production Firebase mutation, billing/Blaze activation, live retention-policy change, iOS identity change, or production data operation was performed.
+
+## Exact-head verification update — 2026-11-20
+
+This is the current authoritative verification entry and supersedes the earlier placeholder timestamp and older SHA/run references above.
+
+### Unified branch and PR
+- Branch: `codex/mawdda-phase1-unified-2026-11-19`
+- Verified source commit: `6c8b963576fd98055328a68297e873509c9d2cb5`
+- Commit: `test(media): protect legal-hold assets from deletion`
+- PR #47 head matches the verified source commit; PR remains open, Draft, unmerged, and targets `codex/mawda-full-platform-implementation`.
+
+### New media test
+- File: `functions/test/integration/media-callables.integration.test.js`
+- Test: `active legal hold blocks permanent media deletion`
+- Verifies that `deleteMediaAssetForMessage` rejects an asset with `legalHoldStatus: active` using `failed-precondition`, and that both the asset record and safe derivative object remain present.
+- The fixture is emulator-only and is cleaned up in the test's `finally` block. No live retention setting or production bucket was changed.
+- The test passed within `Run media callable authorization and audit integration tests` in both Validate Push and Validate PR.
+
+### Exact-SHA workflow evidence
+All runs below used `6c8b963576fd98055328a68297e873509c9d2cb5` and completed successfully:
+- Validate Mawda Push: run `44616457662` — Cloud Functions 37/37, Flutter analysis/tests/web candidate build 16/16, isolated ClamAV tests/image build 11/11.
+- Validate Mawda Pull Request: run `44616469443` — Cloud Functions 37/37, Flutter analysis/tests/web candidate build 16/16, isolated ClamAV tests/image build 11/11.
+- Mawdda Domain Regression: run `44616457580` — retention/room reservation and associated emulator regression 17/17; Flutter widget/unit regression 9/9.
+- Media legal hold/release, message legal hold/resumed retention, Firestore and Storage Emulator rules, and backup/restore steps completed successfully in Validate Push and PR.
+- These are CI/emulator/build results only. No deployment, signed Android release, iOS device acceptance, production service mutation, or 5,000-persona simulation is implied.
+
+### Remaining Phase 1 gates
+- Issue #48 remains open: the approved operation-to-permission/resource-scope matrix and authoritative server-derived resource scope must be established before any delegated advertising/production callable is enabled. Owner review, grant administration and company contract-signing remain Owner/MFA-only.
+- Issue #49 remains open: although expiry, membership revocation, legal hold, deletion and release paths now have additional passing coverage, complete concurrency/deletion-race and scanner-verdict permutation coverage still requires review. Storage client access remains fail-closed.
+- Issue #50 remains open for final catalogue semantics/reconciliation despite exact 34-key parity and owner-only/role-family tests.
+- Issue #51 remains open pending repository-owner verification of branch protection; integration read access returned HTTP 403 and no protection setting was changed.
+- Issue #52 remains open: candidate-only biometric/sticker policy modules remain blocked where they encode unapproved reward/limit policy; matching call-usage/group-call modules are already integrated and were not copied again.
+- Step 1/14 remains **OPEN**. CI is green on this exact SHA, but Phase 1 source reconciliation and all acceptance gates are not complete.
+- No merge to `main`, deployment, production Firebase mutation, billing/Blaze activation, live retention-policy change, iOS identity change, or production data operation was performed.
