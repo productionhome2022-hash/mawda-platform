@@ -1,9 +1,12 @@
 name: Validate Mawda
 
 on:
-  # This workflow is new on the development branch and is not yet present on
-  # main, so pull_request events cannot reliably load it for PR #2. Validate
-  # every development-branch push directly; keep manual dispatch available.
+  # Pull-request checks become active once this workflow exists on the PR base.
+  pull_request:
+    branches:
+      - codex/mawda-full-platform-implementation
+      - codex/mawdda-phase1-unified-2026-11-19
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
       - codex/mawda-full-platform-implementation
