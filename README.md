@@ -34,6 +34,8 @@ npm test
 
 ## Canonical product documents
 
+- [Canonical administrative terminology and role glossary](docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md)
+
 - [Comprehensive Mawdda Platform 2026 vision](docs/MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md)
 - [Mawdda Product Constitution — highest-level approved rules](docs/MAWADDA_PRODUCT_CONSTITUTION.md)
 - [Approved decisions and implementation traceability register](docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md)
