@@ -187,3 +187,24 @@ test("permission evaluator fails closed for malformed persisted grants", () => {
     grants: valid,
   }), false);
 });
+
+
+test("delegated signing fails closed for malformed persisted delegation records", () => {
+  const valid = {
+    delegateUid: "legal_uid_0001", contractTypes: ["advertiser_direct"],
+    maxCommitmentMinor: 50000, currency: "EUR", startsAtMs: 100, endsAtMs: 500,
+    active: true, ownerCoSignatureRequired: false, delegationVersion: 2,
+  };
+  const base = {
+    delegation: valid, delegateUid: "legal_uid_0001", contractType: "advertiser_direct",
+    commitmentMinor: 30000, currency: "EUR", nowMs: 200, ownerCoSignaturePresent: false,
+  };
+  assert.equal(canSignUnderDelegation(base), true);
+  assert.equal(canSignUnderDelegation({ ...base, delegation: { ...valid, contractTypes: null } }), false);
+  assert.equal(canSignUnderDelegation({ ...base, delegation: { ...valid, maxCommitmentMinor: "50000" } }), false);
+  assert.equal(canSignUnderDelegation({ ...base, delegation: { ...valid, currency: "eur" } }), false);
+  assert.equal(canSignUnderDelegation({ ...base, delegation: { ...valid, endsAtMs: 100 } }), false);
+  assert.equal(canSignUnderDelegation({ ...base, delegation: { ...valid, active: "true" } }), false);
+  assert.equal(canSignUnderDelegation({ ...base, delegation: { ...valid, ownerCoSignatureRequired: true } }), false);
+  assert.equal(canSignUnderDelegation({ ...base, commitmentMinor: Number.MAX_SAFE_INTEGER + 1 }), false);
+});
