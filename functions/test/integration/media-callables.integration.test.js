@@ -865,6 +865,17 @@ test("safe image can be linked to a room message; non-members cannot retrieve it
     }),
     (error) => error && error.code === "permission-denied",
   );
+
+  // Revocation by removing the authoritative membership record must take
+  // effect for subsequent URL issuance, even when the message remains stored.
+  await db.collection("rooms").doc(roomId).collection("members").doc(senderUid).delete();
+  await assert.rejects(
+    () => getChatImageAttachmentUrl.run({
+      data: { scope: "room", roomId, messageId, mediaId },
+      auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+    }),
+    (error) => error && error.code === "permission-denied",
+  );
 });
 
 test("an image attachment cannot be linked twice or use a forged owner role", async () => {
