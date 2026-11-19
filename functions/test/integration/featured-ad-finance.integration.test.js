@@ -70,11 +70,17 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
       ...base, action: "payment_received",
       idempotencyKey: `payment_key_${tag}`,
       externalReference: `bank_receipt_1_${tag}`,
-      amountMinor: 10000, currency: "CHF",
+      amountMinor: 10000, currency: "EUR",
     };
     const first = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment));
     assert.equal(first.idempotentReplay, false);
     assert.equal(first.snapshot.receivedMinor, 10000);
+    const firstEvent = (await eventRef.doc(first.eventId).get()).data();
+    assert.equal(firstEvent.receivedMinor, 10000);
+    assert.equal(firstEvent.refundedMinor, 0);
+    assert.equal(firstEvent.reconciledMinor, 0);
+    assert.equal(firstEvent.reviewStatus, "in_review");
+    assert.equal(firstEvent.paymentStatus, "paid");
     const replay = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment));
     assert.equal(replay.idempotentReplay, true);
     assert.equal((await campaignRef.get()).data().status, "draft");
@@ -112,14 +118,14 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
       ...base, action: "refund_recorded",
       idempotencyKey: `refund_key_${tag}`,
       externalReference: `bank_refund_${tag}`,
-      amountMinor: 1000, currency: "CHF",
+      amountMinor: 1000, currency: "EUR",
     }));
     assert.equal(refund.snapshot.refundedMinor, 1000);
     const settlement = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
       ...base, action: "settlement_reconciled",
       idempotencyKey: `settlement_key_${tag}`,
       externalReference: `bank_settlement_${tag}`,
-      amountMinor: 14000, currency: "CHF",
+      amountMinor: 14000, currency: "EUR",
     }));
     assert.equal(settlement.snapshot.reconciledMinor, 14000);
     assert.equal(settlement.snapshot.reviewStatus, "reconciled");
@@ -139,7 +145,7 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
         ...base, action: "payment_received",
         idempotencyKey: `disabled_payment_${tag}`,
         externalReference: `disabled_receipt_${tag}`,
-        amountMinor: 100, currency: "CHF",
+        amountMinor: 100, currency: "EUR",
       })),
       (error) => error && error.code === "failed-precondition",
     );
