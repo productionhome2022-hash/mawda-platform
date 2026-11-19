@@ -7437,7 +7437,10 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "تعليمات الدفع المرسلة لا تُعدّل؛ إذا لزم تصحيح الاتفاق فأغلق الطلب وافتح طلباً جديداً.");
     }
     if (prior.paymentChannel !== "manual_owner_contact" ||
-        prior.paymentPolicySnapshot?.manualEnabled !== true) {
+        prior.paymentPolicySnapshot?.service !== "coin_purchases" ||
+        prior.paymentPolicySnapshot?.manualEnabled !== true ||
+        prior.paymentPolicySnapshot?.automatedEnabled !== false ||
+        prior.paymentPolicySnapshot?.policyVersion !== prior.pricingPolicyVersion) {
       throw new HttpsError("failed-precondition", "مسار الدفع اليدوي غير مثبت في لقطة الطلب.");
     }
     const currentInstructionsVersion = Number.isSafeInteger(prior.instructionsVersion)
@@ -7533,8 +7536,10 @@ export const requestCoinPurchasePaymentVerification = onCall(async (request) => 
     }
     const data = purchase.data() ?? {};
     if (data.paymentChannel !== "manual_owner_contact" ||
+        data.paymentPolicySnapshot?.service !== "coin_purchases" ||
         data.paymentPolicySnapshot?.manualEnabled !== true ||
-        data.paymentPolicySnapshot?.automatedEnabled !== false) {
+        data.paymentPolicySnapshot?.automatedEnabled !== false ||
+        data.paymentPolicySnapshot?.policyVersion !== data.pricingPolicyVersion) {
       throw new HttpsError("failed-precondition", "هذا الطلب لا يستخدم مسار الدفع اليدوي.");
     }
     if (data.status === "awaiting_payment_verification" &&
@@ -7635,7 +7640,10 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
       return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null };
     }
     if (data.paymentChannel !== "manual_owner_contact" ||
-        data.paymentPolicySnapshot?.manualEnabled !== true) {
+        data.paymentPolicySnapshot?.service !== "coin_purchases" ||
+        data.paymentPolicySnapshot?.manualEnabled !== true ||
+        data.paymentPolicySnapshot?.automatedEnabled !== false ||
+        data.paymentPolicySnapshot?.policyVersion !== data.pricingPolicyVersion) {
       throw new HttpsError("failed-precondition", "لقطة الطلب لا تسمح بالاعتماد اليدوي.");
     }
     if (!["payment_instructions_sent", "awaiting_payment_verification"].includes(String(data.status))) {
