@@ -239,6 +239,18 @@ function requireAuthenticatedUid(uid: string | undefined): string {
   }
   return uid;
 }
+function requireNonAnonymousMember(request: {
+  auth?: { token: Record<string, unknown> } | null;
+}): void {
+  const firebaseIdentity = request.auth?.token.firebase;
+  const signInProvider = firebaseIdentity && typeof firebaseIdentity === "object" &&
+      !Array.isArray(firebaseIdentity)
+    ? (firebaseIdentity as Record<string, unknown>).sign_in_provider
+    : undefined;
+  if (signInProvider === "anonymous") {
+    throw new HttpsError("permission-denied", "هذه العملية المالية متاحة للأعضاء المسجلين فقط.");
+  }
+}
 
 function requireOwner(request: { auth?: { uid: string; token: Record<string, unknown> } | null }): string {
   const uid = requireAuthenticatedUid(request.auth?.uid);
@@ -7243,6 +7255,7 @@ export const getStoreCatalog = onCall(async (request) => {
  * are committed atomically. Real-money top-ups are a separate unimplemented flow.
  */
 export const purchaseStoreItem = onCall(async (request) => {
+  requireNonAnonymousMember(request);
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const itemId = request.data?.itemId;
   const requestId = request.data?.requestId;
@@ -7670,6 +7683,7 @@ export const getMyEntitlementGrantHistory = onCall(async (request) => {
  * and audit evidence commit atomically.
  */
 export const giftStoreItem = onCall(async (request) => {
+  requireNonAnonymousMember(request);
   const senderUid = requireAuthenticatedUid(request.auth?.uid);
   const recipientUid = request.data?.recipientUid;
   const itemId = request.data?.itemId;
@@ -8432,6 +8446,7 @@ export const getAvailableCoinPackages = onCall(async () => {
 
 /** Member requests a fixed package or a negotiated custom coin quantity. No coins are issued here. */
 export const createCoinPurchaseRequest = onCall(async (request) => {
+  requireNonAnonymousMember(request);
   const uid = requireAuthenticatedUid(request.auth?.uid);
   let input;
   try { input = validateCoinPurchaseRequestInput(request.data); }
