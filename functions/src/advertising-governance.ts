@@ -1,4 +1,8 @@
 import { createHash } from "node:crypto";
+import {
+  ADVERTISING_SUPERVISOR_PERMISSIONS,
+  normalizeAdvertisingSupervisorPermissions,
+} from "./advertising-permissions";
 
 export const ADVERTISING_SPECIALIZED_ROLES = [
   "ad_representative",
@@ -11,27 +15,17 @@ export const ADVERTISING_SPECIALIZED_ROLES = [
 
 export type AdvertisingSpecializedRole = typeof ADVERTISING_SPECIALIZED_ROLES[number];
 
-export const ADVERTISING_PERMISSIONS = [
-  "advertising.requests.review",
-  "advertising.requests.assign",
-  "advertising.creatives.review",
-  "advertising.campaigns.schedule",
-  "advertising.campaigns.pause_operational",
-  "advertising.campaigns.publish",
-  "advertising.representatives.message",
-  "advertising.reports.read",
-  "advertising.rooms.observe_assigned",
-  "advertising.tasks.assign",
+const PRODUCTION_PERMISSIONS = [
   "production.rooms.create",
   "production.rooms.manage_assigned",
   "production.tasks.manage_assigned",
   "production.reviews.write",
   "production.achievements.nominate",
-  "contracts.drafts.create",
-  "contracts.drafts.review",
-  "contracts.send",
-  "contracts.sign_delegated",
-  "contracts.archive.read",
+] as const;
+
+export const ADVERTISING_PERMISSIONS = [
+  ...ADVERTISING_SUPERVISOR_PERMISSIONS,
+  ...PRODUCTION_PERMISSIONS,
 ] as const;
 
 export type AdvertisingPermission = typeof ADVERTISING_PERMISSIONS[number];
@@ -61,12 +55,7 @@ const TEAM_PRODUCTION_SUPERVISOR_PERMISSIONS = new Set<AdvertisingPermission>([
   "production.achievements.nominate",
 ]);
 
-const ADMIN_MEDIA_CONTRACT_PERMISSIONS = new Set<AdvertisingPermission>([
-  "contracts.drafts.create",
-  "contracts.drafts.review",
-  "contracts.send",
-  "contracts.archive.read",
-]);
+
 
 const ROLES_WITHOUT_APPROVED_SPECIALIZED_GRANT_MATRIX = new Set<AdvertisingSpecializedRole>([
   // Representatives use their own request/agreement lifecycle, not supervisor grants.
@@ -85,8 +74,12 @@ function assertRolePermissionBoundary(
   }
   const allowed = permissions.every((permission) => {
     if (role === "ad_general_supervisor") {
-      return permission.startsWith("advertising.") ||
-        ADMIN_MEDIA_CONTRACT_PERMISSIONS.has(permission);
+      try {
+        normalizeAdvertisingSupervisorPermissions(permissions);
+        return true;
+      } catch {
+        return false;
+      }
     }
     if (role === "production_general_supervisor") {
       return permission.startsWith("production.");
