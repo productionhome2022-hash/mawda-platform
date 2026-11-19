@@ -6832,8 +6832,9 @@ export const setStoreCatalogItem = onCall(async (request) => {
     const previousVersion = previousSnapshot.exists
       ? (previousSnapshot.data()?.version ?? 0)
       : 0;
-    if (!Number.isSafeInteger(previousVersion) || previousVersion < 0) {
-      throw new HttpsError("failed-precondition", "إصدار عنصر المتجر السابق غير صالح؛ أوقفنا التحديث.");
+    if (!Number.isSafeInteger(previousVersion) || previousVersion < 0 ||
+        previousVersion >= Number.MAX_SAFE_INTEGER) {
+      throw new HttpsError("failed-precondition", "إصدار عنصر المتجر السابق غير صالح أو بلغ الحد الأعلى؛ أوقفنا التحديث.");
     }
     const version = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
