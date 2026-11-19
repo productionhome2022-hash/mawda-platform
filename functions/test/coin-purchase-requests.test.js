@@ -28,12 +28,12 @@ test("owner payment instructions require bounded negotiated terms", () => {
     expectedInstructionsVersion: 0,
   }).agreedPriceMinor, 999);
   assert.equal(validateOwnerPaymentInstructionInput({
-    requestId: "request_124", instructions: "Owner selected Swiss franc terms",
+    requestId: "request_124", instructions: "Owner selected Egyptian pound terms",
     agreedCoins: 1000, agreedPriceMinor: 999, currency: "EGP",
     expectedInstructionsVersion: 1,
   }).currencyExponent, 2);
   assert.equal(validateOwnerPaymentInstructionInput({
-    requestId: "request_125", instructions: "Owner selected zero-decimal terms",
+    requestId: "request_125", instructions: "Owner selected Syrian pound terms",
     agreedCoins: 1000, agreedPriceMinor: 999, currency: "SYP",
     expectedInstructionsVersion: 0,
   }).currencyExponent, 2);
@@ -42,11 +42,20 @@ test("owner payment instructions require bounded negotiated terms", () => {
     agreedCoins: 1000, agreedPriceMinor: 999, currency: "EUR",
     expectedInstructionsVersion: 0,
   }), /INVALID_INSTRUCTIONS/);
-  assert.throws(() => validateOwnerPaymentInstructionInput({
-    requestId: "request_123", instructions: "Valid enough instructions",
-    agreedCoins: 1000, agreedPriceMinor: 999, currency: "XXX",
-    expectedInstructionsVersion: 0,
-  }), /INVALID_INSTRUCTIONS/);
+  for (const currency of ["EUR", "USD", "EGP", "SAR", "SYP"]) {
+    assert.equal(validateOwnerPaymentInstructionInput({
+      requestId: "request_126", instructions: "Owner selected official currency",
+      agreedCoins: 1000, agreedPriceMinor: 999, currency,
+      expectedInstructionsVersion: 0,
+    }).currencyExponent, 2);
+  }
+  for (const currency of ["CHF", "KWD", "JPY", "XXX"]) {
+    assert.throws(() => validateOwnerPaymentInstructionInput({
+      requestId: "request_127", instructions: "Unsupported currency must fail",
+      agreedCoins: 1000, agreedPriceMinor: 999, currency,
+      expectedInstructionsVersion: 0,
+    }), /INVALID_INSTRUCTIONS/);
+  }
   assert.throws(() => validateOwnerPaymentInstructionInput({
     requestId: "request_123", instructions: "Valid enough instructions",
     agreedCoins: 1000, agreedPriceMinor: 999, currency: "EUR",
