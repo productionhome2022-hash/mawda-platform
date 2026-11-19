@@ -17,6 +17,7 @@ import 'owner_advertising_rewards_screen.dart';
 import 'owner_contract_center_screen.dart';
 import 'owner_advertising_intake_screen.dart';
 import 'owner_production_applications_screen.dart';
+import 'owner_biometric_review_screen.dart';
 
 class SuperAdminScreen extends StatefulWidget {
   const SuperAdminScreen({super.key});
@@ -1329,7 +1330,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('غرفة عمليات مالك مودة'),
+      title: const Text('Super Owner | غرفة عمليات المالك'),
       actions: [
         IconButton(
           tooltip: 'تسجيل خروج المالك',
@@ -1378,6 +1379,17 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                 ],
               ],
             ),
+          ),
+        ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.fingerprint),
+            title: const Text('طلبات التوثيق البيومتري'),
+            subtitle: const Text('مراجعة الأدلة الصوتية والمرئية واتخاذ قرار موثق'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const OwnerBiometricReviewScreen(),
+            )),
           ),
         ),
         const SizedBox(height: 12),
@@ -1991,7 +2003,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
           ),
         ],
         const Divider(height: 32),
-        Text('ضوابط المالك', style: Theme.of(context).textTheme.titleMedium),
+        Text('ضوابط Super Owner', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
