@@ -123,14 +123,29 @@ export function hasAdvertisingPermission(args: {
   nowMs: number;
 }): boolean {
   if (args.ownerVerified) return true;
-  if (!ADVERTISING_PERMISSIONS.includes(args.permission)) return false;
-  return args.grants.some((grant) =>
-    grant.uid === args.uid &&
-    grant.status === "active" &&
-    grant.startsAtMs <= args.nowMs &&
-    (grant.endsAtMs === null || grant.endsAtMs > args.nowMs) &&
-    grant.permissions.includes(args.permission) &&
-    grant.resourceScopes.includes(args.resourceScope));
+  if (!ADVERTISING_PERMISSIONS.includes(args.permission) ||
+      typeof args.uid !== "string" || !args.uid ||
+      typeof args.resourceScope !== "string" || !args.resourceScope ||
+      !Number.isSafeInteger(args.nowMs) || args.nowMs < 0 ||
+      !Array.isArray(args.grants)) return false;
+
+  // Firestore is an untyped boundary: never trust a TypeScript annotation
+  // when grant documents are loaded from persistence. Validate each candidate
+  // independently so one malformed/stale document cannot authorize an action.
+  return args.grants.some((candidate) => {
+    let grant: SpecializedRoleGrant;
+    try {
+      grant = validateSpecializedRoleGrant(candidate);
+    } catch {
+      return false;
+    }
+    return grant.uid === args.uid &&
+      grant.status === "active" &&
+      grant.startsAtMs <= args.nowMs &&
+      (grant.endsAtMs === null || grant.endsAtMs > args.nowMs) &&
+      grant.permissions.includes(args.permission) &&
+      grant.resourceScopes.includes(args.resourceScope);
+  });
 }
 
 export interface SigningDelegation {
