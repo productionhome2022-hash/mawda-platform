@@ -667,3 +667,10 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 - Added/updated unit and Firestore-emulator integration test sources for instruction versioning, claim-only payment reporting, audit integrity, ledger arithmetic and replay behavior.
 - **Validation status:** source and test files are committed, but no local build, unit test, emulator run, Flutter analysis or exact-HEAD CI result has been verified in this execution. Do not treat the work as tested or closed until the exact current SHA passes the configured workflows.
 - No payment provider, automated checkout, production Firebase resource, production wallet, paid service, deployment or `main` merge was changed. Existing owner-controlled prices and payment-mode selection remain authoritative.
+
+
+## 2026-11-19 — read-only wallet reconciliation foundation
+
+- Added the pure read-only `reconcileWalletLedger` helper and unit tests. It distinguishes `consistent`, `mismatch`, `incomplete`, and `corrupt`; legacy rows without balance snapshots remain `incomplete`, and malformed arithmetic/continuity is reported rather than auto-corrected.
+- This is a calculation foundation only. No owner-facing paginated reconciliation callable/UI, cross-domain ledger scan, historical repair, balance mutation, or automatic correction has been implemented. Historical records are not rewritten.
+- Validation status: test source is committed, but the exact current development SHA has not yet been built or tested in this execution.
