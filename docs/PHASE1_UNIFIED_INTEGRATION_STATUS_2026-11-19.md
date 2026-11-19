@@ -387,3 +387,40 @@ PR #47 remains Draft. No merge to `main`, deployment, production Firebase mutati
 - Fixed `.github/workflows/validate.yml` to key concurrency by both `github.event_name` and `github.ref_name`. This prevents push validation from cancelling the PR validation for the same branch; newer runs of the same event/branch may still supersede older ones.
 - Fix commit: `3e81e33bd7b96850e46f5d313f8af9899e6e9a80`. Its new exact-head workflows must be checked independently; prior success on `baf1f7c` does not prove the modified workflow commit passed.
 - PR #47 remains Draft. No merge, deployment, production mutation, billing activation, external simulation or live acceptance was performed.
+
+## Exact-head continuation update — 2026-11-19 20:xx UTC
+
+This addendum supersedes older SHA/run-state references above where they differ.
+
+### Current unified branch evidence
+- Unified branch head at this update: `0ba52679710e789a9c1802d87850b52dd83f8c69`.
+- Commit message: `test(media): cover expired retention URL denial`.
+- PR #47 head matches this SHA; PR #47 remains open and Draft, base remains `codex/mawda-full-platform-implementation`, and it is not merged.
+- Validate Mawda Push run `44604718288`: **completed / success** on this exact SHA. All three jobs passed: isolated ClamAV scanner image/sanitization/EICAR; Cloud Functions compile/unit tests and configured Firestore/Storage Emulator suites; Flutter analysis/tests and both web release candidate builds.
+- Validate Mawda Pull Request run `44604732231`: **completed / success** on this exact SHA. All three jobs and all steps passed.
+- Mawdda Domain Regression run `44604718634`: **completed / success** on this exact SHA. Both jobs passed, including retention/room reservation Emulator regression, specialized-role capacity/concurrency, store gifting, call lifecycle, timed-ad rewards and Flutter widget/unit regression.
+- No run above deployed anything. Production-configured web candidate builds are build artifacts only, not deployment or release acceptance.
+
+### Additional media regression
+- Added an Emulator integration test in `functions/test/integration/media-callables.integration.test.js` proving that an otherwise linked/approved image whose server-side `retentionExpiresAt` has elapsed cannot receive a new signed delivery URL.
+- The test expects `failed-precondition` from `getChatImageAttachmentUrl`; it changes only its isolated fixture and does not alter live retention settings.
+- Commit: `0ba52679710e789a9c1802d87850b52dd83f8c69`.
+- The new test passed in Validate Mawda runs `44604718288` and `44604732231`, step “Run media callable authorization and audit integration tests”.
+
+### Fresh branch extraction classification
+- Compared the six high-risk candidate branches against this unified branch after the latest commit. All are divergent; none was merged wholesale.
+- `functions/src/call-usage-policy.ts` and `functions/src/group-call-economy.ts` from `codex/economic-phase-completion-2026-11-18` are already present in the unified branch with matching source content.
+- Candidate-only modules requiring separate review include `functions/src/call-entitlements.ts`, `functions/src/sticker-policy.ts`, `functions/src/biometric-media.ts`, and `functions/src/biometric-review.ts`.
+- Do not port the candidate biometric review's hard-coded `BIOMETRIC_REWARD_BETACOINS = 1500` without an owner-approved reward policy. Do not port sticker pack limits (120 items, 256/512 KiB) as platform quotas without owner approval.
+- Group-call rates remain owner-controlled; no candidate price/rate defaults were copied.
+- Issue #52 records the file-level classification and outstanding review requirements.
+
+### Current security and acceptance disposition
+- Issue #48 remains open: no approved operation-to-permission/resource-scope matrix has been established for delegated advertising/production operations. Owner review, specialized-role grant administration and company contract-signing callables remain owner/MFA-only. Do not enable delegated capabilities from client-provided scope values.
+- Issue #49 remains open: the new expired-retention URL denial test adds coverage, but does not complete all required media lifecycle cases (scanner verdict permutations, deletion race, legal hold, concurrency and full disposable non-production live-bucket acceptance). Storage client access remains fail-closed.
+- Issue #50 remains open for permission catalogue reconciliation.
+- Issue #51 remains open for repository branch protection verification; GitHub integration did not expose sufficient branch-protection read access.
+- Issue #52 remains open for selective extraction of remaining unique changes.
+- The separate 5,000-persona lab and external/live-service acceptance remain deferred under the current execution directive. No 5,000-persona run was initiated in this pass.
+- Step 1/14 remains **OPEN**. Exact-head CI is green, but source reconciliation and security/lifecycle acceptance are not complete.
+- No merge to `main`, deployment, production Firebase mutation, billing/Blaze activation, live retention-policy change, iOS identity change, or production data operation was performed.
