@@ -765,3 +765,15 @@ The owner clarified that earlier approved permission options and advertising/pro
 5. The previous generic GOV-002 phrasing is subordinate to this source reconciliation: role-specific catalogues and resource scopes are required, and the already approved Admin Media catalogue must be reused verbatim/versioned rather than replaced by a generic list.
 
 This is a source reconciliation and implementation instruction, not evidence that all permission enforcement is complete. Existing `advertising-permissions.ts` currently models a single `general_supervisor` category and the advertising catalogue; it is not by itself a complete authorization implementation for every specialist role or Admin N. All protected callables and resource paths still require enforcement and tests.
+
+
+## Super Owner sovereign authority and delegation constitution — 19 November 2026
+
+- The owner has approved `docs/OWNER_SOVEREIGN_AUTHORITY_AND_DELEGATION_CONSTITUTION.md` as a binding governance requirement for all current and future platform domains.
+- Super Owner is the single highest platform authority. All role families, administrators, supervisors, moderators, representatives and service actors remain subordinate and receive no owner-equivalent or implied authority.
+- The owner-facing permission experience must expose role-specific selectable options and support per-person additive grants, granular edits, partial revocation, full revocation, temporary suspension/reinstatement, optional expiry/renewal, scope review and complete versioned audit history.
+- The owner retains exclusive control of owner-reserved platform, security, staffing, economic and final-approval decisions. Delegated powers must be explicitly catalogued, scoped, server-enforced and revocable. No wildcard or self-escalation mechanism is permitted.
+- Preserve the approved independent catalogues and role boundaries: Admin N; Admin Media 1–5; general advertising supervisors; general production supervisors; team production supervisors; production technical-review; legal/administrative contract supervisors; and any future owner-approved specialist roles. Do not infer or invent the still-unlocated Admin N capability list.
+- Security controls (verified owner identity, MFA/step-up, recent authentication as required, immutable audit evidence, fail-closed authorization and backend enforcement) protect the exercise of owner authority; this governance decision does not authorize silent evidence deletion or production changes.
+- **Implementation status:** approved and documented only. Owner-facing UI, full role catalogues, complete server enforcement and authorization tests remain engineering work and must not be represented as complete until evidenced on an exact SHA.
+- This approval does not authorize merge to `main`, deployment, production Firebase mutation, billing/paid-resource activation or live policy changes.
