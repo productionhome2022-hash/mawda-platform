@@ -1,10 +1,30 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Default deny until authenticated media upload/download services,
-    // content validation and scheduled retention are implemented.
-    match /{allPaths=**} {
-      allow read, write: if false;
+    function biometricRequestExists(requestId) {
+      return firestore.exists(/databases/(default)/documents/biometricVerificationRequests/$(requestId));
     }
+    function biometricRequest(requestId) {
+      return firestore.get(/databases/(default)/documents/biometricVerificationRequests/$(requestId)).data;
+    }
+    function biometricSettings() {
+      return firestore.get(/databases/(default)/documents/platformSettings/biometricVerification).data;
+    }
+    // Members may create only server-issued evidence objects for their own active request.
+    match /biometric-verification/{uid}/{requestId}/{fileName} {
+      allow create: if request.auth != null && request.auth.uid == uid &&
+        biometricRequestExists(requestId) && biometricRequest(requestId).uid == uid &&
+        biometricRequest(requestId).requestId == requestId && biometricRequest(requestId).status == "uploading" &&
+        biometricRequest(requestId).uploadExpiresAt > request.time && biometricSettings().enabled == true &&
+        request.resource.size > 0 &&
+        ((fileName == "audio.mp4" && request.resource.contentType == "audio/mp4" &&
+          biometricSettings().maxAudioBytes is int && biometricSettings().maxAudioBytes > 0 &&
+          request.resource.size <= biometricSettings().maxAudioBytes) ||
+         (fileName == "video.mp4" && request.resource.contentType == "video/mp4" &&
+          biometricSettings().maxVideoBytes is int && biometricSettings().maxVideoBytes > 0 &&
+          request.resource.size <= biometricSettings().maxVideoBytes));
+      allow get, list, update, delete: if false;
+    }
+    match /{allPaths=**} { allow read, write: if false; }
   }
 }
