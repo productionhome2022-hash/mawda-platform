@@ -6,7 +6,7 @@ const path = require("node:path");
 test("biometric reward callable fails closed without server-verifiable device attestation", () => {
   const source = fs.readFileSync(path.join(__dirname, "../src/index.ts"), "utf8");
   const start = source.indexOf("export const completeBiometricVerificationCycle = onCall(async (request) => {");
-  const end = source.indexOf("\n\n/**\n * Starts a fresh 90-day email ownership challenge", start);
+  const end = source.indexOf("\n});", start) + 4;
   assert.notEqual(start, -1, "biometric reward callable must remain present");
   assert.notEqual(end, -1, "biometric reward callable boundary must remain identifiable");
   const callable = source.slice(start, end);
