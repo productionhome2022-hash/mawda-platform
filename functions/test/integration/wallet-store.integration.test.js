@@ -216,6 +216,7 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
   await Promise.all([
     memberRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active" }),
     itemRef.set({
+      itemId, version: 1,
       name: "VIP test item", description: "Emulator-only entitlement test",
       category: "vip", priceCoins: 1250, durationDays: 30, sortOrder: 1,
       active: true, purchaseEnabled: true, fulfillmentReady: true,
@@ -288,7 +289,7 @@ test("owner catalog publication fails closed on a corrupt prior version", async 
       () => setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
         itemId, name: "Version fixture", description: "Corrupt version must not be overwritten.",
         category: "vip", priceCoins: 100, durationDays: 30,
-        sortOrder: 1, active: true, purchaseEnabled: true,
+        sortOrder: 1, active: true, purchaseEnabled: false,
       })),
       (error) => error && error.code === "failed-precondition",
     );
@@ -348,9 +349,9 @@ test("owner economy pricing never seeds commercial defaults and publishes immuta
     assert.deepEqual(unavailablePackages.packages, []);
 
     const packages = [{ packageId: "owner_pack", name: "Owner package", coins: 1000,
-      priceMinor: 12500, currency: "CHF", active: true }];
+      priceMinor: 12500, currency: "EUR", active: true }];
     const ads = [{ placementId: "owner_ad", name: "Owner ad", billingModel: "daily",
-      priceMinor: 1000, currency: "CHF", active: false }];
+      priceMinor: 1000, currency: "EUR", active: false }];
     const paymentPolicy = {
       coin_purchases: { manualEnabled: true, automatedEnabled: false },
       featured_ads: { manualEnabled: true, automatedEnabled: false },
@@ -440,9 +441,9 @@ test("manual coin package request issues no coins until owner verifies external 
     userRef.set({ coins: 40, profileCompleted: true, accountStatus: "active" }),
     settingsRef.set({
       coinPackages: [{ packageId: "test_pack", name: "Test package", coins: 900,
-        priceMinor: 500, currency: "CHF", active: true }],
+        priceMinor: 500, currency: "EUR", active: true }],
       adPrices: [{ placementId: "test_ad", name: "Test ad", billingModel: "daily",
-        priceMinor: 100, currency: "CHF", active: true }],
+        priceMinor: 100, currency: "EUR", active: true }],
       manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, version: 1,
     }),
   ]);
@@ -458,7 +459,7 @@ test("manual coin package request issues no coins until owner verifies external 
 
     const instructionResult = await setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
       requesterUid: uid, requestId, instructions: "يرجى التواصل مع المالك لإتمام التحويل البنكي",
-      agreedCoins: 900, agreedPriceMinor: 500, currency: "CHF",
+      agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
       expectedInstructionsVersion: 0,
     }));
     assert.equal((await requestDoc.get()).data().status, "payment_instructions_sent");
@@ -470,7 +471,7 @@ test("manual coin package request issues no coins until owner verifies external 
     await assert.rejects(
       () => setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
         requesterUid: uid, requestId, instructions: "تعديل ممنوع بعد الإصدار",
-        agreedCoins: 900, agreedPriceMinor: 500, currency: "CHF",
+        agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
         expectedInstructionsVersion: 0,
       })),
       (error) => error && error.code === "failed-precondition",
