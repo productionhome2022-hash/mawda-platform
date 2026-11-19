@@ -101,7 +101,12 @@ test("member request uses canonical profile identity, one pending upload, and co
   ]);
   let createdRequestId;
   try {
+    await assert.rejects(
+      () => startBiometricVerificationRequest.run(request(uid, { phraseId: "phrase_ar_1" })),
+      (error) => error && error.code === "failed-precondition",
+    );
     const started = await startBiometricVerificationRequest.run(request(uid, {
+      consent: true,
       phraseId: "phrase_ar_1",
       fullName: "Forged Name",
       username: "forged_user",
