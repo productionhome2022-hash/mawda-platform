@@ -1,8 +1,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { getFirestore } = require("firebase-admin/firestore");
+const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const {
-  transferCoins, purchaseStoreItem, getOwnerStoreCatalog, setStoreCatalogItem, getAvailableCoinPackages, getOwnerEconomyPricing,
+  transferCoins, getOwnerWalletReconciliation, purchaseStoreItem, getOwnerStoreCatalog, setStoreCatalogItem, getAvailableCoinPackages, getOwnerEconomyPricing,
   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
   setCoinPurchasePaymentInstructions, requestCoinPurchasePaymentVerification, approveCoinPurchaseRequest,
   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
@@ -839,3 +839,52 @@ test("every shipped premium store category charges once and grants its matching 
     ]);
   }
 });
+
+
+test("owner wallet reconciliation is read-only and reports unorderable history as incomplete", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const uid = `reconcile_${tag}`;
+  const userRef = db.collection("users").doc(uid);
+  const ledger = userRef.collection("walletLedger");
+  const firstRef = ledger.doc("entry_001");
+  const secondRef = ledger.doc("entry_002");
+  const unorderedRef = ledger.doc("entry_003");
+  await userRef.set({ coins: 1200, profileCompleted: true, accountStatus: "active" });
+  await Promise.all([
+    firstRef.set({ amount: 1000, balanceBefore: 0, balanceAfter: 1000, createdAt: Timestamp.fromMillis(1000) }),
+    secondRef.set({ amount: 200, balanceBefore: 1000, balanceAfter: 1200, createdAt: Timestamp.fromMillis(2000) }),
+  ]);
+  try {
+    const consistent = await getOwnerWalletReconciliation.run(ownerRequest("store-catalog-owner", {
+      targetUid: uid,
+    }));
+    assert.equal(consistent.readOnly, true);
+    assert.equal(consistent.scope, "walletLedger");
+    assert.equal(consistent.status, "consistent");
+    assert.equal(consistent.currentBalance, 1200);
+    assert.equal(consistent.computedBalance, 1200);
+    assert.equal(consistent.netLedgerDelta, 1200);
+    assert.equal(consistent.ledgerEntryCount, 2);
+    assert.equal(consistent.truncated, false);
+
+    await assert.rejects(
+      () => getOwnerWalletReconciliation.run(memberRequest(uid, { targetUid: uid })),
+      (error) => error && error.code === "permission-denied",
+    );
+
+    await unorderedRef.set({ amount: 1, balanceBefore: 1200, balanceAfter: 1201 });
+    const incomplete = await getOwnerWalletReconciliation.run(ownerRequest("store-catalog-owner", {
+      targetUid: uid,
+    }));
+    assert.equal(incomplete.status, "incomplete");
+    assert.equal(incomplete.chronologyIncomplete, true);
+    assert.equal(incomplete.unorderableEntryCount, 1);
+    assert.equal(incomplete.netLedgerDelta, null);
+    assert.equal((await userRef.get()).data().coins, 1200);
+    assert.equal((await ledger.get()).size, 3);
+  } finally {
+    await Promise.all([firstRef.delete(), secondRef.delete(), unorderedRef.delete(), userRef.delete()]);
+  }
+});
+
