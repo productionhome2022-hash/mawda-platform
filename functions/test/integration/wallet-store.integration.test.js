@@ -548,7 +548,7 @@ test("custom coin request is negotiated manually and a withdrawn request cannot 
         priceMinor: 500, currency: "EUR", active: true }],
       adPrices: [{ placementId: "test_ad", name: "Test ad", billingModel: "daily",
         priceMinor: 100, currency: "EUR", active: true }],
-      manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, version: 1,
+      manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, customCoinRequestBounds: { minCoins: 1000, maxCoins: 50000 }, version: 1,
     }),
   ]);
   try {
