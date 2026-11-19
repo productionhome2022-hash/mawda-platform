@@ -2303,7 +2303,7 @@ export const getOwnerBiometricVerificationSettings = onCall(async (request) => {
   return {
     configured: true,
     settings: {
-      enabled: data.enabled === true,
+      enabled: MANUAL_BIOMETRIC_REVIEW_APPROVED && data.enabled === true,
       maxAudioBytes: data.maxAudioBytes ?? null,
       maxVideoBytes: data.maxVideoBytes ?? null,
       uploadWindowMinutes: data.uploadWindowMinutes ?? null,
