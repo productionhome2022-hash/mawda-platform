@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 
 export const ADVERTISING_SPECIALIZED_ROLES = [
-  "ad_representative",
   "ad_general_supervisor",
   "production_supervisor",
   "production_general_supervisor",
@@ -11,30 +10,89 @@ export const ADVERTISING_SPECIALIZED_ROLES = [
 
 export type AdvertisingSpecializedRole = typeof ADVERTISING_SPECIALIZED_ROLES[number];
 
-export const ADVERTISING_PERMISSIONS = [
-  "advertising.requests.review",
+export const ADMIN_MEDIA_PERMISSIONS = [
+  "advertising.applicants.view",
+  "advertising.applicants.review_profile",
+  "advertising.applicants.request_information",
+  "advertising.applicants.discuss",
+  "advertising.agreements.prepare_and_send",
+  "advertising.agreements.view_status",
+  "advertising.agreements.route_to_owner",
+  "advertising.representatives.activate",
+  "advertising.representatives.suspend",
+  "advertising.requests.view_assigned",
+  "advertising.requests.view_all",
   "advertising.requests.assign",
-  "advertising.creatives.review",
-  "advertising.campaigns.schedule",
-  "advertising.campaigns.pause_operational",
-  "advertising.campaigns.publish",
-  "advertising.representatives.message",
-  "advertising.reports.read",
-  "advertising.rooms.observe_assigned",
-  "advertising.tasks.assign",
+  "advertising.requests.return_for_correction",
+  "advertising.requests.reject_with_reason",
+  "advertising.requests.review_description",
+  "advertising.requests.review_media",
+  "advertising.requests.preview_external_link",
+  "advertising.requests.validate_geographic_target",
+  "advertising.requests.accept_preliminary",
+  "advertising.requests.route_to_owner",
+  "advertising.campaign.edit_nonfinancial_metadata",
+  "advertising.campaign.propose_schedule",
+  "advertising.campaign.schedule_within_owner_limits",
+  "advertising.campaign.pause_operationally",
+  "advertising.campaign.resume_if_not_owner_blocked",
+  "advertising.campaign.view_delivery_status",
+  "advertising.campaign.view_aggregate_performance",
+  "advertising.campaign.publish",
+  "advertising.campaign.unpublish_operationally",
+  "advertising.workspace.message_representatives",
+  "advertising.workspace.message_advertisers",
+  "advertising.notifications.send_approved_templates",
+  "advertising.reports.view_requests",
+  "advertising.reports.export_nonfinancial",
+] as const;
+
+const PRODUCTION_PERMISSIONS = [
   "production.rooms.create",
   "production.rooms.manage_assigned",
   "production.tasks.manage_assigned",
   "production.reviews.write",
   "production.achievements.nominate",
-  "contracts.drafts.create",
+] as const;
+
+const LEGAL_ADMIN_PERMISSIONS = [
   "contracts.drafts.review",
-  "contracts.send",
-  "contracts.sign_delegated",
+  "contracts.route_to_owner",
   "contracts.archive.read",
 ] as const;
 
+export const ADVERTISING_PERMISSIONS = [
+  ...ADMIN_MEDIA_PERMISSIONS,
+  ...PRODUCTION_PERMISSIONS,
+  ...LEGAL_ADMIN_PERMISSIONS,
+] as const;
+
 export type AdvertisingPermission = typeof ADVERTISING_PERMISSIONS[number];
+
+/**
+ * Permission families are role-bound. The Owner may select any subset of the
+ * listed capabilities, but cannot move a capability into another job family.
+ * Representatives use their own signed-agreement lifecycle and are not
+ * specialized supervisor grants.
+ */
+export const SPECIALIZED_ROLE_PERMISSION_OPTIONS: Readonly<
+  Record<AdvertisingSpecializedRole, readonly AdvertisingPermission[]>
+> = {
+  ad_general_supervisor: ADMIN_MEDIA_PERMISSIONS,
+  production_supervisor: [
+    "production.rooms.create",
+    "production.rooms.manage_assigned",
+    "production.tasks.manage_assigned",
+    "production.achievements.nominate",
+  ],
+  production_general_supervisor: [
+    "production.rooms.manage_assigned",
+    "production.tasks.manage_assigned",
+    "production.achievements.nominate",
+  ],
+  production_quality_reviewer: ["production.reviews.write"],
+  legal_administrative_supervisor: LEGAL_ADMIN_PERMISSIONS,
+};
 
 const FORBIDDEN_SPECIALIZED_PERMISSIONS = new Set([
   "platform.admin",
@@ -46,6 +104,9 @@ const FORBIDDEN_SPECIALIZED_PERMISSIONS = new Set([
   "owner.pause_override",
   "owner.audit.delete",
   "contracts.delegation.create",
+  "contracts.drafts.create",
+  "contracts.sign_delegated",
+  "contracts.send",
 ]);
 
 /** Stable document identity: changing permissions or resource scopes updates the same grant. */
@@ -91,6 +152,12 @@ export function validateSpecializedRoleGrant(value: unknown): SpecializedRoleGra
   }
   if (new Set(permissions).size !== permissions.length) {
     throw new Error("SPECIALIZED_PERMISSION_DUPLICATE");
+  }
+  const allowedForRole = new Set(
+    SPECIALIZED_ROLE_PERMISSION_OPTIONS[input.role as AdvertisingSpecializedRole],
+  );
+  if (permissions.some((permission) => !allowedForRole.has(permission as AdvertisingPermission))) {
+    throw new Error("SPECIALIZED_PERMISSION_ROLE_MISMATCH");
   }
   const scopes = input.resourceScopes as unknown[];
   if (scopes.length < 1 || scopes.length > 200 ||
