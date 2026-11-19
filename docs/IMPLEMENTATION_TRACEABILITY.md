@@ -789,3 +789,20 @@ This is a source reconciliation and implementation instruction, not evidence tha
 - Exact-head CI on the then-current code SHA is pending; no local Functions build or unit test was run in this execution. Do not treat this item as tested or closed until the final documentation SHA's workflows complete successfully.
 - Related audit findings: the current `advertising-permissions.ts` contains the approved Admin Media capability identifiers but models a single `general_supervisor` actor; `advertising-governance.ts` contains a second, smaller specialist permission vocabulary. These two vocabularies must be reconciled against the approved source catalogue before protected-operation enforcement is wired. Admin N's full catalogue remains unlocated in the inspected sources.
 - No room-rental refund policy, rental pricing, live retention policy, Firebase production resource, `main`, deployment, or billing configuration was changed.
+
+
+---
+
+## 19 November 2026 — Atomic audit correction for specialized advertising role grants
+
+**Finding:** Source inspection of `functions/src/index.ts` showed that `setOwnerAdvertisingRoleGrant`, `updateOwnerAdvertisingRoleGrantPermissions`, and `revokeOwnerAdvertisingRoleGrant` committed the role-grant mutation in one Firestore transaction and appended the owner audit-chain event in a second transaction. If the audit append failed after the grant transaction committed, the privileged change could persist without its corresponding audit event.
+
+**Correction committed on the development branch:**
+- Added `createOwnerReviewAuditEventInTransaction`, which reads and advances the shared owner-review audit-chain head and creates the audit event using the caller's Firestore transaction.
+- Moved the audit event creation into the same transaction as create/update/revoke for all three specialized-role grant callables.
+- The grant mutation and its audit-chain event now commit or fail together. A revoked-grant idempotent replay remains a no-op and does not create a duplicate event.
+- The helper uses the imported Firestore `Transaction` type.
+
+**Validation status:** Source change is committed, but TypeScript compilation, backend unit tests, emulator integration tests and exact-head CI have not yet been run or observed on the resulting commit. Treat this correction as **implemented / validation pending**, not tested or closed.
+
+**Remaining authorization gap:** The role-grant catalogue and permission evaluator exist, but specialized permissions are still not wired to all relevant specialist operation call sites. This correction closes the audit atomicity defect only; it does not make specialist permissions operational or authorize any new operation.
