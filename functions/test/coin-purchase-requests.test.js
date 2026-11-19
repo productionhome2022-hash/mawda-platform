@@ -25,7 +25,13 @@ test("owner payment instructions require bounded negotiated terms", () => {
   assert.equal(validateOwnerPaymentInstructionInput({
     requestId: "request_123", instructions: "تواصل مع المالك لإتمام التحويل",
     agreedCoins: 1000, agreedPriceMinor: 999, currency: "EUR",
-  }).agreedPriceMinor, 999);
+    expectedInstructionsVersion: 0,
+  }).expectedInstructionsVersion, 0);
+  assert.throws(() => validateOwnerPaymentInstructionInput({
+    requestId: "request_123", instructions: "تعليمات صحيحة",
+    agreedCoins: 1000, agreedPriceMinor: 999, currency: "EUR",
+    expectedInstructionsVersion: -1,
+  }), /INVALID_INSTRUCTIONS/);
   assert.throws(() => validateOwnerPaymentInstructionInput({
     requestId: "request_123", instructions: "ok",
     agreedCoins: 1000, agreedPriceMinor: 999, currency: "EUR",
