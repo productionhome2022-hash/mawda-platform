@@ -8123,10 +8123,14 @@ export const setTimedAdCampaign = onCall(async (request) => {
     } else if (mediaRef) {
       throw new HttpsError("not-found", "مادة الإعلان غير موجودة.");
     }
-    const version = (Number.isSafeInteger(previous.data()?.version)
-      ? previous.data()!.version : 0) + 1;
+    const previousVersion = previous.exists ? (previous.data()?.version ?? 0) : 0;
+    if (!Number.isSafeInteger(previousVersion) || previousVersion < 0 ||
+        previousVersion >= Number.MAX_SAFE_INTEGER) {
+      throw new HttpsError("failed-precondition", "إصدار الحملة السابق غير صالح؛ أوقفنا التحديث.");
+    }
+    const version = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
-    transaction.set(campaignRef, {
+    const campaignSnapshot = {
       ...input, campaignId: campaignRef.id, creativeType,
       mediaId: mediaId ?? null,
       mediaOwnerUid: mediaId ? actorUid : null,
@@ -8137,8 +8141,16 @@ export const setTimedAdCampaign = onCall(async (request) => {
       createdAt: previous.data()?.createdAt ?? now,
       createdBy: previous.data()?.createdBy ?? actorUid,
       updatedAt: now, updatedBy: actorUid,
+    };
+    transaction.set(campaignRef, campaignSnapshot);
+    const campaignVersionRef = db.collection("timedAdCampaignVersions")
+      .doc(campaignRef.id).collection("versions").doc(String(version));
+    transaction.create(campaignVersionRef, {
+      ...campaignSnapshot,
+      snapshotAt: now,
+      snapshotBy: actorUid,
     });
-    return { campaignId: campaignRef.id, version, status: previous.exists ? previous.data()?.status : "draft", creativeType };
+    return { campaignId: campaignRef.id, version, status: campaignSnapshot.status, creativeType };
   });
   await appendOwnerReviewAuditEvent({
     actorUid, action: "timed_ad_campaign_saved", ...result, outcome: "success",
@@ -8310,7 +8322,7 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
       createdAt: now, createdBy: actorUid,
     });
     transaction.create(eventRef, {
-      ...event, currencyExponent, paymentPolicySnapshot,
+      ...event, ...next, currencyExponent, paymentPolicySnapshot,
       eventId, actorUid, snapshotVersion: version, createdAt: now,
     });
     transaction.set(financialRef, {
