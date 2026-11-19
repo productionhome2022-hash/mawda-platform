@@ -145,7 +145,7 @@ async function appendOwnerReviewAuditEvent(
   const auditRef = eventId
     ? db.collection("adminAuditLogs").doc(eventId)
     : db.collection("adminAuditLogs").doc();
-  const result = await db.runTransaction(async (transaction) => {
+  await db.runTransaction(async (transaction) => {
     const existingEvent = await transaction.get(auditRef);
     if (existingEvent.exists) return;
     const headSnapshot = await transaction.get(OWNER_REVIEW_AUDIT_HEAD);
@@ -6827,7 +6827,7 @@ export const setStoreCatalogItem = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "بيانات عنصر المتجر أو سعره أو تصنيفه غير صالحة.");
   }
   const itemRef = db.collection("storeCatalog").doc(item.itemId);
-  await db.runTransaction(async (transaction) => {
+  const result = await db.runTransaction(async (transaction) => {
     const previousSnapshot = await transaction.get(itemRef);
     const previousVersion = previousSnapshot.exists
       ? (previousSnapshot.data()?.version ?? 0)
