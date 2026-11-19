@@ -204,3 +204,16 @@ A harness syntax/validation pass is not a full load simulation. No 5,000/5,000 r
 ## 11. Current phase disposition
 
 **Deep audit is in progress; integration gate is blocked.** This report is a durable checkpoint, not a claim that the entire audit, all code transfers, all tests, or the 5,000-persona simulation have finished. No production or main-branch changes were made. The next safe action is to resolve the explicit policy conflicts and consolidate the overlapping governance branches before attempting any merge.
+
+
+## 12. Reconciliation update — current development head
+
+The audit PR #34 was opened against the development branch at SHA `8a1c8d0b93ed43570c523ab2d8c2598648ddac0e`. Comparing both governance drafts against that exact observed base shows:
+
+- PR #32 head `e71f3eb559e7f86edecd97fb366ad9c69b5817c5`: **diverged**, 79 commits ahead and 92 behind; 35 changed files on its original base comparison.
+- PR #33 head `619eab643e2d5849b3b2c055461d53ba2be01753`: **diverged**, 89 commits ahead and 89 behind; 39 changed files on its original base comparison.
+- Audit PR #34 head `922eccc97006209331d97b92789e55a4446b551e`: one documentation commit ahead of the development base, with one file changed.
+
+This confirms that PR #32 and #33 must be rebased/reconstructed from the current development line before their code or test evidence can be considered for integration. Do not merge either stale draft directly. The comparison is a graph-level divergence check, not a semantic proof that every unique change is present or absent; preserve and reconcile unique commits/file changes individually.
+
+The combined-status query for the observed development base SHA returned no status entries. No CI pass is inferred from an empty status response. PR #34 is a documentation-only Draft and is not merged.
