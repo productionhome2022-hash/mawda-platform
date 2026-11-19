@@ -139,7 +139,7 @@ const mawddaTurnSharedSecret = defineSecret("MAWDDA_TURN_SHARED_SECRET");
  * The head is maintained separately from the event documents.
  */
 async function createOwnerReviewAuditEventInTransaction(
-  transaction: FirebaseFirestore.Transaction,
+  transaction: Transaction,
   event: Record<string, unknown>,
 ): Promise<string> {
   const auditRef = db.collection("adminAuditLogs").doc();
