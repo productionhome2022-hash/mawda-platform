@@ -9,6 +9,7 @@ on:
       - codex/mawda-full-platform-implementation
       - codex/governance-biometric-integration-2026-11-19
       - codex/mawdda-retention-approval-ci-repair-2026-11-19
+      - codex/mawdda-role-capacity-after-retention-2026-11-19
   workflow_dispatch:
 
 concurrency:
