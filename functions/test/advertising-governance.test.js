@@ -109,7 +109,7 @@ test("resource scopes reject surrounding whitespace and control characters", () 
     endsAtMs: 1000,
     version: 1,
   };
-  for (const resourceScope of [" campaign:campaign_123", "campaign:campaign_123 ", "campaign:\\u0000x", "campaign:\\nroom"]) {
+  for (const resourceScope of [" campaign:campaign_123", "campaign:campaign_123 ", "campaign:\u0000x", "campaign:\nroom"]) {
     assert.throws(() => validateSpecializedRoleGrant({
       ...base, resourceScopes: [resourceScope],
     }), /SPECIALIZED_SCOPE_INVALID/);
