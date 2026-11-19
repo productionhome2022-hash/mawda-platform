@@ -56,6 +56,10 @@ export function platformRoleDisplayLabel(
     },
   } as const;
   const prefix = labels[role][locale];
+  // Team Production Supervisor is an open-ended role, but its canonical
+  // display title is unnumbered; keep any internal appointment sequence out
+  // of the member-facing label.
+  if (role === "production_supervisor") return prefix;
   return locale === "ar" ? `${prefix} ${toArabicDigits(ordinal)}` : `${prefix} ${ordinal}`;
 }
 
