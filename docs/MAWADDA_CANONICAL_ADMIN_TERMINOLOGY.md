@@ -25,7 +25,7 @@
 
 ## Compatibility
 
-This is a user-facing naming standard, not a wholesale identifier migration. Preserve stable claims, role IDs, Firestore fields, collection names and callable names where required for compatibility. Legacy identifiers may remain internal-only and must not leak into user-visible copy.
+This is a user-facing naming standard, not a wholesale identifier migration. Preserve stable claims, role IDs, Firestore fields, collection names and callable names where required for compatibility. Legacy identifiers may remain internal-only and must not leak into user-visible copy. In the inspected implementation, `SuperAdminScreen`, `SuperAdminSecurityService`, `isSuperAdmin`, and the callable display-mode key `super_admin` are legacy/internal compatibility identifiers; they are not canonical user-facing role names. Preserve them until a separately reviewed, tested migration proves all call sites and authorization contracts remain safe. The backend owner authority is checked through the trusted `platformOwner` claim/session helpers; never replace that check with a client-side display label or boolean.
 
 ## Required coverage
 
