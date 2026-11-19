@@ -7297,7 +7297,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       throw new HttpsError("permission-denied", "يجب أن يكون حساب العضو مكتملاً ونشطاً.");
     }
     const economy = settings.data() ?? {};
-    if (economy.manualCoinPurchasesEnabled === false) {
+    if (economy.manualCoinPurchasesEnabled === false || economy.automatedCoinCheckoutEnabled === true) {
       throw new HttpsError("failed-precondition", "طلبات الشراء اليدوية غير متاحة حالياً.");
     }
     let packageSnapshot: Record<string, unknown> | null = null;
@@ -7328,7 +7328,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       requestedCoins, status: "pending_owner_contact",
       paymentChannel: "manual_owner_contact", currency: "EUR",
       paymentPolicySnapshot: {
-        manualEnabled: true, automatedEnabled: economy.automatedCoinCheckoutEnabled === true,
+        manualEnabled: true, automatedEnabled: false,
         policyVersion: Number.isSafeInteger(economy.version) ? economy.version : 0,
         capturedAt: FieldValue.serverTimestamp(),
       },
