@@ -174,8 +174,9 @@ export function canSignUnderDelegation(args: {
   nowMs: number;
   ownerCoSignaturePresent: boolean;
 }): boolean {
+  if (!args || typeof args !== "object" || Array.isArray(args)) return false;
   const d = args.delegation;
-  if (!d || typeof d !== "object" ||
+  if (!d || typeof d !== "object" || Array.isArray(d) ||
       typeof d.active !== "boolean" || !d.active ||
       typeof d.delegateUid !== "string" || !/^[A-Za-z0-9._:@-]{8,128}$/.test(d.delegateUid) ||
       typeof args.delegateUid !== "string" || d.delegateUid !== args.delegateUid ||
@@ -212,8 +213,8 @@ export function validateProductionRoomRoster(value: unknown): ProductionRoomRost
   const observers = input.privilegedObserverUids;
   if (!Array.isArray(team) || !Array.isArray(observers) ||
       team.length < 1 || team.length > 5 ||
-      team.some((uid) => typeof uid !== "string" || uid.trim().length < 8 || uid.length > 128) ||
-      observers.some((uid) => typeof uid !== "string" || uid.trim().length < 8 || uid.length > 128) ||
+      team.some((uid) => typeof uid !== "string" || !/^[A-Za-z0-9._:@-]{8,128}$/.test(uid)) ||
+      observers.some((uid) => typeof uid !== "string" || !/^[A-Za-z0-9._:@-]{8,128}$/.test(uid)) ||
       new Set(team).size !== team.length || new Set(observers).size !== observers.length ||
       team.some((uid) => observers.includes(uid))) {
     throw new Error("PRODUCTION_ROSTER_INVALID");
@@ -228,8 +229,11 @@ export function canPublishProductionAchievement(args: {
   rightsCleared: boolean;
   participantDisclosureCleared: boolean;
 }): boolean {
-  return args.ownerVerified && args.ownerApprovalRecorded &&
-    args.rightsCleared && args.participantDisclosureCleared;
+  return !!args && typeof args === "object" && !Array.isArray(args) &&
+    args.ownerVerified === true &&
+    args.ownerApprovalRecorded === true &&
+    args.rightsCleared === true &&
+    args.participantDisclosureCleared === true;
 }
 
 
