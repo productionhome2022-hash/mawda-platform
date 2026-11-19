@@ -139,8 +139,10 @@ test("owner pricing catalogs accept owner-selected ISO 4217 currencies", () => {
     { ...coinPackageFixture, packageId: "coins_iqd", currency: "IQD" },
     { ...coinPackageFixture, packageId: "coins_aed", currency: "AED" },
     { ...coinPackageFixture, packageId: "coins_dzd", currency: "DZD" },
+    { ...coinPackageFixture, packageId: "coins_mad", currency: "MAD" },
+    { ...coinPackageFixture, packageId: "coins_try", currency: "TRY" },
   ]);
-  assert.deepEqual(packages.map((item) => item.currency), ["USD", "EGP", "SAR", "SYP", "EUR", "JOD", "IQD", "AED", "DZD"]);
+  assert.deepEqual(packages.map((item) => item.currency), ["USD", "EGP", "SAR", "SYP", "EUR", "JOD", "IQD", "AED", "DZD", "MAD", "TRY"]);
   assert.deepEqual(packages.map((item) => item.currencyExponent), [2, 2, 2, 2, 2, 3, 3, 2, 2, 2, 2]);
   const ads = validateAdPrices([
     { ...adPriceFixture, placementId: "ad_syp", currency: "SYP" },
