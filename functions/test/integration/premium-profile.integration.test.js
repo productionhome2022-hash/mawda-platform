@@ -192,6 +192,7 @@ test("real store purchases flow into the member profile and disappear when their
         category,
         priceCoins,
         durationDays,
+        version: 1,
         sortOrder: index + 1,
         active: true,
         purchaseEnabled: true,
@@ -273,7 +274,7 @@ test("concurrent retries of the same store purchase debit the wallet only once",
     memberRef.set(profile(30, { coins: 1000 })),
     itemRef.set({
       itemId: "vip_monthly", name: "VIP", description: "Concurrent purchase test",
-      category: "vip", priceCoins: 600, durationDays: 30, sortOrder: 1,
+      category: "vip", priceCoins: 600, durationDays: 30, version: 1, sortOrder: 1,
       active: true, purchaseEnabled: true, fulfillmentReady: true,
     }),
   ]);
