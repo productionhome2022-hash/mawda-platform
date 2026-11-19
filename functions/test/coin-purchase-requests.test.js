@@ -29,14 +29,14 @@ test("owner payment instructions require bounded negotiated terms", () => {
   }).agreedPriceMinor, 999);
   assert.equal(validateOwnerPaymentInstructionInput({
     requestId: "request_124", instructions: "Owner selected Swiss franc terms",
-    agreedCoins: 1000, agreedPriceMinor: 999, currency: "CHF",
+    agreedCoins: 1000, agreedPriceMinor: 999, currency: "EGP",
     expectedInstructionsVersion: 1,
   }).currencyExponent, 2);
   assert.equal(validateOwnerPaymentInstructionInput({
     requestId: "request_125", instructions: "Owner selected zero-decimal terms",
-    agreedCoins: 1000, agreedPriceMinor: 999, currency: "JPY",
+    agreedCoins: 1000, agreedPriceMinor: 999, currency: "SYP",
     expectedInstructionsVersion: 0,
-  }).currencyExponent, 0);
+  }).currencyExponent, 2);
   assert.throws(() => validateOwnerPaymentInstructionInput({
     requestId: "request_123", instructions: "ok",
     agreedCoins: 1000, agreedPriceMinor: 999, currency: "EUR",
