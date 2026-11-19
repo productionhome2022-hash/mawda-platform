@@ -17,6 +17,12 @@ service cloud.firestore {
       }
     }
 
+    // Members can inspect only their own request while its upload is active.
+    match /biometricVerificationRequests/{requestId} {
+      allow get: if signedIn() && resource.data.uid == request.auth.uid && resource.data.status == "uploading";
+      allow list, create, update, delete: if false;
+    }
+
     match /coinTransfers/{transferId} {
       allow get: if signedIn() &&
         (resource.data.senderUid == request.auth.uid ||
