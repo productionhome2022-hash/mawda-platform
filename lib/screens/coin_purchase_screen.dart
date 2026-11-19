@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +17,8 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
   final _customCoins = TextEditingController();
   List<Map<String, dynamic>> _packages = [];
   List<Map<String, dynamic>> _requests = [];
+  Map<String, dynamic>? _customCoinRequestBounds;
+  bool _manualPurchasesEnabled = false;
   bool _loading = true, _sending = false;
   String? _error;
 
@@ -38,6 +42,10 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
             .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
         _requests = (requests['requests'] as List<dynamic>? ?? const [])
             .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+        _manualPurchasesEnabled = catalogue['manualPurchasesEnabled'] == true;
+        _customCoinRequestBounds = catalogue['customCoinRequestBounds'] is Map
+            ? Map<String, dynamic>.from(catalogue['customCoinRequestBounds'] as Map)
+            : null;
       });
     } on FirebaseFunctionsException catch (e) {
       if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل طلبات الشراء.');
@@ -64,8 +72,12 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
 
   Future<void> _requestCustom() async {
     final coins = int.tryParse(_customCoins.text.trim());
-    if (coins == null || coins < 1 || coins > 1000000000) {
-      setState(() => _error = 'أدخل كمية كوينز صحيحة بين 1 و1,000,000,000.');
+    final bounds = _customCoinRequestBounds;
+    final minimum = (bounds?['minCoins'] as num?)?.toInt();
+    final maximum = (bounds?['maxCoins'] as num?)?.toInt();
+    if (!_manualPurchasesEnabled || minimum == null || maximum == null ||
+        coins == null || coins < minimum || coins > maximum) {
+      setState(() => _error = 'طلبات الكمية المخصصة غير مفعلة أو أن الكمية خارج الحدود المحددة من المالك.');
       return;
     }
     await _submitRequest({'kind': 'custom', 'requestedCoins': coins});
@@ -84,13 +96,19 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(
-        'تم إبلاغ المالك. هذا الإبلاغ ليس إثباتاً لوصول المبلغ، ولن تُضاف الكوينز حتى يتحقق المالك ويعتمد الطلب.',
+        'تم إبلاغ المالك. هذا الإبلاغ ليس إثباتاً لوصول المبلغ، ولن تُضاف BetaCoins حتى يتحقق المالك ويعتمد الطلب.',
       )));
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذر إبلاغ المالك.');
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  double _moneyValue(Map<String, dynamic> item, String amountKey) {
+    final amount = (item[amountKey] as num?)?.toDouble() ?? 0;
+    final exponent = (item['currencyExponent'] as num?)?.toInt() ?? 2;
+    return amount / math.pow(10, exponent);
   }
 
   Future<void> _withdraw(String requestId) async {
@@ -107,7 +125,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
   String _status(String? value) => switch (value) {
     'pending_owner_contact' => 'بانتظار تواصل المالك',
     'payment_instructions_sent' => 'أُرسلت تعليمات الدفع - بانتظار التحقق',
-    'awaiting_payment_verification' => 'الدفع قيد التحقق من المالك',
+    'awaiting_payment_verification' => 'أبلغت المالك - بانتظار التحقق الفعلي',
     'approved' => 'تم الاعتماد وإضافة الكوينز',
     'rejected' => 'مرفوض',
     'withdrawn' => 'مسحوب',
@@ -125,11 +143,13 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
         ))),
         if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         Text('الباقات المتاحة', style: Theme.of(context).textTheme.titleLarge),
-        if (_packages.isEmpty) const Text('لا توجد باقات متاحة حالياً. يمكنك إرسال طلب كمية مخصصة.'),
+        if (!_manualPurchasesEnabled) const Text('طلبات الشراء اليدوية متوقفة حالياً بقرار المالك.'),
+        if (_manualPurchasesEnabled && _packages.isEmpty) const Text('لا توجد باقات منشورة حالياً.'),
         ..._packages.map((item) => Card(child: ListTile(
           title: Text(item['name'] as String? ?? 'باقة كوينز'),
-          subtitle: Text((item['coins'] ?? 0).toString() + ' كوين • ' +
-              (((item['priceMinor'] as num?) ?? 0).toDouble() / 100).toStringAsFixed(2) + ' EUR'),
+          subtitle: Text((item['coins'] ?? 0).toString() + ' BetaCoins • ' +
+              _moneyValue(item, 'priceMinor').toStringAsFixed((item['currencyExponent'] as num?)?.toInt() ?? 2) +
+              ' ' + (item['currency'] as String? ?? '')),
           trailing: FilledButton(
             onPressed: _sending ? null : () => _submitRequest({
               'kind': 'package', 'packageId': item['packageId'],
@@ -138,7 +158,9 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
           ),
         ))),
         const Divider(height: 28),
-        Text('طلب كمية مخصصة', style: Theme.of(context).textTheme.titleLarge),
+        if (_manualPurchasesEnabled && _customCoinRequestBounds != null)
+          Text('طلب كمية مخصصة', style: Theme.of(context).textTheme.titleLarge),
+        if (_manualPurchasesEnabled && _customCoinRequestBounds != null)
         Row(children: [
           Expanded(child: TextField(controller: _customCoins, enabled: !_sending,
             keyboardType: TextInputType.number, decoration: const InputDecoration(
@@ -161,7 +183,8 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
               Text(_status(status)),
               if (item['agreedPriceMinor'] is num)
                 Text('السعر المتفق عليه: ' +
-                    (((item['agreedPriceMinor'] as num).toDouble() / 100).toStringAsFixed(2)) + ' EUR'),
+                    _moneyValue(item, 'agreedPriceMinor').toStringAsFixed((item['currencyExponent'] as num?)?.toInt() ?? 2) +
+                    ' ' + (item['currency'] as String? ?? '')),
               if (item['paymentInstructions'] is String)
                 SelectableText('تعليمات المالك: ' + (item['paymentInstructions'] as String)),
               if (item['chatId'] is String && FirebaseAuth.instance.currentUser?.uid != null)
