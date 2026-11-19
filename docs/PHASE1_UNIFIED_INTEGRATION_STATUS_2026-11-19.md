@@ -377,3 +377,13 @@ PR #47 remains Draft. No merge to `main`, deployment, production Firebase mutati
   2. Suspended and revoked grants do not consume active seats; five active assignments succeed and the next assignment is rejected.
 - Commit: `4fd3f11b166e2f8af6b3d4dd64d519d867eea333`.
 - Validation on this exact SHA has been queued by GitHub Actions. At documentation time all five reported checks were queued; no test success is claimed yet.
+
+
+## Workflow concurrency remediation — 2026-11-19
+
+- Exact-head SHA `baf1f7c9b14fce9967ccf4679fb050cf499b7e6b` completed Validate Mawda push run `44599803416` with all three jobs successful: scanner/security and media sanitization; Cloud Functions compile, unit tests and configured Firestore/Storage Emulator suites; Flutter analysis/tests and both web release candidate builds.
+- The same SHA completed Mawdda Domain Regression run `44599803297` with both jobs successful, including specialized-role capacity/concurrency and store-gifting integration.
+- Validate PR run `44599813285` was cancelled while the push validation for the same branch completed. Inspection found the Validate concurrency group used only `github.ref_name`, so push and pull_request events shared a cancellation group.
+- Fixed `.github/workflows/validate.yml` to key concurrency by both `github.event_name` and `github.ref_name`. This prevents push validation from cancelling the PR validation for the same branch; newer runs of the same event/branch may still supersede older ones.
+- Fix commit: `3e81e33bd7b96850e46f5d313f8af9899e6e9a80`. Its new exact-head workflows must be checked independently; prior success on `baf1f7c` does not prove the modified workflow commit passed.
+- PR #47 remains Draft. No merge, deployment, production mutation, billing activation, external simulation or live acceptance was performed.
