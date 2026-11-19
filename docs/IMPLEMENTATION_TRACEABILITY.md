@@ -662,7 +662,7 @@ No production Firebase/Google Cloud resource, live member data, billing setting,
 
 **Current integration branch:** `codex/governance-biometric-integration-2026-11-19`  
 **Draft PR:** [#33](https://github.com/productionhome2022-hash/mawda-platform/pull/33)  
-**Current inspected PR head:** `0d1d229096d8026750a2565f49c57dfb046d4b40`  
+**Current inspected PR head at last update:** `bdbd0ac42e45ffcd5e1f5089f8485bb5b22ea1ef`  
 **Status:** Partial implementation; not accepted for merge or release.
 
 Implemented on the isolated branch:
@@ -676,7 +676,7 @@ Implemented on the isolated branch:
 Still open:
 - Admin N appointment/revocation and permission delegation lifecycle, including permanent ordinal allocation in the live server authorization model.
 - End-to-end role badges and canonical display labels across every profile, room, chat, Workspace, notification, email and supported locale.
-- Owner biometric settings/configuration UI and final policy review of the evidence limits/phrase catalogue.
+- Owner biometric settings/configuration UI is implemented on the integration branch; the owner still must determine the actual evidence byte limits and phrase catalogue before enabling the workflow.
 - Full emulator, Flutter analyze/test/build and security-rules results on this exact head. No test success is claimed; the available workflow-run lookup returned no PR-triggered runs.
 - Non-production device validation of microphone/camera capture, signed upload and playback/deletion.
 
