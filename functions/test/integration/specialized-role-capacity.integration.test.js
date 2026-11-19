@@ -2,7 +2,11 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { createHash } = require("node:crypto");
 const { getFirestore } = require("firebase-admin/firestore");
-const { setOwnerAdvertisingRoleGrant } = require("../../lib/index");
+const {
+  setOwnerAdvertisingRoleGrant,
+  getOwnerSpecializedRoleCapacity,
+  setOwnerSpecializedRoleCapacity,
+} = require("../../lib/index");
 
 const db = getFirestore();
 const ownerUid = "role_capacity_owner_0001";
@@ -80,6 +84,58 @@ test("all fixed specialist teams enforce their independent seat limits", async (
       ...roles.map(({ role }) =>
         db.collection("specializedRoleSeatCounters").doc(role).delete().catch(() => undefined)),
     ]);
+  }
+});
+
+test("Owner can raise General Production Supervisor capacity without oversubscription", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const role = "production_general_supervisor";
+  const settingsRef = db.doc("platformSettings/specializedRoleCapacity");
+  const counterRef = db.collection("specializedRoleSeatCounters").doc(role);
+  const previousSettings = await settingsRef.get();
+  const previousCounter = await counterRef.get();
+  const previousVersion = previousSettings.exists ? previousSettings.data().version : 0;
+  const tag = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const seeded = [];
+  const attempted = [];
+  try {
+    const before = await getOwnerSpecializedRoleCapacity.run(ownerRequest({}));
+    assert.equal(before.capacities.production_general_supervisor, 5);
+    const updated = await setOwnerSpecializedRoleCapacity.run(ownerRequest({
+      expectedVersion: previousVersion,
+      capacity: 6,
+    }));
+    assert.equal(updated.capacity, 6);
+    assert.equal(updated.activeCount, 0);
+    const after = await getOwnerSpecializedRoleCapacity.run(ownerRequest({}));
+    assert.equal(after.capacities.production_general_supervisor, 6);
+    assert.equal(after.version, previousVersion + 1);
+
+    for (let i = 1; i <= 5; i += 1) {
+      seeded.push(await seed("member_general_prod_" + tag + "_" + i, role));
+    }
+    const sixthUid = "member_general_prod_" + tag + "_sixth";
+    const sixth = await assign(sixthUid, role);
+    assert.equal(sixth.status, "active");
+    attempted.push(grantId(sixthUid, role));
+
+    const seventhUid = "member_general_prod_" + tag + "_seventh";
+    await assert.rejects(
+      () => assign(seventhUid, role),
+      (error) => error && error.code === "resource-exhausted",
+    );
+    attempted.push(grantId(seventhUid, role));
+    assert.equal((await db.collection("specializedRoleGrants")
+      .where("role", "==", role).where("status", "==", "active").get()).size, 6);
+  } finally {
+    await Promise.all([
+      ...[...seeded, ...attempted].map((id) =>
+        db.collection("specializedRoleGrants").doc(id).delete().catch(() => undefined)),
+      counterRef.delete().catch(() => undefined),
+    ]);
+    if (previousSettings.exists) await settingsRef.set(previousSettings.data());
+    else await settingsRef.delete().catch(() => undefined);
+    if (previousCounter.exists) await counterRef.set(previousCounter.data());
   }
 });
 
