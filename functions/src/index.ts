@@ -6827,11 +6827,20 @@ export const setStoreCatalogItem = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "بيانات عنصر المتجر أو سعره أو تصنيفه غير صالحة.");
   }
   const itemRef = db.collection("storeCatalog").doc(item.itemId);
-  await db.runTransaction(async (transaction) => {
+  const result = await db.runTransaction(async (transaction) => {
     const previousSnapshot = await transaction.get(itemRef);
+    const previousVersion = previousSnapshot.exists
+      ? (previousSnapshot.data()?.version ?? 0)
+      : 0;
+    if (!Number.isSafeInteger(previousVersion) || previousVersion < 0 ||
+        previousVersion >= Number.MAX_SAFE_INTEGER) {
+      throw new HttpsError("failed-precondition", "إصدار عنصر المتجر السابق غير صالح؛ أوقفنا التحديث.");
+    }
+    const version = previousVersion + 1;
     const now = FieldValue.serverTimestamp();
     transaction.set(itemRef, {
       itemId: item.itemId,
+      version,
       name: item.name,
       description: item.description,
       category: item.category,
@@ -6850,6 +6859,7 @@ export const setStoreCatalogItem = onCall(async (request) => {
       actorUid,
       action: previousSnapshot.exists ? "store_catalog_item_updated" : "store_catalog_item_created",
       itemId: item.itemId,
+      version,
       active: item.active,
       priceCoins: item.priceCoins,
       category: item.category,
@@ -6857,8 +6867,9 @@ export const setStoreCatalogItem = onCall(async (request) => {
       fulfillmentReady: item.fulfillmentReady,
       createdAt: now,
     });
+    return { version };
   });
-  return { itemId: item.itemId, active: item.active };
+  return { itemId: item.itemId, version: result.version, active: item.active };
 });
 
 /** Returns only display-safe catalog fields to the authenticated owner. */
