@@ -25,7 +25,7 @@
 
 | المعرّف | المجال / القرار المعتمد | الحالة الحالية بحسب الأدلة المتاحة | بوابة الإغلاق |
 |---|---|---|---|
-| GOV-001 | مالك واحد وهوية UID واحدة؛ Owner وSuper Owner تسميتان لهوية واحدة؛ الصلاحيات خادمية وMFA وجلسة حديثة | أساس برمجي موجود؛ تهيئة المالك الفعلي وMFA والاسترداد لم تُقبل بعد | إثبات UID وMFA وsession revoke/audit على non-production |
+| GOV-001 | مالك فعلي واحد وهوية UID واحدة؛ Super Owner هو المالك الوحيد وصاحب السلطة السيادية المطلقة على جميع مفاصل المنصة. يعين Admin 1..N لمساعدته ويمنح كل واحد صلاحيات محددة صراحة. توجد خمس وظائف Admin Media لإدارة قسم الإعلانات والميديا وورك سبيس المتكامل، وخمسة «المشرف العام للإنتاج» مع صلاحيات الإرسال المحددة، وعدد غير محدود من «مشرف إنتاج الفريق» ضمن الفريق/الغرفة المعيّنة فقط. الفئات منفصلة ولا تورّث صلاحيات بعضها | توثيق التسلسل والمسميات موحّد في GOV-001؛ التنفيذ الفعلي للصلاحيات الخادمية، حدود التعيين، سجل التفويض والإلغاء، وMFA/استرداد المالك لا يزال يحتاج تدقيقاً واختبارات على HEAD | إثبات هوية المالك الوحيدة وMFA؛ اختبارات التعيين/الإلغاء/الترقيم والسعة والفصل بين النطاقات؛ deny-by-default وaudit وsession revoke على non-production |
 | ID-001 | التسجيل والبريد والملف الشخصي والاسم الفريد والخصوصية وإقرار سياسة الخصوصية | أساس التنفيذ موجود؛ بعض دورات التحقق والاختبارات الواقعية مفتوحة | اختبارات Auth والأجهزة وتجديد البريد والقانون |
 | GST-001 | الضيف: اسم وبلد وجنس فقط، 60 دقيقة لكل 24 ساعة، غرف all_ages، نص وصوت فقط، دون محفظة/متجر/خاص | أساس الضيف ومحاكياته موثق؛ مكافحة تكرار الهويات والاختبارات المادية مفتوحة | اختبارات abuse/App Check والأجهزة |
 | PROF-001 | ملفات عامة/خاصة واكتشاف وحظر وإبلاغ وروابط اجتماعية موثقة | واجهات ووظائف أساسية موجودة؛ ربط OAuth الفعلي والتحقق الخارجي ما زال بوابة | اختبارات provider ownership والخصوصية والروابط |
@@ -49,6 +49,15 @@
 | CI-001 | المشروع الأساسي يشغل analyze/unit/integration/security/build فقط؛ لا deploy ولا تغييرات Firebase حية من CI | شجرة التطوير تحتوي ثلاثة workflows للتحقق والبناء فقط؛ Hosting workflow محذوف، والـ native workflow يتحقق من إعدادات non-production الملتزمة دون Firebase CLI أو FIREBASE_TOKEN أو تعديل المشروع. أحدث تشغيل تحقق أساسي على SHA 3c6fdfdf9ad3445748708ac2aec409f95ddf9b9a اجتاز الوظائف الثلاث؛ Android native build اجتاز على التشغيل 43667249374، وiOS كان قيد البناء وقت تحرير هذا السجل | استمرار مراجعة scripts/terraform وملفات التشغيل؛ إثبات iOS native build و5000-persona lab على SHA ثابت؛ لا deploy |
 | COST-001 | البقاء على Firebase Spark/Emulator-first؛ لا Blaze أو موارد مدفوعة أو WORM/retention lock دون موافقة منفصلة | خطة التكلفة والدستور يثبتان عدم تفعيل موارد مدفوعة أو WORM؛ لا Terraform apply أو نشر موارد تم بواسطة هذه الأعمال | مراجعة تكلفة/قانون وموافقة مالك مستقلة قبل أي تفعيل |
 | REL-001 | لا دمج إلى main ولا نشر إنتاجي إلا بعد بوابات ناجحة وموافقة منفصلة | PR #2 Draft ومفتوح؛ لا دمج ولا نشر | exact-head green، 5000 lab pass، review، release checklist، موافقة مالك مستقلة |
+
+## Canonical administrative hierarchy — owner confirmation 2026-11-19
+
+- **Super Owner:** one actual owner only; sole sovereign authority across every platform domain and system.
+- **Admin 1..N:** open-ended appointments by Super Owner; each Admin receives only explicitly delegated permissions. The title itself grants no implicit privilege.
+- **Admin Media 1..5:** exactly five administrators for the integrated Advertising Department and Media Workspace.
+- **المشرف العام للإنتاج 1..5:** exactly five general production supervisors; preserve this exact Arabic title and their defined sending permissions.
+- **مشرف إنتاج الفريق:** open-ended capacity; each supervisor is limited to the assigned team and its assigned/rented room.
+- These are separate role families. Authorization must use stable server-side role identifiers and explicit scope checks, never display labels. Do not migrate claims/IDs or change owner identity as part of a naming-only change.
 
 ## تصحيح التعارضات المعروفة
 
