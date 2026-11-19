@@ -295,6 +295,26 @@ This amendment records policy approval only. It does not establish that code, te
 - أُضيف تحقق آلي لهويات Android وiOS الإنتاجية في `functions/scripts/validate-firebase-config.cjs` واختبارات لها. غياب ملف Google Services الإنتاجي أو عدم التطابق يمنع بناء الإصدار.
 - لم يُقدّم المالك بعد سر ملف Google Services الإنتاجي في هذه المراجعة، ولذلك لم يُشغّل workflow الموقّع ولم تُنتج حزم Release.
 
+
+## RET-005 — Owner confirmation of important-chat text retention (19 November 2026)
+
+- **Owner decision:** important-chat text retention is exactly **30 days (720 hours)** from the server-authoritative message creation timestamp. The 90-day alternative is rejected for this policy.
+- Important-chat media remains subject to the existing four-hour media-retention rule; this decision changes text retention only.
+- Normal-chat text remains seven days; normal/important chat media remains four hours; temporary direct-chat mode remains a full-conversation deletion after four hours of server-recorded inactivity, subject to the unresolved selection/consent and complete lifecycle gates in RET-004.
+- This entry resolves any earlier documentation conflict between 30 and 90 days for important-chat text. The unified constitution, vision, decision register, implementation traceability, backend policy constants, scheduled worker and boundary tests must all remain aligned to 30 days.
+- **Implementation status:** policy value is already represented as 30 days in the inspected constitution, RET-003, backend constant and unit/integration boundary tests. This approval does not certify full temporary-chat deletion, production activation, exact-head CI success, or release readiness.
+- **Authority:** explicit owner confirmation in the project conversation dated 19 November 2026.
+
+
+## ROLE-001 — Canonical administrative role separation and fixed-seat limits (19 November 2026)
+
+- One Super Owner identity; Admin N is an open-ended general-administration sequence with permanent, never-reused ordinals.
+- Admin Media is exactly five seats; General Production Supervisor is exactly five independent seats; Team Production Supervisor is open-ended and scoped only to its assigned team/room.
+- Role families are mutually separate; no role inherits another family's permissions or owner authority.
+- Fixed-seat ordinal reuse after revocation/removal remains unresolved and must fail closed; no reuse/renumbering policy is inferred.
+- Implementation status: canonical terminology and transactional five-seat enforcement are represented in PR #42. Persistent Admin N appointment/revocation/ordinal allocation, complete role projections/localization, and protected-operation authorization integration remain open.
+- Source of authority: unified constitution §4 and the canonical administrative terminology appendix.
+
 ## Owner clarification — 19 November 2026
 
 The owner has explicitly clarified the following binding implementation requirements in the HQ project conversation. This amendment records the decision; it does not claim the related features are implemented or tested.
