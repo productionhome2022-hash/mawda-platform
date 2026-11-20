@@ -145,3 +145,48 @@ export function assertBiometricVideoFileAllowed(buffer: Buffer): number {
   }
   return Math.max(...trackDurations);
 }
+
+
+/** Returns the duration of every audio media track, using uploaded mdhd headers. */
+export function readMp4AudioTrackDurationsMs(buffer: Buffer): number[] {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 16) return [];
+  let topOffset = 0;
+  while (topOffset < buffer.length) {
+    const top = readAtom(buffer, topOffset, buffer.length);
+    if (!top) return [];
+    if (top.type === "moov") {
+      const durations: number[] = [];
+      let trackOffset = top.payloadStart;
+      while (trackOffset < top.end) {
+        const track = readAtom(buffer, trackOffset, top.end);
+        if (!track) throw new Error("BIOMETRIC_AUDIO_TRACK_CONTAINER_INVALID");
+        if (track.type === "trak") {
+          const handler = findAtom(buffer, track.payloadStart, track.end, "hdlr", CONTAINER_ATOMS);
+          if (handler && handler.payloadStart + 12 <= handler.end) {
+            const handlerType = buffer.toString("ascii", handler.payloadStart + 8, handler.payloadStart + 12);
+            if (handlerType === "soun") {
+              const mediaHeader = findAtom(buffer, track.payloadStart, track.end, "mdhd", CONTAINER_ATOMS);
+              if (!mediaHeader) throw new Error("BIOMETRIC_AUDIO_TRACK_DURATION_MISSING");
+              durations.push(durationFromHeader(buffer, mediaHeader, "AUDIO_TRACK"));
+            }
+          }
+        }
+        trackOffset = track.end;
+      }
+      return durations;
+    }
+    topOffset = top.end;
+  }
+  return [];
+}
+
+export function assertBiometricAudioFileAllowed(buffer: Buffer): number {
+  const trackDurations = readMp4AudioTrackDurationsMs(buffer);
+  if (trackDurations.length === 0) throw new Error("BIOMETRIC_AUDIO_TRACK_MISSING");
+  const movieDurationMs = readMp4DurationMs(buffer);
+  if (movieDurationMs > 60_000 || movieDurationMs < 1 ||
+      trackDurations.some((duration) => duration < 1 || duration > 60_000)) {
+    throw new Error("BIOMETRIC_AUDIO_DURATION_OUT_OF_RANGE");
+  }
+  return Math.max(...trackDurations);
+}
