@@ -10,6 +10,7 @@ import '../services/local_biometric_service.dart';
 import 'direct_chat_screen.dart';
 import 'stories_screen.dart';
 import 'profile_gallery_screen.dart';
+import 'biometric_verification_screen.dart';
 import 'safety_center_screen.dart';
 import '../widgets/premium_profile_effects.dart';
 
@@ -1404,6 +1405,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           )
                         : const Icon(Icons.mark_email_read_outlined),
                     label: const Text('تجديد التحقق من البريد (500 كوين كل 90 يوماً)'),
+                  ),
+                ),
+              if (isMyProfile)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.verified_user_outlined),
+                    label: const Text('التقدم للتوثيق البيومتري ومكافأة 1,500 BetaCoins'),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const BiometricVerificationScreen()),
+                    ),
                   ),
                 ),
               if (isMyProfile)
