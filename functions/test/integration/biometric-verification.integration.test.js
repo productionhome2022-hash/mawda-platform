@@ -103,6 +103,13 @@ async function cleanup(uid, requestIds) {
   }
 }
 
+test("starting a biometric request requires explicit versioned privacy consent", async () => {
+  await assert.rejects(
+    () => startBiometricVerificationRequest.run(memberRequest("biometric_no_consent_" + suffix())),
+    error => error && error.code === "failed-precondition",
+  );
+});
+
 test("approved phrase, ClamAV-approved safe derivatives, owner review and exactly-once reward", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator required");
   assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator required");
