@@ -16,7 +16,7 @@ const request = (uid) => ({
 });
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-test("fresh email link renewal credits 500 coins once and starts the next 90-day cycle", async () => {
+test("fresh email link renewal credits 500 coins once and starts the next three-calendar-month cycle", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   assert.ok(process.env.FIREBASE_AUTH_EMULATOR_HOST, "Auth emulator is required");
   const tag = suffix();
@@ -37,8 +37,8 @@ test("fresh email link renewal credits 500 coins once and starts the next 90-day
     emailVerifiedAt: Timestamp.fromMillis(lastVerifiedAtMs - 3 * 31 * 24 * 60 * 60 * 1000),
     emailVerificationSequence: 1,
     emailVerificationCycleId: "initial-cycle",
-    emailVerificationCycleStartedAt: Timestamp.fromMillis(lastVerifiedAtMs),
-    emailVerificationCycleExpiresAt: Timestamp.fromMillis(lastVerifiedAtMs + EMAIL_VERIFICATION_CYCLE_MS),
+    emailVerificationCycleStartedAt: Timestamp.fromMillis(lastVerifiedAtMs - 3 * 31 * 24 * 60 * 60 * 1000),
+    emailVerificationCycleExpiresAt: Timestamp.fromMillis(lastVerifiedAtMs - 1),
     coins: 250,
     profileCompleted: true,
     accountStatus: "active",
