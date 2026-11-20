@@ -43,7 +43,7 @@ test("expired, revoked, pending, malformed, missing and cross-account review lea
   }
 });
 
-test("profile links require completed profile and proof bound to the profile account", () => {
+test("profile links require completed profile and Super Owner review bound to the profile account", () => {
   assert.equal(canExposeMemberSocialLinks(true, "member-a", active("member-a"), NOW), true);
   assert.equal(canExposeMemberSocialLinks(false, "member-a", active("member-a"), NOW), false);
   assert.equal(canExposeMemberSocialLinks(true, "member-a", active("member-b"), NOW), false);
