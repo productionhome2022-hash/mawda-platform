@@ -145,6 +145,12 @@ function audioDurationLimitForPurpose(purpose) {
   throw new Error("AUDIO_PURPOSE_INVALID");
 }
 
+function videoDurationAllowedForPurpose(purpose, durationSeconds) {
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return false;
+  if (purpose === "biometric") return durationSeconds >= 3 && durationSeconds <= 5;
+  return durationSeconds <= LIMITS.video.maxDurationSeconds;
+}
+
 async function processAudio({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
   const probe = await probeMedia(sourcePath);
   const maxDurationSeconds = audioDurationLimitForPurpose(request.purpose);
@@ -168,9 +174,7 @@ async function processAudio({ sourcePath, tempDir, request, sourceSha256, storag
 
 async function processVideo({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
   const probe = await probeMedia(sourcePath);
-  const biometricDurationInvalid = request.purpose === "biometric" &&
-    (probe.duration < 3 || probe.duration > 5);
-  if (!probe.hasVideo || probe.duration > LIMITS.video.maxDurationSeconds || biometricDurationInvalid) {
+  if (!probe.hasVideo || !videoDurationAllowedForPurpose(request.purpose, probe.duration)) {
     throw new Error("VIDEO_STREAM_OR_DURATION_INVALID");
   }
   const output = path.join(tempDir, "safe-video.mp4");
@@ -236,4 +240,4 @@ async function processSafeDerivative(context) {
   }
 }
 
-module.exports = { LIMITS, audioDurationLimitForPurpose, safeOutputPath, probeMedia, probeGif, processSafeDerivative };
+module.exports = { LIMITS, audioDurationLimitForPurpose, videoDurationAllowedForPurpose, safeOutputPath, probeMedia, probeGif, processSafeDerivative };
