@@ -442,3 +442,33 @@ export const cleanupDecidedBiometricEvidence = onSchedule("every 15 minutes", as
     await deleteEvidence(doc.id).catch(error => logger.warn("Biometric evidence cleanup retry failed", { requestId: doc.id, error }));
   }
 });
+
+
+/** Expire abandoned upload intents only after their five-minute signed URLs can no longer be used. */
+export const cleanupExpiredBiometricUploads = onSchedule("every 15 minutes", async () => {
+  const cutoffMs = Date.now() - BIOMETRIC_EVIDENCE_UPLOAD_TTL_MS;
+  const uploading = await requests().where("status", "==", "uploading").limit(200).get();
+  for (const doc of uploading.docs) {
+    const data = doc.data();
+    const createdAtMs = data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : 0;
+    if (createdAtMs > cutoffMs) continue;
+    const prefix = "biometric-evidence/" + data.uid + "/" + doc.id + "/";
+    for (const path of [data.audioPath, data.videoPath]) {
+      if (typeof path === "string" && path.startsWith(prefix)) {
+        await getStorage().bucket().file(path).delete({ ignoreNotFound: true }).catch(error => {
+          logger.warn("Expired biometric upload object cleanup failed", { requestId: doc.id, error });
+        });
+      }
+    }
+    await doc.ref.update({
+      status: "upload_rejected", uploadFailureCode: "UPLOAD_URL_EXPIRED",
+      evidenceDeletionStatus: "deleted",
+      audioPath: FieldValue.delete(), videoPath: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    await db().collection("verificationAuditLogs").doc("biometric_upload_expired_" + doc.id).set({
+      uid: data.uid, requestId: doc.id, action: "biometric_upload_intent_expired",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
+});
