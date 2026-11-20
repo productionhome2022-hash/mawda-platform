@@ -195,7 +195,7 @@ For unified HEAD `d18b1c234a2b72413ba9814382c7ce7b996c6416`, the following runs 
 - These are GitHub Actions results only. No 5,000-persona simulation, external/device/manual test, live-production test, deployment, financial operation or main merge was performed.
 
 ### Remaining blockers
-- P0: cryptographic biometric proof protocol and secure end-to-end workflow are not implemented; 1,500-coin reward and biometric privileges remain disabled.
+- P0 / Issue #72: cryptographic biometric proof protocol and secure end-to-end workflow are not implemented; 1,500-coin reward and biometric privileges remain disabled. Issue #72 records the implementation and acceptance matrix.
 - P0: #48 specialist permission enforcement remains unwired to protected operations.
 - P0: #49 complete secure media lifecycle; #23 group-call lifecycle; #66 direct-call paid economy remain open.
 - P1: #52 selective branch extraction remains active; the above audits classify duplicates and blocked bundles, not every divergent commit. Continue file-level provenance review for governance/ads/media and extract only self-contained, policy-aligned code with tests.
