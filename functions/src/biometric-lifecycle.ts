@@ -419,8 +419,12 @@ export const submitBiometricVerificationRequest = onCall(async (request) => {
 });
 
 export const listOwnerBiometricVerificationRequests = onCall(async request => {
-  await requireOwnerForReview(request, "biometric_request_inbox_read");
+  const ownerUid = await requireOwnerForReview(request, "biometric_request_inbox_read");
   const snapshot = await requests().where("status", "==", "pending").limit(50).get();
+  await appendAudit({
+    actorUid: ownerUid, action: "biometric_request_inbox_read",
+    outcome: "success", resultCount: snapshot.size,
+  });
   return {
     requests: snapshot.docs.map(doc => {
       const value = doc.data();
