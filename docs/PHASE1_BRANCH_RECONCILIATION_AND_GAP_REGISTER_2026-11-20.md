@@ -109,3 +109,39 @@ For each accepted source change, record:
 ## 6. Acceptance state
 
 This is a reconciliation checkpoint, not a completion certificate. The target branch remains the Phase 1 integration line. Divergent branches remain available for selective extraction. No main merge, production deployment, Firebase production mutation, billing activation, live retention change, signing identity change, or 5,000-persona simulation is authorized or performed by this record.
+
+
+## 7. Follow-up source comparison and superseding decisions — 2026-11-20
+
+This section supersedes the pending-review wording above where a later exact-file comparison is recorded.
+
+### Confirmed duplicates / newer unified implementation
+
+- `functions/test/media-scanner.test.js` on `codex/phase1-media-scanner-verdict-tests-2026-11-20` is byte-identical to the unified file.
+- `functions/test/integration/store-gifting.integration.test.js` on `codex/phase1-store-gift-permanent-entitlement-2026-11-20` is byte-identical to the unified file. The older catalog-version test file's assertions are already contained in the larger unified test file.
+- Featured-ad geography source and unit test, group-call settlement helper and unit test, direct-media delivery source and integration test are byte-identical between their phase1 source branches and the unified branch.
+- The older private-rented-room `room-call-policy.ts` and call-signaling integration test are byte-identical to the unified branch. Its older `index.ts` changes do not supersede the unified account-standing and transaction checks.
+- Store-gifting helper, unit test and Shop screen from `codex/mawdda-economy-selective-port-2026-11-19` are byte-identical to unified. The unified `giftStoreItem` callable differs materially and has additional catalog-version snapshot, replay, ledger/audit, sender-standing and entitlement validation. The unified integration test is larger and includes additional coverage.
+- The unified specialized-role capacity suite is broader than the older role-capacity source branch: independent seat limits, owner capacity changes, concurrent fifth-seat assignment, open-ended team supervisors, safe-integer version overflow, expired assignments, suspension and revocation are present. Do not replace it with the older branch version.
+- The old direct-call transaction-revalidation branch's room-call policy and unit test are byte-identical; its Functions entry-point variant is older and lacks current room-message account-standing checks.
+
+### PR #43 superseded
+
+PR #43 was closed as completed/superseded after confirming the store-gifting feature is already integrated in the unified branch and the unified Domain Regression run `44728900683` passed the explicit store-gifting wallet/entitlement integration step. No duplicate or stale store-gifting implementation was merged.
+
+### Biometric branch safety gate
+
+The divergent `codex/governance-biometric-integration-2026-11-19` / `codex/structural-governance-biometric-roles-2026-11-19` line contains a substantial biometric capture/review workflow that is not present end-to-end in the unified candidate (the current candidate has only the biometric verification helper and a limited integration test; biometric media/review modules and the member/Owner screens are absent). The approved-decision register explicitly states that the 1,500-coin biometric reward and biometric privileges remain disabled until cryptographic server proof is bound to challenge, account and device and resists replay/forgery. Therefore:
+- Do not port reward/entitlement or biometric approval logic from the divergent branches as a small safe change.
+- First audit the entire request, consent, capture, upload, private storage, owner review, decision, evidence deletion, renewal, lockout and replay lifecycle against the approved constitution.
+- Keep all biometric rewards/privileges disabled until the cryptographic proof requirement is met and tested.
+- Record policy conflicts and any unapproved numeric limits before implementation.
+
+### Current unified head and exact-head tests
+
+- Unified head after the two reconciliation/audit documents: `120ce89d0af0b4dc07403b4226ebcac8822de297`.
+- Comparison with official development baseline `codex/mawda-full-platform-implementation`: **73 commits ahead, 0 behind**.
+- Domain Regression run `44730418986`: **success**. Both jobs passed, including the Flutter UI/widget suite and retention/room reservation Emulator regression. The backend job also explicitly passed store-gifting, specialized-role capacity, retention, room, call-signaling and timed-ad reward integration steps.
+- Validate Mawda run `44730419089`: still **pending** at the latest check; no jobs were exposed by the GitHub Actions jobs endpoint. Do not claim this run passed. Earlier specialist-audit SHA `c1edba1432b5ef783c7eb5fb4493128c7a595cb1` had Validate and Domain Regression both completed successfully, but the unified head subsequently advanced.
+- PR #71 was closed as superseded after its audit document was copied into the unified branch. Its exact-head Validate run `44728900495` and Domain Regression run `44728900683` both passed.
+- No 5,000-persona simulation or external/manual/device/live-production test was run.
