@@ -2159,30 +2159,21 @@ export const reviewSafetyCase = onCall(async (request) => {
   return { caseId, decision };
 });
 
+
 /**
- * Applies the owner-approved local biometric reward policy.
- *
- * Trust boundary: local_auth returns a device-local result. The server enforces
- * the 30-day cycle and atomic wallet ledger, but cannot cryptographically prove
- * that an unmodified client displayed the OS prompt. The client claim is
- * therefore explicitly recorded as such and must not be represented as civil
- * identity verification or hardware attestation.
- */
-/**
- * Fail-closed until a server-verifiable, device-bound biometric attestation
- * challenge is implemented. A client boolean and attempt ID are not proof:
- * a modified client can invoke this callable directly and mint the reward.
- *
- * Do not restore wallet credits here until Android Play Integrity / iOS
- * App Attest (or an equivalent cryptographic key attestation) is verified
- * server-side with a fresh challenge, nonce binding, replay protection and
- * one-time ledger idempotency.
+ * Fail-closed until the approved Super Owner manual-review workflow is
+ * implemented end-to-end: owner claim + fresh MFA, private request-bound
+ * audio/video evidence, versioned review transaction, append-only audit,
+ * calendar-month retry/renewal rules and exactly-once central wallet ledger.
+ * Client booleans, local OS prompts and attempt IDs cannot grant verification
+ * or rewards. Provider/device attestation is not a prerequisite for the
+ * Super Owner's human decision and cannot replace it.
  */
 export const completeBiometricVerificationCycle = onCall(async (request) => {
   requireAuthenticatedUid(request.auth?.uid);
   throw new HttpsError(
     "failed-precondition",
-    "مكافأة التوثيق البيومتري معلّقة مؤقتاً حتى اكتمال التحقق التشفيري المرتبط بالجهاز. نجاح نافذة النظام وحده لا يكفي لمنح الكوينز.",
+    "مكافأة وامتيازات التوثيق البيومتري معلّقة حتى اكتمال المراجعة اليدوية الخادمية بواسطة Super Owner وضوابطها الذرية. لا تمنح نافذة النظام المحلية أي توثيق أو كوينز.",
   );
 });
 

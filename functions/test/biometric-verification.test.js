@@ -3,55 +3,53 @@ const assert = require("node:assert/strict");
 const { hasActiveBiometricVerification } = require("../lib/biometric-verification");
 
 const NOW = 1_800_000_000_000;
-const activeProof = (uid) => ({
+const acceptedReview = (uid) => ({
   status: "verified",
-  verificationMethod: "server_verified_device_attestation",
-  trustModel: "challenge_bound_device_key",
+  verificationMethod: "super_owner_manual_review",
+  trustModel: "server_authoritative_owner_decision",
+  reviewerRole: "super_owner",
+  reviewerMfaVerified: true,
+  decision: "accepted",
+  reviewerUid: "super_owner_uid_0001",
+  reviewRequestId: "review_request_identifier_123456",
+  acceptedAt: { toMillis: () => NOW - 10_000 },
+  reviewerMfaAt: { toMillis: () => NOW - 11_000 },
   expiresAt: { toMillis: () => NOW + 60_000 },
-  serverProof: {
-    status: "verified",
-    provider: "android_play_integrity",
-    accountUid: uid,
-    deviceKeyId: "device_key_identifier_123456",
-    challengeId: "server_challenge_identifier_123456",
-    proofDigest: "a".repeat(64),
-    signatureVerified: true,
-    attestationVerified: true,
-    nonceConsumed: true,
-    verifiedAt: { toMillis: () => NOW - 10_000 },
-    nonceConsumedAt: { toMillis: () => NOW - 9_000 },
-  },
+  accountUid: uid,
 });
 
-test("only server-verified challenge-bound proof for the same account is eligible", () => {
-  assert.equal(hasActiveBiometricVerification(activeProof("member_uid_0001"), "member_uid_0001", NOW), true);
-  assert.equal(hasActiveBiometricVerification(activeProof("other_member_0001"), "member_uid_0001", NOW), false);
+test("only an accepted Super Owner manual review for the same account is eligible", () => {
+  assert.equal(hasActiveBiometricVerification(acceptedReview("member_uid_0001"), "member_uid_0001", NOW), true);
+  assert.equal(hasActiveBiometricVerification(acceptedReview("other_member_0001"), "member_uid_0001", NOW), false);
 });
 
-test("legacy verified status and local OS prompt claims fail closed", () => {
+test("legacy flags and provider-attestation-only records do not qualify as manual review", () => {
   assert.equal(hasActiveBiometricVerification({ status: "verified", expiresAt: { toMillis: () => NOW + 60_000 } }, "member_uid_0001", NOW), false);
   assert.equal(hasActiveBiometricVerification({
-    ...activeProof("member_uid_0001"), verificationMethod: "local_os_biometric_prompt",
+    ...acceptedReview("member_uid_0001"),
+    verificationMethod: "server_verified_device_attestation",
   }, "member_uid_0001", NOW), false);
   assert.equal(hasActiveBiometricVerification({
-    ...activeProof("member_uid_0001"), trustModel: "client_claim_after_local_os_prompt",
+    ...acceptedReview("member_uid_0001"),
+    trustModel: "challenge_bound_device_key",
   }, "member_uid_0001", NOW), false);
 });
 
-test("missing, malformed, expired, revoked and future-dated proof fails closed", () => {
-  const base = activeProof("member_uid_0001");
+test("missing, malformed, expired, revoked, forged and future-dated review records fail closed", () => {
+  const base = acceptedReview("member_uid_0001");
   const denied = [
     null, "verified", { status: "verified" },
     { ...base, expiresAt: { toMillis: () => NOW - 1 } },
     { ...base, revokedAt: { toMillis: () => NOW - 1 } },
-    { ...base, serverProof: { ...base.serverProof, signatureVerified: false } },
-    { ...base, serverProof: { ...base.serverProof, attestationVerified: false } },
-    { ...base, serverProof: { ...base.serverProof, nonceConsumed: false } },
-    { ...base, serverProof: { ...base.serverProof, proofDigest: "bad" } },
-    { ...base, serverProof: { ...base.serverProof, challengeId: "" } },
-    { ...base, serverProof: { ...base.serverProof, verifiedAt: { toMillis: () => NOW + 1 } } },
-    { ...base, serverProof: { ...base.serverProof, nonceConsumedAt: { toMillis: () => NOW - 20_000 } } },
-    { ...base, serverProof: { ...base.serverProof, provider: "unknown_provider" } },
+    { ...base, reviewerRole: "admin" },
+    { ...base, reviewerMfaVerified: false },
+    { ...base, reviewerUid: "member_uid_0001" },
+    { ...base, reviewRequestId: "bad" },
+    { ...base, decision: "rejected" },
+    { ...base, acceptedAt: { toMillis: () => NOW + 1 } },
+    { ...base, reviewerMfaAt: { toMillis: () => NOW + 1 } },
+    { ...base, reviewerMfaAt: { toMillis: () => NOW - 20 * 60 * 1000 } },
+    { ...base, expiresAt: { toMillis: () => NOW - 20_000 } },
   ];
   for (const value of denied) {
     assert.equal(hasActiveBiometricVerification(value, "member_uid_0001", NOW), false);
