@@ -105,7 +105,7 @@ function stateFromRequest(data: Record<string, any>) {
 }
 
 async function signedUrl(path: string, action: "write" | "read", contentType: string, ttlMs: number): Promise<string> {
-  const emulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST;
+  const emulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST?.replace(/^https?:\\/\\//, "");
   if (emulatorHost) {
     // Emulator integration tests write/read through the Admin SDK directly;
     // the Storage emulator cannot mint GCS V4 signatures without a real key.
