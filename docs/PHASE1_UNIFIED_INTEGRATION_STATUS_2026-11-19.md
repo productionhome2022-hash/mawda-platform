@@ -515,3 +515,15 @@ All runs below used `6c8b963576fd98055328a68297e873509c9d2cb5` and completed suc
 ### Safety boundary
 
 No merge to `main`, deployment, production Firebase mutation, paid-resource activation, billing, live retention-policy change, signing-identity change, or production data operation was performed. All latest evidence is development-branch CI/Emulator/build evidence only; no signed mobile release or real-device acceptance is claimed.
+
+
+## Scanner verdict derivative-guard regression — 2026-11-20
+
+- Selectively ported the single PR #53 test block into the current unified `functions/test/media-scanner.test.js` without replacing newer existing test content.
+- It verifies complete `malicious` and `error` scanner verdicts are accepted for server handling only when no safe preview/derivative exists; both verdicts are rejected when paired with a safe WebP preview or safe video derivative.
+- Unified source SHA: `4e3aa6fa93159244bbd615ca963ccbbdb8320bd3`.
+- Exact-head Validate Push `44692067719`: **success** — Cloud Functions 39, Flutter/web 16, ClamAV 11.
+- Exact-head Validate PR `44692076347`: **success** — Cloud Functions 39, Flutter/web 16, ClamAV 11.
+- Exact-head Domain Regression `44692067752`: **success**.
+- Official development branch comparison: **50 commits ahead, 0 behind**.
+- PR #47 remains Draft/open/unmerged; Step 1/14 remains OPEN until outstanding security, lifecycle, governance and owner-acceptance gates are completed.
