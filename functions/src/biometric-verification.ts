@@ -1,7 +1,8 @@
 /**
- * A biometric lease is usable only when it contains a server-verified,
- * challenge-bound device proof. Client-side OS prompts and legacy
- * "verified" flags are deliberately insufficient.
+ * A biometric lease is usable only after an accepted, server-authoritative
+ * Super Owner manual review. This predicate does not authorize the reviewer;
+ * the review callable must enforce the owner claim and fresh MFA before writing
+ * this server-owned record. Until that workflow exists, no record can qualify.
  */
 type TimestampLike = { toMillis?: unknown };
 
@@ -20,10 +21,13 @@ function timestampMillis(value: unknown): number | null {
   }
 }
 
-const BIOMETRIC_PROOF_PROVIDERS = new Set([
-  "android_play_integrity",
-  "ios_app_attest",
-]);
+function validServerId(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{16,128}$/.test(value);
+}
+
+function validUid(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9._:@-]{8,128}$/.test(value);
+}
 
 export function hasActiveBiometricVerification(
   value: unknown,
@@ -31,38 +35,25 @@ export function hasActiveBiometricVerification(
   nowMs = Date.now(),
 ): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value) ||
-      typeof expectedUid !== "string" ||
-      !/^[A-Za-z0-9._:@-]{8,128}$/.test(expectedUid) ||
-      !Number.isSafeInteger(nowMs) || nowMs < 0) return false;
+      !validUid(expectedUid) || !Number.isSafeInteger(nowMs) || nowMs < 0) return false;
 
   const verification = value as Record<string, unknown>;
   if (verification.status !== "verified" ||
       verification.revokedAt != null ||
-      verification.verificationMethod !== "server_verified_device_attestation" ||
-      verification.trustModel !== "challenge_bound_device_key") return false;
+      verification.verificationMethod !== "super_owner_manual_review" ||
+      verification.trustModel !== "server_authoritative_owner_decision" ||
+      verification.reviewerRole !== "super_owner" ||
+      verification.reviewerMfaVerified !== true ||
+      verification.decision !== "accepted" ||
+      !validUid(verification.reviewerUid) ||
+      verification.reviewerUid === expectedUid ||
+      !validServerId(verification.reviewRequestId)) return false;
 
+  const acceptedAtMs = timestampMillis(verification.acceptedAt);
+  const mfaAtMs = timestampMillis(verification.reviewerMfaAt);
   const expiresAtMs = timestampMillis(verification.expiresAt);
-  if (expiresAtMs === null || expiresAtMs <= nowMs) return false;
-
-  const proof = verification.serverProof;
-  if (!proof || typeof proof !== "object" || Array.isArray(proof)) return false;
-  const evidence = proof as Record<string, unknown>;
-  const verifiedAtMs = timestampMillis(evidence.verifiedAt);
-  const nonceConsumedAtMs = timestampMillis(evidence.nonceConsumedAt);
-
-  return evidence.status === "verified" &&
-    BIOMETRIC_PROOF_PROVIDERS.has(String(evidence.provider)) &&
-    evidence.accountUid === expectedUid &&
-    typeof evidence.deviceKeyId === "string" &&
-    /^[A-Za-z0-9_-]{16,128}$/.test(evidence.deviceKeyId) &&
-    typeof evidence.challengeId === "string" &&
-    /^[A-Za-z0-9_-]{16,128}$/.test(evidence.challengeId) &&
-    typeof evidence.proofDigest === "string" &&
-    /^[a-f0-9]{64}$/.test(evidence.proofDigest) &&
-    evidence.signatureVerified === true &&
-    evidence.attestationVerified === true &&
-    evidence.nonceConsumed === true &&
-    verifiedAtMs !== null && verifiedAtMs <= nowMs &&
-    nonceConsumedAtMs !== null && nonceConsumedAtMs >= verifiedAtMs &&
-    nonceConsumedAtMs <= nowMs;
+  return acceptedAtMs !== null && acceptedAtMs <= nowMs &&
+    mfaAtMs !== null && mfaAtMs <= acceptedAtMs &&
+    expiresAtMs !== null && expiresAtMs > nowMs &&
+    expiresAtMs > acceptedAtMs;
 }
