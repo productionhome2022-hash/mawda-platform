@@ -132,6 +132,7 @@ class MemberMediaUploadService {
   }) async {
     final response = await _functions.httpsCallable('decideBiometricVerificationRequest').call({
       'requestId': requestId, 'decision': accepted ? 'accepted' : 'rejected',
+      'evidenceReviewed': true,
     });
     return Map<String, dynamic>.from(response.data as Map);
   }
