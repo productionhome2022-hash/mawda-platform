@@ -15,6 +15,8 @@ class _BiometricReviewScreenState extends State<BiometricReviewScreen> {
   List<Map<String, dynamic>> _requests = [];
   final Map<String, Map<String, dynamic>> _playback = {};
   final Set<String> _reviewed = {};
+  final Set<String> _openedAudio = {};
+  final Set<String> _openedVideo = {};
   bool _loading = false;
   String? _error;
 
@@ -35,7 +37,7 @@ class _BiometricReviewScreenState extends State<BiometricReviewScreen> {
     setState(() { _loading = true; _error = null; });
     try {
       final rows = await _service.listOwnerBiometricVerificationRequests();
-      if (mounted) setState(() { _requests = rows; _playback.clear(); _reviewed.clear(); });
+      if (mounted) setState(() { _requests = rows; _playback.clear(); _reviewed.clear(); _openedAudio.clear(); _openedVideo.clear(); });
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
@@ -55,13 +57,14 @@ class _BiometricReviewScreenState extends State<BiometricReviewScreen> {
       if (raw is! String || raw.isEmpty) throw StateError('رابط الدليل الآمن غير متاح.');
       final opened = await launchUrl(Uri.parse(raw), mode: LaunchMode.externalApplication);
       if (!opened) throw StateError('تعذر فتح الدليل في مشغل الجهاز.');
+      if (mounted) setState(() { if (kind == 'audio') { _openedAudio.add(requestId); } else { _openedVideo.add(requestId); } });
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     }
   }
 
   Future<void> _decide(String requestId, bool accepted) async {
-    if (accepted && !_reviewed.contains(requestId)) return;
+    if (!_reviewed.contains(requestId) || !_openedAudio.contains(requestId) || !_openedVideo.contains(requestId)) return;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -143,7 +146,7 @@ class _BiometricReviewScreenState extends State<BiometricReviewScreen> {
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             value: reviewed,
-            onChanged: _playback.containsKey(id) && !_loading
+            onChanged: _playback.containsKey(id) && _openedAudio.contains(id) && _openedVideo.contains(id) && !_loading
                 ? (value) => setState(() { if (value == true) { _reviewed.add(id); } else { _reviewed.remove(id); } })
                 : null,
             title: const Text('أؤكد أنني راجعت الدليلين بنفسي واتخذت القرار بعد المراجعة.'),
