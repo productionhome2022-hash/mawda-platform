@@ -7,6 +7,16 @@ const assert = require("node:assert/strict");
 const rawStorageEmulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? "127.0.0.1:9199";
 const storageEmulatorHost = rawStorageEmulatorHost.replace("https://", "").replace("http://", "");
 process.env.STORAGE_EMULATOR_HOST = `http://${storageEmulatorHost}`;
+const testScannerSecret = "scanner-callback-test-secret-".padEnd(48, "x");
+const testScannerProvider = "clamav-mawadda-gateway";
+// defineString defaults are deployment configuration; explicitly seed the
+// emulator test process so the callback exercises the same provider identity.
+process.env.MAWDA_MEDIA_SCANNER_HMAC_SECRET = testScannerSecret;
+process.env.MAWDA_MEDIA_SCANNER_PROVIDER = testScannerProvider;
+if (process.env.MAWDA_MEDIA_SCANNER_HMAC_SECRET !== testScannerSecret ||
+    process.env.MAWDA_MEDIA_SCANNER_PROVIDER !== testScannerProvider) {
+  throw new Error("SCANNER_CALLBACK_TEST_CONFIGURATION_MISSING");
+}
 const { EventEmitter } = require("node:events");
 const fs = require("node:fs");
 const os = require("node:os");
@@ -28,13 +38,14 @@ const {
   sendChatMediaAttachment,
   getChatMediaAttachmentUrl,
   deleteMediaAssetForMessage,
+  createMediaScanVerdictHandler,
 } = require("../../lib/media");
 
 const { createMemberStory, listMemberStories } = require("../../lib/index");
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
-const { randomUUID, createHash } = require("node:crypto");
+const { randomUUID, createHash, createHmac } = require("node:crypto");
 
 // Signed URL generation needs a signer even when the target is the Storage Emulator.
 // Generate an ephemeral, test-only service account key; never use production credentials.
@@ -957,5 +968,153 @@ test("active legal hold blocks permanent media deletion", async () => {
       assetRef.delete().catch(() => undefined),
       objectFile.delete().catch(() => undefined),
     ]);
+  }
+});
+
+
+test("malicious scanner callback rejects the asset, audits the verdict and deletes only the pinned quarantine generation", async () => {
+  const mediaId = randomUUID();
+  const ownerUid = `scanner-malicious-owner-${randomUUID()}`;
+  const objectPath = `quarantine/${ownerUid}/${mediaId}`;
+  const objectBytes = Buffer.from("isolated malicious scanner fixture");
+  const objectFile = getStorage().bucket().file(objectPath);
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const jobRef = db.collection("mediaScanJobs").doc(mediaId);
+
+  await objectFile.save(objectBytes, {
+    resumable: false,
+    metadata: { contentType: "image/png" },
+  });
+  const [metadata] = await objectFile.getMetadata();
+  const generation = String(metadata.generation);
+  const initial = {
+    mediaId, ownerUid, mediaPurpose: "chat",
+    status: "pending_security_scan",
+    storageGeneration: generation,
+    objectPath,
+    detectedContentType: "image/png",
+  };
+  await assetRef.set(initial);
+  await jobRef.set({ mediaId, ownerUid, objectPath, objectGeneration: generation, state: "dispatched" });
+
+  try {
+    const payload = {
+      mediaId,
+      purpose: "chat",
+      provider: testScannerProvider,
+      verdict: "malicious",
+      objectGeneration: generation,
+      sha256: createHash("sha256").update(objectBytes).digest("hex"),
+      scannedAtMs: Date.now(),
+      scanEngine: "ClamAV",
+      engineVersion: "1.4.6",
+      signatureDatabaseVersion: "28202",
+      signatureDatabaseAgeMs: 60 * 60 * 1000,
+    };
+    const rawBody = Buffer.from(JSON.stringify(payload));
+    const signature = createHmac("sha256", testScannerSecret).update(rawBody).digest("hex");
+    const request = {
+      method: "POST",
+      rawBody,
+      get: (name) => name.toLowerCase() === "x-mawadda-scanner-signature" ? signature : undefined,
+    };
+    const response = new EventEmitter();
+    Object.assign(response, {
+      statusCode: 200,
+      headers: {},
+      body: undefined,
+      status(code) { this.statusCode = code; return this; },
+      set(name, value) { this.headers[name.toLowerCase()] = value; return this; },
+      send(value) { this.body = value; this.emit("finish"); return this; },
+      json(value) { this.body = value; this.emit("finish"); return this; },
+    });
+
+    const handler = createMediaScanVerdictHandler(() => testScannerSecret, () => testScannerProvider);
+    await handler(request, response);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.status, "rejected");
+    const rejected = await assetRef.get();
+    assert.equal(rejected.data().status, "rejected");
+    assert.equal(rejected.data().rejectionCode, "MALWARE_DETECTED");
+    assert.equal(rejected.data().scannerVerdict, "malicious");
+    assert.equal(rejected.data().scannerObjectGeneration, generation);
+
+    const job = await jobRef.get();
+    assert.equal(job.data().state, "rejected");
+    assert.equal(job.data().verdict, "malicious");
+
+    const audit = await db.collection("mediaAccessAudit").where("mediaId", "==", mediaId).get();
+    assert.ok(audit.docs.some((doc) =>
+      doc.data().action === "media_security_scan_verdict" &&
+      doc.data().outcome === "malicious" &&
+      doc.data().objectGeneration === generation));
+
+    const [objectExists] = await objectFile.exists();
+    assert.equal(objectExists, false, "only the exact scanned quarantine generation should be deleted");
+  } finally {
+    await Promise.all([
+      assetRef.delete().catch(() => undefined),
+      jobRef.delete().catch(() => undefined),
+      objectFile.delete().catch(() => undefined),
+    ]);
+    const audit = await db.collection("mediaAccessAudit").where("mediaId", "==", mediaId).get();
+    await Promise.all(audit.docs.map((doc) => doc.ref.delete().catch(() => undefined)));
+  }
+});
+
+test("scanner error callback returns retryable 503 without changing quarantined asset", async () => {
+  const mediaId = randomUUID();
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const initial = {
+    mediaId,
+    ownerUid: `scanner-error-owner-${randomUUID()}`,
+    mediaPurpose: "chat",
+    status: "pending_security_scan",
+    storageGeneration: "1740000000000000",
+    objectPath: `quarantine/scanner-error-owner/${mediaId}`,
+  };
+  await assetRef.set(initial);
+  try {
+    const payload = {
+      mediaId,
+      purpose: "chat",
+      provider: testScannerProvider,
+      verdict: "error",
+      objectGeneration: initial.storageGeneration,
+      sha256: "a".repeat(64),
+      scannedAtMs: Date.now(),
+      scanEngine: "ClamAV",
+      engineVersion: "1.4.6",
+      signatureDatabaseVersion: "28202",
+      signatureDatabaseAgeMs: 60 * 60 * 1000,
+    };
+    const rawBody = Buffer.from(JSON.stringify(payload));
+    const signature = createHmac("sha256", testScannerSecret).update(rawBody).digest("hex");
+    const request = {
+      method: "POST",
+      rawBody,
+      get: (name) => name.toLowerCase() === "x-mawadda-scanner-signature" ? signature : undefined,
+    };
+    const response = new EventEmitter();
+    Object.assign(response, {
+      statusCode: 200,
+      headers: {},
+      body: undefined,
+      status(code) { this.statusCode = code; return this; },
+      set(name, value) { this.headers[name.toLowerCase()] = value; return this; },
+      send(value) { this.body = value; this.emit("finish"); return this; },
+      json(value) { this.body = value; this.emit("finish"); return this; },
+    });
+    // Inject test-only config into the same callback core; SecretParam values are
+    // supplied by the Functions runtime and are not emulated by this direct call.
+    const handler = createMediaScanVerdictHandler(() => testScannerSecret, () => testScannerProvider);
+    await handler(request, response);
+    assert.equal(response.statusCode, 503);
+    assert.match(String(response.body), /retry required/i);
+    const after = await assetRef.get();
+    assert.deepEqual(after.data(), initial);
+  } finally {
+    await assetRef.delete().catch(() => undefined);
   }
 });
