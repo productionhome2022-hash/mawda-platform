@@ -54,7 +54,7 @@ import {
 } from "./link-policy";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { audienceForAge, canJoinRoom, canJoinGuestRoom, normalizeModeratorPermissions } from "./room-policy";
-import { isActiveRentedPrivateRoom } from "./room-call-policy";
+import { isActiveRentedPrivateRoom, areRoomCallParticipantsMembers } from "./room-call-policy";
 import { isGuestSessionActive } from "./guest-sessions";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
@@ -10510,21 +10510,28 @@ export const startCall = onCall(async (request) => {
     }
   }
 
+  const roomMemberRefsForCall = roomRefForCall
+    ? participantUids.map((memberUid) => roomRefForCall!.collection("members").doc(memberUid))
+    : [];
   const now = Date.now();
   const expiresAt = Timestamp.fromMillis(now + CALL_RING_TIMEOUT_MS);
   const quotaRef = CALL_QUOTA_WINDOWS.doc(callerUid);
   const result = await db.runTransaction(async (transaction) => {
-    const [existing, caller, quotaSnapshot, roomSnapshot, rentalSnapshot] = await Promise.all([
+    const [existing, caller, quotaSnapshot, roomSnapshot, rentalSnapshot, roomMemberSnapshots] = await Promise.all([
       transaction.get(callRef),
       transaction.get(callerRef),
       transaction.get(quotaRef),
       roomRefForCall ? transaction.get(roomRefForCall) : Promise.resolve(null),
       roomRentalRef ? transaction.get(roomRentalRef) : Promise.resolve(null),
+      Promise.all(roomMemberRefsForCall.map((memberRef) => transaction.get(memberRef))),
     ]);
     if (input.scope === "room" &&
         (!roomSnapshot?.exists || !rentalSnapshot?.exists ||
           !isActiveRentedPrivateRoom(roomSnapshot.data(), rentalSnapshot.data(), now))) {
       throw new HttpsError("failed-precondition", "الغرفة أو استئجارها لم يعد نشطاً؛ تم رفض بدء المكالمة.");
+    }
+    if (input.scope === "room" && !areRoomCallParticipantsMembers(roomMemberSnapshots)) {
+      throw new HttpsError("permission-denied", "تغيرت عضوية أحد المشاركين قبل إنشاء المكالمة؛ أعد المحاولة.");
     }
     if (existing.exists) {
       const prior = existing.data() ?? {};
