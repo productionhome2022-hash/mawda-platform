@@ -16,7 +16,7 @@ import {
   BIOMETRIC_AUDIO_MAX_BYTES, BIOMETRIC_VIDEO_MAX_BYTES,
   BIOMETRIC_EVIDENCE_UPLOAD_TTL_MS, BIOMETRIC_EVIDENCE_REVIEW_TTL_MS,
   BIOMETRIC_REWARD_COINS, validateBiometricMemberIdentity,
-  biometricEvidenceObjectPaths, biometricRewardLedgerId,
+  biometricRewardLedgerId,
 } from "./biometric-evidence";
 
 const db = () => getFirestore();
@@ -164,7 +164,6 @@ export const getBiometricVerificationPhrase = onCall(async (request) => {
 export const startBiometricVerificationRequest = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
   const requestId = randomUUID();
-  const paths = biometricEvidenceObjectPaths(uid, requestId);
   const nowMs = Date.now();
   const userRef = db().collection("users").doc(uid);
   const requestRef = requests().doc(requestId);
@@ -221,7 +220,7 @@ export const startBiometricVerificationRequest = onCall(async (request) => {
       requestId, uid, ...identity, status: "uploading", attemptNumber: attempt,
       reviewState: state, phraseVersion: BIOMETRIC_SPOKEN_PHRASE_VERSION,
       phraseHash: createHash("sha256").update(BIOMETRIC_SPOKEN_PHRASE).digest("hex"),
-      audioPath: paths.audioPath, videoPath: paths.videoPath,
+      audioMediaId: null, videoMediaId: null,
       createdAt: Timestamp.fromMillis(nowMs), submittedAtMs: nowMs,
       evidenceDeletionStatus: "not_due", updatedAt: FieldValue.serverTimestamp(),
     });
@@ -232,14 +231,13 @@ export const startBiometricVerificationRequest = onCall(async (request) => {
     });
     return attempt;
   });
-  const [audioUploadUrl, videoUploadUrl] = await Promise.all([
-    signedUrl(paths.audioPath, "write", "audio/mp4", BIOMETRIC_EVIDENCE_UPLOAD_TTL_MS),
-    signedUrl(paths.videoPath, "write", "video/mp4", BIOMETRIC_EVIDENCE_UPLOAD_TTL_MS),
-  ]);
   return {
-    requestId, attemptNumber, phrase: BIOMETRIC_SPOKEN_PHRASE, phraseVersion: BIOMETRIC_SPOKEN_PHRASE_VERSION,
-    audio: { uploadUrl: audioUploadUrl, contentType: "audio/mp4", maxBytes: BIOMETRIC_AUDIO_MAX_BYTES, maxDurationSeconds: 60 },
-    video: { uploadUrl: videoUploadUrl, contentType: "video/mp4", maxBytes: BIOMETRIC_VIDEO_MAX_BYTES, minDurationSeconds: 3, maxDurationSeconds: 5 },
+    requestId, attemptNumber, phrase: BIOMETRIC_SPOKEN_PHRASE,
+    phraseVersion: BIOMETRIC_SPOKEN_PHRASE_VERSION,
+    uploadPurpose: "biometric",
+    audio: { contentType: "audio/mp4", maxBytes: BIOMETRIC_AUDIO_MAX_BYTES, maxDurationSeconds: 60 },
+    video: { contentType: "video/mp4", maxBytes: BIOMETRIC_VIDEO_MAX_BYTES, minDurationSeconds: 3, maxDurationSeconds: 5 },
+    uploadInstructions: "Create each upload through createMediaUploadIntent with purpose=biometric and biometricRequestId=requestId, then finalize it and wait for scanner approval before submitting.",
   };
 });
 
