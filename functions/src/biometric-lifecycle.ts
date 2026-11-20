@@ -472,8 +472,8 @@ export const getOwnerBiometricEvidencePlayback = onCall(async request => {
       typeof audioAsset.scannerVerifiedAt === "undefined" || typeof videoAsset.scannerVerifiedAt === "undefined" ||
       audioAsset.safeAudioPath !== expectedAudio || videoAsset.safeVideoPath !== expectedVideo ||
       audioAsset.safeAudioContentType !== "audio/mpeg" || videoAsset.safeVideoContentType !== "video/mp4" ||
-      typeof audioAsset.safeAudioGeneration !== "string" || !/^\\d+$/.test(audioAsset.safeAudioGeneration) ||
-      typeof videoAsset.safeVideoGeneration !== "string" || !/^\\d+$/.test(videoAsset.safeVideoGeneration) ||
+      typeof audioAsset.safeAudioGeneration !== "string" || !/^\d+$/.test(audioAsset.safeAudioGeneration) ||
+      typeof videoAsset.safeVideoGeneration !== "string" || !/^\d+$/.test(videoAsset.safeVideoGeneration) ||
       typeof audioAsset.safeAudioSha256 !== "string" || !/^[a-f0-9]{64}$/.test(audioAsset.safeAudioSha256) ||
       typeof videoAsset.safeVideoSha256 !== "string" || !/^[a-f0-9]{64}$/.test(videoAsset.safeVideoSha256)) {
     throw new HttpsError("failed-precondition", "النسخ الآمنة لم تعد متاحة أو تغير ارتباطها بالطلب.");
