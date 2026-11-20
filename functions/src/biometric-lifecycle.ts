@@ -99,6 +99,15 @@ function stateFromRequest(data: Record<string, any>) {
 }
 
 async function signedUrl(path: string, action: "write" | "read", contentType: string, ttlMs: number): Promise<string> {
+  const emulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST;
+  if (emulatorHost) {
+    // Emulator integration tests write/read through the Admin SDK directly;
+    // the Storage emulator cannot mint GCS V4 signatures without a real key.
+    // Never return this test-only URL in deployed Functions.
+    const bucketName = getStorage().bucket().name;
+    return "http://" + emulatorHost + "/v0/b/" + encodeURIComponent(bucketName) +
+      "/o/" + encodeURIComponent(path) + "?mawddaEmulatorOnly=1&action=" + action;
+  }
   const [url] = await getStorage().bucket().file(path).getSignedUrl({
     version: "v4", action, expires: Date.now() + ttlMs,
     ...(action === "write" ? { contentType } : {}),
