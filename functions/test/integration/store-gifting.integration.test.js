@@ -165,3 +165,101 @@ test("store gift debits sender and grants recipient once with immutable terms", 
     ]);
   }
 });
+
+
+test("store gift preserves permanent entitlements and rejects ineligible recipients", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const senderUid = `gift_permanent_sender_${tag}`;
+  const recipientUid = `gift_permanent_recipient_${tag}`;
+  const blockedRecipientUid = `gift_suspended_recipient_${tag}`;
+  const recipientUsername = `giftperm_${tag}`;
+  const blockedUsername = `giftsuspended_${tag}`;
+  const itemId = "vip_monthly";
+  const requestId = `giftperm_req_${tag}`;
+  const itemRef = db.collection("storeCatalog").doc(itemId);
+  const versionsRef = db.collection("storeCatalogVersions").doc(itemId).collection("versions");
+  const senderRef = db.collection("users").doc(senderUid);
+  const recipientRef = db.collection("users").doc(recipientUid);
+  const blockedRecipientRef = db.collection("users").doc(blockedRecipientUid);
+  const usernameRef = db.collection("usernameRegistry").doc(recipientUsername);
+  const blockedUsernameRef = db.collection("usernameRegistry").doc(blockedUsername);
+  const entitlementRef = recipientRef.collection("entitlements").doc(itemId);
+  const giftId = createHash("sha256").update(
+    `mawdda-store-gift-v1:${senderUid}:${requestId}`,
+  ).digest("hex");
+  const giftRef = db.collection("storeGifts").doc(giftId);
+  const ledgerRef = senderRef.collection("walletLedger").doc(`store_gift_${giftId}`);
+  const auditRef = db.collection("adminAuditLogs").doc(`store_gift_${giftId}`);
+
+  await Promise.all([
+    senderRef.set({ profileCompleted: true, accountStatus: "active", coins: 2000 }),
+    recipientRef.set({
+      profileCompleted: true, accountStatus: "active", username: recipientUsername, coins: 50,
+    }),
+    blockedRecipientRef.set({
+      profileCompleted: true, accountStatus: "suspended", username: blockedUsername, coins: 50,
+    }),
+    usernameRef.set({ uid: recipientUid, username: recipientUsername }),
+    blockedUsernameRef.set({ uid: blockedRecipientUid, username: blockedUsername }),
+  ]);
+  try {
+    const saved = await setStoreCatalogItem.run(ownerRequest("gift-permanent-catalog-owner", {
+      itemId, name: "عضوية دائمة", description: "استحقاق دائم للاختبار.",
+      category: "vip", priceCoins: 700, durationDays: null,
+      sortOrder: 1, active: true, purchaseEnabled: true,
+    }));
+    const result = await giftStoreItem.run(memberRequest(senderUid, {
+      recipientUsername, itemId, requestId,
+      expectedPriceCoins: 700, expectedCatalogVersion: saved.version,
+    }));
+    assert.equal(result.idempotentReplay, false);
+    assert.equal(result.priceCoins, 700);
+    assert.equal(result.expiresAt, null);
+    assert.equal((await senderRef.get()).data().coins, 1300);
+    assert.equal((await recipientRef.get()).data().coins, 50);
+    const entitlement = await entitlementRef.get();
+    assert.equal(entitlement.data().status, "active");
+    assert.equal(entitlement.data().expiresAt, null);
+    assert.equal(entitlement.data().catalogVersion, saved.version);
+    const gift = await giftRef.get();
+    assert.equal(gift.data().expiresAt, null);
+    assert.equal(gift.data().durationDays, null);
+    const ledger = await ledgerRef.get();
+    assert.equal(ledger.data().amount, -700);
+    assert.equal(ledger.data().recipientUid, recipientUid);
+    const replay = await giftStoreItem.run(memberRequest(senderUid, {
+      recipientUsername, itemId, requestId,
+      expectedPriceCoins: 700, expectedCatalogVersion: saved.version,
+    }));
+    assert.equal(replay.idempotentReplay, true);
+    await assert.rejects(
+      () => giftStoreItem.run(memberRequest(senderUid, {
+        recipientUsername: blockedUsername, itemId,
+        requestId: `blocked_req_${tag}`,
+        expectedPriceCoins: 700, expectedCatalogVersion: saved.version,
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await senderRef.get()).data().coins, 1300,
+      "an ineligible recipient must not cause a sender debit");
+    assert.equal((await db.collection("storeGifts").where("senderUid", "==", senderUid).get()).size, 1);
+  } finally {
+    await Promise.all([
+      giftRef.delete().catch(() => undefined),
+      ledgerRef.delete().catch(() => undefined),
+      auditRef.delete().catch(() => undefined),
+      entitlementRef.delete().catch(() => undefined),
+      senderRef.delete().catch(() => undefined),
+      recipientRef.delete().catch(() => undefined),
+      blockedRecipientRef.delete().catch(() => undefined),
+      usernameRef.delete().catch(() => undefined),
+      blockedUsernameRef.delete().catch(() => undefined),
+      itemRef.delete().catch(() => undefined),
+      (async () => {
+        const versions = await versionsRef.get();
+        await Promise.all(versions.docs.map((doc) => doc.ref.delete()));
+      })(),
+    ]);
+  }
+});
