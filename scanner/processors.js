@@ -141,7 +141,7 @@ async function processGif({ sourcePath, tempDir, request, sourceSha256, storage,
 }
 
 function audioDurationLimitForPurpose(purpose) {
-  if (purpose === "room" || purpose === "chat") return 60;
+  if (purpose === "room" || purpose === "chat" || purpose === "biometric") return 60;
   throw new Error("AUDIO_PURPOSE_INVALID");
 }
 
