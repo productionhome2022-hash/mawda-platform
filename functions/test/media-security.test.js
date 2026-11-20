@@ -146,3 +146,26 @@ test("advertisement creatives are limited to owner-uploaded images, GIFs and vid
   assert.equal(mediaUploadAllowedForRole({ contentType: "video/mp4", purpose: "advertisement" }, true), true);
   assert.equal(mediaUploadAllowedForRole({ contentType: "audio/mpeg", purpose: "advertisement" }, true), false);
 });
+
+
+test("biometric uploads require a request binding and permit only member audio/video", () => {
+  const requestId = "123e4567-e89b-42d3-a456-426614174000";
+  assert.throws(() => normalizeMediaRequest({
+    originalName: "voice.m4a", contentType: "audio/mp4", sizeBytes: 1024, purpose: "biometric",
+  }));
+  assert.deepEqual(normalizeMediaRequest({
+    originalName: "voice.m4a", contentType: "audio/mp4", sizeBytes: 1024,
+    purpose: "biometric", biometricRequestId: requestId,
+  }), {
+    originalName: "voice.m4a", contentType: "audio/mp4", declaredSizeBytes: 1024,
+    purpose: "biometric", biometricRequestId: requestId,
+  });
+  assert.equal(mediaUploadAllowedForRole({ contentType: "audio/mp4", purpose: "biometric" }, false), true);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "video/mp4", purpose: "biometric" }, false), true);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "image/png", purpose: "biometric" }, false), false);
+  assert.equal(mediaUploadAllowedForRole({ contentType: "audio/mp4", purpose: "biometric" }, true), false);
+  assert.throws(() => normalizeMediaRequest({
+    originalName: "voice.m4a", contentType: "audio/mp4", sizeBytes: 1024,
+    purpose: "chat", biometricRequestId: requestId,
+  }));
+});
