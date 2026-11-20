@@ -103,3 +103,36 @@ test("owner can configure rotation interval and invalid inputs fail closed", () 
     random: () => 1,
   }), /RANDOM_SOURCE_INVALID/);
 });
+
+
+test("all-Arab-country campaigns match each supported country without widening country-only campaigns", () => {
+  const allArabCampaign = {
+    ...base, campaignId: "all_arab_campaign",
+    geographicTargets: ["all_arab_countries"],
+  };
+  const syriaOnlyCampaign = {
+    ...base, campaignId: "syria_only",
+    geographicTargets: ["syria"],
+  };
+  const syria = selectFeaturedAdShowcase({
+    campaigns: [allArabCampaign, syriaOnlyCampaign],
+    audienceGeography: "syria",
+    nowMs: 500,
+  });
+  assert.deepEqual(syria.campaignIds.sort(), ["all_arab_campaign", "syria_only"]);
+
+  const lebanon = selectFeaturedAdShowcase({
+    campaigns: [allArabCampaign, syriaOnlyCampaign],
+    audienceGeography: "lebanon",
+    nowMs: 500,
+  });
+  assert.deepEqual(lebanon.campaignIds, ["all_arab_campaign"]);
+
+  const allArabPseudoAudience = selectFeaturedAdShowcase({
+    campaigns: [syriaOnlyCampaign],
+    audienceGeography: "all_arab_countries",
+    nowMs: 500,
+  });
+  assert.deepEqual(allArabPseudoAudience.campaignIds, [],
+    "an all-Arab campaign target must not be treated as a viewer location that matches every country-specific campaign");
+});
