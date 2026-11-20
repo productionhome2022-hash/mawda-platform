@@ -26,7 +26,7 @@ function validServerId(value: unknown): value is string {
 }
 
 function validUid(value: unknown): value is string {
-  return typeof value === "string" && /^[A-Za-z0-9._:@-]{8,128}$/.test(value);
+  return typeof value === "string" && /^[A-Za-z0-9._:@-]{1,128}$/.test(value);
 }
 
 export function hasActiveBiometricVerification(
