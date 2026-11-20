@@ -527,3 +527,15 @@ No merge to `main`, deployment, production Firebase mutation, paid-resource acti
 - Exact-head Domain Regression `44692067752`: **success**.
 - Official development branch comparison: **50 commits ahead, 0 behind**.
 - PR #47 remains Draft/open/unmerged; Step 1/14 remains OPEN until outstanding security, lifecycle, governance and owner-acceptance gates are completed.
+
+
+## Unified checkpoint — 2026-11-20 10:57 UTC+3
+
+- Unified development branch head: `c6f8fc239a43ddeeed28f75d4dc8eb9ab4347dc7`.
+- Exact-head Validate Push runs `44692705153` and `44692705173`, and Validate PR run `44692711850`: all completed successfully. This is CI evidence only, not release acceptance.
+- PR #57 latest head `20519494a898b19f08bcaf4f22e4af64acff622b` has a completed successful exact-head Validate PR run `44688818346`. The earlier failing callback test SHA is superseded; the current PR remains Draft/open and unmerged.
+- PR #58's room/rental eligibility change is not to be merged wholesale: unified already contains `isActiveRentedPrivateRoom` and the stronger `areRoomCallParticipantsMembers` transaction-time membership revalidation in `startCall`. The PR #58 branch omits the membership helper/tests present on unified. Its latest source candidate is therefore behind the unified security implementation; no additional cherry-pick is justified from this PR.
+- Store-gifting core helper, Flutter shop screen, unit tests, and emulator integration suite are already present on unified. The unified emulator suite contains stronger coverage than PR #43's candidate test, including two concurrent identical gift requests and exactly one debit/one idempotent replay. PR #56's concurrency-test source is byte-identical to the unified integration test; no duplicate port is needed.
+- Role-capacity branch #42 remains a distinct candidate, but its role identity/governance/integration files differ from the current unified versions. The unified branch already has its own role identity and capacity integration tests. Do not overwrite the newer unified files with the smaller older branch snapshots; continue semantic review of any genuinely unique policy-neutral test cases.
+- Fresh compare snapshot against unified: economy selective port #43 (10 ahead/107 behind, 9 paths); role reconcile #42 (32 ahead/191 behind, 18 paths); featured lifecycle (199 ahead/284 behind, 53 paths); phase2 media hardening (78 ahead/2311 behind, 23 paths); economic closeout (124 ahead/283 behind, 34 paths); economy recovery (618 ahead/283 behind, broad changes); member inbox rebased (7 ahead/1317 behind, 7 paths); structural governance (79 ahead/283 behind, 27 paths). These are diverged branches, not safe merge candidates.
+- No PR was merged, no main branch update, production Firebase mutation, deployment, billing activation, or destructive retention action occurred. Step 1/14 remains OPEN; 5,000-persona acceptance remains unrun.
