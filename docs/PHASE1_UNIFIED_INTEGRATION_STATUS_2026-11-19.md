@@ -556,3 +556,37 @@ No merge to `main`, deployment, production Firebase mutation, paid-resource acti
 - Updated `.github/workflows/mawdda-domain-regression.yml` to run for pull requests targeting the official unified development branch, as well as push; added manual dispatch and separated concurrency groups by event type.
 - Exact-head Domain Regression run `44699253517` on SHA `fd71e7d...`: success (Flutter 9/9, retention/room emulator job 17/17).
 - Exact-head Validate Mawda run `44699253652` on the same SHA was still in progress at the time of this record; do not count it as passed until its three jobs complete successfully.
+
+
+## Integration continuation and workflow audit — 2026-11-20 11:xx UTC+3
+
+### Verified repository state
+- Unified integration branch head after selective merges: `6d047458514dd9493c29fa0d046f9ca70bfb63da`.
+- Official `main` remains at `460a79a7dc2e16f4ad146af22aab58e152ad1e8c` (2026-11-15); its only workflow is the legacy Flutter CI. It does not contain the unified Functions/emulator/scanner/domain validation workflows.
+- PR #47 remains Draft/open and targets `codex/mawda-full-platform-implementation`, not `main`. PR #2 remains Draft/open and targets `main`. Neither is merged.
+- The unified branch is still an integration candidate; no main promotion, production deployment, Firebase mutation, billing activation or branch-protection change was performed.
+
+### Completed selective integration and PR hygiene
+- PR #59 direct-call transactional revalidation was changed from Draft to ready and squash-merged into the unified integration branch. Merge commit: `39b65215584ccb8b70cf3d22fc3f2a18fcf5714a`. It re-reads the direct chat and peer user inside the call-creation transaction and fails closed on changed membership, account standing/profile state, age-class mismatch or mutual block.
+- PR #53 scanner verdict derivative-guard tests were selectively merged. Merge commit: `6d047458514dd9493c29fa0d046f9ca70bfb63da`. It rejects malicious/error scanner verdicts when safe previews or derivatives are present.
+- PRs #54, #56, #57 and #58 were closed as superseded, not merged and not deleted. Their changes were verified already present in the unified candidate: role-capacity/store-gifting workflow invocations, concurrent gift replay test, scanner callback handler/tests, and active rented-private-room gate/transaction-time rental revalidation. Explanatory comments were added to each PR. Source branches and histories remain intact.
+- No wholesale merge was performed from any divergent branch.
+
+### Exact-head workflow state
+- New exact-head validation was automatically queued/started for `6d047458...` after the selective merges:
+  - Validate Mawda push run `44701285103`: queued at last check.
+  - Mawdda Domain Regression push run `44701285153`: in progress; Flutter regression job passed, backend retention/room/call/reward job still running.
+  - Validate Mawda PR run `44701291922`: pending at last check.
+  - Mawdda Domain Regression PR run `44701292004`: in progress; Flutter regression job passed, backend job still running.
+- Do not mark the new exact head accepted until all four runs finish successfully. Older green runs do not replace exact-head evidence.
+
+### 5,000-persona boundary
+- The last successful lab run `44594096755` used primary-platform SHA `825e9489b5dcb351998229fc062d71ce0489044b`, not the current candidate; the current candidate is 39 commits ahead of that SHA.
+- The prior execution directive explicitly defers external simulation until general development, branch reconciliation, UI completion and internal validation are complete. No new lab run was dispatched; preserve this boundary.
+
+### Next blocking work
+1. Finish exact-head validation for `6d047458...` and repair any failures before more ports.
+2. Continue file-level extraction/reconciliation for the still-open Issues #48–#52; keep delegated advertising permissions disabled until the owner-approved operation/permission/resource-scope matrix and server-derived resource binding exist.
+3. Complete media lifecycle gap work under Issue #49 (scanner permutations, deletion races, legal hold, generation pinning, retention and delivery authorization); Storage client access remains fail-closed.
+4. Reconcile the Admin Media permission vocabulary under Issue #50 and resolve repository governance/branch protection under Issue #51.
+5. Keep PR #47 Draft until the above gates and the full source reconciliation are closed; only then consider staged promotion toward the development branch and later main.
