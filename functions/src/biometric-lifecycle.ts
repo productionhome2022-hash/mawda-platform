@@ -255,6 +255,11 @@ export const startBiometricVerificationRequest = onCall(async (request) => {
       biometricVerificationAttemptNumber: attempt,
       updatedAt: FieldValue.serverTimestamp(),
     });
+    transaction.create(db().collection("verificationAuditLogs").doc("biometric_request_created_" + requestId), {
+      uid, requestId, action: "biometric_request_created",
+      attemptNumber: attempt, phraseVersion: BIOMETRIC_SPOKEN_PHRASE_VERSION,
+      createdAt: Timestamp.fromMillis(nowMs),
+    });
     return attempt;
   });
   return {
@@ -347,12 +352,16 @@ export const submitBiometricVerificationRequest = onCall(async (request) => {
       throw new Error("BIOMETRIC_SCANNER_SOURCE_HASH_MISMATCH");
     }
   } catch (error) {
+    const failureCode = error instanceof Error ? error.message : "INVALID_EVIDENCE";
     await ref.update({
-      status: "upload_rejected",
-      uploadFailureCode: error instanceof Error ? error.message : "INVALID_EVIDENCE",
+      status: "upload_rejected", uploadFailureCode: failureCode,
       evidenceDeletionStatus: "pending",
       evidenceDeletionRetryAt: Timestamp.fromMillis(Date.now()),
       updatedAt: FieldValue.serverTimestamp(),
+    });
+    await db().collection("verificationAuditLogs").doc("biometric_upload_rejected_" + requestId).set({
+      uid, requestId, action: "biometric_upload_rejected",
+      failureCode, createdAt: FieldValue.serverTimestamp(),
     });
     await deleteEvidence(requestId).catch(cleanupError =>
       logger.warn("Rejected biometric media cleanup queued", { requestId, cleanupError }));
