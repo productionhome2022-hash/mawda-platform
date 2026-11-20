@@ -68,8 +68,17 @@ test("store gift debits sender and grants recipient once with immutable terms", 
       recipientUsername, itemId, requestId,
       expectedPriceCoins: 500, expectedCatalogVersion: saved.version,
     };
-    const first = await giftStoreItem.run(memberRequest(senderUid, giftInput));
-    assert.equal(first.idempotentReplay, false);
+    // Race two identical requests to exercise Firestore transaction retries:
+    // exactly one request may debit the sender; the other must resolve as a replay.
+    const concurrentResults = await Promise.all([
+      giftStoreItem.run(memberRequest(senderUid, giftInput)),
+      giftStoreItem.run(memberRequest(senderUid, giftInput)),
+    ]);
+    assert.equal(concurrentResults.length, 2);
+    assert.equal(concurrentResults.filter((result) => result.idempotentReplay === false).length, 1);
+    assert.equal(concurrentResults.filter((result) => result.idempotentReplay === true).length, 1);
+    const first = concurrentResults.find((result) => result.idempotentReplay === false);
+    assert.ok(first);
     assert.equal(first.priceCoins, 500);
     assert.equal((await senderRef.get()).data().coins, 1500);
     assert.equal((await recipientRef.get()).data().coins, 300,
