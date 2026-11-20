@@ -533,13 +533,18 @@ export const decideBiometricVerificationRequest = onCall(async request => {
       throw new HttpsError("failed-precondition", "الطلب ليس معلقاً أو أن هوية المراجع غير صالحة.");
     }
     const data = review.data() ?? {}, user = member.data() ?? {};
-    let identity;
-    try { identity = validateBiometricMemberIdentity(user, memberUid); }
-    catch { throw new HttpsError("failed-precondition", "بيانات العضو الأساسية غير صالحة."); }
-    if (identity.fullName !== data.fullName || identity.username !== data.username ||
-        identity.gender !== data.gender || data.evidenceValidatedByServer !== true ||
+    let identityMatches = false;
+    try {
+      const identity = validateBiometricMemberIdentity(user, memberUid);
+      identityMatches = identity.fullName === data.fullName &&
+        identity.username === data.username && identity.gender === data.gender;
+    } catch {
+      identityMatches = false;
+    }
+    if ((decision === "accepted" && !identityMatches) ||
+        data.evidenceValidatedByServer !== true ||
         typeof data.audioSha256 !== "string" || typeof data.videoSha256 !== "string") {
-      throw new HttpsError("failed-precondition", "الأدلة أو بيانات الهوية غير مكتملة أو تغيرت.");
+      throw new HttpsError("failed-precondition", "لا يمكن قبول الطلب لأن بيانات الهوية أو الأدلة غير مكتملة أو تغيرت؛ يمكن للمالك رفضه.");
     }
     let next;
     try {
