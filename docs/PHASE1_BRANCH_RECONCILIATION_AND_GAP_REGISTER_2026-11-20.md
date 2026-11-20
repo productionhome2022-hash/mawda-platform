@@ -145,3 +145,58 @@ The divergent `codex/governance-biometric-integration-2026-11-19` / `codex/struc
 - Validate Mawda run `44730419089`: still **pending** at the latest check; no jobs were exposed by the GitHub Actions jobs endpoint. Do not claim this run passed. Earlier specialist-audit SHA `c1edba1432b5ef783c7eb5fb4493128c7a595cb1` had Validate and Domain Regression both completed successfully, but the unified head subsequently advanced.
 - PR #71 was closed as superseded after its audit document was copied into the unified branch. Its exact-head Validate run `44728900495` and Domain Regression run `44728900683` both passed.
 - No 5,000-persona simulation or external/manual/device/live-production test was run.
+
+
+## 8. Follow-up unique extraction audit — 2026-11-20 (PR #42, governance, economy, media, inbox and profiles)
+
+Audit target HEAD before this documentation update: `d18b1c234a2b72413ba9814382c7ce7b996c6416`.
+
+### PR #42 — specialized role capacity
+- PR #42 head: `ea6b05253ab702e773611ec48d31518a50943acd`; branch `codex/mawdda-step1-role-reconcile-2026-11-19`; PR base is the older retention-repair branch.
+- Compare against the unified line: 32 commits ahead / 214 behind; the branch is divergent and must not be merged wholesale.
+- Exact-file review confirms the unified implementation supersedes the PR version:
+  - `functions/src/platform-role-identities.ts` on unified is broader (115 lines versus 87), preserving the PR role IDs/capacity/labels and adding Production Quality Reviewer, Legal and Administrative Supervisor, plus the explicit owner-configurable General Production Supervisor capacity.
+  - `functions/test/integration/specialized-role-capacity.integration.test.js` on unified is broader (283 lines versus 143), covering the independent fixed-seat limits, owner capacity changes, concurrency, expired/reactivated assignments, suspension/revocation and version overflow.
+  - `functions/src/index.ts` on unified includes the capacity-setting transaction, capacity-aware seat guard and transaction-bound audit record. PR #42 carries an older post-transaction audit variant.
+  - Strict scope validation for surrounding whitespace/control characters is already present in unified `advertising-governance.ts` and covered by unified tests; no duplicate port is needed.
+  - Unified package/workflow files already execute the specialized role integration suite.
+- PR #42 was closed as superseded (not merged). The review comment records the comparison and exact-head CI evidence.
+
+### Governance and biometric branches
+- `codex/governance-biometric-integration-2026-11-19`: 89 commits ahead / 303 behind; `codex/structural-governance-biometric-roles-2026-11-19`: 79 ahead / 306 behind. Both remain divergent; no wholesale merge.
+- The biometric source adds a substantial request/upload/Owner-review workflow, including `biometric-media.ts`, `biometric-review.ts`, member and Owner screens, and integration tests. The inspected source SHAs include:
+  - `functions/src/biometric-media.ts`: `846fcdad8d30060aa76bd1a809241c74e4b1dadb`
+  - `functions/src/biometric-review.ts`: `2c33cc62e8248570233f8cd28ad2c0f46a727e62`
+  - `functions/test/integration/biometric-verification.integration.test.js`: `9714ca05a41ff774331e7dc538e8a930d5f3ba42`
+- The workflow uses a configured phrase and uploaded audio/video followed by Super Owner review. The source does **not** implement a cryptographic proof bound to a server challenge, canonical account and device: the inspected backend has no device-key registration, attestation verification, public-key signature check, nonce/replay ledger or proof-to-request binding. The integration test includes an Owner-acceptance path that directly seeds a pending request and expects the 1,500-coin ledger credit; it does not establish hardware-backed proof.
+- This conflicts with approved decision `REWARD-002` in `MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md`: 1,500 coins and biometric privileges remain fail-closed until cryptographic server proof is challenge/account/device-bound and replay/forgery resistant. Therefore the 1,500 reward must **not** be activated merely because Super Owner accepts a request. Owner approval is necessary but not sufficient under the currently approved gate.
+- Do not port the reward-granting workflow as-is. The full workflow remains an open P0 security/design gap: choose and approve platform-specific attestation/proof providers and lifecycle; bind server nonce, account UID and registered device key; verify signatures/attestation server-side; persist one-time proof consumption and revocation; then test forged, mismatched-account/device, expired, replayed, revoked and concurrent submissions. No provider or security guarantee is inferred here.
+- Keep reward and privileges disabled until the approved cryptographic gate is met. This preserves the owner's explicit request for Owner review without violating the already-approved anti-forgery requirement.
+
+### Inbox and member profiles
+- `codex/mawdda-member-inbox-rebased`: 7 commits ahead / 1,340 behind. Its `conversations_screen.dart` is byte-identical to unified (blob `91e2e922380319a59942becc800251996099ca54`). Its direct-message deletion integration test is older/smaller (748 lines) than unified (848 lines); unified adds timestamp-tie pagination and deletion-revision reconciliation assertions. Its `functions/src/index.ts` is an older snapshot and is not safe to port.
+- `codex/mawdda-deep-audit-profile-store`: 0 commits ahead / 1,363 behind, with no unique file delta. Existing unified premium-profile integration coverage is already included in exact-head CI. No duplicate profile/inbox files were copied.
+
+### Economy
+- `codex/mawdda-economy-selective-port-2026-11-19`: 10 commits ahead / 130 behind. The store-gifting helper, unit tests and Shop screen were already verified byte-identical to unified in the previous audit; the unified callable and integration suite are newer and broader. Its older `index.ts` is not a safe replacement. No duplicate economy code was ported.
+- Exact-head Domain Regression and Validate runs both include successful store-gifting and wallet/entitlement integration steps.
+
+### Ads and media
+- `codex/featured-ads-secure-lifecycle-20261118`: 199 commits ahead / 307 behind. It contains large overlapping changes to `functions/src/index.ts`, `functions/src/media.ts`, scanner, media rules, ads, quota, and client screens; selective file-level review remains mandatory.
+- Unified `featured-ad-finance.ts` and its unit tests are newer/larger than the corresponding source-branch files; do not replace them.
+- The source branch's new call-entitlement helper relates to unresolved direct-call paid entitlement/lifecycle work (#66); do not activate or port it independently of owner-approved entitlement/pricing, per-party consent, metering and settlement.
+- Its capacity-media policy leaves quotas null and enforcement observe-only, but remains a separate policy module requiring reconciliation with the approved capacity/cost model before adoption.
+- Its sticker policy/catalog/widgets are new, but define additional sticker-specific limits and a new moderation/catalog lifecycle. They are not yet integrated into the unified scanner, entitlement, catalog and retention lifecycle. Do not port the feature bundle as a "small" media change; review the complete upload/scan/publish/send/delete path and confirm no conflict with canonical media limits first.
+
+### Exact-head GitHub Actions evidence
+For unified HEAD `d18b1c234a2b72413ba9814382c7ce7b996c6416`, the following runs were polled to completion:
+- Validate Mawda: `44731027874`, `44731018627` — all jobs completed successfully, including Functions compile/unit tests, media callable and direct-message deletion integration, store gifting, specialized role capacity, biometric-cycle regression, premium-profile integration, Flutter tests and scanner tests.
+- Mawdda Domain Regression: `44731027859`, `44731018700` — both jobs completed successfully, including specialized-role capacity/concurrency, store gifting, retention/room reservation and Flutter widget/unit tests.
+- These are GitHub Actions results only. No 5,000-persona simulation, external/device/manual test, live-production test, deployment, financial operation or main merge was performed.
+
+### Remaining blockers
+- P0: cryptographic biometric proof protocol and secure end-to-end workflow are not implemented; 1,500-coin reward and biometric privileges remain disabled.
+- P0: #48 specialist permission enforcement remains unwired to protected operations.
+- P0: #49 complete secure media lifecycle; #23 group-call lifecycle; #66 direct-call paid economy remain open.
+- P1: #52 selective branch extraction remains active; the above audits classify duplicates and blocked bundles, not every divergent commit. Continue file-level provenance review for governance/ads/media and extract only self-contained, policy-aligned code with tests.
+- P1: inbox/profile source branches reviewed above have no safe unique extraction at this baseline; continue with other specialized member/profile branches if new refs appear.
