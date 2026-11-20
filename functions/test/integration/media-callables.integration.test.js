@@ -41,7 +41,7 @@ const {
   createMediaScanVerdictHandler,
 } = require("../../lib/media");
 
-const { createMemberStory, listMemberStories } = require("../../lib/index");
+const { createMemberStory, listMemberStories, placeMediaLegalHold } = require("../../lib/index");
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
@@ -1116,5 +1116,65 @@ test("scanner error callback returns retryable 503 without changing quarantined 
     assert.deepEqual(after.data(), initial);
   } finally {
     await assetRef.delete().catch(() => undefined);
+  }
+});
+
+
+test("media legal-hold placement and permanent deletion serialize safely under a concurrent race", async () => {
+  const uid = `media-hold-delete-race-${randomUUID()}`;
+  const mediaId = await createReadyChatImage({ uid, purpose: "chat" });
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const assetBefore = (await assetRef.get()).data();
+  const objectPath = assetBefore.safePreviewPath;
+  const objectFile = getStorage().bucket().file(objectPath);
+  const now = Date.now();
+  const holdInput = {
+    mediaId,
+    authority: "Court order",
+    legalBasis: "Preservation required for an identified legal proceeding.",
+    reference: `case-${randomUUID()}`,
+    reviewAtMs: now + 60 * 60 * 1000,
+    endsAtMs: now + 24 * 60 * 60 * 1000,
+  };
+
+  try {
+    const outcomes = await Promise.allSettled([
+      placeMediaLegalHold.run(ownerRequest(uid, holdInput)),
+      deleteMediaAssetForMessage(mediaId, uid, "chat"),
+    ]);
+    const holdResult = outcomes[0];
+    const deleteResult = outcomes[1];
+    assert.notEqual(holdResult.status, deleteResult.status,
+      "the Firestore asset transaction must serialize hold placement against deletion claim");
+
+    const latest = await assetRef.get();
+    assert.equal(latest.exists, true, "the media tombstone/record must remain available for audit");
+
+    if (holdResult.status === "fulfilled") {
+      assert.equal(deleteResult.status, "rejected");
+      assert.equal(latest.data().legalHoldStatus, "active");
+      assert.equal(latest.data().status, "security_approved");
+      const [exists] = await objectFile.exists();
+      assert.equal(exists, true, "a successfully placed hold must prevent object deletion");
+      const activeHolds = await db.collection("mediaLegalHolds")
+        .where("mediaId", "==", mediaId).where("status", "==", "active").get();
+      assert.equal(activeHolds.size, 1);
+    } else {
+      assert.equal(deleteResult.status, "fulfilled");
+      assert.equal(latest.data().status, "manually_deleted");
+      assert.notEqual(latest.data().legalHoldStatus, "active");
+      const [exists] = await objectFile.exists();
+      assert.equal(exists, false, "once deletion claims the asset, a later hold must fail closed");
+      const activeHolds = await db.collection("mediaLegalHolds")
+        .where("mediaId", "==", mediaId).where("status", "==", "active").get();
+      assert.equal(activeHolds.size, 0);
+    }
+  } finally {
+    const holds = await db.collection("mediaLegalHolds").where("mediaId", "==", mediaId).get();
+    await Promise.all([
+      ...holds.docs.map((doc) => doc.ref.delete().catch(() => undefined)),
+      assetRef.delete().catch(() => undefined),
+      objectFile.delete().catch(() => undefined),
+    ]);
   }
 });
