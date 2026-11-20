@@ -600,23 +600,3 @@ export const cleanupDecidedBiometricEvidence = onSchedule("every 15 minutes", as
 
 
 /** Expire abandoned upload intents only after their five-minute signed URLs can no longer be used. */
-export const cleanupExpiredBiometricUploads = onSchedule("every 15 minutes", async () => {
-  const cutoffMs = Date.now() - BIOMETRIC_EVIDENCE_UPLOAD_TTL_MS;
-  const uploading = await requests().where("status", "==", "uploading").limit(200).get();
-  for (const doc of uploading.docs) {
-    const data = doc.data();
-    const createdAtMs = data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : Date.now();
-    // Once a media upload intent exists, the media pipeline owns its upload TTL,
-    // quarantine, scanner and cleanup. Do not close a request while those assets
-    // are still being scanned or while the member is adding the second file.
-    if (createdAtMs > cutoffMs || data.audioMediaId || data.videoMediaId) continue;
-    await doc.ref.update({
-      status: "upload_rejected", uploadFailureCode: "NO_BIOMETRIC_MEDIA_UPLOAD_INTENT",
-      evidenceDeletionStatus: "deleted", updatedAt: FieldValue.serverTimestamp(),
-    });
-    await db().collection("verificationAuditLogs").doc("biometric_upload_expired_" + doc.id).set({
-      uid: data.uid, requestId: doc.id, action: "biometric_upload_intent_expired",
-      createdAt: FieldValue.serverTimestamp(),
-    });
-  }
-});
