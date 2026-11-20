@@ -190,7 +190,10 @@ test("group room calls fail closed for public rooms and missing or expired renta
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const callerUid = uid("room_call_rental_guard");
   const roomId = uid("room_call_rental_guard_room");
-  const callIds = [uid("public_room_call"), uid("missing_rental_call"), uid("expired_rental_call")];
+  const callIds = [
+    uid("public_room_call"), uid("missing_rental_call"),
+    uid("inactive_rental_call"), uid("expired_rental_call"),
+  ];
   const callerRef = db.collection("users").doc(callerUid);
   const roomRef = db.collection("rooms").doc(roomId);
   const rentalId = "rental_" + roomId;
@@ -228,7 +231,7 @@ test("group room calls fail closed for public rooms and missing or expired renta
     });
     await assert.rejects(
       () => startCall.run(call(callerUid, {
-        callId: uid("inactive_rental_call"), scope: "room", targetId: roomId, mode: "audio",
+        callId: callIds[2], scope: "room", targetId: roomId, mode: "audio",
       })),
       (error) => error && error.code === "failed-precondition",
     );
