@@ -32,7 +32,7 @@ import { createDirectChatId } from "./direct-chat-id";
 import { encodeMemberMessagePageToken, validateMemberMessagePageRequest } from "./member-message-pagination";
 import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
 import { hasActiveBiometricVerification } from "./biometric-verification";
-import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, isEmailVerificationCycleDue, canRewardEmailVerificationCycle } from "./email-verification-cycle";
+import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, canRewardEmailVerificationCycle } from "./email-verification-cycle";
 import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
 import { isMemberAccountInGoodStanding } from "./member-access";
 import { projectEconomicPaymentPolicy, validateEconomicPaymentPolicy } from "./economy-payment-policy";
@@ -2230,7 +2230,7 @@ export const startEmailVerificationRenewal = onCall(async (request) => {
       : typeof priorExpiry?.toMillis === "function" ? priorExpiry.toMillis() : null;
     if (expiredPendingId === null) {
       if (!authUser.emailVerified || priorExpiryMs === null ||
-          !isEmailVerificationCycleDue(priorExpiryMs - 90 * 24 * 60 * 60 * 1000, nowMs)) {
+          priorExpiryMs > nowMs) {
         throw new HttpsError("failed-precondition", "لم يحن موعد دورة التحقق التالية بعد.");
       }
     }
