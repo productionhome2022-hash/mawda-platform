@@ -10,22 +10,17 @@ const {
 const NOW = 1_800_000_000_000;
 const activeProof = (uid) => ({
   status: "verified",
-  verificationMethod: "server_verified_device_attestation",
-  trustModel: "challenge_bound_device_key",
+  verificationMethod: "super_owner_manual_review",
+  trustModel: "server_authoritative_owner_decision",
+  reviewerRole: "super_owner",
+  reviewerMfaVerified: true,
+  decision: "accepted",
+  reviewerUid: "super_owner_uid_0001",
+  reviewRequestId: "review_request_identifier_123456",
+  accountUid: uid,
+  acceptedAt: { toMillis: () => NOW - 10_000 },
+  reviewerMfaAt: { toMillis: () => NOW - 11_000 },
   expiresAt: { toMillis: () => NOW + 60_000 },
-  serverProof: {
-    status: "verified",
-    provider: "android_play_integrity",
-    accountUid: uid,
-    deviceKeyId: "device_key_identifier_123456",
-    challengeId: "server_challenge_identifier_123456",
-    proofDigest: "c".repeat(64),
-    signatureVerified: true,
-    attestationVerified: true,
-    nonceConsumed: true,
-    verifiedAt: { toMillis: () => NOW - 10_000 },
-    nonceConsumedAt: { toMillis: () => NOW - 9_000 },
-  },
 });
 
 test("accepts only HTTPS URLs on the matching official provider domains", () => {
@@ -63,7 +58,7 @@ test("empty values remove links and malformed stored values are omitted on proje
   }), { instagram: "https://instagram.com/member" });
 });
 
-test("only the same-account server proof permits publishing and revealing links", () => {
+test("only the same-account Super Owner manual review permits publishing and revealing links", () => {
   const links = { instagram: "https://www.instagram.com/member/" };
   const empty = {};
   assert.equal(canUpdateMemberSocialLinks(links, activeProof("member-a"), "member-a", NOW), true);
@@ -74,7 +69,7 @@ test("only the same-account server proof permits publishing and revealing links"
   assert.equal(canUpdateMemberSocialLinks(empty, null, "member-a", NOW), true);
 });
 
-test("expired, revoked, legacy and incomplete proof deny publication but allow clearing/hiding", () => {
+test("expired, revoked, legacy and incomplete manual-review records deny publication but allow clearing/hiding", () => {
   const links = { instagram: "https://www.instagram.com/member/" };
   const expired = { ...activeProof("member-a"), expiresAt: { toMillis: () => NOW - 1 } };
   const revoked = { ...activeProof("member-a"), revokedAt: { toMillis: () => NOW - 1 } };
