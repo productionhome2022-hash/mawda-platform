@@ -54,7 +54,7 @@ export function hasActiveBiometricVerification(
   const mfaAtMs = timestampMillis(verification.reviewerMfaAt);
   const expiresAtMs = timestampMillis(verification.expiresAt);
   return acceptedAtMs !== null && acceptedAtMs <= nowMs &&
-    mfaAtMs !== null && mfaAtMs <= acceptedAtMs &&
+    mfaAtMs !== null && mfaAtMs <= acceptedAtMs &&\n    acceptedAtMs - mfaAtMs <= 15 * 60 * 1000 &&
     expiresAtMs !== null && expiresAtMs > nowMs &&
     expiresAtMs > acceptedAtMs;
 }
