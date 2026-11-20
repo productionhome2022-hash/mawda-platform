@@ -101,6 +101,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
         await _service.waitForSafeAttachmentApproval(_videoMediaId!);
       }
       await _service.submitBiometricVerificationRequest(requestId: requestId);
+      if (mounted) setState(() { _request = null; _audioMediaId = null; _videoMediaId = null; });
       await _refreshStatus();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
