@@ -27,10 +27,12 @@ test("safe derivative categories accept only purposes allowed by the media uploa
   assert.equal(safeDerivativePurposeAllowed("gif", "advertisement", "member"), false);
   assert.equal(safeDerivativePurposeAllowed("audio", "chat", "member"), true);
   assert.equal(safeDerivativePurposeAllowed("audio", "room", "member"), true);
+  assert.equal(safeDerivativePurposeAllowed("audio", "biometric", "member"), true);
   assert.equal(safeDerivativePurposeAllowed("audio", "profile_album", "member"), false);
   assert.equal(safeDerivativePurposeAllowed("video", "advertisement", "platform_owner"), true);
   assert.equal(safeDerivativePurposeAllowed("video", "advertisement", "member"), false);
   assert.equal(safeDerivativePurposeAllowed("video", "story", "member"), false);
+  assert.equal(safeDerivativePurposeAllowed("video", "biometric", "member"), true);
   assert.equal(safeDerivativePurposeAllowed("document", "chat", "platform_owner"), true);
   assert.equal(safeDerivativePurposeAllowed("document", "room", "member"), false);
   assert.equal(safeDerivativePurposeAllowed("document", "profile_album", "platform_owner"), false);

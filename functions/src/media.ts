@@ -32,7 +32,7 @@ import { MEDIA_UPLOAD_CLEANUP_GRACE_MS, uploadIntentIsEligibleForCleanup } from 
 // whose static imports execute before initializeApp(); eager resolution here
 // would make the Functions entry point fail during module loading.
 const mediaDb = () => getFirestore();
-const mediaBucket = () => {
+export const mediaBucket = () => {
   const configuredName = mediaBucketName.value().trim();
   return configuredName ? getStorage().bucket(configuredName) : getStorage().bucket();
 };
@@ -1310,6 +1310,9 @@ export const createMediaUploadIntent = onCall(async (request) => {
     );
   }
   const uploaderType = mediaUploaderTypeFromToken(token);
+  const biometricRequestRef = input.purpose === "biometric"
+    ? mediaDb().collection("biometricVerificationRequests").doc(String(input.biometricRequestId))
+    : null;
   if (uploaderType === "guest") {
     const [guestProfile, guestSession] = await Promise.all([
       mediaDb().collection("guestProfiles").doc(uid).get(),
@@ -1345,10 +1348,26 @@ export const createMediaUploadIntent = onCall(async (request) => {
   const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
   const quotaRef = mediaDb().collection("mediaUploadQuotas").doc(uid);
   await mediaDb().runTransaction(async (transaction) => {
-    const [quotaSnapshot, existingAsset] = await Promise.all([
+    const [quotaSnapshot, existingAsset, biometricRequestSnapshot] = await Promise.all([
       transaction.get(quotaRef),
       transaction.get(assetRef),
+      biometricRequestRef ? transaction.get(biometricRequestRef) : Promise.resolve(null),
     ]);
+    if (biometricRequestRef) {
+      const biometricRequest = biometricRequestSnapshot?.data() ?? {};
+      const mediaField = policy.category === "audio" ? "audioMediaId" : "videoMediaId";
+      if (!biometricRequestSnapshot?.exists || biometricRequest.uid !== uid ||
+          biometricRequest.status !== "uploading") {
+        throw new HttpsError("failed-precondition", "طلب التوثيق غير مفتوح لهذا الملف.");
+      }
+      const previousMediaId = biometricRequest[mediaField];
+      if (typeof previousMediaId === "string") {
+        const previousAsset = await transaction.get(mediaDb().collection("mediaAssets").doc(previousMediaId));
+        if (previousAsset.exists && !["rejected", "manually_deleted", "expired"].includes(String(previousAsset.data()?.status))) {
+          throw new HttpsError("failed-precondition", "يوجد ملف من هذا النوع قيد الرفع أو الفحص أو معتمد بالفعل.");
+        }
+      }
+    }
     if (existingAsset.exists) {
       throw new HttpsError("already-exists", "معرف طلب الرفع مستخدم مسبقاً.");
     }
@@ -1366,6 +1385,7 @@ export const createMediaUploadIntent = onCall(async (request) => {
       uploaderType,
       uploaderRole: isPlatformOwner ? "platform_owner" : uploaderType === "guest" ? "guest" : "member",
       mediaPurpose: input.purpose,
+      ...(input.purpose === "biometric" ? { biometricRequestId: input.biometricRequestId } : {}),
       objectPath,
       originalName: input.originalName,
       declaredContentType: input.contentType,
@@ -1390,6 +1410,10 @@ export const createMediaUploadIntent = onCall(async (request) => {
       createdAt: now,
       updatedAt: now,
     });
+    if (biometricRequestRef) {
+      const mediaField = policy.category === "audio" ? "audioMediaId" : "videoMediaId";
+      transaction.update(biometricRequestRef, { [mediaField]: mediaId, updatedAt: FieldValue.serverTimestamp() });
+    }
     transaction.create(mediaDb().collection("mediaAccessAudit").doc(), {
       actorUid: uid, mediaId, action: "media_upload_intent_created", outcome: "success",
       objectPath, declaredContentType: input.contentType,
@@ -1424,6 +1448,16 @@ export const finalizeMediaUpload = onCall(async (request) => {
   const asset = snapshot.data()!;
   if (asset.ownerUid !== uid || asset.status !== "upload_authorized") {
     throw new HttpsError("permission-denied", "لا تملك صلاحية إكمال رفع هذا الملف.");
+  }
+  if (asset.mediaPurpose === "biometric") {
+    const biometricRequest = await mediaDb().collection("biometricVerificationRequests")
+      .doc(String(asset.biometricRequestId ?? "")).get();
+    const mediaField = asset.mediaCategory === "audio" ? "audioMediaId" : "videoMediaId";
+    if (!biometricRequest.exists || biometricRequest.data()?.uid !== uid ||
+        biometricRequest.data()?.status !== "uploading" ||
+        biometricRequest.data()?.[mediaField] !== mediaId) {
+      throw new HttpsError("permission-denied", "طلب التوثيق لم يعد مفتوحاً لهذا الملف.");
+    }
   }
   if (asset.mediaPurpose === "advertisement") {
     const token = (request.auth?.token ?? {}) as Record<string, unknown>;
@@ -1739,6 +1773,10 @@ export const getOwnerMediaSafePreview = onCall(async (request) => {
   const snapshot = await assetRef.get();
   if (!snapshot.exists) throw new HttpsError("not-found", "الملف غير موجود.");
   const asset = snapshot.data()!;
+  if (asset.mediaPurpose === "biometric") {
+    await auditMediaAccess({ actorUid, mediaId, action: "owner_media_safe_preview", outcome: "denied", failureCode: "biometric-evidence-use-dedicated-review" });
+    throw new HttpsError("permission-denied", "أدلة التوثيق البيومتري لا تُعرض إلا عبر مسار المراجعة المخصص.");
+  }
   if (asset.status !== "security_approved" ||
       asset.safePreviewContentType !== "image/webp" ||
       typeof asset.safePreviewPath !== "string" ||
@@ -2005,6 +2043,11 @@ export const ownerMediaInspectionStream = onRequest(
         return;
       }
       const asset = snapshot.data()!;
+      if (asset.mediaPurpose === "biometric") {
+        await auditMediaAccess({ actorUid, mediaId, action: "owner_media_stream_attempt", outcome: "denied", failureCode: "biometric-evidence-use-dedicated-review" });
+        response.status(403).set("Cache-Control", "no-store").end();
+        return;
+      }
       if (!["pending_security_scan", "scanner_clean_pending_processing", "security_approved"].includes(String(asset.status))) {
         response.status(409).set("Cache-Control", "no-store").end();
         return;
@@ -2101,6 +2144,11 @@ export const ownerMediaPreview = onRequest(
         return;
       }
       const asset = assetSnapshot.data()!;
+      if (asset.mediaPurpose === "biometric") {
+        await auditMediaAccess({ actorUid, mediaId, action: "owner_media_preview", outcome: "denied", failureCode: "biometric-evidence-use-dedicated-review" });
+        response.status(403).set("Cache-Control", "no-store").end();
+        return;
+      }
       const expectedPath = `processed/${String(asset.ownerUid)}/${mediaId}/preview.webp`;
       if (asset.status !== "security_approved" ||
           asset.processingStatus !== "safe_raster_derivative_ready" ||

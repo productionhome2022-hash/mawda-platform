@@ -170,3 +170,31 @@ test("scanner malicious and error verdicts are valid only without safe derivativ
     );
   }
 });
+
+
+test("scanner callback accepts only ClamAV-clean biometric audio and video safe derivatives", () => {
+  const now = 1_800_000_000_000;
+  const base = {
+    mediaId: "123e4567-e89b-12d3-a456-426614174000",
+    purpose: "biometric", provider: "clamav-mawadda-gateway",
+    verdict: "clean", objectGeneration: "123456", sha256: "a".repeat(64),
+    scannedAtMs: now, scanEngine: "ClamAV", engineVersion: "1.4.6",
+    signatureDatabaseVersion: "28202", signatureDatabaseAgeMs: 60 * 60 * 1000,
+  };
+  for (const [category, filename, contentType, pipeline, status] of [
+    ["audio", "audio.mp3", "audio/mpeg", "ffmpeg-audio-purpose-limit-v2", "safe_audio_derivative_ready"],
+    ["video", "video.mp4", "video/mp4", "ffmpeg-video-transcode-v1", "safe_video_derivative_ready"],
+  ]) {
+    const payload = {
+      ...base, processingStatus: status,
+      safeDerivative: {
+        category, path: `processed/member_1/${base.mediaId}/${filename}`,
+        generation: "987654", sha256: "b".repeat(64), contentType, pipelineVersion: pipeline,
+      },
+    };
+    assert.equal(validateScannerVerdict(payload, base.provider, now).purpose, "biometric");
+    assert.equal(validateScannerVerdict({
+      ...payload, purpose: "advertisement",
+    }, base.provider, now), null);
+  }
+});

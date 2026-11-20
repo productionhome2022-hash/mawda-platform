@@ -11,7 +11,7 @@ export interface ScannerSafeDerivative {
 
 export interface ScannerVerdictPayload {
   mediaId: string;
-  purpose: "chat" | "room" | "profile_album" | "avatar_cover" | "story" | "advertisement";
+  purpose: "chat" | "room" | "profile_album" | "avatar_cover" | "story" | "advertisement" | "biometric";
   provider: string;
   verdict: "clean" | "malicious" | "error";
   objectGeneration: string;
@@ -98,7 +98,7 @@ export function validateScannerVerdict(
   }
 
   if (typeof v.mediaId !== "string" || !/^[0-9a-f-]{36}$/i.test(v.mediaId) ||
-      typeof v.purpose !== "string" || !["chat", "room", "profile_album", "avatar_cover", "story", "advertisement"].includes(v.purpose) ||
+      typeof v.purpose !== "string" || !["chat", "room", "profile_album", "avatar_cover", "story", "advertisement", "biometric"].includes(v.purpose) ||
       v.provider !== expectedProvider ||
       !["clean", "malicious", "error"].includes(String(v.verdict)) ||
       typeof v.objectGeneration !== "string" || !/^\d+$/.test(v.objectGeneration) ||

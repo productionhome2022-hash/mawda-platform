@@ -51,6 +51,120 @@ class MemberMediaUploadService {
     }
   }
 
+
+  String _biometricContentType(XFile file, {required bool audio}) {
+    final expected = audio ? 'audio/mp4' : 'video/mp4';
+    final supplied = file.mimeType?.toLowerCase();
+    if (supplied != null && supplied.isNotEmpty && supplied != expected) {
+      throw const FormatException('صيغة ملف التوثيق غير مدعومة.');
+    }
+    final name = file.name.toLowerCase();
+    if (audio && (name.endsWith('.m4a') || name.endsWith('.mp4'))) return expected;
+    if (!audio && name.endsWith('.mp4')) return expected;
+    throw const FormatException('الصوت يجب أن يكون M4A والفيديو MP4.');
+  }
+
+  Future<Map<String, dynamic>> startBiometricVerificationRequest() async {
+    final response = await _functions
+        .httpsCallable('startBiometricVerificationRequest')
+        .call();
+    final data = Map<String, dynamic>.from(response.data as Map);
+    if (data['requestId'] is! String || data['phrase'] is! String ||
+        data['uploadPurpose'] != 'biometric') {
+      throw StateError('استجابة بدء التوثيق البيومتري غير مكتملة.');
+    }
+    return data;
+  }
+
+  Future<String> _uploadBiometricEvidenceFile({
+    required XFile file,
+    required String requestId,
+    required bool audio,
+  }) async {
+    if (requestId.isEmpty) throw ArgumentError.value(requestId, 'requestId');
+    final contentType = _biometricContentType(file, audio: audio);
+    await _validateFileLength(file, contentType);
+    final bytes = await file.readAsBytes();
+    final intentResponse = await _functions.httpsCallable('createMediaUploadIntent').call({
+      'originalName': file.name,
+      'contentType': contentType,
+      'sizeBytes': bytes.length,
+      'purpose': 'biometric',
+      'biometricRequestId': requestId,
+    });
+    final intent = Map<String, dynamic>.from(intentResponse.data as Map);
+    final uploadUrl = intent['uploadUrl'] as String?;
+    final mediaId = intent['mediaId'] as String?;
+    final headers = Map<String, dynamic>.from(
+      intent['requiredHeaders'] as Map? ?? const <String, dynamic>{},
+    );
+    if (uploadUrl == null || mediaId == null || headers.isEmpty) {
+      throw StateError('استجابة رفع دليل التوثيق غير مكتملة.');
+    }
+    final uploadResponse = await _client.put(
+      Uri.parse(uploadUrl),
+      headers: headers.map((key, value) => MapEntry(key, '$value')),
+      body: bytes,
+    );
+    if (uploadResponse.statusCode != 200) {
+      throw StateError('فشل رفع دليل التوثيق إلى التخزين الآمن (HTTP ${uploadResponse.statusCode}).');
+    }
+    await _functions.httpsCallable('finalizeMediaUpload').call({'mediaId': mediaId});
+    await waitForSafeAttachmentApproval(mediaId);
+    return mediaId;
+  }
+
+  Future<String> uploadBiometricAudio({
+    required XFile file,
+    required String requestId,
+  }) => _uploadBiometricEvidenceFile(file: file, requestId: requestId, audio: true);
+
+  Future<String> uploadBiometricVideo({
+    required XFile file,
+    required String requestId,
+  }) => _uploadBiometricEvidenceFile(file: file, requestId: requestId, audio: false);
+
+  Future<void> submitBiometricVerificationRequest({
+    required String requestId,
+  }) async {
+    await _functions.httpsCallable('submitBiometricVerificationRequest').call({
+      'requestId': requestId,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> listOwnerBiometricVerificationRequests() async {
+    final response = await _functions
+        .httpsCallable('listOwnerBiometricVerificationRequests')
+        .call();
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final requests = data['requests'] as List<dynamic>? ?? const [];
+    return requests.whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> getOwnerBiometricEvidencePlayback({
+    required String requestId,
+  }) async {
+    final response = await _functions
+        .httpsCallable('getOwnerBiometricEvidencePlayback')
+        .call({'requestId': requestId});
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<Map<String, dynamic>> decideBiometricVerificationRequest({
+    required String requestId,
+    required bool accepted,
+  }) async {
+    final response = await _functions
+        .httpsCallable('decideBiometricVerificationRequest')
+        .call({
+      'requestId': requestId,
+      'decision': accepted ? 'accepted' : 'rejected',
+    });
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   Future<String> uploadImage({
     required XFile file,
     required String purpose,

@@ -76,3 +76,14 @@ test("rejects malformed, missing, unsupported and invalid MP4 movie headers", ()
   assert.throws(() => readMp4DurationMs(atom("mvhd", unsupported)), /VERSION_UNSUPPORTED/);
   assert.throws(() => readMp4DurationMs(headerV0("mvhd", 0, 4000)), /DURATION_INVALID/);
 });
+
+
+test("validates an audio-only MP4 voice recording and rejects missing or overlong audio tracks", () => {
+  const audio = movie(60000, [track("soun", 60000)]);
+  const overlong = movie(60001, [track("soun", 60001)]);
+  const videoOnly = movie(4000, [track("vide", 4000)]);
+  const { assertBiometricAudioFileAllowed } = require("../lib/biometric-media");
+  assert.equal(assertBiometricAudioFileAllowed(audio), 60000);
+  assert.throws(() => assertBiometricAudioFileAllowed(overlong), /AUDIO_DURATION_OUT_OF_RANGE/);
+  assert.throws(() => assertBiometricAudioFileAllowed(videoOnly), /AUDIO_TRACK_MISSING/);
+});

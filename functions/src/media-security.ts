@@ -1,6 +1,6 @@
 export type MediaCategory = "image" | "video" | "audio" | "document";
-export type MediaPurpose = "chat" | "room" | "profile_album" | "avatar_cover" | "story" | "advertisement";
-const MEDIA_PURPOSES: ReadonlySet<string> = new Set(["chat", "room", "profile_album", "avatar_cover", "story", "advertisement"]);
+export type MediaPurpose = "chat" | "room" | "profile_album" | "avatar_cover" | "story" | "advertisement" | "biometric";
+const MEDIA_PURPOSES: ReadonlySet<string> = new Set(["chat", "room", "profile_album", "avatar_cover", "story", "advertisement", "biometric"]);
 
 // Upload purpose is validated here; server-side media finalization assigns the
 // approved purpose-specific retention deadline and the retention worker enforces it.
@@ -59,6 +59,9 @@ export function mediaUploadAllowedForRole(
   if (input.purpose === "advertisement") {
     return isPlatformOwner && (policy.category === "image" || policy.category === "video");
   }
+  if (input.purpose === "biometric") {
+    return !isPlatformOwner && (policy.category === "audio" || policy.category === "video");
+  }
   if (input.purpose === "chat" || input.purpose === "room") {
     return policy.category !== "document" || isPlatformOwner;
   }
@@ -71,6 +74,7 @@ export function normalizeMediaRequest(input: Record<string, unknown>): {
   declaredSizeBytes: number;
   purpose: MediaPurpose;
   storyExpiresAtMs?: number;
+  biometricRequestId?: string;
 } {
   const originalName = typeof input.originalName === "string" ? input.originalName.trim() : "";
   const contentType = typeof input.contentType === "string" ? input.contentType.trim().toLowerCase() : "";
@@ -81,6 +85,14 @@ export function normalizeMediaRequest(input: Record<string, unknown>): {
   }
   const purpose = purposeValue as MediaPurpose;
   const storyExpiresAtMs = input.storyExpiresAtMs;
+  const biometricRequestId = input.biometricRequestId;
+  if (purpose === "biometric") {
+    if (typeof biometricRequestId !== "string" || !/^[0-9a-f-]{36}$/i.test(biometricRequestId)) {
+      throw new Error("يجب ربط الرفع بطلب توثيق بيومتري صالح.");
+    }
+  } else if (biometricRequestId !== undefined) {
+    throw new Error("معرف طلب التوثيق لا يقبل إلا لغرض التوثيق البيومتري.");
+  }
   if (purpose === "story") {
     if (typeof storyExpiresAtMs !== "number" || !Number.isSafeInteger(storyExpiresAtMs) ||
         storyExpiresAtMs <= Date.now()) {
@@ -106,6 +118,7 @@ export function normalizeMediaRequest(input: Record<string, unknown>): {
   return {
     originalName, contentType, declaredSizeBytes, purpose,
     ...(purpose === "story" ? { storyExpiresAtMs: storyExpiresAtMs as number } : {}),
+    ...(purpose === "biometric" ? { biometricRequestId: biometricRequestId as string } : {}),
   };
 }
 
