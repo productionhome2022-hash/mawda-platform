@@ -238,3 +238,31 @@ test("rejects out-of-policy voice and video durations and keeps invalid submissi
     await cleanup(uid, ids);
   }
 });
+
+
+
+test("an empty upload intent expires after its upload TTL without consuming an attempt", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator required");
+  const originalNow = Date.now;
+  let nowMs = originalNow();
+  Date.now = () => nowMs;
+  const uid = "biometric_empty_" + randomUUID().replaceAll("-", "");
+  const userRef = db.collection("users").doc(uid), ids = [];
+  await userRef.set({
+    uid, fullName: "Empty Upload Member", username: "empty_" + Math.floor(Math.random() * 1000000),
+    gender: "female", profileCompleted: true, accountStatus: "active", coins: 0,
+  });
+  try {
+    const first = await startBiometricVerificationRequest.run(memberRequest(uid));
+    ids.push(first.requestId);
+    nowMs += 5 * 60 * 1000 + 1;
+    const second = await startBiometricVerificationRequest.run(memberRequest(uid));
+    ids.push(second.requestId);
+    assert.equal(second.attemptNumber, 1);
+    assert.equal((await db.collection("biometricVerificationRequests").doc(first.requestId).get()).data().status, "upload_rejected");
+    assert.equal((await db.collection("biometricVerificationRequests").doc(first.requestId).get()).data().evidenceDeletionStatus, "deleted");
+  } finally {
+    Date.now = originalNow;
+    await cleanup(uid, ids);
+  }
+});
