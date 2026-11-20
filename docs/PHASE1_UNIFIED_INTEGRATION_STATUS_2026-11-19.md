@@ -623,3 +623,22 @@ These are file-level comparisons against the unified candidate, not wholesale br
 - Issue #52 remains open: finish file-level semantic classification for the remaining economy, advertising, governance, rules, UI and tests. The comparisons above are preliminary and intentionally do not close the issue.
 - PR #47 remains Draft. Step 1/14 remains OPEN until all Phase 1 reconciliation and acceptance gates are closed.
 - Official `main` remains unchanged at `460a79a7dc2e16f4ad146af22aab58e152ad1e8c`; development remains at `a86fc878a7f5a29d68271bf08bec041a2fb31f80`. No promotion, deployment, production Firebase mutation, billing activation, or 5,000-persona external lab run was performed.
+
+
+## Store gifting permanent-entitlement closure — 2026-11-20
+
+- PR #67 was reviewed and merged into this integration branch only: merge commit `6380ad5bde33b12cbbd2398c836fb61a7bc68ce0`.
+- Exact PR head `b4546e69543b70a08b4e50c678316ac848c70c06` passed both required workflows: Validate Mawda run `44711482922` and Mawdda Domain Regression run `44711482934`.
+- Added Emulator coverage for permanent store-gift entitlement (`durationDays: null`, `expiresAt: null`), immutable catalog version, sender-only debit, recipient balance unchanged, ledger/receipt, idempotent replay, and suspended-recipient rejection without extra debit or gift.
+- Issue #46 is closed as completed after the PR merge and exact-head workflow evidence.
+- The integration branch's post-merge workflow evidence must still be checked on the new merge head; the pre-merge exact-head green results are not substituted for post-merge validation.
+- This is test-only; no catalog price, production entitlement, payment, deployment, or main branch changed.
+
+## Current acceptance boundary after PR #67
+
+- The unified branch head before PR #67 was `bfe1eac2bec7c21d7b01fb53e56aecc7a13ed9bb`; both Validate Mawda run `44711592831` and Mawdda Domain Regression run `44711592639` completed successfully on that exact SHA.
+- PR #67 merged to the unified branch at `6380ad5bde33b12cbbd2398c836fb61a7bc68ce0`; this new head requires its own exact-head workflow results before the tracker can mark it validated.
+- Issue #48 remains open: the permission helper is not connected to protected operations, and the owner-approved permission-to-operation/resource-scope matrix is not yet established. Keep delegated access fail-closed.
+- Issue #49 remains open: the prior media hardening is not full lifecycle acceptance; scanner callback replay/generation permutations, complete download authorization, no-original-object exposure and robust deletion/retry evidence remain to be closed.
+- Issues #23 and #66 remain open: group and direct calling still lack complete owner-versioned entitlement/consent, authoritative billable-media metering and atomic wallet/ledger settlement. Do not activate paid calling.
+- PR #47 remains Draft; Step 1/14 remains OPEN. No merge to development or main, no production mutation, deployment, paid-resource activation, or live retention-policy change.
