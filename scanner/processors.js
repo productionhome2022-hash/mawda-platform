@@ -168,7 +168,9 @@ async function processAudio({ sourcePath, tempDir, request, sourceSha256, storag
 
 async function processVideo({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
   const probe = await probeMedia(sourcePath);
-  if (!probe.hasVideo || probe.duration > LIMITS.video.maxDurationSeconds) {
+  const biometricDurationInvalid = request.purpose === "biometric" &&
+    (probe.duration < 3 || probe.duration > 5);
+  if (!probe.hasVideo || probe.duration > LIMITS.video.maxDurationSeconds || biometricDurationInvalid) {
     throw new Error("VIDEO_STREAM_OR_DURATION_INVALID");
   }
   const output = path.join(tempDir, "safe-video.mp4");
