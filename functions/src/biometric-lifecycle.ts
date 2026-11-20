@@ -215,6 +215,10 @@ export const startBiometricVerificationRequest = onCall(async (request) => {
             status: "upload_rejected", uploadFailureCode: "NO_BIOMETRIC_MEDIA_UPLOAD_INTENT",
             evidenceDeletionStatus: "deleted", updatedAt: FieldValue.serverTimestamp(),
           });
+          transaction.create(db().collection("verificationAuditLogs").doc("biometric_upload_intent_expired_" + previousId), {
+            uid, requestId: previousId, action: "biometric_upload_intent_expired",
+            reason: "NO_BIOMETRIC_MEDIA_UPLOAD_INTENT", createdAt: Timestamp.fromMillis(nowMs),
+          });
           previous.status = "upload_rejected";
           previous.evidenceDeletionStatus = "deleted";
         } else {
