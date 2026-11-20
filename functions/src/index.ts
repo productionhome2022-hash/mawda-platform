@@ -2237,7 +2237,7 @@ export const startEmailVerificationRenewal = onCall(async (request) => {
       : typeof priorExpiry?.toMillis === "function" ? priorExpiry.toMillis() : null;
     if (expiredPendingId === null) {
       if (!authUser.emailVerified || priorExpiryMs === null ||
-          !isEmailVerificationCycleDue(priorExpiryMs - 90 * 24 * 60 * 60 * 1000, nowMs)) {
+          priorExpiryMs > nowMs) {
         throw new HttpsError("failed-precondition", "لم يحن موعد دورة التحقق التالية بعد.");
       }
     }
