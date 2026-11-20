@@ -538,26 +538,14 @@ export const cleanupExpiredBiometricUploads = onSchedule("every 15 minutes", asy
   const uploading = await requests().where("status", "==", "uploading").limit(200).get();
   for (const doc of uploading.docs) {
     const data = doc.data();
-    const createdAtMs = data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : 0;
-    if (createdAtMs > cutoffMs) continue;
-    const prefix = "biometric-evidence/" + data.uid + "/" + doc.id + "/";
-    let deletionFailed = false;
-    for (const path of [data.audioPath, data.videoPath]) {
-      if (typeof path === "string" && path.startsWith(prefix)) {
-        try {
-          await mediaBucket().file(path).delete({ ignoreNotFound: true });
-        } catch (error) {
-          deletionFailed = true;
-          logger.warn("Expired biometric upload object cleanup failed; retrying next sweep", { requestId: doc.id, error });
-        }
-      }
-    }
-    if (deletionFailed) continue;
+    const createdAtMs = data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : Date.now();
+    // Once a media upload intent exists, the media pipeline owns its upload TTL,
+    // quarantine, scanner and cleanup. Do not close a request while those assets
+    // are still being scanned or while the member is adding the second file.
+    if (createdAtMs > cutoffMs || data.audioMediaId || data.videoMediaId) continue;
     await doc.ref.update({
-      status: "upload_rejected", uploadFailureCode: "UPLOAD_URL_EXPIRED",
-      evidenceDeletionStatus: "deleted",
-      audioPath: FieldValue.delete(), videoPath: FieldValue.delete(),
-      updatedAt: FieldValue.serverTimestamp(),
+      status: "upload_rejected", uploadFailureCode: "NO_BIOMETRIC_MEDIA_UPLOAD_INTENT",
+      evidenceDeletionStatus: "deleted", updatedAt: FieldValue.serverTimestamp(),
     });
     await db().collection("verificationAuditLogs").doc("biometric_upload_expired_" + doc.id).set({
       uid: data.uid, requestId: doc.id, action: "biometric_upload_intent_expired",
