@@ -539,3 +539,20 @@ No merge to `main`, deployment, production Firebase mutation, paid-resource acti
 - Role-capacity branch #42 remains a distinct candidate, but its role identity/governance/integration files differ from the current unified versions. The unified branch already has its own role identity and capacity integration tests. Do not overwrite the newer unified files with the smaller older branch snapshots; continue semantic review of any genuinely unique policy-neutral test cases.
 - Fresh compare snapshot against unified: economy selective port #43 (10 ahead/107 behind, 9 paths); role reconcile #42 (32 ahead/191 behind, 18 paths); featured lifecycle (199 ahead/284 behind, 53 paths); phase2 media hardening (78 ahead/2311 behind, 23 paths); economic closeout (124 ahead/283 behind, 34 paths); economy recovery (618 ahead/283 behind, broad changes); member inbox rebased (7 ahead/1317 behind, 7 paths); structural governance (79 ahead/283 behind, 27 paths). These are diverged branches, not safe merge candidates.
 - No PR was merged, no main branch update, production Firebase mutation, deployment, billing activation, or destructive retention action occurred. Step 1/14 remains OPEN; 5,000-persona acceptance remains unrun.
+
+
+## Direct-call transactional revalidation — 2026-11-20
+
+- Draft PR #59: `codex/phase1-direct-call-transaction-revalidation-2026-11-20`.
+- Exact head SHA: `f6cdf552494e222c2cefd3a4d27ca36515fd93cf`.
+- Root cause: direct-call preflight read peer standing, age, block lists and direct-chat participants outside the creation transaction, while the transaction re-read only the caller. Peer state or chat membership could change between those reads and call creation.
+- Change: transaction now re-reads the direct chat and peer user record and validates both members' standing/profile state, exact two-member participant set, age-class compatibility and mutual blocks before call creation. Added focused unit tests for membership mismatch, malformed participant sets, cross-age-class denial and both block directions.
+- Exact-head Validate Mawda run `44699159743`: success; Cloud Functions compile/unit + emulator 39/39, Flutter analysis/tests/web candidate 16/16, isolated ClamAV/security/sanitization 11/11. Call-signaling Emulator integration passed.
+- PR #59 remains Draft/open/unmerged. This does not establish device acceptance or full group-call request/approval/entitlement/settlement/SFU readiness.
+
+## Domain regression workflow trigger repair — 2026-11-20
+
+- Commit on unified development branch: `fd71e7dab7d0cf5b48b3a952f93e44f42a654989`.
+- Updated `.github/workflows/mawdda-domain-regression.yml` to run for pull requests targeting the official unified development branch, as well as push; added manual dispatch and separated concurrency groups by event type.
+- Exact-head Domain Regression run `44699253517` on SHA `fd71e7d...`: success (Flutter 9/9, retention/room emulator job 17/17).
+- Exact-head Validate Mawda run `44699253652` on the same SHA was still in progress at the time of this record; do not count it as passed until its three jobs complete successfully.
