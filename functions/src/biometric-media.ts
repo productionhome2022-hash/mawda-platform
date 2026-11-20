@@ -44,15 +44,9 @@ function findAtom(
 
 const CONTAINER_ATOMS = new Set(["moov", "trak", "mdia", "minf", "stbl", "edts", "udta", "meta"]);
 
-/** Reads the ISO-BMFF movie header duration from the uploaded bytes, never from client metadata. */
-export function readMp4DurationMs(buffer: Buffer): number {
-  if (!Buffer.isBuffer(buffer) || buffer.length < 16) {
-    throw new Error("BIOMETRIC_VIDEO_CONTAINER_INVALID");
-  }
-  const movie = findAtom(buffer, 0, buffer.length, "mvhd", CONTAINER_ATOMS);
-  if (!movie) throw new Error("BIOMETRIC_VIDEO_DURATION_MISSING");
-  const offset = movie.payloadStart;
-  if (offset + 20 > movie.end) throw new Error("BIOMETRIC_VIDEO_HEADER_INVALID");
+function durationFromHeader(buffer: Buffer, header: Mp4Atom, label: string): number {
+  const offset = header.payloadStart;
+  if (offset + 20 > header.end) throw new Error(`BIOMETRIC_${label}_HEADER_INVALID`);
   const version = buffer.readUInt8(offset);
   let timescale: number;
   let duration: number;
@@ -60,52 +54,73 @@ export function readMp4DurationMs(buffer: Buffer): number {
     timescale = buffer.readUInt32BE(offset + 12);
     duration = buffer.readUInt32BE(offset + 16);
   } else if (version === 1) {
-    if (offset + 32 > movie.end) throw new Error("BIOMETRIC_VIDEO_HEADER_INVALID");
+    if (offset + 32 > header.end) throw new Error(`BIOMETRIC_${label}_HEADER_INVALID`);
     timescale = buffer.readUInt32BE(offset + 20);
     const duration64 = buffer.readBigUInt64BE(offset + 24);
     if (duration64 > BigInt(Number.MAX_SAFE_INTEGER)) {
-      throw new Error("BIOMETRIC_VIDEO_DURATION_INVALID");
+      throw new Error(`BIOMETRIC_${label}_DURATION_INVALID`);
     }
     duration = Number(duration64);
   } else {
-    throw new Error("BIOMETRIC_VIDEO_VERSION_UNSUPPORTED");
+    throw new Error(`BIOMETRIC_${label}_VERSION_UNSUPPORTED`);
   }
   if (!Number.isSafeInteger(timescale) || timescale < 1 ||
       !Number.isSafeInteger(duration) || duration < 1) {
-    throw new Error("BIOMETRIC_VIDEO_DURATION_INVALID");
+    throw new Error(`BIOMETRIC_${label}_DURATION_INVALID`);
   }
   const durationMs = (duration / timescale) * 1000;
   if (!Number.isFinite(durationMs) || durationMs < 1) {
-    throw new Error("BIOMETRIC_VIDEO_DURATION_INVALID");
+    throw new Error(`BIOMETRIC_${label}_DURATION_INVALID`);
   }
   return durationMs;
 }
 
-/** Requires at least one real video handler track; audio-only MP4 files are rejected. */
-export function hasMp4VideoTrack(buffer: Buffer): boolean {
-  if (!Buffer.isBuffer(buffer) || buffer.length < 16) return false;
-  let offset = 0;
-  while (offset < buffer.length) {
-    const top = readAtom(buffer, offset, buffer.length);
-    if (!top) return false;
+/** Reads the ISO-BMFF movie header duration from uploaded bytes, never client metadata. */
+export function readMp4DurationMs(buffer: Buffer): number {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 16) {
+    throw new Error("BIOMETRIC_VIDEO_CONTAINER_INVALID");
+  }
+  const movie = findAtom(buffer, 0, buffer.length, "mvhd", CONTAINER_ATOMS);
+  if (!movie) throw new Error("BIOMETRIC_VIDEO_DURATION_MISSING");
+  return durationFromHeader(buffer, movie, "VIDEO");
+}
+
+/** Returns the duration of every video media track, using mdhd rather than client claims. */
+export function readMp4VideoTrackDurationsMs(buffer: Buffer): number[] {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 16) return [];
+  let topOffset = 0;
+  while (topOffset < buffer.length) {
+    const top = readAtom(buffer, topOffset, buffer.length);
+    if (!top) return [];
     if (top.type === "moov") {
+      const durations: number[] = [];
       let trackOffset = top.payloadStart;
       while (trackOffset < top.end) {
         const track = readAtom(buffer, trackOffset, top.end);
-        if (!track) return false;
+        if (!track) throw new Error("BIOMETRIC_VIDEO_TRACK_CONTAINER_INVALID");
         if (track.type === "trak") {
           const handler = findAtom(buffer, track.payloadStart, track.end, "hdlr", CONTAINER_ATOMS);
           if (handler && handler.payloadStart + 12 <= handler.end) {
             const handlerType = buffer.toString("ascii", handler.payloadStart + 8, handler.payloadStart + 12);
-            if (handlerType === "vide") return true;
+            if (handlerType === "vide") {
+              const mediaHeader = findAtom(buffer, track.payloadStart, track.end, "mdhd", CONTAINER_ATOMS);
+              if (!mediaHeader) throw new Error("BIOMETRIC_VIDEO_TRACK_DURATION_MISSING");
+              durations.push(durationFromHeader(buffer, mediaHeader, "VIDEO_TRACK"));
+            }
           }
         }
         trackOffset = track.end;
       }
+      return durations;
     }
-    offset = top.end;
+    topOffset = top.end;
   }
-  return false;
+  return [];
+}
+
+export function hasMp4VideoTrack(buffer: Buffer): boolean {
+  try { return readMp4VideoTrackDurationsMs(buffer).length > 0; }
+  catch { return false; }
 }
 
 export function isBiometricVideoDurationAllowed(durationMs: number): boolean {
@@ -119,9 +134,14 @@ export function assertBiometricVideoDurationAllowed(durationMs: number): void {
   }
 }
 
+/** Rejects missing video tracks and any movie/track duration outside the strict inclusive range. */
 export function assertBiometricVideoFileAllowed(buffer: Buffer): number {
   if (!hasMp4VideoTrack(buffer)) throw new Error("BIOMETRIC_VIDEO_TRACK_MISSING");
-  const durationMs = readMp4DurationMs(buffer);
-  assertBiometricVideoDurationAllowed(durationMs);
-  return durationMs;
+  const movieDurationMs = readMp4DurationMs(buffer);
+  assertBiometricVideoDurationAllowed(movieDurationMs);
+  const trackDurations = readMp4VideoTrackDurationsMs(buffer);
+  if (trackDurations.length === 0 || trackDurations.some((duration) => !isBiometricVideoDurationAllowed(duration))) {
+    throw new Error("BIOMETRIC_VIDEO_TRACK_DURATION_OUT_OF_RANGE");
+  }
+  return Math.max(...trackDurations);
 }
