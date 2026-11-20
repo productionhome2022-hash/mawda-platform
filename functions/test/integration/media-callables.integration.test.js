@@ -1337,8 +1337,8 @@ test("room message reads fail closed when the member account is suspended despit
 
 
 test("biometric upload intents bind one audio and one video asset to an open member request", async () => {
-  const uid = "biometric-upload-owner-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
-  const requestId = "123e4567-e89b-42d3-a456-426614174000";
+  const uid = "biometric_upload_owner_" + randomUUID().replaceAll("-", "");
+  const requestId = randomUUID();
   const requestRef = db.collection("biometricVerificationRequests").doc(requestId);
   await requestRef.set({ uid, status: "uploading", audioMediaId: null, videoMediaId: null });
   const auth = { uid, token: { firebase: { sign_in_provider: "password" } } };
