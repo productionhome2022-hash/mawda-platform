@@ -6,7 +6,7 @@ const {
   startEmailVerificationRenewal,
   completeEmailVerificationRenewal,
 } = require("../../lib/index");
-const { EMAIL_VERIFICATION_CYCLE_MS } = require("../../lib/email-verification-cycle");
+
 
 const db = getFirestore();
 const auth = getAuth();
@@ -23,7 +23,7 @@ test("fresh email link renewal credits 500 coins once and starts the next 90-day
   const uid = `email_renewal_${tag}`;
   const email = `renewal_${tag}@example.test`;
   const userRef = db.collection("users").doc(uid);
-  const lastVerifiedAtMs = Date.now() - EMAIL_VERIFICATION_CYCLE_MS - 1000;
+  const lastVerifiedAtMs = Date.now() - 1000;
   const ledgerIdPrefix = "email_verification_";
   let cycleRef;
   let ledgerRef;
@@ -34,7 +34,7 @@ test("fresh email link renewal credits 500 coins once and starts the next 90-day
     uid,
     email,
     emailVerified: true,
-    emailVerifiedAt: Timestamp.fromMillis(lastVerifiedAtMs),
+    emailVerifiedAt: Timestamp.fromMillis(lastVerifiedAtMs - 3 * 31 * 24 * 60 * 60 * 1000),
     emailVerificationSequence: 1,
     emailVerificationCycleId: "initial-cycle",
     emailVerificationCycleStartedAt: Timestamp.fromMillis(lastVerifiedAtMs),
