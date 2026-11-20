@@ -529,7 +529,8 @@ export const decideBiometricVerificationRequest = onCall(async request => {
       transaction.get(ref), transaction.get(userRef), transaction.get(ledgerRef),
       transaction.get(auditHead()),
     ]);
-    if (!review.exists || review.data()?.status !== "pending" || !member.exists || reviewerUid === memberUid) {
+    if (!review.exists || review.data()?.status !== "pending" ||
+        (decision === "accepted" && !member.exists) || reviewerUid === memberUid) {
       throw new HttpsError("failed-precondition", "الطلب ليس معلقاً أو أن هوية المراجع غير صالحة.");
     }
     const data = review.data() ?? {}, user = member.data() ?? {};
@@ -581,7 +582,7 @@ export const decideBiometricVerificationRequest = onCall(async request => {
         action: "biometric_verification_rewarded", rewardCoins: BIOMETRIC_REWARD_COINS,
         idempotencyKey: requestId, createdAt: acceptedAt,
       });
-    } else if (next.status === "closed") {
+    } else if (next.status === "closed" && member.exists) {
       transaction.update(userRef, { biometricVerificationPermanentlyClosed: true, updatedAt: FieldValue.serverTimestamp() });
     }
     transaction.update(ref, {
