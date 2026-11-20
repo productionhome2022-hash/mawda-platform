@@ -65,7 +65,10 @@ class MemberMediaUploadService {
   }
 
   Future<Map<String, dynamic>> startBiometricVerificationRequest() async {
-    final response = await _functions.httpsCallable('startBiometricVerificationRequest').call();
+    final response = await _functions.httpsCallable('startBiometricVerificationRequest').call({
+      'consentAccepted': true,
+      'consentVersion': '2026-11-20-owner-review-v1',
+    });
     final data = Map<String, dynamic>.from(response.data as Map);
     if (data['requestId'] is! String || data['phrase'] is! String || data['uploadPurpose'] != 'biometric') {
       throw StateError('استجابة بدء التوثيق البيومتري غير مكتملة.');
