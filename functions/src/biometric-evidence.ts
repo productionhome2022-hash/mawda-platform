@@ -23,16 +23,6 @@ export function validateBiometricMemberIdentity(value: unknown, expectedUid: str
   return { fullName, username, gender };
 }
 
-export function biometricEvidenceObjectPaths(uid: string, requestId: string): {
-  audioPath: string; videoPath: string;
-} {
-  if (!/^[A-Za-z0-9._:@-]{8,128}$/.test(uid) || !/^[A-Za-z0-9_-]{16,128}$/.test(requestId)) {
-    throw new Error("BIOMETRIC_EVIDENCE_ID_INVALID");
-  }
-  const root = "biometric-evidence/" + uid + "/" + requestId + "/";
-  return { audioPath: root + "voice.m4a", videoPath: root + "video.mp4" };
-}
-
 export function biometricRewardLedgerId(requestId: string): string {
   if (!/^[A-Za-z0-9_-]{16,128}$/.test(requestId)) throw new Error("BIOMETRIC_REWARD_REQUEST_ID_INVALID");
   return "biometric_verification_" + requestId;
