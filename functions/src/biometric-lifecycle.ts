@@ -440,6 +440,21 @@ export const getOwnerBiometricEvidencePlayback = onCall(async request => {
       typeof videoAsset.safeVideoSha256 !== "string" || !/^[a-f0-9]{64}$/.test(videoAsset.safeVideoSha256)) {
     throw new HttpsError("failed-precondition", "النسخ الآمنة لم تعد متاحة أو تغير ارتباطها بالطلب.");
   }
+  const [audioMetadata, videoMetadata] = await Promise.all([
+    mediaBucket().file(expectedAudio).getMetadata(),
+    mediaBucket().file(expectedVideo).getMetadata(),
+  ]);
+  const audioMeta = audioMetadata[0], videoMeta = videoMetadata[0];
+  if (String(audioMeta.generation) !== audioAsset.safeAudioGeneration ||
+      audioMeta.contentType !== "audio/mpeg" ||
+      !Number.isSafeInteger(Number(audioMeta.size)) || Number(audioMeta.size) <= 0 ||
+      Number(audioMeta.size) > BIOMETRIC_AUDIO_MAX_BYTES ||
+      String(videoMeta.generation) !== videoAsset.safeVideoGeneration ||
+      videoMeta.contentType !== "video/mp4" ||
+      !Number.isSafeInteger(Number(videoMeta.size)) || Number(videoMeta.size) <= 0 ||
+      Number(videoMeta.size) > 15 * 1024 * 1024) {
+    throw new HttpsError("failed-precondition", "تغيرت النسخ الآمنة أو لم تعد مطابقة لبيانات الفحص.");
+  }
   const [audioUrl, videoUrl] = await Promise.all([
     signedUrl(expectedAudio, "read", "audio/mpeg", BIOMETRIC_EVIDENCE_REVIEW_TTL_MS),
     signedUrl(expectedVideo, "read", "video/mp4", BIOMETRIC_EVIDENCE_REVIEW_TTL_MS),
