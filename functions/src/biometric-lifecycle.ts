@@ -186,6 +186,15 @@ export const getMyBiometricVerificationStatus = onCall(async request => {
     const requestSnapshot = await requests().doc(requestId).get();
     if (requestSnapshot.exists && requestSnapshot.data()?.uid === uid) latest = requestSnapshot.data() ?? {};
   }
+  const [audioAsset, videoAsset] = await Promise.all([
+    typeof latest.audioMediaId === "string" ? db().collection("mediaAssets").doc(latest.audioMediaId).get() : Promise.resolve(null),
+    typeof latest.videoMediaId === "string" ? db().collection("mediaAssets").doc(latest.videoMediaId).get() : Promise.resolve(null),
+  ]);
+  const reusableMediaId = (snapshot: FirebaseFirestore.DocumentSnapshot | null): string | null => {
+    if (!snapshot?.exists) return null;
+    const status = String(snapshot.data()?.status ?? "");
+    return ["rejected", "expired", "manually_deleted", "self_destructed"].includes(status) ? null : snapshot.id;
+  };
   const verification = user.biometricVerification && typeof user.biometricVerification === "object"
     ? user.biometricVerification as Record<string, any> : {};
   const millis = (value: unknown): number | null => value instanceof Timestamp
@@ -200,8 +209,8 @@ export const getMyBiometricVerificationStatus = onCall(async request => {
     permanentlyClosed: user.biometricVerificationPermanentlyClosed === true,
     requestId,
     phrase: BIOMETRIC_SPOKEN_PHRASE,
-    audioMediaId: typeof latest.audioMediaId === "string" ? latest.audioMediaId : null,
-    videoMediaId: typeof latest.videoMediaId === "string" ? latest.videoMediaId : null,
+    audioMediaId: reusableMediaId(audioAsset),
+    videoMediaId: reusableMediaId(videoAsset),
     rewardCoins: latest.decision === "accepted" ? BIOMETRIC_REWARD_COINS : 0,
   };
 });
@@ -217,6 +226,9 @@ export const getBiometricVerificationPhrase = onCall(async (request) => {
 
 export const startBiometricVerificationRequest = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
+  if (request.data?.consentAccepted !== true || request.data?.consentVersion !== BIOMETRIC_CONSENT_VERSION) {
+    throw new HttpsError("failed-precondition", "يجب الاطلاع على إشعار الخصوصية والموافقة عليه قبل إنشاء طلب التوثيق.");
+  }
   const requestId = randomUUID();
   const nowMs = Date.now();
   const userRef = db().collection("users").doc(uid);
@@ -297,6 +309,8 @@ export const startBiometricVerificationRequest = onCall(async (request) => {
       requestId, uid, ...identity, status: "uploading", attemptNumber: attempt,
       reviewState: state, phraseVersion: BIOMETRIC_SPOKEN_PHRASE_VERSION,
       phraseHash: createHash("sha256").update(BIOMETRIC_SPOKEN_PHRASE).digest("hex"),
+      consentAccepted: true, consentVersion: BIOMETRIC_CONSENT_VERSION,
+      consentAcceptedAt: Timestamp.fromMillis(nowMs),
       audioMediaId: null, videoMediaId: null,
       createdAt: Timestamp.fromMillis(nowMs), submittedAtMs: nowMs,
       evidenceDeletionStatus: "not_due", updatedAt: FieldValue.serverTimestamp(),
