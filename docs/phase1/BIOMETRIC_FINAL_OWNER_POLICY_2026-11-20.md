@@ -90,3 +90,8 @@ No production activation, production Firebase mutation, paid-service enablement,
 ## 7. Supersession
 
 Any older implementation that imposes a 3-month lockout after the third rejection, omits the pre-existing spoken phrase challenge, omits the 3–5 second video requirement, allows a member to choose or override gender during verification, or uses device/provider attestation as a prerequisite conflicts with this final policy and must be adapted rather than copied wholesale.
+
+
+## Owner reaffirmation — BIO-002 (2026-11-20)
+
+The platform owner explicitly reaffirmed that the Super Owner's personal review of the submitted evidence and explicit approval are sufficient by themselves for biometric verification. No independent device cryptographic proof, Play Integrity, App Attest, provider/device attestation, automated face/voice matching score, or automated classification may be introduced as an approval prerequisite. On acceptance, the member receives 1,500 BetaCoins through the central economy ledger exactly once for the accepted lifecycle. This reaffirmation supersedes any contradictory older clause in other repository documents or source branches. Server-side Super Owner authorization, private evidence access, decision/audit records, atomic ledger credit, idempotency, renewal, revocation/deletion and tests remain mandatory safeguards; they do not reintroduce device attestation as a decision gate.
