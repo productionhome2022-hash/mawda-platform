@@ -79,6 +79,8 @@ class _BiometricReviewScreenState extends State<BiometricReviewScreen> {
     setState(() { _loading = true; _error = null; });
     try {
       final result = await _service.decideBiometricVerificationRequest(requestId: requestId, accepted: accepted);
+      if (!mounted) return;
+      setState(() { _loading = false; });
       await _load();
       if (!mounted) return;
       final reward = result['rewardCoins'] ?? 0;
