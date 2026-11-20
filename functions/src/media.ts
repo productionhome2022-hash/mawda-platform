@@ -32,7 +32,7 @@ import { MEDIA_UPLOAD_CLEANUP_GRACE_MS, uploadIntentIsEligibleForCleanup } from 
 // whose static imports execute before initializeApp(); eager resolution here
 // would make the Functions entry point fail during module loading.
 const mediaDb = () => getFirestore();
-const mediaBucket = () => {
+export const mediaBucket = () => {
   const configuredName = mediaBucketName.value().trim();
   return configuredName ? getStorage().bucket(configuredName) : getStorage().bucket();
 };
