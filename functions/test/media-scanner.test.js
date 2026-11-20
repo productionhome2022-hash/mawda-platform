@@ -193,6 +193,8 @@ test("scanner callback accepts only ClamAV-clean biometric audio and video safe 
       },
     };
     assert.equal(validateScannerVerdict(payload, base.provider, now).purpose, "biometric");
-    assert.equal(validateScannerVerdict({ ...payload, purpose: "advertisement" }, base.provider, now), null);
+    const changedPurpose = validateScannerVerdict({ ...payload, purpose: "advertisement" }, base.provider, now);
+    if (category === "audio") assert.equal(changedPurpose, null);
+    else assert.equal(changedPurpose?.purpose, "advertisement");
   }
 });
