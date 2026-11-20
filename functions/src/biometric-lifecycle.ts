@@ -327,6 +327,16 @@ export const submitBiometricVerificationRequest = onCall(async (request) => {
     throw new HttpsError("failed-precondition", "يجب أن يجتاز الصوت والفيديو فحص ClamAV وإنشاء النسخ الآمنة قبل الإرسال.");
   }
 
+  const [safeAudioMetadata, safeVideoMetadata] = await Promise.all([
+    mediaBucket().file(expectedAudioSafe).getMetadata(),
+    mediaBucket().file(expectedVideoSafe).getMetadata(),
+  ]);
+  if (String(safeAudioMetadata[0].generation) !== audioAsset.safeAudioGeneration ||
+      safeAudioMetadata[0].contentType !== "audio/mpeg" ||
+      String(safeVideoMetadata[0].generation) !== videoAsset.safeVideoGeneration ||
+      safeVideoMetadata[0].contentType !== "video/mp4") {
+    throw new HttpsError("failed-precondition", "النسخ الآمنة الناتجة عن الفحص غير متاحة أو تغيرت.");
+  }
   const audioFile = mediaBucket().file(expectedAudioOriginal);
   const videoFile = mediaBucket().file(expectedVideoOriginal);
   let audio: Buffer, video: Buffer;
