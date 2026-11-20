@@ -4,6 +4,7 @@ const { createHash } = require("node:crypto");
 const { getFirestore } = require("firebase-admin/firestore");
 const {
   setOwnerAdvertisingRoleGrant,
+  getOwnerAdvertisingRoleGrants,
   getOwnerSpecializedRoleCapacity,
   setOwnerSpecializedRoleCapacity,
 } = require("../../lib/index");
@@ -278,5 +279,47 @@ test("suspended and revoked specialist grants do not consume active seats", asyn
     await Promise.all(ids.map((id) =>
       db.collection("specializedRoleGrants").doc(id).delete().catch(() => undefined)));
     await db.collection("specializedRoleSeatCounters").doc(role).delete().catch(() => undefined);
+  }
+});
+
+
+test("active specialist grants never authorize sovereign role administration callables", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const uid = "delegated_admin_denied_" + Date.now().toString(36) +
+    Math.random().toString(36).slice(2, 8);
+  const role = "ad_general_supervisor";
+  const id = grantId(uid, role);
+  const grantRef = db.collection("specializedRoleGrants").doc(id);
+  await grantRef.set(grant(uid, role));
+  const delegatedRequest = {
+    data: { expectedVersion: 0, capacity: 6 },
+    auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+  };
+  try {
+    await assert.rejects(
+      () => getOwnerAdvertisingRoleGrants.run(delegatedRequest),
+      (error) => error && error.code === "permission-denied",
+      "a valid advertising permission grant cannot list or administer grants",
+    );
+    await assert.rejects(
+      () => getOwnerSpecializedRoleCapacity.run(delegatedRequest),
+      (error) => error && error.code === "permission-denied",
+      "a valid advertising permission grant cannot inspect sovereign role capacity",
+    );
+    await assert.rejects(
+      () => setOwnerSpecializedRoleCapacity.run(delegatedRequest),
+      (error) => error && error.code === "permission-denied",
+      "a valid advertising permission grant cannot change sovereign role capacity",
+    );
+    await assert.rejects(
+      () => setOwnerAdvertisingRoleGrant.run({
+        ...delegatedRequest,
+        data: { expectedVersion: 0, grant: { ...grant(uid, role), version: undefined } },
+      }),
+      (error) => error && error.code === "permission-denied",
+      "a specialist cannot create or modify another specialist grant",
+    );
+  } finally {
+    await grantRef.delete().catch(() => undefined);
   }
 });
