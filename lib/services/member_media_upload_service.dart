@@ -109,6 +109,12 @@ class MemberMediaUploadService {
     await _functions.httpsCallable('submitBiometricVerificationRequest').call({'requestId': requestId});
   }
 
+
+  Future<Map<String, dynamic>> getMyBiometricVerificationStatus() async {
+    final response = await _functions.httpsCallable('getMyBiometricVerificationStatus').call();
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   Future<List<Map<String, dynamic>>> listOwnerBiometricVerificationRequests() async {
     final response = await _functions.httpsCallable('listOwnerBiometricVerificationRequests').call();
     final data = Map<String, dynamic>.from(response.data as Map);
