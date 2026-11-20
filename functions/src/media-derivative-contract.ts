@@ -46,9 +46,9 @@ export function safeDerivativePurposeAllowed(
   purpose: string,
   uploaderRole: string,
 ): boolean {
-  if (category === "audio") return purpose === "chat" || purpose === "room";
+  if (category === "audio") return purpose === "chat" || purpose === "room" || purpose === "biometric";
   if (category === "video") {
-    return purpose === "chat" || purpose === "room" ||
+    return purpose === "chat" || purpose === "room" || purpose === "biometric" ||
       (purpose === "advertisement" && uploaderRole === "platform_owner");
   }
   if (category === "document") {
