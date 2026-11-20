@@ -105,7 +105,7 @@ The following decisions are binding and are also specified in [the Master Develo
 - The one-week / 200-coin Media Saver value is a provisional test baseline only, not a production price.
 - A free administrative grant is not a purchase and must not debit the recipient.
 - Existing price changes do not rewrite historic receipts or entitlements.
-- The 1,500-coin biometric reward remains disabled until cryptographic server proof and all existing security gates are satisfied.
+- The 1,500 BetaCoins biometric reward is governed by the final human-review policy: the Super Owner's personal review and explicit approval of the submitted evidence are sufficient; no Play Integrity, App Attest, device attestation, cryptographic device proof, or automated biometric score is a prerequisite. The reward is issued only after that approval, once per eligible verification cycle, through the central server-authoritative economy ledger. The feature remains fail-closed until the complete secure workflow and tests are implemented.
 - These decisions do not authorize merge to main, production deployment, paid infrastructure or real-money payment activation.
 
 
@@ -429,3 +429,11 @@ The owner has explicitly clarified the following binding implementation requirem
 - على SHA `3d4c3d7d0c2a239fa9fab47e8aadee26f349f154` نجح Validate Mawda run `44795349191` وMawdda domain regression run `44795349255`. هذا دليل exact-head لذلك SHA، لا شهادة اكتمال كل المنصة.
 - لا دمج إلى `main` أو نشر أو تعديل Firebase الإنتاجي أو تفعيل فوترة. لا حذف فروع أو force-push.
 - **الحالة العامة:** المصالحة الشاملة مستمرة وغير مكتملة؛ مرجع التنفيذ الوحيد يبقى `codex/mawda-full-platform-implementation`. التفاصيل وقوائم الفروع والموانع في القسم 12 من `MAWADDA_SINGLE_DEVELOPMENT_BRANCH_POLICY_2026-11-20.md`.
+
+
+### BIO-002 — Owner reaffirmation and supersession of biometric proof conflicts (2026-11-20)
+- **Direct owner decision, reaffirmed in this conversation:** Super Owner's personal review of the submitted evidence and explicit approval alone are sufficient to accept biometric verification. No independent cryptographic device proof, Play Integrity, App Attest, provider/device attestation, automated face/voice matching score, or automated classification is required as a condition of approval.
+- **Reward:** immediately after the Super Owner approves the member's verification request, grant the member **1,500 BetaCoins** through the central economy ledger. Grant once for the accepted verification cycle; renewal follows the approved one-calendar-month biometric cycle, independently of the 90-day email-verification cycle.
+- **Authority and integrity controls remain mandatory:** only the canonical Super Owner may decide, enforced server-side with owner identity/claim and MFA/session checks; the evidence and decision must be private, versioned and audited; approval/status/reward must commit atomically; idempotency must prevent replay/double credit; retries, expiry, revocation and deletion must follow the final owner policy.
+- **Supersession:** this decision overrides every older clause in this repository or source branch that conditions biometric approval, verified status, entitlements, or the 1,500 BetaCoins reward on cryptographic device proof, Play Integrity, App Attest, provider attestation, or automated biometric scoring. Local device authentication may remain an optional local sign-in convenience only; it is not the biometric-verification approval criterion.
+- **Implementation status is separate:** this is an approved policy, not a claim that the complete submission/review/reward/renewal lifecycle is implemented or enabled. Keep it fail-closed until server authorization, private evidence handling, audit, atomic ledger grant, idempotency and the required tests pass.
