@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
+import { addCalendarMonthsUtc, isCalendarMonthCycleDue } from "./verification-calendar";
 
-export const EMAIL_VERIFICATION_CYCLE_DAYS = 90;
+export const EMAIL_VERIFICATION_CYCLE_MONTHS = 3;
 export const EMAIL_VERIFICATION_REWARD_COINS = 500;
-export const EMAIL_VERIFICATION_CYCLE_MS = EMAIL_VERIFICATION_CYCLE_DAYS * 24 * 60 * 60 * 1000;
 
 export type EmailVerificationCycleStatus = "pending" | "rewarded" | "expired" | "revoked";
 
@@ -38,7 +38,7 @@ export function createEmailVerificationCycle(input: {
   return {
     cycleId, uid, email, sequence: input.sequence, status: "pending",
     startedAtMs: input.serverNowMs,
-    expiresAtMs: input.serverNowMs + EMAIL_VERIFICATION_CYCLE_MS,
+    expiresAtMs: addCalendarMonthsUtc(input.serverNowMs, EMAIL_VERIFICATION_CYCLE_MONTHS),
   };
 }
 
@@ -47,7 +47,7 @@ export function isEmailVerificationCycleDue(lastVerifiedAtMs: number, serverNowM
       !Number.isSafeInteger(serverNowMs) || serverNowMs < 0) {
     throw new Error("INVALID_VERIFICATION_CLOCK");
   }
-  return serverNowMs >= lastVerifiedAtMs + EMAIL_VERIFICATION_CYCLE_MS;
+  return isCalendarMonthCycleDue(lastVerifiedAtMs, serverNowMs, EMAIL_VERIFICATION_CYCLE_MONTHS);
 }
 
 /** Confirmation requires the same normalized address and a live, unused cycle. */

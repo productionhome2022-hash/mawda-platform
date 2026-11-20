@@ -256,3 +256,22 @@ For unified HEAD `d18b1c234a2b72413ba9814382c7ce7b996c6416`, the following runs 
 - Its implementation hardcodes the entitlement document ID `media_saver_7d`. The binding constitution instead defines one Media Saver product with owner-configurable 24-hour / one-week / one-month durations and explicitly says the initial one-week / 200-coin value is test-only. The unified catalog currently has no Media Saver SKU.
 - Therefore the feature is **not ported yet**: the backend consumer must be connected to the central owner-configurable catalog/entitlement schema and support all owner-enabled duration variants, not introduce a fixed one-week product ID or price. The underlying secure delivery logic is already present in unified; a separate callable can be added once the canonical product/entitlement identity is established.
 - The source branch also adds entitlement-required direct-call tests, but the unified `startCall` implementation does not currently enforce the relevant call entitlements. Those tests cannot be copied alone; implement the approved call entitlement and asymmetry matrix first.
+
+
+## Verification-cycle isolation implementation update — 2026-11-20
+
+Owner-approved policy: email verification and biometric verification are independent tracks. Neither track gates, completes, renews, extends, expires, resets, approves, rejects, delays or reschedules the other.
+
+Implemented in this candidate branch:
+- Added UTC calendar-month arithmetic with month-end clamping.
+- Email verification cycle duration is now three calendar months from the last successful email verification timestamp; the previous fixed 90-day approximation is removed from the cycle helper.
+- Biometric one-calendar-month and email three-calendar-month due-date primitives are separately exposed and covered by focused unit tests.
+- Email renewal eligibility now compares the persisted cycle expiry timestamp directly, rather than reconstructing the original timestamp by subtracting a fixed 90-day duration.
+- Updated the email renewal unit/emulator fixture and GitHub Actions step labels to reflect calendar-month semantics.
+
+Not yet implemented / blocking full acceptance:
+- The existing biometric callable remains fail-closed and does not implement Super Owner manual submission/review/accept/reject.
+- The existing biometric gate still requires device attestation proof and therefore conflicts with the newly approved manual-review policy. It must not be relaxed to a client-writable flag; replace it only with a server-authoritative Super Owner decision record and tests.
+- No complete biometric request state machine, three-attempt/monthly retry enforcement, private evidence workflow, Super Owner-only media authorization, decision-triggered deletion lifecycle, or exactly-once 1,500 BetaCoins award is implemented by this change.
+- No exact-head CI result is claimed here. The PR must pass Cloud Functions build/unit tests, email-renewal Emulator integration, biometric integration/security tests, Flutter analysis/tests, and the repository's required validation workflows before merge.
+- This candidate is scoped to the unified integration branch. The development branch remains 78 commits behind the unified branch at the recorded comparison point; do not cherry-pick this isolated helper change onto its older code line independently of the approved branch reconciliation plan.

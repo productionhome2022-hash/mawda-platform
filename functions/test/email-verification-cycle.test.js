@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
-  EMAIL_VERIFICATION_CYCLE_MS,
+  EMAIL_VERIFICATION_CYCLE_MONTHS,
   EMAIL_VERIFICATION_REWARD_COINS,
   createEmailVerificationCycle,
   isEmailVerificationCycleDue,
@@ -9,15 +9,16 @@ const {
   emailVerificationRewardLedgerId,
 } = require("../lib/email-verification-cycle");
 
-const NOW = 1_800_000_000_000;
+const NOW = Date.UTC(2026, 0, 31, 12, 0, 0);
 
-test("creates deterministic server-clocked 90-day cycle bound to normalized email", () => {
+test("creates deterministic server-clocked three-calendar-month cycle bound to normalized email", () => {
   const input = { uid: "member-1", email: " Member@Example.com ", sequence: 2, serverNowMs: NOW };
   const first = createEmailVerificationCycle(input);
   assert.deepEqual(first, createEmailVerificationCycle(input));
   assert.equal(first.email, "member@example.com");
   assert.equal(first.startedAtMs, NOW);
-  assert.equal(first.expiresAtMs, NOW + EMAIL_VERIFICATION_CYCLE_MS);
+  assert.equal(first.expiresAtMs, Date.UTC(2026, 3, 30, 12, 0, 0));
+  assert.equal(EMAIL_VERIFICATION_CYCLE_MONTHS, 3);
   assert.equal(first.status, "pending");
 });
 
@@ -30,9 +31,9 @@ test("rejects invalid identity, email, sequence and server clock", () => {
   ]) assert.throws(() => createEmailVerificationCycle(input));
 });
 
-test("renewal becomes due at exactly 90 days using server time", () => {
-  assert.equal(isEmailVerificationCycleDue(NOW, NOW + EMAIL_VERIFICATION_CYCLE_MS - 1), false);
-  assert.equal(isEmailVerificationCycleDue(NOW, NOW + EMAIL_VERIFICATION_CYCLE_MS), true);
+test("renewal becomes due at exactly three calendar months using server time", () => {
+  assert.equal(isEmailVerificationCycleDue(NOW, Date.UTC(2026, 3, 30, 11, 59, 59, 999)), false);
+  assert.equal(isEmailVerificationCycleDue(NOW, Date.UTC(2026, 3, 30, 12, 0, 0)), true);
 });
 
 test("reward requires pending cycle, verified Auth state, unchanged email and unexpired cycle", () => {

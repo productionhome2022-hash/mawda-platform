@@ -6,7 +6,7 @@ const {
   startEmailVerificationRenewal,
   completeEmailVerificationRenewal,
 } = require("../../lib/index");
-const { EMAIL_VERIFICATION_CYCLE_MS } = require("../../lib/email-verification-cycle");
+
 
 const db = getFirestore();
 const auth = getAuth();
@@ -16,14 +16,14 @@ const request = (uid) => ({
 });
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-test("fresh email link renewal credits 500 coins once and starts the next 90-day cycle", async () => {
+test("fresh email link renewal credits 500 coins once and starts the next three-calendar-month cycle", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   assert.ok(process.env.FIREBASE_AUTH_EMULATOR_HOST, "Auth emulator is required");
   const tag = suffix();
   const uid = `email_renewal_${tag}`;
   const email = `renewal_${tag}@example.test`;
   const userRef = db.collection("users").doc(uid);
-  const lastVerifiedAtMs = Date.now() - EMAIL_VERIFICATION_CYCLE_MS - 1000;
+  const lastVerifiedAtMs = Date.now() - 1000;
   const ledgerIdPrefix = "email_verification_";
   let cycleRef;
   let ledgerRef;
@@ -34,11 +34,11 @@ test("fresh email link renewal credits 500 coins once and starts the next 90-day
     uid,
     email,
     emailVerified: true,
-    emailVerifiedAt: Timestamp.fromMillis(lastVerifiedAtMs),
+    emailVerifiedAt: Timestamp.fromMillis(lastVerifiedAtMs - 3 * 31 * 24 * 60 * 60 * 1000),
     emailVerificationSequence: 1,
     emailVerificationCycleId: "initial-cycle",
-    emailVerificationCycleStartedAt: Timestamp.fromMillis(lastVerifiedAtMs),
-    emailVerificationCycleExpiresAt: Timestamp.fromMillis(lastVerifiedAtMs + EMAIL_VERIFICATION_CYCLE_MS),
+    emailVerificationCycleStartedAt: Timestamp.fromMillis(lastVerifiedAtMs - 3 * 31 * 24 * 60 * 60 * 1000),
+    emailVerificationCycleExpiresAt: Timestamp.fromMillis(lastVerifiedAtMs - 1),
     coins: 250,
     profileCompleted: true,
     accountStatus: "active",
