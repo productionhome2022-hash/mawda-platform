@@ -972,6 +972,97 @@ test("active legal hold blocks permanent media deletion", async () => {
 });
 
 
+test("malicious scanner callback rejects the asset, audits the verdict and deletes only the pinned quarantine generation", async () => {
+  const mediaId = randomUUID();
+  const ownerUid = `scanner-malicious-owner-${randomUUID()}`;
+  const objectPath = `quarantine/${ownerUid}/${mediaId}`;
+  const objectBytes = Buffer.from("isolated malicious scanner fixture");
+  const objectFile = getStorage().bucket().file(objectPath);
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const jobRef = db.collection("mediaScanJobs").doc(mediaId);
+
+  await objectFile.save(objectBytes, {
+    resumable: false,
+    metadata: { contentType: "image/png" },
+  });
+  const [metadata] = await objectFile.getMetadata();
+  const generation = String(metadata.generation);
+  const initial = {
+    mediaId, ownerUid, mediaPurpose: "chat",
+    status: "pending_security_scan",
+    storageGeneration: generation,
+    objectPath,
+    detectedContentType: "image/png",
+  };
+  await assetRef.set(initial);
+  await jobRef.set({ mediaId, ownerUid, objectPath, objectGeneration: generation, state: "dispatched" });
+
+  try {
+    const payload = {
+      mediaId,
+      purpose: "chat",
+      provider: testScannerProvider,
+      verdict: "malicious",
+      objectGeneration: generation,
+      sha256: createHash("sha256").update(objectBytes).digest("hex"),
+      scannedAtMs: Date.now(),
+      scanEngine: "ClamAV",
+      engineVersion: "1.4.6",
+      signatureDatabaseVersion: "28202",
+      signatureDatabaseAgeMs: 60 * 60 * 1000,
+    };
+    const rawBody = Buffer.from(JSON.stringify(payload));
+    const signature = createHmac("sha256", testScannerSecret).update(rawBody).digest("hex");
+    const request = {
+      method: "POST",
+      rawBody,
+      get: (name) => name.toLowerCase() === "x-mawadda-scanner-signature" ? signature : undefined,
+    };
+    const response = new EventEmitter();
+    Object.assign(response, {
+      statusCode: 200,
+      headers: {},
+      body: undefined,
+      status(code) { this.statusCode = code; return this; },
+      set(name, value) { this.headers[name.toLowerCase()] = value; return this; },
+      send(value) { this.body = value; this.emit("finish"); return this; },
+      json(value) { this.body = value; this.emit("finish"); return this; },
+    });
+
+    const handler = createMediaScanVerdictHandler(() => testScannerSecret, () => testScannerProvider);
+    await handler(request, response);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.status, "rejected");
+    const rejected = await assetRef.get();
+    assert.equal(rejected.data().status, "rejected");
+    assert.equal(rejected.data().rejectionCode, "MALWARE_DETECTED");
+    assert.equal(rejected.data().scannerVerdict, "malicious");
+    assert.equal(rejected.data().scannerObjectGeneration, generation);
+
+    const job = await jobRef.get();
+    assert.equal(job.data().state, "rejected");
+    assert.equal(job.data().verdict, "malicious");
+
+    const audit = await db.collection("mediaAccessAudit").where("mediaId", "==", mediaId).get();
+    assert.ok(audit.docs.some((doc) =>
+      doc.data().action === "media_security_scan_verdict" &&
+      doc.data().outcome === "malicious" &&
+      doc.data().objectGeneration === generation));
+
+    const [objectExists] = await objectFile.exists();
+    assert.equal(objectExists, false, "only the exact scanned quarantine generation should be deleted");
+  } finally {
+    await Promise.all([
+      assetRef.delete().catch(() => undefined),
+      jobRef.delete().catch(() => undefined),
+      objectFile.delete().catch(() => undefined),
+    ]);
+    const audit = await db.collection("mediaAccessAudit").where("mediaId", "==", mediaId).get();
+    await Promise.all(audit.docs.map((doc) => doc.ref.delete().catch(() => undefined)));
+  }
+});
+
 test("scanner error callback returns retryable 503 without changing quarantined asset", async () => {
   const mediaId = randomUUID();
   const assetRef = db.collection("mediaAssets").doc(mediaId);
