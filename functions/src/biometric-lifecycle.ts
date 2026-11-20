@@ -600,6 +600,7 @@ export const decideBiometricVerificationRequest = onCall(async request => {
       identityMatches = false;
     }
     if ((decision === "accepted" && !identityMatches) ||
+        data.consentAccepted !== true || data.consentVersion !== BIOMETRIC_CONSENT_VERSION ||
         data.evidenceValidatedByServer !== true ||
         typeof data.audioSha256 !== "string" || typeof data.videoSha256 !== "string") {
       throw new HttpsError("failed-precondition", "لا يمكن قبول الطلب لأن بيانات الهوية أو الأدلة غير مكتملة أو تغيرت؛ يمكن للمالك رفضه.");
