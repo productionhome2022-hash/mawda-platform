@@ -879,6 +879,28 @@ test("safe image can be linked to a room message; non-members cannot retrieve it
     (error) => error && error.code === "permission-denied",
   );
 
+  // A still-present membership record must not outlive an account suspension.
+  await db.collection("users").doc(senderUid).update({ accountStatus: "suspended" });
+  await assert.rejects(
+    () => getChatImageAttachmentUrl.run({
+      data: { scope: "room", roomId, messageId, mediaId },
+      auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+    }),
+    (error) => error && error.code === "permission-denied",
+  );
+  await db.collection("users").doc(senderUid).update({ accountStatus: "active" });
+
+  // A closed room cannot issue new media URLs, even while its membership record remains.
+  await db.collection("rooms").doc(roomId).update({ status: "closed" });
+  await assert.rejects(
+    () => getChatImageAttachmentUrl.run({
+      data: { scope: "room", roomId, messageId, mediaId },
+      auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+    }),
+    (error) => error && error.code === "permission-denied",
+  );
+  await db.collection("rooms").doc(roomId).update({ status: "active" });
+
   // Revocation by removing the authoritative membership record must take
   // effect for subsequent URL issuance, even when the message remains stored.
   await db.collection("rooms").doc(roomId).collection("members").doc(senderUid).delete();
