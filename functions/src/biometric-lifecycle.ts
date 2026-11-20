@@ -203,14 +203,29 @@ export const startBiometricVerificationRequest = onCall(async (request) => {
     let attempt = 1;
     const previousId = user.biometricVerificationLastRequestId;
     if (typeof previousId === "string") {
-      const previousSnapshot = await transaction.get(requests().doc(previousId));
+      const previousRef = requests().doc(previousId);
+      const previousSnapshot = await transaction.get(previousRef);
       if (!previousSnapshot.exists) throw new HttpsError("failed-precondition", "سجل محاولة التوثيق السابقة غير موجود.");
       const previous = previousSnapshot.data() ?? {};
+      if (previous.status === "uploading") {
+        const previousCreatedAtMs = previous.createdAt instanceof Timestamp ? previous.createdAt.toMillis() : 0;
+        if (!previous.audioMediaId && !previous.videoMediaId &&
+            previousCreatedAtMs > 0 && nowMs - previousCreatedAtMs >= BIOMETRIC_EVIDENCE_UPLOAD_TTL_MS) {
+          transaction.update(previousRef, {
+            status: "upload_rejected", uploadFailureCode: "NO_BIOMETRIC_MEDIA_UPLOAD_INTENT",
+            evidenceDeletionStatus: "deleted", updatedAt: FieldValue.serverTimestamp(),
+          });
+          previous.status = "upload_rejected";
+          previous.evidenceDeletionStatus = "deleted";
+        } else {
+          throw new HttpsError("failed-precondition", "يوجد طلب توثيق مفتوح بالفعل.");
+        }
+      }
       if (["accepted", "rejected", "upload_rejected"].includes(String(previous.status)) &&
           previous.evidenceDeletionStatus !== "deleted") {
         throw new HttpsError("failed-precondition", "لا يمكن بدء دورة جديدة قبل اكتمال حذف أدلة الطلب السابق.");
       }
-      if (previous.status === "uploading" || previous.status === "pending") {
+      if (previous.status === "pending") {
         throw new HttpsError("failed-precondition", "يوجد طلب توثيق مفتوح بالفعل.");
       }
       if (previous.status === "closed" || previous.reviewState?.status === "closed") {
