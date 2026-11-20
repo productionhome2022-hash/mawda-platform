@@ -20,7 +20,7 @@ const acceptedReview = (uid) => ({
 
 test("only an accepted Super Owner manual review for the same account is eligible", () => {
   assert.equal(hasActiveBiometricVerification(acceptedReview("member_uid_0001"), "member_uid_0001", NOW), true);
-  assert.equal(hasActiveBiometricVerification(acceptedReview("other_member_0001"), "member_uid_0001", NOW), true);
+  assert.equal(hasActiveBiometricVerification(acceptedReview("other_member_0001"), "member_uid_0001", NOW), false);
 });
 
 test("legacy flags and provider-attestation-only records do not qualify as manual review", () => {
