@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { creditMemberWalletInTransaction } from "./wallet-ledger";
 import { FieldValue, Timestamp, getFirestore, type DocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { mediaBucket } from "./media";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
@@ -619,30 +620,33 @@ export const decideBiometricVerificationRequest = onCall(async request => {
     } catch { throw new HttpsError("failed-precondition", "انتقال حالة التوثيق غير صالح أو سبق اتخاذ القرار."); }
     if (decision === "accepted") {
       if (ledger.exists) throw new HttpsError("already-exists", "مكافأة هذا الطلب مسجلة مسبقاً.");
-      if (!Number.isSafeInteger(user.coins) || (user.coins as number) < 0) {
-        throw new HttpsError("failed-precondition", "رصيد المحفظة غير صالح؛ أوقفنا منح المكافأة حتى إصلاح سجل الاقتصاد.");
+      try {
+        creditMemberWalletInTransaction({
+          transaction, userRef, ledgerRef, userSnapshot: member, ledgerSnapshot: ledger,
+          amount: BIOMETRIC_REWARD_COINS, type: "biometric_verification_reward",
+          reason: "accepted_biometric_verification", requestId, createdAt: acceptedAt,
+          userUpdates: {
+            biometricVerification: {
+              accountUid: memberUid, status: "verified", revokedAt: null,
+              verificationMethod: "super_owner_manual_review",
+              trustModel: "server_authoritative_owner_decision",
+              reviewerRole: "super_owner", reviewerMfaVerified: true,
+              decision: "accepted", reviewerUid, reviewerMfaAt: Timestamp.fromMillis(mfaAt),
+              reviewRequestId: requestId, acceptedAt, expiresAt,
+            },
+            biometricVerificationAcceptedAt: acceptedAt, biometricVerificationExpiresAt: expiresAt,
+            biometricVerificationPermanentlyClosed: false, updatedAt: FieldValue.serverTimestamp(),
+          },
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message === "WALLET_CREDIT_BALANCE_INVALID") {
+          throw new HttpsError("failed-precondition", "رصيد المحفظة غير صالح؛ أوقفنا منح المكافأة حتى إصلاح سجل الاقتصاد.");
+        }
+        if (error instanceof Error && error.message === "WALLET_CREDIT_AMOUNT_OUT_OF_RANGE") {
+          throw new HttpsError("out-of-range", "رصيد الكوينز تجاوز الحد الرقمي الآمن.");
+        }
+        throw error;
       }
-      const balance = user.coins as number;
-      const newBalance = balance + BIOMETRIC_REWARD_COINS;
-      if (!Number.isSafeInteger(newBalance)) throw new HttpsError("out-of-range", "رصيد الكوينز تجاوز الحد الرقمي الآمن.");
-      transaction.update(userRef, {
-        coins: newBalance,
-        biometricVerification: {
-          accountUid: memberUid, status: "verified", revokedAt: null,
-          verificationMethod: "super_owner_manual_review",
-          trustModel: "server_authoritative_owner_decision",
-          reviewerRole: "super_owner", reviewerMfaVerified: true,
-          decision: "accepted", reviewerUid, reviewerMfaAt: Timestamp.fromMillis(mfaAt),
-          reviewRequestId: requestId, acceptedAt, expiresAt,
-        },
-        biometricVerificationAcceptedAt: acceptedAt, biometricVerificationExpiresAt: expiresAt,
-        biometricVerificationPermanentlyClosed: false, updatedAt: FieldValue.serverTimestamp(),
-      });
-      transaction.create(ledgerRef, {
-        type: "biometric_verification_reward", direction: "credit",
-        amount: BIOMETRIC_REWARD_COINS, reason: "accepted_biometric_verification",
-        requestId, idempotencyKey: requestId, balanceBefore: balance, balanceAfter: newBalance, createdAt: acceptedAt,
-      });
       transaction.create(db().collection("verificationAuditLogs").doc("biometric_reward_" + requestId), {
         actorUid: reviewerUid, uid: memberUid, requestId,
         action: "biometric_verification_rewarded", rewardCoins: BIOMETRIC_REWARD_COINS,
