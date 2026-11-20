@@ -92,3 +92,18 @@ export function areDirectCallParticipantsEligible(
   }
   return true;
 }
+
+
+/**
+ * Audio group calls follow the room's own configured capacity. Video group
+ * calls are additionally capped at four participants total, including the
+ * initiator, as required by the approved product boundary.
+ */
+export function roomCallParticipantLimit(mode: unknown, roomCapacity: unknown): number | null {
+  if ((mode !== "audio" && mode !== "video") ||
+      !Number.isSafeInteger(roomCapacity) ||
+      (roomCapacity as number) < 5 || (roomCapacity as number) > 1000) {
+    return null;
+  }
+  return mode === "video" ? Math.min(roomCapacity as number, 4) : roomCapacity as number;
+}
