@@ -306,13 +306,13 @@ export const submitBiometricVerificationRequest = onCall(async (request) => {
       audioAsset.mediaCategory !== "audio" || audioAsset.declaredContentType !== "audio/mp4" ||
       audioAsset.detectedContentType !== "audio/mp4" || audioAsset.safeAudioPath !== expectedAudioSafe ||
       audioAsset.safeAudioContentType !== "audio/mpeg" ||
-      typeof audioAsset.safeAudioGeneration !== "string" || !/^\\d+$/.test(audioAsset.safeAudioGeneration) ||
+      typeof audioAsset.safeAudioGeneration !== "string" || !/^\d+$/.test(audioAsset.safeAudioGeneration) ||
       typeof audioAsset.safeAudioSha256 !== "string" || !/^[a-f0-9]{64}$/.test(audioAsset.safeAudioSha256) ||
       audioAsset.processingStatus !== "safe_audio_derivative_ready" ||
       videoAsset.mediaCategory !== "video" || videoAsset.declaredContentType !== "video/mp4" ||
       videoAsset.detectedContentType !== "video/mp4" || videoAsset.safeVideoPath !== expectedVideoSafe ||
       videoAsset.safeVideoContentType !== "video/mp4" ||
-      typeof videoAsset.safeVideoGeneration !== "string" || !/^\\d+$/.test(videoAsset.safeVideoGeneration) ||
+      typeof videoAsset.safeVideoGeneration !== "string" || !/^\d+$/.test(videoAsset.safeVideoGeneration) ||
       typeof videoAsset.safeVideoSha256 !== "string" || !/^[a-f0-9]{64}$/.test(videoAsset.safeVideoSha256) ||
       videoAsset.processingStatus !== "safe_video_derivative_ready") {
     throw new HttpsError("failed-precondition", "يجب أن يجتاز الصوت والفيديو فحص ClamAV وإنشاء النسخ الآمنة قبل الإرسال.");
