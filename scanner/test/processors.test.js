@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { LIMITS, audioDurationLimitForPurpose, safeOutputPath } = require("../processors");
+const { LIMITS, audioDurationLimitForPurpose, videoDurationAllowedForPurpose, safeOutputPath } = require("../processors");
 
 test("media processors enforce bounded complexity, duration, page and output budgets", () => {
   assert.equal(LIMITS.gif.maxFrames, 50);
@@ -35,4 +35,13 @@ test("derivative object paths are canonical and cannot escape the owner's media 
   ]) {
     assert.throws(() => safeOutputPath(...args), /INVALID_DERIVATIVE_PATH/);
   }
+});
+
+test("biometric video duration is inclusive from three to five seconds", () => {
+  assert.equal(videoDurationAllowedForPurpose("biometric", 3), true);
+  assert.equal(videoDurationAllowedForPurpose("biometric", 5), true);
+  assert.equal(videoDurationAllowedForPurpose("biometric", 2.999), false);
+  assert.equal(videoDurationAllowedForPurpose("biometric", 5.001), false);
+  assert.equal(videoDurationAllowedForPurpose("chat", 90), true);
+  assert.equal(videoDurationAllowedForPurpose("chat", 90.001), false);
 });
