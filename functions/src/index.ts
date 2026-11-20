@@ -2180,7 +2180,7 @@ export const completeBiometricVerificationCycle = onCall(async (request) => {
 });
 
 /**
- * Starts a fresh 90-day email ownership challenge when the current cycle is due.
+ * Starts a fresh email ownership challenge after three calendar months from the last successful verification.
  * Firebase Auth is temporarily marked unverified so the member must redeem a
  * fresh provider-issued email action link before the renewal reward is credited.
  */
