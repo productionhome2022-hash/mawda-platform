@@ -642,3 +642,38 @@ These are file-level comparisons against the unified candidate, not wholesale br
 - Issue #49 remains open: the prior media hardening is not full lifecycle acceptance; scanner callback replay/generation permutations, complete download authorization, no-original-object exposure and robust deletion/retry evidence remain to be closed.
 - Issues #23 and #66 remain open: group and direct calling still lack complete owner-versioned entitlement/consent, authoritative billable-media metering and atomic wallet/ledger settlement. Do not activate paid calling.
 - PR #47 remains Draft; Step 1/14 remains OPEN. No merge to development or main, no production mutation, deployment, paid-resource activation, or live retention-policy change.
+
+
+## Media callback replay and current integration checkpoint — 2026-11-20
+
+- PR #68 adds an Emulator regression that replays the exact same signed malicious scanner verdict (same provider, media ID, object generation and SHA-256) and asserts `idempotentReplay === true`, with exactly one matching verdict audit record and deletion restricted to the pinned quarantine generation.
+- PR #68 exact head `87ff3963868a4431948274695c83dce255aaa350` passed Validate Mawda run `44713189054`: Cloud Functions 39/39, isolated ClamAV scanner 11/11, Flutter/web 16/16; all jobs successful.
+- PR #68 exact head passed Mawdda Domain Regression run `44713188733`: retention/room 17/17 and Flutter UI/widget 9/9; all jobs successful.
+- PR #68 was merged by squash into this unified integration branch only; merge commit and new branch head: `0d4ee49b66a9b7dde44299d8836db9d3448a2e56`.
+- New post-merge exact-head workflows are running and are not yet accepted: Validate PR `44724688812`, Domain Regression PR `44724688640`, Validate Push `44724679810`, Domain Regression Push `44724679857`. Do not substitute the pre-merge PR-head success for these post-merge runs.
+
+## Callable authorization and operation/resource inventory — 2026-11-20
+
+Source review on unified branch head `0d4ee49b66a9b7dde44299d8836db9d3448a2e56`:
+
+- `functions/src/index.ts` exports 146 `onCall` callables. A search of that file finds no invocation of `hasAdvertisingPermission`; the helper remains a pure evaluator and is not enforcement.
+- Existing Owner-only advertising operations include `setTimedAdCampaign`, `getOwnerTimedAdCampaigns`, `setTimedAdCampaignStatus` against `timedAdCampaigns` and `timedAdCampaignVersions`; creative media is checked through `mediaAssets`.
+- Advertising intake operations include member-facing `submitAdvertisingIntake`, Owner-only `listOwnerAdvertisingIntake` and `reviewOwnerAdvertisingIntake` against `advertisingIntakeRequests`, with idempotency and `adminAuditLogs`.
+- Production application operations include `submitProductionApplication`, Owner-only list/review callables against `productionApplications`, with idempotency and admin audit records.
+- Specialized grant management remains Owner-only and writes `specializedRoleGrants` plus versioned capacity/audit records. Grant `resourceScopes` are validated as opaque strings; source review did not establish a canonical assignment/ownership lookup that safely derives campaign or production-resource scope for a delegated actor.
+- Contract draft/transition/company-signing operations remain Owner-only. Contract transition also verifies `ownerUid === actorUid`; counterparty signing is bound to exact verified counterparty UID/email and immutable content hash/version.
+- Decision: do not wire generic delegated access to these operations yet. The operation-to-permission matrix and canonical resource scope derivation are not owner-approved or fully represented in authoritative records. Keep delegated access fail-closed; do not infer scopes from request payloads or reuse Owner-only operations for staff.
+
+## Direct-call issue #66 clarification — 2026-11-20
+
+- Repository lookup confirms #66 is an open P0 **issue**, not a pull request; there is no PR #66 to close.
+- The issue remains open because paid entitlement, party-specific financial consent, trustworthy media-connected duration metering, Owner-versioned prices/limits, and atomic wallet/ledger settlement are not implemented. Owner decisions listed in issue #66 remain unresolved.
+- Do not close issue #66 or activate paid calling based on CI success. Issue #23 remains open for group-call join/approval, entitlements, media topology, per-member metering and settlement.
+
+## PR #47 readiness re-evaluation — 2026-11-20
+
+- PR #47 remains Draft/open and targets only `codex/mawda-full-platform-implementation`; its current head is `0d4ee49b66a9b7dde44299d8836db9d3448a2e56`.
+- Compare against official development: **67 commits ahead, 0 behind**.
+- The media callback replay regression is now merged into the candidate, but the post-merge exact-head workflows are still running.
+- PR #47 is **not ready to merge**: P0 delegated callable authorization/resource mapping (#48), full media delivery lifecycle acceptance (#49), direct paid-call economy (#66), group-call lifecycle (#23), remaining branch reconciliation (#52), repository branch governance (#51), current-SHA 5,000-persona simulation, and owner acceptance remain open.
+- Step 1/14 remains OPEN. No development merge, main merge, deployment, production Firebase mutation, billing/paid resource activation, live retention-policy change or signing identity change was performed.
