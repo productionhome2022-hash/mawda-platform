@@ -172,13 +172,13 @@ jobs:
       - name: Run FCM token registration and deactivation integration tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:push-token-integration
-      - name: Run 30-day biometric reward cycle integration tests
+      - name: Run biometric verification integration security tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:biometric-integration
       - name: Run attendance and timed-ad reward integration tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:engagement-rewards-integration
-      - name: Run 90-day email verification renewal and reward integration tests
+      - name: Run three-calendar-month email verification renewal and reward integration tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:email-renewal-integration
       - name: Run safety report and appeal lifecycle integration tests
