@@ -249,3 +249,10 @@ For unified HEAD `d18b1c234a2b72413ba9814382c7ce7b996c6416`, the following runs 
 4. #23: implement join-request/creator-approval/entitlement/financial-consent/connected-media metering/atomic settlement and participant media topology.
 5. #66: resolve the four listed Owner pricing/settlement decisions before paid billing implementation.
 6. Do not merge PR #73 until exact-head GitHub Actions and review are complete. No main merge, deployment, production Firebase change, billing or simulation.
+
+
+### Media Saver selective-port decision
+- The `codex/featured-ads-serving-foundation` branch adds a server-side `getMediaSaverAttachmentUrl` capability that checks an entitlement on every save and reuses the safe-derivative delivery path. This matches the approved principle that every save needs a backend entitlement check and must not extend server retention.
+- Its implementation hardcodes the entitlement document ID `media_saver_7d`. The binding constitution instead defines one Media Saver product with owner-configurable 24-hour / one-week / one-month durations and explicitly says the initial one-week / 200-coin value is test-only. The unified catalog currently has no Media Saver SKU.
+- Therefore the feature is **not ported yet**: the backend consumer must be connected to the central owner-configurable catalog/entitlement schema and support all owner-enabled duration variants, not introduce a fixed one-week product ID or price. The underlying secure delivery logic is already present in unified; a separate callable can be added once the canonical product/entitlement identity is established.
+- The source branch also adds entitlement-required direct-call tests, but the unified `startCall` implementation does not currently enforce the relevant call entitlements. Those tests cannot be copied alone; implement the approved call entitlement and asymmetry matrix first.
