@@ -453,13 +453,18 @@ export const cleanupExpiredBiometricUploads = onSchedule("every 15 minutes", asy
     const createdAtMs = data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : 0;
     if (createdAtMs > cutoffMs) continue;
     const prefix = "biometric-evidence/" + data.uid + "/" + doc.id + "/";
+    let deletionFailed = false;
     for (const path of [data.audioPath, data.videoPath]) {
       if (typeof path === "string" && path.startsWith(prefix)) {
-        await getStorage().bucket().file(path).delete({ ignoreNotFound: true }).catch(error => {
-          logger.warn("Expired biometric upload object cleanup failed", { requestId: doc.id, error });
-        });
+        try {
+          await getStorage().bucket().file(path).delete({ ignoreNotFound: true });
+        } catch (error) {
+          deletionFailed = true;
+          logger.warn("Expired biometric upload object cleanup failed; retrying next sweep", { requestId: doc.id, error });
+        }
       }
     }
+    if (deletionFailed) continue;
     await doc.ref.update({
       status: "upload_rejected", uploadFailureCode: "UPLOAD_URL_EXPIRED",
       evidenceDeletionStatus: "deleted",
