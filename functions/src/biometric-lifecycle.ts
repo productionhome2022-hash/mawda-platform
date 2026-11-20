@@ -19,6 +19,7 @@ import {
   biometricRewardLedgerId,
 } from "./biometric-evidence";
 
+const BIOMETRIC_CONSENT_VERSION = "2026-11-20-owner-review-v1";
 const db = () => getFirestore();
 const requests = () => db().collection("biometricVerificationRequests");
 const auditHead = () => db().collection("adminAuditChainHeads").doc("ownerReview");
