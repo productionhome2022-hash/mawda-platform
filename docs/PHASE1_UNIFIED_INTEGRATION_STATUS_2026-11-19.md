@@ -458,3 +458,14 @@ All runs below used `6c8b963576fd98055328a68297e873509c9d2cb5` and completed suc
 - Issue #52 remains open: candidate-only biometric/sticker policy modules remain blocked where they encode unapproved reward/limit policy; matching call-usage/group-call modules are already integrated and were not copied again.
 - Step 1/14 remains **OPEN**. CI is green on this exact SHA, but Phase 1 source reconciliation and all acceptance gates are not complete.
 - No merge to `main`, deployment, production Firebase mutation, billing/Blaze activation, live retention-policy change, iOS identity change, or production data operation was performed.
+
+
+## Scanner callback malicious-verdict regression — 2026-11-20
+
+- PR #57 branch: `codex/phase1-scanner-error-callback-test-2026-11-20`.
+- Tested source SHA: `2a87609c4356e92217f6f351983e27f1e53b6550`.
+- Added an Emulator integration test that writes an isolated quarantine object, signs a valid `malicious` scanner callback using test-only HMAC configuration, and verifies the asset becomes `rejected` with `MALWARE_DETECTED`, the scan job becomes `rejected`, the audit event records the malicious verdict and exact generation, and the exact generation-pinned quarantine object is deleted.
+- The existing scanner `error` test verifies HTTP 503 and an unchanged quarantined asset.
+- Exact-head Validate Mawda run `44687596374`: **completed / success**. Cloud Functions compile/unit/integration job passed (37 steps), Flutter analysis/tests/web builds passed (16 steps), and isolated ClamAV scanner/security/sanitization/EICAR job passed (11 steps).
+- This is Emulator/CI evidence only. The PR remains Draft/open/unmerged; no live scanner, production bucket, production Firebase, deployment, or retention policy was changed.
+- Issue #49 remains open for additional deletion-race/concurrency acceptance and remaining media lifecycle verification.
