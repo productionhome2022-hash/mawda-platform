@@ -394,12 +394,31 @@ export const getOwnerBiometricEvidencePlayback = onCall(async request => {
   if (!/^[A-Za-z0-9_-]{16,128}$/.test(requestId)) throw new HttpsError("invalid-argument", "معرف طلب التوثيق غير صالح.");
   const snapshot = await requests().doc(requestId).get();
   const value = snapshot.data() ?? {};
-  if (!snapshot.exists || value.status !== "pending" || typeof value.audioPath !== "string" || typeof value.videoPath !== "string") {
+  const audioMediaId = typeof value.audioMediaId === "string" ? value.audioMediaId : "";
+  const videoMediaId = typeof value.videoMediaId === "string" ? value.videoMediaId : "";
+  if (!snapshot.exists || value.status !== "pending" ||
+      !/^[0-9a-f-]{36}$/i.test(audioMediaId) || !/^[0-9a-f-]{36}$/i.test(videoMediaId)) {
     throw new HttpsError("not-found", "أدلة الطلب غير متاحة للمراجعة.");
   }
+  const [audioAssetSnapshot, videoAssetSnapshot] = await Promise.all([
+    db().collection("mediaAssets").doc(audioMediaId).get(),
+    db().collection("mediaAssets").doc(videoMediaId).get(),
+  ]);
+  const audioAsset = audioAssetSnapshot.data() ?? {};
+  const videoAsset = videoAssetSnapshot.data() ?? {};
+  const expectedAudio = "processed/" + value.uid + "/" + audioMediaId + "/audio.mp3";
+  const expectedVideo = "processed/" + value.uid + "/" + videoMediaId + "/video.mp4";
+  if (!audioAssetSnapshot.exists || !videoAssetSnapshot.exists ||
+      audioAsset.ownerUid !== value.uid || videoAsset.ownerUid !== value.uid ||
+      audioAsset.biometricRequestId !== requestId || videoAsset.biometricRequestId !== requestId ||
+      audioAsset.mediaPurpose !== "biometric" || videoAsset.mediaPurpose !== "biometric" ||
+      audioAsset.status !== "security_approved" || videoAsset.status !== "security_approved" ||
+      audioAsset.safeAudioPath !== expectedAudio || videoAsset.safeVideoPath !== expectedVideo) {
+    throw new HttpsError("failed-precondition", "النسخ الآمنة لم تعد متاحة أو تغير ارتباطها بالطلب.");
+  }
   const [audioUrl, videoUrl] = await Promise.all([
-    signedUrl(value.audioPath, "read", "audio/mp4", BIOMETRIC_EVIDENCE_REVIEW_TTL_MS),
-    signedUrl(value.videoPath, "read", "video/mp4", BIOMETRIC_EVIDENCE_REVIEW_TTL_MS),
+    signedUrl(expectedAudio, "read", "audio/mpeg", BIOMETRIC_EVIDENCE_REVIEW_TTL_MS),
+    signedUrl(expectedVideo, "read", "video/mp4", BIOMETRIC_EVIDENCE_REVIEW_TTL_MS),
   ]);
   await appendAudit({
     actorUid: ownerUid, action: "biometric_evidence_playback_issued",
