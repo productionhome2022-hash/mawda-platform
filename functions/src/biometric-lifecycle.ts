@@ -306,10 +306,14 @@ export const submitBiometricVerificationRequest = onCall(async (request) => {
       audioAsset.mediaCategory !== "audio" || audioAsset.declaredContentType !== "audio/mp4" ||
       audioAsset.detectedContentType !== "audio/mp4" || audioAsset.safeAudioPath !== expectedAudioSafe ||
       audioAsset.safeAudioContentType !== "audio/mpeg" ||
+      typeof audioAsset.safeAudioGeneration !== "string" || !/^\\d+$/.test(audioAsset.safeAudioGeneration) ||
+      typeof audioAsset.safeAudioSha256 !== "string" || !/^[a-f0-9]{64}$/.test(audioAsset.safeAudioSha256) ||
       audioAsset.processingStatus !== "safe_audio_derivative_ready" ||
       videoAsset.mediaCategory !== "video" || videoAsset.declaredContentType !== "video/mp4" ||
       videoAsset.detectedContentType !== "video/mp4" || videoAsset.safeVideoPath !== expectedVideoSafe ||
       videoAsset.safeVideoContentType !== "video/mp4" ||
+      typeof videoAsset.safeVideoGeneration !== "string" || !/^\\d+$/.test(videoAsset.safeVideoGeneration) ||
+      typeof videoAsset.safeVideoSha256 !== "string" || !/^[a-f0-9]{64}$/.test(videoAsset.safeVideoSha256) ||
       videoAsset.processingStatus !== "safe_video_derivative_ready") {
     throw new HttpsError("failed-precondition", "يجب أن يجتاز الصوت والفيديو فحص ClamAV وإنشاء النسخ الآمنة قبل الإرسال.");
   }
@@ -334,6 +338,10 @@ export const submitBiometricVerificationRequest = onCall(async (request) => {
     }
     assertBiometricAudioFileAllowed(audio);
     assertBiometricVideoFileAllowed(video);
+    if (createHash("sha256").update(audio).digest("hex") !== audioAsset.scannerSha256 ||
+        createHash("sha256").update(video).digest("hex") !== videoAsset.scannerSha256) {
+      throw new Error("BIOMETRIC_SCANNER_SOURCE_HASH_MISMATCH");
+    }
   } catch (error) {
     await ref.update({
       status: "upload_rejected",
@@ -413,7 +421,10 @@ export const getOwnerBiometricEvidencePlayback = onCall(async request => {
       audioAsset.biometricRequestId !== requestId || videoAsset.biometricRequestId !== requestId ||
       audioAsset.mediaPurpose !== "biometric" || videoAsset.mediaPurpose !== "biometric" ||
       audioAsset.status !== "security_approved" || videoAsset.status !== "security_approved" ||
-      audioAsset.safeAudioPath !== expectedAudio || videoAsset.safeVideoPath !== expectedVideo) {
+      audioAsset.safeAudioPath !== expectedAudio || videoAsset.safeVideoPath !== expectedVideo ||
+      audioAsset.safeAudioContentType !== "audio/mpeg" || videoAsset.safeVideoContentType !== "video/mp4" ||
+      typeof audioAsset.safeAudioSha256 !== "string" || !/^[a-f0-9]{64}$/.test(audioAsset.safeAudioSha256) ||
+      typeof videoAsset.safeVideoSha256 !== "string" || !/^[a-f0-9]{64}$/.test(videoAsset.safeVideoSha256)) {
     throw new HttpsError("failed-precondition", "النسخ الآمنة لم تعد متاحة أو تغير ارتباطها بالطلب.");
   }
   const [audioUrl, videoUrl] = await Promise.all([
