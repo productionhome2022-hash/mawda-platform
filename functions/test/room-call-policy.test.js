@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { isActiveRentedPrivateRoom, areRoomCallParticipantsMembers, areDirectCallParticipantsEligible } = require("../lib/room-call-policy");
+const { isActiveRentedPrivateRoom, areRoomCallParticipantsMembers, areDirectCallParticipantsEligible, roomCallParticipantLimit } = require("../lib/room-call-policy");
 
 function stamp(ms) { return { toMillis: () => ms }; }
 
@@ -90,4 +90,15 @@ test("direct-call relationship revalidation fails closed on missing snapshots an
   assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller", "peer"], null, peer), false);
   assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller", "peer"], caller, null), false);
   assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller", "peer"], [], peer), false);
+});
+
+
+test("group audio follows the configured room capacity while group video is capped at four", () => {
+  assert.equal(roomCallParticipantLimit("audio", 7), 7);
+  assert.equal(roomCallParticipantLimit("audio", 1000), 1000);
+  assert.equal(roomCallParticipantLimit("video", 5), 4);
+  assert.equal(roomCallParticipantLimit("video", 1000), 4);
+  assert.equal(roomCallParticipantLimit("video", 4), null);
+  assert.equal(roomCallParticipantLimit("audio", 1001), null);
+  assert.equal(roomCallParticipantLimit("unknown", 5), null);
 });

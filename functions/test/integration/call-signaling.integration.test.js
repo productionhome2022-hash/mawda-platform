@@ -444,3 +444,85 @@ test("server starts a non-resettable five-minute call ceiling only after both en
     ]);
   }
 });
+
+
+test("group audio follows room capacity and group video is capped at four total participants", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const fixtures = [];
+  async function seedRoom(prefix, count, capacity) {
+    const roomId = uid(prefix + "_room");
+    const callId = uid(prefix + "_session");
+    const ownerUid = uid(prefix + "_owner");
+    const memberUids = [ownerUid, ...Array.from({ length: count - 1 }, () => uid(prefix + "_member"))];
+    const rentalId = "rental_" + roomId;
+    const roomRef = db.collection("rooms").doc(roomId);
+    const rentalRef = db.collection("roomRentals").doc(rentalId);
+    const callRef = db.collection("callSessions").doc(callId);
+    const expiresAt = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
+    await Promise.all([
+      ...memberUids.map((memberUid) => db.collection("users").doc(memberUid).set({
+        profileCompleted: true, accountStatus: "active", age: 30,
+      })),
+      roomRef.set({
+        roomId, name: prefix, ownerUid, kind: "private", audience: "adult",
+        status: "active", capacity, memberCount: count, isRented: true,
+        rentalId, expiresAt,
+      }),
+      rentalRef.set({ rentalId, roomId, ownerUid, status: "active", expiresAt }),
+      ...memberUids.map((memberUid) =>
+        roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" })),
+    ]);
+    const fixture = { roomId, callId, ownerUid, memberUids, roomRef, rentalRef, callRef };
+    fixtures.push(fixture);
+    return fixture;
+  }
+
+  try {
+    for (const count of [2, 4, 7, 9]) {
+      const audio = await seedRoom("group_audio_" + count, count, Math.max(5, count));
+      const started = await startCall.run(call(audio.ownerUid, {
+        callId: audio.callId, scope: "room", targetId: audio.roomId, mode: "audio",
+      }));
+      assert.equal(started.participantUids.length, count,
+        "audio group size follows room capacity without an artificial fixed cap");
+    }
+
+    const audioOverCapacity = await seedRoom("group_audio_over_capacity", 8, 7);
+    await assert.rejects(
+      () => startCall.run(call(audioOverCapacity.ownerUid, {
+        callId: audioOverCapacity.callId, scope: "room", targetId: audioOverCapacity.roomId, mode: "audio",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "audio groups cannot exceed configured room capacity",
+    );
+    assert.equal((await audioOverCapacity.callRef.get()).exists, false);
+
+    const videoFour = await seedRoom("group_video_four", 4, 5);
+    const videoStarted = await startCall.run(call(videoFour.ownerUid, {
+      callId: videoFour.callId, scope: "room", targetId: videoFour.roomId, mode: "video",
+    }));
+    assert.equal(videoStarted.participantUids.length, 4);
+
+    const videoFive = await seedRoom("group_video_five", 5, 5);
+    await assert.rejects(
+      () => startCall.run(call(videoFive.ownerUid, {
+        callId: videoFive.callId, scope: "room", targetId: videoFive.roomId, mode: "video",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "video group calls reject the fifth participant including the initiator",
+    );
+    assert.equal((await videoFive.callRef.get()).exists, false);
+  } finally {
+    for (const fixture of fixtures) {
+      await Promise.all([
+        db.recursiveDelete(fixture.callRef).catch(() => undefined),
+        db.recursiveDelete(fixture.roomRef).catch(() => undefined),
+        fixture.rentalRef.delete().catch(() => undefined),
+        ...fixture.memberUids.map((memberUid) => Promise.all([
+          db.collection("users").doc(memberUid).delete().catch(() => undefined),
+          db.collection("activeCallMemberLocks").doc(memberUid).delete().catch(() => undefined),
+        ])),
+      ]);
+    }
+  }
+});
