@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { isActiveRentedPrivateRoom } = require("../lib/room-call-policy");
+const { isActiveRentedPrivateRoom, areRoomCallParticipantsMembers } = require("../lib/room-call-policy");
 
 function stamp(ms) { return { toMillis: () => ms }; }
 
@@ -40,4 +40,14 @@ test("room or rental expiry at or before server time is rejected", () => {
 test("malformed timestamps and invalid clocks fail closed", () => {
   assert.equal(isActiveRentedPrivateRoom({ ...room, expiresAt: { toMillis: () => { throw new Error("bad"); } } }, rental, 1), false);
   assert.equal(isActiveRentedPrivateRoom(room, rental, -1), false);
+});
+
+
+test("room-call membership snapshots fail closed unless every selected participant remains a member", () => {
+  assert.equal(areRoomCallParticipantsMembers([{ exists: true }, { exists: true }]), true);
+  assert.equal(areRoomCallParticipantsMembers([{ exists: true }, { exists: false }]), false);
+  assert.equal(areRoomCallParticipantsMembers([{ exists: true }]), false);
+  assert.equal(areRoomCallParticipantsMembers([]), false);
+  assert.equal(areRoomCallParticipantsMembers(null), false);
+  assert.equal(areRoomCallParticipantsMembers([{ exists: true }, null]), false);
 });
