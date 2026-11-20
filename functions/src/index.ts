@@ -54,6 +54,7 @@ import {
 } from "./link-policy";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { audienceForAge, canJoinRoom, canJoinGuestRoom, normalizeModeratorPermissions } from "./room-policy";
+import { isActiveRentedPrivateRoom } from "./room-call-policy";
 import { isGuestSessionActive } from "./guest-sessions";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
@@ -10432,6 +10433,8 @@ export const startCall = onCall(async (request) => {
   const callRef = CALL_SESSIONS.doc(input.callId);
   let participantUids: string[] = [];
   let recipientUids: string[] = [];
+  let roomRefForCall: DocumentReference | null = null;
+  let roomRentalRef: DocumentReference | null = null;
 
   if (input.scope === "direct") {
     const chatRef = db.collection("directChats").doc(input.targetId);
@@ -10475,6 +10478,17 @@ export const startCall = onCall(async (request) => {
         !room.exists || room.data()?.status !== "active" || !membership.exists) {
       throw new HttpsError("permission-denied", "يجب أن تكون عضواً في غرفة نشطة لإجراء مكالمة.");
     }
+    const roomData = room.data() ?? {};
+    if (roomData.kind !== "private" || roomData.isRented !== true ||
+        typeof roomData.rentalId !== "string" || !roomData.rentalId) {
+      throw new HttpsError("failed-precondition", "المكالمات الجماعية متاحة حصراً في الغرف الخاصة المستأجرة.");
+    }
+    roomRefForCall = roomRef;
+    roomRentalRef = db.collection("roomRentals").doc(roomData.rentalId);
+    const rental = await roomRentalRef.get();
+    if (!isActiveRentedPrivateRoom(roomData, rental.data(), Date.now())) {
+      throw new HttpsError("failed-precondition", "استئجار الغرفة غير نشط أو انتهت مدته؛ تعذر بدء المكالمة.");
+    }
     const members = await roomRef.collection("members").limit(6).get();
     if (members.size < 2 || members.size > 5) {
       throw new HttpsError("failed-precondition", "مكالمات الغرف تدعم حالياً من عضوين إلى خمسة أعضاء كحد أقصى.");
@@ -10500,9 +10514,18 @@ export const startCall = onCall(async (request) => {
   const expiresAt = Timestamp.fromMillis(now + CALL_RING_TIMEOUT_MS);
   const quotaRef = CALL_QUOTA_WINDOWS.doc(callerUid);
   const result = await db.runTransaction(async (transaction) => {
-    const [existing, caller, quotaSnapshot] = await Promise.all([
-      transaction.get(callRef), transaction.get(callerRef), transaction.get(quotaRef),
+    const [existing, caller, quotaSnapshot, roomSnapshot, rentalSnapshot] = await Promise.all([
+      transaction.get(callRef),
+      transaction.get(callerRef),
+      transaction.get(quotaRef),
+      roomRefForCall ? transaction.get(roomRefForCall) : Promise.resolve(null),
+      roomRentalRef ? transaction.get(roomRentalRef) : Promise.resolve(null),
     ]);
+    if (input.scope === "room" &&
+        (!roomSnapshot?.exists || !rentalSnapshot?.exists ||
+          !isActiveRentedPrivateRoom(roomSnapshot.data(), rentalSnapshot.data(), now))) {
+      throw new HttpsError("failed-precondition", "الغرفة أو استئجارها لم يعد نشطاً؛ تم رفض بدء المكالمة.");
+    }
     if (existing.exists) {
       const prior = existing.data() ?? {};
       if (prior.callerUid === callerUid && prior.targetId === input.targetId &&
