@@ -41,7 +41,7 @@ const {
   createMediaScanVerdictHandler,
 } = require("../../lib/media");
 
-const { createMemberStory, listMemberStories } = require("../../lib/index");
+const { createMemberStory, listMemberStories, placeMediaLegalHold, getRoomMessages } = require("../../lib/index");
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
@@ -704,6 +704,7 @@ async function createReadyChatImage({ uid, purpose = "chat", mediaId = randomUUI
   await db.collection("mediaAssets").doc(mediaId).set({
     mediaId, ownerUid: uid, uploaderRole: "member", uploaderType: "member",
     mediaPurpose: purpose, mediaCategory: "image", detectedContentType: "image/png",
+    objectPath: `quarantine/${uid}/${mediaId}`,
     status: "security_approved", processingStatus: "safe_raster_derivative_ready",
     processingPipelineVersion: "sharp-decode-reencode-v1",
     storageGeneration: sourceGeneration, scannerSha256: sourceSha256,
@@ -877,6 +878,28 @@ test("safe image can be linked to a room message; non-members cannot retrieve it
     }),
     (error) => error && error.code === "permission-denied",
   );
+
+  // A still-present membership record must not outlive an account suspension.
+  await db.collection("users").doc(senderUid).update({ accountStatus: "suspended" });
+  await assert.rejects(
+    () => getChatImageAttachmentUrl.run({
+      data: { scope: "room", roomId, messageId, mediaId },
+      auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+    }),
+    (error) => error && error.code === "permission-denied",
+  );
+  await db.collection("users").doc(senderUid).update({ accountStatus: "active" });
+
+  // A closed room cannot issue new media URLs, even while its membership record remains.
+  await db.collection("rooms").doc(roomId).update({ status: "closed" });
+  await assert.rejects(
+    () => getChatImageAttachmentUrl.run({
+      data: { scope: "room", roomId, messageId, mediaId },
+      auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+    }),
+    (error) => error && error.code === "permission-denied",
+  );
+  await db.collection("rooms").doc(roomId).update({ status: "active" });
 
   // Revocation by removing the authoritative membership record must take
   // effect for subsequent URL issuance, even when the message remains stored.
@@ -1116,5 +1139,142 @@ test("scanner error callback returns retryable 503 without changing quarantined 
     assert.deepEqual(after.data(), initial);
   } finally {
     await assetRef.delete().catch(() => undefined);
+  }
+});
+
+
+test("media legal-hold placement and permanent deletion serialize safely under a concurrent race", async () => {
+  const uid = `media-hold-delete-race-${randomUUID()}`;
+  const mediaId = await createReadyChatImage({ uid, purpose: "chat" });
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const assetBefore = (await assetRef.get()).data();
+  const objectPath = assetBefore.safePreviewPath;
+  const objectFile = getStorage().bucket().file(objectPath);
+  const now = Date.now();
+  const holdInput = {
+    mediaId,
+    authority: "Court order",
+    legalBasis: "Preservation required for an identified legal proceeding.",
+    reference: `case-${randomUUID()}`,
+    reviewAtMs: now + 60 * 60 * 1000,
+    endsAtMs: now + 24 * 60 * 60 * 1000,
+  };
+
+  try {
+    const outcomes = await Promise.allSettled([
+      placeMediaLegalHold.run(ownerRequest(uid, holdInput)),
+      deleteMediaAssetForMessage(mediaId, uid, "chat"),
+    ]);
+    const holdResult = outcomes[0];
+    const deleteResult = outcomes[1];
+    assert.notEqual(holdResult.status, deleteResult.status,
+      "the Firestore asset transaction must serialize hold placement against deletion claim");
+
+    const latest = await assetRef.get();
+    assert.equal(latest.exists, true, "the media tombstone/record must remain available for audit");
+
+    if (holdResult.status === "fulfilled") {
+      assert.equal(deleteResult.status, "rejected");
+      assert.equal(latest.data().legalHoldStatus, "active");
+      assert.equal(latest.data().status, "security_approved");
+      const [exists] = await objectFile.exists();
+      assert.equal(exists, true, "a successfully placed hold must prevent object deletion");
+      const activeHolds = await db.collection("mediaLegalHolds")
+        .where("mediaId", "==", mediaId).where("status", "==", "active").get();
+      assert.equal(activeHolds.size, 1);
+    } else {
+      assert.equal(deleteResult.status, "fulfilled");
+      assert.equal(latest.data().status, "manually_deleted");
+      assert.notEqual(latest.data().legalHoldStatus, "active");
+      const [exists] = await objectFile.exists();
+      assert.equal(exists, false, "once deletion claims the asset, a later hold must fail closed");
+      const activeHolds = await db.collection("mediaLegalHolds")
+        .where("mediaId", "==", mediaId).where("status", "==", "active").get();
+      assert.equal(activeHolds.size, 0);
+    }
+  } finally {
+    const holds = await db.collection("mediaLegalHolds").where("mediaId", "==", mediaId).get();
+    await Promise.all([
+      ...holds.docs.map((doc) => doc.ref.delete().catch(() => undefined)),
+      assetRef.delete().catch(() => undefined),
+      objectFile.delete().catch(() => undefined),
+    ]);
+  }
+});
+
+
+test("manual-deletion tombstone retry sweeps a late safe derivative by exact object name", async () => {
+  const uid = `late-derivative-owner-${randomUUID()}`;
+  const mediaId = randomUUID();
+  const derivativePath = `processed/${uid}/${mediaId}/preview.webp`;
+  const derivativeBytes = Buffer.from("late derivative must be removed");
+  const derivativeFile = getStorage().bucket().file(derivativePath);
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+
+  await derivativeFile.save(derivativeBytes, {
+    resumable: false,
+    metadata: { contentType: "image/webp" },
+  });
+  await assetRef.set({
+    mediaId,
+    ownerUid: uid,
+    uploaderType: "member",
+    mediaPurpose: "chat",
+    status: "manually_deleted",
+    deletedObjectPaths: [derivativePath],
+  });
+
+  try {
+    await deleteMediaAssetForMessage(mediaId, uid, "chat");
+    const [exists] = await derivativeFile.exists();
+    assert.equal(exists, false,
+      "a retry must sweep a late derivative even when the asset is already a content-free tombstone");
+    const tombstone = await assetRef.get();
+    assert.equal(tombstone.data().status, "manually_deleted");
+    assert.ok(tombstone.data().deletedObjectPaths.includes(derivativePath));
+  } finally {
+    await Promise.all([
+      assetRef.delete().catch(() => undefined),
+      derivativeFile.delete().catch(() => undefined),
+    ]);
+  }
+});
+
+
+test("room message reads fail closed when the member account is suspended despite retained membership", async () => {
+  const uid = `suspended-room-reader-${randomUUID()}`;
+  const roomId = `room-suspended-reader-${randomUUID()}`;
+  const roomRef = db.collection("rooms").doc(roomId);
+  const memberRef = roomRef.collection("members").doc(uid);
+  const userRef = db.collection("users").doc(uid);
+  const messageRef = roomRef.collection("messages").doc(`msg_${randomUUID().replace(/-/g, "")}`);
+  await Promise.all([
+    userRef.set({ profileCompleted: true, accountStatus: "active" }),
+    roomRef.set({ status: "active", ownerUid: `room-owner-${randomUUID()}`, kind: "public", audience: "all_ages" }),
+    memberRef.set({ uid, accountType: "member", role: "member" }),
+    messageRef.set({
+      senderUid: uid, content: "room message fixture", type: "text",
+      createdAt: Timestamp.now(), isDeleted: false,
+    }),
+  ]);
+  const auth = { uid, token: { firebase: { sign_in_provider: "password" } } };
+  try {
+    const page = await getRoomMessages.run({ data: { roomId, limit: 10 }, auth });
+    assert.equal(page.messages.length, 1);
+    await userRef.update({ accountStatus: "suspended" });
+    await assert.rejects(
+      () => getRoomMessages.run({ data: { roomId, limit: 10 }, auth }),
+      (error) => error && error.code === "permission-denied",
+    );
+    await userRef.update({ accountStatus: "banned" });
+    await assert.rejects(
+      () => getRoomMessages.run({ data: { roomId, limit: 10 }, auth }),
+      (error) => error && error.code === "permission-denied",
+    );
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(roomRef).catch(() => undefined),
+      userRef.delete().catch(() => undefined),
+    ]);
   }
 });

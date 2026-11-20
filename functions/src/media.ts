@@ -13,6 +13,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { isGuestSessionActive } from "./guest-sessions";
+import { isMemberAccountInGoodStanding } from "./member-access";
 import { createDirectChatId } from "./direct-chat-id";
 import { resolveChatMediaDeliveryArtifact } from "./chat-media-policy";
 import { reserveMediaQuota, releaseMediaQuota } from "./media-quota";
@@ -1179,15 +1180,23 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
     conversationId = roomId;
     if (!roomId || roomId.length > 128) throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
     const roomRef = mediaDb().collection("rooms").doc(roomId);
-    const [room, member, msg] = await Promise.all([
-      roomRef.get(), roomRef.collection("members").doc(viewerUid).get(),
-      roomRef.collection("messages").doc(messageId).get(),
-    ]);
     const ownerSession = request.auth?.token.platformOwner === true &&
       hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, viewerUid);
     const viewerType = mediaUploaderTypeFromToken((request.auth?.token ?? {}) as Record<string, unknown>);
-    if (!room.exists || (!member.exists && !ownerSession) || !msg.exists) {
+    const [room, member, msg, viewer] = await Promise.all([
+      roomRef.get(), roomRef.collection("members").doc(viewerUid).get(),
+      roomRef.collection("messages").doc(messageId).get(),
+      viewerType === "guest" || ownerSession
+        ? Promise.resolve(null)
+        : mediaDb().collection("users").doc(viewerUid).get(),
+    ]);
+    if (!room.exists || room.data()?.status !== "active" ||
+        (!member.exists && !ownerSession) || !msg.exists) {
       throw new HttpsError("permission-denied", "ليس لديك حق الوصول إلى مرفقات هذه الغرفة.");
+    }
+    if (viewerType !== "guest" && !ownerSession &&
+        (!viewer?.exists || !isMemberAccountInGoodStanding(viewer.data()))) {
+      throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بالوصول إلى مرفقات هذه الغرفة.");
     }
     if (viewerType === "guest") {
       const [guestProfile, guestSession] = await Promise.all([

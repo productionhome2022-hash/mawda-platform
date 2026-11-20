@@ -5477,11 +5477,16 @@ export const getRoomMessages = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
   }
   const roomRef = db.collection("rooms").doc(roomId);
-  const [room, membership] = await Promise.all([
-    roomRef.get(), roomRef.collection("members").doc(uid).get(),
+  const [room, membership, member] = await Promise.all([
+    roomRef.get(),
+    roomRef.collection("members").doc(uid).get(),
+    isGuest ? Promise.resolve(null) : db.collection("users").doc(uid).get(),
   ]);
   if (!room.exists || !membership.exists || room.data()?.status !== "active") {
     throw new HttpsError("permission-denied", "لا تملك صلاحية قراءة رسائل هذه الغرفة.");
+  }
+  if (!isGuest && (!member?.exists || !isMemberAccountInGoodStanding(member.data()))) {
+    throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بقراءة رسائل هذه الغرفة.");
   }
   if (isGuest) {
     const [profile, session] = await Promise.all([
