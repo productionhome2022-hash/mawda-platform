@@ -28,14 +28,14 @@ test("only the same authenticated member with completed profile and Super Owner 
   assert.equal(canEditMemberSocialLinks("member-a", "member-a", false, {}, active("member-a"), NOW), false);
 });
 
-test("expired, revoked, pending, malformed, missing and cross-account proof denies link editing", () => {
+test("expired, revoked, pending, malformed, missing and cross-account review lease denies link editing", () => {
   const valid = active("member-a");
   const denied = [
     { ...valid, expiresAt: { toMillis: () => NOW - 1 } },
     { ...valid, revokedAt: { toMillis: () => NOW - 1 } },
     { status: "pending", expiresAt: valid.expiresAt },
     { status: "verified", expiresAt: valid.expiresAt },
-    { ...valid, serverProof: { ...valid.serverProof, accountUid: "member-b" } },
+    { ...valid, accountUid: "member-b" },
     null,
   ];
   for (const record of denied) {
