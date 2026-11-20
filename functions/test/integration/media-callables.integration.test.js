@@ -843,6 +843,27 @@ test("safe image can be linked to a direct message and delivered only to its par
   );
   await db.collection("users").doc(recipientUid).update({ accountStatus: "active" });
 
+  // Reuse the canonical account-standing predicate: boolean bans/suspensions
+  // and unknown explicit statuses must fail closed for both conversation sides.
+  for (const [uid, deniedState, restoredState] of [
+    [recipientUid, { isSuspended: true }, { isSuspended: false }],
+    [recipientUid, { isBanned: true }, { isBanned: false }],
+    [senderUid, { isSuspended: true }, { isSuspended: false }],
+    [senderUid, { isBanned: true }, { isBanned: false }],
+    [recipientUid, { accountStatus: "review_pending" }, { accountStatus: "active" }],
+    [senderUid, { accountStatus: "review_pending" }, { accountStatus: "active" }],
+  ]) {
+    await db.collection("users").doc(uid).update(deniedState);
+    await assert.rejects(
+      () => getChatImageAttachmentUrl.run({
+        data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+        auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+      }),
+      (error) => error && error.code === "permission-denied",
+    );
+    await db.collection("users").doc(uid).update(restoredState);
+  }
+
   await db.collection("users").doc(recipientUid).update({ blockedUids: [senderUid] });
   await assert.rejects(
     () => getChatImageAttachmentUrl.run({
