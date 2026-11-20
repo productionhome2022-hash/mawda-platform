@@ -1366,6 +1366,10 @@ test("biometric upload intents bind one audio and one video asset to an open mem
         purpose: "biometric", biometricRequestId: requestId },
       auth,
     }), error => error && error.code === "failed-precondition");
+    await requestRef.update({ status: "pending" });
+    await assert.rejects(() => finalizeMediaUpload.run({
+      data: { mediaId: audio.mediaId }, auth,
+    }), error => error && error.code === "permission-denied");
   } finally {
     for (const id of created) {
       const assetRef = db.collection("mediaAssets").doc(id);
