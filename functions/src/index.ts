@@ -1815,7 +1815,7 @@ export const setMemberProfileSocialLinkVisibility = onCall(async (request) => {
     if (!links[provider as keyof typeof links]) {
       throw new HttpsError("not-found", "رابط التواصل المطلوب غير موجود.");
     }
-    if (!canChangeMemberSocialLinkVisibility(hidden, data.biometricVerification)) {
+    if (!canChangeMemberSocialLinkVisibility(hidden, data.biometricVerification, member.id)) {
       throw new HttpsError("failed-precondition", "إظهار الرابط يتطلب توثيقاً بيومترياً نشطاً.");
     }
 
@@ -2659,7 +2659,7 @@ export const sendDirectMessage = onCall(async (request) => {
       const sender = senderSnapshot.data() ?? {};
       const recipient = recipientSnapshot.data() ?? {};
       const ownerSession = hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, senderUid);
-      const isBiometricallyVerified = hasActiveBiometricVerification(sender.biometricVerification);
+      const isBiometricallyVerified = hasActiveBiometricVerification(sender.biometricVerification, senderUid);
       try {
         assertMessageLinksAllowed(
           messageText,
@@ -5412,7 +5412,7 @@ export const sendRoomMessage = onCall(async (request) => {
     const isRoomOwner = !isGuest && roomData.ownerUid === uid;
     const isAuthorizedModerator = !isGuest && moderator.exists;
     const ownerSession = !isGuest && hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, uid);
-    const isBiometricallyVerified = !isGuest && hasActiveBiometricVerification(member.data()?.biometricVerification);
+    const isBiometricallyVerified = !isGuest && hasActiveBiometricVerification(member.data()?.biometricVerification, uid);
     try {
       assertMessageLinksAllowed(
         content,
