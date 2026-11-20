@@ -467,8 +467,13 @@ export const getOwnerBiometricEvidencePlayback = onCall(async request => {
       audioAsset.biometricRequestId !== requestId || videoAsset.biometricRequestId !== requestId ||
       audioAsset.mediaPurpose !== "biometric" || videoAsset.mediaPurpose !== "biometric" ||
       audioAsset.status !== "security_approved" || videoAsset.status !== "security_approved" ||
+      audioAsset.scannerEngine !== "ClamAV" || videoAsset.scannerEngine !== "ClamAV" ||
+      audioAsset.scannerVerdict !== "clean" || videoAsset.scannerVerdict !== "clean" ||
+      typeof audioAsset.scannerVerifiedAt === "undefined" || typeof videoAsset.scannerVerifiedAt === "undefined" ||
       audioAsset.safeAudioPath !== expectedAudio || videoAsset.safeVideoPath !== expectedVideo ||
       audioAsset.safeAudioContentType !== "audio/mpeg" || videoAsset.safeVideoContentType !== "video/mp4" ||
+      typeof audioAsset.safeAudioGeneration !== "string" || !/^\\d+$/.test(audioAsset.safeAudioGeneration) ||
+      typeof videoAsset.safeVideoGeneration !== "string" || !/^\\d+$/.test(videoAsset.safeVideoGeneration) ||
       typeof audioAsset.safeAudioSha256 !== "string" || !/^[a-f0-9]{64}$/.test(audioAsset.safeAudioSha256) ||
       typeof videoAsset.safeVideoSha256 !== "string" || !/^[a-f0-9]{64}$/.test(videoAsset.safeVideoSha256)) {
     throw new HttpsError("failed-precondition", "النسخ الآمنة لم تعد متاحة أو تغير ارتباطها بالطلب.");
