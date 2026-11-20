@@ -15,15 +15,16 @@ export function canEditMemberSocialLinks(
   return actorUid.length > 0 &&
     actorUid === memberUid &&
     profileCompleted &&
-    canUpdateMemberSocialLinks(links, biometricVerification, nowMs);
+    canUpdateMemberSocialLinks(links, biometricVerification, memberUid, nowMs);
 }
 
 /** Link visibility is re-evaluated for every read; expiry/revocation hides them. */
 export function canExposeMemberSocialLinks(
   profileCompleted: boolean,
+  memberUid: string,
   biometricVerification: unknown,
   nowMs = Date.now(),
 ): boolean {
   return profileCompleted &&
-    hasActiveBiometricVerification(biometricVerification, nowMs);
+    hasActiveBiometricVerification(biometricVerification, memberUid, nowMs);
 }

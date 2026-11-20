@@ -200,3 +200,59 @@ For unified HEAD `d18b1c234a2b72413ba9814382c7ce7b996c6416`, the following runs 
 - P0: #49 complete secure media lifecycle; #23 group-call lifecycle; #66 direct-call paid economy remain open.
 - P1: #52 selective branch extraction remains active; the above audits classify duplicates and blocked bundles, not every divergent commit. Continue file-level provenance review for governance/ads/media and extract only self-contained, policy-aligned code with tests.
 - P1: inbox/profile source branches reviewed above have no safe unique extraction at this baseline; continue with other specialized member/profile branches if new refs appear.
+
+
+## 9. P0 lifecycle follow-up — biometric proof gate, role wiring, media and calls (2026-11-20)
+
+### Biometric proof hardening branch / PR #73
+- Branch `codex/mawdda-biometric-proof-gate-2026-11-20` is based on the unified line and is proposed through Draft PR #73.
+- Initial PR commit SHA: `fb1a54fd66b568e0bf781ab2b6de174a9abf2267`; subsequent documentation/audit commits advanced the branch head. Base unified line was `7d386a77818e3a9ec59977f1cbcb67b8eac6ba9d`.
+- Files changed are limited to the biometric eligibility helper, its profile/social-link call sites and tests, plus the proof-gate schema note.
+- The eligibility helper now requires the expected account UID and a persisted server-proof record with an allowlisted platform provider, matching account UID, device key ID, one-time challenge ID, proof digest, server signature/attestation verification markers, consumed nonce and ordered server timestamps. Legacy verified flags and client OS prompt claims fail closed.
+- This is **only an eligibility hardening gate**. It does not implement or cryptographically verify Google Play Integrity or Apple App Attest tokens, device-key enrollment, challenge issuance/consumption, proof-to-evidence binding, or the Owner review lifecycle. The fields are an internal trusted-verifier output contract; no client may write them. Firestore rules currently deny all client writes to `users/{uid}`.
+- `completeBiometricVerificationCycle` remains fail-closed. No reward, badge or biometric privilege is enabled. Owner acceptance alone remains insufficient for the 1,500-coin reward.
+- Draft PR #73 must pass exact-head CI and review before any merge to the unified branch. The complete proof lifecycle remains open under Issue #72.
+
+### Specialized role authorization — Issue #48
+- Re-read the current `functions/src/index.ts` on unified. It has 11,157 lines and 146 exported callable declarations at this audit point; the string `hasAdvertisingPermission` has zero occurrences in the file.
+- Existing specialized grant CRUD/capacity callables remain Owner-only. Advertising intake and production application review callables remain Owner-only; public submission callables only create requests.
+- The approved permission catalogue and role-bound grant evaluator exist, but the audited intake/production records do not provide canonical assignment ownership fields or server-derived resource scopes. The grant `resourceScopes` are still opaque strings. Replacing Owner gates now would create an ungrounded authorization bypass.
+- No broad delegated guard was added. Before enabling any specialist operation, add server-owned assignment records and canonical scope derivation, then wire one callable at a time with callable Emulator allow/deny coverage. Keep contract signing, finance, grant administration, emergency controls and other sovereign operations Owner-only.
+
+### Secure media lifecycle — Issue #49
+- Unified media code already has upload-intent creation, quarantine/finalization, scanner verdict validation, safe-derivative contracts, delivery authorization, legal holds and retryable deletion/tombstones. This is not yet proof of a complete lifecycle.
+- `codex/featured-ads-secure-lifecycle-20261118` remains highly divergent: 199 commits ahead / 309 behind. `codex/featured-ads-serving-foundation`: 139 ahead / 308 behind. Both modify collision-heavy `index.ts`, `media.ts`, scanner, tests, rules, package/workflow files and UI; no wholesale or speculative port is safe.
+- New capacity-media policy is observe-only with null quota values and requires reconciliation with the owner-controlled capacity/cost model. New sticker catalog/policy/widgets add their own limits and moderation lifecycle and are not integrated into the canonical scanner/retention/entitlement path. No such bundle was ported.
+- Remaining #49 acceptance: generation-pinned scanner verdicts and derivative provenance, signed URL expiry/revocation, non-member/wrong-purpose denial, legal-hold and deletion race, late derivative tombstone cleanup, and end-to-end Emulator proof that originals never reach clients.
+
+### Group calls — Issue #23
+- Unified `group-call-economy.ts` is a pure policy-driven calculation helper only. It has no server settlement callable or wallet/ledger integration.
+- Current `startCall` selects room members automatically from the rented room (2–5), and each invitee accepts/rejects the call. It does not provide a separate member join-request queue with creator approval, nor a separate explicit financial consent per participant.
+- The existing `call-signaling.integration.test.js` verifies room signaling and member departure, not the full requested admission/entitlement/consent/media-connected metering/atomic settlement lifecycle.
+- The current room-call duration helper applies fixed 5-minute audio / 3-minute video constants. Do not silently change those durations or invent pricing/capacity rules; reconcile with approved room policy and Owner-controlled configuration before expanding.
+- No billing, wallet hold, settlement or paid resource was activated. Issue #23 remains open until the full non-production Emulator lifecycle and media-topology acceptance tests pass.
+
+### Direct-call paid economy — Issue #66
+- Direct call exports currently implement signaling, rolling attempt quotas, active-call locks, connection deadline and call termination; no owner-versioned paid pricing/entitlement, per-party financial consent, trusted connected-media metering or atomic wallet settlement is wired.
+- The Issue #66 record still contains unresolved Owner decisions for the asymmetric caller/receiver entitlement case, sub-minute rounding, reservation/hold timing and failed-media refund/release behavior. Do not infer these choices or use hardcoded fallback prices.
+- No paid call or financial operation was performed or enabled.
+
+### Current GitHub Actions evidence
+- Unified base SHA `7d386a77818e3a9ec59977f1cbcb67b8eac6ba9d`: Validate run `44732927438` succeeded (Functions compile/unit tests, Flutter analysis/tests/web build and isolated scanner build/tests); Domain Regression run `44732927381` succeeded (retention/room reservation Emulator regression and Flutter widget/unit tests).
+- These results are for the unified base SHA, **not** PR #73 head. Exact-head PR #73 Actions had not yet surfaced when this section was written; do not claim they passed.
+- No 5,000-persona simulation, external/device/manual/live-production test, production mutation, billing or deployment was run.
+
+### Active blockers / next sequence
+1. #72: implement actual Android/iOS provider verification, device-key registration, server nonce lifecycle, replay prevention and proof-to-evidence binding; preserve Owner acceptance as a separate gate. Reward remains disabled.
+2. #48: establish approved operation-to-permission-to-resource assignment matrix and server-owned assignment schema before delegated callable guards.
+3. #49: finish scanner-generation-delivery-retention-deletion lifecycle and Emulator tests; continue file-level review of divergent media branches.
+4. #23: implement join-request/creator-approval/entitlement/financial-consent/connected-media metering/atomic settlement and participant media topology.
+5. #66: resolve the four listed Owner pricing/settlement decisions before paid billing implementation.
+6. Do not merge PR #73 until exact-head GitHub Actions and review are complete. No main merge, deployment, production Firebase change, billing or simulation.
+
+
+### Media Saver selective-port decision
+- The `codex/featured-ads-serving-foundation` branch adds a server-side `getMediaSaverAttachmentUrl` capability that checks an entitlement on every save and reuses the safe-derivative delivery path. This matches the approved principle that every save needs a backend entitlement check and must not extend server retention.
+- Its implementation hardcodes the entitlement document ID `media_saver_7d`. The binding constitution instead defines one Media Saver product with owner-configurable 24-hour / one-week / one-month durations and explicitly says the initial one-week / 200-coin value is test-only. The unified catalog currently has no Media Saver SKU.
+- Therefore the feature is **not ported yet**: the backend consumer must be connected to the central owner-configurable catalog/entitlement schema and support all owner-enabled duration variants, not introduce a fixed one-week product ID or price. The underlying secure delivery logic is already present in unified; a separate callable can be added once the canonical product/entitlement identity is established.
+- The source branch also adds entitlement-required direct-call tests, but the unified `startCall` implementation does not currently enforce the relevant call entitlements. Those tests cannot be copied alone; implement the approved call entitlement and asymmetry matrix first.
