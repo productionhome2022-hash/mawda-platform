@@ -21,6 +21,9 @@ const db = getFirestore();
 const bucket = getStorage().bucket();
 const suffix = () => Date.now() + "_" + Math.random().toString(36).slice(2, 9);
 const memberRequest = (uid, data = {}) => ({ data, auth: { uid, token: { firebase: { sign_in_provider: "password" } } } });
+const startRequest = uid => startBiometricVerificationRequest.run(memberRequest(uid, {
+  consentAccepted: true, consentVersion: "2026-11-20-owner-review-v1",
+}));
 const ownerRequest = (uid, data = {}) => ({ data, auth: { uid, token: {
   platformOwner: true, platformOwnerUid: uid, auth_time: Math.floor(Date.now() / 1000),
   firebase: { sign_in_second_factor: "phone" },
@@ -112,7 +115,7 @@ test("approved phrase, ClamAV-approved safe derivatives, owner review and exactl
   try {
     const phrase = await getBiometricVerificationPhrase.run(memberRequest(uid));
     assert.equal(phrase.phrase, "أنا أريد الانضمام إلى مرحلة التوثيق البيومتري لأحصل على مكافأة ألف وخمسمائة بيتكوينز. الرجاء قبول التوثيق.");
-    const started = await startBiometricVerificationRequest.run(memberRequest(uid));
+    const started = await startRequest(uid);
     ids.push(started.requestId);
     assert.equal(started.attemptNumber, 1);
     assert.equal(started.uploadPurpose, "biometric");
