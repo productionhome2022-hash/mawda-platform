@@ -1,7 +1,32 @@
-> **Policy authority update (2026-11-20):** The final owner-approved policy is documented in [BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md](./BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md). It adds the pre-established spoken phrase challenge, a mandatory 3–5 second video, canonical registration-gender matching, exclusive Super Owner human review, and immediate exactly-once 1,500 BetaCoins on acceptance. Any conflicting older behavior is superseded. This progress note remains an implementation-gap record, not evidence that these controls are implemented.
+# سجل تنفيذ وفجوات دورة التوثيق البيومتري — 2026-11-20
 
-# Super Owner biometric implementation progress — 2026-11-20
+**مرجع السياسة الملزم:** [السياسة النهائية المعتمدة](./BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md). هذه الوثيقة تسجل حالة التنفيذ والفحوصات، ولا تستبدل السياسة.
 
-Added a pure server-side retry state machine for the approved three-attempt policy: first rejection allows attempt 2 after one calendar month; second rejection allows attempt 3 after one further calendar month; third rejection closes the sequence permanently. Acceptance is terminal. The transition module rejects non-pending decisions, invalid clocks, member self-review, and retry attempts before the exact calendar-month due date.
+## ما هو موجود في فرع التطوير الموحد
 
-Important: this module does not authorize a reviewer. Callable endpoints must enforce `requireOwnerForReview` (platform-owner claim + fresh MFA) before invoking the transition. The PR #77 Super Owner manual-review policy supersedes the older provider-attestation prerequisite: Play Integrity/App Attest/device-key attestation are not prerequisites for the manual decision and cannot replace the human audio/video review. The existing provider-proof predicate is being aligned to a server-owned accepted-review record; this does not open access because no review callable writes that record yet. The state machine is still not wired to submission/review callables, Firestore transactions, private evidence storage, audit persistence, renewal scheduling or the exactly-once 1,500 BetaCoins ledger. Keep biometric verification and privileges fail-closed until every gate is implemented and tested.
+- واجهة العضو في `lib/screens/biometric_verification_screen.dart`، ويمكن فتحها من الملف الشخصي.
+- واجهة مراجعة Super Owner في `lib/screens/biometric_review_screen.dart`، ويمكن فتحها من لوحة Super Owner.
+- خدمات Flutter في `lib/services/member_media_upload_service.dart`.
+- دورة الخادم في `functions/src/biometric-lifecycle.ts`، مع وحدات الأدلة والوسائط وحالة المراجعة وتقويم التجديد.
+- بوابات مراجعة الخادم تتحقق من مطالبة مالك المنصة وجلسة MFA حديثة؛ فتح الأدلة يصدر روابط مؤقتة خاصة ويسجل التدقيق.
+- قرار القبول/الرفض خادمي، ويشترط أن تكون الأدلة قد فُتحت وأن يؤكد المالك مراجعتها. القبول يسجل التوثيق ومكافأة 1,500 BetaCoins في معاملة Firestore واحدة مع مفتاح idempotency.
+- الرفض الأول يتيح المحاولة الثانية بعد شهر تقويمي، والرفض الثاني يتيح الثالثة بعد شهر تقويمي آخر، والرفض الثالث يغلق الملف بلا محاولة رابعة. القبول ينهي دورة المحاولات ويبدأ تجديداً شهرياً تقويمياً.
+- اختبارات وحدات وتكامل تغطي الموافقة، صلاحيات المالك، MFA، المكافأة مرة واحدة، الرفض المتتابع، مدد الانتظار، وإغلاق المحاولة الثالثة.
+
+## عائق CI المثبت على SHA c234122edabf84b512d6ffcba87b5222aa857857
+
+تشغيل `Validate Mawda` رقم `44805052951` فشل في وظيفة `Server evidence, authorization and biometric reward integration` قبل أن يصل إلى اختبار التوثيق البيومتري. السبب الجذري الظاهر في السجل: اختبار تكامل الوسائط حاول تحميل `functions/lib/media` في runner مستقل دون بناء TypeScript في ذلك الـrunner (`MODULE_NOT_FOUND`). لذلك لم يُنفذ اختبار `test:biometric-integration` في ذلك التشغيل، وتخطت وظائف Flutter والتكامل الشامل والماسح اعتماداً على بوابة الفشل.
+
+## إجراء الإصلاح
+
+أُصلحت أوامر `test:media-integration` و`test:biometric-integration` لتشغيل `npm run build` محلياً داخل runner/بيئة الاختبار قبل استدعاء المحاكيات. كما صُححت رسائل تجربة `local_auth` المنفصلة في الملف الشخصي كي لا توحي خطأً بأن إثبات الجهاز شرط للتوثيق أو المكافأة؛ فهي تجربة محلية لا تنشئ حالة توثيق.
+
+## ما لا يزال يتطلب إثباتاً
+
+- إعادة تشغيل اختبارات تكامل الوسائط والبيومتري على SHA الإصلاح، ثم فحص جميع نتائجها وسجلاتها.
+- نجاح Flutter Analyze وUnit/Widget Tests وبناء الويب على SHA النهائي.
+- نجاح حزمة التكامل الشاملة وقواعد Firestore/Storage بعد اجتياز المراحل السابقة.
+- مراجعة نهائية لعرض حالة المحاولة وموعد الأهلية القادم بوضوح في واجهة العضو، واختبارها على تدفقات الرفض/التجديد الفعلية.
+- لا تُفعّل الميزة إنتاجياً ولا تغيّر موارد Firebase الإنتاجية بموجب هذا الإصلاح.
+
+**الحالة:** التنفيذ الأساسي والواجهات والخدمات موجودة في فرع التطوير؛ الإغلاق النهائي ممنوع حتى اجتياز الاختبارات أعلاه وتوثيق SHA الناجح.
