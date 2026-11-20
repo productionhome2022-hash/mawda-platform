@@ -275,29 +275,75 @@ export const submitBiometricVerificationRequest = onCall(async (request) => {
       data.phraseHash !== createHash("sha256").update(BIOMETRIC_SPOKEN_PHRASE).digest("hex")) {
     throw new HttpsError("failed-precondition", "طلب التوثيق غير قابل للإرسال أو أن إصدار العبارة غير صالح.");
   }
-  const audioFile = mediaBucket().file(data.audioPath);
-  const videoFile = mediaBucket().file(data.videoPath);
+  const audioMediaId = typeof data.audioMediaId === "string" ? data.audioMediaId : "";
+  const videoMediaId = typeof data.videoMediaId === "string" ? data.videoMediaId : "";
+  if (!/^[0-9a-f-]{36}$/i.test(audioMediaId) || !/^[0-9a-f-]{36}$/i.test(videoMediaId) ||
+      audioMediaId === videoMediaId) {
+    throw new HttpsError("failed-precondition", "ارفع ملف الصوت والفيديو عبر مسار الوسائط المعتمد أولاً.");
+  }
+  const [audioAssetSnapshot, videoAssetSnapshot] = await Promise.all([
+    db().collection("mediaAssets").doc(audioMediaId).get(),
+    db().collection("mediaAssets").doc(videoMediaId).get(),
+  ]);
+  if (!audioAssetSnapshot.exists || !videoAssetSnapshot.exists) {
+    throw new HttpsError("failed-precondition", "لم تكتمل سجلات ملفات التوثيق.");
+  }
+  const audioAsset = audioAssetSnapshot.data() ?? {};
+  const videoAsset = videoAssetSnapshot.data() ?? {};
+  const expectedAudioOriginal = "quarantine/" + uid + "/" + audioMediaId;
+  const expectedVideoOriginal = "quarantine/" + uid + "/" + videoMediaId;
+  const expectedAudioSafe = "processed/" + uid + "/" + audioMediaId + "/audio.mp3";
+  const expectedVideoSafe = "processed/" + uid + "/" + videoMediaId + "/video.mp4";
+  const commonValid = (asset: Record<string, any>, mediaId: string) =>
+    asset.ownerUid === uid && asset.mediaPurpose === "biometric" &&
+    asset.biometricRequestId === requestId && asset.status === "security_approved" &&
+    asset.scannerVerdict === "clean" && asset.scannerEngine === "ClamAV" &&
+    typeof asset.storageGeneration === "string" && /^\d+$/.test(asset.storageGeneration) &&
+    typeof asset.scannerSha256 === "string" && /^[a-f0-9]{64}$/.test(asset.scannerSha256) &&
+    typeof asset.scannerVerifiedAt !== "undefined" &&
+    asset.objectPath === "quarantine/" + uid + "/" + mediaId;
+  if (!commonValid(audioAsset, audioMediaId) || !commonValid(videoAsset, videoMediaId) ||
+      audioAsset.mediaCategory !== "audio" || audioAsset.declaredContentType !== "audio/mp4" ||
+      audioAsset.detectedContentType !== "audio/mp4" || audioAsset.safeAudioPath !== expectedAudioSafe ||
+      audioAsset.safeAudioContentType !== "audio/mpeg" ||
+      audioAsset.processingStatus !== "safe_audio_derivative_ready" ||
+      videoAsset.mediaCategory !== "video" || videoAsset.declaredContentType !== "video/mp4" ||
+      videoAsset.detectedContentType !== "video/mp4" || videoAsset.safeVideoPath !== expectedVideoSafe ||
+      videoAsset.safeVideoContentType !== "video/mp4" ||
+      videoAsset.processingStatus !== "safe_video_derivative_ready") {
+    throw new HttpsError("failed-precondition", "يجب أن يجتاز الصوت والفيديو فحص ClamAV وإنشاء النسخ الآمنة قبل الإرسال.");
+  }
+
+  const audioFile = mediaBucket().file(expectedAudioOriginal);
+  const videoFile = mediaBucket().file(expectedVideoOriginal);
   let audio: Buffer, video: Buffer;
   try {
     const [am, vm] = await Promise.all([audioFile.getMetadata(), videoFile.getMetadata()]);
     const audioSize = Number(am[0].size), videoSize = Number(vm[0].size);
     if (!Number.isSafeInteger(audioSize) || audioSize < 1 || audioSize > BIOMETRIC_AUDIO_MAX_BYTES ||
-        am[0].contentType !== "audio/mp4" ||
+        am[0].contentType !== "audio/mp4" || String(am[0].generation) !== audioAsset.storageGeneration ||
         !Number.isSafeInteger(videoSize) || videoSize < 1 || videoSize > BIOMETRIC_VIDEO_MAX_BYTES ||
-        vm[0].contentType !== "video/mp4") throw new Error("BIOMETRIC_EVIDENCE_SIZE_OR_TYPE_INVALID");
+        vm[0].contentType !== "video/mp4" || String(vm[0].generation) !== videoAsset.storageGeneration) {
+      throw new Error("BIOMETRIC_EVIDENCE_SIZE_TYPE_OR_GENERATION_INVALID");
+    }
     [audio, video] = await Promise.all([audioFile.download().then(x => x[0]), videoFile.download().then(x => x[0])]);
     if (audio.length !== audioSize || video.length !== videoSize ||
         detectMediaSignature(audio.subarray(0, 32)) !== "audio/mp4" ||
-        detectMediaSignature(video.subarray(0, 32)) !== "video/mp4") throw new Error("BIOMETRIC_EVIDENCE_SIGNATURE_INVALID");
+        detectMediaSignature(video.subarray(0, 32)) !== "video/mp4") {
+      throw new Error("BIOMETRIC_EVIDENCE_SIGNATURE_INVALID");
+    }
     assertBiometricAudioFileAllowed(audio);
     assertBiometricVideoFileAllowed(video);
   } catch (error) {
-    await Promise.all([audioFile.delete({ ignoreNotFound: true }).catch(() => undefined), videoFile.delete({ ignoreNotFound: true }).catch(() => undefined)]);
     await ref.update({
-      status: "upload_rejected", uploadFailureCode: error instanceof Error ? error.message : "INVALID_EVIDENCE",
-      evidenceDeletionStatus: "deleted", audioPath: FieldValue.delete(), videoPath: FieldValue.delete(),
+      status: "upload_rejected",
+      uploadFailureCode: error instanceof Error ? error.message : "INVALID_EVIDENCE",
+      evidenceDeletionStatus: "pending",
+      evidenceDeletionRetryAt: Timestamp.fromMillis(Date.now()),
       updatedAt: FieldValue.serverTimestamp(),
-    }).catch(() => undefined);
+    });
+    await deleteEvidence(requestId).catch(cleanupError =>
+      logger.warn("Rejected biometric media cleanup queued", { requestId, cleanupError }));
     throw new HttpsError("invalid-argument", "ملفات التوثيق غير مطابقة للنوع أو الحجم أو المدة المعتمدة.");
   }
   const audioHash = createHash("sha256").update(audio).digest("hex");
@@ -305,7 +351,8 @@ export const submitBiometricVerificationRequest = onCall(async (request) => {
   const now = Timestamp.now();
   await db().runTransaction(async transaction => {
     const fresh = await transaction.get(ref);
-    if (!fresh.exists || fresh.data()?.uid !== uid || fresh.data()?.status !== "uploading") {
+    if (!fresh.exists || fresh.data()?.uid !== uid || fresh.data()?.status !== "uploading" ||
+        fresh.data()?.audioMediaId !== audioMediaId || fresh.data()?.videoMediaId !== videoMediaId) {
       throw new HttpsError("aborted", "تغير طلب التوثيق أثناء التحقق؛ أعد المحاولة.");
     }
     transaction.update(ref, {
@@ -313,12 +360,14 @@ export const submitBiometricVerificationRequest = onCall(async (request) => {
       audioBytes: audio.length, videoBytes: video.length,
       audioSha256: audioHash, videoSha256: videoHash,
       evidenceValidatedByServer: true, evidenceValidatedAt: now,
+      evidenceScanner: "ClamAV", audioMediaId, videoMediaId,
       updatedAt: FieldValue.serverTimestamp(),
     });
   });
   await db().collection("verificationAuditLogs").doc("biometric_submission_" + requestId).create({
     uid, requestId, action: "biometric_evidence_submitted", phraseVersion: BIOMETRIC_SPOKEN_PHRASE_VERSION,
-    audioSha256: audioHash, videoSha256: videoHash, audioBytes: audio.length, videoBytes: video.length, createdAt: now,
+    audioSha256: audioHash, videoSha256: videoHash, audioBytes: audio.length, videoBytes: video.length,
+    audioMediaId, videoMediaId, scanner: "ClamAV", createdAt: now,
   });
   return { submitted: true, requestId, status: "pending", attemptNumber: data.attemptNumber };
 });
