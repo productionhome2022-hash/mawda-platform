@@ -175,7 +175,7 @@ test("store gift preserves permanent entitlements and rejects ineligible recipie
   const blockedRecipientUid = `gift_suspended_recipient_${tag}`;
   const recipientUsername = `giftperm_${tag}`;
   const blockedUsername = `giftsuspended_${tag}`;
-  const itemId = `vip_lifetime_${tag}`;
+  const itemId = "vip_monthly";
   const requestId = `giftperm_req_${tag}`;
   const itemRef = db.collection("storeCatalog").doc(itemId);
   const versionsRef = db.collection("storeCatalogVersions").doc(itemId).collection("versions");
