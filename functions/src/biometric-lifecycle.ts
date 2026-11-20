@@ -191,9 +191,9 @@ export const getMyBiometricVerificationStatus = onCall(async request => {
   const millis = (value: unknown): number | null => value instanceof Timestamp
     ? value.toMillis() : null;
   return {
-    status: verification.status === "verified" && verification.expiresAt instanceof Timestamp &&
-      verification.expiresAt.toMillis() > Date.now() && verification.revokedAt == null
-      ? "verified" : String(latest.status ?? "not_submitted"),
+    status: verification.status === "verified" && verification.revokedAt == null
+      ? (verification.expiresAt instanceof Timestamp && verification.expiresAt.toMillis() > Date.now() ? "verified" : "expired")
+      : String(latest.status ?? "not_submitted"),
     attemptNumber: Number.isSafeInteger(latest.attemptNumber) ? latest.attemptNumber : 0,
     nextEligibleAtMs: millis(latest.nextEligibleAt),
     expiresAtMs: millis(verification.expiresAt),
@@ -545,6 +545,9 @@ export const decideBiometricVerificationRequest = onCall(async request => {
   const reviewerUid = await requireOwnerForReview(request, "biometric_review_decision");
   const requestId = typeof request.data?.requestId === "string" ? request.data.requestId : "";
   const decision = request.data?.decision;
+  if (request.data?.evidenceReviewed !== true) {
+    throw new HttpsError("failed-precondition", "يجب تأكيد مراجعة الصوت والفيديو قبل تسجيل القرار.");
+  }
   if (!/^[A-Za-z0-9_-]{16,128}$/.test(requestId) || !["accepted", "rejected"].includes(String(decision))) {
     throw new HttpsError("invalid-argument", "معرف الطلب أو قرار المراجعة غير صالح.");
   }
@@ -584,14 +587,12 @@ export const decideBiometricVerificationRequest = onCall(async request => {
         typeof data.audioSha256 !== "string" || typeof data.videoSha256 !== "string") {
       throw new HttpsError("failed-precondition", "لا يمكن قبول الطلب لأن بيانات الهوية أو الأدلة غير مكتملة أو تغيرت؛ يمكن للمالك رفضه.");
     }
-    if (decision === "accepted") {
-      const grant = playbackGrant.data() ?? {};
-      const grantExpiry = grant.expiresAt instanceof Timestamp ? grant.expiresAt.toMillis() : 0;
-      if (!playbackGrant.exists || grant.reviewerUid !== reviewerUid ||
-          grant.audioSha256 !== data.audioSha256 || grant.videoSha256 !== data.videoSha256 ||
-          grantExpiry < nowMs || grant.consumedAt) {
-        throw new HttpsError("failed-precondition", "يجب على Super Owner فتح وتشغيل الأدلة الآمنة من جديد قبل قبول الطلب.");
-      }
+    const grant = playbackGrant.data() ?? {};
+    const grantExpiry = grant.expiresAt instanceof Timestamp ? grant.expiresAt.toMillis() : 0;
+    if (!playbackGrant.exists || grant.reviewerUid !== reviewerUid ||
+        grant.audioSha256 !== data.audioSha256 || grant.videoSha256 !== data.videoSha256 ||
+        grantExpiry < nowMs || grant.consumedAt) {
+      throw new HttpsError("failed-precondition", "يجب على Super Owner فتح الأدلة الآمنة ومراجعتها من جديد قبل تسجيل القرار.");
     }
     let next;
     try {
@@ -646,6 +647,7 @@ export const decideBiometricVerificationRequest = onCall(async request => {
       requestId, subjectUid: memberUid, decision,
       attemptNumber: next.attemptNumber, finalRejection: next.finalRejection,
       rewardCoins: decision === "accepted" ? BIOMETRIC_REWARD_COINS : 0,
+      evidenceReviewed: true,
       nextEligibleAtMs: next.nextEligibleAtMs, outcome: "success",
     }, auditHeadSnapshot);
     return {
