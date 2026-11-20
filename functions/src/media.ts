@@ -1310,6 +1310,9 @@ export const createMediaUploadIntent = onCall(async (request) => {
     );
   }
   const uploaderType = mediaUploaderTypeFromToken(token);
+  const biometricRequestRef = input.purpose === "biometric"
+    ? mediaDb().collection("biometricVerificationRequests").doc(String(input.biometricRequestId))
+    : null;
   if (uploaderType === "guest") {
     const [guestProfile, guestSession] = await Promise.all([
       mediaDb().collection("guestProfiles").doc(uid).get(),
@@ -1345,10 +1348,19 @@ export const createMediaUploadIntent = onCall(async (request) => {
   const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
   const quotaRef = mediaDb().collection("mediaUploadQuotas").doc(uid);
   await mediaDb().runTransaction(async (transaction) => {
-    const [quotaSnapshot, existingAsset] = await Promise.all([
+    const [quotaSnapshot, existingAsset, biometricRequestSnapshot] = await Promise.all([
       transaction.get(quotaRef),
       transaction.get(assetRef),
+      biometricRequestRef ? transaction.get(biometricRequestRef) : Promise.resolve(null),
     ]);
+    if (biometricRequestRef) {
+      const biometricRequest = biometricRequestSnapshot?.data() ?? {};
+      const mediaField = policy.category === "audio" ? "audioMediaId" : "videoMediaId";
+      if (!biometricRequestSnapshot?.exists || biometricRequest.uid !== uid ||
+          biometricRequest.status !== "uploading" || biometricRequest[mediaField]) {
+        throw new HttpsError("failed-precondition", "طلب التوثيق غير مفتوح أو يحتوي بالفعل على ملف من هذا النوع.");
+      }
+    }
     if (existingAsset.exists) {
       throw new HttpsError("already-exists", "معرف طلب الرفع مستخدم مسبقاً.");
     }
@@ -1366,6 +1378,7 @@ export const createMediaUploadIntent = onCall(async (request) => {
       uploaderType,
       uploaderRole: isPlatformOwner ? "platform_owner" : uploaderType === "guest" ? "guest" : "member",
       mediaPurpose: input.purpose,
+      ...(input.purpose === "biometric" ? { biometricRequestId: input.biometricRequestId } : {}),
       objectPath,
       originalName: input.originalName,
       declaredContentType: input.contentType,
@@ -1390,6 +1403,10 @@ export const createMediaUploadIntent = onCall(async (request) => {
       createdAt: now,
       updatedAt: now,
     });
+    if (biometricRequestRef) {
+      const mediaField = policy.category === "audio" ? "audioMediaId" : "videoMediaId";
+      transaction.update(biometricRequestRef, { [mediaField]: mediaId, updatedAt: FieldValue.serverTimestamp() });
+    }
     transaction.create(mediaDb().collection("mediaAccessAudit").doc(), {
       actorUid: uid, mediaId, action: "media_upload_intent_created", outcome: "success",
       objectPath, declaredContentType: input.contentType,
@@ -1424,6 +1441,16 @@ export const finalizeMediaUpload = onCall(async (request) => {
   const asset = snapshot.data()!;
   if (asset.ownerUid !== uid || asset.status !== "upload_authorized") {
     throw new HttpsError("permission-denied", "لا تملك صلاحية إكمال رفع هذا الملف.");
+  }
+  if (asset.mediaPurpose === "biometric") {
+    const biometricRequest = await mediaDb().collection("biometricVerificationRequests")
+      .doc(String(asset.biometricRequestId ?? "")).get();
+    const mediaField = asset.mediaCategory === "audio" ? "audioMediaId" : "videoMediaId";
+    if (!biometricRequest.exists || biometricRequest.data()?.uid !== uid ||
+        biometricRequest.data()?.status !== "uploading" ||
+        biometricRequest.data()?.[mediaField] !== mediaId) {
+      throw new HttpsError("permission-denied", "طلب التوثيق لم يعد مفتوحاً لهذا الملف.");
+    }
   }
   if (asset.mediaPurpose === "advertisement") {
     const token = (request.auth?.token ?? {}) as Record<string, unknown>;
