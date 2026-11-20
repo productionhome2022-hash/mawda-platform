@@ -1235,15 +1235,12 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
       hasPlatformOwnerSession(viewerToken, undefined, viewerUid);
     const peerIsOwner = asset.uploaderRole === "platform_owner" &&
       asset.ownerUid === directPeerUid;
-    const inactiveStatuses = ["suspended", "banned", "disabled", "deleted"];
-    const viewerStatus = String(viewer.accountStatus ?? "active").toLowerCase();
-    const peerStatus = String(peer.accountStatus ?? "active").toLowerCase();
     const viewerBlocks = Array.isArray(viewer.blockedUids) ? viewer.blockedUids : [];
     const peerBlocks = Array.isArray(peer.blockedUids) ? peer.blockedUids : [];
     if ((!viewerSnapshot.exists && !viewerIsOwner) ||
         (!peerSnapshot.exists && !peerIsOwner) ||
-        (viewerSnapshot.exists && (viewer.profileCompleted !== true || inactiveStatuses.includes(viewerStatus))) ||
-        (peerSnapshot.exists && (peer.profileCompleted !== true || inactiveStatuses.includes(peerStatus))) ||
+        (viewerSnapshot.exists && (viewer.profileCompleted !== true || !isMemberAccountInGoodStanding(viewer))) ||
+        (peerSnapshot.exists && (peer.profileCompleted !== true || !isMemberAccountInGoodStanding(peer))) ||
         viewerBlocks.includes(directPeerUid) || peerBlocks.includes(viewerUid)) {
       throw new HttpsError("permission-denied", "لم يعد هذا المرفق متاحاً بسبب الحظر أو حالة العضوية.");
     }
