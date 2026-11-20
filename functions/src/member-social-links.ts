@@ -13,9 +13,10 @@ export type MemberSocialLinks = Partial<Record<keyof typeof ALLOWED_HOSTS, strin
 export function canChangeMemberSocialLinkVisibility(
   hidden: boolean,
   biometricVerification: unknown,
+  expectedUid: string,
   nowMs = Date.now(),
 ): boolean {
-  return hidden || hasActiveBiometricVerification(biometricVerification, nowMs);
+  return hidden || hasActiveBiometricVerification(biometricVerification, expectedUid, nowMs);
 }
 
 /**
@@ -25,10 +26,11 @@ export function canChangeMemberSocialLinkVisibility(
 export function canUpdateMemberSocialLinks(
   links: MemberSocialLinks,
   biometricVerification: unknown,
+  expectedUid: string,
   nowMs = Date.now(),
 ): boolean {
   return Object.keys(links).length === 0 ||
-    hasActiveBiometricVerification(biometricVerification, nowMs);
+    hasActiveBiometricVerification(biometricVerification, expectedUid, nowMs);
 }
 
 /** Accept only explicit HTTPS profile/contact URLs on official provider domains. */
