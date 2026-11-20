@@ -1179,3 +1179,41 @@ test("media legal-hold placement and permanent deletion serialize safely under a
     ]);
   }
 });
+
+
+test("manual-deletion tombstone retry sweeps a late safe derivative by exact object name", async () => {
+  const uid = `late-derivative-owner-${randomUUID()}`;
+  const mediaId = randomUUID();
+  const derivativePath = `processed/${uid}/${mediaId}/preview.webp`;
+  const derivativeBytes = Buffer.from("late derivative must be removed");
+  const derivativeFile = getStorage().bucket().file(derivativePath);
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+
+  await derivativeFile.save(derivativeBytes, {
+    resumable: false,
+    metadata: { contentType: "image/webp" },
+  });
+  await assetRef.set({
+    mediaId,
+    ownerUid: uid,
+    uploaderType: "member",
+    mediaPurpose: "chat",
+    status: "manually_deleted",
+    deletedObjectPaths: [derivativePath],
+  });
+
+  try {
+    await deleteMediaAssetForMessage(mediaId, uid, "chat");
+    const [exists] = await derivativeFile.exists();
+    assert.equal(exists, false,
+      "a retry must sweep a late derivative even when the asset is already a content-free tombstone");
+    const tombstone = await assetRef.get();
+    assert.equal(tombstone.data().status, "manually_deleted");
+    assert.ok(tombstone.data().deletedObjectPaths.includes(derivativePath));
+  } finally {
+    await Promise.all([
+      assetRef.delete().catch(() => undefined),
+      derivativeFile.delete().catch(() => undefined),
+    ]);
+  }
+});
