@@ -11,36 +11,40 @@ function atom(type, payload) {
   header.write(type, 4, 4, "ascii");
   return Buffer.concat([header, payload]);
 }
-function movieHeaderV0(timescale, duration) {
+function headerV0(type, timescale, duration) {
   const payload = Buffer.alloc(20);
   payload.writeUInt8(0, 0);
   payload.writeUInt32BE(timescale, 12);
   payload.writeUInt32BE(duration, 16);
-  return atom("mvhd", payload);
+  return atom(type, payload);
 }
-function movieHeaderV1(timescale, duration) {
+function headerV1(type, timescale, duration) {
   const payload = Buffer.alloc(32);
   payload.writeUInt8(1, 0);
   payload.writeUInt32BE(timescale, 20);
   payload.writeBigUInt64BE(BigInt(duration), 24);
-  return atom("mvhd", payload);
+  return atom(type, payload);
 }
 function handler(type) {
   const payload = Buffer.alloc(12);
   payload.write(type, 8, 4, "ascii");
   return atom("hdlr", payload);
 }
-function track(type) {
-  return atom("trak", atom("mdia", handler(type)));
+function track(type, durationMs = 4000) {
+  const mediaHeader = headerV0("mdhd", 1000, durationMs);
+  return atom("trak", atom("mdia", Buffer.concat([mediaHeader, handler(type)])));
 }
-function movie(header, tracks = [track("vide")]) {
-  return atom("moov", Buffer.concat([header, ...tracks]));
+function movie(movieDurationMs, tracks = [track("vide", movieDurationMs)]) {
+  return atom("moov", Buffer.concat([
+    headerV0("mvhd", 1000, movieDurationMs),
+    ...tracks,
+  ]));
 }
 
 test("reads MP4 version-zero and version-one movie duration from uploaded bytes", () => {
-  assert.equal(readMp4DurationMs(movieHeaderV0(1000, 3000)), 3000);
-  assert.equal(readMp4DurationMs(movieHeaderV0(1000, 5000)), 5000);
-  assert.equal(readMp4DurationMs(movieHeaderV1(600, 2400)), 4000);
+  assert.equal(readMp4DurationMs(headerV0("mvhd", 1000, 3000)), 3000);
+  assert.equal(readMp4DurationMs(headerV0("mvhd", 1000, 5000)), 5000);
+  assert.equal(readMp4DurationMs(headerV1("mvhd", 600, 2400)), 4000);
 });
 
 test("accepts only the inclusive 3–5 second video duration interval", () => {
@@ -51,12 +55,17 @@ test("accepts only the inclusive 3–5 second video duration interval", () => {
 });
 
 test("requires a video track and rejects audio-only MP4 containers", () => {
-  const video = movie(movieHeaderV0(1000, 4000), [track("vide")]);
-  const audioOnly = movie(movieHeaderV0(1000, 4000), [track("soun")]);
+  const video = movie(4000, [track("vide", 4000)]);
+  const audioOnly = movie(4000, [track("soun", 4000)]);
   assert.equal(hasMp4VideoTrack(video), true);
   assert.equal(hasMp4VideoTrack(audioOnly), false);
   assert.equal(assertBiometricVideoFileAllowed(video), 4000);
   assert.throws(() => assertBiometricVideoFileAllowed(audioOnly), /VIDEO_TRACK_MISSING/);
+});
+
+test("rejects a file whose actual video track duration disagrees with a forged movie duration", () => {
+  const forgedMovieDuration = movie(4000, [track("vide", 6000)]);
+  assert.throws(() => assertBiometricVideoFileAllowed(forgedMovieDuration), /TRACK_DURATION_OUT_OF_RANGE/);
 });
 
 test("rejects malformed, missing, unsupported and invalid MP4 movie headers", () => {
@@ -64,6 +73,6 @@ test("rejects malformed, missing, unsupported and invalid MP4 movie headers", ()
   assert.throws(() => readMp4DurationMs(atom("moov", Buffer.alloc(12))), /DURATION_MISSING/);
   const unsupported = Buffer.alloc(20);
   unsupported.writeUInt8(2, 0);
-  assert.throws(() => readMp4DurationMs(movie(atom("mvhd", unsupported))), /VERSION_UNSUPPORTED/);
-  assert.throws(() => readMp4DurationMs(movieHeaderV0(0, 4000)), /DURATION_INVALID/);
+  assert.throws(() => readMp4DurationMs(atom("mvhd", unsupported)), /VERSION_UNSUPPORTED/);
+  assert.throws(() => readMp4DurationMs(headerV0("mvhd", 0, 4000)), /DURATION_INVALID/);
 });
