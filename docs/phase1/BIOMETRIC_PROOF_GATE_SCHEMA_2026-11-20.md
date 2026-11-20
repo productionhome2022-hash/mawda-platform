@@ -1,53 +1,51 @@
-# Biometric proof gate — 2026-11-20
+# Biometric verification gate — Super Owner manual-review contract
 
-## Status
+## Authority and current status
 
-**Hardening gate only; the cryptographic verification pipeline is not complete and no reward/privilege is enabled.**
+The latest owner-approved policy is the Super Owner manual-review amendment recorded in PR #77 and `docs/phase1/BIOMETRIC_SUPER_OWNER_MANUAL_REVIEW_POLICY_2026-11-20.md`.
 
-Branch: `codex/mawdda-biometric-proof-gate-2026-11-20`  
-Base: `codex/mawdda-phase1-unified-2026-11-19`  
-Related issue: #72
+**Play Integrity, App Attest, device-key attestation and automated biometric classifiers are not prerequisites for the Super Owner's accept/reject decision.** They cannot replace the human review of the submitted voice sample and video.
 
-## Changes in this branch
+The privilege gate remains **fail-closed**. The pure predicate below only recognizes a server-owned accepted-review record; it does not create that record, authorize a reviewer, or complete the review workflow. No callable currently writes this contract, so this change does not activate biometric verification or privileges.
 
-- `hasActiveBiometricVerification` now requires the expected canonical member UID and a server-proof record.
-- Legacy `status: verified` records, local OS prompt claims, client-claim trust models, cross-account proof, missing/invalid challenge metadata, unverified signature/attestation markers, unconsumed nonces, expired/revoked records and invalid timestamps fail closed.
-- The gate is applied to profile social-link publication/visibility, direct-message link privileges and room-message link privileges.
-- Clearing/removing links and hiding existing links remain available without an active biometric lease.
-- Firestore rules currently deny all client create/update/delete operations on `users/{uid}`, so the proof record is not client-writable through the Firestore client.
+## Server-owned accepted-review record
 
-## Required persisted verifier result contract
+A trusted review service may write a `biometricVerification` lease only after:
+- validating the authenticated Super Owner platform-owner claim and fresh MFA server-side;
+- loading the canonical UID and immutable review request from Firestore;
+- confirming that the request is pending and version-current;
+- recording an explicit manual accept decision and append-only audit event;
+- applying the independent one-calendar-month biometric renewal due date.
 
-The gate expects the trusted server to persist a `biometricVerification` record with:
+The resulting server-owned record must contain:
+- `status = verified`;
+- `verificationMethod = super_owner_manual_review`;
+- `trustModel = server_authoritative_owner_decision`;
+- `reviewerRole = super_owner`;
+- `reviewerMfaVerified = true` and server timestamp `reviewerMfaAt`;
+- `decision = accepted`;
+- `reviewerUid` distinct from the member UID;
+- stable `reviewRequestId`;
+- server timestamps `acceptedAt` and future `expiresAt`;
+- no `revokedAt`.
 
-- `status = verified`
-- `verificationMethod = server_verified_device_attestation`
-- `trustModel = challenge_bound_device_key`
-- future `expiresAt`, with no `revokedAt`
-- `serverProof.status = verified`
-- provider `android_play_integrity` or `ios_app_attest`
-- `serverProof.accountUid` exactly matching the user document UID
-- non-empty server-registered `deviceKeyId` and one-time `challengeId`
-- SHA-256 `proofDigest`
-- server verification markers `signatureVerified`, `attestationVerified`, and `nonceConsumed`
-- server timestamps `verifiedAt` and `nonceConsumedAt`, in valid order and not in the future
+These fields are an internal trusted-writer contract, not proof that the callable or reviewer authorization already exists. Client writes must never set them. The helper checks record shape and lease timing only; the callable must enforce owner claim + MFA and persist the record transactionally.
 
-These fields are an internal verifier-result contract, **not proof that the verifier exists**. A trusted writer must set them only after actual provider verification and atomic challenge consumption. A client-supplied boolean or client-created record must never set them.
+## Still required before enabling privileges
 
-## Still required before full cryptographic acceptance
-
-1. Android verifier: validate Google Play Integrity tokens server-side, validate package/app identity, request binding, freshness and the expected integrity verdict; document supported platform/API constraints.
-2. iOS verifier: validate Apple App Attest attestation/assertion server-side, certificate chain, app identity, key registration and assertion counter/replay semantics.
-3. Issue a short-lived single-use challenge bound to UID, registered device key, request ID and evidence generation.
-4. Verify the signature/attestation, consume the nonce atomically, and bind the result to the exact request/evidence hash.
-5. Implement key rotation/revocation, expiry, retries, lockout and evidence deletion; ensure concurrent replay cannot verify twice.
-6. Keep Super Owner acceptance as a separate required decision after valid cryptographic proof.
-7. Grant the 1,500-coin reward only after proof plus Owner acceptance, through the central atomic wallet ledger with idempotent audit.
-8. Add Emulator integration tests for forged/malformed, expired, replayed, revoked, cross-account/device/challenge/evidence, concurrent and valid Android/iOS fixtures.
+1. Member submission with canonical identity snapshot and private audio/video evidence.
+2. Super Owner-only inbox and private playback, with owner claim + fresh MFA on every review action.
+3. Server-owned pending/accepted/rejected/closed state, three attempts, one-calendar-month waits after the first two rejections, and final closure after the third.
+4. Version checks, transaction serialization, one-active-request enforcement, idempotency and append-only decision/access audit.
+5. Exactly-once 1,500 BetaCoins credit in the central wallet ledger in the same atomic acceptance flow.
+6. Independent monthly biometric renewal; email renewal remains independently every three calendar months.
+7. Short-lived request-bound evidence access, revocation after decision, retryable deletion, and no media/biometric data in logs or analytics.
+8. Emulator and security-rules tests for authorization, replay, concurrency, retry boundaries, renewal, reward exactly-once, access revocation and deletion.
+9. Flutter UI and exact-head Functions/Firestore/Storage rules CI.
 
 ## Explicit boundaries
 
-- This branch does not implement Android or Apple attestation verification, device-key enrollment, challenge issuance/consumption, or the biometric review workflow.
-- It does not grant biometric verification, badges, privileges or 1,500 coins.
-- `completeBiometricVerificationCycle` remains fail-closed.
-- No production Firebase, billing, deployment, `main`, retention policy or 5,000-persona simulation is touched.
+- The client OS prompt is not proof and cannot grant verification or rewards.
+- Provider/device attestation is not required for the manual review decision and is not a substitute for it.
+- Do not open privileges, grant rewards, deploy, mutate production Firebase, enable billing or run the 5,000-persona simulation under this change.
+- Keep all biometric privileges disabled until every server-side acceptance gate above passes on the exact candidate SHA and the Owner separately authorizes release.
