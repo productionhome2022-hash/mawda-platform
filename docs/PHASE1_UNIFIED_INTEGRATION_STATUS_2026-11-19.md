@@ -458,3 +458,21 @@ All runs below used `6c8b963576fd98055328a68297e873509c9d2cb5` and completed suc
 - Issue #52 remains open: candidate-only biometric/sticker policy modules remain blocked where they encode unapproved reward/limit policy; matching call-usage/group-call modules are already integrated and were not copied again.
 - Step 1/14 remains **OPEN**. CI is green on this exact SHA, but Phase 1 source reconciliation and all acceptance gates are not complete.
 - No merge to `main`, deployment, production Firebase mutation, billing/Blaze activation, live retention-policy change, iOS identity change, or production data operation was performed.
+
+
+## Store-gift concurrency regression — 2026-11-20
+
+- Selectively ported the narrow two-file delta from PR #56 to the unified branch; its base was the unified SHA with zero commits behind and two commits ahead.
+- Target SHA: `ae1272799e86f82440d941bb3592b0e449aaa443`.
+- `.github/workflows/validate.yml` now invokes `npm run test:store-gifting-integration` in Validate Mawda.
+- `functions/test/integration/store-gifting.integration.test.js` now races two identical gift requests and asserts exactly one non-replay and one idempotent replay. Existing sender debit, recipient-not-charged, ledger and entitlement assertions remain.
+- Exact-SHA Validate Push run `44687811967`: **completed / success** (Cloud Functions 38 steps, Flutter 16 steps, ClamAV 11 steps).
+- Exact-SHA Validate PR run `44687817947`: **completed / success** (Cloud Functions 38 steps, Flutter 16 steps, ClamAV 11 steps).
+- Exact-SHA Mawdda Domain Regression run `44687811950`: **completed / success** (retention/room regression and Flutter regression both passed).
+- No production callable, price, quota, entitlement policy or live service was changed. PR #47 remains Draft/open/unmerged; Step 1/14 remains OPEN.
+
+## Additional branch content review — 2026-11-20
+
+- PR #43 store-gifting candidate: helper module, unit test and shop screen have identical Git blob SHAs to unified. Candidate `functions/src/index.ts` and integration test differ and are older; do not overwrite the newer unified implementation.
+- PR #42 specialized-role candidate: role identity module, its test, advertising governance module and its test differ from the unified versions and are smaller/older. Keep the unified files; do not replace them wholesale.
+- Broad featured-advertising and economic-phase branches remain highly divergent and require dependency-level extraction and owner-policy checks. No wholesale merges were performed.
