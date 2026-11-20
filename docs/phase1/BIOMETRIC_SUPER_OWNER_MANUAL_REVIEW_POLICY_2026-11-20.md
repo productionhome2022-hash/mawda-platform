@@ -1,4 +1,6 @@
-# Biometric verification — Super Owner manual-review policy amendment
+# SUPERSEDED — Historical biometric policy amendment
+
+> This document records the earlier PR #77 policy only. It is retained for provenance and must not be used as the implementation source where it differs from the final owner-approved policy. The authoritative specification is [`BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md`](./BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md), merged by PR #82. In particular, the final policy mandates a pre-established spoken phrase, 3–5 second video, canonical gender matching, and the exact three-attempt lifecycle.
 Date: 2026-11-20
 Repository: `productionhome2022-hash/mawda-platform`
 Target integration line: `codex/mawdda-phase1-unified-2026-11-19`
