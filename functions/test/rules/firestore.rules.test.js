@@ -146,3 +146,18 @@ test("media metadata and access audit collections are server-only", async () => 
     action: "owner_media_inspection_url_issued",
   }));
 });
+
+
+test("biometric requests, playback grants and verification audit records are server-only", async () => {
+  const alice = env.authenticatedContext("alice").firestore();
+  await assertFails(getDoc(doc(alice, "biometricVerificationRequests/request-1")));
+  await assertFails(getDocs(collection(alice, "biometricVerificationRequests")));
+  await assertFails(setDoc(doc(alice, "biometricVerificationRequests/fake"), {
+    uid: "alice", status: "verified",
+  }));
+  await assertFails(getDoc(doc(alice, "biometricOwnerPlaybackGrants/request-1_alice")));
+  await assertFails(setDoc(doc(alice, "biometricOwnerPlaybackGrants/fake"), {
+    reviewerUid: "alice", expiresAt: Date.now() + 60000,
+  }));
+  await assertFails(getDoc(doc(alice, "verificationAuditLogs/biometric_reward_fake")));
+});
