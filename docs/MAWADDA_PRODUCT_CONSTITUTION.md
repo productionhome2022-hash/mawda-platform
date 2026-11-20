@@ -498,7 +498,7 @@ This amendment is part of the binding constitution and supersedes inconsistent o
 - Super Owner controls daily attendance, hourly attendance and weekly attendance rewards, including eligibility, schedule/window, value, quantity, limits, enable/disable and audit.
 - Rewards are calculated and granted server-side, once per eligible cycle, with idempotency and wallet ledger records for coin awards.
 - The existing 500-coin eligible 90-day email-verification reward remains governed by its existing trusted-verification rule.
-- The 1,500-coin biometric reward remains fail-closed until challenge-bound cryptographic server proof, device/account binding, signature validation, replay protection, revocation/expiry and physical-device acceptance exist. A client-reported local OS prompt success is insufficient.
+- The 1,500 BetaCoins biometric reward is approved after the Super Owner personally reviews the submitted evidence and explicitly accepts the request. No challenge-bound cryptographic device proof, device attestation, Play Integrity, App Attest, provider attestation or automated biometric score is required for approval. The reward is issued once for the accepted cycle through the central economy ledger. Keep the feature fail-closed only until the secure Super Owner authorization, private evidence handling, audit, atomic idempotent grant, renewal/revocation/deletion and test lifecycle is complete.
 
 ### E. Ad-view rewards
 - The owner may upload and manage first-party ads; future third-party ad providers may be integrated through approved adapters.
