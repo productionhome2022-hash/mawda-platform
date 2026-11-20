@@ -174,6 +174,35 @@ async function deleteEvidence(requestId: string): Promise<void> {
   }
 }
 
+export const getMyBiometricVerificationStatus = onCall(async request => {
+  const uid = requireUid(request.auth?.uid);
+  const userSnapshot = await db().collection("users").doc(uid).get();
+  if (!userSnapshot.exists) throw new HttpsError("not-found", "حساب العضو غير موجود.");
+  const user = userSnapshot.data() ?? {};
+  const requestId = typeof user.biometricVerificationLastRequestId === "string"
+    ? user.biometricVerificationLastRequestId : null;
+  let latest: Record<string, any> = {};
+  if (requestId) {
+    const requestSnapshot = await requests().doc(requestId).get();
+    if (requestSnapshot.exists && requestSnapshot.data()?.uid === uid) latest = requestSnapshot.data() ?? {};
+  }
+  const verification = user.biometricVerification && typeof user.biometricVerification === "object"
+    ? user.biometricVerification as Record<string, any> : {};
+  const millis = (value: unknown): number | null => value instanceof Timestamp
+    ? value.toMillis() : null;
+  return {
+    status: verification.status === "verified" && verification.expiresAt instanceof Timestamp &&
+      verification.expiresAt.toMillis() > Date.now() && verification.revokedAt == null
+      ? "verified" : String(latest.status ?? "not_submitted"),
+    attemptNumber: Number.isSafeInteger(latest.attemptNumber) ? latest.attemptNumber : 0,
+    nextEligibleAtMs: millis(latest.nextEligibleAt),
+    expiresAtMs: millis(verification.expiresAt),
+    permanentlyClosed: user.biometricVerificationPermanentlyClosed === true,
+    requestId,
+    rewardCoins: latest.decision === "accepted" ? BIOMETRIC_REWARD_COINS : 0,
+  };
+});
+
 export const getBiometricVerificationPhrase = onCall(async (request) => {
   requireUid(request.auth?.uid);
   return {
