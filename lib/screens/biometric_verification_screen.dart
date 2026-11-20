@@ -18,6 +18,8 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
   Map<String, dynamic>? _request;
   bool _loading = false;
   bool _consent = false;
+  String? _audioMediaId;
+  String? _videoMediaId;
   String? _error;
 
   @override
@@ -35,41 +37,70 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
   Future<void> _refreshStatus() async {
     try {
       final value = await _service.getMyBiometricVerificationStatus();
-      if (mounted) setState(() => _status = value);
+      if (mounted) setState(() {
+        _status = value;
+        if (value['status'] == 'uploading' && value['requestId'] is String) {
+          _request = {'requestId': value['requestId'], 'phrase': value['phrase'], 'uploadPurpose': 'biometric'};
+          _audioMediaId = value['audioMediaId'] as String?;
+          _videoMediaId = value['videoMediaId'] as String?;
+        }
+      });
     } catch (_) {
       if (mounted) setState(() => _error = 'تعذر تحميل حالة التوثيق من الخادم.');
     }
   }
 
+  Future<XFile?> _pickAudio() async {
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom, allowedExtensions: const ['m4a'], withData: false,
+    );
+    final file = picked?.files.single;
+    if (file == null || file.path == null) return null;
+    return XFile(file.path!, name: file.name, mimeType: 'audio/mp4');
+  }
+
+  Future<XFile?> _pickVideo() => _picker.pickVideo(
+    source: ImageSource.camera, maxDuration: const Duration(seconds: 5),
+  );
+
   Future<void> _runSubmission() async {
     if (_loading || !_consent) return;
     setState(() { _loading = true; _error = null; });
     try {
-      final request = await _service.startBiometricVerificationRequest();
-      if (!mounted) return;
-      setState(() => _request = request);
-
-      final audio = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: const ['m4a'],
-        withData: false,
-      );
-      if (audio == null || audio.files.single.path == null) {
-        throw StateError('لم يتم اختيار تسجيل صوتي بصيغة M4A.');
+      XFile? audioFile;
+      XFile? videoFile;
+      if (_request == null) {
+        audioFile = await _pickAudio();
+        if (audioFile == null) throw StateError('لم يتم اختيار تسجيل M4A.');
+        videoFile = await _pickVideo();
+        if (videoFile == null) throw StateError('لم يتم تسجيل فيديو التحقق.');
+        final request = await _service.startBiometricVerificationRequest();
+        if (!mounted) return;
+        setState(() => _request = request);
+      } else {
+        if (_audioMediaId == null) {
+          audioFile = await _pickAudio();
+          if (audioFile == null) throw StateError('اختر تسجيل M4A لاستكمال الطلب المفتوح.');
+        }
+        if (_videoMediaId == null) {
+          videoFile = await _pickVideo();
+          if (videoFile == null) throw StateError('سجّل فيديو لاستكمال الطلب المفتوح.');
+        }
       }
-      await _service.uploadBiometricAudio(
-        file: XFile(audio.files.single.path!, name: audio.files.single.name, mimeType: 'audio/mp4'),
-        requestId: request['requestId'] as String,
-      );
-
-      final video = await _picker.pickVideo(
-        source: ImageSource.camera,
-        maxDuration: const Duration(seconds: 5),
-      );
-      if (video == null) throw StateError('لم يتم تسجيل فيديو التحقق.');
-      await _service.uploadBiometricVideo(file: video, requestId: request['requestId'] as String);
-
-      await _service.submitBiometricVerificationRequest(requestId: request['requestId'] as String);
+      final requestId = _request!['requestId'] as String;
+      if (_audioMediaId == null && audioFile != null) {
+        final mediaId = await _service.uploadBiometricAudio(file: audioFile, requestId: requestId);
+        if (mounted) setState(() => _audioMediaId = mediaId);
+      } else if (_audioMediaId != null) {
+        await _service.waitForSafeAttachmentApproval(_audioMediaId!);
+      }
+      if (_videoMediaId == null && videoFile != null) {
+        final mediaId = await _service.uploadBiometricVideo(file: videoFile, requestId: requestId);
+        if (mounted) setState(() => _videoMediaId = mediaId);
+      } else if (_videoMediaId != null) {
+        await _service.waitForSafeAttachmentApproval(_videoMediaId!);
+      }
+      await _service.submitBiometricVerificationRequest(requestId: requestId);
       await _refreshStatus();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -88,7 +119,8 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
       case 'pending': return 'بانتظار مراجعة Super Owner';
       case 'rejected': return 'تم رفض المحاولة';
       case 'closed': return 'أُغلق الملف بعد ثلاث حالات رفض';
-      case 'uploading': return 'جارٍ تجهيز الأدلة';
+      case 'expired': return 'انتهت صلاحية التوثيق ويمكنك التجديد';
+      case 'uploading': return 'طلب مفتوح؛ يمكنك استكمال رفع الأدلة';
       case 'upload_rejected': return 'لم تُقبل ملفات الرفع؛ يمكنك إعادة المحاولة';
       default: return 'لم يُرسل طلب توثيق';
     }
@@ -114,6 +146,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
                 Text('انتهاء التوثيق: ${DateTime.fromMillisecondsSinceEpoch((_status!['expiresAtMs'] as num).toInt()).toLocal()}'),
               ],
               if (closed) const Text('لا توجد محاولة رابعة.', style: TextStyle(color: Colors.red)),
+          if (_status?['status'] == 'uploading') const Text('استكمال الطلب المفتوح: ستُرفع الأدلة الناقصة فقط، ولن يبدأ طلب أو محاولة جديدة.'),
               if (pending) const Text('لديك طلب مفتوح بالفعل؛ لا تنشئ طلباً مكرراً.'),
             ]),
           )),
@@ -122,7 +155,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('العبارة المعتمدة', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
-              const SelectableText('أنا أريد الانضمام إلى مرحلة التوثيق البيومتري لأحصل على مكافأة ألف وخمسمائة بيتكوينز. الرجاء قبول التوثيق.'),
+              SelectableText((_request?['phrase'] as String?) ?? 'أنا أريد الانضمام إلى مرحلة التوثيق البيومتري لأحصل على مكافأة ألف وخمسمائة بيتكوينز. الرجاء قبول التوثيق.'),
               const SizedBox(height: 8),
               const Text('سجّل صوتك وأنت تقرأ العبارة كاملة، ثم سجّل فيديو مدته من 3 إلى 5 ثوانٍ. الحد الأعلى للصوت 60 ثانية و5 MiB، وللفيديو 25 MiB.'),
             ]),
