@@ -5,7 +5,7 @@ const { getStorage } = require("firebase-admin/storage");
 const {
   getBiometricVerificationPhrase, startBiometricVerificationRequest,
   submitBiometricVerificationRequest, listOwnerBiometricVerificationRequests,
-  decideBiometricVerificationRequest, completeBiometricVerificationCycle,
+  getOwnerBiometricEvidencePlayback, decideBiometricVerificationRequest, completeBiometricVerificationCycle,
 } = require("../../lib/index");
 const { hasActiveBiometricVerification } = require("../../lib/biometric-verification");
 const db = getFirestore();
@@ -74,9 +74,21 @@ test("approved phrase, private evidence validation, owner review and exactly-onc
       error => error && error.code === "permission-denied");
     const inbox = await listOwnerBiometricVerificationRequests.run(ownerRequest(ownerUid));
     assert.ok(inbox.requests.some(item => item.requestId === started.requestId));
-    const decision = await decideBiometricVerificationRequest.run(ownerRequest(ownerUid, {
-      requestId: started.requestId, decision: "accepted",
+    await assert.rejects(() => getOwnerBiometricEvidencePlayback.run(memberRequest(uid, {
+      requestId: started.requestId,
+    })), error => error && error.code === "permission-denied");
+    const playback = await getOwnerBiometricEvidencePlayback.run(ownerRequest(ownerUid, {
+      requestId: started.requestId,
     }));
+    assert.match(playback.audioUrl, /mawddaEmulatorOnly=1/);
+    assert.match(playback.videoUrl, /mawddaEmulatorOnly=1/);
+    const decisions = await Promise.allSettled([1, 2].map(() =>
+      decideBiometricVerificationRequest.run(ownerRequest(ownerUid, {
+        requestId: started.requestId, decision: "accepted",
+      }))));
+    assert.equal(decisions.filter(item => item.status === "fulfilled").length, 1,
+      "concurrent duplicate decisions must have exactly one winner");
+    const decision = decisions.find(item => item.status === "fulfilled").value;
     assert.equal(decision.rewardGranted, true);
     assert.equal(decision.rewardCoins, 1500);
     const member = (await userRef.get()).data();
@@ -119,6 +131,52 @@ test("server rejects overlong voice and video evidence and keeps rejected submis
     }
     assert.equal((await userRef.get()).data().coins, 99);
   } finally {
+    await cleanup(uid, ids);
+  }
+});
+
+
+test("rejections open only calendar-month retries and the third rejection closes permanently without reward", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator required");
+  const originalNow = Date.now;
+  let nowMs = originalNow();
+  Date.now = () => nowMs;
+  const tag = suffix(), uid = "biometric_retry_" + tag, ownerUid = "biometric_owner_retry_" + tag;
+  const userRef = db.collection("users").doc(uid), ids = [];
+  await userRef.set({
+    uid, fullName: "Retry Member", username: "retry_" + Math.floor(Math.random() * 1000000),
+    gender: "male", profileCompleted: true, accountStatus: "active", coins: 777,
+  });
+  try {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      if (attempt > 1) {
+        await assert.rejects(() => startBiometricVerificationRequest.run(memberRequest(uid)),
+          error => error && error.code === "failed-precondition");
+        nowMs += 32 * 24 * 60 * 60 * 1000;
+      }
+      const started = await startBiometricVerificationRequest.run(memberRequest(uid));
+      ids.push(started.requestId);
+      assert.equal(started.attemptNumber, attempt);
+      const ref = db.collection("biometricVerificationRequests").doc(started.requestId);
+      const data = (await ref.get()).data();
+      await upload(data.audioPath, mp4(30000, "audio"), "audio/mp4");
+      await upload(data.videoPath, mp4(3000, "video"), "video/mp4");
+      await submitBiometricVerificationRequest.run(memberRequest(uid, { requestId: started.requestId }));
+      const decision = await decideBiometricVerificationRequest.run(ownerRequest(ownerUid, {
+        requestId: started.requestId, decision: "rejected",
+      }));
+      assert.equal(decision.rewardGranted, false);
+      assert.equal(decision.rewardCoins, 0);
+      assert.equal(decision.attemptNumber, attempt);
+      assert.equal(decision.status, attempt === 3 ? "closed" : "rejected");
+    }
+    const member = (await userRef.get()).data();
+    assert.equal(member.coins, 777, "no rejected attempt can grant coins");
+    assert.equal(member.biometricVerificationPermanentlyClosed, true);
+    await assert.rejects(() => startBiometricVerificationRequest.run(memberRequest(uid)),
+      error => error && error.code === "failed-precondition");
+  } finally {
+    Date.now = originalNow;
     await cleanup(uid, ids);
   }
 });
