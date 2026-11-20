@@ -2039,10 +2039,11 @@ export const ownerMediaInspectionStream = onRequest(
         return;
       }
       const asset = snapshot.data()!;
-  if (asset.mediaPurpose === "biometric") {
-    await auditMediaAccess({ actorUid, mediaId, action: "owner_media_preview", outcome: "denied", failureCode: "biometric-evidence-use-dedicated-review" });
-    throw new HttpsError("permission-denied", "أدلة التوثيق البيومتري لا تُعرض إلا عبر مسار المراجعة المخصص.");
-  }
+      if (asset.mediaPurpose === "biometric") {
+        await auditMediaAccess({ actorUid, mediaId, action: "owner_media_stream_attempt", outcome: "denied", failureCode: "biometric-evidence-use-dedicated-review" });
+        response.status(403).set("Cache-Control", "no-store").end();
+        return;
+      }
       if (!["pending_security_scan", "scanner_clean_pending_processing", "security_approved"].includes(String(asset.status))) {
         response.status(409).set("Cache-Control", "no-store").end();
         return;
