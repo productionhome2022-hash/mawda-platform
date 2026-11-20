@@ -479,7 +479,7 @@ test("group audio follows room capacity and group video is capped at four total 
 
   try {
     for (const count of [2, 4, 7, 9]) {
-      const audio = await seedRoom("group_audio_" + count, count, count);
+      const audio = await seedRoom("group_audio_" + count, count, Math.max(5, count));
       const started = await startCall.run(call(audio.ownerUid, {
         callId: audio.callId, scope: "room", targetId: audio.roomId, mode: "audio",
       }));
