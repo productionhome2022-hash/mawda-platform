@@ -189,6 +189,15 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('حالة طلبك: ${_statusLabel()}', style: Theme.of(context).textTheme.titleMedium),
+              if ((_status?['attemptNumber'] as num?)?.toInt() case final attempt? when attempt > 0) ...[
+                const SizedBox(height: 8),
+                Text('المحاولة الحالية: $attempt من 3'),
+              ],
+              if (_status?['status'] == 'rejected' && _status?['nextEligibleAtMs'] is num) ...[
+                const SizedBox(height: 8),
+                Text('موعد إتاحة المحاولة التالية: ${DateTime.fromMillisecondsSinceEpoch((_status!['nextEligibleAtMs'] as num).toInt()).toLocal()}'),
+                const Text('تُتاح المحاولة الثانية بعد الرفض الأول بشهر تقويمي، والثالثة بعد الرفض الثاني بشهر تقويمي آخر.'),
+              ],
               const SizedBox(height: 8),
               const Text('القبول يقرره Super Owner بعد الاستماع إلى التسجيل ومراجعة الفيديو. لا يوجد قبول آلي ولا يلزم إثبات تشفيري من الجهاز.'),
               if (_status?['expiresAtMs'] is num) ...[
