@@ -39,8 +39,8 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
   @override
   void dispose() {
     _recordingTimer?.cancel();
-    if (_recording) _recorder.stop();
-    _recorder.dispose();
+    if (_recording) unawaited(_recorder.stop());
+    unawaited(_recorder.dispose());
     _service.close();
     super.dispose();
   }
