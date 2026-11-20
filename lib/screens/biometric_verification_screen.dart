@@ -189,9 +189,9 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('حالة طلبك: ${_statusLabel()}', style: Theme.of(context).textTheme.titleMedium),
-              if ((_status?['attemptNumber'] as num?)?.toInt() case final attempt? when attempt > 0) ...[
+              if (_status?['attemptNumber'] is num && (_status!['attemptNumber'] as num).toInt() > 0) ...[
                 const SizedBox(height: 8),
-                Text('المحاولة الحالية: $attempt من 3'),
+                Text('المحاولة الحالية: ${(_status!['attemptNumber'] as num).toInt()} من 3'),
               ],
               if (_status?['status'] == 'rejected' && _status?['nextEligibleAtMs'] is num) ...[
                 const SizedBox(height: 8),
