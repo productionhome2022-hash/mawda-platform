@@ -138,3 +138,55 @@
 7. لا تعني هذه البوابة أن الاختبارات المجانية تغطي كل سلوك ممكن أو تحل محل اختبار الأجهزة الحقيقية أو مراجعة بشرية متخصصة أو اختبارات الإنتاج المصرح بها.
 
 **النتيجة الإدارية:** الفحص العميق والاختبار المناسب شرط قبول لكل عمل، وليس خطوة اختيارية أو تحسيناً لاحقاً. وتُقرأ هذه القاعدة مع GOV-DEV-001؛ فرع تطوير واحد، وتحقق شامل على SHA واحد، دون فروع موازية أو نشر تلقائي.
+
+
+## 12. سجل تنفيذ المصالحة الشاملة — الجولة الأولى (20 نوفمبر 2026)
+
+**الحالة:** جزئي — اكتمل الجرد الأولي والمقارنة الانتقائية وإغلاق بعض الطلبات المكررة، لكن المصالحة البرمجية الشاملة لجميع الفروع لم تكتمل. لا يجوز وصف المستودع بأنه موحّد بالكامل حتى تُراجع كل الفروقات الفريدة وتُقبل أو تُستبعد مع توثيق السبب.
+
+### 12.1 لقطة الجرد والمقارنة
+
+- أعاد GitHub عدد **82 ref/فرعاً** في المستودع عند بدء هذه الجولة. بعد استثناء فرع التطوير المرجعي و`main` وفروع `archive/*`، جرت مقارنة **78 فرعاً مرشحاً** مع `codex/mawda-full-platform-implementation`.
+- أظهرت المقارنة **61 فرعاً متشعب التاريخ** (ahead/behind)، و**17 فرعاً متأخراً فقط دون commits أمام المرجع**. أعداد commits هي بيانات ancestry وليست دليلاً على أن كل تغيير في الفرع فريد أو صالح أو غير موجود بصياغة أخرى في المرجع.
+- الفروع المتأخرة فقط، والتي لا تحمل commits جديدة فوق تاريخ المرجع، هي: `codex/biometric-final-owner-policy`, `codex/biometric-final-policy-drift`, `codex/biometric-manual-review-gate`, `codex/video-duration-enforcement`, `codex/mawdda-audit-archive-full`, `codex/mawdda-deep-audit-profile-store`, `codex/mawdda-mfa-signin`, `codex/mawdda-native-platform-scaffold`, `codex/mawdda-phase1-unified-2026-11-19`, `codex/mawdda-pr3-port`, `codex/mawdda-premium-features`, `codex/mawdda-safety-ui`, `codex/mawdda-unified-final-v2`, `codex/mawdda-unified-final-v3`, `codex/phase1-auth-privacy-audit`, `codex/phase1-integration-batch-01-inventory-2026-11-19`, `codex/production-readiness-tests`.
+- الفروع المتشعبة التي ما زالت تحتاج مصالحة ملفية/دلالية، لا دمجاً شاملاً، هي: `codex/biometric-server-lifecycle`, `codex/canonical-role-terminology-owner-confirmation-2026-11-19`, `codex/economic-phase1-closeout-2026-11-18`, `codex/economic-phase-completion-2026-11-18`, `codex/economic-phase-controlled-integration-2026-11-19`, `codex/economy-official-port-2026-11-18`, `codex/economy-recovery-2026-11-18`, `codex/featured-ads-secure-lifecycle-20261118`, `codex/featured-ads-serving-foundation`, `codex/governance-biometric-integration-2026-11-19`, `codex/mawda-phase2-hardening`, `codex/mawda-unified-constitution-vision-2026-11-19`, `codex/mawdda-audit-archive`, `codex/mawdda-biometric-owner-review-policy-2026-11-20`, `codex/mawdda-biometric-proof-gate-2026-11-20`, `codex/mawdda-deep-governance-audit-2026-11-19`, `codex/mawdda-economy-selective-port-2026-11-19`, `codex/mawdda-final-archive-v2`, `codex/mawdda-group-call-billing-r2`, `codex/mawdda-group-call-billing`, `codex/mawdda-independent-verification-cycles-2026-11-20`, `codex/mawdda-dev`, `codex/mawdda-member-inbox`, `codex/mawdda-member-inbox-rebased`, `codex/mawdda-phase1-phase2-hardening`, `codex/mawdda-premium-effects`, `codex/mawdda-retention-approval-ci-repair-2026-11-19`, `codex/mawdda-role-callable-auth-audit`, `codex/mawdda-role-capacity-after-retention-2026-11-19`, `codex/mawdda-role-capacity-consolidation-2026-11-19`, `codex/mawdda-role-capacity-final-2026-11-19`, `codex/mawdda-room-audio-duration-enforcement`, `codex/mawdda-room-events`, `codex/mawdda-step1-role-reconcile-2026-11-19`, `codex/mawdda-store-entitlement-coverage`, `codex/mawdda-store-entitlement-hardening`, `codex/mawdda-store-entitlement-hardening-v2`, `codex/mawdda-store-wallet-entitlement-closure`, `codex/mawdda-super-owner-biometric-state-machine`, `codex/mawdda-test-account-system`, `codex/mawdda-unified-final`, `codex/mawdda-unified-release`, `codex/mawdda-unified-test-2026-11-18`, `codex/phase1-branch-governance-audit-2026-11-20`, `codex/phase1-ci-coverage-role-store-2026-11-20`, `codex/phase1-ci-evidence-2026-11-20`, `codex/phase1-direct-call-transaction-revalidation-2026-11-20`, `codex/phase1-featured-ad-geography-2026-11-20`, `codex/phase1-group-call-remainder-to-initiator-2026-11-20`, `codex/phase1-media-direct-delivery-denials-2026-11-20`, `codex/phase1-media-hold-delete-race-2026-11-20`, `codex/phase1-media-scanner-duplicate-replay-2026-11-20`, `codex/phase1-media-scanner-verdict-tests-2026-11-20`, `codex/phase1-rented-room-call-gate-2026-11-20`, `codex/phase1-scanner-error-callback-test-2026-11-20`, `codex/phase1-specialist-callable-auth-2026-11-20`, `codex/phase1-specialized-callable-auth-inventory-2026-11-20`, `codex/phase1-store-gift-concurrent-replay-2026-11-20`, `codex/phase1-store-gift-permanent-entitlement-2026-11-20`, `codex/phase1-store-gift-catalog-regression-2026-11-20`, `codex/structural-governance-biometric-roles-2026-11-19`.
+
+### 12.2 تغييرات ثبت وجودها بالفعل في المرجع
+
+فحص SHA للملفات الفعلية، لا أسماء الفروع فقط، أثبت أن أمثلة من التغييرات التالية موجودة بالفعل في المرجع، لذلك لم تُكرر:
+
+- حساب وتوزيع باقي كوينز المكالمة الجماعية واختباراته.
+- استهداف حملات الإعلانات لجميع الدول العربية واختباراته.
+- رفض تسليم الوسائط غير المصرح بها واختبارات التسليم المباشر.
+- اختبارات نتائج ماسح الوسائط، واختبارات الهدايا والاستحقاقات.
+- تقويم دورات التحقق بالبريد والبيومتري واختباراته.
+- أداة إنشاء حسابات الاختبار المعزولة بالمحاكيات.
+- إضافة اختبارات سعة الأدوار والهدايا إلى `.github/workflows/validate.yml` موجودة بالفعل في المرجع؛ كما أُثبت نجاحها ضمن التشغيل التاريخي رقم `44620178339` على SHA `d46cd7095915bf98480ef38574356c62d72e6a95`.
+
+### 12.3 نقل انتقائي وإغلاق إداري موثق
+
+- نُقل إلى سجل حالة التكامل فقط دليل تشغيل PR #54 الفريد، مع توضيح أنه يثبت SHA المصدر لا HEAD الحالي.
+- أُغلقت PRs #26 و#30 و#34 و#35 و#55 بوصفها مكررة/متجاوزة بعد مقارنة ملفاتها مع المرجع الأحدث وتوثيق سبب الإغلاق في كل PR. لم تُدمج هذه PRs ولم تُحذف فروعها؛ بقي التاريخ والمصدر محفوظين.
+- أُعيدت PR #85 إلى Draft بعد فشل التحقق الدقيق. لم تُدمج.
+- لم يُحذف أي فرع، ولم يُستخدم force-push، ولم يتغير `main`.
+
+### 12.4 الموانع التي تمنع الدمج الشامل حالياً
+
+1. **البيومتري:** PR #85 على SHA `f79f146e96b9a4ae1210a1fcc37a861ebebcd294` فشل في `Mawdda domain regression` رقم `44789805357` وفي `Validate Mawda` رقم `44789805359`. فشل اختبار ماسح الوسائط عند `functions/test/media-scanner.test.js:175` لأن callback أعاد نتيجة clean لإعلان بينما كان الاختبار يتوقع رفضاً؛ وفشل اختبار تكامل البيومتري بحالات `DEADLINE_EXCEEDED`. نجاح Flutter وClamAV image لا يعالج فشل الخادم والبيومتري. كما أن واجهات العضو والمالك لم تكتمل.
+2. **تعارض سياسة البيومتري:** توجد في المصادر المتفرعة مسارات مختلفة: مراجعة بشرية مستقلة من Super Owner، أو إثبات جهاز تشفيري challenge-bound (Play Integrity/App Attest)، أو اشتراط الاثنين معاً. لا يجوز دمج مسارات تمنح امتيازاً أو 1,500 كوين قبل حسم السياسة الرسمية وتوحيد القرار والكود والاختبارات.
+3. **المكالمات الجماعية المدفوعة:** PR #31 ومصادره تضيف سياسة تسعير وتسوية جديدة، لكن لا يوجد اعتماد تفصيلي للأسعار/المدد/موافقة كل مشارك ولا تشغيل CI على HEAD المصدر. تظل الميزة معطلة ولا تُدمج كتفعيل تجاري.
+4. **الاقتصاد:** مصدر EUR-only أقدم من نموذج العملات المتعددة الحالي. لا تُستبدل النسخة الحالية بتغييرات أقدم. فروع الاقتصاد الكبيرة تتضمن تعديلات متداخلة على المحفظة والمتجر والإعلانات والتسوية ويجب مراجعتها كحزم مترابطة.
+5. **الإعلانات والملصقات وإدارة سعة الوسائط:** فرع `codex/mawdda-unified-test-2026-11-18` يختلف بـ311 commit أماماً و359 خلفاً، ويعرض ملفات وواجهات جديدة للملصقات وإدارة سعة الوسائط ولوحة الإعلانات. لم يُثبت بعد اعتماد هذه الميزات أو تكاملها مع دورة الأسعار والاستحقاق والصلاحيات والواجهات والاختبارات الحالية؛ تبقى مصدراً للمراجعة لا تُدمج عميانياً.
+6. **البيانات والقواعد:** أي اختلاف في `functions/src/index.ts` أو `firestore.rules` أو `storage.rules` أو `firestore.indexes.json` أو ملفات الوسائط يتطلب مراجعة كل caller والـschema والـrules والاختبارات قبل النقل. لا يكفي أن يكون الملف أحدث تاريخاً أو أطول حجماً.
+7. **مختبر 5000 شخصية:** يظل في مستودعه المنفصل؛ لا تُنقل أدوات الحمل الكاملة أو هويات المختبر إلى تطبيق الإنتاج.
+
+### 12.5 اختبار HEAD المرجعي بعد النقل الوثائقي
+
+على SHA الحالي عند تسجيل هذه الجولة `3d4c3d7d0c2a239fa9fab47e8aadee26f349f154` نجح:
+
+- Validate Mawda: run `44795349191` — جميع الوظائف الثلاث: Flutter analysis/tests/Web build، ClamAV scanner/image/EICAR، Cloud Functions compile/unit/emulator suites.
+- Mawdda domain regression: run `44795349255` — Flutter UI/widget tests وRetention/room reservation emulator regression.
+
+هذه النتائج تثبت نجاح الاختبارات على هذا الـSHA فقط؛ لا تثبت اكتمال كل الميزات أو مصالحة جميع الفروع أو قبول الأجهزة الحقيقية أو جاهزية الإصدار.
+
+**القرار التنفيذي:** تستمر الجولة التالية على الفرع الموحد نفسه، عبر حزم صغيرة حسب المجال، مع ملف/commit diff لكل مصدر، واختبارات exact-HEAD بعد كل حزمة. لا دمج جماعي أو إعلان اكتمال قبل إغلاق جميع الموانع أعلاه.
