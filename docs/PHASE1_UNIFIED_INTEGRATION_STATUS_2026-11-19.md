@@ -677,3 +677,21 @@ Source review on unified branch head `0d4ee49b66a9b7dde44299d8836db9d3448a2e56`:
 - The media callback replay regression is now merged into the candidate, but the post-merge exact-head workflows are still running.
 - PR #47 is **not ready to merge**: P0 delegated callable authorization/resource mapping (#48), full media delivery lifecycle acceptance (#49), direct paid-call economy (#66), group-call lifecycle (#23), remaining branch reconciliation (#52), repository branch governance (#51), current-SHA 5,000-persona simulation, and owner acceptance remain open.
 - Step 1/14 remains OPEN. No development merge, main merge, deployment, production Firebase mutation, billing/paid resource activation, live retention-policy change or signing identity change was performed.
+
+
+## Source-to-operation authorization audit — deeper callable inventory — 2026-11-20
+
+- Rechecked the 146 exported `onCall` functions after the media replay merge. The governance helper is still not imported/invoked by `index.ts`; no callable-level delegated authorization exists.
+- `setTimedAdCampaign`, `getOwnerTimedAdCampaigns`, and `setTimedAdCampaignStatus` are explicitly Owner-gated. Their authoritative records are `timedAdCampaigns`, `timedAdCampaignVersions`, and linked `mediaAssets`. Campaign creative ownership is checked against the authenticated Owner and `uploaderRole === "platform_owner"`; this does not establish an assigned-campaign relation for a specialist.
+- Advertising intake uses `advertisingIntakeRequests`; submissions are member-originated and Owner review/list operations are explicitly Owner-gated. The current record shape does not establish an Owner-approved delegated reviewer assignment or a stable per-specialist resource scope.
+- Production applications use `productionApplications`; list/review are Owner-gated. No approved production-room/task assignment relation was established by this callable inventory.
+- Contracts use `contracts`; company draft/transition/signature operations are Owner-gated and contract transitions verify `ownerUid`. Counterparty signature is restricted to the exact counterparty UID and verified email. Do not turn legal role vocabulary into delegated signing or contract mutation.
+- Specialized grants are stored in `specializedRoleGrants` with opaque validated `resourceScopes`; capacity and audit state are separate. Opaque strings are not proof that the referenced resource exists or belongs to the assigned staff member.
+- Conclusion: no safe resource resolver can yet be derived for delegated campaign, intake, production, or contract actions. Keep these callables Owner-only and fail-closed. Required next design is an Owner-approved assignment record with canonical resource IDs, assignment lifecycle/version, server-side resource ownership checks and audit; only then add per-callable permission checks and Emulator allow/deny cases.
+
+## Media pipeline test inventory — 2026-11-20
+
+- Current Emulator suite explicitly covers owner-only safe preview (hash-verified derivative), rejection of stale generations with no fallback to original quarantine bytes, direct-chat participant delivery, room-member delivery/non-member denial, expired retention denial, active legal hold deletion denial, malicious scanner verdict + pinned-generation deletion, scanner error retry (503 without state transition), concurrent legal-hold/deletion, late derivative cleanup retry, and suspended-account room message denial.
+- Scanner unit tests cover HMAC authentication, verdict freshness/provider/generation/hash binding, safe WebP derivative contract, and GIF/audio/video/PDF derivative contracts.
+- PR #68 now explicitly covers exact duplicate malicious callback replay and single audit outcome.
+- Still-open acceptance cases in #49: complete unauthorized download matrix (unauthenticated, wrong owner, wrong purpose, wrong room/chat, revoked membership, suspended/blocked account), safe derivative download after generation supersession, missing/stale derivative and source generation races, delivery URL replay/expiry semantics, retry/audit failure behavior, and end-to-end proof that no route ever exposes original quarantine object bytes. Keep Storage direct access default-deny until this evidence and a separately reviewed rule design are complete.
