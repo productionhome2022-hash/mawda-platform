@@ -10551,6 +10551,14 @@ export const startCall = onCall(async (request) => {
           !isActiveRentedPrivateRoom(roomSnapshot.data(), rentalSnapshot.data(), now))) {
       throw new HttpsError("failed-precondition", "الغرفة أو استئجارها لم يعد نشطاً؛ تم رفض بدء المكالمة.");
     }
+    if (input.scope === "room") {
+      const currentParticipantLimit = roomSnapshot?.exists
+        ? roomCallParticipantLimit(input.mode, roomSnapshot.data()?.capacity)
+        : null;
+      if (currentParticipantLimit === null || participantUids.length > currentParticipantLimit) {
+        throw new HttpsError("failed-precondition", "تغيرت سعة الغرفة قبل إنشاء المكالمة؛ أعد المحاولة.");
+      }
+    }
     if (input.scope === "room" && !areRoomCallParticipantsMembers(roomMemberSnapshots)) {
       throw new HttpsError("permission-denied", "تغيرت عضوية أحد المشاركين قبل إنشاء المكالمة؛ أعد المحاولة.");
     }
