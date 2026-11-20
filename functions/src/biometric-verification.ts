@@ -38,7 +38,7 @@ export function hasActiveBiometricVerification(
       !validUid(expectedUid) || !Number.isSafeInteger(nowMs) || nowMs < 0) return false;
 
   const verification = value as Record<string, unknown>;
-  if (verification.status !== "verified" ||
+  if (verification.accountUid !== expectedUid ||\n      verification.status !== "verified" ||
       verification.revokedAt != null ||
       verification.verificationMethod !== "super_owner_manual_review" ||
       verification.trustModel !== "server_authoritative_owner_decision" ||
