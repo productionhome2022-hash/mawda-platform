@@ -100,6 +100,48 @@ test("store gift debits sender and grants recipient once with immutable terms", 
       })),
       (error) => error && error.code === "already-exists",
     );
+    await assert.rejects(
+      () => giftStoreItem.run(memberRequest(senderUid, {
+        recipientUsername, itemId, requestId: `missing_version_${tag}`,
+        expectedPriceCoins: 500,
+      })),
+      (error) => error && error.code === "invalid-argument",
+    );
+
+    const updated = await setStoreCatalogItem.run(ownerRequest("gift-catalog-owner", {
+      itemId, name: "عضوية VIP", description: "إصدار أحدث لاختبار السعر.",
+      category: "vip", priceCoins: 600, durationDays: 14,
+      sortOrder: 1, active: true, purchaseEnabled: true,
+    }));
+    assert.ok(updated.version > saved.version);
+
+    await assert.rejects(
+      () => giftStoreItem.run(memberRequest(senderUid, {
+        recipientUsername, itemId, requestId: `stale_version_${tag}`,
+        expectedPriceCoins: 500, expectedCatalogVersion: saved.version,
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await assert.rejects(
+      () => giftStoreItem.run(memberRequest(senderUid, {
+        recipientUsername, itemId: "unknown_sku",
+        requestId: `unknown_sku_${tag}`,
+        expectedPriceCoins: 600, expectedCatalogVersion: updated.version,
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await assert.rejects(
+      () => giftStoreItem.run(memberRequest(senderUid, {
+        recipientUsername, itemId, requestId: `stale_price_${tag}`,
+        expectedPriceCoins: 500, expectedCatalogVersion: updated.version,
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+    assert.equal((await senderRef.get()).data().coins, 1500,
+      "malformed, unknown-SKU, stale-version and stale-price requests must not debit the sender");
+    assert.equal((await db.collection("storeGifts").where("senderUid", "==", senderUid).get()).size, 1,
+      "rejected requests must not create additional gift receipts");
+
   } finally {
     await Promise.all([
       giftRef.delete().catch(() => undefined),
