@@ -476,3 +476,42 @@ All runs below used `6c8b963576fd98055328a68297e873509c9d2cb5` and completed suc
 - PR #43 store-gifting candidate: helper module, unit test and shop screen have identical Git blob SHAs to unified. Candidate `functions/src/index.ts` and integration test differ and are older; do not overwrite the newer unified implementation.
 - PR #42 specialized-role candidate: role identity module, its test, advertising governance module and its test differ from the unified versions and are smaller/older. Keep the unified files; do not replace them wholesale.
 - Broad featured-advertising and economic-phase branches remain highly divergent and require dependency-level extraction and owner-policy checks. No wholesale merges were performed.
+
+
+## Unified integration continuation — 2026-11-20 (authoritative latest checkpoint)
+
+- Unified branch: `codex/mawdda-phase1-unified-2026-11-19`.
+- Source SHA: `09a023c64d496499aa35f9184bad55a57ca10b40`.
+- Comparison with official development branch `codex/mawda-full-platform-implementation`: **48 commits ahead, 0 behind**.
+- Exact-head Validate Push run `44690788490`: **success** — Cloud Functions 39 steps, Flutter/web 16 steps, isolated ClamAV 11 steps.
+- Exact-head Validate PR run `44690796406`: **success** — Cloud Functions 39 steps, Flutter/web 16 steps, isolated ClamAV 11 steps.
+- Exact-head Domain Regression run `44690788551`: **success** — room/retention/economy/call lifecycle emulator regressions and Flutter UI/widget tests passed.
+
+### Selectively integrated and verified
+
+1. **Store gifting concurrency:** two identical gift requests race; exactly one first execution and one idempotent replay. Validate now invokes `test:store-gifting-integration`.
+2. **Specialized role capacity:** Validate now invokes `test:specialized-role-capacity-integration`; fixed seat limits, owner capacity adjustment and concurrent oversubscription tests pass.
+3. **Media scanner callbacks:** callback core uses injected secret/provider readers for deterministic Emulator tests while deployed `onRequest` remains bound to the real SecretParam/provider. Error verdict returns retryable 503 without changing quarantine; malicious verdict rejects asset/job, persists audit with exact generation, and deletes only the pinned quarantine object.
+4. **Rented-room call admission:** room calls require an active private rented room and exact matching active rental, owner, IDs and future expiries. Room/rental state is re-read inside the call-creation transaction.
+5. **Membership race hardening:** all selected room participant membership documents are now re-read inside the same transaction. Missing/removed participants fail closed. Added unit coverage for malformed/missing membership snapshots.
+
+### Source PR evidence and remaining gates
+
+- PR #57 source head `20519494a898b19f08bcaf4f22e4af64acff622b` passed Validate Mawda run `44688818346` before selective port.
+- PR #58 source head `41dc2c2fd679f736d48f912c1e248f8615554649` passed Validate Mawda run `44689323911` before selective port.
+- Issue #49 remains open for the broader media lifecycle, deletion-race and end-to-end acceptance beyond the tested callbacks.
+- Issue #23 remains P0/open: join request/approval lifecycle, participant call entitlement and financial consent, trusted provider-side media evidence, per-participant metering, atomic settlement, audio capacity policy, full video UI/media delivery, and device/load acceptance.
+- Delegated advertising callable authorization and resource-scope mapping remain open; no guessed permission wiring was introduced.
+- Repository ruleset/branch protection verification remains blocked by the previously recorded API 403; no protection setting was changed.
+- Step 1/14 remains **OPEN**. PR #47 remains Draft/open/unmerged.
+
+### Simulation-lab evidence (historical only)
+
+- The prior 5,000-persona lab run `44594096755` succeeded on 2026-11-19 against primary-platform SHA `825e9489b5dcb351998229fc062d71ce0489044b`, not this latest unified SHA.
+- It completed 5,000 synthetic personas, 5,000 lifecycle rows, 100 rooms and 100 events; 2,500 coin transfers and 2,500 idempotent replays; 5,000 direct messages/receives; 0 transfer errors and 0 message errors. Reported throughput was 173.7 operations/s; lifecycle subtest duration was approximately 35.1 minutes.
+- Artifact `14565894851`, SHA-256 `3b2a72224ee789c0db5b685c58726d5ea5e8ab34be01349f6bda75d7411dd85c`.
+- This historical run does not validate SHA `09a023c64d496499aa35f9184bad55a57ca10b40`. No new 5,000-persona simulation was triggered in this continuation; repeat it only after the remaining broad integration/security gates are complete.
+
+### Safety boundary
+
+No merge to `main`, deployment, production Firebase mutation, paid-resource activation, billing, live retention-policy change, signing-identity change, or production data operation was performed. All latest evidence is development-branch CI/Emulator/build evidence only; no signed mobile release or real-device acceptance is claimed.
