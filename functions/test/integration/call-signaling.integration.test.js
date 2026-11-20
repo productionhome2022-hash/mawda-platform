@@ -111,17 +111,23 @@ test("room call signaling is peer-targeted and one member leaving does not end t
   const roomId = uid("room_call");
   const callId = uid("room_call_session");
   const roomRef = db.collection("rooms").doc(roomId);
+  const rentalId = "rental_" + roomId;
+  const rentalRef = db.collection("roomRentals").doc(rentalId);
   const memberRefs = [callerUid, firstUid, secondUid].map((memberUid) =>
     db.collection("users").doc(memberUid));
   const callRef = db.collection("callSessions").doc(callId);
+  const roomExpiry = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
   await Promise.all([
     ...memberRefs.map((ref) => ref.set({
       profileCompleted: true, accountStatus: "active", age: 30,
     })),
     roomRef.set({
       roomId, name: "غرفة اختبار المكالمات", ownerUid: callerUid,
-      kind: "public", audience: "adult", status: "active", capacity: 5,
-      memberCount: 3,
+      kind: "private", audience: "adult", status: "active", capacity: 5,
+      memberCount: 3, isRented: true, rentalId, expiresAt: roomExpiry,
+    }),
+    rentalRef.set({
+      rentalId, roomId, ownerUid: callerUid, status: "active", expiresAt: roomExpiry,
     }),
     ...[callerUid, firstUid, secondUid].map((memberUid) =>
       roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" })),
@@ -171,6 +177,7 @@ test("room call signaling is peer-targeted and one member leaving does not end t
   } finally {
     await db.recursiveDelete(callRef).catch(() => undefined);
     await db.recursiveDelete(roomRef).catch(() => undefined);
+    await rentalRef.delete().catch(() => undefined);
     await Promise.all([
       ...memberRefs,
       ...[callerUid, firstUid, secondUid].map((memberUid) =>
@@ -178,6 +185,76 @@ test("room call signaling is peer-targeted and one member leaving does not end t
     ].map((ref) => db.recursiveDelete(ref).catch(() => undefined)));
   }
 });
+ 
+test("group room calls fail closed for public rooms and missing or expired rentals", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const callerUid = uid("room_call_rental_guard");
+  const roomId = uid("room_call_rental_guard_room");
+  const callIds = [uid("public_room_call"), uid("missing_rental_call"), uid("expired_rental_call")];
+  const callerRef = db.collection("users").doc(callerUid);
+  const roomRef = db.collection("rooms").doc(roomId);
+  const rentalId = "rental_" + roomId;
+  const rentalRef = db.collection("roomRentals").doc(rentalId);
+  await Promise.all([
+    callerRef.set({ profileCompleted: true, accountStatus: "active", age: 30 }),
+    roomRef.set({
+      roomId, ownerUid: callerUid, kind: "public", status: "active",
+      isRented: false, capacity: 5,
+    }),
+    roomRef.collection("members").doc(callerUid).set({ uid: callerUid, role: "owner" }),
+  ]);
+  try {
+    await assert.rejects(
+      () => startCall.run(call(callerUid, {
+        callId: callIds[0], scope: "room", targetId: roomId, mode: "audio",
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+
+    const future = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
+    await roomRef.update({
+      kind: "private", isRented: true, rentalId, expiresAt: future,
+    });
+    await assert.rejects(
+      () => startCall.run(call(callerUid, {
+        callId: callIds[1], scope: "room", targetId: roomId, mode: "audio",
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+
+    await rentalRef.set({
+      rentalId, roomId, ownerUid: callerUid, status: "grace_period",
+      expiresAt: future,
+    });
+    await assert.rejects(
+      () => startCall.run(call(callerUid, {
+        callId: uid("inactive_rental_call"), scope: "room", targetId: roomId, mode: "audio",
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+
+    await rentalRef.update({
+      status: "active", expiresAt: Timestamp.fromMillis(Date.now() - 1000),
+    });
+    await assert.rejects(
+      () => startCall.run(call(callerUid, {
+        callId: callIds[2], scope: "room", targetId: roomId, mode: "audio",
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+
+    for (const callId of callIds) {
+      assert.equal((await db.collection("callSessions").doc(callId).get()).exists, false);
+    }
+  } finally {
+    await Promise.all([
+      callerRef.delete().catch(() => undefined),
+      db.recursiveDelete(roomRef).catch(() => undefined),
+      rentalRef.delete().catch(() => undefined),
+    ]);
+  }
+});
+
 
 test("expired ringing calls never expose stored signaling or ICE configuration", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
