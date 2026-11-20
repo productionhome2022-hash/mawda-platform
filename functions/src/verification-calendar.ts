@@ -1,0 +1,17 @@
+/** UTC calendar-month arithmetic shared only as a pure date primitive. */
+export function addCalendarMonthsUtc(anchorMs: number, months: number): number {
+  if (!Number.isSafeInteger(anchorMs) || anchorMs < 0 || !Number.isSafeInteger(months) || months < 0) throw new Error("INVALID_CALENDAR_MONTH_INPUT");
+  const source = new Date(anchorMs);
+  if (!Number.isFinite(source.getTime())) throw new Error("INVALID_CALENDAR_MONTH_INPUT");
+  const monthIndex = source.getUTCMonth() + months;
+  const targetYear = source.getUTCFullYear() + Math.floor(monthIndex / 12);
+  const targetMonth = monthIndex % 12;
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+  return Date.UTC(targetYear, targetMonth, Math.min(source.getUTCDate(), lastDay), source.getUTCHours(), source.getUTCMinutes(), source.getUTCSeconds(), source.getUTCMilliseconds());
+}
+export function isCalendarMonthCycleDue(anchorMs: number, nowMs: number, months: number): boolean {
+  if (!Number.isSafeInteger(nowMs) || nowMs < 0) throw new Error("INVALID_CALENDAR_MONTH_INPUT");
+  return nowMs >= addCalendarMonthsUtc(anchorMs, months);
+}
+export const isEmailVerificationDue = (lastVerifiedAtMs: number, nowMs: number): boolean => isCalendarMonthCycleDue(lastVerifiedAtMs, nowMs, 3);
+export const isBiometricVerificationDue = (lastApprovedAtMs: number, nowMs: number): boolean => isCalendarMonthCycleDue(lastApprovedAtMs, nowMs, 1);
