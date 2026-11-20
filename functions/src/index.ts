@@ -54,7 +54,7 @@ import {
 } from "./link-policy";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { audienceForAge, canJoinRoom, canJoinGuestRoom, normalizeModeratorPermissions } from "./room-policy";
-import { isActiveRentedPrivateRoom, areRoomCallParticipantsMembers } from "./room-call-policy";
+import { isActiveRentedPrivateRoom, areRoomCallParticipantsMembers, areDirectCallParticipantsEligible } from "./room-call-policy";
 import { isGuestSessionActive } from "./guest-sessions";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
@@ -10435,9 +10435,12 @@ export const startCall = onCall(async (request) => {
   let recipientUids: string[] = [];
   let roomRefForCall: DocumentReference | null = null;
   let roomRentalRef: DocumentReference | null = null;
+  let directChatRefForCall: DocumentReference | null = null;
+  let directPeerRefForCall: DocumentReference | null = null;
 
   if (input.scope === "direct") {
     const chatRef = db.collection("directChats").doc(input.targetId);
+    directChatRefForCall = chatRef;
     const [callerSnapshot, chat] = await Promise.all([callerRef.get(), chatRef.get()]);
     if (!callerSnapshot.exists || callerSnapshot.data()?.profileCompleted !== true ||
         !isMemberAccountInGoodStanding(callerSnapshot.data())) {
@@ -10451,7 +10454,9 @@ export const startCall = onCall(async (request) => {
     }
     participantUids = [...participants].sort();
     const peerUid = participantUids.find((uid) => uid !== callerUid)!;
-    const peer = await db.collection("users").doc(peerUid).get();
+    const peerRef = db.collection("users").doc(peerUid);
+    directPeerRefForCall = peerRef;
+    const peer = await peerRef.get();
     if (!peer.exists || peer.data()?.profileCompleted !== true ||
         !isMemberAccountInGoodStanding(peer.data())) {
       throw new HttpsError("failed-precondition", "الطرف الآخر غير متاح للمكالمة.");
@@ -10517,13 +10522,15 @@ export const startCall = onCall(async (request) => {
   const expiresAt = Timestamp.fromMillis(now + CALL_RING_TIMEOUT_MS);
   const quotaRef = CALL_QUOTA_WINDOWS.doc(callerUid);
   const result = await db.runTransaction(async (transaction) => {
-    const [existing, caller, quotaSnapshot, roomSnapshot, rentalSnapshot, roomMemberSnapshots] = await Promise.all([
+    const [existing, caller, quotaSnapshot, roomSnapshot, rentalSnapshot, roomMemberSnapshots, directChatSnapshot, directPeerSnapshot] = await Promise.all([
       transaction.get(callRef),
       transaction.get(callerRef),
       transaction.get(quotaRef),
       roomRefForCall ? transaction.get(roomRefForCall) : Promise.resolve(null),
       roomRentalRef ? transaction.get(roomRentalRef) : Promise.resolve(null),
       Promise.all(roomMemberRefsForCall.map((memberRef) => transaction.get(memberRef))),
+      directChatRefForCall ? transaction.get(directChatRefForCall) : Promise.resolve(null),
+      directPeerRefForCall ? transaction.get(directPeerRefForCall) : Promise.resolve(null),
     ]);
     if (input.scope === "room" &&
         (!roomSnapshot?.exists || !rentalSnapshot?.exists ||
@@ -10532,6 +10539,21 @@ export const startCall = onCall(async (request) => {
     }
     if (input.scope === "room" && !areRoomCallParticipantsMembers(roomMemberSnapshots)) {
       throw new HttpsError("permission-denied", "تغيرت عضوية أحد المشاركين قبل إنشاء المكالمة؛ أعد المحاولة.");
+    }
+    if (input.scope === "direct" &&
+        (!directChatSnapshot?.exists || !directPeerSnapshot?.exists ||
+          caller.data()?.profileCompleted !== true ||
+          !isMemberAccountInGoodStanding(caller.data()) ||
+          directPeerSnapshot.data()?.profileCompleted !== true ||
+          !isMemberAccountInGoodStanding(directPeerSnapshot.data()) ||
+          !areDirectCallParticipantsEligible(
+            callerUid,
+            participantUids.find((uid) => uid !== callerUid),
+            directChatSnapshot.data()?.participantUids,
+            caller.data(),
+            directPeerSnapshot.data(),
+          ))) {
+      throw new HttpsError("permission-denied", "تغيرت عضوية المحادثة أو أهلية أحد الطرفين؛ تم رفض بدء المكالمة.");
     }
     if (existing.exists) {
       const prior = existing.data() ?? {};

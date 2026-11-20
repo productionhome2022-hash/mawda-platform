@@ -55,3 +55,40 @@ export function areRoomCallParticipantsMembers(memberSnapshots: unknown): boolea
       typeof snapshot === "object" && !Array.isArray(snapshot) &&
       (snapshot as Record<string, unknown>).exists === true);
 }
+
+ 
+/**
+ * Direct-call relationship checks are repeated inside the call-creation
+ * transaction so a changed chat membership, age class, or block cannot race
+ * the preflight reads.
+ */
+export function areDirectCallParticipantsEligible(
+  callerUid: unknown,
+  peerUid: unknown,
+  participantUids: unknown,
+  callerInput: unknown,
+  peerInput: unknown,
+): boolean {
+  if (typeof callerUid !== "string" || callerUid.length < 1 ||
+      typeof peerUid !== "string" || peerUid.length < 1 || callerUid === peerUid ||
+      !Array.isArray(participantUids) || participantUids.length !== 2 ||
+      new Set(participantUids).size !== 2 ||
+      !participantUids.includes(callerUid) || !participantUids.includes(peerUid) ||
+      callerInput === null || typeof callerInput !== "object" || Array.isArray(callerInput) ||
+      peerInput === null || typeof peerInput !== "object" || Array.isArray(peerInput)) {
+    return false;
+  }
+  const caller = callerInput as Record<string, unknown>;
+  const peer = peerInput as Record<string, unknown>;
+  if (!Number.isSafeInteger(caller.age) || !Number.isSafeInteger(peer.age) ||
+      (((caller.age as number) < 18) !== ((peer.age as number) < 18))) {
+    return false;
+  }
+  const callerBlocks = caller.blockedUids;
+  const peerBlocks = peer.blockedUids;
+  if ((Array.isArray(callerBlocks) && callerBlocks.includes(peerUid)) ||
+      (Array.isArray(peerBlocks) && peerBlocks.includes(callerUid))) {
+    return false;
+  }
+  return true;
+}
