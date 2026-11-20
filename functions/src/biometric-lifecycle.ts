@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { FieldValue, Timestamp, getFirestore, type DocumentSnapshot, type Transaction } from "firebase-admin/firestore";
-import { getStorage } from "firebase-admin/storage";
+import { mediaBucket } from "./media";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
@@ -110,11 +110,11 @@ async function signedUrl(path: string, action: "write" | "read", contentType: st
     // Emulator integration tests write/read through the Admin SDK directly;
     // the Storage emulator cannot mint GCS V4 signatures without a real key.
     // Never return this test-only URL in deployed Functions.
-    const bucketName = getStorage().bucket().name;
+    const bucketName = mediaBucket().name;
     return "http://" + emulatorHost + "/v0/b/" + encodeURIComponent(bucketName) +
       "/o/" + encodeURIComponent(path) + "?mawddaEmulatorOnly=1&action=" + action;
   }
-  const [url] = await getStorage().bucket().file(path).getSignedUrl({
+  const [url] = await mediaBucket().file(path).getSignedUrl({
     version: "v4", action, expires: Date.now() + ttlMs,
     ...(action === "write" ? { contentType } : {}),
   });
@@ -147,7 +147,7 @@ async function deleteEvidence(requestId: string): Promise<void> {
       const paths = [asset.objectPath, asset.safeAudioPath, asset.safeVideoPath].filter((path): path is string =>
         typeof path === "string" && (path === expectedOriginal || path === expectedAudio || path === expectedVideo));
       for (const objectPath of paths) {
-        await getStorage().bucket().file(objectPath).delete({ ignoreNotFound: true });
+        await mediaBucket().file(objectPath).delete({ ignoreNotFound: true });
       }
       await assetRef.update({
         status: "manually_deleted", deletedAt: FieldValue.serverTimestamp(),
@@ -275,8 +275,8 @@ export const submitBiometricVerificationRequest = onCall(async (request) => {
       data.phraseHash !== createHash("sha256").update(BIOMETRIC_SPOKEN_PHRASE).digest("hex")) {
     throw new HttpsError("failed-precondition", "طلب التوثيق غير قابل للإرسال أو أن إصدار العبارة غير صالح.");
   }
-  const audioFile = getStorage().bucket().file(data.audioPath);
-  const videoFile = getStorage().bucket().file(data.videoPath);
+  const audioFile = mediaBucket().file(data.audioPath);
+  const videoFile = mediaBucket().file(data.videoPath);
   let audio: Buffer, video: Buffer;
   try {
     const [am, vm] = await Promise.all([audioFile.getMetadata(), videoFile.getMetadata()]);
@@ -477,7 +477,7 @@ export const cleanupExpiredBiometricUploads = onSchedule("every 15 minutes", asy
     for (const path of [data.audioPath, data.videoPath]) {
       if (typeof path === "string" && path.startsWith(prefix)) {
         try {
-          await getStorage().bucket().file(path).delete({ ignoreNotFound: true });
+          await mediaBucket().file(path).delete({ ignoreNotFound: true });
         } catch (error) {
           deletionFailed = true;
           logger.warn("Expired biometric upload object cleanup failed; retrying next sweep", { requestId: doc.id, error });
