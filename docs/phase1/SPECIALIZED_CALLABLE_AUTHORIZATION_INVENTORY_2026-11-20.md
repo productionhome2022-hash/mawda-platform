@@ -67,3 +67,20 @@ The list above describes the audited candidate at the exact SHA in the header. I
 ## Acceptance status
 
 **Inventory complete; implementation blocked by missing authoritative resource/assignment binding.** Issue #48 remains open. This document is an audit artifact, not a claim that delegated callable authorization is complete.
+
+
+## Re-audit against current candidate — 2026-11-20
+
+Current audited candidate SHA: `461a9f21f6bf7bd7e9829fd0c5585de563993572`.
+
+- Recounted the exported `onCall` declarations in `functions/src/index.ts`: 146.
+- Rechecked the complete file for `hasAdvertisingPermission`: zero occurrences; the evaluator is not imported or invoked by any exported callable.
+- Reconfirmed Owner gates and canonical collections:
+  - Timed ads: `timedAdCampaigns`, `timedAdCampaignVersions`, linked `mediaAssets`; `setTimedAdCampaign`, `getOwnerTimedAdCampaigns`, `setTimedAdCampaignStatus` remain Owner-only.
+  - Advertising intake: `advertisingIntakeRequests`; `listOwnerAdvertisingIntake` and `reviewOwnerAdvertisingIntake` remain Owner-only; member submission is application-only.
+  - Production applications: `productionApplications`; list/review remain Owner-only; acceptance does not grant room/task permissions.
+  - Specialized grants: `specializedRoleGrants`; grant creation, permission deltas, capacity and revocation remain Owner-only.
+  - Contracts: `contracts`; company draft/transition/signing remain Owner-only, with `ownerUid` binding; counterparty signature is separately bound to exact verified UID/email and content hash/version.
+- Searched the full callable source for assignment field names and collections: no `assignedUid`, `assignedUids`, `assignmentId`, `assignedTo`, `campaignAssignments` or `productionAssignments` found. Grant `resourceScopes` remain opaque strings and cannot establish that a referenced resource exists or is assigned to the grantee.
+- No delegated authorization was added. This is intentional fail-closed behavior pending Owner approval of an authoritative assignment schema and exact operation/permission/resource matrix.
+- The updated source review is also recorded in the Phase 1 integration tracker and Issue #48. The current implementation acceptance remains OPEN.
