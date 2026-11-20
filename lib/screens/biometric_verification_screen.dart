@@ -74,7 +74,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
       if (!mounted) return;
       setState(() { _recording = true; _recordedAudio = null; });
       _recordingTimer?.cancel();
-      _recordingTimer = Timer(const Duration(seconds: 60), _stopRecording);
+      _recordingTimer = Timer(const Duration(seconds: 20), _stopRecording);
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     }
@@ -215,7 +215,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
               Text('التسجيل الصوتي', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
               Text(_recording
-                  ? 'التسجيل جارٍ الآن. اقرأ العبارة بوضوح؛ سيتوقف تلقائياً عند 60 ثانية.'
+                  ? 'التسجيل جارٍ الآن. اقرأ العبارة بوضوح؛ سيتوقف تلقائياً عند 20 ثانية.'
                   : _recordedAudio != null
                       ? 'تم تجهيز تسجيلك الصوتي. يمكنك إعادة تسجيله إذا رغبت.'
                       : 'سجّل العبارة داخل التطبيق، أو اختر ملف M4A جاهزاً عند بدء الطلب.'),
@@ -224,7 +224,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
                 FilledButton.icon(
                   onPressed: _loading ? null : (_recording ? _stopRecording : _startRecording),
                   icon: Icon(_recording ? Icons.stop_circle_outlined : Icons.mic_none),
-                  label: Text(_recording ? 'إيقاف التسجيل' : 'تسجيل العبارة (حتى 60 ثانية)'),
+                  label: Text(_recording ? 'إيقاف التسجيل' : 'تسجيل العبارة (حتى 20 ثانية)'),
                 ),
                 if (_recordedAudio != null && !_recording)
                   TextButton.icon(
@@ -242,7 +242,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
               const SizedBox(height: 8),
               SelectableText((_request?['phrase'] as String?) ?? 'أنا أريد الانضمام إلى مرحلة التوثيق البيومتري لأحصل على مكافأة ألف وخمسمائة بيتكوينز. الرجاء قبول التوثيق.'),
               const SizedBox(height: 8),
-              const Text('سجّل صوتك وأنت تقرأ العبارة كاملة، ثم سجّل فيديو مدته من 3 إلى 5 ثوانٍ. الحد الأعلى للصوت 60 ثانية و5 MiB، وللفيديو 25 MiB.'),
+              const Text('سجّل صوتك وأنت تقرأ العبارة كاملة، ثم سجّل فيديو مدته من 3 إلى 5 ثوانٍ. الحد الأعلى للصوت 20 ثانية و5 MiB، وللفيديو 25 MiB.'),
             ]),
           )),
           CheckboxListTile(

@@ -1,4 +1,5 @@
 const VIDEO_MIN_DURATION_MS = 3_000;
+const AUDIO_MAX_DURATION_MS = 20_000;
 const VIDEO_MAX_DURATION_MS = 5_000;
 
 type Mp4Atom = { type: string; start: number; end: number; payloadStart: number };
@@ -184,8 +185,8 @@ export function assertBiometricAudioFileAllowed(buffer: Buffer): number {
   const trackDurations = readMp4AudioTrackDurationsMs(buffer);
   if (trackDurations.length === 0) throw new Error("BIOMETRIC_AUDIO_TRACK_MISSING");
   const movieDurationMs = readMp4DurationMs(buffer);
-  if (movieDurationMs > 60_000 || movieDurationMs < 1 ||
-      trackDurations.some((duration) => duration < 1 || duration > 60_000)) {
+  if (movieDurationMs > AUDIO_MAX_DURATION_MS || movieDurationMs < 1 ||
+      trackDurations.some((duration) => duration < 1 || duration > AUDIO_MAX_DURATION_MS)) {
     throw new Error("BIOMETRIC_AUDIO_DURATION_OUT_OF_RANGE");
   }
   return Math.max(...trackDurations);

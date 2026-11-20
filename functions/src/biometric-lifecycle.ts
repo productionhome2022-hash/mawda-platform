@@ -220,7 +220,7 @@ export const getBiometricVerificationPhrase = onCall(async (request) => {
   requireUid(request.auth?.uid);
   return {
     phrase: BIOMETRIC_SPOKEN_PHRASE, phraseVersion: BIOMETRIC_SPOKEN_PHRASE_VERSION,
-    audioMaxBytes: BIOMETRIC_AUDIO_MAX_BYTES, audioMaxDurationSeconds: 60,
+    audioMaxBytes: BIOMETRIC_AUDIO_MAX_BYTES, audioMaxDurationSeconds: 20,
     videoMaxBytes: BIOMETRIC_VIDEO_MAX_BYTES, videoMinDurationSeconds: 3, videoMaxDurationSeconds: 5,
   };
 });
