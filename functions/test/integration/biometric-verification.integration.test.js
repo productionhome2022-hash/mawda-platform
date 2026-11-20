@@ -40,11 +40,8 @@ async function cleanup(uid, ids) {
     const snap = await ref.get(), data = snap.data() || {};
     for (const path of [data.audioPath, data.videoPath]) if (path) await bucket.file(path).delete({ ignoreNotFound: true }).catch(() => undefined);
     await ref.delete().catch(() => undefined);
-    for (const key of ["biometric_submission_", "biometric_reward_", "biometric_evidence_deleted_"]) {
-      await db.collection("verificationAuditLogs").doc(key + id).delete().catch(() => undefined);
-    }
-    await db.collection("adminAuditLogs").where("requestId", "==", id).get()
-      .then(s => Promise.all(s.docs.map(d => d.ref.delete()))).catch(() => undefined);
+    // Audit records are append-only even in emulator tests; only transient member,
+    // request and evidence fixtures are removed.
   }
 }
 
