@@ -2159,15 +2159,7 @@ export const reviewSafetyCase = onCall(async (request) => {
   return { caseId, decision };
 });
 
-/**
- * Applies the owner-approved local biometric reward policy.
- *
- * Trust boundary: local_auth returns a device-local result. The server enforces
- * the 30-day cycle and atomic wallet ledger, but cannot cryptographically prove
- * that an unmodified client displayed the OS prompt. The client claim is
- * therefore explicitly recorded as such and must not be represented as civil
- * identity verification or hardware attestation.
- */
+
 /**
  * Fail-closed until the approved Super Owner manual-review workflow is
  * implemented end-to-end: owner claim + fresh MFA, private request-bound
