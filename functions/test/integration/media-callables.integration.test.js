@@ -1057,6 +1057,12 @@ test("malicious scanner callback rejects the asset, audits the verdict and delet
 
     assert.equal(response.statusCode, 200);
     assert.equal(response.body.status, "rejected");
+
+    // The scanner gateway may retry a callback after a timeout. The exact same
+    // provider/media/generation/hash verdict must be acknowledged idempotently.
+    await handler(request, response);
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.idempotentReplay, true);
     const rejected = await assetRef.get();
     assert.equal(rejected.data().status, "rejected");
     assert.equal(rejected.data().rejectionCode, "MALWARE_DETECTED");
@@ -1068,10 +1074,11 @@ test("malicious scanner callback rejects the asset, audits the verdict and delet
     assert.equal(job.data().verdict, "malicious");
 
     const audit = await db.collection("mediaAccessAudit").where("mediaId", "==", mediaId).get();
-    assert.ok(audit.docs.some((doc) =>
+    const verdictAudits = audit.docs.filter((doc) =>
       doc.data().action === "media_security_scan_verdict" &&
       doc.data().outcome === "malicious" &&
-      doc.data().objectGeneration === generation));
+      doc.data().objectGeneration === generation);
+    assert.equal(verdictAudits.length, 1, "an idempotent callback replay must not duplicate audit events");
 
     const [objectExists] = await objectFile.exists();
     assert.equal(objectExists, false, "only the exact scanned quarantine generation should be deleted");
