@@ -199,6 +199,9 @@ export const getMyBiometricVerificationStatus = onCall(async request => {
     expiresAtMs: millis(verification.expiresAt),
     permanentlyClosed: user.biometricVerificationPermanentlyClosed === true,
     requestId,
+    phrase: BIOMETRIC_SPOKEN_PHRASE,
+    audioMediaId: typeof latest.audioMediaId === "string" ? latest.audioMediaId : null,
+    videoMediaId: typeof latest.videoMediaId === "string" ? latest.videoMediaId : null,
     rewardCoins: latest.decision === "accepted" ? BIOMETRIC_REWARD_COINS : 0,
   };
 });
