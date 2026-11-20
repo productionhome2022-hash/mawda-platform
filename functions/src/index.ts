@@ -1184,6 +1184,7 @@ export const getMemberProfile = onCall(async (request) => {
   };
   const biometricLinksActive = canExposeMemberSocialLinks(
     memberData.profileCompleted === true,
+    targetUid,
     memberData.biometricVerification,
   );
   const approvedLinks = biometricLinksActive
