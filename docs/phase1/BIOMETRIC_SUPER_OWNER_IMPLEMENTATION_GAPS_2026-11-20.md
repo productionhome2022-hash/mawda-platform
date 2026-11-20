@@ -1,3 +1,5 @@
+> **Policy authority update (2026-11-20):** The final owner-approved policy is documented in [BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md](./BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md). It adds the pre-established spoken phrase challenge, a mandatory 3–5 second video, canonical registration-gender matching, exclusive Super Owner human review, and immediate exactly-once 1,500 BetaCoins on acceptance. Any conflicting older behavior is superseded. This progress note remains an implementation-gap record, not evidence that these controls are implemented.
+
 # Super Owner biometric implementation progress — 2026-11-20
 
 Added a pure server-side retry state machine for the approved three-attempt policy: first rejection allows attempt 2 after one calendar month; second rejection allows attempt 3 after one further calendar month; third rejection closes the sequence permanently. Acceptance is terminal. The transition module rejects non-pending decisions, invalid clocks, member self-review, and retry attempts before the exact calendar-month due date.
