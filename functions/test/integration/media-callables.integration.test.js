@@ -704,6 +704,7 @@ async function createReadyChatImage({ uid, purpose = "chat", mediaId = randomUUI
   await db.collection("mediaAssets").doc(mediaId).set({
     mediaId, ownerUid: uid, uploaderRole: "member", uploaderType: "member",
     mediaPurpose: purpose, mediaCategory: "image", detectedContentType: "image/png",
+    objectPath: `quarantine/${uid}/${mediaId}`,
     status: "security_approved", processingStatus: "safe_raster_derivative_ready",
     processingPipelineVersion: "sharp-decode-reencode-v1",
     storageGeneration: sourceGeneration, scannerSha256: sourceSha256,
