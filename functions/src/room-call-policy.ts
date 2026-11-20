@@ -81,7 +81,7 @@ export function areDirectCallParticipantsEligible(
   const caller = callerInput as Record<string, unknown>;
   const peer = peerInput as Record<string, unknown>;
   if (!Number.isSafeInteger(caller.age) || !Number.isSafeInteger(peer.age) ||
-      ((caller.age as number < 18) !== (peer.age as number < 18))) {
+      (((caller.age as number) < 18) !== ((peer.age as number) < 18))) {
     return false;
   }
   const callerBlocks = caller.blockedUids;
