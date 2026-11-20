@@ -279,16 +279,32 @@ async function sha256Object(file: ReturnType<ReturnType<typeof mediaBucket>["fil
 }
 
 /** Authenticated gateway callback; any missing/mismatched evidence stays quarantined. */
-export const receiveMediaScanVerdict = onRequest(
-  { secrets: [mediaScannerHmacSecret] },
-  async (request, response) => {
+type ScannerCallbackRequest = {
+  method: string;
+  rawBody?: Buffer;
+  get(name: string): string | undefined;
+};
+
+type ScannerCallbackResponse = {
+  status(code: number): ScannerCallbackResponse;
+  set(name: string, value: string): ScannerCallbackResponse;
+  send(body: string): unknown;
+  json(body: unknown): unknown;
+};
+
+/** Shared callback core with injectable configuration for deterministic emulator tests. */
+export function createMediaScanVerdictHandler(
+  getSecret: () => string,
+  getProvider: () => string,
+): (request: ScannerCallbackRequest, response: ScannerCallbackResponse) => Promise<void> {
+  return async (request, response) => {
   if (request.method !== "POST") {
     response.status(405).set("Allow", "POST").send("Method not allowed");
     return;
   }
   const rawBody = request.rawBody;
-  const secret = mediaScannerHmacSecret.value();
-  const provider = mediaScannerProvider.value();
+  const secret = getSecret();
+  const provider = getProvider();
   if (!rawBody || rawBody.length > 16 * 1024 || !secret || !provider ||
       !verifyScannerWebhook(rawBody, request.get("x-mawadda-scanner-signature"), secret)) {
     response.status(401).send("Unauthorized scanner callback");
@@ -571,7 +587,15 @@ export const receiveMediaScanVerdict = onRequest(
     });
   }
   response.status(200).json({ mediaId: verdict.mediaId, status: nextStatus });
-  },
+  };
+}
+
+export const receiveMediaScanVerdict = onRequest(
+  { secrets: [mediaScannerHmacSecret] },
+  createMediaScanVerdictHandler(
+    () => mediaScannerHmacSecret.value(),
+    () => mediaScannerProvider.value(),
+  ),
 );
 
 
