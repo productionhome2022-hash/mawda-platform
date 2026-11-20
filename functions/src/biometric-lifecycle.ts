@@ -481,7 +481,10 @@ export const decideBiometricVerificationRequest = onCall(async request => {
     } catch { throw new HttpsError("failed-precondition", "انتقال حالة التوثيق غير صالح أو سبق اتخاذ القرار."); }
     if (decision === "accepted") {
       if (ledger.exists) throw new HttpsError("already-exists", "مكافأة هذا الطلب مسجلة مسبقاً.");
-      const balance = Number.isSafeInteger(user.coins) ? user.coins as number : 0;
+      if (!Number.isSafeInteger(user.coins) || (user.coins as number) < 0) {
+        throw new HttpsError("failed-precondition", "رصيد المحفظة غير صالح؛ أوقفنا منح المكافأة حتى إصلاح سجل الاقتصاد.");
+      }
+      const balance = user.coins as number;
       const newBalance = balance + BIOMETRIC_REWARD_COINS;
       if (!Number.isSafeInteger(newBalance)) throw new HttpsError("out-of-range", "رصيد الكوينز تجاوز الحد الرقمي الآمن.");
       transaction.update(userRef, {
