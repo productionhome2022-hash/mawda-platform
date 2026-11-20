@@ -80,3 +80,14 @@ test("direct-call relationship revalidation rejects cross-age-class and mutual b
     "caller", "peer", ["caller", "peer"], { age: "30" }, { age: 29 },
   ), false);
 });
+
+ 
+test("direct-call relationship revalidation fails closed on missing snapshots and malformed identity", () => {
+  const caller = { age: 30 };
+  const peer = { age: 29 };
+  assert.equal(areDirectCallParticipantsEligible("", "peer", ["", "peer"], caller, peer), false);
+  assert.equal(areDirectCallParticipantsEligible("caller", "peer", "caller,peer", caller, peer), false);
+  assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller", "peer"], null, peer), false);
+  assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller", "peer"], caller, null), false);
+  assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller", "peer"], [], peer), false);
+});
