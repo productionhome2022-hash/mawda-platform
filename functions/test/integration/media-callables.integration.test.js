@@ -41,7 +41,7 @@ const {
   createMediaScanVerdictHandler,
 } = require("../../lib/media");
 
-const { createMemberStory, listMemberStories, placeMediaLegalHold } = require("../../lib/index");
+const { createMemberStory, listMemberStories, placeMediaLegalHold, getRoomMessages } = require("../../lib/index");
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
@@ -1236,6 +1236,45 @@ test("manual-deletion tombstone retry sweeps a late safe derivative by exact obj
     await Promise.all([
       assetRef.delete().catch(() => undefined),
       derivativeFile.delete().catch(() => undefined),
+    ]);
+  }
+});
+
+
+test("room message reads fail closed when the member account is suspended despite retained membership", async () => {
+  const uid = `suspended-room-reader-${randomUUID()}`;
+  const roomId = `room-suspended-reader-${randomUUID()}`;
+  const roomRef = db.collection("rooms").doc(roomId);
+  const memberRef = roomRef.collection("members").doc(uid);
+  const userRef = db.collection("users").doc(uid);
+  const messageRef = roomRef.collection("messages").doc(`msg_${randomUUID().replace(/-/g, "")}`);
+  await Promise.all([
+    userRef.set({ profileCompleted: true, accountStatus: "active" }),
+    roomRef.set({ status: "active", ownerUid: `room-owner-${randomUUID()}`, kind: "public", audience: "all_ages" }),
+    memberRef.set({ uid, accountType: "member", role: "member" }),
+    messageRef.set({
+      senderUid: uid, content: "room message fixture", type: "text",
+      createdAt: Timestamp.now(), isDeleted: false,
+    }),
+  ]);
+  const auth = { uid, token: { firebase: { sign_in_provider: "password" } } };
+  try {
+    const page = await getRoomMessages.run({ data: { roomId, limit: 10 }, auth });
+    assert.equal(page.messages.length, 1);
+    await userRef.update({ accountStatus: "suspended" });
+    await assert.rejects(
+      () => getRoomMessages.run({ data: { roomId, limit: 10 }, auth }),
+      (error) => error && error.code === "permission-denied",
+    );
+    await userRef.update({ accountStatus: "banned" });
+    await assert.rejects(
+      () => getRoomMessages.run({ data: { roomId, limit: 10 }, auth }),
+      (error) => error && error.code === "permission-denied",
+    );
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(roomRef).catch(() => undefined),
+      userRef.delete().catch(() => undefined),
     ]);
   }
 });
