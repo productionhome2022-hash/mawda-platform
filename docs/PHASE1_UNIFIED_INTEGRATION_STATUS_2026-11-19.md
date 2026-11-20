@@ -712,3 +712,16 @@ Source review on unified branch head `0d4ee49b66a9b7dde44299d8836db9d3448a2e56`:
 
 
 **Selective-port note (20 November 2026):** This exact-head CI evidence was recovered from the historical PR #55 documentation source and recorded here because the tested workflow additions are already present in the canonical development workflow. It validates SHA `d46cd7095915bf98480ef38574356c62d72e6a95` only; it is not a test result for the current canonical HEAD and does not close the underlying feature acceptance gates.
+
+
+## Owner biometric decision update — BIO-002 (2026-11-20)
+
+This entry supersedes any earlier biometric-policy blocker wording in this historical integration tracker.
+
+- The owner has explicitly reaffirmed that the Super Owner's personal review of the member's submitted evidence and explicit approval alone are sufficient for biometric verification.
+- No independent cryptographic device proof, Play Integrity, App Attest, provider/device attestation, automated face/voice match, or automated classification is required as an approval prerequisite.
+- Upon approval, the member is granted **1,500 BetaCoins** immediately through the central economy ledger, exactly once for that accepted verification lifecycle. Renewal is every one calendar month, independent of email's 90-day cycle.
+- The canonical policy and supersession record are `docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md`, `docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md` (BIO-002), and the product constitution.
+- Technical blockers remain separate from policy: Super Owner-only server authorization/MFA, private evidence handling, complete member submission and owner review UX/callables, immutable decision/audit records, atomic idempotent ledger credit, retry/calendar-month transitions, renewal, expiry/revocation/deletion, Firestore/Storage rules, and emulator/integration tests.
+- PR #85's previously recorded scanner and biometric emulator failures remain valid evidence for its historical source SHA; they are not a policy objection and must be repaired/retested before any code from that branch is ported.
+- This policy decision does not certify implementation, CI success, 5,000-persona acceptance, merge readiness, or production activation.
