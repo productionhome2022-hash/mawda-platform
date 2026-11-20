@@ -128,7 +128,7 @@ async function deleteEvidence(requestId: string): Promise<void> {
     });
   } catch (error) {
     await ref.update({
-      evidenceDeletionStatus: "retry_required",
+      evidenceDeletionStatus: "pending",
       evidenceDeletionRetryAt: Timestamp.fromMillis(Date.now() + 15 * 60 * 1000),
       evidenceDeletionLastError: error instanceof Error ? error.name : "unknown",
       updatedAt: FieldValue.serverTimestamp(),
@@ -421,7 +421,7 @@ export const decideBiometricVerificationRequest = onCall(async request => {
 });
 
 export const cleanupDecidedBiometricEvidence = onSchedule("every 15 minutes", async () => {
-  const due = await requests().where("evidenceDeletionStatus", "==", "pending").limit(100).get();
+  const due = await requests().where("evidenceDeletionStatus", "in", ["pending", "retry_required"]).limit(100).get();
   for (const doc of due.docs) {
     await deleteEvidence(doc.id).catch(error => logger.warn("Biometric evidence cleanup retry failed", { requestId: doc.id, error }));
   }
