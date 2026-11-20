@@ -1357,8 +1357,15 @@ export const createMediaUploadIntent = onCall(async (request) => {
       const biometricRequest = biometricRequestSnapshot?.data() ?? {};
       const mediaField = policy.category === "audio" ? "audioMediaId" : "videoMediaId";
       if (!biometricRequestSnapshot?.exists || biometricRequest.uid !== uid ||
-          biometricRequest.status !== "uploading" || biometricRequest[mediaField]) {
-        throw new HttpsError("failed-precondition", "طلب التوثيق غير مفتوح أو يحتوي بالفعل على ملف من هذا النوع.");
+          biometricRequest.status !== "uploading") {
+        throw new HttpsError("failed-precondition", "طلب التوثيق غير مفتوح لهذا الملف.");
+      }
+      const previousMediaId = biometricRequest[mediaField];
+      if (typeof previousMediaId === "string") {
+        const previousAsset = await transaction.get(mediaDb().collection("mediaAssets").doc(previousMediaId));
+        if (previousAsset.exists && !["rejected", "manually_deleted"].includes(String(previousAsset.data()?.status))) {
+          throw new HttpsError("failed-precondition", "يوجد ملف من هذا النوع قيد الرفع أو الفحص أو معتمد بالفعل.");
+        }
       }
     }
     if (existingAsset.exists) {
