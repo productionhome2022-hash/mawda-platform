@@ -43,3 +43,15 @@ export function isActiveRentedPrivateRoom(
     roomExpiry !== null && roomExpiry > nowMs &&
     rentalExpiry !== null && rentalExpiry > nowMs;
 }
+
+
+/**
+ * Room membership must be re-read in the call-creation transaction. A preflight
+ * membership snapshot can become stale while the call is being created.
+ */
+export function areRoomCallParticipantsMembers(memberSnapshots: unknown): boolean {
+  return Array.isArray(memberSnapshots) && memberSnapshots.length >= 2 &&
+    memberSnapshots.every((snapshot) => snapshot !== null &&
+      typeof snapshot === "object" && !Array.isArray(snapshot) &&
+      (snapshot as Record<string, unknown>).exists === true);
+}
