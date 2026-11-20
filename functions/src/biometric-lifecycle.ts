@@ -497,12 +497,19 @@ export const getOwnerBiometricEvidencePlayback = onCall(async request => {
     signedUrl(expectedAudio, "read", "audio/mpeg", BIOMETRIC_EVIDENCE_REVIEW_TTL_MS),
     signedUrl(expectedVideo, "read", "video/mp4", BIOMETRIC_EVIDENCE_REVIEW_TTL_MS),
   ]);
+  const playbackExpiresAtMs = Date.now() + BIOMETRIC_EVIDENCE_REVIEW_TTL_MS;
+  await db().collection("biometricOwnerPlaybackGrants").doc(requestId + "_" + ownerUid).set({
+    requestId, reviewerUid: ownerUid,
+    audioSha256: value.audioSha256, videoSha256: value.videoSha256,
+    issuedAt: Timestamp.fromMillis(Date.now()),
+    expiresAt: Timestamp.fromMillis(playbackExpiresAtMs),
+  });
   await appendAudit({
     actorUid: ownerUid, action: "biometric_evidence_playback_issued",
     requestId, subjectUid: value.uid, outcome: "success",
     audioSha256: value.audioSha256, videoSha256: value.videoSha256,
   });
-  return { audioUrl, videoUrl, expiresAtMs: Date.now() + BIOMETRIC_EVIDENCE_REVIEW_TTL_MS };
+  return { audioUrl, videoUrl, expiresAtMs: playbackExpiresAtMs };
 });
 
 export const decideBiometricVerificationRequest = onCall(async request => {
@@ -518,6 +525,7 @@ export const decideBiometricVerificationRequest = onCall(async request => {
   const memberUid = String(before.data()?.uid ?? "");
   const userRef = db().collection("users").doc(memberUid);
   const ledgerRef = userRef.collection("walletLedger").doc(biometricRewardLedgerId(requestId));
+  const playbackGrantRef = db().collection("biometricOwnerPlaybackGrants").doc(requestId + "_" + reviewerUid);
   const nowMs = Date.now(), acceptedAt = Timestamp.fromMillis(nowMs);
   const expiresAt = Timestamp.fromMillis(addCalendarMonthsUtc(nowMs, 1));
   const mfaAt = Number(request.auth?.token.auth_time) * 1000;
@@ -525,9 +533,9 @@ export const decideBiometricVerificationRequest = onCall(async request => {
     throw new HttpsError("permission-denied", "انتهت صلاحية جلسة MFA الحديثة؛ أعد توثيق جلسة المالك.");
   }
   const result = await db().runTransaction(async transaction => {
-    const [review, member, ledger, auditHeadSnapshot] = await Promise.all([
+    const [review, member, ledger, playbackGrant, auditHeadSnapshot] = await Promise.all([
       transaction.get(ref), transaction.get(userRef), transaction.get(ledgerRef),
-      transaction.get(auditHead()),
+      transaction.get(playbackGrantRef), transaction.get(auditHead()),
     ]);
     if (!review.exists || review.data()?.status !== "pending" ||
         (decision === "accepted" && !member.exists) || reviewerUid === memberUid) {
@@ -546,6 +554,15 @@ export const decideBiometricVerificationRequest = onCall(async request => {
         data.evidenceValidatedByServer !== true ||
         typeof data.audioSha256 !== "string" || typeof data.videoSha256 !== "string") {
       throw new HttpsError("failed-precondition", "لا يمكن قبول الطلب لأن بيانات الهوية أو الأدلة غير مكتملة أو تغيرت؛ يمكن للمالك رفضه.");
+    }
+    if (decision === "accepted") {
+      const grant = playbackGrant.data() ?? {};
+      const grantExpiry = grant.expiresAt instanceof Timestamp ? grant.expiresAt.toMillis() : 0;
+      if (!playbackGrant.exists || grant.reviewerUid !== reviewerUid ||
+          grant.audioSha256 !== data.audioSha256 || grant.videoSha256 !== data.videoSha256 ||
+          grantExpiry < nowMs || grant.consumedAt) {
+        throw new HttpsError("failed-precondition", "يجب على Super Owner فتح وتشغيل الأدلة الآمنة من جديد قبل قبول الطلب.");
+      }
     }
     let next;
     try {
@@ -592,6 +609,9 @@ export const decideBiometricVerificationRequest = onCall(async request => {
       evidenceDeletionStatus: "pending", evidenceDeletionRetryAt: Timestamp.fromMillis(nowMs),
       updatedAt: FieldValue.serverTimestamp(),
     });
+    if (playbackGrant.exists && playbackGrant.data()?.reviewerUid === reviewerUid) {
+      transaction.update(playbackGrantRef, { consumedAt: acceptedAt, consumedDecision: decision });
+    }
     const auditLogId = await appendAuditInTransaction(transaction, {
       actorUid: reviewerUid, action: "biometric_review_decided",
       requestId, subjectUid: memberUid, decision,
