@@ -815,6 +815,34 @@ test("safe image can be linked to a direct message and delivered only to its par
     auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
   });
   assert.match(delivered.url, /^https?:\/\//);
+
+  // Delivery is callable-only and requires a live, eligible account on both
+  // sides of the direct conversation.
+  await assert.rejects(
+    () => getChatImageAttachmentUrl.run({
+      data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+    }),
+    (error) => error && error.code === "unauthenticated",
+  );
+  await db.collection("users").doc(senderUid).update({ accountStatus: "suspended" });
+  await assert.rejects(
+    () => getChatImageAttachmentUrl.run({
+      data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+      auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+    }),
+    (error) => error && error.code === "permission-denied",
+  );
+  await db.collection("users").doc(senderUid).update({ accountStatus: "active" });
+  await db.collection("users").doc(recipientUid).update({ accountStatus: "suspended" });
+  await assert.rejects(
+    () => getChatImageAttachmentUrl.run({
+      data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+      auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+    }),
+    (error) => error && error.code === "permission-denied",
+  );
+  await db.collection("users").doc(recipientUid).update({ accountStatus: "active" });
+
   await db.collection("users").doc(recipientUid).update({ blockedUids: [senderUid] });
   await assert.rejects(
     () => getChatImageAttachmentUrl.run({
