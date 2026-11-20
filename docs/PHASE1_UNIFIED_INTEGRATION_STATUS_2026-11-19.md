@@ -695,3 +695,20 @@ Source review on unified branch head `0d4ee49b66a9b7dde44299d8836db9d3448a2e56`:
 - Scanner unit tests cover HMAC authentication, verdict freshness/provider/generation/hash binding, safe WebP derivative contract, and GIF/audio/video/PDF derivative contracts.
 - PR #68 now explicitly covers exact duplicate malicious callback replay and single audit outcome.
 - Still-open acceptance cases in #49: complete unauthorized download matrix (unauthenticated, wrong owner, wrong purpose, wrong room/chat, revoked membership, suspended/blocked account), safe derivative download after generation supersession, missing/stale derivative and source generation races, delivery URL replay/expiry semantics, retry/audit failure behavior, and end-to-end proof that no route ever exposes original quarantine object bytes. Keep Storage direct access default-deny until this evidence and a separately reviewed rule design are complete.
+
+
+## Additional exact-head verification — 2026-11-20 (PR #54)
+
+- CI coverage change: PR #54 adds the existing specialized role-capacity/seat-lifecycle and store-gifting/replay emulator suites to `.github/workflows/validate.yml`.
+- PR: https://github.com/productionhome2022-hash/mawda-platform/pull/54
+- Branch: `codex/phase1-ci-coverage-role-store-2026-11-20`
+- Exact tested SHA: `d46cd7095915bf98480ef38574356c62d72e6a95`
+- Workflow: Validate Mawda run `44620178339` — completed successfully.
+- All three jobs passed: Flutter analysis/tests/web release and production-configured candidate builds (no deployment); isolated ClamAV scanner tests/container and EICAR detection; Cloud Functions compile/unit tests and emulator integration suites.
+- Newly wired steps both passed: `test:specialized-role-capacity-integration` and `test:store-gifting-integration`.
+- The Functions job also passed the existing media, retention, deletion, entitlement, wallet/store, featured-ad, room, call-signaling, FCM, biometric, safety/privacy, guest, audit, legal-hold, profile-media and Firestore/Storage rules suites.
+- PR #54 remains Draft and unmerged. This CI result validates the workflow-only addition; it does not close the underlying business/security issues or complete Step 1/14.
+- No production code, Firebase production resources, live retention settings, billing, deployment, main merge, or 5,000-persona simulation was changed or run.
+
+
+**Selective-port note (20 November 2026):** This exact-head CI evidence was recovered from the historical PR #55 documentation source and recorded here because the tested workflow additions are already present in the canonical development workflow. It validates SHA `d46cd7095915bf98480ef38574356c62d72e6a95` only; it is not a test result for the current canonical HEAD and does not close the underlying feature acceptance gates.
