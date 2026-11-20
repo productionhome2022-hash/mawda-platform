@@ -17,6 +17,7 @@ import 'owner_advertising_rewards_screen.dart';
 import 'owner_contract_center_screen.dart';
 import 'owner_advertising_intake_screen.dart';
 import 'owner_production_applications_screen.dart';
+import 'biometric_review_screen.dart';
 
 class SuperAdminScreen extends StatefulWidget {
   const SuperAdminScreen({super.key});
@@ -1335,6 +1336,13 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
           tooltip: 'تسجيل خروج المالك',
           onPressed: _signOutOwner,
           icon: const Icon(Icons.logout),
+        ),
+        IconButton(
+          tooltip: 'مراجعة التوثيق البيومتري ومكافآته',
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => const BiometricReviewScreen(),
+          )),
+          icon: const Icon(Icons.fingerprint),
         ),
         IconButton(
           tooltip: 'مراجعة البلاغات والاستئنافات',
