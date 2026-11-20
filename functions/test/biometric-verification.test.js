@@ -47,7 +47,8 @@ test("missing, malformed, expired, revoked, forged and future-dated review recor
     { ...base, reviewRequestId: "bad" },
     { ...base, decision: "rejected" },
     { ...base, acceptedAt: { toMillis: () => NOW + 1 } },
-    { ...base, reviewerMfaAt: { toMillis: () => NOW + 1 } },\n    { ...base, reviewerMfaAt: { toMillis: () => NOW - 20 * 60 * 1000 } },
+    { ...base, reviewerMfaAt: { toMillis: () => NOW + 1 } },
+    { ...base, reviewerMfaAt: { toMillis: () => NOW - 20 * 60 * 1000 } },
     { ...base, expiresAt: { toMillis: () => NOW - 20_000 } },
   ];
   for (const value of denied) {
