@@ -60,14 +60,21 @@ Repeated calls or retries for the same request ID must never grant a second rewa
 
 No client flag, local OS biometric prompt, client-written status or replayed callable may create verification or a reward.
 
-## 4. Separate verification renewal schedules
+## 4. Fully independent verification tracks — no cross-dependency
 
-Email verification and biometric verification are separate lifecycles and must never renew or satisfy one another.
+Email verification and biometric verification are two independent account-verification tracks. They must have separate state, timestamps, expiry status, renewal eligibility, workflows, enforcement decisions and audit records. Neither track is a prerequisite, substitute, extension, renewal trigger or status modifier for the other.
 
-- **Email verification:** renew every three calendar months from the last successful email verification timestamp. Preserve the existing separate email-verification reward policy; this amendment does not change its amount or eligibility.
-- **Biometric verification:** renew every one calendar month from the last successful Super Owner approval timestamp. At the due date, the member must be able to submit a new biometric review request. The renewal request follows the same Super Owner-only manual review and evidence process.
+- **Email verification track:** its own verification status and last-success timestamp; renewal is due every three calendar months from the last successful email verification timestamp. Its due/overdue/failed state affects only email-verification status and email-gated capabilities, if any are separately specified by approved policy. Preserve the existing separate email-verification reward policy; this amendment does not change its amount or eligibility.
+- **Biometric verification track:** its own verification status and last-success timestamp; renewal is due every one calendar month from the last successful Super Owner biometric approval timestamp. At the due date, the member must be able to submit a new biometric review request. The renewal request follows the same Super Owner-only manual review and evidence process. Its due/overdue/failed state affects only biometric-verification status and biometric-gated capabilities, if any are separately specified by approved policy.
 
-The server records the successful verification timestamp and calculates the next due date with calendar-month arithmetic. Do not use a fixed 30/90-day approximation. A pending renewal request must prevent duplicate pending requests. Email renewal must not reset biometric renewal dates; biometric renewal must not reset email dates.
+**Mandatory isolation rules:**
+- Email verified, unverified, expired, renewed, rejected or pending must not create, approve, reject, delay, block, extend, expire, reset or reschedule biometric verification.
+- Biometric verified, unverified, expired, renewed, rejected or pending must not create, approve, reject, delay, block, extend, expire, reset or reschedule email verification.
+- Neither track may be used as proof of the other. Completing one track must never mark the other as complete.
+- Store and calculate independent fields and due dates; do not share a generic verification timestamp, expiry flag, renewal job, retry counter or state machine between the tracks.
+- A member may complete or renew either track without first completing or renewing the other, subject only to that track's own approved requirements.
+
+Each track's server-owned timestamps and next-due date use calendar-month arithmetic independently. Do not use a fixed 30/90-day approximation. Pending-request deduplication is scoped to its own track.
 
 ## 5. Privacy, security and evidence lifecycle
 
