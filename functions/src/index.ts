@@ -54,7 +54,7 @@ import {
 } from "./link-policy";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { audienceForAge, canJoinRoom, canJoinGuestRoom, normalizeModeratorPermissions } from "./room-policy";
-import { isActiveRentedPrivateRoom, areRoomCallParticipantsMembers, areDirectCallParticipantsEligible } from "./room-call-policy";
+import { isActiveRentedPrivateRoom, areRoomCallParticipantsMembers, areDirectCallParticipantsEligible, roomCallParticipantLimit } from "./room-call-policy";
 import { isGuestSessionActive } from "./guest-sessions";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
@@ -10499,9 +10499,18 @@ export const startCall = onCall(async (request) => {
     if (!isActiveRentedPrivateRoom(roomData, rental.data(), Date.now())) {
       throw new HttpsError("failed-precondition", "استئجار الغرفة غير نشط أو انتهت مدته؛ تعذر بدء المكالمة.");
     }
-    const members = await roomRef.collection("members").limit(6).get();
-    if (members.size < 2 || members.size > 5) {
-      throw new HttpsError("failed-precondition", "مكالمات الغرف تدعم حالياً من عضوين إلى خمسة أعضاء كحد أقصى.");
+    const participantLimit = roomCallParticipantLimit(input.mode, roomData.capacity);
+    if (participantLimit === null) {
+      throw new HttpsError("failed-precondition", "سعة الغرفة غير صالحة لبدء المكالمة.");
+    }
+    const members = await roomRef.collection("members").limit(participantLimit + 1).get();
+    if (members.size < 2 || members.size > participantLimit) {
+      throw new HttpsError(
+        "failed-precondition",
+        input.mode === "video"
+          ? "المكالمة المرئية الجماعية محدودة بأربعة مشاركين إجمالاً بمن فيهم المنشئ."
+          : "عدد المشاركين يتجاوز سعة الغرفة أو يقل عن الحد الأدنى للمكالمة.",
+      );
     }
     participantUids = members.docs.map((doc) => doc.id).sort();
     recipientUids = participantUids.filter((uid) => uid !== callerUid);
