@@ -126,20 +126,42 @@ async function deleteEvidence(requestId: string): Promise<void> {
   const snapshot = await ref.get();
   if (!snapshot.exists) return;
   const data = snapshot.data() ?? {};
-  if (!["accepted", "rejected", "closed"].includes(String(data.status))) return;
-  const prefix = "biometric-evidence/" + data.uid + "/" + requestId + "/";
-  const paths = [data.audioPath, data.videoPath].filter((path): path is string =>
-    typeof path === "string" && path.startsWith(prefix));
+  if (!["accepted", "rejected", "closed", "upload_rejected"].includes(String(data.status))) return;
+  const mediaIds = [data.audioMediaId, data.videoMediaId].filter((id): id is string =>
+    typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id));
   try {
-    for (const path of paths) await getStorage().bucket().file(path).delete({ ignoreNotFound: true });
+    for (const mediaId of mediaIds) {
+      const assetRef = db().collection("mediaAssets").doc(mediaId);
+      const assetSnapshot = await assetRef.get();
+      if (!assetSnapshot.exists) throw new Error("BIOMETRIC_MEDIA_ASSET_MISSING");
+      const asset = assetSnapshot.data() ?? {};
+      if (asset.ownerUid !== data.uid || asset.mediaPurpose !== "biometric" ||
+          asset.biometricRequestId !== requestId) throw new Error("BIOMETRIC_MEDIA_ASSET_BINDING_MISMATCH");
+      if (asset.legalHoldStatus === "active") throw new Error("BIOMETRIC_MEDIA_LEGAL_HOLD_ACTIVE");
+      const expectedOriginal = "quarantine/" + data.uid + "/" + mediaId;
+      if (asset.objectPath && asset.objectPath !== expectedOriginal) throw new Error("BIOMETRIC_MEDIA_OBJECT_PATH_MISMATCH");
+      const expectedAudio = "processed/" + data.uid + "/" + mediaId + "/audio.mp3";
+      const expectedVideo = "processed/" + data.uid + "/" + mediaId + "/video.mp4";
+      if (asset.safeAudioPath && asset.safeAudioPath !== expectedAudio) throw new Error("BIOMETRIC_AUDIO_DERIVATIVE_PATH_MISMATCH");
+      if (asset.safeVideoPath && asset.safeVideoPath !== expectedVideo) throw new Error("BIOMETRIC_VIDEO_DERIVATIVE_PATH_MISMATCH");
+      const paths = [asset.objectPath, asset.safeAudioPath, asset.safeVideoPath].filter((path): path is string =>
+        typeof path === "string" && (path === expectedOriginal || path === expectedAudio || path === expectedVideo));
+      for (const objectPath of paths) {
+        await getStorage().bucket().file(objectPath).delete({ ignoreNotFound: true });
+      }
+      await assetRef.update({
+        status: "manually_deleted", deletedAt: FieldValue.serverTimestamp(),
+        objectPath: FieldValue.delete(), safeAudioPath: FieldValue.delete(), safeVideoPath: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
     await ref.update({
       evidenceDeletionStatus: "deleted", evidenceDeletedAt: FieldValue.serverTimestamp(),
-      audioPath: FieldValue.delete(), videoPath: FieldValue.delete(),
       evidenceDeletionLastError: FieldValue.delete(), updatedAt: FieldValue.serverTimestamp(),
     });
     await db().collection("verificationAuditLogs").doc("biometric_evidence_deleted_" + requestId).set({
       uid: data.uid, requestId, action: "biometric_evidence_deleted",
-      deletedObjectCount: paths.length, createdAt: FieldValue.serverTimestamp(),
+      mediaIds, createdAt: FieldValue.serverTimestamp(),
     });
   } catch (error) {
     await ref.update({
