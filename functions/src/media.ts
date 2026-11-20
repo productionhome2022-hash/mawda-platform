@@ -1363,7 +1363,7 @@ export const createMediaUploadIntent = onCall(async (request) => {
       const previousMediaId = biometricRequest[mediaField];
       if (typeof previousMediaId === "string") {
         const previousAsset = await transaction.get(mediaDb().collection("mediaAssets").doc(previousMediaId));
-        if (previousAsset.exists && !["rejected", "manually_deleted"].includes(String(previousAsset.data()?.status))) {
+        if (previousAsset.exists && !["rejected", "manually_deleted", "expired"].includes(String(previousAsset.data()?.status))) {
           throw new HttpsError("failed-precondition", "يوجد ملف من هذا النوع قيد الرفع أو الفحص أو معتمد بالفعل.");
         }
       }
