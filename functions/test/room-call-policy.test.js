@@ -27,6 +27,7 @@ test("missing, mismatched, or inactive rental records are rejected", () => {
   assert.equal(isActiveRentedPrivateRoom(room, null, 10_000), false);
   assert.equal(isActiveRentedPrivateRoom(room, { ...rental, roomId: "other" }, 10_000), false);
   assert.equal(isActiveRentedPrivateRoom(room, { ...rental, ownerUid: "other" }, 10_000), false);
+  assert.equal(isActiveRentedPrivateRoom(room, { ...rental, rentalId: "other" }, 10_000), false);
   assert.equal(isActiveRentedPrivateRoom(room, { ...rental, status: "grace_period" }, 10_000), false);
 });
 
