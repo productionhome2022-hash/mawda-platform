@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:record/record.dart';
 
 import '../services/member_media_upload_service.dart';
 
@@ -14,6 +18,10 @@ class BiometricVerificationScreen extends StatefulWidget {
 class _BiometricVerificationScreenState extends State<BiometricVerificationScreen> {
   final MemberMediaUploadService _service = MemberMediaUploadService();
   final ImagePicker _picker = ImagePicker();
+  final AudioRecorder _recorder = AudioRecorder();
+  Timer? _recordingTimer;
+  bool _recording = false;
+  XFile? _recordedAudio;
   Map<String, dynamic>? _status;
   Map<String, dynamic>? _request;
   bool _loading = false;
@@ -30,6 +38,9 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
 
   @override
   void dispose() {
+    _recordingTimer?.cancel();
+    if (_recording) _recorder.stop();
+    _recorder.dispose();
     _service.close();
     super.dispose();
   }
@@ -50,7 +61,43 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
     }
   }
 
+  Future<void> _startRecording() async {
+    if (_recording || _loading) return;
+    try {
+      if (!await _recorder.hasPermission()) throw StateError('لم يتم منح إذن الميكروفون.');
+      final directory = await Directory.systemTemp.createTemp('mawdda-biometric-');
+      final path = '${directory.path}/spoken-phrase.m4a';
+      await _recorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 128000, sampleRate: 44100, numChannels: 1),
+        path: path,
+      );
+      if (!mounted) return;
+      setState(() { _recording = true; _recordedAudio = null; });
+      _recordingTimer?.cancel();
+      _recordingTimer = Timer(const Duration(seconds: 60), _stopRecording);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    _recordingTimer?.cancel();
+    try {
+      final path = await _recorder.stop();
+      if (mounted) {
+        setState(() {
+          _recording = false;
+          _recordedAudio = path == null ? null : XFile(path, name: 'spoken-phrase.m4a', mimeType: 'audio/mp4');
+        });
+      }
+      if (path == null && mounted) setState(() => _error = 'لم يُحفظ التسجيل الصوتي.');
+    } catch (error) {
+      if (mounted) setState(() { _recording = false; _error = error.toString(); });
+    }
+  }
+
   Future<XFile?> _pickAudio() async {
+    if (_recordedAudio != null) return _recordedAudio;
     final picked = await FilePicker.platform.pickFiles(
       type: FileType.custom, allowedExtensions: const ['m4a'], withData: false,
     );
@@ -101,7 +148,9 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
         await _service.waitForSafeAttachmentApproval(_videoMediaId!);
       }
       await _service.submitBiometricVerificationRequest(requestId: requestId);
-      if (mounted) setState(() { _request = null; _audioMediaId = null; _videoMediaId = null; });
+      final recordedPath = _recordedAudio?.path;
+      if (recordedPath != null) await File(recordedPath).delete().catchError((_) => File(recordedPath));
+      if (mounted) setState(() { _request = null; _audioMediaId = null; _videoMediaId = null; _recordedAudio = null; });
       await _refreshStatus();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -149,6 +198,32 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
               if (closed) const Text('لا توجد محاولة رابعة.', style: TextStyle(color: Colors.red)),
           if (_status?['status'] == 'uploading') const Text('استكمال الطلب المفتوح: ستُرفع الأدلة الناقصة فقط، ولن يبدأ طلب أو محاولة جديدة.'),
               if (pending) const Text('لديك طلب مفتوح بالفعل؛ لا تنشئ طلباً مكرراً.'),
+            ]),
+          )),
+          Card(child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('التسجيل الصوتي', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Text(_recording
+                  ? 'التسجيل جارٍ الآن. اقرأ العبارة بوضوح؛ سيتوقف تلقائياً عند 60 ثانية.'
+                  : _recordedAudio != null
+                      ? 'تم تجهيز تسجيلك الصوتي. يمكنك إعادة تسجيله إذا رغبت.'
+                      : 'سجّل العبارة داخل التطبيق، أو اختر ملف M4A جاهزاً عند بدء الطلب.'),
+              const SizedBox(height: 8),
+              Wrap(spacing: 8, children: [
+                FilledButton.icon(
+                  onPressed: _loading ? null : (_recording ? _stopRecording : _startRecording),
+                  icon: Icon(_recording ? Icons.stop_circle_outlined : Icons.mic_none),
+                  label: Text(_recording ? 'إيقاف التسجيل' : 'تسجيل العبارة (حتى 60 ثانية)'),
+                ),
+                if (_recordedAudio != null && !_recording)
+                  TextButton.icon(
+                    onPressed: _loading ? null : () => setState(() => _recordedAudio = null),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('إعادة التسجيل'),
+                  ),
+              ]),
             ]),
           )),
           Card(child: Padding(
