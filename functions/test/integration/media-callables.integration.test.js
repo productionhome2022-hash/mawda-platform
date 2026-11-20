@@ -1334,3 +1334,50 @@ test("room message reads fail closed when the member account is suspended despit
     ]);
   }
 });
+
+
+test("biometric upload intents bind one audio and one video asset to an open member request", async () => {
+  const uid = "biometric_upload_owner_" + randomUUID().replaceAll("-", "");
+  const requestId = randomUUID();
+  const requestRef = db.collection("biometricVerificationRequests").doc(requestId);
+  await requestRef.set({ uid, status: "uploading", audioMediaId: null, videoMediaId: null });
+  const auth = { uid, token: { firebase: { sign_in_provider: "password" } } };
+  const created = [];
+  try {
+    const audio = await createMediaUploadIntent.run({
+      data: { originalName: "voice.m4a", contentType: "audio/mp4", sizeBytes: 1024,
+        purpose: "biometric", biometricRequestId: requestId },
+      auth,
+    });
+    created.push(audio.mediaId);
+    const video = await createMediaUploadIntent.run({
+      data: { originalName: "proof.mp4", contentType: "video/mp4", sizeBytes: 2048,
+        purpose: "biometric", biometricRequestId: requestId },
+      auth,
+    });
+    created.push(video.mediaId);
+    const request = (await requestRef.get()).data();
+    assert.equal(request.audioMediaId, audio.mediaId);
+    assert.equal(request.videoMediaId, video.mediaId);
+    assert.equal((await db.collection("mediaAssets").doc(audio.mediaId).get()).data().biometricRequestId, requestId);
+    assert.equal((await db.collection("mediaAssets").doc(video.mediaId).get()).data().biometricRequestId, requestId);
+    await assert.rejects(() => createMediaUploadIntent.run({
+      data: { originalName: "voice-again.m4a", contentType: "audio/mp4", sizeBytes: 1024,
+        purpose: "biometric", biometricRequestId: requestId },
+      auth,
+    }), error => error && error.code === "failed-precondition");
+    await requestRef.update({ status: "pending" });
+    await assert.rejects(() => finalizeMediaUpload.run({
+      data: { mediaId: audio.mediaId }, auth,
+    }), error => error && error.code === "permission-denied");
+  } finally {
+    for (const id of created) {
+      const assetRef = db.collection("mediaAssets").doc(id);
+      const asset = (await assetRef.get()).data() || {};
+      if (asset.objectPath) await getStorage().bucket().file(asset.objectPath).delete({ ignoreNotFound: true }).catch(() => undefined);
+      await assetRef.delete().catch(() => undefined);
+    }
+    await requestRef.delete().catch(() => undefined);
+    await db.collection("mediaUploadQuotas").doc(uid).delete().catch(() => undefined);
+  }
+});
