@@ -478,12 +478,24 @@ test("group audio follows rented-room capacity and group video rejects a fifth p
   }
 
   try {
-    const audio = await seedRoom("group_audio_capacity", "audio", 7, 7);
-    const audioStarted = await startCall.run(call(audio.ownerUid, {
-      callId: audio.callId, scope: "room", targetId: audio.roomId, mode: "audio",
-    }));
-    assert.equal(audioStarted.participantUids.length, 7,
-      "audio group size follows the rented room capacity rather than an artificial five-person cap");
+    for (const count of [2, 4, 7, 9]) {
+      const audio = await seedRoom("group_audio_" + count, "audio", count, count);
+      const audioStarted = await startCall.run(call(audio.ownerUid, {
+        callId: audio.callId, scope: "room", targetId: audio.roomId, mode: "audio",
+      }));
+      assert.equal(audioStarted.participantUids.length, count,
+        "audio group size follows the rented room capacity without an artificial fixed cap");
+    }
+
+    const audioOverCapacity = await seedRoom("group_audio_over_capacity", "audio", 8, 7);
+    await assert.rejects(
+      () => startCall.run(call(audioOverCapacity.ownerUid, {
+        callId: audioOverCapacity.callId, scope: "room", targetId: audioOverCapacity.roomId, mode: "audio",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "audio groups cannot exceed the configured rented-room capacity",
+    );
+    assert.equal((await audioOverCapacity.callRef.get()).exists, false);
 
     const videoFour = await seedRoom("group_video_four", "video", 4, 5);
     const videoFourStarted = await startCall.run(call(videoFour.ownerUid, {
