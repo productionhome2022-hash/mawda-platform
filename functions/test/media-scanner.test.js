@@ -117,3 +117,56 @@ test("scanner callback validates exact GIF, audio, video and flattened-PDF deriv
     }, base.provider, now), null);
   }
 });
+
+
+test("scanner malicious and error verdicts are valid only without safe derivatives", () => {
+  const now = 1_800_000_000_000;
+  const base = {
+    mediaId: "123e4567-e89b-12d3-a456-426614174000",
+    purpose: "room",
+    provider: "clamav-mawadda-gateway",
+    objectGeneration: "123456",
+    sha256: "a".repeat(64),
+    scannedAtMs: now,
+    scanEngine: "ClamAV",
+    engineVersion: "1.4.6",
+    signatureDatabaseVersion: "28202",
+    signatureDatabaseAgeMs: 60 * 60 * 1000,
+  };
+
+  for (const verdict of ["malicious", "error"]) {
+    const payload = { ...base, verdict };
+    assert.equal(
+      validateScannerVerdict(payload, base.provider, now)?.verdict,
+      verdict,
+      `a complete ${verdict} verdict without derivatives must be accepted for server handling`,
+    );
+    assert.equal(
+      validateScannerVerdict({
+        ...payload,
+        safePreviewPath: `processed/member_1/${base.mediaId}/preview.webp`,
+        safePreviewGeneration: "987654",
+        safePreviewSha256: "b".repeat(64),
+        safePreviewContentType: "image/webp",
+      }, base.provider, now),
+      null,
+      `${verdict} verdict must never carry a client-deliverable preview`,
+    );
+    assert.equal(
+      validateScannerVerdict({
+        ...payload,
+        processingStatus: "safe_video_derivative_ready",
+        safeDerivative: {
+          category: "video",
+          path: `processed/member_1/${base.mediaId}/video.mp4`,
+          generation: "987654",
+          sha256: "b".repeat(64),
+          contentType: "video/mp4",
+          pipelineVersion: "ffmpeg-video-transcode-v1",
+        },
+      }, base.provider, now),
+      null,
+      `${verdict} verdict must never carry a safe derivative`,
+    );
+  }
+});
