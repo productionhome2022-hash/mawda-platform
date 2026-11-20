@@ -206,6 +206,10 @@ export const startBiometricVerificationRequest = onCall(async (request) => {
       const previousSnapshot = await transaction.get(requests().doc(previousId));
       if (!previousSnapshot.exists) throw new HttpsError("failed-precondition", "سجل محاولة التوثيق السابقة غير موجود.");
       const previous = previousSnapshot.data() ?? {};
+      if (["accepted", "rejected", "upload_rejected"].includes(String(previous.status)) &&
+          previous.evidenceDeletionStatus !== "deleted") {
+        throw new HttpsError("failed-precondition", "لا يمكن بدء دورة جديدة قبل اكتمال حذف أدلة الطلب السابق.");
+      }
       if (previous.status === "uploading" || previous.status === "pending") {
         throw new HttpsError("failed-precondition", "يوجد طلب توثيق مفتوح بالفعل.");
       }
