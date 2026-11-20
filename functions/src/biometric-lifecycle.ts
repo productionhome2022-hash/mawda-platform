@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { FieldValue, Timestamp, getFirestore, type Transaction } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, getFirestore, type DocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -33,10 +33,13 @@ function requireUid(uid?: string): string {
   return uid;
 }
 
-async function appendAuditInTransaction(transaction: Transaction, event: Record<string, unknown>): Promise<string> {
+async function appendAuditInTransaction(
+  transaction: Transaction,
+  event: Record<string, unknown>,
+  headSnapshot: DocumentSnapshot,
+): Promise<string> {
   const auditRef = db().collection("adminAuditLogs").doc();
   const headRef = auditHead();
-  const headSnapshot = await transaction.get(headRef);
   const head = headSnapshot.data() ?? {};
   const sequence = headSnapshot.exists ? head.sequence : 0;
   const previousHash = headSnapshot.exists ? head.eventHash : "GENESIS";
@@ -56,7 +59,10 @@ async function appendAuditInTransaction(transaction: Transaction, event: Record<
 }
 
 async function appendAudit(event: Record<string, unknown>): Promise<void> {
-  await db().runTransaction(async transaction => { await appendAuditInTransaction(transaction, event); });
+  await db().runTransaction(async transaction => {
+    const headSnapshot = await transaction.get(auditHead());
+    await appendAuditInTransaction(transaction, event, headSnapshot);
+  });
 }
 
 async function requireOwnerForReview(request: AuthRequest, action: string): Promise<string> {
@@ -354,8 +360,9 @@ export const decideBiometricVerificationRequest = onCall(async request => {
     throw new HttpsError("permission-denied", "انتهت صلاحية جلسة MFA الحديثة؛ أعد توثيق جلسة المالك.");
   }
   const result = await db().runTransaction(async transaction => {
-    const [review, member, ledger] = await Promise.all([
+    const [review, member, ledger, auditHeadSnapshot] = await Promise.all([
       transaction.get(ref), transaction.get(userRef), transaction.get(ledgerRef),
+      transaction.get(auditHead()),
     ]);
     if (!review.exists || review.data()?.status !== "pending" || !member.exists || reviewerUid === memberUid) {
       throw new HttpsError("failed-precondition", "الطلب ليس معلقاً أو أن هوية المراجع غير صالحة.");
@@ -417,7 +424,7 @@ export const decideBiometricVerificationRequest = onCall(async request => {
       attemptNumber: next.attemptNumber, finalRejection: next.finalRejection,
       rewardCoins: decision === "accepted" ? BIOMETRIC_REWARD_COINS : 0,
       nextEligibleAtMs: next.nextEligibleAtMs, outcome: "success",
-    });
+    }, auditHeadSnapshot);
     return {
       requestId, status: next.status, decision, attemptNumber: next.attemptNumber,
       nextEligibleAtMs: next.nextEligibleAtMs,
