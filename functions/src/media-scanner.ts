@@ -75,6 +75,15 @@ export function validateScannerVerdict(
       ? d.category as keyof typeof route : null;
     if (!category) return null;
     const expected = route[category];
+    const purpose = typeof v.purpose === "string" ? v.purpose : "";
+    const purposeAllowed = category === "audio"
+      ? ["chat", "room", "biometric"].includes(purpose)
+      : category === "video"
+        ? ["chat", "room", "biometric", "advertisement"].includes(purpose)
+        : category === "document"
+          ? ["chat", "room"].includes(purpose)
+          : ["chat", "room", "profile_album", "avatar_cover", "story", "advertisement"].includes(purpose);
+    if (!purposeAllowed) return null;
     const expectedProcessingStatus = {
       gif: "safe_animation_derivative_ready",
       audio: "safe_audio_derivative_ready",
