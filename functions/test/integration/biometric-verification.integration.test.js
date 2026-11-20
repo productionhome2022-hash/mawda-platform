@@ -153,6 +153,18 @@ test("approved phrase, ClamAV-approved safe derivatives, owner review and exactl
     }));
     assert.match(playback.audioUrl, /mawddaEmulatorOnly=1/);
     assert.match(playback.videoUrl, /mawddaEmulatorOnly=1/);
+    await assert.rejects(() => decideBiometricVerificationRequest.run(memberRequest(uid, {
+      requestId: started.requestId, decision: "accepted", evidenceReviewed: true,
+    })), error => error && error.code === "permission-denied");
+    await assert.rejects(() => decideBiometricVerificationRequest.run(ownerRequest(ownerUid, {
+      requestId: started.requestId, decision: "accepted",
+    })), error => error && error.code === "failed-precondition");
+    const staleOwner = ownerRequest(ownerUid, {
+      requestId: started.requestId, decision: "accepted", evidenceReviewed: true,
+    });
+    staleOwner.auth.token.auth_time = Math.floor((Date.now() - 16 * 60 * 1000) / 1000);
+    await assert.rejects(() => decideBiometricVerificationRequest.run(staleOwner),
+      error => error && error.code === "permission-denied");
     const decisions = await Promise.allSettled([1, 2].map(() =>
       decideBiometricVerificationRequest.run(ownerRequest(ownerUid, {
         requestId: started.requestId, decision: "accepted", evidenceReviewed: true,
