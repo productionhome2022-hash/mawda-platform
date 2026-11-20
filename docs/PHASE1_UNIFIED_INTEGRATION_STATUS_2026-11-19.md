@@ -590,3 +590,36 @@ No merge to `main`, deployment, production Firebase mutation, paid-resource acti
 3. Complete media lifecycle gap work under Issue #49 (scanner permutations, deletion races, legal hold, generation pinning, retention and delivery authorization); Storage client access remains fail-closed.
 4. Reconcile the Admin Media permission vocabulary under Issue #50 and resolve repository governance/branch protection under Issue #51.
 5. Keep PR #47 Draft until the above gates and the full source reconciliation are closed; only then consider staged promotion toward the development branch and later main.
+
+
+## Parallel continuation checkpoint — 2026-11-20 (latest evidence)
+
+### Exact-head workflow closure
+All four required workflows completed successfully on the same integration candidate SHA `78d0b982723abd76b6ef098ef2c96e79f8e36821`:
+- Validate Mawda — Push: run `44701498032`, success.
+- Validate Mawda — Pull Request: run `44701506387`, success.
+- Mawdda Domain Regression — Push: run `44701498125`, success.
+- Mawdda Domain Regression — Pull Request: run `44701506405`, success.
+
+The successful validation jobs include Cloud Functions build/unit tests, the configured Firestore/Storage Emulator integration suites, scanner container tests and EICAR detection, Flutter analysis/widget tests and web release build. This closes the exact-head CI result for this candidate SHA; it does not close every product/security acceptance gate.
+
+### New parallel review branches / PRs
+- PR #60, branch `codex/phase1-media-hold-delete-race-2026-11-20`, head `d1127aa8c146e8bfc1d4dc3ae7b3c4184bd8c72c`: adds an Emulator-backed race test between the real Owner media legal-hold callable and permanent deletion. Domain Regression passed (run `44708364802`); Validate Mawda was still in progress at checkpoint (run `44708364891`). Draft; not merged.
+- PR #61, branch `codex/phase1-specialized-callable-auth-inventory-2026-11-20`, head `315c8d53dc4b7e6df0af1803191df7bf5786adcc`: documents the source-backed specialized-callable authorization inventory and missing authoritative resource/assignment bindings. Validate and Domain Regression were in progress (runs `44708580004`, `44708579922`). Draft; not merged.
+- Issue #50 closed after exact parity tests were confirmed in `functions/test/advertising-permissions.test.js` and included in `npm test`; this is catalogue parity only, not callable delegation.
+
+### Branch-level source comparison — preliminary classifications
+These are file-level comparisons against the unified candidate, not wholesale branch merges:
+- Economy: `wallet-reconciliation.ts`, `store-gifting.ts`, `store-catalog.ts`, `group-call-economy.ts`, and `call-usage-policy.ts` are byte-identical to the unified candidate. The economy selective-port branch's `store-gifting.ts` and wallet/store integration tests are older/different; the unified gift callable additionally binds the immutable catalog-version snapshot and checks receipt/ledger/audit consistency. Do not replace the unified implementation with the older candidate.
+- Economy: `economy-pricing.ts` on the unified candidate is longer and includes explicit experimental defaults plus official currency validation; the recovery branch variant is not a safe replacement. `economy-payment-policy.ts` and `coin-purchase-requests.ts` differ and remain pending semantic diff review; no blind port.
+- Advertising: the candidate `featured-ad-finance.ts` is shorter (8,002 bytes / 186 lines) than the unified version (9,374 bytes / 207 lines), and its unit test is also narrower. Treat the candidate as superseded unless a unique behavior is demonstrated by a line-level review. `featured-advertising.ts` differs and remains under review.
+- Advertising/media unique candidates: `capacity-media-management.ts`, `sticker-policy.ts` and `sticker-catalog.ts` are not in the unified candidate. The capacity module hardcodes a 1,000-session tier and observe-only enforcement; sticker policy hardcodes image/byte/duration/frame/pack caps. These are not ported until their values are reconciled with the Owner-configurable limits policy and the full server-side upload, scan, catalog, entitlement and delivery path is proven.
+- Governance: the candidate `advertising-governance.ts` is shorter (8,667 bytes / 228 lines) than the unified version (12,939 bytes / 321 lines); the unified version contains role-family permission options and additive permission-delta validation absent from the older candidate. No replacement. The governance branch's unique biometric-review/media and rules changes still require independent policy, authorization, and emulator review.
+- No divergent branch was merged wholesale; all unreviewed candidate files remain pending, blocked or superseded rather than silently discarded.
+
+### Remaining gates
+- Issue #48 remains open: no `hasAdvertisingPermission` call is connected to protected advertising/production callables; current owner administration remains Owner-only and fail-closed. Canonical assignment/resource-scope derivation must be implemented before any delegated access is enabled.
+- Issue #49 remains open: the new concurrent legal-hold/deletion regression is under PR #60; continue scanner callback replay, generation, deletion retry, legal hold, delivery authorization and no-original-object-exposure coverage.
+- Issue #52 remains open: finish file-level semantic classification for the remaining economy, advertising, governance, rules, UI and tests. The comparisons above are preliminary and intentionally do not close the issue.
+- PR #47 remains Draft. Step 1/14 remains OPEN until all Phase 1 reconciliation and acceptance gates are closed.
+- Official `main` remains unchanged at `460a79a7dc2e16f4ad146af22aab58e152ad1e8c`; development remains at `a86fc878a7f5a29d68271bf08bec041a2fb31f80`. No promotion, deployment, production Firebase mutation, billing activation, or 5,000-persona external lab run was performed.
