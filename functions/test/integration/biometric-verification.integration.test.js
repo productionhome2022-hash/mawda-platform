@@ -1,6 +1,12 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { createHash, randomUUID } = require("node:crypto");
+
+// Configure the Admin Storage SDK to use the emulator before importing it.
+const rawStorageEmulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? "127.0.0.1:9199";
+const storageEmulatorHost = rawStorageEmulatorHost.replace("https://", "").replace("http://", "");
+process.env.STORAGE_EMULATOR_HOST = "http://" + storageEmulatorHost;
+
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
 const {
