@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const {
   BIOMETRIC_SPOKEN_PHRASE, BIOMETRIC_SPOKEN_PHRASE_VERSION,
   BIOMETRIC_AUDIO_MAX_BYTES, BIOMETRIC_VIDEO_MAX_BYTES,
-  validateBiometricMemberIdentity, biometricEvidenceObjectPaths, biometricRewardLedgerId,
+  validateBiometricMemberIdentity, biometricRewardLedgerId,
 } = require("../lib/biometric-evidence");
 
 test("uses the exact owner-approved phrase and a stable version", () => {
@@ -20,11 +20,8 @@ test("uses canonical member identity and refuses client overrides", () => {
   assert.throws(() => validateBiometricMemberIdentity({ ...member, gender: "other" }, member.uid), /INVALID/);
   assert.throws(() => validateBiometricMemberIdentity({ ...member, username: "bad/name" }, member.uid), /INVALID/);
 });
-test("derives request-bound private paths and exactly-once ledger identity", () => {
+test("derives an exactly-once reward ledger identity from the request ID", () => {
   const id = "123e4567-e89b-42d3-a456-426614174000";
-  const paths = biometricEvidenceObjectPaths("member_uid_00001", id);
-  assert.equal(paths.audioPath, "biometric-evidence/member_uid_00001/" + id + "/voice.m4a");
-  assert.equal(paths.videoPath, "biometric-evidence/member_uid_00001/" + id + "/video.mp4");
   assert.equal(biometricRewardLedgerId(id), "biometric_verification_" + id);
-  assert.throws(() => biometricEvidenceObjectPaths("../escape", id));
+  assert.throws(() => biometricRewardLedgerId("../escape"));
 });
