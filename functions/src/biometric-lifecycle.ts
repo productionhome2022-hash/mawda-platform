@@ -190,7 +190,7 @@ export const getMyBiometricVerificationStatus = onCall(async request => {
     typeof latest.audioMediaId === "string" ? db().collection("mediaAssets").doc(latest.audioMediaId).get() : Promise.resolve(null),
     typeof latest.videoMediaId === "string" ? db().collection("mediaAssets").doc(latest.videoMediaId).get() : Promise.resolve(null),
   ]);
-  const reusableMediaId = (snapshot: FirebaseFirestore.DocumentSnapshot | null): string | null => {
+  const reusableMediaId = (snapshot: { exists: boolean; id: string; data: () => Record<string, unknown> | undefined } | null): string | null => {
     if (!snapshot?.exists) return null;
     const status = String(snapshot.data()?.status ?? "");
     return ["rejected", "expired", "manually_deleted", "self_destructed"].includes(status) ? null : snapshot.id;
