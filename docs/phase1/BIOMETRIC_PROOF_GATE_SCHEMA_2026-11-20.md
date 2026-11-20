@@ -2,7 +2,7 @@
 
 ## Authority and current status
 
-The latest owner-approved policy is the Super Owner manual-review amendment recorded in PR #77 and `docs/phase1/BIOMETRIC_SUPER_OWNER_MANUAL_REVIEW_POLICY_2026-11-20.md`.
+The authoritative policy is `docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md`, recorded by merged PR #82. The PR #77 manual-review amendment is historical and superseded where it differs. The final contract requires a pre-established spoken phrase, a 3–5 second video, canonical registered-gender matching, exactly three attempts with one full calendar month between rejected attempts, permanent closure on the third rejection, and immediate exactly-once 1,500 BetaCoins on acceptance.
 
 **Play Integrity, App Attest, device-key attestation and automated biometric classifiers are not prerequisites for the Super Owner's accept/reject decision.** They cannot replace the human review of the submitted voice sample and video.
 
