@@ -206,7 +206,7 @@ For unified HEAD `d18b1c234a2b72413ba9814382c7ce7b996c6416`, the following runs 
 
 ### Biometric proof hardening branch / PR #73
 - Branch `codex/mawdda-biometric-proof-gate-2026-11-20` is based on the unified line and is proposed through Draft PR #73.
-- PR head SHA: `fb1a54fd66b568e0bf781ab2b6de174a9abf2267`; base unified line was `7d386a77818e3a9ec59977f1cbcb67b8eac6ba9d`.
+- Initial PR commit SHA: `fb1a54fd66b568e0bf781ab2b6de174a9abf2267`; subsequent documentation/audit commits advanced the branch head. Base unified line was `7d386a77818e3a9ec59977f1cbcb67b8eac6ba9d`.
 - Files changed are limited to the biometric eligibility helper, its profile/social-link call sites and tests, plus the proof-gate schema note.
 - The eligibility helper now requires the expected account UID and a persisted server-proof record with an allowlisted platform provider, matching account UID, device key ID, one-time challenge ID, proof digest, server signature/attestation verification markers, consumed nonce and ordered server timestamps. Legacy verified flags and client OS prompt claims fail closed.
 - This is **only an eligibility hardening gate**. It does not implement or cryptographically verify Google Play Integrity or Apple App Attest tokens, device-key enrollment, challenge issuance/consumption, proof-to-evidence binding, or the Owner review lifecycle. The fields are an internal trusted-verifier output contract; no client may write them. Firestore rules currently deny all client writes to `users/{uid}`.
