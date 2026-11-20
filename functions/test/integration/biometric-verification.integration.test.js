@@ -192,7 +192,7 @@ test("three rejections require calendar-month waits, close permanently, and neve
   try {
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       if (attempt > 1) {
-        await assert.rejects(() => startBiometricVerificationRequest.run(memberRequest(uid)),
+        await assert.rejects(() => startRequest(uid),
           error => error && error.code === "failed-precondition");
         const previousId = (await userRef.get()).data().biometricVerificationLastRequestId;
         const previousRef = db.collection("biometricVerificationRequests").doc(previousId);
@@ -211,7 +211,7 @@ test("three rejections require calendar-month waits, close permanently, and neve
           },
         });
       }
-      const started = await startBiometricVerificationRequest.run(memberRequest(uid));
+      const started = await startRequest(uid);
       ids.push(started.requestId);
       assert.equal(started.attemptNumber, attempt);
       const ref = db.collection("biometricVerificationRequests").doc(started.requestId);
@@ -229,7 +229,7 @@ test("three rejections require calendar-month waits, close permanently, and neve
     const member = (await userRef.get()).data();
     assert.equal(member.coins, 777);
     assert.equal(member.biometricVerificationPermanentlyClosed, true);
-    await assert.rejects(() => startBiometricVerificationRequest.run(memberRequest(uid)),
+    await assert.rejects(() => startRequest(uid),
       error => error && error.code === "failed-precondition");
   } finally {
     await cleanup(uid, ids);
@@ -248,7 +248,7 @@ test("rejects out-of-policy voice and video durations and keeps invalid submissi
       localAuthenticationSucceeded: true,
     })), error => error && error.code === "failed-precondition");
     for (const [audioDuration, videoDuration] of [[60001, 4000], [60000, 5001]]) {
-      const started = await startBiometricVerificationRequest.run(memberRequest(uid));
+      const started = await startRequest(uid);
       ids.push(started.requestId);
       const ref = db.collection("biometricVerificationRequests").doc(started.requestId);
       await attachEvidence(ref, uid, started.requestId, audioDuration, videoDuration);
@@ -273,17 +273,17 @@ test("an empty upload intent expires after its upload TTL without consuming an a
     gender: "female", profileCompleted: true, accountStatus: "active", coins: 0,
   });
   try {
-    const first = await startBiometricVerificationRequest.run(memberRequest(uid));
+    const first = await startRequest(uid);
     ids.push(first.requestId);
     const firstRef = db.collection("biometricVerificationRequests").doc(first.requestId);
     await firstRef.update({ createdAt: Timestamp.fromMillis(Date.now() - 6 * 60 * 1000) });
-    const second = await startBiometricVerificationRequest.run(memberRequest(uid));
+    const second = await startRequest(uid);
     ids.push(second.requestId);
     assert.equal(second.attemptNumber, 1);
     assert.equal((await db.collection("biometricVerificationRequests").doc(first.requestId).get()).data().status, "upload_rejected");
     assert.equal((await db.collection("biometricVerificationRequests").doc(first.requestId).get()).data().evidenceDeletionStatus, "deleted");
   } finally {
-    Date.now = originalNow;
+    
     await cleanup(uid, ids);
   }
 });
