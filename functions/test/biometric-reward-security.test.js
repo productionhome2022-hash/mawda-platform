@@ -11,7 +11,7 @@ test("biometric reward callable remains closed pending the Super Owner manual-re
   assert.notEqual(end, -1, "biometric reward callable boundary must remain identifiable");
   const callable = source.slice(start, end);
   assert.match(callable, /failed-precondition/);
-  assert.match(callable, /مراجعة المراجعة اليدوية الخادمية بواسطة Super Owner|مراجعة يدوية خادمية بواسطة Super Owner/);
+  assert.match(callable, /اكتمال المراجعة اليدوية الخادمية بواسطة Super Owner/);
   assert.doesNotMatch(callable, /runTransaction|walletLedger|rewardCoins|transaction\.update|transaction\.create/);
 });
 
