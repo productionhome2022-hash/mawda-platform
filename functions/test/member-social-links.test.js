@@ -7,6 +7,27 @@ const {
   canChangeMemberSocialLinkVisibility,
 } = require("../lib/member-social-links");
 
+const NOW = 1_800_000_000_000;
+const activeProof = (uid) => ({
+  status: "verified",
+  verificationMethod: "server_verified_device_attestation",
+  trustModel: "challenge_bound_device_key",
+  expiresAt: { toMillis: () => NOW + 60_000 },
+  serverProof: {
+    status: "verified",
+    provider: "android_play_integrity",
+    accountUid: uid,
+    deviceKeyId: "device_key_identifier_123456",
+    challengeId: "server_challenge_identifier_123456",
+    proofDigest: "c".repeat(64),
+    signatureVerified: true,
+    attestationVerified: true,
+    nonceConsumed: true,
+    verifiedAt: { toMillis: () => NOW - 10_000 },
+    nonceConsumedAt: { toMillis: () => NOW - 9_000 },
+  },
+});
+
 test("accepts only HTTPS URLs on the matching official provider domains", () => {
   assert.deepEqual(validateMemberSocialLinks({
     instagram: "https://www.instagram.com/member/",
@@ -29,9 +50,7 @@ test("rejects deceptive hosts, unsafe schemes, credentials and unknown providers
     "https://user:pass@instagram.com/member",
     "javascript:alert(1)",
     "https://bit.ly/member",
-  ]) {
-    assert.throws(() => validateMemberSocialLinks({ instagram: url }));
-  }
+  ]) assert.throws(() => validateMemberSocialLinks({ instagram: url }));
   assert.throws(() => validateMemberSocialLinks({ tiktok: "https://tiktok.com/member" }));
 });
 
@@ -44,34 +63,26 @@ test("empty values remove links and malformed stored values are omitted on proje
   }), { instagram: "https://instagram.com/member" });
 });
 
-
-test("expired or revoked members may clear links but cannot publish links", () => {
+test("only the same-account server proof permits publishing and revealing links", () => {
   const links = { instagram: "https://www.instagram.com/member/" };
   const empty = {};
-  const expired = { status: "verified", expiresAt: { toMillis: () => 1_700_000_000_000 } };
-  const revoked = {
-    status: "verified",
-    expiresAt: { toMillis: () => 1_900_000_000_000 },
-    revokedAt: { toMillis: () => 1_700_000_000_000 },
-  };
-  assert.equal(canUpdateMemberSocialLinks(empty, expired, 1_800_000_000_000), true);
-  assert.equal(canUpdateMemberSocialLinks(empty, revoked, 1_800_000_000_000), true);
-  assert.equal(canUpdateMemberSocialLinks(links, expired, 1_800_000_000_000), false);
-  assert.equal(canUpdateMemberSocialLinks(links, revoked, 1_800_000_000_000), false);
-  assert.equal(canUpdateMemberSocialLinks(links, {
-    status: "verified",
-    expiresAt: { toMillis: () => 1_900_000_000_000 },
-  }, 1_800_000_000_000), true);
+  assert.equal(canUpdateMemberSocialLinks(links, activeProof("member-a"), "member-a", NOW), true);
+  assert.equal(canUpdateMemberSocialLinks(links, activeProof("member-b"), "member-a", NOW), false);
+  assert.equal(canChangeMemberSocialLinkVisibility(false, activeProof("member-a"), "member-a", NOW), true);
+  assert.equal(canChangeMemberSocialLinkVisibility(false, activeProof("member-b"), "member-a", NOW), false);
+  assert.equal(canChangeMemberSocialLinkVisibility(true, null, "member-a", NOW), true);
+  assert.equal(canUpdateMemberSocialLinks(empty, null, "member-a", NOW), true);
 });
 
-
-test("a member may hide a link after verification expires, but revealing it requires an active lease", () => {
-  const expired = { status: "verified", expiresAt: { toMillis: () => 1_700_000_000_000 } };
-  const active = { status: "verified", expiresAt: { toMillis: () => 1_900_000_000_000 } };
-  const now = 1_800_000_000_000;
-  assert.equal(canChangeMemberSocialLinkVisibility(true, expired, now), true);
-  assert.equal(canChangeMemberSocialLinkVisibility(true, null, now), true);
-  assert.equal(canChangeMemberSocialLinkVisibility(false, expired, now), false);
-  assert.equal(canChangeMemberSocialLinkVisibility(false, null, now), false);
-  assert.equal(canChangeMemberSocialLinkVisibility(false, active, now), true);
+test("expired, revoked, legacy and incomplete proof deny publication but allow clearing/hiding", () => {
+  const links = { instagram: "https://www.instagram.com/member/" };
+  const expired = { ...activeProof("member-a"), expiresAt: { toMillis: () => NOW - 1 } };
+  const revoked = { ...activeProof("member-a"), revokedAt: { toMillis: () => NOW - 1 } };
+  const legacy = { status: "verified", expiresAt: { toMillis: () => NOW + 60_000 } };
+  for (const record of [expired, revoked, legacy, null]) {
+    assert.equal(canUpdateMemberSocialLinks(links, record, "member-a", NOW), false);
+    assert.equal(canChangeMemberSocialLinkVisibility(false, record, "member-a", NOW), false);
+    assert.equal(canUpdateMemberSocialLinks({}, record, "member-a", NOW), true);
+    assert.equal(canChangeMemberSocialLinkVisibility(true, record, "member-a", NOW), true);
+  }
 });
