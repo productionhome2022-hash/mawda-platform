@@ -437,3 +437,20 @@ The owner has explicitly clarified the following binding implementation requirem
 - **Authority and integrity controls remain mandatory:** only the canonical Super Owner may decide, enforced server-side with owner identity/claim and MFA/session checks; the evidence and decision must be private, versioned and audited; approval/status/reward must commit atomically; idempotency must prevent replay/double credit; retries, expiry, revocation and deletion must follow the final owner policy.
 - **Supersession:** this decision overrides every older clause in this repository or source branch that conditions biometric approval, verified status, entitlements, or the 1,500 BetaCoins reward on cryptographic device proof, Play Integrity, App Attest, provider attestation, or automated biometric scoring. Local device authentication may remain an optional local sign-in convenience only; it is not the biometric-verification approval criterion.
 - **Implementation status is separate:** this is an approved policy, not a claim that the complete submission/review/reward/renewal lifecycle is implemented or enabled. Keep it fail-closed until server authorization, private evidence handling, audit, atomic ledger grant, idempotency and the required tests pass.
+
+
+
+## BUILD-001 — دفعات التطوير وترتيب التحقق وتقليل تشغيل Workflows (اعتماد المالك 2026-11-20)
+
+**قرار معتمد وملزم لجميع مراحل Mawdda وأعمالها اللاحقة:** تمنع التشغيلات العشوائية والمتكررة بسبب التحديثات الوسيطة، ويُعتمد الترتيب التالي:
+
+1. **تجميع التغييرات:** فحص النطاق والتبعيات أولاً، ثم تجميع تغييرات المهمة/دورة العمل الواحدة (الكود والاختبارات والواجهات والوثائق وCI ذات الصلة) في دفعة متماسكة وcommit واحد متى أمكن. لا تُجمع مهام غير مترابطة لمجرد تقليل commits.
+2. **CLI السريع أولاً:** اختبارات الوحدات والتحليل والفحص النحوي/النوعي السريع عبر CLI قبل التكامل. تستخدم GitHub Actions runner إذا لم تتوفر بيئة CLI محلية موثوقة، ويجب التصريح بمكان التنفيذ.
+3. **تكامل الخادم:** بعد نجاح البوابة السريعة، اختبارات الخادم والأدلة والصلاحيات ودفتر المكافآت والذرية والتزامن ومنع التكرار وقواعد Firestore/Storage على المحاكيات.
+4. **Flutter والمنصات المتأثرة:** بعد نجاح اختبارات الخادم المطلوبة، Flutter Analyze وUnit/Widget Tests وبناء المنصة/المنصات المتأثرة فقط.
+5. **التكامل الشامل النهائي:** تشغيل حزمة التكامل الشاملة مرة واحدة على SHA النهائي الثابت بعد المراحل السابقة، مع تسجيل SHA ونتيجة كل job/step.
+6. **إعادة الاختبار:** عند الفشل يُحدد السبب الجذري ويُصلح أولاً، ثم يعاد الاختبار أو job الفاشل المتأثر فقط. لا تعاد الوظائف الناجحة ولا workflow كاملاً عشوائياً. يستثنى فشل runner/البنية الذي يبطل نتيجة الاختبار مع توثيق السبب.
+7. **نطاق التشغيل:** تضبط مسارات workflows بدقة. لا يُشغّل بناء Android عند تعديل واجهات Flutter أو PWA أو الوثائق وحدها؛ يقتصر على ملفات Android وأدوات توليده واعتماديات Flutter الأصلية وملف workflow نفسه. يبقى التشغيل اليدوي متاحاً.
+8. **الصفوف وعدم الإلغاء:** لا تلغى عمليات التحقق الجارية تلقائياً لمجرد وصول commit أحدث؛ تُمنع الازدواجية بتجميع التغييرات وتصفية المسارات، وتنتظر العمليات في الصف عند الحاجة.
+
+هذا القرار يسرّع العمل دون خفض الجودة أو الأمن أو تجاوز أي فحص مطلوب. يسري على التطبيق والخادم والاقتصاد والوسائط والبنية والمنصات والوثائق وCI، مع تخصيص الفحوص بحسب الأثر.

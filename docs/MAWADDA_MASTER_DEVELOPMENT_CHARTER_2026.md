@@ -513,3 +513,20 @@ Apply GOV-005 as recorded in the decision register and OCA-001 section 26: AI as
 يجب تسجيل exact SHA وروابط التشغيل وrun IDs والوظائف والنتائج والقيود. يعاد الاختبار على SHA الجديد بعد كل إصلاح مؤثر. أي فشل أو فحص مطلوب غير منفذ يمنع إعلان القبول الكامل. تستخدم البدائل المجانية عند حدود الحصة، ويُسجل ما تعذر تنفيذه كبوابة مفتوحة؛ لا تُتجاوز الحصص ولا تُفعّل خدمات أو runners مدفوعة أو billing أو موارد إنتاجية دون موافقة مستقلة وصريحة من المالك. لا يُدّعى اختبار منصة أو بيئة لم تُشغّل فعلياً.
 
 هذه القاعدة مكملة وملزمة مع GOV-DEV-001: جميع الأعمال على فرع التطوير الوحيد `codex/mawda-full-platform-implementation`، والاختبار على SHA موحد، دون إنشاء فروع تطوير موازية. المرجع التفصيلي وخطوات القبول في [سياسة فرع التطوير الموحد](MAWADDA_SINGLE_DEVELOPMENT_BRANCH_POLICY_2026-11-20.md)، القسم 11.
+
+
+
+## 28. BUILD-001 — Standardized change batches and staged validation
+
+Owner-approved 2026-11-20. Mandatory for every future Mawdda development, repair, integration, documentation, and platform-build cycle:
+
+1. Inspect current HEAD, dependencies, callers, and impact; consolidate one coherent task's code, tests, documentation, and CI changes into one reviewable batch/commit wherever practical.
+2. Run fast CLI unit, syntax, static-analysis, and compile checks first. Use a GitHub Actions runner when a trusted local CLI is unavailable, and report the actual execution environment.
+3. After the fast gate passes, run server integration for evidence, authorization, economy/reward ledger, atomicity, concurrency, replay/idempotency, and Firestore/Storage rules in emulators.
+4. Then run Flutter Analyze, unit/widget tests, and only platform builds affected by the change.
+5. Run the comprehensive integration suite once against the final immutable SHA after the preceding gates. Record each job/step and exact SHA.
+6. On failure, diagnose and fix the root cause before retrying; rerun only the failed affected test/job. Do not rerun successful jobs or whole workflows without evidence that runner/infrastructure invalidated the result.
+7. Scope workflows with path filters. Android builds must not trigger for Flutter UI, PWA, documentation, or unrelated changes; trigger only for Android/native-generation inputs, relevant Flutter dependency manifests/lockfiles, and the Android workflow itself. Keep manual dispatch available.
+8. Do not automatically cancel in-progress validation merely because a newer commit arrives. Reduce duplicate runs through batching and path filters; queue work when necessary.
+
+This efficiency policy never waives a required security, integration, or release gate. A passing result applies only to the tested SHA and does not authorize main merges, production deployment, paid resources, or live Firebase changes.

@@ -1,15 +1,7 @@
 name: Mawdda domain regression
 
 on:
-  pull_request:
-    branches:
-      - codex/mawda-full-platform-implementation
-      - codex/mawdda-phase1-unified-2026-11-19
-    types: [opened, synchronize, reopened, ready_for_review]
-  push:
-    branches:
-      - codex/mawda-full-platform-implementation
-      - codex/mawdda-phase1-unified-2026-11-19
+  # Overlaps the staged Validate Mawda pipeline; retain manual targeted runs only.
   workflow_dispatch:
 
 permissions:
@@ -17,7 +9,7 @@ permissions:
 
 concurrency:
   group: mawdda-domain-regression-${{ github.event_name }}-${{ github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   backend-domain-regression:

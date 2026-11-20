@@ -14,8 +14,6 @@ on:
       - ".github/workflows/bootstrap-native-platforms.yml"
       - "pubspec.yaml"
       - "pubspec.lock"
-      - "lib/**"
-      - "web/**"
   workflow_dispatch:
 
 permissions:
@@ -23,7 +21,7 @@ permissions:
 
 concurrency:
   group: mawdda-native-platform-bootstrap
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   generate-and-build-android:
