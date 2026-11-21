@@ -70,3 +70,8 @@
 - تسجيل SHA commit الرابط والمسار وعدد الملفات وحالة الرفع.
 
 **هذه السياسة تنظّم قناة الأدلة والتقارير؛ ولا تمنح Termux صلاحية حذف الملفات أو الدمج العشوائي أو تعديل الإنتاج أو تجاوز موافقات المالك.**
+
+
+## GOV-SIM-5000-001 — superseding instruction (21 November 2026)
+
+The older statement in Section 4 that large-scale simulation is deferred only until repository unification is superseded. Repository unification does not authorize or automatically schedule the 5,000-persona simulation. The independent lab must not be run or modified without a separate, explicit owner commission. No simulation or lab workflow may be dispatched as part of routine Termux evidence collection. Static inspection of the primary repository is permitted; execution of the large-scale simulation to validate compliance is prohibited.
