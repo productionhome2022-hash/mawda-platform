@@ -315,3 +315,12 @@ This addendum supersedes only the dated findings explicitly listed below; all ot
 - **Store gifting:** server-side sender debit, recipient eligibility, idempotent gift receipt, immutable catalog-version snapshots, ledger/audit linkage, and shop UI are being integrated into the canonical development branch. Exact-head CI and emulator results are required before acceptance.
 - **Branch policy:** the single canonical development target is `codex/mawda-full-platform-implementation`. Historical source branches are retained until their unique changes are reconciled; no force push or history rollback is permitted.
 - **Release boundary:** no merge to `main`, deployment, production Firebase mutation, paid-service activation, billing change, destructive retention activation or 5,000-persona lab run is included in this integration.
+
+
+## 2026-11-21 — قرارات لاحقة تتقدم على هذه اللقطة التاريخية
+
+هذه المراجعة تعكس لقطة 19 نوفمبر، ولا تُستخدم منفردة لتحديد السياسة الحالية:
+- تعارض احتفاظ النص المهم 90/30 يوماً حُسم بقرار RET-005: 30 يوماً. اختيار وضع الاحتفاظ وموافقة الطرفين يظلان غير محسومين؛ لا حذف حي يعتمد عليهما.
+- مسار التوثيق البيومتري اليدوي حُسم بقرار BIO-002 والسياسة النهائية BIO-001/BIO-003: قرار Super Owner البشري وحده، دون attestation كشرط. حدود دليل الصوت البيومتري 20 ثانية/5 MiB مستقلة عن التسجيل الحي 60 ثانية.
+- أي خطة تشغيل مستقبلية للمختبر الواردة في هذه الوثيقة أصبحت تاريخية وغير تنفيذية بموجب GOV-SIM-5000-001؛ المختبر المستقل لا يُشغّل ولا يُعدّل دون تكليف مستقل وصريح.
+- الاسم الظاهر الحالي للعملة بيتاكوينز/BetaCoins بموجب NOM-001؛ لا تنسخ الأسماء القديمة إلى واجهة حالية ولا تغير المعرفات التقنية التاريخية دون مراجعة توافق.
