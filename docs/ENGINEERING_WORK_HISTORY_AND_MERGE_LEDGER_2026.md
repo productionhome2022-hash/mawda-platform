@@ -203,3 +203,5 @@ Backfill in bounded batches:
 - Task template commit: `34f09422cc2374bb4c75d20abd3778d160dbde49`.
 - Integration template commit: `f5dfbae9cb65e925ce8be9ddfd93f699ab227e9a`.
 - These commits establish the documentation controls and templates; they do not represent completion of the historical backfill or execution of the full engineering audit.
+
+| 2026-11-21 07:47:32Z–07:50:00Z | Recovered the exact daily Git commit activity windows for 14–21 November (1,727 commits on the current development branch) and fetched exact 14 November Actions run start/end times; preserved the historical 3,104-commit report as an unresolved query-scope discrepancy | DOC-CENTRAL-2026-11-21-001; branch head `2417ec1142ecc5d63f225cf6d0b567b4dd8501e2`; runs `43606228297` and `43607804675`; task record `docs/engineering/work-history/2026-11-21-001-central-documentation-three-section-reorganization.md` |
