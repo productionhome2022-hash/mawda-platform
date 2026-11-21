@@ -10725,6 +10725,12 @@ export const respondToCall = onCall(async (request) => {
     ]);
     if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
     const call = snapshot.data()!;
+    if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
+        uid === call.callerUid ||
+        (Array.isArray(call.leftUids) && call.leftUids.includes(uid)) ||
+        (Array.isArray(call.rejectedUids) && call.rejectedUids.includes(uid))) {
+      throw new HttpsError("permission-denied", "لا تملك صلاحية الرد على هذه المكالمة.");
+    }
     if (response === "accept" && Array.isArray(call.participantUids) &&
         (call.mode === "audio" || call.mode === "video") &&
         typeof call.callerUid === "string") {
@@ -10758,12 +10764,6 @@ export const respondToCall = onCall(async (request) => {
           "انتهى استحقاق المكالمة لأحد المشاركين؛ لا يمكن الانضمام قبل تجديد الاستحقاق.",
         );
       }
-    }
-    if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
-        uid === call.callerUid ||
-        (Array.isArray(call.leftUids) && call.leftUids.includes(uid)) ||
-        (Array.isArray(call.rejectedUids) && call.rejectedUids.includes(uid))) {
-      throw new HttpsError("permission-denied", "لا تملك صلاحية الرد على هذه المكالمة.");
     }
     if (!["ringing", "accepted"].includes(String(call.status)) ||
         (call.status === "ringing" &&
