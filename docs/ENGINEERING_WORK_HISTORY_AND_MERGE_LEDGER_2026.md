@@ -223,3 +223,5 @@ Backfill in bounded batches:
 
 
 
+
+| 2026-11-21 08:16:56Z–08:17:18Z | Preserved the `hide-coins` token as a code-formatted technical slug rather than a user-facing currency name; refreshed SRC-0017 and central README blob references | DOC-CENTRAL-2026-11-21-001; implementation traceability `abb5a309dc3baf5310f37e07be7993b45b63dba3`; reconciliation `ee84f75f1bbbb74c91dd62ed344f0e93ee242f7c`; no API/ledger identifiers changed |
