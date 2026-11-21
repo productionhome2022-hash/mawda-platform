@@ -21,6 +21,19 @@ No employee, administrator, supervisor, representative, moderator, service accou
 
 The owner may make any platform decision reserved to the owner, subject to applicable law, security controls, and the platform's requirement to preserve truthful, immutable audit evidence. This constitution does not authorize silent alteration or deletion of audit/financial/legal evidence, unsafe access to member data, or bypass of authentication and step-up controls.
 
+## 1.1 Direct intervention and decision powers
+
+The Super Owner may directly intervene in, decide, approve, reject, amend, correct, create, enable, disable, suspend, freeze, cancel, terminate, reverse, restore, recover, refund, reconcile, grant, revoke grants, appoint, remove, delegate, amend delegation, suspend delegation, and revoke delegation across every current and future Mawdda domain, application, screen, control, button, API, service, record and operational workflow. This includes member/account lifecycle, role and access control, moderation, appeals, advertising and ad viewing, messaging, rooms and bookings, media and production, contracts, the economic engine, **BetaCoins**, wallets, products, subscriptions, pricing and quotas, data governance, retention, infrastructure, source code, integrations, releases, incident response, costs, audits and recovery.
+
+This list is illustrative and non-exhaustive. The Super Owner may request reports, records, investigations and audits, issue corrective, preventive or emergency directions, and personally perform an owner-authorized operation or direct an authorized delegate to execute it. These powers do not create a payment/refund capability unsupported by the relevant system or override applicable law, member/third-party rights, binding contracts, provider conditions, or the requirement to preserve truthful audit and financial evidence. High-impact operations remain server-authorized, strongly authenticated and auditable; these safeguards protect the owner's decision rather than transfer decision authority away from the owner.
+
+## 1.2 Canonical owner, administrator and currency names
+
+- The only user-facing owner title is **Super Owner**. Legacy labels such as Owner or Super Admin must not be shown as alternative owner titles.
+- General administrators are **Admin 1, Admin 2, …, Admin N**. Super Owner sets the number of appointments. Each administrator receives an individually selected and server-enforced permission set; numbering does not imply equal or inherited permissions.
+- **Admin Media 1–5** remains a separate advertising/media role family. Production, team, legal and contract roles remain separate according to their approved source agreements.
+- The canonical currency name is **بيتاكوينز** in Arabic and **BetaCoins** in English. Do not rename ledger keys, database fields, API identifiers or historical records without compatibility review and a tested migration.
+
 ## 2. Owner-controlled permission catalogue
 
 The owner console must present selectable, role-specific permission options. The owner—not a preset role bundle or developer assumption—chooses the permissions granted to each individual. The interface must make clear the role family, capability description, risk level, allowed resource scope, and whether the action is owner-reserved.
