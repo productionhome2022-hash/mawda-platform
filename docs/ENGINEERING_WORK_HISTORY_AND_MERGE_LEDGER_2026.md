@@ -177,7 +177,7 @@ Backfill in bounded batches:
 
 - Existing `docs/IMPLEMENTATION_TRACEABILITY.md` already contains substantial phase-level status, risks, owner-approved clarifications, implementation notes and validation caveats. Preserve it and cross-link it; do not rewrite away its history.
 - The initial source snapshot contained 1,099 paths; subsequent reconciliation added seven central records, bringing the current inventory to 1,106. The README explicitly distinguishes indexing from individual semantic review.
-- Current reconciliation snapshot: 1,107 sources; 9 RECONCILED, 4 IN_REVIEW, and 1,094 awaiting individual semantic review. This does not mean all 1,106 have been read.
+- Current reconciliation snapshot: 1,107 sources; 9 RECONCILED, 4 IN_REVIEW, and 1,094 awaiting individual semantic review. This does not mean all 1,107 have been read.
 - The owner-role/nomenclature/dashboard audit is a partial audit, not full application coverage.
 - The exact current development branch head must be read from GitHub before each write/integration. The historical commits cited in prior reports are not substitutes for a fresh branch-head check.
 - This checkpoint records the control and observed baseline only. It does not claim historical backfill, full source review, full code audit, test execution, release readiness, or merge to `main`.
