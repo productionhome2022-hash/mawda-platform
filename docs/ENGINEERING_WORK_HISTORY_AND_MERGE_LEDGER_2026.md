@@ -219,3 +219,5 @@ Backfill in bounded batches:
 
 
 
+
+| 2026-11-21 08:14:39Z | Corrected the central README's final path-count reference and clarified that the 11 post-snapshot documentation commits are outside the pinned 1,794-commit TSV | DOC-CENTRAL-2026-11-21-001; README blob `e97f5e1e22e074d0788e2c122f5c36a8b10d148c`; no code or protected constitution/vision content changed |
