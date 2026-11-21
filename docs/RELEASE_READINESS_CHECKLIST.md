@@ -1,5 +1,8 @@
 # Mawadda Release Readiness Checklist
 
+> **Current HQ work-scope override (owner-confirmed 2026-11-22):** This workstream is limited to internal GitHub Actions tests. Do not perform or report as completed any 5,000-persona simulation, external testing, physical Android/iOS device testing, actual APK/AAB signing, keystore/certificate operations, production Firebase Console setup or mutation, production deployment, billing, or paid-resource activation. These items remain outside this workstream; they are neither passed nor required for its internal-only result. Track internal CI evidence and remaining internal test gaps in [INTERNAL_GITHUB_ACCEPTANCE_SCOPE_2026-11-22.md](audit/recovery/INTERNAL_GITHUB_ACCEPTANCE_SCOPE_2026-11-22.md). The broader release gates below remain historical/product release requirements unless separately changed by the owner; do not execute their excluded operations under this workstream.
+
+
 This checklist is a release gate, not a statement that the listed work is complete. Keep the product on the development branch until every applicable gate is evidenced and reviewed.
 
 ## 1. Repository and continuous integration
