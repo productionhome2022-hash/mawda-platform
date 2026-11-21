@@ -27,7 +27,6 @@ on:
   push:
     branches:
       - codex/mawda-full-platform-implementation
-      - codex/mawdda-phase1-unified-2026-11-19
     paths:
       - "lib/**"
       - "functions/**"
