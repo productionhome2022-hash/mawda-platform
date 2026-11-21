@@ -74,3 +74,16 @@ Do not merge the primary development branch into main until:
 3. The old primary load harness is removed only after successful transfer and comparison.
 4. Primary CI remains green on the exact resulting PR head.
 5. The comprehensive vision, constitution, decision register and implementation traceability agree.
+
+
+## Owner governance override — absolute 5,000-persona exclusion (2026-11-21)
+
+The owner reconfirmed this prohibition repeatedly today (owner-reported: more than twenty repetitions since 00:00) and stated that it had already been documented in the documentation/governance section. This explicit owner decision overrides any older workflow definition or inherited CI behavior:
+
+- The 5,000-persona simulation and its large-scale lifecycle/load scenarios MUST NOT run, be invoked, scheduled, or be included in any workflow, job, step, reusable workflow, composite action, script, package command, test suite, build, or automated check in productionhome2022-hash/mawda-platform.
+- The only repository boundary for the large-scale harness remains productionhome2022-hash/mawdda-5000-simulation-lab. This decision does not authorize running or modifying that lab; separate explicit owner instruction is required.
+- Ordinary deterministic product unit, integration, security, and build tests remain in the primary repository only when they do not invoke the 5,000-persona harness or large-scale simulation.
+- Compliance must be checked by static inspection only. Never run the simulation to verify compliance. A historical successful run does not authorize future runs.
+- Any exception or amendment requires a separate explicit owner approval.
+
+This governance entry records the owner's statement that the prohibition was repeated more than twenty times today; that count is attributed to the owner and is not represented as an independently audited message count.
