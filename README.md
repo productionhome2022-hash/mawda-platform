@@ -32,7 +32,7 @@ npm test
 
 `.firebaserc` defaults to the isolated non-production project `mawda-platform-nonprod-2026` and has a separate `production` alias for `mawda-app-2026`. The Flutter app defaults to non-production; selecting production requires an explicit build define and is not part of ordinary CI. `lib/firebase_options_nonprod.dart` contains the non-production Web/Android/iOS options; `lib/firebase_options.dart` contains production options. The native bootstrap workflow validates non-production app configuration and produces an Android debug APK and unsigned iOS build; it does not deploy services. macOS, Windows and Linux are not accepted release targets. Physical-device authentication, microphone, push-notification and app-integrity tests, Android/iOS release signing, and independent Firebase Console review remain required before real-user rollout.
 
-## Canonical product documents
+## Canonical product documents\n\n- [Canonical administrative terminology](docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md)
 
 - [Comprehensive Mawdda Platform 2026 vision](docs/MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md)
 - [Mawdda Product Constitution — highest-level approved rules](docs/MAWADDA_PRODUCT_CONSTITUTION.md)
