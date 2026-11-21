@@ -216,9 +216,10 @@ test("voice and video call plans have shipped server fulfillment but remain unpu
     assert.equal(item.fulfillmentReady, true, itemId);
     assert.equal(item.purchaseEnabled, false, itemId);
     assert.equal(isStoreItemPurchasable(item), false, itemId);
+    // Persisted catalog records receive a positive version from setStoreCatalogItem.
     const published = validateStoreCatalogItemInput({
       itemId, name: "خطة مكالمات تجريبية", description: "تتطلب استحقاق الطرفين.",
-      category, priceCoins, durationDays, active: true, purchaseEnabled: true,
+      category, version: 1, priceCoins, durationDays, active: true, purchaseEnabled: true,
     });
     assert.equal(published.fulfillmentReady, true, itemId);
     assert.equal(isStoreItemPurchasable(published), true, itemId);
