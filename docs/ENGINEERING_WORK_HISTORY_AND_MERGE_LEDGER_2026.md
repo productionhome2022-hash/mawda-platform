@@ -221,3 +221,5 @@ Backfill in bounded batches:
 
 
 
+
+| 2026-11-21 08:15:40Z–08:15:50Z | Refreshed the current blob references for the change register, contracts register, and central reconciliation index; verified these are reference updates only, with no code or protected constitution/vision changes | DOC-CENTRAL-2026-11-21-001; change register `01e4c704540b9b28298e0b47f605e0a75cbe2024`; contracts register `fe3224be06ec0fe1372d7de34cc82a9b09f657ae`; reconciliation `8824d8207834056cdc67625ab5cefb38a533c4e1` |
