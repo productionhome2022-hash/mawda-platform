@@ -11,6 +11,12 @@ const FULFILLMENT_READY_ITEM_CATEGORIES: Record<string, string> = {
   discovery_boost_7d: "boost",
   profile_theme_30d: "theme",
   visitor_greeting_30d: "greeting",
+  voice_call_24h: "voice_call",
+  voice_call_7d: "voice_call",
+  voice_call_30d: "voice_call",
+  video_call_24h: "video_call",
+  video_call_7d: "video_call",
+  video_call_30d: "video_call",
 };
 
 function isStoreFulfillmentReady(itemId: string, category: string): boolean {
