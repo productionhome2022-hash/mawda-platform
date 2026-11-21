@@ -11,6 +11,8 @@
 
 ## الملفات المركزية الجديدة
 - [سجل العقود والحوكمة الموحد](MAWADDA_CONTRACTS_AND_GOVERNANCE_REGISTER_2026.md)
+- [سجل المسميات القياسية والهوية الإدارية والعملة NOM-001](MAWADDA_CANONICAL_NOMENCLATURE_AND_ROLE_CATALOG_2026.md)
+- [اتفاقية سيادة Super Owner والتفويض](OWNER_SOVEREIGN_AUTHORITY_AND_DELEGATION_CONSTITUTION.md)
 - [دستور مودة الموحد](MAWADDA_UNIFIED_CONSTITUTION_2026.md)
 - [الرؤية الشاملة الموحدة](MAWADDA_UNIFIED_PLATFORM_VISION_2026.md)
 - [سجل القرارات والتتبع](MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md) — يبقى سجل الحالة الرسمي.
@@ -126,3 +128,9 @@
 - [سجل المصالحة الدلالية والسياسات والاختبارات DOC-RECON-001](MAWADDA_DOCUMENTATION_GOVERNANCE_CONTRACTS_CONSTITUTION_VISION/SEMANTIC_RECONCILIATION_REGISTER_2026.md) يربط GOV-DEV-001 وGOV-QA-001 وقواعد البناء والاختبار والقبول والحوكمة مع سجل القرارات.
 - [خريطة المصادر ذات المعرفات الثابتة](MAWADDA_DOCUMENTATION_GOVERNANCE_CONTRACTS_CONSTITUTION_VISION/MASTER_SOURCE_RECONCILIATION.tsv) تشمل 1,099 مساراً من لقطة الجرد. المراجعة الدلالية الفردية لكل هذه المصادر ما زالت جارية؛ لا تستنتج حالة الاعتماد من وجود الملف.
 - تم توثيق التعارضات المحسومة والمفتوحة، بما فيها GOV-DEV-001، GOV-QA-001، BIO-001/002، RET-003، وحالة اعتماد الدستور والرؤية 2.0.
+
+
+## تحديثات الحوكمة والسيادة — 2026-11-21
+- GOV-OWNER-001 وGOV-OWNER-002: سيادة Super Owner وحق التدخل والقرار الشامل غير المحصور بالأمثلة.
+- NOM-001: توحيد مسمى Super Owner، والإدارة العامة Admin 1…Admin N بعدد يحدده المالك، والعملة بيتاكوينز / BetaCoins.
+- التوثيق لا يثبت اكتمال توحيد الكود أو الواجهات أو قواعد الصلاحيات؛ حالة التنفيذ والاختبار مرتبطة بالـSHA والتقارير الفعلية.
