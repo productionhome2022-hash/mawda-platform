@@ -1,0 +1,11 @@
+Auto-merging functions/src/audit-archive.ts
+CONFLICT (add/add): Merge conflict in functions/src/audit-archive.ts
+Auto-merging functions/src/index.ts
+CONFLICT (content): Merge conflict in functions/src/index.ts
+Auto-merging functions/test/audit-archive.test.js
+CONFLICT (add/add): Merge conflict in functions/test/audit-archive.test.js
+Auto-merging infra/audit-archive/README.md
+CONFLICT (add/add): Merge conflict in infra/audit-archive/README.md
+Auto-merging infra/audit-archive/variables.tf
+CONFLICT (add/add): Merge conflict in infra/audit-archive/variables.tf
+Automatic merge failed; fix conflicts and then commit the result.

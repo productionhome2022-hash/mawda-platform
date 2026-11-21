@@ -1,0 +1,86 @@
+  codex/mawda-full-platform-implementation                                         e033cda4 [origin/codex/mawda-full-platform-implementation: ahead 1, behind 1983] docs(audit): publish comprehensive Termux branch inventory 20261121T041628Z
+* codex/mawdda-unified-test-2026-11-18                                             b62fcbae [origin/codex/mawdda-unified-test-2026-11-18] test: seed server-attested featured ad evidence
+  main                                                                             3b0b0691 [origin/main: behind 8] fix: make deleteMessageForEveryone accept positional parameters matching chat room screen
+  remotes/origin/HEAD                                                              -> origin/main
+  remotes/origin/archive/development-pre-unification-2026-11-15                    f068a8b2 docs: record exact-head CI and simulation lab review evidence
+  remotes/origin/archive/main-pre-unification-2026-11-15                           460a79a7 revert: keep new product references on development branch
+  remotes/origin/codex/biometric-final-owner-policy-2026-11-20                     08ffcf8d docs(biometric): link implementation gaps to final owner policy
+  remotes/origin/codex/biometric-final-policy-drift-closure-2026-11-20             0089c556 docs(biometric): update approved decision register to final policy
+  remotes/origin/codex/biometric-manual-review-gate-2026-11-20                     a82a0614 test(biometric): correct manual review gate assertion
+  remotes/origin/codex/biometric-server-lifecycle-2026-11-20                       f79f146e feat(biometric): require fresh owner evidence playback before acceptance
+  remotes/origin/codex/biometric-video-duration-validation-2026-11-20              be9b8109 test(biometric): reject forged MP4 movie duration metadata
+  remotes/origin/codex/canonical-role-terminology-owner-confirmation-2026-11-19    64ccc7b2 docs(governance): classify legacy owner identifiers as internal compatibility
+  remotes/origin/codex/economic-phase-completion-2026-11-18                        09148852 fix: use canonical Super Owner sender label
+  remotes/origin/codex/economic-phase-controlled-integration-2026-11-19            beec6e42 docs: record currency contract conflict in manual coin purchase port
+  remotes/origin/codex/economic-phase1-closeout-2026-11-18                         10564784 Record partial call reservation remediation and remaining blockers
+  remotes/origin/codex/economy-official-port-2026-11-18                            d5db16e3 Document room rental ledger reconciliation on official branch
+  remotes/origin/codex/economy-recovery-2026-11-18                                 67adbaec Record latest 371-test economic CI verification
+  remotes/origin/codex/featured-ads-secure-lifecycle-20261118                      b15b643f test(security): deny direct member access to featured ad state
+  remotes/origin/codex/featured-ads-serving-foundation                             0fe15db6 docs(economy): record gifting and Media Saver fulfillment closure work
+  remotes/origin/codex/governance-biometric-integration-2026-11-19                 619eab64 test: keep fixed five-seat ordinal policy unresolved
+  remotes/origin/codex/mawda-full-platform-implementation                          cabba310 docs(audit): record selective test integration 20261121T054618Z-a8ce15c4
+  remotes/origin/codex/mawda-phase2-hardening                                      f8abd722 docs(media): record owner-only download gate after clean verdict
+  remotes/origin/codex/mawda-unified-constitution-vision-2026-11-19                53bf2360 test: assert featured-ad event stores immutable financial snapshot
+  remotes/origin/codex/mawdda-audit-archive                                        6a94a078 Anchor audit archive cursor to immutable GCS object metadata
+  remotes/origin/codex/mawdda-audit-archive-full                                   5fb2b28d Update status for full audit collection archive coverage
+  remotes/origin/codex/mawdda-biometric-owner-review-policy-2026-11-20             693dc110 docs(verification): clarify fully independent email and biometric tracks
+  remotes/origin/codex/mawdda-biometric-proof-gate-2026-11-20                      73b53918 docs: clarify initial biometric PR commit reference
+  remotes/origin/codex/mawdda-deep-audit-profile-store                             4ed73942 ux: guide members to check inbox and spam for verification email
+  remotes/origin/codex/mawdda-deep-governance-audit-2026-11-19                     ae21101e docs: record latest exact-head CI and integration gate status
+  remotes/origin/codex/mawdda-economy-selective-port-2026-11-19                    7d93d4c0 test(economy): isolate store gifting catalog fixture
+  remotes/origin/codex/mawdda-final-archive-v2                                     f79b112c Port full audit archive implementation: functions/test/audit-archive.test.js
+  remotes/origin/codex/mawdda-group-call-capacity-2026-11-20                       2f67e4a6 fix: revalidate group call capacity inside creation transaction
+  remotes/origin/codex/mawdda-group-call-capacity-2026-11-20-r2                    c0a14ef2 test: use valid minimum room capacity for small audio groups
+  remotes/origin/codex/mawdda-independent-verification-cycles-2026-11-20           615f9f97 test(verification): keep source-boundary assertion aligned with calendar cycle docs
+  remotes/origin/codex/mawdda-independent-verification-cycles-dev-2026-11-20       2064bbcc test(verification): keep source-boundary assertion aligned with calendar cycle docs
+  remotes/origin/codex/mawdda-member-inbox                                         f55e1d15 feat: expose member inbox and stories from the home dashboard
+  remotes/origin/codex/mawdda-member-inbox-rebased                                 4933e76a test: deny direct media downloads after participant block
+  remotes/origin/codex/mawdda-mfa-signin                                           607647ec feat: require owner MFA enrollment before opening platform
+  remotes/origin/codex/mawdda-native-platform-scaffold                             d556a999 ci: generate and validate Android and iOS native runners
+  remotes/origin/codex/mawdda-phase1-phase2-hardening                              cacdc51f docs: add phase 1 and phase 2 closure matrix
+  remotes/origin/codex/mawdda-phase1-unified-2026-11-19                            e12897ad Merge pull request #84 from productionhome2022-hash/codex/biometric-video-duration-validation-2026-11-20
+  remotes/origin/codex/mawdda-pr3-port                                             6e11d5a6 Test abandoned media upload cleanup grace period
+  remotes/origin/codex/mawdda-premium-effects                                      5203d25a Add user-confirmed guest session deletion
+  remotes/origin/codex/mawdda-premium-features                                     f3884061 Seed realistic purchasedAt fields in premium entitlement tests
+  remotes/origin/codex/mawdda-retention-approval-ci-repair-2026-11-19              179ba95f test: cover store catalog version overflow boundary
+  remotes/origin/codex/mawdda-role-callable-deny-regressions-2026-11-20            ce899717 test: prevent specialist grants from bypassing sovereign role guards
+  remotes/origin/codex/mawdda-role-capacity-after-retention-2026-11-19             5110cb59 ci: invoke Firebase CLI from locked local dependencies
+  remotes/origin/codex/mawdda-role-capacity-consolidation-2026-11-19               7a134c6d ci: validate role capacity consolidation branch
+  remotes/origin/codex/mawdda-role-capacity-final-2026-11-19                       138d9b5d fix(roles): preserve expired-grant capacity reconciliation
+  remotes/origin/codex/mawdda-room-audio-duration-enforcement                      dc1c1a43 test(scanner): lock direct and room audio duration limits
+  remotes/origin/codex/mawdda-room-events                                          b0b5214a Document full approved audit collection archive coverage
+  remotes/origin/codex/mawdda-safety-ui                                            1e4c6aa9 Add blocked-account management to safety center
+  remotes/origin/codex/mawdda-step1-role-reconcile-2026-11-19                      ea6b0525 ci(step1): trigger exact-head validation for PR 42
+  remotes/origin/codex/mawdda-store-entitlement-coverage                           7b53ad8e feat: separate Mawdda store categories in shop UI
+  remotes/origin/codex/mawdda-store-entitlement-hardening                          bca08927 test: fix room event lifecycle cleanup assertion reference
+  remotes/origin/codex/mawdda-store-entitlement-hardening-v2                       7506f5d4 test: cover every enabled store entitlement and idempotent purchase
+  remotes/origin/codex/mawdda-store-wallet-entitlement-closure                     201f5bfc test: fix premium entitlement category assertion
+  remotes/origin/codex/mawdda-super-owner-biometric-state-machine-2026-11-20       40845f2d test(verification): assert email renewal leaves biometric state unchanged
+  remotes/origin/codex/mawdda-test-account-system                                  d89d30a6 docs: clarify emulator wallet fixture is not a reward
+  remotes/origin/codex/mawdda-unified-final                                        ddf9594e Validate recurring email verification rewards in CI
+  remotes/origin/codex/mawdda-unified-final-v2                                     e249c664 Configure Auth emulator for email renewal integration
+  remotes/origin/codex/mawdda-unified-final-v3                                     ab5e37e6 Accept Cloud Storage generation number and string representations
+  remotes/origin/codex/mawdda-unified-release                                      42e11d49 Connect local biometric prompt to server reward cycle
+  remotes/origin/codex/mawdda-unified-test-2026-11-18                              b62fcbae test: seed server-attested featured ad evidence
+  remotes/origin/codex/phase1-advertising-callable-auth-2026-11-20                 d857497c docs(phase1): record verified legal-hold regression and CI results
+  remotes/origin/codex/phase1-branch-governance-audit-2026-11-20                   a48e93aa docs(governance): audit GitHub branch protections and CI workflow gaps
+  remotes/origin/codex/phase1-ci-coverage-role-store-2026-11-20                    d46cd709 ci: run role capacity and store gifting emulator suites
+  remotes/origin/codex/phase1-ci-evidence-2026-11-20                               6ad595cf docs(phase1): record expanded emulator CI coverage
+  remotes/origin/codex/phase1-direct-call-transaction-revalidation-2026-11-20      b78817d0 test(calls): cover malformed direct-call revalidation snapshots
+  remotes/origin/codex/phase1-featured-ad-geography-all-arab-2026-11-20            ac22ff63 test(ads): cover all-Arab campaign geography without overdelivery
+  remotes/origin/codex/phase1-group-call-remainder-to-initiator-2026-11-20         99639a6c test(calls): enforce initiator remainder allocation
+  remotes/origin/codex/phase1-integration-batch-01-inventory-2026-11-19            2fff6276 docs: record store catalog version boundary fix
+  remotes/origin/codex/phase1-media-direct-delivery-denials-2026-11-20             b72522af test(media): reject all non-good-standing direct participants
+  remotes/origin/codex/phase1-media-hold-delete-race-2026-11-20                    43471705 test(rooms): deny room message reads for suspended members
+  remotes/origin/codex/phase1-media-scanner-replay-regression-2026-11-20           87ff3963 test(media): verify scanner callback replay is idempotent
+  remotes/origin/codex/phase1-media-scanner-verdict-tests-2026-11-20               6da140cb test(media): cover malicious and incomplete scanner verdict contracts
+  remotes/origin/codex/phase1-rented-room-call-gate-2026-11-20                     41dc2c2f test(calls): assert inactive rental creates no call record
+  remotes/origin/codex/phase1-scanner-error-callback-test-2026-11-20               20519494 docs(phase1): avoid overlapping unified status edits in scanner PR
+  remotes/origin/codex/phase1-specialist-callable-auth-2026-11-20                  c1edba14 docs(security): record specialist callable authorization audit
+  remotes/origin/codex/phase1-specialized-callable-auth-inventory-2026-11-20       315c8d53 docs(security): inventory specialized callable authorization gaps
+  remotes/origin/codex/phase1-store-gift-concurrency-2026-11-20                    2f175165 ci(store): run concurrent gift replay emulator coverage
+  remotes/origin/codex/phase1-store-gift-permanent-entitlement-2026-11-20          b4546e69 test(economy): exercise permanent duration on approved VIP SKU
+  remotes/origin/codex/phase1-store-gifting-catalog-version-regressions-2026-11-20 3c8ab48d test(economy): cover missing and stale store catalog gift versions
+  remotes/origin/codex/production-readiness-tests                                  424599a3 Merge pull request #1 from productionhome2022-hash/codex/mawda-stability-2026-11-11
+  remotes/origin/codex/structural-governance-biometric-roles-2026-11-19            e71f3eb5 docs: establish Production Home Company ownership and brand usage
+  remotes/origin/main                                                              460a79a7 revert: keep new product references on development branch

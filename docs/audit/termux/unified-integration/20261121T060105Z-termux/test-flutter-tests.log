@@ -1,0 +1,2 @@
+WARNING: linker: Warning: "/data/data/com.termux/files/home/flutter/bin/cache/dart-sdk/bin/dart" unused DT entry: DT_RPATH (type 0xf arg 0x2685) (ignoring)
+error: "/data/data/com.termux/files/home/flutter/bin/cache/dart-sdk/bin/dart": executable's TLS segment is underaligned: alignment is 8 (skew 0), needs to be at least 64 for ARM64 Bionic

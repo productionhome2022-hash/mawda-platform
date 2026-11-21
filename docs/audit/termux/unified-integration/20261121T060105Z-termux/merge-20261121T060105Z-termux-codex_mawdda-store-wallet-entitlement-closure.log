@@ -1,0 +1,5 @@
+Auto-merging functions/test/integration/premium-profile.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/premium-profile.integration.test.js
+Auto-merging lib/screens/shop_screen.dart
+CONFLICT (modify/delete): lib/screens/user_profile_screen.dart deleted in HEAD and modified in 201f5bfc8d73a982e9edab9be6858b085c2b2eb8.  Version 201f5bfc8d73a982e9edab9be6858b085c2b2eb8 of lib/screens/user_profile_screen.dart left in tree.
+Automatic merge failed; fix conflicts and then commit the result.
