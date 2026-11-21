@@ -127,6 +127,8 @@
       "internalOpenCases": [
         "60-minute-live-expiry-clock-integration",
         "cross-installation-abuse-resistance",
+        "full-flutter-ui-to-backend-e2e",
+        "no-rewards",
         "no-wallet-read-and-top-up",
         "no-room-rental",
         "no-gifts",
@@ -420,13 +422,14 @@
         "multi-party-room-call-acceptance-on-real-devices"
       ],
       "releaseBlocker": "The server-side Firestore call-signaling emulator suite passed 7/7 on the selected code baseline. The journey remains partial for end-to-end media/device/relay acceptance, which is explicitly excluded from the current internal-only work scope.",
-      "internalStatus": "passed",
+      "internalStatus": "partial",
       "internalEvidence": {
         "runId": 44944086768,
         "tests": 7,
         "passed": 7,
         "failed": 0,
-        "skipped": 0
+        "skipped": 0,
+        "note": "Server-side signaling emulator tests only; does not close the remaining client/media lifecycle cases."
       },
       "excludedFromCurrentScope": [
         "flutter-webrtc-audio-negotiation-on-android-ios-and-web",
@@ -435,6 +438,10 @@
         "turn-relay-nat-traversal-and-network-switch",
         "real-device-audio-video-quality-and-resource-release",
         "multi-party-room-call-acceptance-on-real-devices"
+      ],
+      "internalOpenCases": [
+        "ice-restart-and-long-running-call-renegotiation",
+        "foreground-background-and-terminated-call-notification-e2e"
       ]
     },
     {
