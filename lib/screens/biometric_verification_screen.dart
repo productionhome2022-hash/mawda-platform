@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
@@ -65,8 +66,11 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
     if (_recording || _loading) return;
     try {
       if (!await _recorder.hasPermission()) throw StateError('لم يتم منح إذن الميكروفون.');
-      final directory = await Directory.systemTemp.createTemp('mawdda-biometric-');
-      final path = '${directory.path}/spoken-phrase.m4a';
+      // Browser MediaRecorder ignores the path and returns a browser-backed
+      // recording URL. Native platforms need a temporary filesystem path.
+      final path = kIsWeb
+          ? 'spoken-phrase.m4a'
+          : '${(await Directory.systemTemp.createTemp('mawdda-biometric-')).path}/spoken-phrase.m4a';
       await _recorder.start(
         const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 128000, sampleRate: 44100, numChannels: 1),
         path: path,
@@ -99,16 +103,36 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
   Future<XFile?> _pickAudio() async {
     if (_recordedAudio != null) return _recordedAudio;
     final picked = await FilePicker.platform.pickFiles(
-      type: FileType.custom, allowedExtensions: const ['m4a'], withData: false,
+      type: FileType.custom, allowedExtensions: const ['m4a'], withData: true,
     );
     final file = picked?.files.single;
-    if (file == null || file.path == null) return null;
-    return XFile(file.path!, name: file.name, mimeType: 'audio/mp4');
+    if (file == null) return null;
+    if (file.bytes != null) {
+      return XFile.fromData(file.bytes!, name: file.name, mimeType: 'audio/mp4');
+    }
+    if (file.path != null) return XFile(file.path!, name: file.name, mimeType: 'audio/mp4');
+    return null;
   }
 
-  Future<XFile?> _pickVideo() => _picker.pickVideo(
-    source: ImageSource.camera, maxDuration: const Duration(seconds: 5),
-  );
+  Future<XFile?> _pickVideo() async {
+    // Mobile browsers and native phones can capture directly. Desktop browsers
+    // and installed desktop PWAs may not expose a camera plugin, so offer a
+    // local file picker as a fallback; the server remains authoritative on 3–5s.
+    final captured = await _picker.pickVideo(
+      source: ImageSource.camera, maxDuration: const Duration(seconds: 5),
+    );
+    if (captured != null) return captured;
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.video, withData: true,
+    );
+    final file = picked?.files.single;
+    if (file == null) return null;
+    if (file.bytes != null) {
+      return XFile.fromData(file.bytes!, name: file.name, mimeType: file.extension == 'mov' ? 'video/quicktime' : 'video/mp4');
+    }
+    if (file.path != null) return XFile(file.path!, name: file.name);
+    return null;
+  }
 
   Future<void> _runSubmission() async {
     if (_loading || !_consent) return;
@@ -149,7 +173,11 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
       }
       await _service.submitBiometricVerificationRequest(requestId: requestId);
       final recordedPath = _recordedAudio?.path;
-      if (recordedPath != null) await File(recordedPath).delete().catchError((_) => File(recordedPath));
+      // Browser blob URLs are not filesystem paths. Native temporary files are
+      // best-effort cleanup only; failure must not turn a successful upload into failure.
+      if (!kIsWeb && recordedPath != null) {
+        await File(recordedPath).delete().catchError((_) => File(recordedPath));
+      }
       if (mounted) setState(() { _request = null; _audioMediaId = null; _videoMediaId = null; _recordedAudio = null; });
       await _refreshStatus();
       if (!mounted) return;
