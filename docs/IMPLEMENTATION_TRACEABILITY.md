@@ -849,3 +849,14 @@ This is a source reconciliation and implementation instruction, not evidence tha
 - The ledger explicitly distinguishes owner-approved decisions, proposals, observed findings, implementation, automated tests, emulator/integration tests, device acceptance and release approval. No stage is inferred from another.
 - Historical backfill is not yet complete. The 1,099 source inventory remains indexed, not individually semantically reviewed. No claim is made that every prior task, proposal, commit or integration has already been reconstructed.
 - **Status:** governance control established on the development branch; operational adoption, historical backfill, per-source semantic review and comprehensive application audit remain open. No merge to `main`, production deployment, Firebase production mutation or billing change was performed.
+
+
+## 2026-11-21 — Supersession of historical 5,000-persona execution roadmap
+
+**Binding owner decision:** `GOV-SIM-5000-001` in `MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md` supersedes all earlier plans, stages, and wording in this document that suggest a 5,000-persona run may be started automatically after a SHA freeze, after repository unification, or as a routine next phase.
+
+The following sections are historical evidence only and are not current execution instructions: the earlier lab roadmap in the 18 November exact-head section (including its lab PR/run references and execution-order item 3), the 19 November simulation hold/checkpoint, and any older coverage matrix that names a persona/load suite. No one may dispatch, rerun, modify, or otherwise operate the independent lab under those historical notes. The independent lab requires a separate, explicit owner commission. Static inspection of the primary repository is permitted; running the simulation to verify compliance is prohibited.
+
+The primary repository must not contain a 5,000-persona generator, package command, test harness, indirect workflow invocation, or load/lifecycle test. Ordinary deterministic unit/integration/security/build checks remain permitted when they do not invoke the large-scale harness.
+
+This note records precedence and does not rewrite the historical run results. It does not authorize a lab operation, production change, merge to `main`, or deployment.
