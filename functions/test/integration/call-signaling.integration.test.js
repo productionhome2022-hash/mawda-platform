@@ -356,6 +356,8 @@ test("server enforces rolling audio and video attempt quotas without charging re
     calleeRef.set({ profileCompleted: true, accountStatus: "active", age: 31 }),
     seedCallEntitlement(callerUid, "audio"),
     seedCallEntitlement(calleeUid, "audio"),
+    seedCallEntitlement(callerUid, "video"),
+    seedCallEntitlement(calleeUid, "video"),
     chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
     quotaRef.set({
       attempts: [
