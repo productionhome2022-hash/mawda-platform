@@ -498,3 +498,12 @@ The owner has explicitly clarified the following binding implementation requirem
 - بقيت الدساتير والرؤى الأصلية محفوظة كمصادر تاريخية؛ ولم تُحذف أو تُستبدل العقود أو النسخ الموقعة.
 
 **الحالة:** تنقيح وثائقي منفذ على فرع التطوير؛ الإصداران 2.0 ينتظران اعتماد المالك. لا يثبت هذا السجل اكتمال تنفيذ أي ميزة أو نجاح اختبار.
+
+
+## DOC-RECON-001 — المصالحة الدلالية والسياسات والاختبارات (2026-11-21)
+
+- **النوع:** إجراء توثيقي ومصالحة مرجعية؛ لا ينشئ قرار منتج جديداً ولا يرفع المقترحات إلى قرارات معتمدة.
+- **المصادر:** `MAWADDA_SINGLE_DEVELOPMENT_BRANCH_POLICY_2026-11-20.md`، `MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md`، `IMPLEMENTATION_TRACEABILITY.md`، `DEVELOPMENT_AND_SIMULATION_BOUNDARY.md`، `RELEASE_READINESS_CHECKLIST.md`، `SEVEN_PHASE_EXECUTION_PLAN.md`، هذا السجل، والقسم المركزي.
+- **المخرجات:** `docs/MAWADDA_DOCUMENTATION_GOVERNANCE_CONTRACTS_CONSTITUTION_VISION/SEMANTIC_RECONCILIATION_REGISTER_2026.md` و`MASTER_SOURCE_RECONCILIATION.tsv`؛ خريطة معرفات ثابتة لـ1,099 مساراً من لقطة الجرد، مع فصل المراجع المركزية التي خضعت للمصالحة عن المصادر التي لم تكتمل مراجعتها الفردية.
+- **الحالة:** منفذ توثيقياً على فرع التطوير؛ المصالحة الدلالية الشاملة لكل مصدر لم تُغلق بعد. لا اختبارات برمجية شُغلت في هذه الجولة.
+- **الحدود:** لا دمج إلى `main`، ولا نشر، ولا تعديل إنتاج/Firebase أو فوترة أو حذف مصادر. يبقى اعتماد الدستور والرؤية 2.0 بيد المالك.
