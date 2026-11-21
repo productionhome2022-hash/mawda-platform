@@ -343,3 +343,9 @@
 - حفظ سجلات التدقيق مركزياً وعدم حذفها عند إنهاء العلاقة.
 
 لا تعتبر واجهة مركز العقود وحدها إثباتاً لاكتمال النظام. يلزم استكمال اختبارات التكامل والصلاحيات والتوقيع والأرشفة والإشعارات، ومراجعة قانونية لصحة التوقيع والتبليغ في الدول ذات الصلة.
+
+
+## Current governance override — terminology and simulation boundary (21 November 2026)
+
+- User-facing currency terminology is **بيتاكوينز / BetaCoins** under NOM-001. Historical uses of “coins/كوينز” in this document are retained as provenance and must not be copied into current UI or user-facing copy. Technical identifiers and historical evidence remain unchanged unless a compatibility-reviewed migration is separately approved.
+- The older Section 20 sequence mentioning a 5,000-persona lab after a candidate SHA is superseded by GOV-SIM-5000-001. The independent lab must not be run or modified without a separate, explicit owner commission; the primary repository must not invoke its harness. This note does not authorize the lab or alter historical test evidence.
