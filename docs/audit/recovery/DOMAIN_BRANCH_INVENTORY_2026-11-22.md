@@ -58,3 +58,14 @@ Compare endpoints expose branch ancestry and changed-file summaries, not the ful
 
 ## Revised port decision
 The second pass strengthens the decision to retain the selected baseline source files. Several specialist branches contain unique commits but their checked source snapshots are older/smaller than the baseline. The remaining candidate work is primarily assertion-level gap analysis, documentation reconciliation, and checking whether any newer specialist test covers a failure mode not already exercised by the baseline.
+
+
+## Test assertion gap checks completed
+
+- The older media hold/delete branch appeared to add an audit assertion for the scanner object's exact generation. The selected baseline already asserts the same `objectGeneration === generation` condition and additionally requires exactly one matching audit event after an idempotent scanner callback replay. No test port is needed.
+- The older role-capacity branch tests a fixed five-seat boundary for two roles. The selected baseline's role-capacity integration suite is broader: it covers multiple specialist roles, owner-controlled capacity changes and concurrency/oversubscription behavior. The historical branch test is not a missing regression.
+- The older store-gift concurrency and rented-room call-gate test files contain no nonblank source lines absent from the selected baseline test files in the comparison performed. No test port is indicated by those files.
+- The current media implementation writes the scanner verdict's exact object generation into the audit event, matching the baseline integration assertion.
+
+## Outcome of this pass
+No code or test changes were justified by the inspected specialist branches. This is an intentional result: the selected baseline already contains the stronger or equivalent behavior, and importing older snapshots would reduce coverage or risk regressions. Continue with the remaining domains and final candidate validation rather than forcing a merge for its own sake.
