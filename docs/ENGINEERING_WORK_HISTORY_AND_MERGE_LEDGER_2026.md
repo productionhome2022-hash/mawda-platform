@@ -118,7 +118,7 @@ Every branch integration batch must have a separate dossier recording:
 
 Do not resolve semantic conflicts by blindly choosing the newest file or by overwriting historical signed/legal source documents. Preserve provenance and request owner decision when authority is ambiguous.
 
-## 5. Source-by-source semantic review of the 1,099-document inventory
+## 5. Source-by-source semantic review of the 1,106-source inventory (initial snapshot: 1,099)
 
 The inventory and reconciliation TSVs are discovery indexes, not review evidence. For each source ID, record:
 - exact path, source SHA, title/date and document type;
@@ -131,7 +131,7 @@ The inventory and reconciliation TSVs are discovery indexes, not review evidence
 - impact on code/tests/API/data/security/operations;
 - follow-up task and acceptance evidence.
 
-Use explicit per-source states: `INDEXED_ONLY`, `IN_REVIEW`, `REVIEWED_NO_CHANGE`, `RECONCILED`, `CONFLICT_ESCALATED`, `UNREADABLE`, `MISSING`. Do not label a batch complete until every listed source has an individual disposition. Maintain batch manifests with inclusive source-ID ranges and counts; reconcile totals to 1,099 and report exceptions separately.
+Use explicit per-source states: `INDEXED_ONLY`, `IN_REVIEW`, `REVIEWED_NO_CHANGE`, `RECONCILED`, `CONFLICT_ESCALATED`, `UNREADABLE`, `MISSING`. Do not label a batch complete until every listed source has an individual disposition. Maintain batch manifests with inclusive source-ID ranges and counts; reconcile totals to the current 1,106-source inventory and report exceptions separately.
 
 ## 6. Canonical record map
 
@@ -169,15 +169,15 @@ Backfill in bounded batches:
 1. establish branch/commit chronology and integration batches;
 2. map existing work logs and audit reports to commits;
 3. create task dossiers for material changes and decisions;
-4. reconcile each of the 1,099 source IDs individually;
+4. reconcile each of the 1,106 source IDs individually;
 5. cross-link records to implementation and test evidence;
 6. publish a gap report for history that cannot be reconstructed.
 
 ## 9. Initial adoption checkpoint — 2026-11-21
 
 - Existing `docs/IMPLEMENTATION_TRACEABILITY.md` already contains substantial phase-level status, risks, owner-approved clarifications, implementation notes and validation caveats. Preserve it and cross-link it; do not rewrite away its history.
-- The central documentation README states that 1,099 paths are indexed and explicitly warns that this is not individual semantic review or physical relocation.
-- The 1,099-source reconciliation currently describes entries as indexed and not individually semantically reviewed; this remains open.
+- The initial source snapshot contained 1,099 paths; subsequent reconciliation added seven central records, bringing the current inventory to 1,106. The README explicitly distinguishes indexing from individual semantic review.
+- Current reconciliation snapshot: 1,106 sources; 8 RECONCILED, 3 IN_REVIEW, and 1,095 awaiting individual semantic review. This does not mean all 1,106 have been read.
 - The owner-role/nomenclature/dashboard audit is a partial audit, not full application coverage.
 - The exact current development branch head must be read from GitHub before each write/integration. The historical commits cited in prior reports are not substitutes for a fresh branch-head check.
 - This checkpoint records the control and observed baseline only. It does not claim historical backfill, full source review, full code audit, test execution, release readiness, or merge to `main`.
@@ -204,10 +204,12 @@ Backfill in bounded batches:
 - Integration template commit: `f5dfbae9cb65e925ce8be9ddfd93f699ab227e9a`.
 - These commits establish the documentation controls and templates; they do not represent completion of the historical backfill or execution of the full engineering audit.
 
-| 2026-11-21 07:49:25Z–07:50:04Z | Recovered the exact daily Git commit activity windows for 14–21 November (1,733 commits on the current development branch) and fetched exact 14 November Actions run start/end times; preserved the historical 3,104-commit report as an unresolved query-scope discrepancy | DOC-CENTRAL-2026-11-21-001; branch head `10ed214f99e08d0a976d6b3bbf96e5d60dd43be9`; runs `43606228297` and `43607804675`; task record `docs/engineering/work-history/2026-11-21-001-central-documentation-three-section-reorganization.md` |
+| 2026-11-21 07:49:25Z–07:51:02Z | Recovered the exact daily Git commit activity windows for 14–21 November (1,736 commits on the pinned snapshot) and fetched exact 14 November Actions run start/end times; later reconciled the historical 3,104-commit baseline to 3,183 at snapshot `8fc50a6` (+79 descendants) | DOC-CENTRAL-2026-11-21-001; snapshot SHA `8fc50a647eaef4f359c801f4bba1fb7b0e7646d2`; runs `43606228297` and `43607804675`; task record `docs/engineering/work-history/2026-11-21-001-central-documentation-three-section-reorganization.md` |
 
-| 2026-11-21 07:52:26Z–07:55:23Z | Created a pinned 1,736-commit chronological TSV; refreshed source inventory/reconciliation to 1,101 records; reconciled the historical 3,104-commit baseline with 3,183 current commits (+79 exact descendants); corrected the central index to state the proven SHA-based delta | DOC-CENTRAL-2026-11-21-001; chronology blob `66a59a1284843cfcca7d11f7e7bce0ec1cb53a52`; inventory blob `4f21a60f65a117c4d866e31d5f38113b16d2a3b4`; reconciliation blob `f026deddb2557cb45e923572194638da8742c4ef`; baseline `90b6e45432d068455ee846dcf2ca0f1d13c85dd7`; snapshot `8fc50a647eaef4f359c801f4bba1fb7b0e7646d2`; compare ahead_by=79, behind_by=0 |
+| 2026-11-21 07:52:26Z–07:55:23Z | Created a pinned 1,736-commit chronological TSV; refreshed source inventory/reconciliation to 1,106 records; reconciled the historical 3,104-commit baseline with 3,183 current commits (+79 exact descendants); corrected the central index to state the proven SHA-based delta | DOC-CENTRAL-2026-11-21-001; chronology blob `66a59a1284843cfcca7d11f7e7bce0ec1cb53a52`; inventory blob `63ad29ee47b053ae01e23400b718a4225ad49992`; reconciliation blob `9abbce847e83f0134404ade7f961ffc700a43142`; baseline `90b6e45432d068455ee846dcf2ca0f1d13c85dd7`; snapshot `8fc50a647eaef4f359c801f4bba1fb7b0e7646d2`; compare ahead_by=79, behind_by=0 |
 
 | 2026-11-21 07:56:52Z–07:57:21Z | Began individual review of the approved-decisions register (SRC-0022); normalized visible currency wording to BetaCoins per NOM-001 while preserving technical identifiers; marked the source IN_REVIEW pending full semantic closure | DOC-CENTRAL-2026-11-21-001; decision register blob `fde418fff9d1c951539742c9d36ace7c32812fc4`; reconciliation blob `5fe5446ccd1217f8806c8f3b34eb346c61c20094`; no code/API identifiers changed |
 
 | 2026-11-21 07:58:09Z–07:58:36Z | Completed semantic comparison of the 137-line historical master index against the three-section hub; mapped every old section, annotated superseded BIO-002/GOV-DEV-001 rules, normalized visible BetaCoins terminology, and reconciled SRC-0030 | DOC-CENTRAL-2026-11-21-001; old-index blob `3e3e7daa75f20a15da9618fe999ac5bd1f2e99c2`; reconciliation blob `80e49916083bf0cbfc70968bfe6437a38a9554c`; 5 reconciled, 3 in review, 1,093 pending |
+
+| 2026-11-21 08:00:17Z–08:00:32Z | Added five previously unlisted central records (semantic register, engineering ledger, two templates, reconciliation index); refreshed inventory to 1,106 IDs and documented the current 8/3/1,095 state | DOC-CENTRAL-2026-11-21-001; new IDs `SRC-1102`–`SRC-1106`; inventory blob `63ad29ee47b053ae01e23400b718a4225ad49992`; reconciliation blob `9abbce847e83f0134404ade7f961ffc700a43142`; semantic register blob `91cffda944f9bdcc06f8b8cc18a51ef173c21fe7` |
