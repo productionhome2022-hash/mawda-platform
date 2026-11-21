@@ -133,3 +133,16 @@ This follow-up integrates owner-controlled test prices into call-session metadat
 - Verified HEAD: `831adb42de982df6e489df9746b583e99adfa4f9`
 - GitHub compare of branch against this commit: `identical`, ahead 0, behind 0.
 - Combined commit status and PR-associated workflow lookup returned no checks/runs for this commit; this is not a test pass.
+
+
+6. Call package entitlement fulfillment and enforcement
+   - The six owner-editable catalog SKUs for voice/video (24h, 7d, 30d) are now marked as server-fulfillable; they remain unpublished/non-purchasable until the Super Owner explicitly publishes and enables each catalog item.
+   - Call creation transactionally verifies a matching active, unexpired package for every participant.
+   - Call acceptance revalidates the caller, already accepted participants, and the accepting member so an expired/revoked package cannot be used to join.
+   - The existing purchase/gift flows grant the matching entitlement document; no new wallet charging path was introduced for per-minute calling.
+   - Unit and call-signaling emulator tests were extended for package SKU readiness, both-party checks, expiry, and revalidation at acceptance.
+
+## Updated call-economy boundary
+- Store package purchases continue to use the existing atomic store purchase/gift transactions and the owner-managed catalog prices/durations.
+- The separate owner test tariff is versioned, snapshotted into new sessions, and strictly non-collecting.
+- Open-call per-minute billing, quota-exhaustion billing allocation, explicit paid-call consent, atomic debits/credits, refunds, and crash recovery remain disabled/not implemented. No per-minute call charge can be made.
