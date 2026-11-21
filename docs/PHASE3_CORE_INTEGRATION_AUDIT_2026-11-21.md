@@ -1,0 +1,85 @@
+# Phase 3 Core Integration Audit — 2026-11-21
+
+## Scope and safety
+This record audits the current development branch for the phase-3 integration of economy, calls, advertising, entitlements, wallet ledger, and their tests. It is an integration assessment, not a claim of phase acceptance.
+
+- Repository: `productionhome2022-hash/mawda-platform`
+- Branch: `codex/mawda-full-platform-implementation`
+- Audited HEAD before this record: `40d129264479185b00e33fd9a4d55ef7e346f19c`
+- No production resources, Firebase configuration, billing, payment provider, deployment, or `main` branch were changed.
+- No price, quota, call tariff, or payment method was invented or enabled.
+
+## Existing integrated behavior confirmed in the branch
+
+1. **Coin purchase payment policy**
+   - `functions/src/economy-payment-policy.ts` is imported and used by `functions/src/index.ts`.
+   - Coin purchase reads and request creation enforce the per-service manual-payment policy.
+   - Automated checkout remains disabled.
+   - Unsupported manual-payment services are rejected by the policy validator.
+
+2. **Featured-ad financial lifecycle**
+   - `featured-ad-finance.ts` is imported by the central Functions entry point.
+   - Manual payment receipt checks the featured-ad policy and records a policy snapshot with the financial event.
+   - Replay validation and audit evidence are handled in the existing transaction flow.
+
+3. **Wallet ledger reconciliation**
+   - `wallet-reconciliation.ts` is called by the owner-facing read-only reconciliation endpoint.
+   - The endpoint bounds inspection to 1,000 entries and reports truncation or incomplete chronology rather than claiming a full historical reconciliation.
+   - Reconciliation does not automatically change wallet balances.
+
+4. **Store gifting**
+   - The target branch already contains a server-side `giftStoreItem` flow and imports `store-gifting.ts`.
+   - This branch's implementation is not identical to the implementation proposed in PR #22. It must be preserved and reconciled against the source behavior rather than overwritten.
+   - The target entry point does not currently export `getMyStoreGiftHistory`; the PR #22 implementation contains such a history projection, but it must be adapted to the target branch's actual stored schema and authorization rules.
+
+5. **Call signaling and room eligibility**
+   - The target branch has transactional call creation, participant locks, room-rental checks, acceptance, connection confirmation, signaling, and maximum-duration termination.
+   - These are call admission/signaling controls, not metered economic settlement.
+
+## Phase-3 integration gaps that prevent safe acceptance
+
+1. **Call economy is not wired into call lifecycle**
+   - `functions/src/group-call-economy.ts` exists and has unit tests for owner-configured rates, integer allocation, reservation estimates, and settlement calculations.
+   - The central `functions/src/index.ts` does not import or call `calculateGroupCallBillingSlice`, `calculateGroupCallMaximumReservation`, or `calculateGroupCallFinalSettlement`.
+   - The target branch has no `functions/src/call-entitlements.ts`.
+   - The current call lifecycle does not implement bilateral explicit billing consent, authoritative metering, per-member quota reservation/consumption, atomic wallet debits and ledger credits, replay-safe finalization, refunds/reversals, or crash recovery.
+   - Existing signaling tests therefore cannot be treated as call-economy acceptance evidence.
+
+2. **Owner-controlled call prices and consent semantics**
+   - No approved live call tariff or call-billing activation decision was found in the audited target branch.
+   - Do not seed a price, turn on collection, or infer bilateral consent from joining/accepting a call.
+   - Until these decisions and the complete server-side workflow exist, paid call collection must remain disabled/fail-closed.
+
+3. **Store-gift history integration**
+   - The target branch has the gifting transaction but lacks the corresponding member-facing history callable present in PR #22.
+   - The PR #22 source uses a different implementation shape from the target branch. Its history behavior must be adapted and tested against the target branch's existing gift and coin-package gift collections; do not transplant its full `index.ts`.
+
+4. **Economic workflow closure**
+   - Public-ad, influencer/creator, and cash-paid store-entitlement payment paths remain disabled until request, owner-attestation, fulfilment, audit, and reversal workflows are complete.
+   - No payment provider or automated checkout is configured or enabled.
+   - Wallet reconciliation remains bounded and read-only; it is not a platform-wide historical reconciliation.
+
+## Source comparisons performed
+- PR #22: reviewed changed-file inventory and targeted patches for `index.ts`, `call-signaling.ts`, `store-gifting.ts`, and `group-call-economy.ts`.
+- PR #28: reviewed changed-file inventory and targeted patches for `economy-payment-policy.ts`, `wallet-reconciliation.ts`, `coin-purchase-requests.ts`, and `room-rental.ts`.
+- PR #24 and #25 remain draft integration sources with overlapping core files; neither was merged wholesale.
+- The source PRs target other development/test branches and are not safe substitutes for a minimal semantic integration into the official development branch.
+
+## Validation status
+- GitHub source reads and exact branch comparison completed.
+- Branch HEAD was confirmed as `40d129264479185b00e33fd9a4d55ef7e346f19c` before this audit record.
+- No TypeScript build, Node tests, Firestore Emulator tests, Flutter analysis/tests, or CI run was executed during this audit.
+- Therefore no test or build pass is claimed.
+
+## Phase-3 status
+**NOT COMPLETE — integration and acceptance gates remain open.**
+
+The next safe implementation sequence is:
+1. Add/adapt the member gift-history callable against the current target-branch schema, with unit and emulator coverage.
+2. Specify and obtain owner approval for call billing consent, tariff source, quota rules, charge allocation, and stop/refund behavior before implementing collection.
+3. Implement call-entitlement reservation, metering, atomic ledger settlement, idempotency, recovery, and failure-closed behavior as a coherent server workflow.
+4. Add transaction-level emulator coverage for concurrent calls, insufficient balances, participant changes, retries, interrupted settlement, and refund/reversal.
+5. Close remaining economic payment workflow gates without enabling any unsupported payment service.
+6. Run the complete Functions build/unit/emulator suite on one exact SHA and document the actual CI evidence.
+
+No merge to `main`, deployment, live Firebase mutation, payment collection, or billing activation is authorized by this phase audit.
