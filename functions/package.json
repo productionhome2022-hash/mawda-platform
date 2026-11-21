@@ -43,7 +43,7 @@
     "test:featured-ad-finance-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-featured-ad-finance \"node --test test/integration/featured-ad-finance.integration.test.js\"",
     "test:specialized-role-capacity-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-role-capacity \"node --test test/integration/specialized-role-capacity.integration.test.js\"",
     "test:store-gifting-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-store-gifting \"node --test test/integration/store-gifting.integration.test.js\"",
-    "test:call-economy-gifts-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-call-economy-gifts \"node --test test/integration/call-economy-gifts.integration.test.js\""
+    "test:call-economy-gifts-integration": "npm run build && firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-call-economy-gifts \"node --test test/integration/call-economy-gifts.integration.test.js\""
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",
