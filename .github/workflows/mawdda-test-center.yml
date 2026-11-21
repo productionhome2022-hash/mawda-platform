@@ -1,9 +1,15 @@
 name: Mawdda Test Center
 
 on:
-  # Manual, emulator-only full validation. The normal Validate workflow remains
-  # the required per-commit gate; this workflow is an operator-run deep suite.
+  # Manual, emulator-only full validation remains available when GitHub exposes
+  # workflow_dispatch from the default branch.
   workflow_dispatch:
+  # Run the full validation automatically on the isolated development branch.
+  # This avoids depending on workflow_dispatch visibility when this workflow
+  # exists only on the development branch.
+  push:
+    branches:
+      - "codex/mawda-full-platform-implementation"
 
 permissions:
   contents: read
