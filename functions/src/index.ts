@@ -3,7 +3,8 @@ import {
   isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, calculateStoreGiftExpiryMs,
 } from "./store-gifting";
 import {
-  validateGroupCallEntitlementPolicy, isGroupCallBillingCollectionEnabled, projectStoreGiftHistoryEntry,
+  validateGroupCallEntitlementPolicy, isGroupCallBillingCollectionEnabled,
+  projectStoreGiftHistoryEntry, projectGroupCallTestPricingSnapshot,
 } from "./call-entitlements";
 import {
   assertPlatformRoleCapacity,
@@ -138,6 +139,7 @@ import {
 initializeApp();
 
 const db = getFirestore();
+const GROUP_CALL_PRICING_SETTINGS = db.doc("platformSettings/groupCallPricing");
 const TRANSFER_SETTINGS = db.doc("platformSettings/coinTransfers");
 const OWNER_REVIEW_AUDIT_HEAD = db.collection("adminAuditChainHeads").doc("ownerReview");
 const legalHoldExpiryEnabled = defineString("MAWDA_LEGAL_HOLD_EXPIRY_ENABLED", { default: "false" });
@@ -10532,10 +10534,11 @@ export const startCall = onCall(async (request) => {
   const expiresAt = Timestamp.fromMillis(now + CALL_RING_TIMEOUT_MS);
   const quotaRef = CALL_QUOTA_WINDOWS.doc(callerUid);
   const result = await db.runTransaction(async (transaction) => {
-    const [existing, caller, quotaSnapshot, roomSnapshot, rentalSnapshot, roomMemberSnapshots, directChatSnapshot, directPeerSnapshot] = await Promise.all([
+    const [existing, caller, quotaSnapshot, groupCallPricingSnapshot, roomSnapshot, rentalSnapshot, roomMemberSnapshots, directChatSnapshot, directPeerSnapshot] = await Promise.all([
       transaction.get(callRef),
       transaction.get(callerRef),
       transaction.get(quotaRef),
+      transaction.get(GROUP_CALL_PRICING_SETTINGS),
       roomRefForCall ? transaction.get(roomRefForCall) : Promise.resolve(null),
       roomRentalRef ? transaction.get(roomRentalRef) : Promise.resolve(null),
       Promise.all(roomMemberRefsForCall.map((memberRef) => transaction.get(memberRef))),
@@ -10653,9 +10656,13 @@ export const startCall = onCall(async (request) => {
       attempts: [...recentAttempts, { callId: input.callId, mode: input.mode, startedAtMs: quotaNow }],
       updatedAt: FieldValue.serverTimestamp(),
     });
+    const testPricingSnapshot = projectGroupCallTestPricingSnapshot(
+      groupCallPricingSnapshot?.data(), input.mode,
+    );
     transaction.create(callRef, {
       callId: input.callId, scope: input.scope, targetId: input.targetId, mode: input.mode,
       callerUid, participantUids, acceptedUids: [], rejectedUids: [], leftUids: [],
+      testPricingSnapshot,
       status: "ringing", signalCounts: {}, signalsCleanedAt: false,
       createdAt: FieldValue.serverTimestamp(),
       expiresAt, lastActivityAt: FieldValue.serverTimestamp(),
@@ -11111,6 +11118,7 @@ export const getActiveCall = onCall(async (request) => {
     return {
       active: true, callId, scope: data.scope, targetId: data.targetId,
       mode: data.mode, status: data.status, callerUid: data.callerUid,
+      testPricingSnapshot: data.testPricingSnapshot ?? null,
       participantUids: data.participantUids,
       acceptedUids: data.acceptedUids ?? [],
       rejectedUids: data.rejectedUids ?? [],
@@ -11172,8 +11180,6 @@ export const cleanupExpiredCallSignals = onSchedule("every 5 minutes", async () 
  * Super-owner controlled development tariff. Values are test-only configuration;
  * the separate collection gate is hard-disabled and cannot be enabled here.
  */
-const GROUP_CALL_PRICING_SETTINGS = db.doc("platformSettings/groupCallPricing");
-
 export const getOwnerGroupCallPricingPolicy = onCall(async (request) => {
   requireOwner(request);
   const snapshot = await GROUP_CALL_PRICING_SETTINGS.get();
