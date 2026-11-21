@@ -1,0 +1,9 @@
+SOURCE: /tmp/mawda-nov17-ubuntu-replay-20261121T193041Z/report/logs/flutter_analyze.log
+MODIFIED: 2026-11-21 22:37:50.718225422 +0300
+   Woah! You appear to be trying to run flutter as root.
+   We strongly recommend running the flutter tool without superuser privileges.
+  /
+📎
+Resolving dependencies...
+Downloading packages...
+Failed to update packages.

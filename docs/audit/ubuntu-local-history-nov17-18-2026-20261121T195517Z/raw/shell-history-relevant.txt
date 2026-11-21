@@ -1,0 +1,1693 @@
+SOURCE: /root/.bash_history
+1:apt update && apt install git curl unzip xz-utils libglu1-mesa -y
+2:.[200~git clone --depth 1 --single-branch https://github.com/flutter/flutter.git -b stable ~/flutter
+3:git clone --depth 1 --single-branch https://github.com/flutter/flutter.git -b stable ~/flutter
+4:export PATH="$PATH:$HOME/flutter/bin"
+5:flutter config --enable-web
+6:git clone https://github.com/productionhome2022-hash/mawda-platform.git
+7:cd mawda-platform
+8:flutter pub get
+9:flutter build web
+10:flutter clean
+11:flutter pub get
+12:flutter build web --release
+13:flutter build web --release --web-renderer html
+14:flutter build web --release
+15:flutter build web --release --no-source-maps
+16:export DART_VM_OPTIONS="--max-old-space-size=4096"
+17:flutter build web --release --no-source-maps
+18:flutter build web --profile --no-source-maps
+19:flutter build web --dart-define=FLUTTER_WEB_USE_SKWASM=false --no-source-maps
+20:export DART_VM_OPTIONS="--max-old-space-size=4096"
+21:flutter build web --release --no-source-maps --dart-define=FLUTTER_WEB_RENDERER=html
+22:flutter build web --release --no-source-maps --offline
+23:flutter build web --debug --no-source-maps
+24:flutter clean
+25:flutter pub get
+26:flutter build web --release --no-source-maps
+27-ls -la .github/workflows/
+28:git add .
+29:git commit -m "trigger cloud build"
+30:git push
+31:git remote set-url origin https://Ghp_pG9PbnwTFym0gvjDr28RqWDwDTWDRU2vu7Ux@github.com/productionhome2022-hash/mawda-platform.git
+32:git push
+33-[REDACTED_GITHUB_TOKEN]
+34:git remote set-url origin https://[REDACTED_GITHUB_TOKEN]@github.com/productionhome2022-hash/mawda-platform.git
+35:git push
+36:git remote -v
+37:git config --global credential.helper store
+38:git remote set-url origin https://productionhome2022-hash:[REDACTED_GITHUB_TOKEN]@github.com/productionhome2022-hash/mawda-platform.git
+39:git push
+40:git pull origin main --rebase
+41:git push
+42:cd ~/mawda-platform
+43:cat << 'EOF' > .github/workflows/firebase-deploy.yml
+44:name: Build and Deploy Mawda Platform
+45-
+46-on:
+47:  push:
+48-    branches:
+49-      - main
+--
+52-jobs:
+53-  build_and_deploy:
+54:    runs-on: ubuntu-latest
+55-
+56-    steps:
+--
+64-          java-version: '17'
+65-
+66:      - name: Setup Flutter SDK
+67:        uses: subosito/flutter-action@v2
+68-        with:
+69:          flutter-version: '3.19.6'
+70-          channel: 'stable'
+71-          cache: true
+72-
+73-      - name: Install Dependencies
+74:        run: flutter pub get
+75-
+76:      - name: Build Web Application
+77:        run: flutter build web --release --no-pub
+78-
+79:      - name: Deploy to Firebase Hosting
+80:        uses: FirebaseExtended/action-hosting-deploy@v0
+81-        with:
+82-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+83:          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MAWDA_PLATFORM }}'
+84-          channelId: live
+85:          projectId: mawda-platform
+86-EOF
+87-
+88:git add .github/workflows/firebase-deploy.yml
+89:git commit -m "fix: update workflow configuration for stable web build"
+90:git push
+91:git remote set-url origin https://productionhome2022-hash:Ghp_9RvwUCKNxOpPB2qoZ0ZbAaHAVerTGZ1Kehwj@github.com/productionhome2022-hash/mawda-platform.git
+92:git push
+93:git remote set-url origin https://productionhome2022-hash:[REDACTED_GITHUB_TOKEN]@github.com/productionhome2022-hash/mawda-platform.git && git push -u origin main
+94:cat << 'EOF' > .github/workflows/firebase-deploy.yml
+95:name: Build and Deploy Mawda Platform
+96-
+97-on:
+98:  push:
+99-    branches:
+100-      - main
+--
+102-jobs:
+103-  build_and_deploy:
+104:    runs-on: ubuntu-latest
+105-    steps:
+106-      - name: Checkout Repository
+--
+113-          java-version: '17'
+114-
+115:      - name: Setup Flutter SDK
+116:        uses: subosito/flutter-action@v2
+117-        with:
+118:          flutter-version: 'stable'
+119-          channel: 'stable'
+120-          cache: true
+121-
+122-      - name: Install Dependencies
+123:        run: flutter pub get
+124-
+125:      - name: Build Web Application
+126:        run: flutter build web --release
+127-
+128:      - name: Deploy to Firebase Hosting
+129:        uses: FirebaseExtended/action-hosting-deploy@v0
+130-        with:
+131-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+132:          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MAWDA_PLATFORM }}'
+133-          channelId: live
+134:          projectId: mawda-platform
+135-EOF
+136-
+137:git commit -am "fix: update flutter to stable version" && git push -u origin main
+138:cat << 'EOF' > .github/workflows/firebase-deploy.yml
+139:name: Build and Deploy Mawda Platform
+140-
+141-on:
+142:  push:
+143-    branches:
+144-      - main
+--
+146-jobs:
+147-  build_and_deploy:
+148:    runs-on: ubuntu-latest
+149-    steps:
+150-      - name: Checkout Repository
+--
+157-          java-version: '17'
+158-
+159:      - name: Setup Flutter SDK
+160:        uses: subosito/flutter-action@v2
+161-        with:
+162:          flutter-version: '3.22.2'
+163-          channel: 'stable'
+164-          cache: true
+165-
+166-      - name: Install Dependencies
+167:        run: flutter pub get
+168-
+169:      - name: Build Web Application
+170:        run: flutter build web --release
+171-
+172:      - name: Deploy to Firebase Hosting
+173:        uses: FirebaseExtended/action-hosting-deploy@v0
+174-        with:
+175-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+176:          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MAWDA_PLATFORM }}'
+177-          channelId: live
+178:          projectId: mawda-platform
+179-EOF
+180-
+181:git commit -am "fix: use exact stable flutter version 3.22.2" && git push -u origin main
+182:cat << 'EOF' > .github/workflows/firebase-deploy.yml
+183:name: Build and Deploy Mawda Platform
+184-
+185-on:
+186:  push:
+187-    branches:
+188-      - main
+--
+190-jobs:
+191-  build_and_deploy:
+192:    runs-on: ubuntu-latest
+193-    steps:
+194-      - name: Checkout Repository
+--
+201-          java-version: '17'
+202-
+203:      - name: Setup Flutter SDK
+204:        uses: subosito/flutter-action@v2
+205-        with:
+206-          channel: 'stable'
+--
+208-
+209-      - name: Install Dependencies
+210:        run: flutter pub get
+211-
+212:      - name: Build Web Application
+213:        run: flutter build web --release
+214-
+215:      - name: Deploy to Firebase Hosting
+216:        uses: FirebaseExtended/action-hosting-deploy@v0
+217-        with:
+218-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+219:          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MAWDA_PLATFORM }}'
+220-          channelId: live
+221:          projectId: mawda-platform
+222-EOF
+223-
+224:git commit -am "fix: use stable channel directly" && git push -u origin main
+225:flutter build web --release
+226:flutter analyze
+227-mkdir -p assets
+228:cat << 'EOF' > lib/firebase_options.dart
+229:// File generated by FlutterFire CLI.
+230-// ignore_for_file: type=lint
+231:import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
+232:import 'package:flutter/foundation.dart'
+233-    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+234-
+235:class DefaultFirebaseOptions {
+236:  static FirebaseOptions get currentPlatform {
+237-    if (kIsWeb) {
+238-      return web;
+--
+249-      case TargetPlatform.linux:
+250-        throw UnsupportedError(
+251:          'DefaultFirebaseOptions have not been configured for linux - '
+252:          'you can reconfigure this by running the FlutterFire CLI again.',
+253-        );
+254-    }
+255-  }
+256-
+257:  static const FirebaseOptions web = FirebaseOptions(
+258:    apiKey: '[REDACTED_API_KEY]',
+259-    appId: '1:1234567890:web:abcdef123456',
+260-    messagingSenderId: '1234567890',
+261:    projectId: 'mawda-platform',
+262:    authDomain: 'mawda-platform.firebaseapp.com',
+263:    storageBucket: 'mawda-platform.appspot.com',
+264-  );
+265-
+266:  static const FirebaseOptions android = FirebaseOptions(
+267:    apiKey: '[REDACTED_API_KEY]',
+268-    appId: '1:1234567890:android:abcdef123456',
+269-    messagingSenderId: '1234567890',
+270:    projectId: 'mawda-platform',
+271:    storageBucket: 'mawda-platform.appspot.com',
+272-  );
+273-
+274:  static const FirebaseOptions ios = FirebaseOptions(
+275:    apiKey: '[REDACTED_API_KEY]',
+276-    appId: '1:1234567890:ios:abcdef123456',
+277-    messagingSenderId: '1234567890',
+278:    projectId: 'mawda-platform',
+279:    storageBucket: 'mawda-platform.appspot.com',
+280-  );
+281-
+282:  static const FirebaseOptions macos = FirebaseOptions(
+283:    apiKey: '[REDACTED_API_KEY]',
+284-    appId: '1:1234567890:macos:abcdef123456',
+285-    messagingSenderId: '1234567890',
+286:    projectId: 'mawda-platform',
+287:    storageBucket: 'mawda-platform.appspot.com',
+288-  );
+289-
+290:  static const FirebaseOptions windows = FirebaseOptions(
+291:    apiKey: '[REDACTED_API_KEY]',
+292-    appId: '1:1234567890:windows:abcdef123456',
+293-    messagingSenderId: '1234567890',
+294:    projectId: 'mawda-platform',
+295:    storageBucket: 'mawda-platform.appspot.com',
+296-  );
+297-}
+298-EOF
+299-
+300:flutter analyze
+301:cat << 'EOF' > lib/firebase_options.dart
+302:// File generated by FlutterFire CLI.
+303-// ignore_for_file: type=lint
+304:import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
+305:import 'package:flutter/foundation.dart'
+306-    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+307-
+308:class DefaultFirebaseOptions {
+309:  static FirebaseOptions get currentPlatform {
+310-    if (kIsWeb) {
+311-      return web;
+--
+322-      case TargetPlatform.linux:
+323-        throw UnsupportedError(
+324:          'DefaultFirebaseOptions have not been configured for linux - '
+325:          'you can reconfigure this by running the FlutterFire CLI again.',
+326-        );
+327-      case TargetPlatform.fuchsia:
+328-        throw UnsupportedError(
+329:          'DefaultFirebaseOptions have not been configured for fuchsia.',
+330-        );
+331-    }
+332-  }
+333-
+334:  static const FirebaseOptions web = FirebaseOptions(
+335:    apiKey: '[REDACTED_API_KEY]',
+336-    appId: '1:1234567890:web:abcdef123456',
+337-    messagingSenderId: '1234567890',
+338:    projectId: 'mawda-platform',
+339:    authDomain: 'mawda-platform.firebaseapp.com',
+340:    storageBucket: 'mawda-platform.appspot.com',
+341-  );
+342-
+343:  static const FirebaseOptions android = FirebaseOptions(
+344:    apiKey: '[REDACTED_API_KEY]',
+345-    appId: '1:1234567890:android:abcdef123456',
+346-    messagingSenderId: '1234567890',
+347:    projectId: 'mawda-platform',
+348:    storageBucket: 'mawda-platform.appspot.com',
+349-  );
+350-
+351:  static const FirebaseOptions ios = FirebaseOptions(
+352:    apiKey: '[REDACTED_API_KEY]',
+353-    appId: '1:1234567890:ios:abcdef123456',
+354-    messagingSenderId: '1234567890',
+355:    projectId: 'mawda-platform',
+356:    storageBucket: 'mawda-platform.appspot.com',
+357-  );
+358-
+359:  static const FirebaseOptions macos = FirebaseOptions(
+360:    apiKey: '[REDACTED_API_KEY]',
+361-    appId: '1:1234567890:macos:abcdef123456',
+362-    messagingSenderId: '1234567890',
+363:    projectId: 'mawda-platform',
+364:    storageBucket: 'mawda-platform.appspot.com',
+365-  );
+366-
+367:  static const FirebaseOptions windows = FirebaseOptions(
+368:    apiKey: '[REDACTED_API_KEY]',
+369-    appId: '1:1234567890:windows:abcdef123456',
+370-    messagingSenderId: '1234567890',
+371:    projectId: 'mawda-platform',
+372:    storageBucket: 'mawda-platform.appspot.com',
+373-  );
+374-}
+375-EOF
+376-
+377:find lib -name "*model*.dart"
+378:cat << 'EOF' > lib/models/user_model.dart
+379-class UserModel {
+380-  final String uid;
+--
+441-EOF
+442-
+443:flutter analyze
+444:cat << 'EOF' > lib/main.dart
+445:import 'package:flutter/material.dart';
+446:import 'firebase_options.dart';
+447-
+448-void main() {
+449:  WidgetsFlutterBinding.ensureInitialized();
+450:  runApp(const MawdaApp());
+451-}
+452-
+453:class MawdaApp extends StatelessWidget {
+454:  const MawdaApp({super.key});
+455-
+456-  @override
+457-  Widget build(BuildContext context) {
+458-    return MaterialApp(
+459:      title: 'Mawda Platform',
+460-      theme: ThemeData(
+461-        primarySwatch: Colors.pink,
+--
+463-      home: const Scaffold(
+464-        body: Center(
+465:          child: Text('Welcome to Mawda Platform'),
+466-        ),
+467-      ),
+--
+471-EOF
+472-
+473:flutter analyze
+474:cat << 'EOF' > lib/main.dart
+475:import 'package:flutter/material.dart';
+476:import 'package:firebase_core/firebase_core.dart';
+477:import 'firebase_options.dart';
+478-
+479-void main() async {
+480:  WidgetsFlutterBinding.ensureInitialized();
+481:  await Firebase.initializeApp(
+482:    options: DefaultFirebaseOptions.currentPlatform,
+483-  );
+484:  runApp(const MawdaApp());
+485-}
+486-
+487:class MawdaApp extends StatelessWidget {
+488:  const MawdaApp({super.key});
+489-
+490-  @override
+491-  Widget build(BuildContext context) {
+492-    return MaterialApp(
+493:      title: 'Mawda Platform',
+494-      theme: ThemeData(
+495-        primarySwatch: Colors.pink,
+--
+497-      home: const Scaffold(
+498-        body: Center(
+499:          child: Text('Welcome to Mawda Platform'),
+500-        ),
+501-      ),
+--
+505-EOF
+506-
+507:sed -i "s|import 'firebase_options.dart';|import '../firebase_options.dart';|g" lib/screens/*.dart 2>/dev/null || true
+508:flutter analyze
+509-mkdir -p lib/services
+510:cat << 'EOF' > lib/services/coin_system_service.dart
+511-class CoinSystemService {
+512-  static Future<void> rewardUserForSpecificAd(String userId, String adId) async {
+--
+517-EOF
+518-
+519:flutter analyze
+520:cat << 'EOF' > lib/services/coin_system_service.dart
+521-class CoinSystemService {
+522-  static Future<void> rewardUserForSpecificAd(String userId, String adId) async {
+--
+535-EOF
+536-
+537:flutter analyze
+538:cat << 'EOF' > lib/services/coin_system_service.dart
+539-class CoinSystemService {
+540-  // Instance methods for screens calling via instance
+--
+566-EOF
+567-
+568:flutter analyze
+569:cat << 'EOF' > lib/services/coin_system_service.dart
+570-class CoinSystemService {
+571-  final String? userId;
+--
+587-EOF
+588-
+589:flutter analyze
+590:cat << 'EOF' > lib/services/coin_system_service.dart
+591-class CoinSystemService {
+592-  // Instance methods for non-static calls
+--
+618-EOF
+619-
+620:flutter analyze
+621:cat << 'EOF' > lib/services/coin_system_service.dart
+622-class CoinSystemService {
+623-  // Instance and static methods supporting both dynamic parameters and return values
+--
+652-EOF
+653-
+654:flutter analyze
+655:flutter build web --release
+656:firebase deploy
+657:npx firebase-tools deploy
+658:npm install -g firebase-tools
+659-pkg install nodejs -y
+660-exit
+--
+667-gcloud auth list
+668-gcloud cloud-shell ssh --authorize-session
+669:gcloud config set project mawda-app-2026
+670-gcloud cloud-shell ssh --authorize-session
+671:git clone --branch codex/mawda-full-platform-implementation https://github.com/productionhome2022-hash/mawda-platform.git "$HOME/mawda-platform"
+672-gcloud cloud-shell ssh --authorize-session
+673-cat > "$HOME/mawdda_bootstrap.sh" <<'MAWDDA_SCRIPT'
+--
+675-set -Eeuo pipefail
+676-
+677:REPO="https://github.com/productionhome2022-hash/mawda-platform.git"
+678:BRANCH="codex/mawda-full-platform-implementation"
+679:DIR="$HOME/mawda-platform"
+680:PROJECT="mawda-app-2026"
+681-
+682-echo "========================================"
+--
+695-echo
+696-echo "===== 2. TOOL INVENTORY ====="
+697:for tool in git gcloud gh firebase flutter dart node npm wrangler; do
+698-  if command -v "$tool" >/dev/null 2>&1; then
+699-    echo "$tool: AVAILABLE"
+700-    case "$tool" in
+701:      git) git --version ;;
+702-      gcloud) gcloud version 2>/dev/null | head -n 2 ;;
+703:      gh) gh --version | head -n 1 ;;
+704:      firebase) firebase --version ;;
+705:      flutter) flutter --version 2>&1 | head -n 3 ;;
+706:      dart) dart --version 2>&1 ;;
+707-      node) node --version ;;
+708:      npm) npm --version ;;
+709-      wrangler) wrangler --version ;;
+710-    esac
+--
+716-echo
+717-echo "===== 3. GITHUB AUTHENTICATION STATUS ====="
+718:gh auth status 2>&1 || true
+719-
+720-echo
+--
+722-if [[ -d "$DIR" ]]; then
+723-  if [[ ! -d "$DIR/.git" ]]; then
+724:    echo "STOP: Directory exists but is not a Git repository."
+725-    echo "No files were changed."
+726-    exit 20
+727-  fi
+728:  echo "Existing Git repository found. Preserving working tree."
+729:  git -C "$DIR" fetch origin "$BRANCH"
+730-else
+731:  git clone --branch "$BRANCH" --single-branch "$REPO" "$DIR"
+732-fi
+733-
+734-echo
+735-echo "===== 5. REPOSITORY STATUS ====="
+736:git -C "$DIR" status --short --branch
+737-echo "Current branch:"
+738:git -C "$DIR" branch --show-current
+739-echo "Local commit:"
+740:git -C "$DIR" rev-parse HEAD
+741-echo "Remote development branch commit:"
+742:git -C "$DIR" rev-parse "origin/$BRANCH"
+743-
+744-echo
+--
+746-for item in \
+747-  pubspec.yaml \
+748:  firebase.json \
+749:  .firebaserc \
+750-  firestore.rules \
+751-  firestore.indexes.json \
+--
+771-find "$DIR" -maxdepth 3 -type f \
+772-  \( -name 'pubspec.yaml' \
+773:  -o -name 'firebase.json' \
+774:  -o -name '.firebaserc' \
+775-  -o -name 'package.json' \
+776:  -o -name 'Dockerfile' \
+777-  -o -name 'cloudbuild.yaml' \
+778-  -o -name 'wrangler.toml' \
+--
+781-
+782-echo
+783:echo "===== 8. GIT CHANGE SUMMARY ====="
+784:git -C "$DIR" diff --stat
+785:git -C "$DIR" status --porcelain
+786-
+787-echo
+--
+818-umask 077
+819-
+820:REPO="https://github.com/productionhome2022-hash/mawda-platform.git"
+821:BRANCH="codex/mawda-full-platform-implementation"
+822:DIR="$HOME/mawda-platform"
+823:PROJECT="mawda-app-2026"
+824-
+825-exec > >(tee -a "$HOME/mawdda_cloudshell_job.log") 2>&1
+--
+838-echo
+839-echo "===== 2. TOOL INVENTORY ====="
+840:for tool in git gcloud gh firebase flutter dart node npm wrangler; do
+841-  if command -v "$tool" >/dev/null 2>&1; then
+842-    echo "$tool: AVAILABLE"
+843-    case "$tool" in
+844:      git) git --version ;;
+845-      gcloud) gcloud version > /tmp/mawdda_gcloud_version.txt 2>&1 || true
+846-              sed -n '1,3p' /tmp/mawdda_gcloud_version.txt ;;
+847:      gh) gh --version > /tmp/mawdda_gh_version.txt 2>&1 || true
+848-          sed -n '1,2p' /tmp/mawdda_gh_version.txt ;;
+849:      firebase) firebase --version ;;
+850:      flutter) flutter --version > /tmp/mawdda_flutter_version.txt 2>&1 || true
+851:               sed -n '1,4p' /tmp/mawdda_flutter_version.txt ;;
+852:      dart) dart --version 2>&1 || true ;;
+853-      node) node --version ;;
+854:      npm) npm --version ;;
+855-      wrangler) wrangler --version ;;
+856-    esac
+--
+862-echo
+863-echo "===== 3. GITHUB AUTH STATUS ====="
+864:gh auth status 2>&1 || true
+865-
+866-echo
+--
+868-if [[ -e "$DIR" ]]; then
+869-  if [[ ! -d "$DIR/.git" ]]; then
+870:    echo "STOP: Existing directory is not a Git repository."
+871-    echo "No existing files were changed."
+872-    exit 20
+873-  fi
+874-
+875:  ORIGIN="$(git -C "$DIR" remote get-url origin 2>/dev/null || true)"
+876-  if [[ "$ORIGIN" != "$REPO" ]]; then
+877-    echo "STOP: Existing repository origin does not match expected HTTPS URL."
+--
+881-
+882-  echo "Existing repository found. Working files will be preserved."
+883:  git -C "$DIR" fetch origin "$BRANCH"
+884-else
+885:  git clone --branch "$BRANCH" --single-branch "$REPO" "$DIR"
+886-fi
+887-
+888-echo
+889-echo "===== 5. BRANCH AND COMMITS ====="
+890:git -C "$DIR" branch --show-current
+891-echo "LOCAL:"
+892:git -C "$DIR" rev-parse HEAD
+893-echo "REMOTE DEVELOPMENT BRANCH:"
+894:git -C "$DIR" rev-parse "origin/$BRANCH"
+895-
+896-echo
+897-echo "===== 6. WORKING TREE ====="
+898:git -C "$DIR" status --short --branch
+899-
+900-echo
+901-echo "===== 7. PROJECT STRUCTURE ====="
+902-for item in \
+903:  pubspec.yaml firebase.json .firebaserc \
+904-  firestore.rules firestore.indexes.json storage.rules \
+905-  functions/package.json package.json \
+--
+916-echo "===== 8. IMPORTANT CONFIG FILES ====="
+917-find "$DIR" -maxdepth 3 -type f \
+918:  \( -name pubspec.yaml -o -name firebase.json \
+919:  -o -name .firebaserc -o -name package.json \
+920-  -o -name cloudbuild.yaml -o -name wrangler.toml \
+921-  -o -name wrangler.jsonc \) \
+--
+924-echo
+925-echo "===== 9. READ-ONLY CLOUD CONFIG CHECK ====="
+926:echo "Firebase CLI:"
+927:firebase --version 2>&1 || true
+928-echo "Configured Google Cloud project:"
+929-gcloud config get-value project 2>/dev/null || true
+--
+931-echo
+932-echo "===== 10. EXECUTION BOUNDARIES ====="
+933:echo "No Firebase deployment performed."
+934-echo "No production resources modified."
+935-echo "No billing changes performed."
+936:echo "No GitHub push or merge performed."
+937-echo "No Cloudflare changes performed."
+938-
+--
+989-umask 077
+990-
+991:DIR="$HOME/mawda-platform"
+992-REPORT="$HOME/mawdda_readonly_audit.log"
+993-
+--
+1008-echo
+1009-echo "===== 1. REPOSITORY IDENTITY ====="
+1010:git remote get-url origin | sed -E 's#(https?://)[^/@]+:[^/@]+@#\1[REDACTED]@#'
+1011:git branch --show-current
+1012:git rev-parse HEAD
+1013:git status --short --branch
+1014-
+1015-echo
+--
+1020-
+1021-echo
+1022:echo "===== 3. FLUTTER PUBSPEC ====="
+1023-if [[ -f pubspec.yaml ]]; then
+1024-  sed -n '1,240p' pubspec.yaml
+--
+1028-echo "===== 4. LOCK FILES ====="
+1029-for f in pubspec.lock functions/package-lock.json \
+1030:  functions/yarn.lock functions/pnpm-lock.yaml \
+1031:  scanner/package.json scanner/package-lock.json
+1032-do
+1033-  if [[ -f "$f" ]]; then
+--
+1040-
+1041-echo
+1042:echo "===== 5. FIREBASE CONFIGURATION ====="
+1043:for f in firebase.json .firebaserc firestore.rules \
+1044-  firestore.indexes.json storage.rules
+1045-do
+--
+1064-
+1065-echo
+1066:echo "===== 7. SCANNER PACKAGE ====="
+1067:if [[ -f scanner/package.json ]]; then
+1068:  sed -n '1,220p' scanner/package.json
+1069-fi
+1070-
+--
+1076-  echo "Relevant build/deploy/auth references:"
+1077-  grep -RniE \
+1078:    'flutter build|flutter test|dart analyze|firebase deploy|firebase use|gcloud run deploy|cloudflare|wrangler deploy|secrets\.|environment:|workflow_dispatch|pull_request' \
+1079-    .github/workflows 2>/dev/null | head -n 250 || true
+1080-fi
+--
+1082-echo
+1083-echo "===== 9. TEST INVENTORY ====="
+1084:for d in test integration_test functions/test functions/tests scanner/test; do
+1085-  if [[ -d "$d" ]]; then
+1086-    echo "--- $d ---"
+--
+1098-  -o -name 'google-services.json' \
+1099-  -o -name 'manifest.json' \
+1100:  -o -name 'firebase.json' \) \
+1101-  -not -path '*/Pods/*' 2>/dev/null | sort | head -n 250
+1102-
+--
+1104-echo "===== 11. PROJECT IDENTITY REFERENCES ====="
+1105-grep -RniE \
+1106:  'mawda-app-2026|mawda-platform-nonprod-2026|com\.mawdda\.platform\.app' \
+1107:  .firebaserc firebase.json android ios web lib \
+1108-  --exclude='*.lock' --exclude='*.png' --exclude='*.jpg' \
+1109-  2>/dev/null | head -n 180 || true
+--
+1112-echo "===== 12. DEPLOYMENT COMMAND INVENTORY ====="
+1113-grep -RniE \
+1114:  'firebase deploy|gcloud .*deploy|wrangler deploy|appdistribution:distribute|play.*publish' \
+1115:  .github functions scanner \
+1116-  --exclude-dir=node_modules --exclude='*.lock' \
+1117-  2>/dev/null | head -n 180 || true
+--
+1130-echo
+1131-echo "===== 14. COMMIT SUMMARY ====="
+1132:git log -5 --oneline --decorate
+1133-
+1134-echo
+1135-echo "===== 15. FINAL STATUS ====="
+1136:git status --short --branch
+1137-echo "AUDIT COMPLETE"
+1138-date -Is
+--
+1152-umask 077
+1153-
+1154:cd "$HOME/mawda-platform"
+1155-R="$HOME/mawdda_env_audit.log"
+1156-exec > >(tee -a "$R") 2>&1
+--
+1158-echo "===== MAWDDA ENVIRONMENT & BUILD AUDIT ====="
+1159-date -Is
+1160:echo "COMMIT=$(git rev-parse HEAD)"
+1161:echo "BRANCH=$(git branch --show-current)"
+1162-
+1163-echo
+1164:echo "===== 1. FLUTTER/DART CONSTRAINTS ====="
+1165-grep -nA8 -B2 -E '^(environment|dependencies|dev_dependencies):' pubspec.yaml | head -n 100
+1166-
+1167-echo
+1168:echo "===== 2. FIREBASE ENVIRONMENT SELECTION ====="
+1169-grep -RniE \
+1170:'MAWDDA_FIREBASE_ENV|firebase_options_nonprod|DefaultFirebaseOptions|Firebase\.initializeApp|FirebaseOptions|kReleaseMode|kDebugMode' \
+1171-lib android ios .github/workflows \
+1172---exclude='*.lock' --exclude='GoogleService-Info.plist' \
+--
+1174-
+1175-echo
+1176:echo "===== 3. FIREBASE PROJECT IDS ONLY ====="
+1177-python3 - <<'PY'
+1178-import json, pathlib, re
+1179:root = pathlib.Path.home() / "mawda-platform"
+1180-for name in ["android/app/google-services.json"]:
+1181-    p = root / name
+--
+1197-
+1198-echo
+1199:echo "===== 4. FIREBASE CONFIG TARGETS ====="
+1200:cat .firebaserc
+1201-echo
+1202-python3 - <<'PY'
+1203-import json
+1204:p="firebase.json"
+1205-d=json.load(open(p))
+1206-print(json.dumps(d, indent=2, ensure_ascii=False))
+--
+1210-echo "===== 5. ANDROID BUILD CONFIG (SAFE FILTER) ====="
+1211-grep -nE \
+1212:'applicationId|namespace|compileSdk|minSdk|targetSdk|versionCode|versionName|signingConfig|productFlavors|buildTypes|google-services|MAWDDA_FIREBASE_ENV' \
+1213-android/app/build.gradle.kts android/build.gradle.kts android/settings.gradle.kts \
+1214-2>/dev/null || true
+--
+1219-
+1220-echo
+1221:echo "===== 7. FLUTTER CI WORKFLOWS ====="
+1222:for f in .github/workflows/flutter-ci.yml \
+1223- .github/workflows/validate.yml \
+1224- .github/workflows/mawdda-test-center.yml \
+--
+1232-echo "===== 8. FUNCTIONS NODE REQUIREMENTS ====="
+1233-node -e '
+1234:for (const f of ["functions/package.json","scanner/package.json"]) {
+1235- try {
+1236-  const p=require("./"+f);
+--
+1238-    engines:p.engines,
+1239-    scripts:p.scripts,
+1240:    firebaseAdmin:p.dependencies?.["firebase-admin"],
+1241:    firebaseFunctions:p.dependencies?.["firebase-functions"]
+1242-  },null,2));
+1243- } catch(e) { console.log(f,e.message); }
+1244-}' 2>/dev/null || python3 - <<'PY'
+1245-import json
+1246:for f in ["functions/package.json","scanner/package.json"]:
+1247- try:
+1248-  p=json.load(open(f))
+--
+1258-echo
+1259-echo "===== 10. LOCK AND WORKTREE STATUS ====="
+1260:git status --short --branch
+1261:git rev-parse HEAD
+1262-echo "AUDIT COMPLETE - READ ONLY"
+1263-date -Is
+--
+1284-set -u
+1285-REMOTE='
+1286:cd "$HOME/mawda-platform" || exit 1
+1287-
+1288-echo "===== PUBSPEC SDK CONSTRAINTS ====="
+--
+1290-
+1291-echo
+1292:echo "===== FIREBASE INITIALIZATION REFERENCES ====="
+1293:grep -RniE "MAWDDA_FIREBASE_ENV|DefaultFirebaseOptions|firebase_options_nonprod|Firebase.initializeApp|FirebaseOptions" lib --include="*.dart" | head -n 180
+1294-
+1295-echo
+1296:echo "===== FIREBASE OPTIONS PROJECT IDS ====="
+1297-python3 - <<'"'"'PY'"'"'
+1298-import re
+1299:for f in ["lib/firebase_options.dart","lib/firebase_options_nonprod.dart"]:
+1300- print("---",f,"---")
+1301- try:
+--
+1308-
+1309-echo
+1310:echo "===== FIREBASE CONFIG ====="
+1311:cat .firebaserc
+1312:cat firebase.json
+1313-
+1314-echo
+--
+1321-
+1322-echo
+1323:echo "===== FLUTTER CI WORKFLOW ====="
+1324:sed -n "1,130p" .github/workflows/flutter-ci.yml
+1325-
+1326-echo
+--
+1330-echo
+1331-echo "===== WORKTREE STATUS ====="
+1332:git status --short --branch
+1333:git rev-parse HEAD
+1334-'
+1335-gcloud cloud-shell ssh --authorize-session --command="$REMOTE"
+1336-cat > "$HOME/mawdda_launch_check.sh" <<'BASH'
+1337:#!/data/data/com.termux/files/usr/bin/bash
+1338-set +e
+1339-umask 077
+--
+1342-exec > >(tee "$OUT") 2>&1
+1343-
+1344:echo "===== MAWDDA TERMUX LAUNCH CHECK ====="
+1345-date
+1346-echo
+1347-
+1348:for x in git node npm firebase gcloud gh wrangler curl jq; do
+1349-  command -v "$x" >/dev/null 2>&1 \
+1350-    && echo "$x: AVAILABLE" \
+--
+1353-
+1354-echo
+1355:echo "===== FIREBASE LOGIN ====="
+1356:firebase login:list 2>&1
+1357-
+1358-echo
+1359:echo "===== FIREBASE PROJECTS ====="
+1360:firebase projects:list 2>&1
+1361-
+1362-echo
+--
+1368-echo "===== GOOGLE CLOUD PROJECTS ====="
+1369-gcloud projects list \
+1370:  --filter="projectId=(mawda-app-2026 mawda-platform-nonprod-2026)" \
+1371-  --format="table(projectId,projectNumber,lifecycleState)" 2>&1
+1372-
+1373-echo
+1374-echo "===== GITHUB LOGIN ====="
+1375:gh auth status 2>&1
+1376-
+1377-echo
+1378-echo "===== GITHUB BRANCH ====="
+1379:gh api repos/productionhome2022-hash/mawda-platform/branches/codex/mawda-full-platform-implementation \
+1380-  --jq '.name + " | " + .commit.sha' 2>&1
+1381-
+--
+1394-set -e
+1395-echo "===== INSTALL CLOUDFLARE WRANGLER ====="
+1396:npm install -g wrangler
+1397:gh auth login --hostname github.com --git-protocol https --web
+1398:proot-distro login ubuntu -- bash -lc '
+1399-set -e
+1400:cd /root/mawda-platform || exit 1
+1401-echo "===== GITHUB AUTHENTICATION ====="
+1402:gh auth status
+1403-echo
+1404:echo "===== CONFIGURE GIT AUTHENTICATION ====="
+1405:gh auth setup-git
+1406-echo
+1407-echo "===== VERIFY DEVELOPMENT BRANCH ACCESS ====="
+1408:git ls-remote origin refs/heads/codex/mawda-full-platform-implementation
+1409-echo
+1410-echo "===== LOCAL REPOSITORY ====="
+1411:git branch --show-current
+1412:git rev-parse HEAD
+1413-echo "===== VERIFICATION COMPLETE ====="
+1414-'
+1415-set -e
+1416:cd /root/mawda-platform
+1417-echo "===== GITHUB AUTHENTICATION ====="
+1418:gh auth status
+1419:gh auth login --hostname github.com --git-protocol https --web
+1420-set -e
+1421:cd /root/mawda-platform
+1422-echo "===== GITHUB AUTH ====="
+1423:gh auth status
+1424-echo
+1425:echo "===== CONFIGURE GIT ====="
+1426:gh auth setup-git
+1427-echo
+1428-echo "===== VERIFY REMOTE BRANCH ====="
+1429:git ls-remote origin refs/heads/codex/mawda-full-platform-implementation
+1430-echo
+1431-echo "===== LOCAL REPOSITORY ====="
+1432:git branch --show-current
+1433:git rev-parse HEAD
+1434-echo "===== VERIFICATION COMPLETE ====="
+1435-set -Eeuo pipefail
+1436:SRC="/root/mawda-platform"
+1437:BRANCH="codex/mawda-full-platform-implementation"
+1438-STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+1439:WT="/tmp/mawda-ubuntu-historical-$STAMP"
+1440:REL="docs/audit/ubuntu/runs/ubuntu-historical-nov16-18-$STAMP"
+1441-echo "===== 1. SOURCE VALIDATION ====="
+1442-cd "$SRC"
+1443:test "$(git branch --show-current)" = "$BRANCH"
+1444:if git config --get remote.origin.url | grep -Eq '://[^/]*@'; then echo "STOP: credential-bearing origin URL"; exit 1; fi
+1445:git status --short
+1446-echo "Source repository preserved."
+1447-echo
+1448-echo "===== 2. FETCH LATEST DEVELOPMENT BRANCH ====="
+1449:git fetch origin "$BRANCH"
+1450:BASE="$(git rev-parse "origin/$BRANCH")"
+1451-echo "BASE SHA: $BASE"
+1452-echo
+1453-echo "===== 3. CREATE ISOLATED WORKTREE ====="
+1454:git worktree add --detach "$WT" "$BASE"
+1455-echo
+1456-echo "===== 4. VERIFY COMMIT IDENTITY ====="
+1457:GNAME="$(git config user.name || true)"
+1458:GEMAIL="$(git config user.email || true)"
+1459:if [ -z "$GNAME" ] || [ -z "$GEMAIL" ]; then echo "STOP: Git author identity is not configured."; echo "No identity was invented and no commit was made."; exit 1; fi
+1460:cat > /tmp/mawda_nov17_ubuntu_replay.sh <<'SCRIPT'
+1461-#!/usr/bin/env bash
+1462-
+1463-set +e
+1464-export CI=1
+1465:export GCLOUD_PROJECT=demo-mawda-audit
+1466:export GOOGLE_CLOUD_PROJECT=demo-mawda-audit
+1467:export FIREBASE_PROJECT=demo-mawda-audit
+1468-
+1469:REPO="/root/mawda-platform"
+1470:BRANCH="codex/mawda-full-platform-implementation"
+1471-BASE="c759083e04ffd98616691c2e736207095aaf2dbc"
+1472-STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+1473:ROOT="/tmp/mawda-nov17-ubuntu-replay-$STAMP"
+1474-WT="$ROOT/test-worktree"
+1475-PUB="$ROOT/report-worktree"
+--
+1504-  shift
+1505-  echo
+1506:  echo "===== TEST: $LABEL ====="
+1507-  echo "COMMAND: $*"
+1508-  "$@" > "$LOGS/$LABEL.log" 2>&1
+--
+1529-pwd
+1530-command -v git
+1531:git --version
+1532-command -v gh
+1533:command -v flutter
+1534:command -v dart
+1535-command -v node
+1536:command -v npm
+1537-command -v java
+1538:command -v docker
+1539-command -v python3
+1540-
+1541:if ! grep -qi ubuntu /etc/os-release; then
+1542:  echo "ERROR: This is not Ubuntu. Aborting."
+1543-  exit 2
+1544-fi
+--
+1551-cd "$REPO" || exit 2
+1552-
+1553:if [ "$(git rev-parse --show-toplevel)" != "$REPO" ]; then
+1554-  echo "ERROR: Wrong repository root."
+1555-  exit 2
+--
+1557-
+1558-echo "===== CURRENT WORKING TREE ====="
+1559:git branch --show-current
+1560:git rev-parse HEAD
+1561:git status --short
+1562-
+1563-echo "===== AUTHENTICATION CHECK ====="
+1564:if command -v gh >/dev/null 2>&1; then
+1565:  gh auth status
+1566-else
+1567-  echo "GitHub CLI unavailable."
+--
+1569-
+1570-echo "===== FETCH OFFICIAL REPOSITORY ====="
+1571:git fetch origin "$BRANCH"
+1572-FETCH_RC=$?
+1573-if [ "$FETCH_RC" -ne 0 ]; then
+--
+1576-fi
+1577-
+1578:git cat-file -e "$BASE^{commit}"
+1579-if [ $? -ne 0 ]; then
+1580-  echo "ERROR: Historical baseline commit not available."
+--
+1583-
+1584-echo "===== HISTORICAL COMMIT ====="
+1585:git show -s --format=fuller "$BASE"
+1586-
+1587-echo "===== CREATE ISOLATED HISTORICAL WORKTREE ====="
+1588:git worktree add --detach "$WT" "$BASE"
+1589-if [ $? -ne 0 ]; then
+1590-  echo "ERROR: Cannot create historical worktree."
+--
+1600-  echo "- Development branch: \`$BRANCH\`"
+1601-  echo "- Actual replay time UTC: $(date -u)"
+1602:  echo "- Environment: Ubuntu"
+1603:  echo "- Repository: productionhome2022-hash/mawda-platform"
+1604-  echo "- This is a new replay of the historical test suite, NOT proof that tests ran on November 17."
+1605:  echo "- No production deployment or Firebase production operation is authorized or performed."
+1606-  echo
+1607-  echo "## Tool versions"
+--
+1609-  echo '```'
+1610-  cat /etc/os-release
+1611:  git --version
+1612-  node --version 2>&1
+1613:  npm --version 2>&1
+1614:  flutter --version 2>&1
+1615:  dart --version 2>&1
+1616-  java -version 2>&1
+1617-  python3 --version 2>&1
+--
+1621-: > "$STATUS"
+1622-
+1623:echo "===== FLUTTER / DART TESTS ====="
+1624-
+1625:if command -v flutter >/dev/null 2>&1; then
+1626:  run flutter_pub_get flutter pub get --enforce-lockfile
+1627:  run firebase_config_validation node functions/scripts/validate-firebase-config.cjs
+1628:  run flutter_analyze flutter analyze
+1629:  run flutter_tests flutter test
+1630-
+1631-  run pwa_install_prompt_syntax node --check web/install-prompt.js
+1632:  run pwa_messaging_syntax node --check web/firebase-messaging-sw.js
+1633-
+1634-  run pwa_manifest_validation node -e '
+--
+1646-  '
+1647-
+1648:  run flutter_web_release_build flutter build web --release --dart-define=MAWDA_FCM_VAPID_KEY=
+1649-
+1650-  echo "NOTE: The local web build uses an empty VAPID value."
+1651-  echo "It is not equivalent to the CI build with its protected GitHub variables."
+1652-else
+1653:  skip "Flutter SDK unavailable in Ubuntu" flutter_suite
+1654-fi
+1655-
+--
+1658-cd "$WT/functions" || exit 4
+1659-
+1660:if command -v npm >/dev/null 2>&1; then
+1661:  run functions_npm_ci npm ci --no-audit --no-fund
+1662:  run functions_npm_test npm test
+1663-
+1664:  run functions_scanner_e2e_syntax node --check scripts/test-live-media-scanner-e2e.cjs
+1665-
+1666-  if command -v ruby >/dev/null 2>&1; then
+--
+1670-  fi
+1671-
+1672:  INTEGRATIONS=(
+1673:    test:media-integration
+1674:    test:retention-integration
+1675:    test:message-deletion-integration
+1676:    test:owner-entitlement-grants-integration
+1677:    test:wallet-store-integration
+1678:    test:room-rental-integration
+1679:    test:room-events-integration
+1680:    test:call-signaling-integration
+1681:    test:emulator-backup-restore
+1682:    test:push-token-integration
+1683:    test:biometric-integration
+1684:    test:engagement-rewards-integration
+1685:    test:email-renewal-integration
+1686:    test:safety-integration
+1687:    test:guest-privacy-integration
+1688:    test:guest-session-integration
+1689:    test:seeded-persona-interaction
+1690:    test:owner-audit-export-integration
+1691:    test:media-legal-hold-integration
+1692:    test:profile-media-integration
+1693:    test:premium-profile-integration
+1694:    test:message-legal-hold-integration
+1695:    test:rules
+1696-  )
+1697-
+1698:  for TEST in "${INTEGRATIONS[@]}"; do
+1699:    run "functions_${TEST//:/_}" npm run "$TEST"
+1700-  done
+1701-else
+1702:  skip "npm unavailable" functions_suite
+1703-fi
+1704-
+--
+1712-fi
+1713-
+1714:echo "===== MEDIA SCANNER TESTS ====="
+1715-
+1716:if [ -d "$WT/scanner" ]; then
+1717:  cd "$WT/scanner" || exit 4
+1718-
+1719:  run scanner_server_syntax node --check server.js
+1720:  run scanner_security_syntax node --check security.js
+1721:  run scanner_processors_syntax node --check processors.js
+1722:  run scanner_start_shell_syntax sh -n start.sh
+1723-
+1724:  run scanner_unit_tests node --test test/security.test.js test/processors.test.js
+1725-
+1726:  if command -v docker >/dev/null 2>&1; then
+1727:    docker info > "$LOGS/docker-info.log" 2>&1
+1728:    DOCKER_RC=$?
+1729:    if [ "$DOCKER_RC" -eq 0 ]; then
+1730:      run scanner_docker_build docker build --tag mawda-clamav-scanner:ci .
+1731:      run scanner_docker_npm_tests docker run --rm --entrypoint npm mawda-clamav-scanner:ci test
+1732-    else
+1733:      skip "Docker daemon unavailable in this Ubuntu environment" scanner_docker_tests
+1734-    fi
+1735-  else
+1736:    skip "Docker executable unavailable" scanner_docker_tests
+1737-  fi
+1738-else
+1739:  skip "Scanner directory missing at historical SHA" scanner_suite
+1740-fi
+1741-
+--
+1764-  echo "- Missing SDKs or unavailable services are not counted as successful tests."
+1765-  echo "- The web build without the protected VAPID value is not an exact reproduction of the CI secret-backed build."
+1766:  echo "- Docker tests are skipped if the daemon is unavailable."
+1767-  echo "- No 5,000-persona load simulation is claimed by this workflow."
+1768:  echo "- No Firebase production deployment, billing change, or production data operation was performed."
+1769-} >> "$SUMMARY"
+1770-
+--
+1772-{
+1773-  echo
+1774:  echo "## Git metadata"
+1775:  git show -s --format='Historical commit: %H%nAuthor: %an <%ae>%nDate: %aI%nSubject: %s' "$BASE"
+1776-  echo
+1777-  echo "## Worktree status"
+1778:  git status --short
+1779-  echo
+1780-  echo "## Execution finish UTC"
+--
+1785-
+1786-cd "$REPO" || exit 5
+1787:git fetch origin "$BRANCH"
+1788-if [ $? -ne 0 ]; then
+1789-  echo "ERROR: Could not refresh development branch for report publication."
+--
+1792-fi
+1793-
+1794:git worktree add --detach "$PUB" "origin/$BRANCH"
+1795-if [ $? -ne 0 ]; then
+1796-  echo "ERROR: Cannot create report publication worktree."
+--
+1799-fi
+1800-
+1801:DEST="docs/audit/ubuntu-historical-replay-$STAMP"
+1802-mkdir -p "$PUB/$DEST"
+1803-cp -R "$AUDIT/." "$PUB/$DEST/"
+1804-
+1805-cd "$PUB" || exit 5
+1806:git config user.name "production home"
+1807:git config user.email "productionhome2022@gmail.com"
+1808-
+1809-PUBLISHED=0
+--
+1812-  echo "===== PUBLICATION ATTEMPT $ATTEMPT ====="
+1813-
+1814:  git add "$DEST"
+1815:  git commit -m "docs(audit): publish Ubuntu historical Nov 17 test replay $STAMP"
+1816-
+1817-  if [ $? -ne 0 ]; then
+--
+1820-  fi
+1821-
+1822:  REPORT_COMMIT="$(git rev-parse HEAD)"
+1823-  echo "REPORT COMMIT: $REPORT_COMMIT"
+1824-
+1825:  git push origin "HEAD:refs/heads/$BRANCH"
+1826-  if [ $? -eq 0 ]; then
+1827-    PUBLISHED=1
+--
+1829-  fi
+1830-
+1831:  echo "Push rejected; refreshing branch and retrying safely."
+1832:  git fetch origin "$BRANCH"
+1833-  if [ $? -ne 0 ]; then
+1834-    break
+1835-  fi
+1836-
+1837:  git reset --hard "origin/$BRANCH"
+1838-done
+1839-
+--
+1844-  echo "REPORT DIRECTORY: $DEST"
+1845-  echo "REPORT URL:"
+1846:  echo "https://github.com/productionhome2022-hash/mawda-platform/tree/$BRANCH/$DEST"
+1847:  echo "PUSH_STATUS=SUCCESS"
+1848-else
+1849-  echo "===== REPORT PUBLICATION FAILED ====="
+1850:  echo "PUSH_STATUS=FAILED"
+1851-  echo "LOCAL REPORT: $AUDIT"
+1852:  echo "No force push was attempted."
+1853-fi
+1854-
+--
+1856-SCRIPT
+1857-
+1858:chmod +x /tmp/mawda_nov17_ubuntu_replay.sh
+1859:bash /tmp/mawda_nov17_ubuntu_replay.sh
+1860:cat > /tmp/mawda_historical_audit_nov17_18.sh <<'SCRIPT'
+1861-#!/usr/bin/env bash
+1862-set -Eeuo pipefail
+1863-
+1864:REPO="productionhome2022-hash/mawda-platform"
+1865:BRANCH="codex/mawda-full-platform-implementation"
+1866:ROOT="/root/mawda-platform"
+1867-START="2026-11-16T21:00:00Z"
+1868-END="2026-11-18T21:00:00Z"
+1869-STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+1870-AUDIT="docs/audit/historical-events-nov17-18-2026-${STAMP}"
+1871:BASE="/tmp/mawda-historical-audit-${STAMP}"
+1872-WT="${BASE}/worktree"
+1873-DATA="${BASE}/evidence"
+--
+1883-echo "HISTORICAL WINDOW UTC: $START -> $END"
+1884-echo "NO TESTS WILL BE EXECUTED"
+1885:echo "NO PRODUCTION OR FIREBASE CHANGES"
+1886-
+1887-fail() {
+--
+1891-}
+1892-
+1893:command -v git >/dev/null || fail "Git unavailable"
+1894:command -v gh >/dev/null || fail "GitHub CLI unavailable"
+1895-command -v jq >/dev/null || fail "jq unavailable"
+1896-[ -d "$ROOT/.git" ] || fail "Repository not found at $ROOT"
+1897:gh auth status >/dev/null 2>&1 || fail "GitHub authentication unavailable"
+1898-
+1899:git -C "$ROOT" fetch origin "$BRANCH" || fail "Could not fetch development branch"
+1900:git -C "$ROOT" fetch origin --prune || fail "Could not refresh remote refs"
+1901-
+1902:REMOTE_SHA="$(git -C "$ROOT" rev-parse "origin/$BRANCH")"
+1903-echo "REMOTE DEVELOPMENT SHA: $REMOTE_SHA"
+1904-
+1905:git -C "$ROOT" worktree add --detach "$WT" "origin/$BRANCH" ||
+1906-  fail "Could not create isolated audit worktree"
+1907-
+--
+1918-- Development branch: $BRANCH
+1919-- Base SHA: $REMOTE_SHA
+1920:- Local historical window: 2026-11-17 00:00 through 2026-11-18 23:59:59 (+03:00)
+1921:- Equivalent UTC window: $START through immediately before $END
+1922-- Collection timestamp UTC: $STAMP
+1923-- Purpose: historical evidence recovery only.
+1924:- No tests, builds, deployments, production changes, Firebase changes, or billing actions are performed by this audit.
+1925-
+1926-This report distinguishes independently verifiable GitHub evidence from local evidence,
+--
+1929-
+1930-echo "===== 1. REPOSITORY AND BRANCH INVENTORY ====="
+1931:git -C "$WT" remote -v > "$RAW/remotes.txt" 2>&1 || true
+1932:git -C "$WT" branch -a -vv > "$RAW/branches.txt" 2>&1 || true
+1933:git -C "$WT" tag --list > "$RAW/tags.txt" 2>&1 || true
+1934:git -C "$WT" log --all --date=iso-strict \
+1935-  --format='%H%x09%P%x09%an%x09%ae%x09%aI%x09%cI%x09%d%x09%s' \
+1936-  --since="$START" --until="$END" \
+--
+1938-
+1939-echo "===== 2. REMOTE BRANCHES ====="
+1940:gh api --paginate --jq '.[] | [.name,.commit.sha,.protected] | @tsv' \
+1941-  "repos/$REPO/branches?per_page=100" \
+1942-  > "$RAW/remote-branches.tsv" 2> "$RAW/remote-branches-errors.txt" || true
+1943-
+1944-echo "===== 3. COMMITS ON DEVELOPMENT BRANCH ====="
+1945:gh api --paginate --jq '.[]' "repos/$REPO/commits" \
+1946-  -f sha="$BRANCH" -f since="$START" -f until="$END" -f per_page=100 \
+1947-  > "$RAW/development-commits.jsonl" 2> "$RAW/development-commits-errors.txt" || true
+--
+1952-    [ -n "${bname:-}" ] || continue
+1953-    safe="$(printf '%s' "$bname" | tr '/ ' '__')"
+1954:    gh api --paginate --jq '.[]' "repos/$REPO/commits" \
+1955-      -f sha="$bname" -f since="$START" -f until="$END" -f per_page=100 \
+1956-      > "$RAW/branch-commits-${safe}.jsonl" \
+--
+1960-
+1961-echo "===== 5. GITHUB ACTIONS WORKFLOW RUNS ====="
+1962:gh api --paginate --jq '.workflow_runs[]' \
+1963-  "repos/$REPO/actions/runs" \
+1964-  -f created="2026-11-16..2026-11-18" -f per_page=100 \
+--
+1969-  while IFS= read -r runid; do
+1970-    [ -n "$runid" ] || continue
+1971:    gh api --paginate --jq '.jobs[]' \
+1972-      "repos/$REPO/actions/runs/$runid/jobs?per_page=100" \
+1973-      > "$RAW/run-${runid}-jobs.jsonl" \
+--
+1981-    [ -n "$runid" ] || continue
+1982-    mkdir -p "$RAW/run-${runid}-logs"
+1983:    gh run view "$runid" --repo "$REPO" --log \
+1984-      > "$RAW/run-${runid}-logs/workflow.log" \
+1985-      2> "$RAW/run-${runid}-logs/download-errors.txt" || true
+--
+1987-fi
+1988-
+1989:echo "===== 8. PULL REQUEST HISTORY ====="
+1990:gh api --paginate --jq '.[]' "repos/$REPO/pulls?state=all&per_page=100" \
+1991:  > "$RAW/pull-requests.jsonl" 2> "$RAW/pull-requests-errors.txt" || true
+1992-
+1993:if [ -s "$RAW/pull-requests.jsonl" ]; then
+1994-  jq -c --arg s "$START" --arg e "$END" '
+1995-    select(
+1996-      ((.created_at // "") >= $s and (.created_at // "") < $e) or
+1997-      ((.updated_at // "") >= $s and (.updated_at // "") < $e) or
+1998:      ((.merged_at // "") >= $s and (.merged_at // "") < $e)
+1999:    )' "$RAW/pull-requests.jsonl" > "$AN/relevant-pull-requests.jsonl"
+2000-fi
+2001-
+2002-echo "===== 9. REPOSITORY EVENTS API ====="
+2003:gh api --paginate --jq '.[]' "repos/$REPO/events?per_page=100" \
+2004-  > "$RAW/repository-events.jsonl" 2> "$RAW/repository-events-errors.txt" || true
+2005-
+--
+2008-  \( -iname '*nov17*' -o -iname '*nov18*' -o \
+2009-     -iname '*nov16-18*' -o -iname '*historical*' -o \
+2010:     -iname '*termux*' -o -iname '*ubuntu*' -o \
+2011:     -iname '*recovery*' -o -iname '*stage*' -o \
+2012:     -iname '*merge*' -o -iname '*integration*' \) \
+2013-  -print 2>/dev/null | sort > "$RAW/existing-audit-document-paths.txt" || true
+2014-
+--
+2036-done < "$RAW/workflow-definition-paths.txt"
+2037-
+2038:echo "===== 13. HISTORICAL TEST AND STAGE REFERENCES ====="
+2039:git -C "$WT" grep -n -i -E \
+2040:  'November 17|November 18|2026-11-17|2026-11-18|stage 1|stage 2|stage 3|stage 4|phase 1|phase 2|phase 3|phase 4|5000|Ubuntu|Termux|ARM64|Bionic|merge|integration' \
+2041:  $(git -C "$WT" rev-list --all --max-count=300) \
+2042-  -- docs .github 2>/dev/null \
+2043-  > "$RAW/historical-reference-search.txt" || true
+--
+2053-
+2054-## Owner-reported historical facts awaiting primary evidence
+2055:- The owner reports that Flutter/Dart execution on Termux Android ARM64 failed
+2056-  due to platform/TLS compatibility limitations.
+2057:- The owner reports that the work was moved to Ubuntu and the relevant checks
+2058-  succeeded there on 17 November 2026.
+2059:- The owner reports that four successive integration/unification stages passed.
+2060:- The exact stage definitions, commit boundaries, test runs, and acceptance
+2061:  records must be recovered. Do not invent stage names or claim verification
+2062-  without evidence.
+2063-
+--
+2067-  c759083e04ffd98616691c2e736207095aaf2dbc
+2068-- Previously observed three successful jobs:
+2069:  Flutter Analysis/Tests/Web Build;
+2070:  ClamAV/media processing;
+2071:  Cloud Functions and Firestore/Storage emulator integration.
+2072:- Previously reported 32 Flutter tests passed; retrieve original logs before
+2073-  treating the count as independently confirmed.
+2074-- The run's start time was observed on 17 November UTC, but corresponds to
+--
+2079-  5d328d7114cbf8dd2b93e5584fa5cf3ba5d49d20
+2080-  Report directory:
+2081:  docs/audit/termux/runs/normal-termux-nov16-18-20261121T214041/
+2082:  It records Termux environment limitations and is not Ubuntu evidence.
+2083-- Earlier recovery baseline report commit:
+2084-  02c7a3126583579e39560f5c8251a5645e1b041f
+2085-
+2086-## Current 21 November local replay attempt — NOT historical evidence
+2087:- A replay script was started in Ubuntu on 21 November.
+2088-- It encountered a /dev/fd/63 process-substitution issue.
+2089:- Flutter dependency retrieval showed "Failed to update packages" despite a
+2090-  misleading PASS marker. Treat that dependency result as failed/unverified.
+2091:- Flutter web build used an empty VAPID value; it is not equivalent to the
+2092-  protected GitHub CI build.
+2093:- Cloud Functions npm installation/testing was interrupted or incomplete.
+2094:- `npm test` reported `tsc: not found`.
+2095:- Scanner E2E syntax check passed; Ruby was unavailable.
+2096-- These 21 November events must be separated from 17–18 November history.
+2097-
+--
+2127-  echo "- Development-branch commits: $(wc -l < "$RAW/development-commits.jsonl" 2>/dev/null || echo 0)"
+2128-  echo "- Workflow runs collected: $(wc -l < "$RAW/workflow-runs.jsonl" 2>/dev/null || echo 0)"
+2129:  echo "- Pull requests collected: $(wc -l < "$RAW/pull-requests.jsonl" 2>/dev/null || echo 0)"
+2130-  echo "- Existing audit document paths: $(wc -l < "$RAW/existing-audit-document-paths.txt" 2>/dev/null || echo 0)"
+2131-  echo
+--
+2133-  echo "- GitHub API retention and permissions may limit historical logs."
+2134-  echo "- Repository events endpoint is not a complete permanent event archive."
+2135:  echo "- Commits reachable from current remote branches may omit deleted or force-pushed history."
+2136-  echo "- A missing run/log is not proof that an event never occurred."
+2137-  echo "- Context leads are not primary evidence."
+--
+2139-} > "$AN/COLLECTION-SUMMARY.md"
+2140-
+2141:echo "===== 17. FOUR-STAGE EVIDENCE REGISTER ====="
+2142:cat > "$AN/FOUR-STAGE-VERIFICATION.md" <<'EOF'
+2143:# Four-stage unification/integration verification
+2144-
+2145:| Stage | Owner-reported status | Primary evidence located | SHA / run / report | Verdict |
+2146-|---|---|---|---|---|
+2147:| Stage 1 | Reported passed | To be established | To be established | Pending evidence |
+2148:| Stage 2 | Reported passed | To be established | To be established | Pending evidence |
+2149:| Stage 3 | Reported passed | To be established | To be established | Pending evidence |
+2150:| Stage 4 | Reported passed | To be established | To be established | Pending evidence |
+2151-
+2152:Do not change a verdict to verified until the stage definition, commit(s),
+2153-test result(s), and acceptance evidence are linked.
+2154-EOF
+--
+2171-
+2172-echo "===== 20. PUBLISH REPORT TO DEVELOPMENT BRANCH ====="
+2173:git -C "$WT" add "$AUDIT"
+2174:git -C "$WT" -c user.name="Mawdda Historical Audit" \
+2175-  -c user.email="productionhome2022@gmail.com" \
+2176-  commit -m "docs(audit): recover historical evidence for Nov 17-18 2026" ||
+2177-  fail "Report commit failed"
+2178-
+2179:REPORT_SHA="$(git -C "$WT" rev-parse HEAD)"
+2180-echo "REPORT SHA: $REPORT_SHA"
+2181-
+2182:git -C "$WT" push origin "HEAD:refs/heads/$BRANCH" ||
+2183:  fail "Push rejected; no force push attempted"
+2184-
+2185-echo "===== PUBLISHED SUCCESSFULLY ====="
+--
+2189-echo "REPORT URL: https://github.com/$REPO/tree/$BRANCH/$AUDIT"
+2190-echo "SUMMARY URL: https://github.com/$REPO/blob/$BRANCH/$AUDIT/analysis/COLLECTION-SUMMARY.md"
+2191:echo "FOUR STAGES URL: https://github.com/$REPO/blob/$BRANCH/$AUDIT/analysis/FOUR-STAGE-VERIFICATION.md"
+2192-echo "LOCAL EXECUTION LOG: ${BASE}/execution.log"
+2193-echo "NO TESTS WERE RUN"
+--
+2195-SCRIPT
+2196-
+2197:chmod +x /tmp/mawda_historical_audit_nov17_18.sh
+2198:bash /tmp/mawda_historical_audit_nov17_18.sh
+2199-SCRIPT
+2200:cat > /tmp/mawda_historical_audit_nov17_18.sh <<'SCRIPT'
+2201-#!/usr/bin/env bash
+2202-set -Eeuo pipefail
+2203-
+2204:REPO="productionhome2022-hash/mawda-platform"
+2205:BRANCH="codex/mawda-full-platform-implementation"
+2206:ROOT="/root/mawda-platform"
+2207-START="2026-11-16T21:00:00Z"
+2208-END="2026-11-18T21:00:00Z"
+2209-STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+2210-AUDIT="docs/audit/historical-events-nov17-18-2026-${STAMP}"
+2211:BASE="/tmp/mawda-historical-audit-${STAMP}"
+2212-WT="${BASE}/worktree"
+2213-DATA="${BASE}/evidence"
+--
+2223-echo "HISTORICAL WINDOW UTC: $START -> $END"
+2224-echo "NO TESTS WILL BE EXECUTED"
+2225:echo "NO PRODUCTION OR FIREBASE CHANGES"
+2226-
+2227-fail() {
+--
+2231-}
+2232-
+2233:command -v git >/dev/null || fail "Git unavailable"
+2234:command -v gh >/dev/null || fail "GitHub CLI unavailable"
+2235-command -v jq >/dev/null || fail "jq unavailable"
+2236-[ -d "$ROOT/.git" ] || fail "Repository not found at $ROOT"
+2237:gh auth status >/dev/null 2>&1 || fail "GitHub authentication unavailable"
+2238-
+2239:git -C "$ROOT" fetch origin "$BRANCH" || fail "Could not fetch development branch"
+2240:git -C "$ROOT" fetch origin --prune || fail "Could not refresh remote refs"
+2241-
+2242:REMOTE_SHA="$(git -C "$ROOT" rev-parse "origin/$BRANCH")"
+2243-echo "REMOTE DEVELOPMENT SHA: $REMOTE_SHA"
+2244-
+2245:git -C "$ROOT" worktree add --detach "$WT" "origin/$BRANCH" ||
+2246-  fail "Could not create isolated audit worktree"
+2247-
+--
+2258-- Development branch: $BRANCH
+2259-- Base SHA: $REMOTE_SHA
+2260:- Local historical window: 2026-11-17 00:00 through 2026-11-18 23:59:59 (+03:00)
+2261:- Equivalent UTC window: $START through immediately before $END
+2262-- Collection timestamp UTC: $STAMP
+2263-- Purpose: historical evidence recovery only.
+2264:- No tests, builds, deployments, production changes, Firebase changes, or billing actions are performed by this audit.
+2265-
+2266-This report distinguishes independently verifiable GitHub evidence from local evidence,
+--
+2269-
+2270-echo "===== 1. REPOSITORY AND BRANCH INVENTORY ====="
+2271:git -C "$WT" remote -v > "$RAW/remotes.txt" 2>&1 || true
+2272:git -C "$WT" branch -a -vv > "$RAW/branches.txt" 2>&1 || true
+2273:git -C "$WT" tag --list > "$RAW/tags.txt" 2>&1 || true
+2274:git -C "$WT" log --all --date=iso-strict \
+2275-  --format='%H%x09%P%x09%an%x09%ae%x09%aI%x09%cI%x09%d%x09%s' \
+2276-  --since="$START" --until="$END" \
+--
+2278-
+2279-echo "===== 2. REMOTE BRANCHES ====="
+2280:gh api --paginate --jq '.[] | [.name,.commit.sha,.protected] | @tsv' \
+2281-  "repos/$REPO/branches?per_page=100" \
+2282-  > "$RAW/remote-branches.tsv" 2> "$RAW/remote-branches-errors.txt" || true
+2283-
+2284-echo "===== 3. COMMITS ON DEVELOPMENT BRANCH ====="
+2285:gh api --paginate --jq '.[]' "repos/$REPO/commits" \
+2286-  -f sha="$BRANCH" -f since="$START" -f until="$END" -f per_page=100 \
+2287-  > "$RAW/development-commits.jsonl" 2> "$RAW/development-commits-errors.txt" || true
+--
+2292-    [ -n "${bname:-}" ] || continue
+2293-    safe="$(printf '%s' "$bname" | tr '/ ' '__')"
+2294:    gh api --paginate --jq '.[]' "repos/$REPO/commits" \
+2295-      -f sha="$bname" -f since="$START" -f until="$END" -f per_page=100 \
+2296-      > "$RAW/branch-commits-${safe}.jsonl" \
+--
+2300-
+2301-echo "===== 5. GITHUB ACTIONS WORKFLOW RUNS ====="
+2302:gh api --paginate --jq '.workflow_runs[]' \
+2303-  "repos/$REPO/actions/runs" \
+2304-  -f created="2026-11-16..2026-11-18" -f per_page=100 \
+--
+2309-  while IFS= read -r runid; do
+2310-    [ -n "$runid" ] || continue
+2311:    gh api --paginate --jq '.jobs[]' \
+2312-      "repos/$REPO/actions/runs/$runid/jobs?per_page=100" \
+2313-      > "$RAW/run-${runid}-jobs.jsonl" \
+--
+2321-    [ -n "$runid" ] || continue
+2322-    mkdir -p "$RAW/run-${runid}-logs"
+2323:    gh run view "$runid" --repo "$REPO" --log \
+2324-      > "$RAW/run-${runid}-logs/workflow.log" \
+2325-      2> "$RAW/run-${runid}-logs/download-errors.txt" || true
+--
+2327-fi
+2328-
+2329:echo "===== 8. PULL REQUEST HISTORY ====="
+2330:gh api --paginate --jq '.[]' "repos/$REPO/pulls?state=all&per_page=100" \
+2331:  > "$RAW/pull-requests.jsonl" 2> "$RAW/pull-requests-errors.txt" || true
+2332-
+2333:if [ -s "$RAW/pull-requests.jsonl" ]; then
+2334-  jq -c --arg s "$START" --arg e "$END" '
+2335-    select(
+2336-      ((.created_at // "") >= $s and (.created_at // "") < $e) or
+2337-      ((.updated_at // "") >= $s and (.updated_at // "") < $e) or
+2338:      ((.merged_at // "") >= $s and (.merged_at // "") < $e)
+2339:    )' "$RAW/pull-requests.jsonl" > "$AN/relevant-pull-requests.jsonl"
+2340-fi
+2341-
+2342-echo "===== 9. REPOSITORY EVENTS API ====="
+2343:gh api --paginate --jq '.[]' "repos/$REPO/events?per_page=100" \
+2344-  > "$RAW/repository-events.jsonl" 2> "$RAW/repository-events-errors.txt" || true
+2345-
+--
+2348-  \( -iname '*nov17*' -o -iname '*nov18*' -o \
+2349-     -iname '*nov16-18*' -o -iname '*historical*' -o \
+2350:     -iname '*termux*' -o -iname '*ubuntu*' -o \
+2351:     -iname '*recovery*' -o -iname '*stage*' -o \
+2352:     -iname '*merge*' -o -iname '*integration*' \) \
+2353-  -print 2>/dev/null | sort > "$RAW/existing-audit-document-paths.txt" || true
+2354-
+--
+2376-done < "$RAW/workflow-definition-paths.txt"
+2377-
+2378:echo "===== 13. HISTORICAL TEST AND STAGE REFERENCES ====="
+2379:git -C "$WT" grep -n -i -E \
+2380:  'November 17|November 18|2026-11-17|2026-11-18|stage 1|stage 2|stage 3|stage 4|phase 1|phase 2|phase 3|phase 4|5000|Ubuntu|Termux|ARM64|Bionic|merge|integration' \
+2381:  $(git -C "$WT" rev-list --all --max-count=300) \
+2382-  -- docs .github 2>/dev/null \
+2383-  > "$RAW/historical-reference-search.txt" || true
+--
+2393-
+2394-## Owner-reported historical facts awaiting primary evidence
+2395:- The owner reports that Flutter/Dart execution on Termux Android ARM64 failed
+2396-  due to platform/TLS compatibility limitations.
+2397:- The owner reports that the work was moved to Ubuntu and the relevant checks
+2398-  succeeded there on 17 November 2026.
+2399:- The owner reports that four successive integration/unification stages passed.
+2400:- The exact stage definitions, commit boundaries, test runs, and acceptance
+2401:  records must be recovered. Do not invent stage names or claim verification
+2402-  without evidence.
+2403-
+--
+2407-  c759083e04ffd98616691c2e736207095aaf2dbc
+2408-- Previously observed three successful jobs:
+2409:  Flutter Analysis/Tests/Web Build;
+2410:  ClamAV/media processing;
+2411:  Cloud Functions and Firestore/Storage emulator integration.
+2412:- Previously reported 32 Flutter tests passed; retrieve original logs before
+2413-  treating the count as independently confirmed.
+2414-- The run's start time was observed on 17 November UTC, but corresponds to
+--
+2419-  5d328d7114cbf8dd2b93e5584fa5cf3ba5d49d20
+2420-  Report directory:
+2421:  docs/audit/termux/runs/normal-termux-nov16-18-20261121T214041/
+2422:  It records Termux environment limitations and is not Ubuntu evidence.
+2423-- Earlier recovery baseline report commit:
+2424-  02c7a3126583579e39560f5c8251a5645e1b041f
+2425-
+2426-## Current 21 November local replay attempt — NOT historical evidence
+2427:- A replay script was started in Ubuntu on 21 November.
+2428-- It encountered a /dev/fd/63 process-substitution issue.
+2429:- Flutter dependency retrieval showed "Failed to update packages" despite a
+2430-  misleading PASS marker. Treat that dependency result as failed/unverified.
+2431:- Flutter web build used an empty VAPID value; it is not equivalent to the
+2432-  protected GitHub CI build.
+2433:- Cloud Functions npm installation/testing was interrupted or incomplete.
+2434:- `npm test` reported `tsc: not found`.
+2435:- Scanner E2E syntax check passed; Ruby was unavailable.
+2436-- These 21 November events must be separated from 17–18 November history.
+2437-
+--
+2467-  echo "- Development-branch commits: $(wc -l < "$RAW/development-commits.jsonl" 2>/dev/null || echo 0)"
+2468-  echo "- Workflow runs collected: $(wc -l < "$RAW/workflow-runs.jsonl" 2>/dev/null || echo 0)"
+2469:  echo "- Pull requests collected: $(wc -l < "$RAW/pull-requests.jsonl" 2>/dev/null || echo 0)"
+2470-  echo "- Existing audit document paths: $(wc -l < "$RAW/existing-audit-document-paths.txt" 2>/dev/null || echo 0)"
+2471-  echo
+--
+2473-  echo "- GitHub API retention and permissions may limit historical logs."
+2474-  echo "- Repository events endpoint is not a complete permanent event archive."
+2475:  echo "- Commits reachable from current remote branches may omit deleted or force-pushed history."
+2476-  echo "- A missing run/log is not proof that an event never occurred."
+2477-  echo "- Context leads are not primary evidence."
+--
+2479-} > "$AN/COLLECTION-SUMMARY.md"
+2480-
+2481:echo "===== 17. FOUR-STAGE EVIDENCE REGISTER ====="
+2482:cat > "$AN/FOUR-STAGE-VERIFICATION.md" <<'EOF'
+2483:# Four-stage unification/integration verification
+2484-
+2485:| Stage | Owner-reported status | Primary evidence located | SHA / run / report | Verdict |
+2486-|---|---|---|---|---|
+2487:| Stage 1 | Reported passed | To be established | To be established | Pending evidence |
+2488:| Stage 2 | Reported passed | To be established | To be established | Pending evidence |
+2489:| Stage 3 | Reported passed | To be established | To be established | Pending evidence |
+2490:| Stage 4 | Reported passed | To be established | To be established | Pending evidence |
+2491-
+2492:Do not change a verdict to verified until the stage definition, commit(s),
+2493-test result(s), and acceptance evidence are linked.
+2494-EOF
+--
+2511-
+2512-echo "===== 20. PUBLISH REPORT TO DEVELOPMENT BRANCH ====="
+2513:git -C "$WT" add "$AUDIT"
+2514:git -C "$WT" -c user.name="Mawdda Historical Audit" \
+2515-  -c user.email="productionhome2022@gmail.com" \
+2516-  commit -m "docs(audit): recover historical evidence for Nov 17-18 2026" ||
+2517-  fail "Report commit failed"
+2518-
+2519:REPORT_SHA="$(git -C "$WT" rev-parse HEAD)"
+2520-echo "REPORT SHA: $REPORT_SHA"
+2521-
+2522:git -C "$WT" push origin "HEAD:refs/heads/$BRANCH" ||
+2523:  fail "Push rejected; no force push attempted"
+2524-
+2525-echo "===== PUBLISHED SUCCESSFULLY ====="
+--
+2529-echo "REPORT URL: https://github.com/$REPO/tree/$BRANCH/$AUDIT"
+2530-echo "SUMMARY URL: https://github.com/$REPO/blob/$BRANCH/$AUDIT/analysis/COLLECTION-SUMMARY.md"
+2531:echo "FOUR STAGES URL: https://github.com/$REPO/blob/$BRANCH/$AUDIT/analysis/FOUR-STAGE-VERIFICATION.md"
+2532-echo "LOCAL EXECUTION LOG: ${BASE}/execution.log"
+2533-echo "NO TESTS WERE RUN"
+--
+2535-SCRIPT
+2536-
+2537:chmod +x /tmp/mawda_historical_audit_nov17_18.sh
+2538:bash /tmp/mawda_historical_audit_nov17_18.sh
+2539-SCRIPT
+2540-history -a 2>/dev/null || true

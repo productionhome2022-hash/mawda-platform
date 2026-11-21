@@ -1,0 +1,6 @@
+SOURCE: /tmp/mawda-nov17-ubuntu-replay-20261121T193041Z/report/logs/functions_test_media-integration.log
+MODIFIED: 2026-11-21 22:40:59.222225434 +0300
+
+> test:media-integration
+> firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-media "node --test test/integration/media-callables.integration.test.js"
+

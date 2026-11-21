@@ -1,0 +1,742 @@
+HEAD:.github/workflows/bootstrap-native-platforms.yml:90:        run: flutter build apk --debug
+HEAD:.github/workflows/bootstrap-native-platforms.yml:137:        run: flutter build ios --no-codesign
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:1:name: Deploy and connect Mawda media scanner (non-production only)
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:20:        description: Cloud Run scanner service name
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:22:        default: mawda-media-scanner
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:29:      scanner_service_account:
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:30:        description: Runtime service account for Cloud Run scanner
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:48:    name: Build, deploy and connect scanner in non-production
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:61:          SCANNER_SA: ${{ inputs.scanner_service_account }}
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:91:          [[ "$SCANNER_SA" =~ ^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+\.iam\.gserviceaccount\.com$ ]] || exit 1
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:128:          npm ci --no-audit --no-fund
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:142:          SCANNER_SA: ${{ inputs.scanner_service_account }}
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:149:          gcloud iam service-accounts describe "$SCANNER_SA" --project "$PROJECT_ID" >/dev/null
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:151:          gcloud secrets describe MAWDA_MEDIA_SCANNER_API_TOKEN --project "$PROJECT_ID" >/dev/null
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:152:          gcloud secrets describe MAWDA_MEDIA_SCANNER_HMAC_SECRET --project "$PROJECT_ID" >/dev/null
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:158:          SCANNER_SA: ${{ inputs.scanner_service_account }}
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:162:          for secret in MAWDA_MEDIA_SCANNER_API_TOKEN MAWDA_MEDIA_SCANNER_HMAC_SECRET; do
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:165:              --member="serviceAccount:$SCANNER_SA" \
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:180:            --member="serviceAccount:$SCANNER_SA" \
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:198:              --project "$PROJECT_ID" --description="Mawda non-production media scanner"
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:201:      - name: Build and push the isolated ClamAV scanner image
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:208:          IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REPOSITORY/scanner:$GITHUB_SHA"
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:210:          docker build --pull -f scanner/Dockerfile -t "$IMAGE" scanner
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:212:          echo "SCANNER_IMAGE=$IMAGE" >> "$GITHUB_ENV"
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:214:      - name: Deploy private Cloud Run scanner service
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:215:        id: deploy_scanner
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:221:          SCANNER_SA: ${{ inputs.scanner_service_account }}
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:227:            --image "$SCANNER_IMAGE" --service-account "$SCANNER_SA" \
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:230:            --set-env-vars "SCANNER_CALLBACK_URL=$CALLBACK_URL,SCANNER_PROVIDER=clamav-mawadda-gateway,GCS_BUCKET=$BUCKET_NAME" \
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:231:            --set-secrets "SCANNER_API_TOKEN=MAWDA_MEDIA_SCANNER_API_TOKEN:latest,SCANNER_HMAC_SECRET=MAWDA_MEDIA_SCANNER_HMAC_SECRET:latest"
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:234:          echo "SCANNER_SERVICE_URL=$SERVICE_URL" >> "$GITHUB_ENV"
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:235:          echo "Scanner service deployed: $SERVICE_URL"
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:237:      - name: Allow only Firebase Functions runtime to invoke the scanner
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:254:      - name: Verify authenticated scanner health and ClamAV readiness
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:269:          TOKEN="$(gcloud auth print-identity-token --audiences="$SCANNER_SERVICE_URL")"
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:271:            -H "Authorization: Bearer $TOKEN" "$SCANNER_SERVICE_URL/healthz"
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:282:          printf 'MAWDA_MEDIA_SCANNER_URL=%s\n' "$SCANNER_SERVICE_URL/scan" >> ".env.$PROJECT_ID"
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:283:          printf 'MAWDA_MEDIA_SCANNER_CALLBACK_URL=%s\n' "$CALLBACK_URL" >> ".env.$PROJECT_ID"
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:284:          printf 'MAWDA_MEDIA_SCANNER_PROVIDER=clamav-mawadda-gateway\n' >> ".env.$PROJECT_ID"
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:291:      - name: Run live clean-image and EICAR scanner end-to-end verification
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:297:          MAWDA_MEDIA_LIVE_SCANNER_E2E: "1"
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:298:        run: npm run test:media-scanner-live-e2e
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:300:      - name: Report non-production scanner connection
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:305:          echo "Cloud Run scanner is private and deployed in non-production project: $PROJECT_ID"
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:306:          echo "Service URL: $SCANNER_SERVICE_URL/scan"
+HEAD:.github/workflows/deploy-nonproduction-media-scanner.yml:307:          echo "Firebase Functions were deployed with this scanner URL and callback configuration."
+HEAD:.github/workflows/firebase-hosting-merge.yml:36:        run: flutter analyze
+HEAD:.github/workflows/firebase-hosting-merge.yml:38:      - name: Run Flutter tests
+HEAD:.github/workflows/firebase-hosting-merge.yml:39:        run: flutter test
+HEAD:.github/workflows/firebase-hosting-merge.yml:44:        run: flutter build web --release --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY"
+HEAD:.github/workflows/firebase-hosting-merge.yml:54:        run: npm ci --no-audit --no-fund
+HEAD:.github/workflows/firebase-hosting-merge.yml:58:        run: npm test
+HEAD:.github/workflows/firebase-hosting-merge.yml:61:      - name: Set up Java for Firebase emulators
+HEAD:.github/workflows/firebase-hosting-merge.yml:67:      - name: Run Firestore and Storage rules emulator tests
+HEAD:.github/workflows/flutter-ci.yml:30:        run: flutter analyze
+HEAD:.github/workflows/flutter-ci.yml:33:        run: flutter test
+HEAD:.github/workflows/flutter-ci.yml:36:        run: flutter build web --release
+HEAD:.github/workflows/live-nonproduction-validation.yml:33:    name: Live scanner E2E and GCS generation-retention proof
+HEAD:.github/workflows/live-nonproduction-validation.yml:115:          npm ci --no-audit --no-fund
+HEAD:.github/workflows/live-nonproduction-validation.yml:118:      # Validate bucket policy and prove versioned-generation deletion before creating scanner fixtures.
+HEAD:.github/workflows/live-nonproduction-validation.yml:119:      # This makes the destructive scanner E2E fail fast if soft-delete or retention controls block cleanup.
+HEAD:.github/workflows/live-nonproduction-validation.yml:129:          MAWDA_MEDIA_LIVE_SCANNER_E2E: "1"
+HEAD:.github/workflows/live-nonproduction-validation.yml:130:        run: npm run test:media-scanner-live-e2e
+HEAD:.github/workflows/nonproduction-media-verification.yml:81:        run: npm ci
+HEAD:.github/workflows/refresh-flutter-lock.yml:53:        run: flutter analyze
+HEAD:.github/workflows/refresh-flutter-lock.yml:54:      - name: Run Flutter tests
+HEAD:.github/workflows/refresh-flutter-lock.yml:55:        run: flutter test
+HEAD:.github/workflows/refresh-flutter-lock.yml:57:        run: flutter build web --release
+HEAD:.github/workflows/validate.yml:46:        run: flutter analyze
+HEAD:.github/workflows/validate.yml:47:      - name: Run Flutter tests
+HEAD:.github/workflows/validate.yml:48:        run: flutter test
+HEAD:.github/workflows/validate.yml:52:        run: flutter build web --release --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY"
+HEAD:.github/workflows/validate.yml:76:        run: npm ci --no-audit --no-fund
+HEAD:.github/workflows/validate.yml:78:        run: npm test
+HEAD:.github/workflows/validate.yml:79:      - name: Syntax-check live non-production scanner E2E script
+HEAD:.github/workflows/validate.yml:80:        run: node --check scripts/test-live-media-scanner-e2e.cjs
+HEAD:.github/workflows/validate.yml:91:      - name: Set up Java for Firebase emulators
+HEAD:.github/workflows/validate.yml:96:      - name: Run media callable authorization and audit integration tests
+HEAD:.github/workflows/validate.yml:97:        run: npm run test:media-integration
+HEAD:.github/workflows/validate.yml:98:      - name: Run seven-day chat retention integration tests
+HEAD:.github/workflows/validate.yml:99:        run: npm run test:retention-integration
+HEAD:.github/workflows/validate.yml:100:      - name: Run direct-message deletion authorization and erasure integration tests
+HEAD:.github/workflows/validate.yml:101:        run: npm run test:message-deletion-integration
+HEAD:.github/workflows/validate.yml:102:      - name: Run coin transfer and store purchase transactional integration tests
+HEAD:.github/workflows/validate.yml:103:        run: npm run test:wallet-store-integration
+HEAD:.github/workflows/validate.yml:104:      - name: Run room rental pricing and lifecycle integration tests
+HEAD:.github/workflows/validate.yml:105:        run: npm run test:room-rental-integration
+HEAD:.github/workflows/validate.yml:106:      - name: Run room event scheduling and RSVP integration tests
+HEAD:.github/workflows/validate.yml:107:        run: npm run test:room-events-integration
+HEAD:.github/workflows/validate.yml:108:      - name: Verify Firestore and Storage emulator backup/restore
+HEAD:.github/workflows/validate.yml:109:        run: npm run test:emulator-backup-restore
+HEAD:.github/workflows/validate.yml:110:      - name: Run FCM token registration and deactivation integration tests
+HEAD:.github/workflows/validate.yml:111:        run: npm run test:push-token-integration
+HEAD:.github/workflows/validate.yml:112:      - name: Run 30-day biometric reward cycle integration tests
+HEAD:.github/workflows/validate.yml:113:        run: npm run test:biometric-integration
+HEAD:.github/workflows/validate.yml:114:      - name: Run 90-day email verification renewal and reward integration tests
+HEAD:.github/workflows/validate.yml:115:        run: npm run test:email-renewal-integration
+HEAD:.github/workflows/validate.yml:116:      - name: Run safety report and appeal lifecycle integration tests
+HEAD:.github/workflows/validate.yml:117:        run: npm run test:safety-integration
+HEAD:.github/workflows/validate.yml:118:      - name: Run guest and member privacy acknowledgement integration tests
+HEAD:.github/workflows/validate.yml:119:        run: npm run test:guest-privacy-integration
+HEAD:.github/workflows/validate.yml:120:      - name: Run guest session and public-room interaction integration tests
+HEAD:.github/workflows/validate.yml:121:        run: npm run test:guest-session-integration
+HEAD:.github/workflows/validate.yml:122:      - name: Provision emulator-only test personas and exercise cross-persona wallet interaction
+HEAD:.github/workflows/validate.yml:124:      - name: Run owner audit export pagination and redaction integration tests
+HEAD:.github/workflows/validate.yml:125:        run: npm run test:owner-audit-export-integration
+HEAD:.github/workflows/validate.yml:126:      - name: Run media legal hold and release integration tests
+HEAD:.github/workflows/validate.yml:127:        run: npm run test:media-legal-hold-integration
+HEAD:.github/workflows/validate.yml:128:      - name: Run avatar and cover lifecycle integration tests
+HEAD:.github/workflows/validate.yml:129:        run: npm run test:profile-media-integration
+HEAD:.github/workflows/validate.yml:130:      - name: Run premium profile, analytics, greeting, pin and discovery integration tests
+HEAD:.github/workflows/validate.yml:131:        run: npm run test:premium-profile-integration
+HEAD:.github/workflows/validate.yml:132:      - name: Run message legal hold and resumed retention integration tests
+HEAD:.github/workflows/validate.yml:133:        run: npm run test:message-legal-hold-integration
+HEAD:.github/workflows/validate.yml:134:      - name: Run Firestore and Storage rules emulator tests
+HEAD:.github/workflows/validate.yml:137:  scanner:
+HEAD:.github/workflows/validate.yml:138:    name: Isolated ClamAV scanner gateway tests and image build
+HEAD:.github/workflows/validate.yml:146:      - name: Validate scanner source and security contracts
+HEAD:.github/workflows/validate.yml:148:          node --check scanner/server.js
+HEAD:.github/workflows/validate.yml:149:          node --check scanner/security.js
+HEAD:.github/workflows/validate.yml:150:          node --check scanner/processors.js
+HEAD:.github/workflows/validate.yml:151:          sh -n scanner/start.sh
+HEAD:.github/workflows/validate.yml:152:          node --test scanner/test/security.test.js scanner/test/processors.test.js
+HEAD:.github/workflows/validate.yml:153:      - name: Build isolated ClamAV scanner container
+HEAD:.github/workflows/validate.yml:154:        run: docker build --tag mawda-clamav-scanner:ci scanner
+HEAD:.github/workflows/validate.yml:155:      - name: Run real GIF, audio, video and PDF sanitization tests inside the scanner image
+HEAD:.github/workflows/validate.yml:156:        run: docker run --rm --entrypoint npm mawda-clamav-scanner:ci test
+HEAD:.github/workflows/validate.yml:159:          docker run --rm --entrypoint sh mawda-clamav-scanner:ci -c '
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:15:- emulator evidence,
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:18:The store is not a single undifferentiated feature. Twelve premium SKUs are server-allowlisted and covered by transactional emulator tests; two privacy SKUs are deliberately fail-closed. Most of the twelve have concrete profile consumers. The custom-title SKU previously exposed the catalog title but had no member editor. The follow-up adds an entitlement-gated custom-title callable, profile editor, audit entry, and expiry tests; the exact-head CI run passed.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:28:| `avatar_frame_30d` | 30-day frame entitlement | Animated avatar frame around the avatar | Implemented in Flutter; emulator purchase coverage |
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:29:| `username_color_30d` | 30-day username style | Colored display name | Implemented in Flutter; emulator purchase coverage |
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:30:| `username_animated_30d` | 30-day username style | Animated display name | Implemented in Flutter; emulator purchase coverage |
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:31:| `profile_analytics_30d` | 30-day analytics | Unique-view count over the last seven days | Server-counted and owner-visible; emulator coverage |
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:32:| `profile_layout_30d` | 30-day layout | Premium profile header/card layout | Implemented in Flutter; emulator purchase coverage |
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:33:| `profile_pin_30d` | 30-day pin | Pin bio/interests/gallery section | Callable + UI selector; emulator coverage |
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:34:| `discovery_boost_7d` | Seven-day boost | Server-side discovery ranking and boost indicator | Implemented; emulator coverage |
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:35:| `profile_theme_30d` | 30-day theme | Premium profile background treatment | Implemented in Flutter; emulator purchase coverage |
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:36:| `visitor_greeting_30d` | 30-day greeting | Owner-configured visitor greeting | Callable + UI editor; emulator coverage |
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:42:- Purchase, wallet debit, receipt, ledger, entitlement, and idempotent replay are covered by emulator tests.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:49:- The integration test includes the badge SKU in the 12-item purchase suite.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:70:- Emulator integration covers all 12 currently fulfillment-ready SKUs, replay protection, catalog owner behavior, and rejection of privacy SKUs without a debit.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:88:- Full widget-level tests for the profile's visual states and premium effects are not present in the current Flutter test inventory; CI currently runs Flutter analysis, the available unit tests, and the web release build.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:97:- The 90-day renewal callable resets the Auth verification state, creates a pending cycle, and credits 500 coins only after Firebase Auth reports the same email verified again. Emulator tests simulate link redemption by updating the Auth emulator user; they do not prove real email deliverability or inbox/deep-link behavior.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:102:- Emulator suites cover guest session/privacy and seeded persona interaction. Native Flutter UI-to-callable device E2E, account recreation abuse controls, App Check/device attestation, upgrade collision/recovery and physical-device media acceptance remain open.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:122:- The overview currently reports member, room and transfer counts plus registration/transfer settings; it is not a full service-health, fraud, queue, scanner, FCM-delivery, archive, or billing observability dashboard.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:128:### Implemented and covered in CI/emulators
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:130:- Isolated ClamAV scanner container, EICAR detection, image/GIF/audio/video/PDF sanitization/processing tests.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:133:- Firestore and Storage rules emulator tests.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:134:- Firestore/Storage emulator backup/restore verification script and CI step.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:138:- Cloud Run deployment and IAM/Secret Manager/WIF configuration for the scanner, real upload → scan → process → callback → delivery E2E, retry/dead-letter and monitoring behavior.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:152:2. Cloud Functions TypeScript build/unit suite plus configured Firestore/Auth/Storage emulator integration and rules tests.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:153:3. Isolated ClamAV scanner source/security tests, container build, processing tests and EICAR detection.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:155:The follow-up branch adds custom-title fulfillment tests, biometric UI duplicate-action protection, this audit, and a CI trigger for pushes/PRs targeting the development branch. Those follow-up changes passed the exact-head CI run 43580251762. The three jobs (Flutter, Cloud Functions/emulator suite, and ClamAV scanner) all completed successfully.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:157:The current green Flutter CI run reports 11 tests passed and `flutter analyze` with no issues. This remains a small unit/widget test inventory relative to the full product: login, profile, shop, owner console, room, guest lifecycle and member-media screens still need broader widget/integration and physical-device coverage.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:161:### Must be completed in code/emulator CI
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:163:- [ ] Add Flutter widget/integration tests for email sign-up/login/verification gate, guest upgrade/end, shop filters/purchase-disabled state, profile premium effects/expiry, and owner console navigation/error states.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:172:- [ ] Configure a disposable non-production GCP project, bucket, WIF and Cloud Run scanner; complete live media E2E.
+HEAD:docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md:190:- Phase 1 and Phase 2 remain **OPEN** until every applicable code, emulator, live-cloud, security, legal, recovery and device gate has evidence.
+HEAD:docs/FCM_SETUP.md:19:إذا لم يُضبط المتغير، يتعمد التطبيق تعطيل تسجيل Web Push بدلاً من طلب رمز غير صالح. لا يعني نجاح CI أو اختبار Emulator أن إشعاراً حقيقياً وصل إلى جهاز.
+HEAD:docs/FCM_SETUP.md:23:- CI يختبر تسجيل رمز FCM وإلغاء تفعيله على Firestore Emulator.
+HEAD:docs/FIREBASE_PROJECT_CONFIGURATION.md:71:- CI tests rules in emulators. The production Hosting workflow deploys Hosting only (`firebase deploy --only hosting`), not Firestore or Storage rules.
+HEAD:docs/FIREBASE_PROJECT_CONFIGURATION.md:87:- `firebase.json` configures classic Firebase Hosting, Cloud Functions, Firestore rules, Storage rules, and local emulators.
+HEAD:docs/FIREBASE_PROJECT_CONFIGURATION.md:100:8. Plan a separately reviewed deployment of Firestore/Storage rules only after emulator tests, production diff review, rollback preparation and explicit owner approval.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:15:2. A requirement moves through distinct states: **specified → designed → implemented → automated-tested → emulator/integration-tested → device/platform-tested → security-reviewed → release-approved**. Never collapse these states into a single “done”.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:26:| 1. Build reproducibility | Engineering and CI | Pinned toolchains, committed Flutter/npm lockfiles, deterministic dependency install, analysis/tests/build gates | Clean reproducible CI on exact commit; lockfile-enforced install | Both lockfiles are committed and CI now consumes them strictly with Flutter `--enforce-lockfile` and `npm ci`; full run 43253865808 passed on the lockfile-bearing head |
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:27:| 2. Identity and account lifecycle | Accounts, registration, profiles; owner access | Firebase project alignment, auth flows, verification, recovery, owner bootstrap/MFA, profile privacy and validation | Non-production Firebase integration tests; MFA enrollment/challenge/recovery/revocation tests; device UX | Versioned privacy notice acknowledgement is now captured before signup and enforced by a server gate before profile completion/protected member access; email verification and profile completion foundations exist. Full localized legal policy, guest consent/session gating, recurring 90-day email lease/reward, native Android/iOS local-auth prompt and privacy disclosure are implemented in progress; native platform scaffold/device validation, server-verifiable 30-day cycle and 1,500-coin reward remain open, owner MFA provisioning, native Firebase configuration and device verification remain blockers |
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:47:- Added authenticated room discovery through `listMemberRooms`, age-audience filtering, joined/public room separation, join action, and owner-only room creation UI. Backend compile/unit and emulator tests plus Flutter analysis/tests/web build passed in run `43256395065`; runtime Firestore data/index behavior and device tests remain open.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:48:- Added a one-to-one direct-chat screen with message history, composer, refresh, and safe empty-conversation behavior. Server derives the deterministic conversation ID from the authenticated member and peer UID; send/read remain callable-authorized. Direct-chat helper tests, Functions compilation/unit tests, Flutter analysis/tests, and web build passed in run `43254314464`; full callable integration and device tests remain open.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:78:- CI, emulator, real-service, device, and platform evidence separately.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:102:| AI-5 Links | Role-based biometric/member/owner/moderator/Super Admin authorization tests; verified-member YouTube/Facebook/Instagram/X allowlist explicitly includes YouTube; owner/moderator room allowlist remains separate; Firestore rules reject client self-assignment of biometric status; proof that biometric status is server-owned, expiring and revocable; URL normalization and allowlist tests across text/rich surfaces; bypass, redirect, shortener, lookalike, IDN/punycode and revocation tests | Partial backend policy wiring; biometric verification workflow and integration tests remain open |
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:134:- Still pending: per-link temporary hide controls; callable-level authorization/integration tests and full cross-account/privacy tests; and the actual biometric provider/capture workflow. The biometric workflow is not implemented, so this feature is not yet available to members. Current UI and backend code are foundations, not a launched biometric service.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:157:- WhatsApp consumer accounts have no general consumer OAuth identity flow equivalent to the other providers. Verify phone-number control with a one-time code via an approved SMS/voice or officially supported WhatsApp route, then create a wa.me contact link. Label as phone-number verified, not WhatsApp OAuth connected. WhatsApp Business onboarding is a separate business integration.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:163:**Requirement status:** Approved product/security requirement; not evidence of implementation. The biometric capture, provider integration, identity proofing, liveness/PAD, reward, and entitlement workflows remain release-blocking until implemented and tested.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:210:| C4 | Chat cleanup and media reconciliation | Emulator/integration tests, orphan detection, reference consistency | Open |
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:219:- Each run validates Flutter analysis, Flutter tests, and the release web build, plus Cloud Functions compilation/unit tests and Firestore/Storage emulator rules tests.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:233:- **Status:** latest validated development snapshot `70617a0a61b4458a19eddc7992129905f96852f0` passed GitHub Actions run `43269355123`: strict lockfile installs, Flutter analysis/tests/Web release build, Cloud Functions compilation/unit tests, and Firestore/Storage emulator tests all succeeded. This validates that exact PR snapshot, not production Firebase configuration, external provider integrations, or deployment. No merge or production deployment was performed.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:268:- **Validation state:** owner participation hash-chain integration and announced-review failure-audit handling passed the full CI suite on `1d383176b5242e66da2c3c4b2413e3cc2913f977` in run `43276736215`, including Flutter analysis/tests/Web release build, Cloud Functions compilation/unit tests, and Firestore/Storage emulator tests. This documentation-only update must still pass its own head CI. No local test execution or production deployment is claimed.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:279:- Firestore rules deny all client access to media metadata and audit collections; Storage rules continue to deny all client reads and writes, including quarantine paths. Emulator regression tests cover these denials.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:280:- **Open before release:** integrate a trusted malware/content scanner and safe image/video/audio processing pipeline; enforce upload size at the signed-upload transport layer rather than only at finalization; add per-account quotas/rate limits and abandoned-upload cleanup; add owner UI; add signed URL leakage/expiry tests, storage emulator/integration tests for callable behavior, and verify the actual production bucket CORS/configuration. Do not set `security_approved` or expose media to members until scanner verdicts are authenticated and tested.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:292:- **Completed in CI:** owner/member/anonymous-guest/stale-MFA callable authorization cases, audit-event assertions, invalid uploader-filter rejection, valid quarantined PNG finalization, and rejection/deletion of a file whose bytes contradict its declared type. The integration suite deliberately imports the media module before Admin initialization to guard against eager initialization regressions.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:293:- **Validation:** full GitHub Actions run `43375143894` passed on commit `7cf6819bca43b07d921b117e9ce6e89443fb9728`: Flutter analysis, Flutter tests, Web release build, locked Functions dependency install, Functions compilation/unit tests, media callable authorization/audit integration tests on Firestore+Storage emulators, and Firestore/Storage rules emulator tests. This is CI evidence for that exact commit, not production/device/security-scanner approval. No production bucket configuration, live data, or deployment was changed.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:304:- Exercise actual signed URL HTTP behavior against the Storage emulator or a dedicated isolated test bucket: successful upload/read, expiry enforcement, generation preconditions, and replay/overwrite attempts. Do not claim single-use semantics; V4 signed URLs remain bearer links until expiry.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:306:- Integrate an authenticated trusted malware/content scanner and safe image/video/audio processing pipeline. Keep all media quarantined and do not set `security_approved` or expose member-facing media until a trusted verdict and processing result are verified server-side.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:317:- These tests validate the application expiry values passed to the signer. They do not yet exercise Cloud Storage's actual expiry enforcement, URL leakage, or post-expiry HTTP behavior; those require a Storage integration test.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:325:- Added unit coverage for concurrent count, active-byte, daily-byte, UTC rollover and inconsistent release state; added emulator integration coverage for successful reservation and exhausted concurrent quota.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:327:- Still open: real HTTP PUT/GET signed URL behavior against a dedicated non-production GCS bucket (including expiry, create-only replay/overwrite and generation checks); replace the owner inspection bearer URL handoff with an authenticated streaming preview; integrate a trusted malware scanner and isolated content processing; expired-intent cleanup and abandoned-reservation recovery; retention/export/legal-hold policy approval; App Check/MFA lifecycle and real-device verification.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:328:- Do not treat the new quota defaults as owner-approved production policy. Do not enable member delivery or `security_approved` until a trusted scanner verdict and safe processing pipeline are verified. No production Firebase changes, merge, or deployment.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:335:- Raster image/GIF maximum is 5 MiB. GIF processing is bounded by a 100-frame ceiling and a 40-million-pixel aggregate limit before re-encoding to a private WebP derivative capped at 2 MiB. Other categories retain their server-side per-file caps; clean video/audio/PDF files remain scanner_clean_pending_processing and are not member-deliverable until type-aware safe processing exists.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:336:- The isolated ClamAV service lives under scanner/. It requires Cloud Run IAM identity plus a separate high-entropy service token, validates exact bucket/object/generation/content type and the configured callback URL, downloads only over HTTPS without redirects, scans with bounded ClamAV limits, and signs the verdict with HMAC-SHA256. The backend independently hashes the source generation and verifies the safe WebP derivative before security_approved.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:340:- Still open before phase-two exit: deploy and verify the scanner in non-production (including EICAR detection, clean samples, malformed/oversized objects, stale generation, bad HMAC, duplicate callback and retry behavior); execute the real-GCS HTTP test; initialize App Check in Flutter and verify supported platforms; finish safe processing for video/audio/PDF; confirm retention/legal-hold and audit-retention/export policy; test actual bucket CORS, IAM, MFA lifecycle and device flows.
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:350:| Manual coin purchase requests | Package/custom quantity request; owner contact/instructions in direct chat; owner records external verification; only owner approval transaction credits coins with linked ledger/audit/idempotency | Implemented in callable/member/owner UI; package/custom/withdraw/approval/replay emulator tests passed on SHA `5a3b01e`. No payment gateway or automatic issuance |
+HEAD:docs/IMPLEMENTATION_TRACEABILITY.md:351:| Owner live-stream broadcasts | Owner-only HTTPS stream links in owner/member direct chats, active public rooms and active rented private rooms; idempotent audit and no SSRF fetch | Backend callable, URL policy, direct/room message rendering and owner composer implemented; authorization, URL and room lifecycle integration tests passed on SHA `5a3b01e`. Official in-app player and upper/lower split layout remain open |
+HEAD:docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md:120:- Use automated tests and device/emulator validation. A visual mockup is not evidence of backend integration or production readiness.
+HEAD:docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md:128:- Report separately what is specified, implemented, CI-tested, emulator-tested, and verified against real Firebase/devices.
+HEAD:docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md:162:- Use secure secret management, dependency scanning, static analysis, code review, security tests, emulator/rules tests, backup/restore drills, incident response and independent penetration testing before public launch.
+HEAD:docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md:187:Every feature must be reported in separate states: specified, implemented, automated-test passed, emulator/integration-tested, real-service verified, device-tested, security-reviewed and production-approved. Do not collapse these into a single "done" label.
+HEAD:docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md:191:2. Passing analysis, unit, integration, rules, web and platform builds.
+HEAD:docs/MAWADDA_PRODUCT_CONSTITUTION.md:21:- Coin acquisition supports two separately controlled channels: (1) direct/manual purchase requests handled personally by the owner, and (2) optional automated checkout through a future payment-provider integration.
+HEAD:docs/MAWADDA_PRODUCT_CONSTITUTION.md:85:- **WhatsApp distinction:** WhatsApp consumer accounts do not offer a general-purpose consumer OAuth identity-link flow equivalent to Facebook/X. For an individual's WhatsApp contact, verify control of the phone number using a one-time code delivered through an approved SMS/voice verification provider (or an officially supported WhatsApp verification route where available), then let the member explicitly publish the resulting wa.me contact link. Label this “Phone number verified” rather than falsely claiming “WhatsApp OAuth connected.” WhatsApp Business accounts may use Meta's official WhatsApp Business Platform onboarding/Embedded Signup where the product actually needs a Business account integration; do not represent that as verification of an ordinary personal account.
+HEAD:docs/MAWADDA_PRODUCT_CONSTITUTION.md:166:- Emulator tests may advance/reset the guest-session clock by changing emulator fixture data or using an isolated test clock. No production client, callable, or administrative UI may accept a client-supplied time override.
+HEAD:docs/MAWADDA_PRODUCT_CONSTITUTION.md:167:- **Implementation status — 14 November 2026:** the guest preview runtime is implemented in the development branch: age-free guest profile setup, server-authoritative 60-minute/24-hour session lifecycle, public-room discovery restricted to approved general-audience rooms, join/send/read/audio authorization, text/audio room UI, in-app microphone recording and playback, and emulator integration coverage for guest/member interaction and prohibited operations. This is CI/emulator evidence, not physical-device acceptance. Cross-device/recreated-anonymous-identity abuse resistance, App Check/device attestation, and native UI-to-callable device smoke tests remain release blockers.
+HEAD:docs/MAWADDA_PRODUCT_CONSTITUTION.md:241:- **Release gate:** this capability is not live until the backend job engine, IAM/owner/MFA checks, dry-run binding, quarantine/restore, storage reconciliation, legal-hold exclusions, emulator/integration tests, backup restore drills, and production runbook are independently reviewed. The Flutter panel must clearly distinguish available, preview-only, and not-yet-enabled operations.
+HEAD:docs/MAWADDA_PRODUCT_CONSTITUTION.md:261:- Use dependency lockfiles, reproducible toolchains, code review, static analysis, unit/integration/emulator tests, security scanning, monitoring, backups, and recovery drills.
+HEAD:docs/MAWADDA_PRODUCT_CONSTITUTION.md:280:Several product areas remain partial or unimplemented: member-to-member in-app audio recording/playback, full DM and notification UX, some media workflows and physical-device acceptance, full room lifecycle and in-app voice/video calling, room rental billing acceptance, automated real-money payment verification/top-ups/refunds, full owner console and service-health observability, identity/background management UI, monitoring and recovery drills. The twelve current premium store SKUs have server purchase/entitlement and emulator coverage with profile consumers; privacy add-ons remain fail-closed. Custom-title editing is implemented and has emulator coverage. Android/iOS/Web Firebase app registration and FlutterFire configuration have now been generated and validated by the native workflow; Android debug APK and unsigned iOS builds passed, but no physical-device acceptance or signed store release has been completed.
+HEAD:docs/MAWDDA_PLATFORM_STATUS_2026.md:3:This document distinguishes source-code implementation, automated test evidence, and production acceptance. A passing emulator/CI run is not proof of a deployed production service.
+HEAD:docs/MAWDDA_PLATFORM_STATUS_2026.md:38:Implemented and tested in CI/emulator scope:
+HEAD:docs/MAWDDA_PLATFORM_STATUS_2026.md:41:- ClamAV scanner image build and harmless EICAR detection; GIF/audio/video/PDF processing tests.
+HEAD:docs/MAWDDA_PLATFORM_STATUS_2026.md:43:- Firestore and Storage emulator export/import smoke test for persistence of a document and media object across restore.
+HEAD:docs/MAWDDA_PLATFORM_STATUS_2026.md:45:Not yet proven: live signed GCS upload/download, production generation-specific deletion, Cloud Run scanner deployment, real bucket retention, backup/PITR, or production restore.
+HEAD:docs/MAWDDA_PLATFORM_STATUS_2026.md:49:- Room rental billing and lifecycle foundations are covered by emulator tests.
+HEAD:docs/MAWDDA_PLATFORM_STATUS_2026.md:63:1. Provision and verify non-production GCP/Firebase resources, Cloud Run scanner, runtime IAM and locked archive bucket.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:16:| Coin transfers and ledger | Server-calculated commission, freshness/idempotency checks and linked sender/recipient/platform ledger entries; manual external-payment coin requests now have member/owner UI and trusted callables | Manual package/custom lifecycle, owner DM instructions, no-credit-before-approval, atomic ledger/audit credit, replay protection and withdrawal passed Firestore-emulator integration on exact tested SHA `5a3b01e`. Automated payment, refunds/chargebacks and reconciliation remain open |
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:20:| Store and entitlements | Catalog/purchase/receipt/ledger foundations; VIP/title consumers; manual top-up request flow added separately; other categories fail closed | Store-purchase and manual top-up emulator integration passed on exact tested SHA `5a3b01e`. Remaining premium consumers and all automated real-money payment/refund operations remain open |
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:33:- Unit validation and Firestore-emulator lifecycle tests passed on exact tested SHA `5a3b01e` in run `43472163162`. The owner still performs external payment verification manually.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:41:- Emulator tests cover owner-only authorization, direct conversation scope, public rooms, active rented rooms, closed/expired room rejection, unsafe URL rejection, replay and message deletion.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:48:| Upload intents and quarantine | Authenticated scoped intents, finalization checks, generation/size/signature validation | Unit/emulator coverage passed |
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:49:| Owner/member/guest authorization | Trusted uploader classification, owner/MFA-gated review and access controls | Unit/emulator coverage passed; guest lifecycle remains limited to Firebase Anonymous Auth |
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:50:| Malware scanning | Isolated ClamAV image, scanner tests and EICAR detection | CI passed; deployed Cloud Run E2E remains open |
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:51:| Safe processing | GIF animation-preserving sanitation, audio/video transcoding, raster-flattened PDF, bounded outputs and provenance | Real processor integration tests in scanner container passed |
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:52:| Derivative trust | Typed callback validation and backend object/hash/generation/provenance verification | Unit/integration tests passed |
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:53:| Chat media send/receive | Direct/room UI and trusted callables for supported images/GIF/existing audio/video; owner-originated PDF only | Emulator/Flutter CI passed; physical-device checks open |
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:54:| Media access | Membership/linkage/status/expiry and generation-pinned short-lived URLs | Emulator tests passed; real GCS HTTP expiry/replay open |
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:55:| Erasure and retention | Exact canonical original/derivative cleanup, tombstones, retry and late-object reconciliation | Firestore/Storage emulator tests passed |
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:56:| Legal holds | Media hold/review/release; protects all supported derivative classes and resumes deletion; message legal-hold tests | Expanded exact-head emulator tests passed |
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:57:| Profile media/stories | Safe avatar/cover selection/reset/expiry and story publish/feed/expiry | Emulator integration tests passed |
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:77:1. Scanner job: source/security contract checks, Docker build, GIF/audio/video/PDF processing integration tests inside the image, EICAR detection.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:78:2. Cloud Functions job: TypeScript build/unit tests; media authorization/audit; seven-day retention; direct-message deletion; coin-transfer/store-purchase transactional integration (4/4 passed); owner audit export; expanded media legal hold/release; profile media lifecycle; message legal hold/resumed retention; Firestore and Storage rules.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:79:3. Flutter job: strict lockfile install, `flutter analyze`, `flutter test`, and `flutter build web --release`.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:86:- [ ] Deploy and exercise the scanner in non-production Cloud Run: upload → ClamAV → type-specific processing → authenticated callback → safe derivative → authorized recipient delivery. Verify IAM, Secret Manager, retries/dead letters and monitoring.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:97:The wallet/store integration test and store-catalog projection fix are included in the exact tested code commit above. The PR remains draft/open/unmerged. No production deployment, production Firebase mutation, destructive purge, or retention-worker activation has been performed. Do not advance to Phase 3 or production until the applicable closure gates above have evidence and the owner explicitly approves the release boundary.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:106:- **Manual coin requests:** package or custom-quantity request, owner-provided payment instructions, owner-recorded external verification, then one atomic owner approval that credits coins and ledger. No gateway, no automatic cash payment, and no coin issuance before owner approval. Backend/UI/integration tests remain open.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:116:- Cloud Functions compile, unit tests and emulator integration suite: PASS.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:118:- Isolated ClamAV scanner security tests, Docker image build, media processing and EICAR detection: PASS.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:129:- Emulator integration tests cover package request, no-credit-before-approval, owner instruction delivery, approval/idempotency, custom request/withdrawal and owner-claim denial.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:138:- Emulator tests cover direct and room sends, replay idempotency, non-owner denial, unsafe URL rejection, closed room denial and expired private rental denial.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:151:- Non-production GCS/Cloud Run scanner E2E, signed URL and generation-pinned deletion, backups/PITR/restore, FCM real delivery, mobile-device acceptance, privacy/legal review, penetration/accessibility/performance tests, owner MFA recovery and immutable 24-month audit archive/checkpoint remain release gates.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:162:- [Run 43607804675](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43607804675) passed all three validation jobs: Flutter analysis (no issues), 11 Flutter tests, Web release build; Cloud Functions build, 201 unit tests and configured emulator integration/rules suites; isolated scanner tests and image build.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:167:- Guest preview is no longer merely an anonymous account marker: the development branch implements age-free username/country/gender onboarding, guest privacy acknowledgement, trusted 60-minute session and 24-hour cooldown, all-ages approved public-room discovery, text/audio send/receive, and server-side denial of private/adult/unapproved rooms, DMs, wallet, store, gifts and member-only operations. Emulator suites cover guest session/privacy and seeded persona interaction. Physical-device UI-to-callable tests and anonymous-account recreation/App Check abuse resistance remain open.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:171:- The 90-day email verification renewal callable and emulator coverage exist; real Firebase Auth email delivery, link continuation and device acceptance remain open.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:172:- The premium catalog has 12 server-allowlisted purchasable items with emulator coverage for wallet debit, receipt, ledger, entitlement projection and idempotent retry; two privacy add-ons remain fail-closed until their full semantics are implemented.
+HEAD:docs/PHASE1_PHASE2_FINAL_ACCEPTANCE.md:176:- Live non-production GCS signed-upload/download, actual bucket reconciliation, scanner Cloud Run deployment/IAM/WIF, media retention and exact-generation deletion.
+HEAD:docs/PHASE2_LIVE_VALIDATION_EVIDENCE_TEMPLATE.md:15:- Cloud Run scanner service / region:
+HEAD:docs/PHASE2_LIVE_VALIDATION_EVIDENCE_TEMPLATE.md:18:## Live scanner end-to-end
+HEAD:docs/PHASE2_LIVE_VALIDATION_EVIDENCE_TEMPLATE.md:25:| Scanner Cloud Run requires authentication | | |
+HEAD:docs/PHASE2_LIVE_VALIDATION_EVIDENCE_TEMPLATE.md:26:| Only Functions runtime identity can invoke scanner | | |
+HEAD:docs/PHASE2_LIVE_VALIDATION_EVIDENCE_TEMPLATE.md:57:| No public scanner invocation | | |
+HEAD:docs/PHASE2_LIVE_VALIDATION_EVIDENCE_TEMPLATE.md:65:| Alerts for stale signatures, scanner failures and retention retries | | |
+HEAD:docs/PHASE2_LIVE_VALIDATION_EVIDENCE_TEMPLATE.md:73:- [ ] Live scanner E2E passed in the named non-production environment.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:10:- Current code allowlists PDF as the only document MIME type, and the owner-only authorization is covered by unit and emulator callable tests. Word/Excel/PowerPoint/RTF/plain-text and unknown document formats intentionally fail closed for everyone, including the owner, until type-specific signature validation, malware scanning and safe-delivery processing are implemented. This is a remaining implementation gate, not a claim that all owner document formats are currently deliverable.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:20:- Scanner callback validates HMAC, provider, freshness, object generation and full-object hash. Files fail closed while scanning or when evidence is missing/mismatched.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:21:- Scanner dispatch and isolated ClamAV gateway source exist; malicious verdicts delete only the exact scanned generation.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:28:- The exact run passed all three jobs: Flutter analysis, Flutter tests and Web release build; Cloud Functions TypeScript compilation/unit tests, media callable authorization/audit integration tests, and Firestore/Storage rules emulator tests; isolated ClamAV scanner source/security tests, container build and EICAR signature detection.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:29:- Earlier run [43379722894](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43379722894) failed because it attempted a V4 signed HTTP PUT against the Storage Emulator, which returns HTTP 501 for that endpoint. The current emulator integration test now uses the supported Admin Storage API to exercise object creation with the generation precondition and callable finalization. The test explicitly does not claim to validate the signed HTTP wire protocol.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:30:- **Real Cloud Storage signed URL HTTP verification remains pending.** The opt-in script `functions/scripts/test-signed-urls-http.cjs` must be run against a disposable non-production GCS bucket with approved credentials; it covers real PUT/GET, create-only replay, exact byte-range rejection and expiry. Emulator success is not a substitute.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:38:| Owner authorization | Owner succeeds only with sole-owner claim and fresh MFA; stale MFA, non-owner and revoked sessions denied and audited | Emulator coverage exists; latest run must pass |
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:39:| Member/guest isolation | Member and anonymous guest cannot list, inspect, preview or read another uploader's media | Emulator coverage exists; latest run must pass |
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:40:| Upload integrity | Exact content type, byte count, signature and create-only generation; mismatch rejected and audited | Code and emulator coverage exist; real bucket HTTP run pending |
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:41:| Replay/expiry | Emulator generation-precondition/finalization checks plus real GCS HTTP PUT/GET, replay and expiry | Emulator checks pass on run 43379943559; real bucket HTTP run pending |
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:42:| Malware scan | Clean, EICAR/malicious, malformed, timeout, unavailable, stale, duplicate, tampered HMAC/hash/generation cases | Scanner unit/CI work in progress; non-production end-to-end run pending |
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:44:| Cleanup | Grace period, exact path/generation deletion, missing-object recheck, retry and quota release | Code and unit/emulator coverage exist; latest run must pass |
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:46:| Retention | Approved 4-hour media / 7-day text policy; exact-generation deletion, tombstone reconciliation, operational log expiry, legal holds and backup/cache behavior validated in non-production | Policy approved; chat deletion code and emulator tests pass; workers disabled and real GCS/backup/legal-hold gates pending |
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:48:| Storage/Firestore release | Rules tests pass; production rules remain deny-all for client media access | Emulator tests exist; no production mutation authorized |
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:69:- Firestore/Storage emulator tests now prove that delete-for-me hides a media message only for the requester, leaves it visible to the peer, and preserves the original Storage object and media asset in both direct chats and rooms.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:70:- Full CI passed on `faf5a2e20fc4d6c8874db8cc86ecac3c0d8e7b67` in [run 43391790845](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43391790845), including all backend integration, Flutter, rules and scanner jobs.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:75:- Integration tests now cover image, video, audio and PDF/document media IDs, including multiple attachments in one direct message. Legal-hold blocking and retry-after-release are tested.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:76:- Full validation on `8da2204f0325d19a172979da33125fb29e03e4db` passed in [run 43390815304](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43390815304), including Flutter analyze/tests/Web release, Functions compile/unit/integration, Firestore/Storage rules, scanner tests, container build and EICAR.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:77:- This does not create a media upload/send/rendering UX. All media categories are supported by the deletion reference contract, but member-facing upload/delivery integration remains a separate open gate.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:83:- Integration tests run against Firestore and Storage emulators and cover direct and room media erasure, original/preview object removal, pending visibility during a legal hold, and successful retry after release.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:84:- Full CI passed on `602f29a02d9c569c8c252913a3b1bc1dfb671428` in [run 43390455210](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43390455210), including Flutter, Functions, all emulator integration suites, rules, scanner tests, container build and EICAR.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:90:- All Flutter analysis/tests/Web release build, Functions compile/unit tests, media/retention/deletion/audit-export/legal-hold Firestore emulator integration tests, Firestore/Storage rules tests, scanner security tests, Docker build and EICAR detection passed.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:91:- Real non-production GCS signed URL, generation/soft-delete, Cloud Run scanner deployment, backup/PITR, cache/CDN and production infrastructure evidence remain unverified.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:99:- Added unit tests for validation and recursive redaction. GitHub Actions validation for the new callable and tests is pending; this does not yet prove export retrieval against a populated Firestore emulator or production-like data.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:107:- Unit and Firestore-emulator integration tests cover validation, hold placement, review/list, release, owner-only access and the original expiry clock. Latest CI is pending.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:113:- The Firestore/Storage emulator integration test simulates a post-delete upload replay and verifies a second exact-generation cleanup.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:114:- Commit `1a6c6ad3686b887c75416e039e553ecb5b95aefc` passed full CI in [run 43391265176](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43391265176), including all backend integration suites, Flutter analysis/tests/Web build, Firestore/Storage rules, ClamAV/container/EICAR.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:115:- This is emulator proof only. The separate manual non-production GCS workflow must still be dispatched successfully to prove real signed URL expiry/replay and real bucket generation/soft-delete behavior.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:132:- `MAWDA_MEDIA_BUCKET_NAME` is now an explicit Functions parameter. The non-production scanner deployment workflow writes the same bucket into the project-specific Functions environment, preventing the scanner and Firebase Functions from silently targeting different default buckets.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:137:A manual workflow `.github/workflows/deploy-nonproduction-media-scanner.yml` now:
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:139:2. Builds the isolated scanner image and pushes it to Artifact Registry.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:140:3. Grants the scanner runtime service account Secret Manager access and object-create access only to the `processed/` managed folder; grants the Functions runtime service account bucket object-view, Cloud Run invoke and its own signBlob permission.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:142:5. Runs the real GCS signed PUT/GET expiry, replay and size-limit test plus exact-generation purge/bucket-safeguard test before deployment. It writes the non-production bucket/scanner URL/callback/provider parameters into a temporary project-specific Functions env file, deploys Functions only to the selected non-production Firebase project, then runs a live clean-PNG plus EICAR end-to-end scan through Firebase trigger → private Cloud Run → signed callback. The E2E test also reuses the still-live signed PUT URL after manual deletion and malware rejection, and verifies the Storage-finalized trigger removes the newly created exact generation.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:149:- `MAWDA_MEDIA_SCANNER_API_TOKEN`
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:150:- `MAWDA_MEDIA_SCANNER_HMAC_SECRET`
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:152:The deployer service account needs Artifact Registry, Cloud Run, API enablement, Secret Manager IAM, service-account IAM, Firebase Functions deployment and Eventarc permissions. For the real GCS signed-URL and purge tests it also needs `roles/storage.objectAdmin` on the dedicated non-production test bucket and `roles/iam.serviceAccountTokenCreator` on itself (for signBlob). For the live E2E fixture it additionally needs Firestore data read/write (for example `roles/datastore.owner` on the dedicated non-production project). These elevated test permissions must not be granted in production. The scanner runtime service account receives only Secret Accessor plus object-create on the `processed/` managed folder. The Functions runtime service account receives object-admin only on the `quarantine/` and `processed/` managed folders (for signed uploads, safe preview reads, exact-generation deletion and retention), plus signBlob permission on itself. The workflow explicitly configures `MAWDA_MEDIA_BUCKET_NAME` so the Functions and scanner runtimes target the same bucket. The Functions runtime service account must be the actual runtime identity configured for that non-production Firebase project.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:158:- GitHub Actions `43394918004`: **success** for Cloud Functions compile/unit tests, media callable authorization, seven-day chat retention, direct/room message deletion with Storage emulator erasure and late-upload replay, owner audit export, media legal-hold integration, Firestore/Storage rules, Flutter analyze/tests/Web release build, and ClamAV scanner tests/container/EICAR.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:160:- These are CI/emulator results on the development branch, not production Firebase/GCS verification. No production deploy or destructive retention schedule is enabled.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:161:- Phase 2 remains open pending the purpose-specific story/gallery/avatar/cover retention workflows, real bucket and backup lifecycle verification, deployed scanner gateway, client-side media upload/send/read integration, and end-to-end cross-device checks.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:167:- Firestore + Storage emulator integration test proves original/preview deletion and hold preservation.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:168:- Commit `d66b2fd` passed GitHub Actions run `43395785257`: Functions compile/unit/integration tests, Firestore/Storage rules, Flutter analyze/tests/Web build, ClamAV image/EICAR and security workflow.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:169:- Still open: story expiry linkage, avatar/cover rollover/default fallback, Flutter member-side media upload/read/send experience, real production bucket/backup lifecycle verification, and deployed scanner gateway.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:175:- Unit, callable integration, and Firestore + Storage emulator tests pass, including expiry timestamp propagation and original/preview deletion.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:176:- GitHub Actions run `43396442797` passed on commit `e2427da`: Functions compile/integration/rules, Flutter analyze/tests/Web release, ClamAV container/EICAR.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:184:- Firestore + Storage emulator tests cover selection, supersession, expiry, default fallback and legal-hold release; upload-finalization expiry is tested separately.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:185:- GitHub Actions run `43397290259` passed on commit `0ae25ab`: Functions/integration/rules, Flutter analyze/tests/Web release, ClamAV container/EICAR.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:196:- A gated, once-per-minute worker deletes the exact original object and every visible GCS generation, the safe WebP derivative and scan-job reference. It then keeps only a content-free tombstone and rechecks the deterministic derivative path every five minutes to catch a scanner already in flight.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:200:- Full CI passed on `4f9d317291c3ecdab049256b32c8450f776aaaf5` in [run 43383055516](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43383055516): backend compile/unit tests, chat-retention Firestore integration, media callable integration, Firestore/Storage rules, ClamAV EICAR container, Flutter analyze/tests and Web release build.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:201:- Still pending: real non-production GCS generation/soft-delete test, real signed-URL HTTP test, live Cloud Run scanner lifecycle, backup/PITR configuration proof, legal-hold behavior, audit export/checkpoint retention, and story/gallery/avatar/cover jobs.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:206:The backend now exposes `sendChatImageAttachment` and `getChatImageAttachmentUrl`. They link only a member-owned, scanner-approved, raster-sanitized JPEG/PNG/WebP derivative to a direct-chat or room message. The direct-chat callable checks both accounts, age-band compatibility, and mutual blocks; the room callable checks active room membership and mute status. Delivery is participant-gated, generation-pinned, short-lived, and audited.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:212:- The four-hour retention sweeper must be verified to remove linked message documents and notifications as well as every media generation; do not claim full chat attachment lifecycle closure until that integration test passes.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:216:- Added direct-chat and room Flutter image pick/upload/send/receive UI using the trusted quarantine upload intent, server finalization and scanner-approved WebP derivative only.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:219:- Tightened image delivery checks: exact conversation scope/ID binding, safe derivative generation/hash and scanner metadata checks, and denial when the message is hidden for the requesting participant.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:220:- Manual message-media deletion failures are now eligible for the gated retention retry sweep. Successful retries become manually_deleted tombstones and receive the same five-minute late-object reconciliation. Added emulator integration coverage for retry and late replay.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:221:- The exact current head still requires a full green CI run. No live GCS, Cloud Run, backup/PITR, or production environment behavior is claimed from emulator checks.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:231:- Every derivative is uploaded create-only beneath the owner's media namespace and carries source generation, source SHA-256, scanner provider and exact processor version. Firebase independently checks derivative generation, content type, size, provenance and SHA-256 before it marks the asset eligible.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:237:**Release status: NOT YET VERIFIED.** These changes are a candidate implementation, not a declaration that these categories are enabled. Keep non-image delivery blocked until the exact candidate passes the container processor integration tests, scanner callback contract tests, callable authorization tests, Flutter analyze/tests/Web build, and Firestore/Storage emulator suites. Then run the isolated scanner lifecycle and real Storage generation/expiry checks in the dedicated non-production environment. A clean ClamAV verdict alone is never sufficient for delivery.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:243:- Scanner container built; real GIF/audio/video/PDF processor integration tests passed; ClamAV EICAR detection passed.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:244:- Cloud Functions compiled and all integration suites passed, including typed media authorization/delivery, four-hour media retention, seven-day text retention, deletion/late derivative reconciliation, media legal hold/release, message legal hold, profile media lifecycle, owner audit export, and Firestore/Storage rules.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:247:A further legal-hold integration test has been added on the current head to exercise all five derivative object paths during an active hold, release, expiry deletion and late PDF replay. Its exact-head CI is pending; do not count this additional test as passed until that run completes.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:254:- Live Cloud Run scanner deployment, real GCS generation-pinned signed URL expiry, object versioning/soft-delete, backup/PITR, CDN/cache/replica behavior and operational restore evidence remain non-production infrastructure gates.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:267:- Scanner job: scanner source/security contract tests, isolated Docker image build, actual GIF/audio/video/PDF processing integration tests inside the image, and harmless EICAR detection.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:268:- Functions job: TypeScript compile and unit suite; media callable authorization/audit; seven-day chat retention; direct-message deletion/erasure; owner audit export pagination/redaction; expanded media legal-hold/release including original and all derivative classes plus late derivative reconciliation; avatar/cover lifecycle; message legal-hold/resumed retention; Firestore and Storage rules emulator tests.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:269:- Flutter job: strict dependency install from committed lockfile, `flutter analyze`, `flutter test`, and `flutter build web --release`.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:277:| Image/GIF/audio/video/PDF safe processors | Scanner container integration tests; output bounds, animation preservation, transcoding and PDF raster flattening | Passed in CI |
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:278:| Scanner malware gate | ClamAV container and EICAR detection | Passed in CI |
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:279:| Typed derivative trust | Callback path/version/generation/hash and provenance validation; backend independently verifies derivative object | Passed in unit/integration suites |
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:280:| Chat send/receive authorization | Direct/room callable tests, participant/outsider checks, owner-only PDF policy | Passed in emulator suites |
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:281:| Media deletion/retention | Original and derivative cleanup, retry/tombstone/late-object reconciliation, legal-hold block/release | Passed in emulator suites |
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:282:| Profile media | Avatar/cover and story lifecycle tests | Passed in emulator suites |
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:283:| Firestore/Storage access | Rules emulator suite | Passed in CI |
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:289:2. Live non-production Cloud Run scanner deployment and end-to-end upload → scan → sanitized derivative → callback → member delivery, including IAM, Secret Manager, callback authentication, retry/dead-letter and monitoring. Container tests do not prove deployed Cloud Run operation.
+HEAD:docs/PHASE2_MEDIA_ACCEPTANCE_MATRIX.md:290:3. Backup/PITR/export/replica/cache/CDN deletion and restore exercises, including evidence that chat media cannot be recovered after the four-hour deadline and text after seven days. Emulator object deletion does not prove backup expiry.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:5:The required CI lane validates Flutter analysis/tests/Web compilation, Cloud Functions compilation/unit tests, Firebase Emulator integration and rules tests, and the ClamAV container's EICAR detection. The CI job also syntax-checks the live scanner E2E script; **it does not deploy Cloud Run or call a live Firebase/Cloud Storage project**.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:7:A green CI run is therefore necessary but is not proof that the deployed Functions → private Cloud Run scanner → signed callback → Cloud Storage lifecycle works end to end.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:13:Both scripts refuse production-like or unmarked project/bucket names. Do not weaken or bypass these checks. The live scanner E2E creates temporary Firestore documents and Storage objects, deliberately replays a still-valid signed upload URL to test tombstone cleanup, and removes every live/noncurrent generation of its own fixtures. The GCS retention test creates multiple object generations and permanently deletes those test generations. The manual workflow runs the GCS policy/versioning proof first so an incompatible soft-delete or retention policy blocks before scanner fixtures are created.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:17:## Live scanner E2E prerequisites
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:22:- A private Cloud Run scanner service built from `scanner/`, with authenticated invocation required (no unauthenticated access).
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:24:- Scanner runtime configuration: `SCANNER_API_TOKEN`, `SCANNER_HMAC_SECRET`, `GCS_BUCKET`, `SCANNER_CALLBACK_URL`, and `SCANNER_PROVIDER`.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:25:- Functions configuration: `MAWDA_MEDIA_SCANNER_API_TOKEN`, `MAWDA_MEDIA_SCANNER_HMAC_SECRET`, `MAWDA_MEDIA_BUCKET_NAME`, `MAWDA_MEDIA_SCANNER_URL`, `MAWDA_MEDIA_SCANNER_CALLBACK_URL`, and the same provider identifier.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:31:## Execute the live scanner check
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:37:MAWDA_MEDIA_LIVE_SCANNER_E2E=1 \
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:41:npm run test:media-scanner-live-e2e
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:44:The script first proves the callback rejects missing and invalid HMAC signatures, then exercises a clean PNG and an EICAR-bearing PNG, waits for the corresponding approved/rejected state, checks derivative provenance and generation, verifies rejected-object cleanup across all live and noncurrent generations, verifies message-media deletion, replays the original create-only signed upload capability against the tombstone, and checks late-replay cleanup audit plus exact-generation removal. The scanner callback and late-replay handler must delete a generation-scoped File reference; deleting only the live object name is insufficient when object versioning is enabled.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:69:- [ ] CI: Flutter analyze, Flutter tests, Flutter Web release build.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:70:- [ ] CI: Functions compile/unit tests and every Emulator integration suite.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:72:- [ ] CI: scanner source/security tests, container build, and EICAR detection.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:73:- [ ] Live non-production scanner E2E: clean approval, malicious rejection, derivative provenance, callback authentication, exact-generation deletion, late signed-URL replay cleanup, and audit record.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:78:A green emulator suite does not replace the live non-production checks. A green live check does not authorize production deployment. Production rollout requires a separate explicit approval and a reviewed deployment plan.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:95:5. Provision the private Cloud Run scanner and deploy the Firebase Functions from the exact commit being validated. Confirm Cloud Run IAM grants invocation only to the Functions runtime identity, not `allUsers`.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:96:6. Bind the scanner and Functions secrets from Secret Manager / Firebase secret parameters. Confirm the values are matching per environment without printing or copying their values. The scanner token and HMAC secret must be independently generated, at least 32 characters, and never stored in GitHub variables.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:99:Then use Actions → **Live non-production media and retention validation** → Run workflow. Supply the exact project and bucket names, the non-production `receiveMediaScanVerdict` HTTPS URL, and type `RUN-NONPRODUCTION-LIVE-VALIDATION`. The workflow rejects unmarked or production-like names, uses GitHub OIDC / Workload Identity Federation, compiles Functions, performs the GCS policy/versioning proof first, and runs the scanner E2E only after the bucket passes its deletion-safety checks. A successful workflow proves the live test path for that commit and those supplied non-production resources; it does not prove production readiness.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:107:- Cloud Run: inspect the deployed service identity and IAM policy. The scanner must require authenticated invocation and must not grant `allUsers` or `allAuthenticatedUsers` access. Only the intended Functions runtime identity should invoke `/scan`.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:108:- Functions and secrets: verify the deployed Functions use the expected non-production bucket, scanner URL, callback URL and provider. Verify secret bindings exist for both API token and HMAC secret; inspect secret versions/rotation metadata without exposing secret payloads. Confirm the callback signature is verified and invalid/missing signatures fail closed.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:109:- Audit: verify Cloud Audit Logs configuration includes the required Data Access coverage for Firestore and Cloud Storage, the relevant logs are routed to an access-controlled sink/bucket, retention meets the approved policy, and alerting exists for scanner failures, stale signatures, repeated callback failures, retention retries and denied IAM calls. Avoid logging credentials, signed URLs or private message/media contents.
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:130:gcloud run services get-iam-policy "$SCANNER_SERVICE" --region="$SCANNER_REGION" --project="$GOOGLE_CLOUD_PROJECT"
+HEAD:docs/PHASE2_NONPRODUCTION_LIVE_VALIDATION.md:131:gcloud run services describe "$SCANNER_SERVICE" --region="$SCANNER_REGION" --project="$GOOGLE_CLOUD_PROJECT" --format='yaml(status.url,spec.template.spec.serviceAccountName)'
+HEAD:docs/PHASE2_RETENTION_OPERATIONS.md:8:- Tombstones are deliberately retained as non-content metadata. A separate five-minute reconciliation clock checks the deterministic derivative path for a late scanner derivative without allowing tombstones to occupy the active-expiry query or starve newer expired assets.
+HEAD:docs/PHASE2_RETENTION_OPERATIONS.md:21:6. Run emulator tests and the real-bucket deletion/versioning test on unique test objects. Preserve only non-content test evidence and clean up test objects.
+HEAD:docs/PHASE2_RETENTION_OPERATIONS.md:22:7. Only after a dry run, object-generation verification, scanner-race test, backup/soft-delete inspection and retry test pass may the owner set `MAWDA_RETENTION_JOBS_ENABLED=true` in the non-production project.
+HEAD:docs/PHASE2_RETENTION_OPERATIONS.md:36:- Full CI run [43383055516](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43383055516) passed on code/index head `4f9d317291c3ecdab049256b32c8450f776aaaf5`: TypeScript build/unit tests, direct/room seven-day Firestore-emulator deletion integration test, media callable integration, Firestore/Storage rules, ClamAV EICAR container test, Flutter analysis/tests and Web release build.
+HEAD:docs/PHASE2_RETENTION_OPERATIONS.md:37:- Full TypeScript build, backend test suite, Firestore/Storage emulator tests and real non-production GCS generation/soft-delete tests must pass on the exact candidate commit before closure.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:11:- Flutter job: `flutter analyze`, `flutter test`, and `flutter build web --release` all succeeded; validated web artifact uploaded.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:12:- Functions job: TypeScript build/compilation and unit tests succeeded; media callable authorization/audit integration tests succeeded; Firestore and Storage rules emulator tests succeeded.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:13:- Scanner job: scanner source/security tests succeeded; isolated ClamAV image built; EICAR test signature was detected successfully.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:15:The preceding run [43379722894](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43379722894) failed on a test that sent a V4 signed HTTP PUT directly to the Storage Emulator. The emulator returned HTTP 501 because it does not implement that signed HTTP endpoint. The integration test was corrected to use the supported Admin Storage API for emulator object creation with a create-only generation precondition, then exercise callable finalization. The test no longer represents emulator traffic as real signed HTTP verification.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:24:- Scanner callback checks HMAC, provider, freshness, source generation and full-object hash; fail-closed states remain quarantined.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:44:The implementation must distinguish media objects, metadata, operational logs, and tamper-evident security/owner audit records. The four-hour chat-media and seven-day all-chat text workers have now been added behind a disabled-by-default, non-production-only gate and have passed emulator integration tests. Do not enable even in non-production until dry-run evidence, real-bucket deletion, legal-hold handling and backup expiry are verified. Legal review may identify mandatory preservation exceptions; this must not become routine extra retention.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:48:1. **Real Cloud Storage HTTP:** run `functions/scripts/test-signed-urls-http.cjs` against a dedicated disposable non-production bucket. Verify initial signed PUT, create-only replay rejection, exact size rejection, signed GET and expired upload/read URLs. The emulator is not proof of these HTTP semantics.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:49:2. **Actual Firebase + Cloud Run scanner lifecycle:** deploy the scanner only to a dedicated non-production project with Cloud Run IAM authentication, Secret Manager, least-privilege service accounts and bucket permissions. Exercise clean and EICAR files plus malformed/oversized files, timeout, unavailable/stale signatures, stale generation, bad HMAC, duplicate callback, retry/restart, derivative generation and Firebase verdict handling. CI image build/EICAR proves container behavior, not a deployed end-to-end scan.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:53:6. **Final closure:** update this record with real infrastructure evidence, scheduled-deletion dry-run and integration test evidence, audit export verification, legal-hold/backup tests, and green CI on the exact final candidate. Only then mark Phase 2 closed.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:75:- This CI result is source/build/emulator evidence only. It does not prove that Cloud Run or Firebase was deployed, that real GCS HTTP and generation deletion tests ran, or that retention workers were enabled.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:82:- The four-hour clock starts after the server validates/finalizes the uploaded object. Expiry removes every listed GCS generation for the exact original object and deterministic safe WebP derivative; a content-free tombstone is retained and its derivative path is reconciled every five minutes to catch late scanner output.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:85:- Added exact-boundary unit tests and a Firestore-emulator integration test. Added an opt-in real-GCS retention script that checks soft-delete/retention policy, bucket access protections, and deletion of every visible object generation.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:86:- Full validation run [43383055516](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43383055516) passed on code/index commit `4f9d317291c3ecdab049256b32c8450f776aaaf5`: Functions build/unit tests; media callable authorization/audit integration; seven-day retention integration; Firestore/Storage rules; Flutter analyze/tests/Web release; ClamAV image build and EICAR detection.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:87:- This is not phase closure. Still required: real non-production GCS retention and signed-URL HTTP runs, actual Firebase/Cloud Run scanner lifecycle, backup/PITR and soft-delete configuration proof, legal-hold behavior, 24-month audit export/checkpoint design, story/gallery/avatar/cover retention jobs, and final review on one candidate commit.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:91:- Added a member-authenticated callable that returns a 60-second signed read URL only for the selected avatar/cover's exact, scanner-approved WebP derivative. It checks profile visibility, owner, slot, media status, expiry, derivative generation and scanner metadata, and records an access audit event. No original quarantine URL is returned.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:96:- Added short-lived story safe-preview URLs that validate the story lifetime, profile visibility, approved status, exact preview generation and scanner metadata. Added a member-facing Stories screen with user-selected expiration date/time; no fixed story duration was assumed.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:98:- Added emulator integration coverage for profile reset, safe-profile URL default/private authorization, story publication only after scanner approval, story feed expiry, and expired story document cleanup.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:105:- This means I found no active chat UI route that bypasses scanning; however, the full chat attachment feature for image/GIF/video/audio/PDF is still missing. The scanner currently produces a safe raster derivative only for supported images; non-image clean verdicts remain in a pending-processing state and must not be exposed until a safe processing/delivery design is implemented and tested.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:112:- Real GCS generation/soft-delete verification and live Cloud Run scanner execution remain blocked on dedicated non-production GCP resources, WIF and Secret Manager configuration. The manual deployment workflows are staged on this development branch; they cannot be dispatched until the owner explicitly authorizes the required default-branch workflow availability and provisions the non-production identities/secrets.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:122:- The avatar/cover lifecycle emulator integration job passed, including expiry-to-default and legal-hold/release behavior.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:124:This closes the previously noted code/test gap for the avatar/cover lifecycle in emulator scope; it does **not** prove real-bucket generation deletion, backup/soft-delete expiry, or live scheduled execution. The retention jobs remain disabled by default and guarded to explicit non-production projects.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:133:- Added emulator integration coverage for direct-message linking/delivery, room linking/delivery, outsider denial, duplicate attachment attempts and forged owner-role/document attempts.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:135:- CI validation for the latest candidate is pending; this change is not closed until backend integration, Firestore/Storage rules and Flutter Web jobs pass on the exact branch head.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:139:- Added the direct-chat and room UI path for selecting, uploading, sending and receiving scanner-approved raster images. The UI uses the existing trusted media upload service and backend message-link/delivery callables; original quarantine objects are never displayed.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:140:- Signed image URLs are refreshed before expiry, and the backend binds each delivery request to the exact linked conversation and message, validates the safe derivative's generation/hash/scanner metadata, and rejects messages hidden for the requesting member.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:142:- Closed a retention retry gap: manual_deletion_pending media is now picked up by the gated non-production retention sweep; successful retries retain a content-free manually_deleted tombstone and schedule late-object reconciliation. Added a Storage/Firestore emulator integration test for retry and late replay.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:143:- Latest PR head is awaiting exact-commit CI validation. Do not describe phase 2 as closed until the full workflow passes and remaining non-emulator infrastructure/governance checks are resolved.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:147:- Added isolated GIF, audio, video and PDF derivative processors in scanner/processors.js. GIF output is animation-preserving; audio/video are FFmpeg-transcoded; PDF is raster-flattened to an image-only PDF. Each processor enforces bounded input complexity, duration/page count and output size, writes create-only objects, and binds output metadata to the source generation/hash and exact pipeline version.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:148:- Scanner callback schema now accepts one typed derivative contract and rejects incomplete, mismatched, stale-version, unsafe-path, non-clean or mixed preview/derivative payloads. Firebase independently reads and hashes the generated object before persisting a type-specific safe state.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:151:- Manual erasure, scheduled retention, and late-object reconciliation now enumerate the canonical derivative object names for image, GIF, audio, video and PDF, with strict per-owner/per-media path checks. Added integration coverage for erasing all derivative classes and a late GIF replay.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:152:- Added scanner-container integration tests that generate real GIF, audio, video and PDF fixtures and exercise the installed processing binaries. The tests assert multi-frame GIF output and PDF text-layer flattening. The scanner CI job now runs these tests inside the built container, not on the host runner without the required binaries.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:153:- Added policy and scanner callback tests for exact pipeline versions, derivative paths, generation/hash and owner-only document rules.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:155:**Verification state:** implementation has been committed to the development branch but the new exact branch head has not yet completed CI. Do not enable or announce non-image member delivery until the scanner container integration tests, backend compile/unit/callable/retention/rules suites, Flutter analysis/tests/Web build all pass on one exact commit. Live Cloud Run/GCS signed URL, version deletion, backup/PITR/cache and legal-hold behavior remain separate non-production infrastructure gates. No live deployment or destructive retention schedule has been run.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:161:- Scanner job: isolated container build, real GIF/audio/video/PDF processor integration tests, and ClamAV EICAR detection passed.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:162:- Cloud Functions job: compile/unit, typed media callable integration, retention and late-object reconciliation, direct-message deletion, owner audit export, media legal hold/release, profile media lifecycle, message legal hold and Firestore/Storage rules all passed.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:178:- Scanner: source/security checks, container build, real GIF/audio/video/PDF processor tests in the built image, and EICAR detection passed.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:179:- Backend: compile/unit tests plus media authorization/audit, seven-day chat retention, message deletion, owner audit export, expanded media legal hold/release (including all derivative classes and late replay), profile media lifecycle, message legal hold/resumed retention, and Firestore/Storage rules emulator tests passed.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:185:The exact-head run verifies the current code snapshot across the scanner, backend and Flutter build layers. The expanded legal-hold test that was pending in the previous update is included and passed. The typed derivative processors and the chat UI/service path for supported images, GIF, existing audio files, video and owner-originated PDF are included in this green snapshot.
+HEAD:docs/PHASE2_VALIDATION_AND_CLOSURE_PROGRESS.md:190:- Live Cloud Run scanner deployment/E2E, IAM, Secret Manager, callback and operational monitoring/retry verification are not proven by the isolated Docker tests.
+HEAD:docs/PHASES_1_2_CLOSEOUT_STATUS.md:19:  - Isolated ClamAV scanner gateway tests and image build: success.
+HEAD:docs/PHASES_1_2_CLOSEOUT_STATUS.md:80:- الوظائف الثلاث الناجحة: Flutter analysis/tests/Web build؛ Cloud Functions compile/unit/emulator tests؛ isolated ClamAV scanner tests and image build.
+HEAD:docs/PHASES_1_2_CLOSEOUT_STATUS.md:117:- أضيف دليل التكامل docs/LOCAL_BIOMETRIC_INTEGRATION.md. تم تعديل الخدمة كي تترك تحديد نوع المصادقة المسجلة لنظام التشغيل بدلاً من الاعتماد على تعداد أنواع قد لا يعرض كل وسائل Android على الإصدارات الأقدم.
+HEAD:docs/RELEASE_READINESS_CHECKLIST.md:5:## 1. Repository and continuous integration
+HEAD:docs/RELEASE_READINESS_CHECKLIST.md:7:- [x] Validate the development branch with Flutter analysis, Flutter tests, and a Flutter Web release build.
+HEAD:docs/RELEASE_READINESS_CHECKLIST.md:9:- [x] Validate Firestore and Storage rules with Firebase Emulator Suite tests.
+HEAD:docs/RELEASE_READINESS_CHECKLIST.md:11:- [x] Add and commit `functions/package-lock.json` generated from the reviewed `functions/package.json` (present and enforced with `npm ci`).
+HEAD:docs/RELEASE_READINESS_CHECKLIST.md:12:- [x] Change CI dependency installation to lockfile-enforcing commands (`flutter pub get --enforce-lockfile` and `npm ci`); fresh full CI passed on the lockfile-bearing head (run 43253865808).
+HEAD:docs/RELEASE_READINESS_CHECKLIST.md:14:- [x] Restrict manual production deployment dispatch to the repository owner and require explicit approval; deployment repeats Flutter, backend, and Firestore/Storage emulator validation before Hosting deploy.
+HEAD:docs/RELEASE_READINESS_CHECKLIST.md:48:- [x] Complete Firestore-emulator integration tests for coin transfer quoting/fee calculation, stale quote rejection, concurrent requests, atomic sender/recipient/platform ledgers, idempotency, blocked/suspended accounts, and insufficient-balance rejection (run 43449287825, exact tested SHA `368c6ac0ab9db01c236a4f77a4bf66dadb80ade0`).
+HEAD:docs/RELEASE_READINESS_CHECKLIST.md:86:**Current known blockers (14 November 2026):** The latest exact-head validation is green on head `570bfe410d33a8aa698dd1d2bcd2d8b76788743c`: [run 43607804675](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43607804675) passed all three jobs. Flutter analysis reported no issues, 11 Flutter tests passed, Web release build succeeded, the Cloud Functions job passed its 201-test unit suite plus all configured emulator integration/rules suites, and the scanner image/security tests passed. Native runner generation, Android Debug APK, unsigned iOS build, and commit of generated scaffolding passed in [run 43606228297](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43606228297). Member direct-chat and room audio recording/playback controls are now implemented in source and included in that Flutter validation. The redundant guest-room approval predicate was removed in commit `e1124ff`; the cleanup and documentation reconciliation passed in the latest exact-head run `43607804675`. Physical-device acceptance and independent Firebase Console review remain open. The real `platformOwner` claim, MFA enrollment/recovery and privileged-account operations have not been provisioned/verified. The 90-day email renewal flow has backend implementation and emulator integration coverage, but real Firebase Auth/device acceptance remains open. The 1,500-coin biometric reward is disabled fail-closed until cryptographic device proof and real-device acceptance exist. Live GCS/Cloud Run scanner validation, reconciliation of the owner-supplied `appspot.com` bucket versus the generated `firebasestorage.app` bucket, full media-retention proof, backup/PITR/legal-hold governance, App Check/device-attestation, abuse resistance across recreated anonymous identities, real-money payment/refund/reconciliation, legal review, observability and recovery drills remain open. CI success does not clear these blockers.
+HEAD:docs/RELEASE_READINESS_CHECKLIST.md:92:- [ ] Complete callable/emulator integration coverage for cross-account reads, blocked/banned members, age policy, message replay, and notification privacy; complete device and accessibility tests.
+HEAD:docs/RELEASE_READINESS_CHECKLIST.md:145:**Current status: partial backend and Flutter UI implementation; not release-ready.** Server-side save authorization, biometric-gated profile projection, URL validation, profile editor/display, and clear-after-expiry behavior are implemented. Unit tests cover URL rules and the publish-versus-clear policy. Callable authorization/privacy integration tests, per-link temporary hide controls, and the actual biometric capture/provider workflow remain release blockers. Keep all release gates below unchecked until independently validated.
+HEAD:docs/RELEASE_READINESS_CHECKLIST.md:170:- [ ] WhatsApp personal contact is labeled phone-number verified after OTP proof, not OAuth-connected; WhatsApp Business integration uses official Business Platform onboarding if required.
+HEAD:docs/RELEASE_READINESS_CHECKLIST.md:250:- [ ] Emulator integration tests cover guest profile validation, session start, use before expiry, exact 60-minute expiry, denial throughout the remaining rolling 24-hour window, re-entry at the eligible boundary, general-audience room access, text/audio send and receive, member-upgrade transition, and every prohibited operation.
+HEAD:docs/RELEASE_READINESS_CHECKLIST.md:251:- [ ] Emulator clock advancement/reset is confined to test fixture setup; no production client or callable accepts client-supplied timestamps or clock overrides.
+HEAD:docs/RELEASE_READINESS_CHECKLIST.md:262:- [x] Guest/member integration test source covers no-age persistence, provider rejection, room approval, member/guest room interaction, private/adult/unapproved room denial, direct-message and member-feature denial, and cooldown/session lifecycle cases.
+HEAD:docs/RELEASE_READINESS_CHECKLIST.md:263:- [x] Guest-session and seeded five-persona interaction workflows passed on later development commits; the current full backend/emulator suite passed in run `43606233324` on head `7aa8e7c031001ebdf326552225021182c116fd4e`. This does not replace device E2E or anti-abuse testing.
+HEAD:docs/RELEASE_READINESS_CHECKLIST.md:265:- [ ] Add a deterministic emulator clock-advance test for the 60-minute expiry and 24-hour cooldown boundaries.
+HEAD:docs/SECURE_MEDIA_INTAKE.md:5:- Firebase Storage client rules remain deny-all. Quarantine objects and media metadata are private; there is no direct client Storage SDK read/write. Member delivery is limited to short-lived V4 signed reads of the exact scanner-approved WebP derivatives for avatar/cover, profile gallery and active stories, with visibility, expiry, generation and provenance checks plus access auditing. Direct/room chat attachment delivery and video/audio/PDF delivery are not enabled; original quarantine objects are never exposed.
+HEAD:docs/SECURE_MEDIA_INTAKE.md:20:- Storage Emulator integration tests verify the signed intent's exact required headers and create-only precondition, then use the Admin SDK to seed an object and exercise finalization; the emulator returns HTTP 501 for signed PUT endpoints and is not treated as evidence of the signed-URL wire protocol. The separate opt-in real-GCS HTTP script tests actual signed PUT/GET, exact-size rejection, expiry and replay against a disposable non-production bucket; it has not yet been run because no non-production bucket credentials/configuration are available here.
+HEAD:docs/SECURE_MEDIA_INTAKE.md:22:## Trusted malware scanner and safe image processing
+HEAD:docs/SECURE_MEDIA_INTAKE.md:24:Source code now includes an isolated Cloud Run scanner service under `scanner/`:
+HEAD:docs/SECURE_MEDIA_INTAKE.md:25:- Private Cloud Run IAM authentication (the Functions dispatcher obtains a Google identity token) plus a separate high-entropy scanner API token.
+HEAD:docs/SECURE_MEDIA_INTAKE.md:27:- 100 MiB bounded download, ClamAV scan with explicit archive recursion/file-count/scan-size limits, and fail-closed behavior for timeouts, parser limits and incomplete scans. The scanner also refuses scans and reports degraded health if the daily signature database is missing or older than 36 hours.
+HEAD:docs/SECURE_MEDIA_INTAKE.md:31:- Clean video, audio and PDF assets remain `scanner_clean_pending_processing`; they are not member-accessible and cannot be previewed until type-aware safe processing is built.
+HEAD:docs/SECURE_MEDIA_INTAKE.md:33:**Deployment status:** the scanner service source and CI security tests exist, but the Cloud Run service has not been deployed or connected to a non-production Firebase project in this environment. No actual file has yet been scanned by this service. Until deployment, secret configuration and end-to-end verification are complete, every upload remains quarantined and must not be treated as security-approved.
+HEAD:docs/SECURE_MEDIA_INTAKE.md:35:## Scanner deployment contract
+HEAD:docs/SECURE_MEDIA_INTAKE.md:37:See `scanner/README.md`. Required managed configuration:
+HEAD:docs/SECURE_MEDIA_INTAKE.md:38:- Firebase secrets: `MAWDA_MEDIA_SCANNER_API_TOKEN`, `MAWDA_MEDIA_SCANNER_HMAC_SECRET`.
+HEAD:docs/SECURE_MEDIA_INTAKE.md:39:- Firebase parameters: `MAWDA_MEDIA_SCANNER_URL` (Cloud Run HTTPS URL ending in `/scan`), `MAWDA_MEDIA_SCANNER_CALLBACK_URL`, `MAWDA_MEDIA_SCANNER_PROVIDER`.
+HEAD:docs/SECURE_MEDIA_INTAKE.md:41:- Cloud Run must reject unauthenticated invocations. Grant `roles/run.invoker` only to the Firebase Functions runtime service account. Grant the scanner runtime only the required object-create/object-get access to the `processed/` prefix; do not grant bucket administration.
+HEAD:docs/SECURE_MEDIA_INTAKE.md:63:- CI evidence on the pre-documentation head `a94246034281f4b56296cc801bb7aa1866e339c9` (run `43412736573`): 137 backend unit tests; media-callable integration 20/20; retention integration 3/3; direct-message deletion 10/10; owner-audit export 1/1; media legal-hold 1/1; profile-media lifecycle 6/6; message legal-hold 1/1; Firestore/Storage rules 7/7; Flutter analysis, 3 Flutter tests and Web release build; scanner source tests 6/6, container build and EICAR detection. The documentation/workflow follow-up commits require their own green run.
+HEAD:docs/SECURE_MEDIA_INTAKE.md:64:- Remaining retention proof gaps: the current retention integration suite proves seven-day text deletion, profile-gallery original/preview deletion with legal-hold behavior, and expired story-document removal, but it does not directly prove the scheduled four-hour chat/room media-object sweep or story-media object erasure at the selected expiry. Add exact-generation Storage Emulator tests for those paths, including active legal holds, retries and late derivatives. Real-GCS versioning/soft-delete, signed URL HTTP expiry/replay, backup/PITR expiry and cache/CDN reconciliation remain external release gates.
+HEAD:docs/SECURE_MEDIA_INTAKE.md:68:- Deploy and exercise the scanner in non-production with clean files, EICAR test signature, malformed images, archive bombs/limit-exceeding files, stale generation, bad HMAC, duplicate callbacks, scanner timeout, signature database refresh/staleness and Cloud Run restart/retry.
+HEAD:docs/SEVEN_PHASE_EXECUTION_PLAN.md:110:- آخر CI مرجعي في مراجعة 13 نوفمبر 2026: run `43479022374`، ثلاثة jobs ناجحة (Flutter، Cloud Functions، ClamAV scanner). يجب ربط كل تشغيل بالـ SHA الدقيق قبل استخدامه كدليل.
+HEAD:docs/testing/MAWDDA_GUEST_PREVIEW_TEST_PLAN.md:5:Environment: Firebase Auth / Firestore Emulator only
+HEAD:docs/testing/MAWDDA_GUEST_PREVIEW_TEST_PLAN.md:32:- Guest media upload is limited to room-purpose audio and remains subject to the existing quarantine, scanner, and safe-derivative pipeline.
+HEAD:docs/testing/MAWDDA_GUEST_PREVIEW_TEST_PLAN.md:47:## Emulator test commands
+HEAD:docs/testing/MAWDDA_GUEST_PREVIEW_TEST_PLAN.md:52:npm test
+HEAD:docs/testing/MAWDDA_GUEST_PREVIEW_TEST_PLAN.md:53:npm run test:guest-session-integration
+HEAD:docs/testing/MAWDDA_GUEST_PREVIEW_TEST_PLAN.md:57:The guest integration command starts isolated Auth and Firestore emulators, provisions the five persona fixtures, and runs the guest/member interaction journey. The seeded persona command verifies member-to-member coin transfer, linked ledgers, direct messages, idempotency, and block/unblock behavior. Test balances and all payment-related behavior remain emulator-only.
+HEAD:docs/testing/MAWDDA_GUEST_PREVIEW_TEST_PLAN.md:76:- Emulator clock advancement through the entire 60-minute and 24-hour lifecycle
+HEAD:docs/testing/MAWDDA_GUEST_PREVIEW_TEST_PLAN.md:78:- Real Android/iOS Firebase registration, App Check/device attestation, microphone permissions, scanner/storage delivery, accessibility, load, and manual device acceptance
+HEAD:functions/README.md:37:npm test
+HEAD:functions/README.md:40:The unit tests cover commission arithmetic, username normalization, member-profile validation, and registration-policy boundaries. Emulator-backed authorization rules are tested separately; transaction concurrency and retry behavior still require dedicated integration tests before production rollout.
+HEAD:functions/README.md:42:## Important integration boundary
+HEAD:functions/README.md:44:The Flutter profile transfer flow now requests a server quote, displays the gross amount/commission/net amount, and calls `transferCoins` through Firebase Functions with the quoted rate. The server rejects a stale quote if the owner changed the rate before confirmation. The client must never update balances or ledger collections directly. Store purchases and coin top-ups are deliberately non-operative until their trusted purchase and payment-verification endpoints exist. Until the client integration and Firestore/Storage rules are completed, do not deploy this backend to production or enable real coin transfers.
+HEAD:functions/package.json:13:    "test:rules": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-rules \"node --test test/rules/*.test.js\"",
+HEAD:functions/package.json:14:    "test:media-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-media \"node --test test/integration/media-callables.integration.test.js\"",
+HEAD:functions/package.json:17:    "test:retention-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-retention \"node --test test/integration/chat-retention.integration.test.js\"",
+HEAD:functions/package.json:18:    "test:message-deletion-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-message-deletion \"node --test test/integration/direct-message-deletion.integration.test.js\"",
+HEAD:functions/package.json:20:    "test:owner-audit-export-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-owner-audit \"node --test test/integration/owner-audit-export.integration.test.js\"",
+HEAD:functions/package.json:21:    "test:media-legal-hold-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-legal-hold \"node --test test/integration/media-legal-hold.integration.test.js\"",
+HEAD:functions/package.json:22:    "test:media-scanner-live-e2e": "npm run build && node scripts/test-live-media-scanner-e2e.cjs",
+HEAD:functions/package.json:23:    "test:profile-media-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-profile-media \"node --test test/integration/member-profile-media.integration.test.js\"",
+HEAD:functions/package.json:24:    "test:message-legal-hold-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-message-hold \"node --test test/integration/message-legal-hold.integration.test.js\"",
+HEAD:functions/package.json:25:    "test:wallet-store-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-wallet-store \"node --test test/integration/wallet-store.integration.test.js\"",
+HEAD:functions/package.json:26:    "test:guest-privacy-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-guest-privacy \"node --test test/integration/guest-privacy.integration.test.js\"",
+HEAD:functions/package.json:27:    "test:safety-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-safety \"node --test test/integration/safety-cases.integration.test.js\"",
+HEAD:functions/package.json:28:    "test:push-token-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-push-tokens \"node --test test/integration/push-token.integration.test.js\"",
+HEAD:functions/package.json:29:    "test:room-rental-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-room-rental \"node --test test/integration/room-rental.integration.test.js\"",
+HEAD:functions/package.json:30:    "test:biometric-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-biometric \"node --test test/integration/biometric-verification.integration.test.js\"",
+HEAD:functions/package.json:31:    "test:email-renewal-integration": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-email-renewal \"node --test test/integration/email-verification-renewal.integration.test.js\"",
+HEAD:functions/package.json:32:    "test:premium-profile-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-premium-profile \"node --test test/integration/premium-profile.integration.test.js\"",
+HEAD:functions/package.json:33:    "test:room-events-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-room-events \"node --test test/integration/room-events.integration.test.js\"",
+HEAD:functions/package.json:34:    "test:emulator-backup-restore": "node scripts/test-emulator-backup-restore.cjs",
+HEAD:functions/package.json:35:    "test:guest-session-integration": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-guest-session \"MAWDDA_ALLOW_TEST_SEED=1 node scripts/seed-test-accounts.cjs && node --test test/integration/guest-session.integration.test.js\"",
+HEAD:functions/package.json:36:    "test:seeded-persona-interaction": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-personas \"MAWDDA_ALLOW_TEST_SEED=1 node scripts/seed-test-accounts.cjs && node --test test/integration/test-persona-interaction.integration.test.js\""
+HEAD:functions/scripts/seed-test-accounts.cjs:4:// Emulator-only test identity provisioner. Never points at a live Firebase project.
+HEAD:functions/scripts/seed-test-accounts.cjs:33:const requiredEmulators = catalogue.environmentPolicy.requiredEmulators;
+HEAD:functions/scripts/seed-test-accounts.cjs:34:for (const variable of requiredEmulators) {
+HEAD:functions/scripts/seed-test-accounts.cjs:40:if (process.env.FUNCTIONS_EMULATOR !== "true" && process.env.MAWDDA_ALLOW_TEST_SEED !== "1") {
+HEAD:functions/scripts/seed-test-accounts.cjs:41:  // firebase emulators:exec sets emulator hosts but not always FUNCTIONS_EMULATOR.
+HEAD:functions/scripts/seed-test-accounts.cjs:43:  fail("set MAWDDA_ALLOW_TEST_SEED=1 explicitly when running against the required emulators.");
+HEAD:functions/scripts/seed-test-accounts.cjs:82:  // The emulator-only coin balance below is test fixture data, not a reward or payment.
+HEAD:functions/scripts/seed-test-accounts.cjs:142:    environment: { projectId, emulatorOnly: true },
+HEAD:functions/scripts/seed-test-accounts.cjs:171:        environment: { projectId, emulatorOnly: true },
+HEAD:functions/scripts/seed-test-accounts.cjs:182:    emulatorOnly: true,
+HEAD:functions/scripts/seed-test-accounts.cjs:186:  console.log(`Provisioned ${results.length} emulator-only email identities and the guest profile fixture.`);
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:11:const exportDir = fs.mkdtempSync(path.join(os.tmpdir(), "mawdda-emulator-export-"));
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:17:function startEmulators(extraArgs = []) {
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:19:    "emulators:start",
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:32:    const timeout = setTimeout(() => reject(new Error("FIREBASE_EMULATORS_START_TIMEOUT\n" + output)), 120_000);
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:35:      if (/All emulators ready/i.test(output)) {
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:48:      reject(new Error(`FIREBASE_EMULATORS_EXITED_EARLY:${code ?? signal}\n${output}`));
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:54:async function stopEmulators(child) {
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:73:    throw new Error(`EMULATOR_HTTP_${response.status}: ${url}\n${body.slice(0, 1200)}`);
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:99:    throw new Error("FIRESTORE_EMULATOR_RESTORE_MISMATCH");
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:106:    throw new Error("STORAGE_EMULATOR_RESTORE_MISMATCH");
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:114:    first = startEmulators(["--export-on-exit", exportDir]);
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:117:    await stopEmulators(first.child);
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:120:      throw new Error("FIREBASE_EMULATOR_EXPORT_MISSING");
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:123:    second = startEmulators(["--import", exportDir]);
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:126:    await stopEmulators(second.child);
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:128:    process.stdout.write("Firestore and Storage emulator export/import restore smoke test passed.\n");
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:133:    if (first) await stopEmulators(first.child).catch(() => undefined);
+HEAD:functions/scripts/test-emulator-backup-restore.cjs:134:    if (second) await stopEmulators(second.child).catch(() => undefined);
+HEAD:functions/scripts/test-live-media-scanner-e2e.cjs:11:if (process.env.MAWDA_MEDIA_LIVE_SCANNER_E2E !== "1" || !projectId || !bucketName) {
+HEAD:functions/scripts/test-live-media-scanner-e2e.cjs:12:  throw new Error("Set MAWDA_MEDIA_LIVE_SCANNER_E2E=1, GOOGLE_CLOUD_PROJECT and MAWDA_MEDIA_TEST_BUCKET.");
+HEAD:functions/scripts/test-live-media-scanner-e2e.cjs:17:  throw new Error("Refusing to run live scanner E2E against a production or unmarked target.");
+HEAD:functions/scripts/test-live-media-scanner-e2e.cjs:73:      throw new Error(`Scanner job ended as ${lastJobState}; asset status is ${lastStatus}.`);
+HEAD:functions/scripts/test-live-media-scanner-e2e.cjs:133:  const ownerUid = `scanner-e2e-${randomUUID()}`;
+HEAD:functions/scripts/test-live-media-scanner-e2e.cjs:199:        throw new Error("Clean image preview metadata did not match the scanner verdict.");
+HEAD:functions/scripts/test-live-media-scanner-e2e.cjs:267:    throw new Error("Refusing to probe an unrecognized scanner callback endpoint.");
+HEAD:functions/scripts/test-live-media-scanner-e2e.cjs:284:      "x-mawadda-scanner-signature": "0".repeat(64),
+HEAD:functions/scripts/test-signed-urls-http.cjs:20:const bytes = Buffer.from("Mawadda signed URL HTTP integration test");
+HEAD:functions/src/default-store-catalog.ts:18:  { itemId: "vip_monthly", name: "عضوية VIP", description: "شارة وامتيازات العضوية المميزة", category: "vip", priceCoins: 5000, durationDays: 30, sortOrder: 10 },
+HEAD:functions/src/economy-pricing.ts:14:  { packageId: "coins_65000", name: "باقة النخبة", coins: 65000, priceMinor: 3999, currency: "EUR", active: true },
+HEAD:functions/src/index.ts:4261:  } else if (headSequence > 5000) {
+HEAD:functions/src/media-scanner.ts:3:export interface ScannerSafeDerivative {
+HEAD:functions/src/media-scanner.ts:12:export interface ScannerVerdictPayload {
+HEAD:functions/src/media-scanner.ts:27:  safeDerivative?: ScannerSafeDerivative;
+HEAD:functions/src/media-scanner.ts:31:export function verifyScannerWebhook(
+HEAD:functions/src/media-scanner.ts:43:export function validateScannerVerdict(
+HEAD:functions/src/media-scanner.ts:47:): ScannerVerdictPayload | null {
+HEAD:functions/src/media-scanner.ts:62:  let safeDerivative: ScannerSafeDerivative | undefined;
+HEAD:functions/src/media-scanner.ts:94:      sha256: d.sha256 as string, contentType: d.contentType as ScannerSafeDerivative["contentType"],
+HEAD:functions/src/media-scanner.ts:120:  return v as unknown as ScannerVerdictPayload;
+HEAD:functions/src/media-security.ts:105:/** Detect common file signatures from the first 32 bytes; not a malware scanner. */
+HEAD:functions/src/media.ts:10:import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
+HEAD:functions/src/media.ts:38:const mediaScannerHmacSecret = defineSecret("MAWDA_MEDIA_SCANNER_HMAC_SECRET");
+HEAD:functions/src/media.ts:39:const mediaScannerApiToken = defineSecret("MAWDA_MEDIA_SCANNER_API_TOKEN");
+HEAD:functions/src/media.ts:41:const mediaScannerUrl = defineString("MAWDA_MEDIA_SCANNER_URL", { default: "" });
+HEAD:functions/src/media.ts:42:const mediaScannerCallbackUrl = defineString("MAWDA_MEDIA_SCANNER_CALLBACK_URL", { default: "" });
+HEAD:functions/src/media.ts:43:const mediaScannerProvider = defineString("MAWDA_MEDIA_SCANNER_PROVIDER", { default: "clamav-mawadda-gateway" });
+HEAD:functions/src/media.ts:282:  { secrets: [mediaScannerHmacSecret] },
+HEAD:functions/src/media.ts:289:  const secret = mediaScannerHmacSecret.value();
+HEAD:functions/src/media.ts:290:  const provider = mediaScannerProvider.value();
+HEAD:functions/src/media.ts:292:      !verifyScannerWebhook(rawBody, request.get("x-mawadda-scanner-signature"), secret)) {
+HEAD:functions/src/media.ts:293:    response.status(401).send("Unauthorized scanner callback");
+HEAD:functions/src/media.ts:301:  const verdict = validateScannerVerdict(decoded, provider);
+HEAD:functions/src/media.ts:303:    response.status(400).send("Invalid or stale scanner verdict");
+HEAD:functions/src/media.ts:307:    response.status(503).send("Scanner reported an incomplete scan; retry required");
+HEAD:functions/src/media.ts:319:    const sameVerdict = ["scanner_clean_pending_processing", "security_approved", "rejected"].includes(String(asset.status)) &&
+HEAD:functions/src/media.ts:320:      asset.scannerProvider === verdict.provider &&
+HEAD:functions/src/media.ts:321:      asset.scannerVerdict === verdict.verdict &&
+HEAD:functions/src/media.ts:322:      String(asset.scannerObjectGeneration) === verdict.objectGeneration &&
+HEAD:functions/src/media.ts:323:      asset.scannerSha256 === verdict.sha256;
+HEAD:functions/src/media.ts:328:          throw new Error("INVALID_SCANNER_OBJECT_GENERATION");
+HEAD:functions/src/media.ts:350:    response.status(409).send("Asset is not awaiting this scanner verdict");
+HEAD:functions/src/media.ts:398:        customMetadata?.scannerProvider !== verdict.provider ||
+HEAD:functions/src/media.ts:454:        custom?.scannerProvider !== verdict.provider ||
+HEAD:functions/src/media.ts:468:    safeDerivativeReady ? "security_approved" : "scanner_clean_pending_processing";
+HEAD:functions/src/media.ts:475:      throw new HttpsError("failed-precondition", "Asset state changed during scanner callback.");
+HEAD:functions/src/media.ts:479:      scannerEngine: verdict.scanEngine,
+HEAD:functions/src/media.ts:480:      scannerEngineVersion: verdict.engineVersion,
+HEAD:functions/src/media.ts:481:      scannerSignatureDatabaseVersion: verdict.signatureDatabaseVersion,
+HEAD:functions/src/media.ts:482:      scannerSignatureDatabaseAgeMs: verdict.signatureDatabaseAgeMs,
+HEAD:functions/src/media.ts:483:      scannerProvider: verdict.provider,
+HEAD:functions/src/media.ts:484:      scannerVerdict: verdict.verdict,
+HEAD:functions/src/media.ts:485:      scannerSha256: actualHash,
+HEAD:functions/src/media.ts:486:      scannerObjectGeneration: verdict.objectGeneration,
+HEAD:functions/src/media.ts:487:      scannerScannedAt: new Date(verdict.scannedAtMs),
+HEAD:functions/src/media.ts:488:      scannerVerifiedAt: FieldValue.serverTimestamp(),
+HEAD:functions/src/media.ts:536:        scannerEngine: verdict.scanEngine,
+HEAD:functions/src/media.ts:546:      actorUid: "trusted-scanner",
+HEAD:functions/src/media.ts:563:      throw new Error("INVALID_SCANNER_OBJECT_GENERATION");
+HEAD:functions/src/media.ts:605:  if (!result.ok) throw new Error("Unable to obtain Cloud Run identity token for scanner dispatch.");
+HEAD:functions/src/media.ts:615:    secrets: [mediaScannerApiToken],
+HEAD:functions/src/media.ts:624:    const scannerUrl = mediaScannerUrl.value();
+HEAD:functions/src/media.ts:625:    const callbackUrl = mediaScannerCallbackUrl.value();
+HEAD:functions/src/media.ts:626:    const apiToken = mediaScannerApiToken.value();
+HEAD:functions/src/media.ts:627:    if (!scannerUrl || !callbackUrl || !apiToken) {
+HEAD:functions/src/media.ts:628:      throw new Error("Trusted malware scanner gateway is not configured; asset remains quarantined.");
+HEAD:functions/src/media.ts:630:    const scanner = new URL(scannerUrl);
+HEAD:functions/src/media.ts:632:    if (scanner.protocol !== "https:" || callback.protocol !== "https:") {
+HEAD:functions/src/media.ts:633:      throw new Error("Scanner and callback endpoints must use HTTPS.");
+HEAD:functions/src/media.ts:645:      throw new Error("Scanner dispatch refused a changed Storage generation.");
+HEAD:functions/src/media.ts:653:    if (scanner.pathname !== "/scan") throw new Error("Scanner endpoint path must be /scan.");
+HEAD:functions/src/media.ts:654:    const identityToken = await cloudRunIdentityToken(scanner.origin);
+HEAD:functions/src/media.ts:670:    const dispatchResponse = await fetch(scanner.toString(), {
+HEAD:functions/src/media.ts:674:        "x-mawadda-scanner-token": apiToken,
+HEAD:functions/src/media.ts:683:        provider: mediaScannerProvider.value(),
+HEAD:functions/src/media.ts:688:      throw new Error(`Trusted scanner gateway rejected dispatch: HTTP ${dispatchResponse.status}.`);
+HEAD:functions/src/media.ts:705: * Issues a short-lived read capability only for a selected, scanner-approved
+HEAD:functions/src/media.ts:779:      custom?.scannerProvider !== asset.scannerProvider) {
+HEAD:functions/src/media.ts:857:        custom?.scannerProvider !== asset.scannerProvider) {
+HEAD:functions/src/media.ts:936:      custom?.scannerProvider !== asset.scannerProvider) {
+HEAD:functions/src/media.ts:1240:      customMetadata?.sourceSha256 !== String(asset.scannerSha256) ||
+HEAD:functions/src/media.ts:1241:      customMetadata?.scannerProvider !== String(asset.scannerProvider) ||
+HEAD:functions/src/media.ts:1518:  const allowedStatuses = ["upload_authorized", "pending_security_scan", "scanner_clean_pending_processing", "rejected", "security_approved", "retention_cleanup_in_progress", "retained_deleted"];
+HEAD:functions/src/media.ts:1575:        scannerEngine: data.scannerEngine ?? null,
+HEAD:functions/src/media.ts:1576:        scannerEngineVersion: data.scannerEngineVersion ?? null,
+HEAD:functions/src/media.ts:1577:        scannerSignatureDatabaseVersion: data.scannerSignatureDatabaseVersion ?? null,
+HEAD:functions/src/media.ts:1578:        scannerSignatureDatabaseAgeMs: data.scannerSignatureDatabaseAgeMs ?? null,
+HEAD:functions/src/media.ts:1629:      customMetadata?.scannerProvider !== asset.scannerProvider ||
+HEAD:functions/src/media.ts:1639:      customMetadata?.sourceSha256 !== asset.scannerSha256 ||
+HEAD:functions/src/media.ts:1877:      if (!["pending_security_scan", "scanner_clean_pending_processing", "security_approved"].includes(String(asset.status))) {
+HEAD:functions/src/media.ts:1923: * the isolated scanner worker, never the original quarantined bytes.
+HEAD:functions/src/media.ts:1991:          custom?.scannerProvider !== asset.scannerProvider) {
+HEAD:functions/src/retention.ts:85:  "upload_authorized", "pending_security_scan", "scanner_clean_pending_processing",
+HEAD:functions/src/retention.ts:108:    // derivative written by a scanner that was already running at expiry,
+HEAD:functions/src/room-rental.ts:12:  { planId: "room_180d", name: "استئجار غرفة 180 يوماً", durationDays: 180, priceCoins: 5000, active: true },
+HEAD:functions/test/chat-media-policy.test.js:34:test("scanner-clean without safe processing is never deliverable", () => {
+HEAD:functions/test/chat-media-policy.test.js:35:  assert.equal(resolveChatMediaDeliveryArtifact({ ...base, status: "scanner_clean_pending_processing" }, false), null);
+HEAD:functions/test/feature-coverage-matrix.test.js:23:    if (journey.command === "npm test") {
+HEAD:functions/test/feature-coverage-matrix.test.js:24:      assert.ok(packageJson.scripts.test, `${journey.id}: missing npm test script`);
+HEAD:functions/test/feature-coverage-matrix.test.js:41:  assert.ok(guest.plannedCases.includes("60-minute-live-expiry-clock-integration"));
+HEAD:functions/test/feature-coverage-matrix.test.js:75:  assert.equal(matrix.environment, "firebase-emulator-only");
+HEAD:functions/test/feature-coverage-matrix.test.js:78:  assert.equal(matrix.policy.testClockMayOnlyBeOverriddenInEmulator, true);
+HEAD:functions/test/feature-coverage-matrix.test.js:89:    "all-emulator-integration-journeys", "flutter-analyze", "flutter-tests",
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:3:  "environment": "firebase-emulator-only",
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:8:    "testClockMayOnlyBeOverriddenInEmulator": true,
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:41:      "emulatorClockOverrideOnly": true
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:65:      "command": "npm test",
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:85:      "command": "npm run test:guest-session-integration",
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:112:        "60-minute-live-expiry-clock-integration",
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:121:      "releaseBlocker": "Guest profile, server session, general-audience public-room join and text messaging are implemented in the development branch with emulator coverage. Full Flutter UI/device E2E, audio pipeline acceptance, exhaustive denied-capability matrix and cross-installation anti-abuse assurance remain release blockers."
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:131:      "command": "npm run test:premium-profile-integration",
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:158:      "command": "npm run test:message-deletion-integration",
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:181:      "command": "npm run test:media-integration",
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:207:      "command": "npm run test:wallet-store-integration",
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:234:      "command": "npm run test:wallet-store-integration",
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:262:      "command": "npm run test:room-rental-integration",
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:286:      "command": "npm run test:biometric-integration",
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:295:        "emulator-fixture-not-hardware-proof",
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:305:      "command": "npm run test:owner-audit-export-integration",
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:328:      "command": "npm run test:safety-integration",
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:346:      "command": "npm run test:push-token-integration",
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:363:      "command": "npm test",
+HEAD:functions/test/fixtures/feature-coverage-matrix.json:425:    "all-emulator-integration-journeys",
+HEAD:functions/test/fixtures/test-account-personas.json:5:    "requiredEmulators": [
+HEAD:functions/test/fixtures/test-account-personas.json:6:      "FIREBASE_AUTH_EMULATOR_HOST",
+HEAD:functions/test/fixtures/test-account-personas.json:7:      "FIRESTORE_EMULATOR_HOST"
+HEAD:functions/test/fixtures/test-account-personas.json:22:        "emulatorClockOverrideOnly": true
+HEAD:functions/test/fixtures/test-account-personas.json:86:      "biometricFixture": "emulator-server-record-only",
+HEAD:functions/test/fixtures/test-account-personas.json:205:    "emulatorFixtureIsNotHardwareProof": true,
+HEAD:functions/test/fixtures/test-account-personas.json:340:    "emulatorClockOverrideOnly": true
+HEAD:functions/test/integration/biometric-verification.integration.test.js:14:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/biometric-verification.integration.test.js:45:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/chat-retention.integration.test.js:8:const rawStorageEmulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? "127.0.0.1:9199";
+HEAD:functions/test/integration/chat-retention.integration.test.js:9:process.env.STORAGE_EMULATOR_HOST = `http://${rawStorageEmulatorHost.replace("https://", "").replace("http://", "")}`;
+HEAD:functions/test/integration/chat-retention.integration.test.js:18:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/chat-retention.integration.test.js:88:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/chat-retention.integration.test.js:89:  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+HEAD:functions/test/integration/chat-retention.integration.test.js:216:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/chat-retention.integration.test.js:217:  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:5:// Functions are invoked directly against the Firestore Emulator. No production
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:31:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:81:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:162:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:195:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:245:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:275:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:314:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:344:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:345:  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:453:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:454:  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:535:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:536:  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:570:        status: "scanner_clean_pending_processing",
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:602:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:603:  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:713:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/direct-message-deletion.integration.test.js:714:  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+HEAD:functions/test/integration/email-verification-renewal.integration.test.js:20:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/email-verification-renewal.integration.test.js:21:  assert.ok(process.env.FIREBASE_AUTH_EMULATOR_HOST, "Auth emulator is required");
+HEAD:functions/test/integration/guest-privacy.integration.test.js:26:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/guest-privacy.integration.test.js:47:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/guest-session.integration.test.js:20:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/guest-session.integration.test.js:319:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/media-callables.integration.test.js:6:// The emulator listens on plain HTTP even when the CLI host variable carries a scheme.
+HEAD:functions/test/integration/media-callables.integration.test.js:7:const rawStorageEmulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? "127.0.0.1:9199";
+HEAD:functions/test/integration/media-callables.integration.test.js:8:const storageEmulatorHost = rawStorageEmulatorHost.replace("https://", "").replace("http://", "");
+HEAD:functions/test/integration/media-callables.integration.test.js:9:process.env.STORAGE_EMULATOR_HOST = `http://${storageEmulatorHost}`;
+HEAD:functions/test/integration/media-callables.integration.test.js:38:// Signed URL generation needs a signer even when the target is the Storage Emulator.
+HEAD:functions/test/integration/media-callables.integration.test.js:239:  assert.ok(asset.data().retentionExpiresAt.toMillis() <= Date.now() + 7 * 24 * 60 * 60 * 1000 + 5000);
+HEAD:functions/test/integration/media-callables.integration.test.js:376:test("signed upload intent binds exact byte range and create-only precondition; emulator finalization succeeds", async () => {
+HEAD:functions/test/integration/media-callables.integration.test.js:389:  // The Storage Emulator does not implement signed PUT endpoints (returns 501).
+HEAD:functions/test/integration/media-callables.integration.test.js:451:        scannerProvider: "clamav-mawadda-gateway",
+HEAD:functions/test/integration/media-callables.integration.test.js:465:    scannerProvider: "clamav-mawadda-gateway",
+HEAD:functions/test/integration/media-callables.integration.test.js:494:        scannerProvider: "clamav-mawadda-gateway",
+HEAD:functions/test/integration/media-callables.integration.test.js:501:    scannerProvider: "clamav-mawadda-gateway", detectedContentType: "image/png",
+HEAD:functions/test/integration/media-callables.integration.test.js:686:        scannerProvider: "clamav-mawadda-gateway",
+HEAD:functions/test/integration/media-callables.integration.test.js:697:    storageGeneration: sourceGeneration, scannerSha256: sourceSha256,
+HEAD:functions/test/integration/media-callables.integration.test.js:698:    scannerProvider: "clamav-mawadda-gateway",
+HEAD:functions/test/integration/media-callables.integration.test.js:727:        scannerProvider: "clamav-mawadda-gateway",
+HEAD:functions/test/integration/media-callables.integration.test.js:738:    storageGeneration: sourceGeneration, scannerSha256: sourceSha256,
+HEAD:functions/test/integration/media-callables.integration.test.js:739:    scannerProvider: "clamav-mawadda-gateway",
+HEAD:functions/test/integration/media-legal-hold.integration.test.js:29:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/media-legal-hold.integration.test.js:112:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/media-legal-hold.integration.test.js:113:  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+HEAD:functions/test/integration/member-profile-media.integration.test.js:8:const rawStorageEmulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? "127.0.0.1:9199";
+HEAD:functions/test/integration/member-profile-media.integration.test.js:9:process.env.STORAGE_EMULATOR_HOST = `http://${rawStorageEmulatorHost.replace("https://", "").replace("http://", "")}`;
+HEAD:functions/test/integration/member-profile-media.integration.test.js:26:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/member-profile-media.integration.test.js:78:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/member-profile-media.integration.test.js:79:  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+HEAD:functions/test/integration/member-profile-media.integration.test.js:217:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/member-profile-media.integration.test.js:218:  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+HEAD:functions/test/integration/message-legal-hold.integration.test.js:30:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/owner-audit-export.integration.test.js:26:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/premium-profile.integration.test.js:37:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/push-token.integration.test.js:14:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/push-token.integration.test.js:45:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/room-events.integration.test.js:16:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/room-rental.integration.test.js:17:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/room-rental.integration.test.js:40:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/room-rental.integration.test.js:56:    userRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active", age: 25 }),
+HEAD:functions/test/integration/room-rental.integration.test.js:123:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/safety-cases.integration.test.js:35:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/test-persona-interaction.integration.test.js:11:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/test-persona-interaction.integration.test.js:12:  assert.ok(process.env.FIREBASE_AUTH_EMULATOR_HOST, "Auth emulator is required");
+HEAD:functions/test/integration/wallet-store.integration.test.js:29:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/wallet-store.integration.test.js:44:    senderRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active" }),
+HEAD:functions/test/integration/wallet-store.integration.test.js:109:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/wallet-store.integration.test.js:139:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/wallet-store.integration.test.js:189:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/wallet-store.integration.test.js:202:    memberRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active" }),
+HEAD:functions/test/integration/wallet-store.integration.test.js:204:      name: "VIP test item", description: "Emulator-only entitlement test",
+HEAD:functions/test/integration/wallet-store.integration.test.js:251:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/wallet-store.integration.test.js:255:    ["vip_monthly", 5000], ["title_custom", 800], ["badge_special", 1200],
+HEAD:functions/test/integration/wallet-store.integration.test.js:275:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/wallet-store.integration.test.js:324:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/wallet-store.integration.test.js:399:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/wallet-store.integration.test.js:440:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/integration/wallet-store.integration.test.js:563:  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+HEAD:functions/test/media-scanner.test.js:4:const { verifyScannerWebhook, validateScannerVerdict } = require("../lib/media-scanner");
+HEAD:functions/test/media-scanner.test.js:6:test("scanner webhook HMAC is verified and rejects absent or weak secrets", () => {
+HEAD:functions/test/media-scanner.test.js:10:  assert.equal(verifyScannerWebhook(body, signature, secret), true);
+HEAD:functions/test/media-scanner.test.js:11:  assert.equal(verifyScannerWebhook(body, signature, "weak"), false);
+HEAD:functions/test/media-scanner.test.js:12:  assert.equal(verifyScannerWebhook(body, signature, undefined), false);
+HEAD:functions/test/media-scanner.test.js:13:  assert.equal(verifyScannerWebhook(body, "0".repeat(64), secret), false);
+HEAD:functions/test/media-scanner.test.js:16:test("scanner verdict binds provider, object generation, hash and freshness", () => {
+HEAD:functions/test/media-scanner.test.js:30:  assert.equal(validateScannerVerdict(payload, "clamav-mawadda-gateway", now).verdict, "clean");
+HEAD:functions/test/media-scanner.test.js:31:  assert.equal(validateScannerVerdict({ ...payload, provider: "untrusted" }, "clamav-mawadda-gateway", now), null);
+HEAD:functions/test/media-scanner.test.js:32:  assert.equal(validateScannerVerdict({ ...payload, objectGeneration: "latest" }, "clamav-mawadda-gateway", now), null);
+HEAD:functions/test/media-scanner.test.js:33:  assert.equal(validateScannerVerdict({ ...payload, scannedAtMs: now - 700000 }, "clamav-mawadda-gateway", now), null);
+HEAD:functions/test/media-scanner.test.js:34:  assert.equal(validateScannerVerdict({ ...payload, verdict: "approved" }, "clamav-mawadda-gateway", now), null);
+HEAD:functions/test/media-scanner.test.js:35:  assert.equal(validateScannerVerdict({ ...payload, scanEngine: "unknown" }, "clamav-mawadda-gateway", now), null);
+HEAD:functions/test/media-scanner.test.js:36:  assert.equal(validateScannerVerdict({ ...payload, engineVersion: "latest" }, "clamav-mawadda-gateway", now), null);
+HEAD:functions/test/media-scanner.test.js:37:  assert.equal(validateScannerVerdict({ ...payload, signatureDatabaseVersion: "unknown" }, "clamav-mawadda-gateway", now), null);
+HEAD:functions/test/media-scanner.test.js:38:  assert.equal(validateScannerVerdict({ ...payload, signatureDatabaseAgeMs: 37 * 60 * 60 * 1000 }, "clamav-mawadda-gateway", now), null);
+HEAD:functions/test/media-scanner.test.js:42:test("scanner verdict accepts a fully bound safe WebP derivative and rejects partial or unsafe paths", () => {
+HEAD:functions/test/media-scanner.test.js:62:  assert.equal(validateScannerVerdict({ ...base, ...derivative }, base.provider, now).safePreviewGeneration, "987654");
+HEAD:functions/test/media-scanner.test.js:63:  assert.equal(validateScannerVerdict({ ...base, safePreviewPath: derivative.safePreviewPath }, base.provider, now), null);
+HEAD:functions/test/media-scanner.test.js:64:  assert.equal(validateScannerVerdict({ ...base, ...derivative, safePreviewPath: "processed/other/another-id/preview.webp" }, base.provider, now), null);
+HEAD:functions/test/media-scanner.test.js:65:  assert.equal(validateScannerVerdict({ ...base, ...derivative, verdict: "malicious" }, base.provider, now), null);
+HEAD:functions/test/media-scanner.test.js:68:test("scanner callback validates exact GIF, audio, video and flattened-PDF derivative contracts", () => {
+HEAD:functions/test/media-scanner.test.js:101:    assert.equal(validateScannerVerdict(payload, base.provider, now).safeDerivative.category, item.category);
+HEAD:functions/test/media-scanner.test.js:102:    assert.equal(validateScannerVerdict({
+HEAD:functions/test/media-scanner.test.js:106:    assert.equal(validateScannerVerdict({
+HEAD:functions/test/media-scanner.test.js:110:    assert.equal(validateScannerVerdict({
+HEAD:functions/test/owner-chat-review.test.js:147:  const token = encodeOwnerMessagePageToken(1794500000123, "message_abc-123");
+HEAD:functions/test/owner-chat-review.test.js:149:    createdAtMillis: 1794500000123,
+HEAD:functions/test/store-purchase.test.js:13:  assert.equal(calculateStorePurchaseBalance(5000, 1250), 3750);
+HEAD:functions/test/store-purchase.test.js:50:    { itemId: "title_a", category: "title", itemName: "لقب النخبة", status: "active", expiresAt: { toMillis: () => NOW + 5000 } },
+HEAD:functions/test/store-purchase.test.js:59:      { itemId: "title_a", itemName: "لقب النخبة", category: "title", expiresAtMs: NOW + 5000 },
+HEAD:functions/test/test-account-personas.test.js:20:  assert.deepEqual(guest.guestWindow, { durationSeconds: 3600, rollingWindowSeconds: 86400, emulatorClockOverrideOnly: true });
+HEAD:functions/test/test-account-personas.test.js:37:    emulatorClockOverrideOnly: true
+HEAD:functions/test/test-account-personas.test.js:74:  assert.equal(personas.biometricPolicy.emulatorFixtureIsNotHardwareProof, true);

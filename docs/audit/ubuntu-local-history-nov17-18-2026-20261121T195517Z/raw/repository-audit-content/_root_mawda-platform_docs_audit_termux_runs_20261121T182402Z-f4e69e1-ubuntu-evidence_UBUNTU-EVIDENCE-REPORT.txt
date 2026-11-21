@@ -1,0 +1,318 @@
+SOURCE: /root/mawda-platform/docs/audit/termux/runs/20261121T182402Z-f4e69e1-ubuntu-evidence/UBUNTU-EVIDENCE-REPORT.txt
+MODIFIED: 2026-11-21 21:24:17.534225159 +0300
+
+===== AUDIT METADATA =====
+Generated UTC: 20261121T182402Z
+Repository path: /root/mawda-platform
+Branch: codex/mawda-full-platform-implementation
+HEAD: f4e69e166f6ad7651f63fdf5391f1844ee124c9e
+HEAD subject: fix(guest): use explicit Firestore cursor type
+Target branch: codex/mawda-full-platform-implementation
+This audit does not run tests or modify application source.
+
+===== UBUNTU AND KERNEL =====
+Sat Nov 21 18:24:02 UTC 2026
+/root/mawda-platform
+PRETTY_NAME="Ubuntu 26.04.1 LTS"
+NAME="Ubuntu"
+VERSION_ID="26.04"
+VERSION="26.04.1 LTS (Resolute Raccoon)"
+VERSION_CODENAME=resolute
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=resolute
+LOGO=ubuntu-logo
+Linux localhost 6.17.0-PRoot-Distro #1 SMP PREEMPT_DYNAMIC Fri, 10 Oct 2025 00:00:00 +0000 aarch64 GNU/Linux
+id: cannot find name for group ID 1077
+uid=0(root) gid=0(root) groups=0(root),1077(1077),3003(aid_inet),9997(aid_everybody),20253(aid_u0_a253_cache),50253(aid_all_a253)
+Architecture: arm64
+
+===== TOOL VERSIONS =====
+--- git ---
+git version 2.53.0
+/usr/bin/git
+--- flutter ---
+   Woah! You appear to be trying to run flutter as root.
+   We strongly recommend running the flutter tool without superuser privileges.
+  /
+📎
+Flutter 3.47.9 • channel stable • https://github.com/flutter/flutter.git
+Framework • revision c197ca5199 (3 weeks ago) • 2026-10-29 10:10:20 -0400
+Engine • hash 9e025265bef30b838c0c1b68cad19decf97048f2 (revision 89c39edfdf) (25 days ago) • 2026-10-27 19:51:20.000Z
+Tools • Dart 3.13.7 • DevTools 2.60.0
+/root/flutter/bin/flutter
+--- dart ---
+   Woah! You appear to be trying to run flutter as root.
+   We strongly recommend running the flutter tool without superuser privileges.
+  /
+📎
+Dart SDK version: 3.13.7 (stable) (Thu Oct 22 14:28:57 2026 -0700) on "linux_arm64"
+/root/flutter/bin/dart
+--- node ---
+v22.22.1
+/usr/bin/node
+--- npm ---
+9.2.0
+/usr/bin/npm
+--- python3 ---
+Python 3.14.4
+/usr/bin/python3
+--- java ---
+openjdk 21.0.11 2026-04-21
+OpenJDK Runtime Environment (build 21.0.11)
+OpenJDK 64-Bit Server VM (build 21.0.11, mixed mode)
+/data/data/com.termux/files/usr/bin/java
+
+===== FLUTTER DOCTOR =====
+   Woah! You appear to be trying to run flutter as root.
+   We strongly recommend running the flutter tool without superuser privileges.
+  /
+📎
+[✓] Flutter (Channel stable, 3.47.9, on Ubuntu 26.04.1 LTS 6.17.0-PRoot-Distro, locale en_US) [298ms]
+    • Flutter version 3.47.9 on channel stable at /root/flutter
+    • Upstream repository https://github.com/flutter/flutter.git
+    • Framework revision c197ca5199 (3 weeks ago), 2026-10-29 10:10:20 -0400
+    • Engine revision 89c39edfdf
+    • Dart version 3.13.7
+    • DevTools version 2.60.0
+    • Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations, enable-native-assets, enable-record-use, enable-swift-package-manager, omit-legacy-version-file, enable-lldb-debugging, enable-uiscene-migration
+
+[✗] Android toolchain - develop for Android devices [88ms]
+    ✗ Unable to locate Android SDK.
+      Install Android Studio from: https://developer.android.com/studio/index.html
+      On first launch it will assist you in installing the Android SDK components.
+      (or visit https://flutter.dev/to/linux-android-setup for detailed instructions).
+      If the Android SDK has been installed to a custom location, please use
+      `flutter config --android-sdk` to update to that location.
+
+
+[✗] Chrome - develop for the web (Cannot find Chrome executable at google-chrome) [36ms]
+    ! Cannot find Chrome. Try setting CHROME_EXECUTABLE to a Chrome executable.
+
+[✗] Linux toolchain - develop for Linux desktop [1,229ms]
+    • clang version 21.1.8
+    • cmake version 4.3.4
+    • ninja version 1.13.2
+    • pkg-config version 0.29.2
+    ✗ GTK 3.0 development libraries are required for Linux development.
+      They are likely available from your distribution (e.g.: apt install libgtk-3-dev)
+    ! Unable to access driver information using 'eglinfo'.
+      It is likely available from your distribution (e.g.: apt install mesa-utils)
+
+[✓] Connected device (1 available) [83ms]
+    • Linux (desktop) • linux • linux-arm64 • Ubuntu 26.04.1 LTS 6.17.0-PRoot-Distro
+
+[✓] Network resources [834ms]
+    • All expected network resources are available.
+
+! Doctor found issues in 3 categories.
+
+===== GIT STATE =====
+?? docs/audit/
+codex/mawda-full-platform-implementation
+f4e69e166f6ad7651f63fdf5391f1844ee124c9e
+commit f4e69e166f6ad7651f63fdf5391f1844ee124c9e
+Author:     production home <productionhome2022@gmail.com>
+AuthorDate: Sat Nov 14 18:45:14 2026 +0300
+Commit:     production home <productionhome2022@gmail.com>
+CommitDate: Sat Nov 14 18:45:14 2026 +0300
+
+    fix(guest): use explicit Firestore cursor type
+Remote names only (URLs intentionally excluded):
+origin
+
+===== LOCAL BRANCH INVENTORY =====
+* codex/mawda-full-platform-implementation                     f4e69e1 [origin/codex/mawda-full-platform-implementation] fix(guest): use explicit Firestore cursor type
+  main                                                         5d49a8c [origin/main: ahead 35, behind 57] fix: build web with default release renderer
+  remotes/origin/HEAD                                          -> origin/main
+  remotes/origin/codex/mawda-full-platform-implementation      f4e69e1 fix(guest): use explicit Firestore cursor type
+  remotes/origin/codex/mawda-phase2-hardening                  f8abd72 docs(media): record owner-only download gate after clean verdict
+  remotes/origin/codex/mawdda-audit-archive                    6a94a07 Anchor audit archive cursor to immutable GCS object metadata
+  remotes/origin/codex/mawdda-audit-archive-full               5fb2b28 Update status for full audit collection archive coverage
+  remotes/origin/codex/mawdda-deep-audit-profile-store         4ed7394 ux: guide members to check inbox and spam for verification email
+  remotes/origin/codex/mawdda-final-archive-v2                 f79b112 Port full audit archive implementation: functions/test/audit-archive.test.js
+  remotes/origin/codex/mawdda-member-inbox                     f55e1d1 feat: expose member inbox and stories from the home dashboard
+  remotes/origin/codex/mawdda-member-inbox-rebased             4933e76 test: deny direct media downloads after participant block
+  remotes/origin/codex/mawdda-mfa-signin                       607647e feat: require owner MFA enrollment before opening platform
+  remotes/origin/codex/mawdda-native-platform-scaffold         d556a99 ci: generate and validate Android and iOS native runners
+  remotes/origin/codex/mawdda-phase1-phase2-hardening          cacdc51 docs: add phase 1 and phase 2 closure matrix
+  remotes/origin/codex/mawdda-pr3-port                         6e11d5a Test abandoned media upload cleanup grace period
+  remotes/origin/codex/mawdda-premium-effects                  5203d25 Add user-confirmed guest session deletion
+  remotes/origin/codex/mawdda-premium-features                 f388406 Seed realistic purchasedAt fields in premium entitlement tests
+  remotes/origin/codex/mawdda-room-audio-duration-enforcement  184473d test: include trusted media purpose in scanner verdict fixtures
+  remotes/origin/codex/mawdda-room-events                      b0b5214 Document full approved audit collection archive coverage
+  remotes/origin/codex/mawdda-safety-ui                        1e4c6aa Add blocked-account management to safety center
+  remotes/origin/codex/mawdda-store-entitlement-coverage       7b53ad8 feat: separate Mawdda store categories in shop UI
+  remotes/origin/codex/mawdda-store-entitlement-hardening      bca0892 test: fix room event lifecycle cleanup assertion reference
+  remotes/origin/codex/mawdda-store-entitlement-hardening-v2   7506f5d test: cover every enabled store entitlement and idempotent purchase
+  remotes/origin/codex/mawdda-store-wallet-entitlement-closure 201f5bf test: fix premium entitlement category assertion
+  remotes/origin/codex/mawdda-test-account-system              d89d30a docs: clarify emulator wallet fixture is not a reward
+  remotes/origin/codex/mawdda-unified-final                    ddf9594 Validate recurring email verification rewards in CI
+  remotes/origin/codex/mawdda-unified-final-v2                 e249c66 Configure Auth emulator for email renewal integration
+  remotes/origin/codex/mawdda-unified-final-v3                 ab5e37e Accept Cloud Storage generation number and string representations
+  remotes/origin/codex/mawdda-unified-release                  42e11d4 Connect local biometric prompt to server reward cycle
+  remotes/origin/codex/production-readiness-tests              424599a Merge pull request #1 from productionhome2022-hash/codex/mawda-stability-2026-11-11
+  remotes/origin/main                                          13ca8a8 revert: remove accidentally created owner screen from main
+
+===== COMMITS AROUND NOVEMBER 17, 2026 =====
+
+===== ALL-REFS REFLOG =====
+f4e69e1 refs/heads/codex/mawda-full-platform-implementation@{2026-11-14T19:01:27+03:00}: branch: Created from origin/codex/mawda-full-platform-implementation
+f4e69e1 HEAD@{2026-11-14T19:01:27+03:00}: checkout: moving from main to codex/mawda-full-platform-implementation
+f4e69e1 refs/remotes/origin/codex/mawda-full-platform-implementation@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+f8abd72 refs/remotes/origin/codex/mawda-phase2-hardening@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+6a94a07 refs/remotes/origin/codex/mawdda-audit-archive@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+5fb2b28 refs/remotes/origin/codex/mawdda-audit-archive-full@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+4ed7394 refs/remotes/origin/codex/mawdda-deep-audit-profile-store@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+f79b112 refs/remotes/origin/codex/mawdda-final-archive-v2@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+f55e1d1 refs/remotes/origin/codex/mawdda-member-inbox@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+4933e76 refs/remotes/origin/codex/mawdda-member-inbox-rebased@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+607647e refs/remotes/origin/codex/mawdda-mfa-signin@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+d556a99 refs/remotes/origin/codex/mawdda-native-platform-scaffold@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+cacdc51 refs/remotes/origin/codex/mawdda-phase1-phase2-hardening@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+6e11d5a refs/remotes/origin/codex/mawdda-pr3-port@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+5203d25 refs/remotes/origin/codex/mawdda-premium-effects@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+f388406 refs/remotes/origin/codex/mawdda-premium-features@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+184473d refs/remotes/origin/codex/mawdda-room-audio-duration-enforcement@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+b0b5214 refs/remotes/origin/codex/mawdda-room-events@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+1e4c6aa refs/remotes/origin/codex/mawdda-safety-ui@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+7b53ad8 refs/remotes/origin/codex/mawdda-store-entitlement-coverage@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+bca0892 refs/remotes/origin/codex/mawdda-store-entitlement-hardening@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+7506f5d refs/remotes/origin/codex/mawdda-store-entitlement-hardening-v2@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+201f5bf refs/remotes/origin/codex/mawdda-store-wallet-entitlement-closure@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+d89d30a refs/remotes/origin/codex/mawdda-test-account-system@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+ddf9594 refs/remotes/origin/codex/mawdda-unified-final@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+e249c66 refs/remotes/origin/codex/mawdda-unified-final-v2@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+ab5e37e refs/remotes/origin/codex/mawdda-unified-final-v3@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+42e11d4 refs/remotes/origin/codex/mawdda-unified-release@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+424599a refs/remotes/origin/codex/production-readiness-tests@{2026-11-14T19:01:26+03:00}: fetch origin: storing head
+13ca8a8 refs/remotes/origin/main@{2026-11-14T19:01:26+03:00}: fetch origin: forced-update
+5d49a8c refs/remotes/origin/main@{2026-11-11T03:28:45+03:00}: update by push
+5d49a8c refs/heads/main@{2026-11-11T03:28:42+03:00}: commit: fix: build web with default release renderer
+5d49a8c HEAD@{2026-11-11T03:28:42+03:00}: commit: fix: build web with default release renderer
+ab7c296 refs/remotes/origin/main@{2026-11-11T03:24:12+03:00}: update by push
+ab7c296 refs/heads/main@{2026-11-11T03:24:10+03:00}: commit: fix: update main.dart initialization and build web with canvaskit renderer
+ab7c296 HEAD@{2026-11-11T03:24:10+03:00}: commit: fix: update main.dart initialization and build web with canvaskit renderer
+428cb6d refs/remotes/origin/main@{2026-11-11T03:16:57+03:00}: update by push
+428cb6d refs/heads/main@{2026-11-11T03:16:54+03:00}: commit: fix: add permissions to workflow files
+428cb6d HEAD@{2026-11-11T03:16:54+03:00}: commit: fix: add permissions to workflow files
+ed383a8 refs/remotes/origin/main@{2026-11-11T02:51:30+03:00}: update by push
+ed383a8 refs/heads/main@{2026-11-11T02:51:27+03:00}: commit: Remove redundant workflow file
+ed383a8 HEAD@{2026-11-11T02:51:27+03:00}: commit: Remove redundant workflow file
+d8d5ff6 refs/remotes/origin/main@{2026-11-11T02:47:32+03:00}: update by push
+d8d5ff6 refs/heads/main@{2026-11-11T02:47:29+03:00}: commit: Direct flutter.js deployment fix
+d8d5ff6 HEAD@{2026-11-11T02:47:29+03:00}: commit: Direct flutter.js deployment fix
+26a05a9 refs/remotes/origin/main@{2026-11-11T02:39:08+03:00}: update by push
+26a05a9 refs/heads/main@{2026-11-11T02:39:05+03:00}: commit: Clean and fix index.html structure
+26a05a9 HEAD@{2026-11-11T02:39:05+03:00}: commit: Clean and fix index.html structure
+3389c12 refs/remotes/origin/main@{2026-11-11T01:30:07+03:00}: update by push
+3389c12 refs/heads/main@{2026-11-11T01:30:04+03:00}: commit: Update index.html for correct Flutter web bootstrap
+3389c12 HEAD@{2026-11-11T01:30:04+03:00}: commit: Update index.html for correct Flutter web bootstrap
+cb7961f refs/remotes/origin/main@{2026-11-11T01:22:12+03:00}: update by push
+cb7961f refs/heads/main@{2026-11-11T01:22:08+03:00}: commit: Fix web base href for Firebase hosting
+cb7961f HEAD@{2026-11-11T01:22:08+03:00}: commit: Fix web base href for Firebase hosting
+5b8b1bc refs/remotes/origin/main@{2026-11-11T01:14:46+03:00}: update by push
+5b8b1bc refs/heads/main@{2026-11-11T01:14:43+03:00}: commit: Fix workflow to use FIREBASE_TOKEN correctly
+5b8b1bc HEAD@{2026-11-11T01:14:43+03:00}: commit: Fix workflow to use FIREBASE_TOKEN correctly
+d1ee188 refs/remotes/origin/main@{2026-11-11T01:02:26+03:00}: update by push
+d1ee188 refs/heads/main@{2026-11-11T01:02:23+03:00}: commit: Update main.dart to start with LoginScreen
+d1ee188 HEAD@{2026-11-11T01:02:23+03:00}: commit: Update main.dart to start with LoginScreen
+509feba refs/remotes/origin/main@{2026-11-11T00:49:06+03:00}: update by push
+509feba refs/heads/main@{2026-11-11T00:49:02+03:00}: commit: Sync latest changes and force deployment with new token
+509feba HEAD@{2026-11-11T00:49:02+03:00}: commit: Sync latest changes and force deployment with new token
+e83ed3a refs/remotes/origin/main@{2026-11-11T00:24:12+03:00}: update by push
+e83ed3a refs/heads/main@{2026-11-11T00:24:09+03:00}: commit: Connect main.dart to the actual MainUserScreen
+e83ed3a HEAD@{2026-11-11T00:24:09+03:00}: commit: Connect main.dart to the actual MainUserScreen
+4664440 refs/remotes/origin/main@{2026-11-11T00:09:14+03:00}: update by push
+4664440 refs/heads/main@{2026-11-11T00:09:11+03:00}: commit: Configure firebase public path to build/web and finalize workflow
+4664440 HEAD@{2026-11-11T00:09:11+03:00}: commit: Configure firebase public path to build/web and finalize workflow
+f6ea23a refs/remotes/origin/main@{2026-11-10T20:49:16+03:00}: update by push
+f6ea23a refs/heads/main@{2026-11-10T20:49:13+03:00}: commit: Clean up web/index.html to use standard flutter bootstrap
+f6ea23a HEAD@{2026-11-10T20:49:13+03:00}: commit: Clean up web/index.html to use standard flutter bootstrap
+6a83bbd refs/remotes/origin/main@{2026-11-10T20:30:39+03:00}: update by push
+6a83bbd refs/heads/main@{2026-11-10T20:30:29+03:00}: commit: Deploy using direct firebase-tools cli with firebase_token
+6a83bbd HEAD@{2026-11-10T20:30:29+03:00}: commit: Deploy using direct firebase-tools cli with firebase_token
+d0f79a7 refs/remotes/origin/main@{2026-11-10T20:27:27+03:00}: update by push
+d0f79a7 refs/heads/main@{2026-11-10T20:27:24+03:00}: commit: Update workflow to use firebase_token secret
+d0f79a7 HEAD@{2026-11-10T20:27:24+03:00}: commit: Update workflow to use firebase_token secret
+c35eae7 refs/remotes/origin/main@{2026-11-10T20:22:10+03:00}: update by push
+c35eae7 refs/heads/main@{2026-11-10T20:22:07+03:00}: commit: Fix GitHub Actions secrets syntax for deployment
+c35eae7 HEAD@{2026-11-10T20:22:07+03:00}: commit: Fix GitHub Actions secrets syntax for deployment
+8818284 refs/remotes/origin/main@{2026-11-10T20:18:09+03:00}: update by push
+8818284 refs/heads/main@{2026-11-10T20:18:06+03:00}: commit: Configure standard production deployment pipeline
+8818284 HEAD@{2026-11-10T20:18:06+03:00}: commit: Configure standard production deployment pipeline
+5a66e7a refs/remotes/origin/main@{2026-11-10T20:11:43+03:00}: update by push
+5a66e7a refs/heads/main@{2026-11-10T20:11:39+03:00}: commit: Use official firebase service account action
+5a66e7a HEAD@{2026-11-10T20:11:39+03:00}: commit: Use official firebase service account action
+4916659 refs/remotes/origin/main@{2026-11-10T20:08:25+03:00}: update by push
+4916659 refs/heads/main@{2026-11-10T20:08:22+03:00}: commit: Switch to direct firebase-tools cli deployment
+4916659 HEAD@{2026-11-10T20:08:22+03:00}: commit: Switch to direct firebase-tools cli deployment
+365c03d refs/remotes/origin/main@{2026-11-10T20:05:07+03:00}: update by push
+365c03d refs/heads/main@{2026-11-10T20:04:58+03:00}: commit: Switch to firebaseToken deployment setup
+365c03d HEAD@{2026-11-10T20:04:58+03:00}: commit: Switch to firebaseToken deployment setup
+7f54e6c refs/remotes/origin/main@{2026-11-10T19:55:06+03:00}: update by push
+7f54e6c refs/heads/main@{2026-11-10T19:55:03+03:00}: commit: Cleanup duplicate workflows and keep clean active deployment setup
+7f54e6c HEAD@{2026-11-10T19:55:03+03:00}: commit: Cleanup duplicate workflows and keep clean active deployment setup
+58a032f refs/remotes/origin/main@{2026-11-10T19:52:19+03:00}: update by push
+58a032f refs/heads/main@{2026-11-10T19:52:13+03:00}: commit: Final workflow sync and trigger deploy
+58a032f HEAD@{2026-11-10T19:52:13+03:00}: commit: Final workflow sync and trigger deploy
+5b99771 refs/remotes/origin/main@{2026-11-10T16:34:06+03:00}: update by push
+5b99771 refs/heads/main@{2026-11-10T16:34:03+03:00}: commit: Fix Firebase service account secret reference
+5b99771 HEAD@{2026-11-10T16:34:03+03:00}: commit: Fix Firebase service account secret reference
+0bee0b5 refs/remotes/origin/main@{2026-11-10T16:29:35+03:00}: update by push
+0bee0b5 refs/heads/main@{2026-11-10T16:29:31+03:00}: commit: Direct fix for main.dart and screen references
+0bee0b5 HEAD@{2026-11-10T16:29:31+03:00}: commit: Direct fix for main.dart and screen references
+998c380 refs/remotes/origin/main@{2026-11-10T16:22:56+03:00}: update by push
+998c380 refs/heads/main@{2026-11-10T16:22:53+03:00}: commit: Add GitHub Actions cloud build workflow for Flutter web
+998c380 HEAD@{2026-11-10T16:22:53+03:00}: commit: Add GitHub Actions cloud build workflow for Flutter web
+1cd6878 refs/remotes/origin/main@{2026-11-10T16:17:31+03:00}: update by push
+1cd6878 refs/heads/main@{2026-11-10T16:17:26+03:00}: commit: Auto sync full Mawda platform files and structure
+1cd6878 HEAD@{2026-11-10T16:17:26+03:00}: commit: Auto sync full Mawda platform files and structure
+92c1660 refs/remotes/origin/main@{2026-11-10T11:25:19+03:00}: update by push
+92c1660 HEAD@{2026-11-10T11:23:42+03:00}: rebase (abort): returning to refs/heads/main
+f2db71d HEAD@{2026-11-10T11:22:55+03:00}: pull origin main --rebase (start): checkout f2db71d26d3909e9c2d35f84df4511245c01c9c0
+92c1660 refs/heads/main@{2026-11-10T11:21:35+03:00}: commit: Build release version for Mawda platform public launch
+92c1660 HEAD@{2026-11-10T11:21:35+03:00}: commit: Build release version for Mawda platform public launch
+f2db71d refs/remotes/origin/main@{2026-11-10T10:59:32+03:00}: pull origin main --rebase: forced-update
+0f019ea HEAD@{2026-11-10T10:58:48+03:00}: reset: moving to HEAD
+0f019ea refs/heads/main@{2026-11-10T10:42:40+03:00}: commit: Update core source files and pubspec configuration
+0f019ea HEAD@{2026-11-10T10:42:40+03:00}: commit: Update core source files and pubspec configuration
+19b9597 refs/remotes/origin/main@{2026-11-08T02:40:14Z}: update by push
+19b9597 refs/heads/main@{2026-11-08T02:40:11Z}: commit: fix: use stable channel directly
+19b9597 HEAD@{2026-11-08T02:40:11Z}: commit: fix: use stable channel directly
+99b680f refs/remotes/origin/main@{2026-11-08T02:34:10Z}: update by push
+99b680f refs/heads/main@{2026-11-08T02:34:07Z}: commit: fix: use exact stable flutter version 3.22.2
+99b680f HEAD@{2026-11-08T02:34:07Z}: commit: fix: use exact stable flutter version 3.22.2
+91c984a refs/remotes/origin/main@{2026-11-08T02:20:35Z}: update by push
+91c984a refs/heads/main@{2026-11-08T02:20:32Z}: commit: fix: update flutter to stable version
+91c984a HEAD@{2026-11-08T02:20:32Z}: commit: fix: update flutter to stable version
+30d88eb refs/remotes/origin/main@{2026-11-08T02:15:53Z}: update by push
+30d88eb refs/heads/main@{2026-11-08T01:58:56Z}: commit: fix: update workflow configuration for stable web build
+30d88eb HEAD@{2026-11-08T01:58:56Z}: commit: fix: update workflow configuration for stable web build
+d669641 refs/remotes/origin/main@{2026-11-08T01:58:44Z}: update by push
+d669641 refs/heads/main@{2026-11-08T01:52:24Z}: pull origin main --rebase (finish): refs/heads/main onto 2cd8411d3ee7b3b1b66c926bde3bf0ca1d411c21
+d669641 HEAD@{2026-11-08T01:52:24Z}: pull origin main --rebase (finish): returning to refs/heads/main
+d669641 HEAD@{2026-11-08T01:52:24Z}: pull origin main --rebase (pick): trigger cloud build
+2cd8411 HEAD@{2026-11-08T01:52:23Z}: pull origin main --rebase (start): checkout 2cd8411d3ee7b3b1b66c926bde3bf0ca1d411c21
+2cd8411 refs/remotes/origin/main@{2026-11-08T01:52:22Z}: pull origin main --rebase: fast-forward
+e171bbe refs/heads/main@{2026-11-08T01:07:29Z}: commit: trigger cloud build
+e171bbe HEAD@{2026-11-08T01:07:29Z}: commit: trigger cloud build
+7f9ecdc refs/heads/main@{2026-11-08T00:24:56Z}: clone: from https://github.com/productionhome2022-hash/mawda-platform.git
+7f9ecdc refs/remotes/origin/HEAD@{2026-11-08T00:24:56Z}: clone: from https://github.com/productionhome2022-hash/mawda-platform.git
+7f9ecdc HEAD@{2026-11-08T00:24:56Z}: clone: from https://github.com/productionhome2022-hash/mawda-platform.git
+
+===== HISTORICAL REPORT FILE DISCOVERY =====
+/root/mawda-platform/docs/DEEP_AUDIT_PHASE1_PHASE2_2026-11-14.md
+/root/mawda-platform/functions/src/audit-archive.ts
+/root/mawda-platform/functions/src/owner-audit-chain.ts
+/root/mawda-platform/functions/src/owner-audit-export.ts
+/root/mawda-platform/functions/test/audit-archive.test.js
+/root/mawda-platform/functions/test/integration/owner-audit-export.integration.test.js
+/root/mawda-platform/functions/test/owner-audit-chain.test.js
+/root/mawda-platform/functions/test/owner-audit-export.test.js
+
+===== EXISTING TERMUX AUDIT DIRECTORIES =====
