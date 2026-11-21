@@ -64,7 +64,7 @@ The latest lab validation workflow passed on commit bb19a83b431411beba1f28032493
 
 Because both repositories are private, the lab workflow also requires a fine-grained token stored only as the lab repository Actions secret MAWDDA_PLATFORM_READ_TOKEN, with Contents: read access to the primary repository. This secret has not been provisioned by this workflow and must never be committed or pasted into chat.
 
-The primary repository's old copy of the 5,000-persona generator/test and its package script must remain until the lab harness has completed a real successful run and a follow-up comparison proves that no required primary CI coverage was lost. Then remove only the large-scale harness files and package script from the primary development branch; keep ordinary persona integration tests in the primary repository.
+**Historical note:** the former primary-repository load harness is not an authorized prerequisite and must not be restored. The owner's later absolute exclusion decision supersedes any earlier staged-transfer or post-lab-removal sequence. The large-scale lab remains untouched unless separately commissioned.
 
 ## Consolidation gate
 
