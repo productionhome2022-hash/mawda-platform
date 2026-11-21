@@ -15,6 +15,7 @@ on:
       - "ios/**"
       - "pubspec.yaml"
       - "pubspec.lock"
+      - "tool/patch_android_plugin_compile_sdk.py"
       - "docs/BIOMETRIC_CROSS_PLATFORM_REQUIREMENTS_2026-11-21.md"
       - "docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md"
   pull_request:
@@ -78,6 +79,8 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get --enforce-lockfile
+      - name: Align resolved Android plugin modules to the app compileSdk
+        run: python3 tool/patch_android_plugin_compile_sdk.py
       - run: flutter build apk --debug
 
   ios:
