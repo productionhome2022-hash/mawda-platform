@@ -227,3 +227,8 @@
 9. **حدود الصلاحيات:** لا يغير هذا القرار ضوابط المالك السيادية؛ لا دمج إلى main ولا نشر ولا تعديل Firebase الإنتاجي ولا تفعيل فوترة أو خدمات مدفوعة ولا حذف موارد إنتاجية دون موافقة صريحة مستقلة.
 
 **قاعدة تواصل ملزمة:** إجابة موجزة أولاً، ثم الأدلة والشرح اللازم. لا تكرر الأسئلة التي سبق حسمها، ولا تجعل المالك يعيد شرح القرار المعتمد. يسري هذا القرار على جميع المحادثات المتخصصة وأعمال Mawdda اللاحقة.
+
+
+## GOV-SIM-5000-001 — precedence clarification (21 November 2026)
+
+Any earlier wording in this policy that treats the independent 5,000-persona lab as a scheduled phase after unification, a candidate SHA, or ordinary test completion is superseded. The lab must not be run or modified without a separate, explicit owner commission. No primary-repository workflow, test, build, or Termux routine may invoke it. This clarification preserves the independent lab boundary but does not grant permission to operate the lab.
