@@ -9,6 +9,15 @@ const db = getFirestore();
 const call = (uid, data = {}) => ({ data, auth: { uid, token: {} } });
 const uid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
+async function seedCallEntitlement(memberUid, mode) {
+  const itemId = mode === "audio" ? "voice_call_30d" : "video_call_30d";
+  const category = mode === "audio" ? "voice_call" : "video_call";
+  await db.collection("users").doc(memberUid).collection("entitlements").doc(itemId).set({
+    itemId, category, status: "active",
+    expiresAt: Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  });
+}
+
 test("direct call lifecycle enforces membership, callee acceptance, sequenced signaling and termination", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const callerUid = uid("call_caller");
@@ -26,6 +35,8 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
     callerRef.set({ profileCompleted: true, accountStatus: "active", age: 29 }),
     calleeRef.set({ profileCompleted: true, accountStatus: "active", age: 31 }),
     outsiderRef.set({ profileCompleted: true, accountStatus: "active", age: 28 }),
+    seedCallEntitlement(callerUid, "audio"),
+    seedCallEntitlement(calleeUid, "audio"),
     chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
   ]);
   try {
@@ -121,6 +132,9 @@ test("room call signaling is peer-targeted and one member leaving does not end t
     ...memberRefs.map((ref) => ref.set({
       profileCompleted: true, accountStatus: "active", age: 30,
     })),
+    ...[callerUid, firstUid, secondUid].flatMap((memberUid) => [
+      seedCallEntitlement(memberUid, "video"),
+    ]),
     roomRef.set({
       roomId, name: "غرفة اختبار المكالمات", ownerUid: callerUid,
       kind: "private", audience: "adult", status: "active", capacity: 5,
@@ -324,6 +338,8 @@ test("server enforces rolling audio and video attempt quotas without charging re
   await Promise.all([
     callerRef.set({ profileCompleted: true, accountStatus: "active", age: 29 }),
     calleeRef.set({ profileCompleted: true, accountStatus: "active", age: 31 }),
+    seedCallEntitlement(callerUid, "audio"),
+    seedCallEntitlement(calleeUid, "audio"),
     chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
     quotaRef.set({
       attempts: [
@@ -463,6 +479,10 @@ test("group audio follows room capacity and group video is capped at four total 
       ...memberUids.map((memberUid) => db.collection("users").doc(memberUid).set({
         profileCompleted: true, accountStatus: "active", age: 30,
       })),
+      ...memberUids.flatMap((memberUid) => [
+        seedCallEntitlement(memberUid, "audio"),
+        seedCallEntitlement(memberUid, "video"),
+      ]),
       roomRef.set({
         roomId, name: prefix, ownerUid, kind: "private", audience: "adult",
         status: "active", capacity, memberCount: count, isRented: true,
