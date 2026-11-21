@@ -21,10 +21,11 @@ These exclusions are deliberate scope boundaries, not completed tests and not re
 - Code baseline SHA: `e522acb5a47964b529b84f49bacd9db0167a6dc5`
 - Historical integration anchor: `e12897ad7dc5f383501d997117fb1211c67632e7`
 - Recovery/documentation branch: `codex/mawda-recovery-integration-2026-11-21`
-- Recovery branch is 5 commits ahead / 0 behind the code baseline; its current compare shows documentation-only changes in:
+- Recovery branch is 8 commits ahead / 0 behind the code baseline; its current compare shows documentation-only changes in:
   - `docs/RELEASE_READINESS_CHECKLIST.md`
   - `docs/audit/recovery/DOMAIN_BRANCH_INVENTORY_2026-11-22.md`
   - `docs/audit/recovery/UNIFIED_BASELINE_SELECTION_2026-11-22.md`
+  - `functions/test/fixtures/feature-coverage-matrix.json`
 - No application source code was ported in the branch-inventory passes. No merge to the official development branch or `main` was performed.
 
 ## Verified GitHub Actions evidence on the code baseline SHA
@@ -60,7 +61,7 @@ The approved manual-review policy is implemented as a server-authorized Super Ow
 
 The committed `functions/test/fixtures/feature-coverage-matrix.json` contains 16 journeys. Two are still marked `partial`:
 
-- **GUEST-001:** the emulator suite covers guest profile/session, public-room discovery/join, text and audio messaging, denial of direct messages/store purchase/wallet transfer/private or adult rooms, idempotency, cleanup and retry. The matrix still lists additional internal negative-capability and anti-abuse cases as planned, including no wallet read/top-up, no room rental, no gifts, and denial of image/GIF/video/document messages. It also lists expiry-clock and cross-installation assurance cases. The current successful CI run does not by itself prove these unimplemented planned cases.
+- **GUEST-001:** the emulator suite covers guest profile/session, public-room discovery/join, text and audio messaging, denial of direct messages/store purchase/wallet transfer/private or adult rooms, idempotency, cleanup and retry. The matrix now records eight remaining internal gaps: 60-minute expiry clock, cross-installation abuse resistance, full Flutter-to-backend E2E, no-reward guarantee, no wallet read/top-up, no room rental, no gifts, and denial of image/GIF/video/document messages. The current successful CI run does not by itself prove these unimplemented planned cases.
 - **CALL-001:** the server-side signaling emulator suite passed 7/7. The matrix remains partial because its remaining planned items include WebRTC media negotiation, TURN/network traversal, device permissions, background notifications and real-device media quality. These are outside the owner-confirmed current scope and have not been tested here.
 
 The matrix's older BIO-001 wording should not be interpreted as requiring device attestation or automated proof. The final owner policy in `docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md` is authoritative: manual Super Owner evidence review and explicit decision are sufficient; server authorization, fresh MFA, private evidence access, audit, atomic ledger reward, idempotency and deletion remain required.
