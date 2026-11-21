@@ -198,6 +198,7 @@ Backfill in bounded batches:
 | 2026-11-21 07:58:09Z–07:58:36Z | Completed semantic comparison of the 137-line historical master index against the three-section hub; mapped every old section, annotated superseded BIO-002/GOV-DEV-001 rules, normalized visible BetaCoins terminology, and reconciled SRC-0030 | DOC-CENTRAL-2026-11-21-001; old-index blob `3e3e7daa75f20a15da9618fe999ac5bd1f2e99c2`; reconciliation blob `80e49916083bf0cbfc70968bfe6437a38a9554c`; 5 reconciled, 3 in review, 1,093 pending at that snapshot |
 | 2026-11-21 08:00:17Z–08:00:32Z | Added five previously unlisted central records (semantic register, engineering ledger, two templates, reconciliation index); refreshed inventory to 1,106 IDs and documented the current 8/3/1,095 state | DOC-CENTRAL-2026-11-21-001; new IDs `SRC-1102`–`SRC-1106`; inventory blob `63ad29ee47b053ae01e23400b718a4225ad49992`; reconciliation blob `9abbce847e83f0134404ade7f961ffc700a43142`; semantic register blob `91cffda944f9bdcc06f8b8cc18a51ef173c21fe7` |
 | 2026-11-21 08:04:18Z–08:05:07Z | Added the aggregate file manifest for the 79-commit delta (24 paths: 15 added, 9 modified, 0 removed), indexed as SRC-1107; refreshed the central source count to 1,107 and reconciliation status to 9/3/1,095 | DOC-CENTRAL-2026-11-21-001; manifest blob SHA `ce51fba692622342d958143c24515c00a0f6c05b`; inventory `80a5c933c6a2b9ec42b82629eda910300d3996e8`; reconciliation `57572ec73dfeab39a0d66cad21d5071c01740b9b`; compare base `90b6e45432d068455ee846dcf2ca0f1d13c85dd7`, head snapshot `8fc50a647eaef4f359c801f4bba1fb7b0e7646d2` |
+| 2026-11-21 08:06:06Z–08:06:34Z | Began review of `IMPLEMENTATION_TRACEABILITY.md` (SRC-0017); normalized visible currency wording to BetaCoins while preserving technical identifiers; marked it IN_REVIEW pending full claim-to-SHA audit | DOC-CENTRAL-2026-11-21-001; source blob `10718b7e5e0eeb7254475f83827cbcb572bebc42`; reconciliation blob `5ee2aa74efb83526b5bec5d695cd1b4df47ccd4a`; current status 9 RECONCILED, 4 IN_REVIEW, 1,094 pending |
 
 ## 11. Operational templates and initial Git evidence
 
@@ -216,4 +217,3 @@ Backfill in bounded batches:
 
 
 
-| 2026-11-21 08:06:06Z–08:06:34Z | Began review of `IMPLEMENTATION_TRACEABILITY.md` (SRC-0017); normalized visible currency wording to BetaCoins while preserving technical identifiers; marked it IN_REVIEW pending full claim-to-SHA audit | DOC-CENTRAL-2026-11-21-001; source blob `10718b7e5e0eeb7254475f83827cbcb572bebc42`; reconciliation blob `5ee2aa74efb83526b5bec5d695cd1b4df47ccd4a`; current status 9 RECONCILED, 4 IN_REVIEW, 1,094 pending |
