@@ -1,0 +1,23 @@
+BRANCH: codex/mawdda-phase1-phase2-hardening
+SHA: cacdc51f22f7146145a81c5e4d0729aee5f5063d
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 874e31f1e6b30a0256f017332b23073b64973842
+
+=== DIVERGENCE target-only / branch-only ===
+1606	1
+
+=== BRANCH UNIQUE COMMITS ===
+cacdc51f22f7146145a81c5e4d0729aee5f5063d docs: add phase 1 and phase 2 closure matrix
+
+=== CHERRY STATUS ===
++ cacdc51f22f7146145a81c5e4d0729aee5f5063d docs: add phase 1 and phase 2 closure matrix
+
+=== FILE STATUS ===
+A	docs/PHASE1_PHASE2_CLOSURE_MATRIX.md
+
+=== NUMSTAT ===
+55	0	docs/PHASE1_PHASE2_CLOSURE_MATRIX.md
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

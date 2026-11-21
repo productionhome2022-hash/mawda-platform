@@ -1,0 +1,37 @@
+BRANCH: codex/mawdda-room-events
+SHA: b0b5214ab3b3b31f2c4ff494ce6ffe3536ae1615
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 25080d7d471db47be37dc0ee71dc8f719b97eac3
+
+=== DIVERGENCE target-only / branch-only ===
+1570	5
+
+=== BRANCH UNIQUE COMMITS ===
+b0b5214ab3b3b31f2c4ff494ce6ffe3536ae1615 Document full approved audit collection archive coverage
+dc1127ca11bfcde43c669774a5e9d6d7243569fb Archive verification privacy media profile deletion and room audit collections
+63d1816de1a63055ad3eb1cf2cac40b7bec2a3f8 Correct newline assertion for audit collection archive payload
+9e82df8fdebbffd1faba4cf0c209ad6694a91d75 Test immutable archive manifests for audit collections
+6f220fa1cc351de65acd0617167a70045ff168d5 Add archive manifest helpers for all audit collections
+
+=== CHERRY STATUS ===
+- 6f220fa1cc351de65acd0617167a70045ff168d5 Add archive manifest helpers for all audit collections
++ 9e82df8fdebbffd1faba4cf0c209ad6694a91d75 Test immutable archive manifests for audit collections
++ 63d1816de1a63055ad3eb1cf2cac40b7bec2a3f8 Correct newline assertion for audit collection archive payload
+- dc1127ca11bfcde43c669774a5e9d6d7243569fb Archive verification privacy media profile deletion and room audit collections
+- b0b5214ab3b3b31f2c4ff494ce6ffe3536ae1615 Document full approved audit collection archive coverage
+
+=== FILE STATUS ===
+M	functions/src/audit-archive.ts
+M	functions/src/index.ts
+M	functions/test/audit-archive.test.js
+M	infra/audit-archive/README.md
+
+=== NUMSTAT ===
+75	0	functions/src/audit-archive.ts
+179	0	functions/src/index.ts
+23	0	functions/test/audit-archive.test.js
+6	3	infra/audit-archive/README.md
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

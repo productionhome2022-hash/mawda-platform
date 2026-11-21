@@ -1,0 +1,27 @@
+BRANCH: codex/phase1-store-gift-concurrency-2026-11-20
+SHA: 2f175165ed17a1a02b47439bacfbb187b1e00d6e
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: d857497c50eca8d7dcf105e938c8060402ae85e3
+
+=== DIVERGENCE target-only / branch-only ===
+223	2
+
+=== BRANCH UNIQUE COMMITS ===
+2f175165ed17a1a02b47439bacfbb187b1e00d6e ci(store): run concurrent gift replay emulator coverage
+c06b29321a7660476e00f47095d4b985b4ddb6ed test(store): cover concurrent gift request replay
+
+=== CHERRY STATUS ===
+- c06b29321a7660476e00f47095d4b985b4ddb6ed test(store): cover concurrent gift request replay
+- 2f175165ed17a1a02b47439bacfbb187b1e00d6e ci(store): run concurrent gift replay emulator coverage
+
+=== FILE STATUS ===
+M	.github/workflows/validate.yml
+M	functions/test/integration/store-gifting.integration.test.js
+
+=== NUMSTAT ===
+3	0	.github/workflows/validate.yml
+11	2	functions/test/integration/store-gifting.integration.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

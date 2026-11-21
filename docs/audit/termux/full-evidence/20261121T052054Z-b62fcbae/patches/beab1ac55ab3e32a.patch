@@ -1,0 +1,1728 @@
+diff --git a/firestore.indexes.json b/firestore.indexes.json
+index a0d9ba0f..92a18afe 100644
+--- a/firestore.indexes.json
++++ b/firestore.indexes.json
+@@ -298,84 +298,98 @@
+         }
+       ]
+     },
+     {
+       "collectionGroup": "rooms",
+       "queryScope": "COLLECTION",
+       "fields": [
+         {
+           "fieldPath": "isRented",
+           "order": "ASCENDING"
+         },
+         {
+           "fieldPath": "status",
+           "order": "ASCENDING"
+         },
+         {
+           "fieldPath": "expiresAt",
+           "order": "ASCENDING"
+         }
+       ]
+     },
+     {
+       "collectionGroup": "rooms",
+       "queryScope": "COLLECTION",
+       "fields": [
+         {
+           "fieldPath": "isRented",
+           "order": "ASCENDING"
+         },
+         {
+           "fieldPath": "status",
+           "order": "ASCENDING"
+         },
+         {
+           "fieldPath": "freezeExpiresAt",
+           "order": "ASCENDING"
+         }
+       ]
+     },
+     {
+       "collectionGroup": "coinPurchaseRequests",
+       "queryScope": "COLLECTION",
+       "fields": [
+         {
+           "fieldPath": "requesterUid",
+           "order": "ASCENDING"
+         },
+         {
+           "fieldPath": "createdAt",
+           "order": "DESCENDING"
+         }
+       ]
+     },
+     {
+       "collectionGroup": "coinPurchaseRequests",
+       "queryScope": "COLLECTION",
+       "fields": [
+         {
+           "fieldPath": "status",
+           "order": "ASCENDING"
+         },
+         {
+           "fieldPath": "createdAt",
+           "order": "DESCENDING"
+         }
+       ]
+     },
+     {
+       "collectionGroup": "roomEvents",
+       "queryScope": "COLLECTION",
+       "fields": [
+         {
+           "fieldPath": "roomId",
+           "order": "ASCENDING"
+         },
+         {
+           "fieldPath": "startsAt",
+           "order": "DESCENDING"
+         }
+       ]
++    },
++    {
++      "collectionGroup": "directChats",
++      "queryScope": "COLLECTION",
++      "fields": [
++        {
++          "fieldPath": "participantUids",
++          "arrayConfig": "CONTAINS"
++        },
++        {
++          "fieldPath": "lastMessageAt",
++          "order": "DESCENDING"
++        }
++      ]
+     }
+   ],
+   "fieldOverrides": []
+ }
+diff --git a/functions/src/index.ts b/functions/src/index.ts
+index 5f32a2e0..184ebf18 100644
+--- a/functions/src/index.ts
++++ b/functions/src/index.ts
+@@ -2594,206 +2594,301 @@ export const sendDirectMessage = onCall(async (request) => {
+         messageId,
+         chatId,
+         senderUid,
+         recipientUid,
+         text: messageText,
+         type: "text",
+         createdAt,
+       });
+       transaction.create(notificationRef, {
+         notificationId: messageId,
+         type: "direct_message",
+         senderUid,
+         chatId,
+         messageId,
+         title: "رسالة جديدة",
+         body: "لديك رسالة جديدة. افتح مودة لقراءتها.",
+         isRead: false,
+         createdAt,
+       });
+       return { chatId, messageId, replayed: false };
+     });
+     if (!result.replayed) {
+       await sendPushToMember(recipientUid, "رسالة جديدة في مودة", "لديك رسالة جديدة. افتح مودة لقراءتها.",
+         { type: "direct_message", chatId, messageId });
+     }
+     return result;
+   } catch (error) {
+     if (error instanceof HttpsError) throw error;
+     logger.error("Direct message send failed", { senderUid, recipientUid, error });
+     throw new HttpsError("internal", "تعذر إرسال الرسالة حالياً.");
+   }
+ });
+ 
+ 
+ /**
+  * Reads direct messages and the other participant's read cursor.
+  * Reading does not itself change receipts; markDirectChatRead is a separate,
+  * explicit member action and is never called by owner-review endpoints.
+  */
+ export const getDirectMessages = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const user = await db.collection("users").doc(uid).get();
+   if (!user.exists || user.data()?.profileCompleted !== true ||
+       !isMemberAccountInGoodStanding(user.data())) {
+     throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بقراءة المحادثات حالياً.");
+   }
+   let chatId = request.data?.chatId;
+   const peerUid = request.data?.peerUid;
+   const expectedPeerChatId = typeof peerUid === "string" && peerUid.length > 0 &&
+       peerUid.length <= 128 && peerUid !== uid
+     ? createDirectChatId(...([uid, peerUid].sort() as [string, string]))
+     : null;
+   if (typeof chatId !== "string") {
+     if (expectedPeerChatId === null) {
+       throw new HttpsError("invalid-argument", "معرف المحادثة أو العضو الآخر غير صالح.");
+     }
+     chatId = expectedPeerChatId;
+   }
+   if (!/^[a-f0-9]{64}$/.test(chatId)) {
+     throw new HttpsError("invalid-argument", "معرف المحادثة غير صالح.");
+   }
+   const chatRef = db.collection("directChats").doc(chatId);
+   const chat = await chatRef.get();
+   // A valid peer pair may open an empty conversation before the first message.
+   if (!chat.exists) {
+     if (expectedPeerChatId !== null && chatId === expectedPeerChatId) {
+       return { chatId, messages: [], peerLastReadAt: null };
+     }
+     throw new HttpsError("not-found", "المحادثة غير موجودة.");
+   }
+   const participants = chat.data()?.participantUids;
+   if (!Array.isArray(participants) || participants.length !== 2 ||
+       participants.some((value) => typeof value !== "string") ||
+       participants[0] === participants[1] || !participants.includes(uid)) {
+     throw new HttpsError("permission-denied", "ليست لديك صلاحية قراءة هذه المحادثة.");
+   }
+   const peer = participants.find((participant) => participant !== uid)!;
+   if (typeof peerUid === "string" && peerUid !== peer) {
+     throw new HttpsError("permission-denied", "معرف الطرف الآخر لا يطابق أطراف المحادثة.");
+   }
++  const peerSnapshot = await db.collection("users").doc(peer).get();
++  const currentUserData = user.data() ?? {};
++  const peerData = peerSnapshot.data() ?? {};
++  const currentBlocks = Array.isArray(currentUserData.blockedUids) ? currentUserData.blockedUids : [];
++  const peerBlocks = Array.isArray(peerData.blockedUids) ? peerData.blockedUids : [];
++  if (!peerSnapshot.exists || !isMemberAccountInGoodStanding(peerData) ||
++      currentBlocks.includes(peer) || peerBlocks.includes(uid)) {
++    throw new HttpsError("permission-denied", "لم تعد هذه المحادثة متاحة بسبب حالة العضوية أو إعدادات الحظر.");
++  }
+   const messages = await chatRef.collection("messages")
+     .orderBy("createdAt", "desc")
+     .limit(50)
+     .get();
+   const receiptRefs = participants.map((participant) =>
+     chatRef.collection("readReceipts").doc(participant),
+   );
+   const receiptSnapshots = await db.getAll(...receiptRefs);
+   const peerReceipt = receiptSnapshots[participants.indexOf(peer)].data() ?? {};
+   const peerLastReadAt = peerReceipt.lastReadMessageCreatedAt?.toMillis?.() ?? null;
+   return {
+     chatId,
+     peerUid: peer,
+     peerLastReadAt,
+     messages: messages.docs.reverse().map((doc) => {
+       const data = doc.data();
+       const createdAt = data.createdAt?.toMillis?.() ?? null;
+       return {
+         messageId: data.messageId ?? doc.id,
+         senderUid: data.senderUid ?? "",
+         recipientUid: data.recipientUid ?? "",
+         text: data.text ?? "",
+         type: data.type ?? "text",
+         mediaId: typeof data.mediaId === "string" ? data.mediaId : null,
+         mediaIds: Array.isArray(data.mediaIds) ? data.mediaIds.filter((value: unknown) => typeof value === "string") : [],
+         mediaCategory: typeof data.mediaCategory === "string" ? data.mediaCategory : null,
+         mediaContentType: typeof data.contentType === "string" ? data.contentType :
+           (typeof data.mediaContentType === "string" ? data.mediaContentType : null),
+         mediaName: typeof data.mediaName === "string" ? data.mediaName : null,
+         deletionPending: data.deletionPending === true,
+         deletedForRequester: Array.isArray(data.deletedForUids) && data.deletedForUids.includes(uid),
+         senderLabel: data.isPlatformOwnerMessage === true
+           ? (typeof data.senderLabel === "string" ? data.senderLabel : "إدارة منصة مودة")
+           : null,
+         isPlatformOwnerMessage: data.isPlatformOwnerMessage === true,
+         liveStream: data.liveStream ?? null,
+         isOwnerReviewNotice: data.isOwnerReviewNotice === true,
+         ownerReviewMode: data.ownerReviewMode ?? null,
+         ownerParticipationMode: data.ownerParticipationMode ?? null,
+         createdAt,
+         isReadByPeer: isMessageReadByPeer(createdAt, peerLastReadAt),
+       };
+     }).filter((message) => !message.deletedForRequester && !message.deletionPending),
+   };
+ });
+ 
++/**
++ * Returns a safe, recent-only inbox projection for the signed-in member.
++ * It never exposes messages or conversations involving a blocked participant.
++ */
++export const getMyDirectChats = onCall(async (request) => {
++  const uid = requireAuthenticatedUid(request.auth?.uid);
++  const userSnapshot = await db.collection("users").doc(uid).get();
++  const currentUser = userSnapshot.data() ?? {};
++  if (!userSnapshot.exists || currentUser.profileCompleted !== true ||
++      !isMemberAccountInGoodStanding(currentUser)) {
++    throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بفتح صندوق الرسائل.");
++  }
++
++  const chatsSnapshot = await db.collection("directChats")
++    .where("participantUids", "array-contains", uid)
++    .orderBy("lastMessageAt", "desc")
++    .limit(50)
++    .get();
++  const validChats = chatsSnapshot.docs.map((document) => {
++    const data = document.data();
++    const participants = data.participantUids;
++    if (!Array.isArray(participants) || participants.length !== 2 ||
++        participants.some((value: unknown) => typeof value !== "string") ||
++        participants[0] === participants[1] || !participants.includes(uid)) {
++      return null;
++    }
++    const peerUid = participants.find((participant: string) => participant !== uid);
++    return typeof peerUid === "string" ? { document, data, peerUid } : null;
++  }).filter((value): value is NonNullable<typeof value> => value !== null);
++
++  if (validChats.length === 0) return { chats: [] };
++
++  const peerSnapshots = await db.getAll(
++    ...validChats.map(({ peerUid }) => db.collection("users").doc(peerUid)),
++  );
++  const receiptSnapshots = await db.getAll(
++    ...validChats.map(({ document }) =>
++      document.ref.collection("readReceipts").doc(uid),
++    ),
++  );
++  const currentBlocks = new Set(
++    Array.isArray(currentUser.blockedUids) ? currentUser.blockedUids : [],
++  );
++
++  const chats = validChats.flatMap((chat, index) => {
++    const peerSnapshot = peerSnapshots[index];
++    const peer = peerSnapshot.data() ?? {};
++    const peerBlocks = Array.isArray(peer.blockedUids) ? peer.blockedUids : [];
++    if (!peerSnapshot.exists || peer.profileCompleted !== true ||
++        !isMemberAccountInGoodStanding(peer) || currentBlocks.has(chat.peerUid) ||
++        peerBlocks.includes(uid)) {
++      return [];
++    }
++
++    const receipt = receiptSnapshots[index].data() ?? {};
++    const lastMessageAt = chat.data.lastMessageAt instanceof Timestamp
++      ? chat.data.lastMessageAt.toMillis()
++      : null;
++    const lastReadAt = receipt.lastReadMessageCreatedAt instanceof Timestamp
++      ? receipt.lastReadMessageCreatedAt.toMillis()
++      : 0;
++    const senderUid = typeof chat.data.lastMessageSenderUid === "string"
++      ? chat.data.lastMessageSenderUid
++      : "";
++    const peerName = [
++      peer.displayName,
++      peer.fullName,
++      peer.username,
++    ].find((value) => typeof value === "string" && value.trim().length > 0) ?? "عضو مودة";
++    return [{
++      chatId: chat.document.id,
++      peerUid: chat.peerUid,
++      peerName: peerName.toString().trim().slice(0, 80),
++      lastMessagePreview: typeof chat.data.lastMessagePreview === "string"
++        ? chat.data.lastMessagePreview.slice(0, 120)
++        : "",
++      lastMessageAt,
++      lastMessageSenderUid: senderUid,
++      hasUnread: senderUid !== uid && lastMessageAt !== null && lastMessageAt > lastReadAt,
++    }];
++  });
++
++  return { chats };
++});
++
++
+ /** Hides one direct message only for the authenticated participant. */
+ export const deleteDirectMessageForMe = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const chatId = request.data?.chatId;
+   const messageId = request.data?.messageId;
+   if (typeof chatId !== "string" || !/^[a-f0-9]{64}$/.test(chatId) ||
+       typeof messageId !== "string" || !/^[a-f0-9]{64}$/.test(messageId)) {
+     throw new HttpsError("invalid-argument", "بيانات حذف الرسالة غير صالحة.");
+   }
+   const chatRef = db.collection("directChats").doc(chatId);
+   const messageRef = chatRef.collection("messages").doc(messageId);
+   const notificationRef = db.collection("users").doc(uid)
+     .collection("notifications").doc(messageId);
+   const auditRef = db.collection("directMessageDeletionAudit").doc(
+     createHash("sha256").update(`direct:${chatId}:${messageId}:${uid}:delete_for_me`).digest("hex"),
+   );
+   await db.runTransaction(async (transaction) => {
+     const [chat, message, audit, notification] = await Promise.all([
+       transaction.get(chatRef), transaction.get(messageRef),
+       transaction.get(auditRef), transaction.get(notificationRef),
+     ]);
+     const participants = chat.data()?.participantUids;
+     if (!chat.exists || !message.exists || !Array.isArray(participants) ||
+         participants.length !== 2 || !participants.includes(uid)) {
+       throw new HttpsError("permission-denied", "لا تملك صلاحية إخفاء هذه الرسالة.");
+     }
+     transaction.update(messageRef, {
+       deletedForUids: FieldValue.arrayUnion(uid),
+       updatedAt: FieldValue.serverTimestamp(),
+     });
+     if (notification.exists) transaction.delete(notificationRef);
+     if (!audit.exists) {
+       transaction.create(auditRef, {
+         chatId, messageId, actorUid: uid, action: "delete_for_me",
+         createdAt: FieldValue.serverTimestamp(),
+       });
+     }
+   });
+   return { chatId, messageId, hiddenForRequester: true };
+ });
+ 
+ /** Permanently removes a text-only direct message for both participants. */
+ export const deleteDirectMessageForEveryone = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const chatId = request.data?.chatId;
+   const messageId = request.data?.messageId;
+   if (typeof chatId !== "string" || !/^[a-f0-9]{64}$/.test(chatId) ||
+       typeof messageId !== "string" || !/^[a-f0-9]{64}$/.test(messageId)) {
+     throw new HttpsError("invalid-argument", "بيانات حذف الرسالة غير صالحة.");
+   }
+ 
+   const chatRef = db.collection("directChats").doc(chatId);
+   const messageRef = chatRef.collection("messages").doc(messageId);
+   const auditRef = db.collection("directMessageDeletionAudit")
+     .doc(`${chatId}_${messageId}_delete_for_everyone`);
+ 
+   const preparation = await db.runTransaction(async (transaction) => {
+     const [chat, message, priorAudit] = await Promise.all([
+       transaction.get(chatRef), transaction.get(messageRef), transaction.get(auditRef),
+     ]);
+     if (!chat.exists) throw new HttpsError("not-found", "المحادثة غير موجودة.");
+     const chatData = chat.data() ?? {};
+     const participants = chatData.participantUids;
+     if (!Array.isArray(participants) || participants.length !== 2 ||
+         participants.some((value) => typeof value !== "string") ||
+         !participants.includes(uid)) {
+       throw new HttpsError("permission-denied", "ليست لديك صلاحية حذف رسائل هذه المحادثة.");
+     }
+     if (!message.exists) {
+       if (priorAudit.exists) return { kind: "replay" as const };
+       throw new HttpsError("not-found", "الرسالة غير موجودة.");
+     }
+ 
+     const data = message.data() ?? {};
+     const ownerSession = hasPlatformOwnerSession(
+       (request.auth?.token ?? {}) as Record<string, unknown>, undefined, uid,
+     );
+     if (data.senderUid !== uid && !ownerSession) {
+       throw new HttpsError("permission-denied", "يمكنك حذف رسائلك فقط.");
+     }
+@@ -2879,160 +2974,170 @@ export const deleteDirectMessageForEveryone = onCall(async (request) => {
+   }
+   if (preparation.kind === "text") {
+     return { chatId, messageId, deleted: true, idempotentReplay: false };
+   }
+ 
+   try {
+     for (const mediaId of preparation.mediaIds) {
+       await deleteMediaAssetForMessage(mediaId, preparation.senderUid, "chat");
+     }
+   } catch (error) {
+     logger.error("Direct message media deletion remains pending for retry.", {
+       chatId, messageId, errorName: error instanceof Error ? error.name : "unknown",
+     });
+     throw new HttpsError("unavailable", "بدأ حذف الوسائط وأُخفيت الرسالة؛ تعذر إكمال محو جميع النسخ حالياً. أعد المحاولة لاحقاً.");
+   }
+ 
+   await db.runTransaction(async (transaction) => {
+     const [chat, message, priorAudit] = await Promise.all([
+       transaction.get(chatRef), transaction.get(messageRef), transaction.get(auditRef),
+     ]);
+     if (!message.exists) return;
+     const chatData = chat.data() ?? {};
+     const participants = Array.isArray(chatData.participantUids) ? chatData.participantUids : [];
+     if (!participants.includes(uid) || message.data()?.deletionPending !== true) {
+       throw new HttpsError("failed-precondition", "تغيرت حالة المحادثة أثناء حذف الوسائط.");
+     }
+     const notificationRefs = participants.map((participant) =>
+       db.collection("users").doc(String(participant)).collection("notifications").doc(messageId),
+     );
+     const notifications = await Promise.all(notificationRefs.map((ref) => transaction.get(ref)));
+     transaction.delete(messageRef);
+     notifications.forEach((snapshot, index) => {
+       if (snapshot.exists) transaction.delete(notificationRefs[index]);
+     });
+     if (!priorAudit.exists) {
+       transaction.create(auditRef, {
+         chatId, messageId, actorUid: uid, senderUid: message.data()?.senderUid ?? null,
+         action: "delete_for_everyone", messageType: "media",
+         mediaIds: preparation.mediaIds,
+         createdAt: FieldValue.serverTimestamp(),
+       });
+     }
+     if (chatData.lastMessageAt instanceof Timestamp &&
+         message.data()?.createdAt instanceof Timestamp &&
+         chatData.lastMessageSenderUid === message.data()?.senderUid &&
+         chatData.lastMessageAt.isEqual(message.data()!.createdAt)) {
+       transaction.update(chatRef, {
+         lastMessagePreview: "تم حذف الرسالة",
+         lastMessagePreviewUpdatedAt: FieldValue.serverTimestamp(),
+       });
+     }
+   });
+   return { chatId, messageId, deleted: true, idempotentReplay: false };
+ });
+ 
+ /**
+  * Advances only the authenticated participant's read cursor to the latest
+  * server-stored message. Owner review deliberately never invokes this callable.
+  */
+ export const markDirectChatRead = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const user = await db.collection("users").doc(uid).get();
+   if (!user.exists || user.data()?.profileCompleted !== true ||
+       !isMemberAccountInGoodStanding(user.data())) {
+     throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بتحديث إيصالات القراءة.");
+   }
+   const chatId = request.data?.chatId;
+   if (typeof chatId !== "string" || !/^[a-f0-9]{64}$/.test(chatId)) {
+     throw new HttpsError("invalid-argument", "معرف المحادثة غير صالح.");
+   }
+   const chatRef = db.collection("directChats").doc(chatId);
+   const chat = await chatRef.get();
+   if (!chat.exists) throw new HttpsError("not-found", "المحادثة غير موجودة.");
+   const participants = chat.data()?.participantUids;
+   if (!Array.isArray(participants) || participants.length !== 2 ||
+       !participants.includes(uid) ||
+       participants.some((value) => typeof value !== "string") ||
+       participants[0] === participants[1]) {
+     throw new HttpsError("permission-denied", "ليست لديك صلاحية تحديث حالة قراءة هذه المحادثة.");
+   }
++  const peerUid = participants.find((participant) => participant !== uid)!;
++  const peerSnapshot = await db.collection("users").doc(peerUid).get();
++  const currentUserData = user.data() ?? {};
++  const peerData = peerSnapshot.data() ?? {};
++  const currentBlocks = Array.isArray(currentUserData.blockedUids) ? currentUserData.blockedUids : [];
++  const peerBlocks = Array.isArray(peerData.blockedUids) ? peerData.blockedUids : [];
++  if (!peerSnapshot.exists || !isMemberAccountInGoodStanding(peerData) ||
++      currentBlocks.includes(peerUid) || peerBlocks.includes(uid)) {
++    throw new HttpsError("permission-denied", "لا يمكن تحديث إيصال قراءة محادثة محظورة أو غير متاحة.");
++  }
+   const latestSnapshot = await chatRef.collection("messages")
+     .orderBy("createdAt", "desc")
+     .limit(1)
+     .get();
+   if (latestSnapshot.empty) return { marked: false };
+   const latest = latestSnapshot.docs[0];
+   const latestCreatedAt = latest.data().createdAt;
+   if (!(latestCreatedAt instanceof Timestamp)) {
+     throw new HttpsError("failed-precondition", "توقيت أحدث رسالة غير صالح.");
+   }
+ 
+   const receiptRef = chatRef.collection("readReceipts").doc(uid);
+   await db.runTransaction(async (transaction) => {
+     const [freshChat, existingReceipt] = await Promise.all([
+       transaction.get(chatRef),
+       transaction.get(receiptRef),
+     ]);
+     const freshParticipants = freshChat.data()?.participantUids;
+     if (!freshChat.exists || !Array.isArray(freshParticipants) ||
+         freshParticipants.length !== 2 || !freshParticipants.includes(uid) ||
+         freshParticipants.some((value) => typeof value !== "string") ||
+         freshParticipants[0] === freshParticipants[1]) {
+       throw new HttpsError("permission-denied", "لم تعد عضواً في هذه المحادثة.");
+     }
+     const previousValue = existingReceipt.data()?.lastReadMessageCreatedAt;
+     const previousMs = previousValue instanceof Timestamp ? previousValue.toMillis() : null;
+     if (!shouldAdvanceReadReceipt(previousMs, latestCreatedAt.toMillis())) return;
+     transaction.set(receiptRef, {
+       uid,
+       lastReadMessageId: latest.id,
+       lastReadMessageCreatedAt: latestCreatedAt,
+       lastReadAt: FieldValue.serverTimestamp(),
+       updatedAt: FieldValue.serverTimestamp(),
+     }, { merge: true });
+   });
+   return { marked: true, lastReadMessageId: latest.id };
+ });
+ 
+ /**
+  * Sends an owner-authored administrative message into an existing two-member
+  * conversation. The owner UID is always stored as sender; the selected label
+  * is display-only and cannot impersonate a member account.
+  */
+ export const sendOwnerDirectChatMessage = onCall(async (request) => {
+   const actorUid = await requireOwnerForReview(request, "owner_direct_chat_message_send");
+   let input;
+   try {
+     input = validateOwnerChatParticipationRequest((request.data ?? {}) as Record<string, unknown>);
+   } catch {
+     throw new HttpsError("invalid-argument", "بيانات مشاركة المالك أو تسمية الظهور غير صالحة.");
+   }
+   const labels = {
+     platform_admin: "إدارة منصة مودة",
+     super_admin: "السوبر أدمن",
+     anonymous: "مجهول",
+   } as const;
+   const senderLabel = labels[input.mode];
+   try {
+     assertMessageLinksAllowed(input.text, true, true);
+   } catch {
+     throw new HttpsError("invalid-argument", "تحتوي الرسالة على رابط غير آمن أو غير مسموح.");
+   }
+ 
+   const chatRef = db.collection("directChats").doc(input.chatId);
+   const initialChat = await chatRef.get();
+   if (!initialChat.exists) throw new HttpsError("not-found", "المحادثة غير موجودة.");
+   const initialParticipants = initialChat.data()?.participantUids;
+   if (!Array.isArray(initialParticipants) || initialParticipants.length !== 2 ||
+       initialParticipants.some((value) => typeof value !== "string") ||
+       initialParticipants[0] === initialParticipants[1]) {
+     throw new HttpsError("failed-precondition", "المحادثة ليست محادثة ثنائية صالحة.");
+   }
+   const participantUids = [...initialParticipants] as string[];
+   const memberRefs = participantUids.map((uid) => db.collection("users").doc(uid));
+   const messageId = createHash("sha256")
+     .update("owner:" + actorUid + ":" + input.chatId + ":" + input.clientMessageId)
+     .digest("hex");
+   const messageRef = chatRef.collection("messages").doc(messageId);
+   const notificationRefs = participantUids.map((uid) =>
+     db.collection("users").doc(uid).collection("notifications").doc(messageId + "_" + uid),
+diff --git a/functions/src/media.ts b/functions/src/media.ts
+index 06ba0004..d3d0185d 100644
+--- a/functions/src/media.ts
++++ b/functions/src/media.ts
+@@ -1038,201 +1038,230 @@ export const sendChatImageAttachment = onCall(async (request) => {
+       }, { merge: true });
+       tx.create(messageRef, {
+         messageId, chatId, senderUid, recipientUid, text: caption,
+         type: "attachment", mediaId, mediaCategory: artifact.category,
+         contentType: artifact.contentType, attachmentStatus: "ready", createdAt: now,
+       });
+       tx.create(notificationRef, {
+         notificationId: messageId, type: "direct_message", senderUid, chatId, messageId,
+         title: artifact.category === "document" ? "مستند من إدارة مودة" : "مرفق جديد", body: "لديك مرفق جديد في محادثة مودة.",
+         isRead: false, createdAt: now,
+       });
+       tx.update(assetRef, {
+         linkedMessageId: messageId, linkedConversationId: chatId,
+         linkedScope: "direct", linkedRecipientUid: recipientUid,
+         deliveryState: "ready", linkedAt: now, updatedAt: now,
+       });
+       tx.create(mediaDb().collection("mediaAccessAudit").doc(), {
+         actorUid: senderUid, mediaId, action: "chat_media_message_linked",
+         outcome: "success", scope: "direct", messageId, createdAt: now,
+       });
+       return { chatId, messageId, replayed: false };
+     });
+   }
+ 
+   const roomId = typeof data.roomId === "string" ? data.roomId.trim() : "";
+   if (!roomId || roomId.length > 128) throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+   const roomRef = mediaDb().collection("rooms").doc(roomId);
+   const memberRef = roomRef.collection("members").doc(senderUid);
+   const messageRef = roomRef.collection("messages").doc(messageId);
+   return mediaDb().runTransaction(async (tx) => {
+     const [room, member, user, message, freshAsset] = await Promise.all([
+       tx.get(roomRef), tx.get(memberRef), tx.get(mediaDb().collection("users").doc(senderUid)),
+       tx.get(messageRef), tx.get(assetRef),
+     ]);
+     if (!room.exists || room.data()?.status !== "active" || (!member.exists && !ownerSession) ||
+         (!user.exists && !ownerSession) || user.data()?.status === "suspended") {
+       throw new HttpsError("permission-denied", "يجب أن تكون عضواً نشطاً في الغرفة لإرسال المرفق.");
+     }
+     const mutedUntil = member.data()?.mutedUntil;
+     if (!ownerSession && mutedUntil instanceof Timestamp && mutedUntil.toMillis() > Date.now()) {
+       throw new HttpsError("permission-denied", "لا يمكنك إرسال مرفقات أثناء فترة الكتم.");
+     }
+     if (!freshAsset.exists || freshAsset.data()?.status !== "security_approved" ||
+         freshAsset.data()?.linkedMessageId) {
+       if (message.exists && message.data()?.mediaId === mediaId && message.data()?.senderUid === senderUid) {
+         return { roomId, messageId, replayed: true };
+       }
+       throw new HttpsError("failed-precondition", "المرفق سبق ربطه أو لم يعد معتمداً.");
+     }
+     if (message.exists) throw new HttpsError("already-exists", "معرف الرسالة مستخدم.");
+     tx.create(messageRef, {
+       messageId, senderUid, content: caption, type: "attachment",
+       mediaId, mediaCategory: artifact.category, contentType: artifact.contentType,
+       attachmentStatus: "ready", isDeleted: false, createdAt: now,
+     });
+     tx.update(assetRef, {
+       linkedMessageId: messageId, linkedConversationId: roomId,
+       linkedScope: "room", deliveryState: "ready", linkedAt: now, updatedAt: now,
+     });
+     tx.create(mediaDb().collection("mediaAccessAudit").doc(), {
+       actorUid: senderUid, mediaId, action: "chat_media_message_linked",
+       outcome: "success", scope: "room", roomId, messageId, createdAt: now,
+     });
+     return { roomId, messageId, replayed: false };
+   });
+ });
+ 
+ /** Issues a two-minute generation-pinned URL only to a linked conversation participant. */
+ export const getChatImageAttachmentUrl = onCall(async (request) => {
+   const viewerUid = requireUid(request.auth?.uid);
+   const data = request.data ?? {};
+   const scope = data.scope;
+   const mediaId = typeof data.mediaId === "string" ? data.mediaId.trim() : "";
+   const messageId = typeof data.messageId === "string" ? data.messageId.trim() : "";
+   if ((scope !== "direct" && scope !== "room") ||
+       !/^[0-9a-f-]{36}$/i.test(mediaId) || !/^[a-f0-9]{64}$/i.test(messageId)) {
+     throw new HttpsError("invalid-argument", "بيانات طلب الصورة غير صالحة.");
+   }
+   let message: Record<string, unknown> | undefined;
+   let conversationId = "";
++  let directPeerUid = "";
+   if (scope === "direct") {
+     const chatId = typeof data.chatId === "string" ? data.chatId.trim() : "";
+     conversationId = chatId;
+     if (!chatId || chatId.length > 128) throw new HttpsError("invalid-argument", "معرف المحادثة غير صالح.");
+     const chatRef = mediaDb().collection("directChats").doc(chatId);
+     const [chat, msg] = await Promise.all([
+       chatRef.get(), chatRef.collection("messages").doc(messageId).get(),
+     ]);
+     const participants = chat.data()?.participantUids;
+-    if (!chat.exists || !Array.isArray(participants) || !participants.includes(viewerUid) || !msg.exists) {
++    if (!chat.exists || !Array.isArray(participants) || participants.length !== 2 ||
++        !participants.includes(viewerUid) || participants.some((value) => typeof value !== "string") ||
++        participants[0] === participants[1] || !msg.exists) {
+       throw new HttpsError("permission-denied", "ليس لديك حق الوصول إلى هذه المحادثة.");
+     }
++    directPeerUid = participants.find((participant) => participant !== viewerUid)!;
+     message = msg.data();
+   } else {
+     const roomId = typeof data.roomId === "string" ? data.roomId.trim() : "";
+     conversationId = roomId;
+     if (!roomId || roomId.length > 128) throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+     const roomRef = mediaDb().collection("rooms").doc(roomId);
+     const [room, member, msg] = await Promise.all([
+       roomRef.get(), roomRef.collection("members").doc(viewerUid).get(),
+       roomRef.collection("messages").doc(messageId).get(),
+     ]);
+     const ownerSession = request.auth?.token.platformOwner === true &&
+       hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, viewerUid);
+     if (!room.exists || (!member.exists && !ownerSession) || !msg.exists) {
+       throw new HttpsError("permission-denied", "ليس لديك حق الوصول إلى مرفقات هذه الغرفة.");
+     }
+     message = msg.data();
+   }
+   const deletedForUids = Array.isArray(message?.deletedForUids) ? message.deletedForUids : [];
+   if (deletedForUids.includes(viewerUid)) {
+     throw new HttpsError("permission-denied", "حذفت هذا المرفق من محادثتك ولم يعد متاحاً لحسابك.");
+   }
+   if (!message || message.mediaId !== mediaId || message.attachmentStatus !== "ready" ||
+       message.isDeleted === true || message.deletionPending === true) {
+     throw new HttpsError("failed-precondition", "المرفق غير متاح.");
+   }
+   const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
+   const assetSnapshot = await assetRef.get();
+   if (!assetSnapshot.exists) throw new HttpsError("not-found", "سجل المرفق غير موجود.");
+   const asset = assetSnapshot.data() ?? {};
++  if (scope === "direct") {
++    const [viewerSnapshot, peerSnapshot] = await Promise.all([
++      mediaDb().collection("users").doc(viewerUid).get(),
++      mediaDb().collection("users").doc(directPeerUid).get(),
++    ]);
++    const viewer = viewerSnapshot.data() ?? {};
++    const peer = peerSnapshot.data() ?? {};
++    const viewerToken = (request.auth?.token ?? {}) as Record<string, unknown>;
++    const viewerIsOwner = viewerToken.platformOwner === true &&
++      hasPlatformOwnerSession(viewerToken, undefined, viewerUid);
++    const peerIsOwner = asset.uploaderRole === "platform_owner" &&
++      asset.ownerUid === directPeerUid;
++    const inactiveStatuses = ["suspended", "banned", "disabled", "deleted"];
++    const viewerStatus = String(viewer.accountStatus ?? "active").toLowerCase();
++    const peerStatus = String(peer.accountStatus ?? "active").toLowerCase();
++    const viewerBlocks = Array.isArray(viewer.blockedUids) ? viewer.blockedUids : [];
++    const peerBlocks = Array.isArray(peer.blockedUids) ? peer.blockedUids : [];
++    if ((!viewerSnapshot.exists && !viewerIsOwner) ||
++        (!peerSnapshot.exists && !peerIsOwner) ||
++        (viewerSnapshot.exists && (viewer.profileCompleted !== true || inactiveStatuses.includes(viewerStatus))) ||
++        (peerSnapshot.exists && (peer.profileCompleted !== true || inactiveStatuses.includes(peerStatus))) ||
++        viewerBlocks.includes(directPeerUid) || peerBlocks.includes(viewerUid)) {
++      throw new HttpsError("permission-denied", "لم يعد هذا المرفق متاحاً بسبب الحظر أو حالة العضوية.");
++    }
++  }
+   const artifact = resolveChatMediaDeliveryArtifact(
+     asset as never, asset.uploaderRole === "platform_owner",
+   );
+   const maxBytes = artifact?.category === "video" ? 50 * 1024 * 1024 :
+     artifact?.category === "audio" ? 25 * 1024 * 1024 :
+       artifact?.category === "document" ? 20 * 1024 * 1024 : 5 * 1024 * 1024;
+   if (!artifact || asset.status !== "security_approved" ||
+       asset.deliveryState !== "ready" || asset.linkedMessageId !== messageId ||
+       asset.linkedScope !== scope || asset.linkedConversationId !== conversationId ||
+       !(asset.retentionExpiresAt instanceof Timestamp) || asset.retentionExpiresAt.toMillis() <= Date.now() ||
+       asset.legalHoldStatus === "released") {
+     throw new HttpsError("failed-precondition", "انتهت صلاحية المرفق أو لم يجتز المعالجة الآمنة.");
+   }
+   const file = mediaBucket().file(artifact.objectPath, { generation: Number(artifact.generation) });
+   const [metadata] = await file.getMetadata();
+   const customMetadata = metadata.metadata as Record<string, unknown> | undefined;
+   const actualArtifactHash = await sha256Object(file);
+   if (String(metadata.generation) !== artifact.generation ||
+       metadata.contentType !== artifact.contentType || Number(metadata.size) <= 0 ||
+       Number(metadata.size) > maxBytes || actualArtifactHash !== artifact.sha256 ||
+       customMetadata?.mediaId !== mediaId ||
+       customMetadata?.sourceGeneration !== String(asset.storageGeneration) ||
+       customMetadata?.sourceSha256 !== String(asset.scannerSha256) ||
+       customMetadata?.scannerProvider !== String(asset.scannerProvider) ||
+       customMetadata?.processing !== String(asset.processingPipelineVersion)) {
+     throw new HttpsError("failed-precondition", "تعذر التحقق من النسخة الآمنة للمرفق.");
+   }
+   const expiresAt = Date.now() + 2 * 60 * 1000;
+   const disposition = artifact.category === "document"
+     ? "attachment; filename=mawadda-document.pdf" : "inline";
+   const [url] = await file.getSignedUrl({
+     version: "v4", action: "read", expires: expiresAt,
+     responseType: artifact.contentType, responseDisposition: disposition,
+   });
+   await auditMediaAccess({
+     actorUid: viewerUid, mediaId, action: "chat_media_delivery_url_issued",
+     outcome: "success", scope, messageId, category: artifact.category,
+     objectGeneration: artifact.generation,
+   });
+   return { url, expiresAt, contentType: artifact.contentType, category: artifact.category };
+ });
+ 
+ export const createMediaUploadIntent = onCall(async (request) => {
+   const uid = requireUid(request.auth?.uid);
+   let input;
+   try {
+     input = normalizeMediaRequest(request.data ?? {});
+   } catch (error) {
+     throw new HttpsError("invalid-argument", error instanceof Error ? error.message : "بيانات الملف غير صالحة.");
+   }
+   const policy = mediaPolicyFor(input.contentType);
+   if (!policy) throw new HttpsError("invalid-argument", "نوع الملف غير مسموح به.");
+   const token = (request.auth?.token ?? {}) as Record<string, unknown>;
+   const isPlatformOwner = token.platformOwner === true && hasPlatformOwnerSession(token, undefined, uid);
+   if (!mediaUploadAllowedForRole(input, isPlatformOwner)) {
+     throw new HttpsError(
+       "permission-denied",
+       "إرسال المستندات محصور بمالك المنصة، ووسائط الأعضاء تقتصر على الصور والصوت والفيديو.",
+     );
+   }
+   const uploaderType = mediaUploaderTypeFromToken(token);
+   if (uploaderType === "guest" && !["chat", "room"].includes(input.purpose)) {
+     throw new HttpsError("permission-denied", "حساب الضيف يقتصر رفعه على وسائط المحادثات والغرف.");
+   }
+   if (input.declaredSizeBytes > policy.maxBytes) {
+     throw new HttpsError("invalid-argument", "حجم الملف يتجاوز الحد المسموح لهذا النوع.");
+   }
+ 
+   const mediaId = randomUUID();
+   const objectPath = `quarantine/${uid}/${mediaId}`;
+   const file = mediaBucket().file(objectPath);
+   const expiresAt = mediaSignedUrlExpiresAt("upload");
+   const uploadUrl = await file.getSignedUrl({
+     version: "v4",
+     action: "write",
+     expires: expiresAt,
+     contentType: input.contentType,
+     // Cloud Storage enforces this signed PUT header before accepting bytes.
+     // Exact min=max binds the wire payload to the quota reservation.
+     extensionHeaders: {
+diff --git a/functions/test/integration/direct-message-deletion.integration.test.js b/functions/test/integration/direct-message-deletion.integration.test.js
+index 13037999..7b3f8e10 100644
+--- a/functions/test/integration/direct-message-deletion.integration.test.js
++++ b/functions/test/integration/direct-message-deletion.integration.test.js
+@@ -1,157 +1,240 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const { createHash } = require("node:crypto");
+ 
+ // Functions are invoked directly against the Firestore Emulator. No production
+ // project or credentials are used by this suite.
+ const {
+   deleteDirectMessageForMe,
+   deleteDirectMessageForEveryone,
+   deleteRoomMessage,
+   deleteRoomMessageForMe,
+   getDirectMessages,
++  getMyDirectChats,
++  markDirectChatRead,
+   getRoomMessages,
+   setMemberBlock,
+   sendDirectMessage,
+ } = require("../../lib/index");
+ const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+ const { getStorage } = require("firebase-admin/storage");
+ const { deleteMediaAssetForMessage } = require("../../lib/media");
+ const db = getFirestore();
+ 
+ const id = (value) => createHash("sha256").update(value).digest("hex");
+ const memberRequest = (uid, data) => ({
+   data,
+   auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+ });
+ 
+ test("member block and unblock are server-authorized, idempotent state updates", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const suffix = Date.now().toString();
+   const actorUid = `blocker-${suffix}`;
+   const targetUid = `blocked-${suffix}`;
+   const actorRef = db.collection("users").doc(actorUid);
+   const targetRef = db.collection("users").doc(targetUid);
+   await actorRef.set({ uid: actorUid, profileCompleted: true, age: 30, accountStatus: "active", blockedUids: [] });
+   await targetRef.set({ uid: targetUid, profileCompleted: true, age: 30, accountStatus: "active" });
+ 
+   try {
+     const block = await setMemberBlock.run(memberRequest(actorUid, {
+       targetUid, blocked: true,
+     }));
+     assert.deepEqual(block, { targetUid, blocked: true });
+     assert.deepEqual((await actorRef.get()).data().blockedUids, [targetUid]);
+     await assert.rejects(
+       () => sendDirectMessage.run(memberRequest(actorUid, {
+         recipientUid: targetUid, text: "blocked delivery must fail", clientMessageId: `blocked-${suffix}`,
+       })),
+       (error) => error && error.code === "permission-denied",
+     );
+ 
+     const replay = await setMemberBlock.run(memberRequest(actorUid, {
+       targetUid, blocked: true,
+     }));
+     assert.equal(replay.blocked, true);
+     assert.deepEqual((await actorRef.get()).data().blockedUids, [targetUid]);
+ 
+     const unblock = await setMemberBlock.run(memberRequest(actorUid, {
+       targetUid, blocked: false,
+     }));
+     assert.equal(unblock.blocked, false);
+     assert.deepEqual((await actorRef.get()).data().blockedUids, []);
+ 
+     await assert.rejects(
+       () => setMemberBlock.run(memberRequest(actorUid, { targetUid: actorUid, blocked: true })),
+       (error) => error && error.code === "invalid-argument",
+     );
+     await assert.rejects(
+       () => setMemberBlock.run(memberRequest(actorUid, {
+         targetUid: `missing-${suffix}`, blocked: true,
+       })),
+       (error) => error && error.code === "not-found",
+     );
+   } finally {
+     await Promise.all([actorRef.delete().catch(() => undefined), targetRef.delete().catch(() => undefined)]);
+   }
+ });
+ 
++test("member inbox is recent, unread-aware, and hides conversations when either side blocks", async () => {
++  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
++  const suffix = Date.now().toString();
++  const [alice, bob] = [`inbox-alice-${suffix}`, `inbox-bob-${suffix}`];
++  const aliceRef = db.collection("users").doc(alice);
++  const bobRef = db.collection("users").doc(bob);
++  const messageId = `inbox-message-${suffix}`;
++  const notificationRef = bobRef.collection("notifications").doc(id(`${alice}:${messageId}`));
++
++  await Promise.all([
++    aliceRef.set({
++      uid: alice, profileCompleted: true, accountStatus: "active", age: 30,
++      displayName: "Alice Inbox", blockedUids: [],
++    }),
++    bobRef.set({
++      uid: bob, profileCompleted: true, accountStatus: "active", age: 31,
++      displayName: "Bob Inbox", blockedUids: [],
++    }),
++  ]);
++
++  let chatId;
++  try {
++    const sent = await sendDirectMessage.run(memberRequest(alice, {
++      recipientUid: bob,
++      text: "رسالة اختبار صندوق الوارد",
++      clientMessageId: messageId,
++    }));
++    chatId = sent.chatId;
++
++    const unreadInbox = await getMyDirectChats.run(memberRequest(bob));
++    assert.equal(unreadInbox.chats.length, 1);
++    assert.equal(unreadInbox.chats[0].chatId, chatId);
++    assert.equal(unreadInbox.chats[0].peerUid, alice);
++    assert.equal(unreadInbox.chats[0].peerName, "Alice Inbox");
++    assert.equal(unreadInbox.chats[0].hasUnread, true);
++    assert.equal(unreadInbox.chats[0].lastMessagePreview, "رسالة اختبار صندوق الوارد");
++
++    const messages = await getDirectMessages.run(memberRequest(bob, { chatId }));
++    assert.equal(messages.messages.length, 1);
++    await markDirectChatRead.run(memberRequest(bob, { chatId }));
++    const readInbox = await getMyDirectChats.run(memberRequest(bob));
++    assert.equal(readInbox.chats[0].hasUnread, false);
++
++    await setMemberBlock.run(memberRequest(bob, { targetUid: alice, blocked: true }));
++    assert.equal((await getMyDirectChats.run(memberRequest(bob))).chats.length, 0);
++    assert.equal((await getMyDirectChats.run(memberRequest(alice))).chats.length, 0);
++    await assert.rejects(
++      () => getDirectMessages.run(memberRequest(bob, { chatId })),
++      (error) => error && error.code === "permission-denied",
++    );
++    await assert.rejects(
++      () => markDirectChatRead.run(memberRequest(alice, { chatId })),
++      (error) => error && error.code === "permission-denied",
++    );
++
++    await setMemberBlock.run(memberRequest(bob, { targetUid: alice, blocked: false }));
++    const restoredInbox = await getMyDirectChats.run(memberRequest(bob));
++    assert.equal(restoredInbox.chats.length, 1);
++    assert.equal(restoredInbox.chats[0].hasUnread, false);
++  } finally {
++    if (chatId) {
++      const chatRef = db.collection("directChats").doc(chatId);
++      const [messages, receipts] = await Promise.all([
++        chatRef.collection("messages").get(),
++        chatRef.collection("readReceipts").get(),
++      ]);
++      await Promise.all([
++        ...messages.docs.map((document) => document.ref.delete()),
++        ...receipts.docs.map((document) => document.ref.delete()),
++        chatRef.delete().catch(() => undefined),
++      ]);
++    }
++    await Promise.all([
++      notificationRef.delete().catch(() => undefined),
++      aliceRef.delete().catch(() => undefined),
++      bobRef.delete().catch(() => undefined),
++    ]);
++  }
++});
++
++
+ test("direct delete-for-me hides only for the caller and preserves peer copy", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const suffix = Date.now().toString();
+   const [alice, bob] = [`alice-${suffix}`, `bob-${suffix}`];
+   const chatId = id(`chat-${suffix}`);
+   const messageId = id(`message-${suffix}`);
+   const chatRef = db.collection("directChats").doc(chatId);
+   const messageRef = chatRef.collection("messages").doc(messageId);
+ 
+   await chatRef.set({ participantUids: [alice, bob] });
+   await messageRef.set({
+     messageId, chatId, senderUid: alice, recipientUid: bob,
+     text: "private text", type: "text",
+   });
+ 
+   try {
+     const result = await deleteDirectMessageForMe.run(memberRequest(alice, { chatId, messageId }));
+     assert.equal(result.hiddenForRequester, true);
+     const stored = await messageRef.get();
+     assert.deepEqual(stored.data().deletedForUids, [alice]);
+     assert.equal(stored.data().text, "private text");
+     await assert.rejects(
+       () => deleteDirectMessageForMe.run(memberRequest(id("outsider"), { chatId, messageId })),
+       (error) => error && error.code === "permission-denied",
+     );
+   } finally {
+     await Promise.all([chatRef.delete().catch(() => undefined), messageRef.delete().catch(() => undefined)]);
+     await db.collection("directMessageDeletionAudit")
+       .where("chatId", "==", chatId).get()
+       .then((snapshot) => Promise.all(snapshot.docs.map((doc) => doc.ref.delete())));
+   }
+ });
+ 
+ test("direct delete-for-everyone removes text and notifications, redacts preview, and is idempotent", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const suffix = Date.now().toString();
+   const [alice, bob] = [`alice-${suffix}`, `bob-${suffix}`];
+   const chatId = id(`chat-everyone-${suffix}`);
+   const messageId = id(`message-everyone-${suffix}`);
+   const chatRef = db.collection("directChats").doc(chatId);
+   const messageRef = chatRef.collection("messages").doc(messageId);
+   const notifications = [alice, bob].map((uid) =>
+     db.collection("users").doc(uid).collection("notifications").doc(messageId),
+   );
+   const longText = "x".repeat(150);
+   const sentAt = Timestamp.now();
+   await chatRef.set({
+     participantUids: [alice, bob],
+     lastMessagePreview: longText.substring(0, 120),
+     lastMessageSenderUid: alice,
+     lastMessageAt: sentAt,
+   });
+   await messageRef.set({
+     messageId, chatId, senderUid: alice, recipientUid: bob,
+     text: longText, type: "text", createdAt: sentAt,
+   });
+   await notifications[1].set({ type: "direct_message", messageId });
+ 
+   try {
+     const request = memberRequest(alice, { chatId, messageId });
+     const first = await deleteDirectMessageForEveryone.run(request);
+     assert.equal(first.deleted, true);
+     assert.equal(first.idempotentReplay, false);
+     assert.equal((await messageRef.get()).exists, false);
+     assert.equal((await notifications[1].get()).exists, false);
+     assert.equal((await chatRef.get()).data().lastMessagePreview, "تم حذف الرسالة");
+ 
+     const replay = await deleteDirectMessageForEveryone.run(request);
+     assert.equal(replay.deleted, true);
+     assert.equal(replay.idempotentReplay, true);
+   } finally {
+     await Promise.all([
+       chatRef.delete().catch(() => undefined),
+       messageRef.delete().catch(() => undefined),
+       ...notifications.map((ref) => ref.delete().catch(() => undefined)),
+       ...[alice, bob].map((uid) => db.collection("users").doc(uid).delete().catch(() => undefined)),
+     ]);
+     await db.collection("directMessageDeletionAudit")
+       .where("chatId", "==", chatId).get()
+       .then((snapshot) => Promise.all(snapshot.docs.map((doc) => doc.ref.delete())));
+diff --git a/functions/test/integration/media-callables.integration.test.js b/functions/test/integration/media-callables.integration.test.js
+index 45560ed7..295526a5 100644
+--- a/functions/test/integration/media-callables.integration.test.js
++++ b/functions/test/integration/media-callables.integration.test.js
+@@ -725,160 +725,169 @@ async function createReadyTypedChatMedia({ uid, category, purpose = "chat", medi
+       metadata: {
+         mediaId, sourceGeneration, sourceSha256,
+         scannerProvider: "clamav-mawadda-gateway",
+         processing: spec.pipeline,
+       },
+     },
+   });
+   const [stored] = await file.getMetadata();
+   await db.collection("mediaAssets").doc(mediaId).set({
+     mediaId, ownerUid: uid, uploaderRole: owner ? "platform_owner" : "member",
+     uploaderType: "member", mediaPurpose: purpose, mediaCategory: category,
+     detectedContentType: spec.source, status: "security_approved",
+     processingStatus: spec.status, processingPipelineVersion: spec.pipeline,
+     storageGeneration: sourceGeneration, scannerSha256: sourceSha256,
+     scannerProvider: "clamav-mawadda-gateway",
+     [spec.path]: objectPath, [spec.generation]: String(stored.generation), [spec.hash]: digest,
+     retentionExpiresAt: Timestamp.fromMillis(Date.now() + 4 * 60 * 60 * 1000),
+     legalHoldStatus: "none", deliveryState: "pending",
+   });
+   return mediaId;
+ }
+ 
+ for (const item of [
+   { category: "gif", owner: false },
+   { category: "audio", owner: false },
+   { category: "video", owner: false },
+   { category: "document", owner: true },
+ ]) {
+   test("safe " + item.category + " attachment links and delivers only after its dedicated processor", async () => {
+     const senderUid = (item.owner ? "platform-owner" : "member") + "-" + item.category + "-" + randomUUID();
+     const recipientUid = "recipient-" + item.category + "-" + randomUUID();
+     await db.collection("users").doc(recipientUid).set({ profileCompleted: true, age: 30, blockedUids: [] });
+     if (!item.owner) {
+       await db.collection("users").doc(senderUid).set({ profileCompleted: true, age: 30, blockedUids: [] });
+     }
+     const mediaId = await createReadyTypedChatMedia({
+       uid: senderUid, category: item.category, owner: item.owner,
+     });
+     const clientMessageId = "typed_" + randomUUID().replace(/-/g, "");
+     const auth = item.owner ? ownerRequest(senderUid).auth :
+       { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } };
+     const sent = await sendChatMediaAttachment.run({
+       data: { scope: "direct", recipientUid, mediaId, clientMessageId },
+       auth,
+     });
+     const messageId = createHash("sha256").update(senderUid + ":" + clientMessageId).digest("hex");
+     const message = await db.collection("directChats").doc(sent.chatId)
+       .collection("messages").doc(messageId).get();
+     assert.equal(message.data().mediaCategory, item.category);
+     const delivered = await getChatMediaAttachmentUrl.run({
+       data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+       auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+     });
+     assert.match(delivered.url, /^https?:\/\//);
+     assert.equal(delivered.category, item.category);
+     assert.ok(delivered.contentType);
+   });
+ }
+ 
+ test("safe image can be linked to a direct message and delivered only to its participant", async () => {
+   const senderUid = `attachment-sender-${randomUUID()}`;
+   const recipientUid = `attachment-recipient-${randomUUID()}`;
+   await db.collection("users").doc(senderUid).set({ profileCompleted: true, age: 30, blockedUids: [] });
+   await db.collection("users").doc(recipientUid).set({ profileCompleted: true, age: 28, blockedUids: [] });
+   const mediaId = await createReadyChatImage({ uid: senderUid });
+   const clientMessageId = `img_${randomUUID().replace(/-/g, "")}`;
+   const sent = await sendChatImageAttachment.run({
+     data: { scope: "direct", recipientUid, mediaId, clientMessageId, caption: "صورة اختبار" },
+     auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+   });
+   assert.equal(sent.replayed, false);
+   const messageId = createHash("sha256").update(senderUid + ":" + clientMessageId).digest("hex");
+   const message = await db.collection("directChats").doc(sent.chatId).collection("messages").doc(messageId).get();
+   assert.equal(message.data().mediaId, mediaId);
+   assert.equal(message.data().attachmentStatus, "ready");
+   const delivered = await getChatImageAttachmentUrl.run({
+     data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+     auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+   });
+   assert.match(delivered.url, /^https?:\/\//);
++  await db.collection("users").doc(recipientUid).update({ blockedUids: [senderUid] });
++  await assert.rejects(
++    () => getChatImageAttachmentUrl.run({
++      data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
++      auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
++    }),
++    (error) => error && error.code === "permission-denied",
++  );
++  await db.collection("users").doc(recipientUid).update({ blockedUids: [] });
+   const messageRef = db.collection("directChats").doc(sent.chatId).collection("messages").doc(messageId);
+   await messageRef.update({ deletedForUids: [recipientUid] });
+   await assert.rejects(
+     () => getChatImageAttachmentUrl.run({
+       data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+       auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+     }),
+     (error) => error && error.code === "permission-denied",
+   );
+   await messageRef.update({ deletedForUids: [] });
+   await db.collection("mediaAssets").doc(mediaId).update({ linkedScope: "room" });
+   await assert.rejects(
+     () => getChatImageAttachmentUrl.run({
+       data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+       auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+     }),
+     (error) => error && error.code === "failed-precondition",
+   );
+   await db.collection("mediaAssets").doc(mediaId).update({ linkedScope: "direct" });
+   await assert.rejects(
+     () => getChatImageAttachmentUrl.run({
+       data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+       auth: { uid: `intruder-${randomUUID()}`, token: { firebase: { sign_in_provider: "password" } } },
+     }),
+     (error) => error && error.code === "permission-denied",
+   );
+ });
+ 
+ test("safe image can be linked to a room message; non-members cannot retrieve it", async () => {
+   const senderUid = `room-attachment-sender-${randomUUID()}`;
+   const roomId = `room-${randomUUID()}`;
+   await db.collection("users").doc(senderUid).set({ status: "active" });
+   await db.collection("rooms").doc(roomId).set({ status: "active", ownerUid: senderUid });
+   await db.collection("rooms").doc(roomId).collection("members").doc(senderUid).set({ role: "member" });
+   const mediaId = await createReadyChatImage({ uid: senderUid, purpose: "room" });
+   const clientMessageId = `roomimg_${randomUUID().replace(/-/g, "")}`;
+   const sent = await sendChatImageAttachment.run({
+     data: { scope: "room", roomId, mediaId, clientMessageId, caption: "صورة غرفة" },
+     auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+   });
+   assert.equal(sent.replayed, false);
+   const messageId = createHash("sha256").update(senderUid + ":" + clientMessageId).digest("hex");
+   const delivered = await getChatImageAttachmentUrl.run({
+     data: { scope: "room", roomId, messageId, mediaId },
+     auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+   });
+   assert.match(delivered.url, /^https?:\/\//);
+   await assert.rejects(
+     () => getChatImageAttachmentUrl.run({
+       data: { scope: "room", roomId, messageId, mediaId },
+       auth: { uid: `outsider-${randomUUID()}`, token: { firebase: { sign_in_provider: "password" } } },
+     }),
+     (error) => error && error.code === "permission-denied",
+   );
+ });
+ 
+ test("an image attachment cannot be linked twice or use a forged owner role", async () => {
+   const uid = `forgery-member-${randomUUID()}`;
+   const peer = `forgery-peer-${randomUUID()}`;
+   await db.collection("users").doc(uid).set({ profileCompleted: true, age: 31, blockedUids: [] });
+   await db.collection("users").doc(peer).set({ profileCompleted: true, age: 29, blockedUids: [] });
+   const mediaId = await createReadyChatImage({ uid });
+   const clientMessageId = `forge_${randomUUID().replace(/-/g, "")}`;
+   const auth = { uid, token: { firebase: { sign_in_provider: "password" } } };
+   await sendChatImageAttachment.run({ data: { scope: "direct", recipientUid: peer, mediaId, clientMessageId }, auth });
+   await assert.rejects(
+     () => sendChatImageAttachment.run({ data: { scope: "direct", recipientUid: peer, mediaId, clientMessageId: `again_${randomUUID().replace(/-/g, "")}` }, auth }),
+     (error) => error && error.code === "failed-precondition",
+   );
+   const pdfId = randomUUID();
+   await db.collection("mediaAssets").doc(pdfId).set({
+     mediaId: pdfId, ownerUid: uid, uploaderRole: "platform_owner", mediaPurpose: "chat",
+     detectedContentType: "application/pdf", status: "security_approved",
+     processingStatus: "safe_document_derivative_ready",
+     safeDocumentPath: `processed/${uid}/${pdfId}/document.pdf`,
+     safeDocumentGeneration: "1", safeDocumentSha256: "b".repeat(64),
+     processingPipelineVersion: "pdf-sanitize-v1",
+   });
+   await assert.rejects(
+     () => sendChatImageAttachment.run({ data: { scope: "direct", recipientUid: peer, mediaId: pdfId, clientMessageId: `pdf_${randomUUID().replace(/-/g, "")}` }, auth }),
+diff --git a/lib/screens/conversations_screen.dart b/lib/screens/conversations_screen.dart
+new file mode 100644
+index 00000000..91e2e922
+--- /dev/null
++++ b/lib/screens/conversations_screen.dart
+@@ -0,0 +1,204 @@
++import 'package:cloud_functions/cloud_functions.dart';
++import 'package:flutter/material.dart';
++
++import 'direct_chat_screen.dart';
++import 'discovery_screen.dart';
++
++class ConversationsScreen extends StatefulWidget {
++  const ConversationsScreen({super.key, required this.currentUserId});
++
++  final String currentUserId;
++
++  @override
++  State<ConversationsScreen> createState() => _ConversationsScreenState();
++}
++
++class _ConversationsScreenState extends State<ConversationsScreen> {
++  late Future<List<Map<String, dynamic>>> _conversations;
++
++  @override
++  void initState() {
++    super.initState();
++    _conversations = _loadConversations();
++  }
++
++  Future<List<Map<String, dynamic>>> _loadConversations() async {
++    final response = await FirebaseFunctions.instance
++        .httpsCallable('getMyDirectChats')
++        .call();
++    final data = Map<String, dynamic>.from(response.data as Map);
++    return (data['chats'] as List<dynamic>? ?? const [])
++        .whereType<Map>()
++        .map((item) => Map<String, dynamic>.from(item))
++        .toList(growable: false);
++  }
++
++  Future<void> _refresh() async {
++    setState(() => _conversations = _loadConversations());
++    await _conversations;
++  }
++
++  String _formatTimestamp(dynamic value) {
++    if (value is! num) return '';
++    final date = DateTime.fromMillisecondsSinceEpoch(value.toInt());
++    if (DateUtils.isSameDay(date, DateTime.now())) {
++      return TimeOfDay.fromDateTime(date).format(context);
++    }
++    return '${date.day}/${date.month}';
++  }
++
++  Future<void> _openConversation(Map<String, dynamic> item) async {
++    final peerUid = item['peerUid'] as String? ?? '';
++    final peerName = item['peerName'] as String? ?? 'عضو مودة';
++    final chatId = item['chatId'] as String? ?? '';
++    if (peerUid.isEmpty || chatId.isEmpty) return;
++    await Navigator.of(context).push(
++      MaterialPageRoute<void>(
++        builder: (_) => DirectChatScreen(
++          peerUid: peerUid,
++          peerName: peerName,
++          chatId: chatId,
++          currentUserId: widget.currentUserId,
++        ),
++      ),
++    );
++    if (mounted) await _refresh();
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    return Scaffold(
++      appBar: AppBar(
++        title: const Text('الرسائل والمحادثات'),
++        actions: [
++          IconButton(
++            tooltip: 'تحديث المحادثات',
++            onPressed: _refresh,
++            icon: const Icon(Icons.refresh),
++          ),
++        ],
++      ),
++      body: FutureBuilder<List<Map<String, dynamic>>>(
++        future: _conversations,
++        builder: (context, snapshot) {
++          if (snapshot.connectionState == ConnectionState.waiting) {
++            return const Center(child: CircularProgressIndicator());
++          }
++          if (snapshot.hasError) {
++            return Center(
++              child: Padding(
++                padding: const EdgeInsets.all(24),
++                child: Column(
++                  mainAxisSize: MainAxisSize.min,
++                  children: [
++                    const Icon(Icons.cloud_off_outlined, size: 44),
++                    const SizedBox(height: 12),
++                    const Text(
++                      'تعذر تحميل المحادثات. تحقق من الاتصال ثم حاول مجدداً.',
++                      textAlign: TextAlign.center,
++                    ),
++                    const SizedBox(height: 12),
++                    FilledButton.icon(
++                      onPressed: _refresh,
++                      icon: const Icon(Icons.refresh),
++                      label: const Text('إعادة المحاولة'),
++                    ),
++                  ],
++                ),
++              ),
++            );
++          }
++
++          final items = snapshot.data ?? const [];
++          if (items.isEmpty) {
++            return RefreshIndicator(
++              onRefresh: _refresh,
++              child: ListView(
++                physics: const AlwaysScrollableScrollPhysics(),
++                padding: const EdgeInsets.all(28),
++                children: [
++                  const SizedBox(height: 64),
++                  const Icon(Icons.forum_outlined, size: 64),
++                  const SizedBox(height: 16),
++                  const Text(
++                    'لا توجد محادثات بعد',
++                    textAlign: TextAlign.center,
++                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
++                  ),
++                  const SizedBox(height: 8),
++                  const Text(
++                    'اكتشف أعضاء مودة وابدأ محادثة جديدة. ستظهر محادثاتك هنا تلقائياً.',
++                    textAlign: TextAlign.center,
++                  ),
++                  const SizedBox(height: 20),
++                  Center(
++                    child: FilledButton.icon(
++                      onPressed: () => Navigator.of(context).push(
++                        MaterialPageRoute<void>(
++                          builder: (_) => DiscoveryScreen(
++                            currentUserId: widget.currentUserId,
++                          ),
++                        ),
++                      ),
++                      icon: const Icon(Icons.people_outline),
++                      label: const Text('اكتشاف الأعضاء'),
++                    ),
++                  ),
++                ],
++              ),
++            );
++          }
++
++          return RefreshIndicator(
++            onRefresh: _refresh,
++            child: ListView.separated(
++              physics: const AlwaysScrollableScrollPhysics(),
++              itemCount: items.length,
++              separatorBuilder: (_, __) => const Divider(height: 1, indent: 76),
++              itemBuilder: (context, index) {
++                final item = items[index];
++                final name = item['peerName'] as String? ?? 'عضو مودة';
++                final preview = item['lastMessagePreview'] as String? ?? '';
++                final hasUnread = item['hasUnread'] == true;
++                final time = _formatTimestamp(item['lastMessageAt']);
++                return ListTile(
++                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
++                  leading: CircleAvatar(
++                    child: Text(name.isNotEmpty ? name.substring(0, 1) : 'م'),
++                  ),
++                  title: Text(
++                    name,
++                    maxLines: 1,
++                    overflow: TextOverflow.ellipsis,
++                    style: TextStyle(fontWeight: hasUnread ? FontWeight.bold : FontWeight.w500),
++                  ),
++                  subtitle: Text(
++                    preview.isEmpty ? 'محادثة مودة' : preview,
++                    maxLines: 1,
++                    overflow: TextOverflow.ellipsis,
++                    style: TextStyle(
++                      fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
++                    ),
++                  ),
++                  trailing: Column(
++                    mainAxisAlignment: MainAxisAlignment.center,
++                    crossAxisAlignment: CrossAxisAlignment.end,
++                    children: [
++                      if (time.isNotEmpty)
++                        Text(time, style: Theme.of(context).textTheme.labelSmall),
++                      if (hasUnread) ...[
++                        const SizedBox(height: 5),
++                        const Badge(label: Text('جديد')),
++                      ],
++                    ],
++                  ),
++                  onTap: () => _openConversation(item),
++                );
++              },
++            ),
++          );
++        },
++      ),
++    );
++  }
++}
+diff --git a/lib/screens/main_user_screen.dart b/lib/screens/main_user_screen.dart
+index 9e6422b4..a1ca1a03 100644
+--- a/lib/screens/main_user_screen.dart
++++ b/lib/screens/main_user_screen.dart
+@@ -1,97 +1,99 @@
+ import 'dart:async';
+ 
+ import 'package:cloud_firestore/cloud_firestore.dart';
+ import 'package:cloud_functions/cloud_functions.dart';
+ import 'package:firebase_auth/firebase_auth.dart';
+ import 'package:flutter/material.dart';
+ 
+ import '../services/auth_service.dart';
+ import '../services/push_notification_service.dart';
+ import 'profile_screen.dart';
+ import 'discovery_screen.dart';
+ import 'shop_screen.dart';
+ import 'wallet_screen.dart';
+ import 'rooms_screen.dart';
+ import 'super_admin_screen.dart';
+ import 'safety_center_screen.dart';
+ import 'notification_center_screen.dart';
++import 'conversations_screen.dart';
++import 'stories_screen.dart';
+ 
+ class MainUserScreen extends StatefulWidget {
+   final String userId;
+   const MainUserScreen({super.key, required this.userId});
+ 
+   @override
+   State<MainUserScreen> createState() => _MainUserScreenState();
+ }
+ 
+ class _MainUserScreenState extends State<MainUserScreen> {
+   late Future<bool> _profileFuture;
+   bool _signingOut = false;
+   final PushNotificationService _pushNotifications = PushNotificationService();
+ 
+   @override
+   void initState() {
+     super.initState();
+     _profileFuture = _hasCompletedProfile();
+     _initializePushNotifications();
+   }
+ 
+   Future<void> _initializePushNotifications() async {
+     await _pushNotifications.initialize(onForegroundMessage: (message) {
+       if (!mounted) return;
+       final title = message.notification?.title ?? 'إشعار جديد من مودة';
+       final body = message.notification?.body ?? 'لديك تحديث جديد.';
+       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$title — $body')));
+     });
+   }
+ 
+   Future<void> _signOut() async {
+     if (_signingOut) return;
+     setState(() => _signingOut = true);
+     try {
+       // Push-token cleanup is best-effort: a network failure must never keep
+       // an authenticated member or owner signed in.
+       try {
+         await _pushNotifications.unregister();
+       } catch (_) {
+         // Firebase Auth sign-out remains mandatory even when token cleanup fails.
+       }
+       await AuthService().signOut();
+       // AuthGate observes FirebaseAuth state and returns to the entry screen.
+     } catch (error) {
+       if (!mounted) return;
+       ScaffoldMessenger.of(context).showSnackBar(
+         const SnackBar(content: Text('تعذر إنهاء جلسة الدخول. تحقق من الاتصال ثم أعد المحاولة.')),
+       );
+     } finally {
+       if (mounted) setState(() => _signingOut = false);
+     }
+   }
+ 
+   @override
+   void dispose() {
+     unawaited(_pushNotifications.dispose());
+     super.dispose();
+   }
+ 
+   Future<bool> _hasCompletedProfile() async {
+     final snapshot = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
+     return snapshot.data()?['profileCompleted'] == true;
+   }
+ 
+   void _refreshProfile() {
+     setState(() => _profileFuture = _hasCompletedProfile());
+     unawaited(_initializePushNotifications());
+   }
+ 
+   @override
+   Widget build(BuildContext context) {
+     return Scaffold(
+       appBar: AppBar(
+         title: const Text('مودة | MAWDA'),
+         actions: [
+           IconButton(
+             tooltip: 'الإشعارات',
+             onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+               builder: (_) => const NotificationCenterScreen(),
+             )),
+@@ -358,160 +360,178 @@ class _MemberProfileFormState extends State<_MemberProfileForm> {
+                         if (selected && age < 18) {
+                           setState(() => _error = 'نية الزواج متاحة للأعضاء بعمر 18 عاماً فأكثر.');
+                           return;
+                         }
+                         setState(() {
+                           _error = null;
+                           selected ? _selectedGoals.add('marriage') : _selectedGoals.remove('marriage');
+                         });
+                       },
+                     ),
+                   ],
+                 ),
+                 const SizedBox(height: 6),
+                 const Text('الصداقة والتواصل الاجتماعي غير الرومانسي متاحان من 16 عاماً، أما التعارف العاطفي ونية الزواج فمن 18 عاماً.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
+                 const SizedBox(height: 12),
+                 if (_error != null) ...[
+                   const SizedBox(height: 8),
+                   Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error),
+                     textAlign: TextAlign.center),
+                 ],
+                 const SizedBox(height: 12),
+                 FilledButton(
+                   onPressed: _busy ? null : _submit,
+                   child: _busy
+                       ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                       : const Text('إكمال العضوية'),
+                 ),
+                 const SizedBox(height: 8),
+                 const Text('تُمنح مكافأة 500 كوين بعد نجاح التحقق وإكمال العضوية وفق سياسة العمر المعتمدة.',
+                   textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
+               ],
+             ),
+           ),
+         ),
+       ),
+     );
+   }
+ }
+ 
+ class _CompletedProfilePanel extends StatelessWidget {
+   const _CompletedProfilePanel({required this.userId});
+   final String userId;
+ 
+   @override
+   Widget build(BuildContext context) {
+     final user = FirebaseAuth.instance.currentUser;
+     return Center(
+       child: Padding(
+         padding: const EdgeInsets.all(24),
+         child: ConstrainedBox(
+           constraints: const BoxConstraints(maxWidth: 520),
+           child: Column(
+             mainAxisSize: MainAxisSize.min,
+             children: [
+               const Icon(Icons.favorite, size: 72, color: Color(0xFFE8A0B5)),
+               const SizedBox(height: 16),
+               const Text('اكتملت عضويتك في مودة',
+                 textAlign: TextAlign.center,
+                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+               const SizedBox(height: 12),
+               Text(user?.email ?? '', textAlign: TextAlign.center),
+               const SizedBox(height: 20),
+               if (user != null)
+                 Wrap(
+                   alignment: WrapAlignment.center,
+                   spacing: 10,
+                   runSpacing: 10,
+                   children: [
+                     OutlinedButton.icon(
+                       icon: const Icon(Icons.person_outline),
+                       label: const Text('ملفي الشخصي'),
+                       onPressed: () => Navigator.of(context).push(
+                         MaterialPageRoute(
+                           builder: (_) => ProfileScreen(
+                             profileUserId: user.uid,
+                             currentUserId: user.uid,
+                           ),
+                         ),
+                       ),
+                     ),
++                    OutlinedButton.icon(
++                      icon: const Icon(Icons.chat_bubble_outline),
++                      label: const Text('الرسائل'),
++                      onPressed: () => Navigator.of(context).push(
++                        MaterialPageRoute<void>(
++                          builder: (_) => ConversationsScreen(currentUserId: user.uid),
++                        ),
++                      ),
++                    ),
++                    OutlinedButton.icon(
++                      icon: const Icon(Icons.auto_awesome_motion_outlined),
++                      label: const Text('القصص'),
++                      onPressed: () => Navigator.of(context).push(
++                        MaterialPageRoute<void>(
++                          builder: (_) => StoriesScreen(currentUserId: user.uid),
++                        ),
++                      ),
++                    ),
+                     OutlinedButton.icon(
+                       icon: const Icon(Icons.explore_outlined),
+                       label: const Text('اكتشف الأعضاء'),
+                       onPressed: () => Navigator.of(context).push(
+                         MaterialPageRoute(
+                           builder: (_) => DiscoveryScreen(currentUserId: user.uid),
+                         ),
+                       ),
+                     ),
+                     OutlinedButton.icon(
+                       icon: const Icon(Icons.account_balance_wallet_outlined),
+                       label: const Text('المحفظة'),
+                       onPressed: () => Navigator.of(context).push(
+                         MaterialPageRoute(
+                           builder: (_) => WalletScreen(userId: user.uid),
+                         ),
+                       ),
+                     ),
+                     OutlinedButton.icon(
+                       icon: const Icon(Icons.meeting_room_outlined),
+                       label: const Text('الغرف والمجتمعات'),
+                       onPressed: () => Navigator.of(context).push(
+                         MaterialPageRoute(
+                           builder: (_) => RoomsScreen(userId: userId),
+                         ),
+                       ),
+                     ),
+                     FutureBuilder<IdTokenResult>(
+                       future: user.getIdTokenResult(),
+                       builder: (context, tokenSnapshot) {
+                         if (tokenSnapshot.data?.claims?['platformOwner'] != true) {
+                           return const SizedBox.shrink();
+                         }
+                         return OutlinedButton.icon(
+                           icon: const Icon(Icons.admin_panel_settings_outlined),
+                           label: const Text('لوحة السوبر أدمن'),
+                           onPressed: () => Navigator.of(context).push(
+                             MaterialPageRoute(builder: (_) => const SuperAdminScreen()),
+                           ),
+                         );
+                       },
+                     ),
+                     OutlinedButton.icon(
+                       icon: const Icon(Icons.storefront_outlined),
+                       label: const Text('المتجر'),
+                       onPressed: () => Navigator.of(context).push(
+                         MaterialPageRoute(
+                           builder: (_) => ShopScreen(userId: user.uid),
+                         ),
+                       ),
+                     ),
+                   ],
+                 ),
+               const SizedBox(height: 16),
+               const Text('تم إنشاء ملفك من خلال الخادم الموثوق. ستُفتح بقية أقسام المنصة بعد اكتمال مراحلها الأمنية والتشغيلية.',
+                 textAlign: TextAlign.center),
+             ],
+           ),
+         ),
+       ),
+     );
+   }
+ }
+ 
+ class _MessagePanel extends StatelessWidget {
+   const _MessagePanel({required this.message, required this.actionLabel, required this.onAction});
+   final String message;
+   final String actionLabel;
+   final VoidCallback onAction;
+ 
+   @override
+   Widget build(BuildContext context) => Center(
+     child: Padding(
+       padding: const EdgeInsets.all(24),
+       child: Column(mainAxisSize: MainAxisSize.min, children: [
+         Text(message, textAlign: TextAlign.center),
+         const SizedBox(height: 16),
+         FilledButton(onPressed: onAction, child: Text(actionLabel)),
+       ]),
+     ),

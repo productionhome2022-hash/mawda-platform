@@ -1,0 +1,1435 @@
+diff --git a/docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md b/docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+index 1c68bf6d..b1081441 100644
+--- a/docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
++++ b/docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+@@ -123,80 +123,136 @@ This section supersedes the pending-review wording above where a later exact-fil
+ - The older private-rented-room `room-call-policy.ts` and call-signaling integration test are byte-identical to the unified branch. Its older `index.ts` changes do not supersede the unified account-standing and transaction checks.
+ - Store-gifting helper, unit test and Shop screen from `codex/mawdda-economy-selective-port-2026-11-19` are byte-identical to unified. The unified `giftStoreItem` callable differs materially and has additional catalog-version snapshot, replay, ledger/audit, sender-standing and entitlement validation. The unified integration test is larger and includes additional coverage.
+ - The unified specialized-role capacity suite is broader than the older role-capacity source branch: independent seat limits, owner capacity changes, concurrent fifth-seat assignment, open-ended team supervisors, safe-integer version overflow, expired assignments, suspension and revocation are present. Do not replace it with the older branch version.
+ - The old direct-call transaction-revalidation branch's room-call policy and unit test are byte-identical; its Functions entry-point variant is older and lacks current room-message account-standing checks.
+ 
+ ### PR #43 superseded
+ 
+ PR #43 was closed as completed/superseded after confirming the store-gifting feature is already integrated in the unified branch and the unified Domain Regression run `44728900683` passed the explicit store-gifting wallet/entitlement integration step. No duplicate or stale store-gifting implementation was merged.
+ 
+ ### Biometric branch safety gate
+ 
+ The divergent `codex/governance-biometric-integration-2026-11-19` / `codex/structural-governance-biometric-roles-2026-11-19` line contains a substantial biometric capture/review workflow that is not present end-to-end in the unified candidate (the current candidate has only the biometric verification helper and a limited integration test; biometric media/review modules and the member/Owner screens are absent). The approved-decision register explicitly states that the 1,500-coin biometric reward and biometric privileges remain disabled until cryptographic server proof is bound to challenge, account and device and resists replay/forgery. Therefore:
+ - Do not port reward/entitlement or biometric approval logic from the divergent branches as a small safe change.
+ - First audit the entire request, consent, capture, upload, private storage, owner review, decision, evidence deletion, renewal, lockout and replay lifecycle against the approved constitution.
+ - Keep all biometric rewards/privileges disabled until the cryptographic proof requirement is met and tested.
+ - Record policy conflicts and any unapproved numeric limits before implementation.
+ 
+ ### Current unified head and exact-head tests
+ 
+ - Unified head after the two reconciliation/audit documents: `120ce89d0af0b4dc07403b4226ebcac8822de297`.
+ - Comparison with official development baseline `codex/mawda-full-platform-implementation`: **73 commits ahead, 0 behind**.
+ - Domain Regression run `44730418986`: **success**. Both jobs passed, including the Flutter UI/widget suite and retention/room reservation Emulator regression. The backend job also explicitly passed store-gifting, specialized-role capacity, retention, room, call-signaling and timed-ad reward integration steps.
+ - Validate Mawda run `44730419089`: still **pending** at the latest check; no jobs were exposed by the GitHub Actions jobs endpoint. Do not claim this run passed. Earlier specialist-audit SHA `c1edba1432b5ef783c7eb5fb4493128c7a595cb1` had Validate and Domain Regression both completed successfully, but the unified head subsequently advanced.
+ - PR #71 was closed as superseded after its audit document was copied into the unified branch. Its exact-head Validate run `44728900495` and Domain Regression run `44728900683` both passed.
+ - No 5,000-persona simulation or external/manual/device/live-production test was run.
+ 
+ 
+ ## 8. Follow-up unique extraction audit — 2026-11-20 (PR #42, governance, economy, media, inbox and profiles)
+ 
+ Audit target HEAD before this documentation update: `d18b1c234a2b72413ba9814382c7ce7b996c6416`.
+ 
+ ### PR #42 — specialized role capacity
+ - PR #42 head: `ea6b05253ab702e773611ec48d31518a50943acd`; branch `codex/mawdda-step1-role-reconcile-2026-11-19`; PR base is the older retention-repair branch.
+ - Compare against the unified line: 32 commits ahead / 214 behind; the branch is divergent and must not be merged wholesale.
+ - Exact-file review confirms the unified implementation supersedes the PR version:
+   - `functions/src/platform-role-identities.ts` on unified is broader (115 lines versus 87), preserving the PR role IDs/capacity/labels and adding Production Quality Reviewer, Legal and Administrative Supervisor, plus the explicit owner-configurable General Production Supervisor capacity.
+   - `functions/test/integration/specialized-role-capacity.integration.test.js` on unified is broader (283 lines versus 143), covering the independent fixed-seat limits, owner capacity changes, concurrency, expired/reactivated assignments, suspension/revocation and version overflow.
+   - `functions/src/index.ts` on unified includes the capacity-setting transaction, capacity-aware seat guard and transaction-bound audit record. PR #42 carries an older post-transaction audit variant.
+   - Strict scope validation for surrounding whitespace/control characters is already present in unified `advertising-governance.ts` and covered by unified tests; no duplicate port is needed.
+   - Unified package/workflow files already execute the specialized role integration suite.
+ - PR #42 was closed as superseded (not merged). The review comment records the comparison and exact-head CI evidence.
+ 
+ ### Governance and biometric branches
+ - `codex/governance-biometric-integration-2026-11-19`: 89 commits ahead / 303 behind; `codex/structural-governance-biometric-roles-2026-11-19`: 79 ahead / 306 behind. Both remain divergent; no wholesale merge.
+ - The biometric source adds a substantial request/upload/Owner-review workflow, including `biometric-media.ts`, `biometric-review.ts`, member and Owner screens, and integration tests. The inspected source SHAs include:
+   - `functions/src/biometric-media.ts`: `846fcdad8d30060aa76bd1a809241c74e4b1dadb`
+   - `functions/src/biometric-review.ts`: `2c33cc62e8248570233f8cd28ad2c0f46a727e62`
+   - `functions/test/integration/biometric-verification.integration.test.js`: `9714ca05a41ff774331e7dc538e8a930d5f3ba42`
+ - The workflow uses a configured phrase and uploaded audio/video followed by Super Owner review. The source does **not** implement a cryptographic proof bound to a server challenge, canonical account and device: the inspected backend has no device-key registration, attestation verification, public-key signature check, nonce/replay ledger or proof-to-request binding. The integration test includes an Owner-acceptance path that directly seeds a pending request and expects the 1,500-coin ledger credit; it does not establish hardware-backed proof.
+ - This conflicts with approved decision `REWARD-002` in `MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md`: 1,500 coins and biometric privileges remain fail-closed until cryptographic server proof is challenge/account/device-bound and replay/forgery resistant. Therefore the 1,500 reward must **not** be activated merely because Super Owner accepts a request. Owner approval is necessary but not sufficient under the currently approved gate.
+ - Do not port the reward-granting workflow as-is. The full workflow remains an open P0 security/design gap: choose and approve platform-specific attestation/proof providers and lifecycle; bind server nonce, account UID and registered device key; verify signatures/attestation server-side; persist one-time proof consumption and revocation; then test forged, mismatched-account/device, expired, replayed, revoked and concurrent submissions. No provider or security guarantee is inferred here.
+ - Keep reward and privileges disabled until the approved cryptographic gate is met. This preserves the owner's explicit request for Owner review without violating the already-approved anti-forgery requirement.
+ 
+ ### Inbox and member profiles
+ - `codex/mawdda-member-inbox-rebased`: 7 commits ahead / 1,340 behind. Its `conversations_screen.dart` is byte-identical to unified (blob `91e2e922380319a59942becc800251996099ca54`). Its direct-message deletion integration test is older/smaller (748 lines) than unified (848 lines); unified adds timestamp-tie pagination and deletion-revision reconciliation assertions. Its `functions/src/index.ts` is an older snapshot and is not safe to port.
+ - `codex/mawdda-deep-audit-profile-store`: 0 commits ahead / 1,363 behind, with no unique file delta. Existing unified premium-profile integration coverage is already included in exact-head CI. No duplicate profile/inbox files were copied.
+ 
+ ### Economy
+ - `codex/mawdda-economy-selective-port-2026-11-19`: 10 commits ahead / 130 behind. The store-gifting helper, unit tests and Shop screen were already verified byte-identical to unified in the previous audit; the unified callable and integration suite are newer and broader. Its older `index.ts` is not a safe replacement. No duplicate economy code was ported.
+ - Exact-head Domain Regression and Validate runs both include successful store-gifting and wallet/entitlement integration steps.
+ 
+ ### Ads and media
+ - `codex/featured-ads-secure-lifecycle-20261118`: 199 commits ahead / 307 behind. It contains large overlapping changes to `functions/src/index.ts`, `functions/src/media.ts`, scanner, media rules, ads, quota, and client screens; selective file-level review remains mandatory.
+ - Unified `featured-ad-finance.ts` and its unit tests are newer/larger than the corresponding source-branch files; do not replace them.
+ - The source branch's new call-entitlement helper relates to unresolved direct-call paid entitlement/lifecycle work (#66); do not activate or port it independently of owner-approved entitlement/pricing, per-party consent, metering and settlement.
+ - Its capacity-media policy leaves quotas null and enforcement observe-only, but remains a separate policy module requiring reconciliation with the approved capacity/cost model before adoption.
+ - Its sticker policy/catalog/widgets are new, but define additional sticker-specific limits and a new moderation/catalog lifecycle. They are not yet integrated into the unified scanner, entitlement, catalog and retention lifecycle. Do not port the feature bundle as a "small" media change; review the complete upload/scan/publish/send/delete path and confirm no conflict with canonical media limits first.
+ 
+ ### Exact-head GitHub Actions evidence
+ For unified HEAD `d18b1c234a2b72413ba9814382c7ce7b996c6416`, the following runs were polled to completion:
+ - Validate Mawda: `44731027874`, `44731018627` — all jobs completed successfully, including Functions compile/unit tests, media callable and direct-message deletion integration, store gifting, specialized role capacity, biometric-cycle regression, premium-profile integration, Flutter tests and scanner tests.
+ - Mawdda Domain Regression: `44731027859`, `44731018700` — both jobs completed successfully, including specialized-role capacity/concurrency, store gifting, retention/room reservation and Flutter widget/unit tests.
+ - These are GitHub Actions results only. No 5,000-persona simulation, external/device/manual test, live-production test, deployment, financial operation or main merge was performed.
+ 
+ ### Remaining blockers
+ - P0 / Issue #72: cryptographic biometric proof protocol and secure end-to-end workflow are not implemented; 1,500-coin reward and biometric privileges remain disabled. Issue #72 records the implementation and acceptance matrix.
+ - P0: #48 specialist permission enforcement remains unwired to protected operations.
+ - P0: #49 complete secure media lifecycle; #23 group-call lifecycle; #66 direct-call paid economy remain open.
+ - P1: #52 selective branch extraction remains active; the above audits classify duplicates and blocked bundles, not every divergent commit. Continue file-level provenance review for governance/ads/media and extract only self-contained, policy-aligned code with tests.
+ - P1: inbox/profile source branches reviewed above have no safe unique extraction at this baseline; continue with other specialized member/profile branches if new refs appear.
++
++
++## 9. P0 lifecycle follow-up — biometric proof gate, role wiring, media and calls (2026-11-20)
++
++### Biometric proof hardening branch / PR #73
++- Branch `codex/mawdda-biometric-proof-gate-2026-11-20` is based on the unified line and is proposed through Draft PR #73.
++- Initial PR commit SHA: `fb1a54fd66b568e0bf781ab2b6de174a9abf2267`; subsequent documentation/audit commits advanced the branch head. Base unified line was `7d386a77818e3a9ec59977f1cbcb67b8eac6ba9d`.
++- Files changed are limited to the biometric eligibility helper, its profile/social-link call sites and tests, plus the proof-gate schema note.
++- The eligibility helper now requires the expected account UID and a persisted server-proof record with an allowlisted platform provider, matching account UID, device key ID, one-time challenge ID, proof digest, server signature/attestation verification markers, consumed nonce and ordered server timestamps. Legacy verified flags and client OS prompt claims fail closed.
++- This is **only an eligibility hardening gate**. It does not implement or cryptographically verify Google Play Integrity or Apple App Attest tokens, device-key enrollment, challenge issuance/consumption, proof-to-evidence binding, or the Owner review lifecycle. The fields are an internal trusted-verifier output contract; no client may write them. Firestore rules currently deny all client writes to `users/{uid}`.
++- `completeBiometricVerificationCycle` remains fail-closed. No reward, badge or biometric privilege is enabled. Owner acceptance alone remains insufficient for the 1,500-coin reward.
++- Draft PR #73 must pass exact-head CI and review before any merge to the unified branch. The complete proof lifecycle remains open under Issue #72.
++
++### Specialized role authorization — Issue #48
++- Re-read the current `functions/src/index.ts` on unified. It has 11,157 lines and 146 exported callable declarations at this audit point; the string `hasAdvertisingPermission` has zero occurrences in the file.
++- Existing specialized grant CRUD/capacity callables remain Owner-only. Advertising intake and production application review callables remain Owner-only; public submission callables only create requests.
++- The approved permission catalogue and role-bound grant evaluator exist, but the audited intake/production records do not provide canonical assignment ownership fields or server-derived resource scopes. The grant `resourceScopes` are still opaque strings. Replacing Owner gates now would create an ungrounded authorization bypass.
++- No broad delegated guard was added. Before enabling any specialist operation, add server-owned assignment records and canonical scope derivation, then wire one callable at a time with callable Emulator allow/deny coverage. Keep contract signing, finance, grant administration, emergency controls and other sovereign operations Owner-only.
++
++### Secure media lifecycle — Issue #49
++- Unified media code already has upload-intent creation, quarantine/finalization, scanner verdict validation, safe-derivative contracts, delivery authorization, legal holds and retryable deletion/tombstones. This is not yet proof of a complete lifecycle.
++- `codex/featured-ads-secure-lifecycle-20261118` remains highly divergent: 199 commits ahead / 309 behind. `codex/featured-ads-serving-foundation`: 139 ahead / 308 behind. Both modify collision-heavy `index.ts`, `media.ts`, scanner, tests, rules, package/workflow files and UI; no wholesale or speculative port is safe.
++- New capacity-media policy is observe-only with null quota values and requires reconciliation with the owner-controlled capacity/cost model. New sticker catalog/policy/widgets add their own limits and moderation lifecycle and are not integrated into the canonical scanner/retention/entitlement path. No such bundle was ported.
++- Remaining #49 acceptance: generation-pinned scanner verdicts and derivative provenance, signed URL expiry/revocation, non-member/wrong-purpose denial, legal-hold and deletion race, late derivative tombstone cleanup, and end-to-end Emulator proof that originals never reach clients.
++
++### Group calls — Issue #23
++- Unified `group-call-economy.ts` is a pure policy-driven calculation helper only. It has no server settlement callable or wallet/ledger integration.
++- Current `startCall` selects room members automatically from the rented room (2–5), and each invitee accepts/rejects the call. It does not provide a separate member join-request queue with creator approval, nor a separate explicit financial consent per participant.
++- The existing `call-signaling.integration.test.js` verifies room signaling and member departure, not the full requested admission/entitlement/consent/media-connected metering/atomic settlement lifecycle.
++- The current room-call duration helper applies fixed 5-minute audio / 3-minute video constants. Do not silently change those durations or invent pricing/capacity rules; reconcile with approved room policy and Owner-controlled configuration before expanding.
++- No billing, wallet hold, settlement or paid resource was activated. Issue #23 remains open until the full non-production Emulator lifecycle and media-topology acceptance tests pass.
++
++### Direct-call paid economy — Issue #66
++- Direct call exports currently implement signaling, rolling attempt quotas, active-call locks, connection deadline and call termination; no owner-versioned paid pricing/entitlement, per-party financial consent, trusted connected-media metering or atomic wallet settlement is wired.
++- The Issue #66 record still contains unresolved Owner decisions for the asymmetric caller/receiver entitlement case, sub-minute rounding, reservation/hold timing and failed-media refund/release behavior. Do not infer these choices or use hardcoded fallback prices.
++- No paid call or financial operation was performed or enabled.
++
++### Current GitHub Actions evidence
++- Unified base SHA `7d386a77818e3a9ec59977f1cbcb67b8eac6ba9d`: Validate run `44732927438` succeeded (Functions compile/unit tests, Flutter analysis/tests/web build and isolated scanner build/tests); Domain Regression run `44732927381` succeeded (retention/room reservation Emulator regression and Flutter widget/unit tests).
++- These results are for the unified base SHA, **not** PR #73 head. Exact-head PR #73 Actions had not yet surfaced when this section was written; do not claim they passed.
++- No 5,000-persona simulation, external/device/manual/live-production test, production mutation, billing or deployment was run.
++
++### Active blockers / next sequence
++1. #72: implement actual Android/iOS provider verification, device-key registration, server nonce lifecycle, replay prevention and proof-to-evidence binding; preserve Owner acceptance as a separate gate. Reward remains disabled.
++2. #48: establish approved operation-to-permission-to-resource assignment matrix and server-owned assignment schema before delegated callable guards.
++3. #49: finish scanner-generation-delivery-retention-deletion lifecycle and Emulator tests; continue file-level review of divergent media branches.
++4. #23: implement join-request/creator-approval/entitlement/financial-consent/connected-media metering/atomic settlement and participant media topology.
++5. #66: resolve the four listed Owner pricing/settlement decisions before paid billing implementation.
++6. Do not merge PR #73 until exact-head GitHub Actions and review are complete. No main merge, deployment, production Firebase change, billing or simulation.
++
++
++### Media Saver selective-port decision
++- The `codex/featured-ads-serving-foundation` branch adds a server-side `getMediaSaverAttachmentUrl` capability that checks an entitlement on every save and reuses the safe-derivative delivery path. This matches the approved principle that every save needs a backend entitlement check and must not extend server retention.
++- Its implementation hardcodes the entitlement document ID `media_saver_7d`. The binding constitution instead defines one Media Saver product with owner-configurable 24-hour / one-week / one-month durations and explicitly says the initial one-week / 200-coin value is test-only. The unified catalog currently has no Media Saver SKU.
++- Therefore the feature is **not ported yet**: the backend consumer must be connected to the central owner-configurable catalog/entitlement schema and support all owner-enabled duration variants, not introduce a fixed one-week product ID or price. The underlying secure delivery logic is already present in unified; a separate callable can be added once the canonical product/entitlement identity is established.
++- The source branch also adds entitlement-required direct-call tests, but the unified `startCall` implementation does not currently enforce the relevant call entitlements. Those tests cannot be copied alone; implement the approved call entitlement and asymmetry matrix first.
+diff --git a/docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md b/docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md
+new file mode 100644
+index 00000000..e0e19b69
+--- /dev/null
++++ b/docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md
+@@ -0,0 +1,53 @@
++# Biometric proof gate — 2026-11-20
++
++## Status
++
++**Hardening gate only; the cryptographic verification pipeline is not complete and no reward/privilege is enabled.**
++
++Branch: `codex/mawdda-biometric-proof-gate-2026-11-20`  
++Base: `codex/mawdda-phase1-unified-2026-11-19`  
++Related issue: #72
++
++## Changes in this branch
++
++- `hasActiveBiometricVerification` now requires the expected canonical member UID and a server-proof record.
++- Legacy `status: verified` records, local OS prompt claims, client-claim trust models, cross-account proof, missing/invalid challenge metadata, unverified signature/attestation markers, unconsumed nonces, expired/revoked records and invalid timestamps fail closed.
++- The gate is applied to profile social-link publication/visibility, direct-message link privileges and room-message link privileges.
++- Clearing/removing links and hiding existing links remain available without an active biometric lease.
++- Firestore rules currently deny all client create/update/delete operations on `users/{uid}`, so the proof record is not client-writable through the Firestore client.
++
++## Required persisted verifier result contract
++
++The gate expects the trusted server to persist a `biometricVerification` record with:
++
++- `status = verified`
++- `verificationMethod = server_verified_device_attestation`
++- `trustModel = challenge_bound_device_key`
++- future `expiresAt`, with no `revokedAt`
++- `serverProof.status = verified`
++- provider `android_play_integrity` or `ios_app_attest`
++- `serverProof.accountUid` exactly matching the user document UID
++- non-empty server-registered `deviceKeyId` and one-time `challengeId`
++- SHA-256 `proofDigest`
++- server verification markers `signatureVerified`, `attestationVerified`, and `nonceConsumed`
++- server timestamps `verifiedAt` and `nonceConsumedAt`, in valid order and not in the future
++
++These fields are an internal verifier-result contract, **not proof that the verifier exists**. A trusted writer must set them only after actual provider verification and atomic challenge consumption. A client-supplied boolean or client-created record must never set them.
++
++## Still required before full cryptographic acceptance
++
++1. Android verifier: validate Google Play Integrity tokens server-side, validate package/app identity, request binding, freshness and the expected integrity verdict; document supported platform/API constraints.
++2. iOS verifier: validate Apple App Attest attestation/assertion server-side, certificate chain, app identity, key registration and assertion counter/replay semantics.
++3. Issue a short-lived single-use challenge bound to UID, registered device key, request ID and evidence generation.
++4. Verify the signature/attestation, consume the nonce atomically, and bind the result to the exact request/evidence hash.
++5. Implement key rotation/revocation, expiry, retries, lockout and evidence deletion; ensure concurrent replay cannot verify twice.
++6. Keep Super Owner acceptance as a separate required decision after valid cryptographic proof.
++7. Grant the 1,500-coin reward only after proof plus Owner acceptance, through the central atomic wallet ledger with idempotent audit.
++8. Add Emulator integration tests for forged/malformed, expired, replayed, revoked, cross-account/device/challenge/evidence, concurrent and valid Android/iOS fixtures.
++
++## Explicit boundaries
++
++- This branch does not implement Android or Apple attestation verification, device-key enrollment, challenge issuance/consumption, or the biometric review workflow.
++- It does not grant biometric verification, badges, privileges or 1,500 coins.
++- `completeBiometricVerificationCycle` remains fail-closed.
++- No production Firebase, billing, deployment, `main`, retention policy or 5,000-persona simulation is touched.
+diff --git a/functions/src/biometric-verification.ts b/functions/src/biometric-verification.ts
+index e7a340e6..8855aaa9 100644
+--- a/functions/src/biometric-verification.ts
++++ b/functions/src/biometric-verification.ts
+@@ -1,45 +1,68 @@
+ /**
+- * Server-owned biometric verification eligibility.
+- *
+- * A bare "verified" status is insufficient: the record must carry a valid,
+- * future expiresAt timestamp and must not have been revoked.
++ * A biometric lease is usable only when it contains a server-verified,
++ * challenge-bound device proof. Client-side OS prompts and legacy
++ * "verified" flags are deliberately insufficient.
+  */
++type TimestampLike = { toMillis?: unknown };
++
++function timestampMillis(value: unknown): number | null {
++  if (value instanceof Date) {
++    const result = value.getTime();
++    return Number.isSafeInteger(result) && result >= 0 ? result : null;
++  }
++  if (value === null || typeof value !== "object" ||
++      typeof (value as TimestampLike).toMillis !== "function") return null;
++  try {
++    const result = (value as { toMillis: () => number }).toMillis();
++    return Number.isSafeInteger(result) && result >= 0 ? result : null;
++  } catch {
++    return null;
++  }
++}
++
++const BIOMETRIC_PROOF_PROVIDERS = new Set([
++  "android_play_integrity",
++  "ios_app_attest",
++]);
++
+ export function hasActiveBiometricVerification(
+   value: unknown,
++  expectedUid: string,
+   nowMs = Date.now(),
+ ): boolean {
+-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+-    return false;
+-  }
++  if (!value || typeof value !== "object" || Array.isArray(value) ||
++      typeof expectedUid !== "string" ||
++      !/^[A-Za-z0-9._:@-]{8,128}$/.test(expectedUid) ||
++      !Number.isSafeInteger(nowMs) || nowMs < 0) return false;
+ 
+   const verification = value as Record<string, unknown>;
+-  if (
+-    verification.status !== "verified" ||
+-    verification.revokedAt != null ||
+-    verification.verificationMethod === "local_os_biometric_prompt" ||
+-    verification.trustModel === "client_claim_after_local_os_prompt"
+-  ) {
+-    return false;
+-  }
++  if (verification.status !== "verified" ||
++      verification.revokedAt != null ||
++      verification.verificationMethod !== "server_verified_device_attestation" ||
++      verification.trustModel !== "challenge_bound_device_key") return false;
+ 
+-  const expiry = verification.expiresAt;
+-  let expiresAtMs: number;
++  const expiresAtMs = timestampMillis(verification.expiresAt);
++  if (expiresAtMs === null || expiresAtMs <= nowMs) return false;
+ 
+-  if (expiry instanceof Date) {
+-    expiresAtMs = expiry.getTime();
+-  } else if (
+-    expiry !== null &&
+-    typeof expiry === "object" &&
+-    typeof (expiry as { toMillis?: unknown }).toMillis === "function"
+-  ) {
+-    try {
+-      expiresAtMs = (expiry as { toMillis: () => number }).toMillis();
+-    } catch {
+-      return false;
+-    }
+-  } else {
+-    return false;
+-  }
++  const proof = verification.serverProof;
++  if (!proof || typeof proof !== "object" || Array.isArray(proof)) return false;
++  const evidence = proof as Record<string, unknown>;
++  const verifiedAtMs = timestampMillis(evidence.verifiedAt);
++  const nonceConsumedAtMs = timestampMillis(evidence.nonceConsumedAt);
+ 
+-  return Number.isFinite(expiresAtMs) && expiresAtMs > nowMs;
++  return evidence.status === "verified" &&
++    BIOMETRIC_PROOF_PROVIDERS.has(String(evidence.provider)) &&
++    evidence.accountUid === expectedUid &&
++    typeof evidence.deviceKeyId === "string" &&
++    /^[A-Za-z0-9_-]{16,128}$/.test(evidence.deviceKeyId) &&
++    typeof evidence.challengeId === "string" &&
++    /^[A-Za-z0-9_-]{16,128}$/.test(evidence.challengeId) &&
++    typeof evidence.proofDigest === "string" &&
++    /^[a-f0-9]{64}$/.test(evidence.proofDigest) &&
++    evidence.signatureVerified === true &&
++    evidence.attestationVerified === true &&
++    evidence.nonceConsumed === true &&
++    verifiedAtMs !== null && verifiedAtMs <= nowMs &&
++    nonceConsumedAtMs !== null && nonceConsumedAtMs >= verifiedAtMs &&
++    nonceConsumedAtMs <= nowMs;
+ }
+diff --git a/functions/src/index.ts b/functions/src/index.ts
+index a32dcf07..4b444094 100644
+--- a/functions/src/index.ts
++++ b/functions/src/index.ts
+@@ -1107,160 +1107,161 @@ export const getMemberProfile = onCall(async (request) => {
+       .orderBy("purchasedAt", "desc").limit(100).get(),
+   ]);
+   const premiumFeatures = projectStoreEntitlementFeatures(
+     entitlementSnapshot.docs.map((document) => document.data()),
+   );
+   const activeItemIds = new Set(premiumFeatures.activeFeatures.map((feature) => feature.itemId));
+   const analyticsActive = activeItemIds.has("profile_analytics_30d");
+   let profileAnalytics: { last7DaysViews: number } | null = null;
+ 
+   if (analyticsActive && viewerUid !== targetUid) {
+     const now = Date.now();
+     const day = new Date(now).toISOString().slice(0, 10);
+     const dailyRef = db.collection("users").doc(targetUid).collection("profileAnalytics").doc(day);
+     const visitorHash = createHash("sha256").update(viewerUid).digest("hex");
+     const visitorRef = dailyRef.collection("visitors").doc(visitorHash);
+     await db.runTransaction(async (transaction) => {
+       const [dailySnapshot, visitorSnapshot] = await Promise.all([
+         transaction.get(dailyRef),
+         transaction.get(visitorRef),
+       ]);
+       if (!visitorSnapshot.exists) {
+         transaction.create(visitorRef, {
+           viewerUidHash: visitorHash,
+           firstViewedAt: FieldValue.serverTimestamp(),
+         });
+         transaction.set(dailyRef, {
+           day,
+           viewCount: FieldValue.increment(1),
+           createdAt: dailySnapshot.exists
+             ? dailySnapshot.data()?.createdAt ?? FieldValue.serverTimestamp()
+             : FieldValue.serverTimestamp(),
+           updatedAt: FieldValue.serverTimestamp(),
+         }, { merge: true });
+       } else {
+         transaction.update(visitorRef, { lastViewedAt: FieldValue.serverTimestamp() });
+       }
+     });
+   } else if (analyticsActive && viewerUid === targetUid) {
+     const sinceDay = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+     const analyticsSnapshot = await db.collection("users").doc(targetUid)
+       .collection("profileAnalytics")
+       .where("day", ">=", sinceDay)
+       .orderBy("day", "asc")
+       .limit(7)
+       .get();
+     profileAnalytics = {
+       last7DaysViews: analyticsSnapshot.docs.reduce((total, document) => {
+         const count = document.data().viewCount;
+         return total + (Number.isSafeInteger(count) && count > 0 ? count : 0);
+       }, 0),
+     };
+   }
+ 
+   const greeting = activeItemIds.has("visitor_greeting_30d") &&
+       typeof memberData.profileVisitorGreeting === "string"
+     ? memberData.profileVisitorGreeting.trim().slice(0, 160)
+     : "";
+   const pinnedProfileSection = activeItemIds.has("profile_pin_30d") &&
+       ["bio", "interests", "gallery"].includes(memberData.pinnedProfileSection)
+     ? memberData.pinnedProfileSection as string
+     : null;
+   const boostExpiry = memberData.discoveryBoostExpiresAt;
+   const boostExpiryMs = boostExpiry instanceof Timestamp
+     ? boostExpiry.toMillis()
+     : typeof boostExpiry?.toMillis === "function" ? boostExpiry.toMillis() : 0;
+   const discoveryBoostActive = boostExpiryMs > Date.now();
+   const customTitle = activeItemIds.has("title_custom") &&
+       typeof memberData.customTitle === "string"
+     ? memberData.customTitle.trim().slice(0, 40)
+     : "";
+   const premiumProfileData = {
+     ...premiumFeatures,
+     ...(customTitle ? { activeTitle: customTitle } : {}),
+     ...(greeting ? { visitorGreeting: greeting } : {}),
+     ...(pinnedProfileSection ? { pinnedProfileSection } : {}),
+     discoveryBoostActive,
+     ...(profileAnalytics ? { profileAnalytics } : {}),
+   };
+   const biometricLinksActive = canExposeMemberSocialLinks(
+     memberData.profileCompleted === true,
++    targetUid,
+     memberData.biometricVerification,
+   );
+   const approvedLinks = biometricLinksActive
+     ? projectMemberSocialLinks(memberData.profileSocialLinks)
+     : {};
+   const hiddenProviders = Array.isArray(memberData.hiddenSocialLinks)
+     ? memberData.hiddenSocialLinks.filter((provider): provider is string =>
+         provider === "instagram" || provider === "x" || provider === "facebook" || provider === "whatsapp")
+     : [];
+   const visibleLinks = viewerUid === targetUid
+     ? approvedLinks
+     : Object.fromEntries(
+         Object.entries(approvedLinks).filter(([provider]) => !hiddenProviders.includes(provider)),
+       );
+   const profile = projectPublicMemberProfile(targetUid, {
+     ...memberData,
+     profileVisibility: "public",
+     approvedSocialLinks: visibleLinks,
+   });
+   if (!profile) {
+     throw new HttpsError("permission-denied", "هذا الملف خاص ولا يمكن عرضه.");
+   }
+   return viewerUid === targetUid
+     ? {
+         ...profile,
+         ...premiumProfileData,
+         profileVisibility: memberData.profileVisibility === "public" ? "public" : "private",
+         canManageSocialLinks: biometricLinksActive,
+         hiddenSocialLinks: hiddenProviders,
+       }
+     : { ...profile, ...premiumProfileData };
+ });
+ 
+ /**
+  * Lets a member personalize the title only while their title entitlement is active.
+  * The public profile projection re-checks that entitlement before exposing this value.
+  */
+ export const setMemberCustomTitle = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const title = typeof request.data?.title === "string" ? request.data.title.trim() : "";
+   if (title.length < 2 || title.length > 40 || /[\u0000-\u001F\u007F]/.test(title)) {
+     throw new HttpsError("invalid-argument", "يجب أن يتراوح اللقب بين حرفين و40 حرفاً دون محارف تحكم.");
+   }
+ 
+   const userRef = db.collection("users").doc(uid);
+   const entitlementRef = userRef.collection("entitlements").doc("title_custom");
+   await db.runTransaction(async (transaction) => {
+     const [userSnapshot, entitlementSnapshot] = await Promise.all([
+       transaction.get(userRef),
+       transaction.get(entitlementRef),
+     ]);
+     const user = userSnapshot.data() ?? {};
+     const entitlement = entitlementSnapshot.data() ?? {};
+     if (!userSnapshot.exists || user.profileCompleted !== true ||
+         !isMemberAccountInGoodStanding(user)) {
+       throw new HttpsError("failed-precondition", "يجب أن تكون العضوية مكتملة وفعالة.");
+     }
+     if (!entitlementSnapshot.exists || entitlement.itemId !== "title_custom" ||
+         entitlement.category !== "title" || !isStoreEntitlementActive(entitlement)) {
+       throw new HttpsError("failed-precondition", "شراء لقب مميز فعال مطلوب لتخصيص لقبك.");
+     }
+     transaction.update(userRef, {
+       customTitle: title,
+       updatedAt: FieldValue.serverTimestamp(),
+     });
+     const auditRef = db.collection("memberProfileAudit").doc();
+     transaction.create(auditRef, {
+       memberUid: uid,
+       action: "member_custom_title_updated",
+       changedFields: ["customTitle"],
+       createdAt: FieldValue.serverTimestamp(),
+     });
+   });
+   return { title };
+ });
+ 
+ 
+ /**
+  * Updates the member's visitor greeting while the matching paid entitlement is active.
+  */
+@@ -1737,161 +1738,161 @@ export const updateMemberProfile = onCall(async (request) => {
+   } catch (error) {
+     if (error instanceof HttpsError) throw error;
+     logger.error("Member profile update failed", { uid, error });
+     throw new HttpsError("internal", "تعذر حفظ الملف الشخصي حالياً.");
+   }
+ });
+ 
+ 
+ /**
+  * Saves optional profile links only while trusted biometric verification is active.
+  * Expiry/revocation is rechecked on every profile read, so stale links are hidden.
+  */
+ export const setMemberProfileSocialLinks = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const userRef = db.collection("users").doc(uid);
+   let links;
+   try {
+     links = validateMemberSocialLinks(request.data?.links);
+   } catch {
+     throw new HttpsError("invalid-argument", "روابط الملف الشخصي غير صالحة أو لا تنتمي إلى النطاقات الرسمية.");
+   }
+ 
+   await db.runTransaction(async (transaction) => {
+     const member = await transaction.get(userRef);
+     const data = member.data() ?? {};
+     if (!member.exists || !canEditMemberSocialLinks(
+       uid,
+       member.id,
+       data.profileCompleted === true,
+       links,
+       data.biometricVerification,
+     )) {
+       throw new HttpsError(
+         "failed-precondition",
+         "تتطلب إدارة روابط الملف إكمال الملف الشخصي وتوثيقاً بيومترياً نشطاً للحساب نفسه.",
+       );
+     }
+     const allowedProviders = Object.keys(links);
+     const hiddenSocialLinks = Array.isArray(data.hiddenSocialLinks)
+       ? data.hiddenSocialLinks.filter((provider): provider is string =>
+           typeof provider === "string" && allowedProviders.includes(provider))
+       : [];
+     transaction.update(userRef, {
+       profileSocialLinks: links,
+       hiddenSocialLinks,
+       updatedAt: FieldValue.serverTimestamp(),
+     });
+     const auditRef = db.collection("memberProfileAudit").doc();
+     transaction.create(auditRef, {
+       memberUid: uid,
+       action: "member_profile_social_links_updated",
+       providers: Object.keys(links).sort(),
+       createdAt: FieldValue.serverTimestamp(),
+     });
+   });
+   return { savedProviders: Object.keys(links).sort() };
+ });
+ 
+ 
+ /** Per-link privacy control. Hiding is always permitted; revealing requires active verification. */
+ export const setMemberProfileSocialLinkVisibility = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const provider = request.data?.provider;
+   const hidden = request.data?.hidden;
+   const allowedProviders = ["instagram", "x", "facebook", "whatsapp"];
+   if (typeof provider !== "string" || !allowedProviders.includes(provider) || typeof hidden !== "boolean") {
+     throw new HttpsError("invalid-argument", "إعداد خصوصية رابط التواصل غير صالح.");
+   }
+ 
+   const userRef = db.collection("users").doc(uid);
+   await db.runTransaction(async (transaction) => {
+     const member = await transaction.get(userRef);
+     const data = member.data() ?? {};
+     if (!member.exists || data.profileCompleted !== true) {
+       throw new HttpsError("failed-precondition", "يجب إكمال الملف الشخصي أولاً.");
+     }
+     const links = projectMemberSocialLinks(data.profileSocialLinks);
+     if (!links[provider as keyof typeof links]) {
+       throw new HttpsError("not-found", "رابط التواصل المطلوب غير موجود.");
+     }
+-    if (!canChangeMemberSocialLinkVisibility(hidden, data.biometricVerification)) {
++    if (!canChangeMemberSocialLinkVisibility(hidden, data.biometricVerification, member.id)) {
+       throw new HttpsError("failed-precondition", "إظهار الرابط يتطلب توثيقاً بيومترياً نشطاً.");
+     }
+ 
+     const currentHidden = Array.isArray(data.hiddenSocialLinks)
+       ? data.hiddenSocialLinks.filter((value): value is string =>
+           typeof value === "string" && allowedProviders.includes(value))
+       : [];
+     const nextHidden = hidden
+       ? Array.from(new Set([...currentHidden, provider]))
+       : currentHidden.filter((value) => value !== provider);
+     transaction.update(userRef, {
+       hiddenSocialLinks: nextHidden,
+       updatedAt: FieldValue.serverTimestamp(),
+     });
+     const auditRef = db.collection("memberProfileAudit").doc();
+     transaction.create(auditRef, {
+       memberUid: uid,
+       action: hidden ? "member_profile_social_link_hidden" : "member_profile_social_link_revealed",
+       provider,
+       createdAt: FieldValue.serverTimestamp(),
+     });
+   });
+   return { provider, hidden };
+ });
+ 
+ 
+ /**
+  * Member-controlled block/unblock. The server owns the block list because
+  * direct-message authorization checks both participants' blockedUids fields.
+  * This action deliberately sends no notification to the blocked account.
+  */
+ export const setMemberBlock = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const targetUid = typeof request.data?.targetUid === "string"
+     ? request.data.targetUid.trim()
+     : "";
+   const blocked = request.data?.blocked;
+   if (!targetUid || targetUid.length > 128 || targetUid === uid ||
+       typeof blocked !== "boolean") {
+     throw new HttpsError("invalid-argument", "بيانات الحظر غير صالحة.");
+   }
+ 
+   const actorRef = db.collection("users").doc(uid);
+   const targetRef = db.collection("users").doc(targetUid);
+   await db.runTransaction(async (transaction) => {
+     const [actor, target] = await Promise.all([
+       transaction.get(actorRef),
+       transaction.get(targetRef),
+     ]);
+     if (!actor.exists || actor.data()?.profileCompleted !== true) {
+       throw new HttpsError("failed-precondition", "يجب إكمال العضوية قبل إدارة قائمة الحظر.");
+     }
+     if (!target.exists) {
+       throw new HttpsError("not-found", "تعذر العثور على الحساب المطلوب.");
+     }
+     transaction.update(actorRef, {
+       blockedUids: blocked
+         ? FieldValue.arrayUnion(targetUid)
+         : FieldValue.arrayRemove(targetUid),
+       updatedAt: FieldValue.serverTimestamp(),
+     });
+   });
+   return { targetUid, blocked };
+ });
+ 
+ /** Returns only the caller's own reports and adverse decisions. */
+ export const getMySafetyCases = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const [reported, actions] = await Promise.all([
+     db.collection("safetyCases").where("reporterUid", "==", uid).limit(30).get(),
+     db.collection("safetyCases").where("subjectUid", "==", uid).limit(50).get(),
+   ]);
+   return {
+     reports: reported.docs.map((doc) => {
+       const data = doc.data();
+       return {
+         caseId: doc.id,
+         category: data.category,
+         contextType: data.contextType,
+         status: data.status,
+@@ -2581,161 +2582,161 @@ export const sendOwnerLiveStream = onCall(async (request) => {
+       }
+       roomId = input.targetId;
+       transaction.create(messageRef, {
+         messageId, senderUid: actorUid,
+         content: input.title || "بث مباشر من مالك منصة مودة",
+         type: "live_stream", liveStream, isPlatformOwnerMessage: true,
+         senderLabel: "إدارة منصة مودة", isDeleted: false, createdAt: now,
+       });
+     }
+     transaction.create(auditRef, {
+       actorUid, action: "owner_live_stream_broadcast",
+       scope: input.scope, targetId: input.targetId, messageId,
+       hostname: input.hostname, url: input.url, provider: input.provider,
+       title: input.title, description: input.description, createdAt: now,
+     });
+     return { messageId, scope: input.scope, targetId: input.targetId, idempotentReplay: false };
+   });
+   if (!result.idempotentReplay) {
+     if (recipientUid) {
+       await sendPushToMember(recipientUid, "بث مباشر من مالك مودة",
+         "أرسل مالك المنصة رابط بث مباشر في محادثتك.",
+         { type: "owner_live_stream", chatId: input.targetId, messageId });
+     } else if (roomId !== null) {
+       const broadcastRoomId = roomId;
+       try {
+         const members = await db.collection("rooms").doc(broadcastRoomId).collection("members").limit(1000).get();
+         await Promise.all(members.docs.map((member) =>
+           sendPushToMember(member.id, "بث مباشر من مالك مودة",
+             "أرسل مالك المنصة بثاً مباشراً في غرفتك.",
+             { type: "owner_live_stream", roomId: broadcastRoomId, messageId })));
+       } catch (error) {
+         logger.warn("Owner live stream room notification fan-out failed", { roomId, error });
+       }
+     }
+   }
+   return { ...result, provider: input.provider, hostname: input.hostname };
+ });
+ 
+ /**
+  * Sends a text-only direct message through a trusted callable.
+  * Client writes to chat and notification collections remain denied by rules.
+  */
+ export const sendDirectMessage = onCall(async (request) => {
+   const senderUid = requireAuthenticatedUid(request.auth?.uid);
+   let message;
+   try {
+     message = validateDirectMessageInput((request.data ?? {}) as Record<string, unknown>);
+   } catch {
+     throw new HttpsError("invalid-argument", "بيانات الرسالة غير صالحة أو تجاوزت الحد المسموح.");
+   }
+   const { recipientUid, text: messageText, clientMessageId } = message;
+   if (senderUid === recipientUid) {
+     throw new HttpsError("failed-precondition", "لا يمكنك مراسلة حسابك الشخصي.");
+   }
+ 
+   const [firstUid, secondUid] = [senderUid, recipientUid].sort();
+   const chatId = createDirectChatId(firstUid, secondUid);
+   const chatRef = db.collection("directChats").doc(chatId);
+   const senderRef = db.collection("users").doc(senderUid);
+   const recipientRef = db.collection("users").doc(recipientUid);
+   const messageId = createHash("sha256")
+     .update(senderUid + ":" + clientMessageId)
+     .digest("hex");
+   const messageRef = chatRef.collection("messages").doc(messageId);
+   const notificationRef = recipientRef.collection("notifications").doc(messageId);
+ 
+   try {
+     const result = await db.runTransaction(async (transaction) => {
+       const [senderSnapshot, recipientSnapshot, existingChat, existingMessage] = await Promise.all([
+         transaction.get(senderRef),
+         transaction.get(recipientRef),
+         transaction.get(chatRef),
+         transaction.get(messageRef),
+       ]);
+       if (!senderSnapshot.exists || !recipientSnapshot.exists) {
+         throw new HttpsError("not-found", "حساب المرسل أو المستلم غير موجود.");
+       }
+       const sender = senderSnapshot.data() ?? {};
+       const recipient = recipientSnapshot.data() ?? {};
+       const ownerSession = hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, senderUid);
+-      const isBiometricallyVerified = hasActiveBiometricVerification(sender.biometricVerification);
++      const isBiometricallyVerified = hasActiveBiometricVerification(sender.biometricVerification, senderUid);
+       try {
+         assertMessageLinksAllowed(
+           messageText,
+           canSendApprovedPlatformLinks({ isBiometricallyVerified, isPlatformOwner: ownerSession }),
+           ownerSession,
+           isBiometricallyVerified ? BIOMETRIC_APPROVED_HOSTS : undefined,
+         );
+       } catch {
+         throw new HttpsError("invalid-argument", "الروابط غير مسموحة لهذه العضوية أو أن صيغة الرابط غير آمنة.");
+       }
+       if (sender.profileCompleted !== true || recipient.profileCompleted !== true ||
+           !isMemberAccountInGoodStanding(sender) || !isMemberAccountInGoodStanding(recipient)) {
+         throw new HttpsError("permission-denied", "لا يمكن إرسال الرسالة إلى هذا الحساب.");
+       }
+       const senderAge = sender.age;
+       const recipientAge = recipient.age;
+       if (!Number.isSafeInteger(senderAge) || !Number.isSafeInteger(recipientAge) ||
+           ((senderAge < 18) !== (recipientAge < 18))) {
+         throw new HttpsError("permission-denied", "المراسلة الخاصة بين القاصرين والبالغين غير متاحة.");
+       }
+       const senderBlocks = Array.isArray(sender.blockedUids) ? sender.blockedUids : [];
+       const recipientBlocks = Array.isArray(recipient.blockedUids) ? recipient.blockedUids : [];
+       if (senderBlocks.includes(recipientUid) || recipientBlocks.includes(senderUid)) {
+         throw new HttpsError("permission-denied", "لا يمكن إرسال الرسائل بين هذين الحسابين.");
+       }
+ 
+       if (existingMessage.exists) {
+         const prior = existingMessage.data() ?? {};
+         if (prior.senderUid !== senderUid || prior.recipientUid !== recipientUid ||
+             prior.text !== messageText) {
+           throw new HttpsError("already-exists", "معرف الرسالة مستخدم لرسالة أخرى.");
+         }
+         return { chatId, messageId, replayed: true };
+       }
+ 
+       const createdAt = FieldValue.serverTimestamp();
+       transaction.set(chatRef, {
+         participantUids: [firstUid, secondUid],
+         createdAt: existingChat.exists
+           ? existingChat.data()?.createdAt ?? createdAt
+           : createdAt,
+         lastMessageAt: createdAt,
+         lastMessageId: messageId,
+         lastMessageSenderUid: senderUid,
+         lastMessagePreview: messageText.substring(0, 120),
+       }, { merge: true });
+       transaction.create(messageRef, {
+         messageId,
+         chatId,
+         senderUid,
+         recipientUid,
+         text: messageText,
+         type: "text",
+         createdAt,
+       });
+       transaction.create(notificationRef, {
+         notificationId: messageId,
+         type: "direct_message",
+         senderUid,
+         chatId,
+         messageId,
+         title: "رسالة جديدة",
+         body: "لديك رسالة جديدة. افتح مودة لقراءتها.",
+         isRead: false,
+         createdAt,
+       });
+       return { chatId, messageId, replayed: false };
+     });
+     if (!result.replayed) {
+       await sendPushToMember(recipientUid, "رسالة جديدة في مودة", "لديك رسالة جديدة. افتح مودة لقراءتها.",
+         { type: "direct_message", chatId, messageId });
+     }
+     return result;
+   } catch (error) {
+     if (error instanceof HttpsError) throw error;
+     logger.error("Direct message send failed", { senderUid, recipientUid, error });
+     throw new HttpsError("internal", "تعذر إرسال الرسالة حالياً.");
+   }
+ });
+ 
+@@ -5334,161 +5335,161 @@ export const setRoomEventStatus = onCall(async (request) => {
+     } catch {
+       throw new HttpsError("failed-precondition", "حالة الحدث تغيرت؛ حدّث القائمة ثم حاول مجدداً.");
+     }
+     const now = Date.now();
+     const startsAtMs = event.startsAt instanceof Timestamp ? event.startsAt.toMillis() : 0;
+     const endsAtMs = event.endsAt instanceof Timestamp ? event.endsAt.toMillis() : 0;
+     if (actualNext === "live" && now < startsAtMs - 15 * 60 * 1000) {
+       throw new HttpsError("failed-precondition", "يمكن بدء الحدث قبل موعده بربع ساعة فقط.");
+     }
+     if (actualNext === "live" && now > endsAtMs) {
+       throw new HttpsError("failed-precondition", "انتهى وقت الحدث المجدول.");
+     }
+     transaction.update(eventRef, {
+       status: actualNext,
+       startedAt: actualNext === "live" ? FieldValue.serverTimestamp() : event.startedAt ?? null,
+       endedAt: actualNext === "completed" || actualNext === "cancelled"
+         ? FieldValue.serverTimestamp()
+         : event.endedAt ?? null,
+       updatedAt: FieldValue.serverTimestamp(),
+     });
+   });
+   return { eventId, status: nextStatus };
+ });
+ 
+ export const sendRoomMessage = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const provider = request.auth?.token?.firebase &&
+     typeof request.auth.token.firebase === "object"
+     ? (request.auth.token.firebase as Record<string, unknown>).sign_in_provider : null;
+   const isGuest = provider === "anonymous";
+   const allowedFields = new Set(["roomId", "content", "clientMessageId"]);
+   if (Object.keys(request.data ?? {}).some((key) => !allowedFields.has(key))) {
+     throw new HttpsError("invalid-argument", "حقول مرفقات الغرفة غير مدعومة في مسار الرسائل النصية.");
+   }
+   const roomId = request.data?.roomId;
+   const content = typeof request.data?.content === "string" ? request.data.content.trim() : "";
+   const clientMessageId = request.data?.clientMessageId;
+   if (typeof roomId !== "string" || roomId.length < 1 || roomId.length > 128 ||
+       content.length < 1 || content.length > 4000 ||
+       typeof clientMessageId !== "string" || clientMessageId.length < 8 ||
+       clientMessageId.length > 80 || !/^[A-Za-z0-9_-]+$/.test(clientMessageId)) {
+     throw new HttpsError("invalid-argument", "بيانات رسالة الغرفة غير صالحة.");
+   }
+   const roomRef = db.collection("rooms").doc(roomId);
+   const membershipRef = roomRef.collection("members").doc(uid);
+   const moderatorRef = roomRef.collection("moderators").doc(uid);
+   const userRef = db.collection("users").doc(uid);
+   const guestProfileRef = db.collection("guestProfiles").doc(uid);
+   const guestSessionRef = db.collection("guestSessions").doc(uid);
+   const messageId = createHash("sha256").update(uid + ":" + clientMessageId).digest("hex");
+   const messageRef = roomRef.collection("messages").doc(messageId);
+   const result = await db.runTransaction(async (transaction) => {
+     const [room, membership, moderator, member, existing, guestProfile, guestSession] = await Promise.all([
+       transaction.get(roomRef), transaction.get(membershipRef),
+       transaction.get(moderatorRef), transaction.get(userRef), transaction.get(messageRef),
+       transaction.get(guestProfileRef), transaction.get(guestSessionRef),
+     ]);
+     if (!room.exists || room.data()?.status !== "active") {
+       throw new HttpsError("not-found", "الغرفة غير موجودة أو غير نشطة.");
+     }
+     if (!membership.exists) {
+       throw new HttpsError("permission-denied", "يجب الانضمام إلى الغرفة قبل إرسال الرسائل.");
+     }
+     const mutedUntil = membership.data()?.mutedUntil;
+     if (mutedUntil instanceof Timestamp && mutedUntil.toMillis() > Date.now()) {
+       throw new HttpsError("permission-denied", "تم كتم إرسال الرسائل في هذه الغرفة حتى انتهاء المدة المحددة.");
+     }
+     const roomData = room.data() ?? {};
+     if (isGuest) {
+       if (!guestProfile.exists || !isGuestSessionActive(guestSession.data()) ||
+           !canJoinGuestRoom({ roomAudience: roomData.audience, roomKind: roomData.kind, roomStatus: roomData.status, guestAudienceApproved: roomData.guestAudienceApproved }) ||
+           membership.data()?.accountType !== "guest") {
+         throw new HttpsError("permission-denied", "لا تملك جلسة زائر نشطة ومصرحاً لها بهذه الغرفة.");
+       }
+     } else if (!member.exists || !isMemberAccountInGoodStanding(member.data())) {
+       throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بإرسال الرسائل حالياً.");
+     }
+     const isRoomOwner = !isGuest && roomData.ownerUid === uid;
+     const isAuthorizedModerator = !isGuest && moderator.exists;
+     const ownerSession = !isGuest && hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, uid);
+-    const isBiometricallyVerified = !isGuest && hasActiveBiometricVerification(member.data()?.biometricVerification);
++    const isBiometricallyVerified = !isGuest && hasActiveBiometricVerification(member.data()?.biometricVerification, uid);
+     try {
+       assertMessageLinksAllowed(
+         content,
+         canSendApprovedPlatformLinks({
+           isBiometricallyVerified,
+           isRoomOwner,
+           isAuthorizedModerator,
+           isPlatformOwner: ownerSession,
+         }),
+         ownerSession,
+         isBiometricallyVerified ? BIOMETRIC_APPROVED_HOSTS : undefined,
+       );
+     } catch {
+       throw new HttpsError("invalid-argument", "الرابط غير مسموح أو أن صياغته غير آمنة في هذه الغرفة.");
+     }
+     if (existing.exists) {
+       const prior = existing.data()!;
+       if (prior.senderUid !== uid || prior.content !== content) {
+         throw new HttpsError("already-exists", "معرف الرسالة مستخدم مع محتوى مختلف.");
+       }
+       return { messageId, idempotentReplay: true };
+     }
+     transaction.create(messageRef, {
+       messageId,
+       senderUid: uid,
+       senderDisplayName: isGuest ? (guestProfile.data()?.username ?? "زائر") :
+         (member.data()?.displayName ?? ""),
+       senderAccountType: isGuest ? "guest" : "member",
+       content,
+       type: "text",
+       isDeleted: false,
+       createdAt: FieldValue.serverTimestamp(),
+     });
+     return { messageId, idempotentReplay: false };
+   });
+   if (!result.idempotentReplay && !isGuest) {
+     try {
+       const members = await roomRef.collection("members").limit(1000).get();
+       await Promise.all(members.docs.filter((member) => member.id !== uid).map((member) =>
+         sendPushToMember(member.id, "رسالة جديدة في غرفة مودة", "هناك رسالة جديدة في إحدى غرفك. افتح مودة لمتابعتها.",
+           { type: "room_message", roomId, messageId })));
+     } catch (error) {
+       logger.warn("Room push fan-out failed", { roomId, error });
+     }
+   }
+   return result;
+ });
+ 
+ export const getRoomMessages = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   let pageRequest: ReturnType<typeof validateMemberMessagePageRequest>;
+   try {
+     pageRequest = validateMemberMessagePageRequest(request.data ?? {});
+   } catch {
+     throw new HttpsError("invalid-argument", "مؤشر صفحة رسائل الغرفة غير صالح.");
+   }
+   const provider = request.auth?.token?.firebase &&
+     typeof request.auth.token.firebase === "object"
+     ? (request.auth.token.firebase as Record<string, unknown>).sign_in_provider : null;
+   const isGuest = provider === "anonymous";
+   const roomId = request.data?.roomId;
+   if (typeof roomId !== "string" || roomId.length < 1 || roomId.length > 128) {
+     throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+   }
+   const roomRef = db.collection("rooms").doc(roomId);
+   const [room, membership, member] = await Promise.all([
+     roomRef.get(),
+     roomRef.collection("members").doc(uid).get(),
+     isGuest ? Promise.resolve(null) : db.collection("users").doc(uid).get(),
+   ]);
+   if (!room.exists || !membership.exists || room.data()?.status !== "active") {
+     throw new HttpsError("permission-denied", "لا تملك صلاحية قراءة رسائل هذه الغرفة.");
+   }
+   if (!isGuest && (!member?.exists || !isMemberAccountInGoodStanding(member.data()))) {
+     throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بقراءة رسائل هذه الغرفة.");
+   }
+   if (isGuest) {
+     const [profile, session] = await Promise.all([
+       db.collection("guestProfiles").doc(uid).get(),
+       db.collection("guestSessions").doc(uid).get(),
+diff --git a/functions/src/member-social-links-access.ts b/functions/src/member-social-links-access.ts
+index d7b7f46a..5f1e25fd 100644
+--- a/functions/src/member-social-links-access.ts
++++ b/functions/src/member-social-links-access.ts
+@@ -1,29 +1,30 @@
+ import { hasActiveBiometricVerification } from "./biometric-verification";
+ import { MemberSocialLinks, canUpdateMemberSocialLinks } from "./member-social-links";
+ 
+ /** A member may edit only their own links and only after completing their profile.
+  * Clearing links is always allowed; publishing non-empty links needs an active
+  * server-owned biometric verification lease. */
+ export function canEditMemberSocialLinks(
+   actorUid: string,
+   memberUid: string,
+   profileCompleted: boolean,
+   links: MemberSocialLinks,
+   biometricVerification: unknown,
+   nowMs = Date.now(),
+ ): boolean {
+   return actorUid.length > 0 &&
+     actorUid === memberUid &&
+     profileCompleted &&
+-    canUpdateMemberSocialLinks(links, biometricVerification, nowMs);
++    canUpdateMemberSocialLinks(links, biometricVerification, memberUid, nowMs);
+ }
+ 
+ /** Link visibility is re-evaluated for every read; expiry/revocation hides them. */
+ export function canExposeMemberSocialLinks(
+   profileCompleted: boolean,
++  memberUid: string,
+   biometricVerification: unknown,
+   nowMs = Date.now(),
+ ): boolean {
+   return profileCompleted &&
+-    hasActiveBiometricVerification(biometricVerification, nowMs);
++    hasActiveBiometricVerification(biometricVerification, memberUid, nowMs);
+ }
+diff --git a/functions/src/member-social-links.ts b/functions/src/member-social-links.ts
+index b7b5841f..c646b023 100644
+--- a/functions/src/member-social-links.ts
++++ b/functions/src/member-social-links.ts
+@@ -1,86 +1,88 @@
+ import { hasActiveBiometricVerification } from "./biometric-verification";
+ 
+ const ALLOWED_HOSTS: Record<string, readonly string[]> = {
+   instagram: ["instagram.com", "www.instagram.com"],
+   x: ["x.com", "www.x.com", "twitter.com", "www.twitter.com"],
+   facebook: ["facebook.com", "www.facebook.com"],
+   whatsapp: ["wa.me", "www.whatsapp.com", "whatsapp.com"],
+ };
+ 
+ export type MemberSocialLinks = Partial<Record<keyof typeof ALLOWED_HOSTS, string>>;
+ 
+ /** Hiding is always allowed; revealing requires a current biometric lease. */
+ export function canChangeMemberSocialLinkVisibility(
+   hidden: boolean,
+   biometricVerification: unknown,
++  expectedUid: string,
+   nowMs = Date.now(),
+ ): boolean {
+-  return hidden || hasActiveBiometricVerification(biometricVerification, nowMs);
++  return hidden || hasActiveBiometricVerification(biometricVerification, expectedUid, nowMs);
+ }
+ 
+ /**
+  * Members may always clear links, including after verification expires or is
+  * revoked. Publishing any non-empty link set requires an active server lease.
+  */
+ export function canUpdateMemberSocialLinks(
+   links: MemberSocialLinks,
+   biometricVerification: unknown,
++  expectedUid: string,
+   nowMs = Date.now(),
+ ): boolean {
+   return Object.keys(links).length === 0 ||
+-    hasActiveBiometricVerification(biometricVerification, nowMs);
++    hasActiveBiometricVerification(biometricVerification, expectedUid, nowMs);
+ }
+ 
+ /** Accept only explicit HTTPS profile/contact URLs on official provider domains. */
+ export function validateMemberSocialLinks(input: unknown): MemberSocialLinks {
+   if (input === null || typeof input !== "object" || Array.isArray(input)) {
+     throw new Error("INVALID_SOCIAL_LINKS");
+   }
+   const value = input as Record<string, unknown>;
+   const allowedKeys = new Set(Object.keys(ALLOWED_HOSTS));
+   if (Object.keys(value).some((key) => !allowedKeys.has(key))) {
+     throw new Error("SOCIAL_LINK_PROVIDER_NOT_ALLOWED");
+   }
+ 
+   const result: MemberSocialLinks = {};
+   for (const [provider, raw] of Object.entries(value)) {
+     if (raw === null || raw === "") continue;
+     if (typeof raw !== "string" || raw.length > 500) {
+       throw new Error("INVALID_SOCIAL_LINK");
+     }
+     let url: URL;
+     try {
+       url = new URL(raw.trim());
+     } catch {
+       throw new Error("INVALID_SOCIAL_LINK");
+     }
+     const hosts = ALLOWED_HOSTS[provider];
+     if (
+       url.protocol !== "https:" ||
+       !hosts ||
+       !hosts.includes(url.hostname.toLowerCase()) ||
+       url.username ||
+       url.password ||
+       url.port
+     ) {
+       throw new Error("SOCIAL_LINK_DOMAIN_NOT_ALLOWED");
+     }
+     result[provider as keyof typeof ALLOWED_HOSTS] = url.toString();
+   }
+   return result;
+ }
+ 
+ /** Revalidate stored data on every read; malformed legacy values are omitted. */
+ export function projectMemberSocialLinks(value: unknown): MemberSocialLinks {
+   if (value === null || typeof value !== "object" || Array.isArray(value)) return {};
+   const projected: MemberSocialLinks = {};
+   for (const [provider, raw] of Object.entries(value as Record<string, unknown>)) {
+     try {
+       const validated = validateMemberSocialLinks({ [provider]: raw });
+       Object.assign(projected, validated);
+     } catch {
+       // Fail closed: never expose malformed or unapproved stored URLs.
+     }
+   }
+   return projected;
+ }
+diff --git a/functions/test/biometric-verification.test.js b/functions/test/biometric-verification.test.js
+index a12303e1..081682c1 100644
+--- a/functions/test/biometric-verification.test.js
++++ b/functions/test/biometric-verification.test.js
+@@ -1,71 +1,61 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const { hasActiveBiometricVerification } = require("../lib/biometric-verification");
+ 
+ const NOW = 1_800_000_000_000;
+-const futureTimestamp = { toMillis: () => NOW + 60_000 };
+-
+-test("verified biometric record with future expiry is eligible", () => {
+-  assert.equal(hasActiveBiometricVerification({
+-    status: "verified",
+-    expiresAt: futureTimestamp,
+-  }, NOW), true);
++const activeProof = (uid) => ({
++  status: "verified",
++  verificationMethod: "server_verified_device_attestation",
++  trustModel: "challenge_bound_device_key",
++  expiresAt: { toMillis: () => NOW + 60_000 },
++  serverProof: {
++    status: "verified",
++    provider: "android_play_integrity",
++    accountUid: uid,
++    deviceKeyId: "device_key_identifier_123456",
++    challengeId: "server_challenge_identifier_123456",
++    proofDigest: "a".repeat(64),
++    signatureVerified: true,
++    attestationVerified: true,
++    nonceConsumed: true,
++    verifiedAt: { toMillis: () => NOW - 10_000 },
++    nonceConsumedAt: { toMillis: () => NOW - 9_000 },
++  },
+ });
+ 
+-test("expired, revoked, pending, and failed biometric records are ineligible", () => {
+-  assert.equal(hasActiveBiometricVerification({
+-    status: "verified",
+-    expiresAt: { toMillis: () => NOW - 1 },
+-  }, NOW), false);
+-  assert.equal(hasActiveBiometricVerification({
+-    status: "verified",
+-    expiresAt: futureTimestamp,
+-    revokedAt: { toMillis: () => NOW - 100 },
+-  }, NOW), false);
+-  assert.equal(hasActiveBiometricVerification({
+-    status: "pending",
+-    expiresAt: futureTimestamp,
+-  }, NOW), false);
+-  assert.equal(hasActiveBiometricVerification({
+-    status: "failed",
+-    expiresAt: futureTimestamp,
+-  }, NOW), false);
++test("only server-verified challenge-bound proof for the same account is eligible", () => {
++  assert.equal(hasActiveBiometricVerification(activeProof("member_uid_0001"), "member_uid_0001", NOW), true);
++  assert.equal(hasActiveBiometricVerification(activeProof("other_member_0001"), "member_uid_0001", NOW), false);
+ });
+ 
+-test("client-asserted local OS prompt is not trusted as biometric verification", () => {
++test("legacy verified status and local OS prompt claims fail closed", () => {
++  assert.equal(hasActiveBiometricVerification({ status: "verified", expiresAt: { toMillis: () => NOW + 60_000 } }, "member_uid_0001", NOW), false);
+   assert.equal(hasActiveBiometricVerification({
+-    status: "verified",
+-    verificationMethod: "local_os_biometric_prompt",
+-    expiresAt: futureTimestamp,
+-  }, NOW), false);
++    ...activeProof("member_uid_0001"), verificationMethod: "local_os_biometric_prompt",
++  }, "member_uid_0001", NOW), false);
+   assert.equal(hasActiveBiometricVerification({
+-    status: "verified",
+-    trustModel: "client_claim_after_local_os_prompt",
+-    expiresAt: futureTimestamp,
+-  }, NOW), false);
++    ...activeProof("member_uid_0001"), trustModel: "client_claim_after_local_os_prompt",
++  }, "member_uid_0001", NOW), false);
+ });
+ 
+-test("bare verified status or missing/invalid expiry fails closed", () => {
+-  assert.equal(hasActiveBiometricVerification({ status: "verified" }, NOW), false);
+-  assert.equal(hasActiveBiometricVerification({
+-    status: "verified",
+-    expiresAt: "2099-01-01",
+-  }, NOW), false);
+-  assert.equal(hasActiveBiometricVerification(null, NOW), false);
+-  assert.equal(hasActiveBiometricVerification("verified", NOW), false);
+-});
+-
+-test("Date and Firestore-like Timestamp expiry are supported", () => {
+-  assert.equal(hasActiveBiometricVerification({
+-    status: "verified",
+-    expiresAt: new Date(NOW + 60_000),
+-  }, NOW), true);
+-  assert.equal(hasActiveBiometricVerification({
+-    status: "verified",
+-    expiresAt: { toMillis: () => Number.NaN },
+-  }, NOW), false);
+-  assert.equal(hasActiveBiometricVerification({
+-    status: "verified",
+-    expiresAt: { toMillis: () => { throw new Error("invalid timestamp"); } },
+-  }, NOW), false);
++test("missing, malformed, expired, revoked and future-dated proof fails closed", () => {
++  const base = activeProof("member_uid_0001");
++  const denied = [
++    null, "verified", { status: "verified" },
++    { ...base, expiresAt: { toMillis: () => NOW - 1 } },
++    { ...base, revokedAt: { toMillis: () => NOW - 1 } },
++    { ...base, serverProof: { ...base.serverProof, signatureVerified: false } },
++    { ...base, serverProof: { ...base.serverProof, attestationVerified: false } },
++    { ...base, serverProof: { ...base.serverProof, nonceConsumed: false } },
++    { ...base, serverProof: { ...base.serverProof, proofDigest: "bad" } },
++    { ...base, serverProof: { ...base.serverProof, challengeId: "" } },
++    { ...base, serverProof: { ...base.serverProof, verifiedAt: { toMillis: () => NOW + 1 } } },
++    { ...base, serverProof: { ...base.serverProof, nonceConsumedAt: { toMillis: () => NOW - 20_000 } } },
++    { ...base, serverProof: { ...base.serverProof, provider: "unknown_provider" } },
++  ];
++  for (const value of denied) {
++    assert.equal(hasActiveBiometricVerification(value, "member_uid_0001", NOW), false);
++  }
++  assert.equal(hasActiveBiometricVerification(base, "", NOW), false);
++  assert.equal(hasActiveBiometricVerification(base, "member_uid_0001", Number.NaN), false);
+ });
+diff --git a/functions/test/member-social-links-access.test.js b/functions/test/member-social-links-access.test.js
+index 699f8b0b..fbf6f62f 100644
+--- a/functions/test/member-social-links-access.test.js
++++ b/functions/test/member-social-links-access.test.js
+@@ -1,55 +1,65 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const {
+   canEditMemberSocialLinks,
+   canExposeMemberSocialLinks,
+ } = require("../lib/member-social-links-access");
+ 
+ const NOW = 1_800_000_000_000;
+-const active = {
++const active = (uid) => ({
+   status: "verified",
++  verificationMethod: "server_verified_device_attestation",
++  trustModel: "challenge_bound_device_key",
+   expiresAt: { toMillis: () => NOW + 60_000 },
+-};
++  serverProof: {
++    status: "verified",
++    provider: "ios_app_attest",
++    accountUid: uid,
++    deviceKeyId: "device_key_identifier_123456",
++    challengeId: "server_challenge_identifier_123456",
++    proofDigest: "b".repeat(64),
++    signatureVerified: true,
++    attestationVerified: true,
++    nonceConsumed: true,
++    verifiedAt: { toMillis: () => NOW - 10_000 },
++    nonceConsumedAt: { toMillis: () => NOW - 9_000 },
++  },
++});
+ 
+-test("only the same authenticated member with a completed profile and active biometric lease can edit links", () => {
+-  assert.equal(canEditMemberSocialLinks("member-a", "member-a", true, { instagram: "https://www.instagram.com/member" }, active, NOW), true);
+-  assert.equal(canEditMemberSocialLinks("member-b", "member-a", true, {}, active, NOW), false);
+-  assert.equal(canEditMemberSocialLinks("", "member-a", true, {}, active, NOW), false);
+-  assert.equal(canEditMemberSocialLinks("member-a", "member-a", false, {}, active, NOW), false);
++test("only the same authenticated member with completed profile and same-account proof can edit links", () => {
++  assert.equal(canEditMemberSocialLinks("member-a", "member-a", true, { instagram: "https://www.instagram.com/member" }, active("member-a"), NOW), true);
++  assert.equal(canEditMemberSocialLinks("member-b", "member-a", true, {}, active("member-a"), NOW), false);
++  assert.equal(canEditMemberSocialLinks("", "member-a", true, {}, active("member-a"), NOW), false);
++  assert.equal(canEditMemberSocialLinks("member-a", "member-a", false, {}, active("member-a"), NOW), false);
+ });
+ 
+-test("expired, revoked, pending, malformed and missing biometric records deny link editing", () => {
++test("expired, revoked, pending, malformed, missing and cross-account proof denies link editing", () => {
++  const valid = active("member-a");
+   const denied = [
+-    { status: "verified", expiresAt: { toMillis: () => NOW - 1 } },
+-    { status: "verified", expiresAt: active.expiresAt, revokedAt: { toMillis: () => NOW - 1 } },
+-    { status: "pending", expiresAt: active.expiresAt },
+-    { status: "verified" },
++    { ...valid, expiresAt: { toMillis: () => NOW - 1 } },
++    { ...valid, revokedAt: { toMillis: () => NOW - 1 } },
++    { status: "pending", expiresAt: valid.expiresAt },
++    { status: "verified", expiresAt: valid.expiresAt },
++    { ...valid, serverProof: { ...valid.serverProof, accountUid: "member-b" } },
+     null,
+   ];
+   for (const record of denied) {
+     assert.equal(canEditMemberSocialLinks("member-a", "member-a", true, { instagram: "https://www.instagram.com/member" }, record, NOW), false);
+   }
+ });
+ 
+-test("profile links are visible only for completed profiles with active non-revoked verification", () => {
+-  assert.equal(canExposeMemberSocialLinks(true, active, NOW), true);
+-  assert.equal(canExposeMemberSocialLinks(false, active, NOW), false);
+-  assert.equal(canExposeMemberSocialLinks(true, {
+-    status: "verified",
+-    expiresAt: { toMillis: () => NOW - 1 },
+-  }, NOW), false);
+-  assert.equal(canExposeMemberSocialLinks(true, {
+-    status: "verified",
+-    expiresAt: active.expiresAt,
+-    revokedAt: new Date(NOW - 1),
++test("profile links require completed profile and proof bound to the profile account", () => {
++  assert.equal(canExposeMemberSocialLinks(true, "member-a", active("member-a"), NOW), true);
++  assert.equal(canExposeMemberSocialLinks(false, "member-a", active("member-a"), NOW), false);
++  assert.equal(canExposeMemberSocialLinks(true, "member-a", active("member-b"), NOW), false);
++  assert.equal(canExposeMemberSocialLinks(true, "member-a", {
++    ...active("member-a"), expiresAt: { toMillis: () => NOW - 1 },
+   }, NOW), false);
+ });
+ 
+-
+-test("members may clear existing links after expiry or revocation", () => {
++test("members may clear links after expiry or revocation", () => {
+   assert.equal(canEditMemberSocialLinks("member-a", "member-a", true, {}, null, NOW), true);
+   assert.equal(canEditMemberSocialLinks("member-a", "member-a", true, {}, {
+-    status: "verified",
+-    expiresAt: { toMillis: () => NOW - 1 },
++    status: "verified", expiresAt: { toMillis: () => NOW - 1 },
+   }, NOW), true);
+ });
+diff --git a/functions/test/member-social-links.test.js b/functions/test/member-social-links.test.js
+index b9b0a1f3..26b12d7f 100644
+--- a/functions/test/member-social-links.test.js
++++ b/functions/test/member-social-links.test.js
+@@ -1,77 +1,88 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const {
+   validateMemberSocialLinks,
+   projectMemberSocialLinks,
+   canUpdateMemberSocialLinks,
+   canChangeMemberSocialLinkVisibility,
+ } = require("../lib/member-social-links");
+ 
++const NOW = 1_800_000_000_000;
++const activeProof = (uid) => ({
++  status: "verified",
++  verificationMethod: "server_verified_device_attestation",
++  trustModel: "challenge_bound_device_key",
++  expiresAt: { toMillis: () => NOW + 60_000 },
++  serverProof: {
++    status: "verified",
++    provider: "android_play_integrity",
++    accountUid: uid,
++    deviceKeyId: "device_key_identifier_123456",
++    challengeId: "server_challenge_identifier_123456",
++    proofDigest: "c".repeat(64),
++    signatureVerified: true,
++    attestationVerified: true,
++    nonceConsumed: true,
++    verifiedAt: { toMillis: () => NOW - 10_000 },
++    nonceConsumedAt: { toMillis: () => NOW - 9_000 },
++  },
++});
++
+ test("accepts only HTTPS URLs on the matching official provider domains", () => {
+   assert.deepEqual(validateMemberSocialLinks({
+     instagram: "https://www.instagram.com/member/",
+     x: "https://x.com/member",
+     facebook: "https://facebook.com/member",
+     whatsapp: "https://wa.me/49123456789",
+   }), {
+     instagram: "https://www.instagram.com/member/",
+     x: "https://x.com/member",
+     facebook: "https://facebook.com/member",
+     whatsapp: "https://wa.me/49123456789",
+   });
+ });
+ 
+ test("rejects deceptive hosts, unsafe schemes, credentials and unknown providers", () => {
+   for (const url of [
+     "http://instagram.com/member",
+     "https://instagram.com.attacker.example/member",
+     "https://attacker.example/instagram.com",
+     "https://user:pass@instagram.com/member",
+     "javascript:alert(1)",
+     "https://bit.ly/member",
+-  ]) {
+-    assert.throws(() => validateMemberSocialLinks({ instagram: url }));
+-  }
++  ]) assert.throws(() => validateMemberSocialLinks({ instagram: url }));
+   assert.throws(() => validateMemberSocialLinks({ tiktok: "https://tiktok.com/member" }));
+ });
+ 
+ test("empty values remove links and malformed stored values are omitted on projection", () => {
+   assert.deepEqual(validateMemberSocialLinks({ instagram: "", x: null }), {});
+   assert.deepEqual(projectMemberSocialLinks({
+     instagram: "https://instagram.com/member",
+     facebook: "https://facebook.com.evil.example/member",
+     x: "http://x.com/member",
+   }), { instagram: "https://instagram.com/member" });
+ });
+ 
+-
+-test("expired or revoked members may clear links but cannot publish links", () => {
++test("only the same-account server proof permits publishing and revealing links", () => {
+   const links = { instagram: "https://www.instagram.com/member/" };
+   const empty = {};
+-  const expired = { status: "verified", expiresAt: { toMillis: () => 1_700_000_000_000 } };
+-  const revoked = {
+-    status: "verified",
+-    expiresAt: { toMillis: () => 1_900_000_000_000 },
+-    revokedAt: { toMillis: () => 1_700_000_000_000 },
+-  };
+-  assert.equal(canUpdateMemberSocialLinks(empty, expired, 1_800_000_000_000), true);
+-  assert.equal(canUpdateMemberSocialLinks(empty, revoked, 1_800_000_000_000), true);
+-  assert.equal(canUpdateMemberSocialLinks(links, expired, 1_800_000_000_000), false);
+-  assert.equal(canUpdateMemberSocialLinks(links, revoked, 1_800_000_000_000), false);
+-  assert.equal(canUpdateMemberSocialLinks(links, {
+-    status: "verified",
+-    expiresAt: { toMillis: () => 1_900_000_000_000 },
+-  }, 1_800_000_000_000), true);
++  assert.equal(canUpdateMemberSocialLinks(links, activeProof("member-a"), "member-a", NOW), true);
++  assert.equal(canUpdateMemberSocialLinks(links, activeProof("member-b"), "member-a", NOW), false);
++  assert.equal(canChangeMemberSocialLinkVisibility(false, activeProof("member-a"), "member-a", NOW), true);
++  assert.equal(canChangeMemberSocialLinkVisibility(false, activeProof("member-b"), "member-a", NOW), false);
++  assert.equal(canChangeMemberSocialLinkVisibility(true, null, "member-a", NOW), true);
++  assert.equal(canUpdateMemberSocialLinks(empty, null, "member-a", NOW), true);
+ });
+ 
+-
+-test("a member may hide a link after verification expires, but revealing it requires an active lease", () => {
+-  const expired = { status: "verified", expiresAt: { toMillis: () => 1_700_000_000_000 } };
+-  const active = { status: "verified", expiresAt: { toMillis: () => 1_900_000_000_000 } };
+-  const now = 1_800_000_000_000;
+-  assert.equal(canChangeMemberSocialLinkVisibility(true, expired, now), true);
+-  assert.equal(canChangeMemberSocialLinkVisibility(true, null, now), true);
+-  assert.equal(canChangeMemberSocialLinkVisibility(false, expired, now), false);
+-  assert.equal(canChangeMemberSocialLinkVisibility(false, null, now), false);
+-  assert.equal(canChangeMemberSocialLinkVisibility(false, active, now), true);
++test("expired, revoked, legacy and incomplete proof deny publication but allow clearing/hiding", () => {
++  const links = { instagram: "https://www.instagram.com/member/" };
++  const expired = { ...activeProof("member-a"), expiresAt: { toMillis: () => NOW - 1 } };
++  const revoked = { ...activeProof("member-a"), revokedAt: { toMillis: () => NOW - 1 } };
++  const legacy = { status: "verified", expiresAt: { toMillis: () => NOW + 60_000 } };
++  for (const record of [expired, revoked, legacy, null]) {
++    assert.equal(canUpdateMemberSocialLinks(links, record, "member-a", NOW), false);
++    assert.equal(canChangeMemberSocialLinkVisibility(false, record, "member-a", NOW), false);
++    assert.equal(canUpdateMemberSocialLinks({}, record, "member-a", NOW), true);
++    assert.equal(canChangeMemberSocialLinkVisibility(true, record, "member-a", NOW), true);
++  }
+ });

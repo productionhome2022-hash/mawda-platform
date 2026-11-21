@@ -1,0 +1,33 @@
+BRANCH: codex/mawdda-store-wallet-entitlement-closure
+SHA: 201f5bfc8d73a982e9edab9be6858b085c2b2eb8
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: df4d2ff0f66297a27573b99c20034253f0aa0b54
+
+=== DIVERGENCE target-only / branch-only ===
+1522	4
+
+=== BRANCH UNIQUE COMMITS ===
+201f5bfc8d73a982e9edab9be6858b085c2b2eb8 test: fix premium entitlement category assertion
+7118cdb85aa92119a3592c22038937ebc0c9ca9e fix: remove hardcoded VIP status from legacy profile
+f1d3f892733d6c0da5380807214b60f50d8e46d2 fix: show verified store purchase receipt
+c9bb19981913b81f7f74bf1dce6a6dc192c3b970 test: verify store purchase profile fulfillment and concurrency
+
+=== CHERRY STATUS ===
++ c9bb19981913b81f7f74bf1dce6a6dc192c3b970 test: verify store purchase profile fulfillment and concurrency
+- f1d3f892733d6c0da5380807214b60f50d8e46d2 fix: show verified store purchase receipt
++ 7118cdb85aa92119a3592c22038937ebc0c9ca9e fix: remove hardcoded VIP status from legacy profile
++ 201f5bfc8d73a982e9edab9be6858b085c2b2eb8 test: fix premium entitlement category assertion
+
+=== FILE STATUS ===
+M	functions/test/integration/premium-profile.integration.test.js
+M	lib/screens/shop_screen.dart
+M	lib/screens/user_profile_screen.dart
+
+=== NUMSTAT ===
+146	0	functions/test/integration/premium-profile.integration.test.js
+7	4	lib/screens/shop_screen.dart
+16	9	lib/screens/user_profile_screen.dart
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

@@ -1,0 +1,221 @@
+BRANCH: codex/mawda-phase2-hardening
+SHA: f8abd722ececc988c555f0400cc7b558e762ae5a
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 12b83c7988760f9eac360b71cb7e129d40d82e43
+
+=== DIVERGENCE target-only / branch-only ===
+2518	78
+
+=== BRANCH UNIQUE COMMITS ===
+f8abd722ececc988c555f0400cc7b558e762ae5a docs(media): record owner-only download gate after clean verdict
+c08675a7cb854e7aa37f2fe98c2c3e178297a62b test(media): prevent owner access to unscanned originals
+9bbe8d12d63308c70d450293b5cbf72665936096 security(media): block owner downloads of unscanned or rejected originals
+de61bd2a0ac79e35f14a8e8956c118fe51bf0bad docs(scanner): document fail-closed signature freshness limit
+1902a377dae1cef868d4f2c78d6865d58098a7f6 test(scanner): verify signature database freshness gate
+1668c0b4c314ce5492f0a0ce60cefc26e905965e security(scanner): reject stale ClamAV signature databases
+caaf67679b10a2be8aa4a1a74f6ee24f0a818a65 docs(media): correct signed PUT transport and CORS requirements
+e92994a69f2a9cebed3365b632dcaf9ef965b283 fix(scanner): emit NUL-terminated ClamAV command frames
+39d03906ae29467cf896cc09fb9be9386e524fe5 test(scanner): verify ClamAV INSTREAM frame encoding without flaky socket fixture
+a099bbc994317d500ab0732545cdf013969d24d7 refactor(scanner): isolate and validate ClamAV INSTREAM frame encoding
+7793793257050ceefbeeab62427ba619b8ffe417 test(scanner): bound protocol test time and close fixture sockets
+c2e8de034f9a23e75c1e6a433b8ae929ffa292bf fix(scanner): fail closed on truncated ClamAV socket responses
+34665027dfc7f1bec8da38a3cada6f486dbab4b8 fix(scanner): send real NUL terminators in ClamAV protocol test
+2928211527270a68725c5b41e25c2b30276efbcb fix(media): type Node Buffer body for scanner HTTP dispatch
+e1c97ca9d760e9a3496c743fce0c47719566292f test(media): assert exact-size and create-only upload signing contract
+37812d4016e7638075ca2695fbde6d9fab1b97f5 docs(media): correct upload contract to signed PUT with byte-range header
+3430ab3cbf9a64dd8be853f811ee9e118404620e test(media): verify exact-size signed PUT HTTP enforcement
+02ca13a25fed6fa4c39dd0deaa8a4de3489aa536 test(media): verify exact-size signed PUT and create-only preconditions
+e1b6f4250a26922d05aab364b649e10c692b72e6 security(media): combine exact byte range and create-only V4 PUT signature
+8ec4c789be2940c6e8987ef3e4ad40233e09316a docs(media): document exact-size signed POST upload policy
+ee9e0512b3fdb2ff640ee127f9fa2ed4a36ecc89 test(media): verify exact-size signed POST policy over real HTTP
+7f7a3b85143737a475f72228cffdbbe85e9eeb08 test(media): verify signed POST size and replay policy contract
+96569d24b8b9a06f1ed75fb6821ad62f5f304637 security(media): enforce exact upload bytes with signed POST policy
+e9966ca2409152c07ee2e5437cb9d804a72c70e4 docs(scanner): correct image build path and document IAM setup
+eddcfb8eb5a6be54935abe4bc1846365ed594930 security(media): avoid leaking signed URL details in test errors
+14e5ec1b6481239766bb17388b41f57ab0f6bcb2 docs(media): document daily upload count and ClamAV source status
+b1c9ce01bf6fb0086e29588c0dc38f7c021a1282 test(media): avoid assuming an unapproved retention period
+efde37c699b076da736811948e6265cb7ca12bd7 fix(media): remove unapproved automatic retention duration
+41705d2382e50841b4d3280a13c4a9c77e336fa2 test(media): verify daily upload cap blocks signing
+b61614595bdea1e245520d8a5438c16f848e150d chore(firestore): index media cleanup state and expiry queries
+d33b19beb3454c561667093764b34c600ec89c2d fix(media): query cleanup candidates by expired signed URL timestamp
+c2ff1dd2023b83e2a9096e9d1acb92e716ddc91a refactor(media): share canonical quota limits
+99b5d6d4af99f3d53188ac2f7e73bc809be2c512 test(media): cover daily upload count quotas
+ef8bf1d6644309488417dea408559c937f6aea37 feat(media): enforce per-user daily upload count quota
+82983a1a1ee1c3fd7e9b3fb971b49ac25b233da4 docs(media): record scanner dispatcher and ClamAV gateway implementation
+31d2864a7a97f1789afe2767ea16b70cd062f88e fix(media): make scanner dispatch safe for retried events
+d5c5320451f452d0208da5c982aab615f669c7fb ci(scanner): test ClamAV gateway and build container image
+663a246710eb844b39c794d9937ea246088ca6c6 docs(scanner): document isolated ClamAV gateway deployment and gates
+ef9b2aaf1d466fc2624ae2f2fb2ad9fd8c8d0ecc security(scanner): run signature updater as dedicated clamav user
+8179368c0cd67d1062f0985f3bbbd8236c678aff test(scanner): exercise ClamAV INSTREAM wire protocol
+daf2f95301d6ab6aeebb13185625ddb36cfef489 security(scanner): enforce request bounds and HTTP timeouts
+42eb7f76acd65f7b3c1ef52552128c5f6a6e793d security(media): retry scanner error verdicts and bound callback resources
+880abead1b7c226098266cfbfff138bf24d9acfb feat(media): export scanner dispatch trigger
+e986afd35b5174cc874f623f50b40719201c9a60 fix(scanner): repair container line continuations and process lifecycle
+83cec29c2c58a2f26446f3c1b7a56a2d37e2a855 fix(scanner): repair container line continuations and process lifecycle
+4379178f2016404d6cd38a82cc9fea4a27f6f875 build(scanner): add Cloud Run image with ClamAV and freshclam
+34b379a5830a7e8ab7e45b5c445e6d279f38e933 build(scanner): start freshclam and clamd before gateway
+9b97c7103c4cf79c486da0c08b8267444b9812cb build(scanner): configure automatic ClamAV signature updates
+bc85911c09b15d63ff942adc5499e4faf959c241 build(scanner): configure bounded ClamAV daemon
+038984fc20a2a0efe742bb899d0616199d6a8461 build(scanner): define isolated ClamAV gateway package
+3cea0bb3527f3ea986086f542f5c8f3bc07b38c8 test(scanner): verify ClamAV gateway auth and verdict delivery
+85ca7ec26c1d46d38f7e5bb2fb7f14bab2ed142e fix(scanner): correct ClamAV version separator parser
+8131175f5c1b2e0af4e8c69f1fd21f82ac94367b fix(scanner): correct ClamAV protocol escapes and parsers
+bb758143cab7e7161fe8a256f5bb6d0f1383f19c feat(scanner): add authenticated ClamAV gateway service
+161378355de1ba9ac5214e5c688ae909377ada0e feat(media): dispatch quarantined uploads to IAM-protected scanner gateway
+e1ee1983cc5f05b37cca3901d7855d7c6e9f5f3b test(media): allow clock skew in signed URL expiry check
+e085193dbf587e95be4f9746c9a22675a5c95244 docs(media): clarify emulator versus real-bucket signed URL evidence
+f4b1a46045822025ff4a4ea89b6b6e45356de63f test(media): verify signer failure releases upload reservations
+e047573009bfd38450dfa7316a7e0d61c1ffe0d4 test(media): isolate emulator signing and exercise scanner handler
+03bf09645c99992d69c01667c19a4a4a50e29fea fix(media): reserve quota before signing and expose testable scanner handler
+1de67d21e3dd0d6adea0fffe339447f1455f4ee3 ci(media): syntax-check opt-in signed URL integration script
+c0f3d49574408126ad5e89dc3ebbcacdae0584fd fix(media): repair real signed URL test script syntax
+1dc7151c353fe7e7784282389b8449d67ba260c5 fix(media): return void from scheduled cleanup handler
+5fb1eca7d4d522255d1885a367479cf014ca871e fix(media): type quota and scanner policy helpers
+fcdc91152e1f1d668cb1cc2c9a64557599a860cd fix(media): remove stray escape from scanner handler module
+8141948267aaab29cd9a4832600532b2d28b782b test(media): include scanner engine metadata in signed verdicts
+75842b2866de284515f64281797928df8c8153af security(media): persist malware engine and signature versions
+1bbe18c35722fd8ba70afe0fb0b5217bd384905f test(media): validate scanner engine metadata
+64f6122f6f4e741422630243905afcee2a7fd926 security(media): require scanner engine and signature versions
+9f1142aca3bead9113b2625aed0c29ed11dccae0 security(media): bind scanner HMAC through Secret Manager
+001dfbdf4c5305abbfb1285dde6b14de3ed40e85 fix(media): skip legacy cleanup records without expiry metadata
+631ab8d6131748c755ae341324a7b92d72da630c docs(media): reconcile scanner, cleanup and signed URL security status
+2588cef8f717f76ba458f873647f0f339982effe ci: validate phase-two hardening branch and integration PRs
+5ea1f6fd43ba691a91721e09bf29b8a89cc1bbc4 test(media): verify authenticated scanner verdict lifecycle in emulator
+30012319f1405f2547a9aa6e031d3df775cd8bca docs(media): align phase two record with implemented gates and remaining risks
+a8981f8311e89d8d2cfae358906ec157a6dd0242 test(media): cover cleanup trigger with expiry grace metadata
+1532f756030c93d60819de3ae237d1ddc3033c63 fix(media): enforce expiry grace and generation-safe cleanup
+793f3b65cdde9c5573df91ccfa0643b8cd3cb2f8 test(media): cover abandoned upload cleanup eligibility
+
+=== CHERRY STATUS ===
+- 793f3b65cdde9c5573df91ccfa0643b8cd3cb2f8 test(media): cover abandoned upload cleanup eligibility
++ 1532f756030c93d60819de3ae237d1ddc3033c63 fix(media): enforce expiry grace and generation-safe cleanup
++ a8981f8311e89d8d2cfae358906ec157a6dd0242 test(media): cover cleanup trigger with expiry grace metadata
++ 30012319f1405f2547a9aa6e031d3df775cd8bca docs(media): align phase two record with implemented gates and remaining risks
++ 5ea1f6fd43ba691a91721e09bf29b8a89cc1bbc4 test(media): verify authenticated scanner verdict lifecycle in emulator
++ 2588cef8f717f76ba458f873647f0f339982effe ci: validate phase-two hardening branch and integration PRs
+- 631ab8d6131748c755ae341324a7b92d72da630c docs(media): reconcile scanner, cleanup and signed URL security status
++ 001dfbdf4c5305abbfb1285dde6b14de3ed40e85 fix(media): skip legacy cleanup records without expiry metadata
++ 9f1142aca3bead9113b2625aed0c29ed11dccae0 security(media): bind scanner HMAC through Secret Manager
++ 64f6122f6f4e741422630243905afcee2a7fd926 security(media): require scanner engine and signature versions
++ 1bbe18c35722fd8ba70afe0fb0b5217bd384905f test(media): validate scanner engine metadata
++ 75842b2866de284515f64281797928df8c8153af security(media): persist malware engine and signature versions
++ 8141948267aaab29cd9a4832600532b2d28b782b test(media): include scanner engine metadata in signed verdicts
++ fcdc91152e1f1d668cb1cc2c9a64557599a860cd fix(media): remove stray escape from scanner handler module
++ 5fb1eca7d4d522255d1885a367479cf014ca871e fix(media): type quota and scanner policy helpers
++ 1dc7151c353fe7e7784282389b8449d67ba260c5 fix(media): return void from scheduled cleanup handler
++ c0f3d49574408126ad5e89dc3ebbcacdae0584fd fix(media): repair real signed URL test script syntax
++ 1de67d21e3dd0d6adea0fffe339447f1455f4ee3 ci(media): syntax-check opt-in signed URL integration script
++ 03bf09645c99992d69c01667c19a4a4a50e29fea fix(media): reserve quota before signing and expose testable scanner handler
++ e047573009bfd38450dfa7316a7e0d61c1ffe0d4 test(media): isolate emulator signing and exercise scanner handler
++ f4b1a46045822025ff4a4ea89b6b6e45356de63f test(media): verify signer failure releases upload reservations
++ e085193dbf587e95be4f9746c9a22675a5c95244 docs(media): clarify emulator versus real-bucket signed URL evidence
++ e1ee1983cc5f05b37cca3901d7855d7c6e9f5f3b test(media): allow clock skew in signed URL expiry check
++ 161378355de1ba9ac5214e5c688ae909377ada0e feat(media): dispatch quarantined uploads to IAM-protected scanner gateway
++ bb758143cab7e7161fe8a256f5bb6d0f1383f19c feat(scanner): add authenticated ClamAV gateway service
++ 8131175f5c1b2e0af4e8c69f1fd21f82ac94367b fix(scanner): correct ClamAV protocol escapes and parsers
++ 85ca7ec26c1d46d38f7e5bb2fb7f14bab2ed142e fix(scanner): correct ClamAV version separator parser
++ 3cea0bb3527f3ea986086f542f5c8f3bc07b38c8 test(scanner): verify ClamAV gateway auth and verdict delivery
++ 038984fc20a2a0efe742bb899d0616199d6a8461 build(scanner): define isolated ClamAV gateway package
++ bc85911c09b15d63ff942adc5499e4faf959c241 build(scanner): configure bounded ClamAV daemon
++ 9b97c7103c4cf79c486da0c08b8267444b9812cb build(scanner): configure automatic ClamAV signature updates
++ 34b379a5830a7e8ab7e45b5c445e6d279f38e933 build(scanner): start freshclam and clamd before gateway
++ 4379178f2016404d6cd38a82cc9fea4a27f6f875 build(scanner): add Cloud Run image with ClamAV and freshclam
++ 83cec29c2c58a2f26446f3c1b7a56a2d37e2a855 fix(scanner): repair container line continuations and process lifecycle
++ e986afd35b5174cc874f623f50b40719201c9a60 fix(scanner): repair container line continuations and process lifecycle
++ 880abead1b7c226098266cfbfff138bf24d9acfb feat(media): export scanner dispatch trigger
++ 42eb7f76acd65f7b3c1ef52552128c5f6a6e793d security(media): retry scanner error verdicts and bound callback resources
++ daf2f95301d6ab6aeebb13185625ddb36cfef489 security(scanner): enforce request bounds and HTTP timeouts
++ 8179368c0cd67d1062f0985f3bbbd8236c678aff test(scanner): exercise ClamAV INSTREAM wire protocol
++ ef9b2aaf1d466fc2624ae2f2fb2ad9fd8c8d0ecc security(scanner): run signature updater as dedicated clamav user
++ 663a246710eb844b39c794d9937ea246088ca6c6 docs(scanner): document isolated ClamAV gateway deployment and gates
++ d5c5320451f452d0208da5c982aab615f669c7fb ci(scanner): test ClamAV gateway and build container image
++ 31d2864a7a97f1789afe2767ea16b70cd062f88e fix(media): make scanner dispatch safe for retried events
++ 82983a1a1ee1c3fd7e9b3fb971b49ac25b233da4 docs(media): record scanner dispatcher and ClamAV gateway implementation
++ ef8bf1d6644309488417dea408559c937f6aea37 feat(media): enforce per-user daily upload count quota
++ 99b5d6d4af99f3d53188ac2f7e73bc809be2c512 test(media): cover daily upload count quotas
++ c2ff1dd2023b83e2a9096e9d1acb92e716ddc91a refactor(media): share canonical quota limits
++ d33b19beb3454c561667093764b34c600ec89c2d fix(media): query cleanup candidates by expired signed URL timestamp
++ b61614595bdea1e245520d8a5438c16f848e150d chore(firestore): index media cleanup state and expiry queries
++ 41705d2382e50841b4d3280a13c4a9c77e336fa2 test(media): verify daily upload cap blocks signing
++ efde37c699b076da736811948e6265cb7ca12bd7 fix(media): remove unapproved automatic retention duration
+- b1c9ce01bf6fb0086e29588c0dc38f7c021a1282 test(media): avoid assuming an unapproved retention period
++ 14e5ec1b6481239766bb17388b41f57ab0f6bcb2 docs(media): document daily upload count and ClamAV source status
++ eddcfb8eb5a6be54935abe4bc1846365ed594930 security(media): avoid leaking signed URL details in test errors
++ e9966ca2409152c07ee2e5437cb9d804a72c70e4 docs(scanner): correct image build path and document IAM setup
++ 96569d24b8b9a06f1ed75fb6821ad62f5f304637 security(media): enforce exact upload bytes with signed POST policy
++ 7f7a3b85143737a475f72228cffdbbe85e9eeb08 test(media): verify signed POST size and replay policy contract
++ ee9e0512b3fdb2ff640ee127f9fa2ed4a36ecc89 test(media): verify exact-size signed POST policy over real HTTP
++ 8ec4c789be2940c6e8987ef3e4ad40233e09316a docs(media): document exact-size signed POST upload policy
++ e1b6f4250a26922d05aab364b649e10c692b72e6 security(media): combine exact byte range and create-only V4 PUT signature
++ 02ca13a25fed6fa4c39dd0deaa8a4de3489aa536 test(media): verify exact-size signed PUT and create-only preconditions
++ 3430ab3cbf9a64dd8be853f811ee9e118404620e test(media): verify exact-size signed PUT HTTP enforcement
++ 37812d4016e7638075ca2695fbde6d9fab1b97f5 docs(media): correct upload contract to signed PUT with byte-range header
++ e1c97ca9d760e9a3496c743fce0c47719566292f test(media): assert exact-size and create-only upload signing contract
++ 2928211527270a68725c5b41e25c2b30276efbcb fix(media): type Node Buffer body for scanner HTTP dispatch
++ 34665027dfc7f1bec8da38a3cada6f486dbab4b8 fix(scanner): send real NUL terminators in ClamAV protocol test
++ c2e8de034f9a23e75c1e6a433b8ae929ffa292bf fix(scanner): fail closed on truncated ClamAV socket responses
++ 7793793257050ceefbeeab62427ba619b8ffe417 test(scanner): bound protocol test time and close fixture sockets
++ a099bbc994317d500ab0732545cdf013969d24d7 refactor(scanner): isolate and validate ClamAV INSTREAM frame encoding
++ 39d03906ae29467cf896cc09fb9be9386e524fe5 test(scanner): verify ClamAV INSTREAM frame encoding without flaky socket fixture
++ e92994a69f2a9cebed3365b632dcaf9ef965b283 fix(scanner): emit NUL-terminated ClamAV command frames
++ caaf67679b10a2be8aa4a1a74f6ee24f0a818a65 docs(media): correct signed PUT transport and CORS requirements
++ 1668c0b4c314ce5492f0a0ce60cefc26e905965e security(scanner): reject stale ClamAV signature databases
++ 1902a377dae1cef868d4f2c78d6865d58098a7f6 test(scanner): verify signature database freshness gate
++ de61bd2a0ac79e35f14a8e8956c118fe51bf0bad docs(scanner): document fail-closed signature freshness limit
++ 9bbe8d12d63308c70d450293b5cbf72665936096 security(media): block owner downloads of unscanned or rejected originals
++ c08675a7cb854e7aa37f2fe98c2c3e178297a62b test(media): prevent owner access to unscanned originals
++ f8abd722ececc988c555f0400cc7b558e762ae5a docs(media): record owner-only download gate after clean verdict
+
+=== FILE STATUS ===
+M	.github/workflows/validate.yml
+M	docs/SECURE_MEDIA_INTAKE.md
+M	firestore.indexes.json
+M	functions/package.json
+M	functions/scripts/test-signed-urls-http.cjs
+M	functions/src/index.ts
+M	functions/src/media-controls.ts
+M	functions/src/media-quota.ts
+M	functions/src/media-scanner.ts
+M	functions/src/media.ts
+M	functions/test/integration/media-callables.integration.test.js
+A	functions/test/media-cleanup.test.js
+M	functions/test/media-controls.test.js
+M	functions/test/media-quota.test.js
+M	functions/test/media-scanner.test.js
+A	scanner/Dockerfile
+A	scanner/README.md
+A	scanner/clamd.conf
+A	scanner/entrypoint.sh
+A	scanner/freshclam.conf
+A	scanner/package.json
+A	scanner/server.mjs
+A	scanner/test/server.test.mjs
+
+=== NUMSTAT ===
+17	0	.github/workflows/validate.yml
+69	16	docs/SECURE_MEDIA_INTAKE.md
+28	0	firestore.indexes.json
+1	1	functions/package.json
+33	9	functions/scripts/test-signed-urls-http.cjs
+1	0	functions/src/index.ts
+43	13	functions/src/media-controls.ts
+11	3	functions/src/media-quota.ts
+6	0	functions/src/media-scanner.ts
+309	61	functions/src/media.ts
+140	47	functions/test/integration/media-callables.integration.test.js
+20	0	functions/test/media-cleanup.test.js
+2	3	functions/test/media-controls.test.js
+9	3	functions/test/media-quota.test.js
+3	0	functions/test/media-scanner.test.js
+20	0	scanner/Dockerfile
+64	0	scanner/README.md
+15	0	scanner/clamd.conf
+33	0	scanner/entrypoint.sh
+5	0	scanner/freshclam.conf
+10	0	scanner/package.json
+269	0	scanner/server.mjs
+210	0	scanner/test/server.test.mjs
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

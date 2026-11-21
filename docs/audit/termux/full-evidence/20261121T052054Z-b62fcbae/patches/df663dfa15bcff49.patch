@@ -1,0 +1,1890 @@
+diff --git a/functions/src/media-scanner.ts b/functions/src/media-scanner.ts
+index 285c48a9..47b153dc 100644
+--- a/functions/src/media-scanner.ts
++++ b/functions/src/media-scanner.ts
+@@ -1,121 +1,125 @@
+ import { createHmac, timingSafeEqual } from "node:crypto";
+ 
++const MEDIA_PURPOSES = new Set(["chat", "room", "profile_album", "avatar_cover", "story"]);
++
+ export interface ScannerSafeDerivative {
+   category: "gif" | "audio" | "video" | "document";
+   path: string;
+   generation: string;
+   sha256: string;
+   contentType: "image/gif" | "audio/mpeg" | "video/mp4" | "application/pdf";
+   pipelineVersion: string;
+ }
+ 
+ export interface ScannerVerdictPayload {
+   mediaId: string;
++  purpose: "chat" | "room" | "profile_album" | "avatar_cover" | "story";
+   provider: string;
+   verdict: "clean" | "malicious" | "error";
+   objectGeneration: string;
+   sha256: string;
+   scannedAtMs: number;
+   scanEngine: "ClamAV";
+   engineVersion: string;
+   signatureDatabaseVersion: string;
+   signatureDatabaseAgeMs: number;
+   safePreviewPath?: string;
+   safePreviewGeneration?: string;
+   safePreviewSha256?: string;
+   safePreviewContentType?: "image/webp";
+   safeDerivative?: ScannerSafeDerivative;
+   processingStatus?: string;
+ }
+ 
+ export function verifyScannerWebhook(
+   rawBody: Buffer,
+   suppliedSignature: string | undefined,
+   secret: string | undefined,
+ ): boolean {
+   if (!secret || secret.length < 32 || !suppliedSignature ||
+       !/^[a-f0-9]{64}$/i.test(suppliedSignature)) return false;
+   const expected = createHmac("sha256", secret).update(rawBody).digest();
+   const supplied = Buffer.from(suppliedSignature, "hex");
+   return supplied.length === expected.length && timingSafeEqual(expected, supplied);
+ }
+ 
+ export function validateScannerVerdict(
+   value: unknown,
+   expectedProvider: string,
+   nowMs = Date.now(),
+ ): ScannerVerdictPayload | null {
+   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+   const v = value as Record<string, unknown>;
+   const previewFields = [
+     v.safePreviewPath, v.safePreviewGeneration, v.safePreviewSha256, v.safePreviewContentType,
+   ];
+   const hasAnyPreview = previewFields.some((field) => field !== undefined);
+   const hasAllPreview = previewFields.every((field) => field !== undefined);
+   const previewParts = typeof v.safePreviewPath === "string" ? v.safePreviewPath.split("/") : [];
+   const previewPathValid = previewParts.length === 4 &&
+     previewParts[0] === "processed" &&
+     /^[A-Za-z0-9_-]{1,128}$/.test(previewParts[1]) &&
+     previewParts[2] === v.mediaId &&
+     previewParts[3] === "preview.webp";
+ 
+   let safeDerivative: ScannerSafeDerivative | undefined;
+   if (v.safeDerivative !== undefined) {
+     if (!v.safeDerivative || typeof v.safeDerivative !== "object" || Array.isArray(v.safeDerivative)) return null;
+     const d = v.safeDerivative as Record<string, unknown>;
+     const route = {
+       gif: { filename: "animation.gif", contentType: "image/gif", version: "gif-sanitize-preserve-animation-v1" },
+-      audio: { filename: "audio.mp3", contentType: "audio/mpeg", version: "ffmpeg-audio-transcode-v1" },
++      audio: { filename: "audio.mp3", contentType: "audio/mpeg", version: "ffmpeg-audio-transcode-v2-purpose-duration-v1" },
+       video: { filename: "video.mp4", contentType: "video/mp4", version: "ffmpeg-video-transcode-v1" },
+       document: { filename: "document.pdf", contentType: "application/pdf", version: "pdf-raster-flatten-v1" },
+     } as const;
+     const category = typeof d.category === "string" &&
+       Object.prototype.hasOwnProperty.call(route, d.category)
+       ? d.category as keyof typeof route : null;
+     if (!category) return null;
+     const expected = route[category];
+     const expectedProcessingStatus = {
+       gif: "safe_animation_derivative_ready",
+       audio: "safe_audio_derivative_ready",
+       video: "safe_video_derivative_ready",
+       document: "safe_document_derivative_ready",
+     } as const;
+     const parts = typeof d.path === "string" ? d.path.split("/") : [];
+     if (parts.length !== 4 || parts[0] !== "processed" ||
+         !/^[A-Za-z0-9_-]{1,128}$/.test(parts[1]) || parts[2] !== v.mediaId ||
+         parts[3] !== expected.filename || d.contentType !== expected.contentType ||
+         d.pipelineVersion !== expected.version ||
+         typeof d.generation !== "string" || !/^[1-9][0-9]*$/.test(d.generation) ||
+         typeof d.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(d.sha256) ||
+         v.verdict !== "clean" || hasAnyPreview ||
+         v.processingStatus !== expectedProcessingStatus[category]) return null;
+     safeDerivative = {
+       category, path: d.path as string, generation: d.generation as string,
+       sha256: d.sha256 as string, contentType: d.contentType as ScannerSafeDerivative["contentType"],
+       pipelineVersion: d.pipelineVersion as string,
+     };
+   }
+ 
+   if (typeof v.mediaId !== "string" || !/^[0-9a-f-]{36}$/i.test(v.mediaId) ||
++      typeof v.purpose !== "string" || !MEDIA_PURPOSES.has(v.purpose) ||
+       v.provider !== expectedProvider ||
+       !["clean", "malicious", "error"].includes(String(v.verdict)) ||
+       typeof v.objectGeneration !== "string" || !/^\d+$/.test(v.objectGeneration) ||
+       typeof v.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(v.sha256) ||
+       !Number.isSafeInteger(v.scannedAtMs) ||
+       Math.abs(nowMs - Number(v.scannedAtMs)) > 10 * 60 * 1000 ||
+       v.scanEngine !== "ClamAV" ||
+       typeof v.engineVersion !== "string" || !/^\d+\.\d+\.\d+$/.test(v.engineVersion) ||
+       typeof v.signatureDatabaseVersion !== "string" || !/^\d{1,8}$/.test(v.signatureDatabaseVersion) ||
+       !Number.isSafeInteger(v.signatureDatabaseAgeMs) ||
+       Number(v.signatureDatabaseAgeMs) < 0 ||
+       Number(v.signatureDatabaseAgeMs) > 36 * 60 * 60 * 1000 ||
+       (hasAnyPreview && (!hasAllPreview || safeDerivative !== undefined)) ||
+       (hasAllPreview && (
+         !previewPathValid ||
+         typeof v.safePreviewGeneration !== "string" || !/^\d+$/.test(v.safePreviewGeneration) ||
+         typeof v.safePreviewSha256 !== "string" || !/^[a-f0-9]{64}$/.test(v.safePreviewSha256) ||
+         v.safePreviewContentType !== "image/webp" || v.verdict !== "clean"
+       )) ||
+       (v.verdict !== "clean" && (hasAnyPreview || safeDerivative !== undefined))) return null;
+   return v as unknown as ScannerVerdictPayload;
+ }
+diff --git a/functions/src/media.ts b/functions/src/media.ts
+index 4032d9e7..39bceb3c 100644
+--- a/functions/src/media.ts
++++ b/functions/src/media.ts
+@@ -238,268 +238,273 @@ async function auditMediaAccess(event: Record<string, unknown>): Promise<void> {
+   });
+ }
+ 
+ /** Persist authenticated denials before returning an authorization error. */
+ async function requireSoleOwnerForMediaReview(
+   request: { auth?: { uid: string; token: Record<string, unknown> } | null },
+   action: string,
+ ): Promise<string> {
+   try {
+     return requireSoleOwner(request);
+   } catch (error) {
+     const actorUid = request.auth?.uid;
+     if (actorUid) {
+       // Fail closed: do not return an authorization denial if its audit cannot be persisted.
+       await auditMediaAccess({
+         actorUid,
+         action,
+         outcome: "denied",
+         failureCode: error instanceof HttpsError ? error.code : "permission-denied",
+         ownerAuthTime: request.auth?.token.auth_time ?? null,
+       });
+     }
+     throw error;
+   }
+ }
+ 
+ 
+ /**
+  * Issues a five-minute, single-object upload URL. Objects are written only
+  * beneath a private quarantine prefix and are never made publicly readable.
+  */
+ 
+ async function sha256Object(file: ReturnType<ReturnType<typeof mediaBucket>["file"]>): Promise<string> {
+   return new Promise((resolve, reject) => {
+     const hash = createHash("sha256");
+     const stream = file.createReadStream();
+     stream.on("data", (chunk: Buffer) => hash.update(chunk));
+     stream.on("error", reject);
+     stream.on("end", () => resolve(hash.digest("hex")));
+   });
+ }
+ 
+ /** Authenticated gateway callback; any missing/mismatched evidence stays quarantined. */
+ export const receiveMediaScanVerdict = onRequest(
+   { secrets: [mediaScannerHmacSecret] },
+   async (request, response) => {
+   if (request.method !== "POST") {
+     response.status(405).set("Allow", "POST").send("Method not allowed");
+     return;
+   }
+   const rawBody = request.rawBody;
+   const secret = mediaScannerHmacSecret.value();
+   const provider = mediaScannerProvider.value();
+   if (!rawBody || rawBody.length > 16 * 1024 || !secret || !provider ||
+       !verifyScannerWebhook(rawBody, request.get("x-mawadda-scanner-signature"), secret)) {
+     response.status(401).send("Unauthorized scanner callback");
+     return;
+   }
+   let decoded: unknown;
+   try { decoded = JSON.parse(rawBody.toString("utf8")); } catch {
+     response.status(400).send("Invalid JSON");
+     return;
+   }
+   const verdict = validateScannerVerdict(decoded, provider);
+   if (!verdict) {
+     response.status(400).send("Invalid or stale scanner verdict");
+     return;
+   }
+   if (verdict.verdict === "error") {
+     response.status(503).send("Scanner reported an incomplete scan; retry required");
+     return;
+   }
+   const db = mediaDb();
+   const assetRef = db.collection("mediaAssets").doc(verdict.mediaId);
+   const snapshot = await assetRef.get();
+   if (!snapshot.exists) {
+     response.status(409).send("Asset does not exist");
+     return;
+   }
+   const asset = snapshot.data()!;
++  if (asset.mediaPurpose !== verdict.purpose) {
++    response.status(409).send("Scanner media purpose mismatch");
++    return;
++  }
+   if (asset.status !== "pending_security_scan") {
+     const sameVerdict = ["scanner_clean_pending_processing", "security_approved", "rejected"].includes(String(asset.status)) &&
+       asset.scannerProvider === verdict.provider &&
+       asset.scannerVerdict === verdict.verdict &&
+       String(asset.scannerObjectGeneration) === verdict.objectGeneration &&
+-      asset.scannerSha256 === verdict.sha256;
++      asset.scannerSha256 === verdict.sha256 &&
++      asset.mediaPurpose === verdict.purpose;
+     if (sameVerdict) {
+       if (verdict.verdict === "malicious") {
+         const rejectedGeneration = Number(verdict.objectGeneration);
+         if (!Number.isSafeInteger(rejectedGeneration) || rejectedGeneration <= 0) {
+           throw new Error("INVALID_SCANNER_OBJECT_GENERATION");
+         }
+         await mediaBucket().file(String(asset.objectPath), { generation: rejectedGeneration }).delete({
+           ignoreNotFound: true,
+           ifGenerationMatch: rejectedGeneration,
+         });
+       }
+       const replayJobRef = db.collection("mediaScanJobs").doc(verdict.mediaId);
+       await db.runTransaction(async (transaction) => {
+         const replayJob = await transaction.get(replayJobRef);
+         if (replayJob.exists && !["completed", "rejected"].includes(String(replayJob.data()?.state))) {
+           transaction.update(replayJobRef, {
+             state: verdict.verdict === "malicious" ? "rejected" : "completed",
+             verdict: verdict.verdict,
+             completedAt: FieldValue.serverTimestamp(),
+             updatedAt: FieldValue.serverTimestamp(),
+           });
+         }
+       });
+       response.status(200).json({ mediaId: verdict.mediaId, status: asset.status, idempotentReplay: true });
+       return;
+     }
+     response.status(409).send("Asset is not awaiting this scanner verdict");
+     return;
+   }
+   const file = mediaBucket().file(String(asset.objectPath));
+   let metadata: Record<string, unknown>;
+   try {
+     const [rawMetadata] = await file.getMetadata();
+     metadata = rawMetadata as unknown as Record<string, unknown>;
+   } catch {
+     response.status(409).send("Quarantined object is missing");
+     return;
+   }
+   if (String(metadata.generation) !== verdict.objectGeneration ||
+       String(asset.storageGeneration) !== verdict.objectGeneration) {
+     response.status(409).send("Object generation mismatch");
+     return;
+   }
+   const actualHash = await sha256Object(file);
+   if (actualHash !== verdict.sha256) {
+     response.status(409).send("Object hash mismatch");
+     return;
+   }
+ 
+   let safePreview: {
+     path: string; generation: string; sha256: string; contentType: "image/webp"; sizeBytes: number;
+   } | null = null;
+   if (verdict.safePreviewPath) {
+     const expectedPath = `processed/${String(asset.ownerUid)}/${verdict.mediaId}/preview.webp`;
+     if (verdict.safePreviewPath !== expectedPath ||
+         !["image/jpeg", "image/png", "image/webp", "image/gif"].includes(String(asset.detectedContentType))) {
+       response.status(409).send("Safe derivative path or source type mismatch");
+       return;
+     }
+     const previewFile = mediaBucket().file(verdict.safePreviewPath);
+     let previewMetadata: Record<string, unknown>;
+     try {
+       const [rawPreviewMetadata] = await previewFile.getMetadata();
+       previewMetadata = rawPreviewMetadata as unknown as Record<string, unknown>;
+     } catch {
+       response.status(409).send("Safe preview derivative is missing");
+       return;
+     }
+     const customMetadata = previewMetadata.metadata as Record<string, unknown> | undefined;
+     if (String(previewMetadata.generation) !== verdict.safePreviewGeneration ||
+         previewMetadata.contentType !== "image/webp" ||
+         customMetadata?.mediaId !== verdict.mediaId ||
+         customMetadata?.sourceGeneration !== verdict.objectGeneration ||
+         customMetadata?.sourceSha256 !== verdict.sha256 ||
+         customMetadata?.scannerProvider !== verdict.provider ||
+         customMetadata?.processing !== "sharp-decode-reencode-v1") {
+       response.status(409).send("Safe preview metadata mismatch");
+       return;
+     }
+     const previewHash = await sha256Object(previewFile);
+     if (previewHash !== verdict.safePreviewSha256) {
+       response.status(409).send("Safe preview hash mismatch");
+       return;
+     }
+     safePreview = {
+       path: verdict.safePreviewPath,
+       generation: verdict.safePreviewGeneration!,
+       sha256: previewHash,
+       contentType: "image/webp",
+       sizeBytes: Number(previewMetadata.size),
+     };
+   }
+   let safeNonImageDerivative: {
+     category: "gif" | "audio" | "video" | "document";
+     path: string; generation: string; sha256: string;
+     contentType: string; pipelineVersion: string; sizeBytes: number;
+   } | null = null;
+   if (verdict.safeDerivative) {
+     const derivative = verdict.safeDerivative;
+     const expected = {
+       gif: { filename: "animation.gif", contentType: "image/gif", pipeline: "gif-sanitize-preserve-animation-v1", maxBytes: 5 * 1024 * 1024 },
+-      audio: { filename: "audio.mp3", contentType: "audio/mpeg", pipeline: "ffmpeg-audio-transcode-v1", maxBytes: 25 * 1024 * 1024 },
++      audio: { filename: "audio.mp3", contentType: "audio/mpeg", pipeline: "ffmpeg-audio-transcode-v2-purpose-duration-v1", maxBytes: 25 * 1024 * 1024 },
+       video: { filename: "video.mp4", contentType: "video/mp4", pipeline: "ffmpeg-video-transcode-v1", maxBytes: 50 * 1024 * 1024 },
+       document: { filename: "document.pdf", contentType: "application/pdf", pipeline: "pdf-raster-flatten-v1", maxBytes: 20 * 1024 * 1024 },
+     }[derivative.category];
+     const expectedPath = `processed/${String(asset.ownerUid)}/${verdict.mediaId}/${expected.filename}`;
+     if (!expected || asset.mediaPurpose !== "chat" && asset.mediaPurpose !== "room" ||
+         derivative.path !== expectedPath || derivative.contentType !== expected.contentType ||
+         derivative.pipelineVersion !== expected.pipeline ||
+         (derivative.category === "document" && asset.uploaderRole !== "platform_owner")) {
+       response.status(409).send("Safe derivative path, role or processing contract mismatch");
+       return;
+     }
+     const derivativeFile = mediaBucket().file(derivative.path);
+     let derivativeMetadata: Record<string, unknown>;
+     try {
+       const [rawDerivativeMetadata] = await derivativeFile.getMetadata();
+       derivativeMetadata = rawDerivativeMetadata as unknown as Record<string, unknown>;
+     } catch {
+       response.status(409).send("Safe media derivative is missing");
+       return;
+     }
+     const custom = derivativeMetadata.metadata as Record<string, unknown> | undefined;
+     const sizeBytes = Number(derivativeMetadata.size);
+     if (String(derivativeMetadata.generation) !== derivative.generation ||
+         derivativeMetadata.contentType !== derivative.contentType ||
+         !Number.isSafeInteger(sizeBytes) || sizeBytes <= 0 || sizeBytes > expected.maxBytes ||
+         custom?.mediaId !== verdict.mediaId ||
+         custom?.sourceGeneration !== verdict.objectGeneration ||
+         custom?.sourceSha256 !== verdict.sha256 ||
+         custom?.scannerProvider !== verdict.provider ||
+         custom?.processing !== derivative.pipelineVersion) {
+       response.status(409).send("Safe media derivative metadata mismatch");
+       return;
+     }
+     const derivativeHash = await sha256Object(derivativeFile);
+     if (derivativeHash !== derivative.sha256) {
+       response.status(409).send("Safe media derivative hash mismatch");
+       return;
+     }
+     safeNonImageDerivative = { ...derivative, sizeBytes };
+   }
+   const safeDerivativeReady = Boolean(safePreview || safeNonImageDerivative);
+   const nextStatus = verdict.verdict === "malicious" ? "rejected" :
+     safeDerivativeReady ? "security_approved" : "scanner_clean_pending_processing";
+   await db.runTransaction(async (transaction) => {
+     const latest = await transaction.get(assetRef);
+     const scanJobRef = db.collection("mediaScanJobs").doc(verdict.mediaId);
+     const scanJob = await transaction.get(scanJobRef);
+     if (!latest.exists || latest.data()?.status !== "pending_security_scan" ||
+         String(latest.data()?.storageGeneration) !== verdict.objectGeneration) {
+       throw new HttpsError("failed-precondition", "Asset state changed during scanner callback.");
+     }
+     transaction.update(assetRef, {
+       status: nextStatus,
+       scannerEngine: verdict.scanEngine,
+       scannerEngineVersion: verdict.engineVersion,
+       scannerSignatureDatabaseVersion: verdict.signatureDatabaseVersion,
+       scannerSignatureDatabaseAgeMs: verdict.signatureDatabaseAgeMs,
+       scannerProvider: verdict.provider,
+       scannerVerdict: verdict.verdict,
+       scannerSha256: actualHash,
+       scannerObjectGeneration: verdict.objectGeneration,
+       scannerScannedAt: new Date(verdict.scannedAtMs),
+       scannerVerifiedAt: FieldValue.serverTimestamp(),
+       ...(safePreview ? {
+         safePreviewPath: safePreview.path,
+         safePreviewGeneration: safePreview.generation,
+         safePreviewSha256: safePreview.sha256,
+         safePreviewContentType: safePreview.contentType,
+         safePreviewSizeBytes: safePreview.sizeBytes,
+         processingStatus: "safe_raster_derivative_ready",
+         processingPipelineVersion: "sharp-decode-reencode-v1",
+       } : {}),
+       ...(safeNonImageDerivative ? {
+         ...(safeNonImageDerivative.category === "gif" ? {
+           safeAnimationPath: safeNonImageDerivative.path,
+           safeAnimationGeneration: safeNonImageDerivative.generation,
+           safeAnimationSha256: safeNonImageDerivative.sha256,
+           safeAnimationContentType: safeNonImageDerivative.contentType,
+           processingStatus: "safe_animation_derivative_ready",
+         } : {}),
+@@ -602,160 +607,161 @@ async function cloudRunIdentityToken(audience: string): Promise<string> {
+     headers: { "Metadata-Flavor": "Google" },
+     signal: AbortSignal.timeout(5_000),
+   });
+   if (!result.ok) throw new Error("Unable to obtain Cloud Run identity token for scanner dispatch.");
+   const token = (await result.text()).trim();
+   if (!token) throw new Error("Cloud Run identity token response was empty.");
+   return token;
+ }
+ 
+ export const dispatchMediaSecurityScan = onDocumentCreated(
+   {
+     document: "mediaScanJobs/{mediaId}",
+     retry: true,
+     secrets: [mediaScannerApiToken],
+     timeoutSeconds: 240,
+     memory: "1GiB",
+   },
+   async (event) => {
+     const eventSnapshot = event.data;
+     if (!eventSnapshot) return;
+     const job = eventSnapshot.data();
+     if (!job) return;
+     const scannerUrl = mediaScannerUrl.value();
+     const callbackUrl = mediaScannerCallbackUrl.value();
+     const apiToken = mediaScannerApiToken.value();
+     if (!scannerUrl || !callbackUrl || !apiToken) {
+       throw new Error("Trusted malware scanner gateway is not configured; asset remains quarantined.");
+     }
+     const scanner = new URL(scannerUrl);
+     const callback = new URL(callbackUrl);
+     if (scanner.protocol !== "https:" || callback.protocol !== "https:") {
+       throw new Error("Scanner and callback endpoints must use HTTPS.");
+     }
+     const assetRef = mediaDb().collection("mediaAssets").doc(String(job.mediaId));
+     const assetSnapshot = await assetRef.get();
+     if (!assetSnapshot.exists || assetSnapshot.data()?.status !== "pending_security_scan" ||
+         String(assetSnapshot.data()?.storageGeneration) !== String(job.objectGeneration)) {
+       await eventSnapshot.ref.update({ state: "cancelled", updatedAt: FieldValue.serverTimestamp() });
+       return;
+     }
+     const file = mediaBucket().file(String(job.objectPath));
+     const [metadata] = await file.getMetadata();
+     if (String(metadata.generation) !== String(job.objectGeneration)) {
+       throw new Error("Scanner dispatch refused a changed Storage generation.");
+     }
+     const [downloadUrl] = await file.getSignedUrl({
+       version: "v4", action: "read", expires: Date.now() + 5 * 60 * 1000,
+       queryParams: { generation: String(job.objectGeneration) },
+       responseDisposition: "attachment",
+     });
+     const detectedContentType = String(assetSnapshot.data()?.detectedContentType ?? "");
+     if (scanner.pathname !== "/scan") throw new Error("Scanner endpoint path must be /scan.");
+     const identityToken = await cloudRunIdentityToken(scanner.origin);
+     const jobRef = eventSnapshot.ref;
+     const mayDispatch = await mediaDb().runTransaction(async (transaction) => {
+       const currentJob = await transaction.get(jobRef);
+       if (!currentJob.exists) return false;
+       const currentState = currentJob.data()?.state;
+       if (["completed", "rejected", "cancelled"].includes(String(currentState))) return false;
+       transaction.update(jobRef, {
+         state: "dispatching",
+         attempts: FieldValue.increment(1),
+         lastAttemptAt: FieldValue.serverTimestamp(),
+         updatedAt: FieldValue.serverTimestamp(),
+       });
+       return true;
+     });
+     if (!mayDispatch) return;
+     const dispatchResponse = await fetch(scanner.toString(), {
+       method: "POST",
+       headers: {
+         authorization: `Bearer ${identityToken}`,
+         "x-mawadda-scanner-token": apiToken,
+         "content-type": "application/json",
+         "idempotency-key": `${job.mediaId}:${job.objectGeneration}`,
+       },
+       body: JSON.stringify({
+         mediaId: job.mediaId, objectPath: job.objectPath,
+         objectGeneration: job.objectGeneration, downloadUrl,
+         contentType: detectedContentType,
++        purpose: String(assetSnapshot.data()?.mediaPurpose ?? ""),
+         callbackUrl: callback.toString(),
+         provider: mediaScannerProvider.value(),
+       }),
+       signal: AbortSignal.timeout(210_000),
+     });
+     if (!dispatchResponse.ok) {
+       throw new Error(`Trusted scanner gateway rejected dispatch: HTTP ${dispatchResponse.status}.`);
+     }
+     await mediaDb().runTransaction(async (transaction) => {
+       const currentJob = await transaction.get(jobRef);
+       if (currentJob.exists && currentJob.data()?.state === "dispatching") {
+         transaction.update(jobRef, {
+           state: "dispatched",
+           dispatchedAt: FieldValue.serverTimestamp(),
+           updatedAt: FieldValue.serverTimestamp(),
+         });
+       }
+     });
+   },
+ );
+ 
+ 
+ /**
+  * Issues a short-lived read capability only for a selected, scanner-approved
+  * profile image. Quarantine originals are never exposed to member clients.
+  */
+ 
+ /** Allows an uploader to observe only the state of their own media intake. */
+ export const getMyMediaUploadStatus = onCall(async (request) => {
+   const uid = requireUid(request.auth?.uid);
+   const mediaId = typeof request.data?.mediaId === "string" ? request.data.mediaId.trim() : "";
+   if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
+     throw new HttpsError("invalid-argument", "معرف الملف غير صالح.");
+   }
+   const snapshot = await mediaDb().collection("mediaAssets").doc(mediaId).get();
+   if (!snapshot.exists) throw new HttpsError("not-found", "طلب رفع الملف غير موجود.");
+   const asset = snapshot.data() ?? {};
+   if (asset.ownerUid !== uid) {
+     throw new HttpsError("permission-denied", "لا يمكنك الاطلاع على حالة ملف لا تملكه.");
+   }
+   return {
+     mediaId,
+     purpose: asset.mediaPurpose,
+     status: asset.status,
+     processingStatus: asset.processingStatus ?? null,
+     mediaCategory: asset.mediaCategory ?? null,
+     safePreviewReady: asset.status === "security_approved" &&
+       asset.processingStatus === "safe_raster_derivative_ready",
+     safeDerivativeReady: asset.status === "security_approved" &&
+       ["safe_raster_derivative_ready", "safe_animation_derivative_ready",
+         "safe_audio_derivative_ready", "safe_video_derivative_ready",
+         "safe_document_derivative_ready"].includes(String(asset.processingStatus)),
+     rejectionCode: asset.status === "rejected" ? asset.rejectionCode ?? "MEDIA_REJECTED" : null,
+   };
+ });
+ 
+ export const getMemberProfileMediaUrl = onCall(async (request) => {
+   const viewerUid = requireUid(request.auth?.uid);
+   const targetUid = typeof request.data?.userId === "string" ? request.data.userId.trim() : "";
+   const slot = request.data?.slot;
+   if (!targetUid || targetUid.length > 128 || (slot !== "avatar" && slot !== "cover")) {
+     throw new HttpsError("invalid-argument", "بيانات عرض صورة الملف غير صالحة.");
+   }
+ 
+   const userSnapshot = await mediaDb().collection("users").doc(targetUid).get();
+   if (!userSnapshot.exists) throw new HttpsError("not-found", "ملف العضو غير موجود.");
+   const user = userSnapshot.data() ?? {};
+   if (viewerUid !== targetUid && user.profileVisibility !== "public") {
+     throw new HttpsError("permission-denied", "الملف الشخصي خاص.");
+   }
+   const mediaId = user[slot === "avatar" ? "avatarMediaId" : "coverMediaId"];
+   if (typeof mediaId !== "string" || !/^[0-9a-f-]{36}$/i.test(mediaId)) {
+     return { url: null, usesDefault: true };
+   }
+ 
+   const assetSnapshot = await mediaDb().collection("mediaAssets").doc(mediaId).get();
+   if (!assetSnapshot.exists) throw new HttpsError("not-found", "صورة الملف غير موجودة.");
+   const asset = assetSnapshot.data() ?? {};
+   const expectedPath = `processed/${targetUid}/${mediaId}/preview.webp`;
+   if (asset.ownerUid !== targetUid || asset.mediaPurpose !== "avatar_cover" ||
+diff --git a/functions/test/media-scanner.test.js b/functions/test/media-scanner.test.js
+index 6107991c..9bea8331 100644
+--- a/functions/test/media-scanner.test.js
++++ b/functions/test/media-scanner.test.js
+@@ -1,115 +1,119 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const { createHmac } = require("node:crypto");
+ const { verifyScannerWebhook, validateScannerVerdict } = require("../lib/media-scanner");
+ 
+ test("scanner webhook HMAC is verified and rejects absent or weak secrets", () => {
+   const body = Buffer.from("{\"verdict\":\"clean\"}");
+   const secret = "s".repeat(48);
+   const signature = createHmac("sha256", secret).update(body).digest("hex");
+   assert.equal(verifyScannerWebhook(body, signature, secret), true);
+   assert.equal(verifyScannerWebhook(body, signature, "weak"), false);
+   assert.equal(verifyScannerWebhook(body, signature, undefined), false);
+   assert.equal(verifyScannerWebhook(body, "0".repeat(64), secret), false);
+ });
+ 
+ test("scanner verdict binds provider, object generation, hash and freshness", () => {
+   const now = 1_800_000_000_000;
+   const payload = {
+     mediaId: "123e4567-e89b-12d3-a456-426614174000",
++    purpose: "room",
+     provider: "clamav-mawadda-gateway",
+     verdict: "clean",
+     objectGeneration: "123456",
+     sha256: "a".repeat(64),
+     scannedAtMs: now,
+     scanEngine: "ClamAV",
+     engineVersion: "1.4.6",
+     signatureDatabaseVersion: "28202",
+     signatureDatabaseAgeMs: 60 * 60 * 1000,
+   };
+   assert.equal(validateScannerVerdict(payload, "clamav-mawadda-gateway", now).verdict, "clean");
+   assert.equal(validateScannerVerdict({ ...payload, provider: "untrusted" }, "clamav-mawadda-gateway", now), null);
++  assert.equal(validateScannerVerdict({ ...payload, purpose: "untrusted" }, "clamav-mawadda-gateway", now), null);
+   assert.equal(validateScannerVerdict({ ...payload, objectGeneration: "latest" }, "clamav-mawadda-gateway", now), null);
+   assert.equal(validateScannerVerdict({ ...payload, scannedAtMs: now - 700000 }, "clamav-mawadda-gateway", now), null);
+   assert.equal(validateScannerVerdict({ ...payload, verdict: "approved" }, "clamav-mawadda-gateway", now), null);
+   assert.equal(validateScannerVerdict({ ...payload, scanEngine: "unknown" }, "clamav-mawadda-gateway", now), null);
+   assert.equal(validateScannerVerdict({ ...payload, engineVersion: "latest" }, "clamav-mawadda-gateway", now), null);
+   assert.equal(validateScannerVerdict({ ...payload, signatureDatabaseVersion: "unknown" }, "clamav-mawadda-gateway", now), null);
+   assert.equal(validateScannerVerdict({ ...payload, signatureDatabaseAgeMs: 37 * 60 * 60 * 1000 }, "clamav-mawadda-gateway", now), null);
+ });
+ 
+ 
+ test("scanner verdict accepts a fully bound safe WebP derivative and rejects partial or unsafe paths", () => {
+   const now = 1_800_000_000_000;
+   const base = {
+     mediaId: "123e4567-e89b-12d3-a456-426614174000",
++    purpose: "room",
+     provider: "clamav-mawadda-gateway",
+     verdict: "clean",
+     objectGeneration: "123456",
+     sha256: "a".repeat(64),
+     scannedAtMs: now,
+     scanEngine: "ClamAV",
+     engineVersion: "1.4.6",
+     signatureDatabaseVersion: "28202",
+     signatureDatabaseAgeMs: 60 * 60 * 1000,
+   };
+   const derivative = {
+     safePreviewPath: "processed/member_123/123e4567-e89b-12d3-a456-426614174000/preview.webp",
+     safePreviewGeneration: "987654",
+     safePreviewSha256: "b".repeat(64),
+     safePreviewContentType: "image/webp",
+   };
+   assert.equal(validateScannerVerdict({ ...base, ...derivative }, base.provider, now).safePreviewGeneration, "987654");
+   assert.equal(validateScannerVerdict({ ...base, safePreviewPath: derivative.safePreviewPath }, base.provider, now), null);
+   assert.equal(validateScannerVerdict({ ...base, ...derivative, safePreviewPath: "processed/other/another-id/preview.webp" }, base.provider, now), null);
+   assert.equal(validateScannerVerdict({ ...base, ...derivative, verdict: "malicious" }, base.provider, now), null);
+ });
+ 
+ test("scanner callback validates exact GIF, audio, video and flattened-PDF derivative contracts", () => {
+   const now = 1_800_000_000_000;
+   const base = {
+     mediaId: "123e4567-e89b-12d3-a456-426614174000",
++    purpose: "room",
+     provider: "clamav-mawadda-gateway",
+     verdict: "clean",
+     objectGeneration: "123456",
+     sha256: "a".repeat(64),
+     scannedAtMs: now,
+     scanEngine: "ClamAV",
+     engineVersion: "1.4.6",
+     signatureDatabaseVersion: "28202",
+     signatureDatabaseAgeMs: 60 * 60 * 1000,
+   };
+   const derivatives = [
+     { category: "gif", path: "animation.gif", contentType: "image/gif", pipelineVersion: "gif-sanitize-preserve-animation-v1", processingStatus: "safe_animation_derivative_ready" },
+-    { category: "audio", path: "audio.mp3", contentType: "audio/mpeg", pipelineVersion: "ffmpeg-audio-transcode-v1", processingStatus: "safe_audio_derivative_ready" },
++    { category: "audio", path: "audio.mp3", contentType: "audio/mpeg", pipelineVersion: "ffmpeg-audio-transcode-v2-purpose-duration-v1", processingStatus: "safe_audio_derivative_ready" },
+     { category: "video", path: "video.mp4", contentType: "video/mp4", pipelineVersion: "ffmpeg-video-transcode-v1", processingStatus: "safe_video_derivative_ready" },
+     { category: "document", path: "document.pdf", contentType: "application/pdf", pipelineVersion: "pdf-raster-flatten-v1", processingStatus: "safe_document_derivative_ready" },
+   ];
+   for (const item of derivatives) {
+     const payload = {
+       ...base,
+       processingStatus: item.processingStatus,
+       safeDerivative: {
+         category: item.category,
+         path: `processed/member_1/${base.mediaId}/${item.path}`,
+         generation: "987654",
+         sha256: "b".repeat(64),
+         contentType: item.contentType,
+         pipelineVersion: item.pipelineVersion,
+       },
+     };
+     assert.equal(validateScannerVerdict(payload, base.provider, now).safeDerivative.category, item.category);
+     assert.equal(validateScannerVerdict({
+       ...payload,
+       safeDerivative: { ...payload.safeDerivative, path: "processed/other/forged/evil.bin" },
+     }, base.provider, now), null);
+     assert.equal(validateScannerVerdict({
+       ...payload,
+       safeDerivative: { ...payload.safeDerivative, pipelineVersion: "untrusted" },
+     }, base.provider, now), null);
+     assert.equal(validateScannerVerdict({
+       ...payload,
+       processingStatus: "security_approved",
+     }, base.provider, now), null);
+   }
+ });
+diff --git a/lib/screens/chat_room_screen.dart b/lib/screens/chat_room_screen.dart
+index 5daf8d15..0916b627 100644
+--- a/lib/screens/chat_room_screen.dart
++++ b/lib/screens/chat_room_screen.dart
+@@ -427,128 +427,128 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
+                                           return ClipRRect(
+                                             borderRadius: BorderRadius.circular(12),
+                                             child: Image.network(
+                                               url, width: 260, height: 220, fit: BoxFit.cover,
+                                               errorBuilder: (_, __, ___) => const SizedBox(
+                                                 height: 100,
+                                                 child: Center(child: Text('تعذر تحميل الصورة الآمنة.')),
+                                               ),
+                                             ),
+                                           );
+                                         }
+                                         final isDocument = category == 'document';
+                                         final label = category == 'audio' ? 'ملف صوتي آمن' :
+                                             category == 'video' ? 'مقطع فيديو آمن' : 'مستند PDF من إدارة مودة';
+                                         final icon = category == 'audio' ? Icons.audio_file_outlined :
+                                             category == 'video' ? Icons.video_file_outlined : Icons.picture_as_pdf_outlined;
+                                         return SizedBox(
+                                           width: 260,
+                                           child: Card(
+                                             child: ListTile(
+                                               leading: Icon(icon),
+                                               title: Text(label),
+                                               subtitle: Text(isDocument ? 'تنزيل المستند' : 'فتح المرفق'),
+                                               trailing: IconButton(
+                                                 tooltip: 'فتح المرفق',
+                                                 onPressed: () => _openAttachment(url),
+                                                 icon: const Icon(Icons.open_in_new),
+                                               ),
+                                             ),
+                                           ),
+                                         );
+                                       },
+                                     ),
+                                   ),
+                                 if (message['type'] == 'live_stream' && message['liveStream'] is Map)
+                                   _liveStreamCard(message),
+                                 if ((message['content'] as String? ?? '').isNotEmpty)
+                                   Padding(
+                                     padding: const EdgeInsets.only(top: 4),
+                                     child: Text(message['content'] as String),
+                                   ),
+                                 if (canRequestDelete && messageId.isNotEmpty && message['isDeleted'] != true)
+                                   Align(
+                                     alignment: AlignmentDirectional.centerEnd,
+                                     child: TextButton.icon(
+                                       onPressed: () => _deleteMessage(messageId),
+                                       icon: const Icon(Icons.delete_outline, size: 16),
+                                       label: const Text('حذف للجميع'),
+                                     ),
+                                   ),
+                               ],
+                             ),
+                           ),
+                         ),
+                       ),
+                     );
+                   },
+                 );
+               },
+             ),
+           ),
+           SafeArea(
+             top: false,
+             child: Padding(
+               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+               child: Row(
+                 children: [
+                   IconButton(
+                     tooltip: 'إرفاق صورة',
+                     onPressed: _sending ? null : _pickAndSendImage,
+                     icon: const Icon(Icons.image_outlined),
+                   ),
+                   IconButton(
+                     tooltip: 'إرفاق GIF أو صوت أو فيديو أو PDF',
+                     onPressed: _sending ? null : _pickAndSendAttachment,
+                     icon: const Icon(Icons.attach_file),
+                   ),
+                   ChatAudioComposerButton(
+                     scope: 'room',
+                     roomId: widget.chatId,
+-                    maxDurationSeconds: widget.isPublicRoom ? 120 : 60,
++                    maxDurationSeconds: 60,
+                     enabled: !_sending,
+                     onBusyChanged: (busy) {
+                       if (mounted && _sending != busy) setState(() => _sending = busy);
+                     },
+                     onSent: _reloadMessages,
+                     onError: (message) {
+                       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                         SnackBar(content: Text(message)),
+                       );
+                     },
+                   ),
+                   Expanded(
+                     child: TextField(
+                       controller: _messageController,
+                       minLines: 1,
+                       maxLines: 4,
+                       maxLength: 4000,
+                       textInputAction: TextInputAction.send,
+                       onSubmitted: (_) => _sendMessage(),
+                       decoration: const InputDecoration(
+                         hintText: 'اكتب رسالتك...',
+                         border: OutlineInputBorder(),
+                         counterText: '',
+                       ),
+                     ),
+                   ),
+                   const SizedBox(width: 8),
+                   IconButton.filled(
+                     tooltip: 'إرسال',
+                     onPressed: _sending ? null : _sendMessage,
+                     icon: _sending
+                         ? const SizedBox(
+                             width: 18,
+                             height: 18,
+                             child: CircularProgressIndicator(strokeWidth: 2),
+                           )
+                         : const Icon(Icons.send),
+                   ),
+                 ],
+               ),
+             ),
+           ),
+         ],
+       ),
+     );
+   }
+ }
+diff --git a/lib/screens/guest_room_chat_screen.dart b/lib/screens/guest_room_chat_screen.dart
+index 5909af4e..1e3d64a1 100644
+--- a/lib/screens/guest_room_chat_screen.dart
++++ b/lib/screens/guest_room_chat_screen.dart
+@@ -41,161 +41,161 @@ class _GuestRoomChatScreenState extends State<GuestRoomChatScreen> {
+     super.initState();
+     _load();
+     _playerStateSubscription = _audioPlayer.playerStateStream.listen((state) {
+       if (!mounted) return;
+       if (state.processingState == ProcessingState.completed) {
+         setState(() => _playingMessageId = null);
+       }
+     });
+     _messagePoller = Timer.periodic(const Duration(seconds: 4), (_) {
+       if (mounted && !_busy) _load(showLoading: false);
+     });
+   }
+   @override
+   void dispose() {
+     _messagePoller?.cancel();
+     _recordingLimit?.cancel();
+     _recordingSubscription?.cancel();
+     _playerStateSubscription?.cancel();
+     unawaited(_recorder.dispose());
+     unawaited(_audioPlayer.dispose());
+     _message.dispose(); _media.close(); super.dispose();
+   }
+ 
+   Future<void> _load({bool showLoading = true}) async {
+     if (mounted) setState(() { if (showLoading) _loading = true; _error = null; });
+     try {
+       final response = await _functions.httpsCallable('getRoomMessages').call({'roomId': widget.roomId});
+       final data = Map<String, dynamic>.from(response.data as Map);
+       final messages = (data['messages'] as List<dynamic>? ?? const [])
+           .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+       if (mounted) setState(() { _messages = messages; _loading = false; });
+     } on FirebaseFunctionsException catch (e) {
+       if (mounted) setState(() { _error = e.message ?? 'تعذر تحميل الرسائل.'; _loading = false; });
+     } catch (_) {
+       if (mounted) setState(() { _error = 'تعذر تحميل الرسائل. ربما انتهت جلسة الزائر.'; _loading = false; });
+     }
+   }
+ 
+   Future<void> _sendText() async {
+     final content = _message.text.trim();
+     if (content.isEmpty || _busy) return;
+     setState(() => _busy = true);
+     try {
+       await _functions.httpsCallable('sendRoomMessage').call({
+         'roomId': widget.roomId, 'content': content,
+         'clientMessageId': 'guest_${DateTime.now().microsecondsSinceEpoch}',
+       });
+       _message.clear(); await _load(showLoading: false);
+     } on FirebaseFunctionsException catch (e) {
+       if (mounted) setState(() => _error = e.message ?? 'تعذر إرسال الرسالة النصية.');
+     } finally { if (mounted) setState(() => _busy = false); }
+   }
+ 
+   Future<void> _startMicrophoneRecording() async {
+     if (_busy || _recording) return;
+     try {
+       final permitted = await _recorder.hasPermission();
+       if (!permitted) {
+         if (mounted) setState(() => _error = 'لم تمنح إذن استخدام الميكروفون. يمكنك تفعيله من إعدادات الجهاز.');
+         return;
+       }
+       _recordedPcm.clear();
+       final stream = await _recorder.startStream(const RecordConfig(
+         encoder: AudioEncoder.pcm16bits,
+         sampleRate: 24000,
+         numChannels: 1,
+         autoGain: true,
+         echoCancel: true,
+         noiseSuppress: true,
+       ));
+       _recordingSubscription = stream.listen((chunk) {
+         _recordedPcm.add(chunk);
+         if (_recordedPcm.length > _maxRecordingBytes) {
+           unawaited(_stopMicrophoneRecording());
+         }
+       }, onError: (Object error) {
+         if (mounted) setState(() => _error = 'توقف تسجيل الصوت بسبب خطأ في الميكروفون: $error');
+       });
+       if (mounted) {
+         setState(() { _recording = true; _error = null; });
+-        _recordingLimit = Timer(const Duration(seconds: 120), () {
++        _recordingLimit = Timer(const Duration(seconds: 60), () {
+           unawaited(_stopMicrophoneRecording());
+         });
+       }
+     } catch (e) {
+       if (mounted) setState(() => _error = 'تعذر بدء التسجيل الصوتي: $e');
+     }
+   }
+ 
+   Future<void> _stopMicrophoneRecording() async {
+     if (!_recording || _stoppingRecording) return;
+     _stoppingRecording = true;
+     _recordingLimit?.cancel();
+     _recordingLimit = null;
+     try {
+       await _recorder.stop();
+       await _recordingSubscription?.cancel();
+       _recordingSubscription = null;
+       final pcm = _recordedPcm.takeBytes();
+       if (pcm.lengthInBytes < 2048) {
+         if (mounted) setState(() { _recording = false; _error = 'التسجيل قصير جداً أو لم يلتقط صوتاً واضحاً.'; });
+         return;
+       }
+       if (pcm.lengthInBytes > _maxRecordingBytes) {
+         if (mounted) setState(() { _recording = false; _error = 'تجاوز التسجيل الحد الأقصى المسموح به.'; });
+         return;
+       }
+       if (mounted) setState(() { _recording = false; _busy = true; _error = null; });
+       final wav = encodePcm16MonoToWav(pcm);
+       final file = XFile.fromData(
+         wav,
+         name: 'voice_${DateTime.now().millisecondsSinceEpoch}.wav',
+         mimeType: 'audio/wav',
+       );
+       final mediaId = await _media.uploadChatAttachment(file: file, scope: 'room');
+       await _media.sendChatMediaAttachment(
+         scope: 'room', roomId: widget.roomId, mediaId: mediaId,
+         clientMessageId: 'guest_mic_${DateTime.now().microsecondsSinceEpoch}',
+       );
+       await _load(showLoading: false);
+     } catch (e) {
+       if (mounted) setState(() => _error = 'تعذر إرسال التسجيل الصوتي: $e');
+     } finally {
+       _recordedPcm.clear();
+       _stoppingRecording = false;
+       if (mounted) setState(() { _recording = false; _busy = false; });
+     }
+   }
+ 
+   Future<void> _openAudio(Map<String, dynamic> item) async {
+     final messageId = item['messageId'] as String?;
+     if (messageId == null) return;
+     try {
+       if (_playingMessageId == messageId && _audioPlayer.playing) {
+         await _audioPlayer.pause();
+         if (mounted) setState(() {});
+         return;
+       }
+       if (_playingMessageId == messageId && _audioPlayer.processingState != ProcessingState.idle) {
+         await _audioPlayer.play();
+         return;
+       }
+       final url = await _media.getChatMediaAttachmentUrl(
+         scope: 'room', roomId: widget.roomId,
+         mediaId: item['mediaId'] as String, messageId: messageId,
+       );
+       await _audioPlayer.setUrl(url);
+       if (mounted) setState(() => _playingMessageId = messageId);
+       await _audioPlayer.play();
+     } catch (e) {
+       if (mounted) setState(() {
+         _playingMessageId = null;
+         _error = 'تعذر تشغيل الرسالة الصوتية داخل التطبيق: $e';
+       });
+     }
+   }
+ 
+   Future<void> _pickAudioFile() async {
+     if (_busy || _recording) return;
+     final picked = await FilePicker.platform.pickFiles(
+       type: FileType.custom, allowedExtensions: const ['mp3', 'm4a', 'ogg', 'wav'],
+diff --git a/lib/widgets/chat_audio_controls.dart b/lib/widgets/chat_audio_controls.dart
+index 0c1af7cb..9f10d2e5 100644
+--- a/lib/widgets/chat_audio_controls.dart
++++ b/lib/widgets/chat_audio_controls.dart
+@@ -1,106 +1,107 @@
+ import 'dart:async';
+ import 'dart:typed_data';
+ 
+ import 'package:flutter/material.dart';
+ import 'package:image_picker/image_picker.dart';
+ import 'package:just_audio/just_audio.dart';
+ import 'package:record/record.dart';
+ import 'package:uuid/uuid.dart';
+ 
+ import '../services/audio_wav_encoder.dart';
+ import '../services/member_media_upload_service.dart';
+ 
+ /// Shared in-app microphone capture for authenticated member chats.
+ /// The server remains authoritative for room/direct-chat membership and media policy.
+ class ChatAudioComposerButton extends StatefulWidget {
+   const ChatAudioComposerButton({
+     super.key,
+     required this.scope,
+     required this.onSent,
+     required this.onBusyChanged,
+     required this.onError,
+     this.enabled = true,
+     this.maxDurationSeconds = 120,
+     this.recipientUid,
+     this.roomId,
+-  }) : assert(scope == 'direct' || scope == 'room');
++  }) : assert(scope == 'direct' || scope == 'room'),
++       assert(maxDurationSeconds > 0 && maxDurationSeconds <= 120);
+ 
+   final String scope;
+   final String? recipientUid;
+   final String? roomId;
+   final Future<void> Function() onSent;
+   final ValueChanged<bool> onBusyChanged;
+   final ValueChanged<String> onError;
+   final bool enabled;
+   final int maxDurationSeconds;
+ 
+   @override
+   State<ChatAudioComposerButton> createState() => _ChatAudioComposerButtonState();
+ }
+ 
+ class _ChatAudioComposerButtonState extends State<ChatAudioComposerButton> {
+   final AudioRecorder _recorder = AudioRecorder();
+   final BytesBuilder _pcm = BytesBuilder(copy: false);
+   StreamSubscription<Uint8List>? _subscription;
+   Timer? _limit;
+   bool _recording = false;
+   bool _uploading = false;
+   bool _stopping = false;
+ 
+   static const int _maxPcmBytes = 8 * 1024 * 1024;
+ 
+   @override
+   void dispose() {
+     _limit?.cancel();
+     unawaited(_subscription?.cancel());
+     unawaited(_recorder.dispose());
+     super.dispose();
+   }
+ 
+   void _setBusy(bool value) {
+     if (mounted) setState(() => _uploading = value);
+     widget.onBusyChanged(value || _recording);
+   }
+ 
+   Future<void> _start() async {
+     if (_recording || _uploading || _stopping) return;
+     try {
+       if (!await _recorder.hasPermission()) {
+         widget.onError('لم يتم منح إذن الميكروفون. يمكنك تفعيله من إعدادات الجهاز.');
+         return;
+       }
+       _pcm.clear();
+       final stream = await _recorder.startStream(const RecordConfig(
+         encoder: AudioEncoder.pcm16bits,
+         sampleRate: 24000,
+         numChannels: 1,
+         autoGain: true,
+         echoCancel: true,
+         noiseSuppress: true,
+       ));
+       _subscription = stream.listen(
+         (chunk) {
+           _pcm.add(chunk);
+           if (_pcm.length > _maxPcmBytes) {
+             unawaited(_stop());
+           }
+         },
+         onError: (Object error) {
+           widget.onError('توقف تسجيل الصوت بسبب خطأ في الميكروفون: $error');
+           unawaited(_stop());
+         },
+       );
+       if (!mounted) return;
+       setState(() => _recording = true);
+       widget.onBusyChanged(true);
+       _limit = Timer(Duration(seconds: widget.maxDurationSeconds), () => unawaited(_stop()));
+     } catch (error) {
+       widget.onError('تعذر بدء التسجيل الصوتي: $error');
+       widget.onBusyChanged(false);
+     }
+   }
+ 
+   Future<void> _stop() async {
+     if (!_recording || _stopping) return;
+     _stopping = true;
+     _limit?.cancel();
+diff --git a/scanner/processors.js b/scanner/processors.js
+index 14e692a6..ef75a162 100644
+--- a/scanner/processors.js
++++ b/scanner/processors.js
+@@ -1,231 +1,238 @@
+ const fs = require("node:fs/promises");
+ const path = require("node:path");
+ const { promisify } = require("node:util");
+ const { execFile } = require("node:child_process");
+ const { createHash } = require("node:crypto");
+ 
+ const execFileAsync = promisify(execFile);
+ const LIMITS = Object.freeze({
+   gif: { maxFrames: 100, maxPixels: 40_000_000, maxDurationSeconds: 30, maxBytes: 5 * 1024 * 1024 },
+-  audio: { maxDurationSeconds: 600, maxBytes: 25 * 1024 * 1024 },
++  audio: { maxDurationSeconds: 120, roomMaxDurationSeconds: 60, maxBytes: 25 * 1024 * 1024 },
+   video: { maxDurationSeconds: 90, maxBytes: 50 * 1024 * 1024 },
+   pdf: { maxPages: 30, maxBytes: 20 * 1024 * 1024 },
+ });
+ 
++function audioMaxDurationSecondsForPurpose(purpose) {
++  if (purpose === "room") return LIMITS.audio.roomMaxDurationSeconds;
++  if (purpose === "chat") return LIMITS.audio.maxDurationSeconds;
++  throw new Error("AUDIO_PURPOSE_INVALID");
++}
++
+ function safeOutputPath(ownerUid, mediaId, filename) {
+   if (!/^[A-Za-z0-9_-]{1,128}$/.test(ownerUid) ||
+       !/^[0-9a-f-]{36}$/i.test(mediaId) ||
+       !/^[a-z0-9.-]{1,48}$/.test(filename)) {
+     throw new Error("INVALID_DERIVATIVE_PATH");
+   }
+   return `processed/${ownerUid}/${mediaId}/${filename}`;
+ }
+ 
+ async function probeMedia(sourcePath) {
+   const { stdout } = await execFileAsync("ffprobe", [
+     "-v", "error", "-show_entries", "format=duration:stream=codec_type",
+     "-of", "json", sourcePath,
+   ], { timeout: 15_000, maxBuffer: 64 * 1024 });
+   const result = JSON.parse(stdout);
+   const duration = Number(result.format && result.format.duration);
+   const streams = Array.isArray(result.streams) ? result.streams : [];
+   if (!Number.isFinite(duration) || duration <= 0) throw new Error("MEDIA_DURATION_INVALID");
+   return { duration, hasAudio: streams.some((s) => s.codec_type === "audio"),
+     hasVideo: streams.some((s) => s.codec_type === "video") };
+ }
+ 
+ async function uploadDerivative({ storage, bucketName, outputPath, request, sourceSha256, provider, filename, contentType, pipelineVersion, maxBytes }) {
+   const stat = await fs.stat(outputPath);
+   if (!stat.isFile() || stat.size <= 0 || stat.size > maxBytes) throw new Error("DERIVATIVE_SIZE_INVALID");
+   const uid = request.objectPath.split("/")[1];
+   const objectPath = safeOutputPath(uid, request.mediaId, filename);
+   const file = storage.bucket(bucketName).file(objectPath);
+   const metadata = {
+     mediaId: request.mediaId,
+     sourceGeneration: request.objectGeneration,
+     sourceSha256,
+     scannerProvider: provider,
+     processing: pipelineVersion,
+   };
+   try {
+     await file.save(await fs.readFile(outputPath), {
+       resumable: false,
+       preconditionOpts: { ifGenerationMatch: 0 },
+       metadata: {
+         contentType,
+         cacheControl: "private, no-store, max-age=0",
+         metadata,
+       },
+     });
+   } catch (error) {
+     if (Number(error && error.code) !== 412) throw error;
+     const [existing] = await file.getMetadata();
+     const custom = existing.metadata || {};
+     if (existing.contentType !== contentType ||
+         String(custom.mediaId) !== request.mediaId ||
+         String(custom.sourceGeneration) !== request.objectGeneration ||
+         String(custom.sourceSha256) !== sourceSha256 ||
+         String(custom.scannerProvider) !== provider ||
+         String(custom.processing) !== pipelineVersion ||
+         Number(existing.size) <= 0 || Number(existing.size) > maxBytes) {
+       throw new Error("EXISTING_DERIVATIVE_PROVENANCE_MISMATCH");
+     }
+     return {
+       path: objectPath, generation: String(existing.generation),
+       sha256: await sha256StorageObject(file), contentType, pipelineVersion,
+     };
+   }
+   const [saved] = await file.getMetadata();
+   const custom = saved.metadata || {};
+   if (saved.contentType !== contentType ||
+       String(custom.mediaId) !== request.mediaId ||
+       String(custom.sourceGeneration) !== request.objectGeneration ||
+       String(custom.sourceSha256) !== sourceSha256 ||
+       String(custom.scannerProvider) !== provider ||
+       String(custom.processing) !== pipelineVersion) {
+     throw new Error("DERIVATIVE_METADATA_MISMATCH");
+   }
+   return {
+     path: objectPath, generation: String(saved.generation),
+     sha256: await sha256StorageObject(file), contentType, pipelineVersion,
+   };
+ }
+ 
+ async function sha256StorageObject(file) {
+   const hash = createHash("sha256");
+   for await (const chunk of file.createReadStream()) hash.update(chunk);
+   return hash.digest("hex");
+ }
+ 
+ async function probeGif(sourcePath) {
+   const { stdout } = await execFileAsync("ffprobe", [
+     "-v", "error", "-count_frames", "-select_streams", "v:0",
+     "-show_entries", "format=duration:stream=width,height,nb_read_frames",
+     "-of", "json", sourcePath,
+   ], { timeout: 15_000, maxBuffer: 64 * 1024 });
+   const result = JSON.parse(stdout);
+   const stream = Array.isArray(result.streams) ? result.streams[0] : null;
+   const duration = Number(result.format && result.format.duration);
+   const frames = Number(stream && stream.nb_read_frames);
+   const width = Number(stream && stream.width);
+   const height = Number(stream && stream.height);
+   if (!Number.isSafeInteger(frames) || frames < 1 || frames > LIMITS.gif.maxFrames ||
+       !Number.isSafeInteger(width) || width < 1 ||
+       !Number.isSafeInteger(height) || height < 1 ||
+       !Number.isFinite(duration) || duration <= 0 ||
+       duration > LIMITS.gif.maxDurationSeconds ||
+       width * height * frames > LIMITS.gif.maxPixels) {
+     throw new Error("GIF_COMPLEXITY_EXCEEDS_SAFE_LIMIT");
+   }
+   return { frames };
+ }
+ 
+ async function processGif({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
+   const { frames } = await probeGif(sourcePath);
+   const output = path.join(tempDir, "safe-animation.gif");
+   await execFileAsync("ffmpeg", [
+     "-nostdin", "-v", "error", "-y", "-i", sourcePath,
+     "-map", "0:v:0", "-map_metadata", "-1", "-map_chapters", "-1",
+     "-vf", "scale=2048:2048:force_original_aspect_ratio=decrease:flags=lanczos",
+     "-vsync", "0", "-frames:v", String(LIMITS.gif.maxFrames),
+     "-loop", "0", "-f", "gif", output,
+   ], { timeout: 120_000, maxBuffer: 64 * 1024 });
+   const outputFrames = await probeGif(output);
+   if (outputFrames.frames !== frames) throw new Error("GIF_ANIMATION_FRAME_COUNT_CHANGED");
+   const artifact = await uploadDerivative({
+     storage, bucketName, outputPath: output, request, sourceSha256, provider,
+     filename: "animation.gif", contentType: "image/gif",
+     pipelineVersion: "gif-sanitize-preserve-animation-v1", maxBytes: LIMITS.gif.maxBytes,
+   });
+   return { safeDerivative: { category: "gif", ...artifact }, processingStatus: "safe_animation_derivative_ready" };
+ }
+ 
+ async function processAudio({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
+   const probe = await probeMedia(sourcePath);
+-  if (!probe.hasAudio || probe.hasVideo || probe.duration > LIMITS.audio.maxDurationSeconds) {
++  const maxDurationSeconds = audioMaxDurationSecondsForPurpose(request.purpose);
++  if (!probe.hasAudio || probe.hasVideo || probe.duration > maxDurationSeconds) {
+     throw new Error("AUDIO_STREAM_OR_DURATION_INVALID");
+   }
+   const output = path.join(tempDir, "safe-audio.mp3");
+   await execFileAsync("ffmpeg", [
+     "-nostdin", "-v", "error", "-y", "-i", sourcePath,
+     "-map", "0:a:0", "-vn", "-map_metadata", "-1", "-map_chapters", "-1",
+-    "-t", String(LIMITS.audio.maxDurationSeconds), "-ac", "1", "-ar", "44100",
++    "-t", String(maxDurationSeconds), "-ac", "1", "-ar", "44100",
+     "-c:a", "libmp3lame", "-b:a", "96k", "-f", "mp3", output,
+   ], { timeout: 120_000, maxBuffer: 64 * 1024 });
+   const artifact = await uploadDerivative({
+     storage, bucketName, outputPath: output, request, sourceSha256, provider,
+     filename: "audio.mp3", contentType: "audio/mpeg",
+-    pipelineVersion: "ffmpeg-audio-transcode-v1", maxBytes: LIMITS.audio.maxBytes,
++    pipelineVersion: "ffmpeg-audio-transcode-v2-purpose-duration-v1", maxBytes: LIMITS.audio.maxBytes,
+   });
+   return { safeDerivative: { category: "audio", ...artifact }, processingStatus: "safe_audio_derivative_ready" };
+ }
+ 
+ async function processVideo({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
+   const probe = await probeMedia(sourcePath);
+   if (!probe.hasVideo || probe.duration > LIMITS.video.maxDurationSeconds) {
+     throw new Error("VIDEO_STREAM_OR_DURATION_INVALID");
+   }
+   const output = path.join(tempDir, "safe-video.mp4");
+   await execFileAsync("ffmpeg", [
+     "-nostdin", "-v", "error", "-y", "-i", sourcePath,
+     "-map", "0:v:0", "-map", "0:a:0?", "-map_metadata", "-1", "-map_chapters", "-1",
+     "-t", String(LIMITS.video.maxDurationSeconds),
+     "-vf", "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,format=yuv420p",
+     "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", "-threads", "2",
+     "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", "-f", "mp4", output,
+   ], { timeout: 180_000, maxBuffer: 64 * 1024 });
+   const artifact = await uploadDerivative({
+     storage, bucketName, outputPath: output, request, sourceSha256, provider,
+     filename: "video.mp4", contentType: "video/mp4",
+     pipelineVersion: "ffmpeg-video-transcode-v1", maxBytes: LIMITS.video.maxBytes,
+   });
+   return { safeDerivative: { category: "video", ...artifact }, processingStatus: "safe_video_derivative_ready" };
+ }
+ 
+ async function processPdf({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
+   const { stdout } = await execFileAsync("pdfinfo", [sourcePath], {
+     timeout: 15_000, maxBuffer: 64 * 1024,
+   });
+   const pagesMatch = stdout.match(/^Pages:\s+(\d+)\s*$/m);
+   const pages = pagesMatch ? Number(pagesMatch[1]) : 0;
+   if (!Number.isSafeInteger(pages) || pages < 1 || pages > LIMITS.pdf.maxPages) {
+     throw new Error("PDF_PAGE_COUNT_INVALID");
+   }
+   // Rasterize every page and rebuild a flat image-only PDF. This strips scripts,
+   // embedded files, forms, annotations, links and original document objects.
+   const prefix = path.join(tempDir, "pdf-page");
+   await execFileAsync("pdftoppm", [
+     "-scale-to", "1600", "-png", "-f", "1", "-l", String(LIMITS.pdf.maxPages),
+     sourcePath, prefix,
+   ], { timeout: 120_000, maxBuffer: 64 * 1024 });
+   const names = (await fs.readdir(tempDir))
+     .filter((name) => /^pdf-page-\d+\.png$/.test(name))
+     .sort((a, b) => Number(a.match(/(\d+)/)[1]) - Number(b.match(/(\d+)/)[1]));
+   if (names.length !== pages) throw new Error("PDF_RASTER_PAGE_COUNT_MISMATCH");
+   const output = path.join(tempDir, "safe-document.pdf");
+   const script = "import img2pdf,sys; open(sys.argv[1],'wb').write(img2pdf.convert(sys.argv[2:]))";
+   await execFileAsync("python3", ["-c", script, output, ...names.map((name) => path.join(tempDir, name))], {
+     timeout: 60_000, maxBuffer: 64 * 1024,
+   });
+   const artifact = await uploadDerivative({
+     storage, bucketName, outputPath: output, request, sourceSha256, provider,
+     filename: "document.pdf", contentType: "application/pdf",
+     pipelineVersion: "pdf-raster-flatten-v1", maxBytes: LIMITS.pdf.maxBytes,
+   });
+   return { safeDerivative: { category: "document", ...artifact }, processingStatus: "safe_document_derivative_ready" };
+ }
+ 
+ async function processSafeDerivative(context) {
+   switch (context.request.contentType) {
+     case "image/gif": return processGif(context);
+     case "audio/mpeg":
+     case "audio/mp4":
+     case "audio/ogg":
+     case "audio/wav": return processAudio(context);
+     case "video/mp4": return processVideo(context);
+     case "application/pdf": return processPdf(context);
+     default: return null;
+   }
+ }
+ 
+-module.exports = { LIMITS, safeOutputPath, probeMedia, probeGif, processSafeDerivative };
++module.exports = { LIMITS, audioMaxDurationSecondsForPurpose, safeOutputPath, probeMedia, probeGif, processSafeDerivative };
+diff --git a/scanner/security.js b/scanner/security.js
+index af828e58..89c761a2 100644
+--- a/scanner/security.js
++++ b/scanner/security.js
+@@ -1,111 +1,114 @@
+ const { timingSafeEqual } = require("node:crypto");
+ 
+ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+ const GENERATION = /^\d{1,24}$/;
++const MEDIA_PURPOSES = new Set(["chat", "room", "profile_album", "avatar_cover", "story"]);
+ 
+ function equalSecret(actual, expected) {
+   if (typeof actual !== "string" || typeof expected !== "string") return false;
+   const a = Buffer.from(actual);
+   const b = Buffer.from(expected);
+   return a.length === b.length && a.length >= 32 && timingSafeEqual(a, b);
+ }
+ 
+ function validateScanRequest(value, provider, bucketName, expectedCallbackUrl) {
+   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+   const v = value;
+   if (typeof v.mediaId !== "string" || !UUID.test(v.mediaId) ||
+       typeof v.objectPath !== "string" ||
+       !/^quarantine\/[A-Za-z0-9_-]{1,128}\/[0-9a-f-]{36}$/i.test(v.objectPath) ||
+       !v.objectPath.endsWith("/" + v.mediaId) ||
+       typeof v.objectGeneration !== "string" || !GENERATION.test(v.objectGeneration) ||
+       typeof v.downloadUrl !== "string" ||
+       typeof v.callbackUrl !== "string" || v.callbackUrl !== expectedCallbackUrl ||
+       typeof v.provider !== "string" || v.provider !== provider ||
+-      typeof v.contentType !== "string") return null;
++      typeof v.contentType !== "string" ||
++      typeof v.purpose !== "string" || !MEDIA_PURPOSES.has(v.purpose)) return null;
+ 
+   let url;
+   try { url = new URL(v.downloadUrl); } catch { return null; }
+   const allowedHosts = new Set(["storage.googleapis.com", `${bucketName}.storage.googleapis.com`]);
+   let decodedPath;
+   try { decodedPath = decodeURIComponent(url.pathname); } catch { return null; }
+   const expectedPath = url.hostname === "storage.googleapis.com"
+     ? `/${bucketName}/${v.objectPath}`
+     : `/${v.objectPath}`;
+   const allowedTypes = new Set([
+     "image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4",
+     "audio/mpeg", "audio/mp4", "audio/ogg", "audio/wav", "application/pdf",
+   ]);
+   if (url.protocol !== "https:" || !allowedHosts.has(url.hostname) ||
+       url.username || url.password || url.hash ||
+       decodedPath !== expectedPath ||
+       url.searchParams.get("generation") !== v.objectGeneration ||
+       !allowedTypes.has(v.contentType)) {
+     return null;
+   }
+   let callback;
+   try { callback = new URL(v.callbackUrl); } catch { return null; }
+   if (callback.protocol !== "https:" || callback.username || callback.password || callback.hash) return null;
+   return {
+     callbackUrl: callback.toString(),
+     mediaId: v.mediaId,
+     objectPath: v.objectPath,
+     objectGeneration: v.objectGeneration,
+     downloadUrl: url.toString(),
+     provider: v.provider,
+     contentType: v.contentType,
++    purpose: v.purpose,
+   };
+ }
+ 
+ function isSafeDerivativeMetadata(metadata, expected) {
+   const custom = metadata && metadata.metadata;
+   const size = Number(metadata && metadata.size);
+   return Boolean(metadata && custom &&
+     metadata.contentType === "image/webp" &&
+     Number.isSafeInteger(size) && size > 0 && size <= 2 * 1024 * 1024 &&
+     custom.mediaId === expected.mediaId &&
+     custom.sourceGeneration === expected.objectGeneration &&
+     custom.sourceSha256 === expected.sourceSha256 &&
+     custom.scannerProvider === expected.provider &&
+     custom.processing === "sharp-decode-reencode-v1");
+ }
+ 
+ function isSignatureDatabaseFresh(lastUpdatedMs, nowMs = Date.now(), maxAgeMs = 36 * 60 * 60 * 1000) {
+   return Number.isFinite(lastUpdatedMs) && Number.isFinite(nowMs) &&
+     Number.isFinite(maxAgeMs) && maxAgeMs > 0 &&
+     lastUpdatedMs <= nowMs + 5 * 60 * 1000 &&
+     nowMs - lastUpdatedMs <= maxAgeMs;
+ }
+ 
+ function parseClamAvVersion(output) {
+   if (typeof output !== "string") return null;
+   const match = output.trim().match(/^ClamAV\s+(\d+(?:\.\d+){1,2})\/(\d+)\/.+$/);
+   if (!match) return null;
+   return {
+     scanEngine: "ClamAV",
+     engineVersion: match[1],
+     signatureDatabaseVersion: match[2],
+   };
+ }
+ 
+ function sanitizeScannerError(error) {
+   const message = error instanceof Error ? error.message : String(error ?? "");
+   const fixed = new Set([
+     "REQUEST_TOO_LARGE", "SOURCE_EXCEEDS_SCAN_LIMIT", "EMPTY_SOURCE_OBJECT",
+     "CLAMAV_SCAN_INCOMPLETE", "SAFE_DERIVATIVE_SIZE_INVALID",
+     "GIF_COMPLEXITY_EXCEEDS_SAFE_LIMIT", "EXISTING_SAFE_DERIVATIVE_PROVENANCE_MISMATCH",
+     "SAFE_DERIVATIVE_METADATA_MISMATCH", "SCANNER_CALLBACK_NOT_CONFIGURED",
+     "DERIVATIVE_SIZE_INVALID", "EXISTING_DERIVATIVE_PROVENANCE_MISMATCH",
+     "DERIVATIVE_METADATA_MISMATCH", "INVALID_DERIVATIVE_PATH",
+     "MEDIA_DURATION_INVALID", "AUDIO_STREAM_OR_DURATION_INVALID",
+     "VIDEO_STREAM_OR_DURATION_INVALID", "PDF_PAGE_COUNT_INVALID",
+     "PDF_RASTER_PAGE_COUNT_MISMATCH", "GIF_ANIMATION_FRAME_COUNT_CHANGED",
+   ]);
+   if (fixed.has(message) || /^SOURCE_DOWNLOAD_HTTP_[0-9]{3}$/.test(message) ||
+       /^SCANNER_CALLBACK_HTTP_[0-9]{3}$/.test(message)) return message;
+   return "SCAN_FAILED";
+ }
+ 
+ module.exports = {
+   equalSecret, validateScanRequest, isSafeDerivativeMetadata, sanitizeScannerError,
+   isSignatureDatabaseFresh, parseClamAvVersion,
+ };
+diff --git a/scanner/server.js b/scanner/server.js
+index db7a03b4..b9c662ed 100644
+--- a/scanner/server.js
++++ b/scanner/server.js
+@@ -200,147 +200,148 @@ async function createSafeImageDerivative(sourcePath, request, sourceSha256) {
+   if (!isSafeDerivativeMetadata(metadata, expectedMetadata)) {
+     throw new Error("SAFE_DERIVATIVE_METADATA_MISMATCH");
+   }
+   return {
+     safePreviewPath: derivativePath,
+     safePreviewGeneration: String(metadata.generation),
+     safePreviewSha256: await sha256StorageObject(derivative),
+     safePreviewContentType: "image/webp",
+   };
+ }
+ 
+ async function sendVerdict(payload, callbackUrl) {
+   if (!CALLBACK_URL || !HMAC_SECRET || HMAC_SECRET.length < 32) {
+     throw new Error("SCANNER_CALLBACK_NOT_CONFIGURED");
+   }
+   const body = Buffer.from(JSON.stringify(payload));
+   const signature = createHmac("sha256", HMAC_SECRET).update(body).digest("hex");
+   const response = await fetch(callbackUrl, {
+     method: "POST",
+     headers: {
+       "content-type": "application/json",
+       "x-mawadda-scanner-signature": signature,
+       "idempotency-key": `${payload.mediaId}:${payload.objectGeneration}`,
+     },
+     body,
+     redirect: "error",
+     signal: AbortSignal.timeout(15_000),
+   });
+   if (!response.ok) throw new Error(`SCANNER_CALLBACK_HTTP_${response.status}`);
+ }
+ 
+ async function handleScan(request, response) {
+   const started = Date.now();
+   let tempDir;
+   let scanRequest;
+   try {
+     if (!equalSecret(request.headers["x-mawadda-scanner-token"], API_TOKEN)) {
+       json(response, 401, { error: "unauthorized" });
+       return;
+     }
+     if (!API_TOKEN || API_TOKEN.length < 32 || !BUCKET_NAME) {
+       json(response, 503, { error: "scanner_not_configured" });
+       return;
+     }
+     const signatures = await signatureDatabaseStatus();
+     if (!signatures.fresh) {
+       json(response, 503, { error: "scanner_signatures_stale" });
+       return;
+     }
+     const body = await readJson(request);
+     scanRequest = validateScanRequest(body, PROVIDER, BUCKET_NAME, CALLBACK_URL);
+     if (!scanRequest) {
+       json(response, 400, { error: "invalid_scan_request" });
+       return;
+     }
+ 
+     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "mawadda-scan-"));
+     const sourcePath = path.join(tempDir, "source.bin");
+     await downloadToFile(scanRequest.downloadUrl, sourcePath);
+     const sourceSha256 = await sha256File(sourcePath);
+     const { stdout: versionOutput } = await execFileAsync("clamscan", ["--version"], {
+       timeout: 10_000,
+       maxBuffer: 4_096,
+     });
+     const scannerIdentity = parseClamAvVersion(versionOutput);
+     if (!scannerIdentity) throw new Error("CLAMAV_VERSION_UNAVAILABLE");
+     const verdict = await scanWithClamAv(sourcePath);
+     let derivative = null;
+     if (verdict === "clean") {
+       derivative = await createSafeImageDerivative(sourcePath, scanRequest, sourceSha256);
+       if (!derivative) {
+         derivative = await processSafeDerivative({
+           sourcePath, tempDir, request: scanRequest, sourceSha256,
+           storage, bucketName: BUCKET_NAME, provider: PROVIDER,
+         });
+       }
+     }
+ 
+     await sendVerdict({
+       mediaId: scanRequest.mediaId,
++      purpose: scanRequest.purpose,
+       provider: PROVIDER,
+       verdict,
+       ...scannerIdentity,
+       signatureDatabaseAgeMs: Math.max(0, Math.floor(signatures.ageMs)),
+       objectGeneration: scanRequest.objectGeneration,
+       sha256: sourceSha256,
+       scannedAtMs: Date.now(),
+       ...(derivative || {}),
+     }, scanRequest.callbackUrl);
+     console.info(JSON.stringify({
+       event: "media_scan_completed",
+       mediaId: scanRequest.mediaId,
+       provider: PROVIDER,
+       verdict,
+       derivativeCreated: Boolean(derivative),
+       derivativeType: derivative ? Object.keys(derivative).find((key) => key.startsWith("safe") && key.endsWith("Path")) || "unknown" : null,
+       durationMs: Date.now() - started,
+     }));
+     json(response, 202, { accepted: true, mediaId: scanRequest.mediaId, verdict });
+   } catch (error) {
+     console.error(JSON.stringify({
+       event: "media_scan_failed",
+       mediaId: scanRequest?.mediaId || null,
+       errorCode: sanitizeScannerError(error),
+       durationMs: Date.now() - started,
+     }));
+     json(response, 503, { error: "scan_unavailable" });
+   } finally {
+     if (tempDir) await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+   }
+ }
+ 
+ const callbackEndpoint = (() => {
+   try { return new URL(CALLBACK_URL); } catch { return null; }
+ })();
+ if (API_TOKEN.length < 32 || HMAC_SECRET.length < 32 || !BUCKET_NAME ||
+     !callbackEndpoint || callbackEndpoint.protocol !== "https:" ||
+     !callbackEndpoint.hostname.endsWith(".cloudfunctions.net") ||
+     callbackEndpoint.pathname !== "/receiveMediaScanVerdict" ||
+     callbackEndpoint.search || callbackEndpoint.hash ||
+     !Number.isSafeInteger(MAX_DOWNLOAD_BYTES) || MAX_DOWNLOAD_BYTES <= 0 ||
+     MAX_DOWNLOAD_BYTES > 100 * 1024 * 1024 ||
+     !Number.isSafeInteger(SCAN_TIMEOUT_MS) || SCAN_TIMEOUT_MS <= 0 ||
+     !Number.isSafeInteger(MAX_SIGNATURE_AGE_MS) || MAX_SIGNATURE_AGE_MS <= 0) {
+   throw new Error("Scanner runtime configuration is incomplete or outside approved safety bounds.");
+ }
+ 
+ const server = http.createServer(async (request, response) => {
+   if (request.method === "GET" && request.url === "/healthz") {
+     const signatures = await signatureDatabaseStatus();
+     json(response, signatures.fresh ? 200 : 503, {
+       status: signatures.fresh ? "ok" : "degraded",
+       provider: PROVIDER,
+       signatureAgeMs: signatures.ageMs,
+     });
+     return;
+   }
+   if (request.method !== "POST" || request.url !== "/scan") {
+     json(response, 404, { error: "not_found" });
+     return;
+   }
+   await handleScan(request, response);
+ });
+ 
+ server.listen(PORT, "0.0.0.0", () => {
+   console.info(JSON.stringify({ event: "scanner_started", port: PORT, provider: PROVIDER }));
+ });
+diff --git a/scanner/test/processors.integration.test.js b/scanner/test/processors.integration.test.js
+index d0ae1e44..8ad9932b 100644
+--- a/scanner/test/processors.integration.test.js
++++ b/scanner/test/processors.integration.test.js
+@@ -21,117 +21,118 @@ function fakeStorage() {
+       return {
+         file(objectPath) {
+           return {
+             async save(data, options) {
+               if (options?.preconditionOpts?.ifGenerationMatch === 0 && objects.has(objectPath)) {
+                 const error = new Error("precondition failed");
+                 error.code = 412;
+                 throw error;
+               }
+               objects.set(objectPath, {
+                 data: Buffer.from(data),
+                 metadata: {
+                   generation: String(objects.size + 1),
+                   size: String(data.length),
+                   contentType: options.metadata.contentType,
+                   metadata: options.metadata.metadata,
+                 },
+               });
+             },
+             async getMetadata() {
+               const object = objects.get(objectPath);
+               if (!object) throw new Error("not found");
+               return [object.metadata];
+             },
+             createReadStream() {
+               const object = objects.get(objectPath);
+               if (!object) throw new Error("not found");
+               return Readable.from(object.data);
+             },
+           };
+         },
+       };
+     },
+   };
+ }
+ 
+ async function makeFixture(type, dir) {
+   const output = path.join(dir, `source.${type}`);
+   if (type === "gif") {
+     await execFileAsync("ffmpeg", [
+       "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i",
+       "color=c=red:s=32x32:r=2", "-t", "1", "-loop", "0", output,
+     ]);
+   } else if (type === "wav") {
+     await execFileAsync("ffmpeg", [
+       "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i",
+       "sine=frequency=440:duration=1", "-c:a", "pcm_s16le", output,
+     ]);
+   } else if (type === "mp4") {
+     await execFileAsync("ffmpeg", [
+       "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i",
+       "testsrc2=size=64x64:rate=5:duration=1", "-c:v", "libx264",
+       "-pix_fmt", "yuv420p", output,
+     ]);
+   } else if (type === "pdf") {
+     const script = "from reportlab.pdfgen import canvas; import sys; c=canvas.Canvas(sys.argv[1]); c.drawString(40,800,'Mawda safe document test'); c.save()";
+     await execFileAsync("python3", ["-c", script, output]);
+   }
+   return output;
+ }
+ 
+ const cases = [
+   { fixture: "gif", contentType: "image/gif", category: "gif", path: "animation.gif", content: "image/gif", field: "safe_animation_derivative_ready" },
+   { fixture: "wav", contentType: "audio/wav", category: "audio", path: "audio.mp3", content: "audio/mpeg", field: "safe_audio_derivative_ready" },
+   { fixture: "mp4", contentType: "video/mp4", category: "video", path: "video.mp4", content: "video/mp4", field: "safe_video_derivative_ready" },
+   { fixture: "pdf", contentType: "application/pdf", category: "document", path: "document.pdf", content: "application/pdf", field: "safe_document_derivative_ready" },
+ ];
+ 
+ for (const item of cases) {
+   test(`real ${item.category} processor emits a bounded, provenance-bound derivative`, async () => {
+     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "mawadda-processor-test-"));
+     try {
+       const sourcePath = await makeFixture(item.fixture, tempDir);
+       const sourceSha256 = createHash("sha256").update(await fs.readFile(sourcePath)).digest("hex");
+       const storage = fakeStorage();
+       const result = await processSafeDerivative({
+         sourcePath, tempDir,
+         request: {
+           mediaId, objectPath: `quarantine/member_1/${mediaId}`,
+           objectGeneration: "123456", contentType: item.contentType,
++          purpose: item.category === "audio" ? "room" : "chat",
+         },
+         sourceSha256, storage, bucketName: "mawadda-test", provider,
+       });
+       assert.equal(result.safeDerivative.category, item.category);
+       assert.equal(result.safeDerivative.path, `processed/member_1/${mediaId}/${item.path}`);
+       assert.equal(result.safeDerivative.contentType, item.content);
+       assert.match(result.safeDerivative.generation, /^[1-9][0-9]*$/);
+       assert.match(result.safeDerivative.sha256, /^[a-f0-9]{64}$/);
+       assert.ok(storage.objects.has(result.safeDerivative.path));
+       const saved = storage.objects.get(result.safeDerivative.path);
+       assert.equal(saved.metadata.metadata.sourceGeneration, "123456");
+       assert.equal(saved.metadata.metadata.sourceSha256, sourceSha256);
+       assert.equal(saved.metadata.metadata.scannerProvider, provider);
+       assert.equal(saved.metadata.metadata.processing, result.safeDerivative.pipelineVersion);
+       assert.ok(Number(saved.metadata.size) > 0);
+       if (item.category === "gif") {
+         const outputGif = path.join(tempDir, "saved-animation.gif");
+         await fs.writeFile(outputGif, saved.data);
+         const probe = await execFileAsync("ffprobe", [
+           "-v", "error", "-count_frames", "-select_streams", "v:0",
+           "-show_entries", "stream=nb_read_frames",
+           "-of", "default=nokey=1:noprint_wrappers=1", outputGif,
+         ]);
+         assert.ok(Number(probe.stdout.trim()) > 1,
+           "animated GIF sanitizer must preserve multiple frames");
+       }
+       if (item.category === "document") {
+         const flattenedPath = path.join(tempDir, "safe-document.pdf");
+         const extracted = await execFileAsync("pdftotext", [flattenedPath, "-"]);
+         assert.doesNotMatch(extracted.stdout, /Mawda safe document test/,
+           "raster-flattened PDF must not retain the source text layer");
+       }
+     } finally {
+       await fs.rm(tempDir, { recursive: true, force: true });
+     }
+   });
+ }
+diff --git a/scanner/test/processors.test.js b/scanner/test/processors.test.js
+index 6c0f47bd..9f3c683c 100644
+--- a/scanner/test/processors.test.js
++++ b/scanner/test/processors.test.js
+@@ -1,30 +1,34 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+-const { LIMITS, safeOutputPath } = require("../processors");
++const { LIMITS, audioMaxDurationSecondsForPurpose, safeOutputPath } = require("../processors");
+ 
+ test("media processors enforce bounded complexity, duration, page and output budgets", () => {
+   assert.equal(LIMITS.gif.maxFrames, 100);
+   assert.equal(LIMITS.gif.maxDurationSeconds, 30);
+   assert.equal(LIMITS.gif.maxPixels, 40_000_000);
+-  assert.equal(LIMITS.audio.maxDurationSeconds, 600);
++  assert.equal(LIMITS.audio.maxDurationSeconds, 120);
++  assert.equal(LIMITS.audio.roomMaxDurationSeconds, 60);
++  assert.equal(audioMaxDurationSecondsForPurpose("room"), 60);
++  assert.equal(audioMaxDurationSecondsForPurpose("chat"), 120);
++  assert.throws(() => audioMaxDurationSecondsForPurpose("profile_album"), /AUDIO_PURPOSE_INVALID/);
+   assert.equal(LIMITS.video.maxDurationSeconds, 90);
+   assert.equal(LIMITS.pdf.maxPages, 30);
+   assert.equal(LIMITS.gif.maxBytes, 5 * 1024 * 1024);
+   assert.equal(LIMITS.audio.maxBytes, 25 * 1024 * 1024);
+   assert.equal(LIMITS.video.maxBytes, 50 * 1024 * 1024);
+   assert.equal(LIMITS.pdf.maxBytes, 20 * 1024 * 1024);
+ });
+ 
+ test("derivative object paths are canonical and cannot escape the owner's media namespace", () => {
+   const id = "123e4567-e89b-42d3-a456-426614174000";
+   assert.equal(safeOutputPath("member_1", id, "audio.mp3"),
+     `processed/member_1/${id}/audio.mp3`);
+   for (const args of [
+     ["../other", id, "audio.mp3"],
+     ["member", id, "../outside"],
+     ["member", "not-a-uuid", "video.mp4"],
+     ["member", id, "/outside.pdf"],
+   ]) {
+     assert.throws(() => safeOutputPath(...args), /INVALID_DERIVATIVE_PATH/);
+   }
+ });
+diff --git a/scanner/test/security.test.js b/scanner/test/security.test.js
+index 1099fa8e..9b03cdd7 100644
+--- a/scanner/test/security.test.js
++++ b/scanner/test/security.test.js
+@@ -1,86 +1,87 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const { equalSecret, validateScanRequest, isSafeDerivativeMetadata, isSignatureDatabaseFresh, parseClamAvVersion, sanitizeScannerError } = require("../security");
+ 
+ const bucket = "mawda-media-test.appspot.com";
+ const mediaId = "123e4567-e89b-42d3-a456-426614174000";
+ const generation = "1740000000000000";
+ const url = `https://storage.googleapis.com/${bucket}/quarantine/user/${mediaId}?generation=${generation}&X-Goog-Signature=opaque`;
+ 
+ test("scanner API secret comparison is constant-time and rejects weak/missing values", () => {
+   const secret = "s".repeat(48);
+   assert.equal(equalSecret(secret, secret), true);
+   assert.equal(equalSecret(secret, "x".repeat(48)), false);
+   assert.equal(equalSecret(secret, "weak"), false);
+   assert.equal(equalSecret(secret, undefined), false);
+ });
+ 
+ test("scan request accepts only exact quarantine path, UUID, generation and Google Storage HTTPS URL", () => {
+   const valid = {
+     mediaId, objectPath: `quarantine/user/${mediaId}`,
+     objectGeneration: generation, downloadUrl: url,
+     callbackUrl: "https://europe-west1-mawda-media-test.cloudfunctions.net/receiveMediaScanVerdict",
+-    provider: "clamav-mawadda-gateway", contentType: "image/png",
++    provider: "clamav-mawadda-gateway", contentType: "image/png", purpose: "room",
+   };
+   assert.deepEqual(validateScanRequest(valid, "clamav-mawadda-gateway", bucket, valid.callbackUrl), valid);
++  assert.equal(validateScanRequest({ ...valid, purpose: "untrusted" }, valid.provider, bucket, valid.callbackUrl), null);
+   assert.deepEqual(validateScanRequest({ ...valid, contentType: "image/gif" }, "clamav-mawadda-gateway", bucket, valid.callbackUrl).contentType, "image/gif");
+   assert.equal(validateScanRequest({ ...valid, objectPath: `processed/user/${mediaId}` }, valid.provider, bucket, valid.callbackUrl), null);
+   assert.equal(validateScanRequest({ ...valid, callbackUrl: "https://attacker.example/callback" }, valid.provider, bucket, valid.callbackUrl), null);
+   assert.equal(validateScanRequest({ ...valid, objectGeneration: "latest" }, valid.provider, bucket, valid.callbackUrl), null);
+   assert.equal(validateScanRequest({ ...valid, provider: "untrusted" }, valid.provider, bucket), null);
+   assert.equal(validateScanRequest({ ...valid, downloadUrl: "http://127.0.0.1/admin" }, valid.provider, bucket), null);
+   assert.equal(validateScanRequest({ ...valid, downloadUrl: "https://evil.example/file" }, valid.provider, bucket), null);
+   assert.equal(validateScanRequest({ ...valid, downloadUrl: url.replace(generation, "1") }, valid.provider, bucket), null);
+ });
+ 
+ test("safe derivative reuse is bound to source hash, generation, provider and processing version", () => {
+   const expected = {
+     mediaId, objectGeneration: generation, sourceSha256: "a".repeat(64),
+     provider: "clamav-mawadda-gateway",
+   };
+   const metadata = {
+     contentType: "image/webp", size: 4096,
+     metadata: {
+       mediaId,
+       sourceGeneration: generation,
+       sourceSha256: "a".repeat(64),
+       scannerProvider: expected.provider,
+       processing: "sharp-decode-reencode-v1",
+     },
+   };
+   assert.equal(isSafeDerivativeMetadata(metadata, expected), true);
+   assert.equal(isSafeDerivativeMetadata({ ...metadata, size: 2 * 1024 * 1024 }, expected), true);
+   assert.equal(isSafeDerivativeMetadata({ ...metadata, size: 2 * 1024 * 1024 + 1 }, expected), false);
+   assert.equal(isSafeDerivativeMetadata({ ...metadata, metadata: { ...metadata.metadata, sourceSha256: "b".repeat(64) } }, expected), false);
+   assert.equal(isSafeDerivativeMetadata({ ...metadata, metadata: { ...metadata.metadata, sourceGeneration: "1" } }, expected), false);
+   assert.equal(isSafeDerivativeMetadata({ ...metadata, size: 21 * 1024 * 1024 }, expected), false);
+   assert.equal(isSafeDerivativeMetadata({ ...metadata, contentType: "image/png" }, expected), false);
+ });
+ 
+ test("scanner telemetry never emits signed URLs, tokens or temporary file paths", () => {
+   assert.equal(sanitizeScannerError(new Error("CLAMAV_SCAN_INCOMPLETE")), "CLAMAV_SCAN_INCOMPLETE");
+   assert.equal(sanitizeScannerError(new Error("SOURCE_DOWNLOAD_HTTP_403")), "SOURCE_DOWNLOAD_HTTP_403");
+   assert.equal(sanitizeScannerError(new Error("https://storage.googleapis.com/bucket/object?X-Goog-Signature=secret /tmp/scan/source.bin")), "SCAN_FAILED");
+   assert.equal(sanitizeScannerError(new Error("Bearer " + "x".repeat(48))), "SCAN_FAILED");
+ });
+ 
+ 
+ test("ClamAV signature freshness fails closed for missing, stale and future timestamps", () => {
+   const now = 1_800_000_000_000;
+   const maxAge = 36 * 60 * 60 * 1000;
+   assert.equal(isSignatureDatabaseFresh(now - 60 * 60 * 1000, now, maxAge), true);
+   assert.equal(isSignatureDatabaseFresh(now - 40 * 60 * 60 * 1000, now, maxAge), false);
+   assert.equal(isSignatureDatabaseFresh(Number.NaN, now, maxAge), false);
+   assert.equal(isSignatureDatabaseFresh(now + 10 * 60 * 1000, now, maxAge), false);
+ });
+ 
+ 
+ test("ClamAV engine and signature database versions are parsed from the active scanner", () => {
+   assert.deepEqual(parseClamAvVersion("ClamAV 1.4.6/28202/Thu Nov 13 06:00:00 2026"), {
+     scanEngine: "ClamAV",
+     engineVersion: "1.4.6",
+     signatureDatabaseVersion: "28202",
+   });
+   assert.equal(parseClamAvVersion("clamav unavailable"), null);
+   assert.equal(parseClamAvVersion("ClamAV 1.4.6/0/"), null);
+ });

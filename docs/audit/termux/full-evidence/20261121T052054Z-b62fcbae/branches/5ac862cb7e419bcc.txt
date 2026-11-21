@@ -1,0 +1,43 @@
+BRANCH: codex/mawdda-role-capacity-consolidation-2026-11-19
+SHA: 7a134c6d5adf02f8e2bbd3b931deb5ef592fbf1c
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 8a1c8d0b93ed43570c523ab2d8c2598648ddac0e
+
+=== DIVERGENCE target-only / branch-only ===
+398	6
+
+=== BRANCH UNIQUE COMMITS ===
+7a134c6d5adf02f8e2bbd3b931deb5ef592fbf1c ci: validate role capacity consolidation branch
+d0f455dd6f58894502007885fca460970231fe96 ci: test role capacity on governance consolidation branch
+5cbe6131d66b6af469a145c7b016352e8d237d7b feat: enforce transactional five-seat supervisor capacity
+d7aa745a3c19bbbb2093ce4ce6e2cf889e692731 feat: add canonical platform role identity and capacity tests
+0445e318297aa7629c7191fe4046704a97a8d1cf feat: add canonical platform role identity and capacity tests
+c378e6e6371df8fd2a58eb3ba1cdca732030b432 feat: add canonical platform role identity and capacity tests
+
+=== CHERRY STATUS ===
++ c378e6e6371df8fd2a58eb3ba1cdca732030b432 feat: add canonical platform role identity and capacity tests
++ 0445e318297aa7629c7191fe4046704a97a8d1cf feat: add canonical platform role identity and capacity tests
++ d7aa745a3c19bbbb2093ce4ce6e2cf889e692731 feat: add canonical platform role identity and capacity tests
++ 5cbe6131d66b6af469a145c7b016352e8d237d7b feat: enforce transactional five-seat supervisor capacity
++ d0f455dd6f58894502007885fca460970231fe96 ci: test role capacity on governance consolidation branch
++ 7a134c6d5adf02f8e2bbd3b931deb5ef592fbf1c ci: validate role capacity consolidation branch
+
+=== FILE STATUS ===
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+A	functions/test/platform-role-identities.test.js
+
+=== NUMSTAT ===
+3	0	.github/workflows/mawdda-domain-regression.yml
+1	0	.github/workflows/validate.yml
+43	0	functions/src/index.ts
+86	0	functions/src/platform-role-identities.ts
+120	0	functions/test/integration/specialized-role-capacity.integration.test.js
+50	0	functions/test/platform-role-identities.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

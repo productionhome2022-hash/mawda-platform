@@ -1,0 +1,29 @@
+BRANCH: codex/phase1-media-direct-delivery-denials-2026-11-20
+SHA: b72522af9c3eaf7e4c3585514c23c53e5cfa9f7e
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 461a9f21f6bf7bd7e9829fd0c5585de563993572
+
+=== DIVERGENCE target-only / branch-only ===
+189	3
+
+=== BRANCH UNIQUE COMMITS ===
+b72522af9c3eaf7e4c3585514c23c53e5cfa9f7e test(media): reject all non-good-standing direct participants
+6645cdb0ddb817c5971bae40a2e7e3864ed84736 fix(media): use canonical account standing for direct delivery
+45b80fb4dc6d0b09dec5432e2bb52c088b9150ed test(media): cover unauthenticated and suspended direct delivery
+
+=== CHERRY STATUS ===
++ 45b80fb4dc6d0b09dec5432e2bb52c088b9150ed test(media): cover unauthenticated and suspended direct delivery
++ 6645cdb0ddb817c5971bae40a2e7e3864ed84736 fix(media): use canonical account standing for direct delivery
++ b72522af9c3eaf7e4c3585514c23c53e5cfa9f7e test(media): reject all non-good-standing direct participants
+
+=== FILE STATUS ===
+M	functions/src/media.ts
+M	functions/test/integration/media-callables.integration.test.js
+
+=== NUMSTAT ===
+2	5	functions/src/media.ts
+49	0	functions/test/integration/media-callables.integration.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

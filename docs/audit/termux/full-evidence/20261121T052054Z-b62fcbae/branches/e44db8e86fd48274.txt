@@ -1,0 +1,63 @@
+BRANCH: codex/mawdda-unified-final
+SHA: ddf9594ea6029036512ace621f513d6edf58a068
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: c7bdad2faedc9fc0b51a235fc3d334908168f08b
+
+=== DIVERGENCE target-only / branch-only ===
+1647	17
+
+=== BRANCH UNIQUE COMMITS ===
+ddf9594ea6029036512ace621f513d6edf58a068 Validate recurring email verification rewards in CI
+4e424d8ff597b2048fdd18855f43fd2dca35f667 Add email renewal emulator integration command
+80d815a04b8352cc71eed44feeaec64707aacc6f Add email renewal reward integration test
+1d473eb1f43387b1f83095afe51cb934d5b58a40 Implement recurring 90-day email verification and reward
+d28b6f05e6ba1899a55d06b86e337b7bace41073 Clarify biometric reward cooldown feedback
+2e7f9a61dddd9a190bca27be63debe8454de834d Call canonical biometric reward cycle endpoint
+18c0b3e08e171a7f3be035aa963c4f67a7c466c5 Remove duplicate biometric cycle helper tests
+c2ea9f478decef6f0d1c16dcc29844f3e64e9935 Remove duplicate biometric cycle helper
+31f37b5b35b3484bcb78e4d42b87801f84274b6b Use canonical biometric reward cycle callable
+cff845b3a002acb0795d62abb7425585be77fc58 Add member email renewal and reward UI
+2fd653dbf8aa7fa3dbf87cf9fd9084e58eef2c46 Use deterministic reference for expired email cycle cleanup
+9e031a48a160859051c28ca5b98a39f213d1c863 Harden email renewal transaction and retry behavior
+2c1a8584920acd5cdf583a36098a7389ffd7ab84 Implement recurring 90-day email verification rewards
+61acbca18d43a53dab1cf9eac937af255f2d8b44 Connect local biometric prompt to server reward cycle
+abfc375e9b2d75f7da078b94fdcfb36d140166e0 Add server-side biometric reward cycle callable
+4786250299c205c56ec70cb3e1668e85dca972e9 Test biometric reward cycle policy
+d06e108c05778b1e406555405d4acacebcbb2bfc Add server-clocked biometric reward cycles
+
+=== CHERRY STATUS ===
++ d06e108c05778b1e406555405d4acacebcbb2bfc Add server-clocked biometric reward cycles
++ 4786250299c205c56ec70cb3e1668e85dca972e9 Test biometric reward cycle policy
++ abfc375e9b2d75f7da078b94fdcfb36d140166e0 Add server-side biometric reward cycle callable
++ 61acbca18d43a53dab1cf9eac937af255f2d8b44 Connect local biometric prompt to server reward cycle
++ 2c1a8584920acd5cdf583a36098a7389ffd7ab84 Implement recurring 90-day email verification rewards
++ 9e031a48a160859051c28ca5b98a39f213d1c863 Harden email renewal transaction and retry behavior
++ 2fd653dbf8aa7fa3dbf87cf9fd9084e58eef2c46 Use deterministic reference for expired email cycle cleanup
++ cff845b3a002acb0795d62abb7425585be77fc58 Add member email renewal and reward UI
++ 31f37b5b35b3484bcb78e4d42b87801f84274b6b Use canonical biometric reward cycle callable
++ c2ea9f478decef6f0d1c16dcc29844f3e64e9935 Remove duplicate biometric cycle helper
++ 18c0b3e08e171a7f3be035aa963c4f67a7c466c5 Remove duplicate biometric cycle helper tests
++ 2e7f9a61dddd9a190bca27be63debe8454de834d Call canonical biometric reward cycle endpoint
++ d28b6f05e6ba1899a55d06b86e337b7bace41073 Clarify biometric reward cooldown feedback
++ 1d473eb1f43387b1f83095afe51cb934d5b58a40 Implement recurring 90-day email verification and reward
+- 80d815a04b8352cc71eed44feeaec64707aacc6f Add email renewal reward integration test
+- 4e424d8ff597b2048fdd18855f43fd2dca35f667 Add email renewal emulator integration command
+- ddf9594ea6029036512ace621f513d6edf58a068 Validate recurring email verification rewards in CI
+
+=== FILE STATUS ===
+M	.github/workflows/validate.yml
+M	functions/package.json
+M	functions/src/index.ts
+A	functions/test/integration/email-verification-renewal.integration.test.js
+M	lib/screens/profile_screen.dart
+
+=== NUMSTAT ===
+2	0	.github/workflows/validate.yml
+2	1	functions/package.json
+249	1	functions/src/index.ts
+106	0	functions/test/integration/email-verification-renewal.integration.test.js
+128	44	lib/screens/profile_screen.dart
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

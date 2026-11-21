@@ -1,0 +1,529 @@
+diff --git a/functions/test/integration/wallet-store.integration.test.js b/functions/test/integration/wallet-store.integration.test.js
+index 8078fbf1..54369d91 100644
+--- a/functions/test/integration/wallet-store.integration.test.js
++++ b/functions/test/integration/wallet-store.integration.test.js
+@@ -480,80 +480,216 @@ test("owner live streams are scoped to owner direct chats or active rooms and ar
+     const publicRequestId = `live_room_${tag}`;
+     const publicResult = await sendOwnerLiveStream.run(ownerRequest(ownerUid, {
+       requestId: publicRequestId, scope: "room", targetId: publicRoomId,
+       url: "https://www.tiktok.com/@channel/live", title: "بث عام",
+     }));
+     assert.equal(publicResult.scope, "room");
+     assert.equal(publicResult.provider, "tiktok");
+     const publicMessages = await publicRoomRef.collection("messages").get();
+     assert.equal(publicMessages.size, 1);
+     assert.equal(publicMessages.docs[0].data().type, "live_stream");
+     await deleteRoomMessage.run(ownerRequest(ownerUid, {
+       roomId: publicRoomId, messageId: publicMessages.docs[0].id,
+     }));
+     assert.equal((await publicRoomRef.collection("messages").doc(publicMessages.docs[0].id).get()).exists, false);
+ 
+     const rentedRoomId = `rented_live_${tag}`;
+     const rentalId = `rental_live_${tag}`;
+     const future = require("firebase-admin/firestore").Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
+     await Promise.all([
+       db.collection("rooms").doc(rentedRoomId).set({
+         kind: "private", isRented: true, rentalId, status: "active", expiresAt: future,
+       }),
+       db.collection("roomRentals").doc(rentalId).set({
+         roomId: rentedRoomId, ownerUid: memberUid, status: "active", expiresAt: future,
+       }),
+     ]);
+     const rented = await sendOwnerLiveStream.run(ownerRequest(ownerUid, {
+       requestId: `live_private_${tag}`, scope: "room", targetId: rentedRoomId,
+       url: "https://example.org/official-stream", title: "بث خاص",
+     }));
+     assert.equal(rented.idempotentReplay, false);
+ 
+     await db.collection("rooms").doc(`closed_${tag}`).set({
+       kind: "public", status: "closed",
+     });
+     await assert.rejects(
+       () => sendOwnerLiveStream.run(ownerRequest(ownerUid, {
+         requestId: `closed_stream_${tag}`, scope: "room", targetId: `closed_${tag}`,
+         url: "https://example.org/live",
+       })),
+       (error) => error && error.code === "failed-precondition",
+     );
+     const expiredRoomId = `expired_room_${tag}`;
+     const expiredRentalId = `expired_rental_${tag}`;
+     const past = require("firebase-admin/firestore").Timestamp.fromMillis(Date.now() - 1000);
+     await Promise.all([
+       db.collection("rooms").doc(expiredRoomId).set({
+         kind: "private", isRented: true, rentalId: expiredRentalId, status: "active", expiresAt: past,
+       }),
+       db.collection("roomRentals").doc(expiredRentalId).set({
+         roomId: expiredRoomId, ownerUid: memberUid, status: "active", expiresAt: past,
+       }),
+     ]);
+     await assert.rejects(
+       () => sendOwnerLiveStream.run(ownerRequest(ownerUid, {
+         requestId: `expired_stream_${tag}`, scope: "room", targetId: expiredRoomId,
+         url: "https://example.org/live",
+       })),
+       (error) => error && error.code === "failed-precondition",
+     );
+     await assert.rejects(
+       () => sendOwnerLiveStream.run(ownerRequest(ownerUid, {
+         requestId: `unsafe_stream_${tag}`, scope: "room", targetId: publicRoomId,
+         url: "http://127.0.0.1/private",
+       })),
+       (error) => error && error.code === "invalid-argument",
+     );
+     assert.equal((await db.collection("adminAuditLogs").doc("owner_live_stream_" + directMessageId).get()).exists, true);
+   } finally {
+     await Promise.all([
+       chatRef.delete().catch(() => undefined), memberRef.delete().catch(() => undefined),
+       db.collection("rooms").doc(`public_live_${tag}`).delete().catch(() => undefined),
+       db.collection("rooms").doc(`rented_live_${tag}`).delete().catch(() => undefined),
+       db.collection("roomRentals").doc(`rental_live_${tag}`).delete().catch(() => undefined),
+       db.collection("rooms").doc(`closed_${tag}`).delete().catch(() => undefined),
+       db.collection("rooms").doc(`expired_room_${tag}`).delete().catch(() => undefined),
+       db.collection("roomRentals").doc(`expired_rental_${tag}`).delete().catch(() => undefined),
+     ]);
+   }
+ });
++
++
++test("every shipped premium store category charges once and grants its matching entitlement", async () => {
++  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
++  const { projectStoreEntitlementFeatures } = require("../../lib/store-purchase");
++  const tag = suffix();
++  const uid = `premium_store_member_${tag}`;
++  const memberRef = db.collection("users").doc(uid);
++  const items = [
++    ["vip_monthly", "vip", 30],
++    ["title_custom", "title", 30],
++    ["badge_special", "badge", 30],
++    ["avatar_frame_30d", "frame", 30],
++    ["username_color_30d", "username_style", 30],
++    ["username_animated_30d", "username_style", 30],
++    ["profile_analytics_30d", "analytics", 30],
++    ["profile_layout_30d", "profile_layout", 30],
++    ["profile_pin_30d", "profile_layout", 30],
++    ["discovery_boost_7d", "boost", 7],
++    ["profile_theme_30d", "theme", 30],
++    ["visitor_greeting_30d", "greeting", 30],
++  ];
++  const priceCoins = 100;
++  const purchaseRefs = [];
++  const ledgerRefs = [];
++  const entitlementRefs = [];
++  const catalogRefs = items.map(([itemId]) => db.collection("storeCatalog").doc(itemId));
++
++  await memberRef.set({
++    coins: 10000,
++    profileCompleted: true,
++    accountStatus: "active",
++  });
++
++  try {
++    await Promise.all(catalogRefs.map((ref, index) => {
++      const [itemId, category, durationDays] = items[index];
++      return ref.set({
++        itemId,
++        name: `ميزة ${itemId}`,
++        description: "اختبار تكامل لاستحقاق متجر مميز.",
++        category,
++        priceCoins,
++        durationDays,
++        sortOrder: index + 1,
++        active: true,
++        purchaseEnabled: true,
++        fulfillmentReady: true,
++      });
++    }));
++
++    for (const [index, [itemId]] of items.entries()) {
++      const requestId = `premium_${tag}_${index}`;
++      const purchaseId = `${uid}_${requestId}`;
++      const purchaseRef = db.collection("storePurchases").doc(purchaseId);
++      const ledgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
++      const entitlementRef = memberRef.collection("entitlements").doc(itemId);
++      purchaseRefs.push(purchaseRef);
++      ledgerRefs.push(ledgerRef);
++      entitlementRefs.push(entitlementRef);
++
++      const result = await purchaseStoreItem.run(memberRequest(uid, {
++        itemId,
++        requestId,
++        expectedPriceCoins: priceCoins,
++      }));
++      assert.equal(result.idempotentReplay, false, itemId);
++      assert.equal(result.newBalance, 10000 - ((index + 1) * priceCoins), itemId);
++
++      const [purchase, ledger, entitlement] = await Promise.all([
++        purchaseRef.get(),
++        ledgerRef.get(),
++        entitlementRef.get(),
++      ]);
++      assert.equal(purchase.data().status, "completed", itemId);
++      assert.equal(ledger.data().amount, -priceCoins, itemId);
++      assert.equal(entitlement.data().status, "active", itemId);
++      assert.equal(entitlement.data().itemId, itemId, itemId);
++
++      const replay = await purchaseStoreItem.run(memberRequest(uid, {
++        itemId,
++        requestId,
++        expectedPriceCoins: priceCoins,
++      }));
++      assert.equal(replay.idempotentReplay, true, itemId);
++      assert.equal((await memberRef.get()).data().coins, 10000 - ((index + 1) * priceCoins), itemId);
++    }
++
++    const entitlementSnapshots = await Promise.all(entitlementRefs.map((ref) => ref.get()));
++    const projected = projectStoreEntitlementFeatures(
++      entitlementSnapshots.map((snapshot) => snapshot.data()),
++    );
++    assert.equal(projected.vipActive, true);
++    assert.equal(projected.activeTitle, "ميزة title_custom");
++    assert.deepEqual(
++      new Set(projected.activeFeatures.map((feature) => feature.itemId)),
++      new Set(items.map(([itemId]) => itemId)),
++    );
++
++    const member = (await memberRef.get()).data();
++    assert.equal(member.pinnedProfileSection, "interests");
++    assert.ok(member.discoveryBoostExpiresAt.toMillis() > Date.now());
++
++    const disabledPrivacyItem = db.collection("storeCatalog").doc("hide_coins_30d");
++    await disabledPrivacyItem.set({
++      itemId: "hide_coins_30d",
++      name: "إخفاء الرصيد",
++      description: "ميزة خصوصية غير مفعلة.",
++      category: "privacy",
++      priceCoins,
++      durationDays: 30,
++      active: true,
++      purchaseEnabled: false,
++      fulfillmentReady: false,
++    });
++    await assert.rejects(
++      () => purchaseStoreItem.run(memberRequest(uid, {
++        itemId: "hide_coins_30d",
++        requestId: `privacy_${tag}`,
++        expectedPriceCoins: priceCoins,
++      })),
++      (error) => error && error.code === "failed-precondition",
++    );
++    assert.equal((await memberRef.get()).data().coins, 10000 - (items.length * priceCoins));
++    await disabledPrivacyItem.delete();
++  } finally {
++    await Promise.all([
++      ...purchaseRefs.map((ref) => ref.delete().catch(() => undefined)),
++      ...ledgerRefs.map((ref) => ref.delete().catch(() => undefined)),
++      ...entitlementRefs.map((ref) => ref.delete().catch(() => undefined)),
++      ...catalogRefs.map((ref) => ref.delete().catch(() => undefined)),
++      db.collection("storeCatalog").doc("hide_coins_30d").delete().catch(() => undefined),
++      db.recursiveDelete(memberRef).catch(() => undefined),
++    ]);
++  }
++});
+diff --git a/lib/screens/shop_screen.dart b/lib/screens/shop_screen.dart
+index 5e958699..24992f90 100644
+--- a/lib/screens/shop_screen.dart
++++ b/lib/screens/shop_screen.dart
+@@ -1,237 +1,297 @@
+ import 'package:cloud_functions/cloud_functions.dart';
+ import 'package:flutter/material.dart';
+ import 'package:uuid/uuid.dart';
+ 
+ class ShopScreen extends StatefulWidget {
+   const ShopScreen({super.key, required this.userId});
+   final String userId;
+ 
+   @override
+   State<ShopScreen> createState() => _ShopScreenState();
+ }
+ 
+ class _ShopScreenState extends State<ShopScreen> {
+   late Future<List<Map<String, dynamic>>> _catalogFuture;
+   String? _purchasingItemId;
++  String _selectedStore = 'all';
+ 
+   @override
+   void initState() {
+     super.initState();
+     _catalogFuture = _loadCatalog();
+   }
+ 
+   Future<List<Map<String, dynamic>>> _loadCatalog() async {
+     final response = await FirebaseFunctions.instance
+         .httpsCallable('getStoreCatalog')
+         .call();
+     final data = Map<String, dynamic>.from(response.data as Map);
+     return (data['items'] as List<dynamic>? ?? const [])
+         .whereType<Map>()
+         .map((item) => Map<String, dynamic>.from(item))
+         .toList(growable: false);
+   }
+ 
+   void _refresh() => setState(() => _catalogFuture = _loadCatalog());
+ 
+   Future<void> _purchase(Map<String, dynamic> item) async {
+     final itemId = item['itemId'] as String?;
+     final name = item['name'] as String? ?? 'عنصر مودة';
+     final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
+     if (itemId == null || itemId.isEmpty || price <= 0 || _purchasingItemId != null) return;
+     final confirmed = await showDialog<bool>(
+       context: context,
+       builder: (dialogContext) => AlertDialog(
+         title: const Text('تأكيد شراء العنصر'),
+         content: Text('سيتم خصم $price كوين من محفظتك مقابل "$name"، ومنح الاستحقاق عبر الخادم.'),
+         actions: [
+           TextButton(
+             onPressed: () => Navigator.pop(dialogContext, false),
+             child: const Text('إلغاء'),
+           ),
+           FilledButton(
+             onPressed: () => Navigator.pop(dialogContext, true),
+             child: const Text('تأكيد الشراء'),
+           ),
+         ],
+       ),
+     );
+     if (confirmed != true || !mounted) return;
+     setState(() => _purchasingItemId = itemId);
+     try {
+       final response = await FirebaseFunctions.instance.httpsCallable('purchaseStoreItem').call({
+         'itemId': itemId,
+         'requestId': const Uuid().v4(),
+         'expectedPriceCoins': price,
+       });
+       final result = Map<String, dynamic>.from(response.data as Map);
+       if (!mounted) return;
+       final balance = (result['newBalance'] as num?)?.toInt();
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text(
+           balance == null
+               ? 'تمت معالجة الشراء.'
+               : 'تم الشراء بنجاح. رصيدك الجديد: $balance كوين.',
+         )),
+       );
+       _refresh();
+     } on FirebaseFunctionsException catch (error) {
+       if (!mounted) return;
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text(error.message ?? 'تعذر إتمام الشراء.')),
+       );
+     } catch (_) {
+       if (!mounted) return;
+       ScaffoldMessenger.of(context).showSnackBar(
+         const SnackBar(content: Text('تعذر إتمام الشراء؛ لم يتم تأكيد الخصم أو الاستحقاق.')),
+       );
+     } finally {
+       if (mounted) setState(() => _purchasingItemId = null);
+     }
+   }
+ 
+   String _categoryLabel(String category) => switch (category) {
+-    'avatar' => 'إطارات وصور رمزية',
+-    'theme' => 'سمات وخلفيات',
+-    'title' => 'ألقاب وأوسمة',
++    'avatar' || 'frame' => 'إطارات الصور',
++    'username_style' => 'أنماط الأسماء',
++    'theme' => 'الثيمات والخلفيات',
++    'title' => 'متجر الألقاب',
++    'badge' => 'متجر الأوسمة',
+     'vip' => 'عضوية VIP',
+     'analytics' => 'تحليلات الملف',
+-    'discovery' => 'تعزيز الظهور',
++    'profile_layout' => 'تطوير الملف الشخصي',
++    'boost' => 'تعزيز الظهور',
++    'greeting' => 'ترحيب الزوار',
++    'privacy' => 'الخصوصية - قيد التجهيز',
+     _ => 'ميزات خاصة',
+   };
+ 
++  String _storeGroup(Map<String, dynamic> item) {
++    final category = item['category'] as String? ?? 'feature';
++    return switch (category) {
++      'vip' => 'vip',
++      'title' => 'titles',
++      'badge' => 'badges',
++      'privacy' => 'privacy',
++      _ => 'features',
++    };
++  }
++
++  String _storeGroupLabel(String group) => switch (group) {
++    'all' => 'كل المتاجر',
++    'features' => 'المميزات الخاصة',
++    'badges' => 'الأوسمة',
++    'titles' => 'الألقاب',
++    'vip' => 'VIP',
++    'privacy' => 'الخصوصية',
++    _ => 'المتجر',
++  };
++
+   @override
+   Widget build(BuildContext context) {
+     return Scaffold(
+       appBar: AppBar(
+         title: const Text('متجر مودة'),
+         actions: [
+           IconButton(
+             tooltip: 'تحديث الكتالوج',
+             onPressed: _refresh,
+             icon: const Icon(Icons.refresh),
+           ),
+         ],
+       ),
+       body: FutureBuilder<List<Map<String, dynamic>>>(
+         future: _catalogFuture,
+         builder: (context, snapshot) {
+           if (snapshot.connectionState == ConnectionState.waiting) {
+             return const Center(child: CircularProgressIndicator());
+           }
+           if (snapshot.hasError) {
+             return Center(
+               child: Padding(
+                 padding: const EdgeInsets.all(24),
+                 child: Column(
+                   mainAxisSize: MainAxisSize.min,
+                   children: [
+                     const Icon(Icons.storefront_outlined, size: 48),
+                     const SizedBox(height: 12),
+                     const Text(
+                       'تعذر تحميل كتالوج المتجر. لم يتم تنفيذ أي عملية شراء أو خصم.',
+                       textAlign: TextAlign.center,
+                     ),
+                     TextButton(onPressed: _refresh, child: const Text('إعادة المحاولة')),
+                   ],
+                 ),
+               ),
+             );
+           }
+ 
+           final items = snapshot.data ?? const [];
+           if (items.isEmpty) {
+             return const Center(
+               child: Padding(
+                 padding: EdgeInsets.all(28),
+                 child: Column(
+                   mainAxisSize: MainAxisSize.min,
+                   children: [
+                     Icon(Icons.shopping_bag_outlined, size: 56),
+                     SizedBox(height: 16),
+                     Text(
+                       'يجري تجهيز متجر مودة.',
+                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                     ),
+                     SizedBox(height: 8),
+                     Text(
+                       'ستظهر هنا العناصر التي يعتمدها مالك المنصة بعد نشر كتالوجها من الخادم.',
+                       textAlign: TextAlign.center,
+                     ),
+                   ],
+                 ),
+               ),
+             );
+           }
+ 
++          final visibleItems = _selectedStore == 'all'
++              ? items
++              : items.where((item) => _storeGroup(item) == _selectedStore).toList(growable: false);
++
+           return ListView(
+             padding: const EdgeInsets.all(16),
+             children: [
++              Wrap(
++                spacing: 8,
++                runSpacing: 8,
++                children: const [
++                  'all',
++                  'features',
++                  'badges',
++                  'titles',
++                  'vip',
++                  'privacy',
++                ].map((group) => group).toList(growable: false).map((group) {
++                  return ChoiceChip(
++                    label: Text(_storeGroupLabel(group)),
++                    selected: _selectedStore == group,
++                    onSelected: (selected) {
++                      if (selected) setState(() => _selectedStore = group);
++                    },
++                  );
++                }).toList(growable: false),
++              ),
++              const SizedBox(height: 12),
+               const Card(
+                 child: Padding(
+                   padding: EdgeInsets.all(14),
+                   child: Text(
+-                    'الأسعار المعروضة مصدرها كتالوج الخادم. الشراء والشحن غير مفعّلين حتى اكتمال التحقق المالي ومنح الاستحقاقات بأمان.',
++                    'العناصر وأسعارها مصدرها كتالوج الخادم. عند إتاحة الشراء، ينفّذ الخادم خصم الكوينز وتسجيل الإيصال وقيد المحفظة ومنح الاستحقاق في معاملة واحدة. العناصر غير الجاهزة تبقى غير قابلة للشراء.',
+                     textAlign: TextAlign.center,
+                   ),
+                 ),
+               ),
+               const SizedBox(height: 12),
+-              ...items.map((item) {
++              if (visibleItems.isEmpty)
++                Padding(
++                  padding: const EdgeInsets.all(24),
++                  child: Text(
++                    'لا توجد عناصر منشورة في ${_storeGroupLabel(_selectedStore)} حالياً.',
++                    textAlign: TextAlign.center,
++                  ),
++                ),
++              ...visibleItems.map((item) {
+                 final name = item['name'] as String? ?? 'عنصر من مودة';
+                 final description = item['description'] as String? ?? '';
+                 final category = item['category'] as String? ?? 'feature';
+                 final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
+                 final duration = (item['durationDays'] as num?)?.toInt();
+                 final canPurchase = item['purchaseEnabled'] == true &&
+                     item['fulfillmentReady'] == true;
+                 return Card(
+                   child: Padding(
+                     padding: const EdgeInsets.all(16),
+                     child: Column(
+                       crossAxisAlignment: CrossAxisAlignment.start,
+                       children: [
+                         Text(name, style: Theme.of(context).textTheme.titleMedium),
+                         const SizedBox(height: 5),
+                         Text(_categoryLabel(category),
+                           style: Theme.of(context).textTheme.labelMedium),
+                         if (description.isNotEmpty) ...[
+                           const SizedBox(height: 8),
+                           Text(description),
+                         ],
+                         const SizedBox(height: 12),
+                         Row(
+                           children: [
+                             const Icon(Icons.monetization_on_outlined),
+                             const SizedBox(width: 6),
+                             Text('$price كوين'),
+                             if (duration != null) ...[
+                               const SizedBox(width: 12),
+                               Text('المدة: $duration يوماً'),
+                             ],
+                             const Spacer(),
+                             FilledButton(
+                               onPressed: canPurchase && _purchasingItemId == null
+                                   ? () => _purchase(item)
+                                   : null,
+                               child: _purchasingItemId == item['itemId']
+                                   ? const SizedBox(
+                                       width: 18,
+                                       height: 18,
+                                       child: CircularProgressIndicator(strokeWidth: 2),
+                                     )
+                                   : Text(canPurchase ? 'شراء' : 'غير متاح بعد'),
+                             ),
+                           ],
+                         ),
+                       ],
+                     ),
+                   ),
+                 );
+               }),
+             ],
+           );
+         },
+       ),
+     );
+   }
+ }

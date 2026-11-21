@@ -1,0 +1,53 @@
+BRANCH: codex/mawdda-room-audio-duration-enforcement
+SHA: dc1c1a43f6c8b4cfb198544ad21975612f89ca83
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 7aa8e7c031001ebdf326552225021182c116fd4e
+
+=== DIVERGENCE target-only / branch-only ===
+1368	5
+
+=== BRANCH UNIQUE COMMITS ===
+dc1c1a43f6c8b4cfb198544ad21975612f89ca83 test(scanner): lock direct and room audio duration limits
+22998d7cea91190d94699ff7a6dfe4d92e7d96a4 fix(scanner): enforce 120-second direct audio ceiling
+3b3f65233ab759e129006c3277377aee6f4f5d5a test(scanner): provide trusted media purpose to processor fixtures
+184473dc85dc7fee6fe536447ce3474ecaa2e7b7 test: include trusted media purpose in scanner verdict fixtures
+33afd071dfa42ebb3fca10a8b6b2c8f68a8bb1b4 fix: enforce room audio duration in trusted scanner pipeline
+
+=== CHERRY STATUS ===
++ 33afd071dfa42ebb3fca10a8b6b2c8f68a8bb1b4 fix: enforce room audio duration in trusted scanner pipeline
++ 184473dc85dc7fee6fe536447ce3474ecaa2e7b7 test: include trusted media purpose in scanner verdict fixtures
+- 3b3f65233ab759e129006c3277377aee6f4f5d5a test(scanner): provide trusted media purpose to processor fixtures
++ 22998d7cea91190d94699ff7a6dfe4d92e7d96a4 fix(scanner): enforce 120-second direct audio ceiling
++ dc1c1a43f6c8b4cfb198544ad21975612f89ca83 test(scanner): lock direct and room audio duration limits
+
+=== FILE STATUS ===
+M	functions/src/media-scanner.ts
+M	functions/src/media.ts
+M	functions/test/media-scanner.test.js
+M	lib/screens/chat_room_screen.dart
+M	lib/screens/guest_room_chat_screen.dart
+M	lib/widgets/chat_audio_controls.dart
+M	scanner/processors.js
+M	scanner/security.js
+M	scanner/server.js
+M	scanner/test/processors.integration.test.js
+M	scanner/test/processors.test.js
+M	scanner/test/security.test.js
+
+=== NUMSTAT ===
+5	1	functions/src/media-scanner.ts
+8	2	functions/src/media.ts
+5	1	functions/test/media-scanner.test.js
+1	1	lib/screens/chat_room_screen.dart
+1	1	lib/screens/guest_room_chat_screen.dart
+2	1	lib/widgets/chat_audio_controls.dart
+12	5	scanner/processors.js
+4	1	scanner/security.js
+1	0	scanner/server.js
+1	0	scanner/test/processors.integration.test.js
+6	2	scanner/test/processors.test.js
+2	1	scanner/test/security.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

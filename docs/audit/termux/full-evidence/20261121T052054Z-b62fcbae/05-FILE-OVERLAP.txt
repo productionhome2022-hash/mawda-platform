@@ -1,0 +1,983 @@
+FILES CHANGED BY MULTIPLE BRANCHES
+
+.github/workflows/flutter-ci.yml
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economy-recovery-2026-11-18
+
+.github/workflows/mawdda-domain-regression.yml
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-economy-selective-port-2026-11-19
+  - codex/mawdda-retention-approval-ci-repair-2026-11-19
+  - codex/mawdda-role-capacity-after-retention-2026-11-19
+  - codex/mawdda-role-capacity-consolidation-2026-11-19
+  - codex/mawdda-role-capacity-final-2026-11-19
+  - codex/mawdda-step1-role-reconcile-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+.github/workflows/validate.yml
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-phase2-hardening
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-economy-selective-port-2026-11-19
+  - codex/mawdda-independent-verification-cycles-2026-11-20
+  - codex/mawdda-independent-verification-cycles-dev-2026-11-20
+  - codex/mawdda-retention-approval-ci-repair-2026-11-19
+  - codex/mawdda-role-capacity-after-retention-2026-11-19
+  - codex/mawdda-role-capacity-consolidation-2026-11-19
+  - codex/mawdda-role-capacity-final-2026-11-19
+  - codex/mawdda-step1-role-reconcile-2026-11-19
+  - codex/mawdda-unified-final
+  - codex/phase1-ci-coverage-role-store-2026-11-20
+  - codex/phase1-store-gift-concurrency-2026-11-20
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+README.md
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-serving-foundation
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawdda-unified-test-2026-11-18
+
+docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+  - codex/economy-recovery-2026-11-18
+  - codex/mawdda-unified-test-2026-11-18
+
+docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+  - codex/economic-phase-completion-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+
+docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+  - codex/economy-recovery-2026-11-18
+  - codex/mawdda-unified-test-2026-11-18
+
+docs/ECONOMY_PHASE1_EXECUTION_CLOSEOUT.md
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18
+
+docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md
+  - codex/economic-phase-completion-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+
+docs/IMPLEMENTATION_TRACEABILITY.md
+  - codex/economic-phase-controlled-integration-2026-11-19
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-serving-foundation
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawdda-retention-approval-ci-repair-2026-11-19
+  - codex/mawdda-role-capacity-after-retention-2026-11-19
+  - codex/mawdda-role-capacity-final-2026-11-19
+  - codex/mawdda-step1-role-reconcile-2026-11-19
+  - codex/mawdda-unified-test-2026-11-18
+
+docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+  - codex/canonical-role-terminology-owner-confirmation-2026-11-19
+  - codex/economic-phase-controlled-integration-2026-11-19
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-serving-foundation
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-retention-approval-ci-repair-2026-11-19
+  - codex/mawdda-role-capacity-after-retention-2026-11-19
+  - codex/mawdda-role-capacity-final-2026-11-19
+  - codex/mawdda-step1-role-reconcile-2026-11-19
+  - codex/mawdda-unified-test-2026-11-18
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+  - codex/canonical-role-terminology-owner-confirmation-2026-11-19
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+docs/MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+  - codex/economic-phase-controlled-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-role-capacity-after-retention-2026-11-19
+  - codex/mawdda-role-capacity-final-2026-11-19
+  - codex/mawdda-step1-role-reconcile-2026-11-19
+
+docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md
+  - codex/canonical-role-terminology-owner-confirmation-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+
+docs/MAWADDA_PRODUCT_CONSTITUTION.md
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+docs/MAWADDA_UNIFIED_CONSTITUTION_2026.md
+  - codex/economic-phase-controlled-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+
+docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+  - codex/economic-phase-controlled-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-retention-approval-ci-repair-2026-11-19
+  - codex/mawdda-role-capacity-after-retention-2026-11-19
+  - codex/mawdda-role-capacity-final-2026-11-19
+  - codex/mawdda-step1-role-reconcile-2026-11-19
+
+docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md
+  - codex/economy-official-port-2026-11-18
+  - codex/economy-recovery-2026-11-18
+
+docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+  - codex/mawdda-biometric-proof-gate-2026-11-20
+  - codex/mawdda-independent-verification-cycles-2026-11-20
+
+docs/RELEASE_READINESS_CHECKLIST.md
+  - codex/canonical-role-terminology-owner-confirmation-2026-11-19
+  - codex/featured-ads-secure-lifecycle-20261118
+
+docs/SEVEN_PHASE_EXECUTION_PLAN.md
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+docs/STRUCTURAL_GOVERNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+  - codex/economy-recovery-2026-11-18
+  - codex/mawdda-unified-test-2026-11-18
+
+docs/phase1/BIOMETRIC_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/mawdda-super-owner-biometric-state-machine-2026-11-20
+
+docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md
+  - codex/economy-recovery-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-test-account-system
+  - codex/mawdda-unified-test-2026-11-18
+
+docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md
+  - codex/economy-recovery-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-test-account-system
+  - codex/mawdda-unified-test-2026-11-18
+
+firestore.indexes.json
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/featured-ads-serving-foundation
+  - codex/mawda-phase2-hardening
+  - codex/mawdda-member-inbox
+  - codex/mawdda-member-inbox-rebased
+  - codex/mawdda-unified-test-2026-11-18
+
+firestore.rules
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/package.json
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-phase2-hardening
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-economy-selective-port-2026-11-19
+  - codex/mawdda-step1-role-reconcile-2026-11-19
+  - codex/mawdda-test-account-system
+  - codex/mawdda-unified-final
+  - codex/mawdda-unified-test-2026-11-18
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/src/advertising-governance.ts
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-role-capacity-final-2026-11-19
+  - codex/mawdda-step1-role-reconcile-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/src/audit-archive.ts
+  - codex/mawdda-audit-archive
+  - codex/mawdda-room-events
+
+functions/src/biometric-media.ts
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/src/biometric-review.ts
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/src/biometric-verification.ts
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-biometric-proof-gate-2026-11-20
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/src/call-entitlements.ts
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawda-unified-constitution-vision-2026-11-19
+
+functions/src/call-usage-policy.ts
+  - codex/economic-phase-completion-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+
+functions/src/capacity-media-management.ts
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/src/coin-purchase-requests.ts
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-official-port-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/src/default-store-catalog.ts
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/src/economy-payment-policy.ts
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economy-recovery-2026-11-18
+
+functions/src/economy-pricing.ts
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/src/email-verification-cycle.ts
+  - codex/economy-recovery-2026-11-18
+  - codex/mawdda-independent-verification-cycles-2026-11-20
+  - codex/mawdda-independent-verification-cycles-dev-2026-11-20
+
+functions/src/engagement-rewards.ts
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+
+functions/src/featured-ad-finance.ts
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/src/featured-ad-rewards.ts
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/src/featured-advertising.ts
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+  - codex/phase1-featured-ad-geography-all-arab-2026-11-20
+
+functions/src/group-call-economy.ts
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-unified-test-2026-11-18
+  - codex/phase1-group-call-remainder-to-initiator-2026-11-20
+
+functions/src/index.ts
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-official-port-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/featured-ads-serving-foundation
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-phase2-hardening
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-audit-archive
+  - codex/mawdda-biometric-proof-gate-2026-11-20
+  - codex/mawdda-economy-selective-port-2026-11-19
+  - codex/mawdda-group-call-capacity-2026-11-20
+  - codex/mawdda-group-call-capacity-2026-11-20-r2
+  - codex/mawdda-independent-verification-cycles-2026-11-20
+  - codex/mawdda-independent-verification-cycles-dev-2026-11-20
+  - codex/mawdda-member-inbox
+  - codex/mawdda-member-inbox-rebased
+  - codex/mawdda-retention-approval-ci-repair-2026-11-19
+  - codex/mawdda-role-capacity-after-retention-2026-11-19
+  - codex/mawdda-role-capacity-consolidation-2026-11-19
+  - codex/mawdda-role-capacity-final-2026-11-19
+  - codex/mawdda-room-events
+  - codex/mawdda-step1-role-reconcile-2026-11-19
+  - codex/mawdda-unified-final
+  - codex/mawdda-unified-release
+  - codex/mawdda-unified-test-2026-11-18
+  - codex/phase1-direct-call-transaction-revalidation-2026-11-20
+  - codex/phase1-media-hold-delete-race-2026-11-20
+  - codex/phase1-rented-room-call-gate-2026-11-20
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/src/media-derivative-contract.ts
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/src/media-quota.ts
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawda-phase2-hardening
+
+functions/src/media-scanner.ts
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawda-phase2-hardening
+  - codex/mawdda-room-audio-duration-enforcement
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/src/media-security.ts
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/src/media.ts
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/featured-ads-serving-foundation
+  - codex/mawda-phase2-hardening
+  - codex/mawdda-member-inbox-rebased
+  - codex/mawdda-room-audio-duration-enforcement
+  - codex/mawdda-unified-test-2026-11-18
+  - codex/phase1-media-direct-delivery-denials-2026-11-20
+  - codex/phase1-media-hold-delete-race-2026-11-20
+  - codex/phase1-scanner-error-callback-test-2026-11-20
+
+functions/src/platform-role-identities.ts
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-role-capacity-after-retention-2026-11-19
+  - codex/mawdda-role-capacity-consolidation-2026-11-19
+  - codex/mawdda-role-capacity-final-2026-11-19
+  - codex/mawdda-step1-role-reconcile-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/src/room-call-policy.ts
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-group-call-capacity-2026-11-20
+  - codex/mawdda-group-call-capacity-2026-11-20-r2
+  - codex/mawdda-unified-test-2026-11-18
+  - codex/phase1-direct-call-transaction-revalidation-2026-11-20
+  - codex/phase1-rented-room-call-gate-2026-11-20
+
+functions/src/room-rental.ts
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+
+functions/src/sticker-catalog.ts
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/src/sticker-policy.ts
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/src/store-catalog.ts
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/src/store-gifting.ts
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-economy-selective-port-2026-11-19
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/src/store-purchase.ts
+  - codex/economic-phase-completion-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+
+functions/src/verification-calendar.ts
+  - codex/mawdda-independent-verification-cycles-2026-11-20
+  - codex/mawdda-independent-verification-cycles-dev-2026-11-20
+
+functions/src/wallet-reconciliation.ts
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economy-recovery-2026-11-18
+
+functions/test/advertising-governance.test.js
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-role-capacity-final-2026-11-19
+  - codex/mawdda-step1-role-reconcile-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/test/audit-archive.test.js
+  - codex/mawdda-audit-archive
+  - codex/mawdda-room-events
+
+functions/test/biometric-media.test.js
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/test/biometric-review.test.js
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/test/biometric-reward-security.test.js
+  - codex/economy-recovery-2026-11-18
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-independent-verification-cycles-2026-11-20
+  - codex/mawdda-independent-verification-cycles-dev-2026-11-20
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/test/biometric-verification.test.js
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-biometric-proof-gate-2026-11-20
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/test/call-entitlements.test.js
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawda-unified-constitution-vision-2026-11-19
+
+functions/test/call-usage-policy.test.js
+  - codex/economic-phase-completion-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+
+functions/test/capacity-media-management.test.js
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/test/coin-purchase-requests.test.js
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-official-port-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/test/economy-payment-policy.test.js
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economy-recovery-2026-11-18
+
+functions/test/economy-pricing.test.js
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/test/email-verification-cycle.test.js
+  - codex/economy-recovery-2026-11-18
+  - codex/mawdda-independent-verification-cycles-2026-11-20
+  - codex/mawdda-independent-verification-cycles-dev-2026-11-20
+
+functions/test/engagement-rewards.test.js
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+
+functions/test/featured-ad-finance.test.js
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/test/featured-ad-rewards.test.js
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/test/featured-advertising.test.js
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+  - codex/phase1-featured-ad-geography-all-arab-2026-11-20
+
+functions/test/fixtures/feature-coverage-matrix.json
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-test-account-system
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/test/group-call-economy.test.js
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-unified-test-2026-11-18
+  - codex/phase1-group-call-remainder-to-initiator-2026-11-20
+
+functions/test/integration/biometric-verification.integration.test.js
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/test/integration/call-signaling.integration.test.js
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/featured-ads-serving-foundation
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-group-call-capacity-2026-11-20
+  - codex/mawdda-group-call-capacity-2026-11-20-r2
+  - codex/mawdda-unified-test-2026-11-18
+  - codex/phase1-rented-room-call-gate-2026-11-20
+
+functions/test/integration/direct-message-deletion.integration.test.js
+  - codex/mawdda-member-inbox
+  - codex/mawdda-member-inbox-rebased
+
+functions/test/integration/email-verification-renewal.integration.test.js
+  - codex/economy-recovery-2026-11-18
+  - codex/mawdda-independent-verification-cycles-2026-11-20
+  - codex/mawdda-independent-verification-cycles-dev-2026-11-20
+  - codex/mawdda-super-owner-biometric-state-machine-2026-11-20
+  - codex/mawdda-unified-final
+
+functions/test/integration/engagement-rewards.integration.test.js
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/test/integration/featured-ad-finance.integration.test.js
+  - codex/economic-phase-completion-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-retention-approval-ci-repair-2026-11-19
+  - codex/mawdda-role-capacity-final-2026-11-19
+  - codex/mawdda-step1-role-reconcile-2026-11-19
+
+functions/test/integration/media-callables.integration.test.js
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/featured-ads-serving-foundation
+  - codex/mawda-phase2-hardening
+  - codex/mawdda-member-inbox-rebased
+  - codex/mawdda-unified-test-2026-11-18
+  - codex/phase1-media-direct-delivery-denials-2026-11-20
+  - codex/phase1-media-hold-delete-race-2026-11-20
+  - codex/phase1-media-scanner-replay-regression-2026-11-20
+  - codex/phase1-scanner-error-callback-test-2026-11-20
+
+functions/test/integration/member-profile-media.integration.test.js
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/test/integration/owner-entitlement-grants.integration.test.js
+  - codex/economy-official-port-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-retention-approval-ci-repair-2026-11-19
+  - codex/mawdda-role-capacity-after-retention-2026-11-19
+  - codex/mawdda-role-capacity-final-2026-11-19
+  - codex/mawdda-step1-role-reconcile-2026-11-19
+
+functions/test/integration/premium-profile.integration.test.js
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-retention-approval-ci-repair-2026-11-19
+  - codex/mawdda-role-capacity-final-2026-11-19
+  - codex/mawdda-step1-role-reconcile-2026-11-19
+  - codex/mawdda-store-wallet-entitlement-closure
+
+functions/test/integration/room-rental.integration.test.js
+  - codex/economy-official-port-2026-11-18
+  - codex/economy-recovery-2026-11-18
+
+functions/test/integration/specialized-role-capacity.integration.test.js
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-role-callable-deny-regressions-2026-11-20
+  - codex/mawdda-role-capacity-after-retention-2026-11-19
+  - codex/mawdda-role-capacity-consolidation-2026-11-19
+  - codex/mawdda-role-capacity-final-2026-11-19
+  - codex/mawdda-step1-role-reconcile-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/test/integration/store-gifting.integration.test.js
+  - codex/economic-phase-completion-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-economy-selective-port-2026-11-19
+  - codex/phase1-store-gift-concurrency-2026-11-20
+  - codex/phase1-store-gift-permanent-entitlement-2026-11-20
+  - codex/phase1-store-gifting-catalog-version-regressions-2026-11-20
+
+functions/test/integration/wallet-store.integration.test.js
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economy-official-port-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-serving-foundation
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-retention-approval-ci-repair-2026-11-19
+  - codex/mawdda-role-capacity-after-retention-2026-11-19
+  - codex/mawdda-role-capacity-final-2026-11-19
+  - codex/mawdda-step1-role-reconcile-2026-11-19
+  - codex/mawdda-store-entitlement-coverage
+  - codex/mawdda-store-entitlement-hardening
+  - codex/mawdda-store-entitlement-hardening-v2
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/test/media-derivative-contract.test.js
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/test/media-quota.test.js
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawda-phase2-hardening
+
+functions/test/media-scanner.test.js
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawda-phase2-hardening
+  - codex/mawdda-room-audio-duration-enforcement
+  - codex/mawdda-unified-test-2026-11-18
+  - codex/phase1-media-scanner-verdict-tests-2026-11-20
+
+functions/test/media-security.test.js
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/test/member-social-links-access.test.js
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-biometric-proof-gate-2026-11-20
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/test/member-social-links.test.js
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-biometric-proof-gate-2026-11-20
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/test/platform-role-identities.test.js
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-role-capacity-after-retention-2026-11-19
+  - codex/mawdda-role-capacity-consolidation-2026-11-19
+  - codex/mawdda-role-capacity-final-2026-11-19
+  - codex/mawdda-step1-role-reconcile-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/test/room-call-policy.test.js
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-group-call-capacity-2026-11-20
+  - codex/mawdda-group-call-capacity-2026-11-20-r2
+  - codex/mawdda-unified-test-2026-11-18
+  - codex/phase1-direct-call-transaction-revalidation-2026-11-20
+  - codex/phase1-rented-room-call-gate-2026-11-20
+
+functions/test/rules/firestore.rules.test.js
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/test/rules/storage.rules.test.js
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+functions/test/sticker-policy.test.js
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/test/store-catalog.test.js
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/test/store-gifting.test.js
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-economy-selective-port-2026-11-19
+  - codex/mawdda-unified-test-2026-11-18
+
+functions/test/store-purchase.test.js
+  - codex/economic-phase-completion-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+
+functions/test/verification-calendar.test.js
+  - codex/mawdda-independent-verification-cycles-2026-11-20
+  - codex/mawdda-independent-verification-cycles-dev-2026-11-20
+
+functions/test/wallet-reconciliation.test.js
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economy-recovery-2026-11-18
+
+infra/audit-archive/README.md
+  - codex/mawdda-audit-archive
+  - codex/mawdda-room-events
+
+lib/screens/biometric_verification_screen.dart
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+
+lib/screens/capacity_media_management_screen.dart
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/screens/chat_room_screen.dart
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-room-audio-duration-enforcement
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/screens/coin_purchase_screen.dart
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-official-port-2026-11-18
+  - codex/economy-recovery-2026-11-18
+
+lib/screens/conversations_screen.dart
+  - codex/mawdda-member-inbox
+  - codex/mawdda-member-inbox-rebased
+
+lib/screens/direct_chat_screen.dart
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/screens/economy_pricing_screen.dart
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/screens/featured_ads_screen.dart
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/screens/gift_coins_screen.dart
+  - codex/economy-recovery-2026-11-18
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/screens/main_user_screen.dart
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawdda-member-inbox
+  - codex/mawdda-member-inbox-rebased
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+lib/screens/mawdda_call_screen.dart
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/screens/media_workspace_screen.dart
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/screens/member_gift_history_screen.dart
+  - codex/economy-recovery-2026-11-18
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/screens/owner_advertising_intake_screen.dart
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/screens/owner_advertising_rewards_screen.dart
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/screens/owner_biometric_review_screen.dart
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+
+lib/screens/owner_chat_participation_screen.dart
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+lib/screens/owner_coin_purchase_screen.dart
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-official-port-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/screens/owner_featured_ads_dashboard_screen.dart
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/screens/owner_sticker_packs_screen.dart
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/screens/profile_screen.dart
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-premium-effects
+  - codex/mawdda-unified-final
+  - codex/mawdda-unified-release
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/screens/reward_center_screen.dart
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/screens/room_rental_pricing_screen.dart
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-recovery-2026-11-18
+
+lib/screens/shop_screen.dart
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-serving-foundation
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-economy-selective-port-2026-11-19
+  - codex/mawdda-store-entitlement-coverage
+  - codex/mawdda-store-wallet-entitlement-closure
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/screens/super_admin_screen.dart
+  - codex/economic-phase-completion-2026-11-18
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/mawdda-unified-test-2026-11-18
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+lib/screens/wallet_screen.dart
+  - codex/economic-phase1-closeout-2026-11-18
+  - codex/economy-recovery-2026-11-18
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/services/member_media_upload_service.dart
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18
+
+lib/services/super_admin_security_service.dart
+  - codex/economy-recovery-2026-11-18
+  - codex/mawda-unified-constitution-vision-2026-11-19
+
+lib/widgets/mawdda_sticker_widgets.dart
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-unified-test-2026-11-18
+
+pubspec.yaml
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18
+
+scanner/README.md
+  - codex/economy-recovery-2026-11-18
+  - codex/mawda-phase2-hardening
+
+scanner/processors.js
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-room-audio-duration-enforcement
+  - codex/mawdda-unified-test-2026-11-18
+
+scanner/security.js
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-room-audio-duration-enforcement
+  - codex/mawdda-unified-test-2026-11-18
+
+scanner/server.js
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-room-audio-duration-enforcement
+  - codex/mawdda-unified-test-2026-11-18
+
+scanner/test/processors.integration.test.js
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-room-audio-duration-enforcement
+  - codex/mawdda-unified-test-2026-11-18
+
+scanner/test/processors.test.js
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/mawdda-room-audio-duration-enforcement
+
+scanner/test/security.test.js
+  - codex/biometric-server-lifecycle-2026-11-20
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/mawdda-room-audio-duration-enforcement
+  - codex/mawdda-unified-test-2026-11-18
+
+storage.rules
+  - codex/governance-biometric-integration-2026-11-19
+  - codex/mawda-unified-constitution-vision-2026-11-19
+  - codex/structural-governance-biometric-roles-2026-11-19
+
+test/featured_ads_screen_test.dart
+  - codex/economy-recovery-2026-11-18
+  - codex/featured-ads-secure-lifecycle-20261118
+  - codex/featured-ads-serving-foundation
+  - codex/mawdda-unified-test-2026-11-18

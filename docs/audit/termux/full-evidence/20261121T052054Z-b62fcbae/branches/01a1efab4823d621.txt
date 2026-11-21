@@ -1,0 +1,23 @@
+BRANCH: codex/phase1-media-scanner-replay-regression-2026-11-20
+SHA: 87ff3963868a4431948274695c83dce255aaa350
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: d9ed1df2065b1f4efb27dbaeb884099b50b6c004
+
+=== DIVERGENCE target-only / branch-only ===
+192	1
+
+=== BRANCH UNIQUE COMMITS ===
+87ff3963868a4431948274695c83dce255aaa350 test(media): verify scanner callback replay is idempotent
+
+=== CHERRY STATUS ===
+- 87ff3963868a4431948274695c83dce255aaa350 test(media): verify scanner callback replay is idempotent
+
+=== FILE STATUS ===
+M	functions/test/integration/media-callables.integration.test.js
+
+=== NUMSTAT ===
+9	2	functions/test/integration/media-callables.integration.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

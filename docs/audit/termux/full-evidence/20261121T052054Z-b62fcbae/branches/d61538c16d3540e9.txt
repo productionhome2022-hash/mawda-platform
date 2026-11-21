@@ -1,0 +1,27 @@
+BRANCH: codex/mawdda-store-entitlement-coverage
+SHA: 7b53ad8e3418d3e9494517862ade66a010871564
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: ba9211fb35fb154bfd1d821d9229eadc72bbf10d
+
+=== DIVERGENCE target-only / branch-only ===
+1569	2
+
+=== BRANCH UNIQUE COMMITS ===
+7b53ad8e3418d3e9494517862ade66a010871564 feat: separate Mawdda store categories in shop UI
+524650561cf4678fa1f11901b63973d8548bc532 test: cover every enabled store entitlement and idempotent purchase
+
+=== CHERRY STATUS ===
+- 524650561cf4678fa1f11901b63973d8548bc532 test: cover every enabled store entitlement and idempotent purchase
+- 7b53ad8e3418d3e9494517862ade66a010871564 feat: separate Mawdda store categories in shop UI
+
+=== FILE STATUS ===
+M	functions/test/integration/wallet-store.integration.test.js
+M	lib/screens/shop_screen.dart
+
+=== NUMSTAT ===
+136	0	functions/test/integration/wallet-store.integration.test.js
+66	6	lib/screens/shop_screen.dart
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

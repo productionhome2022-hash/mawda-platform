@@ -1,0 +1,19 @@
+BRANCH: codex/phase1-advertising-callable-auth-2026-11-20
+SHA: d857497c50eca8d7dcf105e938c8060402ae85e3
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: d857497c50eca8d7dcf105e938c8060402ae85e3
+
+=== DIVERGENCE target-only / branch-only ===
+223	0
+
+=== BRANCH UNIQUE COMMITS ===
+
+=== CHERRY STATUS ===
+
+=== FILE STATUS ===
+
+=== NUMSTAT ===
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

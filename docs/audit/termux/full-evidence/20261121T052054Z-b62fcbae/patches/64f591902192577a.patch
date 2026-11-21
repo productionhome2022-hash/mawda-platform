@@ -1,0 +1,711 @@
+diff --git a/lib/screens/guest_session_screen.dart b/lib/screens/guest_session_screen.dart
+index 7fe6cc91..4b493304 100644
+--- a/lib/screens/guest_session_screen.dart
++++ b/lib/screens/guest_session_screen.dart
+@@ -1,99 +1,139 @@
+ import 'package:firebase_auth/firebase_auth.dart';
+ import 'package:flutter/material.dart';
+ import '../services/auth_service.dart';
+ 
+ class GuestSessionScreen extends StatefulWidget {
+   const GuestSessionScreen({super.key});
+ 
+   @override
+   State<GuestSessionScreen> createState() => _GuestSessionScreenState();
+ }
+ 
+ class _GuestSessionScreenState extends State<GuestSessionScreen> {
+   final _auth = AuthService();
+   final _email = TextEditingController();
+   final _password = TextEditingController();
+   bool _busy = false;
+   String? _message;
+ 
+   @override
+   void dispose() {
+     _email.dispose();
+     _password.dispose();
+     super.dispose();
+   }
+ 
+   Future<void> _upgrade() async {
+     if (_busy || !_email.text.trim().contains('@') || _password.text.length < 8) {
+       setState(() => _message = 'أدخل بريداً صحيحاً وكلمة مرور من 8 أحرف على الأقل.');
+       return;
+     }
+     setState(() { _busy = true; _message = null; });
+     try {
+       final result = await _auth.linkGuestWithEmail(
+         email: _email.text,
+         password: _password.text,
+       );
+       await result.user?.sendEmailVerification();
+       if (mounted) setState(() => _message =
+         'تم ربط جلسة الضيف بحساب بريد. افتح رسالة التحقق؛ سيطلب منك التطبيق إقرار سياسة العضوية قبل فتح ميزات الأعضاء.');
+     } on FirebaseAuthException catch (error) {
+       if (mounted) setState(() => _message = error.message ?? 'تعذر ترقية جلسة الضيف.');
+     } catch (_) {
+       if (mounted) setState(() => _message = 'تعذر ترقية جلسة الضيف. لم يتم حذف بيانات الجلسة.');
+     } finally {
+       if (mounted) setState(() => _busy = false);
+     }
+   }
+ 
++  Future<void> _endGuestSession() async {
++    final confirmed = await showDialog<bool>(
++      context: context,
++      builder: (dialogContext) => AlertDialog(
++        title: const Text('إنهاء جلسة الضيف؟'),
++        content: const Text(
++          'سيُحذف حساب Firebase المجهول لهذه الجلسة ويُسجّل خروجك. '
++          'لن يؤثر ذلك على إقرار الخصوصية المحفوظ كسجل تدقيق.',
++        ),
++        actions: [
++          TextButton(
++            onPressed: () => Navigator.pop(dialogContext, false),
++            child: const Text('متابعة كضيف'),
++          ),
++          FilledButton(
++            onPressed: () => Navigator.pop(dialogContext, true),
++            child: const Text('إنهاء الجلسة'),
++          ),
++        ],
++      ),
++    );
++    if (confirmed != true || !mounted) return;
++    setState(() { _busy = true; _message = null; });
++    try {
++      await _auth.endGuestSession();
++    } on FirebaseAuthException catch (error) {
++      if (mounted) setState(() => _message = error.message ?? 'تعذر إنهاء جلسة الضيف.');
++    } catch (_) {
++      if (mounted) setState(() => _message = 'تعذر إنهاء الجلسة. حاول مجدداً.');
++    } finally {
++      if (mounted) setState(() => _busy = false);
++    }
++  }
++
+   @override
+   Widget build(BuildContext context) => Scaffold(
+         appBar: AppBar(
+           title: const Text('جلسة ضيف مودة'),
+           actions: [
+             IconButton(
+               tooltip: 'إنهاء جلسة الضيف',
+-              onPressed: _busy ? null : _auth.signOut,
++              onPressed: _busy ? null : _endGuestSession,
+               icon: const Icon(Icons.logout),
+             ),
+           ],
+         ),
+         body: ListView(
+           padding: const EdgeInsets.all(20),
+           children: [
+             const Icon(Icons.person_outline, size: 64),
+             const SizedBox(height: 12),
+             Text('أنت تستخدم مودة كضيف', style: Theme.of(context).textTheme.headlineSmall),
+             const SizedBox(height: 8),
+             const Text(
+               'هذه جلسة ضيف مرتبطة بمعرف Firebase مجهول. لا تمنحك صلاحيات العضو أو الوصول إلى المحادثات الخاصة أو المحفظة أو المتجر. لا تُعد الجلسة عضوية مكتملة.',
+             ),
+             const SizedBox(height: 24),
+             Text('ترقية جلسة الضيف إلى عضوية', style: Theme.of(context).textTheme.titleLarge),
+             const SizedBox(height: 8),
+             TextField(
+               controller: _email,
+               keyboardType: TextInputType.emailAddress,
+               decoration: const InputDecoration(labelText: 'البريد الإلكتروني', border: OutlineInputBorder()),
+             ),
+             const SizedBox(height: 8),
+             TextField(
+               controller: _password,
+               obscureText: true,
+               decoration: const InputDecoration(labelText: 'كلمة مرور جديدة (8 أحرف على الأقل)', border: OutlineInputBorder()),
+             ),
+             const SizedBox(height: 12),
+             FilledButton(
+               onPressed: _busy ? null : _upgrade,
+               child: _busy
+                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                   : const Text('ربط الجلسة بالبريد والتحقق'),
+             ),
+             if (_message != null) ...[
+               const SizedBox(height: 12),
+               Text(_message!),
+             ],
++            const SizedBox(height: 18),
++            OutlinedButton.icon(
++              onPressed: _busy ? null : _endGuestSession,
++              icon: const Icon(Icons.logout),
++              label: const Text('إنهاء جلسة الضيف وحذف الحساب المجهول'),
++            ),
+           ],
+         ),
+       );
+ }
+diff --git a/lib/screens/profile_screen.dart b/lib/screens/profile_screen.dart
+index 44db46e6..b1aeca5e 100644
+--- a/lib/screens/profile_screen.dart
++++ b/lib/screens/profile_screen.dart
+@@ -1,94 +1,95 @@
+ import 'package:cloud_functions/cloud_functions.dart';
+ import 'package:firebase_auth/firebase_auth.dart';
+ import 'package:flutter/material.dart';
+ import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+ import 'package:uuid/uuid.dart';
+ import 'package:image_picker/image_picker.dart';
+ import '../services/coin_system_service.dart';
+ import '../services/member_media_upload_service.dart';
+ import '../services/auth_service.dart';
+ import '../services/local_biometric_service.dart';
+ import 'direct_chat_screen.dart';
+ import 'stories_screen.dart';
+ import 'profile_gallery_screen.dart';
+ import 'safety_center_screen.dart';
++import '../widgets/premium_profile_effects.dart';
+ 
+ class ProfileScreen extends StatefulWidget {
+   final String profileUserId;
+   final String currentUserId;
+ 
+   const ProfileScreen({
+     Key? key,
+     required this.profileUserId,
+     required this.currentUserId,
+   }) : super(key: key);
+ 
+   @override
+   State<ProfileScreen> createState() => _ProfileScreenState();
+ }
+ 
+ class _ProfileScreenState extends State<ProfileScreen> {
+   final CoinSystemService _coinService = CoinSystemService();
+   final ImagePicker _imagePicker = ImagePicker();
+   final MemberMediaUploadService _memberMedia = MemberMediaUploadService();
+   bool _changingProfileMedia = false;
+   bool _checkingLocalBiometrics = false;
+   bool _targetBlockedByMe = false;
+   bool _loadingTargetBlock = false;
+   bool _checkingEmailRenewal = false;
+   bool _isTransferringCoins = false;
+   String? _pendingTransferKey;
+   String? _pendingTransferRequestId;
+   late Future<Map<String, dynamic>> _profileFuture;
+ 
+   @override
+   void initState() {
+     super.initState();
+     _profileFuture = _loadProfile();
+     if (widget.profileUserId != widget.currentUserId) {
+       _loadTargetBlockState();
+     }
+   }
+ 
+   Future<void> _loadTargetBlockState() async {
+     if (_loadingTargetBlock) return;
+     setState(() => _loadingTargetBlock = true);
+     try {
+       final response = await FirebaseFunctions.instance
+           .httpsCallable('getMyBlockedUsers')
+           .call();
+       final data = Map<String, dynamic>.from(response.data as Map);
+       final blocked = (data['blockedUids'] as List<dynamic>? ?? const [])
+           .whereType<String>()
+           .toSet();
+       if (mounted) setState(() => _targetBlockedByMe = blocked.contains(widget.profileUserId));
+     } catch (_) {
+       // The server still enforces block state for every message operation.
+     } finally {
+       if (mounted) setState(() => _loadingTargetBlock = false);
+     }
+   }
+ 
+   Future<void> _toggleTargetBlock() async {
+     if (_loadingTargetBlock) return;
+     final nextBlocked = !_targetBlockedByMe;
+     final confirmed = await showDialog<bool>(
+       context: context,
+       builder: (dialogContext) => AlertDialog(
+         title: Text(nextBlocked ? 'حظر هذا العضو؟' : 'إلغاء حظر هذا العضو؟'),
+         content: Text(nextBlocked
+             ? 'لن تتمكن أنت وهذا العضو من تبادل الرسائل الخاصة. لا يتلقى العضو إشعاراً بالحظر.'
+             : 'سيُسمح بتبادل الرسائل مجدداً إذا لم يوجد حظر متبادل أو قيد آخر.'),
+         actions: [
+           TextButton(
+             onPressed: () => Navigator.pop(dialogContext, false),
+             child: const Text('إلغاء'),
+           ),
+           FilledButton(
+             onPressed: () => Navigator.pop(dialogContext, true),
+             child: Text(nextBlocked ? 'تأكيد الحظر' : 'إلغاء الحظر'),
+           ),
+         ],
+       ),
+     );
+     if (confirmed != true || !mounted) return;
+@@ -925,246 +926,247 @@ class _ProfileScreenState extends State<ProfileScreen> {
+             );
+           }
+ 
+           final data = snapshot.data!;
+           final name = (data['displayName'] as String?) ?? 'Mawda Member';
+           final vipActive = data['vipActive'] == true;
+           final activeTitle = (data['activeTitle'] as String?)?.trim() ?? '';
+           final activeFeatures = (data['activeFeatures'] as List<dynamic>? ?? const [])
+               .whereType<Map>()
+               .map((item) => Map<String, dynamic>.from(item))
+               .toList(growable: false);
+           final activeItemIds = activeFeatures
+               .map((feature) => feature['itemId'] as String? ?? '')
+               .toSet();
+           final hasAvatarFrame = activeItemIds.contains('avatar_frame_30d');
+           final hasColoredUsername = activeItemIds.contains('username_color_30d');
+           final hasAnimatedUsername = activeItemIds.contains('username_animated_30d');
+           final hasProfileTheme = activeItemIds.contains('profile_theme_30d');
+           final hasProfileLayout = activeItemIds.contains('profile_layout_30d');
+           final hasProfilePin = activeItemIds.contains('profile_pin_30d');
+           final hasVisitorGreeting = activeItemIds.contains('visitor_greeting_30d');
+           final hasProfileAnalytics = activeItemIds.contains('profile_analytics_30d');
+           final pinnedSection = hasProfilePin ? (data['pinnedProfileSection'] as String? ?? 'interests') : '';
+           final visitorGreeting = (data['visitorGreeting'] as String?) ?? '';
+           final analytics = Map<String, dynamic>.from(
+             data['profileAnalytics'] as Map? ?? const <String, dynamic>{},
+           );
+           final discoveryBoostActive = data['discoveryBoostActive'] == true;
+           final username = (data['username'] as String?) ?? '';
+           final bio = (data['bio'] as String?) ?? '';
+           final profession = (data['profession'] as String?) ?? '';
+           final country = (data['country'] as String?) ?? '';
+           final region = (data['region'] as String?) ?? '';
+           final interests = (data['interests'] as List<dynamic>? ?? const []);
+           final profileVisibility = (data['profileVisibility'] as String?) ?? 'private';
+           final socialLinks = Map<String, dynamic>.from(
+             data['socialLinks'] as Map? ?? const <String, dynamic>{},
+           );
+           final canManageSocialLinks = data['canManageSocialLinks'] == true;
+           final hiddenSocialLinks = (data['hiddenSocialLinks'] as List<dynamic>? ?? const [])
+               .whereType<String>()
+               .toSet();
+ 
+           return Container(
+             color: hasProfileTheme ? const Color(0xFFF3EAF8) : null,
+             child: ListView(
+             padding: const EdgeInsets.only(bottom: 32),
+             children: [
+               Stack(
+                 children: [
+                   Container(
+                     height: 170,
+                     width: double.infinity,
+                     color: Colors.blueGrey.shade900,
+                     child: data['coverUrl'] is String
+                         ? Image.network(
+                             data['coverUrl'] as String,
+                             fit: BoxFit.cover,
+                             errorBuilder: (_, __, ___) => const Center(
+                               child: Icon(Icons.favorite, color: Colors.white, size: 52),
+                             ),
+                           )
+                         : const Center(
+                             child: Icon(Icons.favorite, color: Colors.white, size: 52),
+                           ),
+                   ),
+                   if (isMyProfile)
+                     PositionedDirectional(
+                       end: 12,
+                       bottom: 12,
+                       child: FilledButton.tonalIcon(
+                         onPressed: _changingProfileMedia ? null : () => _changeProfileMedia('cover'),
+                         icon: const Icon(Icons.photo_camera_outlined),
+                         label: const Text('تغيير الغلاف'),
+                       ),
+                     ),
+                 ],
+               ),
+               Transform.translate(
+                 offset: const Offset(0, -42),
+-                child: Container(
+-                  padding: EdgeInsets.all(hasAvatarFrame ? 5 : 0),
+-                  decoration: hasAvatarFrame
+-                      ? BoxDecoration(
+-                          shape: BoxShape.circle,
+-                          border: Border.all(color: const Color(0xFFFFC857), width: 4),
+-                          boxShadow: const [
+-                            BoxShadow(color: Color(0x55D49A28), blurRadius: 16, spreadRadius: 2),
+-                          ],
+-                        )
++                child: hasAvatarFrame
++                    ? AnimatedPremiumAvatarFrame(child: CircleAvatar(
++                  radius: 50,
++                  backgroundColor: Colors.deepPurple,
++                  backgroundImage: data['avatarUrl'] is String
++                      ? NetworkImage(data['avatarUrl'] as String)
+                       : null,
+-                  child: CircleAvatar(
+-                    radius: 50,
+-                    backgroundColor: Colors.deepPurple,
+-                    backgroundImage: data['avatarUrl'] is String
+-                        ? NetworkImage(data['avatarUrl'] as String)
+-                        : null,
+-                    child: data['avatarUrl'] is String
+-                        ? null
+-                        : const Icon(
+-                            Icons.favorite_rounded,
+-                            size: 42,
+-                            color: Colors.white,
+-                          ),
+-                  ),
++                  child: data['avatarUrl'] is String
++                      ? null
++                      : const Icon(
++                          Icons.favorite_rounded,
++                          size: 42,
++                          color: Colors.white,
++                        ),
++                ))
++                    : CircleAvatar(
++                  radius: 50,
++                  backgroundColor: Colors.deepPurple,
++                  backgroundImage: data['avatarUrl'] is String
++                      ? NetworkImage(data['avatarUrl'] as String)
++                      : null,
++                  child: data['avatarUrl'] is String
++                      ? null
++                      : const Icon(
++                          Icons.favorite_rounded,
++                          size: 42,
++                          color: Colors.white,
++                        ),
+                 ),
+               ),
+               if (isMyProfile)
+                 Transform.translate(
+                   offset: const Offset(0, -34),
+                   child: Wrap(
+                     alignment: WrapAlignment.center,
+                     spacing: 8,
+                     children: [
+                       OutlinedButton.icon(
+                         onPressed: _changingProfileMedia ? null : () => _changeProfileMedia('avatar'),
+                         icon: const Icon(Icons.account_circle_outlined),
+                         label: const Text('تغيير الصورة الشخصية'),
+                       ),
+                       TextButton.icon(
+                         onPressed: _changingProfileMedia ? null : () => _useDefaultProfileMedia('avatar'),
+                         icon: const Icon(Icons.restore),
+                         label: const Text('الافتراضية'),
+                       ),
+                       TextButton.icon(
+                         onPressed: _changingProfileMedia ? null : () => _useDefaultProfileMedia('cover'),
+                         icon: const Icon(Icons.restore),
+                         label: const Text('غلاف افتراضي'),
+                       ),
+                     ],
+                   ),
+                 ),
+               Transform.translate(
+                 offset: const Offset(0, -30),
+                 child: Container(
+                   margin: const EdgeInsets.symmetric(horizontal: 12),
+                   padding: hasProfileLayout ? const EdgeInsets.all(14) : EdgeInsets.zero,
+                   decoration: hasProfileLayout
+                       ? BoxDecoration(
+                           color: Colors.white.withValues(alpha: 0.92),
+                           borderRadius: BorderRadius.circular(22),
+                           border: Border.all(color: const Color(0xFFD7B8E8)),
+                           boxShadow: const [
+                             BoxShadow(color: Color(0x18000000), blurRadius: 14, offset: Offset(0, 4)),
+                           ],
+                         )
+                       : null,
+                   child: Column(
+                   children: [
+-                    TweenAnimationBuilder<double>(
+-                      tween: Tween<double>(begin: hasAnimatedUsername ? 0.88 : 1, end: 1),
+-                      duration: const Duration(milliseconds: 850),
+-                      curve: Curves.easeOutBack,
+-                      builder: (context, scale, child) => Transform.scale(
+-                        scale: scale,
+-                        child: child,
+-                      ),
+-                      child: Text(
++                    if (hasAnimatedUsername)
++                      AnimatedPremiumUsername(
++                        text: name,
++                        colored: hasColoredUsername,
++                        animated: true,
++                      )
++                    else
++                      Text(
+                         name,
+                         style: TextStyle(
+                           fontSize: 22,
+                           fontWeight: FontWeight.bold,
+                           color: hasColoredUsername ? const Color(0xFF8B4AC8) : null,
+                         ),
+                       ),
+-                    ),
+                     if (discoveryBoostActive)
+                       const Padding(
+                         padding: EdgeInsets.only(top: 4),
+                         child: Chip(
+                           avatar: Icon(Icons.trending_up, size: 16),
+                           label: Text('ظهور معزز'),
+                           visualDensity: VisualDensity.compact,
+                         ),
+                       ),
+                     if (vipActive)
+                       const Padding(
+                         padding: EdgeInsets.only(top: 6),
+                         child: Chip(
+                           avatar: Icon(Icons.workspace_premium, size: 18),
+                           label: Text('VIP'),
+                         ),
+                       ),
+                     if (activeTitle.isNotEmpty)
+                       Padding(
+                         padding: const EdgeInsets.only(top: 4),
+                         child: Text(
+                           activeTitle,
+                           style: const TextStyle(fontWeight: FontWeight.w600),
+                         ),
+                       ),
+                     if (activeFeatures.any((feature) =>
+                         feature['category'] != 'vip' && feature['category'] != 'title'))
+                       Padding(
+                         padding: const EdgeInsets.only(top: 8),
+                         child: Wrap(
+                           alignment: WrapAlignment.center,
+                           spacing: 6,
+                           runSpacing: 4,
+                           children: activeFeatures
+                               .where((feature) =>
+                                   feature['category'] != 'vip' &&
+                                   feature['category'] != 'title')
+                               .map((feature) {
+                             final category = feature['category'] as String? ?? '';
+                             final label = switch (category) {
+                               'badge' => 'وسام',
+                               'frame' => 'إطار مميز',
+                               'username_style' => 'نمط اسم',
+                               'analytics' => 'تحليلات',
+                               'profile_layout' => 'ملف احترافي',
+                               'boost' => 'ظهور معزز',
+                               'theme' => 'ثيم مميز',
+                               'greeting' => 'ترحيب الزوار',
+                               'privacy' => 'ميزة خصوصية',
+                               _ => feature['itemName'] as String? ?? 'ميزة مميزة',
+                             };
+                             return Chip(
+                               avatar: const Icon(Icons.stars_outlined, size: 16),
+                               label: Text(label),
+                               visualDensity: VisualDensity.compact,
+                             );
+                           }).toList(growable: false),
+                         ),
+                       ),
+                     if (username.isNotEmpty) Text('@$username'),
+                     if (pinnedSection == 'bio' && bio.isNotEmpty)
+                       Card(
+                         margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                         child: Padding(
+                           padding: const EdgeInsets.all(14),
+                           child: Column(
+                             children: [
+                               const Text('نبذة مثبتة', style: TextStyle(fontWeight: FontWeight.bold)),
+                               const SizedBox(height: 6),
+                               Text(bio, textAlign: TextAlign.center),
+                             ],
+                           ),
+                         ),
+                       ),
+                     if (pinnedSection != 'bio' && bio.isNotEmpty)
+                       Padding(
+                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                         child: Text(bio, textAlign: TextAlign.center),
+                       ),
+                     if (profession.isNotEmpty || region.isNotEmpty || country.isNotEmpty)
+diff --git a/lib/services/auth_service.dart b/lib/services/auth_service.dart
+index 4af95db5..a19326df 100644
+--- a/lib/services/auth_service.dart
++++ b/lib/services/auth_service.dart
+@@ -1,46 +1,60 @@
+ import 'package:firebase_auth/firebase_auth.dart';
+ import 'push_notification_service.dart';
+ 
+ class AuthService {
+   AuthService({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
+   final FirebaseAuth _auth;
+ 
+   User? get currentUser => _auth.currentUser;
+   Stream<User?> get authStateChanges => _auth.userChanges();
+ 
+   Future<UserCredential> signInWithEmail({required String email, required String password}) =>
+       _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
+ 
+   Future<UserCredential> signUpWithEmail({required String email, required String password}) =>
+       _auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
+ 
+   Future<UserCredential> signInAsGuest() => _auth.signInAnonymously();
+ 
+   Future<UserCredential> linkGuestWithEmail({required String email, required String password}) async {
+     final user = _auth.currentUser;
+     if (user == null || !user.isAnonymous) {
+       throw FirebaseAuthException(code: 'not-a-guest', message: 'لا توجد جلسة ضيف قابلة للترقية.');
+     }
+     final credential = EmailAuthProvider.credential(email: email.trim(), password: password);
+     return user.linkWithCredential(credential);
+   }
+ 
+   Future<void> sendEmailVerification() async {
+     final user = _auth.currentUser;
+     if (user == null) {
+       throw FirebaseAuthException(code: 'no-current-user', message: 'لا يوجد حساب مسجل حالياً.');
+     }
+     if (!user.emailVerified) await user.sendEmailVerification();
+   }
+ 
+   Future<void> reloadCurrentUser() async {
+     await _auth.currentUser?.reload();
+   }
+   Future<void> sendPasswordResetEmail(String email) =>
+       _auth.sendPasswordResetEmail(email: email.trim());
++  Future<void> endGuestSession() async {
++    final user = _auth.currentUser;
++    if (user == null || !user.isAnonymous) {
++      throw FirebaseAuthException(
++        code: 'not-a-guest',
++        message: 'لا توجد جلسة ضيف نشطة لإنهائها.',
++      );
++    }
++    // Anonymous guest sessions have no member push token. Delete the anonymous
++    // Auth identity so it cannot accumulate as an abandoned account.
++    await user.delete();
++    await _auth.signOut();
++  }
++
+   Future<void> signOut() async {
+     // Deactivate this device's server-side FCM token before invalidating auth.
+     await PushNotificationService().unregister();
+     await _auth.signOut();
+   }
+ }
+diff --git a/lib/widgets/premium_profile_effects.dart b/lib/widgets/premium_profile_effects.dart
+new file mode 100644
+index 00000000..28453d92
+--- /dev/null
++++ b/lib/widgets/premium_profile_effects.dart
+@@ -0,0 +1,113 @@
++import 'package:flutter/material.dart';
++
++class AnimatedPremiumAvatarFrame extends StatefulWidget {
++  const AnimatedPremiumAvatarFrame({super.key, required this.child});
++
++  final Widget child;
++
++  @override
++  State<AnimatedPremiumAvatarFrame> createState() => _AnimatedPremiumAvatarFrameState();
++}
++
++class _AnimatedPremiumAvatarFrameState extends State<AnimatedPremiumAvatarFrame>
++    with SingleTickerProviderStateMixin {
++  late final AnimationController _controller = AnimationController(
++    vsync: this,
++    duration: const Duration(milliseconds: 1700),
++  )..repeat(reverse: true);
++
++  @override
++  void dispose() {
++    _controller.dispose();
++    super.dispose();
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    return AnimatedBuilder(
++      animation: _controller,
++      child: widget.child,
++      builder: (context, child) {
++        final pulse = Curves.easeInOut.transform(_controller.value);
++        return Container(
++          padding: const EdgeInsets.all(5),
++          decoration: BoxDecoration(
++            shape: BoxShape.circle,
++            border: Border.all(
++              color: Color.lerp(
++                const Color(0xFFFFC857),
++                const Color(0xFF9B5DE5),
++                pulse,
++              )!,
++              width: 3 + pulse,
++            ),
++            boxShadow: [
++              BoxShadow(
++                color: const Color(0x669B5DE5).withValues(alpha: 0.18 + pulse * 0.22),
++                blurRadius: 10 + pulse * 10,
++                spreadRadius: 1 + pulse * 2,
++              ),
++            ],
++          ),
++          child: child,
++        );
++      },
++    );
++  }
++}
++
++class AnimatedPremiumUsername extends StatefulWidget {
++  const AnimatedPremiumUsername({
++    super.key,
++    required this.text,
++    required this.colored,
++    required this.animated,
++  });
++
++  final String text;
++  final bool colored;
++  final bool animated;
++
++  @override
++  State<AnimatedPremiumUsername> createState() => _AnimatedPremiumUsernameState();
++}
++
++class _AnimatedPremiumUsernameState extends State<AnimatedPremiumUsername>
++    with SingleTickerProviderStateMixin {
++  late final AnimationController _controller = AnimationController(
++    vsync: this,
++    duration: const Duration(milliseconds: 1900),
++  )..repeat(reverse: true);
++
++  @override
++  void dispose() {
++    _controller.dispose();
++    super.dispose();
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    final baseStyle = TextStyle(
++      fontSize: 22,
++      fontWeight: FontWeight.bold,
++      color: widget.colored ? const Color(0xFF8B4AC8) : null,
++    );
++    if (!widget.animated) return Text(widget.text, style: baseStyle);
++    return AnimatedBuilder(
++      animation: _controller,
++      builder: (context, child) {
++        final pulse = Curves.easeInOut.transform(_controller.value);
++        final color = widget.colored
++            ? Color.lerp(const Color(0xFF8B4AC8), const Color(0xFFCB6CE6), pulse)
++            : null;
++        return Transform.scale(
++          scale: 1 + pulse * 0.018,
++          child: Text(
++            widget.text,
++            style: baseStyle.copyWith(color: color),
++          ),
++        );
++      },
++    );
++  }
++}

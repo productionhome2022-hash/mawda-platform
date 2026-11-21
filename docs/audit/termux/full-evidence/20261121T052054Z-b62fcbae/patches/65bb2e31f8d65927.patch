@@ -1,0 +1,222 @@
+diff --git a/docs/phase1/BIOMETRIC_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md b/docs/phase1/BIOMETRIC_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md
+new file mode 100644
+index 00000000..93744b04
+--- /dev/null
++++ b/docs/phase1/BIOMETRIC_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md
+@@ -0,0 +1,5 @@
++# Super Owner biometric implementation progress — 2026-11-20
++
++Added a pure server-side retry state machine for the approved three-attempt policy: first rejection allows attempt 2 after one calendar month; second rejection allows attempt 3 after one further calendar month; third rejection closes the sequence permanently. Acceptance is terminal. The transition module rejects non-pending decisions, invalid clocks, member self-review, and retry attempts before the exact calendar-month due date.
++
++Important: this module does not authorize a reviewer. Callable endpoints must enforce `requireOwnerForReview` (which checks the platform-owner claim and MFA session) before invoking the transition. It is not yet wired to submission/review callables, Firestore transactions, private evidence storage, audit records, renewal scheduling or the exactly-once 1,500 BetaCoins ledger. Keep biometric verification fail-closed until those gates are implemented and tested.
+diff --git a/functions/src/biometric-review-state.ts b/functions/src/biometric-review-state.ts
+new file mode 100644
+index 00000000..f324e85e
+--- /dev/null
++++ b/functions/src/biometric-review-state.ts
+@@ -0,0 +1,63 @@
++import { addCalendarMonthsUtc } from "./verification-calendar";
++
++export const BIOMETRIC_MAX_ATTEMPTS = 3;
++export const BIOMETRIC_RETRY_WAIT_MONTHS = 1;
++
++export type BiometricReviewStatus = "pending" | "accepted" | "rejected" | "closed";
++export interface BiometricReviewState {
++  requestId: string; uid: string; status: BiometricReviewStatus; attemptNumber: number;
++  submittedAtMs: number; decidedAtMs: number | null; decidedByUid: string | null;
++  nextEligibleAtMs: number | null; finalRejection: boolean;
++}
++function validClock(value: number): boolean { return Number.isSafeInteger(value) && value >= 0; }
++function validIdentity(value: string): boolean { return typeof value === "string" && /^[A-Za-z0-9._:@-]{8,128}$/.test(value); }
++function validateState(state: BiometricReviewState): void {
++  if (!state || typeof state !== "object" || !/^[A-Za-z0-9_-]{16,128}$/.test(state.requestId) ||
++      !validIdentity(state.uid) || !Number.isSafeInteger(state.attemptNumber) || state.attemptNumber < 1 ||
++      state.attemptNumber > BIOMETRIC_MAX_ATTEMPTS || !validClock(state.submittedAtMs) ||
++      !["pending", "accepted", "rejected", "closed"].includes(state.status)) {
++    throw new Error("BIOMETRIC_REVIEW_STATE_INVALID");
++  }
++  if (state.status === "pending") {
++    if (state.decidedAtMs !== null || state.decidedByUid !== null ||
++        state.nextEligibleAtMs !== null || state.finalRejection !== false) {
++      throw new Error("BIOMETRIC_REVIEW_STATE_INVALID");
++    }
++    return;
++  }
++  if (!validClock(state.decidedAtMs as number) || (state.decidedAtMs as number) < state.submittedAtMs ||
++      !validIdentity(state.decidedByUid as string) || state.decidedByUid === state.uid) {
++    throw new Error("BIOMETRIC_REVIEW_STATE_INVALID");
++  }
++  if (state.status === "accepted" &&
++      (state.nextEligibleAtMs !== null || state.finalRejection !== false)) {
++    throw new Error("BIOMETRIC_REVIEW_STATE_INVALID");
++  }
++  if (state.status === "rejected" &&
++      (state.attemptNumber >= BIOMETRIC_MAX_ATTEMPTS || !validClock(state.nextEligibleAtMs as number) ||
++       state.nextEligibleAtMs !== addCalendarMonthsUtc(state.decidedAtMs as number, BIOMETRIC_RETRY_WAIT_MONTHS) ||
++       state.finalRejection !== false)) {
++    throw new Error("BIOMETRIC_REVIEW_STATE_INVALID");
++  }
++  if (state.status === "closed" &&
++      (state.attemptNumber !== BIOMETRIC_MAX_ATTEMPTS || state.nextEligibleAtMs !== null ||
++       state.finalRejection !== true)) {
++    throw new Error("BIOMETRIC_REVIEW_STATE_INVALID");
++  }
++}
++export function createInitialBiometricReview(input: {requestId:string;uid:string;submittedAtMs:number}): BiometricReviewState {
++ const state:BiometricReviewState={requestId:input.requestId,uid:input.uid,status:"pending",attemptNumber:1,submittedAtMs:input.submittedAtMs,decidedAtMs:null,decidedByUid:null,nextEligibleAtMs:null,finalRejection:false};
++ validateState(state); return state;
++}
++export function decideBiometricReview(input:{state:BiometricReviewState;decision:"accepted"|"rejected";reviewerUid:string;decidedAtMs:number}):BiometricReviewState {
++ const {state,decision,reviewerUid,decidedAtMs}=input; validateState(state);
++ if(state.status!=="pending"||!validIdentity(reviewerUid)||reviewerUid===state.uid||!validClock(decidedAtMs)||decidedAtMs<state.submittedAtMs) throw new Error("BIOMETRIC_REVIEW_DECISION_INVALID");
++ if(decision==="accepted") return {...state,status:"accepted",decidedAtMs,decidedByUid:reviewerUid,nextEligibleAtMs:null,finalRejection:false};
++ const finalRejection=state.attemptNumber===BIOMETRIC_MAX_ATTEMPTS;
++ return {...state,status:finalRejection?"closed":"rejected",decidedAtMs,decidedByUid:reviewerUid,nextEligibleAtMs:finalRejection?null:addCalendarMonthsUtc(decidedAtMs,BIOMETRIC_RETRY_WAIT_MONTHS),finalRejection};
++}
++export function startBiometricRetry(input:{state:BiometricReviewState;nextRequestId:string;submittedAtMs:number}):BiometricReviewState {
++ const {state,nextRequestId,submittedAtMs}=input; validateState(state);
++ if(state.status!=="rejected"||state.finalRejection||state.attemptNumber>=BIOMETRIC_MAX_ATTEMPTS||state.nextEligibleAtMs===null||!validClock(submittedAtMs)||submittedAtMs<state.nextEligibleAtMs||! /^[A-Za-z0-9_-]{16,128}$/.test(nextRequestId)||nextRequestId===state.requestId) throw new Error("BIOMETRIC_RETRY_NOT_ELIGIBLE");
++ return {requestId:nextRequestId,uid:state.uid,status:"pending",attemptNumber:state.attemptNumber+1,submittedAtMs,decidedAtMs:null,decidedByUid:null,nextEligibleAtMs:null,finalRejection:false};
++}
+diff --git a/functions/test/biometric-review-state.test.js b/functions/test/biometric-review-state.test.js
+new file mode 100644
+index 00000000..c3f4d897
+--- /dev/null
++++ b/functions/test/biometric-review-state.test.js
+@@ -0,0 +1,13 @@
++const test=require("node:test");const assert=require("node:assert/strict");
++const {createInitialBiometricReview,decideBiometricReview,startBiometricRetry}=require("../lib/biometric-review-state");
++const owner="super_owner_uid_0001",member="member_uid_00001";const id=n=>"request_identifier_"+n;const month=(y,m,d=15)=>Date.UTC(y,m,d,10);
++test("first rejection opens attempt two after one calendar month",()=>{const a=createInitialBiometricReview({requestId:id(1),uid:member,submittedAtMs:month(2026,0,15)});const r=decideBiometricReview({state:a,decision:"rejected",reviewerUid:owner,decidedAtMs:month(2026,0,31)});assert.equal(r.nextEligibleAtMs,month(2026,1,28));assert.throws(()=>startBiometricRetry({state:r,nextRequestId:id(2),submittedAtMs:r.nextEligibleAtMs-1}),/NOT_ELIGIBLE/);assert.equal(startBiometricRetry({state:r,nextRequestId:id(2),submittedAtMs:r.nextEligibleAtMs}).attemptNumber,2);});
++test("second rejection allows one final attempt after another calendar month",()=>{const a=createInitialBiometricReview({requestId:id(1),uid:member,submittedAtMs:month(2026,0,1)});const r1=decideBiometricReview({state:a,decision:"rejected",reviewerUid:owner,decidedAtMs:month(2026,0,31)});const b=startBiometricRetry({state:r1,nextRequestId:id(2),submittedAtMs:r1.nextEligibleAtMs});const r2=decideBiometricReview({state:b,decision:"rejected",reviewerUid:owner,decidedAtMs:month(2026,1,28)});assert.equal(r2.nextEligibleAtMs,month(2026,2,28));assert.equal(startBiometricRetry({state:r2,nextRequestId:id(3),submittedAtMs:r2.nextEligibleAtMs}).attemptNumber,3);});
++test("third rejection permanently closes sequence with no fourth attempt",()=>{let s=createInitialBiometricReview({requestId:id(1),uid:member,submittedAtMs:month(2026,0,1)});for(let n=1;n<=3;n++){if(n>1)s=startBiometricRetry({state:s,nextRequestId:id(n),submittedAtMs:s.nextEligibleAtMs});s=decideBiometricReview({state:s,decision:"rejected",reviewerUid:owner,decidedAtMs:month(2026,n-1,15)});}assert.equal(s.status,"closed");assert.equal(s.finalRejection,true);assert.equal(s.nextEligibleAtMs,null);assert.throws(()=>startBiometricRetry({state:s,nextRequestId:id(4),submittedAtMs:month(2026,3,15)}),/NOT_ELIGIBLE/);});
++test("acceptance is terminal and member cannot review own request",()=>{const s=createInitialBiometricReview({requestId:id(1),uid:member,submittedAtMs:month(2026,0,1)});const a=decideBiometricReview({state:s,decision:"accepted",reviewerUid:owner,decidedAtMs:month(2026,0,2)});assert.equal(a.status,"accepted");assert.throws(()=>decideBiometricReview({state:a,decision:"rejected",reviewerUid:owner,decidedAtMs:month(2026,0,3)}));assert.throws(()=>decideBiometricReview({state:s,decision:"accepted",reviewerUid:member,decidedAtMs:month(2026,0,2)}));});
++
++test("malformed persisted state cannot create an attempt beyond the three-attempt cap",()=>{
++ const rejected=createInitialBiometricReview({requestId:id(1),uid:member,submittedAtMs:month(2026,0,1)});
++ const forged={...rejected,status:"rejected",attemptNumber:3,decidedAtMs:month(2026,0,2),decidedByUid:owner,nextEligibleAtMs:month(2026,1,2),finalRejection:false};
++ assert.throws(()=>startBiometricRetry({state:forged,nextRequestId:id(4),submittedAtMs:forged.nextEligibleAtMs}),/STATE_INVALID|NOT_ELIGIBLE/);
++});
+diff --git a/functions/test/integration/email-verification-renewal.integration.test.js b/functions/test/integration/email-verification-renewal.integration.test.js
+index fb1b434e..6b905e35 100644
+--- a/functions/test/integration/email-verification-renewal.integration.test.js
++++ b/functions/test/integration/email-verification-renewal.integration.test.js
+@@ -1,106 +1,118 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const { getAuth } = require("firebase-admin/auth");
+ const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+ const {
+   startEmailVerificationRenewal,
+   completeEmailVerificationRenewal,
+ } = require("../../lib/index");
+ 
+ 
+ const db = getFirestore();
+ const auth = getAuth();
+ const request = (uid) => ({
+   data: {},
+   auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+ });
+ const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+ 
+ test("fresh email link renewal credits 500 coins once and starts the next three-calendar-month cycle", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   assert.ok(process.env.FIREBASE_AUTH_EMULATOR_HOST, "Auth emulator is required");
+   const tag = suffix();
+   const uid = `email_renewal_${tag}`;
+   const email = `renewal_${tag}@example.test`;
+   const userRef = db.collection("users").doc(uid);
+   const lastVerifiedAtMs = Date.now() - 1000;
+   const ledgerIdPrefix = "email_verification_";
+   let cycleRef;
+   let ledgerRef;
+   let auditRef;
+ 
+   await auth.createUser({ uid, email, password: "Test-only-password-123!", emailVerified: true });
++  const biometricState = {
++    status: "verified",
++    verificationMethod: "super_owner_manual_review",
++    approvedAt: Timestamp.fromMillis(lastVerifiedAtMs - 10_000),
++    expiresAt: Timestamp.fromMillis(lastVerifiedAtMs + 30 * 24 * 60 * 60 * 1000),
++    requestId: "biometric_request_test_0001",
++  };
+   await userRef.set({
+     uid,
+     email,
+     emailVerified: true,
+     emailVerifiedAt: Timestamp.fromMillis(lastVerifiedAtMs - 3 * 31 * 24 * 60 * 60 * 1000),
+     emailVerificationSequence: 1,
+     emailVerificationCycleId: "initial-cycle",
+     emailVerificationCycleStartedAt: Timestamp.fromMillis(lastVerifiedAtMs - 3 * 31 * 24 * 60 * 60 * 1000),
+     emailVerificationCycleExpiresAt: Timestamp.fromMillis(lastVerifiedAtMs - 1),
+     coins: 250,
+     profileCompleted: true,
+     accountStatus: "active",
++    biometricVerification: biometricState,
++    biometricVerificationRenewalDueAt: Timestamp.fromMillis(lastVerifiedAtMs + 30 * 24 * 60 * 60 * 1000),
+   });
+ 
+   try {
+     const started = await startEmailVerificationRenewal.run(request(uid));
+     assert.equal(started.email, email);
+     assert.equal(started.alreadyPending, false);
+     assert.equal(started.sendVerificationEmail, true);
+ 
+     const authAfterStart = await auth.getUser(uid);
+     assert.equal(authAfterStart.emailVerified, false);
++    assert.deepEqual((await userRef.get()).data().biometricVerification, biometricState, "email renewal must not mutate biometric verification");
+     cycleRef = db.collection("emailVerificationCycles").doc(`${uid}_${started.cycleId}`);
+     const pending = (await cycleRef.get()).data();
+     assert.equal(pending.status, "pending");
+     assert.ok(pending.authResetAt);
+ 
+     await assert.rejects(
+       () => completeEmailVerificationRenewal.run(request(uid)),
+       (error) => error && error.code === "failed-precondition",
+     );
+     assert.equal((await userRef.get()).data().coins, 250);
+ 
+     // Simulate the Firebase Auth action link being redeemed by its owner.
+     await auth.updateUser(uid, { emailVerified: true });
+     const completed = await completeEmailVerificationRenewal.run(request(uid));
+     assert.equal(completed.rewardGranted, true);
+     assert.equal(completed.rewardAmount, 500);
+     assert.equal(completed.newBalance, 750);
+ 
+     const member = (await userRef.get()).data();
+     assert.equal(member.coins, 750);
+     assert.equal(member.emailVerified, true);
+     assert.equal(member.emailVerificationSequence, 2);
+     assert.equal(member.emailVerificationCycleId, started.cycleId);
+     assert.equal(member.emailVerificationRenewalPendingCycleId, undefined);
++    assert.deepEqual(member.biometricVerification, biometricState, "email approval must not renew or reset biometric verification");
++    assert.equal(member.biometricVerificationRenewalDueAt.toMillis(), biometricState.expiresAt.toMillis(), "email cycle must not move biometric due date");
+     assert.ok(member.emailVerificationCycleExpiresAt.toMillis() > Date.now());
+ 
+     const cycle = (await cycleRef.get()).data();
+     assert.equal(cycle.status, "rewarded");
+     ledgerRef = userRef.collection("walletLedger").doc(ledgerIdPrefix + started.cycleId);
+     auditRef = db.collection("verificationAuditLogs").doc(ledgerIdPrefix + started.cycleId);
+     assert.equal((await ledgerRef.get()).data().amount, 500);
+     assert.equal((await auditRef.get()).data().action, "email_verification_cycle_rewarded");
+ 
+     await assert.rejects(
+       () => completeEmailVerificationRenewal.run(request(uid)),
+       (error) => error && error.code === "failed-precondition",
+     );
+     await assert.rejects(
+       () => startEmailVerificationRenewal.run(request(uid)),
+       (error) => error && error.code === "failed-precondition",
+     );
+     assert.equal((await userRef.get()).data().coins, 750);
+   } finally {
+     await Promise.all([
+       cycleRef?.delete().catch(() => undefined),
+       ledgerRef?.delete().catch(() => undefined),
+       auditRef?.delete().catch(() => undefined),
+       userRef.delete().catch(() => undefined),
+       auth.deleteUser(uid).catch(() => undefined),
+     ]);
+   }
+ });

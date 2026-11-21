@@ -1,0 +1,41 @@
+BRANCH: codex/phase1-direct-call-transaction-revalidation-2026-11-20
+SHA: b78817d0e6d7a73398fcce1d54c7df4f6707d045
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: c6f8fc239a43ddeeed28f75d4dc8eb9ab4347dc7
+
+=== DIVERGENCE target-only / branch-only ===
+207	5
+
+=== BRANCH UNIQUE COMMITS ===
+b78817d0e6d7a73398fcce1d54c7df4f6707d045 test(calls): cover malformed direct-call revalidation snapshots
+f6cdf552494e222c2cefd3a4d27ca36515fd93cf fix(calls): revalidate direct-call participants transactionally
+0701c884a4f7767d116a249b30771bc394bd9779 test(calls): cover direct-call relationship revalidation
+00bed09307238aa0eb671861eaaa7fa6d5f23a9b fix(calls): clarify age-class comparison in direct-call guard
+59dc773f9fe402047f31f8689055d5133d303d7e fix(calls): add direct-call transactional relationship guard
+
+=== CHERRY STATUS ===
++ 59dc773f9fe402047f31f8689055d5133d303d7e fix(calls): add direct-call transactional relationship guard
++ 00bed09307238aa0eb671861eaaa7fa6d5f23a9b fix(calls): clarify age-class comparison in direct-call guard
++ 0701c884a4f7767d116a249b30771bc394bd9779 test(calls): cover direct-call relationship revalidation
++ f6cdf552494e222c2cefd3a4d27ca36515fd93cf fix(calls): revalidate direct-call participants transactionally
++ b78817d0e6d7a73398fcce1d54c7df4f6707d045 test(calls): cover malformed direct-call revalidation snapshots
+
+=== FILE STATUS ===
+M	functions/src/index.ts
+M	functions/src/room-call-policy.ts
+M	functions/test/room-call-policy.test.js
+
+=== NUMSTAT ===
+25	3	functions/src/index.ts
+37	0	functions/src/room-call-policy.ts
+41	1	functions/test/room-call-policy.test.js
+
+=== DIFF CHECK ===
+functions/src/room-call-policy.ts:59: trailing whitespace.
++ 
+functions/test/room-call-policy.test.js:55: trailing whitespace.
++ 
+functions/test/room-call-policy.test.js:84: trailing whitespace.
++ 
+DIFF_CHECK=WARNING

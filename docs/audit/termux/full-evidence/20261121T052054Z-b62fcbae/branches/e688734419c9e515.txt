@@ -1,0 +1,346 @@
+BRANCH: codex/economic-phase1-closeout-2026-11-18
+SHA: 10564784494310761bb4249d703d646020209e35
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 7fd1c6cd9b3810047bb0d87f1b6dd5d0dc8b4dd1
+
+=== DIVERGENCE target-only / branch-only ===
+490	124
+
+=== BRANCH UNIQUE COMMITS ===
+10564784494310761bb4249d703d646020209e35 Record partial call reservation remediation and remaining blockers
+6ef8fc34262d3ea8c947cf6839b0070995ecc5d2 Align group-call economy tests with approved participant caps
+6d54df1b251033aecbc7ee8c25e162ce6676b87f Add local unit coverage for pending call invitation reservations
+53d6a038a60158ba57ef8f4d3f968d37ef921aeb Allow room members to decline or ignore pending call invitations without being treated as busy
+7bf65b812c2f456ab4a4187f6257cb20ac42324f Fix pending call invitees not reserving active-call slots
+56bb24f451bcf897e5b33e0275cedb295ac22aa3 docs(calls): verify missing economy wiring and local test blockers
+9b768aeaf4db6373140a2b015b8dae445f09ade0 docs(calls): preserve approved five-person group audio cap
+98a9d7cfe802110abbf13282d593999f490c658b docs(calls): record verified invitation and settlement gaps
+519894e20ded3c91f7e31456768498ba08fd9ef5 docs: refresh call economy audit from current branch sources
+ba31587c49e6420600ba3031d64959d3cc4be01b docs: record owner execution and local-test constraints for economic closeout
+24fb901684d851108d47c476b7030695cd01194c fix(economy): correct BetaCoins label typo in profile
+43111a8f84d2859647c6c7263fea492135fd166c docs(calls): update economic work register with source audit
+21ee564ca99cdc060878eacfdf48067a31abc38c docs(calls): record implementation audit and critical remediation plan
+b0ddd12c4b7675e34fe7b69faa18bc533ac69e6d test(calls): align room signaling fixture with rented private-room policy
+e75c15e913aec676930c279fbcbedf4f53016513 docs(calls): define interaction tile for three-way video
+1c36876678d2be389c48c2078aa6379338cf4416 docs(calls): specify balanced group video layouts
+c0678aa82be1dc8e905d13053e4f91673b708d56 docs(calls): clarify group audio admission and video cap
+6bbd5b477c981cf5d28b4370648d88b1883bf53f docs(economy): reconcile call execution audit against current HEAD
+3a459cf3847b3335ba58a35ca78a28ce3ae05df9 Update economic closeout register with room-call security progress
+91c5e16e009c1d99b63046b73760d0770ff53648 Record room-call rented-private security gate and remaining gaps
+860d3b4a5e537ef25fc1f97c470d67f76422cd01 Reject room calls outside active rented private rooms
+2381f4df090e6163b31cca49c01e7470057b4904 Test fail-closed rented private room call eligibility
+d615d32cd6b0ac31d2081182b66c3eb648621282 Add fail-closed eligibility guard for rented private room calls
+000029b59f84d9898f9366381f987b1c9e725aed Document prioritized economic phase closeout register
+11d1488ca5f9dcb056153345eb7227441936f2bd Document owner-approved integer group-call remainder policy
+4a12dbdf3b21c41f2957246557c3f852b722a9c3 Document owner-approved integer group-call remainder policy
+10dedd9b1e088412e24f2777309ab16a36f8fb7a Test initiator-paid group-call rounding remainder
+d327e382be456de92abd79bb5fcb3326fdfad89a Charge group-call fractional remainder to initiator using integer shares
+0b41b5ef1763030869a7b24703b684b2c3aae73d Test exact deterministic group call coin allocation
+ca5aa45c243eaebb8fa872cb0de23311af2ca94f Add exact integer allocation for group call coin splits
+cc3cd71916b02a80e8030e82cde48c6b5c7c3381 Record group call pricing and capacity gaps in economic audit
+fdaf53e1f5dff682fce212380ca598322fd66a65 Document owner-approved group call policy amendment
+c392a0f499e699ff09739ea678db4336aae593ce Reconcile economic audit with completed gifting work and exact BetaCoins spelling
+112aaea91893dd1ce09d5368f2d9721cdabb0c4e Standardize server messages and notifications to BetaCoins
+6ead5db860f519a0cd268cb22f49f705ad7b615c Finish replacing legacy currency labels with BetaCoins
+3c4fcc8cbb4edde80fb3517c5d2af433b14536d4 Finish replacing legacy currency labels with BetaCoins
+726edaeb868d4226ee11babf3ad95f31f76281d8 Finish replacing legacy currency labels with BetaCoins
+e4f81e135b0626f5c2839702621fea1770e0cc76 Finish replacing legacy currency labels with BetaCoins
+6ebbd924bb37f432b7937a2c5a0e7a34824b0fbd Enforce exact BetaCoins branding across currency labels and decisions
+5180ae6728fc9e07d5662636db0f478e9334e0e6 Enforce exact BetaCoins branding across currency labels and decisions
+5b3ceb13088f6708625af6a72fba1f98a21ece3d Enforce exact BetaCoins branding across currency labels and decisions
+615d7e2a0e6612c5f385b1d63ec5a317ee778346 Enforce exact BetaCoins branding across currency labels and decisions
+06bc6cea957518af6bb7e1a82b5f536119317fd0 Standardize user-facing currency label to BetaCoins
+294d1b3e2a2a259b8884f49c07b0559b18d8bfe2 Standardize user-facing currency label to BetaCoins
+1677c8be7f5e47ac83e1ca94f3fe51be5c558342 Standardize user-facing currency label to BetaCoins
+3a9442ccfdeb86e8530ae77d08a4cc8a4006c245 Standardize user-facing currency label to BetaCoins
+a1aa3099aa091f9f7ce85601ddbfa2f4aa47fcd2 Standardize user-facing currency label to BetaCoins
+3357773c8330b6efef6d5614e4da59453e2b7c4d Standardize user-facing currency label to BetaCoins
+2b73e1ef11908c25b63220e70439672a924776cd Standardize user-facing currency label to BetaCoins
+9b999710836e7922c45fed7774bcf500646fc5e7 Standardize user-facing currency label to BetaCoins
+1808a3aab8619743b76721fefd0be801874d7df0 Standardize user-facing currency label to BetaCoins
+ef7027ff3d077b4a915c1443beebf54ec663859b Standardize user-facing currency label to BetaCoins
+d0838b23b30d0ef9339d0f126f0cd9ebe4acc433 Reject anonymous guest senders from coin package purchase and gifting
+01a1f3655e13335ad97c989768c3beb5868ecf9f Make optional transaction reads explicit and type-safe
+37f850fd07a905d5fb5213c76cafa87d71786b27 Keep owner package-gift payment terms read-only
+07dcac012ae8887d72d14b26af12bd9f3a990dd1 Lock gifted package fulfillment to owner-configured package terms
+d98442d9b99f0b3bcf3b1aa117aa91ffb855aee5 Preserve idempotent replay for already approved coin package gifts
+b804e024e29b81b3adfc13335b622d1b54c6e751 Move recipient Auth preflight outside package approval transaction
+abb5c19c3ea08707b85ab6986b87c05cadccab3a Move external Auth preflight outside coin package request transaction
+b11ea77a414d914d278128a4f49aee103bbc086a Document Beta Coins package and balance gifting flows
+0e1a7c02c389e56d73c3cca752c71943bf639650 Record two-method Beta Coins gifting clarification
+d2f73ca5bfa6eaab6c6b951c62b4d7bd4faa47dc Keep committed coin gift settlement successful if push delivery fails
+b142b9aaff7ff0be1067dae3736c8e1c05df613f Expose recipient details in owner coin package gift queue
+8cf1433799f76615475885fc1054343312a520dc Show package gift fulfillment status to purchaser
+167207078c20c72d6e88c761a274a848dfcf0637 Display received coin package gifts in member history
+1e77bacf0e28ef0b8e16ec7e6483ef00ecbbf394 Include gifted coin packages in member gift history
+442cc5e0e0b7f24c159f3de3fe939cb20522bdc8 Test recipient-bound package gift request validation
+05d6344af82fe99403196b4fff7b2684e13ac0c9 Use Firestore document identity for package gift recipient
+8d23f14ff1ff63cffd291958f28c73d4d5f390ab Add coin gift choice for admin packages or sender wallet balance
+dc3a609c5dca89271e9fc043d1303b933033522a Credit verified gifted coin packages to recipient atomically
+8837c51e6510f6f2d7ef5abde55200f9c875ce86 Bind coin package gift requests to eligible recipient
+7c0eeb43d2535f1acad8d24b06aa78b62770d725 Validate recipient-bound coin package gift requests
+630431051e09c80d9276065ee372396cd5bde82f Document profile-scoped gifting UX and remove shop gifting
+05f26e299b5c788bb7137a4383323e9c78f04e67 Record recipient-profile-only gifting UX decision
+92a4d5d653a5a4d3de90cea15eba96a558567bf6 Remove obsolete username gift lookup endpoint
+0a25e3a0dc9c60c26f9550cef685fd3f2eed5e53 Remove store-originated gifting entry point
+67951103a9a376a15c12637dd8cb60c221a75566 Use catalog fulfillment contract and recipient display name
+061a330be675aafd6655782d4f993abf667ea00f Move member gifting entry point to recipient profile
+9728cd2128b8acdd06f687caa0ae64f0117535f5 Bind gift recipient lookup to canonical member identity
+3fa9124532e809e1e23f23724b5fabac7e529fcd Preserve purchasedAt contract for gifted entitlements
+31fb52d927773f88138a7a8d8e4ae374242ef1a9 Update economic audit with store gifting UI integration
+314e3789a36e91310a4569821f0cd9f1fa40877d Update ECON-007 UI integration status
+f1209455d779cd0214a71455f93b4637ac60052b Keep internal sender identifiers out of gift history UI
+46a90d841437ddc0a0c7411e0fa8d6dec9225622 Reject disabled accounts in gift recipient lookup
+7fc27c09ca1fe17baf8e3457dc44dc1587c77e11 Harden gift recipient Auth checks and typing
+958c4b882a2b3b443b02417f38ad50e0acc5185e Show received store gifts alongside owner grants
+4c4cce6aa92b3152c3035ae837c2173efe578409 Add recipient-owned store gift history endpoint
+8be0879e4c722f9b467c43abdecbbd4a6b5bd8f2 Connect store item gifting to member lookup and callable
+ab77650bfc32835c9dcbd7c774a3d651e2cc865b Add privacy-safe eligible gift recipient lookup
+27490b4c6953a0a7078b3c22c8b83ea18e8e63e4 Document atomic store gifting backend and remaining gates
+61a524a43a50ca3667e5a79402a98ccdfbef5216 Record store gifting implementation status
+0458747da9cee015c6e614fb822dde6e068ffc2c Remove unused gift settlement variable
+90041f905669ebc86436cf842bb1b93c68145ad1 Add store gifting domain regression tests
+1d2f1ca363ab0b96657e4102e5906a602de3a211 Implement atomic member-to-member store gifting
+a5d53f40713c824308b92d5cf8c37facf02c30ac Add store gifting domain guards and expiry stacking
+a078e6c14906caa3956fd6342bc01432dcbabe50 Document approved store renewal and gifting lifecycle
+53576b77318953d4c14fffb174a9109e9924f3cc Record store renewal and member gifting rules
+b1d4c72e58a6a4cc67f49cb3f14d95033899a91e Record no-op Hide Coins SKU constraint under approved privacy rule
+ee08abd87a68a7a38748658788e9a65537d07549 Document fail-closed correction for redundant Hide Coins SKU
+83a86742a1212d93f3b328d2467a6843ccd86771 Prevent charging for redundant Hide Coins entitlement
+3fd0af8c29b3165a77c3adf2dd77f3f2fc293266 Keep redundant hide-coins SKU fail-closed until it has distinct fulfillment
+e373dd59cbdc697b174eb46f1d5776934e5f76d1 Document testable transactional daily reward cap guard
+486d8243a81e61e771dab3d1fb3704c7de739b02 Add exact-boundary tests for timed-ad daily reward caps
+49261c8fc6dfe290e09ac5cef22663aebeedbe06 Remove superseded timed-ad cap constant imports
+46e41f28e3bbb97ad0f50ab064a3f374e92d462c Use shared tested guard for transactional timed-ad daily caps
+6073c81fdc47844aa67196c215701a1e294f56b3 Extract timed-ad daily cap decision for testable enforcement
+c9fd052b1572e401bc1e747cfa3007f26cf68199 docs(economy): document call billing and Media Saver source gaps
+6eca9a36edd861b75881d5a1a04649111b39397b fix(economy): import timed-ad reward safety limits
+a1138c6985c31fde3c48a7d52d17e567d09702c7 docs(economy): record server-enforced ad reward caps
+9ee5debaf5fd718b0209558314a2b2952a3088d8 test(economy): cover timed-ad reward caps
+af9b8a8c38036baaa3e13c7a2b144837c965357f feat(economy): persist daily timed-ad reward counter
+ed4b455036fee32d1a0f44bb294b306d78f60edb feat(economy): enforce daily timed-ad reward limits
+07520643d65874a897a147195e5cc59dc703b4ac feat(economy): enforce experimental timed-ad reward caps
+c51431a6f42322292f440bd2505091923527fc0c test(economy): cover Hide Coins fulfillment
+b627102ee04ab13eb5aa401b96713ed54db6aa4a docs(economy): record approved Beta Coins and economic phase amendments
+492f86ab8e13af8bae721697604c614744b90546 docs(economy): record Beta Coins and 60/40 owner amendments
+8d8526f9a40223719497d806096a7623f42eb44c docs(economy): define comprehensive economic phase closeout gates
+cd581fb0d03c63f9c0e2337134163a6a52d53644 feat(economy): standardize featured-ad rewards as Beta Coins
+ac170450967001f3c44cb46696f0762e319703ee fix(economy): normalize Beta Coins labels
+a322bb5975253a28686b8d5a8ca9b8ebea6b133f feat(economy): show server-authorized Beta Coins balance privacy
+f904920fc2c1999373af60851db067d0b448d620 feat(economy): enforce coin visibility at profile projection
+4ac9b409bc58ece92609dfc4d1eeacd502901269 test(economy): cover coin privacy matrix
+9bb6c47dec80a9d05f17fb81cc09c5554b68606b feat(economy): add server coin-visibility projection
+68c538f971ac73c8cb043581389afce323481487 feat(economy): enable server fulfillment contract for hide coins
+
+=== CHERRY STATUS ===
++ 68c538f971ac73c8cb043581389afce323481487 feat(economy): enable server fulfillment contract for hide coins
++ 9bb6c47dec80a9d05f17fb81cc09c5554b68606b feat(economy): add server coin-visibility projection
++ 4ac9b409bc58ece92609dfc4d1eeacd502901269 test(economy): cover coin privacy matrix
++ f904920fc2c1999373af60851db067d0b448d620 feat(economy): enforce coin visibility at profile projection
++ a322bb5975253a28686b8d5a8ca9b8ebea6b133f feat(economy): show server-authorized Beta Coins balance privacy
++ ac170450967001f3c44cb46696f0762e319703ee fix(economy): normalize Beta Coins labels
++ cd581fb0d03c63f9c0e2337134163a6a52d53644 feat(economy): standardize featured-ad rewards as Beta Coins
++ 8d8526f9a40223719497d806096a7623f42eb44c docs(economy): define comprehensive economic phase closeout gates
++ 492f86ab8e13af8bae721697604c614744b90546 docs(economy): record Beta Coins and 60/40 owner amendments
++ b627102ee04ab13eb5aa401b96713ed54db6aa4a docs(economy): record approved Beta Coins and economic phase amendments
++ c51431a6f42322292f440bd2505091923527fc0c test(economy): cover Hide Coins fulfillment
++ 07520643d65874a897a147195e5cc59dc703b4ac feat(economy): enforce experimental timed-ad reward caps
++ ed4b455036fee32d1a0f44bb294b306d78f60edb feat(economy): enforce daily timed-ad reward limits
++ af9b8a8c38036baaa3e13c7a2b144837c965357f feat(economy): persist daily timed-ad reward counter
++ 9ee5debaf5fd718b0209558314a2b2952a3088d8 test(economy): cover timed-ad reward caps
++ a1138c6985c31fde3c48a7d52d17e567d09702c7 docs(economy): record server-enforced ad reward caps
++ 6eca9a36edd861b75881d5a1a04649111b39397b fix(economy): import timed-ad reward safety limits
++ c9fd052b1572e401bc1e747cfa3007f26cf68199 docs(economy): document call billing and Media Saver source gaps
++ 6073c81fdc47844aa67196c215701a1e294f56b3 Extract timed-ad daily cap decision for testable enforcement
++ 46e41f28e3bbb97ad0f50ab064a3f374e92d462c Use shared tested guard for transactional timed-ad daily caps
++ 49261c8fc6dfe290e09ac5cef22663aebeedbe06 Remove superseded timed-ad cap constant imports
++ 486d8243a81e61e771dab3d1fb3704c7de739b02 Add exact-boundary tests for timed-ad daily reward caps
++ e373dd59cbdc697b174eb46f1d5776934e5f76d1 Document testable transactional daily reward cap guard
++ 3fd0af8c29b3165a77c3adf2dd77f3f2fc293266 Keep redundant hide-coins SKU fail-closed until it has distinct fulfillment
++ 83a86742a1212d93f3b328d2467a6843ccd86771 Prevent charging for redundant Hide Coins entitlement
++ ee08abd87a68a7a38748658788e9a65537d07549 Document fail-closed correction for redundant Hide Coins SKU
++ b1d4c72e58a6a4cc67f49cb3f14d95033899a91e Record no-op Hide Coins SKU constraint under approved privacy rule
++ 53576b77318953d4c14fffb174a9109e9924f3cc Record store renewal and member gifting rules
++ a078e6c14906caa3956fd6342bc01432dcbabe50 Document approved store renewal and gifting lifecycle
++ a5d53f40713c824308b92d5cf8c37facf02c30ac Add store gifting domain guards and expiry stacking
++ 1d2f1ca363ab0b96657e4102e5906a602de3a211 Implement atomic member-to-member store gifting
++ 90041f905669ebc86436cf842bb1b93c68145ad1 Add store gifting domain regression tests
++ 0458747da9cee015c6e614fb822dde6e068ffc2c Remove unused gift settlement variable
++ 61a524a43a50ca3667e5a79402a98ccdfbef5216 Record store gifting implementation status
++ 27490b4c6953a0a7078b3c22c8b83ea18e8e63e4 Document atomic store gifting backend and remaining gates
++ ab77650bfc32835c9dcbd7c774a3d651e2cc865b Add privacy-safe eligible gift recipient lookup
++ 8be0879e4c722f9b467c43abdecbbd4a6b5bd8f2 Connect store item gifting to member lookup and callable
++ 4c4cce6aa92b3152c3035ae837c2173efe578409 Add recipient-owned store gift history endpoint
++ 958c4b882a2b3b443b02417f38ad50e0acc5185e Show received store gifts alongside owner grants
++ 7fc27c09ca1fe17baf8e3457dc44dc1587c77e11 Harden gift recipient Auth checks and typing
++ 46a90d841437ddc0a0c7411e0fa8d6dec9225622 Reject disabled accounts in gift recipient lookup
+- f1209455d779cd0214a71455f93b4637ac60052b Keep internal sender identifiers out of gift history UI
++ 314e3789a36e91310a4569821f0cd9f1fa40877d Update ECON-007 UI integration status
+- 31fb52d927773f88138a7a8d8e4ae374242ef1a9 Update economic audit with store gifting UI integration
++ 3fa9124532e809e1e23f23724b5fabac7e529fcd Preserve purchasedAt contract for gifted entitlements
++ 9728cd2128b8acdd06f687caa0ae64f0117535f5 Bind gift recipient lookup to canonical member identity
++ 061a330be675aafd6655782d4f993abf667ea00f Move member gifting entry point to recipient profile
++ 67951103a9a376a15c12637dd8cb60c221a75566 Use catalog fulfillment contract and recipient display name
++ 0a25e3a0dc9c60c26f9550cef685fd3f2eed5e53 Remove store-originated gifting entry point
++ 92a4d5d653a5a4d3de90cea15eba96a558567bf6 Remove obsolete username gift lookup endpoint
++ 05f26e299b5c788bb7137a4383323e9c78f04e67 Record recipient-profile-only gifting UX decision
++ 630431051e09c80d9276065ee372396cd5bde82f Document profile-scoped gifting UX and remove shop gifting
++ 7c0eeb43d2535f1acad8d24b06aa78b62770d725 Validate recipient-bound coin package gift requests
++ 8837c51e6510f6f2d7ef5abde55200f9c875ce86 Bind coin package gift requests to eligible recipient
++ dc3a609c5dca89271e9fc043d1303b933033522a Credit verified gifted coin packages to recipient atomically
++ 8d23f14ff1ff63cffd291958f28c73d4d5f390ab Add coin gift choice for admin packages or sender wallet balance
++ 05d6344af82fe99403196b4fff7b2684e13ac0c9 Use Firestore document identity for package gift recipient
++ 442cc5e0e0b7f24c159f3de3fe939cb20522bdc8 Test recipient-bound package gift request validation
++ 1e77bacf0e28ef0b8e16ec7e6483ef00ecbbf394 Include gifted coin packages in member gift history
++ 167207078c20c72d6e88c761a274a848dfcf0637 Display received coin package gifts in member history
++ 8cf1433799f76615475885fc1054343312a520dc Show package gift fulfillment status to purchaser
++ b142b9aaff7ff0be1067dae3736c8e1c05df613f Expose recipient details in owner coin package gift queue
++ d2f73ca5bfa6eaab6c6b951c62b4d7bd4faa47dc Keep committed coin gift settlement successful if push delivery fails
++ 0e1a7c02c389e56d73c3cca752c71943bf639650 Record two-method Beta Coins gifting clarification
++ b11ea77a414d914d278128a4f49aee103bbc086a Document Beta Coins package and balance gifting flows
++ abb5c19c3ea08707b85ab6986b87c05cadccab3a Move external Auth preflight outside coin package request transaction
++ b804e024e29b81b3adfc13335b622d1b54c6e751 Move recipient Auth preflight outside package approval transaction
++ d98442d9b99f0b3bcf3b1aa117aa91ffb855aee5 Preserve idempotent replay for already approved coin package gifts
++ 07dcac012ae8887d72d14b26af12bd9f3a990dd1 Lock gifted package fulfillment to owner-configured package terms
++ 37f850fd07a905d5fb5213c76cafa87d71786b27 Keep owner package-gift payment terms read-only
++ 01a1f3655e13335ad97c989768c3beb5868ecf9f Make optional transaction reads explicit and type-safe
++ d0838b23b30d0ef9339d0f126f0cd9ebe4acc433 Reject anonymous guest senders from coin package purchase and gifting
++ ef7027ff3d077b4a915c1443beebf54ec663859b Standardize user-facing currency label to BetaCoins
++ 1808a3aab8619743b76721fefd0be801874d7df0 Standardize user-facing currency label to BetaCoins
++ 9b999710836e7922c45fed7774bcf500646fc5e7 Standardize user-facing currency label to BetaCoins
++ 2b73e1ef11908c25b63220e70439672a924776cd Standardize user-facing currency label to BetaCoins
++ 3357773c8330b6efef6d5614e4da59453e2b7c4d Standardize user-facing currency label to BetaCoins
++ a1aa3099aa091f9f7ce85601ddbfa2f4aa47fcd2 Standardize user-facing currency label to BetaCoins
++ 3a9442ccfdeb86e8530ae77d08a4cc8a4006c245 Standardize user-facing currency label to BetaCoins
++ 1677c8be7f5e47ac83e1ca94f3fe51be5c558342 Standardize user-facing currency label to BetaCoins
++ 294d1b3e2a2a259b8884f49c07b0559b18d8bfe2 Standardize user-facing currency label to BetaCoins
++ 06bc6cea957518af6bb7e1a82b5f536119317fd0 Standardize user-facing currency label to BetaCoins
++ 615d7e2a0e6612c5f385b1d63ec5a317ee778346 Enforce exact BetaCoins branding across currency labels and decisions
++ 5b3ceb13088f6708625af6a72fba1f98a21ece3d Enforce exact BetaCoins branding across currency labels and decisions
++ 5180ae6728fc9e07d5662636db0f478e9334e0e6 Enforce exact BetaCoins branding across currency labels and decisions
++ 6ebbd924bb37f432b7937a2c5a0e7a34824b0fbd Enforce exact BetaCoins branding across currency labels and decisions
++ e4f81e135b0626f5c2839702621fea1770e0cc76 Finish replacing legacy currency labels with BetaCoins
++ 726edaeb868d4226ee11babf3ad95f31f76281d8 Finish replacing legacy currency labels with BetaCoins
++ 3c4fcc8cbb4edde80fb3517c5d2af433b14536d4 Finish replacing legacy currency labels with BetaCoins
++ 6ead5db860f519a0cd268cb22f49f705ad7b615c Finish replacing legacy currency labels with BetaCoins
++ 112aaea91893dd1ce09d5368f2d9721cdabb0c4e Standardize server messages and notifications to BetaCoins
++ c392a0f499e699ff09739ea678db4336aae593ce Reconcile economic audit with completed gifting work and exact BetaCoins spelling
++ fdaf53e1f5dff682fce212380ca598322fd66a65 Document owner-approved group call policy amendment
++ cc3cd71916b02a80e8030e82cde48c6b5c7c3381 Record group call pricing and capacity gaps in economic audit
++ ca5aa45c243eaebb8fa872cb0de23311af2ca94f Add exact integer allocation for group call coin splits
++ 0b41b5ef1763030869a7b24703b684b2c3aae73d Test exact deterministic group call coin allocation
++ d327e382be456de92abd79bb5fcb3326fdfad89a Charge group-call fractional remainder to initiator using integer shares
++ 10dedd9b1e088412e24f2777309ab16a36f8fb7a Test initiator-paid group-call rounding remainder
++ 4a12dbdf3b21c41f2957246557c3f852b722a9c3 Document owner-approved integer group-call remainder policy
++ 11d1488ca5f9dcb056153345eb7227441936f2bd Document owner-approved integer group-call remainder policy
++ 000029b59f84d9898f9366381f987b1c9e725aed Document prioritized economic phase closeout register
++ d615d32cd6b0ac31d2081182b66c3eb648621282 Add fail-closed eligibility guard for rented private room calls
++ 2381f4df090e6163b31cca49c01e7470057b4904 Test fail-closed rented private room call eligibility
++ 860d3b4a5e537ef25fc1f97c470d67f76422cd01 Reject room calls outside active rented private rooms
++ 91c5e16e009c1d99b63046b73760d0770ff53648 Record room-call rented-private security gate and remaining gaps
++ 3a459cf3847b3335ba58a35ca78a28ce3ae05df9 Update economic closeout register with room-call security progress
++ 6bbd5b477c981cf5d28b4370648d88b1883bf53f docs(economy): reconcile call execution audit against current HEAD
++ c0678aa82be1dc8e905d13053e4f91673b708d56 docs(calls): clarify group audio admission and video cap
++ 1c36876678d2be389c48c2078aa6379338cf4416 docs(calls): specify balanced group video layouts
++ e75c15e913aec676930c279fbcbedf4f53016513 docs(calls): define interaction tile for three-way video
++ b0ddd12c4b7675e34fe7b69faa18bc533ac69e6d test(calls): align room signaling fixture with rented private-room policy
++ 21ee564ca99cdc060878eacfdf48067a31abc38c docs(calls): record implementation audit and critical remediation plan
++ 43111a8f84d2859647c6c7263fea492135fd166c docs(calls): update economic work register with source audit
++ 24fb901684d851108d47c476b7030695cd01194c fix(economy): correct BetaCoins label typo in profile
++ ba31587c49e6420600ba3031d64959d3cc4be01b docs: record owner execution and local-test constraints for economic closeout
++ 519894e20ded3c91f7e31456768498ba08fd9ef5 docs: refresh call economy audit from current branch sources
++ 98a9d7cfe802110abbf13282d593999f490c658b docs(calls): record verified invitation and settlement gaps
++ 9b768aeaf4db6373140a2b015b8dae445f09ade0 docs(calls): preserve approved five-person group audio cap
++ 56bb24f451bcf897e5b33e0275cedb295ac22aa3 docs(calls): verify missing economy wiring and local test blockers
++ 7bf65b812c2f456ab4a4187f6257cb20ac42324f Fix pending call invitees not reserving active-call slots
++ 53d6a038a60158ba57ef8f4d3f968d37ef921aeb Allow room members to decline or ignore pending call invitations without being treated as busy
++ 6d54df1b251033aecbc7ee8c25e162ce6676b87f Add local unit coverage for pending call invitation reservations
++ 6ef8fc34262d3ea8c947cf6839b0070995ecc5d2 Align group-call economy tests with approved participant caps
++ 10564784494310761bb4249d703d646020209e35 Record partial call reservation remediation and remaining blockers
+
+=== FILE STATUS ===
+A	docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md
+A	docs/ECONOMIC_PHASE_COMPLETE_AUDIT_2026-11-18.md
+A	docs/ECONOMIC_PHASE_REMAINING_WORK_REGISTER_2026-11-18.md
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	functions/src/call-signaling.ts
+M	functions/src/coin-purchase-requests.ts
+M	functions/src/engagement-rewards.ts
+A	functions/src/group-call-economy.ts
+M	functions/src/index.ts
+M	functions/src/member-profile-view.ts
+A	functions/src/room-call-policy.ts
+A	functions/src/store-gifting.ts
+A	functions/test/call-signaling-policy.test.js
+M	functions/test/coin-purchase-requests.test.js
+M	functions/test/engagement-rewards.test.js
+A	functions/test/group-call-economy.test.js
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/member-profile-view.test.js
+A	functions/test/room-call-policy.test.js
+M	functions/test/store-catalog.test.js
+A	functions/test/store-gifting.test.js
+M	lib/screens/coin_purchase_screen.dart
+M	lib/screens/economy_pricing_screen.dart
+M	lib/screens/featured_ads_screen.dart
+M	lib/screens/member_entitlement_history_screen.dart
+M	lib/screens/owner_coin_purchase_screen.dart
+M	lib/screens/owner_entitlement_grants_screen.dart
+M	lib/screens/profile_screen.dart
+M	lib/screens/room_rental_pricing_screen.dart
+M	lib/screens/rooms_screen.dart
+M	lib/screens/shop_screen.dart
+M	lib/screens/super_admin_screen.dart
+M	lib/screens/wallet_screen.dart
+
+=== NUMSTAT ===
+208	0	docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md
+196	0	docs/ECONOMIC_PHASE_COMPLETE_AUDIT_2026-11-18.md
+223	0	docs/ECONOMIC_PHASE_REMAINING_WORK_REGISTER_2026-11-18.md
+10	2	docs/IMPLEMENTATION_TRACEABILITY.md
+53	2	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+26	0	functions/src/call-signaling.ts
+12	3	functions/src/coin-purchase-requests.ts
+32	1	functions/src/engagement-rewards.ts
+40	0	functions/src/group-call-economy.ts
+470	49	functions/src/index.ts
+28	0	functions/src/member-profile-view.ts
+46	0	functions/src/room-call-policy.ts
+69	0	functions/src/store-gifting.ts
+46	0	functions/test/call-signaling-policy.test.js
+15	0	functions/test/coin-purchase-requests.test.js
+37	0	functions/test/engagement-rewards.test.js
+58	0	functions/test/group-call-economy.test.js
+12	2	functions/test/integration/call-signaling.integration.test.js
+21	0	functions/test/member-profile-view.test.js
+50	0	functions/test/room-call-policy.test.js
+28	0	functions/test/store-catalog.test.js
+65	0	functions/test/store-gifting.test.js
+10	8	lib/screens/coin_purchase_screen.dart
+3	3	lib/screens/economy_pricing_screen.dart
+5	5	lib/screens/featured_ads_screen.dart
+51	13	lib/screens/member_entitlement_history_screen.dart
+10	7	lib/screens/owner_coin_purchase_screen.dart
+2	2	lib/screens/owner_entitlement_grants_screen.dart
+314	36	lib/screens/profile_screen.dart
+2	2	lib/screens/room_rental_pricing_screen.dart
+1	1	lib/screens/rooms_screen.dart
+5	5	lib/screens/shop_screen.dart
+8	8	lib/screens/super_admin_screen.dart
+3	3	lib/screens/wallet_screen.dart
+
+=== DIFF CHECK ===
+docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md:3: trailing whitespace.
++الحالة: **تدقيق مصدر موثق؛ إصلاح اختباري محدود؛ التنفيذ الوظيفي غير مكتمل**  
+docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md:4: trailing whitespace.
++المستودع: `productionhome2022-hash/mawda-platform`  
+docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md:5: trailing whitespace.
++فرع العمل: `codex/economic-phase1-closeout-2026-11-18`  
+docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md:6: trailing whitespace.
++مرجع التدقيق: HEAD السابق `e75c15e913aec676930c279fbcbedf4f53016513`  
+docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md:32: trailing whitespace.
++الملف: `functions/test/integration/call-signaling.integration.test.js`  
+docs/ECONOMIC_PHASE_REMAINING_WORK_REGISTER_2026-11-18.md:223: new blank line at EOF.
+DIFF_CHECK=WARNING
