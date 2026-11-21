@@ -1,0 +1,42 @@
+Compared branch: codex/mawdda-role-capacity-final-2026-11-19
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+395	40
+
+=== CHANGE SUMMARY ===
+ .github/workflows/mawdda-domain-regression.yml     |   4 +
+ .github/workflows/validate.yml                     |   2 +
+ docs/IMPLEMENTATION_TRACEABILITY.md                |  27 ++++-
+ .../MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md |  20 ++++
+ docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md    |   6 ++
+ docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md       |   2 +-
+ functions/src/advertising-governance.ts            |   3 +-
+ functions/src/index.ts                             |  72 ++++++++++++-
+ functions/src/platform-role-identities.ts          |  86 +++++++++++++++
+ functions/test/advertising-governance.test.js      |  50 +++++++++
+ .../featured-ad-finance.integration.test.js        |   6 ++
+ .../owner-entitlement-grants.integration.test.js   |   4 +-
+ .../premium-profile.integration.test.js            |   3 +-
+ .../specialized-role-capacity.integration.test.js  | 120 +++++++++++++++++++++
+ .../integration/wallet-store.integration.test.js   |  28 +++--
+ functions/test/platform-role-identities.test.js    |  50 +++++++++
+ 16 files changed, 462 insertions(+), 21 deletions(-)
+
+=== CHANGED PATHS ===
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+M	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+M	functions/src/advertising-governance.ts
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+M	functions/test/advertising-governance.test.js
+M	functions/test/integration/featured-ad-finance.integration.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/premium-profile.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+A	functions/test/platform-role-identities.test.js

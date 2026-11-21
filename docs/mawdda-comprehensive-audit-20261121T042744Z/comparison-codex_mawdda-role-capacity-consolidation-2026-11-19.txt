@@ -1,0 +1,22 @@
+Compared branch: codex/mawdda-role-capacity-consolidation-2026-11-19
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+395	6
+
+=== CHANGE SUMMARY ===
+ .github/workflows/mawdda-domain-regression.yml     |   3 +
+ .github/workflows/validate.yml                     |   1 +
+ functions/src/index.ts                             |  43 ++++++++
+ functions/src/platform-role-identities.ts          |  86 +++++++++++++++
+ .../specialized-role-capacity.integration.test.js  | 120 +++++++++++++++++++++
+ functions/test/platform-role-identities.test.js    |  50 +++++++++
+ 6 files changed, 303 insertions(+)
+
+=== CHANGED PATHS ===
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+A	functions/test/platform-role-identities.test.js

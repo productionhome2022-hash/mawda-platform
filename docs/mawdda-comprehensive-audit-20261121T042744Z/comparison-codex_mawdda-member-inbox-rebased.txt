@@ -1,0 +1,24 @@
+Compared branch: codex/mawdda-member-inbox-rebased
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+1521	7
+
+=== CHANGE SUMMARY ===
+ firestore.indexes.json                             |  14 ++
+ functions/src/index.ts                             | 105 +++++++++++
+ functions/src/media.ts                             |  31 +++-
+ .../direct-message-deletion.integration.test.js    |  83 +++++++++
+ .../media-callables.integration.test.js            |   9 +
+ lib/screens/conversations_screen.dart              | 204 +++++++++++++++++++++
+ lib/screens/main_user_screen.dart                  |  20 ++
+ 7 files changed, 465 insertions(+), 1 deletion(-)
+
+=== CHANGED PATHS ===
+M	firestore.indexes.json
+M	functions/src/index.ts
+M	functions/src/media.ts
+M	functions/test/integration/direct-message-deletion.integration.test.js
+M	functions/test/integration/media-callables.integration.test.js
+A	lib/screens/conversations_screen.dart
+M	lib/screens/main_user_screen.dart

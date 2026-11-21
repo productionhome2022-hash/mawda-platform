@@ -1,0 +1,28 @@
+Compared branch: codex/mawdda-biometric-proof-gate-2026-11-20
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+179	12
+
+=== CHANGE SUMMARY ===
+ ...H_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md |  56 +++++++++++
+ .../BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md      |  53 +++++++++++
+ functions/src/biometric-verification.ts            |  89 +++++++++++-------
+ functions/src/index.ts                             |   7 +-
+ functions/src/member-social-links-access.ts        |   5 +-
+ functions/src/member-social-links.ts               |   6 +-
+ functions/test/biometric-verification.test.js      | 104 ++++++++++-----------
+ functions/test/member-social-links-access.test.js  |  64 +++++++------
+ functions/test/member-social-links.test.js         |  69 ++++++++------
+ 9 files changed, 300 insertions(+), 153 deletions(-)
+
+=== CHANGED PATHS ===
+M	docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+A	docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md
+M	functions/src/biometric-verification.ts
+M	functions/src/index.ts
+M	functions/src/member-social-links-access.ts
+M	functions/src/member-social-links.ts
+M	functions/test/biometric-verification.test.js
+M	functions/test/member-social-links-access.test.js
+M	functions/test/member-social-links.test.js

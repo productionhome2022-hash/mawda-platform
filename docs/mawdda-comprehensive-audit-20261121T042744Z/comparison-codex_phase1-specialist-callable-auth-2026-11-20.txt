@@ -1,0 +1,12 @@
+Compared branch: codex/phase1-specialist-callable-auth-2026-11-20
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+184	1
+
+=== CHANGE SUMMARY ===
+ ...1_SPECIALIZED_CALLABLE_AUTH_AUDIT_2026-11-20.md | 61 ++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)
+
+=== CHANGED PATHS ===
+A	docs/PHASE1_SPECIALIZED_CALLABLE_AUTH_AUDIT_2026-11-20.md

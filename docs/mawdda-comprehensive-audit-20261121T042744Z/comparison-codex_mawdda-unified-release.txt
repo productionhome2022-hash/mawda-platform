@@ -1,0 +1,18 @@
+Compared branch: codex/mawdda-unified-release
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+1651	4
+
+=== CHANGE SUMMARY ===
+ functions/src/biometric-verification-cycle.ts      |  62 ++++++++++
+ functions/src/index.ts                             | 129 +++++++++++++++++++++
+ .../test/biometric-verification-cycle.test.js      |  44 +++++++
+ lib/screens/profile_screen.dart                    |  76 +++++++++---
+ 4 files changed, 292 insertions(+), 19 deletions(-)
+
+=== CHANGED PATHS ===
+A	functions/src/biometric-verification-cycle.ts
+M	functions/src/index.ts
+A	functions/test/biometric-verification-cycle.test.js
+M	lib/screens/profile_screen.dart

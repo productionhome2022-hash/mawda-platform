@@ -1,0 +1,12 @@
+Compared branch: codex/phase1-media-scanner-replay-regression-2026-11-20
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+189	1
+
+=== CHANGE SUMMARY ===
+ .../test/integration/media-callables.integration.test.js      | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+=== CHANGED PATHS ===
+M	functions/test/integration/media-callables.integration.test.js

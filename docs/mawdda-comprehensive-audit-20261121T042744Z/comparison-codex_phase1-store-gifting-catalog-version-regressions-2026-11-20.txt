@@ -1,0 +1,12 @@
+Compared branch: codex/phase1-store-gifting-catalog-version-regressions-2026-11-20
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+194	1
+
+=== CHANGE SUMMARY ===
+ .../integration/store-gifting.integration.test.js  | 42 ++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)
+
+=== CHANGED PATHS ===
+M	functions/test/integration/store-gifting.integration.test.js

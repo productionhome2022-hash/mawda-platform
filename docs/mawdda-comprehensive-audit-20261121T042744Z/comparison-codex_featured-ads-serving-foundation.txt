@@ -1,0 +1,72 @@
+Compared branch: codex/featured-ads-serving-foundation
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+487	139
+
+=== CHANGE SUMMARY ===
+ docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md           |  20 +-
+ docs/ECONOMY_PHASE1_EXECUTION_CLOSEOUT.md          | 116 +++
+ docs/IMPLEMENTATION_TRACEABILITY.md                |  56 +-
+ .../MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md |   9 +-
+ firestore.indexes.json                             |  32 +
+ functions/src/default-store-catalog.ts             |   3 +-
+ functions/src/index.ts                             | 819 ++++++++++++++++++++-
+ functions/src/media.ts                             |  54 +-
+ functions/src/store-catalog.ts                     |  11 +-
+ .../test/fixtures/feature-coverage-matrix.json     |   5 +-
+ .../integration/call-signaling.integration.test.js |  94 ++-
+ .../engagement-rewards.integration.test.js         | 292 ++++++++
+ .../media-callables.integration.test.js            |  63 +-
+ .../member-profile-media.integration.test.js       | 114 ++-
+ .../integration/wallet-store.integration.test.js   | 119 ++-
+ functions/test/store-catalog.test.js               |  14 +-
+ lib/screens/chat_room_screen.dart                  |  96 ++-
+ lib/screens/direct_chat_screen.dart                |  99 ++-
+ lib/screens/featured_ads_screen.dart               | 573 +++++++++++---
+ lib/screens/mawdda_call_screen.dart                | 171 ++++-
+ lib/screens/media_workspace_screen.dart            |  20 +-
+ lib/screens/owner_advertising_intake_screen.dart   |  12 +-
+ lib/screens/owner_advertising_rewards_screen.dart  |  38 +-
+ lib/screens/owner_coin_purchase_screen.dart        |  16 +-
+ .../owner_featured_ads_dashboard_screen.dart       | 461 ++++++++++++
+ lib/screens/profile_screen.dart                    |  70 +-
+ lib/screens/reward_center_screen.dart              |  12 +-
+ lib/screens/shop_screen.dart                       |  24 +-
+ lib/services/member_media_upload_service.dart      | 113 ++-
+ pubspec.yaml                                       |   2 +
+ test/featured_ads_screen_test.dart                 |  18 +-
+ 31 files changed, 3271 insertions(+), 275 deletions(-)
+
+=== CHANGED PATHS ===
+M	docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+A	docs/ECONOMY_PHASE1_EXECUTION_CLOSEOUT.md
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	firestore.indexes.json
+M	functions/src/default-store-catalog.ts
+M	functions/src/index.ts
+M	functions/src/media.ts
+M	functions/src/store-catalog.ts
+M	functions/test/fixtures/feature-coverage-matrix.json
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/integration/engagement-rewards.integration.test.js
+M	functions/test/integration/media-callables.integration.test.js
+M	functions/test/integration/member-profile-media.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+M	functions/test/store-catalog.test.js
+M	lib/screens/chat_room_screen.dart
+M	lib/screens/direct_chat_screen.dart
+M	lib/screens/featured_ads_screen.dart
+M	lib/screens/mawdda_call_screen.dart
+M	lib/screens/media_workspace_screen.dart
+M	lib/screens/owner_advertising_intake_screen.dart
+M	lib/screens/owner_advertising_rewards_screen.dart
+M	lib/screens/owner_coin_purchase_screen.dart
+A	lib/screens/owner_featured_ads_dashboard_screen.dart
+M	lib/screens/profile_screen.dart
+M	lib/screens/reward_center_screen.dart
+M	lib/screens/shop_screen.dart
+M	lib/services/member_media_upload_service.dart
+M	pubspec.yaml
+M	test/featured_ads_screen_test.dart

@@ -1,0 +1,100 @@
+Compared branch: codex/economic-phase-completion-2026-11-18
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+487	181
+
+=== CHANGE SUMMARY ===
+ .github/workflows/economic-phase-verification.yml  |   56 +
+ .github/workflows/flutter-ci.yml                   |   18 +
+ ...IC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md |   58 +
+ docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md |   54 +
+ firestore.indexes.json                             |   14 +
+ functions/src/call-usage-policy.ts                 |   69 +
+ functions/src/coin-purchase-requests.ts            |   16 +-
+ functions/src/default-store-catalog.ts             |   38 +-
+ functions/src/economy-payment-policy.ts            |  115 ++
+ functions/src/economy-pricing.ts                   |  120 +-
+ functions/src/engagement-rewards.ts                |   14 +-
+ functions/src/featured-ad-finance.ts               |  206 +++
+ functions/src/group-call-economy.ts                |  141 ++
+ functions/src/index.ts                             | 1890 ++++++++++++++++++--
+ functions/src/room-call-policy.ts                  |   46 +
+ functions/src/room-rental.ts                       |    9 +-
+ functions/src/store-catalog.ts                     |   38 +-
+ functions/src/store-gifting.ts                     |   75 +
+ functions/src/store-purchase.ts                    |    2 +
+ functions/src/wallet-reconciliation.ts             |  108 ++
+ functions/test/call-usage-policy.test.js           |   63 +
+ functions/test/coin-purchase-requests.test.js      |   22 +
+ functions/test/economy-payment-policy.test.js      |   84 +
+ functions/test/economy-pricing.test.js             |  123 +-
+ functions/test/engagement-rewards.test.js          |    7 +-
+ functions/test/featured-ad-finance.test.js         |  141 ++
+ functions/test/group-call-economy.test.js          |   97 +
+ .../integration/call-signaling.integration.test.js |  628 ++++++-
+ .../featured-ad-finance.integration.test.js        |  129 ++
+ .../integration/store-gifting.integration.test.js  |  105 ++
+ .../integration/wallet-store.integration.test.js   |  180 +-
+ functions/test/room-call-policy.test.js            |   50 +
+ functions/test/store-catalog.test.js               |   38 +-
+ functions/test/store-gifting.test.js               |   77 +
+ functions/test/store-purchase.test.js              |   13 +-
+ functions/test/wallet-reconciliation.test.js       |   60 +
+ lib/screens/call_usage_policy_screen.dart          |  295 +++
+ lib/screens/chat_room_screen.dart                  |   95 +-
+ lib/screens/coin_purchase_screen.dart              |   67 +-
+ lib/screens/economy_pricing_screen.dart            |  296 ++-
+ lib/screens/mawdda_call_screen.dart                |  148 +-
+ lib/screens/owner_coin_purchase_screen.dart        |   34 +-
+ lib/screens/room_rental_pricing_screen.dart        |   19 +-
+ lib/screens/shop_screen.dart                       |  170 +-
+ lib/screens/super_admin_screen.dart                |   14 +-
+ 45 files changed, 5536 insertions(+), 506 deletions(-)
+
+=== CHANGED PATHS ===
+A	.github/workflows/economic-phase-verification.yml
+M	.github/workflows/flutter-ci.yml
+A	docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+A	docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md
+M	firestore.indexes.json
+A	functions/src/call-usage-policy.ts
+M	functions/src/coin-purchase-requests.ts
+M	functions/src/default-store-catalog.ts
+A	functions/src/economy-payment-policy.ts
+M	functions/src/economy-pricing.ts
+M	functions/src/engagement-rewards.ts
+A	functions/src/featured-ad-finance.ts
+A	functions/src/group-call-economy.ts
+M	functions/src/index.ts
+A	functions/src/room-call-policy.ts
+M	functions/src/room-rental.ts
+M	functions/src/store-catalog.ts
+A	functions/src/store-gifting.ts
+M	functions/src/store-purchase.ts
+A	functions/src/wallet-reconciliation.ts
+A	functions/test/call-usage-policy.test.js
+M	functions/test/coin-purchase-requests.test.js
+A	functions/test/economy-payment-policy.test.js
+M	functions/test/economy-pricing.test.js
+M	functions/test/engagement-rewards.test.js
+A	functions/test/featured-ad-finance.test.js
+A	functions/test/group-call-economy.test.js
+M	functions/test/integration/call-signaling.integration.test.js
+A	functions/test/integration/featured-ad-finance.integration.test.js
+A	functions/test/integration/store-gifting.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+A	functions/test/room-call-policy.test.js
+M	functions/test/store-catalog.test.js
+A	functions/test/store-gifting.test.js
+M	functions/test/store-purchase.test.js
+A	functions/test/wallet-reconciliation.test.js
+A	lib/screens/call_usage_policy_screen.dart
+M	lib/screens/chat_room_screen.dart
+M	lib/screens/coin_purchase_screen.dart
+M	lib/screens/economy_pricing_screen.dart
+M	lib/screens/mawdda_call_screen.dart
+M	lib/screens/owner_coin_purchase_screen.dart
+M	lib/screens/room_rental_pricing_screen.dart
+M	lib/screens/shop_screen.dart
+M	lib/screens/super_admin_screen.dart

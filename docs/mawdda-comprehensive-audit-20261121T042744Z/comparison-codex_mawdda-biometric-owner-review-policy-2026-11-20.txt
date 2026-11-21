@@ -1,0 +1,12 @@
+Compared branch: codex/mawdda-biometric-owner-review-policy-2026-11-20
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+177	2
+
+=== CHANGE SUMMARY ===
+ ..._SUPER_OWNER_MANUAL_REVIEW_POLICY_2026-11-20.md | 113 +++++++++++++++++++++
+ 1 file changed, 113 insertions(+)
+
+=== CHANGED PATHS ===
+A	docs/phase1/BIOMETRIC_SUPER_OWNER_MANUAL_REVIEW_POLICY_2026-11-20.md

@@ -1,0 +1,18 @@
+Compared branch: codex/mawdda-room-events
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+1567	5
+
+=== CHANGE SUMMARY ===
+ functions/src/audit-archive.ts       |  75 +++++++++++++++
+ functions/src/index.ts               | 179 +++++++++++++++++++++++++++++++++++
+ functions/test/audit-archive.test.js |  23 +++++
+ infra/audit-archive/README.md        |   9 +-
+ 4 files changed, 283 insertions(+), 3 deletions(-)
+
+=== CHANGED PATHS ===
+M	functions/src/audit-archive.ts
+M	functions/src/index.ts
+M	functions/test/audit-archive.test.js
+M	infra/audit-archive/README.md

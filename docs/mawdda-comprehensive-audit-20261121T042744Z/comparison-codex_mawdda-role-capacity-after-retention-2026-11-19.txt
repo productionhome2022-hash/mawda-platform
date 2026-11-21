@@ -1,0 +1,34 @@
+Compared branch: codex/mawdda-role-capacity-after-retention-2026-11-19
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+395	22
+
+=== CHANGE SUMMARY ===
+ .github/workflows/mawdda-domain-regression.yml     |   4 +
+ .github/workflows/validate.yml                     |   2 +
+ docs/IMPLEMENTATION_TRACEABILITY.md                |  10 +-
+ .../MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md |  20 ++++
+ docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md    |   6 ++
+ docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md       |   2 +-
+ functions/src/index.ts                             |  69 +++++++++++-
+ functions/src/platform-role-identities.ts          |  86 +++++++++++++++
+ .../owner-entitlement-grants.integration.test.js   |   4 +-
+ .../specialized-role-capacity.integration.test.js  | 120 +++++++++++++++++++++
+ .../integration/wallet-store.integration.test.js   |  25 +++--
+ functions/test/platform-role-identities.test.js    |  50 +++++++++
+ 12 files changed, 381 insertions(+), 17 deletions(-)
+
+=== CHANGED PATHS ===
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+M	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+A	functions/test/platform-role-identities.test.js

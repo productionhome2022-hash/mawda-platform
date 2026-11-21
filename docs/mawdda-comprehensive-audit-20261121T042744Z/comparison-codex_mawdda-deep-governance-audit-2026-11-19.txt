@@ -1,0 +1,12 @@
+Compared branch: codex/mawdda-deep-governance-audit-2026-11-19
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+395	10
+
+=== CHANGE SUMMARY ===
+ ...VERNANCE_AND_IMPLEMENTATION_AUDIT_2026-11-19.md | 306 +++++++++++++++++++++
+ 1 file changed, 306 insertions(+)
+
+=== CHANGED PATHS ===
+A	docs/DEEP_GOVERNANCE_AND_IMPLEMENTATION_AUDIT_2026-11-19.md

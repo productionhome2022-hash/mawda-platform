@@ -1,0 +1,22 @@
+Compared branch: codex/mawdda-audit-archive
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+1603	14
+
+=== CHANGE SUMMARY ===
+ functions/src/audit-archive.ts       | 147 ++++++++++++++++++++
+ functions/src/index.ts               | 257 ++++++++++++++++++++++++++++++++++-
+ functions/test/audit-archive.test.js |  74 ++++++++++
+ infra/audit-archive/README.md        |  60 ++++++++
+ infra/audit-archive/main.tf          |  60 ++++++++
+ infra/audit-archive/variables.tf     |  30 ++++
+ 6 files changed, 627 insertions(+), 1 deletion(-)
+
+=== CHANGED PATHS ===
+A	functions/src/audit-archive.ts
+M	functions/src/index.ts
+A	functions/test/audit-archive.test.js
+A	infra/audit-archive/README.md
+A	infra/audit-archive/main.tf
+A	infra/audit-archive/variables.tf

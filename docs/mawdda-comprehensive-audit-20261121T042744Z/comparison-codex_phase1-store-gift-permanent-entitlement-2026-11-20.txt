@@ -1,0 +1,12 @@
+Compared branch: codex/phase1-store-gift-permanent-entitlement-2026-11-20
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+192	2
+
+=== CHANGE SUMMARY ===
+ .../integration/store-gifting.integration.test.js  | 98 ++++++++++++++++++++++
+ 1 file changed, 98 insertions(+)
+
+=== CHANGED PATHS ===
+M	functions/test/integration/store-gifting.integration.test.js

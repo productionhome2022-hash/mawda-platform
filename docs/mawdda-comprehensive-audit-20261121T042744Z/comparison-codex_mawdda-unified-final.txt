@@ -1,0 +1,20 @@
+Compared branch: codex/mawdda-unified-final
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+1644	17
+
+=== CHANGE SUMMARY ===
+ .github/workflows/validate.yml                     |   2 +
+ functions/package.json                             |   3 +-
+ functions/src/index.ts                             | 250 ++++++++++++++++++++-
+ .../email-verification-renewal.integration.test.js | 106 +++++++++
+ lib/screens/profile_screen.dart                    | 172 ++++++++++----
+ 5 files changed, 487 insertions(+), 46 deletions(-)
+
+=== CHANGED PATHS ===
+M	.github/workflows/validate.yml
+M	functions/package.json
+M	functions/src/index.ts
+A	functions/test/integration/email-verification-renewal.integration.test.js
+M	lib/screens/profile_screen.dart
