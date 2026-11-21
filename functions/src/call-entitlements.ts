@@ -177,7 +177,7 @@ export function evaluateCallParticipantEntitlements(
 ): { allowed: boolean; missingUids: string[] } {
   if (!Array.isArray(participantUids) || participantUids.length < 2 ||
       new Set(participantUids).size !== participantUids.length) {
-    return { allowed: false, missingUids: [...participantUids] };
+    return { allowed: false, missingUids: Array.isArray(participantUids) ? [...participantUids] : [] };
   }
   const missingUids = participantUids.filter((uid) =>
     !hasActiveCallEntitlement(entitlementsByUid.get(uid) ?? [], mode, nowMs));
