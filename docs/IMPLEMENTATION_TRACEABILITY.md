@@ -839,3 +839,11 @@ This is a source reconciliation and implementation instruction, not evidence tha
 - **Owner decision:** important-chat text retention is exactly **30 days (720 hours)** from the server-authoritative message creation timestamp. The 90-day alternative is rejected.
 - Important-chat media remains four hours. Normal-chat text remains seven days and media four hours.
 - Temporary direct-chat mode remains full-conversation deletion after four hours of server-recorded inactivity, but consent/selection, server activity updates, and complete deletion/derivative cleanup remain open gates. No live deletion activation is authorized.
+
+## 2026-11-21 — Mandatory engineering work-history and merge ledger
+
+- Established `docs/ENGINEERING_WORK_HISTORY_AND_MERGE_LEDGER_2026.md` as the mandatory control for recording task baselines, owner requests/decisions/proposals, investigations, root causes, file-level change manifests, branch integration dispositions, exact-SHA validation evidence, risks, rollback and closure.
+- Linked the ledger from the central documentation governance README. Material tasks must have individual dossiers under `docs/engineering/work-history/`; branch integration batches must have dossiers under `docs/engineering/integrations/`.
+- The ledger explicitly distinguishes owner-approved decisions, proposals, observed findings, implementation, automated tests, emulator/integration tests, device acceptance and release approval. No stage is inferred from another.
+- Historical backfill is not yet complete. The 1,099 source inventory remains indexed, not individually semantically reviewed. No claim is made that every prior task, proposal, commit or integration has already been reconstructed.
+- **Status:** governance control established on the development branch; operational adoption, historical backfill, per-source semantic review and comprehensive application audit remain open. No merge to `main`, production deployment, Firebase production mutation or billing change was performed.
