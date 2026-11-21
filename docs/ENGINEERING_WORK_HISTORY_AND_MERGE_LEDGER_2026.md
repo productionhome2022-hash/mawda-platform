@@ -187,3 +187,14 @@ Backfill in bounded batches:
 | Date (UTC) | Change | Evidence |
 |---|---|---|
 | 2026-11-21 | Established mandatory engineering history, task dossier, source review and merge evidence protocol | This document; initial adoption checkpoint |
+
+## 11. Operational templates and initial Git evidence
+
+- [Individual engineering task record template](engineering/work-history/WORK_RECORD_TEMPLATE.md).
+- [Branch integration dossier template](engineering/integrations/INTEGRATION_RECORD_TEMPLATE.md).
+- Initial ledger creation commit: `122ebe657d7ff750f5c0a335fcb8af2570890d0f`.
+- Governance README link commit: `f7f1677a52a9b6a83a52a5c2e2997906028c2b4a`.
+- Implementation traceability adoption commit: `5c6d609b8c9a00e225d377d14b1d58e2884f09c4`.
+- Task template commit: `34f09422cc2374bb4c75d20abd3778d160dbde49`.
+- Integration template commit: `f5dfbae9cb65e925ce8be9ddfd93f699ab227e9a`.
+- These commits establish the documentation controls and templates; they do not represent completion of the historical backfill or execution of the full engineering audit.
