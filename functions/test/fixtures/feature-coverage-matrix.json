@@ -122,7 +122,19 @@
         "no-gifts",
         "no-image-gif-video-or-document-messages"
       ],
-      "releaseBlocker": "Guest profile, server session, general-audience public-room join and text messaging are implemented in the development branch with emulator coverage. Full Flutter UI/device E2E, audio pipeline acceptance, exhaustive denied-capability matrix and cross-installation anti-abuse assurance remain release blockers."
+      "releaseBlocker": "Internal emulator coverage is present for guest profile/session, public-room discovery/join, text/audio messaging, and several denied capabilities. The listed internalOpenCases remain unverified by the current CI evidence. Real-device audio acceptance is explicitly outside the current owner-confirmed scope.",
+      "internalStatus": "partial",
+      "internalOpenCases": [
+        "60-minute-live-expiry-clock-integration",
+        "cross-installation-abuse-resistance",
+        "no-wallet-read-and-top-up",
+        "no-room-rental",
+        "no-gifts",
+        "no-image-gif-video-or-document-messages"
+      ],
+      "excludedFromCurrentScope": [
+        "real-device-audio-recording-and-playback"
+      ]
     },
     {
       "id": "PROFILE-001",
@@ -289,16 +301,33 @@
       ],
       "command": "npm run test:biometric-integration",
       "cases": [
-        "challenge-create",
-        "challenge-expiry",
-        "invalid-proof",
-        "replay-denied",
-        "server-verification",
-        "reward-once-only",
-        "prompt-only-no-reward",
-        "emulator-fixture-not-hardware-proof",
-        "device-camera-microphone-permissions"
-      ]
+        "versioned-privacy-consent",
+        "approved-owner-controlled-spoken-phrase",
+        "server-byte-level-audio-duration-validation",
+        "server-byte-level-video-duration-validation",
+        "clamav-approved-safe-derivatives",
+        "super-owner-only-review-inbox",
+        "fresh-owner-mfa-required",
+        "private-evidence-playback-and-audit-grant",
+        "manual-super-owner-accept-reject",
+        "atomic-exactly-once-1500-betacoins-ledger-reward",
+        "three-attempt-calendar-month-retry",
+        "permanent-closure-after-third-rejection",
+        "evidence-deletion-and-retry",
+        "legacy-client-completion-path-fails-closed"
+      ],
+      "internalStatus": "passed",
+      "internalEvidence": {
+        "runId": 44944086740,
+        "tests": 5,
+        "passed": 5,
+        "failed": 0
+      },
+      "excludedFromCurrentScope": [
+        "physical-device-biometric-hardware-acceptance",
+        "physical-device-camera-microphone-permission-acceptance"
+      ],
+      "policyNote": "The owner-approved policy is manual Super Owner review of private evidence and explicit server-authorized decision. Device/provider attestation, Play Integrity, App Attest and automated face/voice matching are not approval prerequisites. The legacy client-side completion path remains fail-closed."
     },
     {
       "id": "OWNER-001",
@@ -390,7 +419,23 @@
         "real-device-audio-video-quality-and-resource-release",
         "multi-party-room-call-acceptance-on-real-devices"
       ],
-      "releaseBlocker": "The server call lifecycle and targeted signaling plus Flutter WebRTC UI have been added to the development branch. Exact-head emulator/CI evidence is pending. TURN relay is not configured, so STUN-only connectivity is not reliable across all NAT/network combinations. Real Android/iOS/Web media-device and background-notification acceptance remains open; do not mark this journey release-ready."
+      "releaseBlocker": "The server-side Firestore call-signaling emulator suite passed 7/7 on the selected code baseline. The journey remains partial for end-to-end media/device/relay acceptance, which is explicitly excluded from the current internal-only work scope.",
+      "internalStatus": "passed",
+      "internalEvidence": {
+        "runId": 44944086768,
+        "tests": 7,
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0
+      },
+      "excludedFromCurrentScope": [
+        "flutter-webrtc-audio-negotiation-on-android-ios-and-web",
+        "flutter-webrtc-video-negotiation-on-android-ios-and-web",
+        "microphone-camera-denial-and-revocation",
+        "turn-relay-nat-traversal-and-network-switch",
+        "real-device-audio-video-quality-and-resource-release",
+        "multi-party-room-call-acceptance-on-real-devices"
+      ]
     },
     {
       "id": "LOAD-001",
@@ -474,5 +519,14 @@
     "explicit-pilot-approval",
     "webrtc-call-signaling-emulator-integration",
     "webrtc-turn-relay-and-real-device-acceptance"
-  ]
+  ],
+  "currentWorkScope": {
+    "execution": "internal-github-actions-only",
+    "simulation5000": false,
+    "externalTesting": false,
+    "physicalAndroidIosDevices": false,
+    "actualSigning": false,
+    "productionFirebaseSetupOrMutation": false,
+    "productionDeployment": false
+  }
 }
