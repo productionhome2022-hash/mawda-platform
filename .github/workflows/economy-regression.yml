@@ -3,14 +3,14 @@ name: Mawdda economy regression
 on:
   push:
     branches:
-      - codex/economy-recovery-2026-11-18
+      - codex/mawda-full-platform-implementation
     paths:
       - "functions/**"
       - "lib/screens/economy_pricing_screen.dart"
       - ".github/workflows/economy-regression.yml"
   pull_request:
     branches:
-      - codex/economy-recovery-2026-11-18
+      - codex/mawda-full-platform-implementation
     paths:
       - "functions/**"
       - "lib/screens/economy_pricing_screen.dart"
