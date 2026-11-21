@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
-"""Raise compileSdk for Flutter plugin Android modules in the CI pub cache."""
+"""Normalize Flutter plugin Android compileSdk before CI native builds.
+
+Some pinned plugins (including file_picker 8.3.x) declare API 34 while a
+transitive Android lifecycle plugin requires API 36. The app already compiles
+against API 36. This CI-only patch aligns plugin modules with the app; it does
+not change targetSdk, minSdk, application identity, signing, or runtime policy.
+"""
 
 from __future__ import annotations
 
 import os
 import re
 from pathlib import Path
+
+ANDROID_COMPILE_SDK = 36
 
 COMPILE_SDK = re.compile(
     r"(?m)^(\s*(?:compileSdk|compileSdkVersion)\s*(?:=\s*)?)"
@@ -15,7 +23,7 @@ COMPILE_SDK = re.compile(
 
 def patch_gradle_file(path: Path) -> bool:
     source = path.read_text(encoding="utf-8")
-    updated, count = COMPILE_SDK.subn(r"\g<1>36\g<2>", source)
+    updated, count = COMPILE_SDK.subn(rf"\g<1>{ANDROID_COMPILE_SDK}\g<2>", source)
     if count:
         path.write_text(updated, encoding="utf-8")
         return True
@@ -35,7 +43,7 @@ def patch_android_plugin_compile_sdk(pub_cache: Path) -> list[Path]:
     if not file_picker_files:
         raise SystemExit("file_picker Android Gradle project was not found in the resolved pub cache.")
     if not any(
-        re.search(r"(?m)^\s*(?:compileSdk|compileSdkVersion)\s*(?:=\s*)?36\s*(?://.*)?$", path.read_text(encoding="utf-8"))
+        re.search(rf"(?m)^\s*(?:compileSdk|compileSdkVersion)\s*(?:=\s*)?{ANDROID_COMPILE_SDK}\s*(?://.*)?$", path.read_text(encoding="utf-8"))
         for path in file_picker_files
     ):
         raise SystemExit("file_picker compileSdk could not be verified as API 36.")
