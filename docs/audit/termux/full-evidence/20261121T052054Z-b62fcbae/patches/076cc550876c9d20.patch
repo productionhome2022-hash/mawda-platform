@@ -1,0 +1,1615 @@
+diff --git a/.github/workflows/mawdda-test-center.yml b/.github/workflows/mawdda-test-center.yml
+new file mode 100644
+index 00000000..01502b49
+--- /dev/null
++++ b/.github/workflows/mawdda-test-center.yml
+@@ -0,0 +1,69 @@
++name: Mawdda Test Center
++
++on:
++  pull_request:
++    branches:
++      - main
++      - codex/mawda-full-platform-implementation
++  push:
++    branches:
++      - codex/mawdda-test-account-system
++  workflow_dispatch:
++
++permissions:
++  contents: read
++
++concurrency:
++  group: mawdda-test-center-${{ github.ref }}
++  cancel-in-progress: true
++
++jobs:
++  flutter-validation:
++    name: Flutter analyze, tests and web release build
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v5
++      - uses: subosito/flutter-action@v2
++        with:
++          flutter-version: "3.47.9"
++          channel: stable
++          cache: true
++      - name: Enable Flutter Web
++        run: flutter config --enable-web
++      - name: Install locked Flutter dependencies
++        run: flutter pub get --enforce-lockfile
++      - name: Analyze Dart
++        run: flutter analyze
++      - name: Run Flutter tests
++        run: flutter test
++      - name: Build release web artifact
++        run: flutter build web --release
++
++  backend-emulator-validation:
++    name: Backend, Firebase rules and integration suites
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v5
++      - uses: actions/setup-node@v5
++        with:
++          node-version: "20.20.2"
++          cache: npm
++          cache-dependency-path: functions/package-lock.json
++      - uses: actions/setup-java@v5
++        with:
++          distribution: temurin
++          java-version: "21"
++      - name: Install backend dependencies
++        run: npm ci --no-audit --no-fund
++        working-directory: functions
++      - name: Run complete emulator test center
++        run: npm run test:all
++        working-directory: functions
++      - name: Upload local test account fixture manifest (no credentials)
++        if: always()
++        uses: actions/upload-artifact@v6
++        with:
++          name: mawdda-test-center-fixtures
++          path: functions/test/fixtures/test-account-personas.json
++          if-no-files-found: error
++          retention-days: 7
+diff --git a/.gitignore b/.gitignore
+index ba26aaa2..c96712df 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,25 +1,30 @@
+ # Flutter / Dart generated output
+ .dart_tool/
+ .packages
+ .pub/
+ build/
+ 
+ # Firebase CLI local state
+ .firebase/
+ firebase-debug.log
+ firebase-debug.*.log
+ 
+ # Node / Cloud Functions generated output
+ functions/node_modules/
+ functions/lib/
+ functions/.env*
+ .env
+ .env.*
+ 
+ # IDE and operating-system files
+ .idea/
+ .vscode/
+ .DS_Store
+ 
+ # Firebase Emulator debug logs
+ firestore-debug.log
++
++# Local Mawdda emulator test credentials and data (never commit)
++functions/.mawdda-test-credentials.local.json
++.mawdda-test-credentials.local.json
++functions/.emulator-data/
+diff --git a/docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md b/docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md
+new file mode 100644
+index 00000000..ebc8af38
+--- /dev/null
++++ b/docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md
+@@ -0,0 +1,59 @@
++# Mawdda Platform — Test Account System
++
++Status: **Phase 0/1 foundation**. This specification and its validated persona catalogue are committed; it does not claim that Firebase test users, profile screens, owner console impersonation, payment rails, or every end-to-end scenario have already been provisioned.
++
++## Safety boundary
++- All test identities and seeded data belong only to Firebase Emulator Suite or a dedicated non-production staging project.
++- Never seed test accounts, balances, entitlements, biometric assertions, owner claims, or fake purchases into production.
++- Emulator data is synthetic. Staging must use isolated Auth, Firestore, Storage, Functions, payment-provider sandbox credentials, and test email routing.
++- A persona label is not an authorization grant. Every callable and Firestore/Storage rule must enforce the same server-side authorization as production.
++- Do not implement owner impersonation by allowing a client to set isSuperAdmin, platformOwner, role, biometric status, wallet balance, or entitlements.
++- Do not represent a simulated biometric fixture as proof of a real device biometric. Hardware enrollment and server-issued verification are separate acceptance tests.
++- Use payment-provider sandbox/test mode only. No live card charges or real coin top-ups.
++
++## Persona catalogue
++The machine-readable catalogue is functions/test/fixtures/test-account-personas.json.
++
++1. **guest-preview** — anonymous visitor; one hour per rolling 24 hours. May browse public discovery, shops/catalogue and ads, join public rooms, and send/receive text and audio messages there only. No direct messages, private rooms, room rental/moderation, gifts, rewards, wallet, purchases, images, GIFs, video, documents or member-only data. Emulator-only test clock controls can advance/reset time; they must never be callable in staging/production.
++2. **email-member** — Firebase email/password account with email verification completed in the emulator; exercises the ordinary member entitlement set.
++3. **biometric-member** — verified email member plus a separately seeded, expiring biometric-verification fixture in emulator only. The app must still exercise the actual biometric challenge flow on supported physical devices before claiming hardware acceptance.
++4. **owner-operator** — isolated owner-console test identity. Owner actions remain blocked unless the test environment completes the same MFA second-factor flow and recent-auth requirements enforced by hasPlatformOwnerSession. A persona fixture must never bypass MFA or create a production owner.
++5. **counterparty-member** — a second ordinary member to exercise two-sided conversations, transfers, gifts, rooms, blocks, reports and wallet ledger consistency.
++
++The first three user-facing personas requested are retained; the extra counterparty and owner identities make multi-actor and sovereign-console tests repeatable.
++
++## Required profile fixtures
++Each account must have a complete, synthetic profile: display name, unique handle, avatar fixture, cover fixture, biography, locale, profile visibility, age-band fixture where policy requires it, account state, badges/titles fixture, shop entitlements, wallet fixture, room permissions, notification preferences, and test labels. Sensitive data must be fabricated. Never copy a real member's profile or media.
++
++The app's canonical user schema is authoritative. Before writing users/{uid}, the seeder must be aligned with the current UserModel and server profile projection; until then, fixtures are stored separately and must not masquerade as production-ready member documents.
++
++## Capability and scenario coverage
++- Authentication: anonymous guest, email verification, expired/revoked sessions, sign-out, account upgrade and re-authentication.
++- Guest boundary: browse public discovery, shop catalogue and ads; join public rooms and send/receive text and audio there. Deny direct messages, private rooms, images/GIF/video/documents, wallet, rewards, gifts, room rental and all purchase mutations.
++- Member profiles: create/edit/view privacy, profile media, premium layout, pinned sections, themes/backgrounds, avatar frames, colored/animated names, analytics, greeting, VIP badges and discovery boost.
++- Chat/media: direct and room messaging, delivery/read receipts, block/report/delete, retry/idempotency, upload/download and retention. Members may exchange only ordinary images, GIF, audio and video; PDF/documents remain owner-only.
++- Wallet/economy: coin packages, sandbox top-up lifecycle, balance checks, two-sided transfer ledger, fees, gift debit/credit, duplicate request protection, insufficient balance and reversal/refund paths.
++- Shops: catalogue visibility, every purchasable feature, entitlement activation/expiry/renewal, price changes, insufficient balance, idempotency and refund/rollback.
++- Rooms: public-room rental, private-room rental, expiry, owner/moderator controls, admission rules, billing and renewal.
++- Ads: visitor/member visibility, impression accounting and ad-price configuration without fake revenue in production.
++- Biometric: genuine OS prompt and server-verifiable challenge; a button press or permission prompt alone is not proof of identity. Any reward must be granted once, only after the authoritative verification event.
++- Owner console: MFA enrollment/sign-in, recent-auth enforcement, audit chain, member lookup, moderation, bans, settings, store/economy controls, room controls, reports, exports, retention and emergency actions. Every mutation must create an auditable event.
++- Regression: Flutter analyze/test/build; Functions build/unit/integration; Firestore and Storage rules; emulator integration; staging smoke tests.
++
++## Execution stages
++**Stage 1 — identities and profiles:** provision isolated Auth identities, synthetic profile/media fixtures, persona switcher and resettable emulator clock. Validate account-state and profile rendering.
++**Stage 2 — access control:** test every route, callable, query and storage path as guest, ordinary member, biometric member and owner. Negative tests are mandatory.
++**Stage 3 — transactions and commerce:** wallet, coin sandbox, gifts, store purchases and entitlements with transaction/idempotency assertions.
++**Stage 4 — communications and rooms:** direct chat, permitted media, public/private room rental, membership and retention.
++**Stage 5 — owner sovereignty:** MFA-backed owner workflow and complete audit verification. No bypass for convenience.
++**Stage 6 — release gate:** CI matrix, staging smoke tests, evidence report and explicit approval before production deployment.
++
++## Acceptance criteria
++A scenario passes only when UI behavior, server result, persisted state, audit/ledger evidence and denied unauthorized paths all match expected outcomes. A successful Flutter build alone is not feature acceptance. Report PASS, FAIL, BLOCKED or NOT IMPLEMENTED; never mark unexecuted scenarios as passing.
++
++## Immediate next implementation tasks
++- Align fixtures to canonical user/profile model and existing callable contracts.
++- Add emulator-only provision/reset tooling with strict emulator-host and project-ID guards.
++- Build a private owner-only test-account dashboard and profile preview/switcher.
++- Add scenario runners for guest time-window overrides, email verification, biometric challenge, wallet/store, chat/media, room rentals and owner MFA.
++- Add CI jobs for the Functions test matrix and emulator rules/integration suites.
+\ No newline at end of file
+diff --git a/docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md b/docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md
+new file mode 100644
+index 00000000..9f22c84e
+--- /dev/null
++++ b/docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md
+@@ -0,0 +1,84 @@
++# Mawdda Test Center — operator runbook
++
++## Purpose and release gates
++
++This is the repeatable engineering test environment for Mawdda Platform 2026. It is not a production account manager. All seeded identities and fixtures belong to Firebase Emulator Suite projects whose IDs start with `demo-mawda-` or `demo-mawdda-`. Never point this workflow at a live Firebase project.
++
++A release candidate is not considered ready because one unit-test command passes. The release checklist is:
++1. backend TypeScript build and Node unit tests;
++2. Firestore/Storage rules tests;
++3. emulator integration suites for guest privacy, wallet/store, rooms/rentals/events, biometric verification, email renewal, premium profiles, safety, media and retention;
++4. Flutter analyze, Flutter tests and release web build;
++5. device checks for real biometric prompts, camera/microphone permissions, push notifications and platform-specific behavior;
++6. owner/MFA verification and security review;
++7. explicit human approval before any staging or production deployment.
++
++## Test identities
++
++The catalogue in `functions/test/fixtures/test-account-personas.json` is the source of test persona capabilities and denials.
++
++| Persona | Provisioning | Intended scenarios |
++|---|---|---|
++| `guest-preview` | Anonymous sign-in from the client; profile fixture only | Public discovery/catalog/ads; join public rooms; send/receive text and audio only; 60 minutes per rolling 24 hours |
++| `email-member` | Emulator email/password identity | Member profile, chat, allowed media, wallet, transfers, gifts, stores and rooms |
++| `biometric-member` | Emulator email/password identity | Member scenarios plus the biometric challenge lifecycle; fixture is not hardware proof |
++| `counterparty-member` | Emulator email/password identity | Two-party chat, transfer, gift and room interaction |
++| `owner-operator` | Emulator email/password identity | Owner flows only after the real owner/MFA authorization path is exercised |
++
++The provisioner intentionally does **not** set privileged custom claims, mark a user as biometrically verified, credit coins, issue rewards, or create live payment methods. Owner access must be earned through the production authorization design (including MFA); the fixture is not a back door.
++
++## Provision emulator accounts
++
++From the repository's `functions/` directory:
++
++```sh
++npm ci
++npm run test:seed-accounts
++```
++
++This starts only Auth and Firestore emulators with a demo project ID. The script additionally requires explicit `MAWDDA_ALLOW_TEST_SEED=1`, emulator host variables, and the allowlisted project prefix. It writes newly generated credentials to `.mawdda-test-credentials.local.json` in the functions directory with owner-only file permissions. This file must never be committed or shared. Re-running rotates the emulator passwords.
++
++The guest must be created using Firebase anonymous sign-in in the client test flow; the provisioner creates only its non-authenticated profile fixture.
++
++## Existing automated suites
++
++Run an individual suite from `functions/`:
++
++- `npm test` — TypeScript compile, script syntax checks and Node unit tests.
++- `npm run test:rules` — Firestore and Storage rules.
++- `npm run test:guest-privacy-integration` — guest/member privacy boundaries.
++- `npm run test:wallet-store-integration` — coin transfer and store purchase behavior.
++- `npm run test:seeded-persona-interaction` — provisions the named emulator personas, then performs a real member-to-member transfer using their seeded Auth UIDs and verifies both ledgers, platform commission and idempotent replay.
++- `npm run test:room-rental-integration` and `npm run test:room-events-integration` — room lifecycle and events.
++- `npm run test:biometric-integration` — server-side biometric verification lifecycle.
++- `npm run test:email-renewal-integration` — email verification renewal.
++- `npm run test:premium-profile-integration` — VIP, titles, frames/styles, analytics, pinned sections, greetings and discovery boost.
++- `npm run test:media-integration`, `npm run test:profile-media-integration`, `npm run test:media-legal-hold-integration`, `npm run test:message-legal-hold-integration` — media controls and legal hold.
++- `npm run test:retention-integration`, `npm run test:message-deletion-integration` — retention and deletion.
++- `npm run test:safety-integration` — safety/report/appeal cases.
++- `npm run test:push-token-integration` — push token lifecycle.
++- `npm run test:owner-audit-export-integration` — owner audit export.
++
++Some suites need external credentials or cloud resources and are deliberately not part of the default emulator suite: live media scanner E2E and GCS retention. Run them only in a separately approved non-production environment.
++
++## Guest clock and public-room testing
++
++**Product requirement:** one hour of guest access per rolling 24-hour window. During that hour, the guest may join public rooms and send/receive text and audio messages only. Private/direct messages, private rooms, room rental, gifts, rewards, wallet actions, purchases, images, GIFs, video and documents remain denied. A guest is not an ordinary member and must not acquire member or owner claims.
++
++**Current implementation status: partial / release-blocking.** The current `test:guest-privacy-integration` command verifies anonymous-versus-member privacy acknowledgement only. It does **not** prove public-room joining, text/audio exchange, the 60-minute expiry, or the rolling 24-hour cooldown. The full application branch currently routes anonymous users to a guest upgrade screen, while the room join/send callables require a completed member record; there is no authoritative guest session lifecycle or guest room-message exception yet. Do not mark these journeys complete or expose the guest experience as ready.
++
++Before this feature can pass, implement and test a server-authoritative guest session bound to the anonymous Firebase UID, public-room-only membership, text/audio-only message authorization and reads, and expiry/cooldown checks on every protected operation. Preserve age/audience separation: a guest must not bypass the platform's age-segmented room policy. No client-supplied timestamps or client clock may extend access.
++
++The emulator test harness may seed/advance/reset guest-session timestamps directly in isolated emulator data to exercise first entry, activity before 60 minutes, expiry, denial during the remaining cooldown, and re-entry after 24 hours. Never expose clock controls to production clients or change production time/timestamps.
++
++## Media and financial invariants
++
++- Members may exchange images, GIFs, audio and video only. PDF/documents remain owner-only.
++- Wallet balances and transfer ledgers are server-authoritative and transactional. Test both sender and recipient ledgers and the shared transfer ID.
++- Store purchases and payment provider interactions must use sandbox fixtures. No live charge is permitted from the test center.
++- Biometric rewards require server-verified evidence. A permission prompt, camera opening, microphone opening or local device callback alone is not proof.
++- Every owner mutation must require a fresh MFA-backed owner session and generate audit evidence.
++
++## Current implementation boundary
++
++The test catalogue, validator, existing integration suites and emulator-only identity provisioner are code artifacts. They do not imply that real device biometrics, payment-provider sandbox credentials, production account setup, or all Flutter UI journeys have been exercised. Record actual test command output and device evidence before marking a milestone complete.
+diff --git a/functions/package.json b/functions/package.json
+index 0abea53f..b4bd6319 100644
+--- a/functions/package.json
++++ b/functions/package.json
+@@ -1,46 +1,49 @@
+ {
+   "name": "mawda-platform-functions",
+   "private": true,
+   "main": "lib/index.js",
+   "engines": {
+     "node": "20"
+   },
+   "scripts": {
+     "build": "tsc",
+     "build:watch": "tsc --watch",
+-    "test": "npm run build && node --check scripts/bootstrap-owner.cjs && node --check scripts/test-signed-urls-http.cjs && node --check scripts/test-retention-storage.cjs && node --test test/*.test.js",
++    "test": "npm run build && node --check scripts/bootstrap-owner.cjs && node --check scripts/test-signed-urls-http.cjs && node --check scripts/test-retention-storage.cjs && node --check scripts/seed-test-accounts.cjs && node --test test/*.test.js",
++    "test:all": "npm test && npm run test:seed-accounts && npm run test:seeded-persona-interaction && npm run test:rules && npm run test:guest-privacy-integration && npm run test:wallet-store-integration && npm run test:room-rental-integration && npm run test:room-events-integration && npm run test:biometric-integration && npm run test:email-renewal-integration && npm run test:premium-profile-integration && npm run test:safety-integration && npm run test:push-token-integration && npm run test:media-integration && npm run test:profile-media-integration && npm run test:media-legal-hold-integration && npm run test:message-legal-hold-integration && npm run test:retention-integration && npm run test:message-deletion-integration && npm run test:owner-audit-export-integration",
+     "bootstrap:owner": "node scripts/bootstrap-owner.cjs",
++    "test:seed-accounts": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-test-accounts \"MAWDDA_ALLOW_TEST_SEED=1 node scripts/seed-test-accounts.cjs\"",
+     "test:rules": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-rules \"node --test test/rules/*.test.js\"",
+     "test:media-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-media \"node --test test/integration/media-callables.integration.test.js\"",
+     "test:media-signed-urls-http": "npm run build && node scripts/test-signed-urls-http.cjs",
+     "test:signed-urls-http": "node scripts/test-signed-urls-http.cjs",
+     "test:retention-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-retention \"node --test test/integration/chat-retention.integration.test.js\"",
+     "test:message-deletion-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-message-deletion \"node --test test/integration/direct-message-deletion.integration.test.js\"",
+     "test:retention-gcs": "npm run build && node scripts/test-retention-storage.cjs",
+     "test:owner-audit-export-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-owner-audit \"node --test test/integration/owner-audit-export.integration.test.js\"",
+     "test:media-legal-hold-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-legal-hold \"node --test test/integration/media-legal-hold.integration.test.js\"",
+     "test:media-scanner-live-e2e": "npm run build && node scripts/test-live-media-scanner-e2e.cjs",
+     "test:profile-media-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-profile-media \"node --test test/integration/member-profile-media.integration.test.js\"",
+     "test:message-legal-hold-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-message-hold \"node --test test/integration/message-legal-hold.integration.test.js\"",
+     "test:wallet-store-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-wallet-store \"node --test test/integration/wallet-store.integration.test.js\"",
+     "test:guest-privacy-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-guest-privacy \"node --test test/integration/guest-privacy.integration.test.js\"",
+     "test:safety-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-safety \"node --test test/integration/safety-cases.integration.test.js\"",
+     "test:push-token-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-push-tokens \"node --test test/integration/push-token.integration.test.js\"",
+     "test:room-rental-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-room-rental \"node --test test/integration/room-rental.integration.test.js\"",
+     "test:biometric-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-biometric \"node --test test/integration/biometric-verification.integration.test.js\"",
+     "test:email-renewal-integration": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-email-renewal \"node --test test/integration/email-verification-renewal.integration.test.js\"",
+     "test:premium-profile-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-premium-profile \"node --test test/integration/premium-profile.integration.test.js\"",
+     "test:room-events-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-room-events \"node --test test/integration/room-events.integration.test.js\"",
+-    "test:emulator-backup-restore": "node scripts/test-emulator-backup-restore.cjs"
++    "test:emulator-backup-restore": "node scripts/test-emulator-backup-restore.cjs",
++    "test:seeded-persona-interaction": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-persona-interaction \"MAWDDA_ALLOW_TEST_SEED=1 node scripts/seed-test-accounts.cjs && node --test test/integration/test-persona-interaction.integration.test.js\""
+   },
+   "dependencies": {
+     "firebase-admin": "^13.0.0",
+     "firebase-functions": "^6.0.0"
+   },
+   "devDependencies": {
+     "typescript": "^5.7.2",
+     "@firebase/rules-unit-testing": "^4.0.1",
+     "firebase": "^11.0.0",
+     "firebase-tools": "^14.0.0"
+   }
+ }
+diff --git a/functions/scripts/seed-test-accounts.cjs b/functions/scripts/seed-test-accounts.cjs
+new file mode 100644
+index 00000000..39d5184a
+--- /dev/null
++++ b/functions/scripts/seed-test-accounts.cjs
+@@ -0,0 +1,194 @@
++#!/usr/bin/env node
++"use strict";
++
++// Emulator-only test identity provisioner. Never points at a live Firebase project.
++const crypto = require("node:crypto");
++const fs = require("node:fs");
++const path = require("node:path");
++const { initializeApp, getApps } = require("firebase-admin/app");
++const { getAuth } = require("firebase-admin/auth");
++const { getFirestore, FieldValue } = require("firebase-admin/firestore");
++const catalogue = require("../test/fixtures/test-account-personas.json");
++
++function fail(message) {
++  console.error(`[mawdda-test-seed] REFUSED: ${message}`);
++  process.exit(1);
++}
++
++function resolveProjectId() {
++  if (process.env.GCLOUD_PROJECT) return process.env.GCLOUD_PROJECT;
++  if (process.env.GOOGLE_CLOUD_PROJECT) return process.env.GOOGLE_CLOUD_PROJECT;
++  if (process.env.FIREBASE_CONFIG) {
++    try {
++      const config = JSON.parse(process.env.FIREBASE_CONFIG);
++      return config.projectId || config.project_id || "";
++    } catch {
++      fail("FIREBASE_CONFIG is not valid JSON.");
++    }
++  }
++  return "";
++}
++
++const projectId = resolveProjectId();
++const requiredEmulators = catalogue.environmentPolicy.requiredEmulators;
++for (const variable of requiredEmulators) {
++  if (!process.env[variable]) fail(`${variable} is required.`);
++}
++if (!projectId.startsWith(catalogue.environmentPolicy.allowedProjectIdPrefix)) {
++  fail(`project id must start with ${catalogue.environmentPolicy.allowedProjectIdPrefix}; received ${projectId || "(empty)"}.`);
++}
++if (process.env.FUNCTIONS_EMULATOR !== "true" && process.env.MAWDDA_ALLOW_TEST_SEED !== "1") {
++  // firebase emulators:exec sets emulator hosts but not always FUNCTIONS_EMULATOR.
++  // An explicit opt-in is required to avoid accidental invocation from a developer shell.
++  fail("set MAWDDA_ALLOW_TEST_SEED=1 explicitly when running against the required emulators.");
++}
++
++const app = getApps()[0] || initializeApp({ projectId });
++const auth = getAuth(app);
++const db = getFirestore(app);
++const testEmailDomain = "test.mawdda.invalid";
++const outputPath = path.resolve(process.cwd(), ".mawdda-test-credentials.local.json");
++
++function randomPassword() {
++  return `Mw!${crypto.randomBytes(24).toString("base64url")}9a`;
++}
++
++async function ensureUser(persona) {
++  const email = `${persona.id}@${testEmailDomain}`;
++  const password = randomPassword();
++  const profileFixture = catalogue.profileFixtures?.[persona.id] || {};
++  const username = `${persona.id.replace(/[^a-z0-9]/g, "_")}_mawdda_test`;
++  let user;
++  try {
++    user = await auth.getUserByEmail(email);
++    user = await auth.updateUser(user.uid, {
++      password,
++      emailVerified: persona.emailVerified === true,
++      displayName: persona.displayName,
++      disabled: false,
++    });
++  } catch (error) {
++    if (error.code !== "auth/user-not-found") throw error;
++    user = await auth.createUser({
++      email,
++      password,
++      emailVerified: persona.emailVerified === true,
++      displayName: persona.displayName,
++      disabled: false,
++    });
++  }
++
++  // Never set platformOwner or biometricVerified claims/proof in the seeder.
++  // The emulator-only coin balance below is test fixture data, not a reward or payment.
++  // Privileged and verified states must be produced by their real server-side flows.
++  await db.collection("users").doc(user.uid).set({
++    uid: user.uid,
++    email,
++    memberId: user.uid,
++    displayName: persona.displayName,
++    fullName: persona.displayName,
++    username,
++    emailVerified: persona.emailVerified === true,
++    coins: 100000,
++    profileCompleted: true,
++    accountStatus: "active",
++    age: Number.isSafeInteger(profileFixture.age) ? profileFixture.age : 25,
++    profession: profileFixture.profession || "عضو تجريبي",
++    country: profileFixture.country || "Switzerland",
++    region: profileFixture.region || "Zurich",
++    gender: profileFixture.gender || "unspecified",
++    maritalStatus: profileFixture.maritalStatus || "unspecified",
++    bio: profileFixture.biography || "",
++    interests: Array.isArray(profileFixture.interests) ? profileFixture.interests : [],
++    goals: Array.isArray(profileFixture.goals) ? profileFixture.goals : [],
++    profileVisibility: profileFixture.profileVisibility || "public",
++    isTestAccount: true,
++    testPersonaId: persona.id,
++    createdAt: FieldValue.serverTimestamp(),
++    updatedAt: FieldValue.serverTimestamp(),
++  }, { merge: true });
++
++  await db.collection("usernameRegistry").doc(username).set({
++    uid: user.uid,
++    username,
++    isTestAccount: true,
++    createdAt: FieldValue.serverTimestamp(),
++  }, { merge: true });
++
++  await db.collection("testAccountProfiles").doc(persona.id).set({
++    schemaVersion: 1,
++    personaId: persona.id,
++    uid: user.uid,
++    displayName: persona.displayName,
++    accountKind: persona.accountKind,
++    emailVerifiedFixture: persona.emailVerified === true,
++    biometricFixture: persona.biometricFixture || false,
++    ownerAccess: persona.ownerAccess || false,
++    capabilities: persona.capabilities,
++    deniedCapabilities: persona.deniedCapabilities,
++    profile: {
++      ...profileFixture,
++      uniqueHandle: username,
++      avatarFixture: `fixture://avatars/${persona.id}`,
++      coverFixture: `fixture://covers/${persona.id}`,
++      accountState: "active-test-only",
++      badgesAndTitles: [],
++      shopEntitlements: [],
++      walletFixture: { coins: 100000, mode: "sandbox" },
++      roomPermissions: [],
++      notificationPreferences: { inApp: true, push: false, email: false },
++      testLabels: ["MAWDDA_TEST_ONLY", persona.id],
++    },
++    environment: { projectId, emulatorOnly: true },
++    updatedAt: FieldValue.serverTimestamp(),
++  }, { merge: true });
++
++  return { personaId: persona.id, uid: user.uid, email, password };
++}
++
++async function main() {
++  const results = [];
++  for (const persona of catalogue.personas) {
++    if (persona.id === "guest-preview") {
++      // A guest is created through Firebase anonymous sign-in in the client test flow.
++      // No password account is created for this persona.
++      await db.collection("testAccountProfiles").doc(persona.id).set({
++        schemaVersion: 1,
++        personaId: persona.id,
++        displayName: persona.displayName,
++        accountKind: "anonymous-client-flow",
++        guestWindow: persona.guestWindow,
++        profile: {
++          ...(catalogue.profileFixtures?.[persona.id] || {}),
++          uniqueHandle: "guest_preview_mawdda_test",
++          avatarFixture: "fixture://avatars/guest-preview",
++          coverFixture: "fixture://covers/guest-preview",
++          accountState: "active-test-only",
++          testLabels: ["MAWDDA_TEST_ONLY", persona.id],
++        },
++        capabilities: persona.capabilities,
++        deniedCapabilities: persona.deniedCapabilities,
++        environment: { projectId, emulatorOnly: true },
++        updatedAt: FieldValue.serverTimestamp(),
++      }, { merge: true });
++      continue;
++    }
++    results.push(await ensureUser(persona));
++  }
++
++  fs.writeFileSync(outputPath, JSON.stringify({
++    generatedAt: new Date().toISOString(),
++    projectId,
++    emulatorOnly: true,
++    accounts: results,
++  }, null, 2), { mode: 0o600 });
++  try { fs.chmodSync(outputPath, 0o600); } catch {}
++  console.log(`Provisioned ${results.length} emulator-only email identities and the guest profile fixture.`);
++  console.log(`Credentials written locally with owner-only permissions: ${outputPath}`);
++  console.log("No custom claims, biometric proof, wallet credits, rewards, or live payments were created.");
++}
++
++main().catch((error) => {
++  console.error("[mawdda-test-seed] failed:", error);
++  process.exitCode = 1;
++});
+diff --git a/functions/test/feature-coverage-matrix.test.js b/functions/test/feature-coverage-matrix.test.js
+new file mode 100644
+index 00000000..b4999f3c
+--- /dev/null
++++ b/functions/test/feature-coverage-matrix.test.js
+@@ -0,0 +1,103 @@
++const test = require("node:test");
++const assert = require("node:assert/strict");
++const fs = require("node:fs");
++const path = require("node:path");
++const matrix = require("./fixtures/feature-coverage-matrix.json");
++const catalogue = require("./fixtures/test-account-personas.json");
++const packageJson = require("../package.json");
++
++test("coverage matrix references only provisioned personas", () => {
++  const ids = new Set(catalogue.personas.map((persona) => persona.id));
++  for (const [group, actors] of Object.entries(matrix.personas)) {
++    assert.ok(Array.isArray(actors), `persona group ${group} must be an array`);
++    for (const actor of actors) assert.ok(ids.has(actor), `unknown actor ${actor}`);
++  }
++  for (const journey of matrix.journeys) {
++    assert.ok(journey.id && journey.area && journey.cases.length > 0);
++    for (const actor of journey.actors) assert.ok(ids.has(actor), `${journey.id}: unknown actor ${actor}`);
++  }
++});
++
++test("every journey maps to an executable npm script", () => {
++  for (const journey of matrix.journeys) {
++    if (journey.command === "npm test") {
++      assert.ok(packageJson.scripts.test, `${journey.id}: missing npm test script`);
++      continue;
++    }
++    const match = journey.command.match(/^npm run ([a-z0-9:_-]+)$/);
++    assert.ok(match, `${journey.id}: invalid command declaration`);
++    assert.ok(packageJson.scripts[match[1]], `${journey.id}: missing npm script ${match[1]}`);
++  }
++});
++
++
++test("guest journey status does not overstate unimplemented room/session behavior", () => {
++  const guest = matrix.journeys.find((journey) => journey.id === "GUEST-001");
++  assert.ok(guest);
++  assert.equal(guest.status, "partial");
++  assert.ok(guest.cases.includes("anonymous-guest-privacy-acknowledgement"));
++  assert.ok(guest.plannedCases.includes("public-room-text-send-receive"));
++  assert.ok(guest.plannedCases.includes("public-room-audio-send-receive"));
++  assert.ok(guest.plannedCases.includes("60-minute-expiry"));
++  assert.match(guest.releaseBlocker, /not implemented/i);
++});
++
++test("full member personas share the ordinary baseline while biometric adds only its dedicated capability", () => {
++  const [emailId, biometricId, counterpartyId] = matrix.personas.fullMembers;
++  const personaFor = (id) => {
++    const persona = catalogue.personas.find((entry) => entry.id === id);
++    assert.ok(persona, `missing persona ${id}`);
++    assert.equal(persona.ownerAccess, false);
++    assert.ok(persona.deniedCapabilities.includes("owner.console"));
++    return new Set(persona.capabilities);
++  };
++  const baseline = personaFor(emailId);
++  const biometric = personaFor(biometricId);
++  const counterparty = personaFor(counterpartyId);
++
++  for (const capability of baseline) {
++    assert.ok(biometric.has(capability), `biometric member missing baseline capability ${capability}`);
++    assert.ok(counterparty.has(capability), `counterparty member missing baseline capability ${capability}`);
++  }
++  assert.deepEqual(
++    [...counterparty].filter((capability) => !baseline.has(capability)),
++    [],
++    "counterparty must have the ordinary member baseline without extra privileges",
++  );
++  assert.deepEqual(
++    [...biometric].filter((capability) => !baseline.has(capability)),
++    ["biometric.challengeFlow"],
++    "biometric persona may add only its dedicated verification test capability",
++  );
++});
++
++test("test environment preserves hard security and financial invariants", () => {
++  assert.equal(matrix.environment, "firebase-emulator-only");
++  assert.equal(matrix.policy.ordinaryMemberGetsAllMemberFeatures, true);
++  assert.equal(matrix.policy.ownerPrivilegesRequireRealMfaFlow, true);
++  assert.equal(matrix.policy.testClockMayOnlyBeOverriddenInEmulator, true);
++  assert.equal(matrix.policy.paymentMode, "sandbox-only");
++  assert.equal(matrix.policy.biometricRewardRequiresServerVerification, true);
++  assert.equal(matrix.policy.financialWritesMustUseServerTransactions, true);
++  assert.deepEqual(matrix.policy.memberMediaDeny, ["pdf", "documents"]);
++  assert.ok(matrix.policy.ownerMediaAllow.includes("pdf"));
++});
++
++test("release gates cover client, backend, device, security and pilot readiness", () => {
++  for (const gate of [
++    "backend-build", "backend-unit-tests", "firestore-storage-rules",
++    "all-emulator-integration-journeys", "flutter-analyze", "flutter-tests",
++    "flutter-web-release-build", "real-device-biometric",
++    "real-device-camera-microphone", "owner-mfa-review", "security-review",
++    "manual-acceptance-review", "staging-smoke-tests", "explicit-pilot-approval",
++  ]) assert.ok(matrix.releaseGates.includes(gate), `missing release gate ${gate}`);
++});
++
++test("every journey has a unique ID and a repeatable non-empty scenario list", () => {
++  const ids = matrix.journeys.map((journey) => journey.id);
++  assert.equal(new Set(ids).size, ids.length);
++  for (const journey of matrix.journeys) {
++    assert.equal(new Set(journey.cases).size, journey.cases.length, journey.id);
++    assert.ok(journey.cases.every((scenario) => typeof scenario === "string" && scenario.length > 0));
++  }
++});
+diff --git a/functions/test/fixtures/feature-coverage-matrix.json b/functions/test/fixtures/feature-coverage-matrix.json
+new file mode 100644
+index 00000000..792f0d0e
+--- /dev/null
++++ b/functions/test/fixtures/feature-coverage-matrix.json
+@@ -0,0 +1,420 @@
++{
++  "schemaVersion": 1,
++  "environment": "firebase-emulator-only",
++  "policy": {
++    "ordinaryMemberGetsAllMemberFeatures": true,
++    "ownerPrivilegesRequireRealMfaFlow": true,
++    "guestRestrictionsRemainEnforced": true,
++    "testClockMayOnlyBeOverriddenInEmulator": true,
++    "paymentMode": "sandbox-only",
++    "memberMediaAllow": [
++      "image",
++      "gif",
++      "audio",
++      "video"
++    ],
++    "memberMediaDeny": [
++      "pdf",
++      "documents"
++    ],
++    "ownerMediaAllow": [
++      "image",
++      "gif",
++      "audio",
++      "video",
++      "pdf",
++      "documents",
++      "otherMedia"
++    ],
++    "biometricRewardRequiresServerVerification": true,
++    "financialWritesMustUseServerTransactions": true,
++    "guestSession": {
++      "durationSeconds": 3600,
++      "rollingWindowSeconds": 86400,
++      "publicRoomsOnly": true,
++      "allowedMessageTypes": [
++        "text",
++        "audio"
++      ],
++      "directMessagesAllowed": false,
++      "privateRoomsAllowed": false,
++      "emulatorClockOverrideOnly": true
++    }
++  },
++  "personas": {
++    "guest": [
++      "guest-preview"
++    ],
++    "fullMembers": [
++      "email-member",
++      "biometric-member",
++      "counterparty-member"
++    ],
++    "owner": [
++      "owner-operator"
++    ]
++  },
++  "journeys": [
++    {
++      "id": "AUTH-001",
++      "area": "authentication",
++      "actors": [
++        "email-member",
++        "counterparty-member"
++      ],
++      "command": "npm test",
++      "cases": [
++        "sign-in",
++        "sign-out",
++        "invalid-credentials",
++        "expired-session",
++        "email-verification-gate",
++        "account-disabled"
++      ]
++    },
++    {
++      "id": "GUEST-001",
++      "area": "guest",
++      "actors": [
++        "guest-preview"
++      ],
++      "command": "npm run test:guest-privacy-integration",
++      "status": "partial",
++      "cases": [
++        "anonymous-guest-privacy-acknowledgement",
++        "member-acknowledgement-rejects-anonymous-session"
++      ],
++      "plannedCases": [
++        "public-discovery",
++        "public-shop-catalog",
++        "public-ads",
++        "public-room-join",
++        "public-room-text-send-receive",
++        "public-room-audio-send-receive",
++        "60-minute-expiry",
++        "rolling-24-hour-denial",
++        "re-entry-after-window",
++        "no-rewards",
++        "no-direct-messages",
++        "no-private-rooms",
++        "no-wallet",
++        "no-purchase",
++        "no-room-rental",
++        "no-gifts",
++        "no-image-gif-video-or-document-messages",
++        "no-private-data",
++        "emulator-clock-forward-and-reset"
++      ],
++      "releaseBlocker": "Guest room access and the one-hour/24-hour server session are not implemented in the app/backend branch; the current command tests privacy acknowledgement only."
++    },
++    {
++      "id": "PROFILE-001",
++      "area": "profiles",
++      "actors": [
++        "email-member",
++        "biometric-member",
++        "counterparty-member"
++      ],
++      "command": "npm run test:premium-profile-integration",
++      "cases": [
++        "create",
++        "edit",
++        "avatar",
++        "cover",
++        "bio",
++        "privacy",
++        "interests",
++        "badges",
++        "titles",
++        "premium-entitlements",
++        "analytics",
++        "pinned-sections",
++        "greeting",
++        "discovery-boost",
++        "block-and-report",
++        "account-state"
++      ]
++    },
++    {
++      "id": "CHAT-001",
++      "area": "messaging",
++      "actors": [
++        "email-member",
++        "counterparty-member"
++      ],
++      "command": "npm run test:message-deletion-integration",
++      "cases": [
++        "direct-chat",
++        "send-receive",
++        "delivery-and-read",
++        "reactions",
++        "blocking",
++        "reporting",
++        "delete-for-me",
++        "delete-for-everyone",
++        "idempotency",
++        "retention",
++        "legal-hold"
++      ]
++    },
++    {
++      "id": "MEDIA-001",
++      "area": "media",
++      "actors": [
++        "email-member",
++        "counterparty-member",
++        "owner-operator"
++      ],
++      "command": "npm run test:media-integration",
++      "cases": [
++        "image",
++        "gif",
++        "audio",
++        "video",
++        "mime-validation",
++        "size-quota",
++        "malware-quarantine",
++        "approved-preview",
++        "unauthorized-download",
++        "member-pdf-denied",
++        "owner-document-allowed",
++        "retention",
++        "legal-hold",
++        "deletion"
++      ]
++    },
++    {
++      "id": "WALLET-001",
++      "area": "wallet-and-coins",
++      "actors": [
++        "email-member",
++        "counterparty-member",
++        "owner-operator"
++      ],
++      "command": "npm run test:wallet-store-integration",
++      "cases": [
++        "balance-read",
++        "ledger-read",
++        "member-cannot-write-balance",
++        "two-party-transfer",
++        "sender-fee",
++        "recipient-net-amount",
++        "shared-transfer-id",
++        "duplicate-replay",
++        "insufficient-funds",
++        "gift-send-receive",
++        "sandbox-topup",
++        "manual-purchase-request",
++        "owner-verification",
++        "audit-log"
++      ]
++    },
++    {
++      "id": "STORE-001",
++      "area": "stores-and-entitlements",
++      "actors": [
++        "email-member",
++        "biometric-member",
++        "counterparty-member",
++        "owner-operator"
++      ],
++      "command": "npm run test:wallet-store-integration",
++      "cases": [
++        "catalogue",
++        "item-details",
++        "purchase",
++        "insufficient-balance",
++        "duplicate-purchase",
++        "entitlement-grant",
++        "entitlement-revoke",
++        "premium-store",
++        "avatar-frames",
++        "animated-names",
++        "profile-themes",
++        "vip",
++        "badges",
++        "titles",
++        "analytics",
++        "discovery-boost"
++      ]
++    },
++    {
++      "id": "ROOM-001",
++      "area": "rooms",
++      "actors": [
++        "email-member",
++        "counterparty-member",
++        "owner-operator"
++      ],
++      "command": "npm run test:room-rental-integration",
++      "cases": [
++        "public-room-rent",
++        "private-room-rent",
++        "owner-invite",
++        "join",
++        "leave",
++        "roles",
++        "moderation",
++        "billing",
++        "expiry",
++        "renewal",
++        "concurrent-rent",
++        "room-events",
++        "audit"
++      ]
++    },
++    {
++      "id": "BIO-001",
++      "area": "biometric",
++      "actors": [
++        "biometric-member",
++        "owner-operator"
++      ],
++      "command": "npm run test:biometric-integration",
++      "cases": [
++        "challenge-create",
++        "challenge-expiry",
++        "invalid-proof",
++        "replay-denied",
++        "server-verification",
++        "reward-once-only",
++        "prompt-only-no-reward",
++        "emulator-fixture-not-hardware-proof",
++        "device-camera-microphone-permissions"
++      ]
++    },
++    {
++      "id": "OWNER-001",
++      "area": "owner-console",
++      "actors": [
++        "owner-operator"
++      ],
++      "command": "npm run test:owner-audit-export-integration",
++      "cases": [
++        "mfa-required",
++        "fresh-auth-required",
++        "stale-auth-denied",
++        "member-management",
++        "moderation",
++        "economy-controls",
++        "room-controls",
++        "platform-settings",
++        "audit-every-mutation",
++        "export-audit",
++        "no-production-target"
++      ]
++    },
++    {
++      "id": "SAFETY-001",
++      "area": "trust-and-safety",
++      "actors": [
++        "email-member",
++        "counterparty-member",
++        "owner-operator"
++      ],
++      "command": "npm run test:safety-integration",
++      "cases": [
++        "report-user",
++        "block-user",
++        "report-content",
++        "moderation-decision",
++        "appeal",
++        "abuse-rate-limits",
++        "owner-audit"
++      ]
++    },
++    {
++      "id": "PUSH-001",
++      "area": "notifications",
++      "actors": [
++        "email-member",
++        "counterparty-member"
++      ],
++      "command": "npm run test:push-token-integration",
++      "cases": [
++        "register-token",
++        "refresh-token",
++        "invalid-token",
++        "logout-unregister",
++        "notification-preferences",
++        "no-token-leak"
++      ]
++    },
++    {
++      "id": "LOAD-001",
++      "area": "reliability-and-load",
++      "actors": [
++        "email-member",
++        "counterparty-member"
++      ],
++      "command": "npm test",
++      "cases": [
++        "parallel-transfers",
++        "parallel-purchases",
++        "duplicate-call-replay",
++        "concurrent-room-rent",
++        "retry-after-timeout",
++        "transaction-conflict",
++        "bounded-query-pagination",
++        "large-payload-rejection"
++      ]
++    },
++    {
++      "id": "RULES-001",
++      "area": "authorization-and-data-isolation",
++      "actors": [
++        "guest-preview",
++        "email-member",
++        "biometric-member",
++        "counterparty-member",
++        "owner-operator"
++      ],
++      "command": "npm run test:rules",
++      "cases": [
++        "cross-user-profile-read",
++        "cross-user-profile-write",
++        "client-wallet-write",
++        "client-biometric-claim-write",
++        "client-owner-claim-write",
++        "private-chat-read",
++        "storage-read",
++        "storage-write",
++        "test-data-production-isolation"
++      ]
++    },
++    {
++      "id": "PERSONA-001",
++      "area": "seeded-persona-interaction",
++      "actors": [
++        "email-member",
++        "counterparty-member"
++      ],
++      "command": "npm run test:seeded-persona-interaction",
++      "cases": [
++        "seed-auth-identities",
++        "seed-canonical-user-documents",
++        "member-to-member-coin-transfer",
++        "sender-and-recipient-ledgers",
++        "platform-commission",
++        "idempotent-replay",
++        "restore-fixture-balances"
++      ]
++    }
++  ],
++  "releaseGates": [
++    "backend-build",
++    "backend-unit-tests",
++    "firestore-storage-rules",
++    "all-emulator-integration-journeys",
++    "flutter-analyze",
++    "flutter-tests",
++    "flutter-web-release-build",
++    "real-device-biometric",
++    "real-device-camera-microphone",
++    "owner-mfa-review",
++    "security-review",
++    "manual-acceptance-review",
++    "staging-smoke-tests",
++    "explicit-pilot-approval"
++  ]
++}
+diff --git a/functions/test/fixtures/test-account-personas.json b/functions/test/fixtures/test-account-personas.json
+new file mode 100644
+index 00000000..2b2be672
+--- /dev/null
++++ b/functions/test/fixtures/test-account-personas.json
+@@ -0,0 +1,344 @@
++{
++  "schemaVersion": 1,
++  "environmentPolicy": {
++    "allowedProjectIdPrefix": "demo-mawda-",
++    "requiredEmulators": [
++      "FIREBASE_AUTH_EMULATOR_HOST",
++      "FIRESTORE_EMULATOR_HOST"
++    ],
++    "neverSeedProduction": true
++  },
++  "personas": [
++    {
++      "id": "guest-preview",
++      "displayName": "زائر مودة التجريبي",
++      "accountKind": "anonymous",
++      "emailVerified": false,
++      "biometricFixture": false,
++      "ownerAccess": false,
++      "guestWindow": {
++        "durationSeconds": 3600,
++        "rollingWindowSeconds": 86400,
++        "emulatorClockOverrideOnly": true
++      },
++      "capabilities": [
++        "browse.publicMemberDiscovery",
++        "browse.publicShopCatalog",
++        "browse.publicAds",
++        "rooms.public.join",
++        "chat.publicRooms.text.send",
++        "chat.publicRooms.text.receive",
++        "chat.publicRooms.audio.send",
++        "chat.publicRooms.audio.receive"
++      ],
++      "deniedCapabilities": [
++        "rewards.claim",
++        "wallet.read",
++        "wallet.write",
++        "chat.direct.send",
++        "chat.direct.read",
++        "chat.privateRooms.read",
++        "chat.privateRooms.join",
++        "media.image",
++        "media.gif",
++        "media.video",
++        "media.documents",
++        "gifts.send",
++        "gifts.receive",
++        "rooms.private.join",
++        "rooms.rent",
++        "store.purchase",
++        "coins.topUp",
++        "memberOnly.read"
++      ]
++    },
++    {
++      "id": "email-member",
++      "displayName": "عضو البريد التجريبي",
++      "accountKind": "emailPassword",
++      "emailVerified": true,
++      "biometricFixture": false,
++      "ownerAccess": false,
++      "capabilities": [
++        "profile.readWrite",
++        "discovery.browse",
++        "chat.direct",
++        "chat.rooms",
++        "media.memberAllowedTypes",
++        "wallet.readWrite",
++        "wallet.transfer",
++        "gifts.sendReceive",
++        "coins.sandboxTopUp",
++        "store.purchaseAll",
++        "rooms.publicRent",
++        "rooms.privateRent",
++        "badges.titles",
++        "premiumFeatures"
++      ],
++      "deniedCapabilities": [
++        "owner.console",
++        "owner.sovereignMutations",
++        "memberOnly.documentExchange"
++      ]
++    },
++    {
++      "id": "biometric-member",
++      "displayName": "عضو التوثيق البيومتري التجريبي",
++      "accountKind": "emailPassword",
++      "emailVerified": true,
++      "biometricFixture": "emulator-server-record-only",
++      "ownerAccess": false,
++      "capabilities": [
++        "profile.readWrite",
++        "discovery.browse",
++        "chat.direct",
++        "chat.rooms",
++        "media.memberAllowedTypes",
++        "wallet.readWrite",
++        "wallet.transfer",
++        "gifts.sendReceive",
++        "coins.sandboxTopUp",
++        "store.purchaseAll",
++        "rooms.publicRent",
++        "rooms.privateRent",
++        "badges.titles",
++        "premiumFeatures",
++        "biometric.challengeFlow"
++      ],
++      "deniedCapabilities": [
++        "owner.console",
++        "owner.sovereignMutations",
++        "memberOnly.documentExchange"
++      ]
++    },
++    {
++      "id": "counterparty-member",
++      "displayName": "عضو مودة المقابل التجريبي",
++      "accountKind": "emailPassword",
++      "emailVerified": true,
++      "biometricFixture": false,
++      "ownerAccess": false,
++      "capabilities": [
++        "badges.titles",
++        "chat.direct",
++        "chat.rooms",
++        "coins.sandboxTopUp",
++        "discovery.browse",
++        "gifts.sendReceive",
++        "media.memberAllowedTypes",
++        "premiumFeatures",
++        "profile.readWrite",
++        "rooms.privateRent",
++        "rooms.publicRent",
++        "store.purchaseAll",
++        "wallet.readWrite",
++        "wallet.transfer"
++      ],
++      "deniedCapabilities": [
++        "owner.console",
++        "owner.sovereignMutations",
++        "memberOnly.documentExchange"
++      ]
++    },
++    {
++      "id": "owner-operator",
++      "displayName": "مالك مودة التجريبي",
++      "accountKind": "emailPassword",
++      "emailVerified": true,
++      "biometricFixture": false,
++      "ownerAccess": "mfa-required-no-bypass",
++      "capabilities": [
++        "owner.console.afterMfa",
++        "owner.memberManagement.afterMfa",
++        "owner.moderation.afterMfa",
++        "owner.audit.afterMfa",
++        "owner.storeEconomyControls.afterMfa",
++        "owner.roomControls.afterMfa",
++        "owner.settings.afterMfa"
++      ],
++      "deniedCapabilities": [
++        "owner.actionWithoutMfa",
++        "owner.actionWithStaleAuth",
++        "productionOwnerMutation"
++      ]
++    }
++  ],
++  "profileFixtureRequirements": [
++    "displayName",
++    "uniqueHandle",
++    "avatarFixture",
++    "coverFixture",
++    "biography",
++    "locale",
++    "profileVisibility",
++    "accountState",
++    "badgesAndTitles",
++    "shopEntitlements",
++    "walletFixture",
++    "roomPermissions",
++    "notificationPreferences",
++    "testLabels"
++  ],
++  "mediaPolicy": {
++    "memberAllowed": [
++      "image",
++      "gif",
++      "audio",
++      "video"
++    ],
++    "memberDenied": [
++      "pdf",
++      "documents"
++    ],
++    "ownerAllowed": [
++      "image",
++      "gif",
++      "audio",
++      "video",
++      "pdf",
++      "documents",
++      "otherMedia"
++    ]
++  },
++  "paymentPolicy": {
++    "mode": "sandbox-only",
++    "liveChargesAllowed": false
++  },
++  "biometricPolicy": {
++    "emulatorFixtureIsNotHardwareProof": true,
++    "grantRewardsOnlyAfterAuthoritativeServerVerification": true
++  },
++  "profileFixtures": {
++    "guest-preview": {
++      "biography": "تصفح عام تجريبي لاختبار تجربة الزائر وحدود الوصول",
++      "locale": "ar",
++      "country": "Switzerland",
++      "region": "Zurich",
++      "profileVisibility": "public-preview",
++      "interests": [
++        "اكتشاف الأعضاء",
++        "المتاجر",
++        "الإعلانات",
++        "الغرف العامة",
++        "المحادثات النصية والصوتية"
++      ],
++      "goals": [
++        "اختبار حدود نافذة الزائر"
++      ]
++    },
++    "email-member": {
++      "biography": "عضو تجريبي لاختبار المحادثات والمحفظة والمتاجر والغرف والميزات المميزة",
++      "locale": "ar",
++      "country": "Switzerland",
++      "region": "Zurich",
++      "age": 29,
++      "gender": "unspecified",
++      "profession": "مصمم منتجات",
++      "maritalStatus": "single",
++      "profileVisibility": "public",
++      "interests": [
++        "التقنية",
++        "التصميم",
++        "القراءة",
++        "السفر"
++      ],
++      "goals": [
++        "اختبار الملف الشخصي",
++        "اختبار المتجر",
++        "اختبار التحويلات"
++      ]
++    },
++    "biometric-member": {
++      "biography": "ملف تجريبي مخصص لاختبار دورة التوثيق البيومتري ومكافآتها بعد التحقق الخادمي",
++      "locale": "ar",
++      "country": "Switzerland",
++      "region": "Zurich",
++      "age": 32,
++      "gender": "unspecified",
++      "profession": "مهندس برمجيات",
++      "maritalStatus": "single",
++      "profileVisibility": "public",
++      "interests": [
++        "الأمن الرقمي",
++        "التقنية",
++        "الرياضة"
++      ],
++      "goals": [
++        "اختبار تحدي التوثيق",
++        "اختبار حالة الاستحقاق"
++      ]
++    },
++    "counterparty-member": {
++      "biography": "الحساب المقابل لاختبار التفاعل بين عضوين والتحويلات والهدايا والدردشة",
++      "locale": "ar",
++      "country": "Switzerland",
++      "region": "Geneva",
++      "age": 30,
++      "gender": "unspecified",
++      "profession": "محلل أعمال",
++      "maritalStatus": "single",
++      "profileVisibility": "public",
++      "interests": [
++        "الأعمال",
++        "الموسيقى",
++        "السفر"
++      ],
++      "goals": [
++        "استقبال التحويلات",
++        "اختبار المحادثة الثنائية"
++      ]
++    },
++    "owner-operator": {
++      "biography": "هوية اختبار إدارية محصورة بالمحاكي ولا تتجاوز المصادقة متعددة العوامل",
++      "locale": "ar",
++      "country": "Switzerland",
++      "region": "Zurich",
++      "age": 38,
++      "gender": "unspecified",
++      "profession": "مشغل المنصة التجريبي",
++      "maritalStatus": "unspecified",
++      "profileVisibility": "private",
++      "interests": [
++        "حوكمة المنصة",
++        "المراجعة الأمنية"
++      ],
++      "goals": [
++        "اختبار لوحة المالك بعد MFA"
++      ]
++    }
++  },
++  "guestPolicy": {
++    "durationSeconds": 3600,
++    "rollingWindowSeconds": 86400,
++    "allowedRoomTypes": [
++      "public"
++    ],
++    "allowedRoomActions": [
++      "join",
++      "sendTextMessage",
++      "sendAudioMessage",
++      "receiveTextMessage",
++      "receiveAudioMessage"
++    ],
++    "deniedRoomActions": [
++      "joinPrivateRoom",
++      "rentRoom",
++      "moderateRoom",
++      "sendGift"
++    ],
++    "allowedMessageTypes": [
++      "text",
++      "audio"
++    ],
++    "deniedMessageTypes": [
++      "image",
++      "gif",
++      "video",
++      "pdf",
++      "document",
++      "file"
++    ],
++    "directMessagesAllowed": false,
++    "emulatorClockOverrideOnly": true
++  }
++}
+diff --git a/functions/test/integration/test-persona-interaction.integration.test.js b/functions/test/integration/test-persona-interaction.integration.test.js
+new file mode 100644
+index 00000000..94c0ecbd
+--- /dev/null
++++ b/functions/test/integration/test-persona-interaction.integration.test.js
+@@ -0,0 +1,104 @@
++const test = require("node:test");
++const assert = require("node:assert/strict");
++const { getFirestore } = require("firebase-admin/firestore");
++const { getAuth } = require("firebase-admin/auth");
++const { transferCoins } = require("../../lib/index");
++
++const db = getFirestore();
++const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
++
++test("seeded Mawdda member personas can transact with each other inside the isolated lab", async () => {
++  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
++  assert.ok(process.env.FIREBASE_AUTH_EMULATOR_HOST, "Auth emulator is required");
++  const [senderProfile, recipientProfile] = await Promise.all([
++    db.collection("testAccountProfiles").doc("email-member").get(),
++    db.collection("testAccountProfiles").doc("counterparty-member").get(),
++  ]);
++  assert.ok(senderProfile.exists, "email-member fixture must be provisioned first");
++  assert.ok(recipientProfile.exists, "counterparty-member fixture must be provisioned first");
++  const senderUid = senderProfile.data().uid;
++  const recipientUid = recipientProfile.data().uid;
++  assert.ok(senderUid && recipientUid && senderUid !== recipientUid);
++
++  const senderRef = db.collection("users").doc(senderUid);
++  const recipientRef = db.collection("users").doc(recipientUid);
++  const settingsRef = db.doc("platformSettings/coinTransfers");
++  const previousSettings = await settingsRef.get();
++  const previousSettingsData = previousSettings.exists ? previousSettings.data() : null;
++  const senderBefore = (await senderRef.get()).data();
++  const recipientBefore = (await recipientRef.get()).data();
++  const [senderAuth, recipientAuth] = await Promise.all([
++    getAuth().getUser(senderUid), getAuth().getUser(recipientUid),
++  ]);
++  assert.equal(senderBefore.isTestAccount, true);
++  assert.equal(recipientBefore.isTestAccount, true);
++  assert.equal(senderBefore.testPersonaId, "email-member");
++  assert.equal(recipientBefore.testPersonaId, "counterparty-member");
++  assert.equal(senderAuth.emailVerified, true);
++  assert.equal(recipientAuth.emailVerified, true);
++  assert.equal((senderProfile.data().profile.walletFixture).coins, senderBefore.coins);
++  assert.equal((recipientProfile.data().profile.walletFixture).coins, recipientBefore.coins);
++
++  const tag = suffix();
++  const requestId = `persona_transfer_${tag}`;
++  const transferId = `${senderUid}_${requestId}`;
++  const senderLedgerRef = senderRef.collection("walletLedger").doc(transferId);
++  const recipientLedgerRef = recipientRef.collection("walletLedger").doc(transferId);
++  const platformLedgerRef = db.collection("platformWalletLedger").doc(transferId);
++  const transferRef = db.collection("coinTransfers").doc(transferId);
++  const senderBalance = senderBefore.coins;
++  const recipientBalance = recipientBefore.coins;
++
++  await settingsRef.set({ enabled: true, commissionBps: 1000, version: 1 });
++  try {
++    const response = await transferCoins.run({
++      data: {
++        recipientUid,
++        amount: 1000,
++        requestId,
++        expectedCommissionBps: 1000,
++      },
++      auth: {
++        uid: senderUid,
++        token: { firebase: { sign_in_provider: "password" } },
++      },
++    });
++    assert.equal(response.grossAmount, 1000);
++    assert.equal(response.commissionAmount, 100);
++    assert.equal(response.netAmount, 900);
++    assert.equal(response.idempotentReplay, false);
++
++    const [senderAfter, recipientAfter, senderLedger, recipientLedger, platformLedger, transfer] =
++      await Promise.all([
++        senderRef.get(), recipientRef.get(), senderLedgerRef.get(),
++        recipientLedgerRef.get(), platformLedgerRef.get(), transferRef.get(),
++      ]);
++    assert.equal(senderAfter.data().coins, senderBalance - 1000);
++    assert.equal(recipientAfter.data().coins, recipientBalance + 900);
++    assert.equal(senderLedger.data().recipientUid, recipientUid);
++    assert.equal(senderLedger.data().commissionAmount, 100);
++    assert.equal(recipientLedger.data().senderUid, senderUid);
++    assert.equal(recipientLedger.data().amount, 900);
++    assert.equal(platformLedger.data().amount, 100);
++    assert.equal(transfer.data().status, "completed");
++
++    const replay = await transferCoins.run({
++      data: { recipientUid, amount: 1000, requestId, expectedCommissionBps: 1000 },
++      auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
++    });
++    assert.equal(replay.idempotentReplay, true);
++    assert.equal((await senderRef.get()).data().coins, senderBalance - 1000);
++    assert.equal((await recipientRef.get()).data().coins, recipientBalance + 900);
++  } finally {
++    await Promise.all([
++      senderRef.update({ coins: senderBalance }),
++      recipientRef.update({ coins: recipientBalance }),
++      senderLedgerRef.delete().catch(() => undefined),
++      recipientLedgerRef.delete().catch(() => undefined),
++      platformLedgerRef.delete().catch(() => undefined),
++      transferRef.delete().catch(() => undefined),
++    ]);
++    if (previousSettingsData) await settingsRef.set(previousSettingsData);
++    else await settingsRef.delete().catch(() => undefined);
++  }
++});
+diff --git a/functions/test/test-account-personas.test.js b/functions/test/test-account-personas.test.js
+new file mode 100644
+index 00000000..21dfa987
+--- /dev/null
++++ b/functions/test/test-account-personas.test.js
+@@ -0,0 +1,92 @@
++const test = require("node:test");
++const assert = require("node:assert/strict");
++const personas = require("./fixtures/test-account-personas.json");
++
++test("test persona catalogue has unique stable IDs and complete profile requirements", () => {
++  const ids = personas.personas.map((persona) => persona.id);
++  assert.equal(new Set(ids).size, ids.length);
++  for (const field of personas.profileFixtureRequirements) assert.ok(field.length > 0);
++  for (const persona of personas.personas) {
++    assert.ok(persona.displayName);
++    assert.ok(Array.isArray(persona.capabilities));
++    assert.ok(Array.isArray(persona.deniedCapabilities));
++    assert.equal(persona.capabilities.some((capability) => persona.deniedCapabilities.includes(capability)), false);
++  }
++});
++
++test("guest persona has one hour per rolling 24 hours and limited public-room participation", () => {
++  const guest = personas.personas.find((persona) => persona.id === "guest-preview");
++  assert.ok(guest);
++  assert.deepEqual(guest.guestWindow, { durationSeconds: 3600, rollingWindowSeconds: 86400, emulatorClockOverrideOnly: true });
++  assert.deepEqual(guest.capabilities, [
++    "browse.publicMemberDiscovery", "browse.publicShopCatalog", "browse.publicAds",
++    "rooms.public.join", "chat.publicRooms.text.send", "chat.publicRooms.text.receive", "chat.publicRooms.audio.send", "chat.publicRooms.audio.receive"
++  ]);
++  assert.deepEqual(personas.guestPolicy, {
++    durationSeconds: 3600,
++    rollingWindowSeconds: 86400,
++    allowedRoomTypes: ["public"],
++    allowedRoomActions: ["join", "sendTextMessage", "sendAudioMessage", "receiveTextMessage", "receiveAudioMessage"],
++    deniedRoomActions: ["joinPrivateRoom", "rentRoom", "moderateRoom", "sendGift"],
++    allowedMessageTypes: ["text", "audio"],
++    deniedMessageTypes: ["image", "gif", "video", "pdf", "document", "file"],
++    directMessagesAllowed: false,
++    emulatorClockOverrideOnly: true
++  });
++  assert.ok(guest.deniedCapabilities.includes("wallet.write"));
++  assert.ok(guest.deniedCapabilities.includes("store.purchase"));
++  assert.ok(guest.deniedCapabilities.includes("chat.direct.send"));
++  assert.ok(guest.deniedCapabilities.includes("chat.privateRooms.join"));
++  assert.ok(guest.deniedCapabilities.includes("media.image"));
++  assert.ok(guest.deniedCapabilities.includes("media.gif"));
++  assert.ok(guest.deniedCapabilities.includes("media.video"));
++  assert.ok(guest.deniedCapabilities.includes("media.documents"));
++});
++
++test("email and biometric member personas cannot inherit owner authority", () => {
++  for (const id of ["email-member", "biometric-member"]) {
++    const persona = personas.personas.find((item) => item.id === id);
++    assert.ok(persona);
++    assert.equal(persona.emailVerified, true);
++    assert.equal(persona.ownerAccess, false);
++    assert.ok(persona.deniedCapabilities.includes("owner.console"));
++  }
++});
++
++test("owner test persona requires MFA and cannot mutate production", () => {
++  const owner = personas.personas.find((persona) => persona.id === "owner-operator");
++  assert.ok(owner);
++  assert.equal(owner.ownerAccess, "mfa-required-no-bypass");
++  assert.ok(owner.deniedCapabilities.includes("owner.actionWithoutMfa"));
++  assert.ok(owner.deniedCapabilities.includes("productionOwnerMutation"));
++});
++
++test("member media policy denies documents while preserving owner-only document exchange", () => {
++  assert.deepEqual(personas.mediaPolicy.memberDenied, ["pdf", "documents"]);
++  assert.ok(personas.mediaPolicy.ownerAllowed.includes("pdf"));
++});
++
++test("payments remain sandbox-only and biometric fixture is not hardware proof", () => {
++  assert.equal(personas.paymentPolicy.liveChargesAllowed, false);
++  assert.equal(personas.biometricPolicy.emulatorFixtureIsNotHardwareProof, true);
++  assert.equal(personas.biometricPolicy.grantRewardsOnlyAfterAuthoritativeServerVerification, true);
++});
++test("every persona has a complete, age-safe isolated profile fixture", () => {
++  const handles = [];
++  for (const persona of personas.personas) {
++    const profile = personas.profileFixtures[persona.id];
++    assert.ok(profile, `missing profile fixture for ${persona.id}`);
++    assert.ok(profile.biography.length >= 20);
++    assert.equal(profile.locale, "ar");
++    assert.ok(profile.country);
++    assert.ok(profile.region);
++    if (persona.id !== "guest-preview") {
++      assert.ok(profile.age >= 18, `member fixture ${persona.id} must be adult-scoped`);
++      assert.ok(profile.profession);
++      assert.ok(profile.interests.length >= 2);
++    }
++    if (persona.id === "owner-operator") assert.equal(profile.profileVisibility, "private");
++    handles.push(`${persona.id.replace(/[^a-z0-9]/g, "_")}_mawdda_test`);
++  }
++  assert.equal(new Set(handles).size, handles.length);
++});

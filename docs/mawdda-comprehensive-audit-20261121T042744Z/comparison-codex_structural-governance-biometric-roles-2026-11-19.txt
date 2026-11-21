@@ -1,0 +1,80 @@
+Compared branch: codex/structural-governance-biometric-roles-2026-11-19
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+487	79
+
+=== CHANGE SUMMARY ===
+ .github/workflows/mawdda-domain-regression.yml     |   1 +
+ .github/workflows/validate.yml                     |   1 +
+ README.md                                          |   2 +
+ .../MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md |  35 +-
+ docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md       |  35 +-
+ docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md        |  52 ++
+ docs/MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md  |  39 +-
+ docs/MAWADDA_PRODUCT_CONSTITUTION.md               |  67 +-
+ docs/SEVEN_PHASE_EXECUTION_PLAN.md                 |  29 +-
+ ...RNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md | 149 ++++
+ firestore.rules                                    |   9 +
+ functions/package.json                             |   5 +-
+ functions/src/advertising-governance.ts            |  27 +
+ functions/src/biometric-media.ts                   |  97 +++
+ functions/src/biometric-review.ts                  | 148 ++++
+ functions/src/biometric-verification.ts            |   5 +-
+ functions/src/index.ts                             | 818 ++++++++++++++++++++-
+ functions/src/platform-role-identities.ts          |  76 ++
+ functions/test/advertising-governance.test.js      |  31 +
+ functions/test/biometric-media.test.js             |  61 ++
+ functions/test/biometric-review.test.js            |  94 +++
+ functions/test/biometric-reward-security.test.js   |   9 +-
+ functions/test/biometric-verification.test.js      |  40 +
+ .../biometric-verification.integration.test.js     | 120 ++-
+ .../specialized-role-capacity.integration.test.js  | 120 +++
+ functions/test/member-social-links-access.test.js  |   3 +
+ functions/test/member-social-links.test.js         |  11 +-
+ functions/test/platform-role-identities.test.js    |  41 ++
+ functions/test/platform-terminology-docs.test.js   |  39 +
+ functions/test/rules/firestore.rules.test.js       |  23 +
+ functions/test/rules/storage.rules.test.js         | 144 +++-
+ lib/screens/main_user_screen.dart                  |   2 +-
+ lib/screens/owner_chat_participation_screen.dart   |   2 +-
+ lib/screens/super_admin_screen.dart                |   4 +-
+ storage.rules                                      |  48 +-
+ 35 files changed, 2306 insertions(+), 81 deletions(-)
+
+=== CHANGED PATHS ===
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	README.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md
+A	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+M	docs/MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md
+M	docs/MAWADDA_PRODUCT_CONSTITUTION.md
+M	docs/SEVEN_PHASE_EXECUTION_PLAN.md
+A	docs/STRUCTURAL_GOVERNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md
+M	firestore.rules
+M	functions/package.json
+M	functions/src/advertising-governance.ts
+A	functions/src/biometric-media.ts
+A	functions/src/biometric-review.ts
+M	functions/src/biometric-verification.ts
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+M	functions/test/advertising-governance.test.js
+A	functions/test/biometric-media.test.js
+A	functions/test/biometric-review.test.js
+M	functions/test/biometric-reward-security.test.js
+M	functions/test/biometric-verification.test.js
+M	functions/test/integration/biometric-verification.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+M	functions/test/member-social-links-access.test.js
+M	functions/test/member-social-links.test.js
+A	functions/test/platform-role-identities.test.js
+A	functions/test/platform-terminology-docs.test.js
+M	functions/test/rules/firestore.rules.test.js
+M	functions/test/rules/storage.rules.test.js
+M	lib/screens/main_user_screen.dart
+M	lib/screens/owner_chat_participation_screen.dart
+M	lib/screens/super_admin_screen.dart
+M	storage.rules

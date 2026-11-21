@@ -1,0 +1,87 @@
+BRANCH: codex/mawdda-role-capacity-after-retention-2026-11-19
+SHA: 5110cb59f9d9a6edae4bbc7bc8418043f0a1eb51
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 8a1c8d0b93ed43570c523ab2d8c2598648ddac0e
+
+=== DIVERGENCE target-only / branch-only ===
+398	22
+
+=== BRANCH UNIQUE COMMITS ===
+5110cb59f9d9a6edae4bbc7bc8418043f0a1eb51 ci: invoke Firebase CLI from locked local dependencies
+c324e960077c0970ec7718273837dbac84feaeff ci: run role capacity integration test inside Firestore emulator
+6d33c17117370328af83a595397775653bcb47b9 docs: trace role capacity implementation and remaining lifecycle gates
+a22d0f733f80cc017209820b47dad8a560d5e558 docs: record canonical administrative role policy and implementation gate
+06df7f65d89dfdff33dcf22dd2552b75d27faa4d docs: index canonical administrative terminology appendix
+51e207c39900bb21a9e4882147b9469114f28112 ci: validate role capacity after retention integration
+d153391b978e6c88a7b0d3a8cb1972ee6b825451 ci: run role capacity emulator tests after retention fixes
+a14e615753b25cb01d511a7b2a2138d8ad477bad feat: enforce transactional five-seat supervisor capacity
+7175923bbb4d8b11d98d88ebe4694a2b03387ceb feat: add canonical role identity and capacity tests
+7aa21941cd8fecb7c6836f0eb7624e31f9ccfddd feat: add canonical role identity and capacity tests
+803275aaf4dc3b7791af480efc64f02aae929a92 feat: add canonical role identity and capacity tests
+63916ade25d9c6d5db640204637053042415fa06 fix: return server catalog version from transactional publish
+94b042126b39731255b8cc45605c16a09a8f4835 test: verify owner catalog versioning enables purchases
+485502ddd567db41ce61f60da14bf30ed63581b5 fix: assign monotonic server versions to store catalog items
+032a66b35b8d31caaa92c50ad7b7dc18317da7b9 fix: persist immutable timed ad campaign versions
+0972405c59daf929e4a9a60e1d03a3f53d62ae6b test: complete store and custom coin request fixtures
+4cf8c090bd4aef72ff0e87891b645f914d02c46b ci: run validation on retention approval repair branch
+7a38396880d7f899b84e2a790c61a9daae682fa0 ci: run validation on retention approval repair branch
+a8c0656b648bfbec3877c86f25838729904bf074 docs: record confirmed retention policy and CI evidence
+5b805dd5ee657a093052f6adff3d340d19d39287 docs: align platform vision with approved chat retention
+7d058c0de0887b025fd8072caa96eccd9bb47e47 docs: record owner-approved 30-day important chat retention
+124731af4e13725fffc8527010531660c42bafaf test: correct purchasable owner entitlement fixture
+
+=== CHERRY STATUS ===
++ 124731af4e13725fffc8527010531660c42bafaf test: correct purchasable owner entitlement fixture
++ 7d058c0de0887b025fd8072caa96eccd9bb47e47 docs: record owner-approved 30-day important chat retention
+- 5b805dd5ee657a093052f6adff3d340d19d39287 docs: align platform vision with approved chat retention
++ a8c0656b648bfbec3877c86f25838729904bf074 docs: record confirmed retention policy and CI evidence
++ 7a38396880d7f899b84e2a790c61a9daae682fa0 ci: run validation on retention approval repair branch
++ 4cf8c090bd4aef72ff0e87891b645f914d02c46b ci: run validation on retention approval repair branch
++ 0972405c59daf929e4a9a60e1d03a3f53d62ae6b test: complete store and custom coin request fixtures
++ 032a66b35b8d31caaa92c50ad7b7dc18317da7b9 fix: persist immutable timed ad campaign versions
++ 485502ddd567db41ce61f60da14bf30ed63581b5 fix: assign monotonic server versions to store catalog items
++ 94b042126b39731255b8cc45605c16a09a8f4835 test: verify owner catalog versioning enables purchases
++ 63916ade25d9c6d5db640204637053042415fa06 fix: return server catalog version from transactional publish
++ 803275aaf4dc3b7791af480efc64f02aae929a92 feat: add canonical role identity and capacity tests
++ 7aa21941cd8fecb7c6836f0eb7624e31f9ccfddd feat: add canonical role identity and capacity tests
++ 7175923bbb4d8b11d98d88ebe4694a2b03387ceb feat: add canonical role identity and capacity tests
++ a14e615753b25cb01d511a7b2a2138d8ad477bad feat: enforce transactional five-seat supervisor capacity
++ d153391b978e6c88a7b0d3a8cb1972ee6b825451 ci: run role capacity emulator tests after retention fixes
++ 51e207c39900bb21a9e4882147b9469114f28112 ci: validate role capacity after retention integration
++ 06df7f65d89dfdff33dcf22dd2552b75d27faa4d docs: index canonical administrative terminology appendix
++ a22d0f733f80cc017209820b47dad8a560d5e558 docs: record canonical administrative role policy and implementation gate
++ 6d33c17117370328af83a595397775653bcb47b9 docs: trace role capacity implementation and remaining lifecycle gates
++ c324e960077c0970ec7718273837dbac84feaeff ci: run role capacity integration test inside Firestore emulator
++ 5110cb59f9d9a6edae4bbc7bc8418043f0a1eb51 ci: invoke Firebase CLI from locked local dependencies
+
+=== FILE STATUS ===
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+M	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+A	functions/test/platform-role-identities.test.js
+
+=== NUMSTAT ===
+4	0	.github/workflows/mawdda-domain-regression.yml
+2	0	.github/workflows/validate.yml
+9	1	docs/IMPLEMENTATION_TRACEABILITY.md
+20	0	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+6	0	docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+1	1	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+65	4	functions/src/index.ts
+86	0	functions/src/platform-role-identities.ts
+2	2	functions/test/integration/owner-entitlement-grants.integration.test.js
+120	0	functions/test/integration/specialized-role-capacity.integration.test.js
+16	9	functions/test/integration/wallet-store.integration.test.js
+50	0	functions/test/platform-role-identities.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

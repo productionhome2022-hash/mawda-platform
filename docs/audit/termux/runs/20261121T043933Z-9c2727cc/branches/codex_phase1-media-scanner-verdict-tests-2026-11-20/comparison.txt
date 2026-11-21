@@ -1,0 +1,26 @@
+Branch: codex/phase1-media-scanner-verdict-tests-2026-11-20
+Branch SHA: 6da140cbcd359c17805477e81401bfacef7268f0
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+221	1
+
+--- Merge base ---
+d857497c50eca8d7dcf105e938c8060402ae85e3
+
+--- Changed files relative to common ancestor ---
+M	functions/test/media-scanner.test.js
+
+--- Diff statistics ---
+ functions/test/media-scanner.test.js | 53 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 53 insertions(+)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+6da140cb (origin/codex/phase1-media-scanner-verdict-tests-2026-11-20) test(media): cover malicious and incomplete scanner verdict contracts
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

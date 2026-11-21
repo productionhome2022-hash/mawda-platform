@@ -1,0 +1,56 @@
+name: Economic phase verification
+
+on:
+  push:
+    branches:
+      - codex/mawda-full-platform-implementation
+  pull_request:
+    branches:
+      - codex/mawda-full-platform-implementation
+    paths:
+      - "functions/**"
+      - "firebase.json"
+      - "firestore.rules"
+      - ".github/workflows/economic-phase-verification.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: economic-phase-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  functions-unit-and-call-emulator:
+    name: Functions build, unit tests, and call signaling emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Setup Java for Firebase Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install Functions dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Build Functions and run unit tests
+        working-directory: functions
+        run: npm test
+
+      - name: Run call signaling integration tests against local Firestore Emulator
+        working-directory: functions
+        run: npm run test:call-signaling-integration

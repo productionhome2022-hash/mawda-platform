@@ -1,0 +1,56 @@
+Compared branch: codex/biometric-server-lifecycle-2026-11-20
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+137	73
+
+=== CHANGE SUMMARY ===
+ .../BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md     |   4 +-
+ ...C_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md |  29 +-
+ functions/package.json                             |   2 +-
+ functions/src/biometric-evidence.ts                |  29 +
+ functions/src/biometric-lifecycle.ts               | 641 +++++++++++++++++++++
+ functions/src/biometric-media.ts                   |  45 ++
+ functions/src/index.ts                             |   1 +
+ functions/src/media-derivative-contract.ts         |   4 +-
+ functions/src/media-scanner.ts                     |   4 +-
+ functions/src/media-security.ts                    |  17 +-
+ functions/src/media.ts                             |  52 +-
+ functions/test/biometric-evidence.test.js          |  27 +
+ functions/test/biometric-media.test.js             |  11 +
+ .../biometric-verification.integration.test.js     | 299 ++++++++--
+ .../media-callables.integration.test.js            |  47 ++
+ functions/test/media-derivative-contract.test.js   |   2 +
+ functions/test/media-scanner.test.js               |  28 +
+ functions/test/media-security.test.js              |  23 +
+ lib/services/member_media_upload_service.dart      | 114 ++++
+ scanner/processors.js                              |  12 +-
+ scanner/security.js                                |   6 +-
+ scanner/test/processors.test.js                    |  12 +-
+ scanner/test/security.test.js                      |  12 +
+ 23 files changed, 1352 insertions(+), 69 deletions(-)
+
+=== CHANGED PATHS ===
+M	docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md
+M	docs/phase1/BIOMETRIC_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md
+M	functions/package.json
+A	functions/src/biometric-evidence.ts
+A	functions/src/biometric-lifecycle.ts
+M	functions/src/biometric-media.ts
+M	functions/src/index.ts
+M	functions/src/media-derivative-contract.ts
+M	functions/src/media-scanner.ts
+M	functions/src/media-security.ts
+M	functions/src/media.ts
+A	functions/test/biometric-evidence.test.js
+M	functions/test/biometric-media.test.js
+M	functions/test/integration/biometric-verification.integration.test.js
+M	functions/test/integration/media-callables.integration.test.js
+M	functions/test/media-derivative-contract.test.js
+M	functions/test/media-scanner.test.js
+M	functions/test/media-security.test.js
+M	lib/services/member_media_upload_service.dart
+M	scanner/processors.js
+M	scanner/security.js
+M	scanner/test/processors.test.js
+M	scanner/test/security.test.js

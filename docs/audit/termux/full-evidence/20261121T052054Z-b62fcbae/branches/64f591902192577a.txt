@@ -1,0 +1,37 @@
+BRANCH: codex/mawdda-premium-effects
+SHA: 5203d25ab38df8ae2a2bd700537e2f0d14bfbde3
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: c9bdaef83b092508ae5a49ab834baeec50b02fa0
+
+=== DIVERGENCE target-only / branch-only ===
+1604	5
+
+=== BRANCH UNIQUE COMMITS ===
+5203d25ab38df8ae2a2bd700537e2f0d14bfbde3 Add user-confirmed guest session deletion
+117215764d16f1c03a69bd81f2ffee6c7dedf3a3 Add explicit anonymous guest account termination
+f0e1b642ac3590049c89a07c4370a67ccad23726 Avoid animation controller when animated username is not purchased
+95c1e605fcaabc29d67f5566ae64865f4f89bc1f Use looping animated avatar frames and premium usernames
+028dbc81757e53f4c2305df2e7d223c2bf846d11 Add animated premium avatar frames and usernames
+
+=== CHERRY STATUS ===
+- 028dbc81757e53f4c2305df2e7d223c2bf846d11 Add animated premium avatar frames and usernames
++ 95c1e605fcaabc29d67f5566ae64865f4f89bc1f Use looping animated avatar frames and premium usernames
++ f0e1b642ac3590049c89a07c4370a67ccad23726 Avoid animation controller when animated username is not purchased
+- 117215764d16f1c03a69bd81f2ffee6c7dedf3a3 Add explicit anonymous guest account termination
+- 5203d25ab38df8ae2a2bd700537e2f0d14bfbde3 Add user-confirmed guest session deletion
+
+=== FILE STATUS ===
+M	lib/screens/guest_session_screen.dart
+M	lib/screens/profile_screen.dart
+M	lib/services/auth_service.dart
+A	lib/widgets/premium_profile_effects.dart
+
+=== NUMSTAT ===
+41	1	lib/screens/guest_session_screen.dart
+36	34	lib/screens/profile_screen.dart
+14	0	lib/services/auth_service.dart
+113	0	lib/widgets/premium_profile_effects.dart
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

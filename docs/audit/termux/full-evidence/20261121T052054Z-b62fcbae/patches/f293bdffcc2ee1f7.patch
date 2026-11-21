@@ -1,0 +1,2180 @@
+diff --git a/.github/workflows/mawdda-domain-regression.yml b/.github/workflows/mawdda-domain-regression.yml
+index 643b25f5..8b92a414 100644
+--- a/.github/workflows/mawdda-domain-regression.yml
++++ b/.github/workflows/mawdda-domain-regression.yml
+@@ -1,66 +1,67 @@
+ name: Mawdda domain regression
+ 
+ on:
+   push:
+     branches:
+       - codex/mawda-full-platform-implementation
+       - codex/governance-biometric-integration-2026-11-19
++      - codex/mawdda-retention-approval-ci-repair-2026-11-19
+ 
+ permissions:
+   contents: read
+ 
+ concurrency:
+   group: mawdda-domain-regression-${{ github.ref_name }}
+   cancel-in-progress: true
+ 
+ jobs:
+   backend-domain-regression:
+     name: Retention and room reservation emulator regression
+     runs-on: ubuntu-latest
+     timeout-minutes: 60
+     defaults:
+       run:
+         working-directory: functions
+     steps:
+       - uses: actions/checkout@v5
+       - uses: actions/setup-node@v5
+         with:
+           node-version: "22.23.4"
+           cache: npm
+           cache-dependency-path: functions/package-lock.json
+       - uses: actions/setup-java@v5
+         with:
+           distribution: temurin
+           java-version: "21"
+       - name: Install locked backend dependencies
+         run: npm ci --no-audit --no-fund
+       - name: Compile and run backend unit tests
+         run: npm test
+       - name: Run mode-aware chat retention integration tests
+         run: npm run test:retention-integration
+       - name: Run room event seat reservation and cancellation integration tests
+         run: npm run test:room-events-integration
+       - name: Run owner entitlement grant and bulk replay integration tests
+         run: npm run test:owner-entitlement-grants-integration
+       - name: Run voice and video call lifecycle integration tests
+         run: npm run test:call-signaling-integration
+       - name: Run timed advertising and reward ledger integration tests
+         run: npm run test:engagement-rewards-integration
+ 
+   flutter-domain-regression:
+     name: Flutter UI analysis and widget tests
+     runs-on: ubuntu-latest
+     timeout-minutes: 35
+     steps:
+       - uses: actions/checkout@v5
+       - uses: subosito/flutter-action@v2
+         with:
+           flutter-version: "3.47.9"
+           channel: stable
+           cache: true
+       - name: Install locked Flutter dependencies
+         run: flutter pub get --enforce-lockfile
+       - name: Analyze Dart
+         run: flutter analyze
+       - name: Run Flutter widget and unit tests
+         run: flutter test
+diff --git a/.github/workflows/validate.yml b/.github/workflows/validate.yml
+index 5b1ebc0a..c0f1e251 100644
+--- a/.github/workflows/validate.yml
++++ b/.github/workflows/validate.yml
+@@ -1,90 +1,91 @@
+ name: Validate Mawda
+ 
+ on:
+   # This workflow is new on the development branch and is not yet present on
+   # main, so pull_request events cannot reliably load it for PR #2. Validate
+   # every development-branch push directly; keep manual dispatch available.
+   push:
+     branches:
+       - codex/mawda-full-platform-implementation
+       - codex/governance-biometric-integration-2026-11-19
++      - codex/mawdda-retention-approval-ci-repair-2026-11-19
+   workflow_dispatch:
+ 
+ concurrency:
+   # Keep only the newest validation for the development branch.
+   group: mawda-validation-${{ github.ref_name }}
+   cancel-in-progress: true
+ 
+ permissions:
+   contents: read
+ 
+ jobs:
+   flutter:
+     name: Flutter analysis, tests and web build
+     runs-on: ubuntu-latest
+     timeout-minutes: 30
+     steps:
+       - uses: actions/checkout@v5
+       - uses: subosito/flutter-action@v2
+         with:
+           flutter-version: "3.47.9"
+           channel: stable
+           cache: true
+       - name: Install Flutter dependencies from the committed lockfile
+         id: install_flutter_dependencies
+         run: flutter pub get --enforce-lockfile
+       - name: Upload resolved dependency lockfile for review
+         uses: actions/upload-artifact@v7.0.2
+         with:
+           name: mawda-pubspec-lock-${{ github.sha }}
+           path: pubspec.lock
+           if-no-files-found: error
+           retention-days: 7
+       - name: Verify production and non-production Firebase project/app identities
+         run: node functions/scripts/validate-firebase-config.cjs
+       - name: Analyze Dart code
+         run: flutter analyze
+       - name: Run Flutter tests
+         if: ${{ always() && steps.install_flutter_dependencies.outcome == 'success' }}
+         run: flutter test
+       - name: Validate desktop install experience assets
+         if: ${{ always() && steps.install_flutter_dependencies.outcome == 'success' }}
+         run: |
+           node --check web/install-prompt.js
+           node --check web/firebase-messaging-sw.js
+           node <<'NODE'
+           const fs = require('node:fs');
+           const manifest = JSON.parse(fs.readFileSync('web/manifest.json', 'utf8'));
+           if (manifest.name !== 'Mawdda Platform 2026' || manifest.display !== 'standalone' || !manifest.icons?.length) {
+             throw new Error('PWA manifest identity, standalone display, or icons are invalid');
+           }
+           for (const file of [
+             'web/mawdda-app-icon.svg',
+             'web/icons/mawdda-192.svg',
+             'web/icons/mawdda-512.svg',
+             'web/install-prompt.js',
+             'web/firebase-messaging-sw.js',
+           ]) {
+             if (!fs.existsSync(file)) throw new Error(`Required PWA asset is missing: ${file}`);
+           }
+           const serviceWorker = fs.readFileSync('web/firebase-messaging-sw.js', 'utf8');
+           const iconMatch = serviceWorker.match(/icon:\s*['"]([^'"]+)['"]/);
+           if (!iconMatch) throw new Error('Push notification icon path is missing');
+           const iconPath = iconMatch[1].replace(/^\/+/, '');
+           if (!fs.existsSync(`web/${iconPath}`)) throw new Error(`Push notification icon is missing: ${iconPath}`);
+           console.log('PWA manifest, icons, service worker and install prompt validated');
+           NODE
+       - name: Build web release
+         id: build_web
+         if: ${{ always() && steps.install_flutter_dependencies.outcome == 'success' }}
+         env:
+           MAWDA_FCM_VAPID_KEY: ${{ vars.MAWDA_NONPROD_FCM_VAPID_KEY }}
+         run: flutter build web --release --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY"
+       - name: Upload validated web build artifact
+         if: ${{ always() && steps.build_web.outcome == 'success' }}
+         uses: actions/upload-artifact@v7.0.2
+         with:
+           name: mawda-web-build-${{ github.sha }}
+           path: build/web/
+           if-no-files-found: error
+           retention-days: 7
+diff --git a/docs/IMPLEMENTATION_TRACEABILITY.md b/docs/IMPLEMENTATION_TRACEABILITY.md
+index 3fcd1dc5..ff7e0f11 100644
+--- a/docs/IMPLEMENTATION_TRACEABILITY.md
++++ b/docs/IMPLEMENTATION_TRACEABILITY.md
+@@ -311,161 +311,161 @@ Remaining phase-two closure items:
+ - Implement a controlled in-app owner preview handoff that never exposes bearer URLs to logs, analytics, navigation history, or member UI; retain attachment-only behavior unless a safe processing/streaming proxy is implemented.
+ - Integrate an authenticated trusted malware/content scanner and safe image/video/audio processing pipeline. Keep all media quarantined and do not set `security_approved` or expose member-facing media until a trusted verdict and processing result are verified server-side.
+ - Define owner-auditable, rate-limited audit retention/export and an owner-approved media retention/deletion schedule; add lifecycle/deletion tests only after the retention period is approved.
+ - Enforce upload-size limits at the transport boundary, add per-account quotas/rate limits, and test abandoned-upload cleanup.
+ - Validate real Firebase bucket configuration/CORS and owner MFA lifecycle in a non-production Firebase project; complete device/platform verification.
+ 
+ 
+ ## Signed media URL lifetime policy — 13 November 2026
+ 
+ - Centralized the V4 signed URL lifetime values in `media-security.ts` and wired both upload-intent and owner-inspection signing to that helper: five minutes for upload and 60 seconds for owner inspection.
+ - Added unit tests for the exact expiry calculation and invalid clock input.
+ - **Important bearer-link limitation:** a Cloud Storage V4 signed URL is reusable by anyone who obtains it until it expires (or the underlying object/credentials are invalidated). The current implementation does not provide one-time redemption or replay prevention. The UI therefore continues to withhold preview links; do not describe these links as single-use.
+ - These tests validate the application expiry values passed to the signer. They do not yet exercise Cloud Storage's actual expiry enforcement, URL leakage, or post-expiry HTTP behavior; those require a Storage integration test.
+ - Audit retention/export and media retention/deletion remain unconfigured. No automatic deletion schedule has been introduced because the product/legal retention period has not been approved.
+ 
+ 
+ ## Phase 2 — media security implementation checkpoint (13 November 2026)
+ 
+ - Added a server-side per-UID upload quota reservation in the same Firestore transaction as upload-intent creation. Initial defaults: 5 active intents, 150 MiB active reserved bytes, and 500 MiB reserved per UTC day. Concurrent reservations are transactionally serialized.
+ - Finalization releases active quota in the same transaction as the asset's transition to `pending_security_scan` or `rejected`. Daily usage is not refunded for rejected or abandoned attempts; the daily window rolls over in UTC.
+ - Added unit coverage for concurrent count, active-byte, daily-byte, UTC rollover and inconsistent release state; added emulator integration coverage for successful reservation and exhausted concurrent quota.
+ - These commits are implementation work, not yet validated until the current exact-head CI completes. The existing green baseline remains commit `8438775ffc5a0ec4535d69fbdf3a0a07fc4566d5`, run `43375529010`.
+ - Still open: real HTTP PUT/GET signed URL behavior against a dedicated non-production GCS bucket (including expiry, create-only replay/overwrite and generation checks); replace the owner inspection bearer URL handoff with an authenticated streaming preview; integrate a trusted malware scanner and isolated content processing; expired-intent cleanup and abandoned-reservation recovery; retention/export/legal-hold policy approval; App Check/MFA lifecycle and real-device verification.
+ - Do not treat the new quota defaults as owner-approved production policy. Do not enable member delivery or `security_approved` until a trusted scanner verdict and safe processing pipeline are verified. No production Firebase changes, merge, or deployment.
+ 
+ 
+ ## Phase 2 — secure media hardening update (13 November 2026)
+ 
+ - Upload intents now require a server-recognized media purpose (chat, room, profile_album, avatar_cover, or story) and persist that purpose with the asset. Purpose-specific retention expiry/deletion is deliberately not enabled until the exact retention/legal-hold schedule is owner-approved.
+ - Signed PUT capabilities now bind the exact reserved byte count using the signed x-goog-content-length-range header (min=max=declaredSizeBytes), while retaining signed content type and ifGenerationMatch=0. The callable returns the exact required headers; clients must send them. Finalization independently compares actual object bytes to the quota reservation and validates generation, content type and signature.
+ - Raster image/GIF maximum is 5 MiB. GIF processing is bounded by a 100-frame ceiling and a 40-million-pixel aggregate limit before re-encoding to a private WebP derivative capped at 2 MiB. Other categories retain their server-side per-file caps; clean video/audio/PDF files remain scanner_clean_pending_processing and are not member-deliverable until type-aware safe processing exists.
+ - The isolated ClamAV service lives under scanner/. It requires Cloud Run IAM identity plus a separate high-entropy service token, validates exact bucket/object/generation/content type and the configured callback URL, downloads only over HTTPS without redirects, scans with bounded ClamAV limits, and signs the verdict with HMAC-SHA256. The backend independently hashes the source generation and verifies the safe WebP derivative before security_approved.
+ - The owner console retrieves safe WebP bytes through a server callable; no Storage URL is exposed. The callable requires sole-owner authorization and recent MFA, audits the request, verifies derivative metadata/generation/hash, and caps response size. Separate HTTP owner preview/attachment routes require App Check; Flutter App Check bootstrap is still a release gate.
+ - Per-UID upload reservations remain 5 active intents, 150 MiB active reserved bytes and 500 MiB per UTC day. A scheduled 15-minute cleanup removes expired unfinalized quarantine objects using exact-generation preconditions, releases active reservations transactionally and audits completion; a delayed recheck protects against late/in-flight uploads.
+ - CI run 43378886224 is validating the exact current head; an earlier run 43378461426 exposed a test-only signer credential gap and a ClamAV log-directory permission issue, both addressed in subsequent commits. Do not call this checkpoint green until all jobs complete successfully. Do not call this checkpoint green until all jobs complete successfully. The opt-in real-GCS HTTP script covers exact-size rejection, upload, replay, GET and expiry, but has not been run because a dedicated non-production bucket and credentials are not available in this environment.
+ - Still open before phase-two exit: deploy and verify the scanner in non-production (including EICAR detection, clean samples, malformed/oversized objects, stale generation, bad HMAC, duplicate callback and retry behavior); execute the real-GCS HTTP test; initialize App Check in Flutter and verify supported platforms; finish safe processing for video/audio/PDF; confirm retention/legal-hold and audit-retention/export policy; test actual bucket CORS, IAM, MFA lifecycle and device flows.
+ - No production Firebase data, bucket configuration, rules, deployment, merge or destructive retention action was changed or authorized.
+ 
+ 
+ ## Owner-approved follow-up requirements — 13 November 2026
+ 
+ | Requirement | Required implementation | Current status |
+ |---|---|---|
+ | Owner live-stream broadcast | Server-authorized owner-only message type for direct chats, public rooms and active rented private rooms; recent MFA; audited/idempotent delivery; room-owner bypass only for the verified platform owner | Specified in `docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md`; implementation open |
+ | Split-screen in-app playback | Provider-approved embed adapters; player in upper ~50% while chat remains below; close action; unsupported-source fallback to original URL; no DRM/paywall/geo/login bypass | Specified; Flutter player and provider/device tests open |
+ | Manual coin purchase requests | Package/custom quantity request; owner contact/instructions in direct chat; owner records external verification; only owner approval transaction credits coins with linked ledger/audit/idempotency | Implemented in callable/member/owner UI; package/custom/withdraw/approval/replay emulator tests passed on SHA `5a3b01e`. No payment gateway or automatic issuance |
+ | Owner live-stream broadcasts | Owner-only HTTPS stream links in owner/member direct chats, active public rooms and active rented private rooms; idempotent audit and no SSRF fetch | Backend callable, URL policy, direct/room message rendering and owner composer implemented; authorization, URL and room lifecycle integration tests passed on SHA `5a3b01e`. Official in-app player and upper/lower split layout remain open |
+ | Member and owner logout | Firebase signOut, best-effort token unregister, auth-gate return, clear privileged state | Main shell sign-out plus explicit owner-console logout with best-effort push-token unregister are implemented; widget/auth-gate and device verification remain open |
+ 
+ These additions are Phase 1/2 scope only. Phase 3 remains paused pending the owner's separate proposal and approval.
+ 
+ 
+ ## Owner identity and configurable payment-channel amendment — 13 November 2026
+ 
+ - The Owner and Super Owner labels belong to one human and one canonical owner UID. There must be no second independent owner/Super Owner identity. Internal claims may be aliases, but all privileged operations resolve to the same canonical owner.
+ - Coin purchase has two independently owner-controlled channels: direct/manual owner contact (the default supported route) and optional automated provider checkout (future, disabled until provider and compliance gates pass).
+ - Fixed packages may later be assigned to an enabled automated provider. Custom quantities remain negotiated in the member's one-to-one conversation with the owner, who sends payment instructions and approves coin issuance after external verification.
+ - The owner controls payment-channel availability and package visibility from the owner console. No client-side success callback, screenshot or unverified webhook can credit coins.
+ - Implementation and acceptance are open: canonical owner UID/claim migration audit, owner payment-channel settings UI and callable, manual request/conversation lifecycle, provider adapter/webhook signature/replay/refund/reconciliation tests, and end-to-end issuance gating.
+ - Automated checkout remains disabled and no provider, bank account, payment contract or credential is assumed to exist.
+ 
+ 
+ ## Current Firebase/CI reconciliation — 15 November 2026
+ 
+ - The default development Firebase target is mawda-platform-nonprod-2026; production mawda-app-2026 remains an explicit separate target.
+ - Android, iOS and Web non-production options are committed and checked locally in CI. Current native CI does not register apps or mutate Firebase.
+ - The old Firebase Hosting deployment workflow is removed. Current development workflows are build/test/validation only; no production deployment is run.
+ - The actual production Storage bucket remains unresolved because the historical owner-supplied config and current production Flutter options use different bucket suffixes. Do not enable media until the owner independently verifies the real bucket and non-production signed URL/CORS/IAM/deletion tests pass.
+ - Android/iOS native build validation is separate from physical-device acceptance and release signing.
+ - The latest evidence and current open gates are tracked in the canonical [Approved Decisions and Traceability Register](MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md) and [Release Readiness Checklist](RELEASE_READINESS_CHECKLIST.md). Historical run IDs above remain historical evidence only.
+ 
+ 
+ ## Unified owner-approved commercial, retention and rewards workstream — 15 November 2026
+ 
+ Source of truth: [Master Development Charter](MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md), [Product Constitution](MAWADDA_PRODUCT_CONSTITUTION.md), [Product Vision](MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md), and [Approved Decisions Register](MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md).
+ 
+ | Requirement ID | Required engineering surfaces | Required tests/evidence | Status rule |
+ |---|---|---|---|
+ | STORE-003 | Catalog schema, owner pricing UI/callables, purchase callable, entitlement model, all store consumers | 24h/7d/30d price matrix, changed-price historical receipt test, quantity/limit, disable, permanent entitlement and future-SKU contract tests | Do not claim complete until every purchasable SKU has a working consumer |
+ | MEDIA-003 | Media Saver store item, entitlement validation callable, authorized local download/save flow | no entitlement denied; expired entitlement denied; all supported media types; direct/public/private-room access; save does not alter deletion deadline | Paid product remains unavailable until end-to-end tests pass |
+-| RET-003 | Chat mode model, server activity record, message/media expiry scheduler, deletion/derivative cleanup | temporary inactivity reset and boundary; app close/network disconnect not treated as inactivity; normal 4h/7d; important 4h/30d; retry/idempotency and legal-hold exclusions | Partial: server text worker now reads persisted `retentionMode`, applies normal 7d and important 30d boundaries, excludes temporary chats from individual-message deletion, and fails closed on corrupt mode values. Emulator integration coverage added; exact-head CI pending. Still open: authoritative mode assignment/participant notices, server activity timestamp updates, consent/selection rule, full temporary conversation + media deletion and derivative reconciliation. Release blocker remains open |
++| RET-003 | Chat mode model, server activity record, message/media expiry scheduler, deletion/derivative cleanup | temporary inactivity reset and boundary; app close/network disconnect not treated as inactivity; normal 4h/7d; important 4h/30d; retry/idempotency and legal-hold exclusions | Partial; owner reconfirmed important-chat text retention at exactly 30 days (720 hours) on 2026-11-19 and rejected 90 days. Server text worker reads persisted `retentionMode`, applies normal 7d and important 30d boundaries, excludes temporary chats from individual-message deletion, and fails closed on corrupt mode values. Emulator integration coverage exists; the latest exact-head run passed the retention integration step but failed a separate owner-entitlement-grant integration test. Exact-head green remains pending. Still open: authoritative mode assignment/participant notices, server activity timestamp updates, consent/selection rule, full temporary conversation + media deletion and derivative reconciliation. Release blocker remains open |
+ | REWARD-003 | Reward schedule/config model, attendance eligibility service, owner console, wallet grant integration | daily/hourly/weekly boundaries, timezone policy, duplicate prevention, concurrent claims, disable/config change, ledger consistency | Values and schedules are owner-configurable; no client-authoritative grant |
+ | REWARD-004 | Ad campaign management, media playback evidence protocol, server completion verifier, reward ledger | incomplete/abandoned view, foreground heartbeat, spoofed client timer, replay, duplicate callback, provider signature and campaign pause | No reward before trusted completion evidence |
+ | OWNER-002 | Grant center UI, owner-only callable, audience snapshot, batch/idempotent grant worker, recipient history, wallet/entitlement integration | single UID, selected group, live public-room snapshot, room collective prize, partial retry, duplicate request, unauthorized moderator/member, audit and ledger | Partial: owner/MFA-only single and bulk free store-entitlement grants are implemented with 24h/7d/30d durations, additive expiry extension, per-target idempotency, immutable grant ledger/audit, partial failure reporting and an owner-console UID-based grant screen. Per-call batches are 500 targets with no overall account/lifetime grant cap. Emulator integration tests added; exact-head CI pending. Still open: free coin grants, group/room audience snapshots and collective rewards, recipient grant history, recipient notifications and full preview/confirmation of dynamic room/group recipients |
+ | GOV-002 | Shared commercial configuration and new-product integration interface | CI contract test for SKU registration, no client hardcoded price/duration, owner enable/disable, expiry | Every future product must integrate before release |
+ 
+ ### Implementation invariants
+ - Money and entitlement changes are server-side transactions; use idempotency keys and immutable receipts/audit records.
+ - A batch grant records intended recipients and final per-recipient result; retries must not duplicate successful grants.
+ - Presence-targeted room grants use a server-generated membership snapshot at a defined execution timestamp, not a client-provided UID list.
+ - Changing current prices does not mutate completed purchases.
+ - Deletion jobs respect legal holds and protected financial/security evidence.
+ - The owner-only console must show a clear preview before a bulk grant, including room ID, snapshot time and recipient count.
+ 
+ ### Current baseline warning
+ Existing implementation records include mode-aware seven/thirty-day text retention (temporary full-chat deletion remains open), store purchase/entitlement coverage, and partial owner free-entitlement grants. Those do not establish temporary inactivity deletion, Media Saver, the generalized pricing engine, attendance schedules, ad completion verification, free coin grants or group/room collective grant workflows. Each remains separately tracked until the tests above pass on an identified commit.
+ 
+ 
+ ## Owner-directed three-stage execution order — 2026-11-16
+ 
+ The detailed delivery rows above remain the complete requirement inventory; they are not replaced or deleted. For execution sequencing, the owner's latest direction establishes three top-level stages:
+ 
+ 1. **Stage 1 — complete platform build and engineering readiness (48-hour target):** execute all applicable requirements in this matrix across identity, member lifecycle, social, messaging, rooms/events/reservations, media/retention, wallet/economy/store/rewards, owner/Super Owner, safety, UI/UX, platform targets, and cloud-sync code/contracts. Complete debugging, security remediation, unit/integration/emulator tests, and prepare a coherent candidate SHA. The 48-hour target is for this engineering stage only; do not claim completion where evidence is missing.
+ 2. **Stage 2 — 5,000-persona simulation:** begin only after Stage 1 exit review and candidate SHA freeze. Use the separate simulation repository and record both repository SHAs, scenario, duration, full lifecycle counts, artifacts, and failures. Simulation is intentionally deferred and is not a Stage 1 prerequisite.
+ 3. **Stage 3 — cloud synchronization, registration, deployment and launch:** after Stage 2 acceptance and separate owner authorization, complete live Firebase/Google Cloud synchronization, app/service registration as applicable, production rollout, store submission, and real-user launch. Production changes, billing, main merge, deployment, and identity changes remain separately gated by explicit owner approval.
+ 
+ This sequence supersedes older schedule text in this matrix or linked plans wherever those texts place the 5,000-persona run, live cloud synchronization, or deployment inside Stage 1's 48-hour window. It does not remove any product requirement, approve a new price or policy, or waive a test/security gate.
+ 
+ ## Advertising, Media Workspace and member collaboration — owner approval 2026-11-16
+ 
+ Source contract: [Advertising Department & Media Workspace Specification](ADVERTISING_MEDIA_WORKSPACE_SPEC.md). The owner has approved the featured-preview behavior and the Media Workspace entry-point structure. This is an implementation-status record, not a claim that the user-facing subsystem is complete.
+ 
+ | Requirement ID | Required engineering surfaces | Required tests/evidence | Current status |
+ |---|---|---|---|
+ | ADS-FEATURED-001 | Separate advertising campaign model and geographic targeting; Owner-configured featured priority, schedule and rotation interval; audience-filtered featured-preview callable; client carousel/rotator; geographic-feed integration; emergency withdrawal propagation | Priority mode only for Owner-approved, eligible campaigns; fallback randomized rotation (not view-rate ranking); default ~1s interval and Owner configuration; geographic isolation; unpaid/unsafe/expired/withdrawn campaign exclusion; featured previews never create reward claims; full geographic-feed view can enter the separate reward session | Requirements documented. A pure server policy helper and unit-test source have been added in `functions/src/featured-advertising.ts` and `functions/test/featured-advertising.test.js`. The helper is not yet wired to Firestore, callables or Owner configuration. A homepage discovery UI skeleton and reward-guidance route now exist with an honest empty state and approved geography choices; no featured campaign is served and no reward-history backend is connected. Tests have not yet been run in CI. |
+ | ADS-FEATURED-ENTRY-001 | Prominent homepage Featured Ads + Rewards entry opens featured discovery directly; sixth Media Workspace route provides featured reward guidance/history; distinct featured reward ledger source | No reward on tap/open/preview/category/card; only server-validated full selected-ad completion; existing 2-coin / 10 views / 20 coins UTC daily / 24h per-campaign baseline; no duplicate credit; member-only history; 75/25 split only in full player; advertiser payment separated from reward budget | Owner-approved 2026-11-16 and documented in `ADVERTISING_MEDIA_WORKSPACE_SPEC.md` section 15.5. Homepage button, discovery UI skeleton, sixth Media Workspace guidance/history route and widget-test source added; discovery currently shows a truthful empty state. Current timed-ad reward center is not a featured-ad serving path. Backend serving, distinct ledger classification, Owner controls, real history and exact-head test evidence remain open. |
+ | ADS-REWARD-001 | Featured-ad reward policy validation and decision engine: 2 coins/view, 10 views and 20 coins per UTC day, 24h same-campaign cooldown, 90% video / 10s static image, foreground/visibility and budget gates | Invalid policy/evidence, disabled policy, withdrawn campaign, unavailable budget, incomplete or hidden view, daily caps, rolling cooldown, duplicate/replay/concurrency at integration layer | Pure policy module and 12 unit-test cases added in `functions/src/featured-ad-rewards.ts` and `functions/test/featured-ad-rewards.test.js`. Not yet wired to Firestore transactions, Owner-editable config, daily/campaign claim documents or canonical wallet ledger; tests not yet executed. |
+ | ADS-GEO-001 | Versioned country/region mapping; campaign targeting form; feed query and deduplicated impression accounting | Exact approved ten-scope taxonomy; country-specific and All Arab countries inclusion; no IP/device-language inference; one impression per campaign/view across overlapping placements | Specification exists; end-to-end model, serving and UI remain open. |
+ | MEDIA-WS-001 | Home-screen peer-level entry beside Watch Ads; six destinations including creator proposals and featured-ad reward history; dedicated workspace/request records, access controls, conversation, notification and retention integration | Member/Owner/scope isolation; durable idempotent notifications; legal-hold and retention tests; no reuse of personal-chat deletion behavior | Six destinations are specified. Initial creator intake screen/callable and featured-ad discovery/reward-guidance UI plus homepage entry exist partially. Featured-ad serving, real member reward history, and the other four operational routes, server records and authorization remain open. |
+ | COLLAB-001 | Cooperation/application intake (including Advertising Representative application), review states, applicant communication and two-party agreement activation | No employment assumption or employment contract wording; representative role inactive until verified two-party signing; supervisor capacity/permissions and audit tests | Requirements and representative agreement draft exist; application intake and user/admin flows remain open. |
+ | ADS-DIRECT-001 | Direct advertiser request intake for individuals/businesses, structured categories, mandatory description, media/URL security, geographic target, duration/budget proposal, private request conversation and Owner assignment | Mandatory fields and server validation; SSRF/media-safety tests; unique request/idempotency; no publication until approvals, accepted terms and Owner payment confirmation | Specification exists; implementation remains open. |
+ | ADS-COMMS-001 | Roster of actually appointed active Admin Media 1–5; scoped messaging to each; Owner/Admin N contact and audited assignment/escalation | Never display placeholder supervisor identities; only active assigned names; server-enforced message access and durable delivery | Specification exists; UI and backend flows remain open. |
+ | CREATOR-001 | Fifth Media Workspace route; creator/influencer proposal model and intake; safe URL/media handling; rights declaration; private review conversation; Owner/scope assignment; versioned commercial offers and campaign handoff | Distinct from direct advertiser intake; authenticated submitter and idempotent request; URL/media safety; rights acknowledgement; private access isolation; offer-version acceptance; no auto-booking/publication/reward; campaign handoff retains request/audit linkage | Partial implementation on development branch: authenticated App-Check-enforced callable `submitCreatorProposal` creates private server-only request records and an idempotent, hash-linked audit event; HTTPS/written intake validation and 10 approved geographic scope IDs; member home entry and Creator Proposal form added. Unit/widget test sources added but not yet executed. Still open: secure uploaded-media binding/scanning, dynamic Owner-managed geography mapping, App Check client activation, proposal read/review/admin assignment, scoped conversation, versioned offers, notifications, abuse controls, full end-to-end tests and exact-head CI evidence. |
+ 
+ The featured policy helper is preparatory code only. It must not be presented as an active serving path or as proof of reward separation until callable integration, Firestore schema/rules, Owner controls, Flutter presentation and end-to-end tests are completed. No ad campaign is published by this change, and no payment or production setting is enabled.
+ 
+ The Creator Content & Influencer Proposals route is an approved fifth Media Workspace destination. Its first authenticated intake slice now exists on the development branch, but the route is not end-to-end complete. It must use the existing campaign, media-security, Owner approval, payment-confirmation, audit and geographic-targeting authorities; it must not create a parallel advertising or wallet subsystem.
+ 
+ 
+ **Latest advertising implementation note — 16 November 2026:** The homepage featured-ad entry and sixth Media Workspace reward-guidance route are present as UI scaffolding. The dedicated featured campaign serving and wallet-credit path remain intentionally unavailable until their server-side eligibility, daily caps, rolling cooldown, payment/approval gates, audit and member-history integration are complete and tested.
+ 
+ 
+ ## تحديث تنفيذ — بوابة صُنّاع مودة وقرار الويب الحصري (2026-11-16)
+ 
+ أضيفت في فرع التطوير، دون تشغيل اختبارات أو محاكاة في هذه الدفعة:
+ - نموذج تقديم طلب عضوية صُنّاع مودة مع مسار عضو إنتاج/مرشح إشراف، التخصصات العشرة، الخبرة والأدوات والمشاريع والشركات والإنجازات وروابط السيرة وملف الأعمال ووصف الدور وإجابات المقابلة وموافقة مستقلة على تجربة إبداعية وتأكيد الحقوق.
+ - Callable خادمي باسم submitProductionApplication مع App Check وهوية موثقة وبوابة الويب الحصرية، تحقق مركزي للمدخلات، idempotency، تخزين طلب غير مفعل، وسجل تدقيق.
+ - Callable للمالك لعرض الطلبات ومراجعتها مع optimistic version checks وانتقالات حالات محددة وسجل تدقيق.
+ - شاشة مراجعة للمالك مرتبطة بلوحة Super Owner وتظهر على الويب فقط.
+ - ربط نموذج العضوية في Media Workspace مع الويب فقط. لا ينشأ دور أو صلاحية إنشاء غرف بمجرد التقديم أو القبول المبدئي.
+ 
+ حدود مهمة:
+ - لم يتم بعد ربط قبول الطلب بتوقيع اتفاقية العضوية النهائية أو منح الدور والصلاحيات؛ تبقى هذه خطوات مستقلة ومقفلة.
+ - التحقق من App Check يعتمد قائمة MAWDDA_LEGAL_PORTAL_APP_IDS الفارغة افتراضياً. لا يمكن تشغيل البوابة القانونية/المهنية قبل إضافة App IDs الموثقة لبوابة الويب وواجهة سطح المكتب المعتمدة في بيئة غير إنتاجية. لا تضف App IDs لتطبيق Android أو iOS.
+ - تطبيق Android وiOS يبقيان خارج التسجيل المهني والعقود والمراسلات القانونية والتوقيع. يجب أن تبقى بقية وظائف التطبيقين مستقلة ومتاحة وفق صلاحياتها وسياساتها.
+ - لم يُشغّل Flutter Analyze أو TypeScript build أو unit/emulator/integration tests في هذه الدفعة؛ لا يوجد ادعاء نجاح اختبار أو جاهزية إطلاق.
+ 
+ 
+ ## 2026-11-16 — Production application review audit atomicity
+ 
+ - `reviewOwnerProductionApplication` now stages the application status/version update, immutable owner-review audit event, and shared hash-chain head update in one Firestore transaction.
+ - The review audit event ID is deterministic per application and expected application version, preventing a second event for the same transition attempt. A failed transaction cannot leave the review state committed without its audit event.
+ - The existing submission audit retry behavior remains unchanged. This change does not grant production roles or room-creation permission.
+ - Implementation commit: `44d2b37bc546aa1245ca5309edba8cc16da40e03`.
+ - Validation status: source updated on the development branch; TypeScript build, unit tests, emulator tests, and CI have **not yet been run on this commit**. Do not treat this as verified until exact-head checks pass.
+ 
+ 
+ ## 2026-11-16 — Voluntary creative-trial consent
+ 
+ - Corrected the production membership application form so consent to a possible non-commercial creative assessment remains optional and independent. Applicants must confirm the accuracy/rights declaration, but declining the creative-trial invitation no longer blocks submitting the membership application.
+ - The server validator already accepts either boolean value for `creativeTrialConsent`; no server-side consent weakening was introduced.
+diff --git a/docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md b/docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+index 79ce868d..e2d4bcdd 100644
+--- a/docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
++++ b/docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+@@ -217,80 +217,90 @@ Current evidence boundary: repository source confirms the iOS FirebaseOptions id
+ - **Status:** Owner-approved policy; catalog/backend/client/test reconciliation remains pending.
+ 
+ ### RET-004 — Retention selection and consent intentionally unresolved
+ 
+ - The owner deferred deciding who selects a direct-chat retention mode and whether both participants must consent.
+ - Until a later explicit owner decision defines selection authority, participant consent and notices, server-recorded activity, and complete deletion semantics, this policy remains unresolved.
+ - Destructive production deletion dependent on this unresolved policy must remain disabled. Isolated development/emulator testing may continue only where no real-user data can be deleted.
+ - Do not infer consent from silence, app presence, network state or client-only flags.
+ - **Status:** Explicitly deferred by owner; no production deletion authorization.
+ 
+ ### Governance boundary
+ 
+ This amendment records policy approval only. It does not establish that code, tests, scanners, catalog entries or production services already enforce these rules. No merge to `main`, deployment, production Firebase mutation, paid infrastructure activation, or destructive live operation is authorized by this entry.
+ 
+ 
+ ## CREATOR-001 — Fifth Media Workspace route: Creator Content & Influencer Proposals (16 November 2026)
+ 
+ **Authority:** Explicit owner approval in the Mawdda HQ conversation on 16 November 2026. This is a binding product-scope decision, not evidence of implementation or legal clearance.
+ 
+ - Add a fifth peer-level Media Workspace destination named **Creator Content & Influencer Proposals** for influencers, YouTubers, public-page owners, video creators, photographers and advertising-content producers.
+ - Creators may submit a public channel/account/post/portfolio URL, supported media uploaded through the secure media pipeline, or a written proposal with optional attachments. The platform/source name and a substantive proposal description are required.
+ - Capture creator identity/category, audience/content focus, target geography from the existing Owner-controlled taxonomy, proposed duration, proposed price/budget or request for an administration quote, and a rights/permission declaration.
+ - Create a unique request and private request-bound conversation. Access is limited to the submitter, Owner and explicitly authorized assignees. Review, assignment, discussion and commercial offers are versioned and audited.
+ - The Owner may handle the proposal or assign an authorized reviewer. Offers preserve price, duration, geography, placement and terms; amended terms require renewed explicit acceptance.
+ - This route is distinct from **Advertise Directly**. It does not automatically create a campaign, reserve inventory, publish content, grant featured priority, create representative commission rights or qualify the creator for Watch Ads rewards.
+ - Any accepted proposal that becomes an advertising campaign must pass the existing campaign lifecycle, Owner commercial approval, rights/media safety checks, actual-payment confirmation and publication gates. Preserve the creator request ID and audit linkage through handoff.
+ - Do not invent creator rates, guaranteed reach, legal classification, payment terms or usage rights. No real-money checkout, payout, or production activation is authorized.
+ - **Implementation status:** Requirements documented and traceability row added. UI, data model, server authorization, media/link integration, negotiation workflow and tests remain open until implemented and verified on an identified commit.
+ 
+ 
+ ## ADS-FEATURED-ENTRY-001 — Direct featured-ad home entry and dedicated reward-history route (Owner approval, 16 November 2026)
+ 
+ **Decision:** Add a prominent **Featured Ads + Rewards / الإعلانات المميزة والمكافآت** button to the authenticated member home screen. It opens the featured-ad discovery/viewing experience directly. Add a sixth Media Workspace option **Featured Ad Viewing Rewards / مكافآت مشاهدة الإعلانات المميزة** for eligibility guidance and the authenticated member's own qualified-view/reward history.
+ 
+ **Reward rule:** Neither button press nor opening either screen, preview, carousel, category or card earns coins. Coins are credited only after a full selected-ad player session is validated server-side. Featured-ad credits carry a distinct ledger source/type (e.g. `featured_ad_reward`) but use the already approved experimental ad reward limits: 2 coins per eligible view, max 10 views / 20 coins per UTC day, and same campaign once per rolling 24 hours. No second reward or duplicate credit is created for the same qualified view. The Owner may adjust settings through the central versioned server configuration.
+ 
+ **Layout:** The 75% / 25% player/context split applies to the selected full-ad player using usable application viewport and safe responsive constraints. The discovery page and Media Workspace history page are not forced into that split. Preserve existing chat/room state in the lower activity area.
+ 
+ **Commercial separation:** Advertiser placement payments, platform-funded reward budget and member coin ledger are separate accounting domains. Priority placement is subject to geography, schedule, creative safety, Owner approval and emergency withdrawal. No payment or publication gate is bypassed.
+ 
+ **Implementation status:** Approved requirement only. The existing timed-ad reward center is not yet a featured-ad serving system; its current reward-center placement and completion path must not be relabelled as featured ads. Backend serving, campaign geography/featured placement integration, daily and rolling-frequency reward enforcement, dedicated ledger classification, member UI/history, owner controls and exact-head tests remain required. This decision does not authorize real-money payment, production mutation, deployment or merge to main.
+ 
+ 
+ ## قرارات الإعلانات والإنتاج ومركز العقود — 16 نوفمبر 2026
+ 
+ | المعرّف | القرار | الحالة / بوابة القبول |
+ |---|---|---|
+ | ADS-GOV-001 | فصل صلاحيات المشرفين الإداريين للمنصة العامة عن المشرفين والمتعاقدين المتخصصين في الإعلانات وصناعة المحتوى؛ لا توريث صلاحيات بين المجالين | مواصفة مضافة؛ يلزم ربط كل callable وواجهة وقاعدة بيانات باختبارات deny-by-default |
+ | ADS-GEO-001 | واجهات الاستهداف الجغرافي العشر، وحقل استهداف إلزامي، ومطابقة منظمة versioned دون استنتاج IP/لغة | مواصفة مضافة؛ يلزم geo resolver واختبارات التداخل وعدم الازدواج |
+ | PROD-ROOM-001 | فريق غرفة الإنتاج خمسة أشخاص كحد أقصى بمن فيهم مشرف الإنتاج؛ المراقبون الإداريون privileged observers خارج roster | أساس validator واختبار وحدة مضاف؛ يلزم تكامل الخادم والواجهات وقواعد الوصول |
+ | PROD-PUB-001 | كل إنجاز عام يحتاج موافقة مالك مستقلة مع حقوق العرض وإظهار المشاركين | أساس predicate واختبار وحدة مضاف؛ يلزم workflow خادمي وتكامل الواجهة |
+ | CONTRACT-001 | مركز عقود سيادي، أربعة مشرفين قانونيين/إداريين، والتفويض بالتوقيع مستقل ومحدود وقابل للسحب | مواصفة ونماذج مضافة؛ يلزم مخزن العقود والتوقيع والتفويض والأرشفة والتدقيق |
+ | CONTRACT-002 | حق الشركة/المنصة في تعليق أو إنهاء أو فسخ أو عدم تجديد العقود وفق الشروط والقانون، مع تسوية الحقوق المكتسبة وعدم ادعاء إسقاط الحقوق الآمرة | صيغ أولية مضافة؛ مراجعة قانونية محلية مطلوبة قبل الاستخدام |
+ | ADS-REWARD-001 | 2 كوين/مشاهدة، 10 مشاهدات و20 كوين يومياً UTC، وحد 3 مرات لكل حملة/عضو/نافذة 24 ساعة، صورة 10 ثوان وفيديو 90% | مواصفة مضافة؛ يلزم تحديث backend الحالي الذي يستخدم حدوداً أقدم واختبارات التزامن |
+ 
+ 
+ 
+ ## قرارات الإطلاق التجريبي والتوزيع متعدد القنوات — 17 نوفمبر 2026
+ 
+ | المعرّف | القرار المعتمد من المالك | حالة التنفيذ / بوابة القبول |
+ |---|---|---|
+ | LAUNCH-PAY-001 | المرحلة الأولى بلا بوابة دفع أو checkout أو تحصيل آلي؛ الاتفاق والدفع بالتواصل المباشر مع Super Owner فقط، والاعتماد اليدوي بعد تحقق خارجي موثق | مسار طلبات الشراء اليدوي موجود جزئياً؛ يلزم إثبات سجل التدقيق الكامل، حماية MFA، واختبارات عدم إصدار الكوينز قبل اعتماد المالك |
+ | LAUNCH-APK-001 | موقع Mawdda قناة APK الأساسية والموصى بها، وليست حصرية؛ يجوز التوزيع عبر قنوات موثوقة إضافية بموافقة المالك | أضيفت سياسة exact-host لروابط HTTPS وقائمة مضيفين معتمدة؛ يلزم ضبط النطاق الأساسي والمرايا، بناء Release موقّع، اختبار الأجهزة والنشر العام |
+ | LAUNCH-SIGN-001 | كل القنوات توزع التطبيق الرسمي نفسه وبهوية توقيع Mawdda المتوافقة؛ لا APK غير موقع أو Debug | workflow توقيع يدوي موجود لكنه لم يثبت تشغيله؛ النسخ الاحتياطية المشفرة والأسرار والبناء والتحقق الفعلي ما زالت بوابات مفتوحة |
+ | LAUNCH-PWA-001 | تثبيت نسخة الويب كتطبيق PWA في المرحلة الأولى على Android وSafari iOS ومتصفحات سطح المكتب المدعومة | manifest وإرشادات التثبيت موجودة؛ يلزم اختبار installability فعلي لكل متصفح/جهاز وتوثيق القيود |
+ | LAUNCH-IOS-001 | تأجيل التطبيق الأصلي ومتجر Apple ورسوم العضوية؛ لا يُخلط Safari PWA مع تطبيق iOS أصلي | قرار موثق؛ التسجيل الأصلي والتوقيع والاختبارات والنشر مؤجلة |
+ | LAUNCH-PLAY-001 | تأجيل Google Play ورسوم Play Console إلى ما بعد نجاح التجربة وموافقة المالك | قرار موثق؛ عند الانتقال يجب إعداد حزمة المتجر المناسبة (AAB عادة للتطبيقات الجديدة) واختبار توافق التوقيع والتحديث |
+ | ANDROID-REL-003 | تجهيز APK المباشر وAAB للمتجر معاً من الالتزام نفسه وبهوية توقيع Mawdda؛ لا يجوز أن يكسر إعداد Play App Signing تحديث نسخ APK المثبتة خارج المتجر | أُضيف workflow يدوي يبني Universal/ABI APK وAAB ويفحص توقيعاتها وشهادتها وSHA-256؛ لم يُشغّل بأسرار المالك بعد، ولم يُرفع أي artifact إلى المتجر أو الموقع |
+ | LAUNCH-CLOUD-001 | عدم تفعيل Blaze أو خدمات/اشتراكات مدفوعة أو إجراء نشر/تغيير إنتاجي دون موافقة منفصلة وتقدير تكلفة وأهلية | قرار موثق؛ لم يتم تفعيل فوترة أو نشر إنتاجي ضمن هذا التغيير |
+ 
+ **مراجع التنفيذ التفصيلية:** [خطة الإطلاق المرحلي والتوزيع الرسمي](MAWADDA_PHASED_LAUNCH_AND_DISTRIBUTION_PLAN_2026.md)؛ [دليل بناء Android والتوقيع وGoogle Play](ANDROID_RELEASE_AND_GOOGLE_PLAY_SIGNING_2026.md). التوثيق أو نجاح CI لا يثبت وحده جاهزية الإطلاق ولا يمنح إذناً بالنشر.
+ 
+ 
+ ## ANDROID-REL-004 — منع إصدار Android المرتبط ببيئة Firebase غير الإنتاجية (17 نوفمبر 2026)
+ 
+ - إعداد Flutter الافتراضي `MAWDDA_FIREBASE_ENV=nonprod` مقصود لاختبارات التطوير والمحاكيات فقط.
+ - يجب أن تمرر جميع أوامر بناء APK/AAB الموقّعة `MAWDDA_FIREBASE_ENV=production` صراحة.
+ - يجب أن يحقن workflow ملف `google-services.json` الإنتاجي من سر `MAWDDA_PRODUCTION_GOOGLE_SERVICES_JSON_B64`، ثم يطابق project ID ورقم المشروع وApp ID واسم الحزمة ومفتاح API وStorage bucket مع FlutterFire production options.
+ - أُضيف تحقق آلي لهويات Android وiOS الإنتاجية في `functions/scripts/validate-firebase-config.cjs` واختبارات لها. غياب ملف Google Services الإنتاجي أو عدم التطابق يمنع بناء الإصدار.
+ - لم يُقدّم المالك بعد سر ملف Google Services الإنتاجي في هذه المراجعة، ولذلك لم يُشغّل workflow الموقّع ولم تُنتج حزم Release.
++
++
++## RET-005 — Owner confirmation of important-chat text retention (19 November 2026)
++
++- **Owner decision:** important-chat text retention is exactly **30 days (720 hours)** from the server-authoritative message creation timestamp. The 90-day alternative is rejected for this policy.
++- Important-chat media remains subject to the existing four-hour media-retention rule; this decision changes text retention only.
++- Normal-chat text remains seven days; normal/important chat media remains four hours; temporary direct-chat mode remains a full-conversation deletion after four hours of server-recorded inactivity, subject to the unresolved selection/consent and complete lifecycle gates in RET-004.
++- This entry resolves any earlier documentation conflict between 30 and 90 days for important-chat text. The unified constitution, vision, decision register, implementation traceability, backend policy constants, scheduled worker and boundary tests must all remain aligned to 30 days.
++- **Implementation status:** policy value is already represented as 30 days in the inspected constitution, RET-003, backend constant and unit/integration boundary tests. This approval does not certify full temporary-chat deletion, production activation, exact-head CI success, or release readiness.
++- **Authority:** explicit owner confirmation in the project conversation dated 19 November 2026.
+diff --git a/docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md b/docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+index 5945a07e..710f8d13 100644
+--- a/docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
++++ b/docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+@@ -1,98 +1,98 @@
+ # الرؤية الشاملة الموحدة لمنصة مودة — MAWADDA Unified Platform Vision 2026
+ 
+ **الإصدار:** 1.0 — 19 نوفمبر 2026  
+ **الحالة:** تجميع مرجعي موحد للمراجعة؛ ليس قبولاً نهائياً للتنفيذ أو تفويضاً بالنشر.  
+ **الدستور الحاكم:** [دستور مودة الموحد](MAWADDA_UNIFIED_CONSTITUTION_2026.md).
+ 
+ ## 1. التجربة والمنتج
+ 
+ مودة منصة اجتماعية موحدة عبر Android وiOS والويب وPWA والحواسيب والأجهزة اللوحية، بهوية وعضوية ومحفظة واستحقاقات وصلاحيات مشتركة. تشمل العضو المسجل والضيف والملف الشخصي والاكتشاف والمحتوى الاجتماعي والتواصل والغرف والأحداث والمكالمات والإعلانات والمتجر والاقتصاد ومساعد Mawdda AI ولوحات الإدارة.
+ 
+ الغاية تجربة عربية أصيلة متعددة اللغات، آمنة، راقية، قابلة للوصول والتوسع، لا تختزل في تطبيق دردشة أو متجر أو لوحة إعلانات منفصلة.
+ 
+ ## 2. الهوية وتجربة الاستخدام
+ 
+ - الاسم: مودة | MAWADDA. الشعار البصري للمنصة لا يزال قراراً مستقلاً عن شعار Production Home Company.
+ - ألوان وهوية Mawdda المعتمدة في مواصفات المنتج: خمري عميق وذهبي شامبانيا، مع الوردي والسماوي الكريستالي والأزرق الملكي؛ زجاجية راقية متوازنة مع وضوح الأداء.
+ - خلفيات مشتركة معتمدة تتضمن Moonlight & Silk وRose & Heart-light وRoyal Terrace at Sunset وCrystal Cyan/Blue Moonlight. خلفيات المحادثات الخاصة والغرف المستأجرة مستقلة ولا تستبدل بالخلفية العامة.
+ - شعار الشركة يستخدم كهوية/خلفية في Media Workspace وWatch Ads وفي العقود وفق موافقة المالك والأصل الصحيح؛ لا يستخدم شعار المنصة مكانه.
+ - دعم RTL/LTR، قارئات الشاشة، التباين، reduced motion، الهاتف واللوحي والويب وسطح المكتب، وحالات التحميل والفراغ والخطأ والانقطاع وانتهاء الاستحقاق.
+ 
+ ## 3. الحساب والملف والاكتشاف
+ 
+ رحلة موحدة من صفحة عامة وإقرار الخصوصية إلى التسجيل والتحقق وإكمال الملف. ملف عام/خاص، اسم فريد، معلومات أساسية، أهداف واهتمامات، منشورات وصور وفيديو وألبومات وتعليقات وتفاعلات ومشاركة وحفظ وقصص 24 ساعة ومتابعة/أصدقاء وزيارات وتحكم خصوصية. الاكتشاف شفاف وقابل للتحكم ولا يدعي دقة علمية للتوافق. أي ترويج مدفوع موسوم بوضوح.
+ 
+ الضيف مسار محدود ومؤقت لا يحصل على محفظة أو متجر أو خاص أو امتيازات العضو. لا محتوى محمي قبل إقرار الخصوصية المناسب.
+ 
+ ## 4. التواصل والمجتمعات
+ 
+ محادثات خاصة وعامة، صندوق رسائل موحد، إيصالات وإشعارات، حظر وإبلاغ واستئناف، ملفات ووسائط، غرف عامة وخاصة ومستأجرة، مجتمعات، فعاليات، RSVP وسعة مقاعد، حجوزات واستئجار وإلغاء واسترداد وانتهاء مدة. كل دورة حجز/دفع/استرداد خادمية وذرية وتمنع التكرار.
+ 
+ المكالمات الصوتية والمرئية منفصلة عن التسجيلات الصوتية. حد التسجيل 60 ثانية؛ أما المكالمة فتخضع لحدودها وحصصها واستحقاقاتها المنفصلة. لا تفعيل فوترة المكالمات المفتوحة قبل تنفيذ metering وتوزيع التكلفة والخصم الذري وموافقة الطرفين.
+ 
+ التوثيق البيومتري اليدوي مسار اختياري: عينة صوت لعبارة تحدٍ، وفيديو حركة 3–5 ثوانٍ، مراجعة بشرية من Super Owner حصراً، ثلاث محاولات، وقفل ثلاثة أشهر بعد رفض الثالثة. القبول يفعّل التوثيق لشهر تقويمي واحد ويمنح 1,500 BetaCoins مرة واحدة بعد اكتمال المعاملة الخادمية. مكافأة البريد 500 BetaCoins مستقلة كل ثلاثة أشهر تقويمية. المصادقة المحلية على الجهاز ليست بديلاً ولا تمنح المكافأة. الأدلة المؤقتة تحذف بعد القرار مع سجل تشغيلي أدنى.
+ 
+ ## 5. الوسائط والذاكرة المحلية
+ 
+-صور/GIF/صوت/فيديو بحدود تقنية صارمة، ماسح آمن، حجر، مشتقات، صلاحيات وصول واحتفاظ. PDF للمالك المثبت فقط. Mawdda Media Saver منتج موحد للحفظ المحلي مع تحقق استحقاق خادمي لكل عملية، دون تمديد الاحتفاظ السحابي. أوضاع الاحتفاظ محددة، لكن سلطة اختيار الوضع وموافقة الطرفين ما زالت مسألة معلقة، لذا لا حذف حي مبني على افتراض.
++صور/GIF/صوت/فيديو بحدود تقنية صارمة، ماسح آمن، حجر، مشتقات، صلاحيات وصول واحتفاظ. PDF للمالك المثبت فقط. Mawdda Media Saver منتج موحد للحفظ المحلي مع تحقق استحقاق خادمي لكل عملية، دون تمديد الاحتفاظ السحابي. أوضاع الاحتفاظ المعتمدة: المؤقتة تحذف المحادثة الخاصة كاملة بعد 4 ساعات من آخر نشاط موثق خادمياً؛ العادية تحتفظ بالنص 7 أيام وبالوسائط 4 ساعات؛ المهمة تحتفظ بالنص 30 يوماً (720 ساعة) وبالوسائط 4 ساعات. أكد المالك في 19 نوفمبر 2026 اعتماد 30 يوماً للنص المهم ورفض بديل 90 يوماً. ما زالت سلطة اختيار الوضع وموافقة الطرفين وتحديث نشاط الخادم والحذف الكامل للمؤقتة ومشتقات الوسائط بوابات تنفيذ مفتوحة؛ لا تفعيل حذف حي قبل إغلاقها.
+ 
+ ## 6. الاقتصاد الموحد
+ 
+ محفظة ودفتر حركات، شراء كوينز يدوي أو دفع آلي مستقبلي، تحويلات، متجر ديناميكي، كتالوج واستحقاقات، اشتراكات، ألقاب وأوسمة وإطارات وثيمات وأسماء مميزة وتحسينات ملف وميزات الغرف، مكافآت حضور ومشاهدة إعلانات، ومنح مجانية فردية وجماعية. المدة 24 ساعة/7 أيام/30 يوماً ثابتة، والسعر والحصص والكمية يحددها المالك. لا قيم افتراضية مخترعة. كل حركة خادمية ذرية idempotent قابلة للتدقيق.
+ 
+ مركز Super Owner موحد لإدارة الأسعار والقنوات والمنتجات والمكافآت والمنح والأرصدة ومطابقة المحفظة والتدقيق. المطابقة للقراءة فقط ما لم يصدر تفويض صريح مستقل لتصحيح محدد.
+ 
+ ## 7. الإعلانات وWatch Ads
+ 
+ إدارة الحملات التجارية وإعلانات المكافآت منظومتان متصلتان لكن منفصلتان مالياً وصلاحياً. Watch Ads واجهة عضو مستقلة، وتعرض الحملات المؤهلة جغرافياً. المعاينة لا تكافأ؛ فقط المشاهدة الكاملة التي يثبتها الخادم. القيم التجريبية المعتمدة موثقة بالدستور، لكنها لا تعمل حتى ربط الواجهات والتحقق الخادمي والاختبارات وموافقة التفعيل.
+ 
+ Media Workspace منفصل ويضم خمسة مسارات منها Creator Content & Influencer Proposals. يضم خمسة مقاعد Admin Media 1–5، وخمسة مقاعد مشرف إنتاج عام 1–5، وفئة مفتوحة العدد لمشرف إنتاج الفريق. Admin N فريق إدارة عامة مفتوح العدد بأرقام دائمة متزايدة لا يعاد استخدامها. هذه الفئات مستقلة ولا تتوارث الصلاحيات. توجد أربعة مقاعد قانونية/إدارية لمركز العقود.
+ 
+ ## 8. الإنتاج والمبدعون
+ 
+ تدفق العمل: تقديم الفكرة/الطلب، تصنيف واستهداف جغرافي، مراجعة، تعيين صلاحيات، تخطيط فريق، غرفة إنتاج، تسليم المادة، مراجعة السلامة والجودة والحقوق، موافقة المالك، نشر أو أرشفة. لا يعلن إنجاز عام أو نشر دون موافقة مالك مستقلة. الفريق خمسة أشخاص بمن فيهم مشرف الإنتاج، والمراقب الإداري المفوض خارج العدد.
+ 
+ ## 9. العقود والعمولات
+ 
+ مركز العقود عبر الويب حصراً. نماذج منفصلة للعضوية والتكليفات والإعلانات والمندوبين والمؤثرين والإشراف القانوني والتفويض والتعليق/الإنهاء. الاتفاقية العامة للمؤثر منفصلة عن عقد كل عمل. العمولة تحدد لكل إعلان بقرار المالك ويقبلها المندوب صراحة؛ لا معدل عام. التوقيع متبادل والتحقق والتدقيق والأرشفة إلزامية. لا صرف عمولة قبل تعريف التسوية والضرائب والرسوم والاسترداد والنزاعات والمراجعة القانونية.
+ 
+ ## 10. Mawdda AI
+ 
+ مساعد تقني وشخصيات اجتماعية AI مستقبلية بوسم واضح، فصل بيانات، موافقة، اعتدال وسلامة، 18+ للمحتوى الرومانسي، ميزانيات وحدود إيقاف. هذه رؤية معتمدة وليست خدمة مكتملة أو إذناً بإطلاقها.
+ 
+ ## 11. لوحة المالك ومركز العمليات
+ 
+ لوحة Super Owner موحدة تشمل الأعضاء والسلامة والرسائل والغرف والوسائط والخلفيات والإعلانات والإنتاج والعقود والاقتصاد والمتجر والمنح والهوية والإعدادات والسحابة والتكلفة والنسخ والاستعادة والتدقيق. كل إجراء حساس عبر الخادم مع MFA وسجل. الإدارة العامة وAdmin Media والإنتاج والقانون نطاقات مستقلة.
+ 
+ ## 12. البنية التقنية والتشغيل
+ 
+ Flutter/Dart، Firebase Auth، Firestore، Storage، Cloud Functions، PWA وAndroid وiOS. بيئات منفصلة، محاكيات، قواعد أمان، App Check، أسرار آمنة، مراقبة ونسخ واستعادة. لا Blaze أو موارد مدفوعة دون موافقة. حماية تسجيل iOS الحالي، ومفتاح توقيع Android الأصلي، وعدم تخزين البيانات الخاصة في Cache PWA.
+ 
+ ## 13. الأداء والتكلفة
+ 
+ تقليل الاستعلامات والكتابات والتخزين والنقل مع الحفاظ على الأمان والاتساق. الهدف التخطيطي 10 USD لكل 1000 عضو نشط شهرياً، 7.50 تشغيل و2.50 احتياطي، وتنبيهات 5/7.50/9. لا تعد هذه سقوف فاتورة مضمونة. يلزم قياس حقيقي واختبار أحمال.
+ 
+ ## 14. مراحل التنفيذ
+ 
+ 1. البناء والتطوير واستكمال جميع المتطلبات وتوثيقها واختبارها داخل المستودع.
+ 2. اختبار 5000 شخصية في المختبر المستقل على SHA ثابت وتقرير قابل للتكرار.
+ 3. تحقق سحابي non-production، قبول أجهزة وتوقيع وأمن وقانون وتكلفة.
+ 4. إطلاق تجريبي عبر الموقع/PWA وAPK رسمي وفق قرارات التوزيع، ثم التوسع للمتاجر بعد موافقات منفصلة. لا نشر أو دمج أو إنتاج دون موافقة المالك.
+ 
+ ## 15. معيار اكتمال الرؤية
+ 
+ لا يعلن أي مجال مكتملاً إلا إذا رُبط كل مطلب بمصدر قرار ومسار كود واختبار ناجح على SHA معلوم، وأغلقت حالات الرفض والتزامن وإعادة المحاولة، وتم قبول الواجهات والأجهزة عندما يلزم. كل اعتماد خارجي أو سياسة معلقة أو مورد غير متاح يسجل كبوابة مستقلة، ولا يصنف نجاحاً.
+ 
+ ## 16. الوثائق المصدرية التي تبقى مراجع تفصيلية
+ 
+ - الدستور الموحد: السياسات الملزمة وترتيب السلطة.
+ - الميثاق الموحد للتطوير: عقود التنفيذ والتقنية والاختبارات.
+ - سجل القرارات المعتمدة والتتبع: ID وحالة القرار ودليل التنفيذ.
+ - النظام التنفيذي للإعلانات والإنتاج: Media Workspace والأدوار والاستهداف والإنتاج.
+ - نماذج العقود: النصوص النموذجية وحقولها.
+ - اتفاقية الملكية والسيادة والتحكم: حدود المالك والمساعدين والأصول.
+ - مواصفة الهوية وتجربة المنتج: الألوان والخلفيات والشعار.
+ - مواصفة الاقتصاد والإعلانات والغرف والاحتفاظ والبيومتري: تفاصيل كل مجال.
+ - مصفوفة التتبع وتقارير التدقيق: حالة التنفيذ الفعلية.
+ 
+ هذه الوثيقة لا تستبدل أي نموذج عقد أو ملحق تقني متخصص؛ بل توحد الرؤية وتحيل إلى المراجع التفصيلية وتحافظ على مصدرها وإصداراتها.
+diff --git a/functions/src/index.ts b/functions/src/index.ts
+index 13b1c3e6..538d6be5 100644
+--- a/functions/src/index.ts
++++ b/functions/src/index.ts
+@@ -6750,192 +6750,203 @@ export const bulkGrantStoreEntitlements = onCall(async (request) => {
+   const targetUids = request.data?.targetUids;
+   if (!Array.isArray(targetUids) || targetUids.length < 1 || targetUids.length > 500 ||
+       targetUids.some((uid: unknown) => typeof uid !== "string" || uid.length < 1 ||
+         uid.length > 128 || uid.trim() !== uid || uid.includes("/")) ||
+       new Set(targetUids).size !== targetUids.length) {
+     throw new HttpsError("invalid-argument", "قائمة الأعضاء غير صالحة؛ أرسل حتى 500 معرف فريد في كل دفعة.");
+   }
+   const itemSnapshot = await db.collection("storeCatalog").doc(input.itemId).get();
+   const item = itemSnapshot.exists ? projectStoreCatalogItem(input.itemId, itemSnapshot.data() ?? {}) : null;
+   if (!item || item.active !== true || item.fulfillmentReady !== true) {
+     throw new HttpsError("failed-precondition", "لا يمكن منح عنصر غير نشط أو لم يكتمل تنفيذ استحقاقه.");
+   }
+ 
+   const results: Record<string, unknown>[] = [];
+   for (let offset = 0; offset < targetUids.length; offset += 10) {
+     const chunk = targetUids.slice(offset, offset + 10) as string[];
+     const settled = await Promise.all(chunk.map(async (targetUid) => {
+       try {
+         return await executeOwnerEntitlementGrant(
+           actorUid, targetUid, input.itemId, input.durationHours, input.requestId, input.reason,
+         );
+       } catch (error) {
+         return {
+           targetUid,
+           itemId: input.itemId,
+           status: "failed",
+           errorCode: error instanceof HttpsError ? error.code : "internal",
+           idempotentReplay: false,
+         };
+       }
+     }));
+     results.push(...settled);
+   }
+   return {
+     requestId: input.requestId,
+     itemId: input.itemId,
+     total: results.length,
+     granted: results.filter((result) => result.status === "granted").length,
+     failed: results.filter((result) => result.status === "failed").length,
+     replayed: results.filter((result) => result.idempotentReplay === true).length,
+     results,
+   };
+ });
+ 
+ /** Members can read a privacy-projected history of their own free entitlement grants. */
+ export const getMyEntitlementGrantHistory = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const memberRef = db.collection("users").doc(uid);
+   const member = await memberRef.get();
+   if (!member.exists) throw new HttpsError("not-found", "ملف العضوية غير موجود.");
+   const snapshot = await memberRef.collection("entitlementGrantLedger")
+     .orderBy("createdAt", "desc")
+     .limit(50)
+     .get();
+   return {
+     entries: snapshot.docs.map((document) => {
+       const data = document.data();
+       return {
+         grantId: data.grantId,
+         itemId: data.itemId,
+         itemName: data.itemName,
+         category: data.category,
+         durationHours: data.durationHours,
+         expiresAtMs: data.expiresAt instanceof Timestamp ? data.expiresAt.toMillis() : null,
+         createdAtMs: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : null,
+       };
+     }),
+   };
+ });
+ 
+ /** Owner/MFA-only catalog publishing; client writes to storeCatalog remain denied. */
+ export const setStoreCatalogItem = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   let item;
+   try {
+     item = validateStoreCatalogItemInput(request.data);
+   } catch {
+     throw new HttpsError("invalid-argument", "بيانات عنصر المتجر أو سعره أو تصنيفه غير صالحة.");
+   }
+   const itemRef = db.collection("storeCatalog").doc(item.itemId);
+-  await db.runTransaction(async (transaction) => {
++  const result = await db.runTransaction(async (transaction) => {
+     const previousSnapshot = await transaction.get(itemRef);
++    const previousVersion = previousSnapshot.exists
++      ? (previousSnapshot.data()?.version ?? 0)
++      : 0;
++    if (!Number.isSafeInteger(previousVersion) || previousVersion < 0 ||
++        previousVersion >= Number.MAX_SAFE_INTEGER) {
++      throw new HttpsError("failed-precondition", "إصدار عنصر المتجر السابق غير صالح أو بلغ الحد الأعلى؛ أوقفنا التحديث.");
++    }
++    const version = previousVersion + 1;
+     const now = FieldValue.serverTimestamp();
+     transaction.set(itemRef, {
+       itemId: item.itemId,
++      version,
+       name: item.name,
+       description: item.description,
+       category: item.category,
+       priceCoins: item.priceCoins,
+       durationDays: item.durationDays ?? null,
+       sortOrder: item.sortOrder,
+       active: item.active,
+       purchaseEnabled: item.purchaseEnabled,
+       fulfillmentReady: item.fulfillmentReady,
+       createdAt: previousSnapshot.data()?.createdAt ?? now,
+       updatedAt: now,
+       updatedBy: actorUid,
+     });
+     const auditRef = db.collection("adminAuditLogs").doc();
+     transaction.create(auditRef, {
+       actorUid,
+       action: previousSnapshot.exists ? "store_catalog_item_updated" : "store_catalog_item_created",
+       itemId: item.itemId,
++      version,
+       active: item.active,
+       priceCoins: item.priceCoins,
+       category: item.category,
+       purchaseEnabled: item.purchaseEnabled,
+       fulfillmentReady: item.fulfillmentReady,
+       createdAt: now,
+     });
++    return { version };
+   });
+-  return { itemId: item.itemId, active: item.active };
++  return { itemId: item.itemId, version: result.version, active: item.active };
+ });
+ 
+ /** Returns only display-safe catalog fields to the authenticated owner. */
+ export const getOwnerStoreCatalog = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   // Seed only missing catalogue entries. Existing owner-edited prices are never overwritten.
+   await db.runTransaction(async (transaction) => {
+     const refs = DEFAULT_STORE_CATALOG.map((item) => db.collection("storeCatalog").doc(item.itemId));
+     const snapshots = await Promise.all(refs.map((ref) => transaction.get(ref)));
+     refs.forEach((ref, index) => {
+       if (snapshots[index].exists) return;
+       const item = DEFAULT_STORE_CATALOG[index];
+       const fulfillmentReady = projectStoreCatalogItem(item.itemId, {
+         ...item,
+         active: true,
+         fulfillmentReady: true,
+       })?.fulfillmentReady ?? false;
+       transaction.create(ref, {
+         ...item,
+         // Publish approved, implemented profile features for discovery in the
+         // shop, but leave charging disabled until the owner confirms prices.
+         active: fulfillmentReady,
+         purchaseEnabled: false,
+         fulfillmentReady,
+         createdAt: FieldValue.serverTimestamp(),
+         updatedAt: FieldValue.serverTimestamp(),
+         updatedBy: actorUid,
+       });
+     });
+   });
+   const snapshot = await db.collection("storeCatalog").limit(100).get();
+   const items = snapshot.docs
+     .map((document) => {
+       const data = document.data();
+       const projected = projectStoreCatalogItem(document.id, { ...data, active: true });
+       return projected ? { ...projected, active: data.active === true } : null;
+     })
+     .filter((item): item is NonNullable<typeof item> => item !== null)
+     .sort((left, right) => left.sortOrder - right.sortOrder || left.itemId.localeCompare(right.itemId));
+   return { items };
+ });
+ 
+ 
+ export {
+   createMediaUploadIntent,
+   finalizeMediaUpload,
+   sendChatImageAttachment,
+   getChatImageAttachmentUrl,
+   sendChatMediaAttachment,
+   getChatMediaAttachmentUrl,
+   getMemberProfileMediaUrl,
+   listMemberProfileGallery,
+   getMyMediaUploadStatus,
+   getMemberStoryMediaUrl,
+   listOwnerMediaAssets,
+   getOwnerMediaSafePreview,
+   getOwnerMediaInspectionUrl,
+   ownerMediaInspectionStream,
+   ownerMediaPreview,
+   cleanupExpiredMediaUploadIntents,
+   enqueueMediaSecurityScan,
+   dispatchMediaSecurityScan,
+   receiveMediaScanVerdict,
+   getTimedAdCreativeUrl,
+ } from "./media";
+ 
+ export { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative };
+ 
+ 
+ const ROOM_RENTAL_SETTINGS = db.doc("platformSettings/roomRentals");
+ 
+ async function readRoomRentalPlans(): Promise<ReturnType<typeof validateRoomRentalPlans>> {
+   const snapshot = await ROOM_RENTAL_SETTINGS.get();
+   const raw = snapshot.data()?.plans;
+   if (raw === undefined) return DEFAULT_ROOM_RENTAL_PLANS;
+   try {
+     return validateRoomRentalPlans(raw);
+   } catch {
+     throw new HttpsError("failed-precondition", "إعدادات أسعار استئجار الغرف غير صالحة؛ راجع لوحة المالك.");
+   }
+@@ -8038,173 +8049,181 @@ export const claimAttendanceReward = onCall(async (request) => {
+       policy = storedPolicy ? validateAttendanceRewardPolicy(storedPolicy) : defaultAttendanceRewardPolicy();
+     } catch {
+       throw new HttpsError("failed-precondition", "سياسة مكافآت الحضور غير صالحة؛ تم إيقاف المطالبة.");
+     }
+     const rule = policy[type];
+     if (!rule.enabled || rule.amountCoins < 1) {
+       throw new HttpsError("failed-precondition", "مكافأة هذا النوع غير مفعّلة حالياً.");
+     }
+     const balance = readSafeInteger(userSnapshot.data()?.coins ?? 0, "coins");
+     if (balance < 0 || balance + rule.amountCoins > Number.MAX_SAFE_INTEGER) {
+       throw new HttpsError("failed-precondition", "رصيد المحفظة غير صالح لإضافة المكافأة.");
+     }
+     const now = FieldValue.serverTimestamp();
+     transaction.update(userRef, { coins: balance + rule.amountCoins, walletUpdatedAt: now });
+     transaction.create(claimRef, {
+       uid, type, period, amountCoins: rule.amountCoins,
+       policyVersion: policySnapshot.data()?.version ?? 0,
+       createdAt: now,
+     });
+     transaction.create(ledgerRef, {
+       type: "attendance_reward", rewardType: type, period,
+       direction: "credit", amount: rule.amountCoins,
+       balanceBefore: balance, balanceAfter: balance + rule.amountCoins,
+       claimId, createdAt: now,
+     });
+     return { claimed: true, idempotentReplay: false, amountCoins: rule.amountCoins, period };
+   });
+ });
+ 
+ export const setTimedAdCampaign = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   let input;
+   try {
+     input = validateTimedAdCampaignInput(request.data);
+   } catch {
+     throw new HttpsError("invalid-argument", "بيانات الحملة الإعلانية غير صالحة.");
+   }
+   const requestedId = request.data?.campaignId;
+   if (requestedId !== undefined &&
+       (typeof requestedId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestedId))) {
+     throw new HttpsError("invalid-argument", "معرف الحملة غير صالح.");
+   }
+   const mediaId = request.data?.mediaId;
+   if (mediaId !== undefined &&
+       (typeof mediaId !== "string" || !/^[0-9a-f-]{36}$/i.test(mediaId))) {
+     throw new HttpsError("invalid-argument", "معرف مادة الإعلان غير صالح.");
+   }
+   const campaignRef = requestedId
+     ? db.collection("timedAdCampaigns").doc(requestedId)
+     : db.collection("timedAdCampaigns").doc(randomUUID());
+   const mediaRef = typeof mediaId === "string" ? db.collection("mediaAssets").doc(mediaId) : null;
+   const result = await db.runTransaction(async (transaction) => {
+     const [previous, mediaSnapshot] = await Promise.all([
+       transaction.get(campaignRef),
+       mediaRef ? transaction.get(mediaRef) : Promise.resolve(null),
+     ]);
+     if (previous.exists && !["draft", "paused"].includes(String(previous.data()?.status))) {
+       throw new HttpsError("failed-precondition", "أوقف الحملة قبل تعديل إعداداتها.");
+     }
+     if (previous.exists && Number(previous.data()?.reservedRewardCoins ?? 0) > 0) {
+       throw new HttpsError("failed-precondition", "انتظر انتهاء جلسات المشاهدة النشطة قبل تعديل ميزانية أو مكافأة الحملة.");
+     }
+     let creativeType = "text";
+     let creativeContentType: string | null = null;
+     if (mediaRef && mediaSnapshot?.exists) {
+       const media = mediaSnapshot.data()!;
+       if (media.ownerUid !== actorUid || media.uploaderRole !== "platform_owner" ||
+           media.mediaPurpose !== "advertisement" || media.status !== "security_approved" ||
+           !["image", "video"].includes(String(media.mediaCategory))) {
+         throw new HttpsError("failed-precondition", "مادة الإعلان يجب أن تكون مرفوعة من المالك واجتازت الفحص الأمني.");
+       }
+       creativeType = media.mediaCategory === "video"
+         ? "video" : media.detectedContentType === "image/gif" ? "gif" : "image";
+       creativeContentType = String(media.detectedContentType ?? media.declaredContentType);
+     } else if (mediaRef) {
+       throw new HttpsError("not-found", "مادة الإعلان غير موجودة.");
+     }
+     const version = (Number.isSafeInteger(previous.data()?.version)
+       ? previous.data()!.version : 0) + 1;
+     const now = FieldValue.serverTimestamp();
+-    transaction.set(campaignRef, {
++    const campaignSnapshot = {
+       ...input, campaignId: campaignRef.id, creativeType,
+       mediaId: mediaId ?? null,
+       mediaOwnerUid: mediaId ? actorUid : null,
+       creativeContentType,
+       status: previous.exists ? previous.data()?.status : "draft",
+       version, spentRewardCoins: previous.data()?.spentRewardCoins ?? 0,
+       reservedRewardCoins: previous.data()?.reservedRewardCoins ?? 0,
+       createdAt: previous.data()?.createdAt ?? now,
+       createdBy: previous.data()?.createdBy ?? actorUid,
+       updatedAt: now, updatedBy: actorUid,
++    };
++    transaction.set(campaignRef, campaignSnapshot);
++    const campaignVersionRef = db.collection("timedAdCampaignVersions")
++      .doc(campaignRef.id).collection("versions").doc(String(version));
++    transaction.create(campaignVersionRef, {
++      ...campaignSnapshot,
++      snapshotAt: now,
++      snapshotBy: actorUid,
+     });
+-    return { campaignId: campaignRef.id, version, status: previous.exists ? previous.data()?.status : "draft", creativeType };
++    return { campaignId: campaignRef.id, version, status: campaignSnapshot.status, creativeType };
+   });
+   await appendOwnerReviewAuditEvent({
+     actorUid, action: "timed_ad_campaign_saved", ...result, outcome: "success",
+   });
+   return result;
+ });
+ 
+ /**
+  * Owner-recorded featured-ad finance events. This records receipts/refunds/
+  * reconciliation only; it never publishes or activates an advertising campaign.
+  */
+ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   let event;
+   try {
+     event = validateFeaturedAdFinancialEvent(request.data);
+     if (event.currency !== null && currencyExponentForCode(event.currency) === null) {
+       throw new Error("UNSUPPORTED_CURRENCY");
+     }
+   } catch {
+     throw new HttpsError("invalid-argument", "بيانات الحركة المالية الإعلانية أو عملتها غير صالحة.");
+   }
+   const campaignRef = db.collection("timedAdCampaigns").doc(event.campaignId);
+   const financialRef = db.collection("featuredAdFinancials").doc(event.campaignId);
+   const eventId = featuredAdFinancialIdempotencyId(
+     event.campaignId, event.action, event.externalReference!,
+   );
+   const eventRef = financialRef.collection("events").doc(eventId);
+   const auditRef = db.collection("adminAuditLogs").doc("featured_ad_finance_" + eventId);
+ 
+   return db.runTransaction(async (transaction) => {
+     const [campaign, financial, priorEvent, audit, paymentSettings] = await Promise.all([
+       transaction.get(campaignRef), transaction.get(financialRef),
+       transaction.get(eventRef), transaction.get(auditRef),
+       transaction.get(ECONOMY_PRICING_SETTINGS),
+     ]);
+     if (!campaign.exists) throw new HttpsError("not-found", "الحملة الإعلانية غير موجودة.");
+ 
+     const currentData = financial.data() ?? {};
+     const currentVersion = financial.exists ? currentData.version : 0;
+     if (financial.exists) {
+       if (!Number.isSafeInteger(currentVersion) || currentVersion < 1 ||
+           typeof currentData.lastEventId !== "string" ||
+           typeof currentData.currentVersionPath !== "string") {
+         throw new HttpsError("failed-precondition", "مؤشر السجل المالي الإعلاني غير صالح.");
+       }
+       const currentVersionRef = db.collection("featuredAdFinancialVersions").doc(event.campaignId)
+         .collection("versions").doc(String(currentVersion));
+       const currentVersionSnapshot = await transaction.get(currentVersionRef);
+       const currentVersionData = currentVersionSnapshot.data() ?? {};
+       if (!currentVersionSnapshot.exists ||
+           currentData.currentVersionPath !== currentVersionRef.path ||
+           currentVersionData.version !== currentVersion ||
+           currentVersionData.lastEventId !== currentData.lastEventId ||
+           currentVersionData.currency !== currentData.currency ||
+           currentVersionData.receivedMinor !== currentData.receivedMinor ||
+           currentVersionData.refundedMinor !== currentData.refundedMinor ||
+           currentVersionData.reconciledMinor !== currentData.reconciledMinor ||
+           currentVersionData.reviewStatus !== currentData.reviewStatus ||
+           currentVersionData.paymentStatus !== currentData.paymentStatus ||
+           currentVersionData.currencyExponent !== (currentData.currency === null
+             ? null : currencyExponentForCode(currentData.currency))) {
+         throw new HttpsError("failed-precondition", "لقطة السجل المالي لا تطابق إصدارها المحفوظ.");
+       }
+     }
+ 
+     if (priorEvent.exists) {
+       const prior = priorEvent.data() ?? {};
+       const matches = prior.actorUid === actorUid &&
+         prior.idempotencyKey === event.idempotencyKey &&
+         prior.campaignId === event.campaignId && prior.eventId === eventId &&
+         prior.action === event.action && prior.amountMinor === event.amountMinor &&
+         prior.currency === event.currency && prior.externalReference === event.externalReference &&
+         prior.evidenceReference === event.evidenceReference && prior.note === event.note &&
+         prior.reviewOutcome === event.reviewOutcome;
+       if (!matches || !financial.exists || !audit.exists ||
+           !Number.isSafeInteger(prior.snapshotVersion) || prior.snapshotVersion < 1 ||
+           currentVersion < prior.snapshotVersion) {
+         throw new HttpsError("failed-precondition", "الحركة المالية السابقة تفتقد أدلة الإصدار أو سجل التدقيق.");
+       }
+@@ -8222,161 +8241,161 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
+           priorVersion.refundedMinor !== prior.refundedMinor ||
+           priorVersion.reconciledMinor !== prior.reconciledMinor ||
+           priorVersion.reviewStatus !== prior.reviewStatus ||
+           priorVersion.paymentStatus !== prior.paymentStatus ||
+           priorVersion.currencyExponent !== priorExponent ||
+           JSON.stringify(priorVersion.paymentPolicySnapshot ?? null) !==
+             JSON.stringify(prior.paymentPolicySnapshot ?? null) ||
+           prior.currencyExponent !== priorExponent ||
+           auditData.actorUid !== actorUid ||
+           auditData.action !== "featured_ad_financial_event_recorded" ||
+           auditData.campaignId !== event.campaignId ||
+           auditData.eventId !== eventId ||
+           auditData.eventType !== event.action ||
+           auditData.amountMinor !== event.amountMinor ||
+           auditData.currency !== event.currency ||
+           auditData.currencyExponent !== priorExponent ||
+           auditData.externalReference !== event.externalReference ||
+           auditData.snapshotVersion !== prior.snapshotVersion ||
+           JSON.stringify(auditData.paymentPolicySnapshot ?? null) !==
+             JSON.stringify(prior.paymentPolicySnapshot ?? null)) {
+         throw new HttpsError("failed-precondition", "الحركة المالية لا تطابق نسخة السجل وسجل التدقيق.");
+       }
+       return {
+         campaignId: event.campaignId, eventId,
+         snapshot: currentData, version: currentVersion, idempotentReplay: true,
+       };
+     }
+ 
+     if (audit.exists) {
+       throw new HttpsError("failed-precondition", "يوجد سجل تدقيق مالي دون حركة مقابلة؛ يلزم التدقيق.");
+     }
+     let paymentPolicySnapshot: Record<string, unknown> | null = null;
+     if (event.action === "payment_received") {
+       const settings = paymentSettings.data() ?? {};
+       const paymentPolicy = projectEconomicPaymentPolicy(settings.paymentPolicy, {
+         manualCoinPurchasesEnabled: settings.manualCoinPurchasesEnabled,
+         manualFeaturedAdsEnabled: settings.manualFeaturedAdsEnabled,
+       });
+       if (!paymentSettings.exists || paymentPolicy.featured_ads.manualEnabled !== true ||
+           paymentPolicy.featured_ads.automatedEnabled !== false ||
+           !Number.isSafeInteger(settings.version) || settings.version < 1) {
+         throw new HttpsError("failed-precondition", "استقبال دفعات الإعلانات اليدوي متوقف أو غير مهيأ في سياسة المالك.");
+       }
+       paymentPolicySnapshot = {
+         service: "featured_ads", manualEnabled: true, automatedEnabled: false,
+         policyVersion: settings.version,
+       };
+     }
+ 
+     const current = financial.exists
+       ? {
+           currency: currentData.currency,
+           receivedMinor: currentData.receivedMinor,
+           refundedMinor: currentData.refundedMinor,
+           reconciledMinor: currentData.reconciledMinor,
+           reviewStatus: currentData.reviewStatus,
+           paymentStatus: currentData.paymentStatus,
+         }
+       : defaultFeaturedAdFinancialSnapshot();
+     let next;
+     try { next = applyFeaturedAdFinancialEvent(current, event); }
+     catch { throw new HttpsError("failed-precondition", "لا تسمح حالة السجل المالي بتطبيق هذه الحركة."); }
+     const version = financial.exists ? currentVersion + 1 : 1;
+     if (!Number.isSafeInteger(version)) {
+       throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار مالي جديد.");
+     }
+     const versionRef = db.collection("featuredAdFinancialVersions").doc(event.campaignId)
+       .collection("versions").doc(String(version));
+     const nextVersionSnapshot = await transaction.get(versionRef);
+     if (nextVersionSnapshot.exists) {
+       throw new HttpsError("failed-precondition", "إصدار مالي موجود دون مؤشر حالي؛ يلزم التدقيق.");
+     }
+     const now = FieldValue.serverTimestamp();
+     const currencyExponent = event.currency === null ? null : currencyExponentForCode(event.currency);
+     transaction.create(versionRef, {
+       campaignId: event.campaignId, ...next, version,
+       lastEventId: eventId, currencyExponent, paymentPolicySnapshot,
+       createdAt: now, createdBy: actorUid,
+     });
+     transaction.create(eventRef, {
+-      ...event, currencyExponent, paymentPolicySnapshot,
++      ...event, ...next, currencyExponent, paymentPolicySnapshot,
+       eventId, actorUid, snapshotVersion: version, createdAt: now,
+     });
+     transaction.set(financialRef, {
+       campaignId: event.campaignId, ...next, version,
+       lastEventId: eventId, updatedAt: now, updatedBy: actorUid,
+       createdAt: currentData.createdAt ?? now,
+       currentVersionPath: versionRef.path,
+     });
+     transaction.create(auditRef, {
+       actorUid, action: "featured_ad_financial_event_recorded",
+       campaignId: event.campaignId, eventId, eventType: event.action,
+       amountMinor: event.amountMinor, currency: event.currency,
+       currencyExponent, externalReference: event.externalReference,
+       paymentPolicySnapshot, snapshotVersion: version, createdAt: now,
+     });
+     return { campaignId: event.campaignId, eventId, snapshot: next, version, idempotentReplay: false };
+   });
+ });
+ 
+ export const getOwnerTimedAdCampaigns = onCall(async (request) => {
+   requireOwner(request);
+   const snapshot = await db.collection("timedAdCampaigns").limit(100).get();
+   return {
+     campaigns: snapshot.docs.map((doc) => ({ ...doc.data(), campaignId: doc.id })),
+   };
+ });
+ 
+ export const setTimedAdCampaignStatus = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   const campaignId = request.data?.campaignId;
+   const status = request.data?.status;
+   if (typeof campaignId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(campaignId) ||
+       !["published", "paused", "archived"].includes(status)) {
+     throw new HttpsError("invalid-argument", "طلب تغيير حالة الحملة غير صالح.");
+   }
+   const campaignRef = db.collection("timedAdCampaigns").doc(campaignId);
+   const result = await db.runTransaction(async (transaction) => {
+     const campaign = await transaction.get(campaignRef);
+     if (!campaign.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
+     const data = campaign.data()!;
+     if (data.status === "archived" && status !== "archived") {
+       throw new HttpsError("failed-precondition", "لا يمكن إعادة تنشيط حملة مؤرشفة.");
+     }
+     if (status === "published" && data.placement === "home") {
+       throw new HttpsError("failed-precondition", "موضع الرئيسية غير منشور حتى اكتمال واجهة العرض واختبارات موضعها؛ استخدم مركز المكافآت حالياً.");
+     }
+     if (status === "published" && data.creativeType === "video") {
+       throw new HttpsError("failed-precondition", "نشر إعلانات الفيديو متوقف حتى اكتمال مشغل الفيديو واختبارات الأجهزة؛ لا نعرض إعلاناً لا يمكن تشغيله داخل التجربة المقفلة.");
+     }
+     if (status === "published" &&
+         (data.endsAtMs <= Date.now() || data.rewardCoins < 0 ||
+          data.rewardBudgetCoins < data.rewardCoins ||
+          data.spentRewardCoins + (data.reservedRewardCoins ?? 0) + data.rewardCoins > data.rewardBudgetCoins)) {
+       throw new HttpsError("failed-precondition", "لا يمكن نشر حملة منتهية أو تجاوزت ميزانيتها.");
+     }
+     if (status === "published" && typeof data.mediaId === "string") {
+       const media = await transaction.get(db.collection("mediaAssets").doc(data.mediaId));
+       const mediaData = media.data();
+       if (!media.exists || mediaData?.ownerUid !== data.mediaOwnerUid ||
+           mediaData?.uploaderRole !== "platform_owner" ||
+           mediaData?.mediaPurpose !== "advertisement" ||
+           mediaData?.status !== "security_approved" ||
+           !["image", "video"].includes(String(mediaData?.mediaCategory))) {
+         throw new HttpsError("failed-precondition", "لا يمكن نشر الحملة قبل اعتماد مادة الإعلان أمنياً.");
+       }
+     }
+     transaction.update(campaignRef, {
+       status, updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
+       version: (Number.isSafeInteger(data.version) ? data.version : 0) + 1,
+     });
+     return { campaignId, status };
+   });
+   await appendOwnerReviewAuditEvent({
+     actorUid, action: "timed_ad_campaign_status_changed", ...result, outcome: "success",
+   });
+   return result;
+ });
+ 
+ export const getActiveTimedAdCampaigns = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+diff --git a/functions/test/integration/featured-ad-finance.integration.test.js b/functions/test/integration/featured-ad-finance.integration.test.js
+index 03f0cc8a..2a227f3e 100644
+--- a/functions/test/integration/featured-ad-finance.integration.test.js
++++ b/functions/test/integration/featured-ad-finance.integration.test.js
+@@ -1,157 +1,163 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const { getFirestore } = require("firebase-admin/firestore");
+ const {
+   setTimedAdCampaign, recordFeaturedAdFinancialEvent,
+ } = require("../../lib/index");
+ 
+ const db = getFirestore();
+ const ownerRequest = (uid, data) => ({
+   data, auth: { uid, token: {
+     platformOwner: true, platformOwnerUid: uid,
+     auth_time: Math.floor(Date.now() / 1000),
+     firebase: { sign_in_second_factor: "phone" },
+   } },
+ });
+ const memberRequest = (uid, data) => ({
+   data, auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+ });
+ const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+ 
+ test("advertiser financial events are owner-only, immutable, multi-receipt and idempotent", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const ownerUid = `ad_finance_owner_${tag}`;
+   const campaignId = `ad_campaign_${tag}`;
+   const economyRef = db.doc("platformSettings/economyPricing");
+   const previousEconomy = await economyRef.get();
+   const previousEconomyData = previousEconomy.exists ? previousEconomy.data() : null;
+   const campaignRef = db.collection("timedAdCampaigns").doc(campaignId);
+   const financialRef = db.collection("featuredAdFinancials").doc(campaignId);
+   const versionRef = db.collection("featuredAdFinancialVersions").doc(campaignId).collection("versions");
+   const campaignVersionRef = db.collection("timedAdCampaignVersions").doc(campaignId).collection("versions");
+   const eventRef = financialRef.collection("events");
+   const campaignInput = {
+     campaignId,
+     title: "Test sponsored campaign",
+     sponsorLabel: "Test advertiser",
+     body: "Test-only campaign description.",
+     placement: "reward_center",
+     durationSeconds: 30,
+     rewardCoins: 10,
+     startsAtMs: Date.now() - 1000,
+     endsAtMs: Date.now() + 24 * 60 * 60 * 1000,
+     maxClaimsPerMember: 2,
+     rewardBudgetCoins: 1000,
+   };
+   const base = {
+     campaignId, note: "Verified against advertiser statement.",
+     evidenceReference: "workspace-evidence://approved/receipt-01",
+   };
+   const paymentPolicy = {
+     coin_purchases: { manualEnabled: false, automatedEnabled: false },
+     featured_ads: { manualEnabled: true, automatedEnabled: false },
+     public_ads: { manualEnabled: false, automatedEnabled: false },
+     influencer_services: { manualEnabled: false, automatedEnabled: false },
+     store_entitlements: { manualEnabled: false, automatedEnabled: false },
+   };
+   try {
+     await economyRef.set({
+       ...(previousEconomyData ?? {
+         coinPackages: [], adPrices: [], customCoinRequestBounds: null,
+         version: 1, manualCoinPurchasesEnabled: false,
+         automatedCoinCheckoutEnabled: false, realMoneyCheckoutEnabled: false,
+       }),
+       paymentPolicy,
+     });
+     await setTimedAdCampaign.run(ownerRequest(ownerUid, campaignInput));
+     assert.equal((await campaignVersionRef.doc("1").get()).exists, true);
+     const payment = {
+       ...base, action: "payment_received",
+       idempotencyKey: `payment_key_${tag}`,
+       externalReference: `bank_receipt_1_${tag}`,
+       amountMinor: 10000, currency: "CHF",
+     };
+     const first = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment));
+     assert.equal(first.idempotentReplay, false);
+     assert.equal(first.snapshot.receivedMinor, 10000);
++    const firstEvent = (await eventRef.doc(first.eventId).get()).data();
++    assert.equal(firstEvent.receivedMinor, 10000);
++    assert.equal(firstEvent.refundedMinor, 0);
++    assert.equal(firstEvent.reconciledMinor, 0);
++    assert.equal(firstEvent.reviewStatus, "in_review");
++    assert.equal(firstEvent.paymentStatus, "paid");
+     const replay = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment));
+     assert.equal(replay.idempotentReplay, true);
+     assert.equal((await campaignRef.get()).data().status, "draft");
+     const paymentAuditRef = db.collection("adminAuditLogs").doc(`featured_ad_finance_${first.eventId}`);
+     const paymentVersionRef = versionRef.doc(String(first.version));
+     const savedPaymentAudit = (await paymentAuditRef.get()).data();
+     const savedPaymentVersion = (await paymentVersionRef.get()).data();
+     await paymentAuditRef.delete();
+     await assert.rejects(
+       () => recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment)),
+       (error) => error && error.code === "failed-precondition",
+     );
+     await paymentAuditRef.set(savedPaymentAudit);
+     await paymentVersionRef.delete();
+     await assert.rejects(
+       () => recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment)),
+       (error) => error && error.code === "failed-precondition",
+     );
+     await paymentVersionRef.set(savedPaymentVersion);
+ 
+     const secondPayment = {
+       ...payment, idempotencyKey: `payment_key_2_${tag}`,
+       externalReference: `bank_receipt_2_${tag}`, amountMinor: 5000,
+     };
+     const second = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, secondPayment));
+     assert.equal(second.snapshot.receivedMinor, 15000);
+     assert.equal(second.version, 2);
+ 
+     await assert.rejects(
+       () => recordFeaturedAdFinancialEvent.run(memberRequest(`member_${tag}`, payment)),
+       (error) => error && error.code === "permission-denied",
+     );
+ 
+     const refund = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
+       ...base, action: "refund_recorded",
+       idempotencyKey: `refund_key_${tag}`,
+       externalReference: `bank_refund_${tag}`,
+       amountMinor: 1000, currency: "CHF",
+     }));
+     assert.equal(refund.snapshot.refundedMinor, 1000);
+     const settlement = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
+       ...base, action: "settlement_reconciled",
+       idempotencyKey: `settlement_key_${tag}`,
+       externalReference: `bank_settlement_${tag}`,
+       amountMinor: 14000, currency: "CHF",
+     }));
+     assert.equal(settlement.snapshot.reconciledMinor, 14000);
+     assert.equal(settlement.snapshot.reviewStatus, "reconciled");
+ 
+     const snapshot = await financialRef.get();
+     assert.equal(snapshot.data().receivedMinor, 15000);
+     assert.equal(snapshot.data().refundedMinor, 1000);
+     assert.equal(snapshot.data().version, 4);
+     assert.equal((await versionRef.get()).size, 4);
+     assert.equal((await campaignRef.get()).data().status, "draft");
+     await economyRef.set({ ...((await economyRef.get()).data() ?? {}), paymentPolicy: {
+       ...paymentPolicy,
+       featured_ads: { manualEnabled: false, automatedEnabled: false },
+     } });
+     await assert.rejects(
+       () => recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
+         ...base, action: "payment_received",
+         idempotencyKey: `disabled_payment_${tag}`,
+         externalReference: `disabled_receipt_${tag}`,
+         amountMinor: 100, currency: "CHF",
+       })),
+       (error) => error && error.code === "failed-precondition",
+     );
+   } finally {
+     const [events, versions, audits] = await Promise.all([
+       eventRef.get(), versionRef.get(),
+       db.collection("adminAuditLogs").where("campaignId", "==", campaignId).get(),
+     ]);
+     await Promise.all([
+       ...events.docs.map((doc) => doc.ref.delete()),
+       ...versions.docs.map((doc) => doc.ref.delete()),
+       ...((await campaignVersionRef.get()).docs.map((doc) => doc.ref.delete())),
+       ...audits.docs.map((doc) => doc.ref.delete()),
+       financialRef.delete().catch(() => undefined),
+       campaignRef.delete().catch(() => undefined),
+diff --git a/functions/test/integration/owner-entitlement-grants.integration.test.js b/functions/test/integration/owner-entitlement-grants.integration.test.js
+index 93bb6f43..3d307de2 100644
+--- a/functions/test/integration/owner-entitlement-grants.integration.test.js
++++ b/functions/test/integration/owner-entitlement-grants.integration.test.js
+@@ -1,132 +1,132 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const { createHash } = require("node:crypto");
+ const { getFirestore } = require("firebase-admin/firestore");
+ const {
+   grantStoreEntitlement,
+   bulkGrantStoreEntitlements,
+   getMyEntitlementGrantHistory,
+   purchaseStoreItem,
+ } = require("../../lib/index");
+ 
+ const db = getFirestore();
+ const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+ const memberRequest = (uid, data = {}) => ({ data, auth: { uid, token: { firebase: { sign_in_provider: "password" } } } });
+ const ownerRequest = (uid, data) => ({
+   data,
+   auth: { uid, token: {
+     platformOwner: true,
+     platformOwnerUid: uid,
+     auth_time: Math.floor(Date.now() / 1000),
+     firebase: { sign_in_second_factor: "phone" },
+   } },
+ });
+ const makeGrantId = (requestId, uid) =>
+   createHash("sha256").update(`mawdda-owner-grant-v1:${requestId}:${uid}`).digest("hex");
+ 
+ test("owner free grant is MFA-gated, audited, coin-neutral, idempotent and repeatable", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const ownerUid = `grant_owner_${tag}`;
+   const memberUid = `grant_member_${tag}`;
+   const itemId = "vip_monthly";
+   const requestId = `owner_grant_${tag}`;
+   const grantId = makeGrantId(requestId, memberUid);
+   const secondRequestId = `owner_grant_again_${tag}`;
+   const secondGrantId = makeGrantId(secondRequestId, memberUid);
+   const memberRef = db.collection("users").doc(memberUid);
+   const itemRef = db.collection("storeCatalog").doc(itemId);
+   const entitlementRef = memberRef.collection("entitlements").doc(itemId);
+   const grantRef = db.collection("ownerEntitlementGrants").doc(grantId);
+   const ledgerRef = memberRef.collection("entitlementGrantLedger").doc(grantId);
+   const auditRef = db.collection("adminAuditLogs").doc(`owner_entitlement_grant_${grantId}`);
+   const secondGrantRef = db.collection("ownerEntitlementGrants").doc(secondGrantId);
+   const secondLedgerRef = memberRef.collection("entitlementGrantLedger").doc(secondGrantId);
+   const secondAuditRef = db.collection("adminAuditLogs").doc(`owner_entitlement_grant_${secondGrantId}`);
+ 
+   await Promise.all([
+     memberRef.set({ uid: memberUid, profileCompleted: true, accountStatus: "active", coins: 4321 }),
+     itemRef.set({
+       itemId, name: "VIP", description: "Owner free-grant integration fixture",
+-      category: "vip", priceCoins: 900, durationDays: 30, sortOrder: 1,
+-      active: true, purchaseEnabled: false, fulfillmentReady: true,
++      category: "vip", priceCoins: 900, durationDays: 30, version: 1, sortOrder: 1,
++      active: true, purchaseEnabled: true, fulfillmentReady: true,
+     }),
+   ]);
+ 
+   try {
+     const before = Date.now();
+     const input = {
+       memberUid, itemId, requestId, durationHours: 24,
+       reason: "Approved owner goodwill grant",
+     };
+     const first = await grantStoreEntitlement.run(ownerRequest(ownerUid, input));
+     assert.equal(first.status, "granted");
+     assert.equal(first.idempotentReplay, false);
+     assert.ok(first.expiresAt >= before + 24 * 60 * 60 * 1000 - 5000);
+     assert.ok(first.expiresAt <= Date.now() + 24 * 60 * 60 * 1000 + 5000);
+ 
+     const [member, entitlement, grant, ledger, audit] = await Promise.all([
+       memberRef.get(), entitlementRef.get(), grantRef.get(), ledgerRef.get(), auditRef.get(),
+     ]);
+     assert.equal(member.data().coins, 4321, "free entitlement grants never debit coins");
+     assert.equal(entitlement.data().status, "active");
+     assert.equal(entitlement.data().grantSource, "platform_owner");
+     assert.equal(entitlement.data().grantId, grantId);
+     assert.equal(grant.data().status, "granted");
+     assert.equal(ledger.data().type, "owner_entitlement_grant");
+     assert.equal(audit.data().action, "owner_entitlement_granted");
+     assert.equal((await memberRef.collection("walletLedger").get()).size, 0);
+ 
+     const replay = await grantStoreEntitlement.run(ownerRequest(ownerUid, input));
+     assert.equal(replay.idempotentReplay, true);
+     assert.equal(replay.expiresAt, first.expiresAt);
+     assert.equal((await entitlementRef.get()).data().expiresAt.toMillis(), first.expiresAt);
+ 
+     const second = await grantStoreEntitlement.run(ownerRequest(ownerUid, {
+       ...input, requestId: secondRequestId, durationHours: 24,
+     }));
+     assert.equal(second.idempotentReplay, false);
+     assert.ok(second.expiresAt >= first.expiresAt + 24 * 60 * 60 * 1000 - 1000);
+     assert.equal((await memberRef.get()).data().coins, 4321);
+ 
+     // Expire the current grant and purchase the same item. Replaying the first
+     // grant must not overwrite the newer paid entitlement.
+     await entitlementRef.update({ expiresAt: new Date(Date.now() - 1000) });
+     await itemRef.update({ purchaseEnabled: true });
+     const purchaseRequestId = `purchase_after_grant_${tag}`;
+     const purchaseId = `${memberUid}_${purchaseRequestId}`;
+     const purchaseLedgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
+     const purchase = await purchaseStoreItem.run(memberRequest(memberUid, {
+       itemId, requestId: purchaseRequestId, expectedPriceCoins: 900,
+     }));
+     assert.equal(purchase.idempotentReplay, false);
+     assert.equal(purchase.newBalance, 3421);
+     assert.equal((await entitlementRef.get()).data().purchaseId, purchaseId);
+ 
+     const replayAfterPurchase = await grantStoreEntitlement.run(ownerRequest(ownerUid, input));
+     assert.equal(replayAfterPurchase.idempotentReplay, true);
+     assert.equal((await entitlementRef.get()).data().purchaseId, purchaseId);
+     assert.equal((await memberRef.get()).data().coins, 3421);
+ 
+     await auditRef.delete();
+     await assert.rejects(
+       () => grantStoreEntitlement.run(ownerRequest(ownerUid, input)),
+       (error) => error && error.code === "failed-precondition",
+     );
+     assert.equal((await entitlementRef.get()).data().purchaseId, purchaseId);
+ 
+     const history = await getMyEntitlementGrantHistory.run(memberRequest(memberUid));
+     assert.equal(history.entries.length, 2);
+     assert.ok(history.entries.every((entry) => entry.itemId === itemId));
+     assert.ok(history.entries.every((entry) => !("reason" in entry) && !("actorUid" in entry)));
+   } finally {
+     await Promise.all([
+       db.recursiveDelete(memberRef).catch(() => undefined),
+       itemRef.delete().catch(() => undefined),
+       grantRef.delete().catch(() => undefined),
+       ledgerRef.delete().catch(() => undefined),
+       auditRef.delete().catch(() => undefined),
+       db.collection("storePurchases").doc(`${memberUid}_purchase_after_grant_${tag}`).delete().catch(() => undefined),
+       memberRef.collection("walletLedger").doc(`store_${memberUid}_purchase_after_grant_${tag}`).delete().catch(() => undefined),
+       secondGrantRef.delete().catch(() => undefined),
+       secondLedgerRef.delete().catch(() => undefined),
+diff --git a/functions/test/integration/premium-profile.integration.test.js b/functions/test/integration/premium-profile.integration.test.js
+index 307bed02..d64604be 100644
+--- a/functions/test/integration/premium-profile.integration.test.js
++++ b/functions/test/integration/premium-profile.integration.test.js
+@@ -115,189 +115,190 @@ test("premium profile features enforce entitlements, count unique views, and ran
+       () => setMemberCustomTitle.run(call(targetUid, { title: "bad\nline" })),
+       (error) => error && error.code === "invalid-argument",
+     );
+     await targetRef.collection("entitlements").doc("title_custom").update({
+       expiresAt: Timestamp.fromMillis(Date.now() - 1000),
+     });
+     const expiredTitleView = await getMemberProfile.run(call(targetUid, { userId: targetUid }));
+     assert.equal(expiredTitleView.activeTitle, null);
+     await assert.rejects(
+       () => setMemberCustomTitle.run(call(targetUid, { title: "لقب منتهي" })),
+       (error) => error && error.code === "failed-precondition",
+     );
+     assert.deepEqual(
+       new Set(ownerView.activeFeatures.map((feature) => feature.itemId)),
+       new Set(profileEntitlements.map(([itemId]) => itemId)),
+     );
+ 
+     await setMemberProfileVisitorGreeting.run(call(targetUid, { greeting: "أهلاً بك في مودة!" }));
+     await setMemberPinnedProfileSection.run(call(targetUid, { section: "gallery" }));
+     const updatedTarget = (await targetRef.get()).data();
+     assert.equal(updatedTarget.profileVisitorGreeting, "أهلاً بك في مودة!");
+     assert.equal(updatedTarget.pinnedProfileSection, "gallery");
+ 
+     const discovery = await discoverMembers.run(call(viewerUid));
+     const discovered = discovery.members;
+     assert.ok(discovered.some((member) => member.uid === targetUid && member.isBoosted));
+     assert.ok(!discovered.some((member) => member.uid === minorUid));
+     assert.ok(!discovered.some((member) => member.uid === blockedUid));
+     assert.ok(discovered.findIndex((member) => member.uid === targetUid) <
+       discovered.findIndex((member) => member.uid === regularUid));
+ 
+     await assert.rejects(
+       () => getMemberProfile.run(call(minorUid, { userId: targetUid })),
+       (error) => error && error.code === "permission-denied",
+     );
+     await assert.rejects(
+       () => setMemberProfileVisitorGreeting.run(call(viewerUid, { greeting: "No entitlement" })),
+       (error) => error && error.code === "failed-precondition",
+     );
+   } finally {
+     await Promise.all(refs.map((ref) => db.recursiveDelete(ref).catch(() => undefined)));
+     const audit = await db.collection("profileFeatureAuditLogs").where("actorUid", "==", targetUid).get();
+     await Promise.all(audit.docs.map((doc) => doc.ref.delete()));
+   }
+ });
+ 
+ test("real store purchases flow into the member profile and disappear when their entitlement expires", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const memberUid = uid("premium_purchase_member");
+   const memberRef = db.collection("users").doc(memberUid);
+   const items = [
+     ["vip_monthly", "vip", 30],
+     ["title_custom", "title", 30],
+     ["badge_special", "badge", 30],
+     ["avatar_frame_30d", "frame", 30],
+     ["username_color_30d", "username_style", 30],
+     ["username_animated_30d", "username_style", 30],
+     ["profile_analytics_30d", "analytics", 30],
+     ["profile_layout_30d", "profile_layout", 30],
+     ["profile_pin_30d", "profile_layout", 30],
+     ["discovery_boost_7d", "boost", 7],
+     ["profile_theme_30d", "theme", 30],
+     ["visitor_greeting_30d", "greeting", 30],
+   ];
+   const catalogRefs = items.map(([itemId]) => db.collection("storeCatalog").doc(itemId));
+   const purchaseRefs = [];
+   const ledgerRefs = [];
+   const entitlementRefs = [];
+   const priceCoins = 100;
+ 
+   await memberRef.set(profile(30, { coins: 5000 }));
+   try {
+     await Promise.all(items.map(([itemId, category, durationDays], index) =>
+       catalogRefs[index].set({
+         itemId,
+         name: `ميزة ${itemId}`,
+         description: "اختبار شراء واستحقاق الملف الشخصي",
+         category,
+         priceCoins,
+         durationDays,
++        version: 1,
+         sortOrder: index + 1,
+         active: true,
+         purchaseEnabled: true,
+         fulfillmentReady: true,
+       }),
+     ));
+ 
+     for (const [index, [itemId, category]] of items.entries()) {
+       const requestId = `profile_purchase_${memberUid}_${index}`;
+       const purchaseId = `${memberUid}_${requestId}`;
+       const purchaseRef = db.collection("storePurchases").doc(purchaseId);
+       const ledgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
+       const entitlementRef = memberRef.collection("entitlements").doc(itemId);
+       purchaseRefs.push(purchaseRef);
+       ledgerRefs.push(ledgerRef);
+       entitlementRefs.push(entitlementRef);
+ 
+       const result = await purchaseStoreItem.run(call(memberUid, {
+         itemId, requestId, expectedPriceCoins: priceCoins,
+       }));
+       assert.equal(result.idempotentReplay, false, itemId);
+       assert.equal(result.newBalance, 5000 - (index + 1) * priceCoins, itemId);
+ 
+       const [receipt, ledger, entitlement] = await Promise.all([
+         purchaseRef.get(), ledgerRef.get(), entitlementRef.get(),
+       ]);
+       assert.equal(receipt.data()?.status, "completed", itemId);
+       assert.equal(receipt.data()?.itemId, itemId, itemId);
+       assert.equal(ledger.data()?.type, "store_purchase", itemId);
+       assert.equal(ledger.data()?.amount, -priceCoins, itemId);
+       assert.equal(ledger.data()?.purchaseId, purchaseId, itemId);
+       assert.equal(entitlement.data()?.status, "active", itemId);
+       assert.equal(entitlement.data()?.category, category, itemId);
+       assert.ok(entitlement.data()?.expiresAt.toMillis() > Date.now(), itemId);
+     }
+ 
+     const profileView = await getMemberProfile.run(call(memberUid, { userId: memberUid }));
+     assert.equal(profileView.vipActive, true);
+     assert.equal(profileView.activeTitle, "ميزة title_custom");
+     assert.deepEqual(
+       new Set(profileView.activeFeatures.map((feature) => feature.itemId)),
+       new Set(items.map(([itemId]) => itemId)),
+     );
+     assert.equal(profileView.discoveryBoostActive, true);
+ 
+     await setMemberCustomTitle.run(call(memberUid, { title: "سفير مودة" }));
+     const customized = await getMemberProfile.run(call(memberUid, { userId: memberUid }));
+     assert.equal(customized.activeTitle, "سفير مودة");
+ 
+     await entitlementRefs[0].update({ expiresAt: Timestamp.fromMillis(Date.now() - 1000) });
+     await entitlementRefs[2].update({ expiresAt: Timestamp.fromMillis(Date.now() - 1000) });
+     const expired = await getMemberProfile.run(call(memberUid, { userId: memberUid }));
+     assert.equal(expired.vipActive, false);
+     assert.ok(!expired.activeFeatures.some((feature) => feature.itemId === "vip_monthly"));
+     assert.ok(!expired.activeFeatures.some((feature) => feature.itemId === "badge_special"));
+   } finally {
+     await Promise.all([
+       ...purchaseRefs.map((ref) => ref.delete().catch(() => undefined)),
+       ...ledgerRefs.map((ref) => ref.delete().catch(() => undefined)),
+       ...entitlementRefs.map((ref) => ref.delete().catch(() => undefined)),
+       ...catalogRefs.map((ref) => ref.delete().catch(() => undefined)),
+       db.recursiveDelete(memberRef).catch(() => undefined),
+     ]);
+   }
+ });
+ 
+ test("concurrent retries of the same store purchase debit the wallet only once", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const memberUid = uid("concurrent_store_member");
+   const memberRef = db.collection("users").doc(memberUid);
+   const itemRef = db.collection("storeCatalog").doc("vip_monthly");
+   const requestId = `concurrent_purchase_${memberUid}`;
+   const purchaseId = `${memberUid}_${requestId}`;
+   const purchaseRef = db.collection("storePurchases").doc(purchaseId);
+   const ledgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
+   const entitlementRef = memberRef.collection("entitlements").doc("vip_monthly");
+ 
+   await Promise.all([
+     memberRef.set(profile(30, { coins: 1000 })),
+     itemRef.set({
+       itemId: "vip_monthly", name: "VIP", description: "Concurrent purchase test",
+-      category: "vip", priceCoins: 600, durationDays: 30, sortOrder: 1,
++      category: "vip", priceCoins: 600, durationDays: 30, version: 1, sortOrder: 1,
+       active: true, purchaseEnabled: true, fulfillmentReady: true,
+     }),
+   ]);
+   try {
+     const request = call(memberUid, {
+       itemId: "vip_monthly", requestId, expectedPriceCoins: 600,
+     });
+     const results = await Promise.all([
+       purchaseStoreItem.run(request),
+       purchaseStoreItem.run(request),
+     ]);
+     assert.equal(results.filter((result) => result.idempotentReplay === false).length, 1);
+     assert.equal(results.filter((result) => result.idempotentReplay === true).length, 1);
+     assert.equal((await memberRef.get()).data()?.coins, 400);
+     assert.equal((await purchaseRef.get()).data()?.status, "completed");
+     assert.equal((await ledgerRef.get()).data()?.amount, -600);
+     assert.equal((await entitlementRef.get()).data()?.status, "active");
+   } finally {
+     await Promise.all([
+       purchaseRef.delete().catch(() => undefined),
+       ledgerRef.delete().catch(() => undefined),
+       entitlementRef.delete().catch(() => undefined),
+       itemRef.delete().catch(() => undefined),
+       db.recursiveDelete(memberRef).catch(() => undefined),
+     ]);
+   }
+ });
+diff --git a/functions/test/integration/wallet-store.integration.test.js b/functions/test/integration/wallet-store.integration.test.js
+index 8878cc8f..9da8df2c 100644
+--- a/functions/test/integration/wallet-store.integration.test.js
++++ b/functions/test/integration/wallet-store.integration.test.js
+@@ -136,168 +136,174 @@ test("coin transfer rejects a suspended account and leaves both balances unchang
+     await assert.rejects(
+       () => transferCoins.run(memberRequest(senderUid, {
+         recipientUid, amount: 100, requestId: `suspended_${tag}`, expectedCommissionBps: 1000,
+       })),
+       (error) => error && error.code === "permission-denied",
+     );
+     assert.equal((await senderRef.get()).data().coins, 1000);
+     assert.equal((await recipientRef.get()).data().coins, 100);
+   } finally {
+     await Promise.all([
+       senderRef.delete().catch(() => undefined),
+       recipientRef.delete().catch(() => undefined),
+       db.doc("platformSettings/coinTransfers").set({ enabled: false, commissionBps: 0, version: 0 }),
+     ]);
+   }
+ });
+ 
+ test("coin transfer rejects an ineligible recipient and insufficient sender balance without partial writes", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const senderUid = `eligible_sender_${tag}`;
+   const blockedRecipientUid = `blocked_recipient_${tag}`;
+   const poorSenderUid = `poor_sender_${tag}`;
+   const eligibleRecipientUid = `eligible_recipient_${tag}`;
+   const refs = [
+     db.collection("users").doc(senderUid),
+     db.collection("users").doc(blockedRecipientUid),
+     db.collection("users").doc(poorSenderUid),
+     db.collection("users").doc(eligibleRecipientUid),
+   ];
+   await Promise.all([
+     refs[0].set({ coins: 1000, accountStatus: "active" }),
+     refs[1].set({ coins: 100, accountStatus: "disabled" }),
+     refs[2].set({ coins: 10, accountStatus: "active" }),
+     refs[3].set({ coins: 50, accountStatus: "active" }),
+     db.doc("platformSettings/coinTransfers").set({ enabled: true, commissionBps: 1000 }),
+   ]);
+   try {
+     await assert.rejects(
+       () => transferCoins.run(memberRequest(senderUid, {
+         recipientUid: blockedRecipientUid, amount: 100,
+         requestId: `blocked_recipient_${tag}`, expectedCommissionBps: 1000,
+       })),
+       (error) => error && error.code === "permission-denied",
+     );
+     await assert.rejects(
+       () => transferCoins.run(memberRequest(poorSenderUid, {
+         recipientUid: eligibleRecipientUid, amount: 100,
+         requestId: `insufficient_${tag}`, expectedCommissionBps: 1000,
+       })),
+       (error) => error && error.code === "failed-precondition",
+     );
+     assert.equal((await refs[0].get()).data().coins, 1000);
+     assert.equal((await refs[1].get()).data().coins, 100);
+     assert.equal((await refs[2].get()).data().coins, 10);
+     assert.equal((await refs[3].get()).data().coins, 50);
+     const failedTransfers = await db.collection("coinTransfers")
+       .where("senderUid", "in", [senderUid, poorSenderUid]).get();
+     assert.equal(failedTransfers.empty, true);
+   } finally {
+     await Promise.all([
+       ...refs.map((ref) => ref.delete().catch(() => undefined)),
+       db.doc("platformSettings/coinTransfers").set({ enabled: false, commissionBps: 0, version: 0 }),
+     ]);
+   }
+ });
+ 
+ test("store purchase atomically charges, records receipt and ledger, grants entitlement, and is idempotent", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const uid = `store_member_${tag}`;
+   const itemId = "vip_monthly";
+   const requestId = `purchase_${tag}`;
+   const purchaseId = `${uid}_${requestId}`;
+   const memberRef = db.collection("users").doc(uid);
+   const itemRef = db.collection("storeCatalog").doc(itemId);
+   const purchaseRef = db.collection("storePurchases").doc(purchaseId);
+   const ledgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
+   const entitlementRef = memberRef.collection("entitlements").doc(itemId);
+ 
+-  await Promise.all([
+-    memberRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active" }),
+-    itemRef.set({
+-      name: "VIP test item", description: "Emulator-only entitlement test",
+-      category: "vip", priceCoins: 1250, durationDays: 30, sortOrder: 1,
+-      active: true, purchaseEnabled: true, fulfillmentReady: true,
+-    }),
+-  ]);
++  await memberRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active" });
++  const firstPublish = await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
++    itemId, name: "VIP test item", description: "Emulator-only entitlement test",
++    category: "vip", priceCoins: 1250, durationDays: 30, sortOrder: 1,
++    active: true, purchaseEnabled: true, fulfillmentReady: true,
++  }));
++  assert.equal(firstPublish.version, 1);
++  const secondPublish = await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
++    itemId, name: "VIP test item", description: "Emulator-only entitlement test",
++    category: "vip", priceCoins: 1250, durationDays: 30, sortOrder: 1,
++    active: true, purchaseEnabled: true, fulfillmentReady: true,
++  }));
++  assert.equal(secondPublish.version, 2);
++  assert.equal((await itemRef.get()).data().version, 2);
+   try {
+     const request = memberRequest(uid, { itemId, requestId, expectedPriceCoins: 1250 });
+     const result = await purchaseStoreItem.run(request);
+     assert.equal(result.priceCoins, 1250);
+     assert.equal(result.newBalance, 3750);
+     assert.equal(result.idempotentReplay, false);
+ 
+     const [member, purchase, ledger, entitlement] = await Promise.all([
+       memberRef.get(), purchaseRef.get(), ledgerRef.get(), entitlementRef.get(),
+     ]);
+     assert.equal(member.data().coins, 3750);
+     assert.equal(purchase.data().status, "completed");
+     assert.equal(purchase.data().priceCoins, 1250);
+     assert.equal(ledger.data().amount, -1250);
+     assert.equal(ledger.data().balanceBefore, 5000);
+     assert.equal(ledger.data().balanceAfter, 3750);
+     assert.equal(purchase.data().balanceBefore, 5000);
+     assert.equal(purchase.data().newBalance, 3750);
+     assert.equal(ledger.data().purchaseId, purchaseId);
+     assert.equal(entitlement.data().status, "active");
+     assert.equal(entitlement.data().category, "vip");
+     assert.ok(entitlement.data().expiresAt.toMillis() > Date.now());
+ 
+     const replay = await purchaseStoreItem.run(request);
+     assert.equal(replay.idempotentReplay, true);
+     assert.equal((await memberRef.get()).data().coins, 3750);
+     await ledgerRef.delete();
+     await assert.rejects(
+       () => purchaseStoreItem.run(request),
+       (error) => error && error.code === "failed-precondition",
+     );
+     assert.equal((await memberRef.get()).data().coins, 3750);
+ 
+     await assert.rejects(
+       () => purchaseStoreItem.run(memberRequest(uid, {
+         itemId, requestId: `another_${tag}`, expectedPriceCoins: 1000,
+       })),
+       (error) => error && error.code === "failed-precondition",
+     );
+   } finally {
+     await Promise.all([
+       ledgerRef.delete().catch(() => undefined),
+       purchaseRef.delete().catch(() => undefined),
+       entitlementRef.delete().catch(() => undefined),
+       itemRef.delete().catch(() => undefined),
+       memberRef.delete().catch(() => undefined),
+     ]);
+   }
+ });
+ 
+ 
+ test("owner catalog seeds approved features as ready while keeping purchases disabled", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const result = await getOwnerStoreCatalog.run(ownerRequest());
+   const items = result.items;
+   const expected = new Map([
+     ["vip_monthly", 5000], ["title_custom", 800], ["badge_special", 1200],
+     ["avatar_frame_30d", 2500], ["username_color_30d", 1200],
+     ["username_animated_30d", 3000], ["profile_analytics_30d", 1800],
+     ["profile_layout_30d", 3500], ["profile_pin_30d", 900],
+     ["discovery_boost_7d", 1500], ["profile_theme_30d", 2000],
+     ["visitor_greeting_30d", 1000], ["hide_coins_30d", 1000], ["ghost_mode_7d", 1800],
+   ]);
+   for (const [itemId, price] of expected) {
+     const item = items.find((entry) => entry.itemId === itemId);
+     assert.ok(item, `missing starter catalog item: ${itemId}`);
+     assert.equal(item.priceCoins, price);
+     const implemented = !["hide_coins_30d", "ghost_mode_7d"].includes(itemId);
+     assert.equal(item.active, implemented);
+     assert.equal(item.purchaseEnabled, false);
+     assert.equal(item.fulfillmentReady, implemented);
+   }
+ });
+ 
+ 
+ test("owner economy pricing never seeds commercial defaults and publishes immutable per-service policy versions", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const settingsRef = db.doc("platformSettings/economyPricing");
+   const versionCollection = db.collection("platformSettings").doc("economyPricingVersions").collection("versions");
+   const previous = await settingsRef.get();
+@@ -339,288 +345,290 @@ test("owner economy pricing never seeds commercial defaults and publishes immuta
+     const versionRef = versionCollection.doc("1");
+     const versionSnapshot = await versionRef.get();
+     assert.equal(versionSnapshot.exists, true);
+     assert.equal(versionSnapshot.data().coinPackages[0].currency, "CHF");
+     assert.equal(versionSnapshot.data().paymentPolicy.featured_ads.manualEnabled, true);
+ 
+     const readback = await getOwnerEconomyPricing.run(ownerRequest());
+     assert.equal(readback.configured, true);
+     assert.equal(readback.version, 1);
+     assert.equal(readback.coinPackages[0].priceMinor, 12500);
+     assert.equal(readback.coinPackages[0].currencyExponent, 2);
+     assert.deepEqual(readback.customCoinRequestBounds, { minCoins: 100, maxCoins: 50000 });
+     assert.equal(readback.paymentPolicy.coin_purchases.manualEnabled, true);
+     assert.equal(readback.paymentPolicy.featured_ads.manualEnabled, true);
+     assert.equal(readback.paymentPolicy.public_ads.manualEnabled, false);
+     assert.equal(readback.paymentPolicy.influencer_services.manualEnabled, false);
+     assert.equal(readback.paymentPolicy.store_entitlements.manualEnabled, false);
+     assert.equal(readback.paymentPolicy.coin_purchases.automatedEnabled, false);
+ 
+     const available = await getAvailableCoinPackages.run();
+     assert.equal(available.manualPurchasesEnabled, true);
+     assert.equal(available.automatedCheckoutEnabled, false);
+     assert.equal(available.packages.length, 1);
+     assert.equal(available.customCoinRequestBounds.maxCoins, 50000);
+ 
+     await assert.rejects(
+       () => setOwnerEconomyPricing.run(memberRequest("not_owner", {
+         coinPackages: packages, adPrices: ads, manualCoinPurchasesEnabled: true,
+         paymentPolicy,
+       })),
+       (error) => error && error.code === "permission-denied",
+     );
+   } finally {
+     const currentVersions = await versionCollection.get();
+     await Promise.all(currentVersions.docs.map((doc) => doc.ref.delete()));
+     await Promise.all(previousVersions.docs.map((doc) => doc.ref.set(doc.data())));
+     const currentAuditQuery = await db.collection("adminAuditLogs")
+       .where("actorUid", "==", "store-catalog-owner").get();
+     const currentAudit = currentAuditQuery.docs.filter((doc) =>
+       doc.data().action === "economy_pricing_updated");
+     const priorIds = new Set(previousAudit.map((doc) => doc.id));
+     await Promise.all(currentAudit.filter((doc) => !priorIds.has(doc.id)).map((doc) => doc.ref.delete()));
+     if (previousData) await settingsRef.set(previousData);
+     else await settingsRef.delete().catch(() => undefined);
+   }
+ });
+ 
+ test("owner authority is bound to the single canonical owner UID", async () => {
+   const mismatched = ownerRequest("different-owner", {});
+   mismatched.auth.token.platformOwnerUid = "canonical-owner";
+   await assert.rejects(
+     () => listOwnerCoinPurchaseRequests.run(mismatched),
+     (error) => error && error.code === "permission-denied",
+   );
+   const missing = ownerRequest("legacy-owner", {});
+   delete missing.auth.token.platformOwnerUid;
+   await assert.rejects(
+     () => listOwnerCoinPurchaseRequests.run(missing),
+     (error) => error && error.code === "permission-denied",
+   );
+ });
+ 
+ test("manual coin package request issues no coins until owner verifies external payment; approval is atomic and idempotent", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const uid = `manual_coin_member_${tag}`;
+   const requestId = `manual_${tag}`;
+   const requestDoc = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
+   const userRef = db.collection("users").doc(uid);
+   const ledgerRef = userRef.collection("walletLedger").doc(`coin_purchase_${requestId}`);
+   const approvalAuditRef = db.collection("adminAuditLogs")
+     .doc(`coin_purchase_approval_${uid}_${requestId}`);
+   const settingsRef = db.doc("platformSettings/economyPricing");
+   await Promise.all([
+     userRef.set({ coins: 40, profileCompleted: true, accountStatus: "active" }),
+     settingsRef.set({
+       coinPackages: [{ packageId: "test_pack", name: "Test package", coins: 900,
+         priceMinor: 500, currency: "CHF", active: true }],
+       adPrices: [{ placementId: "test_ad", name: "Test ad", billingModel: "daily",
+         priceMinor: 100, currency: "CHF", active: true }],
+-      manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, version: 1,
++      manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false,
++      customCoinRequestBounds: { minCoins: 100, maxCoins: 100000 }, version: 1,
+     }),
+   ]);
+   try {
+     const member = memberRequest(uid, { requestId, kind: "package", packageId: "test_pack" });
+     const created = await createCoinPurchaseRequest.run(member);
+     assert.equal(created.status, "pending_owner_contact");
+     const memberRequests = await getMyCoinPurchaseRequests.run(member);
+     assert.equal(memberRequests.requests.length, 1);
+     assert.equal(memberRequests.requests[0].requestId, requestId);
+     assert.equal((await userRef.get()).data().coins, 40);
+     assert.equal((await requestDoc.get()).data().status, "pending_owner_contact");
+ 
+     const instructionResult = await setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
+       requesterUid: uid, requestId, instructions: "يرجى التواصل مع المالك لإتمام التحويل البنكي",
+       agreedCoins: 900, agreedPriceMinor: 500, currency: "CHF",
+       expectedInstructionsVersion: 0,
+     }));
+     assert.equal((await requestDoc.get()).data().status, "payment_instructions_sent");
+     assert.equal((await requestDoc.get()).data().paymentPolicySnapshot.manualEnabled, true);
+     await assert.rejects(
+       () => withdrawCoinPurchaseRequest.run(memberRequest(uid, { requestId })),
+       (error) => error && error.code === "failed-precondition",
+     );
+     await assert.rejects(
+       () => setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
+         requesterUid: uid, requestId, instructions: "تعديل ممنوع بعد الإصدار",
+         agreedCoins: 900, agreedPriceMinor: 500, currency: "CHF",
+         expectedInstructionsVersion: 0,
+       })),
+       (error) => error && error.code === "failed-precondition",
+     );
+     const reported = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
+       requestId, expectedInstructionsVersion: 1,
+     }));
+     assert.equal(reported.status, "awaiting_payment_verification");
+     assert.equal(reported.idempotentReplay, false);
+     assert.equal((await userRef.get()).data().coins, 40);
+     const reportReplay = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
+       requestId, expectedInstructionsVersion: 1,
+     }));
+     assert.equal(reportReplay.idempotentReplay, true);
+     const reportAuditRef = db.collection("adminAuditLogs")
+       .doc(`coin_purchase_payment_report_${uid}_${requestId}_1`);
+     const reportAudit = (await reportAuditRef.get()).data();
+     assert.equal(reportAudit.paymentPolicySnapshot.service, "coin_purchases");
+     assert.equal(reportAudit.paymentPolicyVersion, 1);
+     await reportAuditRef.delete();
+     await assert.rejects(
+       () => requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
+         requestId, expectedInstructionsVersion: 1,
+       })),
+       (error) => error && error.code === "failed-precondition",
+     );
+     await reportAuditRef.set(reportAudit);
+     const ownerVerificationQueue = await listOwnerCoinPurchaseRequests.run(ownerRequest("manual-owner", {
+       status: "awaiting_payment_verification",
+     }));
+     assert.ok(ownerVerificationQueue.requests.some((entry) => entry.requestId === requestId));
+     assert.ok(instructionResult.chatId);
+     const chatMessages = await db.collection("directChats").doc(instructionResult.chatId)
+       .collection("messages").get();
+     assert.equal(chatMessages.size, 1);
+     assert.equal(chatMessages.docs[0].data().isPlatformOwnerMessage, true);
+     assert.match(chatMessages.docs[0].data().text, /تعليمات الدفع/);
+     assert.equal((await userRef.get()).data().coins, 40);
+ 
+     const approvalInput = {
+       requesterUid: uid, requestId, externalPaymentVerified: true,
+       externalPaymentReference: `verified-${tag}`,
+       verificationNote: "تحقق المالك يدوياً من وصول المبلغ إلى الحساب الخارجي",
+     };
+     const approved = await approveCoinPurchaseRequest.run(ownerRequest("manual-owner", approvalInput));
+     assert.equal(approved.status, "approved");
+     assert.equal(approved.newBalance, 940);
+     assert.equal(approved.idempotentReplay, false);
+     const [user, ledger, purchase] = await Promise.all([
+       userRef.get(), ledgerRef.get(), requestDoc.get(),
+     ]);
+     assert.equal(user.data().coins, 940);
+     assert.equal(ledger.data().amount, 900);
+     assert.equal(ledger.data().type, "coin_purchase_manual_credit");
+     assert.equal(ledger.data().externalPaymentReference, `verified-${tag}`);
+     assert.equal(ledger.data().currency, "CHF");
+     assert.equal(ledger.data().currencyExponent, 2);
+     assert.equal(ledger.data().paymentPolicySnapshot.service, "coin_purchases");
+     assert.equal(ledger.data().paymentPolicyVersion, 1);
+     assert.equal(purchase.data().status, "approved");
+ 
+     const replay = await approveCoinPurchaseRequest.run(ownerRequest("manual-owner", approvalInput));
+     assert.equal(replay.idempotentReplay, true);
+     assert.equal((await userRef.get()).data().coins, 940);
+     const approvalAudit = (await approvalAuditRef.get()).data();
+     assert.equal(approvalAudit.paymentPolicySnapshot.service, "coin_purchases");
+     assert.equal(approvalAudit.paymentPolicyVersion, 1);
+     assert.equal(approvalAudit.instructionsVersion, 1);
+     await approvalAuditRef.delete();
+     await assert.rejects(
+       () => approveCoinPurchaseRequest.run(ownerRequest("manual-owner", approvalInput)),
+       (error) => error && error.code === "failed-precondition",
+     );
+     assert.equal((await userRef.get()).data().coins, 940);
+   } finally {
+     await Promise.all([
+       ledgerRef.delete().catch(() => undefined),
+       approvalAuditRef.delete().catch(() => undefined),
+       requestDoc.delete().catch(() => undefined),
+       userRef.delete().catch(() => undefined),
+       settingsRef.delete().catch(() => undefined),
+     ]);
+   }
+ });
+ 
+ test("custom coin request is negotiated manually and a withdrawn request cannot be credited", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const uid = `manual_custom_member_${tag}`;
+   const requestId = `custom_${tag}`;
+   const requestDoc = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
+   const userRef = db.collection("users").doc(uid);
+   await Promise.all([
+     userRef.set({ coins: 25, profileCompleted: true, accountStatus: "active" }),
+     db.doc("platformSettings/economyPricing").set({
+       coinPackages: [{ packageId: "test_pack", name: "Test package", coins: 900,
+         priceMinor: 500, currency: "EUR", active: true }],
+       adPrices: [{ placementId: "test_ad", name: "Test ad", billingModel: "daily",
+         priceMinor: 100, currency: "EUR", active: true }],
+-      manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, version: 1,
++      manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false,
++      customCoinRequestBounds: { minCoins: 100, maxCoins: 100000 }, version: 1,
+     }),
+   ]);
+   try {
+     await createCoinPurchaseRequest.run(memberRequest(uid, {
+       requestId, kind: "custom", requestedCoins: 12345,
+     }));
+     assert.equal((await requestDoc.get()).data().requestedCoins, 12345);
+     assert.equal((await userRef.get()).data().coins, 25);
+     await withdrawCoinPurchaseRequest.run(memberRequest(uid, { requestId }));
+     assert.equal((await requestDoc.get()).data().status, "withdrawn");
+     await assert.rejects(
+       () => approveCoinPurchaseRequest.run(ownerRequest("manual-owner", {
+         requesterUid: uid, requestId, externalPaymentVerified: true,
+         externalPaymentReference: "external-ref-123",
+         verificationNote: "تم التحقق يدوياً من التحويل",
+       })),
+       (error) => error && error.code === "failed-precondition",
+     );
+     assert.equal((await userRef.get()).data().coins, 25);
+     assert.equal((await db.collection("users").doc(uid).collection("walletLedger").get()).empty, true);
+   } finally {
+     await Promise.all([requestDoc.delete().catch(() => undefined), userRef.delete().catch(() => undefined), db.doc("platformSettings/economyPricing").delete().catch(() => undefined)]);
+   }
+ });
+ 
+ 
+ test("owner live streams are scoped to owner direct chats or active rooms and are idempotent", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const ownerUid = `live_owner_${tag}`;
+   const memberUid = `live_member_${tag}`;
+   const chatId = createDirectChatId(ownerUid, memberUid);
+   const chatRef = db.collection("directChats").doc(chatId);
+   const memberRef = db.collection("users").doc(memberUid);
+   const directRequestId = `live_direct_${tag}`;
+   const directMessageId = require("node:crypto").createHash("sha256")
+     .update("owner-live-stream:" + ownerUid + ":direct:" + chatId + ":" + directRequestId).digest("hex");
+   await Promise.all([
+     chatRef.set({ participantUids: [ownerUid, memberUid].sort(), createdAt: new Date() }),
+     memberRef.set({ profileCompleted: true, accountStatus: "active", coins: 0 }),
+   ]);
+   try {
+     const directInput = {
+       requestId: directRequestId, scope: "direct", targetId: chatId,
+       url: "https://www.youtube.com/watch?v=abc123", title: "بث المباراة",
+       description: "رابط بث رسمي",
+     };
+     const sent = await sendOwnerLiveStream.run(ownerRequest(ownerUid, directInput));
+     assert.equal(sent.idempotentReplay, false);
+     assert.equal(sent.provider, "youtube");
+     const messageRef = chatRef.collection("messages").doc(directMessageId);
+     const message = await messageRef.get();
+     assert.equal(message.data().type, "live_stream");
+     assert.equal(message.data().isPlatformOwnerMessage, true);
+     assert.equal(message.data().liveStream.hostname, "www.youtube.com");
+     const replay = await sendOwnerLiveStream.run(ownerRequest(ownerUid, directInput));
+     assert.equal(replay.idempotentReplay, true);
+     await deleteDirectMessageForEveryone.run(ownerRequest(ownerUid, { chatId, messageId: directMessageId }));
+     assert.equal((await messageRef.get()).exists, false);
+     await assert.rejects(
+       () => sendOwnerLiveStream.run(memberRequest(memberUid, directInput)),
+       (error) => error && error.code === "permission-denied",
+     );
+ 
+     const publicRoomId = `public_live_${tag}`;
+     const publicRoomRef = db.collection("rooms").doc(publicRoomId);
+     await publicRoomRef.set({ kind: "public", status: "active", ownerUid: memberUid });
+     const publicRequestId = `live_room_${tag}`;
+     const publicResult = await sendOwnerLiveStream.run(ownerRequest(ownerUid, {
+       requestId: publicRequestId, scope: "room", targetId: publicRoomId,
+       url: "https://www.tiktok.com/@channel/live", title: "بث عام",
+     }));
+     assert.equal(publicResult.scope, "room");
+     assert.equal(publicResult.provider, "tiktok");
+     const publicMessages = await publicRoomRef.collection("messages").get();
+     assert.equal(publicMessages.size, 1);
+     assert.equal(publicMessages.docs[0].data().type, "live_stream");
+     await deleteRoomMessage.run(ownerRequest(ownerUid, {
+       roomId: publicRoomId, messageId: publicMessages.docs[0].id,
+     }));
+@@ -811,80 +819,105 @@ test("every shipped premium store category charges once and grants its matching
+       itemId: "hide_coins_30d",
+       name: "إخفاء الرصيد",
+       description: "ميزة خصوصية غير مفعلة.",
+       category: "privacy",
+       priceCoins,
+       durationDays: 30,
+       sortOrder: 99,
+       active: true,
+       purchaseEnabled: false,
+     }));
+     await assert.rejects(
+       () => purchaseStoreItem.run(memberRequest(uid, {
+         itemId: "hide_coins_30d",
+         requestId: `privacy_${tag}`,
+         expectedPriceCoins: priceCoins,
+       })),
+       (error) => error && error.code === "failed-precondition",
+     );
+     assert.equal((await memberRef.get()).data().coins, 10000 - (items.length * priceCoins));
+     await disabledPrivacyItem.delete();
+   } finally {
+     await Promise.all([
+       ...purchaseRefs.map((ref) => ref.delete().catch(() => undefined)),
+       ...ledgerRefs.map((ref) => ref.delete().catch(() => undefined)),
+       ...entitlementRefs.map((ref) => ref.delete().catch(() => undefined)),
+       ...catalogRefs.map((ref) => ref.delete().catch(() => undefined)),
+       db.collection("storeCatalog").doc("hide_coins_30d").delete().catch(() => undefined),
+       db.recursiveDelete(memberRef).catch(() => undefined),
+     ]);
+   }
+ });
+ 
+ 
+ test("owner wallet reconciliation is read-only and reports unorderable history as incomplete", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const uid = `reconcile_${tag}`;
+   const userRef = db.collection("users").doc(uid);
+   const ledger = userRef.collection("walletLedger");
+   const firstRef = ledger.doc("entry_001");
+   const secondRef = ledger.doc("entry_002");
+   const unorderedRef = ledger.doc("entry_003");
+   await userRef.set({ coins: 1200, profileCompleted: true, accountStatus: "active" });
+   await Promise.all([
+     firstRef.set({ amount: 1000, balanceBefore: 0, balanceAfter: 1000, createdAt: Timestamp.fromMillis(1000) }),
+     secondRef.set({ amount: 200, balanceBefore: 1000, balanceAfter: 1200, createdAt: Timestamp.fromMillis(2000) }),
+   ]);
+   try {
+     const consistent = await getOwnerWalletReconciliation.run(ownerRequest("store-catalog-owner", {
+       targetUid: uid,
+     }));
+     assert.equal(consistent.readOnly, true);
+     assert.equal(consistent.scope, "walletLedger");
+     assert.equal(consistent.status, "consistent");
+     assert.equal(consistent.currentBalance, 1200);
+     assert.equal(consistent.computedBalance, 1200);
+     assert.equal(consistent.netLedgerDelta, 1200);
+     assert.equal(consistent.ledgerEntryCount, 2);
+     assert.equal(consistent.truncated, false);
+ 
+     await assert.rejects(
+       () => getOwnerWalletReconciliation.run(memberRequest(uid, { targetUid: uid })),
+       (error) => error && error.code === "permission-denied",
+     );
+ 
+     await unorderedRef.set({ amount: 1, balanceBefore: 1200, balanceAfter: 1201 });
+     const incomplete = await getOwnerWalletReconciliation.run(ownerRequest("store-catalog-owner", {
+       targetUid: uid,
+     }));
+     assert.equal(incomplete.status, "incomplete");
+     assert.equal(incomplete.chronologyIncomplete, true);
+     assert.equal(incomplete.unorderableEntryCount, 1);
+     assert.equal(incomplete.netLedgerDelta, null);
+     assert.equal((await userRef.get()).data().coins, 1200);
+     assert.equal((await ledger.get()).size, 3);
+   } finally {
+     await Promise.all([firstRef.delete(), secondRef.delete(), unorderedRef.delete(), userRef.delete()]);
+   }
+ });
+ 
++
++
++test("store catalog version refuses increment beyond the safe integer boundary", async () => {
++  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
++  const itemId = `version_boundary_${suffix()}`;
++  const itemRef = db.collection("storeCatalog").doc(itemId);
++  await itemRef.set({
++    itemId, name: "Boundary fixture", description: "Emulator-only",
++    category: "vip", priceCoins: 1, durationDays: 30, version: Number.MAX_SAFE_INTEGER,
++    sortOrder: 1, active: true, purchaseEnabled: true, fulfillmentReady: true,
++  });
++  try {
++    await assert.rejects(
++      () => setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
++        itemId, name: "Boundary fixture", description: "Emulator-only",
++        category: "vip", priceCoins: 1, durationDays: 30,
++        sortOrder: 1, active: true, purchaseEnabled: true, fulfillmentReady: true,
++      })),
++      (error) => error && error.code === "failed-precondition",
++    );
++    assert.equal((await itemRef.get()).data().version, Number.MAX_SAFE_INTEGER);
++  } finally {
++    await itemRef.delete();
++  }
++});

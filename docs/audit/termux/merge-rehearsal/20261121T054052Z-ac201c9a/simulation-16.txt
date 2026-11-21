@@ -1,0 +1,125 @@
+68f71d81add6dbfb2f3b4c242e97b89851cdf3de
+100644 a0fbe565ffc16d53db7cc407bcfc000aa311508b 1	.github/workflows/mawdda-domain-regression.yml
+100644 24dcbb2ba4e0bdfc249aa33a4c9b219516c41e33 2	.github/workflows/mawdda-domain-regression.yml
+100644 5d30624401a03c0d07f0ccf239de295d6fd0f200 3	.github/workflows/mawdda-domain-regression.yml
+100644 376ee3886a8c592a1b7f229b14cf468a801a3ddc 1	.github/workflows/validate.yml
+100644 d3802584cac2f493e00389baa9c003a12db26f2e 2	.github/workflows/validate.yml
+100644 e0a57437bbafa45949960552f443f8ec59661dea 3	.github/workflows/validate.yml
+100644 6a6b989af10086adba526f670f98f8c8dc5f5d2e 1	docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+100644 ab942b06d614ccdc2eafd3b18163011642694472 2	docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+100644 3eb88321dd1d23e4eb1127821cf71037cc777303 3	docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+100644 62d00c88ec3f811ca8f6d0d5195fb840f3e64d7e 1	docs/IMPLEMENTATION_TRACEABILITY.md
+100644 716003d5e98b804f2bb6445585c763fe24a9dd3d 2	docs/IMPLEMENTATION_TRACEABILITY.md
+100644 c657975272a7bef4bcc851ff777c8198ddd6aa55 3	docs/IMPLEMENTATION_TRACEABILITY.md
+100644 a36bd5832c64994553851b7120b3687b5b77ce16 1	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+100644 9ee596af6be3ea7633054adae4d1e5557708a587 2	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+100644 0009b92106968b0182d24510e0522b0546892cda 3	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+100644 7a8a2a4a489470c7ef2f6df6b122cbcdc94a5119 2	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+100644 b5e3a917c4168e298b3ceb329b9ad446da19ce21 3	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+100644 0c8c17a7d142eb1a34233cacef9f727cd77b78b8 1	docs/MAWADDA_PRODUCT_CONSTITUTION.md
+100644 32eb9e62943361fb609a4bf00c6f45148eaf48f4 2	docs/MAWADDA_PRODUCT_CONSTITUTION.md
+100644 8f40bae290bf941a8d38f73d9ef0aa9dc1ea9f78 3	docs/MAWADDA_PRODUCT_CONSTITUTION.md
+100644 157bb910d00b6124f834ac9abb4572d58d532734 1	docs/SEVEN_PHASE_EXECUTION_PLAN.md
+100644 6677c42233254c4cf0059be2d962e973d4ede16e 2	docs/SEVEN_PHASE_EXECUTION_PLAN.md
+100644 4eaa6433096fa887c8190f0c1ee712ca03d94771 3	docs/SEVEN_PHASE_EXECUTION_PLAN.md
+100644 469b43a650986b165052460987f148a16c4794f0 1	functions/package.json
+100644 f5756c3d6ad9a52224536b3159e5821297a6a650 2	functions/package.json
+100644 b2845da8e148a2d3cb23f4ef6bb48e70fc12fce9 3	functions/package.json
+100644 e257e761c82135b1799d02ff7fae7815273550f0 1	functions/src/advertising-governance.ts
+100644 caec16865c75e76bc044a2ec0a73fe50dc9acbf8 2	functions/src/advertising-governance.ts
+100644 db17c21b8412e85cf7e3e3bf900b2a1d11bb3900 3	functions/src/advertising-governance.ts
+100644 3c50947f58dda366d710ed1835158c22ceca8e75 2	functions/src/biometric-media.ts
+100644 846fcdad8d30060aa76bd1a809241c74e4b1dadb 3	functions/src/biometric-media.ts
+100644 e7a340e6aed62a2edc8529628b1489b72abef049 1	functions/src/biometric-verification.ts
+100644 d69ce5c59d78235a295e1e4aae34b009181ddf2d 2	functions/src/biometric-verification.ts
+100644 27ffea0d0c1ecdfb133529d3fc477c9aa5c469f6 3	functions/src/biometric-verification.ts
+100644 f996aee7ba88170f64ab6c92af75b81e0dcf2b53 1	functions/src/index.ts
+100644 4574024ded13f7d5c51fb0eb10febff2ffd1e329 2	functions/src/index.ts
+100644 5770645f3f3ba0abfc40ad4ce925be58e27abfe9 3	functions/src/index.ts
+100644 8d26a34734374f0d411bdf25317ef66277608338 2	functions/src/platform-role-identities.ts
+100644 fd33a73d437f2380dbbdafafa6050efc83244958 3	functions/src/platform-role-identities.ts
+100644 53af175cdcca26b9a88d28f529ac97fff3489a3e 1	functions/test/advertising-governance.test.js
+100644 ab83da07e08f27bb63dad2c5c12b6cb676f593db 2	functions/test/advertising-governance.test.js
+100644 6068a575635da9130f0724f654c93dbcac86c7b8 3	functions/test/advertising-governance.test.js
+100644 e93b92920165e388dd1f84934aa400844ebe8086 2	functions/test/biometric-media.test.js
+100644 e046dd598a182f1c486525d6c223ec5e9e5e4954 3	functions/test/biometric-media.test.js
+100644 2ef78f30a6ecda1b0e264b79bae415d595a972b3 1	functions/test/biometric-reward-security.test.js
+100644 8c3a8b17806ee164041ffde787f727b175702f3e 2	functions/test/biometric-reward-security.test.js
+100644 a020c903b88eaa5dca706ed0c819ff4b776a7cb8 3	functions/test/biometric-reward-security.test.js
+100644 a12303e1814240b29c989e9a56fa05a0c13a77cb 1	functions/test/biometric-verification.test.js
+100644 c7be8481da402c2bc72c4a459af02c699f8c114a 2	functions/test/biometric-verification.test.js
+100644 eb857c5580ffc8cd9f2ea7716ef53041e386a1f0 3	functions/test/biometric-verification.test.js
+100644 f5e5655fc23ef037645d1a117dbae09017208a16 1	functions/test/integration/biometric-verification.integration.test.js
+100644 20f19857a11713f9bc935cc9aa7f0c706a99758b 2	functions/test/integration/biometric-verification.integration.test.js
+100644 9714ca05a41ff774331e7dc538e8a930d5f3ba42 3	functions/test/integration/biometric-verification.integration.test.js
+100644 e6756a8be26f5ec4e84a1e740c222726d4b3b735 2	functions/test/integration/specialized-role-capacity.integration.test.js
+100644 ad89dfe3722445fa96ca2eb89feb2ad09706a332 3	functions/test/integration/specialized-role-capacity.integration.test.js
+100644 699f8b0b3f9c2b88973621449c28a7df767ff8a4 1	functions/test/member-social-links-access.test.js
+100644 1bfc08a0c2f68d3c822cc14b53ccf8c6d21f258b 2	functions/test/member-social-links-access.test.js
+100644 f041025d6a09071782f999abf59dd8f2bb80d62a 3	functions/test/member-social-links-access.test.js
+100644 b9b0a1f3d2339ddc573699fc95329bc60ff0bf56 1	functions/test/member-social-links.test.js
+100644 6315c173fe46ef5e14cea15d76caa9393bd1612d 2	functions/test/member-social-links.test.js
+100644 9e27e0de409d374a01fe5658899db300bd0b9b61 3	functions/test/member-social-links.test.js
+100644 077e909ecda72e5ebc9506120263fc131b1e65e2 2	functions/test/platform-role-identities.test.js
+100644 5e4f2d7a7498d5feb3aa55977d5519148bbc0680 3	functions/test/platform-role-identities.test.js
+100644 1eb133b536c3b4961926ef90006bfe5766006aa3 2	lib/screens/biometric_verification_screen.dart
+100644 c195cb361e291adda9201fd3adbe3d81a5419090 3	lib/screens/biometric_verification_screen.dart
+100644 9c24a165f4f3950337dcd430c555e957473f687f 1	lib/screens/super_admin_screen.dart
+100644 089a4992234880b800a22ac8a6698fc517659109 2	lib/screens/super_admin_screen.dart
+100644 f5c6f4574f899f8d0b84075d77a0001448d948f7 3	lib/screens/super_admin_screen.dart
+
+Auto-merging .github/workflows/mawdda-domain-regression.yml
+CONFLICT (content): Merge conflict in .github/workflows/mawdda-domain-regression.yml
+Auto-merging .github/workflows/validate.yml
+CONFLICT (content): Merge conflict in .github/workflows/validate.yml
+Auto-merging README.md
+Auto-merging docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+CONFLICT (content): Merge conflict in docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+Auto-merging docs/IMPLEMENTATION_TRACEABILITY.md
+CONFLICT (content): Merge conflict in docs/IMPLEMENTATION_TRACEABILITY.md
+Auto-merging docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+CONFLICT (content): Merge conflict in docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+Auto-merging docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md
+Auto-merging docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+CONFLICT (add/add): Merge conflict in docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+Auto-merging docs/MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md
+Auto-merging docs/MAWADDA_PRODUCT_CONSTITUTION.md
+CONFLICT (content): Merge conflict in docs/MAWADDA_PRODUCT_CONSTITUTION.md
+Auto-merging docs/SEVEN_PHASE_EXECUTION_PLAN.md
+CONFLICT (content): Merge conflict in docs/SEVEN_PHASE_EXECUTION_PLAN.md
+Auto-merging functions/package.json
+CONFLICT (content): Merge conflict in functions/package.json
+Auto-merging functions/src/advertising-governance.ts
+CONFLICT (content): Merge conflict in functions/src/advertising-governance.ts
+Auto-merging functions/src/biometric-media.ts
+CONFLICT (add/add): Merge conflict in functions/src/biometric-media.ts
+Auto-merging functions/src/biometric-verification.ts
+CONFLICT (content): Merge conflict in functions/src/biometric-verification.ts
+Auto-merging functions/src/index.ts
+CONFLICT (content): Merge conflict in functions/src/index.ts
+Auto-merging functions/src/platform-role-identities.ts
+CONFLICT (add/add): Merge conflict in functions/src/platform-role-identities.ts
+Auto-merging functions/test/advertising-governance.test.js
+CONFLICT (content): Merge conflict in functions/test/advertising-governance.test.js
+Auto-merging functions/test/biometric-media.test.js
+CONFLICT (add/add): Merge conflict in functions/test/biometric-media.test.js
+Auto-merging functions/test/biometric-reward-security.test.js
+CONFLICT (content): Merge conflict in functions/test/biometric-reward-security.test.js
+Auto-merging functions/test/biometric-verification.test.js
+CONFLICT (content): Merge conflict in functions/test/biometric-verification.test.js
+Auto-merging functions/test/integration/biometric-verification.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/biometric-verification.integration.test.js
+Auto-merging functions/test/integration/specialized-role-capacity.integration.test.js
+CONFLICT (add/add): Merge conflict in functions/test/integration/specialized-role-capacity.integration.test.js
+Auto-merging functions/test/member-social-links-access.test.js
+CONFLICT (content): Merge conflict in functions/test/member-social-links-access.test.js
+Auto-merging functions/test/member-social-links.test.js
+CONFLICT (content): Merge conflict in functions/test/member-social-links.test.js
+Auto-merging functions/test/platform-role-identities.test.js
+CONFLICT (add/add): Merge conflict in functions/test/platform-role-identities.test.js
+Auto-merging functions/test/rules/firestore.rules.test.js
+Auto-merging lib/screens/biometric_verification_screen.dart
+CONFLICT (add/add): Merge conflict in lib/screens/biometric_verification_screen.dart
+Auto-merging lib/screens/main_user_screen.dart
+Auto-merging lib/screens/super_admin_screen.dart
+CONFLICT (content): Merge conflict in lib/screens/super_admin_screen.dart

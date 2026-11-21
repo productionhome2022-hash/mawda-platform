@@ -1,0 +1,184 @@
+name: Bootstrap and validate Mawdda native platforms
+
+on:
+  # This workflow currently exists only on the development branch. Use its
+  # push event until the workflow is available on the repository default branch.
+  push:
+    branches:
+      - codex/mawda-full-platform-implementation
+    paths:
+      - "tool/configure_native_platforms.py"
+      - "tool/patch_android_plugin_compile_sdk.py"
+      - "tool/test_*.py"
+      - "android/**"
+      - ".github/workflows/bootstrap-native-platforms.yml"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mawdda-native-platform-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  generate-and-build-android:
+    name: Generate native runners and build Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: codex/mawda-full-platform-implementation
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+
+      - name: Test native Gradle configuration generator
+        run: python3 -m unittest discover -s tool -p "test_*.py"
+
+      - name: Verify committed non-production Firebase configuration
+        run: |
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+          options = Path("lib/firebase_options_nonprod.dart").read_text()
+          android = json.loads(Path("android/app/google-services.json").read_text())
+          for platform in ("web", "android", "ios"):
+              match = re.search(
+                  rf"static const FirebaseOptions {platform} = FirebaseOptions\((.*?)\n  \);",
+                  options,
+                  re.S,
+              )
+              if match is None or "projectId: 'mawda-platform-nonprod-2026'" not in match.group(1):
+                  raise SystemExit(f"Missing or incorrect non-production {platform} Firebase options.")
+          if android["project_info"]["project_id"] != "mawda-platform-nonprod-2026":
+              raise SystemExit("Android google-services.json is not non-production.")
+          if android["client"][0]["client_info"]["android_client_info"]["package_name"] != "com.mawdda.platform.app":
+              raise SystemExit("Android Firebase app package does not match the application ID.")
+          print("Verified committed non-production Firebase configuration without contacting Firebase.")
+          PY
+
+      - name: Resolve locked Flutter dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Apply Android API 36 to every resolved Flutter plugin module
+        run: python3 tool/patch_android_plugin_compile_sdk.py
+
+      - name: Build Android debug APK (retry transient Maven throttling)
+        run: |
+          set -o pipefail
+          for attempt in 1 2 3; do
+            if flutter build apk --debug 2>&1 | tee /tmp/mawdda-android-build.log; then
+              break
+            else
+              build_status=${PIPESTATUS[0]}
+            fi
+            if ! grep -Eqi 'status code 429|Too Many Requests|timed out|Temporary failure|Connection reset' /tmp/mawdda-android-build.log; then
+              exit "$build_status"
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit "$build_status"
+            fi
+            sleep $((attempt * 30))
+          done
+          sha256sum build/app/outputs/flutter-apk/app-debug.apk > build/app/outputs/flutter-apk/app-debug.apk.sha256
+
+      - name: Build and verify non-production debug AAB (packaging test only)
+        run: |
+          set -euo pipefail
+          flutter build appbundle --debug
+          aab=build/app/outputs/bundle/debug/app-debug.aab
+          test -s "$aab"
+          jarsigner -verify -verbose -certs "$aab" > /tmp/mawdda-debug-aab-verify.log 2>&1
+          grep -Eqi 'jar verified' /tmp/mawdda-debug-aab-verify.log
+          sha256sum "$aab" > "$aab.sha256"
+
+      - name: Package generated native projects
+        run: tar -czf native-platforms.tar.gz android ios lib/firebase_options_nonprod.dart pubspec.lock
+
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: mawdda-native-platforms-${{ github.sha }}
+          path: native-platforms.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: mawdda-android-debug-aab-nonprod-${{ github.sha }}
+          path: |
+            build/app/outputs/bundle/debug/app-debug.aab
+            build/app/outputs/bundle/debug/app-debug.aab.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: mawdda-android-debug-${{ github.sha }}
+          path: |
+            build/app/outputs/flutter-apk/app-debug.apk
+            build/app/outputs/flutter-apk/app-debug.apk.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  build-ios:
+    name: Build iOS without code signing
+    needs: generate-and-build-android
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: codex/mawda-full-platform-implementation
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+
+      - name: Verify committed non-production iOS Firebase options
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          source = Path("lib/firebase_options_nonprod.dart").read_text()
+          match = re.search(
+              r"static const FirebaseOptions ios = FirebaseOptions\((.*?)\n  \);",
+              source,
+              re.S,
+          )
+          if match is None:
+              raise SystemExit("Missing committed iOS Firebase options.")
+          block = match.group(1)
+          for expected in ("projectId: 'mawda-platform-nonprod-2026'", "iosBundleId: 'com.mawdda.platform.app'"):
+              if expected not in block:
+                  raise SystemExit(f"iOS Firebase options mismatch: {expected}")
+          print("Verified committed non-production iOS Firebase options without contacting Firebase.")
+          PY
+
+      - name: Resolve locked Flutter dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build iOS without signing
+        run: |
+          flutter build ios --no-codesign
+          ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app mawdda-ios-unsigned-device.zip
+          shasum -a 256 mawdda-ios-unsigned-device.zip > mawdda-ios-unsigned-device.zip.sha256
+
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: mawdda-ios-unsigned-device-${{ github.sha }}
+          path: |
+            mawdda-ios-unsigned-device.zip
+            mawdda-ios-unsigned-device.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
+

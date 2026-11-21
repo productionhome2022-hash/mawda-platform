@@ -1,0 +1,53 @@
+name: Resolve Flutter dependency lockfile
+
+on:
+  push:
+    branches:
+      - codex/mawda-full-platform-implementation
+    paths:
+      - pubspec.yaml
+      - .github/workflows/resolve-flutter-lock.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mawdda-flutter-lock-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  resolve-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+      - name: Resolve dependencies and retry lockfile commit against latest branch head
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4; do
+            git fetch origin "${GITHUB_REF_NAME}"
+            git reset --hard "origin/${GITHUB_REF_NAME}"
+            flutter pub get
+            if git diff --quiet -- pubspec.lock; then
+              echo "pubspec.lock already matches pubspec.yaml"
+              exit 0
+            fi
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add pubspec.lock
+            git commit -m "build(deps): resolve Flutter WebRTC lockfile"
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              exit 0
+            fi
+            echo "Branch moved during lockfile push; retrying from latest head."
+          done
+          exit 1

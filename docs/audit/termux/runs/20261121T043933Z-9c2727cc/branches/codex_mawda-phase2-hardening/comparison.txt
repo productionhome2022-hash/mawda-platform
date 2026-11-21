@@ -1,0 +1,147 @@
+Branch: codex/mawda-phase2-hardening
+Branch SHA: f8abd722ececc988c555f0400cc7b558e762ae5a
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+2516	78
+
+--- Merge base ---
+12b83c7988760f9eac360b71cb7e129d40d82e43
+
+--- Changed files relative to common ancestor ---
+M	.github/workflows/validate.yml
+M	docs/SECURE_MEDIA_INTAKE.md
+M	firestore.indexes.json
+M	functions/package.json
+M	functions/scripts/test-signed-urls-http.cjs
+M	functions/src/index.ts
+M	functions/src/media-controls.ts
+M	functions/src/media-quota.ts
+M	functions/src/media-scanner.ts
+M	functions/src/media.ts
+M	functions/test/integration/media-callables.integration.test.js
+A	functions/test/media-cleanup.test.js
+M	functions/test/media-controls.test.js
+M	functions/test/media-quota.test.js
+M	functions/test/media-scanner.test.js
+A	scanner/Dockerfile
+A	scanner/README.md
+A	scanner/clamd.conf
+A	scanner/entrypoint.sh
+A	scanner/freshclam.conf
+A	scanner/package.json
+A	scanner/server.mjs
+A	scanner/test/server.test.mjs
+
+--- Diff statistics ---
+ .github/workflows/validate.yml                     |  17 +
+ docs/SECURE_MEDIA_INTAKE.md                        |  85 ++++-
+ firestore.indexes.json                             |  28 ++
+ functions/package.json                             |   2 +-
+ functions/scripts/test-signed-urls-http.cjs        |  42 ++-
+ functions/src/index.ts                             |   1 +
+ functions/src/media-controls.ts                    |  56 +++-
+ functions/src/media-quota.ts                       |  14 +-
+ functions/src/media-scanner.ts                     |   6 +
+ functions/src/media.ts                             | 370 +++++++++++++++++----
+ .../media-callables.integration.test.js            | 187 ++++++++---
+ functions/test/media-cleanup.test.js               |  20 ++
+ functions/test/media-controls.test.js              |   5 +-
+ functions/test/media-quota.test.js                 |  12 +-
+ functions/test/media-scanner.test.js               |   3 +
+ scanner/Dockerfile                                 |  20 ++
+ scanner/README.md                                  |  64 ++++
+ scanner/clamd.conf                                 |  15 +
+ scanner/entrypoint.sh                              |  33 ++
+ scanner/freshclam.conf                             |   5 +
+ scanner/package.json                               |  10 +
+ scanner/server.mjs                                 | 269 +++++++++++++++
+ scanner/test/server.test.mjs                       | 210 ++++++++++++
+ 23 files changed, 1318 insertions(+), 156 deletions(-)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+f8abd722 (origin/codex/mawda-phase2-hardening) docs(media): record owner-only download gate after clean verdict
+c08675a7 test(media): prevent owner access to unscanned originals
+9bbe8d12 security(media): block owner downloads of unscanned or rejected originals
+de61bd2a docs(scanner): document fail-closed signature freshness limit
+1902a377 test(scanner): verify signature database freshness gate
+1668c0b4 security(scanner): reject stale ClamAV signature databases
+caaf6767 docs(media): correct signed PUT transport and CORS requirements
+e92994a6 fix(scanner): emit NUL-terminated ClamAV command frames
+39d03906 test(scanner): verify ClamAV INSTREAM frame encoding without flaky socket fixture
+a099bbc9 refactor(scanner): isolate and validate ClamAV INSTREAM frame encoding
+77937932 test(scanner): bound protocol test time and close fixture sockets
+c2e8de03 fix(scanner): fail closed on truncated ClamAV socket responses
+34665027 fix(scanner): send real NUL terminators in ClamAV protocol test
+29282115 fix(media): type Node Buffer body for scanner HTTP dispatch
+e1c97ca9 test(media): assert exact-size and create-only upload signing contract
+37812d40 docs(media): correct upload contract to signed PUT with byte-range header
+3430ab3c test(media): verify exact-size signed PUT HTTP enforcement
+02ca13a2 test(media): verify exact-size signed PUT and create-only preconditions
+e1b6f425 security(media): combine exact byte range and create-only V4 PUT signature
+8ec4c789 docs(media): document exact-size signed POST upload policy
+ee9e0512 test(media): verify exact-size signed POST policy over real HTTP
+7f7a3b85 test(media): verify signed POST size and replay policy contract
+96569d24 security(media): enforce exact upload bytes with signed POST policy
+e9966ca2 docs(scanner): correct image build path and document IAM setup
+eddcfb8e security(media): avoid leaking signed URL details in test errors
+14e5ec1b docs(media): document daily upload count and ClamAV source status
+b1c9ce01 test(media): avoid assuming an unapproved retention period
+efde37c6 fix(media): remove unapproved automatic retention duration
+41705d23 test(media): verify daily upload cap blocks signing
+b6161459 chore(firestore): index media cleanup state and expiry queries
+d33b19be fix(media): query cleanup candidates by expired signed URL timestamp
+c2ff1dd2 refactor(media): share canonical quota limits
+99b5d6d4 test(media): cover daily upload count quotas
+ef8bf1d6 feat(media): enforce per-user daily upload count quota
+82983a1a docs(media): record scanner dispatcher and ClamAV gateway implementation
+31d2864a fix(media): make scanner dispatch safe for retried events
+d5c53204 ci(scanner): test ClamAV gateway and build container image
+663a2467 docs(scanner): document isolated ClamAV gateway deployment and gates
+ef9b2aaf security(scanner): run signature updater as dedicated clamav user
+8179368c test(scanner): exercise ClamAV INSTREAM wire protocol
+daf2f953 security(scanner): enforce request bounds and HTTP timeouts
+42eb7f76 security(media): retry scanner error verdicts and bound callback resources
+880abead feat(media): export scanner dispatch trigger
+e986afd3 fix(scanner): repair container line continuations and process lifecycle
+83cec29c fix(scanner): repair container line continuations and process lifecycle
+4379178f build(scanner): add Cloud Run image with ClamAV and freshclam
+34b379a5 build(scanner): start freshclam and clamd before gateway
+9b97c710 build(scanner): configure automatic ClamAV signature updates
+bc85911c build(scanner): configure bounded ClamAV daemon
+038984fc build(scanner): define isolated ClamAV gateway package
+3cea0bb3 test(scanner): verify ClamAV gateway auth and verdict delivery
+85ca7ec2 fix(scanner): correct ClamAV version separator parser
+8131175f fix(scanner): correct ClamAV protocol escapes and parsers
+bb758143 feat(scanner): add authenticated ClamAV gateway service
+16137835 feat(media): dispatch quarantined uploads to IAM-protected scanner gateway
+e1ee1983 test(media): allow clock skew in signed URL expiry check
+e085193d docs(media): clarify emulator versus real-bucket signed URL evidence
+f4b1a460 test(media): verify signer failure releases upload reservations
+e0475730 test(media): isolate emulator signing and exercise scanner handler
+03bf0964 fix(media): reserve quota before signing and expose testable scanner handler
+1de67d21 ci(media): syntax-check opt-in signed URL integration script
+c0f3d495 fix(media): repair real signed URL test script syntax
+1dc7151c fix(media): return void from scheduled cleanup handler
+5fb1eca7 fix(media): type quota and scanner policy helpers
+fcdc9115 fix(media): remove stray escape from scanner handler module
+81419482 test(media): include scanner engine metadata in signed verdicts
+75842b28 security(media): persist malware engine and signature versions
+1bbe18c3 test(media): validate scanner engine metadata
+64f6122f security(media): require scanner engine and signature versions
+9f1142ac security(media): bind scanner HMAC through Secret Manager
+001dfbdf fix(media): skip legacy cleanup records without expiry metadata
+631ab8d6 docs(media): reconcile scanner, cleanup and signed URL security status
+2588cef8 ci: validate phase-two hardening branch and integration PRs
+5ea1f6fd test(media): verify authenticated scanner verdict lifecycle in emulator
+30012319 docs(media): align phase two record with implemented gates and remaining risks
+a8981f83 test(media): cover cleanup trigger with expiry grace metadata
+1532f756 fix(media): enforce expiry grace and generation-safe cleanup
+793f3b65 test(media): cover abandoned upload cleanup eligibility
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

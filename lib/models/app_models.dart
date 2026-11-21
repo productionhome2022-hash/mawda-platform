@@ -1,6 +1,6 @@
 // ==========================================
 // الكود الشامل، النهائي، والكامل بامتياز لتطبيق مودة (mawda-app-2026)
-// (نسخة الجيت هاب النهائية: نظام التدمير الذاتي للوسائط خلال ساعتين، الحذف للجميع، سيادة السوبر أدمن، الخصوصية الذكية، قفل الكوينز، التحدث كمجهول، وإدارة الإعلانات)
+// (نسخة الجيت هاب النهائية: نظام التدمير الذاتي للوسائط خلال ساعتين، الحذف للجميع، سيادة Super Owner (مالك المنصة)، الخصوصية الذكية، قفل الكوينز، التحدث كمجهول، وإدارة الإعلانات)
 // ==========================================
 
 // أ. نموذج صور معرض البروفايل (تدمير ذاتي تلقائي بعد 7 أيام)
@@ -37,7 +37,6 @@ class UserModel {
   final String uid;
   final String username;              // المعرف الفريد (@username)
   final String email;
-  final String passwordHash;          // كلمة المرور (قابلة للاستعراض والتحديث من السوبر أدمن)
   final String displayName;           // الاسم الظاهري
   final int age;                      // العمر
   final String gender;                // ('male' / 'female')
@@ -84,7 +83,6 @@ class UserModel {
     required this.uid,
     required this.username,
     required this.email,
-    this.passwordHash = '',
     required this.displayName,
     this.age = 18,
     this.gender = 'male',
@@ -126,7 +124,6 @@ class UserModel {
       'uid': uid,
       'username': username,
       'email': email,
-      'passwordHash': passwordHash,
       'displayName': displayName,
       'age': age,
       'gender': gender,
@@ -169,7 +166,6 @@ class UserModel {
       uid: map['uid'] ?? '',
       username: map['username'] ?? '',
       email: map['email'] ?? '',
-      passwordHash: map['passwordHash'] ?? '',
       displayName: map['displayName'] ?? '',
       age: map['age'] ?? 18,
       gender: map['gender'] ?? 'male',
@@ -526,7 +522,7 @@ class MessageModel {
   final String mediaUrl;           
   final String mediaType;          // ('text', 'voice', 'image', 'video')
   final bool isAnonymous;          // التحدث كمجهول / شبح (مكشوف حصراً للسوبر أدمن)
-  final bool isAdminIntervention;  // تدخل سيادي من السوبر أدمن
+  final bool isAdminIntervention;  // تدخل سيادي من Super Owner (مالك المنصة)
   
   // نظام التدمير الذاتي والحذف الفوري
   final DateTime timestamp;
@@ -1013,7 +1009,7 @@ class RoomModel {
   }
 }
 
-// 18. نموذج قسم الإعلانات التجارية ومكافآت المشاهدة (تحكم كامل من السوبر أدمن)
+// 18. نموذج قسم الإعلانات التجارية ومكافآت المشاهدة (تحكم كامل من Super Owner (مالك المنصة))
 class AdminBroadcastAdModel {
   final String broadcastId;
   final String title;              
@@ -1168,7 +1164,7 @@ class UserBadgeInventoryModel {
   }
 }
 
-// 21. نموذج إدارة وتحكم السوبر أدمن بمتجر الأوسمة والميزات
+// 21. نموذج إدارة وتحكم Super Owner (مالك المنصة) بمتجر الأوسمة والميزات
 class AdminStoreManagerModel {
   final String itemId;          
   final String itemType;        

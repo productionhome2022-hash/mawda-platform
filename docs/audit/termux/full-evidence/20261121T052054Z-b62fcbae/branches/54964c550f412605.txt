@@ -1,0 +1,19 @@
+BRANCH: archive/development-pre-unification-2026-11-15
+SHA: f068a8b2e3ad91551c2b27c9f554de04bbfc609e
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: f068a8b2e3ad91551c2b27c9f554de04bbfc609e
+
+=== DIVERGENCE target-only / branch-only ===
+882	0
+
+=== BRANCH UNIQUE COMMITS ===
+
+=== CHERRY STATUS ===
+
+=== FILE STATUS ===
+
+=== NUMSTAT ===
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

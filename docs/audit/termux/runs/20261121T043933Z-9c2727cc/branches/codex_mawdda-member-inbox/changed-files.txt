@@ -1,0 +1,5 @@
+M	firestore.indexes.json
+M	functions/src/index.ts
+M	functions/test/integration/direct-message-deletion.integration.test.js
+A	lib/screens/conversations_screen.dart
+M	lib/screens/main_user_screen.dart

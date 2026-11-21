@@ -1,0 +1,297 @@
+name: Build and verify owner-key-signed Android APK and AAB
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mawdda-android-signed-release
+  cancel-in-progress: false
+
+jobs:
+  signed-release:
+    if: github.ref == 'refs/heads/codex/mawda-full-platform-implementation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Pin the source to the immutable dispatch SHA; never follow a moving branch ref.
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+
+      - name: Require owner-provisioned signing secrets and verify key identity
+        env:
+          KEYSTORE_BASE64: ${{ secrets.MAWDDA_IDENTITY_KEY_B64 }}
+          STORE_PASSWORD: ${{ secrets.MAWDDA_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.MAWDDA_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.MAWDDA_KEY_PASSWORD }}
+          PRODUCTION_GOOGLE_SERVICES_BASE64: ${{ secrets.MAWDDA_PRODUCTION_GOOGLE_SERVICES_JSON_B64 }}
+          EXPECTED_CERT_SHA256: '21:F9:E6:01:80:E2:03:8D:DD:57:4E:DC:F1:2A:63:4B:C6:25:D9:BA:3F:65:53:B2:9D:61:70:62:C6:36:84:56'
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_BASE64" || { echo "::error::Missing MAWDDA_IDENTITY_KEY_B64"; exit 1; }
+          test -n "$STORE_PASSWORD" || { echo "::error::Missing MAWDDA_STORE_PASSWORD"; exit 1; }
+          test -n "$KEY_ALIAS" || { echo "::error::Missing MAWDDA_KEY_ALIAS"; exit 1; }
+          test -n "$KEY_PASSWORD" || { echo "::error::Missing MAWDDA_KEY_PASSWORD"; exit 1; }
+          test -n "$PRODUCTION_GOOGLE_SERVICES_BASE64" || { echo "::error::Missing MAWDDA_PRODUCTION_GOOGLE_SERVICES_JSON_B64; refusing to build a production release with non-production Firebase settings."; exit 1; }
+
+          printf '%s' "$PRODUCTION_GOOGLE_SERVICES_BASE64" | base64 --decode > android/app/google-services.json
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          project = json.loads(Path("android/app/google-services.json").read_text(encoding="utf-8"))
+          options = Path("lib/firebase_options.dart").read_text(encoding="utf-8")
+          match = re.search(r"static const FirebaseOptions android = FirebaseOptions\((.*?)\n  \);", options, re.S)
+          if match is None:
+              raise SystemExit("Production Android FirebaseOptions are missing.")
+          block = match.group(1)
+
+          def option(name):
+              field = re.search(rf"{name}\s*:\s*'([^']*)'", block)
+              return field.group(1) if field else ""
+
+          expected = {
+              "projectId": option("projectId"),
+              "appId": option("appId"),
+              "apiKey": option("apiKey"),
+              "messagingSenderId": option("messagingSenderId"),
+              "storageBucket": option("storageBucket"),
+          }
+          if expected["projectId"] != "mawda-app-2026" or expected["messagingSenderId"] != "697303475139":
+              raise SystemExit("Committed production Android FirebaseOptions do not target the approved production project.")
+          if any(not value or re.search(r"placeholder|replace|your_|abcdef|1234567890|actualapikey", value, re.I) for value in expected.values()):
+              raise SystemExit("Production Android FirebaseOptions contain missing or placeholder values.")
+
+          info = project.get("project_info", {})
+          if info.get("project_id") != expected["projectId"] or str(info.get("project_number")) != expected["messagingSenderId"] or info.get("storage_bucket") != expected["storageBucket"]:
+              raise SystemExit("Production google-services.json project identity does not match FlutterFire production options.")
+
+          matching = [
+              client for client in project.get("client", [])
+              if client.get("client_info", {}).get("android_client_info", {}).get("package_name") == "com.mawdda.platform.app"
+          ]
+          if len(matching) != 1:
+              raise SystemExit("Production google-services.json must contain exactly one Mawdda Android client.")
+          client = matching[0]
+          if client.get("client_info", {}).get("mobilesdk_app_id") != expected["appId"]:
+              raise SystemExit("Production Android Firebase App ID does not match google-services.json.")
+          api_keys = [item.get("current_key") for item in client.get("api_key", [])]
+          if expected["apiKey"] not in api_keys:
+              raise SystemExit("Production Android API key does not match google-services.json.")
+          print("Verified production Android Firebase project, app ID, package, API key and storage bucket.")
+          PY
+
+          mkdir -p "$RUNNER_TEMP/mawdda-signing"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/mawdda-signing/mawdda-identity-key.jks"
+          test -s "$RUNNER_TEMP/mawdda-signing/mawdda-identity-key.jks"
+          install -m 600 "$RUNNER_TEMP/mawdda-signing/mawdda-identity-key.jks" android/app/mawdda-identity-key.jks
+
+          {
+            printf 'storeFile=app/mawdda-identity-key.jks\n'
+            printf 'storePassword=%s\n' "$STORE_PASSWORD"
+            printf 'keyAlias=%s\n' "$KEY_ALIAS"
+            printf 'keyPassword=%s\n' "$KEY_PASSWORD"
+          } > android/key.properties
+          chmod 600 android/key.properties
+
+          keytool -list -v -keystore android/app/mawdda-identity-key.jks \
+            -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" \
+            > "$RUNNER_TEMP/mawdda-signing/key-details.txt"
+          grep -q 'Entry type: PrivateKeyEntry' "$RUNNER_TEMP/mawdda-signing/key-details.txt"
+
+          keytool -exportcert -rfc -keystore android/app/mawdda-identity-key.jks \
+            -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" \
+            -file "$RUNNER_TEMP/mawdda-signing/mawdda-certificate.pem"
+
+          cert_details="$(openssl x509 -in "$RUNNER_TEMP/mawdda-signing/mawdda-certificate.pem" -noout -text)"
+          grep -q 'Public Key Algorithm: rsaEncryption' <<< "$cert_details"
+          public_key_details="$(openssl x509 -in "$RUNNER_TEMP/mawdda-signing/mawdda-certificate.pem" -pubkey -noout | openssl pkey -pubin -text -noout)"
+          grep -q 'Public-Key: (2048 bit)' <<< "$public_key_details"
+
+          actual_cert="$(openssl x509 -in "$RUNNER_TEMP/mawdda-signing/mawdda-certificate.pem" -noout -fingerprint -sha256 | sed 's/.*=//' | tr '[:lower:]' '[:upper:]' | tr -d ':')"
+          expected_cert="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr '[:lower:]' '[:upper:]' | tr -d ':')"
+          test "$actual_cert" = "$expected_cert" || {
+            echo "::error::The provided keystore does not match the established Mawdda signing identity."
+            exit 1
+          }
+
+          not_after="$(openssl x509 -in "$RUNNER_TEMP/mawdda-signing/mawdda-certificate.pem" -noout -enddate | cut -d= -f2-)"
+          actual_expiry="$(date -u -d "$not_after" +%s)"
+          minimum_expiry="$(date -u -d '2033-10-23T00:00:00Z' +%s)"
+          test "$actual_expiry" -ge "$minimum_expiry" || {
+            echo "::error::The signing certificate must remain valid beyond 22 October 2033."
+            exit 1
+          }
+
+          printf '%s\n' "$EXPECTED_CERT_SHA256" > release-evidence-owner-cert.tmp
+
+      - name: Resolve locked Flutter dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build universal release APK
+        run: |
+          set -euo pipefail
+          mkdir -p release-output release-evidence
+          flutter build apk --release --dart-define=MAWDDA_FIREBASE_ENV=production
+          install -m 644 build/app/outputs/flutter-apk/app-release.apk \
+            release-output/mawdda-universal-release.apk
+
+      - name: Build ABI-specific release APKs
+        run: |
+          set -euo pipefail
+          flutter build apk --release --split-per-abi --dart-define=MAWDDA_FIREBASE_ENV=production
+          shopt -s nullglob
+          apks=(build/app/outputs/flutter-apk/app-*-release.apk)
+          test "${#apks[@]}" -gt 0
+          for apk in "${apks[@]}"; do
+            install -m 644 "$apk" "release-output/$(basename "$apk")"
+          done
+
+      - name: Build Google Play Android App Bundle
+        run: |
+          set -euo pipefail
+          flutter build appbundle --release --dart-define=MAWDDA_FIREBASE_ENV=production
+          install -m 644 build/app/outputs/bundle/release/app-release.aab \
+            release-output/mawdda-google-play-release.aab
+
+      - name: Verify APK and AAB package identity and version metadata
+        run: |
+          set -euo pipefail
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$AAPT"
+          python3 tool/verify_android_release_metadata.py \
+            --pubspec pubspec.yaml \
+            --aapt "$AAPT" \
+            --apk-dir release-output \
+            --aab release-output/mawdda-google-play-release.aab \
+            --bundle-metadata build/app/outputs/bundle/release/output-metadata.json \
+            --evidence release-evidence/android-artifact-metadata.txt
+
+      - name: Scan signed APK and AAB artifacts with fresh ClamAV signatures
+        run: |
+          set -euo pipefail
+          docker build --tag mawda-release-artifact-scanner:ci scanner
+          docker run --rm --entrypoint sh \
+            -v "$PWD/release-output:/scan:ro" \
+            mawda-release-artifact-scanner:ci -c '
+              set -eu
+              freshclam --stdout --log=/tmp/freshclam-release.log
+              clamscan --infected --no-summary --alert-exceeds-max=yes \
+                --max-filesize=250M --max-scansize=1G \
+                --max-recursion=20 --max-files=20000 --scan-archive=yes /scan
+            ' | tee release-evidence/clamav-release-scan.log
+
+      - name: Verify APK and AAB signatures, application identity and checksums
+        env:
+          EXPECTED_CERT_SHA256: '21:F9:E6:01:80:E2:03:8D:DD:57:4E:DC:F1:2A:63:4B:C6:25:D9:BA:3F:65:53:B2:9D:61:70:62:C6:36:84:56'
+        run: |
+          set -euo pipefail
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          test -x "$AAPT"
+
+          expected="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr '[:lower:]' '[:upper:]' | tr -d ':')"
+          shopt -s nullglob
+          apks=(release-output/*.apk)
+          test "${#apks[@]}" -gt 0
+          test -f release-output/mawdda-universal-release.apk
+
+          for apk in "${apks[@]}"; do
+            "$APKSIGNER" verify --verbose "$apk"
+            actual="$("$APKSIGNER" verify --print-certs "$apk" | sed -n 's/.*certificate SHA-256 digest: //p' | head -n 1 | tr '[:lower:]' '[:upper:]' | tr -d ':')"
+            test -n "$actual"
+            test "$actual" = "$expected" || {
+              echo "::error::APK signer certificate mismatch: $apk"
+              exit 1
+            }
+            "$AAPT" dump badging "$apk" | grep -F "package: name='com.mawdda.platform.app'"
+            printf '%s %s\n' "$apk" "$actual" >> release-evidence/apk-signer-sha256.txt
+          done
+
+          aab="release-output/mawdda-google-play-release.aab"
+          test -s "$aab"
+          if ! jarsigner -verify -verbose -certs "$aab" > "$RUNNER_TEMP/mawdda-signing/aab-verification.txt" 2>&1; then
+            cat "$RUNNER_TEMP/mawdda-signing/aab-verification.txt"
+            exit 1
+          fi
+          grep -Eqi 'jar verified' "$RUNNER_TEMP/mawdda-signing/aab-verification.txt" || {
+            cat "$RUNNER_TEMP/mawdda-signing/aab-verification.txt"
+            echo "::error::The Android App Bundle signature was not verified."
+            exit 1
+          }
+          aab_cert="$(keytool -printcert -jarfile "$aab" | awk '/SHA256:/{print $2; exit}' | tr '[:lower:]' '[:upper:]' | tr -d ':')"
+          test -n "$aab_cert"
+          test "$aab_cert" = "$expected" || {
+            echo "::error::AAB signer certificate does not match the established Mawdda signing identity."
+            exit 1
+          }
+          printf '%s %s\n' "$aab" "$aab_cert" > release-evidence/aab-signer-sha256.txt
+
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          pubspec = Path("pubspec.yaml").read_text(encoding="utf-8")
+          match = re.search(r"^version:\s*([^\s#]+)", pubspec, re.MULTILINE)
+          if not match:
+              raise SystemExit("Missing Flutter version in pubspec.yaml")
+          version = match.group(1).strip().strip("'\"")
+          if "+" not in version:
+              raise SystemExit("pubspec.yaml version must include a numeric build number, e.g. 1.0.0+1")
+          version_name, build_number = version.rsplit("+", 1)
+          if not build_number.isdigit() or int(build_number) < 1:
+              raise SystemExit("Android versionCode must be a positive integer")
+          manifest = Path("release-evidence/android-release-manifest.txt")
+          artifact_sizes = "".join(
+              f"artifact={artifact.name};sizeBytes={artifact.stat().st_size}\n"
+              for artifact in sorted(Path("release-output").glob("*"))
+              if artifact.is_file()
+          )
+          manifest.write_text(
+              "applicationId=com.mawdda.platform.app\n"
+              f"versionName={version_name}\n"
+              f"versionCode={build_number}\n"
+              f"sourceCommit={__import__('os').environ.get('GITHUB_SHA', 'unknown')}\n"
+              "artifacts=universal APK, ABI-specific APKs, Google Play AAB\n"
+              "signingIdentity=owner-controlled Mawdda certificate; verified against pinned SHA-256\n"
+              + artifact_sizes,
+              encoding="utf-8",
+          )
+          PY
+
+          sha256sum release-output/* > release-evidence/artifact-sha256.txt
+          cp "$RUNNER_TEMP/mawdda-signing/mawdda-certificate.pem" release-evidence/mawdda-public-certificate.pem
+          cat release-evidence/artifact-sha256.txt
+          cat release-evidence/apk-signer-sha256.txt
+          cat release-evidence/aab-signer-sha256.txt
+
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: mawdda-android-release-apk-aab-${{ github.sha }}
+          path: |
+            release-output/
+            release-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove transient signing files
+        if: always()
+        run: |
+          rm -f android/key.properties android/app/mawdda-identity-key.jks
+          rm -f release-evidence-owner-cert.tmp

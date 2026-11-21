@@ -1,0 +1,27 @@
+BRANCH: codex/phase1-group-call-remainder-to-initiator-2026-11-20
+SHA: 99639a6c7adf25c32eca6b93c0cc393d130f8e8f
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 5b7179978ebf6ac9acd0ad558a4aed306bab45f0
+
+=== DIVERGENCE target-only / branch-only ===
+197	2
+
+=== BRANCH UNIQUE COMMITS ===
+99639a6c7adf25c32eca6b93c0cc393d130f8e8f test(calls): enforce initiator remainder allocation
+997cead0018f1f61ff120b314dc32fba32d35f2c fix(calls): assign group-call rounding remainder to initiator
+
+=== CHERRY STATUS ===
++ 997cead0018f1f61ff120b314dc32fba32d35f2c fix(calls): assign group-call rounding remainder to initiator
++ 99639a6c7adf25c32eca6b93c0cc393d130f8e8f test(calls): enforce initiator remainder allocation
+
+=== FILE STATUS ===
+M	functions/src/group-call-economy.ts
+M	functions/test/group-call-economy.test.js
+
+=== NUMSTAT ===
+5	5	functions/src/group-call-economy.ts
+8	6	functions/test/group-call-economy.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

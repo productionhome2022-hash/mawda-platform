@@ -1,0 +1,19 @@
+BRANCH: codex/phase1-integration-batch-01-inventory-2026-11-19
+SHA: 2fff6276055de44bc488cc123cec16491421a8e6
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 2fff6276055de44bc488cc123cec16491421a8e6
+
+=== DIVERGENCE target-only / branch-only ===
+309	0
+
+=== BRANCH UNIQUE COMMITS ===
+
+=== CHERRY STATUS ===
+
+=== FILE STATUS ===
+
+=== NUMSTAT ===
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

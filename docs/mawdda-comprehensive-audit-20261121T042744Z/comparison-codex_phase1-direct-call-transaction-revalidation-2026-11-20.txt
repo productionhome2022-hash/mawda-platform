@@ -1,0 +1,16 @@
+Compared branch: codex/phase1-direct-call-transaction-revalidation-2026-11-20
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+204	5
+
+=== CHANGE SUMMARY ===
+ functions/src/index.ts                  | 28 +++++++++++++++++++---
+ functions/src/room-call-policy.ts       | 37 +++++++++++++++++++++++++++++
+ functions/test/room-call-policy.test.js | 42 ++++++++++++++++++++++++++++++++-
+ 3 files changed, 103 insertions(+), 4 deletions(-)
+
+=== CHANGED PATHS ===
+M	functions/src/index.ts
+M	functions/src/room-call-policy.ts
+M	functions/test/room-call-policy.test.js

@@ -1,0 +1,1111 @@
+diff --git a/docs/ECONOMIC_PHASE_EXECUTION_AND_INTEGRATION_PLAN_2026-11-19.md b/docs/ECONOMIC_PHASE_EXECUTION_AND_INTEGRATION_PLAN_2026-11-19.md
+new file mode 100644
+index 00000000..80fbb001
+--- /dev/null
++++ b/docs/ECONOMIC_PHASE_EXECUTION_AND_INTEGRATION_PLAN_2026-11-19.md
+@@ -0,0 +1,375 @@
++# المرحلة الاقتصادية الشاملة — خطة التكامل التنفيذي والحوكمة والإغلاق
++
++**الإصدار:** 1.0  
++**التاريخ:** 19 نوفمبر 2026  
++**فرع التكامل المخصص:** `codex/economic-phase-controlled-integration-2026-11-19`  
++**الفرع المرجعي الذي أُنشئ منه:** `codex/mawda-full-platform-implementation`  
++**SHA الأساس عند إنشاء الفرع:** `8a1c8d0b93ed43570c523ab2d8c2598648ddac0e`  
++**الحالة:** OPEN — خطة تنفيذ وضبط تكامل، وليست شهادة اكتمال أو إذناً للنشر.
++
++## 1. الغرض والنطاق
++
++تُدار المرحلة الاقتصادية الشاملة بوصفها برنامج تكامل واحداً يربط المحفظة والكوينز والتحويلات والشراء والمتجر والاستحقاقات والمكافآت والإعلانات المميزة والإعلانات المؤقتة والمكالمات والغرف والإيجارات والفعاليات ووسائط الحفظ ولوحة المالك والتكاليف والحوكمة.
++
++الهدف ليس جمع الملفات أو دمج الفروع دفعة واحدة؛ بل بناء خط أساس موحد، وانتقاء التغييرات الصحيحة من كل فرع، وحل التعارضات، وربط واجهات العميل بالوظائف الخادمية والبيانات والسجلات، ثم التحقق باختبارات متدرجة على SHA ثابت.
++
++## 2. قواعد حاكمة لا يجوز تجاوزها
++
++1. هذا الفرع هو مساحة التكامل المعزولة. لا دمج إلى `main` ولا إلى الإنتاج ولا نشر ولا تغيير Firebase حي ولا تفعيل Billing/Blaze أو خدمات مدفوعة دون موافقة مالك منفصلة.
++2. لا دمج شامل لأي فرع متشعب. كل تغيير يراجع على مستوى commit/file/API/schema/rules/index/test ثم يُنقل انتقائياً.
++3. لا حذف للفروع أو الملفات أو السجلات التاريخية قبل إثبات نقل كل تغيير فريد وحفظ مرجعه.
++4. لا اعتبار لميزة مكتملة بسبب وجود واجهة أو callable أو اختبار منفرد. يجب إثبات دورة end-to-end، وحماية الخادم، والتكامل، واختبارات الحدود والفشل والتزامن.
++5. كل تعديل مالي خادمي، ذري، idempotent، قابل للتدقيق والمصالحة، ويفشل مغلقاً عند نقص البيانات أو الصلاحيات أو الاستحقاق.
++6. لا تعديل تلقائي للأرصدة أو إعادة كتابة التاريخ المالي أثناء المصالحة؛ تبدأ المصالحة للقراءة فقط وتُظهر mismatch/incomplete/corrupt.
++7. لا يُسمح بتفعيل خصم مكالمات أو تحصيل آلي أو دفع عمولة أو إعلان مدفوع أو استحقاق غير مكتمل.
++8. لا يُسمح للواجهة بتحديد السعر أو الرصيد أو إثبات الدفع أو حالة المشاهدة أو أهلية المكافأة.
++9. كل قيمة تجارية قابلة للضبط من المالك وفق القرار المعتمد؛ لا أسعار بديلة أو حصص أو مدد مخترعة.
++10. يبقى مختبر 5,000 شخصية في مستودعه المستقل، ويختبر SHA مثبتاً من المنصة ولا ينقل harness إلى مستودع التطبيق.
++11. موافقة المالك الصريحة الأحدث هي مرجع القرار. سياسة نص المحادثة المهمة 30 يوماً، العادية 7 أيام، الوسائط 4 ساعات، والمؤقتة حذف المحادثة بعد 4 ساعات من خمول خادمي؛ تفاصيل اختيار النمط وموافقة الطرفين ما زالت مفتوحة.
++12. المستندات القانونية مسودات حتى مراجعة الاختصاص القانوني والكيان والتوقيع الصحيح. لا يصطنع النظام أرقام تسجيل أو عناوين أو بيانات اتصال.
++
++## 3. جرد الفروع وطلبات الدمج التي يجب مصالحتها
++
++الأعداد أدناه ناتجة عن مقارنة GitHub بين الفرع المرجعي وقت إنشاء الخطة وبين رؤوس الفروع الظاهرة في المستودع. التفرع الكبير يعني اختلاف تاريخ الأساس، ولا يعني أن كل commits مستقلة أو صالحة للدمج.
++
++| المرجع | الفرع | مقارنة تقريبية بالأساس 8a1c... | المعالجة |
++|---|---|---:|---|
++| PR #30 | `codex/economy-official-port-2026-11-18` | +20 / -92، 9 ملفات | مراجعة انتقائية لدورة طلب شراء الكوينز اليدوية، إثباتات المالك، replay، الغرف والمتجر |
++| PR #31 | `codex/economic-phase-completion-2026-11-18` | +181 / -92، 45 ملفاً | مصدر مرشح لسياسة الاقتصاد، التسعير، الهدايا، المصالحة، featured-ad finance، group calls؛ ممنوع الدمج الشامل |
++| PR #22 | `codex/economic-phase1-closeout-2026-11-18` | +124 / -92، 34 ملفاً | مراجعة تقارير الإغلاق والقرارات واختبارات المكالمات والمكافآت؛ تحقق من تكرار/تعارض PR #31 |
++| PR #28 | `codex/economy-recovery-2026-11-18` | +618 / -92، 105 ملفات | فرع تجميعي شديد الاتساع؛ لا دمج شامل. استخراج فقط التغييرات الفريدة الموثقة بعد تحليل الاعتماديات |
++| PR #24 | `codex/featured-ads-secure-lifecycle-20261118` | +199 / -93، 58 ملفاً | مراجعة دورة الإعلانات المميزة/الوسائط/الملصقات والاختبارات، ومقارنتها مع PR #31 |
++| PR #25 | `codex/mawda-phase2-hardening` | +78 / -2120، 23 ملفاً | خط أساس قديم جداً؛ مراجعة تغييرات أمان الوسائط فقط مقابل الكود الحالي، لا إعادة دمج البنية القديمة |
++| PR #26 | `codex/mawdda-test-account-system` | +37 / -1124، 11 ملفاً | استخراج مصفوفة التغطية وأدوات الحسابات التجريبية الآمنة فقط؛ عدم خلطها بمختبر 5,000 |
++| PR #27 | `codex/mawdda-unified-final` | +17 / -1249، 5 ملفات | مراجعة تجديد البريد والملف الشخصي فقط؛ انتقاء أي delta غير موجود بالأساس الحالي |
++| PR #35 | `codex/mawdda-retention-approval-ci-repair-2026-11-19` | +12 / 0، 8 ملفات | فرع قريب من التطوير الحالي؛ إصلاح version لكتالوج المتجر وقرار الاحتفاظ واختبارات المحفظة. لا يُدمج قبل CI كامل أخضر |
++| PR #38 | `codex/mawdda-role-capacity-final-2026-11-19` | +24 / 0، 12 ملفاً | فرع مكدّس فوق PR #35؛ مراجعة سعة الأدوار واختباراته، ولا يخلط بمتطلبات اقتصاد المستخدم إلا حيث تؤثر صلاحيات المالك |
++| PR #34 | `codex/mawdda-deep-governance-audit-2026-11-19` | وثائق تدقيق | مصدر تدقيق حوكمي؛ ترحيل النتائج إلى هذا المسار مع حفظ التقرير الأصلي |
++| PR #32/#33 | فروع الحوكمة/البيومتري | متشعبة ومتداخلة | مصالحة مستقلة؛ لا دمج الاثنين. نقل ما يلزم من صلاحيات المالك والتدقيق فقط بعد حسم سياسة البيومتري |
++| PR #2 | فرع المنصة الكامل مقابل main | واسع النطاق | خارج نطاق دمج هذه المرحلة إلى main؛ main غير صالح كهدف دمج مباشر حتى استبدال قواعده وبنيته القديمة بمراجعة شاملة |
++
++**تنبيه:** توجد فروع أخرى ظاهرة (premium effects/features, room events/audio, safety UI, store entitlement, native scaffold, MFA وغيرها). تُحصر في سجل تغييرات تفصيلي لاحقاً، ولا تُعتبر مدمجة لمجرد وجود PR مغلق؛ يجب فحص حالة merged والـ ancestry والـ file diff لكل فرع.
++
++## 4. خريطة المجالات والاعتماديات
++
++### A. الهوية والصلاحيات والحوكمة
++- هوية المالك الواحدة، MFA/step-up، صلاحيات الخادم، حالة الحساب، التدقيق، التفويض والسحب.
++- ربط كل إجراء اقتصادي حساس بصلاحية محددة، ومنع استخدام دور أو مقعد غير معتمد.
++- لا منح أو تعديل أسعار أو تسوية أو اعتماد إثبات دفع من الواجهة.
++
++### B. دفتر الكوينز والمحفظة والتحويلات
++- مصدر رصيد خادمي موحد.
++- دفتر immutable منطقي بسجلات مترابطة للمرسل والمستلم والمنصة والرسوم.
++- idempotency ومفاتيح replay وatomicity وقيود الحالة والرصيد.
++- مصالحة قراءة فقط مع pagination completeness وتحديد legacy/incomplete/corrupt.
++- عدم إعادة حساب المشتريات التاريخية أو تغيير أسعارها.
++
++### C. طلبات شراء الكوينز والدفع
++- طلب العضو ادعاء غير مالي، لا يضيف رصيداً.
++- تعليمات الدفع immutable/versioned؛ التحقق والموافقة للمالك فقط.
++- ربط الطلب بإثبات ومبلغ وعملة ومرجع، ومنع إعادة الاعتماد.
++- الدفع الآلي معطل حتى اختيار مزود، webhook موقع، مطابقة المبلغ/العملة/الطلب، refunds/reversals وتسوية، وموافقة مستقلة.
++
++### D. المحرك التجاري والمتجر والهدايا والاستحقاقات
++- محرك موحد لكل SKU حالي/مستقبلي: 24 ساعة، أسبوع، شهر، دائم عند السماح.
++- سعر مستقل لكل مدة، كمية وحدود وتجديد وحالة تشغيل يتحكم بها المالك.
++- snapshot للسعر والنسخة عند الشراء؛ خصم وإيصال واستحقاق وسجل ذري.
++- gift/grant/renewal/revoke/expiry consumers؛ لا تفعيل SKU بلا مستهلك فعلي واختبار.
++- Media Saver entitlement لا يمدد الاحتفاظ بالخادم.
++
++### E. المكافآت والتفاعل
++- بريد 500 كوين لكل دورة مؤهلة 90 يوماً exactly-once.
++- البيومتري 1500 كوين معطل حتى إثبات خادمي تشفيري مقاوم للتزوير وإعادة التشغيل.
++- مكافآت الإعلانات والفعاليات والأنشطة تتطلب evidence خادمياً وlimits وanti-abuse وledger.
++- إلغاء/انتهاء/سحب المكافأة حسب سياسة موثقة دون حذف الأثر المالي.
++
++### F. الإعلانات المؤقتة والمميزة
++- عدم الخلط بين timed ads وfeatured ads وrewarded ads.
++- ملكية المادة والموافقة والسلامة والاستهداف والمدة والميزانية والمشغل.
++- جلسات مشاهدة موثوقة، حجز ميزانية، أحداث مالية مستقلة، منح مكافأة ذرية.
++- نشر/سحب/إيقاف/استرداد/تسوية، ربط واجهات العضو والمالك، وإثبات عدم التكرار.
++- لا مزود خارجي ولا تحصيل حقيقي قبل تكامل معتمد.
++
++### G. المكالمات الفردية والجماعية والغرف
++- ربط الاستحقاق لكل مشارك عند الإنشاء والانضمام.
++- حد 5 دقائق للمكالمة، 5 صوت و3 فيديو خلال 24 ساعة متحركة وفق السياسة المعتمدة.
++- أسعار المكالمات المفتوحة 120 صوت/400 فيديو إجمالاً للدقيقة؛ إذا استنفد الطرفان الحصة 60/200 لكل طرف، وإذا استنفد المتصل وحده يدفع 120/400 وحده.
++- يلزم حسم وحدة التقريب والفوترة وموافقة الدافع، trusted media start/stop/reconnect، reservation/hold، insufficient funds، atomic idempotent settlement.
++- مكالمات المجموعة: لا فوترة قبل إثبات topology مناسبة (SFU عند الحاجة)، اتصال كل مشارك فعلياً، إشارات وسائط موثوقة لا ادعاءات العميل، consent، توزيع التكلفة، واختبارات الضغط. تظل fail-closed.
++- الغرف المستأجرة والفعاليات/RSVP تتطلب billing lifecycle، capacity، cancellation، reconciliation.
++
++### H. الوسائط والحفظ والاحتفاظ
++- MIME/size/duration validation، scanner، signed URLs، quotas، derivatives.
++- 4 ساعات للوسائط، حفظ محلي فقط باستحقاق Media Saver فعال؛ لا يمدد retention.
++- حذف الأصل والمشتقات والنسخ السحابية القابلة للحذف مع retries وaudit.
++- استكمال temporary-chat full deletion وmode consent، مع استبعاد legal/financial holds وفق أساس موثق.
++
++### I. إدارة التكاليف وحماية التشغيل
++- خط الأساس التخطيطي: 1,000 MAU؛ هدف 7.50 USD تشغيل + 2.50 USD احتياطي، إجمالي 10 USD شهرياً كهدف تخطيطي لا سقف مضمون.
++- قياس التخزين/التحميل/egress/processing/functions/ads/call usage.
++- quotas/alerts/circuit breakers/protect mode، مع إبقاء النص والسلامة الأساسيين.
++- تحقق من SKU والمنطقة وbucket والفوترة الفعلية قبل أي التزام مالي. لا تفعيل Billing أو Blaze ضمن هذا المسار دون موافقة منفصلة.
++
++### J. الحوكمة القانونية والعقود والسجلات
++- فهرسة كل دستور/رؤية/قرار/ميثاق/سياسة/اتفاقية/نموذج/ملحق.
++- تثبيت سلطة المرجع، معرف لكل قرار، مصدر موافقة وتاريخ، قيمة حالية، حالة تنفيذ، owner وevidence.
++- حفظ النماذج الأصلية وعدم صهر العقود المختلفة؛ كل عقد حسب العلاقة والغرض.
++- التحقق من كيان الشركة والبيانات والعناوين وحقوق العلامة والأصول؛ لا اختراع حقائق.
++- تدقيق النسخ والبصمات والتوقيع المتبادل والتفويض والإشعار والأرشفة والإنهاء وتسوية الحقوق.
++- فصل المسودة التقنية عن الرأي القانوني؛ مراجعة محامٍ مختص بكل ولاية قضائية قبل النفاذ.
++
++## 5. مراحل التنفيذ الإجرائية وبوابات الانتقال
++
++### المرحلة 0 — تجميد خط الأساس وجرد شامل
++المخرجات:
++- تثبيت SHA مرجعي واحد، قائمة الفروع/PRs/commits، workflow runs، artifacts، وحالة كل بند.
++- جرد ملفات الكود والاختبارات والواجهات والقواعد والفهارس والوظائف والـ schemas.
++- جرد الوثائق القانونية والحوكمية والمصادر المكررة والمتعارضة.
++- تسجيل التغييرات الفريدة والتغييرات المتكررة والملفات عالية التعارض.
++بوابة الخروج: لا فرع أو PR ذي صلة مجهول؛ لكل تغيير disposition: port / duplicate / obsolete / blocked / retain-history.
++
++### المرحلة 1 — توحيد السلطة والقرارات والوثائق
++المخرجات:
++- مصفوفة أولوية الوثائق وسجل قرارات واحد.
++- توحيد 30d/7d/4h retention.
++- تثبيت سياسات الأسعار والعمولات والمكافآت دون اختراع قيم.
++- سجل تعارضات قانونية/تجارية مفتوحة ومسؤوليتها.
++- ربط كل قرار بمتطلب تقني واختبار.
++بوابة الخروج: لا تعارض مؤثر غير مسجل، ولا صياغة مقترحة تعرض كقرار.
++
++### المرحلة 2 — إنشاء فرع تكامل اقتصادي مضبوط
++المخرجات:
++- فرع تكامل واحد من SHA التطوير المثبت.
++- نقل تغييرات PR #35 أولاً بعد CI، ثم تغييرات PR #30 في وحدات صغيرة.
++- نقل التغييرات الفريدة من PR #22/#31/#24/#28 وغيرها انتقائياً وفق الاعتماديات.
++- الحفاظ على branch protection وCI build/test only؛ لا deploy.
++بوابة الخروج: تاريخ واضح، لا cherry-pick مكرر، لا تعارضات غير محلولة، وكل دفعة لها commit واختبار.
++
++### المرحلة 3 — محرك المحفظة والمدفوعات
++المخرجات:
++- ledger invariants وcoin requests/manual approval/replay.
++- store purchase, grants, gifts, renewals, expiry.
++- read-only reconciliation.
++بوابة الخروج: اختبارات concurrency/replay/rollback/insufficient balance/suspended state، ونتائج تطابق السجلات.
++
++### المرحلة 4 — المكافآت والإعلانات
++المخرجات:
++- email reward and eligible reward lifecycle.
++- timed-ad vs featured-ad separation.
++- featured campaign finance, budget reservations, serving/reward evidence.
++بوابة الخروج: owner/member flows مكتملة، كل event exactly-once، tests على حالات الإلغاء والسحب والميزانية.
++
++### المرحلة 5 — المكالمات والغرف والإيجارات
++المخرجات:
++- entitlement gating for every participant.
++- trusted metering and settlement.
++- group-call architecture P0 remediation.
++- rental/RSVP/cancellation finance reconciliation.
++بوابة الخروج: لا خصم قبل media evidence وconsent، ولا partial inconsistent settlement، وgroup-call charging stays disabled until independently accepted.
++
++### المرحلة 6 — الوسائط والتكلفة والحماية
++المخرجات:
++- Media Saver full lifecycle.
++- retention/delete proof.
++- cost meter, quotas, alerts, protect mode.
++بوابة الخروج: اختبار deletion/retry/restore، وتحقق من cost thresholds دون إيقاف النص والسلامة.
++
++### المرحلة 7 — ربط الواجهات وتجربة المالك والعضو
++المخرجات:
++- Flutter owner/member screens linked to authoritative callables/streams.
++- clear pending/success/failure/refund/expiry states.
++- accessibility, RTL, offline/error handling.
++بوابة الخروج: لا UI وهمي ولا local financial mutation، واختبارات واجهات/مسارات مستخدم.
++
++### المرحلة 8 — التحقق المحلي/CI المتدرج
++التنفيذ عبر بيئة GitHub Actions/Emulator المصرح بها:
++1. format/analyze/lint/typecheck.
++2. Functions compile + unit tests.
++3. targeted Firestore/Storage emulator tests.
++4. domain integration regression.
++5. Flutter analyze + widget tests + Web release build.
++6. security/rules/dependency/secrets/config checks.
++7. complete Validate workflow on exact SHA.
++8. repeat failed suites after fix; no green result from another SHA counts.
++بوابة الخروج: كل الوظائف المطلوبة خضراء على SHA واحد محدد، مع artifacts/logs محفوظة.
++
++### المرحلة 9 — اختبار المختبر والقبول
++- تشغيل مختبر 5,000 شخصية من مستودعه المنفصل وعلى SHA مثبت بعد نجاح CI.
++- لا يُعاد تشغيل حمل مكلف إلا بعد مراجعة سبب الفشل وتفويض/إذن التشغيل المناسب.
++- إثبات 5,000/5,000 أو تسجيل عجز واضح ومعالجته.
++- قبول الأجهزة الحقيقية وnon-production وsecurity/privacy/legal review.
++بوابة الخروج: تقرير قابل لإعادة الإنتاج، لا مجرد status أخضر.
++
++### المرحلة 10 — قرار إغلاق المرحلة
++- تحديث الدستور والرؤية وسجل القرارات والتتبع والفهرس وقائمة الإصدار.
++- كل بند يملك implementation reference, test, exact SHA, evidence, owner disposition.
++- مراجعة نهائية للتعارضات والثغرات والمخاطر المتبقية.
++- إغلاق PRs المكررة بعد حفظ التغييرات الفريدة.
++- الإغلاق الهندسي لا يساوي إذن الدمج إلى main أو النشر أو تفعيل billing؛ تلك موافقات منفصلة.
++
++## 6. بروتوكول فحص كل دفعة كود
++
++لكل فرع/commit:
++1. compare base/head وتحديد merge-base وحجم التفرع.
++2. فحص الملفات المتغيرة وتصنيفها (backend/client/rules/index/workflow/docs/schema).
++3. قراءة diff كاملة للملفات الحرجة: `functions/src/index.ts`, ledger/payment/store/call/media modules, Firestore/Storage rules, indexes, Flutter screens.
++4. تحديد العقود والواجهات والحقول والـ collections ومخططات البيانات المتأثرة.
++5. كشف duplicate callable names, divergent schemas, hardcoded prices, client-trusted fields, missing auth, replay/race conditions, stale indexes, cleanup omissions.
++6. مراجعة الاختبارات: ما الذي تثبته وما الذي لا تثبته؛ إضافة اختبار regression قبل إصلاح الخلل.
++7. نقل التغيير إلى فرع التكامل بcommit محدود، ثم تشغيل suite المتأثرة.
++8. توثيق القرار والنتيجة والـ SHA والـ run ID قبل الانتقال إلى الدفعة التالية.
++
++## 7. نموذج حالة موحد لكل بند
++
++كل بند يأخذ حالة واحدة فقط:
++- NOT_INVENTORIED
++- INVENTORIED
++- BLOCKED_BY_POLICY
++- READY_TO_PORT
++- PORTED_UNVERIFIED
++- VERIFIED_ON_SHA
++- DEVICE_OR_NONPROD_ACCEPTED
++- RELEASE_APPROVED
++
++لا ترفع الحالة دون evidence. تسجل أيضاً: decision ID, source branch/PR/commit, target commit, files, dependencies, tests, run IDs, unresolved risks, owner approval.
++
++## 8. أول دفعة تنفيذية
++
++الترتيب الأولي:
++1. مراجعة exact-head CI لPR #35 و#38، ثم معالجة كل فشل قبل النقل.
++2. تحليل PR #30 ملفاً بملف ونقل manual payment/wallet replay فقط مع اختبارات emulator.
++3. تحليل PR #31 و#22 معاً لاستخراج التغييرات الفريدة وتحديد تداخلها، خاصة `functions/src/index.ts` وpricing/rewards/call/group-call.
++4. مراجعة PR #24 مع PR #31 لتوحيد featured-ad finance وعدم ازدواج الأحداث/ledger.
++5. مراجعة PR #28 باعتباره فرع تجميعي لا مصدراً موثوقاً للدمج الشامل.
++6. بعد ذلك مراجعة PR #25/#26/#27 والامتدادات الأخرى التي تؤثر على media, test coverage, profiles/email.
++7. تنفيذ integration matrix وCI exact-head بعد كل دفعة.
++
++## 9. قيود القدرة والاختبارات
++
++- GitHub connector يستطيع قراءة الفروع والملفات والـ PRs والـ diffs والـ workflow logs/artifacts، وإجراء تغييرات موثقة في الفروع وإنشاء commits وPRs وتشغيل workflows إذا كان الإذن والـ workflow يدعمان ذلك.
++- GitHub Actions/Emulator هو مسار الاختبار المحلي المعزول المتاح داخل CI؛ لا يُدّعى تشغيل emulator على جهاز المستخدم أو اختبار أجهزة حقيقية من GitHub.
++- لا يمكن من هذا المسار إثبات إعدادات Firebase Console الحية أو billing/SKU أو أداء جهاز Android فعلي دون قبول منفصل/دليل من البيئة المعنية.
++- لا تُطلب من المستخدم أوامر Termux إلا إذا ثبت أن هناك خطوة لا يمكن تنفيذها من GitHub connector أو CI.
++- لا تجرى عمليات تشغيل 5,000 أو إعادة تشغيل باهظة لمجرد إعادة المحاولة؛ يلزم تحليل السبب أولاً.
++
++## 10. سجل الحالة الأولي
++
++- تم إنشاء فرع التكامل المعزول من SHA `8a1c8d0b93ed43570c523ab2d8c2598648ddac0e`.
++- تم التحقق من وجود الفروع الاقتصادية/الحوكمية الرئيسية المذكورة أعلاه ومقارنة رؤوسها بفرع التطوير.
++- تبين أن معظم الفروع القديمة متشعبة بدرجات كبيرة، لذلك لا تصلح للدمج المباشر.
++- PR #35 و#38 متقدمان فقط على فرع التطوير الحالي دون commits خلفية حسب مقارنة GitHub، لكنهما ما زالا Draft ويحتاجان exact-head CI ناجحاً.
++- لا يُعلن اكتمال أي بند من هذه الخطة في هذه النسخة.
++
++
++## 11. تنفيذ التدقيق الأولي ونتائج الاختبار — 19 نوفمبر 2026
++
++### 11.1 نجاح مثبت في مختبر 5,000 شخصية
++
++- Workflow run: `44476167496` — [تشغيل المحاكاة](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/actions/runs/44476167496).
++- Lab branch SHA: `fdc25b2893b832ec34de6ab2eb10cab73e3d764e`.
++- Exact platform source SHA checked out by the lab: `63916ade25d9c6d5db640204637053042415fa06` (commit subject: return server catalog version from transactional publish).
++- Result: 8/8 test cases passed; `completedRows=5000`; all 13 reported lifecycle counters reached 5000.
++- Covered stages: premium entitlement provisioning, store purchase, receipt/ledger verification, greeting and pinned section, peer profile view, profile analytics, discovery, boosted discovery, block/unblock, push-token lifecycle, room join, event listing, event RSVP.
++- A machine-readable report artifact was uploaded: `mawdda-5000-simulation-44476167496`, artifact ID `14507784453`, SHA-256 `dc8292bd38b0c273c5eca28c6200d97058ab98ba6f667e52621c8a33b3cecf8c`.
++- **Scope limitation:** this run does not establish 5,000-persona call billing, group-call media, Media Saver/local downloads, full media scanner throughput, manual payment, featured-ad financial settlement, or every economic lifecycle. It is a successful 5,000-persona member/store/profile/discovery/room/event scenario only. It does not close the economic phase.
++
++### 11.2 Exact-head CI findings on PR #35
++
++- Exact tested head before fixture repair: `9d0cadc4b460b0b540a56503846977593f7994b7`.
++- Domain regression run `44476789499`: success.
++- Full Validate run `44476789455`: failure.
++- Passed on that run: Functions compile/unit suite; media authorization; retention (including 30-day important text); direct-message deletion; owner grants; wallet/store transactional integration; room rental; room events; call signaling; FCM; biometric reward-cycle boundary; attendance/timed-ad rewards; email renewal; safety/appeals; privacy; test personas; owner audit export; legal holds; avatar/cover; message legal holds; Firestore/Storage rules; Flutter analysis/tests/Web build; scanner image/security tests.
++- Failed suites:
++  1. `featured-ad-finance.integration.test.js`: replay rejected because the immutable financial version/event/audit evidence comparison failed with `failed-precondition`.
++  2. `premium-profile.integration.test.js`: direct test fixtures seeded store catalog entries without the server-required positive catalog `version`, so purchases correctly failed closed.
++- Fixture correction committed on PR #35 branch: `b93279acbea5b5cd72b88fa5923f3ffeae0cac49`; it adds explicit version 1 to directly seeded catalog test fixtures. Exact-head reruns `44494473904` (Validate) and `44494473967` (domain regression) were started and must be read to completion before acceptance.
++
++### 11.3 Exact-head CI findings on PR #38
++
++- Exact tested head before fixture repair: `297e456fd68814886cbcf53b6a3b645a91d54608`.
++- Full Validate run `44477211137`: failure. Flutter analysis/tests/Web build, backend compile/unit tests, media scanner and rules tests passed; the same featured-ad finance replay mismatch and premium-profile catalog fixture version omission failed.
++- Domain regression run `44477211283`: failure. Retention, room reservation/cancellation, owner grant and Flutter widget suites passed; specialized role-capacity integration failed because its Admin Media fixture used the unsupported permission `advertising.requests.view_all` rather than the canonical allowed `advertising.requests.review`. The concurrency test then observed zero successful assignments because the same invalid fixture was rejected.
++- Corrections committed on PR #38 branch: `5f9fded3a3cc298b2201ea5f575c55f20100c87a` (catalog version fixture) and `8175a8aaa7fcf9e6275d9c934eb6a3541037f3f7` (canonical Admin Media permission).
++- Exact-head reruns `44494510348` (Validate) and `44494510469` (domain regression) were started; acceptance is pending their final results.
++
++### 11.4 Cross-branch source audit findings
++
++- PR #31 and PR #22 both modify the same high-conflict economic surfaces: `functions/src/index.ts`, coin purchase requests, engagement rewards, call signaling, store/catalog and Flutter economy/profile screens. PR #31 also adds the broader economic payment policy, featured-ad finance, group-call economy and read-only wallet reconciliation. PR #22 contains distinct call/phase closeout audits, gifting, profile projection and additional UI. They must be reconciled together by symbols and data contracts, not merged as whole branches.
++- PR #24 overlaps PR #31 on featured-ad finance/rewards, `index.ts`, `media.ts`, `media-scanner.ts`, quotas, Firestore indexes, sticker systems and Flutter featured-ad screens. Treat PR #24 as a source for media/featured-ad/sticker deltas only after semantic comparison with PR #31.
++- PR #28 is a 105-file recovery aggregation touching economy, media, ads, stickers, gifting, scanner, indexes, package manifests and many Flutter screens. It is not a safe merge unit; use it as a reference map and extract only independently verified unique changes.
++- PR #25 is based on a much older source line (over 2,000 commits behind current development in the comparison). Review only unique media-security hardening; do not rebase/merge its whole branch.
++- PR #26 and #27 are likewise old-line deltas. Extract safe test-center fixtures/scripts and email/profile behavior only after checking current coverage and anti-abuse semantics.
++- Existing role-capacity code is separate governance work; its five-seat checks must not be conflated with economic entitlements or general owner permissions.
++
++### 11.5 Newly confirmed blocking details
++
++1. **Featured-ad finance replay mismatch:** still unresolved. Preserve fail-closed behavior. Before changing production logic, add targeted diagnostic assertions for the immutable event, version snapshot and audit row fields; identify the exact mismatching field; then fix the canonical write/read contract and test missing-row, tampered-row, replay, multi-receipt and concurrency paths.
++2. **Group-call economy is P0 blocked:** PR #31's own engineering audit confirms no trusted provider-side media proof, incomplete participant-to-participant topology, no SFU for unrestricted audio scale, no complete entitlement check for every participant, no trusted per-participant media intervals, no all-participant reservation/settlement, and incomplete video layout acceptance. Keep group-call charging disabled.
++3. **Media Saver is not end-to-end complete:** entitlement/store infrastructure does not prove secure local-save workflows, per-save server authorization, expiry handling, local platform permissions and no-retention-extension semantics.
++4. **Manual payment remains owner-attested only:** member claim/receipt is not proof and must never credit coins; owner approval and replay-safe financial ledger are required. Automated checkout stays disabled.
++5. **Governance/legal records remain draft:** the unified constitution and contract register explicitly do not constitute signed agreements or legal advice. The next legal audit must verify source versions, signatory authority, legal entity data, jurisdiction, privacy/retention disclosures, electronic signature, contract version/hash and records retention; no missing legal fact may be invented.
++
++### 11.6 Immediate next actions
++
++1. Complete the in-progress exact-head reruns for PR #35 and #38; inspect job logs and confirm the two known fixture failures are gone.
++2. Diagnose the featured-ad replay mismatch with field-level test assertions and correct the canonical event/version/audit contract.
++3. Re-run the featured-ad integration suite and the full Validate workflow on the resulting exact SHA.
++4. Reconcile PR #30 manual-payment/wallet replay deltas against current development in small commits.
++5. Review PR #31 and #22 together by function and schema, beginning with wallet reconciliation, pricing/payment policy, gifting and rewards; isolate group-call P0 work as a separately gated substream.
++6. Review PR #24 featured-ad/media/sticker changes against the same symbols in PR #31; do not merge duplicate modules or duplicate callable names.
++7. Perform the legal/governance source audit and create a document-to-decision-to-implementation register without replacing original agreements.
++8. Only after source integration stabilizes, run the full exact-head Validate, then the appropriately scoped 5,000-persona scenarios and device/non-production acceptance.
++
++
++### 11.7 PR #30 manual-payment source comparison
++
++A direct source comparison of all seven non-document PR #30 files against the current official development branch found:
++- `functions/src/coin-purchase-requests.ts` on PR #30 hardcodes EUR and omits currency exponent support. The current official development version already supports validated ISO currencies and minor-unit exponents; do not port the EUR-only version over it.
++- `functions/test/integration/owner-entitlement-grants.integration.test.js` and `room-rental.integration.test.js` are byte-identical to the current development files; no code port is needed from these files.
++- PR #30's wallet/store integration test is an older, shorter fixture set. Current development has additional owner-configured pricing, no-default-price fail-closed tests, payment policy versioning and wallet reconciliation coverage. Port only genuinely unique cases after comparing their assertions.
++- PR #30's Flutter member/owner coin purchase screens are older and hardcode EUR; current development screens already use owner-configured currency and exponent data. Do not replace current screens with those older versions.
++- The PR #30 branch remains useful as a source reference for manual payment workflow/replay semantics, but its currency implementation is stale relative to current development. No PR #30 source was merged or copied in this audit.
++
++### 11.8 Featured-ad replay root cause and correction
++
++The exact-head integration failure was traced to a schema mismatch in `recordFeaturedAdFinancialEvent`: the immutable event document stored the input event and metadata, but omitted the resulting financial snapshot fields (`receivedMinor`, `refundedMinor`, `reconciledMinor`, `reviewStatus`, `paymentStatus`). The replay validator compared those fields from the version snapshot against the prior event document, so a legitimate replay failed closed with `failed-precondition`.
++
++Correction applied on both current PR branches:
++- Add the derived `...next` financial snapshot to the immutable event document.
++- Add integration assertions that the event contains the resulting snapshot values.
++- PR #35 commits: `c9d0f68aa11c59a4fe9e20b6129d65f0b23c9965` and `6fb0091d2d8e59e48e58fbf7ce6d414e87e2d8f2`.
++- PR #38 commits: `aae62fc3a63398ebfeeaef652b651993013f3500` and `1fd56b4e967072aa322f5791d8c35ea995479d35`.
++- Exact-head Validate and domain regression workflows were started for the corrected heads; their final conclusions must be inspected before marking the defect resolved.
++
++### 11.9 Role-capacity test fixture correction
++
++The first PR #38 domain regression failed because the test fixture supplied `advertising.requests.view_all`, which is not in the canonical permission allowlist. The accepted Admin Media permission is `advertising.requests.review`. The invalid fixture also caused the concurrency case to observe no successful assignment. The fixture was corrected and the subsequent domain regression on SHA `8175a8aaa7fcf9e6275d9c934eb6a3541037f3f7` passed; a later exact-head run on SHA `1fd56b4e967072aa322f5791d8c35ea995479d35` is in progress. This validates the tested five-seat role path only, not the full Admin N permanent-number lifecycle.
++
++
++### 11.10 Store catalogue defaults and duration-policy gap
++
++Source inspection of the official development branch found two issues that must be reconciled before the commercial engine is accepted:
++
++1. `functions/src/default-store-catalog.ts` contains hardcoded positive `priceCoins` values (for example VIP, titles, badges, frames and boosts). `getOwnerStoreCatalog` seeds these values into Firestore as initial editable suggestions while leaving `purchaseEnabled: false`. This is fail-closed against charging, but it still persists and projects sample prices into the owner/member catalogue. The approved economic policy requires owner-set prices and no default commercial pricing. Decide the safe migration: remove sample price values or store them as explicitly non-commercial suggestions that cannot be displayed as payable prices; never activate them automatically.
++2. `functions/src/store-catalog.ts` accepts any integer `durationDays` from 1 to 3650. The owner-approved commercial durations are 24 hours, 7 days, 30 days (one month under the current commercial term), plus permanent items where permitted. The owner editor and server validator need a shared duration enum/SKU contract; arbitrary day counts must not silently become purchasable.
++3. Call SKUs and privacy add-ons appear in the default catalogue but are not in the current fulfillment-ready allowlist. They must remain non-purchasable until entitlement consumers and lifecycle tests exist; a catalogue row is not proof of a product.
++
++No production or user data was changed. This is a source-audit finding to be addressed in a dedicated migration-safe code/test batch after the current exact-head CI gate.
++
++
++## شرط الفحص المرحلي الشامل — اعتماد المالك ECON-PHASE-003
++
++تُعد بوابات الفحص والإغلاق الواردة في `ECONOMIC_PHASE_EXECUTION_CHECKLIST_AND_STAGE_CLOSURE_2026-11-19.md` شرطاً حاكماً لهذه الخطة. لا يجوز الانتقال بين المراحل الأربع عشرة دون إغلاق موثق للمرحلة السابقة بعد مراجعة عميقة وتشغيل جميع الاختبارات والفحوصات المتاحة والملائمة في GitHub وبيئات الاختبار. يجب معالجة الثغرات والعيوب الحرجة والعالية وإعادة الاختبارات على SHA نهائي ثابت. الفحص غير المتاح أو غير المنطبق يوثق مع السبب ولا يدعى نجاحه. بوابة المرحلة 0 تأسيسية وليست مرحلة إضافية ضمن المراحل الأربع عشرة.
++
++
++### 11.11 Manual coin-purchase port — currency-contract incompatibility
++
++A fresh source comparison between PR #30 (`codex/economy-official-port-2026-11-18`, head `d5db16e3700abafa95ea5f114bfbe3c0be8c3b7c`) and its current official-development base identified a contract mismatch in `functions/src/coin-purchase-requests.ts`:
++
++- The official-development base imports `currencyExponentForCode` from `./economy-pricing`, while the PR #30 version does not.
++- The PR #30 instruction validator fixes the currency contract to `EUR`; the current base is integrated with the central currency-pricing abstraction.
++- Therefore, porting the PR #30 file wholesale would regress the current currency contract and could make manual coin-purchase instructions inconsistent with owner-configured currency settings.
++
++**Required treatment:** retain the PR #30 state-machine and replay-hardening changes only after a semantic port onto the current currency abstraction. Keep the currency code and minor-unit validation derived from the central pricing contract; do not add EUR as a new platform-wide assumption. Add tests for the configured currency exponent, malformed/unsupported currency, and immutable instruction-version replay before accepting the port.
++
++**Status:** OPEN — source-level incompatibility confirmed by comparing the two branch versions; no code was changed in PR #30 or the official development branch, and no payment behavior was activated.
+diff --git a/docs/ECONOMIC_PHASE_EXECUTION_CHECKLIST_AND_STAGE_CLOSURE_2026-11-19.md b/docs/ECONOMIC_PHASE_EXECUTION_CHECKLIST_AND_STAGE_CLOSURE_2026-11-19.md
+new file mode 100644
+index 00000000..bf514960
+--- /dev/null
++++ b/docs/ECONOMIC_PHASE_EXECUTION_CHECKLIST_AND_STAGE_CLOSURE_2026-11-19.md
+@@ -0,0 +1,95 @@
++# سجل الإغلاق التنفيذي المرحلي — Mawdda Platform 2026
++
++**البرنامج:** ECON-PHASE-001  
++**الإصدار:** 1.0  
++**التاريخ:** 19 نوفمبر 2026  
++**فرع العمل:** `codex/economic-phase-controlled-integration-2026-11-19`  
++**الحالة العامة:** OPEN — لا تُعد أي مرحلة مغلقة إلا بعد استيفاء بوابة الخروج وتسجيل SHA والأدلة.
++
++## شرط المالك الإضافي — فحص شامل قبل الانتقال (ملزم لجميع المراحل)
++
++لا يجوز إغلاق أي مرحلة أو الانتقال إلى التالية إلا بعد تنفيذ مراجعة عميقة ومعالجة جميع العيوب والثغرات والفجوات المكتشفة، ثم إعادة الفحص على SHA نهائي ثابت. يجب تشغيل كل فحص واختبار متاح في GitHub وملائم لنطاق المرحلة، وليس الاكتفاء بـ workflow واحد. تشمل مصفوفة الفحص الإلزامية:
++
++1. **مراجعة التغيير:** diff كامل، مراجعة الملفات المتأثرة، الاعتماديات، التعارضات، API/schema/data migrations، التوافق العكسي، وتتبع المتطلبات إلى الاختبارات.
++2. **التحليل والبناء:** format/lint/static analysis، type checking، compile/build لكل منصة مدعومة وممكنة، والتحقق من lockfiles وworkflow YAML.
++3. **اختبارات البرمجيات:** unit، component/widget، integration، emulator، contract/API، end-to-end، regression، negative/authorization، concurrency/race، idempotency/replay، migration/backup/restore، وproperty/fuzz tests حيث توجد أدوات مناسبة.
++4. **الأمن:** CodeQL/code scanning إن أمكن تفعيله، dependency/SCA and vulnerability audit، secret scanning، dependency review، قواعد Firestore/Storage، authorization/privilege escalation، input validation، upload/scanner، SSRF/XSS/CSRF عند انطباقها، وسجلات التدقيق.
++5. **الجودة والتشغيل:** الأداء والحمل والضغط، حدود الموارد والتكلفة، resilience/retry/timeouts، observability/logging، accessibility، localization/RTL، وتجربة الأجهزة والمنصات حيث تتوفر بيئة اختبار.
++6. **التحقق من GitHub نفسه:** جميع workflows ذات الصلة، required checks المتاحة، artifacts وتقاريرها، نتائج PR review threads، وفحوصات الفرع والحماية التي تسمح بها صلاحيات الاتصال.
++7. **إدارة الثغرات:** كل finding يصنف severity وموضعه وأثره؛ P0/P1 يمنع الإغلاق، ويجب إصلاح findings ضمن النطاق ثم إعادة الاختبار. لا تقبل استثناءات إلا بقرار مالك موثق مع سبب وضوابط تعويضية، ولا يجوز تجاوز عيوب أمنية حرجة.
++
++**قواعد الصدق والتغطية:** لا يوجد اختبار واحد يثبت «كل شيء». لا تُشغّل اختبارات غير ذات صلة لمجرد العدد؛ يجب توثيق سبب عدم الانطباق أو عدم توفر الأداة/الصلاحية/البيئة، واعتبارها فجوة قبول إذا كانت لازمة. GitHub لا يوفر وحده كل اختبارات الأجهزة الحقيقية أو المراجعة القانونية؛ تلك بوابات منفصلة. لا يُعلن اكتمال فحص غير منفذ.
++
++## قواعد إدارة التنفيذ
++
++1. ننفذ المراحل بالترتيب أدناه؛ لا ننتقل إلى المرحلة التالية قبل إغلاق الحالية.
++2. لكل مرحلة: نطاق محدد، تغييرات صغيرة، اختبارات على SHA ثابت، مراجعة أمنية/دلالية، ثم سجل إغلاق.
++3. الإغلاق يعني: جميع مخرجات المرحلة موجودة، اختبارات القبول ناجحة، لا عيوب P0/P1 مفتوحة ضمن نطاقها، والملفات/القرارات/الاختبارات موثقة.
++4. عند الفشل: تبقى المرحلة مفتوحة، ويُسجل السبب والإصلاح وإعادة الاختبار؛ لا نتجاوز الفشل.
++5. لا دمج شامل للفروع؛ ننتقي التغييرات بعد مقارنة الملفات والاعتماديات، ونحتفظ بتاريخ الفروع حتى اكتمال المصالحة.
++6. لا دمج إلى `main`، ولا نشر، ولا تعديل Firebase حي، ولا تفعيل Billing/Blaze أو خدمات مدفوعة، ولا تحصيل أموال حقيقية ضمن هذه الخطة دون موافقة منفصلة صريحة.
++7. مختبر 5,000 شخصية يبقى في مستودعه المستقل ويختبر SHA مثبتاً من المنصة.
++8. أي بند قانوني يحتاج مستند شركة رسمي أو مراجعة محامٍ يبقى «محجوباً» ولا يُعلن مطابقاً أو نافذاً.
++
++## المراحل الأربع عشرة وبوابات الإغلاق
++
++**ملاحظة ترقيم:** المرحلة 0 أدناه بوابة تأسيس وحوكمة سابقة للتنفيذ وليست مرحلة من الأربع عشرة؛ مراحل التنفيذ المعتمدة هي 1 إلى 14. يطبق شرط الفحص الشامل أعلاه على المرحلة 0 أيضاً.
++
++| المرحلة | العمل التنفيذي | بوابة الإغلاق الإلزامية | الحالة |
++|---|---|---|---|
++| 0 — تثبيت الحوكمة والمرجع | تثبيت القرار ECON-PHASE-001، فرع التكامل، قواعد عدم الدمج/النشر، وسجل التغييرات والمخاطر | قرار موثق؛ فرع تكامل قائم؛ PR مراجعة مفتوح؛ لا تغييرات إنتاجية | قيد التوثيق |
++| 1 — جرد ومصالحة جميع الفروع | حصر كل الفروع وPRs والـ commits والملفات والـ workflows والاختبارات؛ تصنيف كل تغيير: نقل/مكرر/قديم/محجوب/حفظ تاريخي | لا مرجع مؤثر مجهول؛ مصفوفة disposition لكل PR/فرع؛ كل تغيير فريد له وجهة واختبار | مفتوحة |
++| 2 — توحيد الدستور والقرارات والوثائق | تسوية التعارضات؛ ربط كل قرار بمتطلب وكود واختبار؛ فهرسة العقود والسياسات؛ إبقاء المسودات القانونية موسومة | لا تعارض مؤثر غير مسجل؛ لا قيمة تجارية أو قانونية مفترضة؛ تحديث الدستور وسجل القرارات والفهرس | مفتوحة |
++| 3 — إكمال خط الأساس والتكامل | إكمال CI على الرؤوس الدقيقة؛ ترحيل إصلاحات PR35/38 بعد نجاحها؛ انتقاء تغييرات PR30/22/31/24/28 وغيرها؛ إزالة التكرار دون حذف التاريخ | نجاح full Validate وdomain regression لكل دفعة؛ مقارنة diff؛ لا تعارض غير محلول؛ كل commit قابل للتتبع | مفتوحة |
++| 4 — المحفظة ودفتر الكوينز والتحويلات | توحيد الرصيد والدفتر وسجلات الطرفين ورسوم التحويل ومفاتيح idempotency؛ قيود التعليق/الحظر؛ المصالحة للقراءة فقط | اختبارات الذرية والتزامن وإعادة التشغيل والرصيد غير الكافي والحساب الموقوف؛ تطابق الدفتر؛ لا تعديل تاريخي صامت | مفتوحة |
++| 5 — طلبات الشراء والدفع | دورة طلب العضو، تعليمات دفع versioned، إثبات، مراجعة مالك مع MFA، اعتماد ذري ومنع replay؛ إبقاء الدفع الآلي معطلاً حتى مزود موثوق | لا كوينز قبل اعتماد المالك؛ إثبات وسجل تدقيق ومطابقة المبلغ/العملة؛ اختبارات رفض/تكرار/تزامن؛ لا تحصيل حقيقي | مفتوحة |
++| 6 — المحرك التجاري والمتجر والهدايا والاستحقاقات | عقد SKU موحد؛ مدد 24 ساعة/7 أيام/30 يوماً ودائم حيث يسمح؛ سعر مستقل لكل مدة يحدده المالك؛ كمية وحدود وتجديد/إيقاف؛ fulfillment/expiry/revoke | لا سعر أو مدة تجارية افتراضية قابلة للبيع؛ snapshot عند الشراء؛ اختبار شراء/هدية/منح/انتهاء/إلغاء/replay لكل فئة مفعلة؛ غير المكتمل غير قابل للشراء | مفتوحة |
++| 7 — المكافآت والإعلانات | فصل timed/featured/rewarded ads؛ أدلة مشاهدة خادمية؛ ميزانية وحجز وتسوية؛ مكافآت البريد/الأنشطة exactly-once؛ تعطيل البيومتري حتى إثبات خادمي تشفيري | رحلة عضو ومالك مكتملة؛ لا تكرار مالي؛ اختبارات الميزانية والإلغاء والسحب والاحتيال؛ لا مكافأة من ادعاء العميل | مفتوحة |
++| 8 — المكالمات الفردية والجماعية والغرف والإيجارات والفعاليات | فرض الحصص والاستحقاق لكل مشارك؛ قياس وسائط موثوق؛ consent؛ hold/settlement؛ إيجارات وRSVP وإلغاء؛ معالجة P0 للمكالمات الجماعية | اختبارات الطرفين والتزامن والانقطاع وإعادة الاتصال والتسوية؛ لا خصم دون دليل وسائط وموافقة؛ فوترة المجموعة تبقى معطلة حتى قبول مستقل | مفتوحة |
++| 9 — الوسائط وMedia Saver والاحتفاظ والحذف | فحص MIME والحجم والمدة والماسح والروابط الموقعة؛ Media Saver محلي باستحقاق؛ احتفاظ 4h للوسائط و7d/30d للنص حسب النمط؛ حذف الأصل والمشتقات | تحقق صلاحية كل حفظ؛ لا تمديد للاحتفاظ؛ إثبات حذف وإعادة محاولة؛ اختبارات الخصوصية والصلاحيات والاحتفاظ | مفتوحة |
++| 10 — لوحة المالك والتكاليف والحماية | ربط إعدادات الأسعار والحدود والمنتجات والأدوار والمراجعات والتدقيق؛ قياس التكلفة والتنبيهات والحصص وprotect mode | كل إجراء حساس محمي ومُدقق؛ الحدود قابلة للضبط؛ اختبارات تجاوز/إيقاف/استعادة؛ لا إيقاف للرسائل والسلامة الأساسية | مفتوحة |
++| 11 — ربط الواجهات واكتمال الرحلات | توصيل تطبيق العضو والمالك بكل API/حالة؛ حالات التحميل/الرفض/الفشل/الاسترداد؛ العربية وRTL وبقية اللغات والمنصات | اختبارات رحلة end-to-end لكل ميزة مفعلة؛ لا واجهة توحي بميزة غير جاهزة؛ تحقق صلاحيات الخادم مستقلاً | مفتوحة |
++| 12 — التحقق الشامل ومختبر 5,000 | تحليل وبناء واختبارات وحدة/تكامل/Emulator وأمن؛ تشغيل المختبر على SHA مثبت؛ فحص التغطية والموارد | جميع workflows المطلوبة خضراء على SHA المرشح؛ تقرير 5,000 موثق مع نطاقه وحدوده؛ لا P0/P1 مفتوح | مفتوحة |
++| 13 — قبول غير إنتاجي والأجهزة | تشغيل على nonprod/Spark/Emulators أولاً؛ اختبار Android فعلي وتجربة المستخدم؛ iOS/Web حيث تتوفر بيئة؛ استعادة/نسخ احتياطي | قبول موثق لكل منصة مستهدفة؛ لا بيانات إنتاجية؛ لا تكلفة مدفوعة غير معتمدة؛ معالجة العيوب | مفتوحة |
++| 14 — ملف الجاهزية والقرار النهائي | مراجعة أمنية وخصوصية وقانونية؛ إعداد release notes وrollback وخطة دعم؛ عرض الأدلة والمخاطر للمالك | قائمة إطلاق مكتملة ومراجعة؛ توقيع/موافقة مالك مستقلة على الدمج ثم موافقة مستقلة أخرى على النشر | محجوبة حتى موافقات مستقلة |
++
++## سجل التنفيذ الفعلي
++
++| التاريخ | المرحلة | التغيير/الاختبار | SHA / رقم التشغيل | النتيجة | قرار الإغلاق |
++|---|---|---|---|---|---|
++| 2026-11-19 | 0 | تسجيل ECON-PHASE-001 وإنشاء فرع التكامل وPR #39 ومسودة الخطة والتدقيق القانوني | PR #39؛ فرع التكامل | تم التوثيق؛ لم تُغلق المرحلة بعد | مفتوحة حتى اكتمال الجرد والتوثيق |
++| 2026-11-19 | 12 (دليل سابق محدود) | مختبر 5,000 شخصية: 5,000/5,000 ضمن 8 حالات و13 عداداً | run 44476167496؛ platform SHA `63916ade25d9c6d5db640204637053042415fa06` | ناجح ضمن نطاق السيناريوهات المذكور في خطة التكامل؛ لا يغطي جميع الدورات الاقتصادية | لا يغلق المرحلة 12 |
++
++## نموذج إغلاق كل مرحلة
++
++عند اكتمال أي مرحلة، يضاف سجل يتضمن:
++- رقم المرحلة واسمها.
++- الملفات والـ commits التي تغيرت.
++- SHA النهائي الدقيق.
++- أسماء workflows وأرقام التشغيل ونتائجها.
++- نتائج اختبارات القبول اليدوية/الأجهزة عند انطباقها.
++- العيوب المفتوحة والمخاطر المتبقية.
++- رابط الأدلة والقرار: **مغلقة** أو **تبقى مفتوحة**.
++- اسم/صفة صاحب الموافقة عندما تتطلب المرحلة قبول المالك.
++
++**الحالة الحالية:** المرحلة 0 موثقة جزئياً، والمرحلة 1 لم تُغلق. نقطة التنفيذ التالية هي إغلاق جرد الفروع/PRs/الملفات والـ commits ومصالحتها، مع استكمال التحقق الدقيق من PR35 وPR38. لا يبدأ تنفيذ مالي جديد قبل تثبيت خط الأساس ومراجعة التغييرات المتداخلة.
++
++
++## تقدم المرحلة 1 — جرد أولي موثق (19 نوفمبر 2026)
++
++**لقطة GitHub الحالية وقت الجرد:**
++- الفروع: 46 فرعاً ظاهراً في الصفحة الأولى (100 عنصر كحد أقصى)، بما فيها `main` وفروع `archive/*` وفروع `codex/*`.
++- طلبات الدمج: 34 طلباً ظاهراً في الصفحة الأولى (100 عنصر كحد أقصى): 15 مفتوحاً و19 مغلقاً؛ من المغلق 7 مدمج و12 مغلق دون دمج.
++- تمت قراءة قائمة الملفات المتغيرة لكل طلب دمج مفتوح ذي صلة: #39، #38، #35، #34، #33، #32، #31، #30، #28، #27، #26، #25، #24، #22، #2. تبيّن وجود تداخلات فعلية في ملفات محورية مثل `functions/src/index.ts` وملفات المحفظة/الشراء/المتجر/الإعلانات/المكالمات والحوكمة؛ لذلك لا يجوز الدمج التلقائي.
++- workflows الموجودة في فرع التكامل: `android-signed-release.yml`، `bootstrap-native-platforms.yml`، `flutter-ci.yml`، `mawdda-domain-regression.yml`، `mawdda-test-center.yml`، `resolve-flutter-lock.yml`، `validate.yml`.
++- قراءة GitHub rulesets أعادت قائمة فارغة. فحص حماية `main` تعذر بسبب صلاحية API غير متاحة للتكامل (403)، لذلك لا يمكن تأكيد إعدادات Branch Protection من هذا الاتصال.
++- نقاط جرد مفتوحة: استكمال صفحات الفروع/طلبات الدمج إن تجاوزت الصفحة الأولى، مراجعة جميع الفروع غير المرتبطة بطلب مفتوح، مراجعة commits والملفات المتغيرة كاملة لكل PR، تدقيق workflows والـ security features المتاحة، وتصنيف كل تغيير إلى port/duplicate/stale/archive/block.
++
++**قرارات مصالحة أولية مؤكدة:**
++- PR35 وPR38: اجتاز كل منهما Validate الكامل على SHA المحدد أعلاه؛ لكن #38 مبني على قاعدة #35 الأقدم، ويحتاج إعادة تأسيس ومقارنة قبل الدمج.
++- PR31/#22/#30/#28: عائلات الاقتصاد والشراء والمحفظة والهدايا والإعلانات تتداخل؛ لا نقل قبل مقارنة دلالية للملفات والاختبارات.
++- PR33/#32: تغييرات حوكمة وبيومتري متداخلة؛ يلزم حسم سياسة التحقق البيومتري أولاً، وإبقاء مكافأة 1500 كوين معطلة حتى تحقق خادمي مقاوم لإعادة التشغيل.
++- PR24/#25: تغييرات الوسائط والإعلانات متداخلة مع الخط الحالي؛ يلزم مقارنة نسخ الماسح والسياسات وقواعد التخزين.
++- PR34 وPR39: توثيق/حوكمة؛ لا يمثلان تنفيذ ميزات تشغيلية.
++
++**الحالة:** المرحلة 1 مفتوحة. هذا جرد أولي للموارد الظاهرة وليس إغلاقاً نهائياً؛ لا انتقال إلى المرحلة 2.
+diff --git a/docs/IMPLEMENTATION_TRACEABILITY.md b/docs/IMPLEMENTATION_TRACEABILITY.md
+index 3fcd1dc5..8786ed14 100644
+--- a/docs/IMPLEMENTATION_TRACEABILITY.md
++++ b/docs/IMPLEMENTATION_TRACEABILITY.md
+@@ -620,80 +620,92 @@ Status: **implemented in source; automated validation pending; device/network ac
+ - CodeQL run [44183648075](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/44183648075) completed successfully, including JavaScript/TypeScript and Actions analysis.
+ - This is exact-head automated CI evidence only. It does not prove live Firebase/GCS/Cloud Run behavior, physical-device acceptance, 5,000-persona completion, or release readiness.
+ 
+ ### Featured advertising — AD-001 remains the first implementation priority
+ - Rechecked `functions/src/featured-advertising.ts` and `functions/src/featured-ad-rewards.ts`: they contain pure selection/reward-decision helpers and unit tests.
+ - The current `functions/src/index.ts` has no exported featured-ad campaign feed/session/heartbeat/completion/history callables; its timed-ad callables operate on the separate `timedAdCampaigns` flow and must not be relabelled as featured advertising.
+ - `lib/screens/featured_ads_screen.dart` still renders a static empty campaign state, local-only region chips and placeholder reward-history text.
+ - Therefore AD-001 remains **partially implemented**. Required work: separate featured campaign persistence and owner controls; owner approval/payment confirmation/creative safety/withdrawal; explicit geography mapping; dedicated feed/player sessions and trusted visibility evidence; UTC daily and rolling campaign limits; atomic distinct `featured_ad_reward` wallet ledger entries; member history; responsive 75/25 player/context UI; emulator, replay, concurrency, revocation and UI tests.
+ - Keep the owner-configurable reward policy versioned. The approved experimental defaults are not a hard-coded commercial promise; production enablement remains under owner control.
+ 
+ ### Calls — CALL-001 / CALL-002 status
+ - CALL-001 is partially implemented: WebRTC signaling/session lifecycle, member/room authorization, participant locks, rolling attempt limits (5 audio / 3 video) and server-side 300-second connected-call deadline exist. Exact-head CI includes call-signaling emulator coverage.
+ - Still open: checking both parties' 24h/7d/30d entitlements at creation/join, complete consent/preferences, TURN provisioning, and physical Android/browser device-to-device acceptance.
+ - CALL-002 remains unimplemented: no connected-time metering, atomic per-party billing allocation, balance debit or call wallet ledger. The approved 120/400 per-minute allocation rules are not sufficient to infer a rounding/billing unit; owner decision is still required before enabling paid continuation.
+ 
+ ### 5,000-persona lab
+ - Lab PR #2 retry branch is at `f024ebda492add4028f0ffb2a6901953e9ece48b`; its harness validation run [43772590541](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/actions/runs/43772590541) passed.
+ - Lab PR #3 contention/runtime branch validation run [43783308441](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/actions/runs/43783308441) passed on `f148e25f5bd6579c3f5f301db3b0b0f588817557).
+ - The latest full simulation available in the audit, run [43773980276](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/actions/runs/43773980276), failed at RSVP contention (851/5,000 lifecycle completions). Harness validation is not a full simulation. No 5,000/5,000 acceptance is claimed.
+ - The connected GitHub actions interface exposes run/job reads and reruns, but no workflow-dispatch operation; a new full simulation has not been dispatched.
+ 
+ ### Execution order
+ 1. Complete AD-001 featured advertising backend/UI integration and its emulator/UI/security tests.
+ 2. Close remaining phase-one code, economy, media, room and call gaps without inventing prices, entitlements or unresolved billing rules.
+ 3. Freeze a candidate SHA and enter phase two: the isolated 5,000-persona lab.
+ 4. Phase three remains live non-production/cloud synchronization, platform acceptance and eventual release. No production changes, paid resources, main merge or deployment are authorized by this record.
+ 
+ No production Firebase/Google Cloud resource, live member data, billing setting, deployment target, main branch or destructive retention worker was changed by this audit.
+ 
+ ## 2026-11-19 — economic phase controlled integration audit
+ 
+ - Added `docs/ECONOMIC_PHASE_CONTROLLED_INTEGRATION_AUDIT_2026-11-19.md` after comparing the official development line with the open economic draft branches.
+ - Official development head immediately before this documentation update: `d561dc445ea352d94cd346a6b745e800a9114ee1`.
+ - Economic work is split across PR #30 (payment/wallet replay hardening), PR #31 (economic policy, featured-ad finance, group-call work and reconciliation), PR #22 and PR #28 (different integration lines with broad overlapping ancestry). No wholesale merge is safe or authorized.
+ - Group-call P0 remains blocking: trusted provider media proof, scalable topology, participant entitlements and consent, per-participant metering, reservation/insufficient-funds semantics, atomic idempotent settlement, UI acceptance and load/device evidence are not all complete.
+ - Manual payment remains the approved Phase 1 approach; automated checkout remains disabled. Public-ad, influencer-service and cash-paid store-entitlement manual flows remain fail-closed until their complete workflows exist.
+ - Featured-ad finance/serving/rewards and complete wallet/platform-wide reconciliation remain open. Reconciliation must remain read-only and must report incomplete/corrupt legacy history without auto-correcting balances.
+ - No code was ported from the divergent draft branches in this audit. No tests or builds were run on this documentation commit. Exact-head CI must be run after each subsequent source integration.
+ - **Economic phase status: OPEN.** Follow the controlled order and closure criteria in the linked audit. No merge to `main`, deployment, production mutation, billing activation or paid-resource activation is authorized.
+ 
+ 
+ ## 2026-11-19 — manual coin payment and financial replay hardening
+ 
+ - Ported the compatible payment/wallet hardening from the isolated economic port branch into the official development branch in small source/test changes; no wholesale branch merge was performed.
+ - Manual coin purchase instructions now require an expected instruction version and are immutable after issuance. The member may report an external transfer only as a claim; the server creates an audited `awaiting_payment_verification` state without crediting coins.
+ - Owner approval accepts only the permitted manual-payment states and validates the existing wallet ledger plus immutable owner-audit evidence on replay. Missing or inconsistent evidence fails closed.
+ - Replayed coin transfers, store purchases, owner entitlement grants, rented-room creation and room-rental renewal now validate their related ledger/receipt/audit evidence rather than returning success solely because an idempotency document exists. New wallet debits/credits record balance snapshots where applicable.
+ - Added/updated unit and Firestore-emulator integration test sources for instruction versioning, claim-only payment reporting, audit integrity, ledger arithmetic and replay behavior.
+ - **Validation status:** source and test files are committed, but no local build, unit test, emulator run, Flutter analysis or exact-HEAD CI result has been verified in this execution. Do not treat the work as tested or closed until the exact current SHA passes the configured workflows.
+ - No payment provider, automated checkout, production Firebase resource, production wallet, paid service, deployment or `main` merge was changed. Existing owner-controlled prices and payment-mode selection remain authoritative.
+ 
+ 
+ ## 2026-11-19 — read-only wallet reconciliation foundation
+ 
+ - Added the pure read-only `reconcileWalletLedger` helper and unit tests. It distinguishes `consistent`, `mismatch`, `incomplete`, and `corrupt`; legacy rows without balance snapshots remain `incomplete`, and malformed arithmetic/continuity is reported rather than auto-corrected.
+ - Added owner-only `getOwnerWalletReconciliation`, a read-only diagnostic for one member's `walletLedger`. It inspects at most 1,000 entries and explicitly reports truncated or unorderable history as `incomplete`; it does not auto-correct or rewrite historical rows. There is not yet pagination beyond that cap, an owner UI, or a cross-domain scan across transfer/platform/store/room/advertising ledgers. Historical balances are never mutated.
+ - Validation status: test source is committed, but the exact current development SHA has not yet been built or tested in this execution.
+ 
+ 
+ ## 2026-11-19 — owner-scoped payment policy and featured-ad financial records
+ 
+ - Added the per-service payment-policy validator and owner UI. Manual mode can be configured only for coin purchases and featured-ad financial recording; public ads, influencer services and paid store entitlements remain disabled until their complete request/fulfilment/refund paths are implemented. Automated checkout remains hard-disabled until a verified provider, signed webhooks, reconciliation and owner approval exist.
+ - Owner economy pricing is now versioned and audited. An unconfigured economy returns empty catalogues instead of silently seeding commercial prices. The owner explicitly configures packages, ad prices, supported ISO currency codes and custom coin-request bounds. Currency minor-unit precision is derived server-side; it is never trusted from the client.
+ - Added owner-only featured-ad financial event recording for external payment receipts, refunds, settlement and review. Events, immutable snapshots and audit evidence are idempotent and versioned; replay fails closed when event, snapshot or audit evidence is missing or inconsistent. Recording a receipt does not publish or activate a campaign and does not claim to move external money.
+ - Added unit and Firestore-emulator integration tests for payment-policy validation, CHF/JPY currency precision, owner policy versioning, empty unconfigured pricing, featured-ad event replay integrity, payment gating and non-activation.
+ - Validation status: all changes are committed to the official development branch, but no exact-HEAD Functions build, emulator run, Flutter analysis or CI conclusion has been verified in this execution.
+ 
+ 
+ ## 2026-11-19 — terminology audit scope and main-branch boundary
+ 
+ - The current official development branch has had the legacy visible labels found in its inspected Flutter screens, model comments, economic/advertising documents and server-generated role text updated. The PR #33 governance branch has separately received the canonical role names and the relevant source/comment cleanups.
+ - A repository search against the default `main` branch still finds old visible strings in legacy files including `lib/screens/super_admin_screen.dart`, `lib/screens/chat_room_screen.dart`, `lib/screens/landing_page.dart`, and `lib/services/room_billing_service.dart`; some of those files are absent from the current development branch. These are not silently changed on `main` because the owner has reserved merge and production authority.
+ - Therefore, do not claim that every branch and every historical file is globally clean yet. The remaining `main`-branch labels must be resolved through an owner-approved integration/merge, followed by a full-tree audit on the resulting development SHA.
+ 
+ 
+ ## 2026-11-19 — group-call economic P0 gate
+ 
+ - The official development branch currently exposes one-to-one call signaling callables (`startCall`, `respondToCall`, `markCallConnected`, `sendCallSignal`, `getCallSignals`, `endCall`, `getCallIceConfiguration`, `getActiveCall`). It has no integrated group-call economic start/join/settlement/charging callables.
+ - Do not activate or port group-call billing from the isolated economic branch as a complete feature. The P0 evidence gaps remain: trusted media-provider participant/usage evidence, complete participant lifecycle and reconnect accounting, server-side entitlement checks for every participant, reservation and atomic partial settlement, large-room SFU architecture/cost/security review, UI acceptance, and 5,000-person simulation.
+ - Group-call billing must remain absent/fail-closed until the full evidence chain and concurrency/replay tests are implemented and accepted. No call prices or charging durations are inferred here.
++
++
++## ECON-PHASE-001 — controlled comprehensive economic integration (owner approved 19 November 2026)
++
++- **Requirement:** treat the comprehensive economic phase as one end-to-end integration program across all economic engines, their member/owner interfaces, server callables, data contracts, Firestore rules/indexes, tests, operations, governance and legal records.
++- **Execution control:** inventory every relevant branch/PR/commit; reconcile source changes semantically; port in small dependency-ordered batches to an isolated integration branch; preserve all unique source history; never blind-merge divergent branches.
++- **Acceptance evidence:** each batch has a decision ID, source and target SHA, affected files/contracts, tests, workflow run IDs, result, and unresolved-risk disposition. Exact-head CI must pass on one SHA before a batch is accepted.
++- **Scope:** wallet/ledger/transfers, manual coin purchase, pricing/payment policy, store/gifts/entitlements, rewards, timed and featured ads, calls/group calls, rooms/rentals/events, Media Saver/media retention, cost controls, owner operations, security, legal and governance records.
++- **Legal/governance control:** source documents remain preserved and indexed; signed agreements are never overwritten; drafts remain drafts until legal review and correct signatures; no company facts or legal terms are invented.
++- **Safety boundary:** no merge to `main`, production deployment, live Firebase mutation, billing activation, paid provider provisioning or real-money collection without separate explicit owner approval.
++- **Current plan:** `docs/ECONOMIC_PHASE_EXECUTION_AND_INTEGRATION_PLAN_2026-11-19.md`. **Current legal-document audit:** `docs/LEGAL_GOVERNANCE_DOCUMENT_CONTROL_AUDIT_2026-11-19.md`.
++- **Status:** approved execution program; implementation and acceptance remain open.
+diff --git a/docs/LEGAL_GOVERNANCE_DOCUMENT_CONTROL_AUDIT_2026-11-19.md b/docs/LEGAL_GOVERNANCE_DOCUMENT_CONTROL_AUDIT_2026-11-19.md
+new file mode 100644
+index 00000000..ff0c12d0
+--- /dev/null
++++ b/docs/LEGAL_GOVERNANCE_DOCUMENT_CONTROL_AUDIT_2026-11-19.md
+@@ -0,0 +1,133 @@
++# تدقيق ضبط الوثائق القانونية والحوكمة — Mawdda 2026
++
++**التاريخ:** 19 نوفمبر 2026  
++**فرع العمل:** `codex/economic-phase-controlled-integration-2026-11-19`  
++**الحالة:** تدقيق أولي مفتوح؛ ليس رأياً قانونياً أو اعتماداً تعاقدياً أو تصريحاً بالنشر.
++
++## 1. الهدف
++
++حماية قرارات المالك والدستور والرؤية والسجلات والعقود من الضياع أو التضارب أثناء تكامل المرحلة الاقتصادية الشاملة. هذا السجل يحدد سلطة كل وثيقة، وما يجب أن يبقى منفصلاً، والتعارضات التي تمنع اعتماد نسخة نهائية.
++
++## 2. ترتيب المرجعية
++
++1. أحدث موافقة صريحة ومحددة النطاق من المالك.
++2. الدستور الموحد بعد اعتماد إصداره صراحة.
++3. سجل القرارات المعتمدة والتتبع، مع معرف القرار والحالة والدليل.
++4. الرؤية الموحدة ومواصفات المجالات المعتمدة.
++5. سجل العقود والحوكمة والنماذج المتخصصة، كل حسب علاقته.
++6. الميثاق الهندسي وسجل التنفيذ والاختبارات.
++7. الفروع والـ PRs والوثائق التاريخية بوصفها مصادر تغيير، لا سلطة مستقلة لتغيير القرار.
++
++عند وجود تعارض لا يختار المنفذ نصاً بالتخمين. يسجل التعارض، ويوقف الجزء المتأثر، ويستند إلى موافقة المالك الأحدث أو يطلب قراراً محدداً إذا لم توجد موافقة حاسمة.
++
++## 3. سجل الوثائق ومجالها
++
++| الوثيقة | دورها | الحالة/الإجراء |
++|---|---|---|
++| `MAWADDA_UNIFIED_CONSTITUTION_2026.md` | قواعد المنتج والسيادة والخصوصية والاقتصاد والأمن | مرجع تجميعي هندسي؛ يحتاج موافقة إصدار صريحة ومراجعة قانونية قبل وصفه كوثيقة ملزمة لطرف ثالث |
++| `MAWADDA_UNIFIED_PLATFORM_VISION_2026.md` | الرؤية وتجربة المنتج والنطاق | مرجع منتج؛ يجب أن يتطابق مع الدستور وسجل القرارات |
++| `MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md` | مصدر حالة القرارات والموافقات | سجل الحالة المركزي؛ كل قرار يحتاج ID ومصدر وتاريخ وتنفيذ واختبار وSHA |
++| `IMPLEMENTATION_TRACEABILITY.md` | الربط من القرار إلى الكود والاختبار | مصدر الحالة الهندسية؛ لا يرفع الحالة دون دليل |
++| `MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md` | فهرس الوثائق ومصادرها | فهرس مركزي؛ يمنع حذف المصادر التاريخية ويحدد المرجع الحالي |
++| `MAWADDA_CONTRACTS_AND_GOVERNANCE_REGISTER_2026.md` | فهرس أنواع العقود والتفويضات والعلاقات | سجل تجميعي؛ لا يدمج النماذج المختلفة ولا ينشئ عقداً موقعاً |
++| `OWNER_CONTROL_MASTER_AGREEMENT.md` | ميثاق سيادة وتعاون المالك | مسودة حوكمة؛ ينص على أنه لا ينشئ وكالة أو علاقة عمل أو التزاماً لطرف ثالث دون انضمام/توقيع مستقل |
++| `MAWDDA_ADVERTISING_CONTRACT_TEMPLATES_2026.md` | قوالب اتفاقيات العضوية والإنتاج والإعلان والعمولة والتفويض والإنهاء | مسودات تشغيلية؛ تحتاج مراجعة محامٍ في بلد الشركة وبلد الطرف وتعبئة الحقول الموثقة |
++| `ADVERTISING_MODERATOR_COMMISSION_AGREEMENT.md` | اتفاقية مستقلة للعمولة | مسودة غير مفعلة؛ لا نسبة عامة، والعمولة لكل حملة وملحقها وقبولها |
++| `MAWDDA_ADVERTISING_PRODUCTION_GOVERNANCE_2026.md` | هيكل الإعلان والإنتاج والأدوار ومسارات العمل | مواصفة تشغيلية؛ لا تمنح توقيعاً أو صلاحية مالية بمجرد المسمى |
++| `PRIVACY_NOTICE_AR.md` | إشعار الخصوصية الموجه للأعضاء | مسودة تقنية أولية وغير جاهزة للنشر؛ بها حقول قانونية ومدد ومعالجات ناقصة |
++| `PHASE2_RETENTION_OPERATIONS.md` | قواعد الاحتفاظ والتنظيف والحذف والقيود التشغيلية | مرجع تشغيل؛ يجب تحديثه مع قرار المالك الأخير والقبول التقني |
++| `LOCAL_BIOMETRIC_INTEGRATION.md` | حد الثقة في المصادقة المحلية | يقرر أن local_auth لا يكفي لمكافأة خادمية وأن المكافأة معطلة حتى الإثبات التشفيري |
++
++## 4. نتائج التدقيق الأولي
++
++### 4.1 إشعار الخصوصية — مانع نشر
++
++الملف `PRIVACY_NOTICE_AR.md` يصرح بأنه مسودة أولية، ويذكر صراحة أن التسجيل العام لا يفتح قبل استكمال:
++- الاسم القانوني الكامل للجهة المتحكمة وعنوانها ووسائل الاتصال وقناة طلبات الحقوق.
++- الأساس القانوني لكل غرض معالجة.
++- الجهات المعالجة الفعلية، مواقع التخزين والتحويل الدولي وضماناته.
++- مدد احتفاظ دقيقة أو معايير قابلة للتطبيق لكل فئة، والحذف والنسخ الاحتياطية والحجز القانوني.
++- آلية الوصول والتصحيح والحذف والاعتراض والتقييد وسحب الموافقة حيث تنطبق.
++
++**قرار التدقيق:** لا يُنشر هذا الإشعار ولا يقدَّم بوصفه نهائياً حتى إكمال الحقول ومراجعته في الأسواق المستهدفة بواسطة مختص حماية بيانات ومحامٍ مؤهل.
++
++### 4.2 تعارض وصف التحقق البيومتري
++
++- إشعار الخصوصية يصف إصداراً أولياً يستخدم Android BiometricPrompt وApple LocalAuthentication، ويذكر أن مودة لا تستقبل القوالب الخام.
++- `LOCAL_BIOMETRIC_INTEGRATION.md` يوضح أن المصادقة المحلية وحدها لا تثبت الهوية ولا تحقق إثباتاً خادمياً، وأن مكافأة 1,500 كوين معطلة حتى وجود challenge وتوقيع ومكافحة replay.
++- فرع الحوكمة PR #33 يقدم نموذج مراجعة يدوية لملف/تحدي صوتي أو مرئي من المالك، وهو تغيير جوهري عن معنى المصادقة المحلية. لم تُسجل موافقة مالك صريحة نهائية على هذا المعنى في سجل القرارات بعد.
++
++**الإجراء:** إبقاء المكافأة والامتياز البيومتري معطلين. عدم توحيد أو نشر وصف العملية قبل تثبيت معنى الميزة بموافقة المالك، ثم تعديل الإشعار والمواصفة والدستور والاختبارات معاً. لا تخلط مصادقة الجهاز المحلية مع إثبات الهوية أو مراجعة الفيديو/الصوت.
++
++### 4.3 سياسة الاحتفاظ والإشعار
++
++قرار المالك الأحدث: نص المحادثة المهمة 30 يوماً، العادية 7 أيام، وسائط المحادثة/الغرف 4 ساعات، والمحادثة المؤقتة كاملة بعد 4 ساعات من خمول خادمي. ملف التشغيل يذكر أن اختيار النمط وموافقة الطرفين لم يُحسما، وأن حذف المحادثة المؤقتة الكامل غير مكتمل/غير مفعل.
++
++**الإجراء:** تحديث جدول الاحتفاظ في إشعار الخصوصية بعد حسم اختيار النمط والموافقة، مع شرح الاستثناءات القانونية/المالية والنسخ الاحتياطية والنسخ السحابية. لا تفعيل حذف إنتاجي يعتمد على اختيار/موافقة غير محسومين. لا تعد بقدرة حذف نسخ لا يسيطر عليها النظام.
++
++### 4.4 اتفاقية سيادة المالك
++
++`OWNER_CONTROL_MASTER_AGREEMENT.md` يميز بشكل صحيح بين ميثاق الحوكمة الداخلي والعقد الملزم مع طرف ثالث، ويطلب اتفاقيات مستقلة للسرية ومعالجة البيانات والملكية الفكرية والخدمات. يحدد موافقة مستقلة للدمج المحمي والنشر وتغيير Firebase الحي والإنفاق والمدفوعات والحذف التدميري وتغيير الاحتفاظ.
++
++**الإجراء:** الإبقاء على هذه الحدود؛ لا تستخدم الميثاق وحده لإثبات انتقال ملكية فكرية من مطور أو متعاقد لم يوقع اتفاقاً مناسباً. استكمال سجل Background IP والتراخيص ومصدر كل مكون.
++
++### 4.5 قوالب الإعلان والإنتاج والعمولات
++
++- القوالب معلنة صراحة أنها مسودات وتطلب مراجعة محامٍ في بلد الشركة وبلد الطرف.
++- هوية الطرف الأول لا تزال تحتاج الاسم القانوني المسجل ورقم التسجيل والعنوان والصفة وسلطة الموقّع من مستندات الشركة؛ يمنع اختراعها.
++- العمولة لا تملك نسبة عامة؛ هي خاصة بكل حملة وملحقها وقبول المندوب لها.
++- مسارا التحصيل (الدفع المباشر للشركة والمندوب، أو تحصيل المندوب وتسوية صافي حصة الشركة) يختلفان مالياً وقانونياً ويحتاج كل منهما إثباتات وتسوية ومسؤوليات وضريبة محددة.
++- الاتفاقية العامة للمؤثر منفصلة عن عقد كل حملة/مادة؛ تكليف المشرف منفصل عن تفويض التوقيع.
++- إنهاء العقد لا يمحو المستحقات المكتسبة أو الحقوق الآمرة، ويجب ربط أي استرداد/تسوية بالملحق والقانون.
++
++**الإجراء:** إبقاء كل قالب مستقلاً، وإنشاء checklist قانوني لكل علاقة؛ لا تفعيل عمولة أو تحصيل أو نشر حتى استكمال الملحق، والتوقيع المتبادل، والتحقق من الصفة، والتسوية والاختبارات.
++
++### 4.6 المقرات والكيان القانوني
++
++تسجل وثائق المشروع أسماء الشركة ومكاتب/مواقع تشغيلية، لكنها تحذر من اعتبار المكاتب كيانات مستقلة أو مقاراً قانونية مسجلة دون إثبات. لا نملك ضمن هذا التدقيق مستند تسجيل رسمي يثبت الشكل القانوني أو الرقم أو العنوان المسجل.
++
++**الإجراء:** الاحتفاظ بالمواقع بوصفها مواقع تشغيلية وفق قرار المالك فقط؛ لا وصفها كمقار مسجلة أو فروع قانونية ولا إدراج بيانات غير موثقة في العقود.
++
++### 4.7 مركز العقود والتوقيع الإلكتروني
++
++المواصفات تفرض بوابة ويب، بصمة SHA-256 وإصدارات immutable وتوقيعاً متبادلاً وMFA للمالك وسجل تدقيق وتفويضاً منفصلاً. لكنها تقر بأن صحة التوقيع الإلكتروني تختلف بحسب الدولة والصفة والقانون.
++
++**الإجراء:** اختبار دورة التوقيع تقنياً، لكن لا إعلان النفاذ القانوني قبل رأي قانوني محلي بشأن التوقيع الإلكتروني والتبليغ والوكالة والتمثيل في الدول المعنية. احتفظ بالأصل الموقع والبصمة والدليل والإصدارات.
++
++## 5. ما لا يجوز تغييره أثناء تكامل الاقتصاد
++
++1. لا حذف أو استبدال للوثائق المصدرية القديمة؛ تُعلّم تاريخية أو superseded مع روابط النسخة الحالية.
++2. لا صهر لعقود المندوبين والمؤثرين والإنتاج والموظفين والتفويض والإنهاء في قالب واحد.
++3. لا إدخال نسبة عمولة أو ضريبة أو سعر أو عملة أو قانون واجب التطبيق من التخمين.
++4. لا ادعاء أن الميثاق الداخلي عقد مع موظف أو مورد لم يوقعه.
++5. لا اعتبار توقيع العضو أو الموافقة العامة على الخصوصية موافقةً تلقائية على معالجة بيومترية أو فوترة أو تسويق.
++6. لا حذف لسجل مالي أو توقيع أو دليل نزاع بحجة إنهاء علاقة.
++7. لا نشر إشعار خصوصية ناقص أو فتح التسجيل العام قبل اكتمال المتطلبات القانونية.
++8. لا تفعيل مسار البيومتري أو مكافأته قبل حسم السياسة وتنفيذ إثبات خادمي موثوق.
++
++## 6. قائمة الإجراءات القانونية والحوكمية للإغلاق
++
++| الرمز | الإجراء | دليل الإغلاق المطلوب | الحالة |
++|---|---|---|---|
++| LEG-01 | توثيق الكيان القانوني وبياناته الرسمية | مستندات التسجيل والاسم والعنوان والممثل | مفتوح — يتطلب وثائق الشركة |
++| LEG-02 | مراجعة إشعار الخصوصية لكل سوق إطلاق | مراجعة DPO/محامٍ، المعالجات، النقل الدولي، الحقوق، النسخ | مفتوح |
++| LEG-03 | توحيد وصف البيومتري | قرار مالك صريح، نصوص متوافقة، موافقة مستقلة، اختبار | مفتوح |
++| LEG-04 | نشر جدول الاحتفاظ | جدول لكل فئة، حذف، backups، legal hold، mode consent | مفتوح |
++| LEG-05 | مراجعة قوالب العقود حسب العلاقة | رأي محامٍ، حقول موثقة، شروط الدفع/الإنهاء/الضرائب | مفتوح |
++| LEG-06 | مراجعة اتفاقية العمولة ومسارات التحصيل | ملحق حملة، دليل تحصيل، تسوية، مسؤولية ضريبية | مفتوح |
++| LEG-07 | إثبات تفويض الموقّع | وثيقة وكالة/تفويض قانوني وحدود/مدة/سحب | مفتوح |
++| LEG-08 | اعتماد التوقيع الإلكتروني والإشعار | رأي محلي لكل ولاية، دليل التسليم والتحقق | مفتوح |
++| LEG-09 | ملكية الملكية الفكرية والتراخيص | اتفاقيات متعاقدين، Background IP، SBOM/licenses | مفتوح |
++| LEG-10 | ضبط الأرشفة والاحتفاظ القانوني | سياسة مدد، legal hold، access logs، restore evidence | مفتوح |
++
++## 7. طريقة إدارة التعديلات
++
++- كل تغيير قانوني/حوكمي يأخذ ID، مصدر موافقة، تاريخ، نسخة الوثيقة، بصمة المحتوى، مالك المراجعة، وأثره على الكود والاختبارات.
++- تعديل قرار يحدّث الدستور والرؤية وسجل القرارات والتتبع والفهرس والواجهة/الإشعار والاختبارات المتأثرة في commits مترابطة.
++- لا يتم استبدال نموذج أو وثيقة موقعة؛ التعديل يكون إصداراً جديداً أو ملحقاً مع الاحتفاظ بالأصل.
++- أي بند يحتاج رأياً قانونياً يبقى `LEGAL_REVIEW_REQUIRED` حتى يقدم الدليل؛ لا يُرفع إلى `APPROVED` من خلال مراجعة تقنية.
++- لا يحتوي هذا السجل على بيانات شخصية أو أرقام تسجيل أو عناوين أو اتصالات لم يقدمها المالك بوثيقة موثقة.
++
++## 8. حدود هذا التدقيق
++
++تمت مراجعة النصوص والمراجع المتاحة في فرع التطوير. لم يتم التحقق من سجلات الشركات الحكومية أو تقديم رأي قانوني أو مراجعة محامٍ أو التحقق من صحة توقيع إلكتروني أمام محكمة. لذلك هذا تقرير ضبط وثائق ومخاطر، وليس شهادة امتثال قانوني.
+diff --git a/docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md b/docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+index 79ce868d..445238d0 100644
+--- a/docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
++++ b/docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+@@ -217,80 +217,115 @@ Current evidence boundary: repository source confirms the iOS FirebaseOptions id
+ - **Status:** Owner-approved policy; catalog/backend/client/test reconciliation remains pending.
+ 
+ ### RET-004 — Retention selection and consent intentionally unresolved
+ 
+ - The owner deferred deciding who selects a direct-chat retention mode and whether both participants must consent.
+ - Until a later explicit owner decision defines selection authority, participant consent and notices, server-recorded activity, and complete deletion semantics, this policy remains unresolved.
+ - Destructive production deletion dependent on this unresolved policy must remain disabled. Isolated development/emulator testing may continue only where no real-user data can be deleted.
+ - Do not infer consent from silence, app presence, network state or client-only flags.
+ - **Status:** Explicitly deferred by owner; no production deletion authorization.
+ 
+ ### Governance boundary
+ 
+ This amendment records policy approval only. It does not establish that code, tests, scanners, catalog entries or production services already enforce these rules. No merge to `main`, deployment, production Firebase mutation, paid infrastructure activation, or destructive live operation is authorized by this entry.
+ 
+ 
+ ## CREATOR-001 — Fifth Media Workspace route: Creator Content & Influencer Proposals (16 November 2026)
+ 
+ **Authority:** Explicit owner approval in the Mawdda HQ conversation on 16 November 2026. This is a binding product-scope decision, not evidence of implementation or legal clearance.
+ 
+ - Add a fifth peer-level Media Workspace destination named **Creator Content & Influencer Proposals** for influencers, YouTubers, public-page owners, video creators, photographers and advertising-content producers.
+ - Creators may submit a public channel/account/post/portfolio URL, supported media uploaded through the secure media pipeline, or a written proposal with optional attachments. The platform/source name and a substantive proposal description are required.
+ - Capture creator identity/category, audience/content focus, target geography from the existing Owner-controlled taxonomy, proposed duration, proposed price/budget or request for an administration quote, and a rights/permission declaration.
+ - Create a unique request and private request-bound conversation. Access is limited to the submitter, Owner and explicitly authorized assignees. Review, assignment, discussion and commercial offers are versioned and audited.
+ - The Owner may handle the proposal or assign an authorized reviewer. Offers preserve price, duration, geography, placement and terms; amended terms require renewed explicit acceptance.
+ - This route is distinct from **Advertise Directly**. It does not automatically create a campaign, reserve inventory, publish content, grant featured priority, create representative commission rights or qualify the creator for Watch Ads rewards.
+ - Any accepted proposal that becomes an advertising campaign must pass the existing campaign lifecycle, Owner commercial approval, rights/media safety checks, actual-payment confirmation and publication gates. Preserve the creator request ID and audit linkage through handoff.
+ - Do not invent creator rates, guaranteed reach, legal classification, payment terms or usage rights. No real-money checkout, payout, or production activation is authorized.
+ - **Implementation status:** Requirements documented and traceability row added. UI, data model, server authorization, media/link integration, negotiation workflow and tests remain open until implemented and verified on an identified commit.
+ 
+ 
+ ## ADS-FEATURED-ENTRY-001 — Direct featured-ad home entry and dedicated reward-history route (Owner approval, 16 November 2026)
+ 
+ **Decision:** Add a prominent **Featured Ads + Rewards / الإعلانات المميزة والمكافآت** button to the authenticated member home screen. It opens the featured-ad discovery/viewing experience directly. Add a sixth Media Workspace option **Featured Ad Viewing Rewards / مكافآت مشاهدة الإعلانات المميزة** for eligibility guidance and the authenticated member's own qualified-view/reward history.
+ 
+ **Reward rule:** Neither button press nor opening either screen, preview, carousel, category or card earns coins. Coins are credited only after a full selected-ad player session is validated server-side. Featured-ad credits carry a distinct ledger source/type (e.g. `featured_ad_reward`) but use the already approved experimental ad reward limits: 2 coins per eligible view, max 10 views / 20 coins per UTC day, and same campaign once per rolling 24 hours. No second reward or duplicate credit is created for the same qualified view. The Owner may adjust settings through the central versioned server configuration.
+ 
+ **Layout:** The 75% / 25% player/context split applies to the selected full-ad player using usable application viewport and safe responsive constraints. The discovery page and Media Workspace history page are not forced into that split. Preserve existing chat/room state in the lower activity area.
+ 
+ **Commercial separation:** Advertiser placement payments, platform-funded reward budget and member coin ledger are separate accounting domains. Priority placement is subject to geography, schedule, creative safety, Owner approval and emergency withdrawal. No payment or publication gate is bypassed.
+ 
+ **Implementation status:** Approved requirement only. The existing timed-ad reward center is not yet a featured-ad serving system; its current reward-center placement and completion path must not be relabelled as featured ads. Backend serving, campaign geography/featured placement integration, daily and rolling-frequency reward enforcement, dedicated ledger classification, member UI/history, owner controls and exact-head tests remain required. This decision does not authorize real-money payment, production mutation, deployment or merge to main.
+ 
+ 
+ ## قرارات الإعلانات والإنتاج ومركز العقود — 16 نوفمبر 2026
+ 
+ | المعرّف | القرار | الحالة / بوابة القبول |
+ |---|---|---|
+ | ADS-GOV-001 | فصل صلاحيات المشرفين الإداريين للمنصة العامة عن المشرفين والمتعاقدين المتخصصين في الإعلانات وصناعة المحتوى؛ لا توريث صلاحيات بين المجالين | مواصفة مضافة؛ يلزم ربط كل callable وواجهة وقاعدة بيانات باختبارات deny-by-default |
+ | ADS-GEO-001 | واجهات الاستهداف الجغرافي العشر، وحقل استهداف إلزامي، ومطابقة منظمة versioned دون استنتاج IP/لغة | مواصفة مضافة؛ يلزم geo resolver واختبارات التداخل وعدم الازدواج |
+ | PROD-ROOM-001 | فريق غرفة الإنتاج خمسة أشخاص كحد أقصى بمن فيهم مشرف الإنتاج؛ المراقبون الإداريون privileged observers خارج roster | أساس validator واختبار وحدة مضاف؛ يلزم تكامل الخادم والواجهات وقواعد الوصول |
+ | PROD-PUB-001 | كل إنجاز عام يحتاج موافقة مالك مستقلة مع حقوق العرض وإظهار المشاركين | أساس predicate واختبار وحدة مضاف؛ يلزم workflow خادمي وتكامل الواجهة |
+ | CONTRACT-001 | مركز عقود سيادي، أربعة مشرفين قانونيين/إداريين، والتفويض بالتوقيع مستقل ومحدود وقابل للسحب | مواصفة ونماذج مضافة؛ يلزم مخزن العقود والتوقيع والتفويض والأرشفة والتدقيق |
+ | CONTRACT-002 | حق الشركة/المنصة في تعليق أو إنهاء أو فسخ أو عدم تجديد العقود وفق الشروط والقانون، مع تسوية الحقوق المكتسبة وعدم ادعاء إسقاط الحقوق الآمرة | صيغ أولية مضافة؛ مراجعة قانونية محلية مطلوبة قبل الاستخدام |
+ | ADS-REWARD-001 | 2 كوين/مشاهدة، 10 مشاهدات و20 كوين يومياً UTC، وحد 3 مرات لكل حملة/عضو/نافذة 24 ساعة، صورة 10 ثوان وفيديو 90% | مواصفة مضافة؛ يلزم تحديث backend الحالي الذي يستخدم حدوداً أقدم واختبارات التزامن |
+ 
+ 
+ 
+ ## قرارات الإطلاق التجريبي والتوزيع متعدد القنوات — 17 نوفمبر 2026
+ 
+ | المعرّف | القرار المعتمد من المالك | حالة التنفيذ / بوابة القبول |
+ |---|---|---|
+ | LAUNCH-PAY-001 | المرحلة الأولى بلا بوابة دفع أو checkout أو تحصيل آلي؛ الاتفاق والدفع بالتواصل المباشر مع Super Owner فقط، والاعتماد اليدوي بعد تحقق خارجي موثق | مسار طلبات الشراء اليدوي موجود جزئياً؛ يلزم إثبات سجل التدقيق الكامل، حماية MFA، واختبارات عدم إصدار الكوينز قبل اعتماد المالك |
+ | LAUNCH-APK-001 | موقع Mawdda قناة APK الأساسية والموصى بها، وليست حصرية؛ يجوز التوزيع عبر قنوات موثوقة إضافية بموافقة المالك | أضيفت سياسة exact-host لروابط HTTPS وقائمة مضيفين معتمدة؛ يلزم ضبط النطاق الأساسي والمرايا، بناء Release موقّع، اختبار الأجهزة والنشر العام |
+ | LAUNCH-SIGN-001 | كل القنوات توزع التطبيق الرسمي نفسه وبهوية توقيع Mawdda المتوافقة؛ لا APK غير موقع أو Debug | workflow توقيع يدوي موجود لكنه لم يثبت تشغيله؛ النسخ الاحتياطية المشفرة والأسرار والبناء والتحقق الفعلي ما زالت بوابات مفتوحة |
+ | LAUNCH-PWA-001 | تثبيت نسخة الويب كتطبيق PWA في المرحلة الأولى على Android وSafari iOS ومتصفحات سطح المكتب المدعومة | manifest وإرشادات التثبيت موجودة؛ يلزم اختبار installability فعلي لكل متصفح/جهاز وتوثيق القيود |
+ | LAUNCH-IOS-001 | تأجيل التطبيق الأصلي ومتجر Apple ورسوم العضوية؛ لا يُخلط Safari PWA مع تطبيق iOS أصلي | قرار موثق؛ التسجيل الأصلي والتوقيع والاختبارات والنشر مؤجلة |
+ | LAUNCH-PLAY-001 | تأجيل Google Play ورسوم Play Console إلى ما بعد نجاح التجربة وموافقة المالك | قرار موثق؛ عند الانتقال يجب إعداد حزمة المتجر المناسبة (AAB عادة للتطبيقات الجديدة) واختبار توافق التوقيع والتحديث |
+ | ANDROID-REL-003 | تجهيز APK المباشر وAAB للمتجر معاً من الالتزام نفسه وبهوية توقيع Mawdda؛ لا يجوز أن يكسر إعداد Play App Signing تحديث نسخ APK المثبتة خارج المتجر | أُضيف workflow يدوي يبني Universal/ABI APK وAAB ويفحص توقيعاتها وشهادتها وSHA-256؛ لم يُشغّل بأسرار المالك بعد، ولم يُرفع أي artifact إلى المتجر أو الموقع |
+ | LAUNCH-CLOUD-001 | عدم تفعيل Blaze أو خدمات/اشتراكات مدفوعة أو إجراء نشر/تغيير إنتاجي دون موافقة منفصلة وتقدير تكلفة وأهلية | قرار موثق؛ لم يتم تفعيل فوترة أو نشر إنتاجي ضمن هذا التغيير |
+ 
+ **مراجع التنفيذ التفصيلية:** [خطة الإطلاق المرحلي والتوزيع الرسمي](MAWADDA_PHASED_LAUNCH_AND_DISTRIBUTION_PLAN_2026.md)؛ [دليل بناء Android والتوقيع وGoogle Play](ANDROID_RELEASE_AND_GOOGLE_PLAY_SIGNING_2026.md). التوثيق أو نجاح CI لا يثبت وحده جاهزية الإطلاق ولا يمنح إذناً بالنشر.
+ 
+ 
+ ## ANDROID-REL-004 — منع إصدار Android المرتبط ببيئة Firebase غير الإنتاجية (17 نوفمبر 2026)
+ 
+ - إعداد Flutter الافتراضي `MAWDDA_FIREBASE_ENV=nonprod` مقصود لاختبارات التطوير والمحاكيات فقط.
+ - يجب أن تمرر جميع أوامر بناء APK/AAB الموقّعة `MAWDDA_FIREBASE_ENV=production` صراحة.
+ - يجب أن يحقن workflow ملف `google-services.json` الإنتاجي من سر `MAWDDA_PRODUCTION_GOOGLE_SERVICES_JSON_B64`، ثم يطابق project ID ورقم المشروع وApp ID واسم الحزمة ومفتاح API وStorage bucket مع FlutterFire production options.
+ - أُضيف تحقق آلي لهويات Android وiOS الإنتاجية في `functions/scripts/validate-firebase-config.cjs` واختبارات لها. غياب ملف Google Services الإنتاجي أو عدم التطابق يمنع بناء الإصدار.
+ - لم يُقدّم المالك بعد سر ملف Google Services الإنتاجي في هذه المراجعة، ولذلك لم يُشغّل workflow الموقّع ولم تُنتج حزم Release.
++
++
++## ECON-PHASE-001 — البرنامج التنفيذي الموحد للمرحلة الاقتصادية الشاملة (19 نوفمبر 2026)
++
++- **قرار المالك:** تثبيت المرحلة الاقتصادية الشاملة كبرنامج تكامل وتنفيذ واحد، وربط جميع محركات الاقتصاد والأقسام والواجهات والخدمات الخادمية والبيانات والاختبارات والحوكمة والوثائق القانونية ضمن مسار متتابع قابل للتدقيق حتى إغلاق المرحلة.
++- يجب أولاً جرد جميع فروع التطوير وطلبات الدمج والـ commits والوثائق والاختبارات، ثم مصالحة التغييرات ونقلها انتقائياً إلى فرع تكامل مستقل. يمنع الدمج الشامل أو النسخ فوق الملفات المحورية دون مراجعة دلالية واعتماديات واختبارات.
++- يشمل النطاق المحفظة ودفتر الكوينز والتحويلات وطلبات الشراء اليدوية وسياسة الأسعار والمتجر والهدايا والاستحقاقات والمكافآت والإعلانات المميزة والمؤقتة والمكالمات والغرف والإيجارات والفعاليات وMedia Saver والوسائط والتكاليف ولوحة المالك والأمن والحوكمة القانونية.
++- كل دفعة يجب أن تكون مرتبطة بقرار موثق، وكود/واجهة/بيانات متأثرة، واختبار مناسب، ونتيجة على SHA ثابت، ومخاطر متبقية.
++- تُنفذ الاختبارات الممكنة عبر GitHub Actions وFirebase Emulator وFlutter analysis/tests/build، ثم المختبر المنفصل 5,000 شخصية والقبول غير الإنتاجي/الأجهزة حسب الحاجة. لا يُدعى اختبار محلي أو جهاز فعلي دون دليل.
++- لا دمج إلى `main` ولا نشر ولا تغيير Firebase حي ولا تفعيل Billing/Blaze أو خدمات مدفوعة أو تحصيل حقيقي دون موافقة مستقلة وصريحة.
++- **المرجع الإجرائي:** `docs/ECONOMIC_PHASE_EXECUTION_AND_INTEGRATION_PLAN_2026-11-19.md`.
++- **ضبط الوثائق القانونية:** `docs/LEGAL_GOVERNANCE_DOCUMENT_CONTROL_AUDIT_2026-11-19.md`.
++- **حالة القرار:** معتمد من المالك؛ التنفيذ قيد الجرد والتكامل، والمرحلة ليست مغلقة. لا يثبت هذا القرار اكتمال أي ميزة منفردة.
++
++
++## ECON-PHASE-002 — اعتماد التنفيذ المرحلي وبوابات الإغلاق (19 نوفمبر 2026)
++
++- **قرار المالك:** اعتماد خطة التنفيذ الكامل وخطة التكامل التنفيذي كمسار مراحل متتابعة؛ تُغلق كل مرحلة بأدلة قبول موثقة قبل الانتقال إلى التالية.
++- لا يُسمح بتجاوز بوابة فاشلة أو اعتبار وجود الكود/الواجهة وحده إغلاقاً. يجب تسجيل الملفات والـ commits وSHA الدقيق ونتائج الاختبارات والعيوب والمخاطر وقرار الإغلاق.
++- ترتيب المراحل ونطاقها وبوابات الخروج ونموذج سجل الإغلاق مثبت في [سجل الإغلاق التنفيذي المرحلي](ECONOMIC_PHASE_EXECUTION_CHECKLIST_AND_STAGE_CLOSURE_2026-11-19.md).
++- **نقطة البدء:** إكمال المرحلة 1 (الجرد والمصالحة الشاملة للفروع وطلبات الدمج والـ commits والوثائق والاختبارات)، بالتوازي مع إغلاق التحقق الدقيق من PR35 وPR38. لا يبدأ دمج أو نقل واسع قبل حسم التداخلات.
++- **حدود التفويض:** اعتماد هذه الخطة يجيز مواصلة التدقيق والتوثيق والتطوير والاختبارات على فروع التكامل المعزولة؛ ولا يجيز دمج `main` أو النشر أو تعديل Firebase الإنتاجي أو تفعيل Billing/Blaze أو المدفوعات الحقيقية. لكل منها موافقة مستقلة صريحة.
++- **الحالة:** معتمد؛ التنفيذ المرحلي مفتوح. لا تعني الموافقة أن أياً من المراحل قد أُغلقت.
++
++
++## ECON-PHASE-003 — شرط الفحص الشامل والإغلاق المرحلي (19 نوفمبر 2026)
++
++- **قرار المالك:** لا انتقال من أي مرحلة إلى التالية إلا بعد إغلاق المرحلة الحالية رسمياً عقب فحص عميق، داخلي، ومرحلي ضمن GitHub وبيئات الاختبار المتاحة.
++- يشمل الفحص جميع الاختبارات والفحوصات المتاحة والملائمة: مراجعة diff والاعتماديات، static analysis/lint/format/type-check/build، unit/component/integration/API/contract/E2E/regression/emulator، negative/authz/concurrency/idempotency/replay/migration/backup-restore، security/code scanning/dependency/SCA/secret scanning/dependency review، rules tests، performance/load/resilience، accessibility/localization/platform validation حيث تتوفر الأدوات والبيئات.
++- يجب تصنيف كل عيب، إصلاح العيوب الحرجة والعالية قبل الإغلاق، ثم إعادة الفحص على SHA ثابت. لا يُقبل نجاح workflow واحد دليلاً على اكتمال المرحلة.
++- كل فحص غير متاح أو غير منطبق يجب أن يُذكر مع السبب؛ لا يجوز الادعاء بتشغيل فحص لم يُشغّل أو توفر مختبر غير موجود. لا يمكن لـ GitHub وحده أن يحل محل اختبار جهاز حقيقي أو مراجعة قانونية عند الحاجة.
++- **ترقيم الخطة:** بوابة المرحلة 0 تأسيسية وليست ضمن عدد المراحل؛ مراحل التنفيذ المعتمدة هي الأربع عشرة من 1 إلى 14.
++- **التنفيذ:** تُطبق البوابات فوراً على جميع الأعمال الجارية، ويبدأ التنفيذ العملي بالمرحلة 1 (الجرد الشامل). لا يُغلق أي بند لمجرد اعتماده أو توثيقه.
++- **المرجع:** [سجل الإغلاق التنفيذي المرحلي](ECONOMIC_PHASE_EXECUTION_CHECKLIST_AND_STAGE_CLOSURE_2026-11-19.md).
++- **الحالة:** معتمد؛ جميع المراحل مفتوحة ما عدا نجاحات الاختبار الجزئية المسجلة كأدلة، ولا تُعتبر إغلاقاً للمراحل.
+diff --git a/docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md b/docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+index 00619459..d38dc209 100644
+--- a/docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
++++ b/docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+@@ -1,67 +1,79 @@
+ # فهرس الوثائق ومصالحة المصادر — Mawdda 2026
+ 
+ **تاريخ الحصر:** 19 نوفمبر 2026  
+ **الفترة المطلوبة:** 16–19 نوفمبر 2026 (UTC)  
+-**الفرع الذي أُنشئت عليه هذه النسخة:** `codex/mawda-full-platform-implementation`
++**الفرع المرجعي الأصلي:** `codex/mawda-full-platform-implementation`  
++**فرع توحيد خطة المرحلة الاقتصادية:** `codex/economic-phase-controlled-integration-2026-11-19`
+ 
+ ## الملفات المركزية الجديدة
+ - [سجل العقود والحوكمة الموحد](MAWADDA_CONTRACTS_AND_GOVERNANCE_REGISTER_2026.md)
+ - [دستور مودة الموحد](MAWADDA_UNIFIED_CONSTITUTION_2026.md)
+ - [الرؤية الشاملة الموحدة](MAWADDA_UNIFIED_PLATFORM_VISION_2026.md)
+ - [سجل القرارات والتتبع](MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md) — يبقى سجل الحالة الرسمي.
+ 
+ ## ترتيب المصادر المحفوظة
+ 
+ | المجال | المرجع الأصلي | طريقة التعامل |
+ |---|---|---|
+ | الدستور | MAWADDA_PRODUCT_CONSTITUTION.md | مصدر محفوظ؛ النسخة الموحدة تجمعه ولا تحذفه |
+ | الرؤية | MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md | مصدر محفوظ |
+ | الميثاق الهندسي | MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md | مرجع تنفيذ تفصيلي |
+ | القرارات | MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md | المرجع الرسمي لحالة القرار |
+ | الحوكمة | OWNER_CONTROL_MASTER_AGREEMENT.md | اتفاقية سيادة مرجعية؛ لا تستبدل توقيعاً قانونياً |
+ | الإعلانات والإنتاج | MAWDDA_ADVERTISING_PRODUCTION_GOVERNANCE_2026.md | مرجع المجال |
+ | العقود | MAWDDA_ADVERTISING_CONTRACT_TEMPLATES_2026.md | نماذج منفصلة، لا تدمج في عقد واحد |
+ | اتفاقية العمولة | ADVERTISING_MODERATOR_COMMISSION_AGREEMENT.md | نموذج مستقل |
+ | المسميات | MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md | قاموس المصطلحات |
+ | البيومتري | LOCAL_BIOMETRIC_INTEGRATION.md | مواصفة محلية؛ امتيازات الخادم معطلة حتى الإثبات |
+ | الاقتصاد | ECONOMIC_PHASE_CONTROLLED_INTEGRATION_AUDIT_2026-11-19.md | تقرير فجوات لا شهادة اكتمال |
++| ضبط الوثائق القانونية والحوكمة | LEGAL_GOVERNANCE_DOCUMENT_CONTROL_AUDIT_2026-11-19.md | تدقيق أولي للخصوصية والعقود والتفويض والاحتفاظ؛ ليس رأياً قانونياً أو اعتماداً للنشر |
++| خطة المرحلة الاقتصادية | ECONOMIC_PHASE_EXECUTION_AND_INTEGRATION_PLAN_2026-11-19.md | الخطة الإجرائية الحاكمة للتجميع والدمج الانتقائي والاختبارات والإغلاق؛ لا تعني اكتمال التنفيذ |
+ | الهوية | MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md | مرجع الهوية والخلفيات |
+ | الإعلانات والمكافآت | MAWDDA_ADVERTISING_AND_REWARDS_SPEC.md | سياسة المنتج ومراحل التنفيذ |
+ | مساحة العمل | ADVERTISING_MEDIA_WORKSPACE_SPEC.md | تدفقات وصلاحيات ومسارات |
+ | الاقتصاد الإعلامي | MEDIA_ECONOMY_OPERATING_MODEL.md | مرجع التشغيل الاقتصادي |
+ | الأسعار والغرف | ROOMS_AND_ECONOMY_PRICING.md | لا تُستبدل الأسعار دون قرار المالك |
+ | الاختبارات | IMPLEMENTATION_TRACEABILITY.md وملفات الاختبار | حالة التنفيذ والأدلة |
+ 
+ ## قرارات وإضافات الفترة 16–19 نوفمبر
+ 
+ تمت مراجعة سجل GitHub للفترة المحددة على فرع التطوير، وتظهر الإضافات التالية (مع بقاء كل بند خاضعاً لحالة تنفيذه في سجل القرارات):
+ 
+ - 16 نوفمبر: Creator Content & Influencer Proposals كمسار خامس في Media Workspace؛ مدخل الإعلانات المميزة وسجل مكافآتها؛ إضافات حوكمة الإعلانات والإنتاج ومركز العقود.
+ - 17 نوفمبر: قرارات الإطلاق المرحلي والتوزيع؛ حماية إصدار Android من بيئة Firebase غير الإنتاجية؛ إصلاحات حملات المكافآت والبحث؛ تعزيز مهلات المكالمات وإعادة الاتصال؛ تحسينات بطاقات الغرف وPWA؛ توثيق بوابات الإصدار.
+ - 18 نوفمبر: تدقيق جاهزية الإعلانات المميزة والمكالمات؛ هوية الشركة في Media Workspace وWatch Ads؛ نقل وتحسينات الاقتصاد الرسمي مثل دفتر التحويلات والمنح وشراء المتجر وتعليمات الدفع غير القابلة للتعديل؛ تكامل مراجعة الاقتصاد.
+ - 19 نوفمبر: تعزيز دورة الدفع اليدوي وإثباتات replay وسجل التدقيق ونسخ سياسة الدفع؛ إعدادات المالك لكل خدمة ووسيلة دفع وعملة ودقة؛ دفتر مالي للإعلانات المميزة؛ اختبارات محاكي للعملة والدفع؛ مصالحة محفظة قراءة فقط؛ توحيد المسميات Super Owner/Admin Media؛ توثيق حدود المكالمات الجماعية وبوابات CI.
+ 
+ ## قيود التوحيد
+ 
+ 1. لا تُحذف الوثائق الأصلية ولا تُستبدل النماذج الموقعة.
+ 2. لا تُدمج المقترحات أو القيم التجريبية في القرارات المعتمدة دون مرجع موافقة.
+ 3. لا تُعتبر إضافة الوثيقة دليلاً على تنفيذ الميزة.
+ 4. تبقى سياسة اختيار الاحتفاظ وموافقة الطرفين معلقة.
+ 5. المكافأة البيومترية 1500 كوين معطلة حتى الإثبات الخادمي التشفيري.
+ 6. فوترة المكالمات المفتوحة ودفع العمولة والدفع الآلي تبقى معطلة حتى استكمال الشروط والاختبارات والموافقة.
+ 7. شعار الشركة الرسمي أصل مستقل؛ لا يُستبدل بشعار Mawdda، ولا تُنشأ نسخة مصطنعة. يلزم ربط ملف الأصل المصدق من المالك في سجل الأصول.
+ 8. لا دمج إلى main أو نشر أو إنتاج أو فوترة أو موارد مدفوعة دون موافقة مستقلة.
+ 
+ ## بوابة مراجعة المالك
+ 
+ هذه النسخة هي توحيد مرجعي أولي. بعد مراجعة المالك، تسجل الموافقة صراحة على إصدار الدستور والرؤية الموحدين، وتُحدّث روابطهما في README والميثاق وسجل القرارات. تبقى المستندات المصدرية محفوظة.
+ 
+ 
+ ## اختلاف الفروع — بوابة دمج وثائقي/برمجي
+ 
+ مقارنة GitHub بين فرع التطوير الرسمي والفرعين المتخصصين أظهرت تفرعاً حقيقياً، وليست كل تغييرات الفرعين مدمجة في فرع التطوير الرسمي:
+ 
+ - `codex/economy-official-port-2026-11-18`: متقدم بـ20 commit على فرع التطوير الرسمي ومتأخر عنه بـ88 commit وقت المقارنة؛ الفروقات تشمل طلبات شراء الكوينز اليدوية وواجهات المالك والعضو واختبارات المنح/الغرف/المتجر. لم يُدمج هذا الفرع.
+ - `codex/governance-biometric-integration-2026-11-19`: متقدم بـ89 commit ومتأخر بـ85 commit وقت المقارنة؛ الفروقات تشمل تدفق التوثيق اليدوي، المسميات والأدوار، قواعد Firestore/Storage، الواجهات والاختبارات والوثائق. لم يُدمج هذا الفرع.
+ 
+ تم إدراج المتطلبات الموثقة من وثائق الفرعين في الدستور والرؤية وسجل المصادر، لكن **هذا لا يعني نقل كل تغييرات الكود أو اختبارات الفرعين**. يلزم دمج انتقائي لاحق مع مراجعة تعارضات واختبارات على SHA موحد. لا تنفذ عملية الدمج إلى `main` ولا تغيّر الإنتاج.
++
++
++## مسار المرحلة الاقتصادية الشاملة — 19 نوفمبر 2026
++
++أُنشئ فرع تكامل معزول `codex/economic-phase-controlled-integration-2026-11-19` من SHA `8a1c8d0b93ed43570c523ab2d8c2598648ddac0e`. الخطة التنفيذية الجديدة هي المرجع الإجرائي لترتيب جرد الفروع، ومصالحة الكود والوثائق، والنقل الانتقائي، والاختبارات على SHA موحد. تبقى هذه الخطة مفتوحة إلى حين إرفاق أدلة كل بوابة. لا حذف لفروع المصدر ولا دمج إلى `main` ولا نشر أو تفعيل فوترة.
++
++- تدقيق ضبط الوثائق القانونية والحوكمة: `LEGAL_GOVERNANCE_DOCUMENT_CONTROL_AUDIT_2026-11-19.md` يثبت الوثائق المصدرية والتعارضات والحقول القانونية المفتوحة؛ لا يحل محل مراجعة محامٍ أو مستندات الشركة.
++
++- سجل الإغلاق التنفيذي المرحلي وبوابات الفحص الشامل (ECON-PHASE-003): `ECONOMIC_PHASE_EXECUTION_CHECKLIST_AND_STAGE_CLOSURE_2026-11-19.md` — المرجع الملزم للمراحل الأربع عشرة، ومصفوفة الاختبارات، والأدلة، وسجل الإغلاق؛ المرحلة 1 ما زالت مفتوحة.
+diff --git a/docs/MAWADDA_UNIFIED_CONSTITUTION_2026.md b/docs/MAWADDA_UNIFIED_CONSTITUTION_2026.md
+index 879604b0..32420edf 100644
+--- a/docs/MAWADDA_UNIFIED_CONSTITUTION_2026.md
++++ b/docs/MAWADDA_UNIFIED_CONSTITUTION_2026.md
+@@ -138,80 +138,93 @@ Mawdda Media Saver منتج موحد لحفظ الوسائط محلياً في 
+ - المكاتب التابعة: حلب، سوريا؛ غازي عنتاب، كهرمان مرعاش، أنطاكيا، إسطنبول، تركيا؛ الجزائر العاصمة ووهران، الجزائر؛ القاهرة، مصر.
+ - بيانات البريد والهاتف الرسمية لا تكتب أو تُخمن من ذاكرة غير موثقة؛ تؤخذ من سجل بيانات الشركة المعتمد والوثيقة المصدرية.
+ - رأس العقد يميز الشركة عن المنتج، ويعرض الشعار والاسم ووسائل الاتصال والعنوان الرئيسي والمكاتب حسب النسخة المعتمدة، دون إظهار بيانات شخصية غير لازمة.
+ 
+ ## 14. التوثيق البيومتري
+ 
+ يوجد مساران مختلفان يجب عدم الخلط بينهما:
+ 
+ **أ. التوثيق البيومتري اليدوي بمراجعة Super Owner (قرار 19 نوفمبر 2026):**
+ - التوثيق اختياري ويبدأ من حساب العضو: تسجيل عينة صوتية لعبارة قصيرة يولدها/يعرضها النظام، ثم فيديو حي عبر كاميرا التطبيق مدته 3–5 ثوانٍ يظهر حركة، مع UID والاسم الكامل واسم المستخدم والجنس المسجل ووقت التقديم ورقم المحاولة.
+ - طلب واحد نشط/قيد المراجعة لكل عضو. يملك الخادم عداد المحاولات والحالة والإصدار ومنع التكرار والتزامن. يظهر للعضو «طلب التوثيق البيومتري قيد المراجعة»، ويبقى معلقاً حتى قرار صريح من Super Owner دون رفض تلقائي بسبب التأخير.
+ - صندوق «طلبات التوثيق البيومتري» للمالك وحده. يراجع المالك الصوت والفيديو يدوياً؛ لا تصنيف آلي للصوت أو الوجه أو الجنس في المسار الأولي.
+ - القبول يحدّث الحالة ووقت التوثيق وتاريخ التجديد بعد شهر تقويمي واحد، ويمنح 1,500 BetaCoins مرة واحدة للعملية، ويضيف الشارة ويرسل الإشعار ضمن معاملة خادمية ذرية مع ledger وidempotency. الرفض لا يمنح المكافأة ويبلغ العضو بعدد المحاولات المتبقية.
+ - ثلاث محاولات إجمالية؛ بعد رفض الثالثة يقفل تقديم طلب جديد ثلاثة أشهر. هذا القفل مستقل عن التجديد الشهري الطبيعي.
+ - التسجيل بالبريد مستقل: كل ثلاثة أشهر تقويمية ومكافأته 500 BetaCoins؛ لا تخلط دورته أو مكافأته مع البيومتري.
+ - الصوت والفيديو دليل مؤقت حساس مشفر، خاص، وصوله قصير الأجل ومقيد بالمالك مع سجل وصول. بعد قرار القبول/الرفض تسحب صلاحية الوصول وتحذف الملفات والمشتقات بمهمة قابلة لإعادة المحاولة والتدقيق. يحتفظ فقط بسجل القرار التشغيلي الأدنى؛ لا عينات ولا قوالب ولا embeddings ولا voiceprints ولا تدريب نماذج عليها. لا تدّع حذف النسخ الاحتياطية قبل انتهاء دورة النسخ أو إتلاف مفتاح التشفير.
+ - موافقة واضحة قبل التسجيل تشرح الغرض والوصول والاحتفاظ والحذف والنتائج، مع مسار دعم بديل لمن يتعذر عليه التسجيل. لا تُفعّل الدورة قبل اكتمال التخزين الخاص، والصلاحيات، والحذف، والإشعارات، ودفتر المكافأة، واختبارات المحاكي والقبول.
+ - لا يقبل النظام هوية يرسلها العميل بدلاً من بيانات الملف الموثوقة. يلزم challenge phrase version، ملكية الرفع، حد المدة والحجم والنوع، request ID، expected-version، nonce/idempotency، rate limits وروابط موقعة قصيرة الأجل.
+ - حالة التوثيق النشطة لا تثبت إلا بسجل خادمي يحمل `verificationMethod: owner_manual_review` و`reviewedBySuperOwner: true` و`reviewRequestId` صالحاً وانتهاءً مستقبلياً خادمياً. نجاح local_auth وحده لا يفتح الشارة أو المكافأة.
+ 
+ **ب. مصادقة الجهاز المحلية:**
+ - LocalAuthentication/BiometricPrompt تتحقق محلياً من حضور المستخدم على جهازه فقط؛ لا تثبت وحدها الهوية المدنية أو liveness أو قرار التوثيق اليدوي أو إثباتاً تشفيرياً للخادم.
+ - لا ترفع Mawdda عينات/قوالب/صور البصمة أو الوجه في مسار المصادقة المحلية. نجاح النافذة المحلية أو تصريح العميل لا يمنح 1,500 BetaCoins ولا شارة التوثيق اليدوي.
+ - أي مزود تحقق تشفيري/خارجي آخر يحتاج موافقة ومراجعة مستقلة ولا يستبدل المسار اليدوي المعتمد تلقائياً.
+ 
+ ## 15. الأمن والخصوصية والبيانات
+ 
+ - أقل صلاحية، تحقق خادمي، قواعد Firestore/Storage تمنع الكتابة المباشرة الحساسة، App Check حيث يلزم، فصل البيئات، أسرار في Secret Manager أو مخزن آمن لا في GitHub أو العميل.
+ - حماية بيانات الأعضاء والرسائل والمحافظ والوسائط وسجلات العقود. لا تخزن كلمات مرور أو مفاتيح توقيع أو رموز وصول في المحادثات أو المستودع.
+ - إشعار الخصوصية يشرح البيانات والغرض والاحتفاظ والمعالجات والتحويلات والحقوق، ومراجعة المالك الحساسة، والضيوف، والبيومتري بموافقة منفصلة عند اللزوم.
+ - النسخ الاحتياطي والاستعادة، الحوادث، التسجيل والمراقبة، التشفير، retention/legal hold تحتاج أدلة تشغيل واختبار، لا مجرد ملفات إعداد.
+ - لا تفعيل حذف حي أو WORM/retention lock أو تغيير سياسة قانونية دون موافقة المالك ومراجعة القانون والتكلفة.
+ 
+ ## 16. البنية والمنصات وFirebase
+ 
+ - Flutter/Dart، Firebase Authentication، Firestore، Storage، Cloud Functions، PWA، Android، iOS وفق مصفوفة القدرات.
+ - Firebase المعتمد: `mawda-app-2026`، Project Number `697303475139`.
+ - تسجيل iOS الحالي `com.mawdda.platform.app` محمي: لا تغيير أو حذف أو إعادة إنشاء أو استبدال إعداداته الصحيحة دون موافقة مستقلة.
+ - Android يحافظ على هوية مفتاح التوقيع المعتمدة؛ لا مفتاح جديد ولا نشر Debug كإصدار عام. لا ترفع مفاتيح أو أسرار.
+ - PWA لا يخزن الرسائل أو المحفظة أو بيانات الاعتماد في Cache غير آمن.
+ - بيئة التطوير والمحاكيات منفصلة عن الإنتاج؛ لا تشغيل اختبارات أو seed على بيانات حقيقية.
+ - البقاء على Spark/Emulator-first؛ لا Blaze أو موارد مدفوعة دون موافقة صريحة.
+ - لا تعتبر بناء Debug أو CI قبولاً لتوقيع Release أو جهاز حقيقي أو نشر.
+ 
+ ## 17. التكلفة والاستدامة
+ 
+ - السقف التخطيطي: 10 USD شهرياً لكل 1000 عضو نشط، تخطيطياً 7.50 تشغيل و2.50 احتياطي؛ مستويات التنبيه 5 و7.50 و9 USD.
+ - هذه أهداف تقديرية وليست قواطع فاتورة مضمونة ولا حصص أعضاء.
+ - قياس فعلي للتخزين والبايت-ساعة والنقل والمعالجة والاستعلامات والكتابات مطلوب قبل الادعاء بالالتزام. لا تفعيل Billing/Blaze أو خدمات مدفوعة دون موافقة المالك.
+ 
+ ## 18. الاختبارات والمحاكاة والقبول
+ 
+ - كل بند في الرؤية والدستور له معرف تتبع، ملف/مسار، اختبار، SHA، دليل ومالك قرار.
+ - بحسب الحاجة: Flutter Analyze/Tests، Unit/Widget، Functions، Firestore/Storage Emulator، قواعد الأمان، تكامل، اقتصاد، احتفاظ، حجوزات، مكالمات، إعلانات، CodeQL وفحص البرمجيات الضارة.
+ - مختبر 5000 شخصية مستودع مستقل: `productionhome2022-hash/mawdda-5000-simulation-lab`. لا يعلن نجاح 5000 إلا بتقرير يثبت SHA المنصة والمختبر والسيناريو والحجم والمدة والنتائج.
+ - التمييز إلزامي بين كتابة الكود، نجاح التحليل، نجاح الاختبار، نجاح البناء، التوقيع، قبول الجهاز الحقيقي، النشر.
+ - أي إخفاق يمنع إغلاق المسار المعني؛ لا تتجاوز الفجوات ولا تخفِها.
+ 
+ ## 19. ترتيب التنفيذ المرحلي
+ 
+ 1. إكمال البناء والتطوير ومعالجة الفجوات واختبارات المستودع على فرع التطوير، وإنتاج مرشح SHA ثابت.
+ 2. اختبار المرشح في مختبر 5000 شخصية بعد إغلاق المرحلة الأولى.
+ 3. مزامنة سحابية/اختبار غير إنتاجي ثم قبول الأجهزة والتوقيع والمراجعات.
+ 4. النشر والإطلاق فقط بعد موافقة مستقلة من المالك على الإجراء المحدد.
+ 
+ لا تمنح المرحلة الأولى أو الثانية تفويضاً تلقائياً للمرحلة الثالثة.
+ 
+ ## 20. سجل الشركة والمواقع والملحقات
+ سجل النماذج والاتفاقيات والحوكمة التعاقدية التفصيلي: [سجل العقود والحوكمة الموحد](MAWADDA_CONTRACTS_AND_GOVERNANCE_REGISTER_2026.md). تبقى كل وثيقة عقد مستقلة عن الأخرى.
+ 
+ 
+ المكاتب والمقرات الواردة في القسم 13 سجلها المالك صراحة في المحادثة بتاريخ 19 نوفمبر 2026. وتبقى العقود الأصلية، الشعار الأصلي، بيانات الاتصال الرسمية، والنسخ الموقعة محفوظة كأصول/وثائق مصدرية منفصلة مرتبطة بهذا الدستور.
+ 
+ ## 21. سياسة صيانة هذا الدستور
+ 
+ - لا يُحذف أي مصدر أصلي عند التوحيد. تبقى الوثائق التاريخية والعقود وإصداراتها وبصماتها.
+ - كل تعديل لاحق يسجل: ID، تاريخ UTC، صاحب القرار، نص القرار، النطاق، المصدر، حالة الاعتماد، الملفات المتأثرة، الاختبارات، SHA، والتعارضات.
+ - يحدّث الدستور والرؤية وسجل القرارات ومصفوفة التتبع في commit واحد قدر الإمكان؛ لا يُسمح بانحراف النسخ.
+ - التغيير الذي يخص سياسة أو مالاً أو خصوصية أو عقداً أو حذفاً يحتاج موافقة المالك المناسبة؛ لا يعتمد تلقائياً لمجرد دخوله في وثيقة.
+ - **حالة هذه النسخة:** تجميع مرجعي أولي على فرع التطوير، بانتظار مراجعة المالك واعتماده. لا يغير هذا المستند أي مورد إنتاجي أو عقد موقع.
++
++
++## Owner-approved execution amendment — comprehensive economic integration (19 November 2026)
++
++The comprehensive economic phase is governed as one controlled integration program, not as disconnected feature tasks. All wallet, ledger, pricing, purchases, store entitlements, gifting, rewards, advertising, calls, room rentals/events, media-saving, cost-control, owner-operations, security, governance and legal-document dependencies must be reconciled and tested together in a dependency-ordered sequence.
++
++The engineering process must inventory all source branches and pull requests, preserve their history, and selectively port verified unique changes into an isolated integration branch. No divergent branch may be merged wholesale merely because GitHub reports it mergeable. Every batch must identify its source and target commits, changed contracts/data/rules/interfaces, tests, exact-head workflow evidence and remaining risks.
++
++The documentation master index, approved decision register, implementation traceability, contract/governance register, privacy notice, retention operations and release checklist must remain synchronized. Historical documents are preserved and clearly marked as current, specialist, historical or superseded; signed records are never overwritten. Draft contracts and privacy notices remain non-final until legal review, verified company information, applicable jurisdiction and required signatures are established.
++
++GitHub Actions and Firebase Emulator tests are used for the local/isolated validation that the repository supports; device and live non-production acceptance must be reported separately and never inferred from CI. No merge to `main`, production deployment, live Firebase mutation, billing activation, paid infrastructure or real-money collection is authorized by this amendment. Each requires separate explicit owner approval.
++
++The controlling execution procedure is `docs/ECONOMIC_PHASE_EXECUTION_AND_INTEGRATION_PLAN_2026-11-19.md`; legal/governance document control is tracked in `docs/LEGAL_GOVERNANCE_DOCUMENT_CONTROL_AUDIT_2026-11-19.md`. Approval of this procedure does not certify any feature as complete or close the economic phase.
+diff --git a/docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md b/docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+index 5945a07e..575feadc 100644
+--- a/docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
++++ b/docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+@@ -19,80 +19,85 @@
+ - دعم RTL/LTR، قارئات الشاشة، التباين، reduced motion، الهاتف واللوحي والويب وسطح المكتب، وحالات التحميل والفراغ والخطأ والانقطاع وانتهاء الاستحقاق.
+ 
+ ## 3. الحساب والملف والاكتشاف
+ 
+ رحلة موحدة من صفحة عامة وإقرار الخصوصية إلى التسجيل والتحقق وإكمال الملف. ملف عام/خاص، اسم فريد، معلومات أساسية، أهداف واهتمامات، منشورات وصور وفيديو وألبومات وتعليقات وتفاعلات ومشاركة وحفظ وقصص 24 ساعة ومتابعة/أصدقاء وزيارات وتحكم خصوصية. الاكتشاف شفاف وقابل للتحكم ولا يدعي دقة علمية للتوافق. أي ترويج مدفوع موسوم بوضوح.
+ 
+ الضيف مسار محدود ومؤقت لا يحصل على محفظة أو متجر أو خاص أو امتيازات العضو. لا محتوى محمي قبل إقرار الخصوصية المناسب.
+ 
+ ## 4. التواصل والمجتمعات
+ 
+ محادثات خاصة وعامة، صندوق رسائل موحد، إيصالات وإشعارات، حظر وإبلاغ واستئناف، ملفات ووسائط، غرف عامة وخاصة ومستأجرة، مجتمعات، فعاليات، RSVP وسعة مقاعد، حجوزات واستئجار وإلغاء واسترداد وانتهاء مدة. كل دورة حجز/دفع/استرداد خادمية وذرية وتمنع التكرار.
+ 
+ المكالمات الصوتية والمرئية منفصلة عن التسجيلات الصوتية. حد التسجيل 60 ثانية؛ أما المكالمة فتخضع لحدودها وحصصها واستحقاقاتها المنفصلة. لا تفعيل فوترة المكالمات المفتوحة قبل تنفيذ metering وتوزيع التكلفة والخصم الذري وموافقة الطرفين.
+ 
+ التوثيق البيومتري اليدوي مسار اختياري: عينة صوت لعبارة تحدٍ، وفيديو حركة 3–5 ثوانٍ، مراجعة بشرية من Super Owner حصراً، ثلاث محاولات، وقفل ثلاثة أشهر بعد رفض الثالثة. القبول يفعّل التوثيق لشهر تقويمي واحد ويمنح 1,500 BetaCoins مرة واحدة بعد اكتمال المعاملة الخادمية. مكافأة البريد 500 BetaCoins مستقلة كل ثلاثة أشهر تقويمية. المصادقة المحلية على الجهاز ليست بديلاً ولا تمنح المكافأة. الأدلة المؤقتة تحذف بعد القرار مع سجل تشغيلي أدنى.
+ 
+ ## 5. الوسائط والذاكرة المحلية
+ 
+ صور/GIF/صوت/فيديو بحدود تقنية صارمة، ماسح آمن، حجر، مشتقات، صلاحيات وصول واحتفاظ. PDF للمالك المثبت فقط. Mawdda Media Saver منتج موحد للحفظ المحلي مع تحقق استحقاق خادمي لكل عملية، دون تمديد الاحتفاظ السحابي. أوضاع الاحتفاظ محددة، لكن سلطة اختيار الوضع وموافقة الطرفين ما زالت مسألة معلقة، لذا لا حذف حي مبني على افتراض.
+ 
+ ## 6. الاقتصاد الموحد
+ 
+ محفظة ودفتر حركات، شراء كوينز يدوي أو دفع آلي مستقبلي، تحويلات، متجر ديناميكي، كتالوج واستحقاقات، اشتراكات، ألقاب وأوسمة وإطارات وثيمات وأسماء مميزة وتحسينات ملف وميزات الغرف، مكافآت حضور ومشاهدة إعلانات، ومنح مجانية فردية وجماعية. المدة 24 ساعة/7 أيام/30 يوماً ثابتة، والسعر والحصص والكمية يحددها المالك. لا قيم افتراضية مخترعة. كل حركة خادمية ذرية idempotent قابلة للتدقيق.
+ 
+ مركز Super Owner موحد لإدارة الأسعار والقنوات والمنتجات والمكافآت والمنح والأرصدة ومطابقة المحفظة والتدقيق. المطابقة للقراءة فقط ما لم يصدر تفويض صريح مستقل لتصحيح محدد.
+ 
+ ## 7. الإعلانات وWatch Ads
+ 
+ إدارة الحملات التجارية وإعلانات المكافآت منظومتان متصلتان لكن منفصلتان مالياً وصلاحياً. Watch Ads واجهة عضو مستقلة، وتعرض الحملات المؤهلة جغرافياً. المعاينة لا تكافأ؛ فقط المشاهدة الكاملة التي يثبتها الخادم. القيم التجريبية المعتمدة موثقة بالدستور، لكنها لا تعمل حتى ربط الواجهات والتحقق الخادمي والاختبارات وموافقة التفعيل.
+ 
+ Media Workspace منفصل ويضم خمسة مسارات منها Creator Content & Influencer Proposals. يضم خمسة مقاعد Admin Media 1–5، وخمسة مقاعد مشرف إنتاج عام 1–5، وفئة مفتوحة العدد لمشرف إنتاج الفريق. Admin N فريق إدارة عامة مفتوح العدد بأرقام دائمة متزايدة لا يعاد استخدامها. هذه الفئات مستقلة ولا تتوارث الصلاحيات. توجد أربعة مقاعد قانونية/إدارية لمركز العقود.
+ 
+ ## 8. الإنتاج والمبدعون
+ 
+ تدفق العمل: تقديم الفكرة/الطلب، تصنيف واستهداف جغرافي، مراجعة، تعيين صلاحيات، تخطيط فريق، غرفة إنتاج، تسليم المادة، مراجعة السلامة والجودة والحقوق، موافقة المالك، نشر أو أرشفة. لا يعلن إنجاز عام أو نشر دون موافقة مالك مستقلة. الفريق خمسة أشخاص بمن فيهم مشرف الإنتاج، والمراقب الإداري المفوض خارج العدد.
+ 
+ ## 9. العقود والعمولات
+ 
+ مركز العقود عبر الويب حصراً. نماذج منفصلة للعضوية والتكليفات والإعلانات والمندوبين والمؤثرين والإشراف القانوني والتفويض والتعليق/الإنهاء. الاتفاقية العامة للمؤثر منفصلة عن عقد كل عمل. العمولة تحدد لكل إعلان بقرار المالك ويقبلها المندوب صراحة؛ لا معدل عام. التوقيع متبادل والتحقق والتدقيق والأرشفة إلزامية. لا صرف عمولة قبل تعريف التسوية والضرائب والرسوم والاسترداد والنزاعات والمراجعة القانونية.
+ 
+ ## 10. Mawdda AI
+ 
+ مساعد تقني وشخصيات اجتماعية AI مستقبلية بوسم واضح، فصل بيانات، موافقة، اعتدال وسلامة، 18+ للمحتوى الرومانسي، ميزانيات وحدود إيقاف. هذه رؤية معتمدة وليست خدمة مكتملة أو إذناً بإطلاقها.
+ 
+ ## 11. لوحة المالك ومركز العمليات
+ 
+ لوحة Super Owner موحدة تشمل الأعضاء والسلامة والرسائل والغرف والوسائط والخلفيات والإعلانات والإنتاج والعقود والاقتصاد والمتجر والمنح والهوية والإعدادات والسحابة والتكلفة والنسخ والاستعادة والتدقيق. كل إجراء حساس عبر الخادم مع MFA وسجل. الإدارة العامة وAdmin Media والإنتاج والقانون نطاقات مستقلة.
+ 
+ ## 12. البنية التقنية والتشغيل
+ 
+ Flutter/Dart، Firebase Auth، Firestore، Storage، Cloud Functions، PWA وAndroid وiOS. بيئات منفصلة، محاكيات، قواعد أمان، App Check، أسرار آمنة، مراقبة ونسخ واستعادة. لا Blaze أو موارد مدفوعة دون موافقة. حماية تسجيل iOS الحالي، ومفتاح توقيع Android الأصلي، وعدم تخزين البيانات الخاصة في Cache PWA.
+ 
+ ## 13. الأداء والتكلفة
+ 
+ تقليل الاستعلامات والكتابات والتخزين والنقل مع الحفاظ على الأمان والاتساق. الهدف التخطيطي 10 USD لكل 1000 عضو نشط شهرياً، 7.50 تشغيل و2.50 احتياطي، وتنبيهات 5/7.50/9. لا تعد هذه سقوف فاتورة مضمونة. يلزم قياس حقيقي واختبار أحمال.
+ 
+ ## 14. مراحل التنفيذ
+ 
+ 1. البناء والتطوير واستكمال جميع المتطلبات وتوثيقها واختبارها داخل المستودع.
+ 2. اختبار 5000 شخصية في المختبر المستقل على SHA ثابت وتقرير قابل للتكرار.
+ 3. تحقق سحابي non-production، قبول أجهزة وتوقيع وأمن وقانون وتكلفة.
+ 4. إطلاق تجريبي عبر الموقع/PWA وAPK رسمي وفق قرارات التوزيع، ثم التوسع للمتاجر بعد موافقات منفصلة. لا نشر أو دمج أو إنتاج دون موافقة المالك.
+ 
+ ## 15. معيار اكتمال الرؤية
+ 
+ لا يعلن أي مجال مكتملاً إلا إذا رُبط كل مطلب بمصدر قرار ومسار كود واختبار ناجح على SHA معلوم، وأغلقت حالات الرفض والتزامن وإعادة المحاولة، وتم قبول الواجهات والأجهزة عندما يلزم. كل اعتماد خارجي أو سياسة معلقة أو مورد غير متاح يسجل كبوابة مستقلة، ولا يصنف نجاحاً.
+ 
+ ## 16. الوثائق المصدرية التي تبقى مراجع تفصيلية
+ 
+ - الدستور الموحد: السياسات الملزمة وترتيب السلطة.
+ - الميثاق الموحد للتطوير: عقود التنفيذ والتقنية والاختبارات.
+ - سجل القرارات المعتمدة والتتبع: ID وحالة القرار ودليل التنفيذ.
+ - النظام التنفيذي للإعلانات والإنتاج: Media Workspace والأدوار والاستهداف والإنتاج.
+ - نماذج العقود: النصوص النموذجية وحقولها.
+ - اتفاقية الملكية والسيادة والتحكم: حدود المالك والمساعدين والأصول.
+ - مواصفة الهوية وتجربة المنتج: الألوان والخلفيات والشعار.
+ - مواصفة الاقتصاد والإعلانات والغرف والاحتفاظ والبيومتري: تفاصيل كل مجال.
+ - مصفوفة التتبع وتقارير التدقيق: حالة التنفيذ الفعلية.
+ 
+ هذه الوثيقة لا تستبدل أي نموذج عقد أو ملحق تقني متخصص؛ بل توحد الرؤية وتحيل إلى المراجع التفصيلية وتحافظ على مصدرها وإصداراتها.
++
++
++## التنفيذ المرحلي للمرحلة الاقتصادية الشاملة — قرار المالك 19 نوفمبر 2026
++
++تُنفذ المرحلة الاقتصادية الشاملة ضمن برنامج تكامل موحد يربط المحركات الاقتصادية بعضها ببعض وبأنظمة الهوية والصلاحيات والوسائط والغرف والمحادثات والواجهات ولوحة المالك والتكاليف والحوكمة. يبدأ العمل بجرد الفروع والتغييرات والوثائق والاختبارات، ثم نقل انتقائي على دفعات صغيرة وفق الاعتماديات، ثم التحقق على SHA ثابت، ثم اختبارات التكامل والضغط والقبول. لا تُدمج الفروع المتشعبة دفعة واحدة ولا تُحذف مصادرها التاريخية. الخطة الإجرائية الحاكمة: `ECONOMIC_PHASE_EXECUTION_AND_INTEGRATION_PLAN_2026-11-19.md`. تبقى المرحلة مفتوحة حتى إغلاق جميع بوابات القبول الموثقة؛ ولا يمنح هذا القرار إذناً بالدمج إلى main أو النشر أو تفعيل الفوترة.

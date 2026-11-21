@@ -1,0 +1,11 @@
+Auto-merging .github/workflows/mawdda-domain-regression.yml
+CONFLICT (content): Merge conflict in .github/workflows/mawdda-domain-regression.yml
+Auto-merging .github/workflows/validate.yml
+CONFLICT (content): Merge conflict in .github/workflows/validate.yml
+Auto-merging functions/package.json
+CONFLICT (content): Merge conflict in functions/package.json
+Auto-merging functions/src/index.ts
+CONFLICT (content): Merge conflict in functions/src/index.ts
+Auto-merging functions/test/integration/store-gifting.integration.test.js
+CONFLICT (add/add): Merge conflict in functions/test/integration/store-gifting.integration.test.js
+Automatic merge failed; fix conflicts and then commit the result.

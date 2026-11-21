@@ -1,0 +1,5 @@
+b78817d0e6d7a73398fcce1d54c7df4f6707d045	production home	2026-11-20T11:06:43+03:00	test(calls): cover malformed direct-call revalidation snapshots
+f6cdf552494e222c2cefd3a4d27ca36515fd93cf	production home	2026-11-20T11:00:20+03:00	fix(calls): revalidate direct-call participants transactionally
+0701c884a4f7767d116a249b30771bc394bd9779	production home	2026-11-20T11:00:05+03:00	test(calls): cover direct-call relationship revalidation
+00bed09307238aa0eb671861eaaa7fa6d5f23a9b	production home	2026-11-20T10:59:56+03:00	fix(calls): clarify age-class comparison in direct-call guard
+59dc773f9fe402047f31f8689055d5133d303d7e	production home	2026-11-20T10:59:50+03:00	fix(calls): add direct-call transactional relationship guard

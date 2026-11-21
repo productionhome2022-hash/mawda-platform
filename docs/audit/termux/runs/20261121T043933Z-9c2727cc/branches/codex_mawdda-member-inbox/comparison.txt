@@ -1,0 +1,38 @@
+Branch: codex/mawdda-member-inbox
+Branch SHA: f55e1d15423abee81dc125315e95a9acea199fdf
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+1523	5
+
+--- Merge base ---
+c74258382e35630b4220d4886e3660ad18b01b93
+
+--- Changed files relative to common ancestor ---
+M	firestore.indexes.json
+M	functions/src/index.ts
+M	functions/test/integration/direct-message-deletion.integration.test.js
+A	lib/screens/conversations_screen.dart
+M	lib/screens/main_user_screen.dart
+
+--- Diff statistics ---
+ firestore.indexes.json                             |  14 ++
+ functions/src/index.ts                             | 105 +++++++++++
+ .../direct-message-deletion.integration.test.js    |  83 +++++++++
+ lib/screens/conversations_screen.dart              | 204 +++++++++++++++++++++
+ lib/screens/main_user_screen.dart                  |  20 ++
+ 5 files changed, 426 insertions(+)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+f55e1d15 (origin/codex/mawdda-member-inbox) feat: expose member inbox and stories from the home dashboard
+841ac54d feat: add member conversations inbox screen
+3bb36a64 test: cover member inbox unread state and block privacy
+2f3a88ce db: add index for member direct-message inbox
+8f8f4e8a feat: add secure member inbox and enforce block privacy on reads
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

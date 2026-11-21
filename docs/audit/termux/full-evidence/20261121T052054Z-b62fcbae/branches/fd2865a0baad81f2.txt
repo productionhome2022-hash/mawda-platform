@@ -1,0 +1,23 @@
+BRANCH: codex/phase1-ci-evidence-2026-11-20
+SHA: 6ad595cf10964ab54a39f3b0629efd5f8ef6e043
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: d857497c50eca8d7dcf105e938c8060402ae85e3
+
+=== DIVERGENCE target-only / branch-only ===
+223	1
+
+=== BRANCH UNIQUE COMMITS ===
+6ad595cf10964ab54a39f3b0629efd5f8ef6e043 docs(phase1): record expanded emulator CI coverage
+
+=== CHERRY STATUS ===
++ 6ad595cf10964ab54a39f3b0629efd5f8ef6e043 docs(phase1): record expanded emulator CI coverage
+
+=== FILE STATUS ===
+M	docs/PHASE1_UNIFIED_INTEGRATION_STATUS_2026-11-19.md
+
+=== NUMSTAT ===
+14	0	docs/PHASE1_UNIFIED_INTEGRATION_STATUS_2026-11-19.md
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

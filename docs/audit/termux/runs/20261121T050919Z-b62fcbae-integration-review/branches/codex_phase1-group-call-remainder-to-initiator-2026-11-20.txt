@@ -1,0 +1,21 @@
+BRANCH: codex/phase1-group-call-remainder-to-initiator-2026-11-20
+REF: refs/remotes/origin/codex/phase1-group-call-remainder-to-initiator-2026-11-20
+SHA: 99639a6c7adf25c32eca6b93c0cc393d130f8e8f
+
+MERGE BASE: 5b7179978ebf6ac9acd0ad558a4aed306bab45f0
+
+=== DIVERGENCE ===
+196	2
+
+=== FILE STATUS ===
+M	functions/src/group-call-economy.ts
+M	functions/test/group-call-economy.test.js
+
+=== CHANGE SUMMARY ===
+ functions/src/group-call-economy.ts       | 10 +++++-----
+ functions/test/group-call-economy.test.js | 14 ++++++++------
+ 2 files changed, 13 insertions(+), 11 deletions(-)
+
+=== UNIQUE COMMITS ===
+99639a6c test(calls): enforce initiator remainder allocation
+997cead0 fix(calls): assign group-call rounding remainder to initiator

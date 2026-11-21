@@ -1,0 +1,73 @@
+f79f146e96b9a4ae1210a1fcc37a861ebebcd294	production home	2026-11-20T21:07:32+03:00	feat(biometric): require fresh owner evidence playback before acceptance
+15e53a0bc092355818ccd19070b31c5092957e61	production home	2026-11-20T21:06:55+03:00	fix(biometric): allow rejection and evidence cleanup after member deletion
+d1e41e5edead6c4f001b383ac8ffab01053c367a	production home	2026-11-20T21:06:40+03:00	fix(biometric): allow Super Owner to reject stale identity submissions
+31cdb7f5b4d5d4471a768e56fdb0bc5425f7539b	production home	2026-11-20T21:06:07+03:00	feat(app): add member and Super Owner biometric media service calls
+362bfd34705e2889cac7f21f13c75d16e2e9706b	production home	2026-11-20T21:04:50+03:00	fix(biometric): correct emulator host regex escaping
+7d756be26e129f8616ae38442c681247025b51e0	production home	2026-11-20T21:04:33+03:00	fix(biometric): normalize emulator host in test-only playback URLs
+a1556702eecc331db332bb658b892971c8c2796e	production home	2026-11-20T21:04:03+03:00	fix(biometric): normalize playback generation regex
+3ce3165d17cbb56d3451080fcce7affb255aebb6	production home	2026-11-20T21:03:48+03:00	fix(biometric): require ClamAV provenance for owner playback
+2c304c0dce625e8d3f9b8c3a02a7274338509173	production home	2026-11-20T21:03:21+03:00	test(biometric): cover empty upload intent expiry without attempt penalty
+d26931fb6373039a792146229615e506be9e3661	production home	2026-11-20T21:03:07+03:00	feat(biometric): audit expired empty upload requests
+deeab0f65b19a42b8d4e3ffd8ea75243d6b10109	production home	2026-11-20T21:02:54+03:00	test(biometric): test media-pipeline request binding instead of raw Storage paths
+8930d9037259d301d946b9753738bc8e3b76ec76	production home	2026-11-20T21:02:42+03:00	refactor(biometric): remove obsolete direct Storage path helper
+fc7eb19ecfe0c1edc3a4925188777c4acf0a02b0	production home	2026-11-20T21:01:20+03:00	feat(biometric): audit successful Super Owner inbox reads
+6351e3b0bacc2a0031b8cfdd1b3affbe70525f72	production home	2026-11-20T21:00:35+03:00	refactor(biometric): remove unnecessary expired-upload sweep export
+a6dfa7df774284074917c6855e2ef700c8418735	production home	2026-11-20T21:00:26+03:00	refactor(biometric): expire empty requests transactionally instead of scheduled sweeps
+3fe4894d29f3f220f64f78ddd3971c289547d500	production home	2026-11-20T21:00:15+03:00	fix(biometric): expire empty upload intents transactionally on member retry
+300d2175803eb34ff1f7c8c2c146f5d0cadd72db	production home	2026-11-20T20:59:34+03:00	fix(biometric): verify safe derivatives before accepting evidence submission
+dc5be1ad1016dc5945ba91d889c0b7d171909985	production home	2026-11-20T20:59:22+03:00	fix(biometric): verify safe derivative generations before owner playback
+62b9e67ffd1748c551e77c589c9401d608e5c033	production home	2026-11-20T20:59:10+03:00	test(media): reject biometric finalization after request closes
+a919dda10164d62be5d8ebf9774a53ef9768f44c	production home	2026-11-20T20:58:33+03:00	feat(biometric): audit request creation and rejected evidence
+a494dcce15f208005e5e1d2769f1cc1f3accbaa4	production home	2026-11-20T20:57:37+03:00	test(media): cover ClamAV-approved biometric derivative verdicts
+95842b9168aa12fde76f75ae25b23ea9053f5000	production home	2026-11-20T20:57:33+03:00	test(media): include biometric safe derivative purpose coverage
+cb6b33d857c881e37b5dc64fdd13632b633c8917	production home	2026-11-20T20:56:54+03:00	fix(biometric): block retries until prior evidence deletion completes
+7f859e47642378cfd727216a5dcd41ff5733b696	production home	2026-11-20T20:56:32+03:00	fix(biometric): fail closed on malformed wallet balance
+1fe85b67de0001ce0e76eb73874efc1a6ad6d4a4	production home	2026-11-20T20:55:15+03:00	fix(media): include biometric request binding in normalized type
+64db462f4993dd2a402acb8f35b3164041c174bd	production home	2026-11-20T20:53:04+03:00	test(biometric): force Admin Storage SDK onto emulator before import
+11af0f1289dc65cfe77d328606b2a6e7ec351228	production home	2026-11-20T20:52:42+03:00	fix(media): permit retry after expired biometric upload intents
+df2c4378f607b04a18bcb74bb80dc4251d9faae7	production home	2026-11-20T20:52:10+03:00	fix(media): isolate biometric evidence from generic owner inspection routes
+7c5352bdcbfaacbfb35a00e798f0654d53f5fb08	production home	2026-11-20T20:50:41+03:00	docs(biometric): refresh implementation gaps after scanner integration candidate
+7c025aa2ab68f2d4273c9b139add08f84f582869	production home	2026-11-20T20:50:05+03:00	test(media): isolate biometric upload intent fixtures
+7012b36b1a3b5178b424232335c14f1415252f2d	production home	2026-11-20T20:49:15+03:00	test(media): verify biometric upload intents are request-bound
+2b6bb3f63251b626f426c51cbd31b8ef5cb2c2b4	production home	2026-11-20T20:48:33+03:00	test(scanner): cover exact biometric video duration boundaries
+d8b0091b590755ca4b0da85389da0bf25d3e62ef	production home	2026-11-20T20:48:20+03:00	refactor(scanner): centralize purpose-specific video duration policy
+7936faa0d60a479ccb425ec9b239b5c245018ed1	production home	2026-11-20T20:47:45+03:00	test(media): cover request-bound biometric upload policy
+211cc73d559b9721dcde7846e2c9b742f1180195	production home	2026-11-20T20:47:28+03:00	test(scanner): verify biometric purpose permits only audio and video
+5f2c6af4ef44184166d8616f218ddce0205e7722	production home	2026-11-20T20:47:23+03:00	test(scanner): include biometric voice in 60-second audio limit
+0b4c45445bb726f7faffc2bd4d1780585e1f15e7	production home	2026-11-20T20:46:59+03:00	feat(scanner): enforce 3–5 second biometric video duration before transcoding
+9c07e1b3494594e0b43d74f1c686b35264d6e272	production home	2026-11-20T20:46:39+03:00	fix(biometric): correct generation regex escaping
+3a80f0f4d17eaa3074a5c3b55bcedbe7b34d0c98	production home	2026-11-20T20:46:23+03:00	fix(biometric): verify scanner source hashes and derivative provenance
+9d56db5c545040d95597ddae3e846eef695ba033	production home	2026-11-20T20:46:01+03:00	test(biometric): require scanner-approved assets and cover full owner review lifecycle
+9baed24ab94d4090c8e3318e6c14507affa8323b	production home	2026-11-20T20:45:09+03:00	fix(biometric): defer evidence cleanup to the media quarantine lifecycle
+e898e22b6b0d5caeb66268a77e1d4ae7f46e67d4	production home	2026-11-20T20:44:52+03:00	feat(biometric): restrict owner playback to ClamAV-safe derivatives
+994304823fdca7366e25270d406fe5166e566761	production home	2026-11-20T20:44:05+03:00	feat(biometric): require ClamAV-approved media assets and safe derivatives
+2f1de17d764ed19ae1ffbd431d056b0ca03bf75a	production home	2026-11-20T20:43:43+03:00	refactor(biometric): use the canonical quarantined media bucket
+72ed67d1cc0658e032e528bd77edceb72333e302	production home	2026-11-20T20:43:33+03:00	refactor(media): expose canonical private bucket resolver to biometric lifecycle
+b1fd8b1d2d9a3579f1d1f4b56100b73d05610f64	production home	2026-11-20T20:43:13+03:00	feat(biometric): delete scanner-managed originals and safe derivatives after decision
+b85cf2048cdb0b53ce40c349dcf795f98e567a95	production home	2026-11-20T20:42:45+03:00	refactor(biometric): route member evidence through media upload intents
+1bd504f23628232e283785584af8e2f5de8189bb	production home	2026-11-20T20:42:27+03:00	fix(media): allow replacing rejected biometric upload assets only
+d7b99b4d4590ca4d4ed9c7051b8704483273a410	production home	2026-11-20T20:41:39+03:00	feat(media): bind biometric uploads to open verification requests
+ffecd36287a2c6d4afdfa014598ef32d8ccd5c5b	production home	2026-11-20T20:41:19+03:00	feat(scanner): enforce 60-second biometric audio processing limit
+bd33fa2038bf5fc80216ed9153786cafa94390ba	production home	2026-11-20T20:41:15+03:00	feat(scanner): allow audio and video scan requests for biometric evidence
+3a74077c0752c7e6e428653e29c954d460782f12	production home	2026-11-20T20:41:03+03:00	feat(media): accept biometric purpose in scanner verdicts
+b6caa7178158f2fcb80ef38774045fec0455b17e	production home	2026-11-20T20:40:59+03:00	feat(media): permit scanner derivatives for biometric evidence
+1379648ccff1ba0281cc64622477a09532cd2247	production home	2026-11-20T20:40:47+03:00	feat(media): add request-bound biometric upload purpose
+111aeccdccc17e0c67a0f33acf92861eafe49b59	production home	2026-11-20T20:37:28+03:00	fix(biometric): retry expired upload deletion before closing request
+67a231e62b634b05f6179400a1daebdf25673b5e	production home	2026-11-20T20:37:13+03:00	feat(biometric): export expired-upload cleanup schedule
+31ac3ebe52c0dd71fadbeb62b7bfb4705e749058	production home	2026-11-20T20:37:03+03:00	feat(biometric): expire abandoned upload intents after signed URL expiry
+623b50c42d708346095490653cf8b358fca29a0e	production home	2026-11-20T20:34:51+03:00	fix(biometric): read audit-chain head before transactional writes
+98291571dbf55f0ff455a48e673795bd49eaa4e6	production home	2026-11-20T20:33:16+03:00	test(biometric): preserve append-only audit records in emulator cleanup
+8544f2584e7f3904ccd74552c348be3b4ff9372a	production home	2026-11-20T20:33:02+03:00	test(biometric): cover owner playback, concurrent decisions and three-rejection closure
+15de12a98e7605bd525afbe8608755c16fb48d9d	production home	2026-11-20T20:28:57+03:00	docs(biometric): align phrase configuration rule with owner approval
+256e8a59b71d1cf2cff9ab4a032256c357fe6a86	production home	2026-11-20T20:28:47+03:00	test(biometric): isolate Storage emulator from production URL signing
+7f06b2911782f11d1663de474e07563c68d4d0fa	production home	2026-11-20T20:23:18+03:00	fix(biometric): keep failed evidence deletions eligible for retry
+e481e9b45f55ab53f5561d5636007f8890b499e9	production home	2026-11-20T20:22:47+03:00	test(biometric): exercise private upload validation and owner reward flow
+9e7e0975716243e94acfa930e6f555c1a5d826d0	production home	2026-11-20T20:22:09+03:00	test(biometric): run integration suite with Storage emulator
+593e9058f14e5959d9b359278b6e66fedc041b82	production home	2026-11-20T20:21:59+03:00	feat(biometric): export server-owned verification lifecycle callables
+d151651f994d55f6754969c86aaef036affdbff8	production home	2026-11-20T20:21:51+03:00	feat(biometric): add private evidence submission and owner review lifecycle
+e3e917e31b9a7f9bf007141332c7794921ad6a18	production home	2026-11-20T20:20:48+03:00	docs(biometric): record approved phrase and implementation checkpoint
+20089a6d171979d63f08e9ab80048328fbdfc05b	production home	2026-11-20T20:20:35+03:00	docs(biometric): record exact owner-approved spoken phrase
+76a26a46828e5cfa35d386fc2a7f9e11d2033b15	production home	2026-11-20T20:20:25+03:00	test(biometric): cover audio track duration and type validation
+7c5c173f1e9c9d05b0e92bbba39ec42d65b9c132	production home	2026-11-20T20:20:16+03:00	feat(biometric): validate MP4 voice track duration from uploaded bytes
+701748dc22326922ad3599a618f2cf8ee4222e73	production home	2026-11-20T20:20:04+03:00	test(biometric): cover approved phrase and evidence identity constraints
+5a09999a7e09a5d16e0de45cf3be90e5893be91b	production home	2026-11-20T20:19:53+03:00	feat(biometric): add approved phrase and request-bound evidence contract

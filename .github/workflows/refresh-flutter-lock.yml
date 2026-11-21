@@ -1,0 +1,63 @@
+name: Refresh Flutter lockfile
+
+on:
+  push:
+    branches:
+      - codex/mawda-full-platform-implementation
+    paths:
+      - pubspec.yaml
+      - pubspec.lock
+      - .github/workflows/refresh-flutter-lock.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Serialize lock refreshes so concurrent manifest changes cannot race the lockfile push.
+concurrency:
+  group: mawda-flutter-lock-refresh-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout development branch
+        uses: actions/checkout@v5
+        with:
+          ref: codex/mawda-full-platform-implementation
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+      - name: Resolve and write pubspec.lock
+        run: flutter pub get
+      - name: Verify the generated lockfile is reproducible
+        run: flutter pub get --enforce-lockfile
+      - name: Commit resolved lockfile to development branch
+        run: |
+          if ! git diff --quiet -- pubspec.lock; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add pubspec.lock
+            git commit -m "chore(flutter): refresh pubspec.lock"
+            # The development branch may receive concurrent source commits while
+            # Flutter resolves dependencies. Rebase the lock-only commit before
+            # pushing so the generated lockfile is not lost to a non-fast-forward.
+            git fetch origin codex/mawda-full-platform-implementation
+            git rebase origin/codex/mawda-full-platform-implementation
+            git push origin HEAD:codex/mawda-full-platform-implementation
+          fi
+      - name: Validate Flutter sources
+        run: flutter analyze
+      - name: Run Flutter tests
+        run: flutter test
+      - name: Build Flutter Web release
+        run: flutter build web --release
+      - name: Upload resolved lockfile
+        uses: actions/upload-artifact@v5
+        with:
+          name: mawda-pubspec-lock
+          path: pubspec.lock
+          if-no-files-found: error

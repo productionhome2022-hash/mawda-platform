@@ -1,0 +1,5 @@
+Auto-merging functions/src/index.ts
+CONFLICT (content): Merge conflict in functions/src/index.ts
+Auto-merging lib/screens/profile_screen.dart
+CONFLICT (content): Merge conflict in lib/screens/profile_screen.dart
+Automatic merge failed; fix conflicts and then commit the result.

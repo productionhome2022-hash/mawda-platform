@@ -1,0 +1,30 @@
+MAWDDA UNIFIED INTEGRATION V3
+
+Run: 20261121T060105Z-termux
+Target: codex/mawda-full-platform-implementation
+Original target SHA: cabba31039b7e75c7644930de6d1123e6a6c4a2e
+
+Remote branches examined: 82
+Cleanly merged branches in isolated workspace: 8
+Branches already represented: 20
+Conflicting branches: 16
+Sensitive review blocks: 37
+No-common-base branches: 0
+Other errors: 0
+
+Tests passed: 1
+Tests failed: 2
+Tests skipped: 0
+Static status: REVIEW_REQUIRED
+
+Source publication eligible: NO
+
+This run does not claim full semantic acceptance.
+Sensitive paths require code-path review against governance documents.
+No conflict was force-resolved.
+No branch or source file was deleted.
+No main merge.
+No deployment.
+No production/Firebase mutation.
+No billing changes.
+No 5000-person simulation claimed.

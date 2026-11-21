@@ -1,0 +1,13 @@
+Repository: productionhome2022-hash/mawda-platform
+Target: codex/mawda-full-platform-implementation
+Current branch: codex/mawdda-unified-test-2026-11-18
+Local HEAD: b62fcbae7ea3cd0c2b473f730cb625b35335de67
+
+--- Working tree status ---
+## codex/mawdda-unified-test-2026-11-18...origin/codex/mawdda-unified-test-2026-11-18
+?? .flutter-plugins-dependencies
+
+--- Local changes summary ---
+
+--- Untracked files ---
+.flutter-plugins-dependencies

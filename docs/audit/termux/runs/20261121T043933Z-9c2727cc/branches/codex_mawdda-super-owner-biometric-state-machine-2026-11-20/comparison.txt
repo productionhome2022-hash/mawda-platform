@@ -1,0 +1,37 @@
+Branch: codex/mawdda-super-owner-biometric-state-machine-2026-11-20
+Branch SHA: 40845f2de04106081640b9e83bb8d0fa983fbf49
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+177	6
+
+--- Merge base ---
+4fcbd8a8c4ead324d131420ebe225bc348675c3e
+
+--- Changed files relative to common ancestor ---
+A	docs/phase1/BIOMETRIC_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md
+A	functions/src/biometric-review-state.ts
+A	functions/test/biometric-review-state.test.js
+M	functions/test/integration/email-verification-renewal.integration.test.js
+
+--- Diff statistics ---
+ ...C_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md |  5 ++
+ functions/src/biometric-review-state.ts            | 63 ++++++++++++++++++++++
+ functions/test/biometric-review-state.test.js      | 13 +++++
+ .../email-verification-renewal.integration.test.js | 12 +++++
+ 4 files changed, 93 insertions(+)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+40845f2d (origin/codex/mawdda-super-owner-biometric-state-machine-2026-11-20) test(verification): assert email renewal leaves biometric state unchanged
+e14406cf test(biometric): reject malformed fourth-attempt state
+9b05e25e fix(biometric): validate persisted review state invariants
+ffeeeb51 docs(biometric): record retry state machine and remaining implementation gates
+901e3438 test(biometric): cover three attempts and calendar-month retries
+8e333b3d feat(biometric): add Super Owner three-attempt review state machine
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

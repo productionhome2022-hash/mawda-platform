@@ -1,0 +1,14 @@
+BRANCH: codex/mawdda-native-platform-scaffold
+REF: refs/remotes/origin/codex/mawdda-native-platform-scaffold
+SHA: d556a9990ffe4472fe86ab48acc696adc9c109f6
+
+MERGE BASE: d556a9990ffe4472fe86ab48acc696adc9c109f6
+
+=== DIVERGENCE ===
+1543	0
+
+=== FILE STATUS ===
+
+=== CHANGE SUMMARY ===
+
+=== UNIQUE COMMITS ===

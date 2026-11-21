@@ -1,0 +1,66 @@
+export const CAPACITY_MEDIA_DEFAULTS = Object.freeze({
+  schemaVersion: 1,
+  capacityTierSize: 1_000,
+  activeMemberBasis: "concurrent_active_sessions",
+  enforcementMode: "observe_only",
+  coreServicesExemptFromQuota: true,
+  monthlyMediaQuotas: Object.freeze({
+    uploadBytesPerMember: null,
+    downloadBytesPerMember: null,
+    storageBytesPerMember: null,
+    processingMinutesPerMember: null,
+  }),
+} as const);
+
+export type CapacityMediaQuotaKey =
+  | "uploadBytesPerMember"
+  | "downloadBytesPerMember"
+  | "storageBytesPerMember"
+  | "processingMinutesPerMember";
+
+export type CapacityMediaPolicy = {
+  schemaVersion: 1;
+  capacityTierSize: 1_000;
+  activeMemberBasis: "concurrent_active_sessions";
+  enforcementMode: "observe_only";
+  coreServicesExemptFromQuota: true;
+  monthlyMediaQuotas: Record<CapacityMediaQuotaKey, number | null>;
+};
+
+export function validateCapacityMediaQuotaInput(value: unknown): CapacityMediaPolicy["monthlyMediaQuotas"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("INVALID_MEDIA_QUOTA_POLICY");
+  }
+  const input = value as Record<string, unknown>;
+  const keys: CapacityMediaQuotaKey[] = [
+    "uploadBytesPerMember",
+    "downloadBytesPerMember",
+    "storageBytesPerMember",
+    "processingMinutesPerMember",
+  ];
+  if (Object.keys(input).some((key) => !keys.includes(key as CapacityMediaQuotaKey))) {
+    throw new Error("UNKNOWN_MEDIA_QUOTA_FIELD");
+  }
+  const result = {} as CapacityMediaPolicy["monthlyMediaQuotas"];
+  for (const key of keys) {
+    const amount = input[key] ?? null;
+    if (amount !== null && (!Number.isSafeInteger(amount) || (amount as number) <= 0)) {
+      throw new Error("INVALID_MEDIA_QUOTA_VALUE");
+    }
+    result[key] = amount as number | null;
+  }
+  return result;
+}
+
+export function projectCapacityMediaPolicy(
+  monthlyMediaQuotas: CapacityMediaPolicy["monthlyMediaQuotas"],
+): CapacityMediaPolicy {
+  return {
+    schemaVersion: 1,
+    capacityTierSize: 1_000,
+    activeMemberBasis: "concurrent_active_sessions",
+    enforcementMode: "observe_only",
+    coreServicesExemptFromQuota: true,
+    monthlyMediaQuotas: { ...monthlyMediaQuotas },
+  };
+}

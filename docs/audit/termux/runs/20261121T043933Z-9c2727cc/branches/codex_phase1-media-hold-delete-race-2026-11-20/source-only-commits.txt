@@ -1,0 +1,7 @@
+43471705e469f09e55658660b8b9f921401a00d4	production home	2026-11-20T12:20:18+03:00	test(rooms): deny room message reads for suspended members
+5ed86e7ee4be80a0e342658a6a79367bda020b9e	production home	2026-11-20T12:20:16+03:00	fix(rooms): revalidate account standing before room message reads
+d6f8067983d2c5903b8e9997e6442f59d8c8c1c2	production home	2026-11-20T12:19:38+03:00	test(media): deny room media delivery after suspension or closure
+ceaa69055ff07d36aff40eb73337f834e12e74e2	production home	2026-11-20T12:19:35+03:00	fix(media): recheck room account and active status before delivery
+192ac5b9b9334a900cd1018e55053e84d1451ae6	production home	2026-11-20T12:16:23+03:00	test(media): verify tombstone retry removes late derivatives
+397afd486970962d6aae1e14f4d6ed2a76338652	production home	2026-11-20T12:13:13+03:00	test(media): use canonical quarantine path in deletion race fixture
+d1127aa8c146e8bfc1d4dc3ae7b3c4184bd8c72c	production home	2026-11-20T12:09:39+03:00	test(media): cover concurrent legal hold and deletion race

@@ -1,0 +1,4 @@
+M	functions/src/index.ts
+A	functions/src/room-call-policy.ts
+M	functions/test/integration/call-signaling.integration.test.js
+A	functions/test/room-call-policy.test.js

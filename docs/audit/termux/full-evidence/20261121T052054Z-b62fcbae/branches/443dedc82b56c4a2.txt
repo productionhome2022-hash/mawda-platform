@@ -1,0 +1,27 @@
+BRANCH: codex/mawdda-store-entitlement-hardening
+SHA: bca089273f4c3652eeb01d27f5cc2788c386c060
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 092cebb249c909d06c4fc35bbe1a21b3c90d20d1
+
+=== DIVERGENCE target-only / branch-only ===
+1575	2
+
+=== BRANCH UNIQUE COMMITS ===
+bca089273f4c3652eeb01d27f5cc2788c386c060 test: fix room event lifecycle cleanup assertion reference
+bcbd4659bbdd75aa0012f23a290e015043424503 test: cover every enabled store entitlement and idempotent purchase
+
+=== CHERRY STATUS ===
++ bcbd4659bbdd75aa0012f23a290e015043424503 test: cover every enabled store entitlement and idempotent purchase
+- bca089273f4c3652eeb01d27f5cc2788c386c060 test: fix room event lifecycle cleanup assertion reference
+
+=== FILE STATUS ===
+M	functions/test/integration/room-events.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+
+=== NUMSTAT ===
+1	0	functions/test/integration/room-events.integration.test.js
+136	0	functions/test/integration/wallet-store.integration.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

@@ -1,0 +1,5 @@
+b0b5214ab3b3b31f2c4ff494ce6ffe3536ae1615	production home	2026-11-14T11:53:36+03:00	Document full approved audit collection archive coverage
+dc1127ca11bfcde43c669774a5e9d6d7243569fb	production home	2026-11-14T11:53:07+03:00	Archive verification privacy media profile deletion and room audit collections
+63d1816de1a63055ad3eb1cf2cac40b7bec2a3f8	production home	2026-11-14T11:52:44+03:00	Correct newline assertion for audit collection archive payload
+9e82df8fdebbffd1faba4cf0c209ad6694a91d75	production home	2026-11-14T11:52:34+03:00	Test immutable archive manifests for audit collections
+6f220fa1cc351de65acd0617167a70045ff168d5	production home	2026-11-14T11:52:28+03:00	Add archive manifest helpers for all audit collections

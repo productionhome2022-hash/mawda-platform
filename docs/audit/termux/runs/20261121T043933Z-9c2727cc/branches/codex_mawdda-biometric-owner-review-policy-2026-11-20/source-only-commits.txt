@@ -1,0 +1,2 @@
+693dc110a931107f2fcc1f829e08974932ab65db	production home	2026-11-20T16:50:15+03:00	docs(verification): clarify fully independent email and biometric tracks
+6fc769608b3d317edd9666402500069fbf3c520f	production home	2026-11-20T16:48:20+03:00	docs(biometric): record Super Owner manual review policy amendment

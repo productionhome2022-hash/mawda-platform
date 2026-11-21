@@ -1,0 +1,14 @@
+Compared branch: codex/phase1-featured-ad-geography-all-arab-2026-11-20
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+197	2
+
+=== CHANGE SUMMARY ===
+ functions/src/featured-advertising.ts       |  3 ++-
+ functions/test/featured-advertising.test.js | 33 +++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)
+
+=== CHANGED PATHS ===
+M	functions/src/featured-advertising.ts
+M	functions/test/featured-advertising.test.js

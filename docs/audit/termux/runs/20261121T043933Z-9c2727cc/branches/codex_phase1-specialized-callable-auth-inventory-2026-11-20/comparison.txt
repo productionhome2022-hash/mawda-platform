@@ -1,0 +1,32 @@
+Branch: codex/phase1-specialized-callable-auth-inventory-2026-11-20
+Branch SHA: 315c8d53dc4b7e6df0af1803191df7bf5786adcc
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+199	1
+
+--- Merge base ---
+78d0b982723abd76b6ef098ef2c96e79f8e36821
+
+--- Changed files relative to common ancestor ---
+A	docs/phase1/SPECIALIZED_CALLABLE_AUTHORIZATION_INVENTORY_2026-11-20.md
+
+--- Diff statistics ---
+ ..._CALLABLE_AUTHORIZATION_INVENTORY_2026-11-20.md | 69 ++++++++++++++++++++++
+ 1 file changed, 69 insertions(+)
+
+--- Whitespace / patch validation ---
+docs/phase1/SPECIALIZED_CALLABLE_AUTHORIZATION_INVENTORY_2026-11-20.md:3: trailing whitespace.
++Date: 2026-11-20  
+docs/phase1/SPECIALIZED_CALLABLE_AUTHORIZATION_INVENTORY_2026-11-20.md:4: trailing whitespace.
++Audited candidate: `codex/mawdda-phase1-unified-2026-11-19`  
+docs/phase1/SPECIALIZED_CALLABLE_AUTHORIZATION_INVENTORY_2026-11-20.md:5: trailing whitespace.
++Audited SHA: `78d0b982723abd76b6ef098ef2c96e79f8e36821`  
+DIFF_CHECK: WARN
+
+--- Source-only commits ---
+315c8d53 (origin/codex/phase1-specialized-callable-auth-inventory-2026-11-20) docs(security): inventory specialized callable authorization gaps
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

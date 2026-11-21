@@ -1,0 +1,18 @@
+93d9a3d77e437953ec081a5e49e357c83e64fc1d
+100644 a0d9ba0f7372269177b0619c02cc1d3a0a63bcff 1	firestore.indexes.json
+100644 55049d211ca65f2169eb528b52243d523431a790 2	firestore.indexes.json
+100644 92a18afef835d935ae344514f061061be3d4c33e 3	firestore.indexes.json
+100644 5f32a2e06218dfc8e0094145f8b67f7789d9247a 1	functions/src/index.ts
+100644 4574024ded13f7d5c51fb0eb10febff2ffd1e329 2	functions/src/index.ts
+100644 184ebf18c4816fa354b417a14bab2f0943dde076 3	functions/src/index.ts
+100644 9e6422b4bdf1b61db84d20256ca7282169c11bcc 1	lib/screens/main_user_screen.dart
+100644 a20f191494820c369f869d07d99eb5f76098ae7a 2	lib/screens/main_user_screen.dart
+100644 a1ca1a03fa06d4a9b72136bbfd7397c06374545e 3	lib/screens/main_user_screen.dart
+
+Auto-merging firestore.indexes.json
+CONFLICT (content): Merge conflict in firestore.indexes.json
+Auto-merging functions/src/index.ts
+CONFLICT (content): Merge conflict in functions/src/index.ts
+Auto-merging functions/test/integration/direct-message-deletion.integration.test.js
+Auto-merging lib/screens/main_user_screen.dart
+CONFLICT (content): Merge conflict in lib/screens/main_user_screen.dart

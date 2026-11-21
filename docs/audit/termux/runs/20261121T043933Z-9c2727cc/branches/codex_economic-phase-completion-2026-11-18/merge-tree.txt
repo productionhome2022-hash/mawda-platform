@@ -1,0 +1,82 @@
+60d96080c5e964b29af3956df3993a4e07e305db
+100644 80b3502f6e96d6968405d98831b65e0d7532d38d 2	docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md
+100644 3aec650feb3b2303d03ce86f353588058fe6b62a 3	docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md
+100644 e5a12eaeb866df21cb2f57742062f7cb4eb0813b 1	firestore.indexes.json
+100644 55049d211ca65f2169eb528b52243d523431a790 2	firestore.indexes.json
+100644 03e3a6e46c7978912c87b8828a995a4827d31e40 3	firestore.indexes.json
+100644 15393a0c6595d7f3925d39e63132c429e6f6e0e5 2	functions/src/economy-payment-policy.ts
+100644 aee317788b27c4fbec47111fc94cc035498c9768 3	functions/src/economy-payment-policy.ts
+100644 c40136f4a532013d0eabcaaf6509bdab063ef7e5 1	functions/src/economy-pricing.ts
+100644 07c6747d100e02be724a4517ad32271888895298 2	functions/src/economy-pricing.ts
+100644 fc0548e14139e576afd77db859f862113a6f4ed2 3	functions/src/economy-pricing.ts
+100644 f5dcefcd6e65029dbc197baf718c82dfb04fc5fe 2	functions/src/group-call-economy.ts
+100644 e50738b2a6e3b2dac345057ffb4aed6e97cde837 3	functions/src/group-call-economy.ts
+100644 f996aee7ba88170f64ab6c92af75b81e0dcf2b53 1	functions/src/index.ts
+100644 4574024ded13f7d5c51fb0eb10febff2ffd1e329 2	functions/src/index.ts
+100644 3a9e0bb42086564df8645b6bd350048b1ad8038f 3	functions/src/index.ts
+100644 7941f63dca354599f8a4d88f0f2092d1d674e795 2	functions/src/room-call-policy.ts
+100644 3d32caa2575da45abd65d9b8d5cc36fb784404fa 3	functions/src/room-call-policy.ts
+100644 585818877b1ba6b078a6fc036e28fb15f6a64aa6 1	functions/src/room-rental.ts
+100644 f79d910552bd89a07da33d2a9e23b32b0c7274f1 2	functions/src/room-rental.ts
+100644 4df5a68c1957838956f5e16886716c002f4f863a 3	functions/src/room-rental.ts
+100644 5ef3eb637d8122e4ecd8228fca7fe3849ab00a74 1	functions/test/coin-purchase-requests.test.js
+100644 62599986a9b87b19fee0de5941c725efdfafd4b7 2	functions/test/coin-purchase-requests.test.js
+100644 3c95b1f5823a13eba0857030ecee806c0558b09f 3	functions/test/coin-purchase-requests.test.js
+100644 0973dff792c04dde81b1323bfd3a18ac45ca7cf7 1	functions/test/economy-pricing.test.js
+100644 5b5320e0aba6e2cd6249f4f06e3410d0d60c3638 2	functions/test/economy-pricing.test.js
+100644 84e61764518c5119dad4da21431300a9b3ba5b14 3	functions/test/economy-pricing.test.js
+100644 7dc2c89f6f67dadf318903e7a1d45e50964ccca6 2	functions/test/group-call-economy.test.js
+100644 c343e872c734ab6abf3d06ac5ea7d38ddc6b413b 3	functions/test/group-call-economy.test.js
+100644 5a184229babffdaf9265e93b013dc2ec21540ce0 1	functions/test/integration/call-signaling.integration.test.js
+100644 2e35bd8b7b027e1a39d4e056dd7a8b834b7a5ca9 2	functions/test/integration/call-signaling.integration.test.js
+100644 c0d2c3895850194c4b1de3da79ffeb98d1c5aa2d 3	functions/test/integration/call-signaling.integration.test.js
+100644 4ae0211a7a7d30c92daf40c1b72698beb6ccbb32 2	functions/test/integration/featured-ad-finance.integration.test.js
+100644 98ed36de6c5e2e1819940a4092995c0a23628fc5 3	functions/test/integration/featured-ad-finance.integration.test.js
+100644 d144907961664cccc371501de73f82a6babecf73 2	functions/test/integration/store-gifting.integration.test.js
+100644 8f72ba2066ca08dbe55b026d0cff6cc0fbbd7f93 3	functions/test/integration/store-gifting.integration.test.js
+100644 1985df93d8fb2091a0de5d12a7300f947148a9f2 1	functions/test/integration/wallet-store.integration.test.js
+100644 9fb7ac986679f0b29538bdadb284fa3ef1c308bd 2	functions/test/integration/wallet-store.integration.test.js
+100644 19d5085e95e2f35a2112a7c9e4acbb8d1627dfc4 3	functions/test/integration/wallet-store.integration.test.js
+100644 f1ee8a870b61db646e8e22cc100e6b59d3ab4d82 2	functions/test/room-call-policy.test.js
+100644 fd8f267646379380578d999c8e2f78cf67a0e11e 3	functions/test/room-call-policy.test.js
+100644 0838c0573c715dc1a0a7e730cf4fda42c647608a 1	lib/screens/shop_screen.dart
+100644 b6dde4a0155e9c370f2113f35f4f72e2964ebebe 2	lib/screens/shop_screen.dart
+100644 ecdce68ab76befc30b5d2d2ae532d6b990916058 3	lib/screens/shop_screen.dart
+
+Auto-merging docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md
+CONFLICT (add/add): Merge conflict in docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md
+Auto-merging firestore.indexes.json
+CONFLICT (content): Merge conflict in firestore.indexes.json
+Auto-merging functions/src/economy-payment-policy.ts
+CONFLICT (add/add): Merge conflict in functions/src/economy-payment-policy.ts
+Auto-merging functions/src/economy-pricing.ts
+CONFLICT (content): Merge conflict in functions/src/economy-pricing.ts
+Auto-merging functions/src/group-call-economy.ts
+CONFLICT (add/add): Merge conflict in functions/src/group-call-economy.ts
+Auto-merging functions/src/index.ts
+CONFLICT (content): Merge conflict in functions/src/index.ts
+Auto-merging functions/src/room-call-policy.ts
+CONFLICT (add/add): Merge conflict in functions/src/room-call-policy.ts
+Auto-merging functions/src/room-rental.ts
+CONFLICT (content): Merge conflict in functions/src/room-rental.ts
+Auto-merging functions/src/store-catalog.ts
+Auto-merging functions/test/coin-purchase-requests.test.js
+CONFLICT (content): Merge conflict in functions/test/coin-purchase-requests.test.js
+Auto-merging functions/test/economy-pricing.test.js
+CONFLICT (content): Merge conflict in functions/test/economy-pricing.test.js
+Auto-merging functions/test/group-call-economy.test.js
+CONFLICT (add/add): Merge conflict in functions/test/group-call-economy.test.js
+Auto-merging functions/test/integration/call-signaling.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/call-signaling.integration.test.js
+Auto-merging functions/test/integration/featured-ad-finance.integration.test.js
+CONFLICT (add/add): Merge conflict in functions/test/integration/featured-ad-finance.integration.test.js
+Auto-merging functions/test/integration/store-gifting.integration.test.js
+CONFLICT (add/add): Merge conflict in functions/test/integration/store-gifting.integration.test.js
+Auto-merging functions/test/integration/wallet-store.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/wallet-store.integration.test.js
+Auto-merging functions/test/room-call-policy.test.js
+CONFLICT (add/add): Merge conflict in functions/test/room-call-policy.test.js
+Auto-merging functions/test/store-catalog.test.js
+Auto-merging lib/screens/shop_screen.dart
+CONFLICT (content): Merge conflict in lib/screens/shop_screen.dart
+Auto-merging lib/screens/super_admin_screen.dart

@@ -1,0 +1,18 @@
+BRANCH: codex/phase1-ci-coverage-role-store-2026-11-20
+REF: refs/remotes/origin/codex/phase1-ci-coverage-role-store-2026-11-20
+SHA: d46cd7095915bf98480ef38574356c62d72e6a95
+
+MERGE BASE: d857497c50eca8d7dcf105e938c8060402ae85e3
+
+=== DIVERGENCE ===
+222	1
+
+=== FILE STATUS ===
+M	.github/workflows/validate.yml
+
+=== CHANGE SUMMARY ===
+ .github/workflows/validate.yml | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+=== UNIQUE COMMITS ===
+d46cd709 ci: run role capacity and store gifting emulator suites

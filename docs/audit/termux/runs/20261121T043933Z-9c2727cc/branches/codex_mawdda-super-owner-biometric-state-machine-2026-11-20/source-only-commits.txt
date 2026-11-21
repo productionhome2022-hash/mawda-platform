@@ -1,0 +1,6 @@
+40845f2de04106081640b9e83bb8d0fa983fbf49	production home	2026-11-20T17:27:51+03:00	test(verification): assert email renewal leaves biometric state unchanged
+e14406cfbf59705a08f2677003c2453ddceb56c4	production home	2026-11-20T17:27:13+03:00	test(biometric): reject malformed fourth-attempt state
+9b05e25e4e5319ab8f311cde0b2879c83fd2d90b	production home	2026-11-20T17:27:11+03:00	fix(biometric): validate persisted review state invariants
+ffeeeb51861a34b6ed4622d50e7899d55a78c6e3	production home	2026-11-20T17:26:14+03:00	docs(biometric): record retry state machine and remaining implementation gates
+901e3438b6abc95bef9ff6f9ba70a9e5da744160	production home	2026-11-20T17:26:12+03:00	test(biometric): cover three attempts and calendar-month retries
+8e333b3d316937bfbe3cc6bf12b8ff01d46e6e8c	production home	2026-11-20T17:26:10+03:00	feat(biometric): add Super Owner three-attempt review state machine

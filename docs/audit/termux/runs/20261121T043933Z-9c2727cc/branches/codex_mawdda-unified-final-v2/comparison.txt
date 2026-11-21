@@ -1,0 +1,22 @@
+Branch: codex/mawdda-unified-final-v2
+Branch SHA: e249c664f9a48dd8a198e274b38033a7cbba0a3d
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+1630	0
+
+--- Merge base ---
+e249c664f9a48dd8a198e274b38033a7cbba0a3d
+
+--- Changed files relative to common ancestor ---
+
+--- Diff statistics ---
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CLEAN

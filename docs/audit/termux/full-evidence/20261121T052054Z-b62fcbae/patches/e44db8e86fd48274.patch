@@ -1,0 +1,1312 @@
+diff --git a/.github/workflows/validate.yml b/.github/workflows/validate.yml
+index 9fa6ff35..80fee732 100644
+--- a/.github/workflows/validate.yml
++++ b/.github/workflows/validate.yml
+@@ -27,127 +27,129 @@ jobs:
+       - uses: actions/checkout@v5
+       - uses: subosito/flutter-action@v2
+         with:
+           flutter-version: "3.47.9"
+           channel: stable
+           cache: true
+       - name: Install Flutter dependencies from committed lockfile
+         run: flutter pub get --enforce-lockfile
+       - name: Upload resolved dependency lockfile for review
+         uses: actions/upload-artifact@v5
+         with:
+           name: mawda-pubspec-lock-${{ github.sha }}
+           path: pubspec.lock
+           if-no-files-found: error
+           retention-days: 7
+       - name: Analyze Dart code
+         run: flutter analyze
+       - name: Run Flutter tests
+         run: flutter test
+       - name: Build web release
+         env:
+           MAWDA_FCM_VAPID_KEY: ${{ vars.MAWDA_FCM_VAPID_KEY }}
+         run: flutter build web --release --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY"
+       - name: Upload validated web build artifact
+         uses: actions/upload-artifact@v5
+         with:
+           name: mawda-web-build-${{ github.sha }}
+           path: build/web/
+           if-no-files-found: error
+           retention-days: 7
+ 
+   functions:
+     name: Cloud Functions compile and unit tests
+     runs-on: ubuntu-latest
+     timeout-minutes: 30
+     defaults:
+       run:
+         working-directory: functions
+     steps:
+       - uses: actions/checkout@v5
+       - uses: actions/setup-node@v5
+         with:
+           node-version: "20.20.2"
+           cache: npm
+           cache-dependency-path: functions/package-lock.json
+       - name: Install Cloud Functions dependencies from committed lockfile
+         run: npm ci --no-audit --no-fund
+       - name: Compile and test backend
+         run: npm test
+       - name: Syntax-check live non-production scanner E2E script
+         run: node --check scripts/test-live-media-scanner-e2e.cjs
+       - name: Validate GitHub Actions workflow YAML syntax
+         run: |
+           ruby -e 'require "yaml"; ARGV.each { |file| YAML.parse_file(file); puts file }' ../.github/workflows/*.yml
+       - name: Upload compiled Cloud Functions artifact
+         uses: actions/upload-artifact@v5
+         with:
+           name: mawda-cloud-functions-${{ github.sha }}
+           path: functions/lib/
+           if-no-files-found: error
+           retention-days: 7
+       - name: Set up Java for Firebase emulators
+         uses: actions/setup-java@v5
+         with:
+           distribution: temurin
+           java-version: "21"
+       - name: Run media callable authorization and audit integration tests
+         run: npm run test:media-integration
+       - name: Run seven-day chat retention integration tests
+         run: npm run test:retention-integration
+       - name: Run direct-message deletion authorization and erasure integration tests
+         run: npm run test:message-deletion-integration
+       - name: Run coin transfer and store purchase transactional integration tests
+         run: npm run test:wallet-store-integration
+       - name: Run room rental pricing and lifecycle integration tests
+         run: npm run test:room-rental-integration
+       - name: Run FCM token registration and deactivation integration tests
+         run: npm run test:push-token-integration
+       - name: Run 30-day biometric reward cycle integration tests
+         run: npm run test:biometric-integration
++      - name: Run 90-day email verification renewal and reward integration tests
++        run: npm run test:email-renewal-integration
+       - name: Run safety report and appeal lifecycle integration tests
+         run: npm run test:safety-integration
+       - name: Run guest and member privacy acknowledgement integration tests
+         run: npm run test:guest-privacy-integration
+       - name: Run owner audit export pagination and redaction integration tests
+         run: npm run test:owner-audit-export-integration
+       - name: Run media legal hold and release integration tests
+         run: npm run test:media-legal-hold-integration
+       - name: Run avatar and cover lifecycle integration tests
+         run: npm run test:profile-media-integration
+       - name: Run message legal hold and resumed retention integration tests
+         run: npm run test:message-legal-hold-integration
+       - name: Run Firestore and Storage rules emulator tests
+         run: npm run test:rules
+ 
+   scanner:
+     name: Isolated ClamAV scanner gateway tests and image build
+     runs-on: ubuntu-latest
+     timeout-minutes: 25
+     steps:
+       - uses: actions/checkout@v5
+       - uses: actions/setup-node@v5
+         with:
+           node-version: "20.20.2"
+       - name: Validate scanner source and security contracts
+         run: |
+           node --check scanner/server.js
+           node --check scanner/security.js
+           node --check scanner/processors.js
+           sh -n scanner/start.sh
+           node --test scanner/test/security.test.js scanner/test/processors.test.js
+       - name: Build isolated ClamAV scanner container
+         run: docker build --tag mawda-clamav-scanner:ci scanner
+       - name: Run real GIF, audio, video and PDF sanitization tests inside the scanner image
+         run: docker run --rm --entrypoint npm mawda-clamav-scanner:ci test
+       - name: Verify ClamAV detects the harmless EICAR test signature
+         run: |
+           docker run --rm --entrypoint sh mawda-clamav-scanner:ci -c '
+             set -eu
+             freshclam --stdout --log=/tmp/freshclam.log
+             printf '%s' 'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=' | base64 -d > /tmp/eicar.com
+             set +e
+             clamscan --infected --no-summary /tmp/eicar.com
+             result=$?
+             set -e
+             test "$result" -eq 1
+           '
+diff --git a/functions/package.json b/functions/package.json
+index 7d208daa..2f73a551 100644
+--- a/functions/package.json
++++ b/functions/package.json
+@@ -1,42 +1,43 @@
+ {
+   "name": "mawda-platform-functions",
+   "private": true,
+   "main": "lib/index.js",
+   "engines": {
+     "node": "20"
+   },
+   "scripts": {
+     "build": "tsc",
+     "build:watch": "tsc --watch",
+     "test": "npm run build && node --check scripts/bootstrap-owner.cjs && node --check scripts/test-signed-urls-http.cjs && node --check scripts/test-retention-storage.cjs && node --test test/*.test.js",
+     "bootstrap:owner": "node scripts/bootstrap-owner.cjs",
+     "test:rules": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-rules \"node --test test/rules/*.test.js\"",
+     "test:media-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-media \"node --test test/integration/media-callables.integration.test.js\"",
+     "test:media-signed-urls-http": "npm run build && node scripts/test-signed-urls-http.cjs",
+     "test:signed-urls-http": "node scripts/test-signed-urls-http.cjs",
+     "test:retention-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-retention \"node --test test/integration/chat-retention.integration.test.js\"",
+     "test:message-deletion-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-message-deletion \"node --test test/integration/direct-message-deletion.integration.test.js\"",
+     "test:retention-gcs": "npm run build && node scripts/test-retention-storage.cjs",
+     "test:owner-audit-export-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-owner-audit \"node --test test/integration/owner-audit-export.integration.test.js\"",
+     "test:media-legal-hold-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-legal-hold \"node --test test/integration/media-legal-hold.integration.test.js\"",
+     "test:media-scanner-live-e2e": "npm run build && node scripts/test-live-media-scanner-e2e.cjs",
+     "test:profile-media-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-profile-media \"node --test test/integration/member-profile-media.integration.test.js\"",
+     "test:message-legal-hold-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-message-hold \"node --test test/integration/message-legal-hold.integration.test.js\"",
+     "test:wallet-store-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-wallet-store \"node --test test/integration/wallet-store.integration.test.js\"",
+     "test:guest-privacy-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-guest-privacy \"node --test test/integration/guest-privacy.integration.test.js\"",
+     "test:safety-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-safety \"node --test test/integration/safety-cases.integration.test.js\"",
+     "test:push-token-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-push-tokens \"node --test test/integration/push-token.integration.test.js\"",
+     "test:room-rental-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-room-rental \"node --test test/integration/room-rental.integration.test.js\"",
+-    "test:biometric-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-biometric \"node --test test/integration/biometric-verification.integration.test.js\""
++    "test:biometric-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-biometric \"node --test test/integration/biometric-verification.integration.test.js\"",
++    "test:email-renewal-integration": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-email-renewal \"node --test test/integration/email-verification-renewal.integration.test.js\""
+   },
+   "dependencies": {
+     "firebase-admin": "^13.0.0",
+     "firebase-functions": "^6.0.0"
+   },
+   "devDependencies": {
+     "typescript": "^5.7.2",
+     "@firebase/rules-unit-testing": "^4.0.1",
+     "firebase": "^11.0.0",
+     "firebase-tools": "^14.0.0"
+   }
+ }
+diff --git a/functions/src/index.ts b/functions/src/index.ts
+index 86c79758..72270115 100644
+--- a/functions/src/index.ts
++++ b/functions/src/index.ts
+@@ -1,106 +1,106 @@
+ import { initializeApp } from "firebase-admin/app";
+ import { getAuth } from "firebase-admin/auth";
+ import { getMessaging } from "firebase-admin/messaging";
+ import { validateMemberProfile } from "./member-profile";
+ import { FieldPath, FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
+ import { HttpsError, onCall } from "firebase-functions/v2/https";
+ import { onSchedule } from "firebase-functions/v2/scheduler";
+ import { defineString } from "firebase-functions/params";
+ import { validateMediaLegalHoldInput } from "./media-legal-hold";
+ import { validateMessageLegalHoldInput } from "./message-legal-hold";
+ import { logger } from "firebase-functions";
+ import { calculateTransferBreakdown } from "./coin-math";
+ import { validateRegistrationPolicy } from "./registration-policy";
+ import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
+ import { validateMemberProfileUpdate } from "./member-profile-update";
+ import {
+   canChangeMemberSocialLinkVisibility,
+   projectMemberSocialLinks,
+   validateMemberSocialLinks,
+ } from "./member-social-links";
+ import { validateDirectMessageInput } from "./direct-message";
+ import { validateSafetyReportInput, validateSafetyAppealInput } from "./safety-cases";
+ import { createDirectChatId } from "./direct-chat-id";
+ import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
+ import { hasActiveBiometricVerification } from "./biometric-verification";
+-import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS } from "./email-verification-cycle";
++import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, isEmailVerificationCycleDue, canRewardEmailVerificationCycle } from "./email-verification-cycle";
+ import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
+ import { isMemberAccountInGoodStanding } from "./member-access";
+ import {
+   assertMessageLinksAllowed,
+   BIOMETRIC_APPROVED_HOSTS,
+   canSendApprovedPlatformLinks,
+ } from "./link-policy";
+ import { createHash } from "node:crypto";
+ import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
+ import { hasPlatformOwnerSession } from "./owner-access";
+ import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
+ import { validateOwnerAuditExportRequest, projectOwnerAuditExportValue } from "./owner-audit-export";
+ import {
+   validateOwnerChatReviewRequest,
+   validateOwnerConversationPageRequest,
+   encodeOwnerMessagePageToken,
+   decodeOwnerMessagePageToken,
+   validateOwnerReviewAnnouncementRequest,
+   validateOwnerChatParticipationRequest,
+ } from "./owner-chat-review";
+ import {
+   PRIVACY_POLICY_HASH,
+   PRIVACY_POLICY_VERSION,
+   validatePrivacyAcknowledgement,
+ } from "./privacy-acknowledgement";
+ import {
+   isStoreItemPurchasable,
+   projectStoreCatalogItem,
+   validateStoreCatalogItemInput,
+ } from "./store-catalog";
+ import {
+   calculateStorePurchaseBalance,
+   isStoreEntitlementActive,
+   isStorePurchasePriceCurrent,
+   projectStoreEntitlementFeatures,
+ } from "./store-purchase";
+ import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
+ import { deleteMediaAssetForMessage } from "./media";
+ import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
+ import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
+ import { DEFAULT_COIN_PACKAGES, DEFAULT_AD_PRICES, validateCoinPackages, validateAdPrices } from "./economy-pricing";
+ import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
+ import { validateOwnerLiveStreamInput } from "./owner-live-stream";
+ 
+ initializeApp();
+ 
+ const db = getFirestore();
+ const TRANSFER_SETTINGS = db.doc("platformSettings/coinTransfers");
+ const OWNER_REVIEW_AUDIT_HEAD = db.collection("adminAuditChainHeads").doc("ownerReview");
+ const legalHoldExpiryEnabled = defineString("MAWDA_LEGAL_HOLD_EXPIRY_ENABLED", { default: "false" });
+ 
+ /**
+  * Append a hash-linked owner-review audit event. A Firestore transaction
+  * serializes head updates so concurrent review requests cannot fork sequence.
+  * The head is maintained separately from the event documents.
+  */
+ async function appendOwnerReviewAuditEvent(
+   event: Record<string, unknown>,
+   eventId?: string,
+ ): Promise<string> {
+   const auditRef = eventId
+     ? db.collection("adminAuditLogs").doc(eventId)
+     : db.collection("adminAuditLogs").doc();
+   await db.runTransaction(async (transaction) => {
+     const existingEvent = await transaction.get(auditRef);
+     if (existingEvent.exists) return;
+     const headSnapshot = await transaction.get(OWNER_REVIEW_AUDIT_HEAD);
+     const head = headSnapshot.data() ?? {};
+     const previousSequence = headSnapshot.exists ? head.sequence : 0;
+     const previousHash = headSnapshot.exists ? head.eventHash : "GENESIS";
+     if (!Number.isSafeInteger(previousSequence) || previousSequence < 0 ||
+         typeof previousHash !== "string" ||
+         !(previousHash === "GENESIS" || /^[a-f0-9]{64}$/.test(previousHash))) {
+       throw new Error("OWNER_AUDIT_CHAIN_HEAD_INVALID");
+     }
+     const sequence = previousSequence + 1;
+     const eventHash = calculateOwnerAuditHash(event, sequence, previousHash);
+     transaction.create(auditRef, {
+       ...event,
+       auditEvent: event,
+@@ -1701,160 +1701,408 @@ export const completeBiometricVerificationCycle = onCall(async (request) => {
+         : null;
+     if (previousRewardAtMs !== null && Number.isFinite(previousRewardAtMs) &&
+         nowMs < previousRewardAtMs + cycleMs) {
+       return {
+         rewardGranted: false,
+         alreadyRewarded: true,
+         nextEligibleAtMs: previousRewardAtMs + cycleMs,
+         cycleSequence: Number.isSafeInteger(user.biometricVerificationSequence)
+           ? user.biometricVerificationSequence : 1,
+       };
+     }
+ 
+     const sequence = (Number.isSafeInteger(user.biometricVerificationSequence) &&
+       user.biometricVerificationSequence >= 0
+       ? user.biometricVerificationSequence : 0) + 1;
+     const ledgerId = "biometric_verification_" + createHash("sha256")
+       .update("mawdda-biometric-cycle-v1|" + uid + "|" + sequence)
+       .digest("hex");
+     const ledgerRef = userRef.collection("walletLedger").doc(ledgerId);
+     const ledgerSnapshot = await transaction.get(ledgerRef);
+     if (ledgerSnapshot.exists) {
+       return { rewardGranted: false, alreadyRewarded: true, cycleSequence: sequence };
+     }
+ 
+     const balance = user.coins;
+     if (!Number.isSafeInteger(balance) || balance < 0 ||
+         !Number.isSafeInteger(balance + rewardCoins)) {
+       throw new HttpsError("failed-precondition", "رصيد المحفظة غير صالح؛ لم تُمنح المكافأة.");
+     }
+     const verifiedAt = Timestamp.fromMillis(nowMs);
+     const expiresAt = Timestamp.fromMillis(nowMs + cycleMs);
+     transaction.update(userRef, {
+       coins: balance + rewardCoins,
+       biometricVerificationRewardedAt: verifiedAt,
+       biometricVerificationSequence: sequence,
+       biometricVerification: {
+         status: "verified",
+         verificationMethod: "local_os_biometric_prompt",
+         platform,
+         cycleSequence: sequence,
+         verifiedAt,
+         expiresAt,
+         revokedAt: null,
+       },
+       updatedAt: FieldValue.serverTimestamp(),
+     });
+     transaction.create(ledgerRef, {
+       ledgerId,
+       type: "biometric_verification_reward",
+       amount: rewardCoins,
+       balanceAfter: balance + rewardCoins,
+       cycleSequence: sequence,
+       platform,
+       source: "local_os_biometric_prompt",
+       localAuthenticationSucceededClaim: true,
+       clientAttemptId: attemptId,
+       createdAt: FieldValue.serverTimestamp(),
+     });
+     const auditRef = db.collection("verificationAuditLogs").doc(ledgerId);
+     transaction.create(auditRef, {
+       actorUid: uid,
+       action: "biometric_verification_cycle_rewarded",
+       cycleSequence: sequence,
+       rewardCoins,
+       platform,
+       trustModel: "client_claim_after_local_os_prompt",
+       createdAt: FieldValue.serverTimestamp(),
+     });
+     return {
+       rewardGranted: true,
+       alreadyRewarded: false,
+       rewardCoins,
+       newBalance: balance + rewardCoins,
+       cycleSequence: sequence,
+       expiresAtMs: nowMs + cycleMs,
+       nextEligibleAtMs: nowMs + cycleMs,
+     };
+   });
+ });
+ 
++/**
++ * Starts a fresh 90-day email ownership challenge when the current cycle is due.
++ * Firebase Auth is temporarily marked unverified so the member must redeem a
++ * fresh provider-issued email action link before the renewal reward is credited.
++ */
++export const startEmailVerificationRenewal = onCall(async (request) => {
++  const uid = requireAuthenticatedUid(request.auth?.uid);
++  const authUser = await getAuth().getUser(uid);
++  if (!authUser.email) {
++    throw new HttpsError("failed-precondition", "لا يوجد بريد إلكتروني مرتبط بالحساب.");
++  }
++  const email = authUser.email.trim().toLowerCase();
++  const userRef = db.collection("users").doc(uid);
++  const nowMs = Date.now();
++
++  const cycleResult = await db.runTransaction(async (transaction) => {
++    let expiredPendingId: string | null = null;
++    const userSnapshot = await transaction.get(userRef);
++    if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true) {
++      throw new HttpsError("failed-precondition", "يجب إكمال الملف الشخصي أولاً.");
++    }
++    const userData = userSnapshot.data()!;
++    const pendingId = userData.emailVerificationRenewalPendingCycleId;
++    if (typeof pendingId === "string" && pendingId.length > 0) {
++      const pendingRef = db.collection("emailVerificationCycles").doc(uid + "_" + pendingId);
++      const pendingSnapshot = await transaction.get(pendingRef);
++      const pending = pendingSnapshot.data();
++      const expiry = pending?.expiresAt;
++      const expiryMs = expiry instanceof Timestamp
++        ? expiry.toMillis()
++        : typeof expiry?.toMillis === "function" ? expiry.toMillis() : 0;
++      if (pendingSnapshot.exists && pending?.status === "pending" &&
++          pending.email === email && expiryMs > nowMs) {
++        return {
++          cycleId: pendingId,
++          email,
++          alreadyPending: true,
++          authResetAt: pending.authResetAt ?? null,
++        };
++      }
++      if (pendingSnapshot.exists && pending?.status === "pending") {
++        expiredPendingId = pendingId;
++      }
++    }
++
++    const priorExpiry = userData.emailVerificationCycleExpiresAt;
++    const priorExpiryMs = priorExpiry instanceof Timestamp
++      ? priorExpiry.toMillis()
++      : typeof priorExpiry?.toMillis === "function" ? priorExpiry.toMillis() : null;
++    if (expiredPendingId === null) {
++      if (!authUser.emailVerified || priorExpiryMs === null ||
++          !isEmailVerificationCycleDue(priorExpiryMs - 90 * 24 * 60 * 60 * 1000, nowMs)) {
++        throw new HttpsError("failed-precondition", "لم يحن موعد دورة التحقق التالية بعد.");
++      }
++    }
++
++    const sequence = (Number.isSafeInteger(userData.emailVerificationSequence)
++      ? userData.emailVerificationSequence as number
++      : 1) + 1;
++    const cycle = createEmailVerificationCycle({
++      uid,
++      email,
++      sequence,
++      serverNowMs: nowMs,
++    });
++    const cycleRef = db.collection("emailVerificationCycles").doc(uid + "_" + cycle.cycleId);
++    const existingCycle = await transaction.get(cycleRef);
++    if (existingCycle.exists) {
++      throw new HttpsError("already-exists", "دورة التحقق هذه موجودة مسبقاً.");
++    }
++    if (expiredPendingId !== null) {
++      transaction.update(
++        db.collection("emailVerificationCycles").doc(uid + "_" + expiredPendingId),
++        { status: "expired", expiredAt: FieldValue.serverTimestamp() },
++      );
++    }
++    const startedAt = Timestamp.fromMillis(cycle.startedAtMs);
++    const expiresAt = Timestamp.fromMillis(cycle.expiresAtMs);
++    transaction.create(cycleRef, {
++      ...cycle,
++      status: "pending",
++      startedAt,
++      expiresAt,
++      authResetAt: null,
++      createdAt: startedAt,
++      updatedAt: startedAt,
++    });
++    transaction.update(userRef, {
++      emailVerified: false,
++      emailVerificationSequence: sequence,
++      emailVerificationRenewalPendingCycleId: cycle.cycleId,
++      emailVerificationRenewalPendingEmail: email,
++      emailVerificationRenewalStartedAt: startedAt,
++      updatedAt: FieldValue.serverTimestamp(),
++    });
++    return {
++      cycleId: cycle.cycleId,
++      email,
++      alreadyPending: false,
++      authResetAt: null,
++    };
++  });
++
++  // Retry-safe: if Auth was reset but recording authResetAt failed, the next
++  // call observes Auth=false and records the marker without invalidating a
++  // subsequently redeemed link.
++  if (cycleResult.authResetAt == null) {
++    if (authUser.emailVerified) {
++      await getAuth().updateUser(uid, { emailVerified: false });
++    }
++    const cycleRef = db.collection("emailVerificationCycles").doc(uid + "_" + cycleResult.cycleId);
++    await db.runTransaction(async (transaction) => {
++      const cycleSnapshot = await transaction.get(cycleRef);
++      if (!cycleSnapshot.exists || cycleSnapshot.data()?.status !== "pending") {
++        throw new HttpsError("failed-precondition", "انتهت دورة التحقق قبل تهيئة البريد.");
++      }
++      if (cycleSnapshot.data()?.authResetAt == null) {
++        transaction.update(cycleRef, { authResetAt: FieldValue.serverTimestamp() });
++      }
++    });
++  }
++
++  return {
++    cycleId: cycleResult.cycleId,
++    email: cycleResult.email,
++    alreadyPending: cycleResult.alreadyPending,
++    sendVerificationEmail: true,
++  };
++});
++
++/**
++ * Finalizes a renewal only after Firebase Auth confirms that the member
++ * redeemed the fresh email action link for the same address.
++ */
++export const completeEmailVerificationRenewal = onCall(async (request) => {
++  const uid = requireAuthenticatedUid(request.auth?.uid);
++  const authUser = await getAuth().getUser(uid);
++  if (!authUser.email || !authUser.emailVerified) {
++    throw new HttpsError("failed-precondition", "افتح رابط التحقق المرسل إلى بريدك أولاً.");
++  }
++  const email = authUser.email.trim().toLowerCase();
++  const userRef = db.collection("users").doc(uid);
++  const nowMs = Date.now();
++
++  return db.runTransaction(async (transaction) => {
++    const userSnapshot = await transaction.get(userRef);
++    if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true) {
++      throw new HttpsError("failed-precondition", "ملف العضوية غير مكتمل.");
++    }
++    const userData = userSnapshot.data()!;
++    const cycleId = userData.emailVerificationRenewalPendingCycleId;
++    if (typeof cycleId !== "string" || cycleId.length !== 64) {
++      throw new HttpsError("failed-precondition", "لا توجد دورة تحقق بريد معلقة.");
++    }
++    const cycleRef = db.collection("emailVerificationCycles").doc(uid + "_" + cycleId);
++    const ledgerRef = userRef.collection("walletLedger").doc(emailVerificationRewardLedgerId(cycleId));
++    const [cycleSnapshot, ledgerSnapshot] = await Promise.all([
++      transaction.get(cycleRef),
++      transaction.get(ledgerRef),
++    ]);
++    if (!cycleSnapshot.exists) {
++      throw new HttpsError("not-found", "دورة التحقق غير موجودة.");
++    }
++    const cycleData = cycleSnapshot.data()!;
++    const startedAtMs = cycleData.startedAt instanceof Timestamp
++      ? cycleData.startedAt.toMillis()
++      : Number(cycleData.startedAtMs);
++    const expiresAtMs = cycleData.expiresAt instanceof Timestamp
++      ? cycleData.expiresAt.toMillis()
++      : Number(cycleData.expiresAtMs);
++    const cycle = {
++      cycleId,
++      uid,
++      email: cycleData.email,
++      sequence: cycleData.sequence,
++      status: cycleData.status,
++      startedAtMs,
++      expiresAtMs,
++    };
++    if (!canRewardEmailVerificationCycle({
++      cycle,
++      currentEmail: email,
++      authEmailVerified: authUser.emailVerified,
++      serverNowMs: nowMs,
++    })) {
++      throw new HttpsError("failed-precondition", "تعذر اعتماد دورة البريد؛ تحقق من الرابط والبريد ومدة الصلاحية.");
++    }
++    if (cycleData.authResetAt == null) {
++      throw new HttpsError("failed-precondition", "لم يتم إصدار تحدي تحقق جديد لهذه الدورة.");
++    }
++    if (ledgerSnapshot.exists) {
++      throw new HttpsError("already-exists", "مكافأة دورة البريد مسجلة مسبقاً.");
++    }
++
++    const balance = Number.isSafeInteger(userData.coins) ? userData.coins as number : 0;
++    const newBalance = balance + EMAIL_VERIFICATION_REWARD_COINS;
++    if (!Number.isSafeInteger(newBalance)) {
++      throw new HttpsError("out-of-range", "الرصيد الناتج يتجاوز الحد الرقمي الآمن.");
++    }
++    const verifiedAt = Timestamp.fromMillis(nowMs);
++    transaction.update(cycleRef, {
++      status: "rewarded",
++      verifiedAt,
++      rewardedAt: verifiedAt,
++      updatedAt: verifiedAt,
++    });
++    transaction.update(userRef, {
++      coins: newBalance,
++      emailVerified: true,
++      emailVerifiedAt: verifiedAt,
++      emailVerificationCycleId: cycleId,
++      emailVerificationCycleStartedAt: Timestamp.fromMillis(startedAtMs),
++      emailVerificationCycleExpiresAt: Timestamp.fromMillis(expiresAtMs),
++      emailVerificationRenewalPendingCycleId: FieldValue.delete(),
++      emailVerificationRenewalPendingEmail: FieldValue.delete(),
++      emailVerificationRenewalStartedAt: FieldValue.delete(),
++      updatedAt: FieldValue.serverTimestamp(),
++    });
++    transaction.create(ledgerRef, {
++      type: "email_verification_reward",
++      direction: "credit",
++      amount: EMAIL_VERIFICATION_REWARD_COINS,
++      reason: "verified_email_renewal_cycle",
++      cycleId,
++      cycleSequence: cycle.sequence,
++      idempotencyKey: cycleId,
++      createdAt: verifiedAt,
++    });
++    transaction.create(db.collection("verificationAuditLogs").doc(ledgerRef.id), {
++      actorUid: uid,
++      action: "email_verification_cycle_rewarded",
++      cycleId,
++      cycleSequence: cycle.sequence,
++      rewardCoins: EMAIL_VERIFICATION_REWARD_COINS,
++      verifiedEmailHash: createHash("sha256").update(email).digest("hex"),
++      createdAt: verifiedAt,
++    });
++    return {
++      verified: true,
++      rewardGranted: true,
++      rewardAmount: EMAIL_VERIFICATION_REWARD_COINS,
++      newBalance,
++      cycleId,
++      expiresAtMs,
++    };
++  });
++});
++
+ /** Registers a member-owned FCM token; token values are never returned to clients. */
+ export const registerPushToken = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const token = typeof request.data?.token === "string" ? request.data.token.trim() : "";
+   const platform = request.data?.platform;
+   if (token.length < 100 || token.length > 4096 ||
+       !["web", "android", "ios", "macos", "windows", "linux", "other"].includes(platform)) {
+     throw new HttpsError("invalid-argument", "رمز الإشعارات أو نوع الجهاز غير صالح.");
+   }
+   const userRef = db.collection("users").doc(uid);
+   const user = await userRef.get();
+   if (!user.exists || user.data()?.profileCompleted !== true || !isMemberAccountInGoodStanding(user.data())) {
+     throw new HttpsError("permission-denied", "تسجيل الإشعارات متاح للأعضاء الفعالين فقط.");
+   }
+   const tokenId = createHash("sha256").update(token).digest("hex");
+   await userRef.collection("pushTokens").doc(tokenId).set({
+     token, platform, active: true, updatedAt: FieldValue.serverTimestamp(), createdAt: FieldValue.serverTimestamp(),
+   }, { merge: true });
+   return { registered: true, tokenId };
+ });
+ 
+ /** Deactivates only the authenticated member's exact FCM token. */
+ export const unregisterPushToken = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const token = typeof request.data?.token === "string" ? request.data.token.trim() : "";
+   if (token.length < 100 || token.length > 4096) throw new HttpsError("invalid-argument", "رمز الإشعارات غير صالح.");
+   const tokenId = createHash("sha256").update(token).digest("hex");
+   await db.collection("users").doc(uid).collection("pushTokens").doc(tokenId).set({
+     active: false, deactivatedAt: FieldValue.serverTimestamp(),
+   }, { merge: true });
+   return { registered: false };
+ });
+ /** Returns the caller's own block list only. */
+ export const getMyBlockedUsers = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const user = await db.collection("users").doc(uid).get();
+   if (!user.exists) throw new HttpsError("not-found", "ملف العضوية غير موجود.");
+   const blockedUids = Array.isArray(user.data()?.blockedUids)
+     ? user.data()!.blockedUids.filter((value: unknown): value is string =>
+         typeof value === "string" && value.length > 0 && value.length <= 128)
+     : [];
+   return { blockedUids };
+ });
+ 
+ /** Owner-only live-stream broadcast to an owner/member direct chat or an active public/rented-private room. */
+ export const sendOwnerLiveStream = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   let input;
+   try { input = validateOwnerLiveStreamInput(request.data); }
+   catch { throw new HttpsError("invalid-argument", "رابط البث أو بيانات الرسالة غير صالحة أو غير آمنة."); }
+   if (input.scope === "direct" && !/^[a-f0-9]{64}$/.test(input.targetId)) {
+     throw new HttpsError("invalid-argument", "معرف المحادثة الثنائية غير صالح.");
+   }
+   const messageId = createHash("sha256")
+     .update("owner-live-stream:" + actorUid + ":" + input.scope + ":" + input.targetId + ":" + input.requestId)
+     .digest("hex");
+   const now = FieldValue.serverTimestamp();
+   const liveStream = {
+     url: input.url, hostname: input.hostname, provider: input.provider,
+     title: input.title, description: input.description, scope: input.scope,
+     targetId: input.targetId, requestId: input.requestId,
+     createdBy: actorUid, createdAt: now,
+   };
+   const auditRef = db.collection("adminAuditLogs").doc("owner_live_stream_" + messageId);
+   let recipientUid: string | null = null;
+   let roomId: string | null = null;
+   const result = await db.runTransaction(async (transaction) => {
+     if (input.scope === "direct") {
+       const chatRef = db.collection("directChats").doc(input.targetId);
+       const messageRef = chatRef.collection("messages").doc(messageId);
+       const chat = await transaction.get(chatRef);
+       if (!chat.exists) throw new HttpsError("not-found", "المحادثة الثنائية غير موجودة.");
+       const participants = chat.data()?.participantUids;
+       if (!Array.isArray(participants) || participants.length !== 2 ||
+           participants.some((uid) => typeof uid !== "string") ||
+           !participants.includes(actorUid)) {
+         throw new HttpsError("permission-denied", "يمكن للمالك إرسال البث فقط إلى محادثة ثنائية يكون أحد طرفيها.");
+       }
+       const peer = participants.find((uid) => uid !== actorUid);
+       if (!peer) throw new HttpsError("failed-precondition", "طرف المحادثة غير صالح.");
+diff --git a/functions/test/integration/email-verification-renewal.integration.test.js b/functions/test/integration/email-verification-renewal.integration.test.js
+new file mode 100644
+index 00000000..4f477f03
+--- /dev/null
++++ b/functions/test/integration/email-verification-renewal.integration.test.js
+@@ -0,0 +1,106 @@
++const test = require("node:test");
++const assert = require("node:assert/strict");
++const { getAuth } = require("firebase-admin/auth");
++const { getFirestore, Timestamp } = require("firebase-admin/firestore");
++const {
++  startEmailVerificationRenewal,
++  completeEmailVerificationRenewal,
++} = require("../../lib/index");
++const { EMAIL_VERIFICATION_CYCLE_MS } = require("../../lib/email-verification-cycle");
++
++const db = getFirestore();
++const auth = getAuth();
++const request = (uid) => ({
++  data: {},
++  auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
++});
++const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
++
++test("fresh email link renewal credits 500 coins once and starts the next 90-day cycle", async () => {
++  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
++  assert.ok(process.env.FIREBASE_AUTH_EMULATOR_HOST, "Auth emulator is required");
++  const tag = suffix();
++  const uid = `email_renewal_${tag}`;
++  const email = `renewal_${tag}@example.test`;
++  const userRef = db.collection("users").doc(uid);
++  const lastVerifiedAtMs = Date.now() - EMAIL_VERIFICATION_CYCLE_MS - 1000;
++  const ledgerIdPrefix = "email_verification_";
++  let cycleRef;
++  let ledgerRef;
++  let auditRef;
++
++  await auth.createUser({ uid, email, password: "Test-only-password-123!", emailVerified: true });
++  await userRef.set({
++    uid,
++    email,
++    emailVerified: true,
++    emailVerifiedAt: Timestamp.fromMillis(lastVerifiedAtMs),
++    emailVerificationSequence: 1,
++    emailVerificationCycleId: "initial-cycle",
++    emailVerificationCycleStartedAt: Timestamp.fromMillis(lastVerifiedAtMs),
++    emailVerificationCycleExpiresAt: Timestamp.fromMillis(lastVerifiedAtMs + EMAIL_VERIFICATION_CYCLE_MS),
++    coins: 250,
++    profileCompleted: true,
++    accountStatus: "active",
++  });
++
++  try {
++    const started = await startEmailVerificationRenewal.run(request(uid));
++    assert.equal(started.email, email);
++    assert.equal(started.alreadyPending, false);
++    assert.equal(started.sendVerificationEmail, true);
++
++    const authAfterStart = await auth.getUser(uid);
++    assert.equal(authAfterStart.emailVerified, false);
++    cycleRef = db.collection("emailVerificationCycles").doc(`${uid}_${started.cycleId}`);
++    const pending = (await cycleRef.get()).data();
++    assert.equal(pending.status, "pending");
++    assert.ok(pending.authResetAt);
++
++    await assert.rejects(
++      () => completeEmailVerificationRenewal.run(request(uid)),
++      (error) => error && error.code === "failed-precondition",
++    );
++    assert.equal((await userRef.get()).data().coins, 250);
++
++    // Simulate the Firebase Auth action link being redeemed by its owner.
++    await auth.updateUser(uid, { emailVerified: true });
++    const completed = await completeEmailVerificationRenewal.run(request(uid));
++    assert.equal(completed.rewardGranted, true);
++    assert.equal(completed.rewardAmount, 500);
++    assert.equal(completed.newBalance, 750);
++
++    const member = (await userRef.get()).data();
++    assert.equal(member.coins, 750);
++    assert.equal(member.emailVerified, true);
++    assert.equal(member.emailVerificationSequence, 2);
++    assert.equal(member.emailVerificationCycleId, started.cycleId);
++    assert.equal(member.emailVerificationRenewalPendingCycleId, undefined);
++    assert.ok(member.emailVerificationCycleExpiresAt.toMillis() > Date.now());
++
++    const cycle = (await cycleRef.get()).data();
++    assert.equal(cycle.status, "rewarded");
++    ledgerRef = userRef.collection("walletLedger").doc(ledgerIdPrefix + started.cycleId);
++    auditRef = db.collection("verificationAuditLogs").doc(ledgerIdPrefix + started.cycleId);
++    assert.equal((await ledgerRef.get()).data().amount, 500);
++    assert.equal((await auditRef.get()).data().action, "email_verification_cycle_rewarded");
++
++    await assert.rejects(
++      () => completeEmailVerificationRenewal.run(request(uid)),
++      (error) => error && error.code === "failed-precondition",
++    );
++    await assert.rejects(
++      () => startEmailVerificationRenewal.run(request(uid)),
++      (error) => error && error.code === "failed-precondition",
++    );
++    assert.equal((await userRef.get()).data().coins, 750);
++  } finally {
++    await Promise.all([
++      cycleRef?.delete().catch(() => undefined),
++      ledgerRef?.delete().catch(() => undefined),
++      auditRef?.delete().catch(() => undefined),
++      userRef.delete().catch(() => undefined),
++      auth.deleteUser(uid).catch(() => undefined),
++    ]);
++  }
++});
+diff --git a/lib/screens/profile_screen.dart b/lib/screens/profile_screen.dart
+index bd69bfc1..f9394501 100644
+--- a/lib/screens/profile_screen.dart
++++ b/lib/screens/profile_screen.dart
+@@ -1,202 +1,271 @@
+ import 'package:cloud_functions/cloud_functions.dart';
+-import 'package:flutter/material.dart';
++import 'package:firebase_auth/firebase_auth.dart';
+ import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
++import 'package:flutter/material.dart';
+ import 'package:uuid/uuid.dart';
+ import 'package:image_picker/image_picker.dart';
+ import '../services/coin_system_service.dart';
+ import '../services/member_media_upload_service.dart';
+ import '../services/auth_service.dart';
+ import '../services/local_biometric_service.dart';
+ import 'direct_chat_screen.dart';
+ import 'stories_screen.dart';
+ import 'profile_gallery_screen.dart';
+ 
+ class ProfileScreen extends StatefulWidget {
+   final String profileUserId;
+   final String currentUserId;
+ 
+   const ProfileScreen({
+     Key? key,
+     required this.profileUserId,
+     required this.currentUserId,
+   }) : super(key: key);
+ 
+   @override
+   State<ProfileScreen> createState() => _ProfileScreenState();
+ }
+ 
+ class _ProfileScreenState extends State<ProfileScreen> {
+   final CoinSystemService _coinService = CoinSystemService();
+   final ImagePicker _imagePicker = ImagePicker();
+   final MemberMediaUploadService _memberMedia = MemberMediaUploadService();
+   bool _changingProfileMedia = false;
+   bool _checkingLocalBiometrics = false;
++  bool _checkingEmailRenewal = false;
+   bool _isTransferringCoins = false;
+   String? _pendingTransferKey;
+   String? _pendingTransferRequestId;
+   late Future<Map<String, dynamic>> _profileFuture;
+ 
+   @override
+   void initState() {
+     super.initState();
+     _profileFuture = _loadProfile();
+   }
+ 
+   Future<void> _checkLocalBiometrics() async {
+     if (_checkingLocalBiometrics) return;
+     final consent = await showDialog<bool>(
+       context: context,
+       builder: (dialogContext) => AlertDialog(
+         title: const Text('موافقة مستقلة على المصادقة البيومترية'),
+         content: const Text(
+-          'تستخدم مودة نافذة المصادقة المحلية في Android أو Apple. يتولى نظام التشغيل التحقق على الجهاز؛ '
+-          'لا نلتقط البصمة أو الوجه ولا نرسل بيانات بيومترية إلى الخادم. عند نجاح النافذة، يطلب التطبيق من الخادم '
+-          'اعتماد دورة مدتها 30 يوماً ومنح 1500 كوينز مرة واحدة في الدورة. هذه مكافأة على نجاح المصادقة المحلية '
+-          'وليست إثباتاً للهوية المدنية.',
++          'سيطلب النظام تأكيد المصادقة على هذا الجهاز عبر Android BiometricPrompt أو Apple LocalAuthentication. '
++          'تتم المطابقة محلياً ولا ترسل مودة بصمة أو صورة وجه أو قالباً بيومترياً إلى الخادم. '
++          'تعتمد المكافأة على إتمام نافذة النظام بنجاح، ولا تمثل هذه الخطوة إثباتاً للهوية المدنية أو فحصاً مستقلاً للحيوية.',
+         ),
+         actions: [
+           TextButton(
+             onPressed: () => Navigator.pop(dialogContext, false),
+             child: const Text('ليس الآن'),
+           ),
+           FilledButton(
+             onPressed: () => Navigator.pop(dialogContext, true),
+             child: const Text('أوافق وأتابع'),
+           ),
+         ],
+       ),
+     );
+     if (consent != true || !mounted) return;
++
+     setState(() => _checkingLocalBiometrics = true);
+     final result = await LocalBiometricService().authenticate();
+     if (!mounted) return;
+-    setState(() => _checkingLocalBiometrics = false);
+ 
+-    String message;
+-    if (result.status == LocalBiometricStatus.authenticated) {
+-      try {
+-        final platform = switch (defaultTargetPlatform) {
+-          TargetPlatform.android => 'android',
+-          TargetPlatform.iOS => 'ios',
+-          _ => 'unsupported',
+-        };
+-        if (platform == 'unsupported') {
+-          message = 'نجحت المصادقة المحلية، لكن مكافأة هذه الدورة متاحة عبر تطبيق Android أو iOS فقط.';
+-        } else {
+-          final response = await FirebaseFunctions.instance
+-              .httpsCallable('completeBiometricVerificationCycle')
+-              .call(<String, dynamic>{
+-            'localAuthenticationSucceeded': true,
+-            'platform': platform,
+-            'attemptId': const Uuid().v4(),
+-          });
+-          final data = Map<String, dynamic>.from(response.data as Map);
+-          if (data['rewardGranted'] == true) {
+-            message = 'تم اعتماد المصادقة المحلية بنجاح، وأضيفت 1500 كوينز إلى محفظتك. تتجدد أهليتك بعد 30 يوماً.';
+-            if (mounted) setState(() => _profileFuture = _loadProfile());
+-          } else {
+-            message = 'تم التحقق محلياً. سبق منح مكافأة هذه الدورة؛ يمكنك الحصول على المكافأة التالية بعد اكتمال 30 يوماً.';
+-          }
+-        }
+-      } on FirebaseFunctionsException catch (error) {
+-        message = error.message ?? 'نجحت المصادقة المحلية، لكن تعذر اعتماد المكافأة من الخادم حالياً.';
+-      } catch (_) {
+-        message = 'نجحت المصادقة المحلية، لكن تعذر إكمال طلب المكافأة من الخادم.';
+-      }
+-    } else {
+-      message = switch (result.status) {
++    if (!result.succeeded) {
++      setState(() => _checkingLocalBiometrics = false);
++      final message = switch (result.status) {
+         LocalBiometricStatus.unavailable =>
+           'هذا الجهاز أو النظام لا يتيح المصادقة البيومترية حالياً.',
+         LocalBiometricStatus.notEnrolled =>
+           'لم تُسجل بصمة أو وسيلة بيومترية على هذا الجهاز.',
+         LocalBiometricStatus.cancelled =>
+-          'ألغيت المصادقة؛ لم يتم اعتماد أي تحقق أو منح مكافأة.',
++          'ألغيت المصادقة؛ لم تُمنح المكافأة.',
+         LocalBiometricStatus.failed =>
+           'تعذر إكمال المصادقة البيومترية. حاول لاحقاً أو تحقق من إعدادات الجهاز.',
+         LocalBiometricStatus.authenticated => 'اكتملت المصادقة المحلية.',
+       };
++      ScaffoldMessenger.of(context).showSnackBar(
++        SnackBar(content: Text(message), duration: const Duration(seconds: 5)),
++      );
++      return;
++    }
++
++    try {
++      final platform = defaultTargetPlatform == TargetPlatform.android
++          ? 'android'
++          : 'ios';
++      final response = await FirebaseFunctions.instance
++          .httpsCallable('completeBiometricVerificationCycle')
++          .call(<String, dynamic>{
++        'localAuthenticationSucceeded': true,
++        'platform': platform,
++        'attemptId': const Uuid().v4(),
++      });
++      if (!mounted) return;
++      final data = Map<String, dynamic>.from(response.data as Map);
++      final rewardGranted = data['rewardGranted'] == true;
++      final balance = (data['newBalance'] as num?)?.toInt();
++      final message = rewardGranted
++          ? 'تم اعتماد إكمال المصادقة المحلية وإضافة 1,500 كوين إلى محفظتك${balance == null ? '' : '؛ رصيدك الجديد $balance'}.'
++          : 'سبق منح مكافأة دورة التوثيق الحالية؛ لن يتكرر الصرف قبل موعد الدورة التالية.';
++      ScaffoldMessenger.of(context).showSnackBar(
++        SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
++      );
++    } on FirebaseFunctionsException catch (error) {
++      if (!mounted) return;
++      ScaffoldMessenger.of(context).showSnackBar(
++        SnackBar(content: Text(error.message ?? 'نجحت نافذة الجهاز، لكن تعذر تسجيل المكافأة على الخادم.')),
++      );
++    } catch (_) {
++      if (!mounted) return;
++      ScaffoldMessenger.of(context).showSnackBar(
++        const SnackBar(content: Text('نجحت نافذة الجهاز، لكن لم يؤكد الخادم تسجيل المكافأة.')),
++      );
++    } finally {
++      if (mounted) setState(() => _checkingLocalBiometrics = false);
++    }
++  }
++
++
++  Future<void> _renewEmailVerification() async {
++    if (_checkingEmailRenewal) return;
++    setState(() => _checkingEmailRenewal = true);
++    try {
++      await FirebaseFunctions.instance
++          .httpsCallable('startEmailVerificationRenewal')
++          .call();
++      var user = FirebaseAuth.instance.currentUser;
++      if (user == null) {
++        throw StateError('AUTH_USER_UNAVAILABLE');
++      }
++      await user.reload();
++      user = FirebaseAuth.instance.currentUser;
++      if (user == null) {
++        throw StateError('AUTH_USER_UNAVAILABLE');
++      }
++
++      if (user.emailVerified) {
++        final response = await FirebaseFunctions.instance
++            .httpsCallable('completeEmailVerificationRenewal')
++            .call();
++        if (!mounted) return;
++        final data = Map<String, dynamic>.from(response.data as Map);
++        final balance = (data['newBalance'] as num?)?.toInt();
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(
++            content: Text(
++              'تم تجديد التحقق من البريد وإضافة 500 كوين إلى محفظتك${balance == null ? '' : '؛ رصيدك الجديد $balance'}.',
++            ),
++            duration: const Duration(seconds: 6),
++          ),
++        );
++      } else {
++        await user.sendEmailVerification();
++        if (!mounted) return;
++        ScaffoldMessenger.of(context).showSnackBar(
++          const SnackBar(
++            content: Text('أرسلنا رابط تحقق جديد إلى بريدك. افتحه ثم ارجع إلى هنا واضغط الزر نفسه لاعتماد مكافأة 500 كوين.'),
++            duration: Duration(seconds: 8),
++          ),
++        );
++      }
++    } on FirebaseFunctionsException catch (error) {
++      if (!mounted) return;
++      ScaffoldMessenger.of(context).showSnackBar(
++        SnackBar(content: Text(error.message ?? 'تعذر بدء أو إكمال دورة التحقق من البريد.')),
++      );
++    } on FirebaseAuthException catch (error) {
++      if (!mounted) return;
++      ScaffoldMessenger.of(context).showSnackBar(
++        SnackBar(content: Text(error.message ?? 'تعذر إرسال رسالة التحقق. حاول لاحقاً.')),
++      );
++    } catch (_) {
++      if (!mounted) return;
++      ScaffoldMessenger.of(context).showSnackBar(
++        const SnackBar(content: Text('تعذر إكمال دورة البريد؛ لم تُمنح المكافأة.')),
++      );
++    } finally {
++      if (mounted) setState(() => _checkingEmailRenewal = false);
+     }
+-    if (!mounted) return;
+-    ScaffoldMessenger.of(context).showSnackBar(
+-      SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
+-    );
+   }
+ 
+   Future<void> _changeProfileVisibility(String visibility) async {
+     try {
+       final callable = FirebaseFunctions.instance.httpsCallable('setMemberProfileVisibility');
+       await callable.call(<String, dynamic>{'visibility': visibility});
+       if (!mounted) return;
+       setState(() => _profileFuture = _loadProfile());
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text(visibility == 'public'
+             ? 'أصبح ملفك متاحاً للأعضاء وفق المعلومات العامة المعتمدة.'
+             : 'تم جعل ملفك خاصاً.')),
+       );
+     } on FirebaseFunctionsException catch (error) {
+       if (!mounted) return;
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text(error.message ?? 'تعذر تحديث إعداد الخصوصية.')),
+       );
+     }
+   }
+ 
+ 
+   Future<void> _setSocialLinkHidden(String provider, bool hidden) async {
+     try {
+       await FirebaseFunctions.instance.httpsCallable(
+         'setMemberProfileSocialLinkVisibility',
+       ).call(<String, dynamic>{'provider': provider, 'hidden': hidden});
+       if (!mounted) return;
+       setState(() => _profileFuture = _loadProfile());
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text(hidden ? 'تم إخفاء الرابط من ملفك.' : 'تم إظهار الرابط في ملفك.')),
+       );
+     } on FirebaseFunctionsException catch (error) {
+       if (!mounted) return;
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text(error.message ?? 'تعذر تحديث خصوصية الرابط.')),
+       );
+     }
+   }
+ 
+   Future<void> _manageSocialLinks(Map<String, dynamic> profile) async {
+     final existing = Map<String, dynamic>.from(
+       profile['socialLinks'] as Map? ?? const <String, dynamic>{},
+     );
+     final controllers = <String, TextEditingController>{
+       'instagram': TextEditingController(text: existing['instagram'] as String? ?? ''),
+       'x': TextEditingController(text: existing['x'] as String? ?? ''),
+       'facebook': TextEditingController(text: existing['facebook'] as String? ?? ''),
+       'whatsapp': TextEditingController(text: existing['whatsapp'] as String? ?? ''),
+     };
+     final values = await showDialog<Map<String, String>>(
+       context: context,
+       builder: (dialogContext) => AlertDialog(
+         title: const Text('روابط التواصل في ملفي'),
+         content: SizedBox(
+           width: 460,
+           child: SingleChildScrollView(
+             child: Column(
+               mainAxisSize: MainAxisSize.min,
+               children: [
+                 const Text(
+                   'تُقبل الروابط الرسمية الآمنة فقط. يتطلب نشر الروابط توثيقاً بيومترياً نشطاً، ويمكنك حذفها في أي وقت.',
+                 ),
+                 const SizedBox(height: 12),
+                 for (final entry in controllers.entries)
+                   Padding(
+                     padding: const EdgeInsets.symmetric(vertical: 6),
+                     child: TextField(
+                       controller: entry.value,
+                       maxLength: 500,
+                       keyboardType: TextInputType.url,
+                       decoration: InputDecoration(
+                         labelText: entry.key == 'x'
+                             ? 'X / Twitter'
+                             : entry.key[0].toUpperCase() + entry.key.substring(1),
+                         hintText: 'https://...',
+                         border: const OutlineInputBorder(),
+                       ),
+                     ),
+                   ),
+@@ -875,160 +944,175 @@ class _ProfileScreenState extends State<ProfileScreen> {
+               ),
+               if (isMyProfile)
+                 Padding(
+                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                   child: OutlinedButton.icon(
+                     icon: const Icon(Icons.edit_outlined),
+                     label: const Text('تعديل بيانات الملف الشخصي'),
+                     onPressed: () => _editProfile(data),
+                   ),
+                 ),
+               Padding(
+                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                 child: OutlinedButton.icon(
+                   icon: const Icon(Icons.photo_library_outlined),
+                   label: const Text('معرض الصور'),
+                   onPressed: () => Navigator.of(context).push(
+                     MaterialPageRoute(
+                       builder: (_) => ProfileGalleryScreen(
+                         profileUserId: widget.profileUserId,
+                         currentUserId: widget.currentUserId,
+                       ),
+                     ),
+                   ),
+                 ),
+               ),
+               if (socialLinks.isNotEmpty)
+                 Padding(
+                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                   child: Card(
+                     child: Padding(
+                       padding: const EdgeInsets.all(12),
+                       child: Column(
+                         crossAxisAlignment: CrossAxisAlignment.start,
+                         children: [
+                           const Text(
+                             'روابط التواصل',
+                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                           ),
+                           const SizedBox(height: 8),
+                           for (final entry in socialLinks.entries)
+                             Padding(
+                               padding: const EdgeInsets.symmetric(vertical: 4),
+                               child: Row(
+                                 children: [
+                                   Expanded(
+                                     child: SelectableText(
+                                       '${entry.key}: ${entry.value}'
+                                       '${isMyProfile && hiddenSocialLinks.contains(entry.key) ? ' (مخفي عن الأعضاء)' : ''}',
+                                     ),
+                                   ),
+                                   if (isMyProfile)
+                                     IconButton(
+                                       tooltip: hiddenSocialLinks.contains(entry.key)
+                                           ? 'إظهار الرابط للأعضاء'
+                                           : 'إخفاء الرابط عن الأعضاء',
+                                       onPressed: () => _setSocialLinkHidden(
+                                         entry.key,
+                                         !hiddenSocialLinks.contains(entry.key),
+                                       ),
+                                       icon: Icon(hiddenSocialLinks.contains(entry.key)
+                                           ? Icons.visibility_off_outlined
+                                           : Icons.visibility_outlined),
+                                     ),
+                                 ],
+                               ),
+                             ),
+                         ],
+                       ),
+                     ),
+                   ),
+                 ),
+               if (isMyProfile)
+                 Padding(
+                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                   child: OutlinedButton.icon(
+                     icon: const Icon(Icons.link),
+                     label: const Text('إدارة روابط التواصل'),
+                     onPressed: () => _manageSocialLinks(data),
+                   ),
+                 ),
++              if (isMyProfile)
++                Padding(
++                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
++                  child: OutlinedButton.icon(
++                    onPressed: _checkingEmailRenewal ? null : _renewEmailVerification,
++                    icon: _checkingEmailRenewal
++                        ? const SizedBox(
++                            width: 18,
++                            height: 18,
++                            child: CircularProgressIndicator(strokeWidth: 2),
++                          )
++                        : const Icon(Icons.mark_email_read_outlined),
++                    label: const Text('تجديد التحقق من البريد (500 كوين كل 90 يوماً)'),
++                  ),
++                ),
+               if (isMyProfile)
+                 Padding(
+                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                   child: OutlinedButton.icon(
+                     onPressed: _checkingLocalBiometrics ? null : _checkLocalBiometrics,
+                     icon: _checkingLocalBiometrics
+                         ? const SizedBox(
+                             width: 18,
+                             height: 18,
+                             child: CircularProgressIndicator(strokeWidth: 2),
+                           )
+                         : const Icon(Icons.fingerprint),
+                     label: const Text('اختبار المصادقة البيومترية على هذا الجهاز'),
+                   ),
+                 ),
+               if (isMyProfile && !canManageSocialLinks)
+                 const Padding(
+                   padding: EdgeInsets.symmetric(horizontal: 24),
+                   child: Text(
+                     'إضافة روابط جديدة تتطلب توثيقاً بيومترياً نشطاً. يمكنك حذف الروابط الحالية في أي وقت.',
+                     textAlign: TextAlign.center,
+                     style: TextStyle(color: Colors.grey),
+                   ),
+                 ),
+               Padding(
+                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                 child: OutlinedButton.icon(
+                   icon: const Icon(Icons.auto_awesome),
+                   label: const Text('مشاهدة قصص مودة'),
+                   onPressed: () => Navigator.of(context).push(
+                     MaterialPageRoute(
+                       builder: (_) => StoriesScreen(currentUserId: widget.currentUserId),
+                     ),
+                   ),
+                 ),
+               ),
+               if (isMyProfile)
+                 SwitchListTile(
+                   title: const Text('إتاحة ملفي للأعضاء'),
+                   subtitle: Text(profileVisibility == 'public'
+                       ? 'ملفك ظاهر للأعضاء الآخرين بالمعلومات العامة فقط.'
+                       : 'ملفك خاص ولا يظهر للأعضاء الآخرين.'),
+                   value: profileVisibility == 'public',
+                   onChanged: (visible) => _changeProfileVisibility(visible ? 'public' : 'private'),
+                   secondary: const Icon(Icons.privacy_tip_outlined),
+                 ),
+               if (!isMyProfile)
+                 Padding(
+                   padding: const EdgeInsets.symmetric(horizontal: 24),
+                   child: ElevatedButton.icon(
+                     icon: const Icon(Icons.monetization_on),
+                     label: Text(_isTransferringCoins ? 'جارٍ التحويل...' : 'إهداء كوينز'),
+                     onPressed: _isTransferringCoins ? null : _showGiftCoinsDialog,
+                   ),
+                 ),
+               if (!isMyProfile)
+                 Padding(
+                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+                   child: OutlinedButton.icon(
+                     icon: const Icon(Icons.chat_bubble_outline),
+                     label: const Text('مراسلة العضو'),
+                     onPressed: () => Navigator.of(context).push(
+                       MaterialPageRoute(
+                         builder: (_) => DirectChatScreen(
+                           peerUid: widget.profileUserId,
+                           peerName: name,
+                           currentUserId: widget.currentUserId,
+                         ),
+                       ),
+                     ),
+                   ),
+                 ),
+               const Padding(
+                 padding: EdgeInsets.all(16),
+                 child: Text(
+                   'تُعرض هنا المعلومات التي سمح العضو بمشاركتها فقط. معرض الصور والمزايا المدفوعة سيُعاد تفعليهما بعد اكتمال خدمات الوسائط والتحقق من صلاحياتها.',
+                   textAlign: TextAlign.center,
+                   style: TextStyle(color: Colors.grey),
+                 ),
+               ),

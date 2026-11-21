@@ -1,0 +1,25 @@
+BRANCH: codex/mawdda-biometric-owner-review-policy-2026-11-20
+SHA: 693dc110a931107f2fcc1f829e08974932ab65db
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 0486afaad1414311c9c9daf136e3ec6ed46b592d
+
+=== DIVERGENCE target-only / branch-only ===
+180	2
+
+=== BRANCH UNIQUE COMMITS ===
+693dc110a931107f2fcc1f829e08974932ab65db docs(verification): clarify fully independent email and biometric tracks
+6fc769608b3d317edd9666402500069fbf3c520f docs(biometric): record Super Owner manual review policy amendment
+
+=== CHERRY STATUS ===
++ 6fc769608b3d317edd9666402500069fbf3c520f docs(biometric): record Super Owner manual review policy amendment
++ 693dc110a931107f2fcc1f829e08974932ab65db docs(verification): clarify fully independent email and biometric tracks
+
+=== FILE STATUS ===
+A	docs/phase1/BIOMETRIC_SUPER_OWNER_MANUAL_REVIEW_POLICY_2026-11-20.md
+
+=== NUMSTAT ===
+113	0	docs/phase1/BIOMETRIC_SUPER_OWNER_MANUAL_REVIEW_POLICY_2026-11-20.md
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

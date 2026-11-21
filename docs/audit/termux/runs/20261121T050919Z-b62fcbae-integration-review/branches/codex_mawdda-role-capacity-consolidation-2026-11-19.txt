@@ -1,0 +1,33 @@
+BRANCH: codex/mawdda-role-capacity-consolidation-2026-11-19
+REF: refs/remotes/origin/codex/mawdda-role-capacity-consolidation-2026-11-19
+SHA: 7a134c6d5adf02f8e2bbd3b931deb5ef592fbf1c
+
+MERGE BASE: 8a1c8d0b93ed43570c523ab2d8c2598648ddac0e
+
+=== DIVERGENCE ===
+397	6
+
+=== FILE STATUS ===
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+A	functions/test/platform-role-identities.test.js
+
+=== CHANGE SUMMARY ===
+ .github/workflows/mawdda-domain-regression.yml     |   3 +
+ .github/workflows/validate.yml                     |   1 +
+ functions/src/index.ts                             |  43 ++++++++
+ functions/src/platform-role-identities.ts          |  86 +++++++++++++++
+ .../specialized-role-capacity.integration.test.js  | 120 +++++++++++++++++++++
+ functions/test/platform-role-identities.test.js    |  50 +++++++++
+ 6 files changed, 303 insertions(+)
+
+=== UNIQUE COMMITS ===
+7a134c6d ci: validate role capacity consolidation branch
+d0f455dd ci: test role capacity on governance consolidation branch
+5cbe6131 feat: enforce transactional five-seat supervisor capacity
+d7aa745a feat: add canonical platform role identity and capacity tests
+0445e318 feat: add canonical platform role identity and capacity tests
+c378e6e6 feat: add canonical platform role identity and capacity tests

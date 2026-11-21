@@ -1,0 +1,12 @@
+Compared branch: codex/phase1-specialized-callable-auth-inventory-2026-11-20
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+198	1
+
+=== CHANGE SUMMARY ===
+ ..._CALLABLE_AUTHORIZATION_INVENTORY_2026-11-20.md | 69 ++++++++++++++++++++++
+ 1 file changed, 69 insertions(+)
+
+=== CHANGED PATHS ===
+A	docs/phase1/SPECIALIZED_CALLABLE_AUTHORIZATION_INVENTORY_2026-11-20.md

@@ -1,0 +1,730 @@
+diff --git a/functions/src/media.ts b/functions/src/media.ts
+index 19e67209..649a4093 100644
+--- a/functions/src/media.ts
++++ b/functions/src/media.ts
+@@ -202,170 +202,186 @@ export async function deleteMediaAssetForMessage(
+   } catch (error) {
+     await mediaDb().collection("mediaAccessAudit").add({
+       actorUid: "system-message-deletion",
+       mediaId,
+       action: "chat_media_manual_delete_for_everyone",
+       purpose: expectedPurpose,
+       outcome: "retry_required",
+       failureCode: error instanceof Error ? error.name : "unknown",
+       createdAt: FieldValue.serverTimestamp(),
+       expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
+     }).catch(() => undefined);
+     throw error;
+   }
+ }
+ 
+ 
+ function requireUid(uid: string | undefined): string {
+   if (!uid) throw new HttpsError("unauthenticated", "يجب تسجيل الدخول أولاً.");
+   return uid;
+ }
+ 
+ function requireSoleOwner(request: {
+   auth?: { uid: string; token: Record<string, unknown> } | null;
+ }): string {
+   const uid = requireUid(request.auth?.uid);
+   if (request.auth?.token.platformOwner !== true ||
+       !hasPlatformOwnerSession(request.auth.token, undefined, uid)) {
+     throw new HttpsError("permission-denied", "الوصول إلى ملفات المنصة مخصص للمالك بعد تحقق MFA حديث.");
+   }
+   return uid;
+ }
+ 
+ async function auditMediaAccess(event: Record<string, unknown>): Promise<void> {
+   await mediaDb().collection("mediaAccessAudit").add({
+     ...event,
+     createdAt: FieldValue.serverTimestamp(),
+     expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
+   });
+ }
+ 
+ /** Persist authenticated denials before returning an authorization error. */
+ async function requireSoleOwnerForMediaReview(
+   request: { auth?: { uid: string; token: Record<string, unknown> } | null },
+   action: string,
+ ): Promise<string> {
+   try {
+     return requireSoleOwner(request);
+   } catch (error) {
+     const actorUid = request.auth?.uid;
+     if (actorUid) {
+       // Fail closed: do not return an authorization denial if its audit cannot be persisted.
+       await auditMediaAccess({
+         actorUid,
+         action,
+         outcome: "denied",
+         failureCode: error instanceof HttpsError ? error.code : "permission-denied",
+         ownerAuthTime: request.auth?.token.auth_time ?? null,
+       });
+     }
+     throw error;
+   }
+ }
+ 
+ 
+ /**
+  * Issues a five-minute, single-object upload URL. Objects are written only
+  * beneath a private quarantine prefix and are never made publicly readable.
+  */
+ 
+ async function sha256Object(file: ReturnType<ReturnType<typeof mediaBucket>["file"]>): Promise<string> {
+   return new Promise((resolve, reject) => {
+     const hash = createHash("sha256");
+     const stream = file.createReadStream();
+     stream.on("data", (chunk: Buffer) => hash.update(chunk));
+     stream.on("error", reject);
+     stream.on("end", () => resolve(hash.digest("hex")));
+   });
+ }
+ 
+ /** Authenticated gateway callback; any missing/mismatched evidence stays quarantined. */
+-export const receiveMediaScanVerdict = onRequest(
+-  { secrets: [mediaScannerHmacSecret] },
+-  async (request, response) => {
++type ScannerCallbackRequest = {
++  method: string;
++  rawBody?: Buffer;
++  get(name: string): string | undefined;
++};
++
++type ScannerCallbackResponse = {
++  status(code: number): ScannerCallbackResponse;
++  set(name: string, value: string): ScannerCallbackResponse;
++  send(body: string): unknown;
++  json(body: unknown): unknown;
++};
++
++/** Shared callback core with injectable configuration for deterministic emulator tests. */
++export function createMediaScanVerdictHandler(
++  getSecret: () => string,
++  getProvider: () => string,
++): (request: ScannerCallbackRequest, response: ScannerCallbackResponse) => Promise<void> {
++  return async (request, response) => {
+   if (request.method !== "POST") {
+     response.status(405).set("Allow", "POST").send("Method not allowed");
+     return;
+   }
+   const rawBody = request.rawBody;
+-  const secret = mediaScannerHmacSecret.value();
+-  const provider = mediaScannerProvider.value();
++  const secret = getSecret();
++  const provider = getProvider();
+   if (!rawBody || rawBody.length > 16 * 1024 || !secret || !provider ||
+       !verifyScannerWebhook(rawBody, request.get("x-mawadda-scanner-signature"), secret)) {
+     response.status(401).send("Unauthorized scanner callback");
+     return;
+   }
+   let decoded: unknown;
+   try { decoded = JSON.parse(rawBody.toString("utf8")); } catch {
+     response.status(400).send("Invalid JSON");
+     return;
+   }
+   const verdict = validateScannerVerdict(decoded, provider);
+   if (!verdict) {
+     response.status(400).send("Invalid or stale scanner verdict");
+     return;
+   }
+   if (verdict.verdict === "error") {
+     response.status(503).send("Scanner reported an incomplete scan; retry required");
+     return;
+   }
+   const db = mediaDb();
+   const assetRef = db.collection("mediaAssets").doc(verdict.mediaId);
+   const snapshot = await assetRef.get();
+   if (!snapshot.exists) {
+     response.status(409).send("Asset does not exist");
+     return;
+   }
+   const asset = snapshot.data()!;
+   if (asset.mediaPurpose !== verdict.purpose) {
+     response.status(409).send("Scanner media purpose mismatch");
+     return;
+   }
+   if (asset.status !== "pending_security_scan") {
+     const sameVerdict = ["scanner_clean_pending_processing", "security_approved", "rejected"].includes(String(asset.status)) &&
+       asset.scannerProvider === verdict.provider &&
+       asset.scannerVerdict === verdict.verdict &&
+       String(asset.scannerObjectGeneration) === verdict.objectGeneration &&
+       asset.scannerSha256 === verdict.sha256;
+     if (sameVerdict) {
+       if (verdict.verdict === "malicious") {
+         const rejectedGeneration = Number(verdict.objectGeneration);
+         if (!Number.isSafeInteger(rejectedGeneration) || rejectedGeneration <= 0) {
+           throw new Error("INVALID_SCANNER_OBJECT_GENERATION");
+         }
+         await mediaBucket().file(String(asset.objectPath), { generation: rejectedGeneration }).delete({
+           ignoreNotFound: true,
+           ifGenerationMatch: rejectedGeneration,
+         });
+       }
+       const replayJobRef = db.collection("mediaScanJobs").doc(verdict.mediaId);
+       await db.runTransaction(async (transaction) => {
+         const replayJob = await transaction.get(replayJobRef);
+         if (replayJob.exists && !["completed", "rejected"].includes(String(replayJob.data()?.state))) {
+           transaction.update(replayJobRef, {
+             state: verdict.verdict === "malicious" ? "rejected" : "completed",
+             verdict: verdict.verdict,
+             completedAt: FieldValue.serverTimestamp(),
+             updatedAt: FieldValue.serverTimestamp(),
+           });
+         }
+       });
+       response.status(200).json({ mediaId: verdict.mediaId, status: asset.status, idempotentReplay: true });
+       return;
+     }
+     response.status(409).send("Asset is not awaiting this scanner verdict");
+     return;
+   }
+   const file = mediaBucket().file(String(asset.objectPath));
+   let metadata: Record<string, unknown>;
+   try {
+     const [rawMetadata] = await file.getMetadata();
+     metadata = rawMetadata as unknown as Record<string, unknown>;
+   } catch {
+     response.status(409).send("Quarantined object is missing");
+     return;
+   }
+   if (String(metadata.generation) !== verdict.objectGeneration ||
+       String(asset.storageGeneration) !== verdict.objectGeneration) {
+     response.status(409).send("Object generation mismatch");
+     return;
+   }
+@@ -494,161 +510,169 @@ export const receiveMediaScanVerdict = onRequest(
+         safePreviewGeneration: safePreview.generation,
+         safePreviewSha256: safePreview.sha256,
+         safePreviewContentType: safePreview.contentType,
+         safePreviewSizeBytes: safePreview.sizeBytes,
+         processingStatus: "safe_raster_derivative_ready",
+         processingPipelineVersion: "sharp-decode-reencode-v1",
+       } : {}),
+       ...(safeNonImageDerivative ? {
+         ...(safeNonImageDerivative.category === "gif" ? {
+           safeAnimationPath: safeNonImageDerivative.path,
+           safeAnimationGeneration: safeNonImageDerivative.generation,
+           safeAnimationSha256: safeNonImageDerivative.sha256,
+           safeAnimationContentType: safeNonImageDerivative.contentType,
+           processingStatus: "safe_animation_derivative_ready",
+         } : {}),
+         ...(safeNonImageDerivative.category === "audio" ? {
+           safeAudioPath: safeNonImageDerivative.path,
+           safeAudioGeneration: safeNonImageDerivative.generation,
+           safeAudioSha256: safeNonImageDerivative.sha256,
+           safeAudioContentType: safeNonImageDerivative.contentType,
+           processingStatus: "safe_audio_derivative_ready",
+         } : {}),
+         ...(safeNonImageDerivative.category === "video" ? {
+           safeVideoPath: safeNonImageDerivative.path,
+           safeVideoGeneration: safeNonImageDerivative.generation,
+           safeVideoSha256: safeNonImageDerivative.sha256,
+           safeVideoContentType: safeNonImageDerivative.contentType,
+           processingStatus: "safe_video_derivative_ready",
+         } : {}),
+         ...(safeNonImageDerivative.category === "document" ? {
+           safeDocumentPath: safeNonImageDerivative.path,
+           safeDocumentGeneration: safeNonImageDerivative.generation,
+           safeDocumentSha256: safeNonImageDerivative.sha256,
+           safeDocumentContentType: safeNonImageDerivative.contentType,
+           processingStatus: "safe_document_derivative_ready",
+         } : {}),
+         processingPipelineVersion: safeNonImageDerivative.pipelineVersion,
+       } : {}),
+       ...(verdict.verdict === "malicious" ? { rejectionCode: "MALWARE_DETECTED" } : {}),
+       updatedAt: FieldValue.serverTimestamp(),
+     });
+     if (scanJob.exists) {
+       transaction.update(scanJobRef, {
+         state: verdict.verdict === "malicious" ? "rejected" : "completed",
+         verdict: verdict.verdict,
+         scannerEngine: verdict.scanEngine,
+         engineVersion: verdict.engineVersion,
+         signatureDatabaseVersion: verdict.signatureDatabaseVersion,
+         signatureDatabaseAgeMs: verdict.signatureDatabaseAgeMs,
+         completedAt: FieldValue.serverTimestamp(),
+         updatedAt: FieldValue.serverTimestamp(),
+       });
+     }
+     const auditRef = db.collection("mediaAccessAudit").doc();
+     transaction.create(auditRef, {
+       actorUid: "trusted-scanner",
+       mediaId: verdict.mediaId,
+       action: "media_security_scan_verdict",
+       outcome: verdict.verdict,
+       provider: verdict.provider,
+       scanEngine: verdict.scanEngine,
+       engineVersion: verdict.engineVersion,
+       signatureDatabaseVersion: verdict.signatureDatabaseVersion,
+       signatureDatabaseAgeMs: verdict.signatureDatabaseAgeMs,
+       objectGeneration: verdict.objectGeneration,
+       sha256: actualHash,
+       createdAt: FieldValue.serverTimestamp(),
+     });
+   });
+   if (verdict.verdict === "malicious") {
+     const rejectedGeneration = Number(verdict.objectGeneration);
+     if (!Number.isSafeInteger(rejectedGeneration) || rejectedGeneration <= 0) {
+       throw new Error("INVALID_SCANNER_OBJECT_GENERATION");
+     }
+     await mediaBucket().file(String(asset.objectPath), { generation: rejectedGeneration }).delete({
+       ignoreNotFound: true,
+       ifGenerationMatch: rejectedGeneration,
+     });
+   }
+   response.status(200).json({ mediaId: verdict.mediaId, status: nextStatus });
+-  },
++  };
++}
++
++export const receiveMediaScanVerdict = onRequest(
++  { secrets: [mediaScannerHmacSecret] },
++  createMediaScanVerdictHandler(
++    () => mediaScannerHmacSecret.value(),
++    () => mediaScannerProvider.value(),
++  ),
+ );
+ 
+ 
+ /** Queue a single scan job whenever an asset enters the quarantined scan state. */
+ export const enqueueMediaSecurityScan = onDocumentUpdated(
+   { document: "mediaAssets/{mediaId}", retry: true },
+   async (event) => {
+     const before = event.data?.before.data();
+     const after = event.data?.after.data();
+     if (!before || !after || before.status === "pending_security_scan" ||
+         after.status !== "pending_security_scan") return;
+     const mediaId = String(event.params.mediaId);
+     const jobRef = mediaDb().collection("mediaScanJobs").doc(mediaId);
+     await mediaDb().runTransaction(async (transaction) => {
+       const existing = await transaction.get(jobRef);
+       if (existing.exists) return;
+       transaction.create(jobRef, {
+         mediaId, ownerUid: String(after.ownerUid), objectPath: String(after.objectPath),
+         objectGeneration: String(after.storageGeneration), state: "queued", attempts: 0,
+         createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+       });
+     });
+   },
+ );
+ 
+ async function cloudRunIdentityToken(audience: string): Promise<string> {
+   const tokenUrl = new URL("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity");
+   tokenUrl.searchParams.set("audience", audience);
+   tokenUrl.searchParams.set("format", "full");
+   const result = await fetch(tokenUrl, {
+     headers: { "Metadata-Flavor": "Google" },
+     signal: AbortSignal.timeout(5_000),
+   });
+   if (!result.ok) throw new Error("Unable to obtain Cloud Run identity token for scanner dispatch.");
+   const token = (await result.text()).trim();
+   if (!token) throw new Error("Cloud Run identity token response was empty.");
+   return token;
+ }
+ 
+ export const dispatchMediaSecurityScan = onDocumentCreated(
+   {
+     document: "mediaScanJobs/{mediaId}",
+     retry: true,
+     secrets: [mediaScannerApiToken],
+     timeoutSeconds: 240,
+     memory: "1GiB",
+   },
+   async (event) => {
+     const eventSnapshot = event.data;
+     if (!eventSnapshot) return;
+     const job = eventSnapshot.data();
+     if (!job) return;
+     const scannerUrl = mediaScannerUrl.value();
+     const callbackUrl = mediaScannerCallbackUrl.value();
+     const apiToken = mediaScannerApiToken.value();
+     if (!scannerUrl || !callbackUrl || !apiToken) {
+       throw new Error("Trusted malware scanner gateway is not configured; asset remains quarantined.");
+     }
+     const scanner = new URL(scannerUrl);
+     const callback = new URL(callbackUrl);
+     if (scanner.protocol !== "https:" || callback.protocol !== "https:") {
+       throw new Error("Scanner and callback endpoints must use HTTPS.");
+     }
+     const assetRef = mediaDb().collection("mediaAssets").doc(String(job.mediaId));
+     const assetSnapshot = await assetRef.get();
+     if (!assetSnapshot.exists || assetSnapshot.data()?.status !== "pending_security_scan" ||
+         String(assetSnapshot.data()?.storageGeneration) !== String(job.objectGeneration)) {
+       await eventSnapshot.ref.update({ state: "cancelled", updatedAt: FieldValue.serverTimestamp() });
+       return;
+     }
+     const file = mediaBucket().file(String(job.objectPath));
+     const [metadata] = await file.getMetadata();
+     if (String(metadata.generation) !== String(job.objectGeneration)) {
+       throw new Error("Scanner dispatch refused a changed Storage generation.");
+     }
+     const [downloadUrl] = await file.getSignedUrl({
+       version: "v4", action: "read", expires: Date.now() + 5 * 60 * 1000,
+       queryParams: { generation: String(job.objectGeneration) },
+       responseDisposition: "attachment",
+     });
+diff --git a/functions/test/integration/media-callables.integration.test.js b/functions/test/integration/media-callables.integration.test.js
+index bd45e8fc..102fdd7e 100644
+--- a/functions/test/integration/media-callables.integration.test.js
++++ b/functions/test/integration/media-callables.integration.test.js
+@@ -1,117 +1,128 @@
+ const test = require("node:test");
+ const { after } = require("node:test");
+ const assert = require("node:assert/strict");
+ 
+ // Configure the Admin Storage SDK before importing any module that loads it.
+ // The emulator listens on plain HTTP even when the CLI host variable carries a scheme.
+ const rawStorageEmulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST ?? "127.0.0.1:9199";
+ const storageEmulatorHost = rawStorageEmulatorHost.replace("https://", "").replace("http://", "");
+ process.env.STORAGE_EMULATOR_HOST = `http://${storageEmulatorHost}`;
++const testScannerSecret = "scanner-callback-test-secret-".padEnd(48, "x");
++const testScannerProvider = "clamav-mawadda-gateway";
++// defineString defaults are deployment configuration; explicitly seed the
++// emulator test process so the callback exercises the same provider identity.
++process.env.MAWDA_MEDIA_SCANNER_HMAC_SECRET = testScannerSecret;
++process.env.MAWDA_MEDIA_SCANNER_PROVIDER = testScannerProvider;
++if (process.env.MAWDA_MEDIA_SCANNER_HMAC_SECRET !== testScannerSecret ||
++    process.env.MAWDA_MEDIA_SCANNER_PROVIDER !== testScannerProvider) {
++  throw new Error("SCANNER_CALLBACK_TEST_CONFIGURATION_MISSING");
++}
+ const { EventEmitter } = require("node:events");
+ const fs = require("node:fs");
+ const os = require("node:os");
+ const path = require("node:path");
+ const { generateKeyPairSync } = require("node:crypto");
+ 
+ // Import the callable module before initializeApp(). This intentionally guards
+ // against eager Admin SDK access during the Functions entry-point import phase.
+ const {
+   createMediaUploadIntent,
+   listOwnerMediaAssets,
+   finalizeMediaUpload,
+   getOwnerMediaInspectionUrl,
+   ownerMediaInspectionStream,
+   getOwnerMediaSafePreview,
+   cleanupExpiredMediaUploadIntents,
+   sendChatImageAttachment,
+   getChatImageAttachmentUrl,
+   sendChatMediaAttachment,
+   getChatMediaAttachmentUrl,
+   deleteMediaAssetForMessage,
++  createMediaScanVerdictHandler,
+ } = require("../../lib/media");
+ 
+ const { createMemberStory, listMemberStories } = require("../../lib/index");
+ const { initializeApp, getApps } = require("firebase-admin/app");
+ const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+ const { getStorage } = require("firebase-admin/storage");
+-const { randomUUID, createHash } = require("node:crypto");
++const { randomUUID, createHash, createHmac } = require("node:crypto");
+ 
+ // Signed URL generation needs a signer even when the target is the Storage Emulator.
+ // Generate an ephemeral, test-only service account key; never use production credentials.
+ const testKey = generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey
+   .export({ type: "pkcs8", format: "pem" });
+ const testCredentialsPath = path.join(os.tmpdir(), `mawda-media-test-${process.pid}.json`);
+ fs.writeFileSync(testCredentialsPath, JSON.stringify({
+   type: "service_account", project_id: "demo-mawda-media", private_key_id: "test-only",
+   private_key: testKey,
+   client_email: "firebase-adminsdk@demo-mawda-media.iam.gserviceaccount.com",
+   client_id: "123456789012345678901", token_uri: "https://oauth2.googleapis.com/token",
+ }), { mode: 0o600 });
+ process.env.GOOGLE_APPLICATION_CREDENTIALS = testCredentialsPath;
+ after(() => { try { fs.unlinkSync(testCredentialsPath); } catch {} });
+ 
+ if (getApps().length === 0) {
+   initializeApp({ projectId: "demo-mawda-media", storageBucket: "demo-mawda-media.appspot.com" });
+ }
+ const db = getFirestore();
+ 
+ function ownerRequest(uid, data = {}) {
+   return {
+     data,
+     auth: {
+       uid,
+       token: {
+         platformOwner: true,
+         platformOwnerUid: uid,
+         auth_time: Math.floor(Date.now() / 1000),
+         firebase: { sign_in_provider: "password", sign_in_second_factor: "phone" },
+       },
+     },
+   };
+ }
+ 
+ function memberRequest(uid, provider = "password") {
+   return {
+     data: { status: "pending_security_scan", uploaderType: "all" },
+     auth: {
+       uid,
+       token: {
+         auth_time: Math.floor(Date.now() / 1000),
+         firebase: { sign_in_provider: provider },
+       },
+     },
+   };
+ }
+ 
+ async function reserveFixtureQuota(uid, bytes) {
+   await db.collection("mediaUploadQuotas").doc(uid).set({
+     activeUploads: 1,
+     activeBytes: bytes,
+     dailyBytes: bytes,
+     dailyWindow: new Date().toISOString().slice(0, 10),
+   });
+ }
+ 
+ async function auditEvents(uid) {
+   const snapshot = await db.collection("mediaAccessAudit")
+     .where("actorUid", "==", uid)
+     .get();
+   return snapshot.docs.map((doc) => doc.data());
+ }
+ 
+ 
+ test("members cannot create PDF chat or room upload intents", async () => {
+   for (const purpose of ["chat", "room"]) {
+     const uid = `member-pdf-denied-${purpose}-${Date.now()}-${Math.random()}`;
+     await assert.rejects(
+       () => createMediaUploadIntent.run({
+         data: { originalName: "policy.pdf", contentType: "application/pdf", sizeBytes: 12, purpose },
+         auth: memberRequest(uid).auth,
+       }),
+       (error) => error && error.code === "permission-denied",
+     );
+     const assets = await db.collection("mediaAssets").where("ownerUid", "==", uid).get();
+     assert.equal(assets.empty, true);
+   }
+ });
+ 
+@@ -882,80 +893,228 @@ test("safe image can be linked to a room message; non-members cannot retrieve it
+ test("an image attachment cannot be linked twice or use a forged owner role", async () => {
+   const uid = `forgery-member-${randomUUID()}`;
+   const peer = `forgery-peer-${randomUUID()}`;
+   await db.collection("users").doc(uid).set({ profileCompleted: true, age: 31, blockedUids: [] });
+   await db.collection("users").doc(peer).set({ profileCompleted: true, age: 29, blockedUids: [] });
+   const mediaId = await createReadyChatImage({ uid });
+   const clientMessageId = `forge_${randomUUID().replace(/-/g, "")}`;
+   const auth = { uid, token: { firebase: { sign_in_provider: "password" } } };
+   await sendChatImageAttachment.run({ data: { scope: "direct", recipientUid: peer, mediaId, clientMessageId }, auth });
+   await assert.rejects(
+     () => sendChatImageAttachment.run({ data: { scope: "direct", recipientUid: peer, mediaId, clientMessageId: `again_${randomUUID().replace(/-/g, "")}` }, auth }),
+     (error) => error && error.code === "failed-precondition",
+   );
+   const pdfId = randomUUID();
+   await db.collection("mediaAssets").doc(pdfId).set({
+     mediaId: pdfId, ownerUid: uid, uploaderRole: "platform_owner", mediaPurpose: "chat",
+     detectedContentType: "application/pdf", status: "security_approved",
+     processingStatus: "safe_document_derivative_ready",
+     safeDocumentPath: `processed/${uid}/${pdfId}/document.pdf`,
+     safeDocumentGeneration: "1", safeDocumentSha256: "b".repeat(64),
+     processingPipelineVersion: "pdf-sanitize-v1",
+   });
+   await assert.rejects(
+     () => sendChatImageAttachment.run({ data: { scope: "direct", recipientUid: peer, mediaId: pdfId, clientMessageId: `pdf_${randomUUID().replace(/-/g, "")}` }, auth }),
+     (error) => error && error.code === "failed-precondition",
+   );
+ });
+ 
+ test("expired chat media retention blocks issuing a fresh signed delivery URL", async () => {
+   const senderUid = `expired-media-sender-${randomUUID()}`;
+   const recipientUid = `expired-media-recipient-${randomUUID()}`;
+   await db.collection("users").doc(senderUid).set({ profileCompleted: true, age: 30, blockedUids: [] });
+   await db.collection("users").doc(recipientUid).set({ profileCompleted: true, age: 28, blockedUids: [] });
+   const mediaId = await createReadyChatImage({ uid: senderUid });
+   const clientMessageId = `expired_${randomUUID().replace(/-/g, "")}`;
+   const sent = await sendChatImageAttachment.run({
+     data: { scope: "direct", recipientUid, mediaId, clientMessageId },
+     auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+   });
+   const messageId = createHash("sha256").update(senderUid + ":" + clientMessageId).digest("hex");
+   await db.collection("mediaAssets").doc(mediaId).update({
+     retentionExpiresAt: Timestamp.fromMillis(Date.now() - 1),
+   });
+   await assert.rejects(
+     () => getChatImageAttachmentUrl.run({
+       data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+       auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+     }),
+     (error) => error && error.code === "failed-precondition",
+   );
+ });
+ 
+ 
+ test("active legal hold blocks permanent media deletion", async () => {
+   const uid = `legal-hold-owner-${randomUUID()}`;
+   const mediaId = await createReadyChatImage({ uid, purpose: "chat" });
+   const assetRef = db.collection("mediaAssets").doc(mediaId);
+   const assetBefore = (await assetRef.get()).data();
+   const objectPath = assetBefore.safePreviewPath;
+   const objectFile = getStorage().bucket().file(objectPath);
+ 
+   await assetRef.update({ legalHoldStatus: "active" });
+   try {
+     await assert.rejects(
+       () => deleteMediaAssetForMessage(mediaId, uid, "chat"),
+       (error) => error && error.code === "failed-precondition",
+     );
+     const retainedAsset = await assetRef.get();
+     assert.equal(retainedAsset.exists, true);
+     assert.equal(retainedAsset.data().legalHoldStatus, "active");
+     assert.equal(retainedAsset.data().status, "security_approved");
+     const [objectExists] = await objectFile.exists();
+     assert.equal(objectExists, true);
+   } finally {
+     await Promise.all([
+       assetRef.delete().catch(() => undefined),
+       objectFile.delete().catch(() => undefined),
+     ]);
+   }
+ });
++
++
++test("malicious scanner callback rejects the asset, audits the verdict and deletes only the pinned quarantine generation", async () => {
++  const mediaId = randomUUID();
++  const ownerUid = `scanner-malicious-owner-${randomUUID()}`;
++  const objectPath = `quarantine/${ownerUid}/${mediaId}`;
++  const objectBytes = Buffer.from("isolated malicious scanner fixture");
++  const objectFile = getStorage().bucket().file(objectPath);
++  const assetRef = db.collection("mediaAssets").doc(mediaId);
++  const jobRef = db.collection("mediaScanJobs").doc(mediaId);
++
++  await objectFile.save(objectBytes, {
++    resumable: false,
++    metadata: { contentType: "image/png" },
++  });
++  const [metadata] = await objectFile.getMetadata();
++  const generation = String(metadata.generation);
++  const initial = {
++    mediaId, ownerUid, mediaPurpose: "chat",
++    status: "pending_security_scan",
++    storageGeneration: generation,
++    objectPath,
++    detectedContentType: "image/png",
++  };
++  await assetRef.set(initial);
++  await jobRef.set({ mediaId, ownerUid, objectPath, objectGeneration: generation, state: "dispatched" });
++
++  try {
++    const payload = {
++      mediaId,
++      purpose: "chat",
++      provider: testScannerProvider,
++      verdict: "malicious",
++      objectGeneration: generation,
++      sha256: createHash("sha256").update(objectBytes).digest("hex"),
++      scannedAtMs: Date.now(),
++      scanEngine: "ClamAV",
++      engineVersion: "1.4.6",
++      signatureDatabaseVersion: "28202",
++      signatureDatabaseAgeMs: 60 * 60 * 1000,
++    };
++    const rawBody = Buffer.from(JSON.stringify(payload));
++    const signature = createHmac("sha256", testScannerSecret).update(rawBody).digest("hex");
++    const request = {
++      method: "POST",
++      rawBody,
++      get: (name) => name.toLowerCase() === "x-mawadda-scanner-signature" ? signature : undefined,
++    };
++    const response = new EventEmitter();
++    Object.assign(response, {
++      statusCode: 200,
++      headers: {},
++      body: undefined,
++      status(code) { this.statusCode = code; return this; },
++      set(name, value) { this.headers[name.toLowerCase()] = value; return this; },
++      send(value) { this.body = value; this.emit("finish"); return this; },
++      json(value) { this.body = value; this.emit("finish"); return this; },
++    });
++
++    const handler = createMediaScanVerdictHandler(() => testScannerSecret, () => testScannerProvider);
++    await handler(request, response);
++
++    assert.equal(response.statusCode, 200);
++    assert.equal(response.body.status, "rejected");
++    const rejected = await assetRef.get();
++    assert.equal(rejected.data().status, "rejected");
++    assert.equal(rejected.data().rejectionCode, "MALWARE_DETECTED");
++    assert.equal(rejected.data().scannerVerdict, "malicious");
++    assert.equal(rejected.data().scannerObjectGeneration, generation);
++
++    const job = await jobRef.get();
++    assert.equal(job.data().state, "rejected");
++    assert.equal(job.data().verdict, "malicious");
++
++    const audit = await db.collection("mediaAccessAudit").where("mediaId", "==", mediaId).get();
++    assert.ok(audit.docs.some((doc) =>
++      doc.data().action === "media_security_scan_verdict" &&
++      doc.data().outcome === "malicious" &&
++      doc.data().objectGeneration === generation));
++
++    const [objectExists] = await objectFile.exists();
++    assert.equal(objectExists, false, "only the exact scanned quarantine generation should be deleted");
++  } finally {
++    await Promise.all([
++      assetRef.delete().catch(() => undefined),
++      jobRef.delete().catch(() => undefined),
++      objectFile.delete().catch(() => undefined),
++    ]);
++    const audit = await db.collection("mediaAccessAudit").where("mediaId", "==", mediaId).get();
++    await Promise.all(audit.docs.map((doc) => doc.ref.delete().catch(() => undefined)));
++  }
++});
++
++test("scanner error callback returns retryable 503 without changing quarantined asset", async () => {
++  const mediaId = randomUUID();
++  const assetRef = db.collection("mediaAssets").doc(mediaId);
++  const initial = {
++    mediaId,
++    ownerUid: `scanner-error-owner-${randomUUID()}`,
++    mediaPurpose: "chat",
++    status: "pending_security_scan",
++    storageGeneration: "1740000000000000",
++    objectPath: `quarantine/scanner-error-owner/${mediaId}`,
++  };
++  await assetRef.set(initial);
++  try {
++    const payload = {
++      mediaId,
++      purpose: "chat",
++      provider: testScannerProvider,
++      verdict: "error",
++      objectGeneration: initial.storageGeneration,
++      sha256: "a".repeat(64),
++      scannedAtMs: Date.now(),
++      scanEngine: "ClamAV",
++      engineVersion: "1.4.6",
++      signatureDatabaseVersion: "28202",
++      signatureDatabaseAgeMs: 60 * 60 * 1000,
++    };
++    const rawBody = Buffer.from(JSON.stringify(payload));
++    const signature = createHmac("sha256", testScannerSecret).update(rawBody).digest("hex");
++    const request = {
++      method: "POST",
++      rawBody,
++      get: (name) => name.toLowerCase() === "x-mawadda-scanner-signature" ? signature : undefined,
++    };
++    const response = new EventEmitter();
++    Object.assign(response, {
++      statusCode: 200,
++      headers: {},
++      body: undefined,
++      status(code) { this.statusCode = code; return this; },
++      set(name, value) { this.headers[name.toLowerCase()] = value; return this; },
++      send(value) { this.body = value; this.emit("finish"); return this; },
++      json(value) { this.body = value; this.emit("finish"); return this; },
++    });
++    // Inject test-only config into the same callback core; SecretParam values are
++    // supplied by the Functions runtime and are not emulated by this direct call.
++    const handler = createMediaScanVerdictHandler(() => testScannerSecret, () => testScannerProvider);
++    await handler(request, response);
++    assert.equal(response.statusCode, 503);
++    assert.match(String(response.body), /retry required/i);
++    const after = await assetRef.get();
++    assert.deepEqual(after.data(), initial);
++  } finally {
++    await assetRef.delete().catch(() => undefined);
++  }
++});

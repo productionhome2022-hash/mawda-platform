@@ -1,0 +1,6 @@
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+A	functions/test/platform-role-identities.test.js

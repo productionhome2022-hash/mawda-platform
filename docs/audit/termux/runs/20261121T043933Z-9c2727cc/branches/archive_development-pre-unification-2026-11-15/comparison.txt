@@ -1,0 +1,22 @@
+Branch: archive/development-pre-unification-2026-11-15
+Branch SHA: f068a8b2e3ad91551c2b27c9f554de04bbfc609e
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+880	0
+
+--- Merge base ---
+f068a8b2e3ad91551c2b27c9f554de04bbfc609e
+
+--- Changed files relative to common ancestor ---
+
+--- Diff statistics ---
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CLEAN

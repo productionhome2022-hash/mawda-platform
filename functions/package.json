@@ -1,0 +1,57 @@
+{
+  "name": "mawda-platform-functions",
+  "private": true,
+  "main": "lib/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "test": "npm run build && node --check scripts/bootstrap-owner.cjs && node --check scripts/test-signed-urls-http.cjs && node --check scripts/test-retention-storage.cjs && node --test test/*.test.js",
+    "bootstrap:owner": "node scripts/bootstrap-owner.cjs",
+    "test:rules": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-rules \"node --test test/rules/*.test.js\"",
+    "test:media-integration": "npm run build && firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-media \"node --test test/integration/media-callables.integration.test.js\"",
+    "test:media-signed-urls-http": "npm run build && node scripts/test-signed-urls-http.cjs",
+    "test:signed-urls-http": "node scripts/test-signed-urls-http.cjs",
+    "test:retention-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-retention \"node --test test/integration/chat-retention.integration.test.js\"",
+    "test:message-deletion-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-message-deletion \"node --test test/integration/direct-message-deletion.integration.test.js\"",
+    "test:retention-gcs": "npm run build && node scripts/test-retention-storage.cjs",
+    "test:owner-audit-export-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-owner-audit \"node --test test/integration/owner-audit-export.integration.test.js\"",
+    "test:media-legal-hold-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-legal-hold \"node --test test/integration/media-legal-hold.integration.test.js\"",
+    "test:media-scanner-live-e2e": "npm run build && node scripts/test-live-media-scanner-e2e.cjs",
+    "test:profile-media-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-profile-media \"node --test test/integration/member-profile-media.integration.test.js\"",
+    "test:message-legal-hold-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-message-hold \"node --test test/integration/message-legal-hold.integration.test.js\"",
+    "test:wallet-store-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-wallet-store \"node --test test/integration/wallet-store.integration.test.js\"",
+    "test:guest-privacy-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-guest-privacy \"node --test test/integration/guest-privacy.integration.test.js\"",
+    "test:safety-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-safety \"node --test test/integration/safety-cases.integration.test.js\"",
+    "test:push-token-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-push-tokens \"node --test test/integration/push-token.integration.test.js\"",
+    "test:room-rental-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-room-rental \"node --test test/integration/room-rental.integration.test.js\"",
+    "test:biometric-integration": "npm run build && firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-biometric \"node --test test/integration/biometric-verification.integration.test.js\"",
+    "test:email-renewal-integration": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-email-renewal \"node --test test/integration/email-verification-renewal.integration.test.js\"",
+    "test:premium-profile-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-premium-profile \"node --test test/integration/premium-profile.integration.test.js\"",
+    "test:room-events-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-room-events \"node --test test/integration/room-events.integration.test.js\"",
+    "test:emulator-backup-restore": "node scripts/test-emulator-backup-restore.cjs",
+    "test:guest-session-integration": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-guest-session \"MAWDDA_ALLOW_TEST_SEED=1 node scripts/seed-test-accounts.cjs && node --test test/integration/guest-session.integration.test.js\"",
+    "test:seeded-persona-interaction": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-personas \"MAWDDA_ALLOW_TEST_SEED=1 node scripts/seed-test-accounts.cjs && node --test test/integration/test-persona-interaction.integration.test.js\"",
+    "test:engagement-rewards-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-engagement-rewards \"node --test test/integration/engagement-rewards.integration.test.js\"",
+    "test:seed-accounts": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-test-accounts \"MAWDDA_ALLOW_TEST_SEED=1 node scripts/seed-test-accounts.cjs\"",
+    "test:all": "npm test && npm run test:seed-accounts && npm run test:seeded-persona-interaction && npm run test:rules && npm run test:media-integration && npm run test:retention-integration && npm run test:message-deletion-integration && npm run test:owner-entitlement-grants-integration && npm run test:wallet-store-integration && npm run test:featured-ad-finance-integration && npm run test:room-rental-integration && npm run test:room-events-integration && npm run test:call-signaling-integration && npm run test:call-economy-gifts-integration && npm run test:emulator-backup-restore && npm run test:push-token-integration && npm run test:biometric-integration && npm run test:engagement-rewards-integration && npm run test:email-renewal-integration && npm run test:safety-integration && npm run test:guest-privacy-integration && npm run test:guest-session-integration && npm run test:owner-audit-export-integration && npm run test:media-legal-hold-integration && npm run test:profile-media-integration && npm run test:premium-profile-integration && npm run test:message-legal-hold-integration && npm run test:specialized-role-capacity-integration && npm run test:store-gifting-integration",
+    "test:owner-entitlement-grants-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-owner-entitlement-grants \"node --test test/integration/owner-entitlement-grants.integration.test.js\"",
+    "test:call-signaling-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-calls \"node --test test/integration/call-signaling.integration.test.js\"",
+    "test:featured-ad-finance-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-featured-ad-finance \"node --test test/integration/featured-ad-finance.integration.test.js\"",
+    "test:specialized-role-capacity-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-role-capacity \"node --test test/integration/specialized-role-capacity.integration.test.js\"",
+    "test:store-gifting-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-store-gifting \"node --test test/integration/store-gifting.integration.test.js\"",
+    "test:call-economy-gifts-integration": "npm run build && firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-call-economy-gifts \"node --test test/integration/call-economy-gifts.integration.test.js\""
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^6.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.0.0",
+    "firebase-tools": "^14.0.0"
+  }
+}

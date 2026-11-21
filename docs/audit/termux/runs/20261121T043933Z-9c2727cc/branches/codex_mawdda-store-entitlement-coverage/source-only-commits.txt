@@ -1,0 +1,2 @@
+7b53ad8e3418d3e9494517862ade66a010871564	production home	2026-11-14T11:52:12+03:00	feat: separate Mawdda store categories in shop UI
+524650561cf4678fa1f11901b63973d8548bc532	production home	2026-11-14T11:51:19+03:00	test: cover every enabled store entitlement and idempotent purchase

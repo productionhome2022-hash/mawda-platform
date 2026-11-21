@@ -1,0 +1,6 @@
+41dc2c2fd679f736d48f912c1e248f8615554649	production home	2026-11-20T09:39:14+03:00	test(calls): assert inactive rental creates no call record
+a004cbf6df8c17cd5ff6c699b65415195affbb23	production home	2026-11-20T09:39:07+03:00	test(calls): cover mismatched rental identity
+c17db1718a556580a6f1ff0cb1e40594e5ce0071	production home	2026-11-20T09:28:34+03:00	test(calls): require active private room rental in emulator
+f66bb37f9d5a2e736bf087365d5ad57b7e85e99f	production home	2026-11-20T09:28:08+03:00	fix(calls): revalidate active room rental before starting calls
+8375e577066eb67af23f8ecbb24344d4f1aedce9	production home	2026-11-20T09:28:05+03:00	test(calls): cover rented room eligibility boundaries
+48fe4df068724cbaacda4143cbfc0497b58ade53	production home	2026-11-20T09:28:03+03:00	feat(calls): add fail-closed rented room eligibility policy

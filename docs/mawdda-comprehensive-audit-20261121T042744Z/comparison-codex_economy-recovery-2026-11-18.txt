@@ -1,0 +1,220 @@
+Compared branch: codex/economy-recovery-2026-11-18
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+487	618
+
+=== CHANGE SUMMARY ===
+ .github/workflows/economy-regression.yml           |   87 +
+ .github/workflows/flutter-ci.yml                   |   18 +
+ .github/workflows/resolve-flutter-lock.yml         |    7 +
+ docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md           |   20 +-
+ docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md     |   56 +
+ ...NOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md |  310 +++
+ docs/ECONOMY_PHASE1_EXECUTION_CLOSEOUT.md          |  116 +
+ docs/IMPLEMENTATION_TRACEABILITY.md                |   56 +-
+ .../MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md |    9 +-
+ docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md |  123 +-
+ ...IFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md |  520 ++++
+ docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md         |   59 +
+ docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md         |   84 +
+ firestore.indexes.json                             |  116 +
+ functions/package.json                             |   10 +-
+ functions/src/advertising-intake.ts                |   13 +-
+ functions/src/capacity-media-management.ts         |   67 +
+ functions/src/coin-purchase-requests.ts            |   31 +-
+ functions/src/creator-proposals.ts                 |   13 +-
+ functions/src/default-store-catalog.ts             |    3 +-
+ functions/src/economy-payment-policy.ts            |  115 +
+ functions/src/economy-pricing.ts                   |  120 +-
+ functions/src/email-verification-cycle.ts          |   19 +-
+ functions/src/featured-ad-finance.ts               |  200 ++
+ functions/src/featured-ad-rewards.ts               |   42 +-
+ functions/src/featured-advertising.ts              |   14 +-
+ functions/src/group-call-economy.ts                |   45 +
+ functions/src/index.ts                             | 2749 ++++++++++++++++++--
+ functions/src/media-derivative-contract.ts         |    2 +-
+ functions/src/media-scanner.ts                     |   40 +-
+ functions/src/media-security.ts                    |   13 +-
+ functions/src/media.ts                             |  563 +++-
+ functions/src/room-call-policy.ts                  |   46 +
+ functions/src/room-rental.ts                       |    9 +-
+ functions/src/sticker-catalog.ts                   |   72 +
+ functions/src/sticker-policy.ts                    |  197 ++
+ functions/src/store-catalog.ts                     |   10 +-
+ functions/src/store-gifting.ts                     |   72 +
+ functions/src/wallet-reconciliation.ts             |  108 +
+ functions/test/advertising-intake.test.js          |   36 +-
+ functions/test/biometric-reward-security.test.js   |    4 +-
+ functions/test/capacity-media-management.test.js   |   58 +
+ functions/test/coin-purchase-requests.test.js      |   52 +-
+ functions/test/creator-proposals.test.js           |   21 +
+ functions/test/economy-payment-policy.test.js      |   84 +
+ functions/test/economy-pricing.test.js             |  123 +-
+ functions/test/email-verification-cycle.test.js    |   26 +-
+ functions/test/featured-ad-finance.test.js         |  120 +
+ functions/test/featured-ad-rewards.test.js         |   41 +-
+ functions/test/featured-advertising.test.js        |   31 +
+ .../test/fixtures/feature-coverage-matrix.json     |    5 +-
+ functions/test/group-call-economy.test.js          |   48 +
+ .../integration/call-signaling.integration.test.js |  352 ++-
+ .../email-verification-renewal.integration.test.js |   84 +-
+ .../engagement-rewards.integration.test.js         |  421 ++-
+ .../featured-ad-reward-policy.integration.test.js  |   70 +
+ .../media-callables.integration.test.js            |  135 +-
+ .../member-profile-media.integration.test.js       |  114 +-
+ .../owner-entitlement-grants.integration.test.js   |   39 +-
+ .../integration/room-rental.integration.test.js    |   63 +-
+ .../integration/store-catalog.integration.test.js  |   55 +
+ .../integration/wallet-store.integration.test.js   |  798 +++++-
+ functions/test/media-derivative-contract.test.js   |   11 +-
+ functions/test/media-scanner.test.js               |   83 +-
+ functions/test/media-security.test.js              |   17 +
+ functions/test/room-call-policy.test.js            |   50 +
+ functions/test/room-rental-policy.test.js          |   27 +
+ functions/test/sticker-policy.test.js              |  200 ++
+ functions/test/store-catalog.test.js               |   55 +-
+ functions/test/store-gifting.test.js               |   76 +
+ functions/test/wallet-reconciliation.test.js       |   60 +
+ lib/screens/capacity_media_management_screen.dart  |  274 ++
+ lib/screens/chat_room_screen.dart                  |  132 +-
+ lib/screens/coin_purchase_screen.dart              |   53 +-
+ lib/screens/direct_chat_screen.dart                |  133 +-
+ lib/screens/economy_pricing_screen.dart            |  392 ++-
+ lib/screens/featured_ads_screen.dart               |  571 +++-
+ lib/screens/gift_coins_screen.dart                 |  246 ++
+ lib/screens/mawdda_call_screen.dart                |  171 +-
+ lib/screens/media_workspace_screen.dart            |   20 +-
+ lib/screens/member_gift_history_screen.dart        |  158 ++
+ lib/screens/owner_advertising_intake_screen.dart   |   12 +-
+ lib/screens/owner_advertising_rewards_screen.dart  |   20 +-
+ lib/screens/owner_coin_purchase_screen.dart        |  141 +-
+ .../owner_featured_ads_dashboard_screen.dart       |  621 +++++
+ lib/screens/owner_sticker_packs_screen.dart        |  216 ++
+ lib/screens/profile_screen.dart                    |  382 ++-
+ lib/screens/reward_center_screen.dart              |   12 +-
+ lib/screens/room_rental_pricing_screen.dart        |   17 +-
+ lib/screens/shop_screen.dart                       |   26 +-
+ lib/screens/super_admin_screen.dart                |   92 +-
+ lib/screens/wallet_screen.dart                     |   20 +-
+ lib/services/member_media_upload_service.dart      |  260 +-
+ lib/services/super_admin_security_service.dart     |   11 +
+ lib/widgets/mawdda_sticker_widgets.dart            |  249 ++
+ pubspec.lock                                       |   68 +-
+ pubspec.yaml                                       |    2 +
+ scanner/README.md                                  |    2 +-
+ scanner/processors.js                              |   61 +-
+ scanner/security.js                                |   13 +-
+ scanner/server.js                                  |   38 +-
+ scanner/test/processors.integration.test.js        |   42 +-
+ scanner/test/security.test.js                      |    5 +
+ test/featured_ads_screen_test.dart                 |   15 +-
+ test/media_workspace_screen_test.dart              |    7 +-
+ 105 files changed, 13229 insertions(+), 766 deletions(-)
+
+=== CHANGED PATHS ===
+A	.github/workflows/economy-regression.yml
+M	.github/workflows/flutter-ci.yml
+M	.github/workflows/resolve-flutter-lock.yml
+M	docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+A	docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+A	docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+A	docs/ECONOMY_PHASE1_EXECUTION_CLOSEOUT.md
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md
+A	docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+A	docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md
+A	docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md
+M	firestore.indexes.json
+M	functions/package.json
+M	functions/src/advertising-intake.ts
+A	functions/src/capacity-media-management.ts
+M	functions/src/coin-purchase-requests.ts
+M	functions/src/creator-proposals.ts
+M	functions/src/default-store-catalog.ts
+A	functions/src/economy-payment-policy.ts
+M	functions/src/economy-pricing.ts
+M	functions/src/email-verification-cycle.ts
+A	functions/src/featured-ad-finance.ts
+M	functions/src/featured-ad-rewards.ts
+M	functions/src/featured-advertising.ts
+A	functions/src/group-call-economy.ts
+M	functions/src/index.ts
+M	functions/src/media-derivative-contract.ts
+M	functions/src/media-scanner.ts
+M	functions/src/media-security.ts
+M	functions/src/media.ts
+A	functions/src/room-call-policy.ts
+M	functions/src/room-rental.ts
+A	functions/src/sticker-catalog.ts
+A	functions/src/sticker-policy.ts
+M	functions/src/store-catalog.ts
+A	functions/src/store-gifting.ts
+A	functions/src/wallet-reconciliation.ts
+M	functions/test/advertising-intake.test.js
+M	functions/test/biometric-reward-security.test.js
+A	functions/test/capacity-media-management.test.js
+M	functions/test/coin-purchase-requests.test.js
+M	functions/test/creator-proposals.test.js
+A	functions/test/economy-payment-policy.test.js
+M	functions/test/economy-pricing.test.js
+M	functions/test/email-verification-cycle.test.js
+A	functions/test/featured-ad-finance.test.js
+M	functions/test/featured-ad-rewards.test.js
+M	functions/test/featured-advertising.test.js
+M	functions/test/fixtures/feature-coverage-matrix.json
+A	functions/test/group-call-economy.test.js
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/integration/email-verification-renewal.integration.test.js
+M	functions/test/integration/engagement-rewards.integration.test.js
+A	functions/test/integration/featured-ad-reward-policy.integration.test.js
+M	functions/test/integration/media-callables.integration.test.js
+M	functions/test/integration/member-profile-media.integration.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/room-rental.integration.test.js
+A	functions/test/integration/store-catalog.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+M	functions/test/media-derivative-contract.test.js
+M	functions/test/media-scanner.test.js
+M	functions/test/media-security.test.js
+A	functions/test/room-call-policy.test.js
+A	functions/test/room-rental-policy.test.js
+A	functions/test/sticker-policy.test.js
+M	functions/test/store-catalog.test.js
+A	functions/test/store-gifting.test.js
+A	functions/test/wallet-reconciliation.test.js
+A	lib/screens/capacity_media_management_screen.dart
+M	lib/screens/chat_room_screen.dart
+M	lib/screens/coin_purchase_screen.dart
+M	lib/screens/direct_chat_screen.dart
+M	lib/screens/economy_pricing_screen.dart
+M	lib/screens/featured_ads_screen.dart
+A	lib/screens/gift_coins_screen.dart
+M	lib/screens/mawdda_call_screen.dart
+M	lib/screens/media_workspace_screen.dart
+A	lib/screens/member_gift_history_screen.dart
+M	lib/screens/owner_advertising_intake_screen.dart
+M	lib/screens/owner_advertising_rewards_screen.dart
+M	lib/screens/owner_coin_purchase_screen.dart
+A	lib/screens/owner_featured_ads_dashboard_screen.dart
+A	lib/screens/owner_sticker_packs_screen.dart
+M	lib/screens/profile_screen.dart
+M	lib/screens/reward_center_screen.dart
+M	lib/screens/room_rental_pricing_screen.dart
+M	lib/screens/shop_screen.dart
+M	lib/screens/super_admin_screen.dart
+M	lib/screens/wallet_screen.dart
+M	lib/services/member_media_upload_service.dart
+M	lib/services/super_admin_security_service.dart
+A	lib/widgets/mawdda_sticker_widgets.dart
+M	pubspec.lock
+M	pubspec.yaml
+M	scanner/README.md
+M	scanner/processors.js
+M	scanner/security.js
+M	scanner/server.js
+M	scanner/test/processors.integration.test.js
+M	scanner/test/security.test.js
+M	test/featured_ads_screen_test.dart
+M	test/media_workspace_screen_test.dart

@@ -1,0 +1,4 @@
+Auto-merging .github/workflows/validate.yml
+CONFLICT (content): Merge conflict in .github/workflows/validate.yml
+Auto-merging functions/test/integration/store-gifting.integration.test.js
+Automatic merge failed; fix conflicts and then commit the result.

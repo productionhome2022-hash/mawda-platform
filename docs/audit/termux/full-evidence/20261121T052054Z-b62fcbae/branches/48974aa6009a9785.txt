@@ -1,0 +1,39 @@
+BRANCH: codex/mawdda-group-call-capacity-2026-11-20
+SHA: 2f67e4a6cdaeedf5190cbd2e3acdb0ece4747c0a
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 7d386a77818e3a9ec59977f1cbcb67b8eac6ba9d
+
+=== DIVERGENCE target-only / branch-only ===
+182	6
+
+=== BRANCH UNIQUE COMMITS ===
+2f67e4a6cdaeedf5190cbd2e3acdb0ece4747c0a fix: revalidate group call capacity inside creation transaction
+a8c7546e3b4fa34c38070dd075c1177973ef4f98 test: cover audio group sizes and room-capacity overflow
+dee3250e39cc276c55ba634dbdbfa356ae36ed5d test: cover room-capacity audio and four-person group video calls
+f4c74bec42d45233d86639810f3fd6422a7fee44 fix: enforce room-capacity audio and four-participant video call limits
+3e8cf7d076d8cc9e69456a62a9879d69a73e0ef8 test: verify room-based audio and four-person video call limits
+2df1ab494b2415721860c782bbfcacfdfc340dbc fix: derive group call limits from room capacity and video cap
+
+=== CHERRY STATUS ===
++ 2df1ab494b2415721860c782bbfcacfdfc340dbc fix: derive group call limits from room capacity and video cap
++ 3e8cf7d076d8cc9e69456a62a9879d69a73e0ef8 test: verify room-based audio and four-person video call limits
++ f4c74bec42d45233d86639810f3fd6422a7fee44 fix: enforce room-capacity audio and four-participant video call limits
++ dee3250e39cc276c55ba634dbdbfa356ae36ed5d test: cover room-capacity audio and four-person group video calls
++ a8c7546e3b4fa34c38070dd075c1177973ef4f98 test: cover audio group sizes and room-capacity overflow
++ 2f67e4a6cdaeedf5190cbd2e3acdb0ece4747c0a fix: revalidate group call capacity inside creation transaction
+
+=== FILE STATUS ===
+M	functions/src/index.ts
+M	functions/src/room-call-policy.ts
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/room-call-policy.test.js
+
+=== NUMSTAT ===
+21	4	functions/src/index.ts
+15	0	functions/src/room-call-policy.ts
+82	0	functions/test/integration/call-signaling.integration.test.js
+12	1	functions/test/room-call-policy.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

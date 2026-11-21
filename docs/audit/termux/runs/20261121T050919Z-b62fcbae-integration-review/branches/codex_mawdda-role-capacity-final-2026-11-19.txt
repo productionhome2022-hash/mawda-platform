@@ -1,0 +1,87 @@
+BRANCH: codex/mawdda-role-capacity-final-2026-11-19
+REF: refs/remotes/origin/codex/mawdda-role-capacity-final-2026-11-19
+SHA: 138d9b5d6624d111d61b6b71bf0cb60a8b17050d
+
+MERGE BASE: 8a1c8d0b93ed43570c523ab2d8c2598648ddac0e
+
+=== DIVERGENCE ===
+397	40
+
+=== FILE STATUS ===
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+M	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+M	functions/src/advertising-governance.ts
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+M	functions/test/advertising-governance.test.js
+M	functions/test/integration/featured-ad-finance.integration.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/premium-profile.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+A	functions/test/platform-role-identities.test.js
+
+=== CHANGE SUMMARY ===
+ .github/workflows/mawdda-domain-regression.yml     |   4 +
+ .github/workflows/validate.yml                     |   2 +
+ docs/IMPLEMENTATION_TRACEABILITY.md                |  27 ++++-
+ .../MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md |  20 ++++
+ docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md    |   6 ++
+ docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md       |   2 +-
+ functions/src/advertising-governance.ts            |   3 +-
+ functions/src/index.ts                             |  72 ++++++++++++-
+ functions/src/platform-role-identities.ts          |  86 +++++++++++++++
+ functions/test/advertising-governance.test.js      |  50 +++++++++
+ .../featured-ad-finance.integration.test.js        |   6 ++
+ .../owner-entitlement-grants.integration.test.js   |   4 +-
+ .../premium-profile.integration.test.js            |   3 +-
+ .../specialized-role-capacity.integration.test.js  | 120 +++++++++++++++++++++
+ .../integration/wallet-store.integration.test.js   |  28 +++--
+ functions/test/platform-role-identities.test.js    |  50 +++++++++
+ 16 files changed, 462 insertions(+), 21 deletions(-)
+
+=== UNIQUE COMMITS ===
+138d9b5d fix(roles): preserve expired-grant capacity reconciliation
+a824a000 perf(roles): bound active seat-capacity transaction reads
+a5473791 test(security): exercise actual control character in resource scope
+9c86f412 fix(security): use control-character scope validation
+5efdb4b0 test(security): cover non-canonical resource scope rejection
+275277a6 fix(security): reject non-canonical specialized resource scopes
+b76c5427 docs(security): record specialized authorization integration gap
+0aab8419 docs: record specialized grant negative test coverage
+be08fd1e test: strengthen specialized grant scope rejection coverage
+b29075eb docs(roles): record canonical label correction and authorization gaps
+5ee9bf3c test(roles): assert canonical Arabic production supervisor title
+d6ea557e fix(roles): use owner-approved Arabic production supervisor title
+1fd56b4e test: assert immutable featured-ad event snapshot fields
+aae62fc3 fix: persist resulting featured-ad snapshot in immutable event
+8175a8aa test: use canonical allowed Admin Media permission
+5f9fded3 test: seed explicit catalog versions in premium profile purchase fixtures
+297e456f ci: enable exact-head checks on rebased role PR
+ddae88d9 ci: enable exact-head checks on rebased role PR
+4819ca5f docs: carry canonical role governance and traceability
+08601e3e docs: carry canonical role governance and traceability
+a330e454 docs: carry canonical role governance and traceability
+722f153f docs: carry canonical role governance and traceability
+0068344e docs: add role policy and enable exact-head role tests
+6bf882d1 docs: add role policy and enable exact-head role tests
+d7f1b10e feat: enforce transactional five-seat supervisor capacity
+7d53403c feat: port role capacity helper and emulator tests
+4915f28a feat: port role capacity helper and emulator tests
+c7e37e2f feat: port role capacity helper and emulator tests
+9d0cadc4 test: configure bounds in custom coin request lifecycle fixture
+63916ade fix: return server catalog version from transactional publish
+94b04212 test: verify owner catalog versioning enables purchases
+485502dd fix: assign monotonic server versions to store catalog items
+032a66b3 fix: persist immutable timed ad campaign versions
+0972405c test: complete store and custom coin request fixtures
+4cf8c090 ci: run validation on retention approval repair branch
+7a383968 ci: run validation on retention approval repair branch
+a8c0656b docs: record confirmed retention policy and CI evidence
+5b805dd5 docs: align platform vision with approved chat retention
+7d058c0d docs: record owner-approved 30-day important chat retention
+124731af test: correct purchasable owner entitlement fixture

@@ -1,0 +1,26 @@
+Branch: codex/phase1-media-scanner-replay-regression-2026-11-20
+Branch SHA: 87ff3963868a4431948274695c83dce255aaa350
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+190	1
+
+--- Merge base ---
+d9ed1df2065b1f4efb27dbaeb884099b50b6c004
+
+--- Changed files relative to common ancestor ---
+M	functions/test/integration/media-callables.integration.test.js
+
+--- Diff statistics ---
+ .../test/integration/media-callables.integration.test.js      | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+87ff3963 (origin/codex/phase1-media-scanner-replay-regression-2026-11-20) test(media): verify scanner callback replay is idempotent
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CLEAN

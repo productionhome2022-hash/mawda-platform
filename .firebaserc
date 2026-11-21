@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "mawda-app-2026"
+    "default": "mawda-platform-nonprod-2026",
+    "production": "mawda-app-2026"
   }
 }

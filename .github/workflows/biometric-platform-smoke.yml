@@ -1,0 +1,97 @@
+name: Biometric cross-platform smoke
+
+on:
+  push:
+    branches:
+      - codex/mawda-full-platform-implementation
+    paths:
+      - "lib/screens/biometric_**"
+      - "lib/services/member_media_upload_service.dart"
+      - "functions/src/biometric-**"
+      - "functions/test/**/biometric-**"
+      - "test/**/biometric_**"
+      - "web/**"
+      - "android/**"
+      - "ios/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "tool/patch_android_plugin_compile_sdk.py"
+      - "docs/BIOMETRIC_CROSS_PLATFORM_REQUIREMENTS_2026-11-21.md"
+      - "docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md"
+  pull_request:
+    branches:
+      - codex/mawda-full-platform-implementation
+    paths:
+      - "lib/screens/biometric_**"
+      - "lib/services/member_media_upload_service.dart"
+      - "functions/src/biometric-**"
+      - "functions/test/**/biometric-**"
+      - "test/**/biometric_**"
+      - "web/**"
+      - "android/**"
+      - "ios/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "docs/BIOMETRIC_CROSS_PLATFORM_REQUIREMENTS_2026-11-21.md"
+      - "docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mawda-biometric-platform-${{ github.event_name }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  web-pwa:
+    name: Web and desktop-PWA biometric build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter analyze
+      - run: flutter test
+      - name: Validate PWA install manifest and offline privacy
+        run: |
+          node --check web/install-prompt.js
+          node --check web/firebase-messaging-sw.js
+          node -e "const m=require('./web/manifest.json'); if(m.display!=='standalone'||!m.icons?.length) process.exit(1)"
+          if grep -R -nE 'biometric|wallet|private-message|media-evidence' web/firebase-messaging-sw.js; then
+            echo "Sensitive biometric evidence or private data must not be added to service-worker cache logic"
+            exit 1
+          fi
+      - run: flutter build web --release
+
+  android:
+    name: Android biometric platform compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: Align resolved Android plugin modules to the app compileSdk
+        run: python3 tool/patch_android_plugin_compile_sdk.py
+      - run: flutter build apk --debug
+
+  ios:
+    name: iOS biometric platform compile
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter build ios --no-codesign

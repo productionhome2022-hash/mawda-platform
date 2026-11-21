@@ -1,0 +1,28 @@
+Compared branch: codex/mawdda-economy-selective-port-2026-11-19
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+311	10
+
+=== CHANGE SUMMARY ===
+ .github/workflows/mawdda-domain-regression.yml     |   3 +
+ .github/workflows/validate.yml                     |   1 +
+ ...1_ECONOMY_PR43_VALIDATION_TRIGGER_2026-11-19.md |   7 +
+ functions/package.json                             |   3 +-
+ functions/src/index.ts                             | 237 ++++++++++++++++++---
+ functions/src/store-gifting.ts                     |  75 +++++++
+ .../integration/store-gifting.integration.test.js  | 105 +++++++++
+ functions/test/store-gifting.test.js               |  77 +++++++
+ lib/screens/shop_screen.dart                       | 133 ++++++++++--
+ 9 files changed, 586 insertions(+), 55 deletions(-)
+
+=== CHANGED PATHS ===
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+A	docs/STEP1_ECONOMY_PR43_VALIDATION_TRIGGER_2026-11-19.md
+M	functions/package.json
+M	functions/src/index.ts
+A	functions/src/store-gifting.ts
+A	functions/test/integration/store-gifting.integration.test.js
+A	functions/test/store-gifting.test.js
+M	lib/screens/shop_screen.dart

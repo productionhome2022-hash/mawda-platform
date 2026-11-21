@@ -1,0 +1,39 @@
+BRANCH: codex/phase1-media-hold-delete-race-2026-11-20
+SHA: 43471705e469f09e55658660b8b9f921401a00d4
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 78d0b982723abd76b6ef098ef2c96e79f8e36821
+
+=== DIVERGENCE target-only / branch-only ===
+201	7
+
+=== BRANCH UNIQUE COMMITS ===
+43471705e469f09e55658660b8b9f921401a00d4 test(rooms): deny room message reads for suspended members
+5ed86e7ee4be80a0e342658a6a79367bda020b9e fix(rooms): revalidate account standing before room message reads
+d6f8067983d2c5903b8e9997e6442f59d8c8c1c2 test(media): deny room media delivery after suspension or closure
+ceaa69055ff07d36aff40eb73337f834e12e74e2 fix(media): recheck room account and active status before delivery
+192ac5b9b9334a900cd1018e55053e84d1451ae6 test(media): verify tombstone retry removes late derivatives
+397afd486970962d6aae1e14f4d6ed2a76338652 test(media): use canonical quarantine path in deletion race fixture
+d1127aa8c146e8bfc1d4dc3ae7b3c4184bd8c72c test(media): cover concurrent legal hold and deletion race
+
+=== CHERRY STATUS ===
++ d1127aa8c146e8bfc1d4dc3ae7b3c4184bd8c72c test(media): cover concurrent legal hold and deletion race
++ 397afd486970962d6aae1e14f4d6ed2a76338652 test(media): use canonical quarantine path in deletion race fixture
++ 192ac5b9b9334a900cd1018e55053e84d1451ae6 test(media): verify tombstone retry removes late derivatives
++ ceaa69055ff07d36aff40eb73337f834e12e74e2 fix(media): recheck room account and active status before delivery
++ d6f8067983d2c5903b8e9997e6442f59d8c8c1c2 test(media): deny room media delivery after suspension or closure
++ 5ed86e7ee4be80a0e342658a6a79367bda020b9e fix(rooms): revalidate account standing before room message reads
++ 43471705e469f09e55658660b8b9f921401a00d4 test(rooms): deny room message reads for suspended members
+
+=== FILE STATUS ===
+M	functions/src/index.ts
+M	functions/src/media.ts
+M	functions/test/integration/media-callables.integration.test.js
+
+=== NUMSTAT ===
+7	2	functions/src/index.ts
+14	5	functions/src/media.ts
+161	1	functions/test/integration/media-callables.integration.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

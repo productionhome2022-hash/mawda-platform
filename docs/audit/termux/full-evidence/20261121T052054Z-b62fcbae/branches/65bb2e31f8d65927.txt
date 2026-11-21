@@ -1,0 +1,39 @@
+BRANCH: codex/mawdda-super-owner-biometric-state-machine-2026-11-20
+SHA: 40845f2de04106081640b9e83bb8d0fa983fbf49
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 4fcbd8a8c4ead324d131420ebe225bc348675c3e
+
+=== DIVERGENCE target-only / branch-only ===
+179	6
+
+=== BRANCH UNIQUE COMMITS ===
+40845f2de04106081640b9e83bb8d0fa983fbf49 test(verification): assert email renewal leaves biometric state unchanged
+e14406cfbf59705a08f2677003c2453ddceb56c4 test(biometric): reject malformed fourth-attempt state
+9b05e25e4e5319ab8f311cde0b2879c83fd2d90b fix(biometric): validate persisted review state invariants
+ffeeeb51861a34b6ed4622d50e7899d55a78c6e3 docs(biometric): record retry state machine and remaining implementation gates
+901e3438b6abc95bef9ff6f9ba70a9e5da744160 test(biometric): cover three attempts and calendar-month retries
+8e333b3d316937bfbe3cc6bf12b8ff01d46e6e8c feat(biometric): add Super Owner three-attempt review state machine
+
+=== CHERRY STATUS ===
++ 8e333b3d316937bfbe3cc6bf12b8ff01d46e6e8c feat(biometric): add Super Owner three-attempt review state machine
++ 901e3438b6abc95bef9ff6f9ba70a9e5da744160 test(biometric): cover three attempts and calendar-month retries
++ ffeeeb51861a34b6ed4622d50e7899d55a78c6e3 docs(biometric): record retry state machine and remaining implementation gates
++ 9b05e25e4e5319ab8f311cde0b2879c83fd2d90b fix(biometric): validate persisted review state invariants
++ e14406cfbf59705a08f2677003c2453ddceb56c4 test(biometric): reject malformed fourth-attempt state
++ 40845f2de04106081640b9e83bb8d0fa983fbf49 test(verification): assert email renewal leaves biometric state unchanged
+
+=== FILE STATUS ===
+A	docs/phase1/BIOMETRIC_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md
+A	functions/src/biometric-review-state.ts
+A	functions/test/biometric-review-state.test.js
+M	functions/test/integration/email-verification-renewal.integration.test.js
+
+=== NUMSTAT ===
+5	0	docs/phase1/BIOMETRIC_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md
+63	0	functions/src/biometric-review-state.ts
+13	0	functions/test/biometric-review-state.test.js
+12	0	functions/test/integration/email-verification-renewal.integration.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

@@ -1,0 +1,13 @@
+c74a44484796ecf6f8820410d3526401b7d1d832
+100644 7fe6cc91e227ad902db050d99cee5b2ea1167d96 1	lib/screens/guest_session_screen.dart
+100644 57263a0d1c21976aba1f0da15b625cfab3aaef72 2	lib/screens/guest_session_screen.dart
+100644 4b49330437865db8996d7600493b05d7ece4f856 3	lib/screens/guest_session_screen.dart
+100644 4af95db53bc9cbae1839299165782d03f06f3506 1	lib/services/auth_service.dart
+100644 95efd61aae4fadda2a8c9130669c96494f64f2d6 2	lib/services/auth_service.dart
+100644 a19326df5b69087ac873270c68e46365e12ada6c 3	lib/services/auth_service.dart
+
+Auto-merging lib/screens/guest_session_screen.dart
+CONFLICT (content): Merge conflict in lib/screens/guest_session_screen.dart
+Auto-merging lib/screens/profile_screen.dart
+Auto-merging lib/services/auth_service.dart
+CONFLICT (content): Merge conflict in lib/services/auth_service.dart

@@ -1,0 +1,39 @@
+BRANCH: codex/mawdda-member-inbox
+SHA: f55e1d15423abee81dc125315e95a9acea199fdf
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: c74258382e35630b4220d4886e3660ad18b01b93
+
+=== DIVERGENCE target-only / branch-only ===
+1525	5
+
+=== BRANCH UNIQUE COMMITS ===
+f55e1d15423abee81dc125315e95a9acea199fdf feat: expose member inbox and stories from the home dashboard
+841ac54d8b2ff132c53b4f612e74daddbaae1654 feat: add member conversations inbox screen
+3bb36a64802aaf827fa94f14e439026290cd11ea test: cover member inbox unread state and block privacy
+2f3a88cea5fcf038cd8e27a05d0f09d767e6d794 db: add index for member direct-message inbox
+8f8f4e8a988558e22a64e115b4f2d887084c45a2 feat: add secure member inbox and enforce block privacy on reads
+
+=== CHERRY STATUS ===
++ 8f8f4e8a988558e22a64e115b4f2d887084c45a2 feat: add secure member inbox and enforce block privacy on reads
++ 2f3a88cea5fcf038cd8e27a05d0f09d767e6d794 db: add index for member direct-message inbox
++ 3bb36a64802aaf827fa94f14e439026290cd11ea test: cover member inbox unread state and block privacy
++ 841ac54d8b2ff132c53b4f612e74daddbaae1654 feat: add member conversations inbox screen
++ f55e1d15423abee81dc125315e95a9acea199fdf feat: expose member inbox and stories from the home dashboard
+
+=== FILE STATUS ===
+M	firestore.indexes.json
+M	functions/src/index.ts
+M	functions/test/integration/direct-message-deletion.integration.test.js
+A	lib/screens/conversations_screen.dart
+M	lib/screens/main_user_screen.dart
+
+=== NUMSTAT ===
+14	0	firestore.indexes.json
+105	0	functions/src/index.ts
+83	0	functions/test/integration/direct-message-deletion.integration.test.js
+204	0	lib/screens/conversations_screen.dart
+20	0	lib/screens/main_user_screen.dart
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

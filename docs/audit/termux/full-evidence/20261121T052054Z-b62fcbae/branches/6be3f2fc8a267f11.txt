@@ -1,0 +1,19 @@
+BRANCH: codex/biometric-final-owner-policy-2026-11-20
+SHA: 08ffcf8d9435cdc1b295aba35ff6b3bc7eac4d23
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 08ffcf8d9435cdc1b295aba35ff6b3bc7eac4d23
+
+=== DIVERGENCE target-only / branch-only ===
+173	0
+
+=== BRANCH UNIQUE COMMITS ===
+
+=== CHERRY STATUS ===
+
+=== FILE STATUS ===
+
+=== NUMSTAT ===
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

@@ -1,0 +1,37 @@
+BRANCH: codex/mawdda-group-call-capacity-2026-11-20-r2
+SHA: c0a14ef27b3c0442c969f872243214e637cdc188
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 0486afaad1414311c9c9daf136e3ec6ed46b592d
+
+=== DIVERGENCE target-only / branch-only ===
+180	5
+
+=== BRANCH UNIQUE COMMITS ===
+c0a14ef27b3c0442c969f872243214e637cdc188 test: use valid minimum room capacity for small audio groups
+37ebe8c64d85fe3a7fbe3d47f0422ae4f9fdf415 test: cover audio group sizes and video participant ceiling
+47e411b75dc9747c7b543dad3a94950cc905d9f0 fix: enforce and transactionally revalidate group call capacity
+ba1282dab557da8e8dc787a3acee27a86fb250b8 test: verify room-based audio and four-person video call limits
+e0876b8816bb1364fed566a67c875d77028ad9d4 fix: derive group call limits from room capacity and video cap
+
+=== CHERRY STATUS ===
++ e0876b8816bb1364fed566a67c875d77028ad9d4 fix: derive group call limits from room capacity and video cap
++ ba1282dab557da8e8dc787a3acee27a86fb250b8 test: verify room-based audio and four-person video call limits
++ 47e411b75dc9747c7b543dad3a94950cc905d9f0 fix: enforce and transactionally revalidate group call capacity
++ 37ebe8c64d85fe3a7fbe3d47f0422ae4f9fdf415 test: cover audio group sizes and video participant ceiling
++ c0a14ef27b3c0442c969f872243214e637cdc188 test: use valid minimum room capacity for small audio groups
+
+=== FILE STATUS ===
+M	functions/src/index.ts
+M	functions/src/room-call-policy.ts
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/room-call-policy.test.js
+
+=== NUMSTAT ===
+21	4	functions/src/index.ts
+14	0	functions/src/room-call-policy.ts
+82	0	functions/test/integration/call-signaling.integration.test.js
+12	1	functions/test/room-call-policy.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

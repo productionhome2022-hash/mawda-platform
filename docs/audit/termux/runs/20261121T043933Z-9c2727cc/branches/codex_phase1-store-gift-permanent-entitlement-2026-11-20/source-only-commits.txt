@@ -1,0 +1,2 @@
+b4546e69543b70a08b4e50c678316ac848c70c06	production home	2026-11-20T12:31:39+03:00	test(economy): exercise permanent duration on approved VIP SKU
+fde49a451ca233a2693ac384fd7407de8be98498	production home	2026-11-20T12:29:31+03:00	test(economy): verify permanent gift entitlement and recipient eligibility

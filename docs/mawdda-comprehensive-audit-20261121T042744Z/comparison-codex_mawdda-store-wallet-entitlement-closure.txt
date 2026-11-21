@@ -1,0 +1,16 @@
+Compared branch: codex/mawdda-store-wallet-entitlement-closure
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+1519	4
+
+=== CHANGE SUMMARY ===
+ .../premium-profile.integration.test.js            | 146 +++++++++++++++++++++
+ lib/screens/shop_screen.dart                       |  11 +-
+ lib/screens/user_profile_screen.dart               |  25 ++--
+ 3 files changed, 169 insertions(+), 13 deletions(-)
+
+=== CHANGED PATHS ===
+M	functions/test/integration/premium-profile.integration.test.js
+M	lib/screens/shop_screen.dart
+M	lib/screens/user_profile_screen.dart

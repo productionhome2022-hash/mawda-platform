@@ -1,0 +1,11 @@
+A	.github/workflows/mawdda-test-center.yml
+M	.gitignore
+A	docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md
+A	docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md
+M	functions/package.json
+A	functions/scripts/seed-test-accounts.cjs
+A	functions/test/feature-coverage-matrix.test.js
+A	functions/test/fixtures/feature-coverage-matrix.json
+A	functions/test/fixtures/test-account-personas.json
+A	functions/test/integration/test-persona-interaction.integration.test.js
+A	functions/test/test-account-personas.test.js

@@ -1,0 +1,36 @@
+a405af245afa03a88098e9a0a3021ca821e67c5f
+100644 b71800a22d2d2528d3f04c5972c765763bdfd482 2	.github/workflows/mawdda-test-center.yml
+100644 01502b4962a54f63cd2cafb49610d64f7127a0ed 3	.github/workflows/mawdda-test-center.yml
+100644 ba26aaa209237bb4a710a3f11a7bdc5255bc4a72 1	.gitignore
+100644 84e18c4243d0382927523ab7de99b57bf54d0c6c 2	.gitignore
+100644 c96712df3f647bc28051728a8c773edbef1cfe13 3	.gitignore
+100644 0abea53f6a1a200a807dd31bf367e782b9c5a335 1	functions/package.json
+100644 f5756c3d6ad9a52224536b3159e5821297a6a650 2	functions/package.json
+100644 b4bd6319fc070875074374dbac19d63158c532df 3	functions/package.json
+100644 3f1a239f15639a3e1cda07461a9a313865b5cfe5 2	functions/test/feature-coverage-matrix.test.js
+100644 b4999f3cf32ef48cef48909c752c8efabad00dd8 3	functions/test/feature-coverage-matrix.test.js
+100644 4ac5088bfdb1c78a8999aeb5d0b7ec3c501a9738 2	functions/test/fixtures/feature-coverage-matrix.json
+100644 792f0d0e1aa804b88e644db4ccab3408a62d0e39 3	functions/test/fixtures/feature-coverage-matrix.json
+100644 16427ef4394e91d22739b04e9b77c17e3b990571 2	functions/test/fixtures/test-account-personas.json
+100644 2b2be672ef267e8119c86d8d2b455e1349a3d8c7 3	functions/test/fixtures/test-account-personas.json
+100644 82c4e1090396548a852b2adc32773cd54dfb3a50 2	functions/test/integration/test-persona-interaction.integration.test.js
+100644 94c0ecbdb39bbcf10e358d6223bdaea264274ca0 3	functions/test/integration/test-persona-interaction.integration.test.js
+100644 3d3fa1df6ef9e6a96e44d790b2b0094684b788e3 2	functions/test/test-account-personas.test.js
+100644 21dfa9876224aa8b11db55a5e7a31038e5cb836f 3	functions/test/test-account-personas.test.js
+
+Auto-merging .github/workflows/mawdda-test-center.yml
+CONFLICT (add/add): Merge conflict in .github/workflows/mawdda-test-center.yml
+Auto-merging .gitignore
+CONFLICT (content): Merge conflict in .gitignore
+Auto-merging functions/package.json
+CONFLICT (content): Merge conflict in functions/package.json
+Auto-merging functions/test/feature-coverage-matrix.test.js
+CONFLICT (add/add): Merge conflict in functions/test/feature-coverage-matrix.test.js
+Auto-merging functions/test/fixtures/feature-coverage-matrix.json
+CONFLICT (add/add): Merge conflict in functions/test/fixtures/feature-coverage-matrix.json
+Auto-merging functions/test/fixtures/test-account-personas.json
+CONFLICT (add/add): Merge conflict in functions/test/fixtures/test-account-personas.json
+Auto-merging functions/test/integration/test-persona-interaction.integration.test.js
+CONFLICT (add/add): Merge conflict in functions/test/integration/test-persona-interaction.integration.test.js
+Auto-merging functions/test/test-account-personas.test.js
+CONFLICT (add/add): Merge conflict in functions/test/test-account-personas.test.js

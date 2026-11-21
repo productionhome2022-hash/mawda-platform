@@ -1,0 +1,6 @@
+docs/phase1/SPECIALIZED_CALLABLE_AUTHORIZATION_INVENTORY_2026-11-20.md:3: trailing whitespace.
++Date: 2026-11-20  
+docs/phase1/SPECIALIZED_CALLABLE_AUTHORIZATION_INVENTORY_2026-11-20.md:4: trailing whitespace.
++Audited candidate: `codex/mawdda-phase1-unified-2026-11-19`  
+docs/phase1/SPECIALIZED_CALLABLE_AUTHORIZATION_INVENTORY_2026-11-20.md:5: trailing whitespace.
++Audited SHA: `78d0b982723abd76b6ef098ef2c96e79f8e36821`  

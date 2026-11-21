@@ -1,0 +1,32 @@
+ea6b05253ab702e773611ec48d31518a50943acd	production home	2026-11-19T19:07:35+03:00	ci(step1): trigger exact-head validation for PR 42
+d4d519300a84ff7f76f752cdddab0a68488a2e46	production home	2026-11-19T18:32:32+03:00	docs(index): link canonical administrative terminology
+66b4a211d5fe0b841183a8043d0222701d9dd34b	production home	2026-11-19T18:32:29+03:00	docs(governance): record canonical administrative role boundaries
+a8690c993584829a728fb8c6f10ec65246411442	production home	2026-11-19T18:32:27+03:00	docs(security): record role authorization integration gap
+562eb4400b0151e8ca1ecd4d88bd1770657854bd	production home	2026-11-19T18:32:24+03:00	test(security): cover specialized permission and scope validation
+55375dce1ea384819b43d2b6c629db54ef0ca60a	production home	2026-11-19T18:26:39+03:00	ci(roles): include role capacity regression workflow
+0402c33d84fcb09f0290b7be4f75391786287c10	production home	2026-11-19T18:26:36+03:00	ci(roles): include role capacity regression workflow
+8f1d581a21233eb6cd853219360afceb75510297	production home	2026-11-19T18:26:27+03:00	test(roles): add specialized capacity emulator command
+e822ca4b3a0c9ac9c81e134ac632380c79879901	production home	2026-11-19T18:26:21+03:00	test(roles): cover grant version overflow
+37aa27d28db7b2d46b722d87acf4c4c1f4f416b3	production home	2026-11-19T18:26:11+03:00	fix(roles): reject grant version overflow
+3e2f910a2df736b08c3701ea64f60bc971ce2503	production home	2026-11-19T18:25:43+03:00	fix(security): reject malformed specialized role scopes
+b2f621f720f98ea0b0341ac2f720bc13d412c4de	production home	2026-11-19T18:25:41+03:00	test(roles): add specialized role capacity coverage
+7e32e66f9663354b4328ef620a0aba57cde2566b	production home	2026-11-19T18:25:39+03:00	test(roles): add specialized role capacity coverage
+fd189be819e2b99e926e95cbe44dce6f7f0da247	production home	2026-11-19T18:25:36+03:00	test(roles): add specialized role capacity coverage
+5711f08900c8ea3ece03c52308c267d42e54f5a2	production home	2026-11-19T18:25:20+03:00	feat(roles): reconcile specialized role capacity with retention baseline
+179ba95fa582082c7ed32c3f3016b899b414b0ca	production home	2026-11-19T16:58:30+03:00	test: cover store catalog version overflow boundary
+15f14733eb71aafbdae0c97a966906efd3d22826	production home	2026-11-19T16:58:26+03:00	fix: reject unsafe store catalog version overflow
+6fb0091d2d8e59e48e58fbf7ce6d414e87e2d8f2	production home	2026-11-19T12:17:15+03:00	test: assert immutable featured-ad event snapshot fields
+c9d0f68aa11c59a4fe9e20b6129d65f0b23c9965	production home	2026-11-19T12:17:09+03:00	fix: persist resulting featured-ad snapshot in immutable event
+b93279acbea5b5cd72b88fa5923f3ffeae0cac49	production home	2026-11-19T12:13:44+03:00	test: seed explicit catalog versions in premium profile purchase fixtures
+9d0cadc4b460b0b540a56503846977593f7994b7	production home	2026-11-19T10:04:16+03:00	test: configure bounds in custom coin request lifecycle fixture
+63916ade25d9c6d5db640204637053042415fa06	production home	2026-11-19T09:59:04+03:00	fix: return server catalog version from transactional publish
+94b042126b39731255b8cc45605c16a09a8f4835	production home	2026-11-19T09:58:50+03:00	test: verify owner catalog versioning enables purchases
+485502ddd567db41ce61f60da14bf30ed63581b5	production home	2026-11-19T09:58:47+03:00	fix: assign monotonic server versions to store catalog items
+032a66b35b8d31caaa92c50ad7b7dc18317da7b9	production home	2026-11-19T09:53:14+03:00	fix: persist immutable timed ad campaign versions
+0972405c59daf929e4a9a60e1d03a3f53d62ae6b	production home	2026-11-19T09:53:12+03:00	test: complete store and custom coin request fixtures
+4cf8c090bd4aef72ff0e87891b645f914d02c46b	production home	2026-11-19T09:47:49+03:00	ci: run validation on retention approval repair branch
+7a38396880d7f899b84e2a790c61a9daae682fa0	production home	2026-11-19T09:47:46+03:00	ci: run validation on retention approval repair branch
+a8c0656b648bfbec3877c86f25838729904bf074	production home	2026-11-19T09:46:41+03:00	docs: record confirmed retention policy and CI evidence
+5b805dd5ee657a093052f6adff3d340d19d39287	production home	2026-11-19T09:46:38+03:00	docs: align platform vision with approved chat retention
+7d058c0de0887b025fd8072caa96eccd9bb47e47	production home	2026-11-19T09:46:35+03:00	docs: record owner-approved 30-day important chat retention
+124731af4e13725fffc8527010531660c42bafaf	production home	2026-11-19T09:46:33+03:00	test: correct purchasable owner entitlement fixture

@@ -1,0 +1,2 @@
+M	functions/src/featured-advertising.ts
+M	functions/test/featured-advertising.test.js

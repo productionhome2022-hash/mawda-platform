@@ -1,0 +1,10 @@
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+M	functions/src/index.ts
+M	functions/test/integration/featured-ad-finance.integration.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/premium-profile.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js

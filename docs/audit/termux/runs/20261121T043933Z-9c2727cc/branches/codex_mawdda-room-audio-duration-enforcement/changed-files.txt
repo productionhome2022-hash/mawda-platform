@@ -1,0 +1,12 @@
+M	functions/src/media-scanner.ts
+M	functions/src/media.ts
+M	functions/test/media-scanner.test.js
+M	lib/screens/chat_room_screen.dart
+M	lib/screens/guest_room_chat_screen.dart
+M	lib/widgets/chat_audio_controls.dart
+M	scanner/processors.js
+M	scanner/security.js
+M	scanner/server.js
+M	scanner/test/processors.integration.test.js
+M	scanner/test/processors.test.js
+M	scanner/test/security.test.js

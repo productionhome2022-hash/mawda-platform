@@ -1,0 +1,163 @@
+/** The platform's owner-approved settlement and pricing currencies. */
+export const OFFICIAL_ECONOMY_CURRENCIES = [
+  "EUR", "USD", "EGP", "SAR", "SYP", "JOD", "IQD", "AED", "DZD", "MAD", "TRY",
+] as const;
+
+export const CURRENCY_MINOR_UNIT_EXPONENTS: Readonly<Record<string, number>> = {
+  EUR: 2,
+  USD: 2,
+  EGP: 2,
+  SAR: 2,
+  SYP: 2,
+  JOD: 3,
+  IQD: 3,
+  AED: 2,
+  DZD: 2,
+  MAD: 2,
+  TRY: 2,
+};
+
+export function currencyExponentForCode(value: unknown): number | null {
+  if (typeof value !== "string" || !/^[A-Z]{3}$/.test(value)) return null;
+  return Object.prototype.hasOwnProperty.call(CURRENCY_MINOR_UNIT_EXPONENTS, value)
+    ? CURRENCY_MINOR_UNIT_EXPONENTS[value] : null;
+}
+
+/** Validates a positive decimal amount against the selected currency's exact minor-unit precision. */
+export function isValidPositiveCurrencyAmount(value: unknown, currency: unknown): boolean {
+  const exponent = currencyExponentForCode(currency);
+  if (exponent === null || typeof value !== "string") return false;
+  const match = /^(?:0|[1-9]\d{0,11})(?:\.(\d{1,4}))?$/.exec(value);
+  if (!match || (match[1]?.length ?? 0) > exponent) return false;
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount > 0;
+}
+
+export type CoinPackage = {
+  packageId: string; name: string; coins: number; priceMinor: number;
+  currency: string; currencyExponent: number; active: boolean;
+};
+export type AdPrice = {
+  placementId: string; name: string; billingModel: "cpm" | "cpc" | "daily";
+  priceMinor: number; currency: string; currencyExponent: number; active: boolean;
+};
+/**
+ * Provisional development price suggestions. These values are never a payment
+ * authorization and do not enable checkout; the Super Owner may replace every
+ * package, amount, currency, placement, and billing model through the versioned
+ * owner pricing controls.
+ */
+export const EXPERIMENTAL_DEFAULT_COIN_PACKAGES: CoinPackage[] = [
+  { packageId: "coins_500", name: "500 كوين", coins: 500, priceMinor: 199, currency: "USD", currencyExponent: 2, active: true },
+  { packageId: "coins_1200", name: "1,200 كوين", coins: 1200, priceMinor: 399, currency: "USD", currencyExponent: 2, active: true },
+  { packageId: "coins_3000", name: "3,000 كوين", coins: 3000, priceMinor: 899, currency: "USD", currencyExponent: 2, active: true },
+  { packageId: "coins_7000", name: "7,000 كوين", coins: 7000, priceMinor: 1799, currency: "USD", currencyExponent: 2, active: true },
+  { packageId: "coins_15000", name: "15,000 كوين", coins: 15000, priceMinor: 3499, currency: "USD", currencyExponent: 2, active: true },
+];
+export const EXPERIMENTAL_DEFAULT_AD_PRICES: AdPrice[] = [
+  { placementId: "feed_cpm", name: "إعلان ضمن الخلاصة لكل ألف ظهور", billingModel: "cpm", priceMinor: 500, currency: "USD", currencyExponent: 2, active: true },
+  { placementId: "feed_cpc", name: "إعلان ضمن الخلاصة لكل نقرة", billingModel: "cpc", priceMinor: 25, currency: "USD", currencyExponent: 2, active: true },
+  { placementId: "featured_daily", name: "إعلان مميز يومي", billingModel: "daily", priceMinor: 1500, currency: "USD", currencyExponent: 2, active: true },
+  { placementId: "room_sponsor_daily", name: "رعاية غرفة يومية", billingModel: "daily", priceMinor: 1000, currency: "USD", currencyExponent: 2, active: true },
+];
+
+export function validateCoinPackages(value: unknown): CoinPackage[] {
+  if (!Array.isArray(value) || value.length > 30) throw new Error("INVALID_COIN_PACKAGES");
+  const ids = new Set<string>();
+  return value.map((raw) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("INVALID_COIN_PACKAGE");
+    const p = raw as Record<string, unknown>;
+    if (typeof p.packageId !== "string" || !/^[a-z0-9][a-z0-9_-]{2,40}$/.test(p.packageId) || ids.has(p.packageId)) throw new Error("INVALID_COIN_PACKAGE_ID");
+    ids.add(p.packageId);
+    if (typeof p.name !== "string" || p.name.trim().length < 3 || p.name.trim().length > 80 ||
+        !Number.isSafeInteger(p.coins) || (p.coins as number) < 1 || (p.coins as number) > 1000000000 ||
+        !Number.isSafeInteger(p.priceMinor) || (p.priceMinor as number) < 1 || (p.priceMinor as number) > 100000000 ||
+        currencyExponentForCode(p.currency) === null || typeof p.active !== "boolean") throw new Error("INVALID_COIN_PACKAGE_FIELDS");
+    return { packageId: p.packageId, name: p.name.trim(), coins: p.coins as number,
+      priceMinor: p.priceMinor as number, currency: p.currency as string,
+      currencyExponent: currencyExponentForCode(p.currency) as number, active: p.active };
+  });
+}
+export function validateAdPrices(value: unknown): AdPrice[] {
+  if (!Array.isArray(value) || value.length > 30) throw new Error("INVALID_AD_PRICES");
+  const ids = new Set<string>();
+  return value.map((raw) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("INVALID_AD_PRICE");
+    const p = raw as Record<string, unknown>;
+    if (typeof p.placementId !== "string" || !/^[a-z0-9][a-z0-9_-]{2,40}$/.test(p.placementId) || ids.has(p.placementId)) throw new Error("INVALID_AD_PLACEMENT_ID");
+    ids.add(p.placementId);
+    if (typeof p.name !== "string" || p.name.trim().length < 3 || p.name.trim().length > 80 ||
+        !["cpm", "cpc", "daily"].includes(String(p.billingModel)) ||
+        !Number.isSafeInteger(p.priceMinor) || (p.priceMinor as number) < 1 || (p.priceMinor as number) > 100000000 ||
+        currencyExponentForCode(p.currency) === null || typeof p.active !== "boolean") throw new Error("INVALID_AD_PRICE_FIELDS");
+    return { placementId: p.placementId, name: p.name.trim(), billingModel: p.billingModel as AdPrice["billingModel"],
+      priceMinor: p.priceMinor as number, currency: p.currency as string,
+      currencyExponent: currencyExponentForCode(p.currency) as number, active: p.active };
+  });
+}
+
+
+export type BilateralCallTariffs = {
+  audioTotalCoinsPerMinute: number | null;
+  videoTotalCoinsPerMinute: number | null;
+};
+
+/**
+ * Owner-authored combined per-minute tariffs. Null means deliberately
+ * unconfigured/disabled. A configured bilateral total must be a positive,
+ * safe, even integer so the server can split it exactly 50/50.
+ */
+export function validateBilateralCallTariffs(value: unknown): BilateralCallTariffs {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("INVALID_CALL_TARIFFS");
+  }
+  const data = value as Record<string, unknown>;
+  if (Object.keys(data).some((key) =>
+    !["audioTotalCoinsPerMinute", "videoTotalCoinsPerMinute"].includes(key))) {
+    throw new Error("INVALID_CALL_TARIFFS");
+  }
+  const validateOne = (amount: unknown): number | null => {
+    if (amount === null) return null;
+    if (typeof amount !== "number" || !Number.isSafeInteger(amount) ||
+        amount <= 0 || amount % 2 !== 0) {
+      throw new Error("INVALID_BILATERAL_CALL_TARIFF");
+    }
+    return amount;
+  };
+  return {
+    audioTotalCoinsPerMinute: validateOne(data.audioTotalCoinsPerMinute),
+    videoTotalCoinsPerMinute: validateOne(data.videoTotalCoinsPerMinute),
+  };
+}
+
+
+export type EmailVerificationRewardPolicy = {
+  enabled: boolean;
+  rewardCoins: number;
+  cycleDays: number;
+};
+
+export function defaultEmailVerificationRewardPolicy(): EmailVerificationRewardPolicy {
+  return { enabled: false, rewardCoins: 0, cycleDays: 90 };
+}
+
+export function validateEmailVerificationRewardPolicy(value: unknown): EmailVerificationRewardPolicy {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("INVALID_EMAIL_VERIFICATION_REWARD_POLICY");
+  }
+  const data = value as Record<string, unknown>;
+  if (Object.keys(data).some((key) => !["enabled", "rewardCoins", "cycleDays"].includes(key)) ||
+      typeof data.enabled !== "boolean" ||
+      !Number.isSafeInteger(data.rewardCoins) || (data.rewardCoins as number) < 0 ||
+      (data.rewardCoins as number) > 1000000 ||
+      !Number.isSafeInteger(data.cycleDays) || (data.cycleDays as number) < 1 ||
+      (data.cycleDays as number) > 3650 ||
+      (data.enabled && (data.rewardCoins as number) < 1)) {
+    throw new Error("INVALID_EMAIL_VERIFICATION_REWARD_POLICY");
+  }
+  return {
+    enabled: data.enabled,
+    rewardCoins: data.rewardCoins as number,
+    cycleDays: data.cycleDays as number,
+  };
+}

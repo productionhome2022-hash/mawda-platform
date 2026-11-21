@@ -1,0 +1,4 @@
+201f5bfc8d73a982e9edab9be6858b085c2b2eb8	production home	2026-11-14T17:35:07+03:00	test: fix premium entitlement category assertion
+7118cdb85aa92119a3592c22038937ebc0c9ca9e	production home	2026-11-14T14:19:28+03:00	fix: remove hardcoded VIP status from legacy profile
+f1d3f892733d6c0da5380807214b60f50d8e46d2	production home	2026-11-14T14:19:25+03:00	fix: show verified store purchase receipt
+c9bb19981913b81f7f74bf1dce6a6dc192c3b970	production home	2026-11-14T14:18:29+03:00	test: verify store purchase profile fulfillment and concurrency

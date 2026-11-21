@@ -1,0 +1,22 @@
+5110cb59f9d9a6edae4bbc7bc8418043f0a1eb51	production home	2026-11-19T10:04:57+03:00	ci: invoke Firebase CLI from locked local dependencies
+c324e960077c0970ec7718273837dbac84feaeff	production home	2026-11-19T10:02:44+03:00	ci: run role capacity integration test inside Firestore emulator
+6d33c17117370328af83a595397775653bcb47b9	production home	2026-11-19T10:02:29+03:00	docs: trace role capacity implementation and remaining lifecycle gates
+a22d0f733f80cc017209820b47dad8a560d5e558	production home	2026-11-19T10:02:26+03:00	docs: record canonical administrative role policy and implementation gate
+06df7f65d89dfdff33dcf22dd2552b75d27faa4d	production home	2026-11-19T10:02:23+03:00	docs: index canonical administrative terminology appendix
+51e207c39900bb21a9e4882147b9469114f28112	production home	2026-11-19T10:00:43+03:00	ci: validate role capacity after retention integration
+d153391b978e6c88a7b0d3a8cb1972ee6b825451	production home	2026-11-19T10:00:41+03:00	ci: run role capacity emulator tests after retention fixes
+a14e615753b25cb01d511a7b2a2138d8ad477bad	production home	2026-11-19T10:00:38+03:00	feat: enforce transactional five-seat supervisor capacity
+7175923bbb4d8b11d98d88ebe4694a2b03387ceb	production home	2026-11-19T10:00:35+03:00	feat: add canonical role identity and capacity tests
+7aa21941cd8fecb7c6836f0eb7624e31f9ccfddd	production home	2026-11-19T10:00:32+03:00	feat: add canonical role identity and capacity tests
+803275aaf4dc3b7791af480efc64f02aae929a92	production home	2026-11-19T10:00:30+03:00	feat: add canonical role identity and capacity tests
+63916ade25d9c6d5db640204637053042415fa06	production home	2026-11-19T09:59:04+03:00	fix: return server catalog version from transactional publish
+94b042126b39731255b8cc45605c16a09a8f4835	production home	2026-11-19T09:58:50+03:00	test: verify owner catalog versioning enables purchases
+485502ddd567db41ce61f60da14bf30ed63581b5	production home	2026-11-19T09:58:47+03:00	fix: assign monotonic server versions to store catalog items
+032a66b35b8d31caaa92c50ad7b7dc18317da7b9	production home	2026-11-19T09:53:14+03:00	fix: persist immutable timed ad campaign versions
+0972405c59daf929e4a9a60e1d03a3f53d62ae6b	production home	2026-11-19T09:53:12+03:00	test: complete store and custom coin request fixtures
+4cf8c090bd4aef72ff0e87891b645f914d02c46b	production home	2026-11-19T09:47:49+03:00	ci: run validation on retention approval repair branch
+7a38396880d7f899b84e2a790c61a9daae682fa0	production home	2026-11-19T09:47:46+03:00	ci: run validation on retention approval repair branch
+a8c0656b648bfbec3877c86f25838729904bf074	production home	2026-11-19T09:46:41+03:00	docs: record confirmed retention policy and CI evidence
+5b805dd5ee657a093052f6adff3d340d19d39287	production home	2026-11-19T09:46:38+03:00	docs: align platform vision with approved chat retention
+7d058c0de0887b025fd8072caa96eccd9bb47e47	production home	2026-11-19T09:46:35+03:00	docs: record owner-approved 30-day important chat retention
+124731af4e13725fffc8527010531660c42bafaf	production home	2026-11-19T09:46:33+03:00	test: correct purchasable owner entitlement fixture

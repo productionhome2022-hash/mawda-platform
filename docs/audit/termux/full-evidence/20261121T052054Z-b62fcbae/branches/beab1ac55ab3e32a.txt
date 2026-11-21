@@ -1,0 +1,47 @@
+BRANCH: codex/mawdda-member-inbox-rebased
+SHA: 4933e76a38501ac533c37fbac2fc9c7078f5c597
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 88dff14a3c07c971918093dfdd92dcf441d76ab4
+
+=== DIVERGENCE target-only / branch-only ===
+1524	7
+
+=== BRANCH UNIQUE COMMITS ===
+4933e76a38501ac533c37fbac2fc9c7078f5c597 test: deny direct media downloads after participant block
+dd5273d79b7aa8c287042cb5f3876a9e1b1c78de fix: enforce block and account standing before direct chat media delivery
+3666f16f3e6890679609cd5481b6f9689557841e feat: add member conversations inbox screen
+8a5ae1fd7c1b77b39d117f2e1e9f70e4426e5bf0 feat: rebase member inbox changes (lib/screens/main_user_screen.dart)
+ccaf65dd54b797b454ed3613b4cc9286f956cb9d feat: rebase member inbox changes (functions/test/integration/direct-message-deletion.integration.test.js)
+6c48d7f59f1c20c7f6ef42978fb797fafb97a017 feat: rebase member inbox changes (functions/src/index.ts)
+ed3e6f0b4c568b8c1d5f2e0ddd59bb13f1e134e2 feat: rebase member inbox changes (firestore.indexes.json)
+
+=== CHERRY STATUS ===
++ ed3e6f0b4c568b8c1d5f2e0ddd59bb13f1e134e2 feat: rebase member inbox changes (firestore.indexes.json)
++ 6c48d7f59f1c20c7f6ef42978fb797fafb97a017 feat: rebase member inbox changes (functions/src/index.ts)
++ ccaf65dd54b797b454ed3613b4cc9286f956cb9d feat: rebase member inbox changes (functions/test/integration/direct-message-deletion.integration.test.js)
++ 8a5ae1fd7c1b77b39d117f2e1e9f70e4426e5bf0 feat: rebase member inbox changes (lib/screens/main_user_screen.dart)
++ 3666f16f3e6890679609cd5481b6f9689557841e feat: add member conversations inbox screen
++ dd5273d79b7aa8c287042cb5f3876a9e1b1c78de fix: enforce block and account standing before direct chat media delivery
++ 4933e76a38501ac533c37fbac2fc9c7078f5c597 test: deny direct media downloads after participant block
+
+=== FILE STATUS ===
+M	firestore.indexes.json
+M	functions/src/index.ts
+M	functions/src/media.ts
+M	functions/test/integration/direct-message-deletion.integration.test.js
+M	functions/test/integration/media-callables.integration.test.js
+A	lib/screens/conversations_screen.dart
+M	lib/screens/main_user_screen.dart
+
+=== NUMSTAT ===
+14	0	firestore.indexes.json
+105	0	functions/src/index.ts
+30	1	functions/src/media.ts
+83	0	functions/test/integration/direct-message-deletion.integration.test.js
+9	0	functions/test/integration/media-callables.integration.test.js
+204	0	lib/screens/conversations_screen.dart
+20	0	lib/screens/main_user_screen.dart
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

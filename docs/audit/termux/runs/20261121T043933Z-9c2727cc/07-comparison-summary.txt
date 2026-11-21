@@ -1,0 +1,9 @@
+Compared source branches: 81
+Clean merge-tree checks: 33
+Potential conflict checks: 48
+No common ancestor: 0
+Unknown merge-tree results: 0
+
+IMPORTANT:
+A clean merge-tree result is not approval to merge.
+Every source branch still requires semantic and dependency review.

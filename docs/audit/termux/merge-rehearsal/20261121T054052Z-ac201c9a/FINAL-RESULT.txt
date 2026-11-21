@@ -1,0 +1,32 @@
+MAWDDA MERGE REHEARSAL V2 - FINAL RESULT
+
+Run: 20261121T054052Z-ac201c9a
+Target: codex/mawda-full-platform-implementation
+Base SHA: 58eef7f66d686fb3939276dd89950fdfff326b0c
+
+Remote branches rehearsed: 82
+Clean independent simulations: 13
+Conflicting simulations: 48
+Simulation errors: 0
+No common base: 0
+No unique commits against target: 21
+Branches with whitespace issues: 13
+Potential secret-pattern matches (count only): 0
+Files changed by multiple branches: 155
+
+Source merges: 0
+Source transfers: 0
+Branch deletions: 0
+Source file modifications: 0
+Production/Firebase changes: NO
+
+Interpretation:
+CLEAN_SIMULATION means Git could construct an independent merge tree.
+It does not mean the changes are approved or semantically safe.
+All candidate changes require review before any source integration.
+
+See BRANCH-RESULTS.tsv, OVERLAPPING-FILES.tsv,
+simulation-*.txt, whitespace-*.txt and
+ENVIRONMENT-AND-TEST-STATUS.txt.
+
+Publication is report-only and targets the development branch.

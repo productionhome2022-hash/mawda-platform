@@ -1,0 +1,12 @@
+Compared branch: codex/phase1-branch-governance-audit-2026-11-20
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+196	1
+
+=== CHANGE SUMMARY ===
+ .../GITHUB_BRANCH_GOVERNANCE_AUDIT_2026-11-20.md   | 47 ++++++++++++++++++++++
+ 1 file changed, 47 insertions(+)
+
+=== CHANGED PATHS ===
+A	docs/phase1/GITHUB_BRANCH_GOVERNANCE_AUDIT_2026-11-20.md

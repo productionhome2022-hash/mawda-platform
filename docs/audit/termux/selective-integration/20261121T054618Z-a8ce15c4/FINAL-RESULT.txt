@@ -1,0 +1,23 @@
+MAWDDA SELECTIVE TEST INTEGRATION V1
+
+Run: 20261121T054618Z-a8ce15c4
+Target: codex/mawda-full-platform-implementation
+Base SHA: 70d4c7c0cc90e9c8ce9f44f0a95e17463f0f5f3e
+
+Integration status: NOT_INTEGRATED
+Test-only commits picked: 0
+Already present/equivalent commits: 0
+Unit/emulator test suites passed: 0
+Unit/emulator test suites failed: 0
+Cherry-pick/scope failure: 1
+
+Only allowlisted functions test files were eligible.
+No production source file was intentionally included in this batch.
+No main merge.
+No deployment.
+No Firebase production mutation.
+No billing or retention policy changes.
+No branch deletion.
+
+A test suite is considered passed only when its command returned exit code 0.
+No 5000-person simulation was run.

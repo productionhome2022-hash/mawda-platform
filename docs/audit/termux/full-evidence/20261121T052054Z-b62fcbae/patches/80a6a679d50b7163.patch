@@ -1,0 +1,171 @@
+diff --git a/.github/workflows/validate.yml b/.github/workflows/validate.yml
+index a9218430..164dc884 100644
+--- a/.github/workflows/validate.yml
++++ b/.github/workflows/validate.yml
+@@ -81,160 +81,166 @@ jobs:
+         id: build_web
+         if: ${{ always() && steps.install_flutter_dependencies.outcome == 'success' }}
+         env:
+           MAWDA_FCM_VAPID_KEY: ${{ vars.MAWDA_NONPROD_FCM_VAPID_KEY }}
+         run: flutter build web --release --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY"
+       - name: Upload validated web build artifact
+         if: ${{ always() && steps.build_web.outcome == 'success' }}
+         uses: actions/upload-artifact@v7.0.2
+         with:
+           name: mawda-web-build-${{ github.sha }}
+           path: build/web/
+           if-no-files-found: error
+           retention-days: 7
+ 
+       - name: Build production-configured web release candidate (no deployment)
+         id: build_production_web
+         if: ${{ always() && steps.install_flutter_dependencies.outcome == 'success' && steps.build_web.outcome == 'success' }}
+         env:
+           MAWDA_FCM_VAPID_KEY: ${{ vars.MAWDA_PRODUCTION_FCM_VAPID_KEY }}
+         run: flutter build web --release --dart-define=MAWDDA_FIREBASE_ENV=production --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY"
+       - name: Upload production-configured web release candidate
+         if: ${{ always() && steps.build_production_web.outcome == 'success' }}
+         uses: actions/upload-artifact@v7.0.2
+         with:
+           name: mawda-web-production-candidate-${{ github.sha }}
+           path: build/web/
+           if-no-files-found: error
+           retention-days: 7
+ 
+   functions:
+     name: Cloud Functions compile and unit tests
+     runs-on: ubuntu-latest
+     timeout-minutes: 90
+     defaults:
+       run:
+         working-directory: functions
+     steps:
+       - uses: actions/checkout@v5
+       - uses: actions/setup-node@v5
+         with:
+           node-version: "22.23.4"
+           cache: npm
+           cache-dependency-path: functions/package-lock.json
+       - name: Install Cloud Functions dependencies from committed lockfile
+         id: install_functions
+         run: npm ci --no-audit --no-fund
+       - name: Compile and test backend
+         run: npm test
+       - name: Syntax-check live non-production scanner E2E script
+         run: node --check scripts/test-live-media-scanner-e2e.cjs
+       - name: Validate GitHub Actions workflow YAML syntax
+         run: |
+           ruby -e 'require "yaml"; ARGV.each { |file| YAML.parse_file(file); puts file }' ../.github/workflows/*.yml
+       - name: Upload compiled Cloud Functions artifact
+         uses: actions/upload-artifact@v7.0.2
+         with:
+           name: mawda-cloud-functions-${{ github.sha }}
+           path: functions/lib/
+           if-no-files-found: error
+           retention-days: 7
+       - name: Set up Java for Firebase emulators
+         uses: actions/setup-java@v5
+         with:
+           distribution: temurin
+           java-version: "21"
+       - name: Run media callable authorization and audit integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:media-integration
+       - name: Run mode-aware chat retention integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:retention-integration
+       - name: Run direct-message deletion authorization and erasure integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:message-deletion-integration
+       - name: Run owner entitlement grant and bulk replay integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:owner-entitlement-grants-integration
+       - name: Run coin transfer and store purchase transactional integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:wallet-store-integration
++      - name: Run specialized role capacity and seat lifecycle integration tests
++        if: ${{ always() && steps.install_functions.outcome == 'success' }}
++        run: npm run test:specialized-role-capacity-integration
++      - name: Run store gifting and replay protection integration tests
++        if: ${{ always() && steps.install_functions.outcome == 'success' }}
++        run: npm run test:store-gifting-integration
+       - name: Run featured-ad financial event and replay integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:featured-ad-finance-integration
+       - name: Run room rental pricing and lifecycle integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:room-rental-integration
+       - name: Run room event scheduling and RSVP integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:room-events-integration
+       - name: Run call signaling Firestore emulator integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:call-signaling-integration
+       - name: Verify Firestore and Storage emulator backup/restore
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:emulator-backup-restore
+       - name: Run FCM token registration and deactivation integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:push-token-integration
+       - name: Run 30-day biometric reward cycle integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:biometric-integration
+       - name: Run attendance and timed-ad reward integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:engagement-rewards-integration
+       - name: Run 90-day email verification renewal and reward integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:email-renewal-integration
+       - name: Run safety report and appeal lifecycle integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:safety-integration
+       - name: Run guest and member privacy acknowledgement integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:guest-privacy-integration
+       - name: Run guest session and public-room interaction integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:guest-session-integration
+       - name: Provision emulator-only test personas and exercise cross-persona wallet interaction
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:seeded-persona-interaction
+       - name: Run owner audit export pagination and redaction integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:owner-audit-export-integration
+       - name: Run media legal hold and release integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:media-legal-hold-integration
+       - name: Run avatar and cover lifecycle integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:profile-media-integration
+       - name: Run premium profile, analytics, greeting, pin and discovery integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:premium-profile-integration
+       - name: Run message legal hold and resumed retention integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:message-legal-hold-integration
+       - name: Run Firestore and Storage rules emulator tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:rules
+ 
+   scanner:
+     name: Isolated ClamAV scanner gateway tests and image build
+     runs-on: ubuntu-latest
+     timeout-minutes: 25
+     steps:
+       - uses: actions/checkout@v5
+       - name: Test Android release artifact identity and version validators
+         run: python3 -m unittest discover -s tool -p 'test_android_release*.py' -v
+       - uses: actions/setup-node@v5
+         with:
+           node-version: "22.23.4"
+       - name: Validate scanner source and security contracts
+         run: |
+           node --check scanner/server.js
+           node --check scanner/security.js
+           node --check scanner/processors.js
+           sh -n scanner/start.sh
+           node --test scanner/test/security.test.js scanner/test/processors.test.js
+       - name: Build isolated ClamAV scanner container
+         run: docker build --tag mawda-clamav-scanner:ci scanner
+       - name: Run real GIF, audio, video and PDF sanitization tests inside the scanner image
+         run: docker run --rm --entrypoint npm mawda-clamav-scanner:ci test

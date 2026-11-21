@@ -1,0 +1,189 @@
+diff --git a/functions/test/integration/media-callables.integration.test.js b/functions/test/integration/media-callables.integration.test.js
+index caa75543..45dff6fa 100644
+--- a/functions/test/integration/media-callables.integration.test.js
++++ b/functions/test/integration/media-callables.integration.test.js
+@@ -980,175 +980,182 @@ test("active legal hold blocks permanent media deletion", async () => {
+       () => deleteMediaAssetForMessage(mediaId, uid, "chat"),
+       (error) => error && error.code === "failed-precondition",
+     );
+     const retainedAsset = await assetRef.get();
+     assert.equal(retainedAsset.exists, true);
+     assert.equal(retainedAsset.data().legalHoldStatus, "active");
+     assert.equal(retainedAsset.data().status, "security_approved");
+     const [objectExists] = await objectFile.exists();
+     assert.equal(objectExists, true);
+   } finally {
+     await Promise.all([
+       assetRef.delete().catch(() => undefined),
+       objectFile.delete().catch(() => undefined),
+     ]);
+   }
+ });
+ 
+ 
+ test("malicious scanner callback rejects the asset, audits the verdict and deletes only the pinned quarantine generation", async () => {
+   const mediaId = randomUUID();
+   const ownerUid = `scanner-malicious-owner-${randomUUID()}`;
+   const objectPath = `quarantine/${ownerUid}/${mediaId}`;
+   const objectBytes = Buffer.from("isolated malicious scanner fixture");
+   const objectFile = getStorage().bucket().file(objectPath);
+   const assetRef = db.collection("mediaAssets").doc(mediaId);
+   const jobRef = db.collection("mediaScanJobs").doc(mediaId);
+ 
+   await objectFile.save(objectBytes, {
+     resumable: false,
+     metadata: { contentType: "image/png" },
+   });
+   const [metadata] = await objectFile.getMetadata();
+   const generation = String(metadata.generation);
+   const initial = {
+     mediaId, ownerUid, mediaPurpose: "chat",
+     status: "pending_security_scan",
+     storageGeneration: generation,
+     objectPath,
+     detectedContentType: "image/png",
+   };
+   await assetRef.set(initial);
+   await jobRef.set({ mediaId, ownerUid, objectPath, objectGeneration: generation, state: "dispatched" });
+ 
+   try {
+     const payload = {
+       mediaId,
+       purpose: "chat",
+       provider: testScannerProvider,
+       verdict: "malicious",
+       objectGeneration: generation,
+       sha256: createHash("sha256").update(objectBytes).digest("hex"),
+       scannedAtMs: Date.now(),
+       scanEngine: "ClamAV",
+       engineVersion: "1.4.6",
+       signatureDatabaseVersion: "28202",
+       signatureDatabaseAgeMs: 60 * 60 * 1000,
+     };
+     const rawBody = Buffer.from(JSON.stringify(payload));
+     const signature = createHmac("sha256", testScannerSecret).update(rawBody).digest("hex");
+     const request = {
+       method: "POST",
+       rawBody,
+       get: (name) => name.toLowerCase() === "x-mawadda-scanner-signature" ? signature : undefined,
+     };
+     const response = new EventEmitter();
+     Object.assign(response, {
+       statusCode: 200,
+       headers: {},
+       body: undefined,
+       status(code) { this.statusCode = code; return this; },
+       set(name, value) { this.headers[name.toLowerCase()] = value; return this; },
+       send(value) { this.body = value; this.emit("finish"); return this; },
+       json(value) { this.body = value; this.emit("finish"); return this; },
+     });
+ 
+     const handler = createMediaScanVerdictHandler(() => testScannerSecret, () => testScannerProvider);
+     await handler(request, response);
+ 
+     assert.equal(response.statusCode, 200);
+     assert.equal(response.body.status, "rejected");
++
++    // The scanner gateway may retry a callback after a timeout. The exact same
++    // provider/media/generation/hash verdict must be acknowledged idempotently.
++    await handler(request, response);
++    assert.equal(response.statusCode, 200);
++    assert.equal(response.body.idempotentReplay, true);
+     const rejected = await assetRef.get();
+     assert.equal(rejected.data().status, "rejected");
+     assert.equal(rejected.data().rejectionCode, "MALWARE_DETECTED");
+     assert.equal(rejected.data().scannerVerdict, "malicious");
+     assert.equal(rejected.data().scannerObjectGeneration, generation);
+ 
+     const job = await jobRef.get();
+     assert.equal(job.data().state, "rejected");
+     assert.equal(job.data().verdict, "malicious");
+ 
+     const audit = await db.collection("mediaAccessAudit").where("mediaId", "==", mediaId).get();
+-    assert.ok(audit.docs.some((doc) =>
++    const verdictAudits = audit.docs.filter((doc) =>
+       doc.data().action === "media_security_scan_verdict" &&
+       doc.data().outcome === "malicious" &&
+-      doc.data().objectGeneration === generation));
++      doc.data().objectGeneration === generation);
++    assert.equal(verdictAudits.length, 1, "an idempotent callback replay must not duplicate audit events");
+ 
+     const [objectExists] = await objectFile.exists();
+     assert.equal(objectExists, false, "only the exact scanned quarantine generation should be deleted");
+   } finally {
+     await Promise.all([
+       assetRef.delete().catch(() => undefined),
+       jobRef.delete().catch(() => undefined),
+       objectFile.delete().catch(() => undefined),
+     ]);
+     const audit = await db.collection("mediaAccessAudit").where("mediaId", "==", mediaId).get();
+     await Promise.all(audit.docs.map((doc) => doc.ref.delete().catch(() => undefined)));
+   }
+ });
+ 
+ test("scanner error callback returns retryable 503 without changing quarantined asset", async () => {
+   const mediaId = randomUUID();
+   const assetRef = db.collection("mediaAssets").doc(mediaId);
+   const initial = {
+     mediaId,
+     ownerUid: `scanner-error-owner-${randomUUID()}`,
+     mediaPurpose: "chat",
+     status: "pending_security_scan",
+     storageGeneration: "1740000000000000",
+     objectPath: `quarantine/scanner-error-owner/${mediaId}`,
+   };
+   await assetRef.set(initial);
+   try {
+     const payload = {
+       mediaId,
+       purpose: "chat",
+       provider: testScannerProvider,
+       verdict: "error",
+       objectGeneration: initial.storageGeneration,
+       sha256: "a".repeat(64),
+       scannedAtMs: Date.now(),
+       scanEngine: "ClamAV",
+       engineVersion: "1.4.6",
+       signatureDatabaseVersion: "28202",
+       signatureDatabaseAgeMs: 60 * 60 * 1000,
+     };
+     const rawBody = Buffer.from(JSON.stringify(payload));
+     const signature = createHmac("sha256", testScannerSecret).update(rawBody).digest("hex");
+     const request = {
+       method: "POST",
+       rawBody,
+       get: (name) => name.toLowerCase() === "x-mawadda-scanner-signature" ? signature : undefined,
+     };
+     const response = new EventEmitter();
+     Object.assign(response, {
+       statusCode: 200,
+       headers: {},
+       body: undefined,
+       status(code) { this.statusCode = code; return this; },
+       set(name, value) { this.headers[name.toLowerCase()] = value; return this; },
+       send(value) { this.body = value; this.emit("finish"); return this; },
+       json(value) { this.body = value; this.emit("finish"); return this; },
+     });
+     // Inject test-only config into the same callback core; SecretParam values are
+     // supplied by the Functions runtime and are not emulated by this direct call.
+     const handler = createMediaScanVerdictHandler(() => testScannerSecret, () => testScannerProvider);
+     await handler(request, response);
+     assert.equal(response.statusCode, 503);
+     assert.match(String(response.body), /retry required/i);
+     const after = await assetRef.get();
+     assert.deepEqual(after.data(), initial);
+   } finally {
+     await assetRef.delete().catch(() => undefined);
+   }
+ });
+ 
+ 
+ test("media legal-hold placement and permanent deletion serialize safely under a concurrent race", async () => {
+   const uid = `media-hold-delete-race-${randomUUID()}`;
+   const mediaId = await createReadyChatImage({ uid, purpose: "chat" });
+   const assetRef = db.collection("mediaAssets").doc(mediaId);
+   const assetBefore = (await assetRef.get()).data();
+   const objectPath = assetBefore.safePreviewPath;
+   const objectFile = getStorage().bucket().file(objectPath);
+   const now = Date.now();
+   const holdInput = {

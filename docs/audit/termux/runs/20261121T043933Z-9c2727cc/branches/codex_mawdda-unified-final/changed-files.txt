@@ -1,0 +1,5 @@
+M	.github/workflows/validate.yml
+M	functions/package.json
+M	functions/src/index.ts
+A	functions/test/integration/email-verification-renewal.integration.test.js
+M	lib/screens/profile_screen.dart

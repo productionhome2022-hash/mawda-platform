@@ -1,0 +1,29 @@
+4a50a3a8d72659d711314dc789b6f438be75a328
+100644 643b25f507eea2d8aa7c10f86ee83998c33f9cdd 1	.github/workflows/mawdda-domain-regression.yml
+100644 24dcbb2ba4e0bdfc249aa33a4c9b219516c41e33 2	.github/workflows/mawdda-domain-regression.yml
+100644 efd6e56c4fdd467c2caef6aa7f30b5e1de0229d5 3	.github/workflows/mawdda-domain-regression.yml
+100644 5b1ebc0ad3801835670c16f924a249caa2aacccc 1	.github/workflows/validate.yml
+100644 d3802584cac2f493e00389baa9c003a12db26f2e 2	.github/workflows/validate.yml
+100644 5f23662baa361f277d0422b588f198aa552e98a7 3	.github/workflows/validate.yml
+100644 13b1c3e6444909545f676b791749115537e673a6 1	functions/src/index.ts
+100644 4574024ded13f7d5c51fb0eb10febff2ffd1e329 2	functions/src/index.ts
+100644 0dc94fa82205603373a22ea2a7a7a3d25e17b2da 3	functions/src/index.ts
+100644 8d26a34734374f0d411bdf25317ef66277608338 2	functions/src/platform-role-identities.ts
+100644 fd33a73d437f2380dbbdafafa6050efc83244958 3	functions/src/platform-role-identities.ts
+100644 e6756a8be26f5ec4e84a1e740c222726d4b3b735 2	functions/test/integration/specialized-role-capacity.integration.test.js
+100644 ad89dfe3722445fa96ca2eb89feb2ad09706a332 3	functions/test/integration/specialized-role-capacity.integration.test.js
+100644 077e909ecda72e5ebc9506120263fc131b1e65e2 2	functions/test/platform-role-identities.test.js
+100644 5e4f2d7a7498d5feb3aa55977d5519148bbc0680 3	functions/test/platform-role-identities.test.js
+
+Auto-merging .github/workflows/mawdda-domain-regression.yml
+CONFLICT (content): Merge conflict in .github/workflows/mawdda-domain-regression.yml
+Auto-merging .github/workflows/validate.yml
+CONFLICT (content): Merge conflict in .github/workflows/validate.yml
+Auto-merging functions/src/index.ts
+CONFLICT (content): Merge conflict in functions/src/index.ts
+Auto-merging functions/src/platform-role-identities.ts
+CONFLICT (add/add): Merge conflict in functions/src/platform-role-identities.ts
+Auto-merging functions/test/integration/specialized-role-capacity.integration.test.js
+CONFLICT (add/add): Merge conflict in functions/test/integration/specialized-role-capacity.integration.test.js
+Auto-merging functions/test/platform-role-identities.test.js
+CONFLICT (add/add): Merge conflict in functions/test/platform-role-identities.test.js

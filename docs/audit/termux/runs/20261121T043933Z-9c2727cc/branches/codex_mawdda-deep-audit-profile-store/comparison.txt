@@ -1,0 +1,22 @@
+Branch: codex/mawdda-deep-audit-profile-store
+Branch SHA: 4ed7394235ea531e4b4abbb24431731da15eaf47
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+1545	0
+
+--- Merge base ---
+4ed7394235ea531e4b4abbb24431731da15eaf47
+
+--- Changed files relative to common ancestor ---
+
+--- Diff statistics ---
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CLEAN

@@ -1,0 +1,12 @@
+Compared branch: codex/phase1-ci-evidence-2026-11-20
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+220	1
+
+=== CHANGE SUMMARY ===
+ docs/PHASE1_UNIFIED_INTEGRATION_STATUS_2026-11-19.md | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+=== CHANGED PATHS ===
+M	docs/PHASE1_UNIFIED_INTEGRATION_STATUS_2026-11-19.md

@@ -1,0 +1,198 @@
+27dbf9d48f6bbdbe3ca92cce58b740ea1f34a6ea
+100644 643b25f507eea2d8aa7c10f86ee83998c33f9cdd 1	.github/workflows/mawdda-domain-regression.yml
+100644 24dcbb2ba4e0bdfc249aa33a4c9b219516c41e33 2	.github/workflows/mawdda-domain-regression.yml
+100644 7fcd2047142f0c3ec004eb11590e5118d581e132 3	.github/workflows/mawdda-domain-regression.yml
+100644 5b1ebc0ad3801835670c16f924a249caa2aacccc 1	.github/workflows/validate.yml
+100644 d3802584cac2f493e00389baa9c003a12db26f2e 2	.github/workflows/validate.yml
+100644 456715e975ae87bef3f0faffa7350924f57035cf 3	.github/workflows/validate.yml
+100644 80b3502f6e96d6968405d98831b65e0d7532d38d 2	docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md
+100644 3aec650feb3b2303d03ce86f353588058fe6b62a 3	docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md
+100644 79ce868d1bb4ccae987792ea060109d29f22b1ce 1	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+100644 9ee596af6be3ea7633054adae4d1e5557708a587 2	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+100644 d04ece35261e8f350dd6a5ce98c68ea91a036014 3	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+100644 f32487e514c5928cea0a5ae3c3e4fb7909af0693 1	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+100644 7a8a2a4a489470c7ef2f6df6b122cbcdc94a5119 2	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+100644 b5e3a917c4168e298b3ceb329b9ad446da19ce21 3	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+100644 5ff9c4278a99fe25348c8a74f33cd81212d7a050 1	docs/MAWADDA_CONTRACTS_AND_GOVERNANCE_REGISTER_2026.md
+100644 a51e99309d9be3bdd4ee3497e4a1bc31d0a31fd9 2	docs/MAWADDA_CONTRACTS_AND_GOVERNANCE_REGISTER_2026.md
+100644 40e0d1214d4452b33e9234817f0add8746e17504 3	docs/MAWADDA_CONTRACTS_AND_GOVERNANCE_REGISTER_2026.md
+100644 006194592008d7663eee8f7141965c345e2f4429 1	docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+100644 12a079ef993bfcf18eb0fa4d5d6d75ed6ef0fffc 2	docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+100644 fa1001db97763426e2a0415b85b74d33d23ae0bd 3	docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+100644 4e7265b2f0995c54aeb8556cb66657728a9c37b0 1	docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md
+100644 33322e6cc39fc8991d34256a7106af20d22f3bc8 2	docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md
+100644 504a3e78cb47be137326f5284dbea503f692723d 3	docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md
+100644 879604b0abc0738c37cffe38005db931a3213af0 1	docs/MAWADDA_UNIFIED_CONSTITUTION_2026.md
+100644 fffd3d2643e84e9a994f69e0ace62d73730c3add 2	docs/MAWADDA_UNIFIED_CONSTITUTION_2026.md
+100644 bdf4105caf2d3620cd41412680a7f13306fd31b9 3	docs/MAWADDA_UNIFIED_CONSTITUTION_2026.md
+100644 5945a07e81929afe9571610ba8e290d9f0cc457b 1	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+100644 e475647d96f1b028cd687e85720f5f0c77d0e200 2	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+100644 1c8c0a580f20c9ca14d40c54fbb89c621446d707 3	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+100644 2ec84bf9a3d2cc9169a7a4878cbf88799f2bb89e 1	functions/package.json
+100644 f5756c3d6ad9a52224536b3159e5821297a6a650 2	functions/package.json
+100644 9a21b7e9617aa87aeb0060586a7b7c4fe01f9d2f 3	functions/package.json
+100644 e257e761c82135b1799d02ff7fae7815273550f0 1	functions/src/advertising-governance.ts
+100644 caec16865c75e76bc044a2ec0a73fe50dc9acbf8 2	functions/src/advertising-governance.ts
+100644 db17c21b8412e85cf7e3e3bf900b2a1d11bb3900 3	functions/src/advertising-governance.ts
+100644 3c50947f58dda366d710ed1835158c22ceca8e75 2	functions/src/biometric-media.ts
+100644 846fcdad8d30060aa76bd1a809241c74e4b1dadb 3	functions/src/biometric-media.ts
+100644 e7a340e6aed62a2edc8529628b1489b72abef049 1	functions/src/biometric-verification.ts
+100644 d69ce5c59d78235a295e1e4aae34b009181ddf2d 2	functions/src/biometric-verification.ts
+100644 451cfa74d4ef664dd1b22edcced605705cc00c55 3	functions/src/biometric-verification.ts
+100644 c14271df7167e73c67b555ca98b981bcf059e6e2 2	functions/src/call-entitlements.ts
+100644 ca37db9278b4ee2c7e065f1603430709871291eb 3	functions/src/call-entitlements.ts
+100644 787bdbc29e82467a3357a5972f304d0c36c28f4e 2	functions/src/call-usage-policy.ts
+100644 39276569c237f3d76f23111cf517d2da160d23ba 3	functions/src/call-usage-policy.ts
+100644 f5dcefcd6e65029dbc197baf718c82dfb04fc5fe 2	functions/src/group-call-economy.ts
+100644 79b335d49434d40358b4d635038cd8c2fb84d1fa 3	functions/src/group-call-economy.ts
+100644 13b1c3e6444909545f676b791749115537e673a6 1	functions/src/index.ts
+100644 4574024ded13f7d5c51fb0eb10febff2ffd1e329 2	functions/src/index.ts
+100644 6d18f97cc9efcc2ea58fc1ed939ed53be2961134 3	functions/src/index.ts
+100644 8d26a34734374f0d411bdf25317ef66277608338 2	functions/src/platform-role-identities.ts
+100644 fd33a73d437f2380dbbdafafa6050efc83244958 3	functions/src/platform-role-identities.ts
+100644 7941f63dca354599f8a4d88f0f2092d1d674e795 2	functions/src/room-call-policy.ts
+100644 3d32caa2575da45abd65d9b8d5cc36fb784404fa 3	functions/src/room-call-policy.ts
+100644 585818877b1ba6b078a6fc036e28fb15f6a64aa6 1	functions/src/room-rental.ts
+100644 f79d910552bd89a07da33d2a9e23b32b0c7274f1 2	functions/src/room-rental.ts
+100644 4df5a68c1957838956f5e16886716c002f4f863a 3	functions/src/room-rental.ts
+100644 53af175cdcca26b9a88d28f529ac97fff3489a3e 1	functions/test/advertising-governance.test.js
+100644 ab83da07e08f27bb63dad2c5c12b6cb676f593db 2	functions/test/advertising-governance.test.js
+100644 6068a575635da9130f0724f654c93dbcac86c7b8 3	functions/test/advertising-governance.test.js
+100644 e93b92920165e388dd1f84934aa400844ebe8086 2	functions/test/biometric-media.test.js
+100644 e046dd598a182f1c486525d6c223ec5e9e5e4954 3	functions/test/biometric-media.test.js
+100644 2ef78f30a6ecda1b0e264b79bae415d595a972b3 1	functions/test/biometric-reward-security.test.js
+100644 8c3a8b17806ee164041ffde787f727b175702f3e 2	functions/test/biometric-reward-security.test.js
+100644 a020c903b88eaa5dca706ed0c819ff4b776a7cb8 3	functions/test/biometric-reward-security.test.js
+100644 a12303e1814240b29c989e9a56fa05a0c13a77cb 1	functions/test/biometric-verification.test.js
+100644 c7be8481da402c2bc72c4a459af02c699f8c114a 2	functions/test/biometric-verification.test.js
+100644 a9b26a380a2f0c57c9499a8c308a9c376615ef79 3	functions/test/biometric-verification.test.js
+100644 592b7b0f77d0b5ce00fb2f244c115d3a9bb54500 2	functions/test/call-entitlements.test.js
+100644 e7174d8be7ea46f26450f3d3062784c5724c3cad 3	functions/test/call-entitlements.test.js
+100644 ec24ac4e362d5562ba26ff762bb2bfa02d4c2344 2	functions/test/call-usage-policy.test.js
+100644 3181c19dd75c8a148aaae72a1bbbf2de4eea3b73 3	functions/test/call-usage-policy.test.js
+100644 7dc2c89f6f67dadf318903e7a1d45e50964ccca6 2	functions/test/group-call-economy.test.js
+100644 bc57ebc54d68db3ddc3bec5a436f71383980c3cd 3	functions/test/group-call-economy.test.js
+100644 f5e5655fc23ef037645d1a117dbae09017208a16 1	functions/test/integration/biometric-verification.integration.test.js
+100644 20f19857a11713f9bc935cc9aa7f0c706a99758b 2	functions/test/integration/biometric-verification.integration.test.js
+100644 7e2d15145549605075c240a5b2890e913390eed7 3	functions/test/integration/biometric-verification.integration.test.js
+100644 5a184229babffdaf9265e93b013dc2ec21540ce0 1	functions/test/integration/call-signaling.integration.test.js
+100644 2e35bd8b7b027e1a39d4e056dd7a8b834b7a5ca9 2	functions/test/integration/call-signaling.integration.test.js
+100644 73bad30337da9e2a31e8ea05de57ac987687801b 3	functions/test/integration/call-signaling.integration.test.js
+100644 03f0cc8acdf88aa8f273136b1b10f3b39369f5fd 1	functions/test/integration/featured-ad-finance.integration.test.js
+100644 4ae0211a7a7d30c92daf40c1b72698beb6ccbb32 2	functions/test/integration/featured-ad-finance.integration.test.js
+100644 5a5edfc83a26c0d950edd5c9e1b359edded3b221 3	functions/test/integration/featured-ad-finance.integration.test.js
+100644 93bb6f4397744b2065612f862592ef8965078f41 1	functions/test/integration/owner-entitlement-grants.integration.test.js
+100644 5a7c6bca5199f89afab70df4d03352943d202e17 2	functions/test/integration/owner-entitlement-grants.integration.test.js
+100644 2dd9669453ba5358e2fe8e2b1b0e2f41e7e79f9a 3	functions/test/integration/owner-entitlement-grants.integration.test.js
+100644 307bed02e46e6f4e150f76e8335f33089e35adcd 1	functions/test/integration/premium-profile.integration.test.js
+100644 9626b34f4a908f8c58a35af88a9af17af2960b9a 2	functions/test/integration/premium-profile.integration.test.js
+100644 8a9f921f2480c0a1fb05b1742a0af00b9f982bcc 3	functions/test/integration/premium-profile.integration.test.js
+100644 e6756a8be26f5ec4e84a1e740c222726d4b3b735 2	functions/test/integration/specialized-role-capacity.integration.test.js
+100644 ad89dfe3722445fa96ca2eb89feb2ad09706a332 3	functions/test/integration/specialized-role-capacity.integration.test.js
+100644 d144907961664cccc371501de73f82a6babecf73 2	functions/test/integration/store-gifting.integration.test.js
+100644 a9c34bd7c8bad61c12ae9284be50eabbcd36e426 3	functions/test/integration/store-gifting.integration.test.js
+100644 8878cc8fa0b7f87ab368f7329355fb168c41d4a4 1	functions/test/integration/wallet-store.integration.test.js
+100644 9fb7ac986679f0b29538bdadb284fa3ef1c308bd 2	functions/test/integration/wallet-store.integration.test.js
+100644 cf100fed21beb92ebc5dda055d6fb825145c53bf 3	functions/test/integration/wallet-store.integration.test.js
+100644 699f8b0b3f9c2b88973621449c28a7df767ff8a4 1	functions/test/member-social-links-access.test.js
+100644 1bfc08a0c2f68d3c822cc14b53ccf8c6d21f258b 2	functions/test/member-social-links-access.test.js
+100644 f32abe352b2669d822ce19ed507d5db872fea8f6 3	functions/test/member-social-links-access.test.js
+100644 b9b0a1f3d2339ddc573699fc95329bc60ff0bf56 1	functions/test/member-social-links.test.js
+100644 6315c173fe46ef5e14cea15d76caa9393bd1612d 2	functions/test/member-social-links.test.js
+100644 a47e1744f76bd8de689bfce377ec371cfdc6ba93 3	functions/test/member-social-links.test.js
+100644 077e909ecda72e5ebc9506120263fc131b1e65e2 2	functions/test/platform-role-identities.test.js
+100644 5e4f2d7a7498d5feb3aa55977d5519148bbc0680 3	functions/test/platform-role-identities.test.js
+100644 f1ee8a870b61db646e8e22cc100e6b59d3ab4d82 2	functions/test/room-call-policy.test.js
+100644 fd8f267646379380578d999c8e2f78cf67a0e11e 3	functions/test/room-call-policy.test.js
+100644 1eb133b536c3b4961926ef90006bfe5766006aa3 2	lib/screens/biometric_verification_screen.dart
+100644 c195cb361e291adda9201fd3adbe3d81a5419090 3	lib/screens/biometric_verification_screen.dart
+100644 9c24a165f4f3950337dcd430c555e957473f687f 1	lib/screens/super_admin_screen.dart
+100644 089a4992234880b800a22ac8a6698fc517659109 2	lib/screens/super_admin_screen.dart
+100644 33c95ba05d87a8ce73e91789b59f1486c71c17cc 3	lib/screens/super_admin_screen.dart
+
+Auto-merging .github/workflows/mawdda-domain-regression.yml
+CONFLICT (content): Merge conflict in .github/workflows/mawdda-domain-regression.yml
+Auto-merging .github/workflows/validate.yml
+CONFLICT (content): Merge conflict in .github/workflows/validate.yml
+Auto-merging docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md
+CONFLICT (add/add): Merge conflict in docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md
+Auto-merging docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+CONFLICT (content): Merge conflict in docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+Auto-merging docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+CONFLICT (content): Merge conflict in docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+Auto-merging docs/MAWADDA_CONTRACTS_AND_GOVERNANCE_REGISTER_2026.md
+CONFLICT (content): Merge conflict in docs/MAWADDA_CONTRACTS_AND_GOVERNANCE_REGISTER_2026.md
+Auto-merging docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+CONFLICT (content): Merge conflict in docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+Auto-merging docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md
+CONFLICT (content): Merge conflict in docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md
+Auto-merging docs/MAWADDA_UNIFIED_CONSTITUTION_2026.md
+CONFLICT (content): Merge conflict in docs/MAWADDA_UNIFIED_CONSTITUTION_2026.md
+Auto-merging docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+CONFLICT (content): Merge conflict in docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+Auto-merging docs/MAWDDA_ADVERTISING_CONTRACT_TEMPLATES_2026.md
+Auto-merging functions/package.json
+CONFLICT (content): Merge conflict in functions/package.json
+Auto-merging functions/src/advertising-governance.ts
+CONFLICT (content): Merge conflict in functions/src/advertising-governance.ts
+Auto-merging functions/src/biometric-media.ts
+CONFLICT (add/add): Merge conflict in functions/src/biometric-media.ts
+Auto-merging functions/src/biometric-verification.ts
+CONFLICT (content): Merge conflict in functions/src/biometric-verification.ts
+Auto-merging functions/src/call-entitlements.ts
+CONFLICT (add/add): Merge conflict in functions/src/call-entitlements.ts
+Auto-merging functions/src/call-usage-policy.ts
+CONFLICT (add/add): Merge conflict in functions/src/call-usage-policy.ts
+Auto-merging functions/src/group-call-economy.ts
+CONFLICT (add/add): Merge conflict in functions/src/group-call-economy.ts
+Auto-merging functions/src/index.ts
+CONFLICT (content): Merge conflict in functions/src/index.ts
+Auto-merging functions/src/platform-role-identities.ts
+CONFLICT (add/add): Merge conflict in functions/src/platform-role-identities.ts
+Auto-merging functions/src/room-call-policy.ts
+CONFLICT (add/add): Merge conflict in functions/src/room-call-policy.ts
+Auto-merging functions/src/room-rental.ts
+CONFLICT (content): Merge conflict in functions/src/room-rental.ts
+Auto-merging functions/test/advertising-governance.test.js
+CONFLICT (content): Merge conflict in functions/test/advertising-governance.test.js
+Auto-merging functions/test/biometric-media.test.js
+CONFLICT (add/add): Merge conflict in functions/test/biometric-media.test.js
+Auto-merging functions/test/biometric-reward-security.test.js
+CONFLICT (content): Merge conflict in functions/test/biometric-reward-security.test.js
+Auto-merging functions/test/biometric-verification.test.js
+CONFLICT (content): Merge conflict in functions/test/biometric-verification.test.js
+Auto-merging functions/test/call-entitlements.test.js
+CONFLICT (add/add): Merge conflict in functions/test/call-entitlements.test.js
+Auto-merging functions/test/call-usage-policy.test.js
+CONFLICT (add/add): Merge conflict in functions/test/call-usage-policy.test.js
+Auto-merging functions/test/group-call-economy.test.js
+CONFLICT (add/add): Merge conflict in functions/test/group-call-economy.test.js
+Auto-merging functions/test/integration/biometric-verification.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/biometric-verification.integration.test.js
+Auto-merging functions/test/integration/call-signaling.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/call-signaling.integration.test.js
+Auto-merging functions/test/integration/featured-ad-finance.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/featured-ad-finance.integration.test.js
+Auto-merging functions/test/integration/owner-entitlement-grants.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/owner-entitlement-grants.integration.test.js
+Auto-merging functions/test/integration/premium-profile.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/premium-profile.integration.test.js
+Auto-merging functions/test/integration/specialized-role-capacity.integration.test.js
+CONFLICT (add/add): Merge conflict in functions/test/integration/specialized-role-capacity.integration.test.js
+Auto-merging functions/test/integration/store-gifting.integration.test.js
+CONFLICT (add/add): Merge conflict in functions/test/integration/store-gifting.integration.test.js
+Auto-merging functions/test/integration/wallet-store.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/wallet-store.integration.test.js
+Auto-merging functions/test/member-social-links-access.test.js
+CONFLICT (content): Merge conflict in functions/test/member-social-links-access.test.js
+Auto-merging functions/test/member-social-links.test.js
+CONFLICT (content): Merge conflict in functions/test/member-social-links.test.js
+Auto-merging functions/test/platform-role-identities.test.js
+CONFLICT (add/add): Merge conflict in functions/test/platform-role-identities.test.js
+Auto-merging functions/test/room-call-policy.test.js
+CONFLICT (add/add): Merge conflict in functions/test/room-call-policy.test.js
+Auto-merging lib/screens/biometric_verification_screen.dart
+CONFLICT (add/add): Merge conflict in lib/screens/biometric_verification_screen.dart
+Auto-merging lib/screens/shop_screen.dart
+Auto-merging lib/screens/super_admin_screen.dart
+CONFLICT (content): Merge conflict in lib/screens/super_admin_screen.dart

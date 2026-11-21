@@ -1,0 +1,23 @@
+BRANCH: codex/mawdda-role-callable-deny-regressions-2026-11-20
+SHA: ce899717f77ad3c76d676903aa0c026ba7596490
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 7d386a77818e3a9ec59977f1cbcb67b8eac6ba9d
+
+=== DIVERGENCE target-only / branch-only ===
+182	1
+
+=== BRANCH UNIQUE COMMITS ===
+ce899717f77ad3c76d676903aa0c026ba7596490 test: prevent specialist grants from bypassing sovereign role guards
+
+=== CHERRY STATUS ===
+- ce899717f77ad3c76d676903aa0c026ba7596490 test: prevent specialist grants from bypassing sovereign role guards
+
+=== FILE STATUS ===
+M	functions/test/integration/specialized-role-capacity.integration.test.js
+
+=== NUMSTAT ===
+43	0	functions/test/integration/specialized-role-capacity.integration.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

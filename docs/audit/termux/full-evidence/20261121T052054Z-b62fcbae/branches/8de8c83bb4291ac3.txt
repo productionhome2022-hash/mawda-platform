@@ -1,0 +1,65 @@
+BRANCH: codex/mawdda-biometric-proof-gate-2026-11-20
+SHA: 73b53918e2de76d97d9f9cf7dff1706cc9d124b5
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 7d386a77818e3a9ec59977f1cbcb67b8eac6ba9d
+
+=== DIVERGENCE target-only / branch-only ===
+182	12
+
+=== BRANCH UNIQUE COMMITS ===
+73b53918e2de76d97d9f9cf7dff1706cc9d124b5 docs: clarify initial biometric PR commit reference
+bf8bcfedc5592c72330b8860571d87c85d1e88b8 docs: record Media Saver and call entitlement port blockers
+c08b0cc0b3b21e33e636fb971b52d7c8c47328d2 docs: record P0 biometric, role, media and call lifecycle audit
+fb1a54fd66b568e0bf781ab2b6de174a9abf2267 docs: define fail-closed biometric proof gate contract
+e2d78907dc28c986806739765e85ebf4d16f60b2 test: enforce account-bound biometric proof for profile links
+e5ae0ef4c8cbf934613b6afd93978de4e98ec7d6 security: bind biometric proof checks to authenticated account
+1bd2f5497de6b9b8814d932ad862a15f17cd7205 security: require account-bound server biometric proof
+47f7d138fb2bb19ef9ced5c14824cf022d8e1551 security: require account-bound server biometric proof
+f8662ca7fa6b41f5f9b8d9e313e45d33ace92273 security: require account-bound server biometric proof
+b201bd75f2bc9ef92dfd27d5ecbe02d34ded937f security: require account-bound server biometric proof
+147fb4a33c7bf0c63468dcac876fe29c205bc175 security: require account-bound server biometric proof
+da1dc672d4026de4eec3f61de5e672f496aed935 security: require account-bound server biometric proof
+
+=== CHERRY STATUS ===
++ da1dc672d4026de4eec3f61de5e672f496aed935 security: require account-bound server biometric proof
++ 147fb4a33c7bf0c63468dcac876fe29c205bc175 security: require account-bound server biometric proof
++ b201bd75f2bc9ef92dfd27d5ecbe02d34ded937f security: require account-bound server biometric proof
++ f8662ca7fa6b41f5f9b8d9e313e45d33ace92273 security: require account-bound server biometric proof
++ 47f7d138fb2bb19ef9ced5c14824cf022d8e1551 security: require account-bound server biometric proof
++ 1bd2f5497de6b9b8814d932ad862a15f17cd7205 security: require account-bound server biometric proof
++ e5ae0ef4c8cbf934613b6afd93978de4e98ec7d6 security: bind biometric proof checks to authenticated account
++ e2d78907dc28c986806739765e85ebf4d16f60b2 test: enforce account-bound biometric proof for profile links
++ fb1a54fd66b568e0bf781ab2b6de174a9abf2267 docs: define fail-closed biometric proof gate contract
++ c08b0cc0b3b21e33e636fb971b52d7c8c47328d2 docs: record P0 biometric, role, media and call lifecycle audit
++ bf8bcfedc5592c72330b8860571d87c85d1e88b8 docs: record Media Saver and call entitlement port blockers
++ 73b53918e2de76d97d9f9cf7dff1706cc9d124b5 docs: clarify initial biometric PR commit reference
+
+=== FILE STATUS ===
+M	docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+A	docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md
+M	functions/src/biometric-verification.ts
+M	functions/src/index.ts
+M	functions/src/member-social-links-access.ts
+M	functions/src/member-social-links.ts
+M	functions/test/biometric-verification.test.js
+M	functions/test/member-social-links-access.test.js
+M	functions/test/member-social-links.test.js
+
+=== NUMSTAT ===
+56	0	docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+53	0	docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md
+56	33	functions/src/biometric-verification.ts
+4	3	functions/src/index.ts
+3	2	functions/src/member-social-links-access.ts
+4	2	functions/src/member-social-links.ts
+47	57	functions/test/biometric-verification.test.js
+37	27	functions/test/member-social-links-access.test.js
+40	29	functions/test/member-social-links.test.js
+
+=== DIFF CHECK ===
+docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md:7: trailing whitespace.
++Branch: `codex/mawdda-biometric-proof-gate-2026-11-20`  
+docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md:8: trailing whitespace.
++Base: `codex/mawdda-phase1-unified-2026-11-19`  
+DIFF_CHECK=WARNING

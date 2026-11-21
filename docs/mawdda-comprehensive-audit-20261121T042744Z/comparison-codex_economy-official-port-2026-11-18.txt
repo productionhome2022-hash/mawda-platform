@@ -1,0 +1,28 @@
+Compared branch: codex/economy-official-port-2026-11-18
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+487	20
+
+=== CHANGE SUMMARY ===
+ docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md |  19 +-
+ functions/src/coin-purchase-requests.ts            |  11 +-
+ functions/src/index.ts                             | 333 ++++++++++++++++++---
+ functions/test/coin-purchase-requests.test.js      |   8 +-
+ .../owner-entitlement-grants.integration.test.js   |  31 +-
+ .../integration/room-rental.integration.test.js    |  23 ++
+ .../integration/wallet-store.integration.test.js   |  63 +++-
+ lib/screens/coin_purchase_screen.dart              |  30 +-
+ lib/screens/owner_coin_purchase_screen.dart        |  13 +-
+ 9 files changed, 478 insertions(+), 53 deletions(-)
+
+=== CHANGED PATHS ===
+M	docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md
+M	functions/src/coin-purchase-requests.ts
+M	functions/src/index.ts
+M	functions/test/coin-purchase-requests.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/room-rental.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+M	lib/screens/coin_purchase_screen.dart
+M	lib/screens/owner_coin_purchase_screen.dart
