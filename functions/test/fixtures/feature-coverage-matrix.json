@@ -122,7 +122,7 @@
         "no-gifts",
         "no-image-gif-video-or-document-messages"
       ],
-      "releaseBlocker": "Internal emulator coverage is present for guest profile/session, public-room discovery/join, text/audio messaging, and several denied capabilities. The listed internalOpenCases remain unverified by the current CI evidence. Real-device audio acceptance is explicitly outside the current owner-confirmed scope.",
+      "releaseBlocker": "Internal release blockers remain: emulator coverage is present for guest profile/session, public-room discovery/join, text/audio messaging, and several denied capabilities, but the listed internalOpenCases are not yet evidenced by current CI. Real-device audio acceptance is explicitly outside the owner-confirmed current scope.",
       "internalStatus": "partial",
       "internalOpenCases": [
         "60-minute-live-expiry-clock-integration",
@@ -421,7 +421,7 @@
         "real-device-audio-video-quality-and-resource-release",
         "multi-party-room-call-acceptance-on-real-devices"
       ],
-      "releaseBlocker": "The server-side Firestore call-signaling emulator suite passed 7/7 on the selected code baseline. The journey remains partial for end-to-end media/device/relay acceptance, which is explicitly excluded from the current internal-only work scope.",
+      "releaseBlocker": "Internal release blockers remain for ICE restart/long-running renegotiation and background/terminated notification E2E. The server-side call-signaling emulator suite passed 7/7. TURN, device/media negotiation and real-device acceptance are outside the owner-confirmed current scope.",
       "internalStatus": "partial",
       "internalEvidence": {
         "runId": 44944086768,
