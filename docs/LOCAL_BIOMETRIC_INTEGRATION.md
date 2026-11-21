@@ -52,3 +52,8 @@
 - Flutter local_auth: https://pub.dev/packages/local_auth
 - Android implementation/setup: https://pub.dev/packages/local_auth_android
 - Apple LocalAuthentication: https://developer.apple.com/documentation/localauthentication
+
+
+## توضيح نطاق دورة التوثيق عبر المنصات — 2026-11-21
+
+هذا الملف خاص بنافذة المصادقة المحلية `local_auth` فقط. لا تخلطها مع دورة التوثيق البيومتري القائمة على أدلة الصوت والفيديو. دورة التوثيق الرسمية يجب أن تكون متاحة عبر متصفح الويب وPWA وتطبيق Android وتطبيق iOS عند جاهزيته، وبنفس طلب الخادم وخدمات الرفع وقرار Super Owner والمكافأة. سطح المكتب حالياً يستخدم الويب/PWA؛ لا يوجد هدف تطبيق Flutter أصلي لـ Windows/macOS/Linux في المستودع بعد. انظر `BIOMETRIC_CROSS_PLATFORM_REQUIREMENTS_2026-11-21.md` و`phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md`.

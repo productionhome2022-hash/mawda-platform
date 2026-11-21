@@ -67,9 +67,9 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Mawdda uses the microphone only when you start an audio or video call, or choose to record an audio message. Recording is not started in the background.</string>
+	<string>Mawdda uses the microphone only when you explicitly record a voice message, submit the 20-second maximum biometric verification voice sample, or start an audio or video call. Recording is never started in the background.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Mawdda uses the camera only when you start or join a video call.</string>
+	<string>Mawdda uses the camera only when you explicitly capture profile media, submit the 3–5 second biometric verification video, or start or join a video call.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Mawdda uses Face ID only when you explicitly choose local device authentication. Biometric data remains on your Apple device and is never collected by Mawdda.</string>
 </dict>

@@ -103,3 +103,13 @@ The platform owner explicitly reaffirmed that the Super Owner's personal review 
 - The 20-second limit applies consistently to the member capture UI, upload validation, server-side inspection of the uploaded audio container/tracks, and tests. A recording longer than 20 seconds must be rejected server-side even if client metadata claims a shorter duration.
 - This amendment does **not** change the separate 60-second maximum for live voice recording in chats/rooms, nor does it change attached/recorded audio policies outside biometric verification.
 - The 3–5 second biometric video limit, 1,500 BetaCoins reward, manual Super Owner review, three-attempt lifecycle, and one-calendar-month renewal remain unchanged.
+
+
+## 7. إتاحة الدورة عبر المنصات (قرار 2026-11-21)
+
+- دورة التوثيق البيومتري متاحة للمستخدم من موقع الويب عبر المتصفح، وPWA المثبتة، وتطبيق Android، وتطبيق iOS عند جاهزيته للإطلاق.
+- يجب أن تتشارك المنصات الطلب الخادمي نفسه، وحدود الأدلة نفسها، وقرار Super Owner نفسه، وقواعد المحاولات والمكافأة نفسها. لا توجد دورة تحقق مستقلة لكل منصة.
+- يجب أن تسمح واجهات الويب/PWA بالتقاط الصوت والفيديو عبر صلاحيات المتصفح أو اختيار ملفات محلية مدعومة، مع احترام حدود 20 ثانية للصوت و3–5 ثوانٍ للفيديو والتحقق الخادمي من بايتات الملفات.
+- في Android وiOS، تُطلب صلاحيات الميكروفون والكاميرا عند الاستخدام الصريح فقط، وتوضح رسائل النظام غرض جمع أدلة التوثيق. لا تجمع Mawdda قوالب بصمة الإصبع أو الوجه؛ دليل التوثيق المطلوب هو الصوت والفيديو الذي يراجعه Super Owner.
+- سطح المكتب: يتيح موقع الويب وPWA المثبتة دورة التوثيق على الحاسوب. لا يُعلن دعم تطبيق أصلي Windows/macOS/Linux حتى إضافة أهدافه وبناءاته واختباراته الفعلية.
+- يجب إدراج فحوصات الويب/PWA وAndroid وiOS ضمن بوابات CI ذات الصلة، ثم إجراء اختبارات متصفح وأجهزة فعلية قبل الإطلاق. لا يعد نجاح CI وحده قبولاً نهائياً.
