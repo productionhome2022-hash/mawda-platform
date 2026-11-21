@@ -227,7 +227,7 @@ test("three rejections require calendar-month waits, close permanently, and neve
       ids.push(started.requestId);
       assert.equal(started.attemptNumber, attempt);
       const ref = db.collection("biometricVerificationRequests").doc(started.requestId);
-      await attachEvidence(ref, uid, started.requestId, 30000, 3000);
+      await attachEvidence(ref, uid, started.requestId, 20000, 3000);
       await submitBiometricVerificationRequest.run(memberRequest(uid, { requestId: started.requestId }));
       await getOwnerBiometricEvidencePlayback.run(ownerRequest(ownerUid, { requestId: started.requestId }));
       const decision = await decideBiometricVerificationRequest.run(ownerRequest(ownerUid, {

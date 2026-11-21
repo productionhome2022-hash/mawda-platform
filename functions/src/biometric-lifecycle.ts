@@ -14,7 +14,7 @@ import { detectMediaSignature } from "./media-security";
 import { addCalendarMonthsUtc, isBiometricVerificationDue } from "./verification-calendar";
 import {
   BIOMETRIC_SPOKEN_PHRASE, BIOMETRIC_SPOKEN_PHRASE_VERSION,
-  BIOMETRIC_AUDIO_MAX_BYTES, BIOMETRIC_VIDEO_MAX_BYTES,
+  BIOMETRIC_AUDIO_MAX_BYTES, BIOMETRIC_AUDIO_MAX_DURATION_MS, BIOMETRIC_VIDEO_MAX_BYTES,
   BIOMETRIC_EVIDENCE_UPLOAD_TTL_MS, BIOMETRIC_EVIDENCE_REVIEW_TTL_MS,
   BIOMETRIC_REWARD_COINS, validateBiometricMemberIdentity,
   biometricRewardLedgerId,
@@ -221,7 +221,7 @@ export const getBiometricVerificationPhrase = onCall(async (request) => {
   requireUid(request.auth?.uid);
   return {
     phrase: BIOMETRIC_SPOKEN_PHRASE, phraseVersion: BIOMETRIC_SPOKEN_PHRASE_VERSION,
-    audioMaxBytes: BIOMETRIC_AUDIO_MAX_BYTES, audioMaxDurationSeconds: 20,
+    audioMaxBytes: BIOMETRIC_AUDIO_MAX_BYTES, audioMaxDurationSeconds: BIOMETRIC_AUDIO_MAX_DURATION_MS / 1000,
     videoMaxBytes: BIOMETRIC_VIDEO_MAX_BYTES, videoMinDurationSeconds: 3, videoMaxDurationSeconds: 5,
   };
 });
@@ -333,7 +333,7 @@ export const startBiometricVerificationRequest = onCall(async (request) => {
     requestId, attemptNumber, phrase: BIOMETRIC_SPOKEN_PHRASE,
     phraseVersion: BIOMETRIC_SPOKEN_PHRASE_VERSION,
     uploadPurpose: "biometric",
-    audio: { contentType: "audio/mp4", maxBytes: BIOMETRIC_AUDIO_MAX_BYTES, maxDurationSeconds: 60 },
+    audio: { contentType: "audio/mp4", maxBytes: BIOMETRIC_AUDIO_MAX_BYTES, maxDurationSeconds: BIOMETRIC_AUDIO_MAX_DURATION_MS / 1000 },
     video: { contentType: "video/mp4", maxBytes: BIOMETRIC_VIDEO_MAX_BYTES, minDurationSeconds: 3, maxDurationSeconds: 5 },
     uploadInstructions: "Create each upload through createMediaUploadIntent with purpose=biometric and biometricRequestId=requestId, then finalize it and wait for scanner approval before submitting.",
   };
