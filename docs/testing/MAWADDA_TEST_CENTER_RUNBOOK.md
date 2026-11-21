@@ -39,3 +39,8 @@ A passing Test Center run does not prove:
 - penetration testing, legal/privacy review, production observability or launch readiness.
 
 Those remain separate gates in `docs/RELEASE_READINESS_CHECKLIST.md`. A passing run is evidence for its exact commit and emulator scenarios only; it is not authorization to merge, deploy, activate billing, or mutate live Firebase resources.
+
+
+## GOV-SIM-5000-001 — current boundary
+
+Any older checklist item in this runbook that asks for a 5,000-persona lab pass as a Test Center prerequisite is superseded. The primary repository's Test Center must never invoke or depend on the 5,000-persona harness. The independent lab must not be run or modified without a separate, explicit owner commission. This runbook covers only ordinary product validation and deterministic emulator integration that does not invoke the large-scale harness.
