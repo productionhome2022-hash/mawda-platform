@@ -133,3 +133,53 @@ export function projectGroupCallTestPricingSnapshot(
     billingEnabled: false,
   };
 }
+
+const CALL_ENTITLEMENT_ITEM_IDS = {
+  audio: ["voice_call_24h", "voice_call_7d", "voice_call_30d"],
+  video: ["video_call_24h", "video_call_7d", "video_call_30d"],
+} as const;
+
+function entitlementExpiryMs(value: unknown): number | null {
+  if (value && typeof value === "object" &&
+      typeof (value as { toMillis?: unknown }).toMillis === "function") {
+    try {
+      const result = (value as { toMillis: () => number }).toMillis();
+      return Number.isSafeInteger(result) && result >= 0 ? result : null;
+    } catch { return null; }
+  }
+  if (Number.isSafeInteger(value) && (value as number) >= 0) return value as number;
+  return null;
+}
+
+export function hasActiveCallEntitlement(
+  entitlements: readonly { itemId: string; data: unknown }[],
+  mode: "audio" | "video",
+  nowMs: number,
+): boolean {
+  if (!Number.isSafeInteger(nowMs) || nowMs < 0) return false;
+  const allowedIds = CALL_ENTITLEMENT_ITEM_IDS[mode];
+  return entitlements.some(({ itemId, data }) => {
+    if (!(allowedIds as readonly string[]).includes(itemId) ||
+        !data || typeof data !== "object" || Array.isArray(data)) return false;
+    const record = data as Record<string, unknown>;
+    const expectedCategory = mode === "audio" ? "voice_call" : "video_call";
+    const expiry = entitlementExpiryMs(record.expiresAt);
+    return record.itemId === itemId && record.category === expectedCategory &&
+      record.status === "active" && expiry !== null && expiry > nowMs;
+  });
+}
+
+export function evaluateCallParticipantEntitlements(
+  participantUids: readonly string[],
+  mode: "audio" | "video",
+  entitlementsByUid: ReadonlyMap<string, readonly { itemId: string; data: unknown }[]>,
+  nowMs: number,
+): { allowed: boolean; missingUids: string[] } {
+  if (!Array.isArray(participantUids) || participantUids.length < 2 ||
+      new Set(participantUids).size !== participantUids.length) {
+    return { allowed: false, missingUids: [...participantUids] };
+  }
+  const missingUids = participantUids.filter((uid) =>
+    !hasActiveCallEntitlement(entitlementsByUid.get(uid) ?? [], mode, nowMs));
+  return { allowed: missingUids.length === 0, missingUids };
+}
