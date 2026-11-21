@@ -154,7 +154,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
       await _refreshStatus();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم إرسال الأدلة الآمنة إلى Super Owner للمراجعة.')),
+        const SnackBar(content: Text('تم إرسال الأدلة الآمنة إلى المالك الأعلى للمراجعة.')),
       );
     } catch (error) {
       if (mounted) setState(() => _error = error.toString().replaceFirst('Exception: ', ''));
@@ -166,7 +166,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
   String _statusLabel() {
     switch (_status?['status']) {
       case 'verified': return 'موثّق حالياً';
-      case 'pending': return 'بانتظار مراجعة Super Owner';
+      case 'pending': return 'بانتظار مراجعة المالك الأعلى';
       case 'rejected': return 'تم رفض المحاولة';
       case 'closed': return 'أُغلق الملف بعد ثلاث حالات رفض';
       case 'expired': return 'انتهت صلاحية التوثيق ويمكنك التجديد';
@@ -272,7 +272,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
           const ListTile(
             leading: Icon(Icons.card_giftcard),
             title: Text('مكافأة القبول: 1,500 BetaCoins'),
-            subtitle: Text('تُضاف تلقائياً بعد موافقة Super Owner فقط، مرة واحدة لكل دورة توثيق مقبولة.'),
+            subtitle: Text('تُضاف تلقائياً بعد موافقة المالك الأعلى فقط، مرة واحدة لكل دورة توثيق مقبولة.'),
           ),
         ],
       ),
