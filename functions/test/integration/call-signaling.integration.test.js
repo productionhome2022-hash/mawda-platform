@@ -36,10 +36,18 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
     calleeRef.set({ profileCompleted: true, accountStatus: "active", age: 31 }),
     outsiderRef.set({ profileCompleted: true, accountStatus: "active", age: 28 }),
     seedCallEntitlement(callerUid, "audio"),
-    seedCallEntitlement(calleeUid, "audio"),
     chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
   ]);
   try {
+    await assert.rejects(
+      () => startCall.run(call(callerUid, {
+        callId, scope: "direct", targetId: chatId, mode: "audio",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "both direct-call participants must hold an active matching call package",
+    );
+    assert.equal((await callRef.get()).exists, false);
+    await seedCallEntitlement(calleeUid, "audio");
     const started = await startCall.run(call(callerUid, {
       callId, scope: "direct", targetId: chatId, mode: "audio",
     }));
