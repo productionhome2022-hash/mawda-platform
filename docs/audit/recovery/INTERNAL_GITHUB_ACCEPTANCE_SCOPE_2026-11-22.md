@@ -21,7 +21,7 @@ These exclusions are deliberate scope boundaries, not completed tests and not re
 - Code baseline SHA: `e522acb5a47964b529b84f49bacd9db0167a6dc5`
 - Historical integration anchor: `e12897ad7dc5f383501d997117fb1211c67632e7`
 - Recovery/documentation branch: `codex/mawda-recovery-integration-2026-11-21`
-- Recovery branch is 8 commits ahead / 0 behind the code baseline; its current compare shows documentation-only changes in:
+- Recovery branch is 11 commits ahead / 0 behind the code baseline; its current compare shows documentation-only changes in:
   - `docs/RELEASE_READINESS_CHECKLIST.md`
   - `docs/audit/recovery/DOMAIN_BRANCH_INVENTORY_2026-11-22.md`
   - `docs/audit/recovery/UNIFIED_BASELINE_SELECTION_2026-11-22.md`
@@ -65,6 +65,17 @@ The committed `functions/test/fixtures/feature-coverage-matrix.json` contains 16
 - **CALL-001:** the server-side signaling emulator suite passed 7/7. The matrix remains partial because its remaining planned items include WebRTC media negotiation, TURN/network traversal, device permissions, background notifications and real-device media quality. These are outside the owner-confirmed current scope and have not been tested here.
 
 The matrix's older BIO-001 wording should not be interpreted as requiring device attestation or automated proof. The final owner policy in `docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md` is authoritative: manual Super Owner evidence review and explicit decision are sufficient; server authorization, fresh MFA, private evidence access, audit, atomic ledger reward, idempotency and deletion remain required.
+
+## Draft PR and exact-head check status
+
+- Draft PR: https://github.com/productionhome2022-hash/mawda-platform/pull/86
+- Target: `codex/mawda-full-platform-implementation`
+- PR head at the last test-triggering revision: `4cd3d3eb081949978a0d55fe2ba39df5ed754d4c`
+- PR remains open and draft; it has not been merged.
+- The first PR-triggered run exposed one test-fixture wording assertion: the guest journey's `releaseBlocker` text had to retain the literal phrase “release blockers”. This was corrected without changing application code.
+- On the corrected PR head, the Functions unit-test job passed: 452 tests, 451 passed, 0 failed, 1 skipped.
+- The corrected PR head's media authorization/audit integration passed 38/38, and biometric evidence/Super Owner/reward integration passed 5/5.
+- The Flutter analysis/tests/web-build job was still in progress at the last check. The complete downstream emulator/scanner jobs had not yet produced a final result. Do not call the corrected PR head fully green until those jobs finish.
 
 ## Current conclusion
 
