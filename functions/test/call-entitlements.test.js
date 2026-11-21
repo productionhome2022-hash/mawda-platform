@@ -4,6 +4,7 @@ const {
   validateGroupCallEntitlementPolicy,
   isGroupCallBillingCollectionEnabled,
   projectStoreGiftHistoryEntry,
+  projectGroupCallTestPricingSnapshot,
 } = require("../lib/call-entitlements.js");
 
 const policy = {
@@ -45,4 +46,24 @@ test("gift history projection exposes only a viewer's sent or received completed
   assert.equal(Object.hasOwn(projected, "auditPayload"), false);
   assert.equal(projectStoreGiftHistoryEntry(record, "unrelated"), null);
   assert.equal(projectStoreGiftHistoryEntry({ ...record, status: "pending" }, "viewer"), null);
+});
+
+test("call session pricing snapshot freezes the test-only owner policy without collection", () => {
+  const snapshot = projectGroupCallTestPricingSnapshot({
+    environment: "test_only", billingEnabled: false, policy,
+  }, "video");
+  assert.deepEqual(snapshot, {
+    policyId: policy.policyId, policyVersion: policy.version,
+    mode: "video", coinsPerMinute: policy.videoCoinsPerMinute,
+    environment: "test_only", billingEnabled: false,
+  });
+  assert.equal(projectGroupCallTestPricingSnapshot({
+    environment: "test_only", billingEnabled: false, policy: { ...policy, active: false },
+  }, "audio"), null);
+  assert.equal(projectGroupCallTestPricingSnapshot({
+    environment: "production", billingEnabled: false, policy,
+  }, "audio"), null);
+  assert.equal(projectGroupCallTestPricingSnapshot({
+    environment: "test_only", billingEnabled: true, policy,
+  }, "audio"), null);
 });
