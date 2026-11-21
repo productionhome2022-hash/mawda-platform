@@ -36,6 +36,7 @@
 - [سجل القرارات المعتمدة والتتبع](../MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md) — سجل حالة القرار ومصدره.
 - [سجل العقود والحوكمة](../MAWADDA_CONTRACTS_AND_GOVERNANCE_REGISTER_2026.md).
 - [اتفاقية سيادة المالك والتفويض](../OWNER_SOVEREIGN_AUTHORITY_AND_DELEGATION_CONSTITUTION.md).
+- [سجل المسميات القياسية والهوية الإدارية والعملة NOM-001](../MAWADDA_CANONICAL_NOMENCLATURE_AND_ROLE_CATALOG_2026.md).
 - [اتفاقية تحكم المالك الرئيسية](../OWNER_CONTROL_MASTER_AGREEMENT.md).
 - [حوكمة الوصول ودورة حياة العقود](../LEGAL_CONTRACT_ACCESS_AND_LIFECYCLE_GOVERNANCE_2026.md).
 - [تدقيق ضبط الوثائق القانونية والحوكمة](../LEGAL_GOVERNANCE_DOCUMENT_CONTROL_AUDIT_2026-11-19.md).
