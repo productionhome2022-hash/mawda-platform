@@ -54,17 +54,27 @@
 - يجب أن تشمل الـworkflow فحوصات خاصة بملفات التوثيق وسياسات المنصات عند تعديلها، دون تشغيل بناء Android بسبب تعديلات غير مرتبطة بالمنصة.
 
 
-## متابعة أحدث فرع — 2026-11-21
+## نتيجة التحقق النهائي على الفرع — 2026-11-21
 
 - يحتوي الفرع الآن على تحسين التقاط/اختيار الأدلة في المتصفح وPWA وسطح المكتب عبر commit `b7565fcb818410de1ee6702c54e6d18a80303ea0`، مع بقاء حد الصوت 20 ثانية مفروضاً خادمياً.
 - أضيف workflow مستقل `Biometric cross-platform smoke` لبناء Web/PWA وAndroid Debug وiOS بلا توقيع، مع فحوص عدم تخزين الأدلة الحساسة في service-worker cache.
-- حالة التشغيل وقت آخر تحديث: `Validate Mawda #44843265892` و`Biometric cross-platform smoke #44843265818` بانتظار الاكتمال. لا تعتبر بُنى Android Debug أو iOS no-codesign بديلاً عن قبول جهاز حقيقي أو Release موقّع.
-- تم اختبار commit السابق `8ee105ab` بنجاح شامل؛ تبقى نتائج commit `b7565fcb` بوابة مفتوحة حتى اكتمال التشغيلين أعلاه.
+- تم اجتياز `Validate Mawda #44844354033` على SHA `d7b3f7fb007f48c942159624be304e523ab13285` بجميع الوظائف الخمس، بما فيها Functions/unit، تكامل التوثيق والمكافأة والتزامن، Flutter Analyze/Tests/Web، تكامل Firebase Emulator/Firestore/Storage والنسخ/الاستعادة، وبناء/اختبار ClamAV/EICAR.
+- تم اجتياز `Biometric cross-platform smoke #44844354091` على SHA نفسه بجميع الوظائف الثلاث: Web/PWA، Android Debug APK، وiOS no-codesign.
+- نجح `Bootstrap and validate Mawdda native platforms #44844354085` في Android Debug APK وDebug AAB (اختبار تغليف غير موقّع/غير إنتاجي). بناء iOS no-code-sign في هذا الـworkflow الإضافي كان ما يزال جارياً وقت تحرير هذا التحديث؛ نجاح iOS no-codesign في smoke workflow مثبت بالفعل.
+- هذه النتائج تثبت بناء CI فقط؛ لا تثبت قبول Android أو iOS على جهاز حقيقي، ولا Release موقّع أو نشر. لا تزال تجربة الأجهزة وnon-production ومختبر 5000 بوابات قبول مستقلة.
 
 
-## Android cross-platform build blocker and dependency correction — 2026-11-21
+## Android cross-platform build blocker and workflow correction — 2026-11-21
 
 - كشف workflow `Biometric cross-platform smoke #44843208803` أن بناء Android Debug فشل عند `:file_picker:checkDebugAarMetadata`: نسخة `file_picker 8.3.7` كانت تُبنى مقابل Android API 34 بينما `flutter_plugin_android_lifecycle 2.0.35` يتطلب compileSdk 36. إعداد التطبيق نفسه مضبوط مسبقاً على compileSdk 36؛ لذلك لم نرفع targetSdk أو minSdk ولم نغيّر هوية التطبيق أو التوقيع.
 - السبب الجذري ليس نقص compileSdk في التطبيق: `android/app/build.gradle.kts` مضبوط مسبقاً على API 36، كما يوجد في المشروع patch معتمد ومختبر `tool/patch_android_plugin_compile_sdk.py` لتوحيد compileSdk=36 لجميع إضافات Flutter المحلولة في pub cache. فشل smoke Android لأن workflow لم يستدعِ هذا patch، بينما workflow الأصلي `bootstrap-native-platforms.yml` يستدعيه قبل البناء.
 - الإصلاح الأدنى: إبقاء `file_picker` على سلسلة 8.3.x المتوافقة مع واجهة `FilePicker.platform` الحالية، وتحديث قيد `pubspec.yaml` إلى `^8.3.7` (دون ترقية package غير لازمة)، وإضافة خطوة تشغيل patch المعتمد في `biometric-platform-smoke.yml` قبل `flutter build apk --debug`. لا تغيير لـcompileSdk/targetSdk/minSdk أو هوية Android.
 - يعيد workflow `resolve-flutter-lock.yml` توليد `pubspec.lock` من القيد المعتمد؛ يجب أن ينجح `flutter pub get --enforce-lockfile` ثم Android Debug build بعد patch قبل إغلاق البوابة.
+
+
+## تثبيت قرار الصوت البيومتري ونتائج CI — 2026-11-21
+
+- حد التسجيل الصوتي المرفوع كدليل للتوثيق البيومتري حصراً هو **20 ثانية كحد أقصى**، 5 MiB كحد حجم. استجابات callable وواجهة Flutter وفحص الملف من البايتات واختبارات 20,000ms/20,001ms متوافقة. لا يمس ذلك حد التسجيل الحي 60 ثانية للمحادثات والغرف.
+- يستخدم مسار مكافأة 1,500 BetaCoins primitive الاقتصاد المركزي المشترك `creditMemberWalletInTransaction` في `functions/src/wallet-ledger.ts` داخل معاملة قرار التوثيق نفسها؛ الرصيد وسجل walletLedger وidempotency تُكتب ذرياً.
+- التحقق النهائي على SHA `d7b3f7fb007f48c942159624be304e523ab13285`: Validate Mawda #44844354033 أخضر بالكامل، وBiometric cross-platform smoke #44844354091 أخضر بالكامل.
+- أُصلح سبب فشل Android السابق بإضافة `tool/patch_android_plugin_compile_sdk.py` إلى workflow smoke؛ بقي `file_picker 8.3.7` دون ترقية غير لازمة، ونجح Android Debug بعد تطبيق patch على جميع إضافات Flutter.
