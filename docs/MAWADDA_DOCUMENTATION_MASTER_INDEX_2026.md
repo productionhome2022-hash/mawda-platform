@@ -145,4 +145,4 @@
 
 - [تقرير التدقيق الزمني ومطابقة GitHub Actions والـ commits والفهرس والرؤية والدستور](audit/2026-11-21/CHRONOLOGICAL_DOCUMENTATION_RECONCILIATION_AUDIT_2026-11-21.md).
 - [ملحق التسلسل الزمني للـ commits بعد لقطة 8bc](MAWADDA_DOCUMENTATION_GOVERNANCE_CONTRACTS_CONSTITUTION_VISION/POST_SNAPSHOT_COMMIT_CHRONOLOGY_2026-11-21.tsv).
-- أحدث إجمالي جرد موثق: 1,133 مساراً. هذا لا يعني مراجعتها دلالياً؛ 1,114 ما زالت بانتظار المراجعة الفردية.
+- أحدث إجمالي جرد موثق: 1,133 مساراً. هذا لا يعني مراجعتها دلالياً؛ 1,110 ما زالت بانتظار المراجعة الفردية.
