@@ -146,3 +146,9 @@ This follow-up integrates owner-controlled test prices into call-session metadat
 - Store package purchases continue to use the existing atomic store purchase/gift transactions and the owner-managed catalog prices/durations.
 - The separate owner test tariff is versioned, snapshotted into new sessions, and strictly non-collecting.
 - Open-call per-minute billing, quota-exhaustion billing allocation, explicit paid-call consent, atomic debits/credits, refunds, and crash recovery remain disabled/not implemented. No per-minute call charge can be made.
+
+
+## Final follow-up verification point
+- The final code/documentation head for this follow-up is `de3a7ba6d257635282bb7687a64803d5e34bd041`.
+- The official branch compared against that exact commit is identical (0 ahead / 0 behind).
+- GitHub returned no commit status checks and no PR-associated workflow runs for the checked commit. Build, unit, emulator, and Flutter test success is therefore **not asserted**.
