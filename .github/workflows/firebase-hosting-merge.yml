@@ -1,0 +1,82 @@
+name: Build and Deploy to Firebase Hosting
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production_deploy:
+        description: "Explicitly approve deployment of the validated main branch to production Firebase Hosting"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build_and_deploy:
+    if: github.ref == 'refs/heads/main' && inputs.confirm_production_deploy == true && github.actor == 'productionhome2022-hash'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.9"
+          channel: stable
+          cache: true
+
+      - name: Enable Flutter Web
+        run: flutter config --enable-web
+
+      - name: Install Flutter dependencies from committed lockfile
+        run: flutter pub get --enforce-lockfile
+
+      - name: Analyze Dart code
+        run: flutter analyze
+
+      - name: Run Flutter tests
+        run: flutter test
+
+      - name: Build Web Release
+        run: flutter build web --release
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.20.2"
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install backend dependencies from committed lockfile
+        run: npm ci --no-audit --no-fund
+        working-directory: functions
+
+      - name: Compile and test backend
+        run: npm test
+        working-directory: functions
+
+      - name: Set up Java for Firebase emulators
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Run Firestore and Storage rules emulator tests
+        run: npm run test:rules
+        working-directory: functions
+
+      - name: Verify Firebase production target and generated app configuration
+        env:
+          FIREBASE_PROJECT_ID: mawda-app-2026
+          FIREBASE_WEB_APP_ID: 1:697303475139:web:8869603bda6f1a3c3ed376
+        run: node functions/scripts/validate-firebase-config.cjs
+
+      - name: Install pinned Firebase CLI
+        run: npm install --global firebase-tools@14.0.0
+
+      - name: Deploy to Firebase Hosting
+        run: firebase deploy --only hosting --project "$FIREBASE_PROJECT_ID" --token "${{ secrets.FIREBASE_TOKEN }}"
+        env:
+          FIREBASE_PROJECT_ID: mawda-app-2026
+          FIREBASE_CLI_PREVIEWS: hostingchannels
