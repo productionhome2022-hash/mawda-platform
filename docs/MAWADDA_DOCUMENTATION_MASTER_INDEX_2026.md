@@ -118,7 +118,7 @@
 - [دستور مودة الموحد الشامل — الإصدار 2.0](MAWADDA_UNIFIED_CONSTITUTION_2026.md): المرجع الموحد للسياسات والحوكمة والحدود.
 - [الرؤية الشاملة الموحدة لمودة — الإصدار 2.0](MAWADDA_UNIFIED_PLATFORM_VISION_2026.md): المرجع الموحد لتجربة المنتج ونطاق المنصة.
 - [سجل توحيد الدستور والرؤية والتعديلات](MAWADDA_CONSTITUTION_VISION_CHANGE_REGISTER_2026.md): سجل زمني ومصفوفة مصادر وفجوات.
-- [سجل المصادر الكامل](MAWADDA_DOCUMENTATION_GOVERNANCE_CONTRACTS_CONSTITUTION_VISION/MASTER_SOURCE_INVENTORY.tsv): 1,099 مساراً في لقطة الجرد، مع تصنيف أولي وروابط أصلية.
+- [سجل المصادر الكامل](MAWADDA_DOCUMENTATION_GOVERNANCE_CONTRACTS_CONSTITUTION_VISION/MASTER_SOURCE_INVENTORY.tsv): 1,133 مساراً في لقطة الجرد، مع تصنيف أولي وروابط أصلية.
 
 **حالة الإصدار:** الدستور والرؤية منقحان ومجمعان في إصدار 2.0، لكنهما ينتظران اعتماد المالك النهائي. تبقى الوثائق الأصلية محفوظة. لا يعني ذلك نقل جميع أعمال الكود أو إثبات تنفيذ الميزات أو نجاح الاختبارات.
 
@@ -126,7 +126,7 @@
 ## المصالحة الدلالية والسياسات والاختبارات — 21 نوفمبر 2026
 
 - [سجل المصالحة الدلالية والسياسات والاختبارات DOC-RECON-001](MAWADDA_DOCUMENTATION_GOVERNANCE_CONTRACTS_CONSTITUTION_VISION/SEMANTIC_RECONCILIATION_REGISTER_2026.md) يربط GOV-DEV-001 وGOV-QA-001 وقواعد البناء والاختبار والقبول والحوكمة مع سجل القرارات.
-- [خريطة المصادر ذات المعرفات الثابتة](MAWADDA_DOCUMENTATION_GOVERNANCE_CONTRACTS_CONSTITUTION_VISION/MASTER_SOURCE_RECONCILIATION.tsv) تشمل 1,099 مساراً من لقطة الجرد. المراجعة الدلالية الفردية لكل هذه المصادر ما زالت جارية؛ لا تستنتج حالة الاعتماد من وجود الملف.
+- [خريطة المصادر ذات المعرفات الثابتة](MAWADDA_DOCUMENTATION_GOVERNANCE_CONTRACTS_CONSTITUTION_VISION/MASTER_SOURCE_RECONCILIATION.tsv) تشمل 1,133 مساراً من لقطة الجرد. المراجعة الدلالية الفردية لكل هذه المصادر ما زالت جارية؛ لا تستنتج حالة الاعتماد من وجود الملف.
 - تم توثيق التعارضات المحسومة والمفتوحة، بما فيها GOV-DEV-001، GOV-QA-001، BIO-001/002، RET-003، وحالة اعتماد الدستور والرؤية 2.0.
 
 
