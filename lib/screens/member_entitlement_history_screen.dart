@@ -12,6 +12,7 @@ class MemberEntitlementHistoryScreen extends StatefulWidget {
 class _MemberEntitlementHistoryScreenState
     extends State<MemberEntitlementHistoryScreen> {
   List<Map<String, dynamic>> _entries = [];
+  List<Map<String, dynamic>> _giftEntries = [];
   bool _loading = false;
   String? _error;
 
@@ -27,17 +28,20 @@ class _MemberEntitlementHistoryScreenState
       _error = null;
     });
     try {
-      final response = await FirebaseFunctions.instance
-          .httpsCallable('getMyEntitlementGrantHistory')
-          .call();
-      final data = Map<String, dynamic>.from(response.data as Map);
-      final raw = data['entries'] as List? ?? const [];
+      final responses = await Future.wait([
+        FirebaseFunctions.instance.httpsCallable('getMyEntitlementGrantHistory').call(),
+        FirebaseFunctions.instance.httpsCallable('getMyStoreGiftHistory').call(),
+      ]);
+      final grantData = Map<String, dynamic>.from(responses[0].data as Map);
+      final giftData = Map<String, dynamic>.from(responses[1].data as Map);
+      final grantRows = grantData['entries'] as List? ?? const [];
+      final giftRows = giftData['entries'] as List? ?? const [];
       if (!mounted) return;
       setState(() {
-        _entries = raw
-            .whereType<Map>()
-            .map((entry) => Map<String, dynamic>.from(entry))
-            .toList();
+        _entries = grantRows.whereType<Map>()
+            .map((entry) => Map<String, dynamic>.from(entry)).toList();
+        _giftEntries = giftRows.whereType<Map>()
+            .map((entry) => Map<String, dynamic>.from(entry)).toList();
       });
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل سجل الاستحقاقات.');
@@ -75,7 +79,7 @@ class _MemberEntitlementHistoryScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('سجل الاستحقاقات المجانية'),
+        title: const Text('سجل الاستحقاقات والهدايا'),
         actions: [
           IconButton(
             onPressed: _loading ? null : _load,
@@ -93,17 +97,49 @@ class _MemberEntitlementHistoryScreenState
                 padding: const EdgeInsets.all(16),
                 children: [
                   const Text(
-                    'يعرض هذا السجل المنح الإدارية المجانية التي وصلت إلى حسابك. '
-                    'لا تخصم هذه المنح أي كوينز.',
+                    'يعرض هذا السجل المنح الإدارية المجانية والهدايا التي أرسلتها أو استلمتها. '
+                    'المنح المجانية لا تخصم BetaCoins، والهدايا المدفوعة تظهر بقيمتها المسجلة.',
                   ),
                   const SizedBox(height: 12),
                   if (_error != null)
                     Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                  if (!_loading && _entries.isEmpty && _error == null)
+                  if (!_loading && _entries.isEmpty && _giftEntries.isEmpty && _error == null)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 36),
                       child: Center(child: Text('لا توجد منح مسجلة حتى الآن.')),
                     ),
+                  const SizedBox(height: 20),
+                  Text('الهدايا المرسلة والمستلمة', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  if (!_loading && _giftEntries.isEmpty && _error == null)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text('لا توجد هدايا مسجلة حتى الآن.'),
+                    ),
+                  ..._giftEntries.map((entry) {
+                    final received = entry['direction'] == 'received';
+                    final expiresAt = entry['expiresAtMs'];
+                    final counterpart = received ? entry['senderUid'] : entry['recipientUid'];
+                    final duration = entry['durationDays'] == null
+                        ? 'دائم' : '${entry['durationDays']} يوماً';
+                    return Card(
+                      child: ListTile(
+                        leading: Icon(received ? Icons.card_giftcard : Icons.redeem_outlined),
+                        title: Text(entry['itemName'] as String? ?? 'هدية من متجر مودة'),
+                        subtitle: Text(
+                          (received ? 'استلمت من: ' : 'أرسلت إلى: ') + '$counterpart' + '\\n' +
+                          'القيمة: ${entry['priceCoins'] ?? 0} BetaCoins\\n' +
+                          'المدة: $duration\\n' +
+                          'التاريخ: ${_formatTime(entry['createdAtMs'])}\\n' +
+                          'الانتهاء: ${expiresAt == null ? 'دائم/غير محدد' : _formatTime(expiresAt)}',
+                        ),
+                        isThreeLine: true,
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 20),
+                  Text('المنح الإدارية المجانية', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 8),
                   ..._entries.map((entry) {
                     final expiresAt = entry['expiresAtMs'];
                     return Card(
