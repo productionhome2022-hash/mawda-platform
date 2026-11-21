@@ -87,3 +87,8 @@ The owner reconfirmed this prohibition repeatedly today (owner-reported: more th
 - Any exception or amendment requires a separate explicit owner approval.
 
 This governance entry records the owner's statement that the prohibition was repeated more than twenty times today; that count is attributed to the owner and is not represented as an independently audited message count.
+
+
+## Current compliance record — GOV-SIM-5000-001 (2026-11-21)
+
+Static inspection at platform HEAD `81a0ade1086fddbcb11490d5348b6eadb428587d` found a residual `test:persona-load` package command that generated 5,000 fixtures and invoked the large-scale emulator test. It was removed from `functions/package.json`; the associated generator `functions/scripts/generate-persona-load-fixtures.cjs` and test `functions/test/integration/persona-load.integration.test.js` were removed from this repository. Ordinary deterministic persona interaction (`test:seeded-persona-interaction`) is separate and remains in product CI; it is not the 5,000-persona harness. No simulation was run to verify this change. Static re-scan and exact-HEAD CI remain required.
