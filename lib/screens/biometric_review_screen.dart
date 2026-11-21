@@ -63,6 +63,14 @@ class _BiometricReviewScreenState extends State<BiometricReviewScreen> {
     }
   }
 
+  String _genderLabel(Object? value) {
+    switch (value) {
+      case 'male': return 'ذكر';
+      case 'female': return 'أنثى';
+      default: return 'غير محدد';
+    }
+  }
+
   Future<void> _decide(String requestId, bool accepted) async {
     if (!_reviewed.contains(requestId) || !_openedAudio.contains(requestId) || !_openedVideo.contains(requestId)) return;
     final confirm = await showDialog<bool>(
@@ -111,7 +119,7 @@ class _BiometricReviewScreenState extends State<BiometricReviewScreen> {
               children: [
                 const Card(child: Padding(
                   padding: EdgeInsets.all(16),
-                  child: Text('هذه المراجعة حصرية لـSuper Owner. افتح واستمع إلى الصوت وشاهد الفيديو بنفسك قبل القرار. القبول وحده يمنح 1,500 BetaCoins. يتطلب الخادم مطالبة المالك وجلسة MFA حديثة ويثبت القرار والمكافأة في سجل تدقيق ومعاملة ذرية.'),
+                  child: Text('هذه المراجعة حصرية للمالك الأعلى (Super Owner). افتح واستمع إلى الصوت وشاهد الفيديو بنفسك قبل القرار. القبول وحده يمنح 1,500 BetaCoins. يتطلب الخادم مطالبة المالك وجلسة MFA حديثة ويثبت القرار والمكافأة في سجل تدقيق ومعاملة ذرية.'),
                 )),
                 if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 if (_requests.isEmpty && !_loading) const Center(child: Padding(
@@ -132,7 +140,7 @@ class _BiometricReviewScreenState extends State<BiometricReviewScreen> {
         padding: const EdgeInsets.all(14),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(item['fullName'] as String? ?? 'عضو', style: Theme.of(context).textTheme.titleMedium),
-          Text('اسم المستخدم: @${item['username'] ?? '—'} • الجنس المسجل: ${item['gender'] ?? '—'}'),
+          Text('اسم المستخدم: @${item['username'] ?? '—'} • الجنس المسجل: ${_genderLabel(item['gender'])}'),
           Text('رقم المحاولة: ${item['attemptNumber'] ?? '—'}'),
           const SizedBox(height: 8),
           const Text('العبارة الصوتية المطلوبة: أنا أريد الانضمام إلى مرحلة التوثيق البيومتري لأحصل على مكافأة ألف وخمسمائة بيتكوينز. الرجاء قبول التوثيق.'),

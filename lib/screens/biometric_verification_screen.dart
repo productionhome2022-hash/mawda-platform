@@ -199,7 +199,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
                 const Text('تُتاح المحاولة الثانية بعد الرفض الأول بشهر تقويمي، والثالثة بعد الرفض الثاني بشهر تقويمي آخر.'),
               ],
               const SizedBox(height: 8),
-              const Text('القبول يقرره Super Owner بعد الاستماع إلى التسجيل ومراجعة الفيديو. لا يوجد قبول آلي ولا يلزم إثبات تشفيري من الجهاز.'),
+              const Text('القبول يقرره المالك الأعلى (Super Owner) بعد الاستماع إلى التسجيل ومراجعة الفيديو. لا يوجد قبول آلي ولا يلزم إثبات تشفيري من الجهاز.'),
               if (_status?['expiresAtMs'] is num) ...[
                 const SizedBox(height: 8),
                 Text('انتهاء التوثيق: ${DateTime.fromMillisecondsSinceEpoch((_status!['expiresAtMs'] as num).toInt()).toLocal()}'),
@@ -248,7 +248,7 @@ class _BiometricVerificationScreenState extends State<BiometricVerificationScree
           CheckboxListTile(
             value: _consent,
             onChanged: _loading ? null : (value) => setState(() => _consent = value == true),
-            title: const Text('أوافق على إرسال التسجيل الصوتي والفيديو الخاصين بي إلى Super Owner لمراجعة طلب التوثيق.'),
+            title: const Text('أوافق على إرسال التسجيل الصوتي والفيديو الخاصين بي إلى المالك الأعلى لمراجعة طلب التوثيق.'),
             subtitle: const Text('تظل الأدلة خاصة، ويُسجل الوصول والقرار، وتحذف الأدلة بعد القرار ما لم يوجد حجز قانوني نافذ.'),
             controlAffinity: ListTileControlAffinity.leading,
           ),
