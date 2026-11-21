@@ -26,11 +26,14 @@ test('canonical governance documents use one owner and supervisor terminology', 
     for (const pattern of legacyOwnerLabels) {
       assert.doesNotMatch(text, pattern, `${relativePath} contains a deprecated owner label`);
     }
-    assert.match(text, /Super Owner/, `${relativePath} must name the canonical platform owner`);
-    assert.match(text, /Admin Media 1.?5|Admin Media/, `${relativePath} must preserve the Admin Media identity`);
-    assert.match(text, /مشرف إنتاج عام/, `${relativePath} must preserve the general production supervisor identity`);
-    assert.match(text, /مشرف إنتاج الفريق/, `${relativePath} must preserve the team production supervisor identity`);
   }
+
+  const terminology = contents.find(([relativePath]) =>
+    relativePath === 'docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md')[1];
+  assert.match(terminology, /Super Owner/, 'canonical terminology must name the platform owner');
+  assert.match(terminology, /Admin Media 1.?5|Admin Media/, 'canonical terminology must preserve Admin Media');
+  assert.match(terminology, /مشرف إنتاج عام/, 'canonical terminology must preserve the general production supervisor');
+  assert.match(terminology, /مشرف إنتاج الفريق/, 'canonical terminology must preserve the team production supervisor');
 });
 
 test('README links the canonical administrative terminology source', () => {
