@@ -110,3 +110,26 @@ export function projectStoreGiftHistoryEntry(
     status: input.status,
   };
 }
+
+export function projectGroupCallTestPricingSnapshot(
+  settingsInput: unknown,
+  mode: "audio" | "video",
+): { policyId: string; policyVersion: number; mode: "audio" | "video"; coinsPerMinute: number; environment: "test_only"; billingEnabled: false } | null {
+  if (!settingsInput || typeof settingsInput !== "object" || Array.isArray(settingsInput)) return null;
+  const settings = settingsInput as Record<string, unknown>;
+  if (settings.environment !== "test_only" || settings.billingEnabled !== false) return null;
+  let policy: GroupCallEntitlementPolicy;
+  try { policy = validateGroupCallEntitlementPolicy(settings.policy); }
+  catch { return null; }
+  if (!policy.active) return null;
+  const rate = mode === "audio" ? policy.audioCoinsPerMinute : policy.videoCoinsPerMinute;
+  if (!Number.isSafeInteger(rate) || rate < 1) return null;
+  return {
+    policyId: policy.policyId,
+    policyVersion: policy.version,
+    mode,
+    coinsPerMinute: rate,
+    environment: "test_only",
+    billingEnabled: false,
+  };
+}
