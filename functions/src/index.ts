@@ -11259,8 +11259,8 @@ export const getMyStoreGiftHistory = onCall(async (request) => {
     throw new HttpsError("permission-denied", "سجل الهدايا متاح للأعضاء المسجلين النشطين فقط.");
   }
   const [sent, received] = await Promise.all([
-    db.collection("storeGifts").where("senderUid", "==", uid).limit(50).get(),
-    db.collection("storeGifts").where("recipientUid", "==", uid).limit(50).get(),
+    db.collection("storeGifts").where("senderUid", "==", uid).orderBy("createdAt", "desc").limit(50).get(),
+    db.collection("storeGifts").where("recipientUid", "==", uid).orderBy("createdAt", "desc").limit(50).get(),
   ]);
   const entries = [
     ...sent.docs,
@@ -11269,5 +11269,5 @@ export const getMyStoreGiftHistory = onCall(async (request) => {
     .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
     .sort((left, right) => (right.createdAtMs ?? 0) - (left.createdAtMs ?? 0))
     .slice(0, 50);
-  return { entries, nextPageAvailable: sent.size === 50 || received.size === 50 };
+  return { entries, truncated: sent.size === 50 || received.size === 50 };
 });
