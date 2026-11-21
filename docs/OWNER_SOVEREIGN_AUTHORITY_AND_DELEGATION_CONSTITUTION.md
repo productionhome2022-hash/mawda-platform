@@ -42,7 +42,7 @@ All changes must be authenticated owner actions, server-authoritative, versioned
 
 The following are separate role families and must not inherit permissions from one another:
 
-1. **Admin N** — general platform administration. Its catalogue must come only from the previously owner-approved general-administration source. Do not borrow the advertising catalogue or invent missing Admin N capabilities.
+1. **General Administrators: Admin 1, Admin 2, …, Admin N** — a variable number of separately numbered general-administration appointments; Super Owner sets the count. Each appointment has a stable non-reused identifier and individually selected server-enforced permissions. Its capability catalogue must come only from the previously owner-approved general-administration source. Do not borrow the advertising catalogue or invent capabilities.
 2. **Admin Media 1–5** — advertising/media-workspace administration. Reuse the approved catalogue in `docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md`, Section 3, and its appointment/delegation controls in Section 8. Each of the five appointments has an independent permission set.
 3. **General Advertising Supervisors** — separate advertising operational role family.
 4. **General Production Supervisors** — separate production oversight role family.
