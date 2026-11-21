@@ -1,0 +1,32 @@
+06e204c9200c7f4da6ab261014765fcb9b56b78c
+100644 1c68bf6db9f2a72b35249658b9928626fc350ad2 1	docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+100644 9050542231a8556118e3e1f297124fee7cd6699e 2	docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+100644 b10814412dc28066d5cb728a7fc256873217a761 3	docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+100644 f861feb0460934859a936be1ee6fc49351b63677 2	docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md
+100644 e0e19b69f3feaa24447ef66080edfe91ac7e1dbf 3	docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md
+100644 e7a340e6aed62a2edc8529628b1489b72abef049 1	functions/src/biometric-verification.ts
+100644 d69ce5c59d78235a295e1e4aae34b009181ddf2d 2	functions/src/biometric-verification.ts
+100644 8855aaa96a4be1e2aa97fb6213b793a896ef9276 3	functions/src/biometric-verification.ts
+100644 a12303e1814240b29c989e9a56fa05a0c13a77cb 1	functions/test/biometric-verification.test.js
+100644 c7be8481da402c2bc72c4a459af02c699f8c114a 2	functions/test/biometric-verification.test.js
+100644 081682c14759ba7693420eeebb0d3eb9d94e4965 3	functions/test/biometric-verification.test.js
+100644 699f8b0b3f9c2b88973621449c28a7df767ff8a4 1	functions/test/member-social-links-access.test.js
+100644 1bfc08a0c2f68d3c822cc14b53ccf8c6d21f258b 2	functions/test/member-social-links-access.test.js
+100644 fbf6f62f35c4710688579344fea9d21113ef741d 3	functions/test/member-social-links-access.test.js
+100644 b9b0a1f3d2339ddc573699fc95329bc60ff0bf56 1	functions/test/member-social-links.test.js
+100644 6315c173fe46ef5e14cea15d76caa9393bd1612d 2	functions/test/member-social-links.test.js
+100644 26b12d7f7d8d0a0cfe6844160ded9749f040a9ea 3	functions/test/member-social-links.test.js
+
+Auto-merging docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+CONFLICT (content): Merge conflict in docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+Auto-merging docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md
+CONFLICT (add/add): Merge conflict in docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md
+Auto-merging functions/src/biometric-verification.ts
+CONFLICT (content): Merge conflict in functions/src/biometric-verification.ts
+Auto-merging functions/src/index.ts
+Auto-merging functions/test/biometric-verification.test.js
+CONFLICT (content): Merge conflict in functions/test/biometric-verification.test.js
+Auto-merging functions/test/member-social-links-access.test.js
+CONFLICT (content): Merge conflict in functions/test/member-social-links-access.test.js
+Auto-merging functions/test/member-social-links.test.js
+CONFLICT (content): Merge conflict in functions/test/member-social-links.test.js

@@ -1,0 +1,142 @@
+Branch: codex/biometric-server-lifecycle-2026-11-20
+Branch SHA: f79f146e96b9a4ae1210a1fcc37a861ebebcd294
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+138	73
+
+--- Merge base ---
+e12897ad7dc5f383501d997117fb1211c67632e7
+
+--- Changed files relative to common ancestor ---
+M	docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md
+M	docs/phase1/BIOMETRIC_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md
+M	functions/package.json
+A	functions/src/biometric-evidence.ts
+A	functions/src/biometric-lifecycle.ts
+M	functions/src/biometric-media.ts
+M	functions/src/index.ts
+M	functions/src/media-derivative-contract.ts
+M	functions/src/media-scanner.ts
+M	functions/src/media-security.ts
+M	functions/src/media.ts
+A	functions/test/biometric-evidence.test.js
+M	functions/test/biometric-media.test.js
+M	functions/test/integration/biometric-verification.integration.test.js
+M	functions/test/integration/media-callables.integration.test.js
+M	functions/test/media-derivative-contract.test.js
+M	functions/test/media-scanner.test.js
+M	functions/test/media-security.test.js
+M	lib/services/member_media_upload_service.dart
+M	scanner/processors.js
+M	scanner/security.js
+M	scanner/test/processors.test.js
+M	scanner/test/security.test.js
+
+--- Diff statistics ---
+ .../BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md     |   4 +-
+ ...C_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md |  29 +-
+ functions/package.json                             |   2 +-
+ functions/src/biometric-evidence.ts                |  29 +
+ functions/src/biometric-lifecycle.ts               | 641 +++++++++++++++++++++
+ functions/src/biometric-media.ts                   |  45 ++
+ functions/src/index.ts                             |   1 +
+ functions/src/media-derivative-contract.ts         |   4 +-
+ functions/src/media-scanner.ts                     |   4 +-
+ functions/src/media-security.ts                    |  17 +-
+ functions/src/media.ts                             |  52 +-
+ functions/test/biometric-evidence.test.js          |  27 +
+ functions/test/biometric-media.test.js             |  11 +
+ .../biometric-verification.integration.test.js     | 299 ++++++++--
+ .../media-callables.integration.test.js            |  47 ++
+ functions/test/media-derivative-contract.test.js   |   2 +
+ functions/test/media-scanner.test.js               |  28 +
+ functions/test/media-security.test.js              |  23 +
+ lib/services/member_media_upload_service.dart      | 114 ++++
+ scanner/processors.js                              |  12 +-
+ scanner/security.js                                |   6 +-
+ scanner/test/processors.test.js                    |  12 +-
+ scanner/test/security.test.js                      |  12 +
+ 23 files changed, 1352 insertions(+), 69 deletions(-)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+f79f146e (origin/codex/biometric-server-lifecycle-2026-11-20) feat(biometric): require fresh owner evidence playback before acceptance
+15e53a0b fix(biometric): allow rejection and evidence cleanup after member deletion
+d1e41e5e fix(biometric): allow Super Owner to reject stale identity submissions
+31cdb7f5 feat(app): add member and Super Owner biometric media service calls
+362bfd34 fix(biometric): correct emulator host regex escaping
+7d756be2 fix(biometric): normalize emulator host in test-only playback URLs
+a1556702 fix(biometric): normalize playback generation regex
+3ce3165d fix(biometric): require ClamAV provenance for owner playback
+2c304c0d test(biometric): cover empty upload intent expiry without attempt penalty
+d26931fb feat(biometric): audit expired empty upload requests
+deeab0f6 test(biometric): test media-pipeline request binding instead of raw Storage paths
+8930d903 refactor(biometric): remove obsolete direct Storage path helper
+fc7eb19e feat(biometric): audit successful Super Owner inbox reads
+6351e3b0 refactor(biometric): remove unnecessary expired-upload sweep export
+a6dfa7df refactor(biometric): expire empty requests transactionally instead of scheduled sweeps
+3fe4894d fix(biometric): expire empty upload intents transactionally on member retry
+300d2175 fix(biometric): verify safe derivatives before accepting evidence submission
+dc5be1ad fix(biometric): verify safe derivative generations before owner playback
+62b9e67f test(media): reject biometric finalization after request closes
+a919dda1 feat(biometric): audit request creation and rejected evidence
+a494dcce test(media): cover ClamAV-approved biometric derivative verdicts
+95842b91 test(media): include biometric safe derivative purpose coverage
+cb6b33d8 fix(biometric): block retries until prior evidence deletion completes
+7f859e47 fix(biometric): fail closed on malformed wallet balance
+1fe85b67 fix(media): include biometric request binding in normalized type
+64db462f test(biometric): force Admin Storage SDK onto emulator before import
+11af0f12 fix(media): permit retry after expired biometric upload intents
+df2c4378 fix(media): isolate biometric evidence from generic owner inspection routes
+7c5352bd docs(biometric): refresh implementation gaps after scanner integration candidate
+7c025aa2 test(media): isolate biometric upload intent fixtures
+7012b36b test(media): verify biometric upload intents are request-bound
+2b6bb3f6 test(scanner): cover exact biometric video duration boundaries
+d8b0091b refactor(scanner): centralize purpose-specific video duration policy
+7936faa0 test(media): cover request-bound biometric upload policy
+211cc73d test(scanner): verify biometric purpose permits only audio and video
+5f2c6af4 test(scanner): include biometric voice in 60-second audio limit
+0b4c4544 feat(scanner): enforce 3–5 second biometric video duration before transcoding
+9c07e1b3 fix(biometric): correct generation regex escaping
+3a80f0f4 fix(biometric): verify scanner source hashes and derivative provenance
+9d56db5c test(biometric): require scanner-approved assets and cover full owner review lifecycle
+9baed24a fix(biometric): defer evidence cleanup to the media quarantine lifecycle
+e898e22b feat(biometric): restrict owner playback to ClamAV-safe derivatives
+99430482 feat(biometric): require ClamAV-approved media assets and safe derivatives
+2f1de17d refactor(biometric): use the canonical quarantined media bucket
+72ed67d1 refactor(media): expose canonical private bucket resolver to biometric lifecycle
+b1fd8b1d feat(biometric): delete scanner-managed originals and safe derivatives after decision
+b85cf204 refactor(biometric): route member evidence through media upload intents
+1bd504f2 fix(media): allow replacing rejected biometric upload assets only
+d7b99b4d feat(media): bind biometric uploads to open verification requests
+ffecd362 feat(scanner): enforce 60-second biometric audio processing limit
+bd33fa20 feat(scanner): allow audio and video scan requests for biometric evidence
+3a74077c feat(media): accept biometric purpose in scanner verdicts
+b6caa717 feat(media): permit scanner derivatives for biometric evidence
+1379648c feat(media): add request-bound biometric upload purpose
+111aeccd fix(biometric): retry expired upload deletion before closing request
+67a231e6 feat(biometric): export expired-upload cleanup schedule
+31ac3ebe feat(biometric): expire abandoned upload intents after signed URL expiry
+623b50c4 fix(biometric): read audit-chain head before transactional writes
+98291571 test(biometric): preserve append-only audit records in emulator cleanup
+8544f258 test(biometric): cover owner playback, concurrent decisions and three-rejection closure
+15de12a9 docs(biometric): align phrase configuration rule with owner approval
+256e8a59 test(biometric): isolate Storage emulator from production URL signing
+7f06b291 fix(biometric): keep failed evidence deletions eligible for retry
+e481e9b4 test(biometric): exercise private upload validation and owner reward flow
+9e7e0975 test(biometric): run integration suite with Storage emulator
+593e9058 feat(biometric): export server-owned verification lifecycle callables
+d151651f feat(biometric): add private evidence submission and owner review lifecycle
+e3e917e3 docs(biometric): record approved phrase and implementation checkpoint
+20089a6d docs(biometric): record exact owner-approved spoken phrase
+76a26a46 test(biometric): cover audio track duration and type validation
+7c5c173f feat(biometric): validate MP4 voice track duration from uploaded bytes
+701748dc test(biometric): cover approved phrase and evidence identity constraints
+5a09999a feat(biometric): add approved phrase and request-bound evidence contract
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

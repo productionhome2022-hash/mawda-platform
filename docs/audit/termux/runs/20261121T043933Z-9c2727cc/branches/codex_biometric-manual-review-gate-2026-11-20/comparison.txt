@@ -1,0 +1,22 @@
+Branch: codex/biometric-manual-review-gate-2026-11-20
+Branch SHA: a82a0614f7526bfb56c6bcc93764a5b907406e95
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+152	0
+
+--- Merge base ---
+a82a0614f7526bfb56c6bcc93764a5b907406e95
+
+--- Changed files relative to common ancestor ---
+
+--- Diff statistics ---
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CLEAN

@@ -1,0 +1,26 @@
+2cf670fbce54bdbcc818b9ae5c06bbca2f3ab3f5
+100644 643b25f507eea2d8aa7c10f86ee83998c33f9cdd 1	.github/workflows/mawdda-domain-regression.yml
+100644 24dcbb2ba4e0bdfc249aa33a4c9b219516c41e33 2	.github/workflows/mawdda-domain-regression.yml
+100644 858b55c8219f165e1b1d822d3826f5dc842c9b57 3	.github/workflows/mawdda-domain-regression.yml
+100644 5b1ebc0ad3801835670c16f924a249caa2aacccc 1	.github/workflows/validate.yml
+100644 d3802584cac2f493e00389baa9c003a12db26f2e 2	.github/workflows/validate.yml
+100644 d56006cb622534277025244242c839e67e0c8ee8 3	.github/workflows/validate.yml
+100644 2ec84bf9a3d2cc9169a7a4878cbf88799f2bb89e 1	functions/package.json
+100644 f5756c3d6ad9a52224536b3159e5821297a6a650 2	functions/package.json
+100644 91ab6c14b00fa914ceb7033ee882cfc72705b19a 3	functions/package.json
+100644 0872a94f6c8e98aab1f4a45974b094b58ad2289f 1	functions/src/index.ts
+100644 4574024ded13f7d5c51fb0eb10febff2ffd1e329 2	functions/src/index.ts
+100644 0bf91be9f89cec4e312ea441a9c50df4b305db33 3	functions/src/index.ts
+100644 d144907961664cccc371501de73f82a6babecf73 2	functions/test/integration/store-gifting.integration.test.js
+100644 baabcfb377c40e46b9cb64fce714713ae1df4f6b 3	functions/test/integration/store-gifting.integration.test.js
+
+Auto-merging .github/workflows/mawdda-domain-regression.yml
+CONFLICT (content): Merge conflict in .github/workflows/mawdda-domain-regression.yml
+Auto-merging .github/workflows/validate.yml
+CONFLICT (content): Merge conflict in .github/workflows/validate.yml
+Auto-merging functions/package.json
+CONFLICT (content): Merge conflict in functions/package.json
+Auto-merging functions/src/index.ts
+CONFLICT (content): Merge conflict in functions/src/index.ts
+Auto-merging functions/test/integration/store-gifting.integration.test.js
+CONFLICT (add/add): Merge conflict in functions/test/integration/store-gifting.integration.test.js

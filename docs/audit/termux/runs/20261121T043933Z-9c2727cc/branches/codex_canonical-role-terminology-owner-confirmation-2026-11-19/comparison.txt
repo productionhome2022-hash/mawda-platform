@@ -1,0 +1,36 @@
+Branch: codex/canonical-role-terminology-owner-confirmation-2026-11-19
+Branch SHA: 64ccc7b20445e7be15d6ec4d0be0e329f0250f11
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+396	5
+
+--- Merge base ---
+8a1c8d0b93ed43570c523ab2d8c2598648ddac0e
+
+--- Changed files relative to common ancestor ---
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+M	docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md
+M	docs/RELEASE_READINESS_CHECKLIST.md
+
+--- Diff statistics ---
+ .../MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md | 11 ++++++++++-
+ docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md        | 23 +++++++++++-----------
+ docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md    | 12 +++++------
+ docs/RELEASE_READINESS_CHECKLIST.md                | 12 +++++------
+ 4 files changed, 34 insertions(+), 24 deletions(-)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+64ccc7b2 (origin/codex/canonical-role-terminology-owner-confirmation-2026-11-19) docs(governance): classify legacy owner identifiers as internal compatibility
+f8b2dcaf docs(governance): align owner terminology with Super Owner
+10572229 docs(governance): align owner terminology with Super Owner
+be8887b3 docs(governance): trace owner-confirmed administrative hierarchy
+b1fdc633 docs(governance): confirm owner-approved canonical role hierarchy
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

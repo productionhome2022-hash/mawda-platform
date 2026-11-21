@@ -1,0 +1,52 @@
+Branch: codex/mawdda-independent-verification-cycles-dev-2026-11-20
+Branch SHA: 2064bbcc98aa360ac2d46d05d15cbf8f90561817
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+256	11
+
+--- Merge base ---
+a86fc878a7f5a29d68271bf08bec041a2fb31f80
+
+--- Changed files relative to common ancestor ---
+M	.github/workflows/validate.yml
+A	docs/phase1/INDEPENDENT_VERIFICATION_CYCLE_PROGRESS_2026-11-20.md
+M	functions/src/email-verification-cycle.ts
+M	functions/src/index.ts
+A	functions/src/verification-calendar.ts
+M	functions/test/biometric-reward-security.test.js
+M	functions/test/email-verification-cycle.test.js
+M	functions/test/integration/email-verification-renewal.integration.test.js
+A	functions/test/verification-calendar.test.js
+
+--- Diff statistics ---
+ .github/workflows/validate.yml                          |  4 ++--
+ ...NDEPENDENT_VERIFICATION_CYCLE_PROGRESS_2026-11-20.md |  9 +++++++++
+ functions/src/email-verification-cycle.ts               |  8 ++++----
+ functions/src/index.ts                                  |  6 +++---
+ functions/src/verification-calendar.ts                  | 17 +++++++++++++++++
+ functions/test/biometric-reward-security.test.js        |  4 ++--
+ functions/test/email-verification-cycle.test.js         | 15 ++++++++-------
+ .../email-verification-renewal.integration.test.js      | 12 ++++++------
+ functions/test/verification-calendar.test.js            | 15 +++++++++++++++
+ 9 files changed, 66 insertions(+), 24 deletions(-)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+2064bbcc (origin/codex/mawdda-independent-verification-cycles-dev-2026-11-20) test(verification): keep source-boundary assertion aligned with calendar cycle docs
+21599093 docs(email-verification): describe calendar-month renewal interval
+650d6eb7 test(email-verification): fix calendar-expired emulator fixture
+b1a80c8f docs(verification): record independent cycle work and remaining biometric blockers
+455acac6 ci(verification): clarify independent verification test scopes
+d3448bfa test(email-verification): align emulator renewal fixture
+146a4ebe test(email-verification): assert three calendar months
+14f32ed8 fix(email-verification): use persisted cycle expiry
+05da6f14 fix(email-verification): use three calendar months
+14eec83b test(verification): cover independent calendar-month clocks
+9c32dd93 feat(verification): add independent calendar-month clocks
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

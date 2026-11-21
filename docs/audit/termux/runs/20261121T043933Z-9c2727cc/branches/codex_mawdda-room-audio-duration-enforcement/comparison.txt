@@ -1,0 +1,52 @@
+Branch: codex/mawdda-room-audio-duration-enforcement
+Branch SHA: dc1c1a43f6c8b4cfb198544ad21975612f89ca83
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+1366	5
+
+--- Merge base ---
+7aa8e7c031001ebdf326552225021182c116fd4e
+
+--- Changed files relative to common ancestor ---
+M	functions/src/media-scanner.ts
+M	functions/src/media.ts
+M	functions/test/media-scanner.test.js
+M	lib/screens/chat_room_screen.dart
+M	lib/screens/guest_room_chat_screen.dart
+M	lib/widgets/chat_audio_controls.dart
+M	scanner/processors.js
+M	scanner/security.js
+M	scanner/server.js
+M	scanner/test/processors.integration.test.js
+M	scanner/test/processors.test.js
+M	scanner/test/security.test.js
+
+--- Diff statistics ---
+ functions/src/media-scanner.ts              |  6 +++++-
+ functions/src/media.ts                      | 10 ++++++++--
+ functions/test/media-scanner.test.js        |  6 +++++-
+ lib/screens/chat_room_screen.dart           |  2 +-
+ lib/screens/guest_room_chat_screen.dart     |  2 +-
+ lib/widgets/chat_audio_controls.dart        |  3 ++-
+ scanner/processors.js                       | 17 ++++++++++++-----
+ scanner/security.js                         |  5 ++++-
+ scanner/server.js                           |  1 +
+ scanner/test/processors.integration.test.js |  1 +
+ scanner/test/processors.test.js             |  8 ++++++--
+ scanner/test/security.test.js               |  3 ++-
+ 12 files changed, 48 insertions(+), 16 deletions(-)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+dc1c1a43 (origin/codex/mawdda-room-audio-duration-enforcement) test(scanner): lock direct and room audio duration limits
+22998d7c fix(scanner): enforce 120-second direct audio ceiling
+3b3f6523 test(scanner): provide trusted media purpose to processor fixtures
+184473dc test: include trusted media purpose in scanner verdict fixtures
+33afd071 fix: enforce room audio duration in trusted scanner pipeline
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

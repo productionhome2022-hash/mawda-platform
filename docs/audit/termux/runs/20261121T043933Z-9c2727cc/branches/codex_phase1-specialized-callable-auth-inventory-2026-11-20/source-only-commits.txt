@@ -1,0 +1,1 @@
+315c8d53dc4b7e6df0af1803191df7bf5786adcc	production home	2026-11-20T12:11:07+03:00	docs(security): inventory specialized callable authorization gaps

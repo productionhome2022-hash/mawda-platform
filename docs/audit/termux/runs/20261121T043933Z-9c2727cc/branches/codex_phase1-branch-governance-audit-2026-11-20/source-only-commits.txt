@@ -1,0 +1,1 @@
+a48e93aa04d024f27c8877df42555050b95f9f71	production home	2026-11-20T12:17:44+03:00	docs(governance): audit GitHub branch protections and CI workflow gaps

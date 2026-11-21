@@ -1,0 +1,26 @@
+Branch: codex/phase1-specialist-callable-auth-2026-11-20
+Branch SHA: c1edba1432b5ef783c7eb5fb4493128c7a595cb1
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+185	1
+
+--- Merge base ---
+818b004f82759426699f47193c7ef8d22b870315
+
+--- Changed files relative to common ancestor ---
+A	docs/PHASE1_SPECIALIZED_CALLABLE_AUTH_AUDIT_2026-11-20.md
+
+--- Diff statistics ---
+ ...1_SPECIALIZED_CALLABLE_AUTH_AUDIT_2026-11-20.md | 61 ++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+c1edba14 (origin/codex/phase1-specialist-callable-auth-2026-11-20) docs(security): record specialist callable authorization audit
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CLEAN

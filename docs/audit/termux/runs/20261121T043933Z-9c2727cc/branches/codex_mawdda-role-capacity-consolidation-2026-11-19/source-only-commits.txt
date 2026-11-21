@@ -1,0 +1,6 @@
+7a134c6d5adf02f8e2bbd3b931deb5ef592fbf1c	production home	2026-11-19T09:57:41+03:00	ci: validate role capacity consolidation branch
+d0f455dd6f58894502007885fca460970231fe96	production home	2026-11-19T09:57:39+03:00	ci: test role capacity on governance consolidation branch
+5cbe6131d66b6af469a145c7b016352e8d237d7b	production home	2026-11-19T09:57:36+03:00	feat: enforce transactional five-seat supervisor capacity
+d7aa745a3c19bbbb2093ce4ce6e2cf889e692731	production home	2026-11-19T09:57:32+03:00	feat: add canonical platform role identity and capacity tests
+0445e318297aa7629c7191fe4046704a97a8d1cf	production home	2026-11-19T09:57:29+03:00	feat: add canonical platform role identity and capacity tests
+c378e6e6371df8fd2a58eb3ba1cdca732030b432	production home	2026-11-19T09:57:27+03:00	feat: add canonical platform role identity and capacity tests

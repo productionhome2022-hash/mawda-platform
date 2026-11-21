@@ -1,0 +1,4 @@
+A	functions/src/biometric-verification-cycle.ts
+M	functions/src/index.ts
+A	functions/test/biometric-verification-cycle.test.js
+M	lib/screens/profile_screen.dart

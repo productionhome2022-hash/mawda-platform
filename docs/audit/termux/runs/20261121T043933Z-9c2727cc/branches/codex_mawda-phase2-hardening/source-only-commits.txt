@@ -1,0 +1,78 @@
+f8abd722ececc988c555f0400cc7b558e762ae5a	production home	2026-11-13T09:37:12+03:00	docs(media): record owner-only download gate after clean verdict
+c08675a7cb854e7aa37f2fe98c2c3e178297a62b	production home	2026-11-13T09:37:05+03:00	test(media): prevent owner access to unscanned originals
+9bbe8d12d63308c70d450293b5cbf72665936096	production home	2026-11-13T09:37:02+03:00	security(media): block owner downloads of unscanned or rejected originals
+de61bd2a0ac79e35f14a8e8956c118fe51bf0bad	production home	2026-11-13T09:35:07+03:00	docs(scanner): document fail-closed signature freshness limit
+1902a377dae1cef868d4f2c78d6865d58098a7f6	production home	2026-11-13T09:35:01+03:00	test(scanner): verify signature database freshness gate
+1668c0b4c314ce5492f0a0ce60cefc26e905965e	production home	2026-11-13T09:34:48+03:00	security(scanner): reject stale ClamAV signature databases
+caaf67679b10a2be8aa4a1a74f6ee24f0a818a65	production home	2026-11-13T09:34:34+03:00	docs(media): correct signed PUT transport and CORS requirements
+e92994a69f2a9cebed3365b632dcaf9ef965b283	production home	2026-11-13T09:32:20+03:00	fix(scanner): emit NUL-terminated ClamAV command frames
+39d03906ae29467cf896cc09fb9be9386e524fe5	production home	2026-11-13T09:32:07+03:00	test(scanner): verify ClamAV INSTREAM frame encoding without flaky socket fixture
+a099bbc994317d500ab0732545cdf013969d24d7	production home	2026-11-13T09:32:04+03:00	refactor(scanner): isolate and validate ClamAV INSTREAM frame encoding
+7793793257050ceefbeeab62427ba619b8ffe417	production home	2026-11-13T09:30:49+03:00	test(scanner): bound protocol test time and close fixture sockets
+c2e8de034f9a23e75c1e6a433b8ae929ffa292bf	production home	2026-11-13T09:30:46+03:00	fix(scanner): fail closed on truncated ClamAV socket responses
+34665027dfc7f1bec8da38a3cada6f486dbab4b8	production home	2026-11-13T09:29:30+03:00	fix(scanner): send real NUL terminators in ClamAV protocol test
+2928211527270a68725c5b41e25c2b30276efbcb	production home	2026-11-13T09:27:56+03:00	fix(media): type Node Buffer body for scanner HTTP dispatch
+e1c97ca9d760e9a3496c743fce0c47719566292f	production home	2026-11-13T09:26:52+03:00	test(media): assert exact-size and create-only upload signing contract
+37812d4016e7638075ca2695fbde6d9fab1b97f5	production home	2026-11-13T09:26:29+03:00	docs(media): correct upload contract to signed PUT with byte-range header
+3430ab3cbf9a64dd8be853f811ee9e118404620e	production home	2026-11-13T09:26:21+03:00	test(media): verify exact-size signed PUT HTTP enforcement
+02ca13a25fed6fa4c39dd0deaa8a4de3489aa536	production home	2026-11-13T09:26:14+03:00	test(media): verify exact-size signed PUT and create-only preconditions
+e1b6f4250a26922d05aab364b649e10c692b72e6	production home	2026-11-13T09:26:06+03:00	security(media): combine exact byte range and create-only V4 PUT signature
+8ec4c789be2940c6e8987ef3e4ad40233e09316a	production home	2026-11-13T09:25:41+03:00	docs(media): document exact-size signed POST upload policy
+ee9e0512b3fdb2ff640ee127f9fa2ed4a36ecc89	production home	2026-11-13T09:25:30+03:00	test(media): verify exact-size signed POST policy over real HTTP
+7f7a3b85143737a475f72228cffdbbe85e9eeb08	production home	2026-11-13T09:25:19+03:00	test(media): verify signed POST size and replay policy contract
+96569d24b8b9a06f1ed75fb6821ad62f5f304637	production home	2026-11-13T09:25:05+03:00	security(media): enforce exact upload bytes with signed POST policy
+e9966ca2409152c07ee2e5437cb9d804a72c70e4	production home	2026-11-13T09:23:32+03:00	docs(scanner): correct image build path and document IAM setup
+eddcfb8eb5a6be54935abe4bc1846365ed594930	production home	2026-11-13T09:23:01+03:00	security(media): avoid leaking signed URL details in test errors
+14e5ec1b6481239766bb17388b41f57ab0f6bcb2	production home	2026-11-13T09:22:51+03:00	docs(media): document daily upload count and ClamAV source status
+b1c9ce01bf6fb0086e29588c0dc38f7c021a1282	production home	2026-11-13T09:22:46+03:00	test(media): avoid assuming an unapproved retention period
+efde37c699b076da736811948e6265cb7ca12bd7	production home	2026-11-13T09:22:43+03:00	fix(media): remove unapproved automatic retention duration
+41705d2382e50841b4d3280a13c4a9c77e336fa2	production home	2026-11-13T09:22:07+03:00	test(media): verify daily upload cap blocks signing
+b61614595bdea1e245520d8a5438c16f848e150d	production home	2026-11-13T09:22:00+03:00	chore(firestore): index media cleanup state and expiry queries
+d33b19beb3454c561667093764b34c600ec89c2d	production home	2026-11-13T09:21:55+03:00	fix(media): query cleanup candidates by expired signed URL timestamp
+c2ff1dd2023b83e2a9096e9d1acb92e716ddc91a	production home	2026-11-13T09:21:34+03:00	refactor(media): share canonical quota limits
+99b5d6d4af99f3d53188ac2f7e73bc809be2c512	production home	2026-11-13T09:21:31+03:00	test(media): cover daily upload count quotas
+ef8bf1d6644309488417dea408559c937f6aea37	production home	2026-11-13T09:21:17+03:00	feat(media): enforce per-user daily upload count quota
+82983a1a1ee1c3fd7e9b3fb971b49ac25b233da4	production home	2026-11-13T09:20:49+03:00	docs(media): record scanner dispatcher and ClamAV gateway implementation
+31d2864a7a97f1789afe2767ea16b70cd062f88e	production home	2026-11-13T09:20:42+03:00	fix(media): make scanner dispatch safe for retried events
+d5c5320451f452d0208da5c982aab615f669c7fb	production home	2026-11-13T09:20:27+03:00	ci(scanner): test ClamAV gateway and build container image
+663a246710eb844b39c794d9937ea246088ca6c6	production home	2026-11-13T09:20:21+03:00	docs(scanner): document isolated ClamAV gateway deployment and gates
+ef9b2aaf1d466fc2624ae2f2fb2ad9fd8c8d0ecc	production home	2026-11-13T09:20:12+03:00	security(scanner): run signature updater as dedicated clamav user
+8179368c0cd67d1062f0985f3bbbd8236c678aff	production home	2026-11-13T09:19:59+03:00	test(scanner): exercise ClamAV INSTREAM wire protocol
+daf2f95301d6ab6aeebb13185625ddb36cfef489	production home	2026-11-13T09:19:48+03:00	security(scanner): enforce request bounds and HTTP timeouts
+42eb7f76acd65f7b3c1ef52552128c5f6a6e793d	production home	2026-11-13T09:19:40+03:00	security(media): retry scanner error verdicts and bound callback resources
+880abead1b7c226098266cfbfff138bf24d9acfb	production home	2026-11-13T09:19:34+03:00	feat(media): export scanner dispatch trigger
+e986afd35b5174cc874f623f50b40719201c9a60	production home	2026-11-13T09:19:07+03:00	fix(scanner): repair container line continuations and process lifecycle
+83cec29c2c58a2f26446f3c1b7a56a2d37e2a855	production home	2026-11-13T09:19:04+03:00	fix(scanner): repair container line continuations and process lifecycle
+4379178f2016404d6cd38a82cc9fea4a27f6f875	production home	2026-11-13T09:18:52+03:00	build(scanner): add Cloud Run image with ClamAV and freshclam
+34b379a5830a7e8ab7e45b5c445e6d279f38e933	production home	2026-11-13T09:18:50+03:00	build(scanner): start freshclam and clamd before gateway
+9b97c7103c4cf79c486da0c08b8267444b9812cb	production home	2026-11-13T09:18:48+03:00	build(scanner): configure automatic ClamAV signature updates
+bc85911c09b15d63ff942adc5499e4faf959c241	production home	2026-11-13T09:18:37+03:00	build(scanner): configure bounded ClamAV daemon
+038984fc20a2a0efe742bb899d0616199d6a8461	production home	2026-11-13T09:18:35+03:00	build(scanner): define isolated ClamAV gateway package
+3cea0bb3527f3ea986086f542f5c8f3bc07b38c8	production home	2026-11-13T09:18:25+03:00	test(scanner): verify ClamAV gateway auth and verdict delivery
+85ca7ec26c1d46d38f7e5bb2fb7f14bab2ed142e	production home	2026-11-13T09:18:12+03:00	fix(scanner): correct ClamAV version separator parser
+8131175f5c1b2e0af4e8c69f1fd21f82ac94367b	production home	2026-11-13T09:18:04+03:00	fix(scanner): correct ClamAV protocol escapes and parsers
+bb758143cab7e7161fe8a256f5bb6d0f1383f19c	production home	2026-11-13T09:17:52+03:00	feat(scanner): add authenticated ClamAV gateway service
+161378355de1ba9ac5214e5c688ae909377ada0e	production home	2026-11-13T09:17:29+03:00	feat(media): dispatch quarantined uploads to IAM-protected scanner gateway
+e1ee1983cc5f05b37cca3901d7855d7c6e9f5f3b	production home	2026-11-13T09:15:06+03:00	test(media): allow clock skew in signed URL expiry check
+e085193dbf587e95be4f9746c9a22675a5c95244	production home	2026-11-13T09:15:02+03:00	docs(media): clarify emulator versus real-bucket signed URL evidence
+f4b1a46045822025ff4a4ea89b6b6e45356de63f	production home	2026-11-13T09:14:56+03:00	test(media): verify signer failure releases upload reservations
+e047573009bfd38450dfa7316a7e0d61c1ffe0d4	production home	2026-11-13T09:14:44+03:00	test(media): isolate emulator signing and exercise scanner handler
+03bf09645c99992d69c01667c19a4a4a50e29fea	production home	2026-11-13T09:14:30+03:00	fix(media): reserve quota before signing and expose testable scanner handler
+1de67d21e3dd0d6adea0fffe339447f1455f4ee3	production home	2026-11-13T09:13:07+03:00	ci(media): syntax-check opt-in signed URL integration script
+c0f3d49574408126ad5e89dc3ebbcacdae0584fd	production home	2026-11-13T09:13:02+03:00	fix(media): repair real signed URL test script syntax
+1dc7151c353fe7e7784282389b8449d67ba260c5	production home	2026-11-13T09:12:58+03:00	fix(media): return void from scheduled cleanup handler
+5fb1eca7d4d522255d1885a367479cf014ca871e	production home	2026-11-13T09:12:53+03:00	fix(media): type quota and scanner policy helpers
+fcdc91152e1f1d668cb1cc2c9a64557599a860cd	production home	2026-11-13T09:11:46+03:00	fix(media): remove stray escape from scanner handler module
+8141948267aaab29cd9a4832600532b2d28b782b	production home	2026-11-13T09:11:26+03:00	test(media): include scanner engine metadata in signed verdicts
+75842b2866de284515f64281797928df8c8153af	production home	2026-11-13T09:11:23+03:00	security(media): persist malware engine and signature versions
+1bbe18c35722fd8ba70afe0fb0b5217bd384905f	production home	2026-11-13T09:11:21+03:00	test(media): validate scanner engine metadata
+64f6122f6f4e741422630243905afcee2a7fd926	production home	2026-11-13T09:11:19+03:00	security(media): require scanner engine and signature versions
+9f1142aca3bead9113b2625aed0c29ed11dccae0	production home	2026-11-13T09:11:04+03:00	security(media): bind scanner HMAC through Secret Manager
+001dfbdf4c5305abbfb1285dde6b14de3ed40e85	production home	2026-11-13T09:10:53+03:00	fix(media): skip legacy cleanup records without expiry metadata
+631ab8d6131748c755ae341324a7b92d72da630c	production home	2026-11-13T09:10:24+03:00	docs(media): reconcile scanner, cleanup and signed URL security status
+2588cef8f717f76ba458f873647f0f339982effe	production home	2026-11-13T09:10:08+03:00	ci: validate phase-two hardening branch and integration PRs
+5ea1f6fd43ba691a91721e09bf29b8a89cc1bbc4	production home	2026-11-13T09:09:57+03:00	test(media): verify authenticated scanner verdict lifecycle in emulator
+30012319f1405f2547a9aa6e031d3df775cd8bca	production home	2026-11-13T09:09:16+03:00	docs(media): align phase two record with implemented gates and remaining risks
+a8981f8311e89d8d2cfae358906ec157a6dd0242	production home	2026-11-13T09:08:53+03:00	test(media): cover cleanup trigger with expiry grace metadata
+1532f756030c93d60819de3ae237d1ddc3033c63	production home	2026-11-13T09:08:44+03:00	fix(media): enforce expiry grace and generation-safe cleanup
+793f3b65cdde9c5573df91ccfa0643b8cd3cb2f8	production home	2026-11-13T09:07:32+03:00	test(media): cover abandoned upload cleanup eligibility

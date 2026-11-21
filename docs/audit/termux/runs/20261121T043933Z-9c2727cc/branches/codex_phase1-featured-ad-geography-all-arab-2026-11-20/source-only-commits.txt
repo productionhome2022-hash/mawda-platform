@@ -1,0 +1,2 @@
+ac22ff635c41e4a36603c8864af53942e22e3fcb	production home	2026-11-20T12:15:10+03:00	test(ads): cover all-Arab campaign geography without overdelivery
+41a0fbea241e60b312ec8f75442cc83fc4a40635	production home	2026-11-20T12:15:07+03:00	fix(ads): honor all-Arab campaign geographic targeting

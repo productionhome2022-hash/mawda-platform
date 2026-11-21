@@ -1,0 +1,14 @@
+6a94a078695bd8d70884a843efb7cf9d3bfc740a	production home	2026-11-14T11:40:51+03:00	Anchor audit archive cursor to immutable GCS object metadata
+1603e497df35cea5878cf3028e4b35de38a63f89	production home	2026-11-14T11:36:24+03:00	Require a conservative 731-day audit retention floor
+54ce1f6be8de37654f09b9bba62289f15d2980cc	production home	2026-11-14T11:36:21+03:00	Require a conservative 731-day audit retention floor
+4f48f769a0bdc997b8ae3e9bce94ac64ed97e711	production home	2026-11-14T11:36:19+03:00	Require a conservative 731-day audit retention floor
+14a40ebd9e6aea81ccb52e78439bafbac663e979	production home	2026-11-14T11:36:16+03:00	Require a conservative 731-day audit retention floor
+53e9c7b5353ae74902f369c185bdb673be4bac5e	production home	2026-11-14T11:36:08+03:00	Tighten audit archive types and timestamp validation
+b4ae3626cc32e88712b6c0c25cc42ce41fe25325	production home	2026-11-14T11:35:48+03:00	Document audit archive lock and deployment gates
+ba827d3cabd95eb54210908b76f09873687f606a	production home	2026-11-14T11:35:46+03:00	Add explicit audit archive configuration variables
+b9cd5e126e6dcab78f75fc542b120465cc9ee440	production home	2026-11-14T11:35:44+03:00	Add Terraform bucket for immutable audit archive
+295069b696ac6a24d5bdcf9f02236eec8153ba78	production home	2026-11-14T11:35:11+03:00	Add scheduled locked 24-month owner audit archive
+575f274528de7688f1a04716cab8f66e54440d27	production home	2026-11-14T11:34:26+03:00	Test five-minute audit archive safety buffer
+6d7a09efc54adae123fd2ace954ea9bb493e7cd8	production home	2026-11-14T11:34:23+03:00	Reduce audit archive exposure window to five minutes
+bc3cc8146324763581e1bed249a9efdb730e5012	production home	2026-11-14T11:33:47+03:00	Test locked audit archive retention and chain verification
+870225515e3352dfd0957dc16894f5668bf43d03	production home	2026-11-14T11:33:45+03:00	Add immutable audit archive policy and chain verification helpers

@@ -1,0 +1,51 @@
+Branch: codex/mawdda-economy-selective-port-2026-11-19
+Branch SHA: 7d93d4c097f2079668b1dc25b0a4fb1fc1afb8d0
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+312	10
+
+--- Merge base ---
+946ead61208f5007299802c5293f31c329b7c2d2
+
+--- Changed files relative to common ancestor ---
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+A	docs/STEP1_ECONOMY_PR43_VALIDATION_TRIGGER_2026-11-19.md
+M	functions/package.json
+M	functions/src/index.ts
+A	functions/src/store-gifting.ts
+A	functions/test/integration/store-gifting.integration.test.js
+A	functions/test/store-gifting.test.js
+M	lib/screens/shop_screen.dart
+
+--- Diff statistics ---
+ .github/workflows/mawdda-domain-regression.yml     |   3 +
+ .github/workflows/validate.yml                     |   1 +
+ ...1_ECONOMY_PR43_VALIDATION_TRIGGER_2026-11-19.md |   7 +
+ functions/package.json                             |   3 +-
+ functions/src/index.ts                             | 237 ++++++++++++++++++---
+ functions/src/store-gifting.ts                     |  75 +++++++
+ .../integration/store-gifting.integration.test.js  | 105 +++++++++
+ functions/test/store-gifting.test.js               |  77 +++++++
+ lib/screens/shop_screen.dart                       | 133 ++++++++++--
+ 9 files changed, 586 insertions(+), 55 deletions(-)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+7d93d4c0 (origin/codex/mawdda-economy-selective-port-2026-11-19) test(economy): isolate store gifting catalog fixture
+16f4eeeb ci(step1): trigger exact-head validation for PR 43
+21092dba feat(shop): add server-validated store gifting action
+ddbe502c ci(economy): run store gifting integration coverage
+a49703b9 ci(economy): run store gifting integration coverage
+7cd868e2 test(economy): add store gifting emulator test command
+4a5fbd9b test(economy): add store gifting validation and emulator coverage
+0014611f test(economy): add store gifting validation and emulator coverage
+c942341c test(economy): add store gifting validation and emulator coverage
+92351517 feat(economy): add audited store gifting and catalog snapshots
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

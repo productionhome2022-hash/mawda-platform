@@ -1,0 +1,7 @@
+571ad20883755a5ed9edcfd023dd06d7875e0d73
+100644 8078fbf1bb9d8a3e0195005318d0fd3c2cd73078 1	functions/test/integration/wallet-store.integration.test.js
+100644 9fb7ac986679f0b29538bdadb284fa3ef1c308bd 2	functions/test/integration/wallet-store.integration.test.js
+100644 54369d915c8f6f0e1ed2edab65062983b6e24b54 3	functions/test/integration/wallet-store.integration.test.js
+
+Auto-merging functions/test/integration/wallet-store.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/wallet-store.integration.test.js

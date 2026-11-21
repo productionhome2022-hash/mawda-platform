@@ -1,0 +1,6 @@
+A	functions/src/audit-archive.ts
+M	functions/src/index.ts
+A	functions/test/audit-archive.test.js
+A	infra/audit-archive/README.md
+A	infra/audit-archive/main.tf
+A	infra/audit-archive/variables.tf

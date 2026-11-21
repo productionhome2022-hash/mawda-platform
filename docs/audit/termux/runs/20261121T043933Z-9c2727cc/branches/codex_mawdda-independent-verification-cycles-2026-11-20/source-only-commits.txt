@@ -1,0 +1,12 @@
+615f9f974ea9e252772bee43339261288b7a2729	production home	2026-11-20T16:58:56+03:00	test(verification): keep source-boundary assertion aligned with calendar cycle docs
+c8185ecf5a3d035c0451064a9ff59f6bde32a8ad	production home	2026-11-20T16:57:49+03:00	docs(email-verification): describe calendar-month renewal interval
+35be6abd44901b8dcdc2746a56d3f34d278490ae	production home	2026-11-20T16:57:00+03:00	test(email-verification): fix calendar-expired emulator fixture
+e71023a18759177a3d7903138271ce716f0b11e8	production home	2026-11-20T16:54:15+03:00	docs(verification): record isolated calendar-cycle progress and blockers
+eabfd92fd3e29668a42fd5c3264b65b0049d6baf	production home	2026-11-20T16:53:45+03:00	ci(verification): clarify independent verification test scopes
+9fce82f48ea381937c4616ff5f9d805a789675d3	production home	2026-11-20T16:53:40+03:00	chore(verification): remove obsolete fixed-cycle import
+c928097b07e8c8e6d2a6260182be0f8aaf17fdeb	production home	2026-11-20T16:53:21+03:00	test(email-verification): align emulator renewal fixture to stored expiry
+e02cf53f79229fbd143909a00582e34527c4da17	production home	2026-11-20T16:53:17+03:00	test(email-verification): assert three-calendar-month renewal
+4f1e8599b6b256ea17f0190ff8502cd99d30fb33	production home	2026-11-20T16:53:13+03:00	fix(email-verification): compare stored calendar expiry directly
+b2427995c7718eb33361b4fe77a67100aa874c3a	production home	2026-11-20T16:53:08+03:00	fix(email-verification): use three calendar months for renewal
+7867c192316b275f62c2ab8e307923a6b24b6ed0	production home	2026-11-20T16:53:03+03:00	test(verification): cover independent calendar-month renewal clocks
+48460cb043343516f1d8f8e4cacc6e464176511c	production home	2026-11-20T16:53:00+03:00	feat(verification): add independent calendar-month renewal clocks

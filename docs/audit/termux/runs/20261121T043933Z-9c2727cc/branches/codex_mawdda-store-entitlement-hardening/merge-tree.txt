@@ -1,0 +1,8 @@
+1bf4272dec87d35779e81612815ef20f867775a7
+100644 8078fbf1bb9d8a3e0195005318d0fd3c2cd73078 1	functions/test/integration/wallet-store.integration.test.js
+100644 9fb7ac986679f0b29538bdadb284fa3ef1c308bd 2	functions/test/integration/wallet-store.integration.test.js
+100644 2eaed698d122d3c76763a70780855993e29e85d8 3	functions/test/integration/wallet-store.integration.test.js
+
+Auto-merging functions/test/integration/room-events.integration.test.js
+Auto-merging functions/test/integration/wallet-store.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/wallet-store.integration.test.js

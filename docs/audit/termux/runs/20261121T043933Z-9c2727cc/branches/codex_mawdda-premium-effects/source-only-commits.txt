@@ -1,0 +1,5 @@
+5203d25ab38df8ae2a2bd700537e2f0d14bfbde3	production home	2026-11-14T11:39:33+03:00	Add user-confirmed guest session deletion
+117215764d16f1c03a69bd81f2ffee6c7dedf3a3	production home	2026-11-14T11:39:30+03:00	Add explicit anonymous guest account termination
+f0e1b642ac3590049c89a07c4370a67ccad23726	production home	2026-11-14T11:38:58+03:00	Avoid animation controller when animated username is not purchased
+95c1e605fcaabc29d67f5566ae64865f4f89bc1f	production home	2026-11-14T11:38:45+03:00	Use looping animated avatar frames and premium usernames
+028dbc81757e53f4c2305df2e7d223c2bf846d11	production home	2026-11-14T11:38:29+03:00	Add animated premium avatar frames and usernames

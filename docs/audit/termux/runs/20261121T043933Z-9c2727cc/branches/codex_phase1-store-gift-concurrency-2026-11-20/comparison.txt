@@ -1,0 +1,29 @@
+Branch: codex/phase1-store-gift-concurrency-2026-11-20
+Branch SHA: 2f175165ed17a1a02b47439bacfbb187b1e00d6e
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+221	2
+
+--- Merge base ---
+d857497c50eca8d7dcf105e938c8060402ae85e3
+
+--- Changed files relative to common ancestor ---
+M	.github/workflows/validate.yml
+M	functions/test/integration/store-gifting.integration.test.js
+
+--- Diff statistics ---
+ .github/workflows/validate.yml                              |  3 +++
+ .../test/integration/store-gifting.integration.test.js      | 13 +++++++++++--
+ 2 files changed, 14 insertions(+), 2 deletions(-)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+2f175165 (origin/codex/phase1-store-gift-concurrency-2026-11-20) ci(store): run concurrent gift replay emulator coverage
+c06b2932 test(store): cover concurrent gift request replay
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

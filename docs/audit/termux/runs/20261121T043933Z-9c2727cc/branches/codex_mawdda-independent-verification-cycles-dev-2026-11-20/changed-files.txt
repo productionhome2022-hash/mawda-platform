@@ -1,0 +1,9 @@
+M	.github/workflows/validate.yml
+A	docs/phase1/INDEPENDENT_VERIFICATION_CYCLE_PROGRESS_2026-11-20.md
+M	functions/src/email-verification-cycle.ts
+M	functions/src/index.ts
+A	functions/src/verification-calendar.ts
+M	functions/test/biometric-reward-security.test.js
+M	functions/test/email-verification-cycle.test.js
+M	functions/test/integration/email-verification-renewal.integration.test.js
+A	functions/test/verification-calendar.test.js

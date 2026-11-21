@@ -1,0 +1,37 @@
+Branch: codex/mawdda-group-call-capacity-2026-11-20
+Branch SHA: 2f67e4a6cdaeedf5190cbd2e3acdb0ece4747c0a
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+180	6
+
+--- Merge base ---
+7d386a77818e3a9ec59977f1cbcb67b8eac6ba9d
+
+--- Changed files relative to common ancestor ---
+M	functions/src/index.ts
+M	functions/src/room-call-policy.ts
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/room-call-policy.test.js
+
+--- Diff statistics ---
+ functions/src/index.ts                             | 25 +++++--
+ functions/src/room-call-policy.ts                  | 15 ++++
+ .../integration/call-signaling.integration.test.js | 82 ++++++++++++++++++++++
+ functions/test/room-call-policy.test.js            | 13 +++-
+ 4 files changed, 130 insertions(+), 5 deletions(-)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+2f67e4a6 (origin/codex/mawdda-group-call-capacity-2026-11-20) fix: revalidate group call capacity inside creation transaction
+a8c7546e test: cover audio group sizes and room-capacity overflow
+dee3250e test: cover room-capacity audio and four-person group video calls
+f4c74bec fix: enforce room-capacity audio and four-participant video call limits
+3e8cf7d0 test: verify room-based audio and four-person video call limits
+2df1ab49 fix: derive group call limits from room capacity and video cap
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

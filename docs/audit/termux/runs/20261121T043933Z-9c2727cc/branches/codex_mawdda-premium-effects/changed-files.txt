@@ -1,0 +1,4 @@
+M	lib/screens/guest_session_screen.dart
+M	lib/screens/profile_screen.dart
+M	lib/services/auth_service.dart
+A	lib/widgets/premium_profile_effects.dart

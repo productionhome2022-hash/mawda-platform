@@ -1,0 +1,50 @@
+Branch: codex/mawdda-unified-final
+Branch SHA: ddf9594ea6029036512ace621f513d6edf58a068
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+1645	17
+
+--- Merge base ---
+c7bdad2faedc9fc0b51a235fc3d334908168f08b
+
+--- Changed files relative to common ancestor ---
+M	.github/workflows/validate.yml
+M	functions/package.json
+M	functions/src/index.ts
+A	functions/test/integration/email-verification-renewal.integration.test.js
+M	lib/screens/profile_screen.dart
+
+--- Diff statistics ---
+ .github/workflows/validate.yml                     |   2 +
+ functions/package.json                             |   3 +-
+ functions/src/index.ts                             | 250 ++++++++++++++++++++-
+ .../email-verification-renewal.integration.test.js | 106 +++++++++
+ lib/screens/profile_screen.dart                    | 172 ++++++++++----
+ 5 files changed, 487 insertions(+), 46 deletions(-)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+ddf9594e (origin/codex/mawdda-unified-final) Validate recurring email verification rewards in CI
+4e424d8f Add email renewal emulator integration command
+80d815a0 Add email renewal reward integration test
+1d473eb1 Implement recurring 90-day email verification and reward
+d28b6f05 Clarify biometric reward cooldown feedback
+2e7f9a61 Call canonical biometric reward cycle endpoint
+18c0b3e0 Remove duplicate biometric cycle helper tests
+c2ea9f47 Remove duplicate biometric cycle helper
+31f37b5b Use canonical biometric reward cycle callable
+cff845b3 Add member email renewal and reward UI
+2fd653db Use deterministic reference for expired email cycle cleanup
+9e031a48 Harden email renewal transaction and retry behavior
+2c1a8584 Implement recurring 90-day email verification rewards
+61acbca1 Connect local biometric prompt to server reward cycle
+abfc375e Add server-side biometric reward cycle callable
+47862502 Test biometric reward cycle policy
+d06e108c Add server-clocked biometric reward cycles
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

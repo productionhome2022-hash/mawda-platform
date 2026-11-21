@@ -1,0 +1,91 @@
+Branch: codex/mawdda-step1-role-reconcile-2026-11-19
+Branch SHA: ea6b05253ab702e773611ec48d31518a50943acd
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+396	32
+
+--- Merge base ---
+8a1c8d0b93ed43570c523ab2d8c2598648ddac0e
+
+--- Changed files relative to common ancestor ---
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+M	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+A	docs/STEP1_ROLE_PR42_VALIDATION_TRIGGER_2026-11-19.md
+M	functions/package.json
+M	functions/src/advertising-governance.ts
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+M	functions/test/advertising-governance.test.js
+M	functions/test/integration/featured-ad-finance.integration.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/premium-profile.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+A	functions/test/platform-role-identities.test.js
+
+--- Diff statistics ---
+ .github/workflows/mawdda-domain-regression.yml     |   4 +
+ .github/workflows/validate.yml                     |   2 +
+ docs/IMPLEMENTATION_TRACEABILITY.md                |  17 ++-
+ .../MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md |  20 +++
+ docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md    |   6 +
+ docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md       |   2 +-
+ ...TEP1_ROLE_PR42_VALIDATION_TRIGGER_2026-11-19.md |   7 +
+ functions/package.json                             |   3 +-
+ functions/src/advertising-governance.ts            |   3 +-
+ functions/src/index.ts                             |  77 ++++++++++-
+ functions/src/platform-role-identities.ts          |  86 +++++++++++++
+ functions/test/advertising-governance.test.js      |  51 ++++++++
+ .../featured-ad-finance.integration.test.js        |   6 +
+ .../owner-entitlement-grants.integration.test.js   |   4 +-
+ .../premium-profile.integration.test.js            |   3 +-
+ .../specialized-role-capacity.integration.test.js  | 142 +++++++++++++++++++++
+ .../integration/wallet-store.integration.test.js   |  53 ++++++--
+ functions/test/platform-role-identities.test.js    |  50 ++++++++
+ 18 files changed, 513 insertions(+), 23 deletions(-)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+ea6b0525 (origin/codex/mawdda-step1-role-reconcile-2026-11-19) ci(step1): trigger exact-head validation for PR 42
+d4d51930 docs(index): link canonical administrative terminology
+66b4a211 docs(governance): record canonical administrative role boundaries
+a8690c99 docs(security): record role authorization integration gap
+562eb440 test(security): cover specialized permission and scope validation
+55375dce ci(roles): include role capacity regression workflow
+0402c33d ci(roles): include role capacity regression workflow
+8f1d581a test(roles): add specialized capacity emulator command
+e822ca4b test(roles): cover grant version overflow
+37aa27d2 fix(roles): reject grant version overflow
+3e2f910a fix(security): reject malformed specialized role scopes
+b2f621f7 test(roles): add specialized role capacity coverage
+7e32e66f test(roles): add specialized role capacity coverage
+fd189be8 test(roles): add specialized role capacity coverage
+5711f089 feat(roles): reconcile specialized role capacity with retention baseline
+179ba95f (origin/codex/mawdda-retention-approval-ci-repair-2026-11-19) test: cover store catalog version overflow boundary
+15f14733 fix: reject unsafe store catalog version overflow
+6fb0091d test: assert immutable featured-ad event snapshot fields
+c9d0f68a fix: persist resulting featured-ad snapshot in immutable event
+b93279ac test: seed explicit catalog versions in premium profile purchase fixtures
+9d0cadc4 test: configure bounds in custom coin request lifecycle fixture
+63916ade fix: return server catalog version from transactional publish
+94b04212 test: verify owner catalog versioning enables purchases
+485502dd fix: assign monotonic server versions to store catalog items
+032a66b3 fix: persist immutable timed ad campaign versions
+0972405c test: complete store and custom coin request fixtures
+4cf8c090 ci: run validation on retention approval repair branch
+7a383968 ci: run validation on retention approval repair branch
+a8c0656b docs: record confirmed retention policy and CI evidence
+5b805dd5 docs: align platform vision with approved chat retention
+7d058c0d docs: record owner-approved 30-day important chat retention
+124731af test: correct purchasable owner entitlement fixture
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

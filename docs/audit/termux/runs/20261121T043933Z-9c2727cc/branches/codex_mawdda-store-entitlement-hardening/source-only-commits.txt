@@ -1,0 +1,2 @@
+bca089273f4c3652eeb01d27f5cc2788c386c060	production home	2026-11-14T11:50:11+03:00	test: fix room event lifecycle cleanup assertion reference
+bcbd4659bbdd75aa0012f23a290e015043424503	production home	2026-11-14T11:50:09+03:00	test: cover every enabled store entitlement and idempotent purchase

@@ -1,0 +1,5 @@
+c0a14ef27b3c0442c969f872243214e637cdc188	production home	2026-11-20T16:00:42+03:00	test: use valid minimum room capacity for small audio groups
+37ebe8c64d85fe3a7fbe3d47f0422ae4f9fdf415	production home	2026-11-20T15:58:59+03:00	test: cover audio group sizes and video participant ceiling
+47e411b75dc9747c7b543dad3a94950cc905d9f0	production home	2026-11-20T15:58:47+03:00	fix: enforce and transactionally revalidate group call capacity
+ba1282dab557da8e8dc787a3acee27a86fb250b8	production home	2026-11-20T15:58:35+03:00	test: verify room-based audio and four-person video call limits
+e0876b8816bb1364fed566a67c875d77028ad9d4	production home	2026-11-20T15:58:32+03:00	fix: derive group call limits from room capacity and video cap

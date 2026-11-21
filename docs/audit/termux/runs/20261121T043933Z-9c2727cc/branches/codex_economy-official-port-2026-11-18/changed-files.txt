@@ -1,0 +1,9 @@
+M	docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md
+M	functions/src/coin-purchase-requests.ts
+M	functions/src/index.ts
+M	functions/test/coin-purchase-requests.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/room-rental.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+M	lib/screens/coin_purchase_screen.dart
+M	lib/screens/owner_coin_purchase_screen.dart
