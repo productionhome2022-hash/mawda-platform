@@ -84,6 +84,14 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
     await sendCallSignal.run(call(callerUid, {
       callId, toUid: calleeUid, signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
     }));
+    await calleeRef.collection("entitlements").doc("voice_call_30d").delete();
+    await assert.rejects(
+      () => respondToCall.run(call(calleeUid, { callId, response: "accept" })),
+      (error) => error && error.code === "failed-precondition",
+      "callee entitlement must still be active at acceptance time",
+    );
+    assert.equal((await callRef.get()).data().status, "ringing");
+    await seedCallEntitlement(calleeUid, "audio");
     await respondToCall.run(call(calleeUid, { callId, response: "accept" }));
     await sendCallSignal.run(call(calleeUid, {
       callId, toUid: callerUid, signal: { kind: "answer", payload: JSON.stringify({ type: "answer", sdp: "v=0" }), sequence: 0 },
