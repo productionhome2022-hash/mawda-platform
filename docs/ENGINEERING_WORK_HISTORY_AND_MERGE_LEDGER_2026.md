@@ -187,6 +187,7 @@ Backfill in bounded batches:
 | Date (UTC) | Change | Evidence |
 |---|---|---|
 | 2026-11-21 | Established mandatory engineering history, task dossier, source review and merge evidence protocol | This document; initial adoption checkpoint |
+| 2026-11-21 | Reorganized the central documentation entry into the owner's three-section structure; added a dated 14–21 November timeline and explicitly separated evidenced timestamps from unknown hours | DOC-CENTRAL-2026-11-21-001; commit `66caa5698dc08dde486f483c2061ac2f92e9169c`; task record `docs/engineering/work-history/2026-11-21-001-central-documentation-three-section-reorganization.md` |
 
 ## 11. Operational templates and initial Git evidence
 
