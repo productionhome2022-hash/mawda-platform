@@ -84,3 +84,31 @@ export function validateCallSignal(value: unknown): {
 export const CALL_RING_TIMEOUT_MS = 45_000;
 export const CALL_SIGNAL_MAX_AGE_MS = 2 * 60_000;
 export const CALL_SIGNAL_MAX_PER_CALLER = 256;
+
+
+/**
+ * A caller occupies a call slot while ringing. Room invitees occupy a slot
+ * only after acceptance. Rejected/departed members and terminal calls do not.
+ */
+export function isCallMemberBusyInSession(
+  memberUid: string,
+  session: {
+    callerUid?: unknown;
+    status?: unknown;
+    acceptedUids?: unknown;
+    rejectedUids?: unknown;
+    leftUids?: unknown;
+  },
+): boolean {
+  if (typeof memberUid !== "string" || memberUid.length === 0 ||
+      !session || typeof session !== "object") return false;
+  const status = session.status;
+  if (status !== "ringing" && status !== "accepted") return false;
+  const rejected = Array.isArray(session.rejectedUids) ? session.rejectedUids : [];
+  const left = Array.isArray(session.leftUids) ? session.leftUids : [];
+  if (rejected.includes(memberUid) || left.includes(memberUid)) return false;
+  if (session.callerUid === memberUid) return true;
+  if (status !== "accepted") return false;
+  const accepted = Array.isArray(session.acceptedUids) ? session.acceptedUids : [];
+  return accepted.includes(memberUid);
+}
