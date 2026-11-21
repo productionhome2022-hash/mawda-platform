@@ -83,3 +83,41 @@ The next safe implementation sequence is:
 6. Run the complete Functions build/unit/emulator suite on one exact SHA and document the actual CI evidence.
 
 No merge to `main`, deployment, live Firebase mutation, payment collection, or billing activation is authorized by this phase audit.
+
+
+## Follow-up implementation — 2026-11-21
+
+The following bounded integration work was subsequently added to the same official development branch:
+
+1. `functions/src/call-entitlements.ts`
+   - Validates a versioned owner-configured call test tariff using the canonical `group-call-economy.ts` validator.
+   - Marks every such policy `environment: test_only` and `billingEnabled: false`.
+   - Exposes a hard-false collection gate: no settings value can turn real call collection on.
+   - Produces a sanitized immutable test-price snapshot for a newly created call session.
+   - Provides a strict whitelist projection for member-visible gift history.
+
+2. `functions/src/index.ts`
+   - Adds MFA/owner-protected `getOwnerGroupCallPricingPolicy` and `setOwnerGroupCallPricingPolicy` callables.
+   - Versions every owner change and appends an owner audit event.
+   - Reads the configured test tariff transactionally when creating a call and freezes its version/rate in the call session; `getActiveCall` returns that test-only snapshot.
+   - Does not debit wallets, reserve coins, settle calls, or enable paid calling.
+   - Adds `getMyStoreGiftHistory`, which returns only completed/fulfilled sent and received store gifts for the authenticated member, with private/internal fields excluded.
+
+3. Owner/member Flutter integration
+   - Adds `lib/screens/group_call_pricing_screen.dart` and links it from the Super Owner dashboard.
+   - The screen lets the owner configure experimental audio/video per-minute values and enable/disable the test policy; it visibly states that collection is disabled.
+   - Extends `MemberEntitlementHistoryScreen` to display sent and received store gifts alongside free owner grants.
+
+4. Tests
+   - Adds unit coverage for test-only policy validation, immutable non-collecting price snapshots, and private gift-history projection.
+   - Adds Firestore Emulator integration coverage for owner tariff versioning, invalid values, collection remaining disabled, member history privacy, and ineligible-account rejection.
+   - Registers the integration test in `functions/package.json` and `test:all`.
+
+## Remaining boundary
+This follow-up integrates owner-controlled test prices into call-session metadata and gift-history display. It deliberately does **not** implement or activate paid-call settlement. The previously approved call entitlement package rules, both-party entitlement verification/consent, open-call metering, atomic wallet debits, ledger settlement, reversals, and recovery remain separate acceptance gates. The owner-configured test tariff is not a live price and cannot cause a charge.
+
+## Verification
+- GitHub reads confirm the new source, test, and Flutter files are present on the official development branch.
+- The integration test is registered but has not been executed in this environment.
+- No Functions TypeScript build, Node test suite, Firestore Emulator test, Flutter analyze/test, CI run, or device acceptance is claimed.
+- No production Firebase resources, real wallet balances, payment settings, `main`, or deployment targets were changed.
