@@ -46,3 +46,15 @@
 
 ## Evidence limitation
 Compare endpoints expose branch ancestry and changed-file summaries, not the full semantic effect of every unique commit. This inventory is a triage record, not a claim that every specialist branch has been exhaustively reviewed. Local Termux/Ubuntu historical replay evidence remains incomplete as recorded in the baseline-selection report.
+
+
+## Additional role, capacity and room-media comparisons
+
+- `codex/mawdda-role-capacity-final-2026-11-19` is divergent (40 ahead / 679 behind; 16 changed paths), but its copies of `platform-role-identities.ts`, `platform-role-identities.test.js`, and `advertising-governance.ts` are smaller than the selected baseline. The selected baseline versions are therefore not to be overwritten by this older branch snapshot.
+- The same role-family pattern appears in `codex/mawdda-role-capacity-after-retention-2026-11-19` and `codex/mawdda-step1-role-reconcile-2026-11-19`: divergent histories and several unique docs/tests, but no justification for whole-branch integration.
+- `codex/mawdda-room-audio-duration-enforcement` is divergent (5 ahead / 1,649 behind; 12 changed paths). Its versions of `media.ts` and scanner code are smaller than the selected baseline. Its Flutter room/audio UI files should be reviewed as regression-test references, not copied over current screens without a targeted gap.
+- `codex/mawdda-room-events` is a separate audit-archive concern (4 changed paths: audit archive service, exports, tests and README). It is not the room rental/call lifecycle and must be evaluated independently.
+- `codex/phase1-store-gifting-catalog-version-regressions-2026-11-20` contains a one-file test-only delta in the store-gifting integration suite. Review its exact assertions against the current suite before deciding whether a test-only port is warranted.
+
+## Revised port decision
+The second pass strengthens the decision to retain the selected baseline source files. Several specialist branches contain unique commits but their checked source snapshots are older/smaller than the baseline. The remaining candidate work is primarily assertion-level gap analysis, documentation reconciliation, and checking whether any newer specialist test covers a failure mode not already exercised by the baseline.
