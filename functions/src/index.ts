@@ -3,6 +3,9 @@ import {
   isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, calculateStoreGiftExpiryMs,
 } from "./store-gifting";
 import {
+  validateGroupCallEntitlementPolicy, isGroupCallBillingCollectionEnabled, projectStoreGiftHistoryEntry,
+} from "./call-entitlements";
+import {
   assertPlatformRoleCapacity,
   platformRoleCapacity,
   PLATFORM_ROLE_CAPACITY,
@@ -11162,4 +11165,103 @@ export const cleanupExpiredCallSignals = onSchedule("every 5 minutes", async () 
       signalsCleanedAtTimestamp: FieldValue.serverTimestamp(),
     });
   }
+});
+
+
+/**
+ * Super-owner controlled development tariff. Values are test-only configuration;
+ * the separate collection gate is hard-disabled and cannot be enabled here.
+ */
+const GROUP_CALL_PRICING_SETTINGS = db.doc("platformSettings/groupCallPricing");
+
+export const getOwnerGroupCallPricingPolicy = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await GROUP_CALL_PRICING_SETTINGS.get();
+  if (!snapshot.exists) {
+    return { configured: false, policy: null, billingEnabled: false, environment: "test_only" };
+  }
+  let policy;
+  try { policy = validateGroupCallEntitlementPolicy(snapshot.data()?.policy); }
+  catch {
+    throw new HttpsError("failed-precondition", "إعدادات أسعار المكالمات التجريبية غير صالحة؛ لم نعرضها.");
+  }
+  return {
+    configured: true, policy,
+    billingEnabled: isGroupCallBillingCollectionEnabled(snapshot.data()),
+    environment: "test_only",
+  };
+});
+
+export const setOwnerGroupCallPricingPolicy = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const audioCoinsPerMinute = request.data?.audioCoinsPerMinute;
+  const videoCoinsPerMinute = request.data?.videoCoinsPerMinute;
+  const active = request.data?.active;
+  if (typeof active !== "boolean" ||
+      !Number.isSafeInteger(audioCoinsPerMinute) || audioCoinsPerMinute < 0 ||
+      !Number.isSafeInteger(videoCoinsPerMinute) || videoCoinsPerMinute < 0 ||
+      (active && audioCoinsPerMinute === 0 && videoCoinsPerMinute === 0)) {
+    throw new HttpsError("invalid-argument", "أسعار المكالمات التجريبية أو حالة تفعيلها غير صالحة.");
+  }
+  const policy = await db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(GROUP_CALL_PRICING_SETTINGS);
+    const oldVersion = previous.data()?.policy?.version ?? 0;
+    if (!Number.isSafeInteger(oldVersion) || oldVersion < 0) {
+      throw new HttpsError("failed-precondition", "إصدار سياسة أسعار المكالمات غير صالح.");
+    }
+    const nextVersion = oldVersion + 1;
+    if (!Number.isSafeInteger(nextVersion)) {
+      throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة أسعار المكالمات.");
+    }
+    const next = validateGroupCallEntitlementPolicy({
+      policyId: `group_call_${randomUUID()}`,
+      version: nextVersion,
+      active,
+      audioCoinsPerMinute,
+      videoCoinsPerMinute,
+      updatedAtMs: Date.now(),
+      environment: "test_only",
+      billingEnabled: false,
+    });
+    transaction.set(GROUP_CALL_PRICING_SETTINGS, {
+      policy: next,
+      environment: "test_only",
+      billingEnabled: false,
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: actorUid,
+      createdAt: previous.data()?.createdAt ?? FieldValue.serverTimestamp(),
+    });
+    return next;
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid, action: "group_call_test_pricing_policy_updated",
+    policyId: policy.policyId, version: policy.version,
+    active: policy.active,
+    audioCoinsPerMinute: policy.audioCoinsPerMinute,
+    videoCoinsPerMinute: policy.videoCoinsPerMinute,
+    billingEnabled: false, environment: "test_only", outcome: "success",
+  });
+  return { saved: true, policy, billingEnabled: false, environment: "test_only" };
+});
+
+/** Member-visible sent/received gift history; only whitelisted fields leave the server. */
+export const getMyStoreGiftHistory = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const member = await db.collection("users").doc(uid).get();
+  if (!member.exists || member.data()?.profileCompleted !== true ||
+      !isMemberAccountInGoodStanding(member.data())) {
+    throw new HttpsError("permission-denied", "سجل الهدايا متاح للأعضاء المسجلين النشطين فقط.");
+  }
+  const [sent, received] = await Promise.all([
+    db.collection("storeGifts").where("senderUid", "==", uid).limit(50).get(),
+    db.collection("storeGifts").where("recipientUid", "==", uid).limit(50).get(),
+  ]);
+  const entries = [
+    ...sent.docs,
+    ...received.docs.filter((doc) => !sent.docs.some((sentDoc) => sentDoc.id === doc.id)),
+  ].map((doc) => projectStoreGiftHistoryEntry(doc.data(), uid))
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+    .sort((left, right) => (right.createdAtMs ?? 0) - (left.createdAtMs ?? 0))
+    .slice(0, 50);
+  return { entries, nextPageAvailable: sent.size === 50 || received.size === 50 };
 });
