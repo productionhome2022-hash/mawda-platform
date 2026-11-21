@@ -70,9 +70,9 @@ jobs:
       - name: Run owner entitlement grant and replay regressions
         run: npm run test:owner-entitlement-grants-integration
       - name: Run featured-ad reward policy regressions
-        run: npm run test:featured-ad-reward-policy-integration
+        run: npm run test:featured-ad-finance-integration
       - name: Run store catalog regressions
-        run: npm run test:store-catalog-integration
+        run: npm run test:store-gifting-integration
       - name: Run room-rental wallet and replay regressions
         run: npm run test:room-rental-integration
       - name: Run email verification reward-cycle regressions
